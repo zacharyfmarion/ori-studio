@@ -384,6 +384,37 @@ export function constrainBpPackingPoint(point: Point, sheet: OristudioBpSheet): 
   };
 }
 
+/**
+ * Whether a point lies within the sheet. Defined as "constraining it changes
+ * nothing", which reuses the already-ported rectangular and diagonal constrain
+ * logic instead of re-deriving the diamond containment test — the same
+ * semantics the engine's `BpGrid::contains` uses. Flap dots are integer grid
+ * coordinates, so an exact match is safe (a tiny epsilon guards float drift).
+ */
+export function bpPackingSheetContains(point: Point, sheet: OristudioBpSheet): boolean {
+  const fixed = constrainBpPackingPoint(point, sheet);
+  return Math.abs(fixed.x - point.x) < 1e-6 && Math.abs(fixed.y - point.y) < 1e-6;
+}
+
+/**
+ * Whether a flap of the given footprint may sit at `anchor`, mirroring the
+ * engine's `validate_flap_with_sheet`: at most one of the flap's four corner
+ * tips may fall outside the sheet. Used to pre-check a width/height edit so an
+ * out-of-range value snaps back instantly instead of failing an engine round
+ * trip (matching Box Pleating Studio, whose resize setter silently rejects).
+ */
+export function bpPackingCanResizeFlap(
+  anchor: Point,
+  width: number,
+  height: number,
+  sheet: OristudioBpSheet
+): boolean {
+  const offSheet = flapDots(anchor, width, height).filter(
+    (dot) => !bpPackingSheetContains(dot, sheet)
+  ).length;
+  return offSheet <= 1;
+}
+
 function constrainFlap(
   constrain: (point: Point) => Point,
   location: Point,

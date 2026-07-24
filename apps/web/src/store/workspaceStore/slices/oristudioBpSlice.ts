@@ -16,6 +16,7 @@ import {
   moveOristudioBpLayoutFlaps as moveRuntimeOristudioBpLayoutFlaps,
   moveOristudioBpTreeVertex as moveRuntimeOristudioBpTreeVertex,
   renameOristudioBpTreeVertex as renameRuntimeOristudioBpTreeVertex,
+  resizeOristudioBpLayoutFlap as resizeRuntimeOristudioBpLayoutFlap,
   oristudioBpError,
   rotateOristudioBpLayoutSheet as rotateRuntimeOristudioBpLayoutSheet,
   subdivideOristudioBpLayoutSheet as subdivideRuntimeOristudioBpLayoutSheet,
@@ -699,6 +700,20 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             dragging,
           }),
         { dragging, selection: { kind: 'bp-flap', id } }
+      ),
+
+    resizeOristudioBpLayoutFlap: async (id, width, height) =>
+      // Discrete commit (not a drag): one solve, one undo entry. The engine
+      // no-ops an unchanged size and rejects one that pushes more than one flap
+      // corner off the sheet (surfaced as an error by runBpTreeMutation, which
+      // leaves the document — and the field's rendered value — unchanged).
+      runBpTreeMutation(
+        'Resized BP flap',
+        () =>
+          resizeRuntimeOristudioBpLayoutFlap(id, width, height, {
+            activeSurface: 'packing',
+          }),
+        { selection: { kind: 'bp-flap', id } }
       ),
 
     moveOristudioBpLayoutFlaps: async (ids, loc, dragging = false) =>
