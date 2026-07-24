@@ -92,6 +92,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const foldOristudioCpDocument = useWorkspaceStore((s) => s.foldOristudioCpDocument);
   const exportSegment = useWorkspaceStore((s) => s.exportOristudioCpSegment);
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
+  const clearSelection = useWorkspaceStore((s) => s.clearOristudioCpSelection);
 
   // Only a line selection can form a segment. Ensure artifacts lazily (debounced)
   // when one exists and none are cached — never forcing a recompute.
@@ -121,6 +122,16 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const anchorRect = useCanvasObjectAnchor(box, 'model', container);
   if (!match) return null;
 
+  // Every action dismisses the toolbar by clearing the selection: it otherwise
+  // lingers over the surface (and over the export modal, which it out-z-indexes).
+  // Actions capture their segment id / line ids up front, so clearing the live
+  // selection cannot affect the operation in flight.
+  const { segmentId, cpLineIds } = match;
+  const runAndDismiss = (action: () => void) => {
+    action();
+    clearSelection();
+  };
+
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
@@ -131,19 +142,19 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         size="sm"
         variant="toolbar"
         title={t('panels:creasePattern.selectionToolbar.fold', 'Fold')}
-        onClick={() => void foldOristudioCpDocument({ lineIds: match.cpLineIds })}
+        onClick={() => runAndDismiss(() => void foldOristudioCpDocument({ lineIds: cpLineIds }))}
       >
         <Origami size={14} />
       </IconButton>
       <ExportMenu
         label={t('panels:creasePattern.selectionToolbar.export', 'Export…')}
-        onExport={(format) => void exportSegment(format, match.segmentId)}
+        onExport={(format) => runAndDismiss(() => void exportSegment(format, segmentId))}
       />
       <IconButton
         size="sm"
         variant="toolbar"
         title={t('panels:creasePattern.selectionToolbar.saveImage', 'Save to image')}
-        onClick={() => void exportSegment('png', match.segmentId)}
+        onClick={() => runAndDismiss(() => void exportSegment('png', segmentId))}
       >
         <ImageDown size={14} />
       </IconButton>
@@ -151,7 +162,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         size="sm"
         variant="toolbar"
         title={t('panels:creasePattern.selectionToolbar.simulate', 'Simulate')}
-        onClick={() => simulateSegment(match.segmentId)}
+        onClick={() => runAndDismiss(() => simulateSegment(segmentId))}
       >
         <Play size={14} />
       </IconButton>

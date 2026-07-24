@@ -144,6 +144,17 @@ describe('CpSelectionToolbar', () => {
     expect(document.querySelector('button[aria-label="Export…"]')).not.toBeNull();
   });
 
+  it('dismisses itself when an action is invoked', () => {
+    seedStore([1, 3, 5, 7, 8]);
+    act(() => renderToolbar(root, container));
+    const save = document.querySelector<HTMLButtonElement>('button[aria-label="Save to image"]');
+    expect(save).not.toBeNull();
+    act(() => save!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    // The action clears the selection, so the resolver no longer matches.
+    expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
+    expect(document.querySelector('[role="toolbar"]')).toBeNull();
+  });
+
   it('hides again when the selection is cleared', () => {
     seedStore([1, 3, 5, 7, 8]);
     act(() => renderToolbar(root, container));
