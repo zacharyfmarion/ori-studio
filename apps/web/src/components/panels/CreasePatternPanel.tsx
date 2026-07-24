@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1132,11 +1131,18 @@ export function CreasePatternPanel() {
   // Object toolbars anchor themselves against the *live* camera (see
   // useCanvasObjectAnchor); the panel only supplies the element they measure
   // from. Anchoring off the panel's debounced camera copy left them behind
-  // during a zoom until the debounce fired. The element is stable for the
-  // panel's lifetime, so capture it once on mount.
+  // during a zoom until the debounce fired.
+  //
+  // The viewport lives behind `hasCreasePattern`, so it isn't in the DOM when
+  // the panel first mounts (the CP provisions asynchronously). A callback ref
+  // captures it the moment it attaches — and re-captures on any remount — so
+  // the toolbars can anchor as soon as the viewport exists. `cpViewportRef`
+  // stays populated for imperative reads; `toolbarContainer` state drives the
+  // re-render that hands the element to the toolbar consumers.
   const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    setToolbarContainer(cpViewportRef.current);
+  const attachViewport = useCallback((el: HTMLDivElement | null) => {
+    cpViewportRef.current = el;
+    setToolbarContainer(el);
   }, []);
   // Annotation-layer state captured at the start of a move/resize/rotate/edit
   // gesture, so the whole gesture records a single undo entry on commit.
@@ -3397,7 +3403,7 @@ export function CreasePatternPanel() {
             )}
             <div
               className="cp-panel__viewport"
-              ref={cpViewportRef}
+              ref={attachViewport}
               onDragOver={handleViewportDragOver}
               onDrop={handleViewportDrop}
             >
