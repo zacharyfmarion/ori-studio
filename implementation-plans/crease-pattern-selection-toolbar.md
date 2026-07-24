@@ -80,17 +80,17 @@ Confirmed the load-bearing assumptions by tracing the authoritative code:
 
 New module `apps/web/src/lib/creasePatternSelectionSegment.ts`:
 
-- [ ] `segmentCpLineIds(document, segments)` — for each CP line, test its
+- [x] `segmentCpLineIds(document, segments)` — for each CP line, test its
       midpoint against each segment via `pointInSegment` (coords are identity —
       no transform); collect the 1-based line ids inside each segment. Memoized
       per `(document, segments)` identity.
-- [ ] `resolveSelectedSegment(document, selection, foldArtifacts)
+- [x] `resolveSelectedSegment(document, selection, foldArtifacts)
       : SelectedSegmentMatch | null` — returns the segment whose complete CP-line
       set equals `selection.lines` as a set, else `null`. Guards: empty selection,
       missing fold, degenerate transform.
-- [ ] `SelectedSegmentMatch = { segment, segmentId, cpLineIds, boundsModel }`
+- [x] `SelectedSegmentMatch = { segment, segmentId, cpLineIds, boundsModel }`
       (`boundsModel` in CP model space, for anchoring).
-- [ ] Unit tests: exact match; interior-only selection → null; cross-region
+- [x] Unit tests: exact match; interior-only selection → null; cross-region
       selection → null; whole-sheet segment; empty/missing inputs.
 
 ### Phase 2 — Per-region export seam
@@ -98,13 +98,13 @@ New module `apps/web/src/lib/creasePatternSelectionSegment.ts`:
 New `apps/web/src/lib/creaseSegmentExport.ts` (+ a kernel helper in
 `oristudioCpRuntime.ts`):
 
-- [ ] `exportFoldAsKernelFormat(foldJson, 'cp'|'ori'|'orh'): Promise<string>` in
+- [x] `exportFoldAsKernelFormat(foldJson, 'cp'|'ori'|'orh'): Promise<string>` in
       `oristudioCpRuntime.ts` — scratch handle: import fold → export → dispose in
       `finally`.
-- [ ] `exportSegment(format, match, foldArtifacts): Promise<{text, filename}>` —
+- [x] `exportSegment(format, match, foldArtifacts): Promise<{text, filename}>` —
       FOLD via `buildSegmentFold` + stringify; kernel formats via the helper;
       routes SVG/PNG to the modal path (below), not a silent download.
-- [ ] Tests for FOLD + kernel-format sub-region export and scratch-handle
+- [x] Tests for FOLD + kernel-format sub-region export and scratch-handle
       cleanup on error.
 
 ### Phase 3 — Store actions
@@ -112,38 +112,38 @@ New `apps/web/src/lib/creaseSegmentExport.ts` (+ a kernel helper in
 In `creasePatternSlice.ts` / `projectSlice.ts` (mirroring the
 `sendTreeCreasePatternToEdit` handoff pattern):
 
-- [ ] `foldOristudioCpSegment(match)` → `foldOristudioCpDocument({ lineIds:
+- [x] `foldOristudioCpSegment(match)` → `foldOristudioCpDocument({ lineIds:
       match.cpLineIds })`.
-- [ ] `exportOristudioCpSegment(format, match, fileService)` — dispatch to the
+- [x] `exportOristudioCpSegment(format, match, fileService)` — dispatch to the
       seam; image formats call `requestCreasePatternExportOptions({ fold,
       segments, initialOptions: { segmentId, format } })`.
-- [ ] `saveOristudioCpSegmentImage(match)` — open the image modal pre-scoped.
-- [ ] `simulateOristudioCpSegment(segmentId)` — `setSelectedSegment(segmentId)`
+- [x] `saveOristudioCpSegmentImage(match)` — open the image modal pre-scoped.
+- [x] `simulateOristudioCpSegment(segmentId)` — `setSelectedSegment(segmentId)`
       then `activateWorkspace('simulate')` / navigate `/simulate`.
 
 ### Phase 4 — Toolbar component + wiring
 
-- [ ] `apps/web/src/cp-workspace/CpSelectionToolbar.tsx` — reads selection +
+- [x] `apps/web/src/cp-workspace/CpSelectionToolbar.tsx` — reads selection +
       document + cached `foldArtifacts`; lazily/debounced `ensureFoldArtifacts()`
       when a plausible line selection exists; runs the resolver; on match builds
       an `AnnotationBox` from `boundsModel` → `useCanvasObjectAnchor` →
       `FloatingToolbar` with the four controls. Export uses the `DropdownMenu`
       pattern; buttons use `IconButton` (`size="sm" variant="toolbar"`) with
       lucide icons + tooltips.
-- [ ] Mount in `CreasePatternPanel.tsx` beside `CpImageInspector`, gated by
+- [x] Mount in `CreasePatternPanel.tsx` beside `CpImageInspector`, gated by
       `annotationsInteractive && !editingTextId && !selectedCpImage` plus the
       resolver match.
-- [ ] i18n strings (`panels`/`tools`/`toasts`) per `apps/web/CLAUDE.md`, then
+- [x] i18n strings (`panels`/`tools`/`toasts`) per `apps/web/CLAUDE.md`, then
       `i18n:extract` / `i18n:check`.
 
 ### Phase 5 — Error handling & polish
 
-- [ ] `foldArtifacts` load failure → toolbar silently absent (no crash).
-- [ ] Scratch-kernel export failure → dispose in `finally`, surface a toast, no
+- [x] `foldArtifacts` load failure → toolbar silently absent (no crash).
+- [x] Scratch-kernel export failure → dispose in `finally`, surface a toast, no
       orphaned handles.
-- [ ] Capture `foldArtifacts`/`segmentId` at action-dispatch time so a
+- [x] Capture `foldArtifacts`/`segmentId` at action-dispatch time so a
       mid-action edit can't drift the id.
-- [ ] Gating tests (image selected, text editing, annotations non-interactive).
+- [x] Gating tests (image selected, text editing, annotations non-interactive).
 
 ## Affected Areas
 
