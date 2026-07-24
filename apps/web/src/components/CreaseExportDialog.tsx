@@ -460,13 +460,6 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   aria-label={t('dialogs:export.showBackgroundColor', 'Show background color')}
                 />
               </div>
-            </ExportSection>
-            <ExportSection
-              id="folded"
-              title={t('dialogs:export.foldedFigureSection', 'Folded figure')}
-              open={openSections.folded}
-              onToggle={toggleSection}
-            >
               <div className="export-modal__toggle-row">
                 <div className="export-modal__toggle-copy">
                   <span>{t('dialogs:export.includeFoldedFigure', 'Include folded figure')}</span>
@@ -504,72 +497,77 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   aria-label={t('dialogs:export.includeFoldedFigure', 'Include folded figure')}
                 />
               </div>
-              {includeFoldedFigure && canFold && (
-                <>
-                  <div className="export-modal__control-group">
-                    <span className="export-modal__label">
-                      {t('dialogs:export.foldedSide', 'Side')}
-                    </span>
-                    <SegmentedControl<OristudioCpFoldedFigureState>
-                      aria-label={t('dialogs:export.foldedSide', 'Side')}
-                      value={foldedSettings.side}
-                      onChange={(side) => patchFolded({ side })}
-                      options={FOLDED_SIDE_OPTIONS.map((value) => ({
-                        value,
-                        label: foldedSideLabel(t, value),
-                        title: foldedSideTitle(t, value),
-                      }))}
-                    />
-                  </div>
-                  <div className="export-modal__colors">
-                    <label className="export-modal__color">
-                      <span>{t('dialogs:export.foldedFrontColor', 'Front')}</span>
-                      <input
-                        type="color"
-                        aria-label={t('dialogs:export.foldedFrontColor', 'Front')}
-                        value={foldedSettings.frontColor}
-                        onChange={(event) =>
-                          patchFolded({ frontColor: event.currentTarget.value })
-                        }
-                      />
-                    </label>
-                    <label className="export-modal__color">
-                      <span>{t('dialogs:export.foldedBackColor', 'Back')}</span>
-                      <input
-                        type="color"
-                        aria-label={t('dialogs:export.foldedBackColor', 'Back')}
-                        value={foldedSettings.backColor}
-                        onChange={(event) =>
-                          patchFolded({ backColor: event.currentTarget.value })
-                        }
-                      />
-                    </label>
-                  </div>
-                  <div className="export-modal__control-group">
-                    <label className="export-modal__label" htmlFor="export-fold-case">
-                      {t('dialogs:export.foldedCase', 'Fold case')}
-                    </label>
-                    <input
-                      id="export-fold-case"
-                      type="number"
-                      min={1}
-                      step={1}
-                      className="export-modal__input"
-                      value={foldedSettings.foldCase}
-                      onChange={(event) => {
-                        const next = Number.parseInt(event.currentTarget.value, 10);
-                        patchFolded({ foldCase: Number.isFinite(next) ? Math.max(1, next) : 1 });
-                      }}
-                    />
-                    <small className="export-modal__hint">
-                      {t('dialogs:export.foldedCasesFound', '{{count}} found so far', {
-                        count: discoveredCases,
-                      })}
-                    </small>
-                  </div>
-                </>
-              )}
             </ExportSection>
+            {includeFoldedFigure && canFold && (
+              <ExportSection
+                id="folded"
+                title={t('dialogs:export.foldedFigureSection', 'Folded figure')}
+                open={openSections.folded}
+                onToggle={toggleSection}
+            >
+                <div className="export-modal__control-group">
+                  <span className="export-modal__label">
+                    {t('dialogs:export.foldedSide', 'Side')}
+                  </span>
+                  <SegmentedControl<OristudioCpFoldedFigureState>
+                    aria-label={t('dialogs:export.foldedSide', 'Side')}
+                    value={foldedSettings.side}
+                    onChange={(side) => patchFolded({ side })}
+                    options={FOLDED_SIDE_OPTIONS.map((value) => ({
+                      value,
+                      label: foldedSideLabel(t, value),
+                      title: foldedSideTitle(t, value),
+                    }))}
+                  />
+                </div>
+                <div className="export-modal__colors">
+                  <label className="export-modal__color">
+                    <span>{t('dialogs:export.foldedFrontColor', 'Front')}</span>
+                    <input
+                      type="color"
+                      aria-label={t('dialogs:export.foldedFrontColor', 'Front')}
+                      value={foldedSettings.frontColor}
+                      onChange={(event) =>
+                        patchFolded({ frontColor: event.currentTarget.value })
+                      }
+                    />
+                  </label>
+                  <label className="export-modal__color">
+                    <span>{t('dialogs:export.foldedBackColor', 'Back')}</span>
+                    <input
+                      type="color"
+                      aria-label={t('dialogs:export.foldedBackColor', 'Back')}
+                      value={foldedSettings.backColor}
+                      onChange={(event) =>
+                        patchFolded({ backColor: event.currentTarget.value })
+                      }
+                    />
+                  </label>
+                </div>
+                <div className="export-modal__control-group">
+                  <label className="export-modal__label" htmlFor="export-fold-case">
+                    {t('dialogs:export.foldedCase', 'Fold case')}
+                  </label>
+                  <input
+                    id="export-fold-case"
+                    type="number"
+                    min={1}
+                    step={1}
+                    className="export-modal__input"
+                    value={foldedSettings.foldCase}
+                    onChange={(event) => {
+                      const next = Number.parseInt(event.currentTarget.value, 10);
+                      patchFolded({ foldCase: Number.isFinite(next) ? Math.max(1, next) : 1 });
+                    }}
+                  />
+                  <small className="export-modal__hint">
+                    {t('dialogs:export.foldedCasesFound', '{{count}} found so far', {
+                      count: discoveredCases,
+                    })}
+                  </small>
+                </div>
+              </ExportSection>
+            )}
             <ExportSection
               id="text"
               title={t('dialogs:export.textSection', 'Text')}

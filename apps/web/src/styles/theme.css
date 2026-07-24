@@ -1347,7 +1347,6 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-left: -17px;
   padding: 0;
   border: none;
   background: none;
@@ -1356,6 +1355,11 @@
   font-weight: 700;
   text-align: left;
   cursor: pointer;
+}
+
+.export-modal__section-toggle .export-modal__section-chevron {
+  flex: none;
+  color: var(--text-secondary);
 }
 
 .export-modal__section-toggle:hover {

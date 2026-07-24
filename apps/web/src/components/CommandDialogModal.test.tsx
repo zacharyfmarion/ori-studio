@@ -375,9 +375,6 @@ describe('CommandDialogModal', () => {
       });
     });
 
-    act(() => {
-      openSection(rendered, 'Folded figure');
-    });
     const toggle = rendered.querySelector(
       '[aria-label="Include folded figure"]'
     ) as HTMLButtonElement;
@@ -415,9 +412,6 @@ describe('CommandDialogModal', () => {
       });
     });
 
-    act(() => {
-      openSection(rendered, 'Folded figure');
-    });
     const toggle = rendered.querySelector('[aria-label="Include folded figure"]');
     expect(toggle?.hasAttribute('disabled')).toBe(true);
     expect(rendered.textContent).toContain('Open an editable crease pattern to fold it');
@@ -444,9 +438,6 @@ describe('CommandDialogModal', () => {
       });
     });
 
-    act(() => {
-      openSection(rendered, 'Folded figure');
-    });
     await act(async () => {
       (rendered.querySelector('[aria-label="Include folded figure"]') as HTMLButtonElement).click();
     });
