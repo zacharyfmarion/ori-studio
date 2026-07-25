@@ -9,6 +9,7 @@ import { WebglSolver } from '../../src/webgl/webglSolver.js';
 import { cameraUniforms, centroid, boundingRadius } from '../../src/webgl/camera.js';
 import type { RenderSettings } from '../../src/webgl/meshRenderer.js';
 import { FIXTURES } from '../fixtures.js';
+import type { FoldDocument } from '../../src/types.js';
 
 interface GpuParityRow {
   fixture: string;
@@ -196,10 +197,14 @@ interface StabilityRow {
   backend: 'webgl2' | 'reference';
   vertices: number;
   steps: number;
+  timeStepScale?: number;
   firstBadStep: number | null;
   firstBadFoldPercent: number | null;
   firstBadKind: 'nonfinite' | 'strain' | null;
   maxStrainSeen: number;
+  firstBadTexture?: string;
+  firstBadTextureStep?: number;
+  maxAbsPositionAtFailure?: number;
   error?: string;
 }
 
@@ -209,20 +214,34 @@ declare global {
       fixtureNames: string[],
       totalSteps: number,
       chunk: number,
-      strainLimit: number
+      strainLimit: number,
+      extraFolds?: Record<string, FoldDocument>,
+      timeStepScale?: number,
+      fineFrom?: number
     ) => StabilityRow[];
   }
 }
 
-window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit) => {
+window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraFolds = {}, timeStepScale = 1, fineFrom = Number.POSITIVE_INFINITY) => {
   const rows: StabilityRow[] = [];
+  const builders: Array<{ name: string; build: () => FoldDocument }> = [
+    ...fixtureNames.flatMap((name) => {
+      const fixture = FIXTURES.find((f) => f.name === name);
+      return fixture ? [{ name, build: () => fixture.build() as FoldDocument }] : [];
+    }),
+    // Real imported geometry passed in from the driver, so a model that only
+    // misbehaves outside the synthetic fixtures is still covered.
+    ...Object.entries(extraFolds).map(([name, fold]) => ({
+      name,
+      build: () => structuredClone(fold) as FoldDocument,
+    })),
+  ];
 
-  for (const name of fixtureNames) {
-    const fixture = FIXTURES.find((f) => f.name === name);
-    if (!fixture) continue;
+  for (const entry of builders) {
+    const name = entry.name;
 
     for (const backendId of ['webgl2', 'reference'] as const) {
-      const model = new OrigamiModel(prepareFoldModel(fixture.build(), { triangulate: true }));
+      const model = new OrigamiModel(prepareFoldModel(entry.build(), { triangulate: true }));
       const row: StabilityRow = {
         fixture: name,
         backend: backendId,
@@ -232,6 +251,7 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit) => {
         firstBadFoldPercent: null,
         firstBadKind: null,
         maxStrainSeen: 0,
+        timeStepScale,
       };
 
       try {
@@ -244,17 +264,57 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit) => {
             rows.push({ ...row, error: 'WebGL2 unsupported' });
             continue;
           }
-          solver = new WebglSolver(canvas, model, { foldPercent: 0 });
+          solver = new WebglSolver(canvas, model, { foldPercent: 0, timeStepScale });
         } else {
-          solver = new ReferenceSolver(model, { foldPercent: 0 });
+          solver = new ReferenceSolver(model, { foldPercent: 0, timeStepScale });
         }
 
-        for (let done = 0; done < totalSteps; done += chunk) {
+        for (let done = 0; done < totalSteps; ) {
+          const thisChunk = done >= fineFrom ? 1 : chunk;
           // Ramp the fold target across the run, the way playback does.
           const foldPercent = Math.min(100, (done / totalSteps) * 100);
           solver.setFoldPercent(foldPercent);
-          solver.step(chunk);
+          solver.step(thisChunk);
+          done += thisChunk;
 
+          // Pinpoint which texture first goes non-finite, which identifies the
+          // pass that produced the NaN.
+          if (backendId === 'webgl2' && row.firstBadTexture === undefined) {
+            const internals = solver as unknown as {
+              gl: { readTexture(n: string): Float32Array };
+              packed: { dims: { faces: number; creases: number } };
+            };
+            const dims = internals.packed.dims;
+            // Only the meaningful prefix of each texture: the power-of-two
+            // padding texels are not real elements and legitimately hold
+            // garbage, which would be a false positive.
+            const targets: Array<[string, number]> = [
+              ['u_normals', dims.faces],
+              ['u_lastTheta', dims.creases],
+              ['u_creaseGeo', dims.creases],
+              ['u_lastVelocity', solver.vertexCount],
+              ['u_lastPosition', solver.vertexCount],
+            ];
+            const badList: string[] = [];
+            let maxAbsPos = 0;
+            for (const [tex, count] of targets) {
+              try {
+                const raw = internals.gl.readTexture(tex);
+                let bad = false;
+                for (let k = 0; k < count * 4; k += 1) {
+                  const v = raw[k]!;
+                  if (!Number.isFinite(v)) bad = true;
+                  else if (tex === 'u_lastPosition' && Math.abs(v) > maxAbsPos) maxAbsPos = Math.abs(v);
+                }
+                if (bad) badList.push(tex);
+              } catch { /* texture may not exist */ }
+            }
+            if (badList.length) {
+              row.firstBadTexture = badList.join('+');
+              row.firstBadTextureStep = done;
+              row.maxAbsPositionAtFailure = maxAbsPos;
+            }
+          }
           const velocity = solver.maxVelocity();
           const strain = solver.readDiagnostics().maxEdgeStrain ?? 0;
           if (Number.isFinite(strain) && strain > row.maxStrainSeen) row.maxStrainSeen = strain;
@@ -262,7 +322,7 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit) => {
           const nonFinite = !Number.isFinite(velocity) || !Number.isFinite(strain);
           const exceeds = Number.isFinite(strain) && strain > strainLimit;
           if ((nonFinite || exceeds) && row.firstBadStep === null) {
-            row.firstBadStep = done + chunk;
+            row.firstBadStep = done;
             row.firstBadFoldPercent = foldPercent;
             row.firstBadKind = nonFinite ? 'nonfinite' : 'strain';
             break; // the first failure is the datum; afterwards it is garbage

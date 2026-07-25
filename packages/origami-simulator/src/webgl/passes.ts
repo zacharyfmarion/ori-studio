@@ -15,8 +15,32 @@
 //   VELOCITY_CALC    <- velocityCalcShader
 //   POSITION_CALC    <- positionCalcShader
 
+/**
+ * `normalize` that survives a zero-length vector, mirroring ReferenceSolver's
+ * `normalize` helper (which returns [0, 1, 0] below EPSILON) so both backends
+ * agree in the degenerate case.
+ *
+ * GLSL's built-in `normalize(vec3(0))` divides by zero and yields NaN, and a
+ * single NaN propagates through the position texture until the whole mesh is
+ * non-finite and vanishes. Upstream's shaders are unguarded here and simply
+ * break on such geometry; the CPU reference -- our oracle, and what shipped
+ * before the GPU port -- guards it, so a real crease pattern whose triangle
+ * momentarily collapses (or whose crease endpoints coincide) mid-fold keeps
+ * solving on the CPU but exploded on the GPU. Matching the reference is the
+ * fix; the guard only ever changes behaviour where the unguarded result is
+ * undefined.
+ */
+const SAFE_NORMALIZE = `
+vec3 safeNormalize(vec3 v){
+  float len = length(v);
+  if (len <= 0.000001) return vec3(0.0, 1.0, 0.0);
+  return v/len;
+}
+`;
+
 export const NORMAL_CALC = `
 precision highp float;
+${SAFE_NORMALIZE}
 uniform vec2 u_textureDim;
 uniform vec2 u_textureDimFaces;
 uniform sampler2D u_faceVertexIndices;
@@ -36,7 +60,7 @@ void main(){
   vec3 a = getPosition(indices[0]);
   vec3 b = getPosition(indices[1]);
   vec3 c = getPosition(indices[2]);
-  vec3 normal = normalize(cross(b-a, c-a));
+  vec3 normal = safeNormalize(cross(b-a, c-a));
   gl_FragColor = vec4(normal, 0.0);
 }
 `;
@@ -44,6 +68,7 @@ void main(){
 export const THETA_CALC = `
 #define TWO_PI 6.283185307179586476925286766559
 precision highp float;
+${SAFE_NORMALIZE}
 uniform vec2 u_textureDim;
 uniform vec2 u_textureDimFaces;
 uniform vec2 u_textureDimCreases;
@@ -79,7 +104,7 @@ void main(){
   creaseNodeIndex = vec2(mod(creaseVectorIndices[1], u_textureDim.x)+0.5, floor(creaseVectorIndices[1]/u_textureDim.x)+0.5);
   scaledNodeIndex = creaseNodeIndex/u_textureDim;
   vec3 node1 = texture2D(u_lastPosition, scaledNodeIndex).xyz + texture2D(u_originalPosition, scaledNodeIndex).xyz;
-  vec3 creaseVector = normalize(node1-node0);
+  vec3 creaseVector = safeNormalize(node1-node0);
   float x = dotNormals;
   float y = dot(cross(normal1, creaseVector), normal2);
   float theta = atan(y, x);
@@ -207,6 +232,14 @@ void main(){
     vec3 nominalDist = neighborOriginalPosition-originalPosition;
     vec3 deltaP = neighborLastPosition-lastPosition+nominalDist;
     float deltaPLength = length(deltaP);
+    // Skip a beam whose endpoints have momentarily collapsed onto each other:
+    // dividing by a zero current length yields NaN, which then contaminates this
+    // node's velocity, its position, and from there the whole mesh. Mirrors
+    // ReferenceSolver's own "deltaPLength < EPSILON -> skip" guard -- the CPU
+    // backend has always had this guard, which is why real crease patterns kept
+    // solving there while the GPU exploded at the exact fold angle where two
+    // nodes coincide. Upstream's shader is unguarded here too.
+    if (deltaPLength < 0.000001) continue;
     deltaP -= deltaP*(beamMeta[2]/deltaPLength);
     if (!u_calcFaceStrain) nodeError += abs(deltaPLength/length(nominalDist) - 1.0);
     vec3 deltaV = neighborLastVelocity-lastVelocity;
@@ -273,7 +306,18 @@ void main(){
     ab /= lengthAB;
     ac /= lengthAC;
     bc /= lengthBC;
-    vec3 angles = vec3(acos(dot(ab, ac)), acos(-1.0*dot(ab, bc)), acos(dot(ac, bc)));
+    // acos is NaN outside [-1, 1], and the dot product of two float32-normalised
+    // vectors routinely rounds just past 1 on a near-degenerate triangle. That
+    // single NaN becomes this face's angular force, then the node's velocity and
+    // position, and within a few steps the entire mesh is non-finite and the
+    // model vanishes. ReferenceSolver clamps all three dots, which is why the CPU
+    // backend kept solving where the GPU exploded; the theta pass clamps its own
+    // dot as well. Upstream's shader omits the clamp here.
+    vec3 angles = vec3(
+      acos(clamp(dot(ab, ac), -1.0, 1.0)),
+      acos(clamp(-1.0*dot(ab, bc), -1.0, 1.0)),
+      acos(clamp(dot(ac, bc), -1.0, 1.0))
+    );
     vec3 anglesDiff = nominalAngles-angles;
     vec3 normal = getFromArray(faceMeta[0], u_textureDimFaces, u_normals).xyz;
     anglesDiff *= u_faceStiffness;

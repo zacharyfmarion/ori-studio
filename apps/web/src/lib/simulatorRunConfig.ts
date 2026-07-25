@@ -20,17 +20,15 @@ const WHOLE_RUN_CONFIG: SimulatorRunConfig = {
   foldChangeSettleBatch: 200,
   foldChangeSettleFrames: 40,
   foldPlayStepBatch: 160,
-  // Gentler than the old 28%/s: the explicit Euler solver injects energy as the
-  // fold is driven, and a slower drive plus a smaller timestep give the crease
-  // (bending) stiffness -- which the axial-only stable-dt does not account for --
-  // enough headroom to stay stable instead of exploding mid-fold.
-  foldPlayPercentPerSecond: 15,
+  foldPlayPercentPerSecond: 28,
   foldStepPercent: 5,
   solverOptions: {
-    // < 1 shrinks the integration step below the axial-only stability bound for
-    // headroom against crease stiffness. The interactive worker runs many steps
-    // per frame, so the extra steps cost little.
-    timeStepScale: 0.5,
+    // Shrinks the integration step below the axial-only stability bound, which
+    // does not account for crease (bending) stiffness. Dense real-world patterns
+    // destabilize at 1.0 and 0.5; 0.35 is the largest value at which
+    // bench:gpu-stability keeps both backends stable over a full 12k-step ramp,
+    // and the worker runs many steps per frame so the extra steps cost little.
+    timeStepScale: 0.35,
   },
 };
 
