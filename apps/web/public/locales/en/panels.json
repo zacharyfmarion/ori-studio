@@ -503,6 +503,9 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Stretch",
+    "colorMode": "Colour",
+    "colorPaper": "Paper",
+    "colorStrain": "Strain",
     "creaseLines": "Crease lines",
     "creaseStiffness": "Crease",
     "damping": "Damping",
@@ -519,6 +522,7 @@
     "solver": "Solver",
     "solverHint": "Lower stability if a fold jitters or blows up.",
     "stability": "Stability",
+    "strainClip": "Red at %",
     "style": "Style",
     "stylePaper": "Paper",
     "styleXray": "X-ray"

@@ -490,6 +490,9 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "拉伸",
+    "colorMode": "着色",
+    "colorPaper": "纸张",
+    "colorStrain": "应变",
     "creaseLines": "折痕线",
     "creaseStiffness": "折痕",
     "damping": "阻尼",
@@ -506,6 +509,7 @@
     "solver": "求解器",
     "solverHint": "如果折叠抖动或发散，请降低稳定性。",
     "stability": "稳定性",
+    "strainClip": "变红阈值 %",
     "style": "样式",
     "stylePaper": "纸张",
     "styleXray": "X 射线"

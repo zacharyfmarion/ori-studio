@@ -286,7 +286,7 @@ export function SimulatorPanel() {
       ) {
         lastReadoutRef.current = now;
         setStep(frame.step);
-        setStrain(frame.maxEdgeStrain);
+        setStrain(frame.maxStrain);
         setFoldPercent(frame.foldPercent);
       }
     },
@@ -1468,6 +1468,8 @@ function toRenderSettings(
     lighting: settings.lighting,
     creaseWidthPx: Math.max(1, Math.round(1.1 * dpr)),
     faceAlpha: settings.renderMode === "xray" ? 0.48 : 1,
+    colorMode: settings.colorMode,
+    strainClip: settings.strainClip,
   };
 }
 

@@ -490,6 +490,9 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "늘어남",
+    "colorMode": "색상",
+    "colorPaper": "종이",
+    "colorStrain": "변형률",
     "creaseLines": "접는 선",
     "creaseStiffness": "접힘",
     "damping": "감쇠",
@@ -506,6 +509,7 @@
     "solver": "솔버",
     "solverHint": "접기가 떨리거나 발산하면 안정성을 낮추세요.",
     "stability": "안정성",
+    "strainClip": "빨강 기준 %",
     "style": "스타일",
     "stylePaper": "종이",
     "styleXray": "엑스레이"

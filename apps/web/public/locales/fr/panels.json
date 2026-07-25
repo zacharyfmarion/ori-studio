@@ -516,6 +516,9 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Étirement",
+    "colorMode": "Couleur",
+    "colorPaper": "Papier",
+    "colorStrain": "Déformation",
     "creaseLines": "Lignes de pli",
     "creaseStiffness": "Pli",
     "damping": "Amortissement",
@@ -532,6 +535,7 @@
     "solver": "Solveur",
     "solverHint": "Réduisez la stabilité si un pliage tremble ou diverge.",
     "stability": "Stabilité",
+    "strainClip": "Rouge à %",
     "style": "Style",
     "stylePaper": "Papier",
     "styleXray": "Rayons X"

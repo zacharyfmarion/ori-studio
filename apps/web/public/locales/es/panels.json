@@ -516,6 +516,9 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Estiramiento",
+    "colorMode": "Color",
+    "colorPaper": "Papel",
+    "colorStrain": "Deformación",
     "creaseLines": "Líneas de pliegue",
     "creaseStiffness": "Pliegue",
     "damping": "Amortiguación",
@@ -532,6 +535,7 @@
     "solver": "Solucionador",
     "solverHint": "Reduce la estabilidad si un pliegue tiembla o se descontrola.",
     "stability": "Estabilidad",
+    "strainClip": "Rojo al %",
     "style": "Estilo",
     "stylePaper": "Papel",
     "styleXray": "Rayos X"

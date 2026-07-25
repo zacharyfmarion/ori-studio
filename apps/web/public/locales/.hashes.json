@@ -1754,7 +1754,11 @@
     "panels:simulatorViewControls.stability": "1e42d0c86af7",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
+    "panels:simulatorViewControls.colorPaper": "35045eff549e",
+    "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3511,7 +3515,11 @@
     "panels:simulatorViewControls.stability": "1e42d0c86af7",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
+    "panels:simulatorViewControls.colorPaper": "35045eff549e",
+    "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5293,7 +5301,11 @@
     "panels:simulatorViewControls.stability": "1e42d0c86af7",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
+    "panels:simulatorViewControls.colorPaper": "35045eff549e",
+    "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7075,7 +7087,11 @@
     "panels:simulatorViewControls.stability": "1e42d0c86af7",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
+    "panels:simulatorViewControls.colorPaper": "35045eff549e",
+    "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8857,7 +8873,11 @@
     "panels:simulatorViewControls.stability": "1e42d0c86af7",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
+    "panels:simulatorViewControls.colorPaper": "35045eff549e",
+    "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10639,7 +10659,11 @@
     "panels:simulatorViewControls.stability": "1e42d0c86af7",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
+    "panels:simulatorViewControls.colorPaper": "35045eff549e",
+    "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12421,7 +12445,11 @@
     "panels:simulatorViewControls.stability": "1e42d0c86af7",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
+    "panels:simulatorViewControls.colorPaper": "35045eff549e",
+    "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14178,6 +14206,10 @@
     "panels:simulatorViewControls.stability": "1e42d0c86af7",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
+    "panels:simulatorViewControls.colorPaper": "35045eff549e",
+    "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
   }
 }

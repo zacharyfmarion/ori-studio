@@ -27,6 +27,8 @@ interface RenderCheckRow {
   coverage: number;
   distinctColors: number;
   ok: boolean;
+  /** Strain colour mode produced a different image than paper mode. */
+  strainDiffers?: boolean;
   error?: string;
 }
 
@@ -154,6 +156,26 @@ window.runRenderCheck = () => {
       const camera = cameraUniforms({ yaw: 0.4, pitch: 0.38, zoom: 1 }, center, radius, RENDER_SIZE, RENDER_SIZE);
 
       const pixels = solver.renderToImage(camera, RENDER_SETTINGS, RENDER_SIZE, RENDER_SIZE);
+      // Strain colour mode must compile and produce a visibly different image;
+      // otherwise the ramp is silently a no-op (it was a stub before). Compared
+      // with creases hidden: on a dense model at this size the 3px crease ribbons
+      // cover the faces completely, so leaving them on would compare two
+      // identical images of nothing but lines.
+      const facesOnly = { ...RENDER_SETTINGS, showEdges: false };
+      const paperFaces = solver.renderToImage(camera, facesOnly, RENDER_SIZE, RENDER_SIZE);
+      const strainFaces = solver.renderToImage(
+        camera,
+        { ...facesOnly, colorMode: 'strain', strainClip: 5 },
+        RENDER_SIZE,
+        RENDER_SIZE
+      );
+      let strainDiffers = false;
+      for (let i = 0; i < paperFaces.length; i += 4) {
+        if (paperFaces[i] !== strainFaces[i] || paperFaces[i + 1] !== strainFaces[i + 1]) {
+          strainDiffers = true;
+          break;
+        }
+      }
 
       const bg = [Math.round(0.05 * 255), Math.round(0.06 * 255), Math.round(0.07 * 255)];
       let covered = 0;
@@ -177,6 +199,7 @@ window.runRenderCheck = () => {
         coverage,
         distinctColors: colors.size,
         ok: coverage > 0.02 && coverage < 0.99 && colors.size > 1,
+        strainDiffers,
       };
     } catch (cause) {
       row = { ...row, error: cause instanceof Error ? cause.message : String(cause) };
@@ -316,7 +339,10 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
             }
           }
           const velocity = solver.maxVelocity();
-          const strain = solver.readDiagnostics().maxEdgeStrain ?? 0;
+          // Nodal strain is the measure both backends define identically (the GPU
+          // does not compute max *edge* strain at all), so compare on that.
+          const diagnostics = solver.readDiagnostics();
+          const strain = diagnostics.maxNodalStrain ?? diagnostics.maxEdgeStrain ?? 0;
           if (Number.isFinite(strain) && strain > row.maxStrainSeen) row.maxStrainSeen = strain;
 
           const nonFinite = !Number.isFinite(velocity) || !Number.isFinite(strain);

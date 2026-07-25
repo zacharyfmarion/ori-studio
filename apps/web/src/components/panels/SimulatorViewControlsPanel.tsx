@@ -54,6 +54,42 @@ export function SimulatorViewControlsPanel() {
               </Select>
             </div>
           </div>
+          <div className="control-row">
+            <span className="control-row__label">
+              {t('panels:simulatorViewControls.colorMode', 'Colour')}
+            </span>
+            <div className="control-row__value">
+              <Select
+                value={settings.colorMode}
+                onValueChange={(value) =>
+                  setSetting('colorMode', value as SimulatorSettings['colorMode'])
+                }
+              >
+                <SelectTrigger
+                  aria-label={t('panels:simulatorViewControls.colorMode', 'Colour')}
+                  className="simulator-view-controls-panel__select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paper">
+                    {t('panels:simulatorViewControls.colorPaper', 'Paper')}
+                  </SelectItem>
+                  <SelectItem value="strain">
+                    {t('panels:simulatorViewControls.colorStrain', 'Strain')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {settings.colorMode === 'strain' && (
+            <SliderRow
+              settingKey="strainClip"
+              label={t('panels:simulatorViewControls.strainClip', 'Red at %')}
+              settings={settings}
+              setSetting={setSetting}
+            />
+          )}
           <ToggleRow
             label={t('panels:simulatorViewControls.faces', 'Faces')}
             checked={settings.showFaces}

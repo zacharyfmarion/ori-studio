@@ -516,6 +516,9 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Estiramento",
+    "colorMode": "Cor",
+    "colorPaper": "Papel",
+    "colorStrain": "Deformação",
     "creaseLines": "Linhas de dobra",
     "creaseStiffness": "Dobra",
     "damping": "Amortecimento",
@@ -532,6 +535,7 @@
     "solver": "Solucionador",
     "solverHint": "Reduza a estabilidade se uma dobra tremer ou divergir.",
     "stability": "Estabilidade",
+    "strainClip": "Vermelho em %",
     "style": "Estilo",
     "stylePaper": "Papel",
     "styleXray": "Raios X"

@@ -44,6 +44,11 @@ export interface SimulatorSettings {
   timeStepScale: number;
   /** Fold percent per second while playing. */
   foldPlayPercentPerSecond: number;
+  /**
+   * Percent axial strain drawn fully red in `strain` colour mode. Upstream's
+   * `strainClip`.
+   */
+  strainClip: number;
 }
 
 export type SimulatorSettingKey = keyof SimulatorSettings;
@@ -66,6 +71,7 @@ export const DEFAULT_SIMULATOR_SETTINGS: SimulatorSettings = {
   damping: 0.45,
   timeStepScale: 0.35,
   foldPlayPercentPerSecond: 28,
+  strainClip: 5,
 };
 
 interface NumericRange {
@@ -84,6 +90,7 @@ export const SIMULATOR_SETTING_RANGES = {
   // Never 0: a zero timestep would freeze the solve entirely.
   timeStepScale: { min: 0.05, max: 1, step: 0.05 },
   foldPlayPercentPerSecond: { min: 2, max: 100, step: 1 },
+  strainClip: { min: 0.5, max: 20, step: 0.5 },
 } as const satisfies Record<string, NumericRange>;
 
 export type SimulatorNumericSettingKey = keyof typeof SIMULATOR_SETTING_RANGES;

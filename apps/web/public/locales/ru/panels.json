@@ -529,6 +529,9 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Растяжение",
+    "colorMode": "Цвет",
+    "colorPaper": "Бумага",
+    "colorStrain": "Деформация",
     "creaseLines": "Линии сгиба",
     "creaseStiffness": "Сгиб",
     "damping": "Затухание",
@@ -545,6 +548,7 @@
     "solver": "Решатель",
     "solverHint": "Уменьшите устойчивость, если сгиб дрожит или расходится.",
     "stability": "Устойчивость",
+    "strainClip": "Красный при %",
     "style": "Стиль",
     "stylePaper": "Бумага",
     "styleXray": "Просвет"

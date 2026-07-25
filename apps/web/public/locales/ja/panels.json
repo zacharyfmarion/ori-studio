@@ -490,6 +490,9 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "伸び",
+    "colorMode": "配色",
+    "colorPaper": "紙",
+    "colorStrain": "ひずみ",
     "creaseLines": "折り線",
     "creaseStiffness": "折り目",
     "damping": "減衰",
@@ -506,6 +509,7 @@
     "solver": "ソルバー",
     "solverHint": "折りが震えたり発散する場合は安定性を下げてください。",
     "stability": "安定性",
+    "strainClip": "赤になる %",
     "style": "スタイル",
     "stylePaper": "紙",
     "styleXray": "X線"

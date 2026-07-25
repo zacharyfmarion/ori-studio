@@ -127,6 +127,17 @@ describe('SimulatorViewControlsPanel', () => {
     expect(settings.lighting).toBe(false);
   });
 
+  it('reveals the strain clip only in strain colour mode', () => {
+    const rendered = render();
+    expect(rendered.querySelector('input[aria-label="Red at %"]')).toBeNull();
+
+    act(() => {
+      useWorkspaceStore.getState().setSimulatorSetting('colorMode', 'strain');
+    });
+
+    expect(rendered.querySelector('input[aria-label="Red at %"]')).not.toBeNull();
+  });
+
   it('shows stability inverted, so dragging right is more stable', () => {
     const rendered = render();
     const input = slider(rendered, 'Stability');

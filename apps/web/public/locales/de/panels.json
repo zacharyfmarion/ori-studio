@@ -503,6 +503,9 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Dehnung",
+    "colorMode": "Farbe",
+    "colorPaper": "Papier",
+    "colorStrain": "Dehnung",
     "creaseLines": "Falzlinien",
     "creaseStiffness": "Falz",
     "damping": "Dämpfung",
@@ -519,6 +522,7 @@
     "solver": "Solver",
     "solverHint": "Stabilität verringern, wenn eine Faltung zittert oder aufschwingt.",
     "stability": "Stabilität",
+    "strainClip": "Rot bei %",
     "style": "Stil",
     "stylePaper": "Papier",
     "styleXray": "Röntgen"

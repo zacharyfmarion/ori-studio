@@ -44,6 +44,17 @@ export interface RenderSettings {
   creaseWidthPx: number;
   /** 0..1; below 1 draws faces translucent with depth write off (x-ray). */
   faceAlpha: number;
+  /**
+   * `paper` shades the two-tone sheet; `strain` colours each vertex by how far
+   * its edges are stretched, which is where a crease pattern is not physically
+   * foldable. Defaults to `paper` when omitted.
+   */
+  colorMode?: 'paper' | 'strain';
+  /**
+   * Percent axial strain drawn fully red in `strain` mode. Upstream's
+   * `strainClip`, default 5%.
+   */
+  strainClip?: number;
 }
 
 // Interleaved edge-vertex layout: [this, a, b, side, assignment].
@@ -100,6 +111,7 @@ const FACE_VERT = `#version 300 es
 precision highp float;
 uniform sampler2D u_lastPosition;
 uniform sampler2D u_originalPosition;
+uniform sampler2D u_lastVelocity;
 uniform int u_textureDim;
 uniform vec3 u_center;
 uniform vec2 u_yaw;   // cos, sin
@@ -109,6 +121,7 @@ uniform vec2 u_viewport;
 uniform float u_depthRange;
 uniform float u_camDist;
 out vec3 v_view;
+out float v_strain;
 
 vec3 fetchPosition(int index){
   ivec2 texel = ivec2(index % u_textureDim, index / u_textureDim);
@@ -116,6 +129,10 @@ vec3 fetchPosition(int index){
 }
 
 void main(){
+  ivec2 texel = ivec2(gl_VertexID % u_textureDim, gl_VertexID / u_textureDim);
+  // velocityCalc stores this node's mean axial strain in the velocity alpha, the
+  // same channel upstream reads back for its strain visualization.
+  v_strain = texelFetch(u_lastVelocity, texel, 0).w;
   vec3 d = fetchPosition(gl_VertexID) - u_center;
   float yawX =  u_yaw.x*d.x + u_yaw.y*d.z;
   float yawZ = -u_yaw.y*d.x + u_yaw.x*d.z;
@@ -137,16 +154,37 @@ void main(){
 const FACE_FRAG = `#version 300 es
 precision highp float;
 in vec3 v_view;
+in float v_strain;
 uniform vec3 u_frontColor;
 uniform vec3 u_backColor;
 uniform vec3 u_lightDir;
 uniform float u_lighting;
 uniform float u_alpha;
+uniform float u_strainMode;
+uniform float u_strainClip;
 out vec4 fragColor;
+
+// Upstream colours strain with THREE.Color.setHSL(hue, 1, 0.5), so match that
+// exactly rather than inventing a ramp.
+vec3 hueToRgb(float h){
+  float r = abs(h*6.0 - 3.0) - 1.0;
+  float g = 2.0 - abs(h*6.0 - 2.0);
+  float b = 2.0 - abs(h*6.0 - 4.0);
+  return clamp(vec3(r, g, b), 0.0, 1.0);
+}
 
 void main(){
   vec3 normal = normalize(cross(dFdx(v_view), dFdy(v_view)));
   vec3 base = gl_FrontFacing ? u_frontColor : u_backColor;
+  if (u_strainMode > 0.5){
+    // Percent strain, clipped, mapped hue 0.7 (blue, relaxed) -> 0 (red, at the
+    // clip). Upstream: scaledVal = (1 - e/clip) * 0.7.
+    float e = min(v_strain*100.0, u_strainClip);
+    base = hueToRgb(clamp((1.0 - e/max(u_strainClip, 0.0001)) * 0.7, 0.0, 1.0));
+    // Flat-shade strain: lighting would read as strain that is not there.
+    fragColor = vec4(base, u_alpha);
+    return;
+  }
   float shade = 1.0;
   if (u_lighting > 0.5){
     vec3 n = normal.z < 0.0 ? -normal : normal;
@@ -318,6 +356,18 @@ export class MeshRenderer {
       this.setVec3(this.faceProgram, this.faceUniforms, 'u_lightDir', settings.lightDir);
       this.setFloat(this.faceProgram, this.faceUniforms, 'u_lighting', settings.lighting ? 1 : 0);
       this.setFloat(this.faceProgram, this.faceUniforms, 'u_alpha', settings.faceAlpha);
+      this.setFloat(
+        this.faceProgram,
+        this.faceUniforms,
+        'u_strainMode',
+        settings.colorMode === 'strain' ? 1 : 0
+      );
+      this.setFloat(
+        this.faceProgram,
+        this.faceUniforms,
+        'u_strainClip',
+        settings.strainClip ?? 5
+      );
       gl.drawElements(gl.TRIANGLES, this.faceCount, gl.UNSIGNED_INT, 0);
     }
 
@@ -363,8 +413,14 @@ export class MeshRenderer {
     gl.bindTexture(gl.TEXTURE_2D, this.core.getTexture('u_lastPosition'));
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.core.getTexture('u_originalPosition'));
+    // Unit 2 carries the velocity texture, whose alpha is the per-node strain the
+    // strain colour mode reads. Bound for every pass so the face program can
+    // sample it without a separate binding path.
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.core.getTexture('u_lastVelocity'));
     this.setInt(program, cache, 'u_lastPosition', 0);
     this.setInt(program, cache, 'u_originalPosition', 1);
+    this.setInt(program, cache, 'u_lastVelocity', 2);
     this.setInt(program, cache, 'u_textureDim', this.textureDim);
     this.setVec3(program, cache, 'u_center', camera.center);
     this.setVec2(program, cache, 'u_yaw', [camera.cosYaw, camera.sinYaw]);

@@ -35,7 +35,7 @@ export interface SimulatorFrameView {
   elapsedMs: number;
   converged: boolean;
   foldPercent: number;
-  maxEdgeStrain: number;
+  maxStrain: number;
 }
 
 // Main-thread timing, read and reset by the perf logger.
@@ -158,7 +158,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       elapsedMs: payload.elapsedMs,
       converged: payload.converged,
       foldPercent: payload.foldPercent,
-      maxEdgeStrain: payload.maxEdgeStrain,
+      maxStrain: payload.maxStrain,
     });
     convergedRef.current = payload.converged;
     // Give the buffer straight back to the worker on the next request so the

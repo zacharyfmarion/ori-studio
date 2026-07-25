@@ -104,7 +104,7 @@ describe('simulator session', () => {
 
     // Strain used to be read once from load-time diagnostics, which are taken
     // on the flat sheet and are therefore always zero.
-    expect(folded.maxEdgeStrain).toBeGreaterThan(0);
+    expect(folded.maxStrain).toBeGreaterThan(0);
     session.dispose();
   });
 

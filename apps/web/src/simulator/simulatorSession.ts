@@ -109,11 +109,11 @@ export interface SimulatorFramePayload {
   maxVelocity: number;
   foldPercent: number;
   /**
-   * Peak edge strain for this frame. Computed once per frame rather than per
-   * step -- it walks every edge, which is why it must not go in the step loop,
-   * but once per published frame is cheap and the panel displays it live.
+   * Peak per-node mean axial strain for this frame, as a fraction. Computed once
+   * per frame rather than per step, and defined identically on both backends so
+   * the readout does not change meaning with the solver.
    */
-  maxEdgeStrain: number;
+  maxStrain: number;
 }
 
 interface Session {
@@ -501,7 +501,7 @@ function readFrame(
     converged: tick.converged,
     maxVelocity: tick.maxVelocity,
     foldPercent: active.foldPercent,
-    maxEdgeStrain: active.backend.readDiagnostics().maxEdgeStrain ?? 0,
+    maxStrain: active.backend.readDiagnostics().maxNodalStrain ?? 0,
   };
 
   // GPU-render mode: the worker draws straight to the transferred canvas. No

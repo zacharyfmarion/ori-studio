@@ -174,7 +174,7 @@ export class WebglSolver implements SolverBackend {
   }
 
   readDiagnostics(): SimulatorDiagnostics {
-    return { ...this.diagnostics, maxEdgeStrain: this.maxStrain };
+    return { ...this.diagnostics, maxNodalStrain: this.maxStrain };
   }
 
   maxVelocity(): number {

@@ -165,7 +165,37 @@ export class ReferenceSolver implements SolverBackend {
   }
 
   readDiagnostics(): SimulatorDiagnostics {
-    return this.model.diagnostics();
+    return { ...this.model.diagnostics(), maxNodalStrain: this.maxNodalStrain() };
+  }
+
+  /**
+   * Largest per-node mean axial strain, defined exactly as velocityCalc's
+   * `nodeError` on the GPU (sum of |current/rest - 1| over the node's beams,
+   * divided by their count). Computed here so the interactive readout and the
+   * clock's blow-up guard mean the same thing on both backends.
+   */
+  private maxNodalStrain(): number {
+    let max = 0;
+    for (let vertex = 0; vertex < this.nodeBeams.length; vertex += 1) {
+      const beams = this.nodeBeams[vertex] ?? [];
+      if (beams.length === 0) continue;
+      const position = this.relativePointAt(vertex);
+      const originalPosition = pointAt(this.model.originalPositions, vertex);
+      let total = 0;
+      for (const beam of beams) {
+        const neighborPosition = this.relativePointAt(beam.otherVertex);
+        const neighborOriginal = pointAt(this.model.originalPositions, beam.otherVertex);
+        const nominal = subtract(neighborOriginal, originalPosition);
+        const nominalLength = magnitude(nominal);
+        if (nominalLength < EPSILON) continue;
+        const current = magnitude(add(subtract(neighborPosition, position), nominal));
+        total += Math.abs(current / nominalLength - 1);
+      }
+      const mean = total / beams.length;
+      if (mean > max) max = mean;
+      if (!Number.isFinite(mean)) return Number.NaN;
+    }
+    return max;
   }
 
   maxVelocity(): number {

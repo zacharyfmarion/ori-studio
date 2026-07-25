@@ -38,6 +38,7 @@ interface RenderCheckRow {
   coverage: number;
   distinctColors: number;
   ok: boolean;
+  strainDiffers?: boolean;
   error?: string;
 }
 
@@ -109,7 +110,8 @@ describe('GPU solver parity', () => {
           `${row.fixture.padEnd(14)} v=${String(row.vertices).padStart(5)} | ` +
           (row.error
             ? `ERROR: ${row.error}`
-            : `coverage ${(row.coverage * 100).toFixed(1)}%  colors ${row.distinctColors}  ${row.ok ? 'ok' : 'FAIL'}`)
+            : `coverage ${(row.coverage * 100).toFixed(1)}%  colors ${row.distinctColors}  ` +
+              `strain ${row.strainDiffers ? 'differs' : 'SAME'}  ${row.ok ? 'ok' : 'FAIL'}`)
       );
       process.stdout.write(`render check:\n${renderLines.join('\n')}\n\n`);
 
@@ -117,6 +119,8 @@ describe('GPU solver parity', () => {
       expect(renderable.length, 'no fixtures rendered on the GPU').toBeGreaterThan(0);
       for (const row of renderable) {
         expect(row.ok, `${row.fixture} rendered an implausible frame (coverage ${row.coverage}, colors ${row.distinctColors})`).toBe(true);
+        // Strain visualization must actually change the image; it used to be a stub.
+        expect(row.strainDiffers, `${row.fixture} strain colour mode changed nothing`).toBe(true);
       }
     } finally {
       await browser?.close();

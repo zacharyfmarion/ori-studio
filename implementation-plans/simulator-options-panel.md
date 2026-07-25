@@ -130,11 +130,14 @@ and `npm run i18n:check` must pass.
 - [x] Phase 1: material + stability changes apply live via `runtime.setMaterial`
 - [x] Phase 1: i18n extract / translate / stamp / check
 - [x] Phase 1: unit tests (panel renders, a slider dispatches setMaterial, reset
-      restores defaults) and `tsc` / `eslint` / `test:web` -- 799/799 pass. The
-      `colorMode` select is deferred to Phase 2 rather than shipped disabled, so
-      it does not appear as a dead control.
-- [ ] Phase 2: GPU strain colour ramp + `strainClip`; unify the strain metric
-- [ ] Phase 2: extend `bench:gpu-stability` or the render check to cover it
+      restores defaults) and `tsc` / `eslint` / `test:web` -- 800/800 pass. The
+      `colorMode` select shipped with Phase 2 rather than disabled in Phase 1, so
+      it never appeared as a dead control.
+- [x] Phase 2: GPU strain colour ramp + `strainClip`; unify the strain metric
+- [x] Phase 2: the parity bench's render check now gates that strain mode changes
+      the image (compared with creases hidden, since 3px ribbons cover the faces
+      on a dense model at 128px), and both backends report identical strain in
+      `bench:gpu-stability`
 - [ ] Phase 3: export folded FOLD / OBJ / STL
 - [ ] Phase 4: anchors + gravity; port Verlet to the GPU, then expose the toggle
 - [ ] Browser check (user): pane looks native beside the Edit view's, sliders

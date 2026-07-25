@@ -148,7 +148,11 @@ export class SimulationClock {
    */
   private guardBlowup(backend: SolverBackend, maxVelocity: number): void {
     const limit = this.options.blowupStrain;
-    const strain = backend.readDiagnostics().maxEdgeStrain ?? 0;
+    const diagnostics = backend.readDiagnostics();
+    // Nodal strain is the measure both backends report identically; maxEdgeStrain
+    // is CPU-only, so falling back to it would silently disable the guard on the
+    // GPU (and did, when the GPU reported the nodal value under that name).
+    const strain = diagnostics.maxNodalStrain ?? diagnostics.maxEdgeStrain ?? 0;
 
     // Already NaN/Infinite: the positions themselves are unrecoverable, and
     // draining velocity cannot repair them -- every later step keeps propagating
