@@ -14,7 +14,10 @@ export type FileCommand =
   | 'exportOri'
   | 'exportOrh'
   | 'exportSvg'
-  | 'exportPng';
+  | 'exportPng'
+  | 'exportFoldedFold'
+  | 'exportObj'
+  | 'exportStl';
 
 export interface OpenTextFileOptions {
   title: string;

@@ -108,6 +108,30 @@ describe('simulator session', () => {
     session.dispose();
   });
 
+  it('exports the current folded geometry', () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(8, 8), {});
+    session.setFoldPercent(70);
+    session.settle(4000, {});
+
+    const geometry = session.exportGeometry();
+    const positions = new Float32Array(geometry.positions);
+    const triangles = new Uint32Array(geometry.triangles);
+
+    expect(geometry.vertexCount).toBe(info.vertexCount);
+    expect(positions.length).toBe(info.vertexCount * 3);
+    expect(triangles.length).toBe(info.faceCount * 3);
+    expect(geometry.foldPercent).toBe(70);
+    expect([...positions].every((value) => Number.isFinite(value))).toBe(true);
+    // Every index must address a real vertex, or an exported mesh is corrupt.
+    expect(Math.max(...triangles)).toBeLessThan(info.vertexCount);
+    // A folded model must have left the flat plane.
+    const maxY = Math.max(...[...positions].filter((_, i) => i % 3 === 1).map(Math.abs));
+    expect(maxY).toBeGreaterThan(0);
+
+    session.dispose();
+  });
+
   it('keeps ticks bounded by the frame budget', () => {
     const session = createSimulatorSession();
     session.load(miura(16, 16), { budgetMs: 8 });

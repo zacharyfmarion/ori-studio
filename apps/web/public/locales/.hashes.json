@@ -1758,7 +1758,17 @@
     "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
     "panels:simulatorViewControls.colorPaper": "35045eff549e",
     "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
-    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f",
+    "common:capability.exportFoldedFold": "5b3bf322c94f",
+    "common:capability.exportFoldedFoldDocument": "9e420d480225",
+    "common:capability.exportObj": "687b2c99922d",
+    "common:capability.exportObjMesh": "1f5edc54dde2",
+    "common:capability.exportStl": "33811e5af23e",
+    "common:capability.exportStlMesh": "5088e136fd4c",
+    "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
+    "menu:file.exportFoldedFold": "5b3bf322c94f",
+    "menu:file.exportObj": "687b2c99922d",
+    "menu:file.exportStl": "33811e5af23e"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3519,7 +3529,17 @@
     "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
     "panels:simulatorViewControls.colorPaper": "35045eff549e",
     "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
-    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f",
+    "common:capability.exportFoldedFold": "5b3bf322c94f",
+    "common:capability.exportFoldedFoldDocument": "9e420d480225",
+    "common:capability.exportObj": "687b2c99922d",
+    "common:capability.exportObjMesh": "1f5edc54dde2",
+    "common:capability.exportStl": "33811e5af23e",
+    "common:capability.exportStlMesh": "5088e136fd4c",
+    "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
+    "menu:file.exportFoldedFold": "5b3bf322c94f",
+    "menu:file.exportObj": "687b2c99922d",
+    "menu:file.exportStl": "33811e5af23e"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5305,7 +5325,17 @@
     "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
     "panels:simulatorViewControls.colorPaper": "35045eff549e",
     "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
-    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f",
+    "common:capability.exportFoldedFold": "5b3bf322c94f",
+    "common:capability.exportFoldedFoldDocument": "9e420d480225",
+    "common:capability.exportObj": "687b2c99922d",
+    "common:capability.exportObjMesh": "1f5edc54dde2",
+    "common:capability.exportStl": "33811e5af23e",
+    "common:capability.exportStlMesh": "5088e136fd4c",
+    "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
+    "menu:file.exportFoldedFold": "5b3bf322c94f",
+    "menu:file.exportObj": "687b2c99922d",
+    "menu:file.exportStl": "33811e5af23e"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7091,7 +7121,17 @@
     "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
     "panels:simulatorViewControls.colorPaper": "35045eff549e",
     "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
-    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f",
+    "common:capability.exportFoldedFold": "5b3bf322c94f",
+    "common:capability.exportFoldedFoldDocument": "9e420d480225",
+    "common:capability.exportObj": "687b2c99922d",
+    "common:capability.exportObjMesh": "1f5edc54dde2",
+    "common:capability.exportStl": "33811e5af23e",
+    "common:capability.exportStlMesh": "5088e136fd4c",
+    "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
+    "menu:file.exportFoldedFold": "5b3bf322c94f",
+    "menu:file.exportObj": "687b2c99922d",
+    "menu:file.exportStl": "33811e5af23e"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8877,7 +8917,17 @@
     "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
     "panels:simulatorViewControls.colorPaper": "35045eff549e",
     "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
-    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f",
+    "common:capability.exportFoldedFold": "5b3bf322c94f",
+    "common:capability.exportFoldedFoldDocument": "9e420d480225",
+    "common:capability.exportObj": "687b2c99922d",
+    "common:capability.exportObjMesh": "1f5edc54dde2",
+    "common:capability.exportStl": "33811e5af23e",
+    "common:capability.exportStlMesh": "5088e136fd4c",
+    "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
+    "menu:file.exportFoldedFold": "5b3bf322c94f",
+    "menu:file.exportObj": "687b2c99922d",
+    "menu:file.exportStl": "33811e5af23e"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10663,7 +10713,17 @@
     "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
     "panels:simulatorViewControls.colorPaper": "35045eff549e",
     "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
-    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f",
+    "common:capability.exportFoldedFold": "5b3bf322c94f",
+    "common:capability.exportFoldedFoldDocument": "9e420d480225",
+    "common:capability.exportObj": "687b2c99922d",
+    "common:capability.exportObjMesh": "1f5edc54dde2",
+    "common:capability.exportStl": "33811e5af23e",
+    "common:capability.exportStlMesh": "5088e136fd4c",
+    "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
+    "menu:file.exportFoldedFold": "5b3bf322c94f",
+    "menu:file.exportObj": "687b2c99922d",
+    "menu:file.exportStl": "33811e5af23e"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12449,7 +12509,17 @@
     "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
     "panels:simulatorViewControls.colorPaper": "35045eff549e",
     "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
-    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f",
+    "common:capability.exportFoldedFold": "5b3bf322c94f",
+    "common:capability.exportFoldedFoldDocument": "9e420d480225",
+    "common:capability.exportObj": "687b2c99922d",
+    "common:capability.exportObjMesh": "1f5edc54dde2",
+    "common:capability.exportStl": "33811e5af23e",
+    "common:capability.exportStlMesh": "5088e136fd4c",
+    "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
+    "menu:file.exportFoldedFold": "5b3bf322c94f",
+    "menu:file.exportObj": "687b2c99922d",
+    "menu:file.exportStl": "33811e5af23e"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14210,6 +14280,16 @@
     "panels:simulatorViewControls.colorMode": "3a9dfa58df63",
     "panels:simulatorViewControls.colorPaper": "35045eff549e",
     "panels:simulatorViewControls.colorStrain": "fcde25fd44fb",
-    "panels:simulatorViewControls.strainClip": "26b4d82e779f"
+    "panels:simulatorViewControls.strainClip": "26b4d82e779f",
+    "common:capability.exportFoldedFold": "5b3bf322c94f",
+    "common:capability.exportFoldedFoldDocument": "9e420d480225",
+    "common:capability.exportObj": "687b2c99922d",
+    "common:capability.exportObjMesh": "1f5edc54dde2",
+    "common:capability.exportStl": "33811e5af23e",
+    "common:capability.exportStlMesh": "5088e136fd4c",
+    "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
+    "menu:file.exportFoldedFold": "5b3bf322c94f",
+    "menu:file.exportObj": "687b2c99922d",
+    "menu:file.exportStl": "33811e5af23e"
   }
 }

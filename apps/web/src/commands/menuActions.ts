@@ -42,6 +42,9 @@ export const MENU_ACTION_IDS = [
   'file.exportOrh',
   'file.exportSvg',
   'file.exportPng',
+  'file.exportFoldedFold',
+  'file.exportObj',
+  'file.exportStl',
   'edit.undo',
   'edit.redo',
   'edit.cut',
@@ -229,6 +232,9 @@ const FILE_ACTIONS: Partial<Record<MenuActionId, FileCommand>> = {
   'file.exportOrh': 'exportOrh',
   'file.exportSvg': 'exportSvg',
   'file.exportPng': 'exportPng',
+  'file.exportFoldedFold': 'exportFoldedFold',
+  'file.exportObj': 'exportObj',
+  'file.exportStl': 'exportStl',
 };
 
 const CP_OPERATION_ACTIONS: Partial<Record<MenuActionId, OristudioCpOperationId>> = {

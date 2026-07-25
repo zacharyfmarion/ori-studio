@@ -215,6 +215,10 @@ export interface ProjectSliceActions {
   exportOrh: (fileService?: FileService) => Promise<boolean>;
   exportSvg: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
   exportPng: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
+  /** Export the simulator's current folded geometry. */
+  exportFoldedFold: (fileService?: FileService) => Promise<boolean>;
+  exportObj: (fileService?: FileService) => Promise<boolean>;
+  exportStl: (fileService?: FileService) => Promise<boolean>;
   loadExampleProject: (id: string) => Promise<void>;
   clearProjectMessage: () => void;
   setActivePanelId: (id: string | null) => void;

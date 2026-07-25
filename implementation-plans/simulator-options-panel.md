@@ -138,7 +138,10 @@ and `npm run i18n:check` must pass.
       the image (compared with creases hidden, since 3px ribbons cover the faces
       on a dense model at 128px), and both backends report identical strain in
       `bench:gpu-stability`
-- [ ] Phase 3: export folded FOLD / OBJ / STL
+- [x] Phase 3: export folded FOLD / OBJ / STL -- File > Export menu items with
+      capabilities, gated like the other fold exports; geometry is read on demand
+      from the shared simulator worker (`exportGeometry`), since GPU-render mode
+      never sends positions to the main thread
 - [ ] Phase 4: anchors + gravity; port Verlet to the GPU, then expose the toggle
 - [ ] Browser check (user): pane looks native beside the Edit view's, sliders
       change the fold visibly, nothing regresses in the transport

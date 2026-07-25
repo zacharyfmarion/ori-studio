@@ -23,6 +23,9 @@ export type WorkspaceCapabilityId =
   | 'file.exportOrh'
   | 'file.exportSvg'
   | 'file.exportPng'
+  | 'file.exportFoldedFold'
+  | 'file.exportObj'
+  | 'file.exportStl'
   | 'edit.undo'
   | 'edit.redo'
   | 'edit.cut'
@@ -255,6 +258,34 @@ export function getWorkspaceCapabilities(
         : treeMode
           ? t('common:capability.buildCpBeforeExportingFold', 'Build a crease pattern before exporting FOLD')
           : t('common:capability.openCpBeforeExportingFold', 'Open a crease pattern before exporting FOLD')
+    ),
+    // Folded-form exports. Gated on the same "there is a crease pattern" condition
+    // as the FOLD export: the simulator loads from those artifacts, and the
+    // handlers fail cleanly if it has not produced geometry yet.
+    'file.exportFoldedFold': capability(
+      (canExportTreeFold || canExportEditableOrImportedFold) && !isBusy,
+      t('common:capability.exportFoldedFold', 'Export Folded FOLD...'),
+      canExportTreeFold || canExportEditableOrImportedFold
+        ? busyOr(
+            t('common:capability.exportFoldedFoldDocument', 'Export the simulated folded form as FOLD'),
+            input.status,
+            t
+          )
+        : t('common:capability.simulateBeforeExportingFolded', 'Simulate a crease pattern before exporting its folded form')
+    ),
+    'file.exportObj': capability(
+      (canExportTreeFold || canExportEditableOrImportedFold) && !isBusy,
+      t('common:capability.exportObj', 'Export OBJ...'),
+      canExportTreeFold || canExportEditableOrImportedFold
+        ? busyOr(t('common:capability.exportObjMesh', 'Export the simulated folded form as OBJ'), input.status, t)
+        : t('common:capability.simulateBeforeExportingFolded', 'Simulate a crease pattern before exporting its folded form')
+    ),
+    'file.exportStl': capability(
+      (canExportTreeFold || canExportEditableOrImportedFold) && !isBusy,
+      t('common:capability.exportStl', 'Export STL...'),
+      canExportTreeFold || canExportEditableOrImportedFold
+        ? busyOr(t('common:capability.exportStlMesh', 'Export the simulated folded form as STL'), input.status, t)
+        : t('common:capability.simulateBeforeExportingFolded', 'Simulate a crease pattern before exporting its folded form')
     ),
     'file.exportBps': commandCapability(
       input.hasBoxPleatDocument && !isBusy,
@@ -798,6 +829,9 @@ const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
   'file.exportOrh',
   'file.exportSvg',
   'file.exportPng',
+  'file.exportFoldedFold',
+  'file.exportObj',
+  'file.exportStl',
 ]);
 
 // Undo/redo stay in the Edit menu while simulating (rendered inert — the

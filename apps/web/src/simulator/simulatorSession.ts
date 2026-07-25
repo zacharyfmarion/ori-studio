@@ -116,6 +116,17 @@ export interface SimulatorFramePayload {
   maxStrain: number;
 }
 
+/** Folded geometry snapshot handed to the exporters. */
+export interface SimulatorExportGeometry {
+  /** xyz per vertex, in the solver's normalized (centered, unit-radius) space. */
+  positions: ArrayBuffer;
+  /** 3 vertex indices per triangle. */
+  triangles: ArrayBuffer;
+  vertexCount: number;
+  /** Fold percent the snapshot was taken at, for the exported file's metadata. */
+  foldPercent: number;
+}
+
 interface Session {
   model: OrigamiModel;
   backend: SolverBackend;
@@ -423,6 +434,28 @@ const api = {
     const active = requireSession();
     const tick = active.clock.runToConvergence(active.backend, maxSteps);
     return readFrame(active, tick, options);
+  },
+
+  /**
+   * The current folded geometry, for export. Positions are read on demand rather
+   * than pushed with every frame: in GPU-render mode nothing crosses to the main
+   * thread at all, so an exporter has no other way to see the fold. Triangles are
+   * the solver's own (already triangulated) faces.
+   */
+  exportGeometry(): SimulatorExportGeometry {
+    const active = requireSession();
+    const positions = new Float32Array(active.model.prepared.vertexCount * 3);
+    active.backend.readPositions(positions);
+    const triangles = active.model.prepared.indices.slice();
+    return transfer(
+      {
+        positions: positions.buffer as ArrayBuffer,
+        triangles: triangles.buffer as ArrayBuffer,
+        vertexCount: active.model.prepared.vertexCount,
+        foldPercent: active.foldPercent,
+      },
+      [positions.buffer as ArrayBuffer, triangles.buffer as ArrayBuffer]
+    );
   },
 
   diagnostics(): SimulatorDiagnostics {
