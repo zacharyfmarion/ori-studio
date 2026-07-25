@@ -249,9 +249,11 @@ function createBackend(
 ): { backend: SolverBackend; backendId: SimulatorBackendId; gpuSolver: WebglSolver | null } {
   const solverOptions = options.solver ?? {};
   const hasFoldProfile = Boolean(solverOptions.foldProfile?.ranges?.length);
-  const wantsVerlet = solverOptions.integrationType === 'verlet';
 
-  if (renderCanvas && options.preferGpu !== false && !hasFoldProfile && !wantsVerlet) {
+  // Verlet used to force the CPU backend; the GPU solver implements it now, so
+  // only a fold profile (segment/sequence-step simulation) still needs the
+  // reference solver.
+  if (renderCanvas && options.preferGpu !== false && !hasFoldProfile) {
     try {
       if (WebglSolver.isSupported(renderCanvas)) {
         const solver = new WebglSolver(renderCanvas, model, solverOptions);

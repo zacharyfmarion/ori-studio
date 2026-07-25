@@ -163,7 +163,16 @@ void main(){
 }
 `;
 
-export const VELOCITY_CALC = `
+/**
+ * Force accumulation, shared by the Euler and Verlet integrators.
+ *
+ * Both compute the identical per-node force (beams, creases, face angles); they
+ * differ only in what they do with it on the last line -- Euler integrates it
+ * into velocity, Verlet straight into position. Upstream duplicates the whole
+ * ~150-line body between its two shaders; sharing it here means a fix to the
+ * force model cannot land in one integrator and not the other.
+ */
+const FORCE_SHADER_HEAD = `
 precision highp float;
 uniform vec2 u_textureDim;
 uniform vec2 u_textureDimEdges;
@@ -204,7 +213,9 @@ vec3 getPosition(float index1D){
   return texture2D(u_lastPosition, scaledIndex).xyz + texture2D(u_originalPosition, scaledIndex).xyz;
 }
 
-void main(){
+`;
+
+const FORCE_SHADER_MAIN = `void main(){
   vec2 fragCoord = gl_FragCoord.xy;
   vec2 scaledFragCoord = fragCoord/u_textureDim;
   vec2 mass = texture2D(u_mass, scaledFragCoord).xy;
@@ -345,9 +356,80 @@ void main(){
     }
   }
   if (u_calcFaceStrain) nodeError /= meta2[1];
+`;
 
+/**
+ * Verlet-only additions: the extra position history it integrates from, and a
+ * finite-value guard. GLSL ES 1.00 has no isnan/isinf, so NaN is caught with
+ * `x != x` and Inf by magnitude. ReferenceSolver -- the parity oracle -- pins
+ * non-finite results to 0 in its Verlet integrator, so the GPU must too or the
+ * two diverge exactly when a step goes bad.
+ */
+const VERLET_PRELUDE = `uniform sampler2D u_lastLastPosition;
+
+float sanitize(float x){
+  return (x != x || abs(x) > 1e30) ? 0.0 : x;
+}
+
+vec3 sanitizeVec3(vec3 v){
+  return vec3(sanitize(v.x), sanitize(v.y), sanitize(v.z));
+}
+
+`;
+
+export const VELOCITY_CALC = `${FORCE_SHADER_HEAD}${FORCE_SHADER_MAIN}
   vec3 velocity = force*u_dt/mass[0] + lastVelocity;
   gl_FragColor = vec4(velocity, nodeError);
+}
+`;
+
+
+/**
+ * Verlet position integration: the same force, applied straight to position from
+ * two steps of history instead of through velocity. Matches upstream's
+ * positionCalcVerlet, including carrying the node's strain in alpha (which is
+ * where upstream reads it back from).
+ */
+export const POSITION_CALC_VERLET = `${FORCE_SHADER_HEAD}${VERLET_PRELUDE}${FORCE_SHADER_MAIN}
+  vec3 lastLastPosition = texture2D(u_lastLastPosition, scaledFragCoord).xyz;
+  vec3 nextPosition = force*u_dt*u_dt/mass[0] + 2.0*lastPosition - lastLastPosition;
+  gl_FragColor = vec4(sanitizeVec3(nextPosition), nodeError);
+}
+`;
+
+/**
+ * Verlet velocity is a diagnostic, not state: it is derived from how far the
+ * position moved. Upstream writes 0 in alpha here, but our strain readout, strain
+ * colouring, and the solver clock's blow-up guard all read strain from the
+ * velocity texture's alpha -- so carry the position's strain through instead of
+ * silently reporting zero strain in Verlet mode.
+ */
+export const VELOCITY_CALC_VERLET = `precision highp float;
+uniform vec2 u_textureDim;
+uniform float u_dt;
+uniform sampler2D u_position;
+uniform sampler2D u_lastPosition;
+uniform sampler2D u_mass;
+
+float sanitize(float x){
+  return (x != x || abs(x) > 1e30) ? 0.0 : x;
+}
+
+vec3 sanitizeVec3(vec3 v){
+  return vec3(sanitize(v.x), sanitize(v.y), sanitize(v.z));
+}
+
+void main(){
+  vec2 fragCoord = gl_FragCoord.xy;
+  vec2 scaledFragCoord = fragCoord/u_textureDim;
+  vec4 positionData = texture2D(u_position, scaledFragCoord);
+  float isFixed = texture2D(u_mass, scaledFragCoord).y;
+  if (isFixed == 1.0){
+    gl_FragColor = vec4(0.0, 0.0, 0.0, positionData.a);
+    return;
+  }
+  vec3 lastPosition = texture2D(u_lastPosition, scaledFragCoord).xyz;
+  gl_FragColor = vec4(sanitizeVec3((positionData.xyz - lastPosition)/u_dt), positionData.a);
 }
 `;
 

@@ -13,6 +13,7 @@ import type { FoldDocument } from '../../src/types.js';
 
 interface GpuParityRow {
   fixture: string;
+  integrator: 'euler' | 'verlet';
   steps: number;
   vertices: number;
   maxAbs: number;
@@ -53,48 +54,54 @@ function compare(a: Float32Array, b: Float32Array): { maxAbs: number; meanAbs: n
 
 window.runGpuParity = (foldPercent, stepCounts) => {
   const rows: GpuParityRow[] = [];
+  // Both integrators are compared: they share the force shader but apply it
+  // differently, so a Verlet-only regression would otherwise go unnoticed.
+  const integrators = ['euler', 'verlet'] as const;
 
   for (const fixture of FIXTURES) {
     if (fixture.degenerate) continue;
 
-    for (const steps of stepCounts) {
-      const fold = fixture.build();
+    for (const integrationType of integrators) {
+      for (const steps of stepCounts) {
+        const fold = fixture.build();
 
-      const referenceModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
-      const reference = new ReferenceSolver(referenceModel, { foldPercent });
-      reference.step(steps);
-      const referencePositions = referenceModel.positions.slice(0, referenceModel.prepared.vertexCount * 3);
+        const referenceModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
+        const reference = new ReferenceSolver(referenceModel, { foldPercent, integrationType });
+        reference.step(steps);
+        const referencePositions = referenceModel.positions.slice(0, referenceModel.prepared.vertexCount * 3);
 
-      const canvas = document.createElement('canvas');
-      canvas.width = 2;
-      canvas.height = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = 2;
+        canvas.height = 2;
 
-      let row: GpuParityRow = {
-        fixture: fixture.name,
-        steps,
-        vertices: referenceModel.prepared.vertexCount,
-        maxAbs: 0,
-        meanAbs: 0,
-        gpuSupported: true,
-      };
+        let row: GpuParityRow = {
+          fixture: fixture.name,
+          integrator: integrationType,
+          steps,
+          vertices: referenceModel.prepared.vertexCount,
+          maxAbs: 0,
+          meanAbs: 0,
+          gpuSupported: true,
+        };
 
-      try {
-        if (!WebglSolver.isSupported(canvas)) {
-          rows.push({ ...row, gpuSupported: false, error: 'WebGL2 unsupported' });
-          continue;
+        try {
+          if (!WebglSolver.isSupported(canvas)) {
+            rows.push({ ...row, gpuSupported: false, error: 'WebGL2 unsupported' });
+            continue;
+          }
+          const gpuModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
+          const gpu = new WebglSolver(canvas, gpuModel, { foldPercent, integrationType });
+          gpu.step(steps);
+          const gpuPositions = new Float32Array(gpuModel.prepared.vertexCount * 3);
+          gpu.readPositions(gpuPositions);
+          gpu.dispose();
+
+          row = { ...row, ...compare(referencePositions, gpuPositions) };
+        } catch (cause) {
+          row = { ...row, error: cause instanceof Error ? cause.message : String(cause) };
         }
-        const gpuModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
-        const gpu = new WebglSolver(canvas, gpuModel, { foldPercent });
-        gpu.step(steps);
-        const gpuPositions = new Float32Array(gpuModel.prepared.vertexCount * 3);
-        gpu.readPositions(gpuPositions);
-        gpu.dispose();
-
-        row = { ...row, ...compare(referencePositions, gpuPositions) };
-      } catch (cause) {
-        row = { ...row, error: cause instanceof Error ? cause.message : String(cause) };
+        rows.push(row);
       }
-      rows.push(row);
     }
   }
 
@@ -225,6 +232,7 @@ interface StabilityRow {
   firstBadFoldPercent: number | null;
   firstBadKind: 'nonfinite' | 'strain' | null;
   maxStrainSeen: number;
+  integrator?: 'euler' | 'verlet';
   firstBadTexture?: string;
   firstBadTextureStep?: number;
   maxAbsPositionAtFailure?: number;
@@ -240,12 +248,13 @@ declare global {
       strainLimit: number,
       extraFolds?: Record<string, FoldDocument>,
       timeStepScale?: number,
-      fineFrom?: number
+      fineFrom?: number,
+      integrationType?: 'euler' | 'verlet'
     ) => StabilityRow[];
   }
 }
 
-window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraFolds = {}, timeStepScale = 1, fineFrom = Number.POSITIVE_INFINITY) => {
+window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraFolds = {}, timeStepScale = 1, fineFrom = Number.POSITIVE_INFINITY, integrationType = 'euler') => {
   const rows: StabilityRow[] = [];
   const builders: Array<{ name: string; build: () => FoldDocument }> = [
     ...fixtureNames.flatMap((name) => {
@@ -275,6 +284,7 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
         firstBadKind: null,
         maxStrainSeen: 0,
         timeStepScale,
+        integrator: integrationType,
       };
 
       try {
@@ -287,9 +297,9 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
             rows.push({ ...row, error: 'WebGL2 unsupported' });
             continue;
           }
-          solver = new WebglSolver(canvas, model, { foldPercent: 0, timeStepScale });
+          solver = new WebglSolver(canvas, model, { foldPercent: 0, timeStepScale, integrationType });
         } else {
-          solver = new ReferenceSolver(model, { foldPercent: 0, timeStepScale });
+          solver = new ReferenceSolver(model, { foldPercent: 0, timeStepScale, integrationType });
         }
 
         for (let done = 0; done < totalSteps; ) {

@@ -1768,7 +1768,10 @@
     "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
     "menu:file.exportFoldedFold": "5b3bf322c94f",
     "menu:file.exportObj": "687b2c99922d",
-    "menu:file.exportStl": "33811e5af23e"
+    "menu:file.exportStl": "33811e5af23e",
+    "panels:simulatorViewControls.integrator": "e43f447b65e6",
+    "panels:simulatorViewControls.integratorEuler": "586ca27cfbb8",
+    "panels:simulatorViewControls.integratorVerlet": "2f96ec545417"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3539,7 +3542,10 @@
     "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
     "menu:file.exportFoldedFold": "5b3bf322c94f",
     "menu:file.exportObj": "687b2c99922d",
-    "menu:file.exportStl": "33811e5af23e"
+    "menu:file.exportStl": "33811e5af23e",
+    "panels:simulatorViewControls.integrator": "e43f447b65e6",
+    "panels:simulatorViewControls.integratorEuler": "586ca27cfbb8",
+    "panels:simulatorViewControls.integratorVerlet": "2f96ec545417"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5335,7 +5341,10 @@
     "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
     "menu:file.exportFoldedFold": "5b3bf322c94f",
     "menu:file.exportObj": "687b2c99922d",
-    "menu:file.exportStl": "33811e5af23e"
+    "menu:file.exportStl": "33811e5af23e",
+    "panels:simulatorViewControls.integrator": "e43f447b65e6",
+    "panels:simulatorViewControls.integratorEuler": "586ca27cfbb8",
+    "panels:simulatorViewControls.integratorVerlet": "2f96ec545417"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7131,7 +7140,10 @@
     "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
     "menu:file.exportFoldedFold": "5b3bf322c94f",
     "menu:file.exportObj": "687b2c99922d",
-    "menu:file.exportStl": "33811e5af23e"
+    "menu:file.exportStl": "33811e5af23e",
+    "panels:simulatorViewControls.integrator": "e43f447b65e6",
+    "panels:simulatorViewControls.integratorEuler": "586ca27cfbb8",
+    "panels:simulatorViewControls.integratorVerlet": "2f96ec545417"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8927,7 +8939,10 @@
     "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
     "menu:file.exportFoldedFold": "5b3bf322c94f",
     "menu:file.exportObj": "687b2c99922d",
-    "menu:file.exportStl": "33811e5af23e"
+    "menu:file.exportStl": "33811e5af23e",
+    "panels:simulatorViewControls.integrator": "e43f447b65e6",
+    "panels:simulatorViewControls.integratorEuler": "586ca27cfbb8",
+    "panels:simulatorViewControls.integratorVerlet": "2f96ec545417"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10723,7 +10738,10 @@
     "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
     "menu:file.exportFoldedFold": "5b3bf322c94f",
     "menu:file.exportObj": "687b2c99922d",
-    "menu:file.exportStl": "33811e5af23e"
+    "menu:file.exportStl": "33811e5af23e",
+    "panels:simulatorViewControls.integrator": "e43f447b65e6",
+    "panels:simulatorViewControls.integratorEuler": "586ca27cfbb8",
+    "panels:simulatorViewControls.integratorVerlet": "2f96ec545417"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12519,7 +12537,10 @@
     "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
     "menu:file.exportFoldedFold": "5b3bf322c94f",
     "menu:file.exportObj": "687b2c99922d",
-    "menu:file.exportStl": "33811e5af23e"
+    "menu:file.exportStl": "33811e5af23e",
+    "panels:simulatorViewControls.integrator": "e43f447b65e6",
+    "panels:simulatorViewControls.integratorEuler": "586ca27cfbb8",
+    "panels:simulatorViewControls.integratorVerlet": "2f96ec545417"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14290,6 +14311,9 @@
     "common:capability.simulateBeforeExportingFolded": "fd30c79ab65d",
     "menu:file.exportFoldedFold": "5b3bf322c94f",
     "menu:file.exportObj": "687b2c99922d",
-    "menu:file.exportStl": "33811e5af23e"
+    "menu:file.exportStl": "33811e5af23e",
+    "panels:simulatorViewControls.integrator": "e43f447b65e6",
+    "panels:simulatorViewControls.integratorEuler": "586ca27cfbb8",
+    "panels:simulatorViewControls.integratorVerlet": "2f96ec545417"
   }
 }

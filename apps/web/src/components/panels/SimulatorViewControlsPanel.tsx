@@ -170,6 +170,34 @@ export function SimulatorViewControlsPanel() {
             'Lower stability if a fold jitters or blows up.'
           )}
         >
+          <div className="control-row">
+            <span className="control-row__label">
+              {t('panels:simulatorViewControls.integrator', 'Integrator')}
+            </span>
+            <div className="control-row__value">
+              <Select
+                value={settings.integrationType}
+                onValueChange={(value) =>
+                  setSetting('integrationType', value as SimulatorSettings['integrationType'])
+                }
+              >
+                <SelectTrigger
+                  aria-label={t('panels:simulatorViewControls.integrator', 'Integrator')}
+                  className="simulator-view-controls-panel__select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="euler">
+                    {t('panels:simulatorViewControls.integratorEuler', 'Euler')}
+                  </SelectItem>
+                  <SelectItem value="verlet">
+                    {t('panels:simulatorViewControls.integratorVerlet', 'Verlet (steadier)')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <SliderRow
             settingKey="timeStepScale"
             label={t('panels:simulatorViewControls.stability', 'Stability')}

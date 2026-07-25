@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const HARNESS_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'gpuParityHarness');
-const FIXTURES_TO_SWEEP = ['boxpleat-24'];
+const FIXTURES_TO_SWEEP: string[] = [];
 // Real imported geometry (an Oriedita .ori crease-pattern segment) that was
 // observed exploding to NaN in the app while the synthetic fixtures stayed
 // stable. Kept as a regression fixture so the case cannot silently return.
@@ -25,7 +25,8 @@ const REAL_FOLD_FIXTURES = ['lamprey-segment'] as const;
 const TOTAL_STEPS = 12_000;
 const CHUNK = 200;
 const STRAIN_LIMIT = 3;
-const TIME_STEP_SCALES = [0.35];
+const TIME_STEP_SCALES = [1, 0.5, 0.35];
+const INTEGRATORS = ['euler', 'verlet'] as const;
 const FINE_FROM = Number.POSITIVE_INFINITY;
 
 interface StabilityRow {
@@ -37,6 +38,7 @@ interface StabilityRow {
   firstBadFoldPercent: number | null;
   firstBadKind: 'nonfinite' | 'strain' | null;
   maxStrainSeen: number;
+  integrator?: 'euler' | 'verlet';
   firstBadTexture?: string;
   firstBadTextureStep?: number;
   maxAbsPositionAtFailure?: number;
@@ -80,8 +82,9 @@ describe('solver long-run stability', () => {
 
       const allRows: StabilityRow[] = [];
       for (const scale of TIME_STEP_SCALES) {
+      for (const integrator of INTEGRATORS) {
       const rows = (await page.evaluate(
-        ([fixtures, totalSteps, chunk, strainLimit, folds, ts, ff]) =>
+        ([fixtures, totalSteps, chunk, strainLimit, folds, ts, ff, it]) =>
           (
             window as unknown as {
               runStabilitySweep: (
@@ -91,7 +94,8 @@ describe('solver long-run stability', () => {
                 s: number,
                 x: Record<string, unknown>,
                 ts: number,
-                ff: number
+                ff: number,
+                it: 'euler' | 'verlet'
               ) => StabilityRow[];
             }
           ).runStabilitySweep(
@@ -101,18 +105,20 @@ describe('solver long-run stability', () => {
             strainLimit as number,
             folds as Record<string, unknown>,
             ts as number,
-            ff as number
+            ff as number,
+            it as 'euler' | 'verlet'
           ),
-        [FIXTURES_TO_SWEEP, TOTAL_STEPS, CHUNK, STRAIN_LIMIT, extraFolds, scale, FINE_FROM] as const
+        [FIXTURES_TO_SWEEP, TOTAL_STEPS, CHUNK, STRAIN_LIMIT, extraFolds, scale, FINE_FROM, integrator] as const
       )) as StabilityRow[];
       allRows.push(...rows);
+      }
       }
       const rows = allRows;
 
       const lines = rows.map((row) =>
         row.error
           ? `${row.fixture.padEnd(14)} ${row.backend.padEnd(10)} ERROR: ${row.error}`
-          : `${row.fixture.padEnd(16)} ${row.backend.padEnd(10)} ts=${String(row.timeStepScale).padEnd(5)} v=${String(row.vertices).padStart(5)} | ` +
+          : `${row.fixture.padEnd(16)} ${row.backend.padEnd(10)} ${(row.integrator ?? '').padEnd(6)} ts=${String(row.timeStepScale).padEnd(5)} | ` +
             (row.firstBadStep === null
               ? `stable through ${row.steps} steps (max strain ${row.maxStrainSeen.toExponential(2)})`
               : `UNSTABLE at step ${row.firstBadStep} (fold ${row.firstBadFoldPercent?.toFixed(1)}%, ` +

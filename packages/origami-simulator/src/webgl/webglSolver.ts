@@ -4,6 +4,28 @@ import type { FoldAssignment, FoldProfile, SimulatorDiagnostics, SimulatorOption
 // Assignment letter -> edge colour code the mesh renderer expects
 // (0=B, 1=M, 2=V, 3=F). Unassigned/other creases fall through to the border
 // colour, matching the canvas-2D renderer.
+/**
+ * Textures the shared force shader samples, in the unit order both integrators
+ * bind and pass them. Verlet appends `u_lastLastPosition` after these.
+ */
+const FORCE_SHADER_SAMPLERS = [
+  'u_lastPosition',
+  'u_lastVelocity',
+  'u_originalPosition',
+  'u_externalForces',
+  'u_mass',
+  'u_meta',
+  'u_beamMeta',
+  'u_creaseMeta',
+  'u_nodeCreaseMeta',
+  'u_normals',
+  'u_theta',
+  'u_creaseGeo',
+  'u_meta2',
+  'u_nodeFaceMeta',
+  'u_nominalTriangles',
+] as const;
+
 const ASSIGNMENT_CODE: Record<FoldAssignment, number> = {
   B: 0,
   M: 1,
@@ -15,7 +37,15 @@ const ASSIGNMENT_CODE: Record<FoldAssignment, number> = {
 };
 import type { SolverBackend } from '../solverBackend.js';
 import { GlCore } from './glCore.js';
-import { NORMAL_CALC, THETA_CALC, CREASE_GEO_CALC, VELOCITY_CALC, POSITION_CALC } from './passes.js';
+import {
+  NORMAL_CALC,
+  THETA_CALC,
+  CREASE_GEO_CALC,
+  VELOCITY_CALC,
+  POSITION_CALC,
+  POSITION_CALC_VERLET,
+  VELOCITY_CALC_VERLET,
+} from './passes.js';
 import { MeshRenderer, type RenderSettings } from './meshRenderer.js';
 import type { CameraUniforms } from './camera.js';
 import {
@@ -37,8 +67,9 @@ import {
  * by parity against ReferenceSolver and the upstream oracle -- see the browser
  * parity tests -- not by anything asserted here.
  *
- * Currently Euler only. Verlet is a follow-up; callers that ask for it fall back
- * to the reference backend.
+ * Supports both integrators. Euler and Verlet share the force shader and differ
+ * only in how they apply it; Verlet additionally keeps a second step of position
+ * history (`u_lastLastPosition`).
  */
 export class WebglSolver implements SolverBackend {
   readonly id = 'webgl2';
@@ -50,6 +81,7 @@ export class WebglSolver implements SolverBackend {
   private dt: number;
   private currentStep = 0;
   private maxStrain = 0;
+  private integrationType: 'euler' | 'verlet';
 
   private readonly positionScratch: Float32Array;
   private readonly diagnostics: SimulatorDiagnostics;
@@ -94,6 +126,7 @@ export class WebglSolver implements SolverBackend {
       damping: options.damping ?? 0.45,
       timeStepScale: options.timeStepScale ?? 1,
     };
+    this.integrationType = options.integrationType === 'verlet' ? 'verlet' : 'euler';
     this.foldPercent = clampPercent(options.foldPercent ?? 0);
     this.packed = packModel(model, this.material);
     this.dt = timeStepFor(this.packed, this.material);
@@ -112,6 +145,7 @@ export class WebglSolver implements SolverBackend {
   setFoldPercent(percent: number): void {
     this.foldPercent = clampPercent(percent);
     this.gl.setUniform('velocityCalc', 'u_creasePercent', this.foldPercent / 100, '1f');
+    this.gl.setUniform('positionCalcVerlet', 'u_creasePercent', this.foldPercent / 100, '1f');
   }
 
   setFoldProfile(_profile: FoldProfile | null): void {
@@ -128,9 +162,26 @@ export class WebglSolver implements SolverBackend {
       damping: options.damping ?? this.material.damping,
       timeStepScale: options.timeStepScale ?? this.material.timeStepScale,
     };
+    if (options.integrationType !== undefined) {
+      const next = options.integrationType === 'verlet' ? 'verlet' : 'euler';
+      // Verlet integrates from two steps of history, so switching mid-solve would
+      // read a stale lastLastPosition as if it were the previous step. Seeding it
+      // from the current position starts the new integrator at rest instead.
+      if (next !== this.integrationType && next === 'verlet') this.seedVerletHistory();
+      this.integrationType = next;
+    }
     if (options.foldPercent !== undefined) this.setFoldPercent(options.foldPercent);
     this.dt = timeStepFor(this.packed, this.material);
     this.uploadMaterial();
+  }
+
+  /**
+   * Make lastLastPosition equal lastPosition, i.e. zero implied Verlet velocity.
+   * Costs a readback, but only runs when the integrator changes or a blow-up is
+   * arrested -- never per step.
+   */
+  private seedVerletHistory(): void {
+    this.gl.updateTexture('u_lastLastPosition', this.gl.readTexture('u_lastPosition'));
   }
 
   reset(): void {
@@ -138,6 +189,7 @@ export class WebglSolver implements SolverBackend {
     const zeros = new Float32Array(this.packed.dims.textureDim * this.packed.dims.textureDim * 4);
     this.gl.updateTexture('u_position', zeros);
     this.gl.updateTexture('u_lastPosition', zeros);
+    this.gl.updateTexture('u_lastLastPosition', zeros);
     this.gl.updateTexture('u_velocity', zeros);
     this.gl.updateTexture('u_lastVelocity', zeros);
     this.gl.updateTexture('u_theta', this.packed.thetaInit);
@@ -150,6 +202,9 @@ export class WebglSolver implements SolverBackend {
     const zeros = new Float32Array(this.packed.dims.textureDim * this.packed.dims.textureDim * 4);
     this.gl.updateTexture('u_velocity', zeros);
     this.gl.updateTexture('u_lastVelocity', zeros);
+    // Verlet carries its velocity implicitly, as the gap between the last two
+    // positions -- zeroing the velocity texture alone would not slow it at all.
+    if (this.integrationType === 'verlet') this.seedVerletHistory();
   }
 
   readPositions(into: Float32Array): number {
@@ -284,30 +339,19 @@ export class WebglSolver implements SolverBackend {
     );
     // updateCreaseGeo over creases
     gl.step('updateCreaseGeo', ['u_lastPosition', 'u_originalPosition', 'u_creaseMeta2'], 'u_creaseGeo');
-    // velocityCalc over nodes
-    gl.step(
-      'velocityCalc',
-      [
-        'u_lastPosition',
-        'u_lastVelocity',
-        'u_originalPosition',
-        'u_externalForces',
-        'u_mass',
-        'u_meta',
-        'u_beamMeta',
-        'u_creaseMeta',
-        'u_nodeCreaseMeta',
-        'u_normals',
-        'u_theta',
-        'u_creaseGeo',
-        'u_meta2',
-        'u_nodeFaceMeta',
-        'u_nominalTriangles',
-      ],
-      'u_velocity'
-    );
-    // positionCalc over nodes
-    gl.step('positionCalc', ['u_velocity', 'u_lastPosition', 'u_mass'], 'u_position');
+    if (this.integrationType === 'verlet') {
+      // positionCalcVerlet integrates the force straight into position from two
+      // steps of history; velocityCalcVerlet then derives velocity from how far it
+      // moved. Same force shader as Euler, different final line.
+      gl.step('positionCalcVerlet', [...FORCE_SHADER_SAMPLERS, 'u_lastLastPosition'], 'u_position');
+      gl.step('velocityCalcVerlet', ['u_position', 'u_lastPosition', 'u_mass'], 'u_velocity');
+      // Age the history: this step's "last" becomes "lastLast", and the swap below
+      // makes the new position "last". Matches upstream's swap order.
+      gl.swap('u_lastPosition', 'u_lastLastPosition');
+    } else {
+      gl.step('velocityCalc', [...FORCE_SHADER_SAMPLERS], 'u_velocity');
+      gl.step('positionCalc', ['u_velocity', 'u_lastPosition', 'u_mass'], 'u_position');
+    }
 
     gl.swap('u_theta', 'u_lastTheta');
     gl.swap('u_velocity', 'u_lastVelocity');
@@ -361,6 +405,8 @@ export class WebglSolver implements SolverBackend {
     // Ping-pong state
     gl.createTexture('u_position', { ...nodeSpec, data: zeros(dims.textureDim) });
     gl.createTexture('u_lastPosition', { ...nodeSpec, data: zeros(dims.textureDim) });
+    // Verlet's second step of history. Allocated always; only the Verlet path reads it.
+    gl.createTexture('u_lastLastPosition', { ...nodeSpec, data: zeros(dims.textureDim) });
     gl.createTexture('u_velocity', { ...nodeSpec, data: zeros(dims.textureDim) });
     gl.createTexture('u_lastVelocity', { ...nodeSpec, data: zeros(dims.textureDim) });
     gl.createTexture('u_normals', {
@@ -382,6 +428,8 @@ export class WebglSolver implements SolverBackend {
     gl.createProgram('updateCreaseGeo', CREASE_GEO_CALC);
     gl.createProgram('velocityCalc', VELOCITY_CALC);
     gl.createProgram('positionCalc', POSITION_CALC);
+    gl.createProgram('positionCalcVerlet', POSITION_CALC_VERLET);
+    gl.createProgram('velocityCalcVerlet', VELOCITY_CALC_VERLET);
 
     // Bind every sampler to a texture unit, matching the input order in `step`.
     const bind = (program: string, samplers: string[]) =>
@@ -400,40 +448,36 @@ export class WebglSolver implements SolverBackend {
     gl.setUniform('updateCreaseGeo', 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
     gl.setUniform('updateCreaseGeo', 'u_textureDimCreases', [dims.textureDimCreases, dims.textureDimCreases], '2f');
 
-    bind('velocityCalc', [
-      'u_lastPosition',
-      'u_lastVelocity',
-      'u_originalPosition',
-      'u_externalForces',
-      'u_mass',
-      'u_meta',
-      'u_beamMeta',
-      'u_creaseMeta',
-      'u_nodeCreaseMeta',
-      'u_normals',
-      'u_theta',
-      'u_creaseGeo',
-      'u_meta2',
-      'u_nodeFaceMeta',
-      'u_nominalTriangles',
-    ]);
-    gl.setUniform('velocityCalc', 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
-    gl.setUniform('velocityCalc', 'u_textureDimEdges', [dims.textureDimEdges, dims.textureDimEdges], '2f');
-    gl.setUniform('velocityCalc', 'u_textureDimFaces', [dims.textureDimFaces, dims.textureDimFaces], '2f');
-    gl.setUniform('velocityCalc', 'u_textureDimCreases', [dims.textureDimCreases, dims.textureDimCreases], '2f');
-    gl.setUniform(
-      'velocityCalc',
-      'u_textureDimNodeCreases',
-      [dims.textureDimNodeCreases, dims.textureDimNodeCreases],
-      '2f'
-    );
-    gl.setUniform(
-      'velocityCalc',
-      'u_textureDimNodeFaces',
-      [dims.textureDimNodeFaces, dims.textureDimNodeFaces],
-      '2f'
-    );
-    gl.setUniform('velocityCalc', 'u_calcFaceStrain', 0, '1i');
+    // Euler's velocityCalc and Verlet's positionCalcVerlet share the force shader,
+    // so they take the same inputs and dimension uniforms. Configure both from one
+    // place; a program that drifted would compute a different force.
+    for (const program of ['velocityCalc', 'positionCalcVerlet'] as const) {
+      const samplers: string[] = [...FORCE_SHADER_SAMPLERS];
+      // Verlet reads one extra texture; it must be the last unit so the shared
+      // units line up with the step() input order below.
+      if (program === 'positionCalcVerlet') samplers.push('u_lastLastPosition');
+      bind(program, samplers);
+      gl.setUniform(program, 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
+      gl.setUniform(program, 'u_textureDimEdges', [dims.textureDimEdges, dims.textureDimEdges], '2f');
+      gl.setUniform(program, 'u_textureDimFaces', [dims.textureDimFaces, dims.textureDimFaces], '2f');
+      gl.setUniform(program, 'u_textureDimCreases', [dims.textureDimCreases, dims.textureDimCreases], '2f');
+      gl.setUniform(
+        program,
+        'u_textureDimNodeCreases',
+        [dims.textureDimNodeCreases, dims.textureDimNodeCreases],
+        '2f'
+      );
+      gl.setUniform(
+        program,
+        'u_textureDimNodeFaces',
+        [dims.textureDimNodeFaces, dims.textureDimNodeFaces],
+        '2f'
+      );
+      gl.setUniform(program, 'u_calcFaceStrain', 0, '1i');
+    }
+
+    bind('velocityCalcVerlet', ['u_position', 'u_lastPosition', 'u_mass']);
+    gl.setUniform('velocityCalcVerlet', 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
 
     bind('positionCalc', ['u_velocity', 'u_lastPosition', 'u_mass']);
     gl.setUniform('positionCalc', 'u_textureDim', [dims.textureDim, dims.textureDim], '2f');
@@ -443,11 +487,14 @@ export class WebglSolver implements SolverBackend {
     const gl = this.gl;
     gl.updateTexture('u_beamMeta', packBeamMeta(this.packed, this.material));
     gl.updateTexture('u_creaseMeta', packCreaseMeta(this.packed, this.material));
-    gl.setUniform('velocityCalc', 'u_dt', this.dt, '1f');
-    gl.setUniform('velocityCalc', 'u_axialStiffness', this.material.axialStiffness, '1f');
-    gl.setUniform('velocityCalc', 'u_faceStiffness', this.material.faceStiffness, '1f');
-    gl.setUniform('velocityCalc', 'u_creasePercent', this.foldPercent / 100, '1f');
+    for (const program of ['velocityCalc', 'positionCalcVerlet'] as const) {
+      gl.setUniform(program, 'u_dt', this.dt, '1f');
+      gl.setUniform(program, 'u_axialStiffness', this.material.axialStiffness, '1f');
+      gl.setUniform(program, 'u_faceStiffness', this.material.faceStiffness, '1f');
+      gl.setUniform(program, 'u_creasePercent', this.foldPercent / 100, '1f');
+    }
     gl.setUniform('positionCalc', 'u_dt', this.dt, '1f');
+    gl.setUniform('velocityCalcVerlet', 'u_dt', this.dt, '1f');
   }
 }
 

@@ -122,6 +122,22 @@ describe('prepareFoldModel', () => {
     expect(Number.isNaN(solver.maxVelocity())).toBe(true);
   });
 
+  it('folds with the Verlet integrator as well as Euler', () => {
+    // Verlet integrates position from two steps of history, so a fresh solver has
+    // no implied velocity; it must still leave the flat state and stay finite.
+    const prepared = prepareFoldModel(makeBookFoldFixture());
+    const simulator = createOrigamiSimulator({
+      model: prepared,
+      options: { foldPercent: 100, integrationType: 'verlet' },
+    });
+    const before = simulator.readFrame().positions;
+    const after = simulator.step(64).positions;
+
+    expect(maxPositionDelta(before, after)).toBeGreaterThan(0);
+    expect([...after].every((value) => Number.isFinite(value))).toBe(true);
+    simulator.dispose();
+  });
+
   it('leaves clean geometry untouched', () => {
     const prepared = prepareFoldModel(makeBookFoldFixture());
     expect(prepared.faceCount).toBe(2);

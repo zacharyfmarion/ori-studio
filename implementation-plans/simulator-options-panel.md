@@ -142,16 +142,14 @@ and `npm run i18n:check` must pass.
       capabilities, gated like the other fold exports; geometry is read on demand
       from the shared simulator worker (`exportGeometry`), since GPU-render mode
       never sends positions to the main thread
-- [ ] Phase 4: anchors + gravity; port Verlet to the GPU, then expose the toggle
-      -- PAUSED for a decision. Two separable pieces, and the case for each moved
-      since the plan was written:
-      * **Anchors** need an interaction, not a slider: something has to choose
-        which vertices are pinned (click them in the 3D view, as upstream does?
-        derive them from the crease pattern?). That is UX design worth agreeing on
-        before building.
-      * **Verlet on the GPU** is a real solver addition (a second position/velocity
-        pass pair plus a `u_lastLastPosition` texture, revalidated against the CPU
-        oracle). Its payoff shrank once `timeStepScale: 0.35` made Euler stable on
-        the reported pattern, so it may no longer be the best use of the effort.
+- [x] Phase 4a: Verlet on the GPU, and the integrator toggle it unblocked.
+      Euler and Verlet now share the force shader (upstream duplicates it), so a
+      force-model fix cannot land in one and not the other; Verlet adds a
+      `u_lastLastPosition` history texture. GPU-vs-CPU parity holds for BOTH
+      integrators at 7.15e-7 worst case against a Tier C bar of 1e-3, and
+      `bench:gpu-stability` sweeps both: at timeStepScale 0.5 Euler diverges on the
+      lamprey fixture while Verlet stays stable, at roughly half the peak strain.
+- [ ] Phase 4b: anchors + gravity -- still needs an interaction design (how a
+      vertex gets pinned). Deliberately not started.
 - [ ] Browser check (user): pane looks native beside the Edit view's, sliders
       change the fold visibly, nothing regresses in the transport

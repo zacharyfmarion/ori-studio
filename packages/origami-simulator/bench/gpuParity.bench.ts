@@ -24,6 +24,7 @@ const STEP_COUNTS = [1, 10, 100];
 
 interface GpuParityRow {
   fixture: string;
+  integrator: 'euler' | 'verlet';
   steps: number;
   vertices: number;
   maxAbs: number;
@@ -79,7 +80,7 @@ describe('GPU solver parity', () => {
 
       const lines = rows.map(
         (row) =>
-          `${row.fixture.padEnd(14)} steps=${String(row.steps).padStart(3)} ` +
+          `${row.fixture.padEnd(14)} ${row.integrator.padEnd(6)} steps=${String(row.steps).padStart(3)} ` +
           `v=${String(row.vertices).padStart(5)} | ` +
           (row.error
             ? `ERROR: ${row.error}`
@@ -95,7 +96,7 @@ describe('GPU solver parity', () => {
       process.stdout.write(`worst GPU-vs-reference divergence: ${worst.toExponential(3)} (Tier C ${TIER_C})\n\n`);
 
       for (const row of supported) {
-        expect(row.maxAbs, `${row.fixture} @ ${row.steps} steps diverged`).toBeLessThan(TIER_C);
+        expect(row.maxAbs, `${row.fixture} ${row.integrator} @ ${row.steps} steps diverged`).toBeLessThan(TIER_C);
       }
 
       // Headless render coverage. Not a visual check -- it only catches shaders

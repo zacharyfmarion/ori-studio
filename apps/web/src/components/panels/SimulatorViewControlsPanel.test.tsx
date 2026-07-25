@@ -127,6 +127,18 @@ describe('SimulatorViewControlsPanel', () => {
     expect(settings.lighting).toBe(false);
   });
 
+  it('offers both integrators and writes the choice to the store', () => {
+    const rendered = render();
+    expect(rendered.querySelector('[aria-label="Integrator"]')).not.toBeNull();
+    expect(useWorkspaceStore.getState().simulatorSettings.integrationType).toBe('euler');
+
+    act(() => {
+      useWorkspaceStore.getState().setSimulatorSetting('integrationType', 'verlet');
+    });
+
+    expect(useWorkspaceStore.getState().simulatorSettings.integrationType).toBe('verlet');
+  });
+
   it('reveals the strain clip only in strain colour mode', () => {
     const rendered = render();
     expect(rendered.querySelector('input[aria-label="Red at %"]')).toBeNull();

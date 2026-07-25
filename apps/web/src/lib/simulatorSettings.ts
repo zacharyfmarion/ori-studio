@@ -19,6 +19,14 @@ export type SimulatorRenderMode = 'paper' | 'xray';
  */
 export type SimulatorColorMode = 'paper' | 'strain';
 
+/**
+ * `euler` is upstream's default. `verlet` integrates position directly from two
+ * steps of history and tolerates a larger timestep on stiff patterns -- measured
+ * on the lamprey fixture, it survives a step where Euler diverges (see
+ * `bench:gpu-stability`). Both run on the GPU.
+ */
+export type SimulatorIntegrator = 'euler' | 'verlet';
+
 export interface SimulatorSettings {
   renderMode: SimulatorRenderMode;
   colorMode: SimulatorColorMode;
@@ -49,6 +57,7 @@ export interface SimulatorSettings {
    * `strainClip`.
    */
   strainClip: number;
+  integrationType: SimulatorIntegrator;
 }
 
 export type SimulatorSettingKey = keyof SimulatorSettings;
@@ -72,6 +81,7 @@ export const DEFAULT_SIMULATOR_SETTINGS: SimulatorSettings = {
   timeStepScale: 0.35,
   foldPlayPercentPerSecond: 28,
   strainClip: 5,
+  integrationType: 'euler',
 };
 
 interface NumericRange {
@@ -138,6 +148,10 @@ export function normalizeSimulatorSettings(source: unknown): SimulatorSettings {
       if (value === 'paper' || value === 'strain') next.colorMode = value;
       continue;
     }
+    if (key === 'integrationType') {
+      if (value === 'euler' || value === 'verlet') next.integrationType = value;
+      continue;
+    }
     if (typeof value === 'boolean') next[key] = value;
   }
   return next;
@@ -156,5 +170,6 @@ export function simulatorMaterialOptions(settings: SimulatorSettings): Partial<S
     faceStiffness: settings.faceStiffness,
     damping: settings.damping,
     timeStepScale: settings.timeStepScale,
+    integrationType: settings.integrationType,
   };
 }
