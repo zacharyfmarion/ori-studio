@@ -3,9 +3,22 @@ import { APP_VERSION } from '../../../constants/release';
 import {
   serializeCreasePatternSvg,
   renderCreasePatternPng,
+  DEFAULT_CREASE_EXPORT_OPTIONS,
+  EMPTY_CREASE_EXPORT_CAPTION,
+  EMPTY_CREASE_EXPORT_CONTENT,
+  type CreaseExportContent,
+  type CreaseExportFoldedFigureSettings,
   type CreaseExportFormat,
   type CreaseExportOptions,
 } from '../../../lib/creaseExport';
+import {
+  cpModelToFoldTransform,
+  foldSegmentForExport,
+  type CreaseExportFoldResult,
+} from '../../../lib/creaseExportFold';
+import { hexToRgbColor } from '../../../lib/rgbColor';
+import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
+import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
 import {
   importedCreasePatternFormat,
   isCreasePatternFilename,
@@ -104,6 +117,10 @@ import {
   exportOristudioCpDocumentAsOrh,
   clearOristudioCpKernelTexts,
   createBlankOristudioCpDocument,
+  foldOristudioCpDocument,
+  foldOristudioCpFigureToCase,
+  freeOristudioCpFoldedFigure,
+  getOristudioCpFoldedFigureRenderSnapshot,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
   importAddOristudioCpDocumentFromText,
@@ -419,15 +436,102 @@ async function confirmDiscardDirty(dirty: boolean): Promise<boolean> {
   });
 }
 
+/**
+ * Fold one crease pattern for an export preview.
+ *
+ * Ephemeral by design: the figure never becomes a canvas entry, so exporting
+ * leaves no folded model, no history entry, and no dirty flag behind.
+ */
+async function foldExportSegment(
+  documentState: OristudioCpDocumentState | null,
+  fold: FoldDocument,
+  segment: CpSegment | null,
+  settings: CreaseExportFoldedFigureSettings
+): Promise<CreaseExportFoldResult> {
+  if (!documentState) throw new Error('No editable crease-pattern document is loaded');
+  try {
+    return await foldSegmentForExport(
+      {
+        fold: async (startingFaceId, order, model, lineIds) => {
+          const result = await foldOristudioCpDocument(startingFaceId, order, model, lineIds);
+          return {
+            handle: result.handle,
+            discoveredCases: result.snapshot.discovered_fold_cases,
+            displayStyle: result.snapshot.display_style,
+          };
+        },
+        foldToCase: async (handle, objective) => {
+          const result = await foldOristudioCpFigureToCase(handle, objective);
+          return {
+            discoveredCases: result.snapshot.discovered_fold_cases,
+            displayStyle: result.snapshot.display_style,
+          };
+        },
+        // Render at the style the estimate reached, exactly as the canvas does.
+        renderSnapshot: (handle, displayStyle) =>
+          getOristudioCpFoldedFigureRenderSnapshot(handle, displayStyle, {
+            display_mark: false,
+            selected: false,
+          }),
+        free: (handle) => freeOristudioCpFoldedFigure(handle),
+      },
+      documentState.document,
+      segment,
+      exportFoldedFigureModel(documentState, settings),
+      settings.foldCase,
+      cpModelToFoldTransform(fold, documentState.document)
+    );
+  } catch (error) {
+    // Kernel failures arrive as wasm error envelopes, not Errors; the dialog
+    // shows this message verbatim, so normalize it here.
+    throw new Error(oristudioCpError(error).message, { cause: error });
+  }
+}
+
+/**
+ * The kernel model an export fold runs with: the document's own folded-figure
+ * metadata (so a reopened Oriedita file keeps its colours) with the dialog's
+ * choices layered on top.
+ */
+function exportFoldedFigureModel(
+  documentState: OristudioCpDocumentState,
+  settings: CreaseExportFoldedFigureSettings
+): OristudioCpFoldedFigureModel {
+  const base =
+    foldedFigureModelFromOrieditaMetadata(documentState.document.metadata) ??
+    DEFAULT_EXPORT_FOLDED_MODEL;
+  return {
+    ...base,
+    state: settings.side,
+    front_color: hexToRgbColor(settings.frontColor),
+    back_color: hexToRgbColor(settings.backColor),
+  };
+}
+
+/** Mirrors the Rust `FoldedFigureModel::default()`. */
+const DEFAULT_EXPORT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
+  front_color: { red: 255, green: 255, blue: 50 },
+  back_color: { red: 233, green: 233, blue: 233 },
+  line_color: { red: 0, green: 0, blue: 0 },
+  scale: 1,
+  rotation: 0,
+  anti_alias: true,
+  display_shadows: false,
+  state: 'Front0',
+  folded_cases: 1,
+  transparent_transparency: 16,
+  transparency_color: false,
+};
+
 function defaultCreaseExportOptions(viewport: OristudioCpViewportOptions): CreaseExportOptions {
   return {
-    segmentId: null,
+    ...DEFAULT_CREASE_EXPORT_OPTIONS,
     lineStyle: viewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE,
     lineWidth: viewport.lineWidth ?? DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
-    // Points off by default for exports.
-    pointSize: 0,
-    includeUnassigned: true,
-    showBackgroundColor: true,
+    // The caption starts empty: a document is usually still called "Untitled"
+    // when it is exported, and a placeholder title drawn into the image is
+    // worse than none.
+    caption: EMPTY_CREASE_EXPORT_CAPTION,
   };
 }
 
@@ -454,14 +558,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   const resolveCreaseExport = async (
     format: CreaseExportFormat,
     options?: CreaseExportOptions
-  ): Promise<{ options: CreaseExportOptions; fold: FoldDocument; segments: CpSegment[] } | null> => {
+  ): Promise<{
+    options: CreaseExportOptions;
+    content: CreaseExportContent;
+    fold: FoldDocument;
+    segments: CpSegment[];
+  } | null> => {
     const foldArtifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
     if (!foldArtifacts) return null;
     // Export the real (untriangulated) crease pattern, not the simulation mesh
     // (simulation_model.fold is triangulated, which adds spurious diagonals).
     const fold = foldArtifacts.fold;
     const segments = segmentFoldDocument(fold);
-    if (options) return { options, fold, segments };
+    if (options) return { options, content: EMPTY_CREASE_EXPORT_CONTENT, fold, segments };
     const label = format.toUpperCase();
     const resolved = await requestCreasePatternExportOptions({
       title: `Export ${label}`,
@@ -469,9 +578,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       fold,
       segments,
       initialOptions: defaultCreaseExportOptions(get().oristudioCpViewport),
+      // Only an editable crease-pattern document can be folded; a TreeMaker
+      // design has no kernel handle, so the dialog disables the option.
+      foldSegment: get().oristudioCpDocument
+        ? (segment, settings) =>
+            foldExportSegment(get().oristudioCpDocument, fold, segment, settings)
+        : null,
       confirmLabel: `Export ${label}`,
     });
-    return resolved ? { options: resolved, fold, segments } : null;
+    return resolved ? { ...resolved, fold, segments } : null;
   };
 
   const confirmLossyOrhWrite = () =>
@@ -2044,7 +2159,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (svgLoss !== true && !(await svgLoss)) return false;
         const resolved = await resolveCreaseExport('svg', options);
         if (!resolved) return false;
-        const contents = serializeCreasePatternSvg(resolved.fold, resolved.segments, resolved.options);
+        const contents = serializeCreasePatternSvg(
+          resolved.fold,
+          resolved.segments,
+          resolved.options,
+          resolved.content
+        );
         const result = await fileService.saveTextFile({
           title: 'Export Crease Pattern SVG',
           contents,
@@ -2068,7 +2188,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (pngLoss !== true && !(await pngLoss)) return false;
         const resolved = await resolveCreaseExport('png', options);
         if (!resolved) return false;
-        const bytes = await renderCreasePatternPng(resolved.fold, resolved.segments, resolved.options);
+        const bytes = await renderCreasePatternPng(
+          resolved.fold,
+          resolved.segments,
+          resolved.options,
+          resolved.content
+        );
         const result = await fileService.saveBinaryFile({
           title: 'Export Crease Pattern PNG',
           bytes,

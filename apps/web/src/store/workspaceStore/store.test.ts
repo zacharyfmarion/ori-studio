@@ -97,6 +97,19 @@ const oristudioCpMocks = vi.hoisted(() => ({
 const exportMocks = vi.hoisted(() => ({
   renderCreasePatternPng: vi.fn(async () => new Uint8Array([1, 2, 3])),
   serializeCreasePatternSvg: vi.fn(() => '<svg role="img"></svg>'),
+  EMPTY_CREASE_EXPORT_CAPTION: { title: '', subtitle: '', description: '' },
+  EMPTY_CREASE_EXPORT_CONTENT: { foldedFigure: null },
+  DEFAULT_CREASE_EXPORT_OPTIONS: {
+    segmentId: null,
+    lineStyle: 'color',
+    lineWidth: 1,
+    pointSize: 0,
+    includeUnassigned: true,
+    showBackgroundColor: true,
+    theme: 'light',
+    includeFoldedFigure: false,
+    caption: { title: '', subtitle: '', description: '' },
+  },
 }));
 
 const bpMocks = vi.hoisted(() => ({
@@ -1517,14 +1530,16 @@ describe('workspace store slices', () => {
     expect(exportMocks.serializeCreasePatternSvg).toHaveBeenCalledWith(
       expect.objectContaining({ edges_vertices: expect.any(Array) }),
       expect.any(Array),
-      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true })
+      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true }),
+      { foldedFigure: null }
     );
 
     await expect(useWorkspaceStore.getState().exportPng(fileService)).resolves.toBe(true);
     expect(exportMocks.renderCreasePatternPng).toHaveBeenCalledWith(
       expect.objectContaining({ edges_vertices: expect.any(Array) }),
       expect.any(Array),
-      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true })
+      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true }),
+      { foldedFigure: null }
     );
     expect(fileService.saveBinaryFile).toHaveBeenCalledWith(
       expect.objectContaining({ extensions: ['png'], mimeType: 'image/png' })

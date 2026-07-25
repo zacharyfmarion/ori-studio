@@ -159,8 +159,8 @@
     "bringImageToFront": "이미지를 맨 앞으로 가져오기",
     "buildingCreasePattern": "전개도 생성 중",
     "canvasDiagnostics": "캔버스 진단",
-    "caseLabel": "케이스",
     "case_other": "케이스 {{count}}",
+    "caseLabel": "케이스",
     "changeFoldCase": "접기 경우 변경",
     "changeFoldedAlpha": "접힌 형태 투명도 변경",
     "changeFoldedColor": "접힌 모델 색상 변경",
@@ -197,8 +197,6 @@
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
     "foldCase": "접기 케이스",
-    "foldError": "접기 오류",
-    "foldModelAction": "모델 접기",
     "foldedColor": {
       "back": "뒷면",
       "backAria": "접힌 뒷면 색상",
@@ -209,8 +207,8 @@
     },
     "foldedDisplayStyle": "접힌 표시 스타일",
     "foldedModelControls": "접힌 모델 컨트롤",
-    "foldedModelSide": "접힌 모델 면",
     "foldedModels": "접힌 모델",
+    "foldedModelSide": "접힌 모델 면",
     "foldedState": {
       "back": "뒷면",
       "backShort": "B",
@@ -230,7 +228,9 @@
       "wire": "와이어"
     },
     "foldedTransparency": "접힌 투명도",
+    "foldError": "접기 오류",
     "folding": "접는 중",
+    "foldModelAction": "모델 접기",
     "goToFoldedCase": "접힌 케이스로 이동",
     "insertImage": "이미지 삽입...",
     "linesCount_other": "선 {{count}}개",
