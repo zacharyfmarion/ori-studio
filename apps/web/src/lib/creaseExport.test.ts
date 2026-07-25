@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { FoldDocument } from '../engine/types';
 import { segmentFoldDocument } from './creasePatternSegmentation';
+import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
 import {
+  buildCreaseExportArtwork,
   serializeCreasePatternSvg,
   layoutCreaseExport,
   wrapExportText,
@@ -188,6 +190,60 @@ describe('crease pattern export captions', () => {
 
     expect(svg).toContain('>Bird &amp; &lt;base&gt;</text>');
     expect(svg).not.toContain('<base>');
+  });
+});
+
+describe('folded figure placement', () => {
+  /** A figure four times the height of the paper it was folded from. */
+  function tallFigure(): OristudioCpFoldedRenderSnapshot {
+    return {
+      schema_version: 1,
+      fixture: null,
+      pass: null,
+      primitives: [
+        {
+          sequence: 0,
+          kind: 'fill_polygon',
+          style: {
+            paint: { kind: 'color', color: { red: 255, green: 255, blue: 255, alpha: 255 } },
+            stroke: { kind: 'none' },
+            antialias: 'default',
+          },
+          geometry: {
+            kind: 'polygon',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+              { x: 1, y: 4 },
+              { x: 0, y: 4 },
+            ],
+          },
+        },
+      ],
+    };
+  }
+
+  it('fits the figure between the top and bottom of the drawn pattern', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const artwork = buildCreaseExportArtwork(
+      fold,
+      segments,
+      { ...DEFAULT_CREASE_EXPORT_OPTIONS, includeFoldedFigure: true },
+      { foldedFigure: tallFigure() }
+    );
+    const layout = layoutCreaseExport(
+      { title: '', subtitle: '', description: '' },
+      artwork.palette,
+      artwork.foldedBox,
+      artwork.inset
+    );
+
+    // The figure's box ends exactly where the crease pattern's drawing does.
+    expect(layout.folded!.height).toBe(layout.cp.height - artwork.inset.bottom);
+    // Its aspect ratio survives the fit: four times as tall as it is wide.
+    const drawnHeight = layout.folded!.height - artwork.inset.top;
+    expect(artwork.foldedBox!.width).toBeCloseTo(drawnHeight / 4, 6);
   });
 });
 

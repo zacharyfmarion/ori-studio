@@ -274,6 +274,8 @@ export interface CreaseExportProjector {
   scale: number;
   /** Y of the top of the projected crease pattern inside the content box. */
   contentTop: number;
+  /** Height of the projected crease pattern inside the content box. */
+  contentHeight: number;
 }
 
 export function foldProjector(fold: FoldDocument): CreaseExportProjector {
@@ -314,7 +316,7 @@ export function foldProjector(fold: FoldDocument): CreaseExportProjector {
     const coord = coords[vertex];
     return projectPoint({ x: coord?.[axes[0]] ?? 0, y: coord?.[axes[1]] ?? 0 });
   };
-  return { project, projectPoint, scale, contentTop: offsetY };
+  return { project, projectPoint, scale, contentTop: offsetY, contentHeight: height };
 }
 
 export interface CreaseExportRect {
@@ -581,7 +583,7 @@ export function buildCreaseExportArtwork(
   const segment =
     options.segmentId != null ? segments.find((entry) => entry.id === options.segmentId) : undefined;
   const targetFold = segment ? buildSegmentFold(fold, segment) : fold;
-  const { project, projectPoint, scale, contentTop } = foldProjector(targetFold);
+  const { project, projectPoint, scale, contentTop, contentHeight } = foldProjector(targetFold);
 
   const faces = targetFold.faces_vertices ?? [];
   const edges = targetFold.edges_vertices ?? [];
@@ -646,17 +648,22 @@ export function buildCreaseExportArtwork(
   if (foldedSnapshot) {
     const bounds = projectedFoldedFigureBounds(foldedSnapshot, projectFoldedPoint);
     if (bounds) {
-      // Top edge of the figure lines up with the top edge of the drawn crease
-      // pattern — not with the content box, whose margin would leave the figure
-      // floating above the sheet it was folded from.
+      // Fit the figure's height to the drawn crease pattern's, so the two line
+      // up top and bottom. The kernel's folded coordinates carry a display
+      // scale of their own (an imported figure can come back twice the size of
+      // the paper it was folded from), which is not a size worth reproducing.
       const height = bounds.maxY - bounds.minY;
-      foldedBox = { width: bounds.maxX - bounds.minX, height: contentTop + height };
+      const fit = height > 0 ? contentHeight / height : 1;
+      foldedBox = { width: (bounds.maxX - bounds.minX) * fit, height: contentTop + contentHeight };
       folded = foldedFigureSvgBody(foldedSnapshot, {
         project: (point) => {
           const projected = projectFoldedPoint(point);
-          return { x: projected.x - bounds.minX, y: projected.y - bounds.minY + contentTop };
+          return {
+            x: (projected.x - bounds.minX) * fit,
+            y: (projected.y - bounds.minY) * fit + contentTop,
+          };
         },
-        scale: scale * foldedTransform.scale,
+        scale: scale * foldedTransform.scale * fit,
       });
     }
   }
