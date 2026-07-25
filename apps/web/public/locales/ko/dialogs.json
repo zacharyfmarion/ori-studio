@@ -194,8 +194,8 @@
     },
     "title": "설정",
     "workspace": {
-      "foldWarning": "평평접기 오류가 있는 전개도를 접기 전에 경고",
       "folding": "접기",
+      "foldWarning": "평평접기 오류가 있는 전개도를 접기 전에 경고",
       "layout": "레이아웃",
       "resetButton": "작업 공간 레이아웃 초기화",
       "resetMessage": "현재 작업 공간의 기본 레이아웃을 복원하시겠습니까?",

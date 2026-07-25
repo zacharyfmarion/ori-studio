@@ -12,6 +12,7 @@ import type { CreaseExportDialogResult } from '../store/commandDialogStore';
 import { segmentFoldDocument } from '../lib/creasePatternSegmentation';
 import type { FoldDocument } from '../engine/types';
 import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
+import { IDENTITY_CP_MODEL_TO_FOLD } from '../lib/creaseExportFold';
 import { CommandDialogModal } from './CommandDialogModal';
 
 function exportFold(): FoldDocument {
@@ -360,6 +361,7 @@ describe('CommandDialogModal', () => {
     const foldSegment = vi.fn(async () => ({
       snapshot: foldedSnapshot(),
       discoveredCases: 1,
+      transform: IDENTITY_CP_MODEL_TO_FOLD,
     }));
     let result = Promise.resolve<CreaseExportDialogResult | null>(null);
 
@@ -391,7 +393,10 @@ describe('CommandDialogModal', () => {
     expect(foldSegment).toHaveBeenCalledTimes(1);
     await expect(result).resolves.toMatchObject({
       options: { includeFoldedFigure: true },
-      content: { foldedFigure: { primitives: expect.any(Array) } },
+      content: {
+        foldedFigure: { primitives: expect.any(Array) },
+        foldedFigureTransform: IDENTITY_CP_MODEL_TO_FOLD,
+      },
     });
   });
 

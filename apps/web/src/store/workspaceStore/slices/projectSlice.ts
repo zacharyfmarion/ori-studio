@@ -12,6 +12,7 @@ import {
   type CreaseExportOptions,
 } from '../../../lib/creaseExport';
 import {
+  cpModelToFoldTransform,
   foldSegmentForExport,
   type CreaseExportFoldResult,
 } from '../../../lib/creaseExportFold';
@@ -443,6 +444,7 @@ async function confirmDiscardDirty(dirty: boolean): Promise<boolean> {
  */
 async function foldExportSegment(
   documentState: OristudioCpDocumentState | null,
+  fold: FoldDocument,
   segment: CpSegment | null,
   settings: CreaseExportFoldedFigureSettings
 ): Promise<CreaseExportFoldResult> {
@@ -471,7 +473,8 @@ async function foldExportSegment(
       documentState.document,
       segment,
       exportFoldedFigureModel(documentState, settings),
-      settings.foldCase
+      settings.foldCase,
+      cpModelToFoldTransform(fold, documentState.document)
     );
   } catch (error) {
     // Kernel failures arrive as wasm error envelopes, not Errors; the dialog
@@ -573,7 +576,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // Only an editable crease-pattern document can be folded; a TreeMaker
       // design has no kernel handle, so the dialog disables the option.
       foldSegment: get().oristudioCpDocument
-        ? (segment, settings) => foldExportSegment(get().oristudioCpDocument, segment, settings)
+        ? (segment, settings) =>
+            foldExportSegment(get().oristudioCpDocument, fold, segment, settings)
         : null,
       confirmLabel: `Export ${label}`,
     });

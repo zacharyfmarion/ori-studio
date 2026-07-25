@@ -6,6 +6,11 @@ import {
 } from './creasePatternSegmentation';
 import { escapeXml } from './xmlEscape';
 import { foldedFigureSvgBody, projectedFoldedFigureBounds } from './foldedFigureSvg';
+import {
+  applyCpModelToFold,
+  IDENTITY_CP_MODEL_TO_FOLD,
+  type CpModelToFoldTransform,
+} from './creaseExportFold';
 import type {
   OristudioCpFoldedFigureState,
   OristudioCpFoldedRenderSnapshot,
@@ -557,6 +562,11 @@ export interface CreaseExportArtwork {
  */
 export interface CreaseExportContent {
   foldedFigure: OristudioCpFoldedRenderSnapshot | null;
+  /**
+   * Places the figure's kernel coordinates in this fold's space. Usually the
+   * identity; see {@link CpModelToFoldTransform}.
+   */
+  foldedFigureTransform?: CpModelToFoldTransform;
 }
 
 export const EMPTY_CREASE_EXPORT_CONTENT: CreaseExportContent = { foldedFigure: null };
@@ -628,8 +638,13 @@ export function buildCreaseExportArtwork(
   let folded: string | null = null;
   let foldedBox: CreaseExportFoldedBox | null = null;
   const foldedSnapshot = options.includeFoldedFigure ? content.foldedFigure : null;
+  const foldedTransform = content.foldedFigureTransform ?? IDENTITY_CP_MODEL_TO_FOLD;
+  // The figure comes back in kernel coordinates, which are not always the
+  // fold's own — an imported fold is rescaled to the unit square.
+  const projectFoldedPoint = (point: { x: number; y: number }) =>
+    projectPoint(applyCpModelToFold(point, foldedTransform));
   if (foldedSnapshot) {
-    const bounds = projectedFoldedFigureBounds(foldedSnapshot, projectPoint);
+    const bounds = projectedFoldedFigureBounds(foldedSnapshot, projectFoldedPoint);
     if (bounds) {
       // Top edge of the figure lines up with the top edge of the drawn crease
       // pattern — not with the content box, whose margin would leave the figure
@@ -638,10 +653,10 @@ export function buildCreaseExportArtwork(
       foldedBox = { width: bounds.maxX - bounds.minX, height: contentTop + height };
       folded = foldedFigureSvgBody(foldedSnapshot, {
         project: (point) => {
-          const projected = projectPoint(point);
+          const projected = projectFoldedPoint(point);
           return { x: projected.x - bounds.minX, y: projected.y - bounds.minY + contentTop };
         },
-        scale,
+        scale: scale * foldedTransform.scale,
       });
     }
   }

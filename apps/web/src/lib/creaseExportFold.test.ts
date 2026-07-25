@@ -6,6 +6,8 @@ import type {
 import type { FoldDocument } from '../engine/types';
 import { segmentFoldDocument } from './creasePatternSegmentation';
 import {
+  applyCpModelToFold,
+  cpModelToFoldTransform,
   foldableLineIdsForSegment,
   foldSegmentForExport,
   type CreaseExportFoldRuntime,
@@ -125,6 +127,56 @@ describe('foldableLineIdsForSegment', () => {
 
   it('takes every foldable line when no segment is given', () => {
     expect(foldableLineIdsForSegment(document(), null)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  });
+});
+
+/**
+ * The same two squares after the import pipeline's rescale into the unit
+ * square — what a freshly opened file hands the export dialog.
+ */
+function importedTwoPatternFold(): FoldDocument {
+  const fold = twoPatternFold();
+  // normalizePoints: uniform scale by the larger span, then centre.
+  const scale = 1 / 40;
+  const offsetY = (1 - 10 / 40) / 2;
+  return {
+    ...fold,
+    vertices_coords: fold.vertices_coords.map(([x, y]) => [x! * scale, y! * scale + offsetY]),
+  };
+}
+
+describe('cpModelToFoldTransform', () => {
+  it('is the identity when the fold already carries kernel coordinates', () => {
+    const transform = cpModelToFoldTransform(twoPatternFold(), document());
+
+    expect(transform.scale).toBeCloseTo(1, 10);
+    expect(transform.offsetX).toBeCloseTo(0, 10);
+    expect(transform.offsetY).toBeCloseTo(0, 10);
+  });
+
+  it('recovers the import pipeline rescale', () => {
+    const transform = cpModelToFoldTransform(importedTwoPatternFold(), document());
+
+    expect(transform.scale).toBeCloseTo(1 / 40, 10);
+    expect(applyCpModelToFold({ x: 0, y: 0 }, transform)).toEqual({
+      x: expect.closeTo(0, 10),
+      y: expect.closeTo((1 - 10 / 40) / 2, 10),
+    });
+  });
+});
+
+describe('foldableLineIdsForSegment across coordinate spaces', () => {
+  it('attributes creases to a pattern of an imported fold', () => {
+    const fold = importedTwoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const transform = cpModelToFoldTransform(fold, document());
+
+    // Without the transform the document's creases are nowhere near the
+    // segment, which is what refused the fold on a freshly opened file.
+    expect(foldableLineIdsForSegment(document(), segments[1]!)).toEqual([]);
+    expect(foldableLineIdsForSegment(document(), segments[1]!, transform)).toEqual([
+      6, 7, 8, 9, 10,
+    ]);
   });
 });
 

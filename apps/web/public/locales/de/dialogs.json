@@ -199,8 +199,8 @@
     },
     "title": "Einstellungen",
     "workspace": {
-      "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
       "folding": "Falten",
+      "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
       "layout": "Layout",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",

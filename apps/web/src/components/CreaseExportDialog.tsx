@@ -19,7 +19,10 @@ import {
   type CreaseExportTheme,
 } from '../lib/creaseExport';
 import { cpThumbnailSvg, type CpSegment } from '../lib/creasePatternSegmentation';
-import type { CreaseExportFoldResult } from '../lib/creaseExportFold';
+import type {
+  CpModelToFoldTransform,
+  CreaseExportFoldResult,
+} from '../lib/creaseExportFold';
 import {
   ORISTUDIO_CP_LINE_STYLES,
   ORISTUDIO_CP_MIN_LINE_WIDTH,
@@ -143,6 +146,9 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   const [folding, setFolding] = useState(false);
   const [foldError, setFoldError] = useState<string | null>(null);
   const [discoveredCases, setDiscoveredCases] = useState(1);
+  const [foldedTransform, setFoldedTransform] = useState<CpModelToFoldTransform | undefined>(
+    undefined
+  );
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
     appearance: true,
     // Folding is the expensive, optional step: it stays out of the way until
@@ -189,6 +195,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     if (cached) {
       setFoldedFigure(cached.snapshot);
       setDiscoveredCases(cached.discoveredCases);
+      setFoldedTransform(cached.transform);
       setFoldError(null);
       return undefined;
     }
@@ -205,6 +212,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
         if (cancelled) return;
         setFoldedFigure(result.snapshot);
         setDiscoveredCases(result.discoveredCases);
+        setFoldedTransform(result.transform);
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -256,7 +264,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
           theme,
           includeFoldedFigure,
         },
-        { foldedFigure }
+        { foldedFigure, foldedFigureTransform: foldedTransform }
       ),
     [
       dialog.fold,
@@ -270,6 +278,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       theme,
       includeFoldedFigure,
       foldedFigure,
+      foldedTransform,
     ]
   );
 
@@ -315,7 +324,10 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
           className={`simple-modal__body export-modal${multiPattern ? ' export-modal--with-patterns' : ''}`}
           onSubmit={(event) => {
             event.preventDefault();
-            resolveCommandDialog(dialog.id, { options, content: { foldedFigure } });
+            resolveCommandDialog(dialog.id, {
+              options,
+              content: { foldedFigure, foldedFigureTransform: foldedTransform },
+            });
           }}
         >
           {multiPattern && (
@@ -365,9 +377,6 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
               onToggle={toggleSection}
             >
               <div className="export-modal__control-group">
-                <span className="export-modal__label">
-                  {t('dialogs:export.theme', 'Appearance')}
-                </span>
                 <SegmentedControl<CreaseExportTheme>
                   aria-label={t('dialogs:export.theme', 'Appearance')}
                   value={theme}
