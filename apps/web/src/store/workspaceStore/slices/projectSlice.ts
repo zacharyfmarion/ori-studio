@@ -457,14 +457,19 @@ async function foldExportSegment(
           return {
             handle: result.handle,
             discoveredCases: result.snapshot.discovered_fold_cases,
+            displayStyle: result.snapshot.display_style,
           };
         },
         foldToCase: async (handle, objective) => {
           const result = await foldOristudioCpFigureToCase(handle, objective);
-          return { discoveredCases: result.snapshot.discovered_fold_cases };
+          return {
+            discoveredCases: result.snapshot.discovered_fold_cases,
+            displayStyle: result.snapshot.display_style,
+          };
         },
-        renderSnapshot: (handle) =>
-          getOristudioCpFoldedFigureRenderSnapshot(handle, 'Paper5', {
+        // Render at the style the estimate reached, exactly as the canvas does.
+        renderSnapshot: (handle, displayStyle) =>
+          getOristudioCpFoldedFigureRenderSnapshot(handle, displayStyle, {
             display_mark: false,
             selected: false,
           }),

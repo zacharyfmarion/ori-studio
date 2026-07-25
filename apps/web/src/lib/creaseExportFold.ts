@@ -1,5 +1,6 @@
 import type {
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedRenderSnapshot,
 } from '../engine/oristudioCpTypes';
@@ -28,11 +29,27 @@ export interface CreaseExportFoldRuntime {
     order: 'Order5',
     model: OristudioCpFoldedFigureModel | undefined,
     lineIds: number[]
-  ) => Promise<{ handle: number; discoveredCases: number }>;
+  ) => Promise<FoldedFigureState>;
   /** Advance the figure to a later layer-ordering solution. */
-  foldToCase: (handle: number, objective: number) => Promise<{ discoveredCases: number }>;
-  renderSnapshot: (handle: number) => Promise<OristudioCpFoldedRenderSnapshot | null>;
+  foldToCase: (handle: number, objective: number) => Promise<Omit<FoldedFigureState, 'handle'>>;
+  renderSnapshot: (
+    handle: number,
+    displayStyle: OristudioCpFoldedFigureDisplayStyle
+  ) => Promise<OristudioCpFoldedRenderSnapshot | null>;
   free: (handle: number) => Promise<void>;
+}
+
+/** What a fold (or a jump to another case) leaves the figure in. */
+export interface FoldedFigureState {
+  handle: number;
+  discoveredCases: number;
+  /**
+   * The style the estimate actually reached. The kernel downgrades this when it
+   * cannot order the layers — a dense pattern often concludes at `Transparent3`
+   * — and rendering the figure as `Paper5` regardless comes back empty, which
+   * is how a real crease pattern ended up reported as "nothing to draw".
+   */
+  displayStyle: OristudioCpFoldedFigureDisplayStyle;
 }
 
 export interface CreaseExportFoldResult {
@@ -203,11 +220,11 @@ export async function foldSegmentForExport(
   try {
     // Case 1 is what the fold already produced; later cases are reached by
     // asking the kernel to keep searching from the same handle.
-    let discoveredCases = folded.discoveredCases;
+    let { discoveredCases, displayStyle } = folded;
     if (foldCase > 1) {
-      discoveredCases = (await runtime.foldToCase(handle, foldCase)).discoveredCases;
+      ({ discoveredCases, displayStyle } = await runtime.foldToCase(handle, foldCase));
     }
-    const snapshot = await runtime.renderSnapshot(handle);
+    const snapshot = await runtime.renderSnapshot(handle, displayStyle);
     if (!snapshot?.primitives.length) {
       throw new Error('The folded figure produced nothing to draw');
     }

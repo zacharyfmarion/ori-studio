@@ -104,8 +104,12 @@ function snapshot(): OristudioCpFoldedRenderSnapshot {
 
 function runtime(overrides: Partial<CreaseExportFoldRuntime> = {}): CreaseExportFoldRuntime {
   return {
-    fold: vi.fn(async () => ({ handle: 7, discoveredCases: 1 })),
-    foldToCase: vi.fn(async () => ({ discoveredCases: 3 })),
+    fold: vi.fn(async () => ({ handle: 7, discoveredCases: 1, displayStyle: 'Paper5' as const })),
+    foldToCase: vi.fn(async () => ({
+      discoveredCases: 3,
+      // Advancing a case can leave the estimate at a lower style.
+      displayStyle: 'Transparent3' as const,
+    })),
     renderSnapshot: vi.fn(async () => snapshot()),
     free: vi.fn(async () => {}),
     ...overrides,
@@ -220,7 +224,22 @@ describe('foldSegmentForExport', () => {
     ).resolves.toMatchObject({ discoveredCases: 3 });
 
     expect(api.foldToCase).toHaveBeenCalledWith(7, 3);
+    expect(api.renderSnapshot).toHaveBeenCalledWith(7, 'Transparent3');
     expect(api.free).toHaveBeenCalledWith(7);
+  });
+
+  it('renders at the style the estimate reached, not always Paper5', async () => {
+    const api = runtime({
+      fold: vi.fn(async () => ({
+        handle: 7,
+        discoveredCases: 1,
+        displayStyle: 'Transparent3' as const,
+      })),
+    });
+
+    await foldSegmentForExport(api, document(), null);
+
+    expect(api.renderSnapshot).toHaveBeenCalledWith(7, 'Transparent3');
   });
 
   it('refuses to fold a pattern with no foldable creases', async () => {
