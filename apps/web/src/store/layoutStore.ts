@@ -4,12 +4,14 @@ import type { WorkspaceId } from '../workspaces/workspaces';
 import { workspaceForPanelId } from '../workspaces/workspaces';
 import { readJson, readString, removeKey, storageKey, STORAGE_KEYS, writeJson, writeString } from '../lib/storage';
 
+// v17: the Simulate workspace gained its options pane; a layout persisted before
+// it existed restores a lone simulator panel and never picks the pane up.
 // v16: the box-pleat tree pane gained a tab header (draggable/rearrangeable), so
 // invalidate persisted box-pleat layouts that still have it in a headerless group.
 // v15: workspace routing rebuilt the layout lifecycle; invalidate any layouts
 // persisted by the racy pre-routing/interim builds (e.g. a vertically stacked BP
 // split, an Edit layout missing the View pane).
-export const LAYOUT_VERSION = 16;
+export const LAYOUT_VERSION = 17;
 
 /**
  * The Design workspace renders one of three layouts depending on the active
