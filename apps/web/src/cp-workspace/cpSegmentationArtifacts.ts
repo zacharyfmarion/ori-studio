@@ -3,58 +3,106 @@ import type { OristudioCpDocumentSnapshot } from '../engine/oristudioCpTypes';
 import { segmentationFoldArtifactsFromFold } from '../lib/creasePatternImport';
 import { exportOristudioCpDocumentAsFold } from '../store/workspaceStore/oristudioCpRuntime';
 
-// Cheap segments artifacts for the active CP, keyed by document-snapshot identity
-// so a stable document computes once and edits recompute. Segmentation is cheap
-// (kernel-supplied faces + a union-find), so no debounce is needed — the toolbar
-// only fetches on selection/document change, and the document is stable while a
-// selection is held.
-const cache = new WeakMap<OristudioCpDocumentSnapshot, Promise<FoldArtifacts | null>>();
+const COORD_QUANTIZE = 1e6;
 
 /**
- * Resolved artifacts, kept alongside the in-flight promises. Consumers can hold
- * the async result in component state only for as long as they stay mounted, and
- * segmentation takes ~1s on a large document — long enough for a remount (the
- * panel gates the toolbar on tool state) or an effect re-run to discard the
- * result and restart, potentially forever. Caching the resolved value here means
- * any later render reads it synchronously instead of racing for it again.
+ * A cheap content fingerprint of the crease geometry — the actual input to
+ * segmentation.
+ *
+ * Both obvious proxies for "the creases changed" are wrong here. The document
+ * snapshot is a fresh object after every kernel command, and
+ * `foldArtifactRevision` advances on the deselect that precedes a new selection
+ * (it records history, which marks fold artifacts stale). Keyed on either, the
+ * cache missed on every selection and re-paid the ~1s segmentation.
+ *
+ * Hashing the endpoints and colours is O(creases) — well under a millisecond for
+ * a 6k-crease pattern against a ~1s recompute — and changes exactly when the
+ * geometry does.
  */
-const resolved = new WeakMap<OristudioCpDocumentSnapshot, FoldArtifacts>();
+function computeCreaseFingerprint(document: OristudioCpDocumentSnapshot): string {
+  const lines = document.crease_pattern.line_segments;
+  let hash = 0x811c9dc5;
+  const mix = (value: number) => {
+    hash ^= value | 0;
+    hash = Math.imul(hash, 0x01000193);
+  };
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    mix(Math.round(line.a.x * COORD_QUANTIZE));
+    mix(Math.round(line.a.y * COORD_QUANTIZE));
+    mix(Math.round(line.b.x * COORD_QUANTIZE));
+    mix(Math.round(line.b.y * COORD_QUANTIZE));
+    mix(line.color.charCodeAt(0) + line.color.length);
+  }
+  return `${lines.length}:${hash >>> 0}`;
+}
 
-/** Already-computed artifacts for this document, if any. Never starts work. */
-export function peekCpSegmentationArtifacts(
-  document: OristudioCpDocumentSnapshot | null | undefined
-): FoldArtifacts | null {
-  return document ? (resolved.get(document) ?? null) : null;
+/** Memoized per snapshot, so only a genuinely new snapshot pays the O(n) hash. */
+const fingerprints = new WeakMap<OristudioCpDocumentSnapshot, string>();
+
+function creaseFingerprint(document: OristudioCpDocumentSnapshot): string {
+  const cachedFingerprint = fingerprints.get(document);
+  if (cachedFingerprint !== undefined) return cachedFingerprint;
+  const fingerprint = computeCreaseFingerprint(document);
+  fingerprints.set(document, fingerprint);
+  return fingerprint;
 }
 
 /**
- * Resolve segmentation-only fold artifacts (base fold + faces, **no** simulation
- * model) for the active editable crease pattern. Unlike `ensureFoldArtifacts`,
- * this never builds the triangulated simulation mesh, so it stays fast on large
- * documents — see {@link segmentationFoldArtifactsFromFold}. Returns `null` if no
- * editable document is loaded or the export fails.
+ * Segments-only fold artifacts for the active editable crease pattern, cached by
+ * {@link creaseFingerprint}.
+ *
+ * A single slot is enough: only one crease pattern is active at a time, and a
+ * superseded fingerprint is never wanted again.
+ */
+let cached: { fingerprint: string; artifacts: FoldArtifacts } | null = null;
+let inFlight: { fingerprint: string; promise: Promise<FoldArtifacts | null> } | null = null;
+
+/** Already-computed artifacts for this crease geometry, if any. Never starts work. */
+export function peekCpSegmentationArtifacts(
+  document: OristudioCpDocumentSnapshot | null | undefined
+): FoldArtifacts | null {
+  if (!document || !cached) return null;
+  return cached.fingerprint === creaseFingerprint(document) ? cached.artifacts : null;
+}
+
+/**
+ * Resolve segmentation-only artifacts (base fold + faces, **no** simulation mesh)
+ * for the current crease geometry. Unlike `ensureFoldArtifacts` this never builds
+ * the triangulated simulation model — see {@link segmentationFoldArtifactsFromFold}.
+ * Resolves `null` when no editable document is loaded or the export fails.
  */
 export function ensureCpSegmentationArtifacts(
   document: OristudioCpDocumentSnapshot | null | undefined
 ): Promise<FoldArtifacts | null> {
   if (!document) return Promise.resolve(null);
-  const cached = cache.get(document);
-  if (cached) return cached;
-  const pending = (async (): Promise<FoldArtifacts | null> => {
+  const fingerprint = creaseFingerprint(document);
+  if (cached?.fingerprint === fingerprint) return Promise.resolve(cached.artifacts);
+  if (inFlight?.fingerprint === fingerprint) return inFlight.promise;
+
+  const promise = (async (): Promise<FoldArtifacts | null> => {
+    const startedAt = performance.now();
     const fold = JSON.parse(await exportOristudioCpDocumentAsFold()) as FoldDocument;
     const artifacts = segmentationFoldArtifactsFromFold(fold);
-    resolved.set(document, artifacts);
+    cached = { fingerprint, artifacts };
+    if (import.meta.env.DEV) {
+       
+      console.debug(
+        `[cp-toolbar] segmentation recomputed in ${Math.round(performance.now() - startedAt)}ms (${fingerprint})`
+      );
+    }
     return artifacts;
   })().catch((error: unknown) => {
-    // Never cache a failure: the document snapshot is stable across selection
-    // changes, so a single transient error (e.g. the kernel handle not yet ready)
-    // would otherwise disable the toolbar for the rest of the document's life.
-    // Drop the entry so the next selection retries, and report rather than
-    // swallow — a silently absent toolbar is indistinguishable from "no match".
-    cache.delete(document);
+    // Never leave a failure cached: one transient error (e.g. the kernel handle
+    // not ready) would otherwise disable the toolbar until the next edit. Report
+    // rather than swallow — a silently absent toolbar is indistinguishable from
+    // "this selection is not a crease pattern".
     console.warn('Crease-pattern segmentation failed; selection actions unavailable.', error);
     return null;
+  }).finally(() => {
+    if (inFlight?.fingerprint === fingerprint) inFlight = null;
   });
-  cache.set(document, pending);
-  return pending;
+
+  inFlight = { fingerprint, promise };
+  return promise;
 }

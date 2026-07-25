@@ -42,6 +42,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
       ...diagnosis,
       segmentationMs: elapsedMs,
       render: { ...toolbarRenderProbe },
+      foldArtifactRevision: state.foldArtifactRevision,
       overlayViews: cpOverlayViewStore.get() !== null,
       toolbarInDom: typeof globalThis.document !== 'undefined'
         ? globalThis.document.querySelector('.cp-selection-toolbar') !== null

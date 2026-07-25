@@ -95,9 +95,10 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
 
   // Segments-only artifacts (no simulation mesh — see ensureCpSegmentationArtifacts).
   // Read from the module cache rather than held in state: segmentation takes ~1s on
-  // a large document, and this component is unmounted and remounted by the panel's
-  // gate, so state-held results were being discarded and refetched indefinitely.
-  // The cache survives remounts, so the work happens at most once per document.
+  // a large document, and this component is unmounted and remounted as tools change,
+  // so state-held results were discarded and refetched indefinitely. The cache is
+  // keyed by a fingerprint of the crease geometry, so it survives both remounts and
+  // the snapshot/revision churn that a deselect produces.
   const [, bumpSegmentationVersion] = useState(0);
   const segmentation = peekCpSegmentationArtifacts(cpDocument);
   const hasLineSelection = selection.lines.length > 0;

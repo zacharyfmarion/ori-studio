@@ -141,6 +141,12 @@ function segmentContainment(
   if (cached && cached.document === document && cached.lineIds.length === segments.length) {
     return cached;
   }
+  const startedAt = performance.now();
+  const missReason = !cached
+    ? 'no-entry-for-artifacts'
+    : cached.document !== document
+      ? 'document-snapshot-changed'
+      : 'segment-count-changed';
 
   const fold = simulationFoldOf(artifacts);
   const lineIds: number[][] = segments.map(() => []);
@@ -168,6 +174,13 @@ function segmentContainment(
   for (const ids of lineIds) ids.sort((a, b) => a - b);
   const result: SegmentContainment = { document, lineIds, eligible, rim };
   containmentCache.set(artifacts, result);
+  if (import.meta.env.DEV) {
+     
+    console.debug(
+      `[cp-toolbar] containment recomputed in ${Math.round(performance.now() - startedAt)}ms ` +
+        `(${missReason}, ${document.crease_pattern.line_segments.length} creases × ${segments.length} regions)`
+    );
+  }
   return result;
 }
 

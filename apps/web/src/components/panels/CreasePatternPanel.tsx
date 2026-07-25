@@ -3600,7 +3600,13 @@ export function CreasePatternPanel() {
                     onDelete={deleteSelectedImage}
                   />
                 )}
-                {annotationsInteractive && !editingTextId && !selectedCpImage && (
+                {/* Deliberately not gated on `annotationsInteractive`: that flag
+                    keeps *annotations* from stealing clicks while a drawing tool
+                    is mid-gesture, and it is false for exactly the tools that
+                    produce crease selections (Box Select and friends), which
+                    would hide these actions whenever they are relevant. Only the
+                    other floating toolbars are mutually exclusive with this one. */}
+                {!editingTextId && !selectedCpImage && (
                   <CpSelectionToolbar container={toolbarContainer} />
                 )}
                 </>
