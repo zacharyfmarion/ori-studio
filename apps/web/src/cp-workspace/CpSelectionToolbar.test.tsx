@@ -9,10 +9,12 @@ import { emptyOristudioCpSelection } from '../lib/creasePatternViewport';
 import { TooltipProvider } from '../components/ui/Tooltip';
 import { CpSelectionToolbar } from './CpSelectionToolbar';
 
-// The toolbar fetches segments-only artifacts via the kernel export; stub that
-// async source so the test drives the resolver with a fixed fold.
+// The toolbar reads segments-only artifacts from the module cache (populated via
+// the kernel export); stub that source so the test drives the resolver with a
+// fixed fold, already "cached" so no async round trip is involved.
 vi.mock('./cpSegmentationArtifacts', () => ({
   ensureCpSegmentationArtifacts: vi.fn(async () => ({ fold: makeFold(), simulation_model: null })),
+  peekCpSegmentationArtifacts: vi.fn(() => ({ fold: makeFold(), simulation_model: null })),
 }));
 
 function renderToolbar(root: Root, container: HTMLElement): void {
@@ -159,6 +161,24 @@ describe('CpSelectionToolbar', () => {
     // The action clears the selection, so the resolver no longer matches.
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
     expect(document.querySelector('[role="toolbar"]')).toBeNull();
+  });
+
+  it('survives a remount without refetching segmentation', async () => {
+    // Segmentation takes ~1s on a large document while the panel may unmount and
+    // remount this component; holding the result in component state meant it was
+    // discarded and refetched indefinitely, so the toolbar never appeared.
+    const { ensureCpSegmentationArtifacts } = await import('./cpSegmentationArtifacts');
+    seedStore([1, 3, 5, 7, 8]);
+    await act(async () => renderToolbar(root, container));
+    expect(document.querySelector('[role="toolbar"]')).not.toBeNull();
+
+    act(() => root.unmount());
+    vi.mocked(ensureCpSegmentationArtifacts).mockClear();
+    root = createRoot(host);
+    await act(async () => renderToolbar(root, container));
+    // Reads straight from the cache on the very first render after remounting.
+    expect(document.querySelector('[role="toolbar"]')).not.toBeNull();
+    expect(vi.mocked(ensureCpSegmentationArtifacts)).not.toHaveBeenCalled();
   });
 
   it('hides again when the selection is cleared', async () => {

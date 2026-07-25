@@ -202,7 +202,39 @@ export interface SelectionSegmentDiagnosis {
     extraInSelection: number;
     /** In this region but not selected. */
     missingFromSelection: number;
+    /** Colour tallies for the differing creases, to characterise the mismatch. */
+    extraByColor: Record<string, number>;
+    missingByColor: Record<string, number>;
+    /** A few differing crease ids with their geometry, for inspection on canvas. */
+    extraSample: DiagnosisLine[];
+    missingSample: DiagnosisLine[];
   }>;
+}
+
+export interface DiagnosisLine {
+  id: number;
+  color: string;
+  a: { x: number; y: number };
+  b: { x: number; y: number };
+}
+
+const DIAGNOSIS_SAMPLE_LIMIT = 8;
+
+function describeLines(
+  document: OristudioCpDocumentSnapshot,
+  ids: number[]
+): { byColor: Record<string, number>; sample: DiagnosisLine[] } {
+  const byColor: Record<string, number> = {};
+  const sample: DiagnosisLine[] = [];
+  for (const id of ids) {
+    const line = document.crease_pattern.line_segments[id - 1];
+    if (!line) continue;
+    byColor[line.color] = (byColor[line.color] ?? 0) + 1;
+    if (sample.length < DIAGNOSIS_SAMPLE_LIMIT) {
+      sample.push({ id, color: line.color, a: { ...line.a }, b: { ...line.b } });
+    }
+  }
+  return { byColor, sample };
 }
 
 /**
@@ -237,14 +269,22 @@ export function explainSelectedSegment(
   const regions = segments.map((segment, s) => {
     const ids = lineIds[s]!;
     const contained = new Set(ids);
+    const extraIds = [...selected].filter((id) => !contained.has(id));
+    const missingIds = ids.filter((id) => !selected.has(id));
+    const extra = describeLines(document, extraIds);
+    const missing = describeLines(document, missingIds);
     return {
       id: segment.id,
       rimEdges: rim[s]!.rim,
       rimNonBorder: rim[s]!.nonBorder,
       eligible: eligible[s]!,
       containedLines: ids.length,
-      extraInSelection: [...selected].filter((id) => !contained.has(id)).length,
-      missingFromSelection: ids.filter((id) => !selected.has(id)).length,
+      extraInSelection: extraIds.length,
+      missingFromSelection: missingIds.length,
+      extraByColor: extra.byColor,
+      missingByColor: missing.byColor,
+      extraSample: extra.sample,
+      missingSample: missing.sample,
     };
   });
   regions.sort(

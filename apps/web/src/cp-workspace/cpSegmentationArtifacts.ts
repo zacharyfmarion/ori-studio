@@ -11,6 +11,23 @@ import { exportOristudioCpDocumentAsFold } from '../store/workspaceStore/oristud
 const cache = new WeakMap<OristudioCpDocumentSnapshot, Promise<FoldArtifacts | null>>();
 
 /**
+ * Resolved artifacts, kept alongside the in-flight promises. Consumers can hold
+ * the async result in component state only for as long as they stay mounted, and
+ * segmentation takes ~1s on a large document — long enough for a remount (the
+ * panel gates the toolbar on tool state) or an effect re-run to discard the
+ * result and restart, potentially forever. Caching the resolved value here means
+ * any later render reads it synchronously instead of racing for it again.
+ */
+const resolved = new WeakMap<OristudioCpDocumentSnapshot, FoldArtifacts>();
+
+/** Already-computed artifacts for this document, if any. Never starts work. */
+export function peekCpSegmentationArtifacts(
+  document: OristudioCpDocumentSnapshot | null | undefined
+): FoldArtifacts | null {
+  return document ? (resolved.get(document) ?? null) : null;
+}
+
+/**
  * Resolve segmentation-only fold artifacts (base fold + faces, **no** simulation
  * model) for the active editable crease pattern. Unlike `ensureFoldArtifacts`,
  * this never builds the triangulated simulation mesh, so it stays fast on large
@@ -25,7 +42,9 @@ export function ensureCpSegmentationArtifacts(
   if (cached) return cached;
   const pending = (async (): Promise<FoldArtifacts | null> => {
     const fold = JSON.parse(await exportOristudioCpDocumentAsFold()) as FoldDocument;
-    return segmentationFoldArtifactsFromFold(fold);
+    const artifacts = segmentationFoldArtifactsFromFold(fold);
+    resolved.set(document, artifacts);
+    return artifacts;
   })().catch((error: unknown) => {
     // Never cache a failure: the document snapshot is stable across selection
     // changes, so a single transient error (e.g. the kernel handle not yet ready)

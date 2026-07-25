@@ -48,7 +48,10 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
         : false,
     };
 
-    console.log('[cp-toolbar]', report.reason, report);
+    // The closest region is the actionable one; the rest are noise in a document
+    // with many regions, so surface it separately from the full report.
+    const closest = diagnosis.regions[0];
+    console.log('[cp-toolbar]', report.reason, closest ? { closest } : '', report);
     return report;
   };
 }

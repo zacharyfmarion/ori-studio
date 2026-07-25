@@ -7,12 +7,14 @@ import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from './annotations/annotationTransform';
-import type { FoldArtifacts } from '../engine/types';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
 import { cpLineSelectionBounds, selectedCpLineSegments } from '../lib/creasePatternClipboard';
 import { resolveSelectedSegment } from '../lib/creasePatternSelectionSegment';
 import { SEGMENT_EXPORT_FORMATS, type SegmentExportFormat } from '../lib/creaseSegmentExport';
-import { ensureCpSegmentationArtifacts } from './cpSegmentationArtifacts';
+import {
+  ensureCpSegmentationArtifacts,
+  peekCpSegmentationArtifacts,
+} from './cpSegmentationArtifacts';
 // Registers `__cpToolbarDebug()` in dev builds; no-op in production.
 import { toolbarRenderProbe } from './cpSelectionToolbarDebug';
 
@@ -91,22 +93,26 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
   const clearSelection = useWorkspaceStore((s) => s.clearOristudioCpSelection);
 
-  // Segments-only artifacts (no simulation mesh — see ensureCpSegmentationArtifacts):
-  // cheap enough to fetch on demand. Only a line selection can form a segment, and
-  // the document is stable while a selection is held, so the cache resolves this
-  // once per document without churning during a marquee.
-  const [segmentation, setSegmentation] = useState<FoldArtifacts | null>(null);
+  // Segments-only artifacts (no simulation mesh — see ensureCpSegmentationArtifacts).
+  // Read from the module cache rather than held in state: segmentation takes ~1s on
+  // a large document, and this component is unmounted and remounted by the panel's
+  // gate, so state-held results were being discarded and refetched indefinitely.
+  // The cache survives remounts, so the work happens at most once per document.
+  const [, bumpSegmentationVersion] = useState(0);
+  const segmentation = peekCpSegmentationArtifacts(cpDocument);
   const hasLineSelection = selection.lines.length > 0;
   useEffect(() => {
-    if (!hasLineSelection || !cpDocument) return undefined;
-    let cancelled = false;
-    void ensureCpSegmentationArtifacts(cpDocument).then((artifacts) => {
-      if (!cancelled) setSegmentation(artifacts);
+    if (!hasLineSelection || !cpDocument || segmentation) return undefined;
+    let alive = true;
+    // Even if this render is torn down first, the resolved value lands in the
+    // cache, so the next render picks it up synchronously.
+    void ensureCpSegmentationArtifacts(cpDocument).then(() => {
+      if (alive) bumpSegmentationVersion((version) => version + 1);
     });
     return () => {
-      cancelled = true;
+      alive = false;
     };
-  }, [hasLineSelection, cpDocument]);
+  }, [hasLineSelection, cpDocument, segmentation]);
 
   const match = useMemo(
     () => resolveSelectedSegment(cpDocument, selection, segmentation),
