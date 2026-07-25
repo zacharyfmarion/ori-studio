@@ -143,5 +143,15 @@ and `npm run i18n:check` must pass.
       from the shared simulator worker (`exportGeometry`), since GPU-render mode
       never sends positions to the main thread
 - [ ] Phase 4: anchors + gravity; port Verlet to the GPU, then expose the toggle
+      -- PAUSED for a decision. Two separable pieces, and the case for each moved
+      since the plan was written:
+      * **Anchors** need an interaction, not a slider: something has to choose
+        which vertices are pinned (click them in the 3D view, as upstream does?
+        derive them from the crease pattern?). That is UX design worth agreeing on
+        before building.
+      * **Verlet on the GPU** is a real solver addition (a second position/velocity
+        pass pair plus a `u_lastLastPosition` texture, revalidated against the CPU
+        oracle). Its payoff shrank once `timeStepScale: 0.35` made Euler stable on
+        the reported pattern, so it may no longer be the best use of the effort.
 - [ ] Browser check (user): pane looks native beside the Edit view's, sliders
       change the fold visibly, nothing regresses in the transport
