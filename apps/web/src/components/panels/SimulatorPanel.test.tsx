@@ -88,9 +88,6 @@ describe('SimulatorPanel', () => {
     expect(rendered.querySelector('[aria-label="Fold percent"]')).not.toBeNull();
     expect(rendered.querySelector('[aria-label="Simulator scope"]')?.textContent).toContain('Whole');
     expect(rendered.querySelector('[aria-label="Step simulation accuracy"]')).toBeNull();
-    expect(rendered.querySelector('[aria-label="Lighting"]')?.getAttribute('data-active')).toBe(
-      'true'
-    );
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBe(
       'true'
     );
@@ -98,13 +95,12 @@ describe('SimulatorPanel', () => {
     expect(putImageDataMock).toHaveBeenCalled();
     expect(fillMock).toHaveBeenCalledTimes(putImageDataMock.mock.calls.length);
 
+    // The render toggles now live in the options pane (a sibling panel), so the
+    // canvas follows the shared store setting rather than a local button.
     act(() => {
-      rendered.querySelector<HTMLButtonElement>('[aria-label="Lighting"]')?.click();
+      useWorkspaceStore.getState().setSimulatorSetting('lighting', false);
     });
 
-    expect(rendered.querySelector('[aria-label="Lighting"]')?.hasAttribute('data-active')).toBe(
-      false
-    );
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBeNull();
   });
 

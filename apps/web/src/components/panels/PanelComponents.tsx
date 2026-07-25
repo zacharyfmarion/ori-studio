@@ -6,6 +6,7 @@ import { InspectorPanel } from './InspectorPanel';
 import { CreasePatternPanel } from './CreasePatternPanel';
 import { CpViewControlsPanel } from './CpViewControlsPanel';
 import { SimulatorPanel } from './SimulatorPanel';
+import { SimulatorViewControlsPanel } from './SimulatorViewControlsPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { SequencePanel } from './SequencePanel';
@@ -17,6 +18,7 @@ export const panelComponents: Record<string, FC<IDockviewPanelProps>> = {
   'crease-pattern': CreasePatternPanel,
   'cp-view-controls': CpViewControlsPanel,
   simulator: SimulatorPanel,
+  'simulator-view-controls': SimulatorViewControlsPanel,
   diagnostics: DiagnosticsPanel,
   sequence: SequencePanel,
   conditions: ConditionsPanel,

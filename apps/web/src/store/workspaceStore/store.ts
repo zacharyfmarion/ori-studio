@@ -7,6 +7,7 @@ import { createEditingSlice } from './slices/editingSlice';
 import { createHistorySlice } from './slices/historySlice';
 import { createProjectSlice } from './slices/projectSlice';
 import { createOristudioBpSlice } from './slices/oristudioBpSlice';
+import { createSimulatorSlice } from './slices/simulatorSlice';
 import { registerDesignVariantSource } from '../layoutStore';
 import { resolveEditingContext } from '../../workspaces/editingContext';
 import { deriveDesignVariant } from './designVariant';
@@ -22,6 +23,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       ...createConditionSlice(...args),
       ...createCreasePatternSlice(...args),
       ...createOristudioBpSlice(...args),
+      ...createSimulatorSlice(...args),
     }),
     { name: 'treemaker-workspace' }
   )

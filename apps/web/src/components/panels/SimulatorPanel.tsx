@@ -15,16 +15,11 @@ import {
 import type { TFunction } from "i18next";
 import {
   AlertTriangle,
-  Eye,
-  EyeOff,
-  Layers3,
   Pause,
   Play,
   RefreshCw,
   RotateCcw,
-  Square,
   StepForward,
-  Sun,
   Waves,
 } from "lucide-react";
 import type {
@@ -52,6 +47,11 @@ import {
   nextSimulatorOrbitView,
   type SimulatorOrbitView as SimulatorView,
 } from "../../lib/simulatorOrbit";
+import {
+  DEFAULT_SIMULATOR_SETTINGS,
+  simulatorMaterialOptions,
+  type SimulatorSettings as SimulatorViewSettings,
+} from "../../lib/simulatorSettings";
 import { useWorkspaceStore } from "../../store/workspaceStore";
 import { useWorkspaceCapabilities } from "../../store/workspaceStore/useWorkspaceCapabilities";
 import { IconButton } from "../ui/IconButton";
@@ -59,15 +59,7 @@ import { SegmentedControl } from "../ui/SegmentedControl";
 import { NextDocumentAction } from "./NextDocumentAction";
 
 type LoadState = "idle" | "loading" | "ready" | "empty" | "error";
-type SimulatorRenderMode = "paper" | "xray";
 
-interface SimulatorViewSettings {
-  renderMode: SimulatorRenderMode;
-  showFaces: boolean;
-  showEdges: boolean;
-  showHiddenLines: boolean;
-  lighting: boolean;
-}
 
 interface SimulatorHighlights {
   creases: Set<number>;
@@ -115,13 +107,6 @@ const DEFAULT_VIEW: SimulatorView = {
   pitch: -0.955,
   zoom: 1.4,
 };
-const DEFAULT_VIEW_SETTINGS: SimulatorViewSettings = {
-  renderMode: "paper",
-  showFaces: true,
-  showEdges: true,
-  showHiddenLines: false,
-  lighting: true,
-};
 const PAPER_LIGHT_DIRECTION = normalizeVector({ x: -0.45, y: 0.58, z: 0.68 });
 const EMPTY_HIGHLIGHTS: SimulatorHighlights = {
   creases: new Set(),
@@ -138,7 +123,7 @@ export function SimulatorPanel() {
   const frameRef = useRef<SimulatorFrameView | null>(null);
   const playRafRef = useRef<number | null>(null);
   const viewRef = useRef<SimulatorView>({ ...DEFAULT_VIEW });
-  const viewSettingsRef = useRef<SimulatorViewSettings>(DEFAULT_VIEW_SETTINGS);
+  const viewSettingsRef = useRef<SimulatorViewSettings>(DEFAULT_SIMULATOR_SETTINGS);
   const highlightsRef = useRef<SimulatorHighlights>(EMPTY_HIGHLIGHTS);
   const dragRef = useRef<DragState | null>(null);
   const foldPercentRef = useRef(INITIAL_FOLD_PERCENT);
@@ -199,9 +184,10 @@ export function SimulatorPanel() {
   const [strain, setStrain] = useState(0);
   const [modelStats, setModelStats] = useState({ vertices: 0, triangles: 0 });
   const [backend, setBackend] = useState<"webgl2" | "reference" | null>(null);
-  const [viewSettings, setViewSettings] = useState<SimulatorViewSettings>(
-    DEFAULT_VIEW_SETTINGS,
-  );
+  // Render/material/solver settings live in the store: the options pane is a
+  // sibling panel, so this panel applies them but does not own them.
+  const viewSettings = useWorkspaceStore((state) => state.simulatorSettings);
+  const setSimulatorSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const [stepAccuracy, setStepAccuracy] =
     useState<StepSimulationAccuracy>("fast");
   const refreshCapability = capabilities["simulator.refresh"];
@@ -311,10 +297,18 @@ export function SimulatorPanel() {
   // renderer does not cover, so those keep the canvas-2D path.
   const allowGpuRender = !simulationFoldProfile;
 
+  // The run profile sets the work budget (steps per frame and so on); the user's
+  // material and stability choices layer on top. Memoized so a new options object
+  // does not re-trigger the runtime's load effect on every render.
+  const solverOptions = useMemo(
+    () => ({ ...runConfig.solverOptions, ...simulatorMaterialOptions(viewSettings) }),
+    [runConfig.solverOptions, viewSettings],
+  );
+
   const runtime = useSimulatorRuntime({
     fold: simulationFold as SimulatorFoldDocument | null,
     foldProfile: simulationFoldProfile,
-    solverOptions: runConfig.solverOptions,
+    solverOptions,
     triangulate: simulationFold ? foldNeedsTriangulation(simulationFold) : true,
     canvas: canvasEl,
     allowGpuRender,
@@ -329,7 +323,17 @@ export function SimulatorPanel() {
     gpuActive,
     setCamera: pushCamera,
     setRenderSettings: pushRenderSettings,
+    setMaterial: pushMaterial,
   } = runtime;
+
+  // Apply material/stability edits to the live solver. The load effect ignores
+  // solverOptions on purpose -- reloading the model would throw away the current
+  // fold -- so the pane's changes reach the solver through here instead. Both
+  // backends recompute their timestep on a material change.
+  useEffect(() => {
+    if (runtimeStatus !== "ready") return;
+    pushMaterial(simulatorMaterialOptions(viewSettings));
+  }, [runtimeStatus, pushMaterial, viewSettings]);
 
   useEffect(() => {
     gpuActiveRef.current = gpuActive;
@@ -533,7 +537,7 @@ export function SimulatorPanel() {
       const nextPercent = Math.min(
         100,
         foldPercentRef.current +
-          elapsedSeconds * runConfig.foldPlayPercentPerSecond,
+          elapsedSeconds * viewSettings.foldPlayPercentPerSecond,
       );
 
       foldPercentRef.current = nextPercent;
@@ -556,7 +560,7 @@ export function SimulatorPanel() {
   }, [
     playing,
     runtime,
-    runConfig.foldPlayPercentPerSecond,
+    viewSettings.foldPlayPercentPerSecond,
     runtimeStatus,
     setPlaying,
   ]);
@@ -681,21 +685,22 @@ export function SimulatorPanel() {
           return;
         case "f":
         case "F":
-          setViewSettings((s) => ({ ...s, showFaces: !s.showFaces }));
+          setSimulatorSetting("showFaces", !viewSettings.showFaces);
           return;
         case "c":
         case "C":
-          setViewSettings((s) => ({ ...s, showEdges: !s.showEdges }));
+          setSimulatorSetting("showEdges", !viewSettings.showEdges);
           return;
         case "h":
         case "H":
-          setViewSettings((s) =>
-            s.showEdges ? { ...s, showHiddenLines: !s.showHiddenLines } : s,
-          );
+          // Hidden lines only mean anything while crease lines are drawn.
+          if (viewSettings.showEdges) {
+            setSimulatorSetting("showHiddenLines", !viewSettings.showHiddenLines);
+          }
           return;
         case "l":
         case "L":
-          setViewSettings((s) => ({ ...s, lighting: !s.lighting }));
+          setSimulatorSetting("lighting", !viewSettings.lighting);
           return;
         default:
           return;
@@ -713,7 +718,8 @@ export function SimulatorPanel() {
     replayFromFlat,
     resetView,
     zoomBy,
-    setViewSettings,
+    setSimulatorSetting,
+    viewSettings,
   ]);
 
   // When the GPU path becomes active (first load, or after a mode switch), send
@@ -883,111 +889,6 @@ export function SimulatorPanel() {
                 />
               </div>
             )}
-          </div>
-          <div
-            className="panel-toolbar__group simulator-view-settings"
-            aria-label={t(
-              "panels:simulator.viewSettings",
-              "Simulator view settings",
-            )}
-          >
-            <SegmentedControl
-              aria-label={t(
-                "panels:simulator.renderMode",
-                "Simulator render mode",
-              )}
-              value={viewSettings.renderMode}
-              onChange={(renderMode) =>
-                setViewSettings((current) => ({ ...current, renderMode }))
-              }
-              options={[
-                {
-                  value: "paper",
-                  label: t("panels:simulator.renderPaper", "Paper"),
-                  title: t(
-                    "panels:simulator.renderPaperTitle",
-                    "Paper rendering",
-                  ),
-                },
-                {
-                  value: "xray",
-                  label: t("panels:simulator.renderXray", "X-ray"),
-                  title: t(
-                    "panels:simulator.renderXrayTitle",
-                    "X-ray rendering",
-                  ),
-                },
-              ]}
-            />
-            <IconButton
-              size="sm"
-              variant="toolbar"
-              title={`${t("panels:simulator.faces", "Faces")} (F)`}
-              aria-label={t("panels:simulator.faces", "Faces")}
-              tooltipSide="bottom"
-              isActive={viewSettings.showFaces}
-              onClick={() =>
-                setViewSettings((current) => ({
-                  ...current,
-                  showFaces: !current.showFaces,
-                }))
-              }
-            >
-              <Square size={14} />
-            </IconButton>
-            <IconButton
-              size="sm"
-              variant="toolbar"
-              title={`${t("panels:simulator.creaseLines", "Crease Lines")} (C)`}
-              aria-label={t("panels:simulator.creaseLines", "Crease Lines")}
-              tooltipSide="bottom"
-              isActive={viewSettings.showEdges}
-              onClick={() =>
-                setViewSettings((current) => ({
-                  ...current,
-                  showEdges: !current.showEdges,
-                }))
-              }
-            >
-              {viewSettings.showEdges ? (
-                <Eye size={14} />
-              ) : (
-                <EyeOff size={14} />
-              )}
-            </IconButton>
-            <IconButton
-              size="sm"
-              variant="toolbar"
-              title={`${t("panels:simulator.hiddenLines", "Hidden Lines")} (H)`}
-              aria-label={t("panels:simulator.hiddenLines", "Hidden Lines")}
-              tooltipSide="bottom"
-              isActive={viewSettings.showHiddenLines}
-              onClick={() =>
-                setViewSettings((current) => ({
-                  ...current,
-                  showHiddenLines: !current.showHiddenLines,
-                }))
-              }
-              disabled={!viewSettings.showEdges}
-            >
-              <Layers3 size={14} />
-            </IconButton>
-            <IconButton
-              size="sm"
-              variant="toolbar"
-              title={`${t("panels:simulator.lighting", "Lighting")} (L)`}
-              aria-label={t("panels:simulator.lighting", "Lighting")}
-              tooltipSide="bottom"
-              isActive={viewSettings.lighting}
-              onClick={() =>
-                setViewSettings((current) => ({
-                  ...current,
-                  lighting: !current.lighting,
-                }))
-              }
-            >
-              <Sun size={14} />
-            </IconButton>
           </div>
         </div>
         <div className="panel-body simulator-panel__body">

@@ -133,9 +133,16 @@ describe('layout store', () => {
     });
     expect(simulateApi.addPanel.mock.calls.map(([options]) => options.id)).toEqual([
       'simulator',
+      'simulator-view-controls',
     ]);
     expect(simulateApi.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
     expect(simulateApi.panelMap.get('simulator')?.group.hideHeader).toBe(true);
+    // Options pane, mirroring the Edit workspace's view pane.
+    expect(simulateApi.addPanel.mock.calls[1][0]).toMatchObject({
+      id: 'simulator-view-controls',
+      position: { referencePanel: 'simulator', direction: 'right' },
+      initialWidth: 260,
+    });
   });
 
   it('activates existing panels through the dockview api', () => {

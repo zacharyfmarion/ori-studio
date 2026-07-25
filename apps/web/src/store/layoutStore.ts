@@ -187,6 +187,13 @@ function applySimulateLayout(api: DockviewApi): void {
     component: 'simulator',
     title: 'Simulator',
   });
+  api.addPanel({
+    id: 'simulator-view-controls',
+    component: 'simulator-view-controls',
+    title: 'View',
+    position: { referencePanel: 'simulator', direction: 'right' },
+    initialWidth: 260,
+  });
   simulator.api.setActive();
 }
 
