@@ -6,8 +6,44 @@ import { createSampleProject } from '../../lib/sampleProject';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { SimulatorPanel } from './SimulatorPanel';
+import { createSimulatorSession } from '../../simulator/simulatorSession';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// The solver runs in a Worker, which jsdom does not provide. Rather than stub
+// out the simulator (which would stop these tests exercising triangulation and
+// the render path at all), run the real session in-process -- simulatorWorker
+// is only a comlink wrapper around it, so this is the same code the app runs.
+// comlink makes every session method async in production; the runtime relies on
+// that (client.tick(...).then, mutate(client).catch). Wrap the in-process
+// session so its methods return promises too, otherwise unsettling the model
+// (e.g. scrubbing the fold) would call .then/.catch on a sync return value.
+function asPromiseClient<T extends object>(session: T): T {
+  return new Proxy(session, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value !== 'function') return value;
+      return (...args: unknown[]) => Promise.resolve(value.apply(target, args));
+    },
+  });
+}
+
+vi.mock('../../store/workspaceStore/simulatorRuntime', () => ({
+  getSimulatorClient: () => asPromiseClient(createSimulatorSession()),
+  releaseSimulatorWorker: () => {},
+}));
+
+/**
+ * Let the runtime's load -> settle -> first frame chain resolve. The worker API
+ * is async, so a rendered panel has no geometry until these microtasks flush.
+ */
+async function flushSimulator(): Promise<void> {
+  for (let i = 0; i < 12; i += 1) {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+}
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -45,15 +81,13 @@ afterEach(() => {
 });
 
 describe('SimulatorPanel', () => {
-  it('renders whole-mode labels by default', () => {
+  it('renders whole-mode labels by default', async () => {
     const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
 
     expect(rendered.querySelector('[aria-label="Fold percent"]')).not.toBeNull();
     expect(rendered.querySelector('[aria-label="Simulator scope"]')?.textContent).toContain('Whole');
     expect(rendered.querySelector('[aria-label="Step simulation accuracy"]')).toBeNull();
-    expect(rendered.querySelector('[aria-label="Lighting"]')?.getAttribute('data-active')).toBe(
-      'true'
-    );
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBe(
       'true'
     );
@@ -61,18 +95,18 @@ describe('SimulatorPanel', () => {
     expect(putImageDataMock).toHaveBeenCalled();
     expect(fillMock).toHaveBeenCalledTimes(putImageDataMock.mock.calls.length);
 
+    // The render toggles now live in the options pane (a sibling panel), so the
+    // canvas follows the shared store setting rather than a local button.
     act(() => {
-      rendered.querySelector<HTMLButtonElement>('[aria-label="Lighting"]')?.click();
+      useWorkspaceStore.getState().setSimulatorSetting('lighting', false);
     });
 
-    expect(rendered.querySelector('[aria-label="Lighting"]')?.hasAttribute('data-active')).toBe(
-      false
-    );
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBeNull();
   });
 
-  it('triangulates polygonal fold faces before rendering', () => {
+  it('triangulates polygonal fold faces before rendering', async () => {
     const rendered = renderPanel({ foldArtifacts: { fold: quadFold() } });
+    await flushSimulator();
 
     expect(rendered.textContent).toContain('4 vertices | 2 triangles');
   });
@@ -112,7 +146,53 @@ describe('SimulatorPanel', () => {
     });
     expect(activeAccuracyButton(rendered)?.textContent).toBe('Accurate');
   });
+
+  it('drives the transport from the keyboard', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+
+    // Space toggles play/pause (observed via the button's accessible name).
+    expect(rendered.querySelector('[aria-label="Play"]')).not.toBeNull();
+    act(() => pressKey(' '));
+    expect(rendered.querySelector('[aria-label="Pause"]')).not.toBeNull();
+    act(() => pressKey(' '));
+    expect(rendered.querySelector('[aria-label="Play"]')).not.toBeNull();
+
+    // Shift+Arrow jumps the fold to the ends of the timeline.
+    act(() => pressKey('ArrowRight', { shiftKey: true }));
+    expect(rendered.querySelector('output')?.textContent).toBe('100%');
+    act(() => pressKey('ArrowLeft', { shiftKey: true }));
+    expect(rendered.querySelector('output')?.textContent).toBe('0%');
+
+    // A plain arrow scrubs by a step, so 0 -> right lands above 0.
+    act(() => pressKey('ArrowRight'));
+    const scrubbed = Number(rendered.querySelector('output')?.textContent?.replace('%', ''));
+    expect(scrubbed).toBeGreaterThan(0);
+
+    // Let the async settle the scrubs kicked off resolve before teardown, so the
+    // in-flight worker mutation is not rejected by unmount.
+    await flushSimulator();
+  });
+
+  it('ignores shortcuts while typing in a field', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+
+    const foldInput = rendered.querySelector<HTMLInputElement>('[aria-label="Fold percent"]');
+    expect(foldInput).not.toBeNull();
+
+    // A Space keydown originating from the range input must not toggle play.
+    act(() => {
+      foldInput?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    });
+    expect(rendered.querySelector('[aria-label="Play"]')).not.toBeNull();
+    expect(rendered.querySelector('[aria-label="Pause"]')).toBeNull();
+  });
 });
+
+function pressKey(key: string, init: KeyboardEventInit = {}): void {
+  window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
+}
 
 function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
   useWorkspaceStore.setState(

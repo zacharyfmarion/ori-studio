@@ -19,8 +19,11 @@
   --bg-canvas: #0c0f12;
   --bg-canvas-grid: #1d2a31;
   --bg-paper: #f2f0e7;
-  /* Two-tone origami paper in the simulator: colored front, light back. */
-  --sim-paper-front: #4f83d6;
+  /* Two-tone origami paper in the simulator: yellow front, light back. The
+     yellow matches a generated folded figure in the edit pane (the CP engine's
+     default front colour, RgbColor(255,255,50)); the blue valley and red
+     mountain crease lines read clearly against it. */
+  --sim-paper-front: #ffff32;
   --sim-paper-back: #f2f0e7;
 
   --text-primary: #e8edf0;
@@ -4564,6 +4567,92 @@
 .control-row__suffix {
   color: var(--text-tertiary);
   font-size: 0.72rem;
+}
+
+/* Simulate workspace options pane, alongside the Edit workspace's view pane. */
+.simulator-view-controls-panel__body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.simulator-view-controls-panel__section {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.simulator-view-controls-panel__section:last-child {
+  border-bottom: 0;
+}
+
+.simulator-view-controls-panel__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px var(--space-3) 4px;
+}
+
+.simulator-view-controls-panel__section-title {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.simulator-view-controls-panel__section-hint {
+  margin: 0;
+  padding: 0 var(--space-3) 6px;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.simulator-view-controls-panel__reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.simulator-view-controls-panel__reset:hover {
+  background: var(--surface-hover, rgb(255 255 255 / 8%));
+  color: var(--text-primary);
+}
+
+.simulator-view-controls-panel__select {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+}
+
+/* Slider plus its readout: the number column is fixed so the sliders align. */
+.simulator-view-controls-panel__slider-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.simulator-view-controls-panel__slider-value .ui-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.simulator-view-controls-panel__number {
+  flex: 0 0 auto;
+  min-width: 28px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.control-row[data-disabled] .control-row__label {
+  opacity: 0.5;
 }
 
 .grid-settings {

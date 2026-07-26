@@ -1,14 +1,39 @@
 import { OrigamiModel } from './model.js';
-import type { CreaseFoldRange, CreaseParameter, SimulationFrame, SimulatorOptions } from './types.js';
+import type {
+  CreaseFoldRange,
+  CreaseParameter,
+  SimulationFrame,
+  SimulatorDiagnostics,
+  SimulatorOptions,
+} from './types.js';
+import type { SolverBackend } from './solverBackend.js';
 
-// TypeScript CPU port of Amanda Ghassaei's OrigamiSimulator dynamic solver.
+// TypeScript CPU port of Amanda Ghassaei's Origami Simulator dynamic solver.
+//
+// THIS IS THE ORACLE. It is the behavioural definition of the simulator, and it
+// is deliberately NOT optimised: it stays straightforward, allocation-happy and
+// easy to read against the upstream source, so that every other solver backend
+// (GPU, and any future one) can be validated against it. Optimise a new backend
+// behind the `SolverBackend` seam instead of changing this file.
+//
+// Consequences of that role:
+//   - It runs headlessly in Node, so it is what tests, golden traces and CI
+//     compare against. GPU backends cannot play this part.
+//   - Changing its output changes the definition of correct. Golden traces will
+//     fail loudly; re-bless them only deliberately.
+//   - It is also the no-WebGL2 fallback at runtime — a correctness guarantee,
+//     not a performance one.
 //
 // The method names below intentionally mirror the upstream WebGL passes in
-// index.html and js/dynamic/dynamicSolver.js:
+// third_party/origami-simulator (index.html shader blocks and
+// js/dynamic/dynamicSolver.js):
 // normalCalc -> thetaCalc -> updateCreaseGeo -> velocityCalc/positionCalc.
 // The upstream solver stores node displacements relative to originalPosition
 // textures; this port keeps the same state model and only writes absolute
 // positions back to OrigamiModel for consumers/renderers.
+//
+// Note upstream's `globals.foldPercent` is 0..1 where `SimulatorOptions
+// .foldPercent` here is 0..100; convert when comparing against the oracle.
 const EPSILON = 1e-6;
 const TWO_PI = Math.PI * 2;
 
@@ -27,10 +52,17 @@ const DEFAULT_OPTIONS: Required<SimulatorOptions> = {
   integrationType: 'euler',
 };
 
-export class DynamicSolver {
+export class ReferenceSolver implements SolverBackend {
+  readonly id = 'reference';
   readonly model: OrigamiModel;
   options: Required<SimulatorOptions>;
   private currentStep = 0;
+  /**
+   * `timeStep()` is a max over every beam and only changes with
+   * `axialStiffness`, but used to be recomputed on every single step. Cached
+   * here and invalidated in {@link setMaterial}.
+   */
+  private cachedTimeStep: number | null = null;
   private readonly forces: Float32Array;
   private readonly relativePositions: Float32Array;
   private readonly lastRelativePositions: Float32Array;
@@ -80,6 +112,7 @@ export class DynamicSolver {
     if ('foldProfile' in options) {
       this.foldProfileRanges = foldProfileRangeMap(options.foldProfile?.ranges ?? []);
     }
+    this.cachedTimeStep = null;
   }
 
   reset(): void {
@@ -93,15 +126,98 @@ export class DynamicSolver {
     this.model.reset();
   }
 
-  step(numSteps = this.options.stepsPerFrame): SimulationFrame {
+  arrestDynamics(): void {
+    // Drain kinetic energy but keep positions/crease angles (the fold state).
+    this.model.velocities.fill(0);
+    this.lastVelocity.fill(0);
+  }
+
+  get stepCount(): number {
+    return this.currentStep;
+  }
+
+  /**
+   * Advance the simulation. Deliberately returns nothing and does no strain or
+   * diagnostic work: this runs hundreds of times per frame, and the old
+   * signature allocated two full copies of the model on every call via
+   * `readFrame`. Pull data out with {@link readPositions} / {@link readFrame}.
+   */
+  step(numSteps = this.options.stepsPerFrame): void {
     for (let i = 0; i < numSteps; i += 1) {
       this.solveStep();
     }
+  }
+
+  readPositions(into: Float32Array): number {
+    const length = Math.min(into.length, this.model.positions.length);
+    into.set(this.model.positions.subarray(0, length));
+    return length;
+  }
+
+  readColors(into: Float32Array): number {
+    // Strain colours are only computed when somebody actually asks for them;
+    // they used to be recomputed after every step batch whether displayed or
+    // not, walking every edge to do it.
     this.model.applyStrainColors(0.05);
-    return this.readFrame();
+    const length = Math.min(into.length, this.model.colors.length);
+    into.set(this.model.colors.subarray(0, length));
+    return length;
+  }
+
+  readDiagnostics(): SimulatorDiagnostics {
+    return { ...this.model.diagnostics(), maxNodalStrain: this.maxNodalStrain() };
+  }
+
+  /**
+   * Largest per-node mean axial strain, defined exactly as velocityCalc's
+   * `nodeError` on the GPU (sum of |current/rest - 1| over the node's beams,
+   * divided by their count). Computed here so the interactive readout and the
+   * clock's blow-up guard mean the same thing on both backends.
+   */
+  private maxNodalStrain(): number {
+    let max = 0;
+    for (let vertex = 0; vertex < this.nodeBeams.length; vertex += 1) {
+      const beams = this.nodeBeams[vertex] ?? [];
+      if (beams.length === 0) continue;
+      const position = this.relativePointAt(vertex);
+      const originalPosition = pointAt(this.model.originalPositions, vertex);
+      let total = 0;
+      for (const beam of beams) {
+        const neighborPosition = this.relativePointAt(beam.otherVertex);
+        const neighborOriginal = pointAt(this.model.originalPositions, beam.otherVertex);
+        const nominal = subtract(neighborOriginal, originalPosition);
+        const nominalLength = magnitude(nominal);
+        if (nominalLength < EPSILON) continue;
+        const current = magnitude(add(subtract(neighborPosition, position), nominal));
+        total += Math.abs(current / nominalLength - 1);
+      }
+      const mean = total / beams.length;
+      if (mean > max) max = mean;
+      if (!Number.isFinite(mean)) return Number.NaN;
+    }
+    return max;
+  }
+
+  maxVelocity(): number {
+    let max = 0;
+    const velocities = this.model.velocities;
+    for (let i = 0; i < velocities.length; i += 1) {
+      const value = velocities[i]! < 0 ? -velocities[i]! : velocities[i]!;
+      // NaN never satisfies `>`, so a naive comparison would swallow it and
+      // report a blown-up model as converged. See WebglSolver.maxVelocity.
+      if (!Number.isFinite(value)) return Number.NaN;
+      if (value > max) max = value;
+    }
+    return max;
+  }
+
+  dispose(): void {
+    // Nothing to release: all state is plain typed arrays owned by this
+    // instance. Present so callers can treat every backend the same.
   }
 
   readFrame(): SimulationFrame {
+    this.model.applyStrainColors(0.05);
     return {
       positions: this.model.positions.slice(),
       colors: this.model.colors.slice(),
@@ -412,6 +528,12 @@ export class DynamicSolver {
 
   private timeStep(): number {
     if (this.options.timeStep > 0) return this.options.timeStep;
+    if (this.cachedTimeStep !== null) return this.cachedTimeStep;
+    this.cachedTimeStep = this.computeTimeStep();
+    return this.cachedTimeStep;
+  }
+
+  private computeTimeStep(): number {
     let maxFrequency = 0;
     const axialStiffness = Math.max(0, this.options.axialStiffness);
     for (const beamRefs of this.nodeBeams) {

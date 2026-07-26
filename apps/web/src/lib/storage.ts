@@ -24,6 +24,7 @@ export const STORAGE_KEYS = {
   showWelcomeOnStartup: 'show-welcome-on-startup',
   foldWarning: 'fold-warning',
   cpToolRailGroups: 'cp-tool-rail-groups',
+  simulatorSettings: 'simulator-settings',
   layout: 'layout',
   layoutVersion: 'layout-version',
 } as const;

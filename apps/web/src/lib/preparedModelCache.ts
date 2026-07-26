@@ -6,7 +6,7 @@ import type { PreparedOrigamiModel } from '@treemaker/origami-simulator';
  * switching smooth.
  *
  * It caches immutable prepared models — NOT solver controllers — so simulation
- * state never bleeds between segments; a fresh `DynamicSolver` is still created
+ * state never bleeds between segments; a fresh `ReferenceSolver` is still created
  * per selection (cheap typed-array allocation). Capacity bounds retained memory
  * to the last `capacity` segments' prepared arrays.
  */

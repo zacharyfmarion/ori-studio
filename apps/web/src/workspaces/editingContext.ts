@@ -43,6 +43,7 @@ export function resolveEditingContext(input: EditingContextInput): EditingContex
     case 'cp-view-controls':
       return 'crease-pattern';
     case 'simulator':
+    case 'simulator-view-controls':
     case 'sequence':
       return 'simulate';
     case 'inspector':

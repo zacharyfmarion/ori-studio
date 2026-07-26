@@ -51,6 +51,14 @@ import {
 } from '../../../lib/oristudioCpLineage';
 import { IMAGE_TOTAL_BYTES_WARN, totalCpImageBytes } from '../../../cp-workspace/images/cpImage';
 import {
+  foldedFoldDocument,
+  foldedObj,
+  foldedStl,
+  type FoldedMesh,
+} from '../../../lib/foldedExport';
+import { getSimulatorClient } from '../simulatorRuntime';
+import { simulationFoldOf } from '../../../lib/creasePatternSegmentation';
+import {
   flattenTextAnnotations,
   isImageAnnotation,
   isTextAnnotation,
@@ -560,6 +568,32 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   const releaseEditableCreasePattern = async () => {
     await get().clearOristudioCpFoldedFigures();
     await releaseOristudioCpDocument();
+  };
+
+  /**
+   * The simulator's current folded geometry, or null with a message when the
+   * simulator has not produced any. Read from the shared worker client -- the same
+   * one the panel drives -- because in GPU-render mode positions never cross to
+   * the main thread on their own.
+   */
+  const readFoldedGeometry = async (): Promise<FoldedMesh | null> => {
+    if (!get().foldArtifacts) {
+      set({ projectMessage: 'Simulate a crease pattern before exporting its folded form' });
+      return null;
+    }
+    try {
+      const snapshot = await getSimulatorClient().exportGeometry();
+      return {
+        positions: new Float32Array(snapshot.positions),
+        triangles: new Uint32Array(snapshot.triangles),
+        foldPercent: snapshot.foldPercent,
+      };
+    } catch {
+      // requireSession throws when no model is loaded (the Simulate workspace has
+      // not been opened yet, or its panel released the worker).
+      set({ projectMessage: 'Open the Simulate workspace before exporting the folded form' });
+      return null;
+    }
   };
 
   const resolveCreaseExport = async (
@@ -2208,6 +2242,72 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           path: null,
           extensions: ['png'],
           mimeType: 'image/png',
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportFoldedFold: async (fileService = getFileService()) => {
+      try {
+        if (rejectDisabled('file.exportFoldedFold')) return false;
+        const geometry = await readFoldedGeometry();
+        if (!geometry) return false;
+        const source = simulationFoldOf(get().foldArtifacts!);
+        const contents = JSON.stringify(foldedFoldDocument(source, geometry), null, 2);
+        const result = await fileService.saveTextFile({
+          title: 'Export Folded FOLD',
+          contents,
+          suggestedName: defaultFilename(`${get().project.title} folded`, 'fold'),
+          path: null,
+          extensions: ['fold'],
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportObj: async (fileService = getFileService()) => {
+      try {
+        if (rejectDisabled('file.exportObj')) return false;
+        const geometry = await readFoldedGeometry();
+        if (!geometry) return false;
+        const result = await fileService.saveTextFile({
+          title: 'Export Folded OBJ',
+          contents: foldedObj(geometry, get().project.title || 'folded'),
+          suggestedName: defaultFilename(`${get().project.title} folded`, 'obj'),
+          path: null,
+          extensions: ['obj'],
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportStl: async (fileService = getFileService()) => {
+      try {
+        if (rejectDisabled('file.exportStl')) return false;
+        const geometry = await readFoldedGeometry();
+        if (!geometry) return false;
+        const result = await fileService.saveBinaryFile({
+          title: 'Export Folded STL',
+          bytes: foldedStl(geometry),
+          suggestedName: defaultFilename(`${get().project.title} folded`, 'stl'),
+          path: null,
+          extensions: ['stl'],
+          mimeType: 'model/stl',
         });
         if (!result) return false;
         set({ projectMessage: `Exported ${result.name}` });

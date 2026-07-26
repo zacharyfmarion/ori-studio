@@ -27,6 +27,7 @@ import type {
   OristudioCpViewportOptions,
 } from '../../lib/creasePatternViewport';
 import type { SelectablePartKind } from '../../lib/selection';
+import type { SimulatorSettings, SimulatorSettingKey } from '../../lib/simulatorSettings';
 import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
 import type { BpTreeSymmetryPair } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
@@ -215,6 +216,10 @@ export interface ProjectSliceActions {
   exportOrh: (fileService?: FileService) => Promise<boolean>;
   exportSvg: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
   exportPng: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
+  /** Export the simulator's current folded geometry. */
+  exportFoldedFold: (fileService?: FileService) => Promise<boolean>;
+  exportObj: (fileService?: FileService) => Promise<boolean>;
+  exportStl: (fileService?: FileService) => Promise<boolean>;
   /**
    * Export a single crease-pattern segment. File formats (cp/fold/ori/orh)
    * download directly; image formats (svg/png) open the export-image modal
@@ -679,6 +684,24 @@ export interface OristudioBpSliceActions {
 
 export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;
 
+export interface SimulatorSliceState {
+  /**
+   * Render, material, and solver settings for the Simulate workspace. Shared
+   * store state rather than panel-local because the simulator canvas and its
+   * options pane are sibling panels; persisted so choices survive a reload.
+   */
+  simulatorSettings: SimulatorSettings;
+}
+
+export interface SimulatorSliceActions {
+  /** Set one setting, clamped to its range for numeric keys. */
+  setSimulatorSetting: <K extends SimulatorSettingKey>(key: K, value: SimulatorSettings[K]) => void;
+  /** Restore the paper's material properties (stiffness, damping) to defaults. */
+  resetSimulatorMaterial: () => void;
+}
+
+export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;
+
 export type WorkspaceState =
   ProjectSlice &
   HistorySlice &
@@ -686,7 +709,8 @@ export type WorkspaceState =
   ClipboardSlice &
   ConditionSlice &
   CreasePatternSlice &
-  OristudioBpSlice;
+  OristudioBpSlice &
+  SimulatorSlice;
 
 export type WorkspaceSliceCreator<T> = StateCreator<
   WorkspaceState,

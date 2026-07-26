@@ -1,0 +1,48 @@
+{
+  "recordedOn": "2026-07-23",
+  "note": "Timings are machine-dependent; treat large relative regressions as signal, absolute numbers as indicative only. Re-bless with BENCH_WRITE_BASELINE=1 npm run bench:sim.",
+  "results": {
+    "miura-8x8": {
+      "vertices": 81,
+      "faces": 128,
+      "edges": 208,
+      "creases": 176,
+      "msPerStep": 0.2783
+    },
+    "miura-16x16": {
+      "vertices": 289,
+      "faces": 512,
+      "edges": 800,
+      "creases": 736,
+      "msPerStep": 1.0962
+    },
+    "miura-32x32": {
+      "vertices": 1089,
+      "faces": 2048,
+      "edges": 3136,
+      "creases": 3008,
+      "msPerStep": 4.7237
+    },
+    "miura-56x56": {
+      "vertices": 3249,
+      "faces": 6272,
+      "edges": 9520,
+      "creases": 9296,
+      "msPerStep": 14.5276
+    },
+    "miura-80x80": {
+      "vertices": 6561,
+      "faces": 12800,
+      "edges": 19360,
+      "creases": 19040,
+      "msPerStep": 31.9983
+    },
+    "boxpleat-24": {
+      "vertices": 625,
+      "faces": 1152,
+      "edges": 1776,
+      "creases": 1680,
+      "msPerStep": 2.4837
+    }
+  }
+}

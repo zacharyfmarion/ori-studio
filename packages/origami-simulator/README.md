@@ -7,7 +7,8 @@ The package boundary is intentionally clean:
 - no React dependency
 - no Tauri or file-system behavior
 - no TreeMaker model dependency
-- optional Three.js renderer via `@treemaker/origami-simulator/three`
+- a WebGL2 GPU solver (`WebglSolver`) and mesh renderer that draws straight
+  from the position texture, alongside the CPU `ReferenceSolver`
 
 The dynamic solver is a modern TypeScript CPU port of Amanda Ghassaei's
 [Origami Simulator](https://github.com/amandaghassaei/OrigamiSimulator)

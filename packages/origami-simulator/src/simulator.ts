@@ -1,4 +1,4 @@
-import { DynamicSolver } from './dynamicSolver.js';
+import { ReferenceSolver } from './referenceSolver.js';
 import { GpuMath } from './gpuMath.js';
 import { OrigamiModel } from './model.js';
 import type {
@@ -11,7 +11,7 @@ import type {
 
 export function createOrigamiSimulator(config: CreateSimulatorConfig): OrigamiSimulatorController {
   const model = new OrigamiModel(config.model);
-  const solver = new DynamicSolver(model, config.options);
+  const solver = new ReferenceSolver(model, config.options);
   const gpu = config.gl ? new GpuMath(config.gl) : config.canvas ? GpuMath.fromCanvas(config.canvas) : null;
   config.model.diagnostics.webglAvailable = Boolean(gpu);
   config.model.diagnostics.usedCpuFallback = !gpu;
@@ -34,9 +34,9 @@ export function createOrigamiSimulator(config: CreateSimulatorConfig): OrigamiSi
     },
     step(numSteps?: number): SimulationFrame {
       if (disposed) throw new Error('Simulator has been disposed');
-      const frame = solver.step(numSteps);
+      solver.step(numSteps);
       render();
-      return frame;
+      return solver.readFrame();
     },
     start() {
       if (disposed || raf !== null || typeof requestAnimationFrame === 'undefined') return;
