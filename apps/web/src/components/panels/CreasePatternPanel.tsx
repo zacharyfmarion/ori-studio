@@ -21,6 +21,7 @@ import {
   ImagePlus,
   ListChecks,
   Loader2,
+  Origami,
   Trash2,
 } from 'lucide-react';
 import {
@@ -196,7 +197,6 @@ import {
   isCpMeasurementOperation,
   type CpMeasurementSlots,
 } from '../../cp-workspace/measure';
-import { FoldEstimateIcon } from '../ui/FoldEstimateIcon';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -3656,12 +3656,11 @@ export function CreasePatternPanel() {
                       <IconButton
                         size="sm"
                         variant="toolbar"
-                        className="cp-fold-button"
                         title={t('panels:creasePattern.fold', 'Fold')}
                         disabled={!canFoldSelectedModel}
                         onClick={handleFoldModel}
                       >
-                        <FoldEstimateIcon height={16} />
+                        <Origami size={14} />
                       </IconButton>
                       <IconButton
                         size="sm"
