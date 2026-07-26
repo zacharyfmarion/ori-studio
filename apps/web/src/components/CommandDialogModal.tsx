@@ -1,38 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CircleAlert, Download, Ruler, X } from 'lucide-react';
+import { CircleAlert, Ruler, X } from 'lucide-react';
 import {
   cancelCommandDialog,
   registerCommandDialogHost,
   resolveCommandDialog,
   useCommandDialogStore,
 } from '../store/commandDialogStore';
-import { serializeCreasePatternSvg, type CreaseExportOptions } from '../lib/creaseExport';
-import {
-  ORISTUDIO_CP_LINE_STYLES,
-  ORISTUDIO_CP_MIN_LINE_WIDTH,
-  ORISTUDIO_CP_MAX_LINE_WIDTH,
-  ORISTUDIO_CP_MIN_POINT_SIZE,
-  ORISTUDIO_CP_MAX_POINT_SIZE,
-} from '../lib/creasePatternViewport';
-import { cpLineStyleLabel } from '../i18n/enumLabels';
+import { CreaseExportDialog } from './CreaseExportDialog';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
-import { Slider } from './ui/Slider';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/Select';
-import { Toggle } from './ui/Toggle';
 
 export function CommandDialogModal() {
   const { t } = useTranslation();
   const dialog = useCommandDialogStore((state) => state.dialog);
   const [draft, setDraft] = useState('');
-  const [exportOptions, setExportOptions] = useState<CreaseExportOptions | null>(null);
   const [touched, setTouched] = useState(false);
   const [optionChecked, setOptionChecked] = useState(false);
 
@@ -50,11 +32,6 @@ export function CommandDialogModal() {
   }, [dialog]);
 
   useEffect(() => {
-    if (dialog?.type !== 'crease-export') return;
-    setExportOptions(dialog.initialOptions);
-  }, [dialog]);
-
-  useEffect(() => {
     if (!dialog) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -67,194 +44,12 @@ export function CommandDialogModal() {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [dialog]);
 
-  const activeExportOptions =
-    dialog?.type === 'crease-export' ? (exportOptions ?? dialog.initialOptions) : null;
-  const exportPreviewSrc = useMemo(() => {
-    if (dialog?.type !== 'crease-export' || !activeExportOptions) return '';
-    const previewSvg = serializeCreasePatternSvg(dialog.fold, dialog.segments, activeExportOptions);
-    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(previewSvg)}`;
-  }, [dialog, activeExportOptions]);
-
   if (!dialog) return null;
 
   const cancelLabel = dialog.cancelLabel ?? t('dialogs:common.cancel', 'Cancel');
 
   if (dialog.type === 'crease-export') {
-    const options = activeExportOptions ?? dialog.initialOptions;
-    const confirmLabel =
-      dialog.confirmLabel ??
-      t('dialogs:export.confirm', 'Export {{format}}', { format: dialog.format.toUpperCase() });
-
-    return (
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={dialog.title}
-        className="simple-modal"
-        onMouseDown={() => cancelCommandDialog(dialog.id)}
-      >
-        <div
-          role="document"
-          className="simple-modal__document simple-modal__document--export"
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <header className="simple-modal__header">
-            <span>
-              <Download size={15} aria-hidden="true" />
-              {dialog.title}
-            </span>
-            <IconButton size="sm" aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })} onClick={() => cancelCommandDialog(dialog.id)}>
-              <X size={15} />
-            </IconButton>
-          </header>
-          <form
-            className="simple-modal__body export-modal"
-            onSubmit={(event) => {
-              event.preventDefault();
-              resolveCommandDialog(dialog.id, options);
-            }}
-          >
-            <div className="export-modal__preview" aria-label={t('dialogs:export.preview', 'Export preview')}>
-              <img src={exportPreviewSrc} alt="" />
-            </div>
-            <div className="export-modal__controls">
-              {dialog.segments.length > 1 && (
-                <div className="export-modal__control-group">
-                  <span className="export-modal__label">{t('dialogs:export.creasePattern', 'Crease pattern')}</span>
-                  <div className="export-modal__pattern-list" role="listbox" aria-label={t('dialogs:export.creasePatternToExport', 'Crease pattern to export')}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={options.segmentId === null}
-                      className={`export-modal__pattern${options.segmentId === null ? ' export-modal__pattern--selected' : ''}`}
-                      onClick={() =>
-                        setExportOptions((current) => ({ ...(current ?? options), segmentId: null }))
-                      }
-                    >
-                      {t('dialogs:export.allPatterns', 'All patterns')}
-                    </button>
-                    {dialog.segments.map((segment, index) => (
-                      <button
-                        key={segment.id}
-                        type="button"
-                        role="option"
-                        aria-selected={options.segmentId === segment.id}
-                        className={`export-modal__pattern${options.segmentId === segment.id ? ' export-modal__pattern--selected' : ''}`}
-                        onClick={() =>
-                          setExportOptions((current) => ({
-                            ...(current ?? options),
-                            segmentId: segment.id,
-                          }))
-                        }
-                      >
-                        {t('dialogs:export.patternN', 'Pattern {{index}}', { index: index + 1 })}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="export-modal__control-group">
-                <span className="export-modal__label">{t('dialogs:export.lineStyle', 'Line style')}</span>
-                <Select
-                  value={options.lineStyle}
-                  onValueChange={(lineStyle) =>
-                    setExportOptions((current) => ({
-                      ...(current ?? options),
-                      lineStyle: lineStyle as CreaseExportOptions['lineStyle'],
-                    }))
-                  }
-                >
-                  <SelectTrigger aria-label={t('dialogs:export.lineStyle', 'Line style')} className="export-modal__select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORISTUDIO_CP_LINE_STYLES.map((style) => (
-                      <SelectItem key={style} value={style}>
-                        {cpLineStyleLabel(t, style)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="export-modal__control-group">
-                <label className="export-modal__label" htmlFor="export-line-width">
-                  {t('dialogs:export.lineWidth', 'Line width')}
-                </label>
-                <div className="export-modal__slider-row">
-                  <Slider
-                    id="export-line-width"
-                    aria-label={t('dialogs:export.lineWidth', 'Line width')}
-                    min={ORISTUDIO_CP_MIN_LINE_WIDTH}
-                    max={ORISTUDIO_CP_MAX_LINE_WIDTH}
-                    value={options.lineWidth}
-                    onChange={(lineWidth) =>
-                      setExportOptions((current) => ({ ...(current ?? options), lineWidth }))
-                    }
-                  />
-                  <output>{options.lineWidth}</output>
-                </div>
-              </div>
-              <div className="export-modal__control-group">
-                <label className="export-modal__label" htmlFor="export-point-size">
-                  {t('dialogs:export.pointSize', 'Point size')}
-                </label>
-                <div className="export-modal__slider-row">
-                  <Slider
-                    id="export-point-size"
-                    aria-label={t('dialogs:export.pointSize', 'Point size')}
-                    min={ORISTUDIO_CP_MIN_POINT_SIZE}
-                    max={ORISTUDIO_CP_MAX_POINT_SIZE}
-                    value={options.pointSize}
-                    onChange={(pointSize) =>
-                      setExportOptions((current) => ({ ...(current ?? options), pointSize }))
-                    }
-                  />
-                  <output>{options.pointSize}</output>
-                </div>
-              </div>
-              <div className="export-modal__toggle-row">
-                <div className="export-modal__toggle-copy">
-                  <span>{t('dialogs:export.includeUnassigned', 'Include flat / unassigned creases')}</span>
-                </div>
-                <Toggle
-                  checked={options.includeUnassigned}
-                  onChange={(includeUnassigned) => {
-                    setExportOptions((current) => ({
-                      ...(current ?? options),
-                      includeUnassigned,
-                    }));
-                  }}
-                  aria-label={t('dialogs:export.includeUnassigned', 'Include flat / unassigned creases')}
-                />
-              </div>
-              <div className="export-modal__toggle-row">
-                <div className="export-modal__toggle-copy">
-                  <span>{t('dialogs:export.showBackgroundColor', 'Show background color')}</span>
-                </div>
-                <Toggle
-                  checked={options.showBackgroundColor}
-                  onChange={(showBackgroundColor) => {
-                    setExportOptions((current) => ({
-                      ...(current ?? options),
-                      showBackgroundColor,
-                    }));
-                  }}
-                  aria-label={t('dialogs:export.showBackgroundColor', 'Show background color')}
-                />
-              </div>
-            </div>
-            <footer className="simple-modal__footer">
-              <Button size="sm" variant="ghost" onClick={() => cancelCommandDialog(dialog.id)}>
-                {cancelLabel}
-              </Button>
-              <Button size="sm" variant="primary" type="submit">
-                {confirmLabel}
-              </Button>
-            </footer>
-          </form>
-        </div>
-      </div>
-    );
+    return <CreaseExportDialog dialog={dialog} />;
   }
 
   if (dialog.type === 'confirm') {

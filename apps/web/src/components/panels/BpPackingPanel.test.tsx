@@ -152,27 +152,31 @@ function packingDocument(): OristudioBpDocumentState {
       },
       packing: {
         sheet,
+        // minimal_repro_circle_issue.osf: two unit leaves whose flaps conflict.
         flaps: [
-          { id: 1, vertexId: 1, name: '', anchor: { x: 4, y: 4 }, width: 2, height: 2, radius: 1, constrained: true },
-          { id: 2, vertexId: 2, name: '', anchor: { x: 10, y: 10 }, width: 2, height: 2, radius: 1, constrained: true },
+          { id: 5, vertexId: 5, name: '', anchor: { x: 9, y: 8 }, width: 0, height: 0, radius: 1, constrained: true },
+          { id: 7, vertexId: 7, name: '', anchor: { x: 11, y: 6 }, width: 0, height: 0, radius: 1, constrained: true },
         ],
         rivers: [{ id: 1, edgeId: 2, vertices: [0, 2], width: 1, length: 1 }],
-        // A conflict, so the merged conflict hit targets are covered too.
+        // The engine's own output for that file, so the rendered geometry is
+        // checked against what the engine actually produces.
         invalidJunctions: [
           {
-            id: 'j1',
-            flapIds: [1, 2],
+            id: 'j5,7',
+            flapIds: [5, 7],
             riverIds: [],
             paths: [
               [
-                { x: 5, y: 5 },
-                { x: 7, y: 5 },
-                { x: 7, y: 7 },
-                { x: 5, y: 7 },
+                { x: 9.9557, y: 7.7057, arc: { x: 9.8, y: 7.2 }, r: 1 },
+                { x: 9.2943, y: 7.0443, arc: { x: 9.5454545, y: 7.4545455 }, r: 2 },
+              ],
+              [
+                { x: 10.7057, y: 6.9557, arc: { x: 10.4545455, y: 6.5454545 }, r: 2 },
+                { x: 10.0443, y: 6.2943, arc: { x: 10.2, y: 6.8 }, r: 1 },
               ],
             ],
-            overlap: -1,
-            message: 'Flaps 1 and 2 overlap',
+            overlap: 1,
+            message: 'Flaps 5 and 7 overlap',
           },
         ],
         stretches: [],
@@ -292,6 +296,77 @@ describe('BP packing pane — conflict fills sit behind the geometry', () => {
     expect(groups.length).toBeGreaterThan(0);
     for (const group of groups) {
       expect(group.getAttribute('style') ?? '').not.toContain('opacity');
+    }
+  });
+});
+
+describe('BP packing pane — conflicts never paint outside a flap', () => {
+  it('clips the conflict layer to the flaps own shapes', () => {
+    const host = renderPacking();
+    const layer = host.querySelector('.bp-packing-conflicts');
+    expect(layer).not.toBeNull();
+
+    // The conflict outline stroke is centred on the region's edge, and that edge
+    // *is* the flap circle — so without a clip half the stroke renders outside
+    // the flap and reads as the conflict being somewhere it isn't.
+    const inner = layer!.querySelector('g[clip-path]');
+    expect(inner).not.toBeNull();
+    const id = /url\(#([^)]+)\)/.exec(inner!.getAttribute('clip-path') ?? '')?.[1];
+    expect(id).toBeTruthy();
+
+    const clip = [...(host.querySelector('defs')?.children ?? [])].find(
+      (node) => node.getAttribute('id') === id
+    );
+    expect(clip).toBeDefined();
+    // One shape per flap, matching what the clearance circles draw.
+    const shapes = [...clip!.children];
+    expect(shapes).toHaveLength(2); // one per flap in the fixture
+    for (const shape of shapes) {
+      expect(Number(shape.getAttribute('width'))).toBeGreaterThan(0);
+      expect(Number(shape.getAttribute('rx'))).toBeGreaterThan(0);
+    }
+  });
+
+  it('leaves a legible conflict unstroked, so its tips stay sharp', () => {
+    const host = renderPacking();
+    const paths = [...host.querySelectorAll('.bp-packing-conflict')];
+    expect(paths.length).toBeGreaterThan(0);
+    // This region renders ~6.6px thick — plainly visible. A stroke would be
+    // centred on its outline, and clipping that to the flap truncates the
+    // region's tips, blunting points that should be sharp.
+    for (const path of paths) {
+      const width = Number(path.getAttribute('stroke-width') ?? '0');
+      expect(width).toBe(0);
+    }
+  });
+
+  it('paints a conflict path that stays on its flap circle', () => {
+    const host = renderPacking();
+    const paths = [...host.querySelectorAll('.bp-packing-conflict')];
+    expect(paths.length).toBeGreaterThan(0);
+    // Every conflict vertex sits on a flap circle: that is what makes clipping
+    // to the flaps lossless for the fill, and lossy only for the stray stroke.
+    const defs = host.querySelector('defs');
+    const circles = [...(defs?.children ?? [])]
+      .flatMap((clip) => [...clip.children])
+      .filter((el) => Number(el.getAttribute('rx')) > 0)
+      .map((el) => {
+        const x = Number(el.getAttribute('x'));
+        const y = Number(el.getAttribute('y'));
+        const w = Number(el.getAttribute('width'));
+        const h = Number(el.getAttribute('height'));
+        return { cx: x + w / 2, cy: y + h / 2, r: Number(el.getAttribute('rx')) };
+      });
+    expect(defs).not.toBeNull();
+    expect(circles.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      const move = /M([\d.]+),([\d.]+)/.exec(path.getAttribute('d') ?? '');
+      expect(move).not.toBeNull();
+      const point = { x: Number(move![1]), y: Number(move![2]) };
+      const onACircle = circles.some(
+        (c) => Math.abs(Math.hypot(point.x - c.cx, point.y - c.cy) - c.r) < 0.5
+      );
+      expect(onACircle).toBe(true);
     }
   });
 });

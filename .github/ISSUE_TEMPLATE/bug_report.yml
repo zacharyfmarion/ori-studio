@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in Ori Studio behaves incorrectly, crashes, or looks wrong.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping test Ori Studio! A screenshot or a sample file makes
+        almost every bug faster to fix — please attach one if the problem is
+        visual or tied to a specific crease pattern.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, and what went wrong?
+      placeholder: I dragged a flap in the box-pleating editor and the crease pattern jumped to the corner.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      placeholder: The flap should follow the cursor and snap to the grid.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: A numbered list is ideal. If you have a file that triggers it, drag it in here.
+      placeholder: |
+        1. Open a new box-pleated design
+        2. Add two flaps
+        3. Drag the second flap toward the center
+    validations:
+      required: false
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where did this happen?
+      options:
+        - Web (oristudio.pages.dev)
+        - Desktop (macOS)
+        - Both
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser / OS
+      description: e.g. "Chrome 130 on macOS 15", "Safari on iPad". Skip if you're on the desktop app.
+      placeholder: Chrome on macOS
+    validations:
+      required: false

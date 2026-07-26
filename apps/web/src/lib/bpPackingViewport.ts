@@ -222,14 +222,24 @@ export function bpPackingFlapClearanceRect(
  * lens between two arcs is. Only two-arc paths have one — anything else is left
  * unstroked, matching BP's `NaN` result for longer paths.
  */
-export function bpArcPathNarrowness(path: readonly OristudioBpArcPoint[]): number | null {
+/**
+ * Thickness of a two-arc conflict region across its middle, in grid units.
+ *
+ * The region is a lens: two arcs over a shared chord, bulging apart. Its widest
+ * point is the sum of the two arcs' sagittas. Used to keep the outline stroke
+ * from dwarfing the shape it is meant to make visible.
+ */
+export function bpArcPathThickness(path: readonly OristudioBpArcPoint[]): number | null {
   if (path.length !== 2) return null;
   const [first, second] = path;
-  if (!first.arc || !second.arc) return null;
-  const span = Math.hypot(second.x - first.x, second.y - first.y);
-  if (span === 0) return null;
-  return Math.hypot(second.arc.x - first.arc.x, second.arc.y - first.arc.y) / span;
+  if (first.r == null || second.r == null) return null;
+  const half = Math.hypot(second.x - first.x, second.y - first.y) / 2;
+  if (half === 0) return null;
+  const sagitta = (radius: number): number =>
+    radius <= half ? radius : radius - Math.sqrt(radius * radius - half * half);
+  return sagitta(Math.abs(first.r)) + sagitta(Math.abs(second.r));
 }
+
 
 /**
  * Renders an arc outline as an SVG path `d`, mirroring BP's canvas drawing of an
@@ -372,6 +382,37 @@ export function constrainBpPackingPoint(point: Point, sheet: OristudioBpSheet): 
     x: Math.min(Math.max(0, point.x), Math.max(0, sheet.width)),
     y: Math.min(Math.max(0, point.y), Math.max(0, sheet.height)),
   };
+}
+
+/**
+ * Whether a point lies within the sheet. Defined as "constraining it changes
+ * nothing", which reuses the already-ported rectangular and diagonal constrain
+ * logic instead of re-deriving the diamond containment test — the same
+ * semantics the engine's `BpGrid::contains` uses. Flap dots are integer grid
+ * coordinates, so an exact match is safe (a tiny epsilon guards float drift).
+ */
+export function bpPackingSheetContains(point: Point, sheet: OristudioBpSheet): boolean {
+  const fixed = constrainBpPackingPoint(point, sheet);
+  return Math.abs(fixed.x - point.x) < 1e-6 && Math.abs(fixed.y - point.y) < 1e-6;
+}
+
+/**
+ * Whether a flap of the given footprint may sit at `anchor`, mirroring the
+ * engine's `validate_flap_with_sheet`: at most one of the flap's four corner
+ * tips may fall outside the sheet. Used to pre-check a width/height edit so an
+ * out-of-range value snaps back instantly instead of failing an engine round
+ * trip (matching Box Pleating Studio, whose resize setter silently rejects).
+ */
+export function bpPackingCanResizeFlap(
+  anchor: Point,
+  width: number,
+  height: number,
+  sheet: OristudioBpSheet
+): boolean {
+  const offSheet = flapDots(anchor, width, height).filter(
+    (dot) => !bpPackingSheetContains(dot, sheet)
+  ).length;
+  return offSheet <= 1;
 }
 
 function constrainFlap(

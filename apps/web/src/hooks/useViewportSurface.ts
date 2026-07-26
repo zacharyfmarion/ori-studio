@@ -11,8 +11,39 @@ import {
 import type { ViewportShortcutId } from '../keyboard/shortcuts';
 import { isViewportInteractiveTarget } from '../components/panels/ViewportToolbar';
 
-const ZOOM_STEP = 0.35;
-const ZOOM_ANIMATION_MS = 120;
+/**
+ * The two zoom paths in react-zoom-pan-pinch scale differently, so their steps
+ * are not comparable numbers:
+ *
+ * - Buttons and shortcuts run through `handleCalculateButtonZoom`, which with
+ *   `smooth` (its default) is **multiplicative**: `scale * exp(delta * step)`.
+ *   A step of 1.1 is roughly ×3 per press, at any zoom.
+ * - Wheel and trackpad pinch run through `handleCalculateWheelZoom`, which is
+ *   **additive**: `scale + delta * step`. A fixed increment, so the same step
+ *   feels coarse when zoomed out and sluggish when zoomed in. That asymmetry is
+ *   why the number below is so much larger.
+ */
+const ZOOM_STEP = 0.6;
+const ZOOM_ANIMATION_MS = 90;
+
+/**
+ * Zoom rates for the continuous gestures, shared so the two BP panes cannot
+ * drift apart. `wheelDisabled` keeps a plain wheel panning; the step applies to
+ * a trackpad pinch, which the browser reports as ctrl+wheel.
+ */
+export const VIEWPORT_WHEEL_ZOOM = {
+  // Plain wheel keeps panning; trackpad pinch is handled below, multiplicatively.
+  wheelDisabled: true,
+  touchPadDisabled: true,
+} as const;
+export const VIEWPORT_PINCH_ZOOM = { step: 2.2 } as const;
+
+/**
+ * Zoom per unit of trackpad-pinch delta, applied as `scale * exp(delta * k)`.
+ * Multiplicative, so a pinch covers the same proportion of zoom whether you are
+ * at 50% or 800% — which the library's additive wheel path cannot do.
+ */
+const PINCH_ZOOM_SENSITIVITY = 0.011;
 const CENTER_ANIMATION_MS = 160;
 const FIT_ANIMATION_MS = 180;
 
@@ -240,6 +271,46 @@ export function useViewportSurface({
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', clearSpace);
     };
+  }, []);
+
+  // Trackpad pinch, taken over from the library.
+  //
+  // Its wheel path is additive — `scale + delta * step` — so one pinch moves you
+  // a fixed amount regardless of where you are: coarse when zoomed out, and
+  // barely perceptible when zoomed in. Zoom is inherently multiplicative, so
+  // handle the gesture here and scale by a factor instead, anchored on the
+  // pointer so the paper stays under your fingers.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    const onWheel = (event: WheelEvent) => {
+      // Only the pinch gesture: the browser reports it as ctrl+wheel. A plain
+      // wheel still belongs to panning.
+      if (!event.ctrlKey) return;
+      const api = transformRef.current;
+      if (!api) return;
+      event.preventDefault();
+
+      const { scale, positionX, positionY } = api.instance.transformState;
+      const { minScale, maxScale } = api.instance.setup;
+      const next = Math.min(
+        maxScale,
+        Math.max(minScale, scale * Math.exp(-event.deltaY * PINCH_ZOOM_SENSITIVITY))
+      );
+      if (next === scale) return;
+
+      // Keep the point under the pointer fixed.
+      const rect = container.getBoundingClientRect();
+      const pointerX = event.clientX - rect.left;
+      const pointerY = event.clientY - rect.top;
+      const worldX = (pointerX - positionX) / scale;
+      const worldY = (pointerY - positionY) / scale;
+      api.setTransform(pointerX - worldX * next, pointerY - worldY * next, next, 0);
+    };
+
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => container.removeEventListener('wheel', onWheel);
   }, []);
 
   const onInit = useCallback((ref: ReactZoomPanPinchRef) => {

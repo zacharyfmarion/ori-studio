@@ -353,6 +353,14 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
 export interface SegmentThumbnailOptions {
   size?: number;
   padding?: number;
+  /**
+   * Crease colours, keyed by assignment. Defaults to the app-theme CSS
+   * variables used by the simulator sidebar; the export dialog passes its own
+   * palette so thumbnails match the exported image.
+   */
+  strokes?: Record<string, string>;
+  /** Thumbnail background. Transparent when omitted. */
+  background?: string;
 }
 
 const THUMBNAIL_STROKES: Record<string, { color: string; width: number; dash?: string }> = {
@@ -363,12 +371,13 @@ const THUMBNAIL_STROKES: Record<string, { color: string; width: number; dash?: s
 };
 
 /**
- * Flat 2D SVG of a segment's creases, scaled into a square viewBox. Static and
- * cheap — rendered once per segment for the sidebar, no simulator involved.
+ * Flat 2D SVG of one or more segments' creases, scaled into a square viewBox.
+ * Static and cheap — rendered once per segment, no simulator involved. Passing
+ * every segment gives the whole document ("all patterns") at a single scale.
  */
-export function segmentThumbnailSvg(
+export function cpThumbnailSvg(
   fold: FoldDocument,
-  segment: CpSegment,
+  segments: readonly CpSegment[],
   options: SegmentThumbnailOptions = {}
 ): string {
   const size = options.size ?? 96;
@@ -377,7 +386,24 @@ export function segmentThumbnailSvg(
   const faces = fold.faces_vertices ?? [];
   const axes = flatPlaneAxes(fold);
   const assignmentByKey = buildAssignmentByKey(fold);
-  const { minX, minY, maxX, maxY } = segment.bounds;
+  const background = options.background
+    ? `<rect width="${size}" height="${size}" fill="${options.background}"/>`
+    : '';
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const segment of segments) {
+    minX = Math.min(minX, segment.bounds.minX);
+    minY = Math.min(minY, segment.bounds.minY);
+    maxX = Math.max(maxX, segment.bounds.maxX);
+    maxY = Math.max(maxY, segment.bounds.maxY);
+  }
+  if (!Number.isFinite(minX)) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img">${background}</svg>`;
+  }
+
   const span = Math.max(maxX - minX, maxY - minY, 1e-6);
   const scale = (size - padding * 2) / span;
   const offsetX = padding + ((size - padding * 2) - (maxX - minX) * scale) / 2;
@@ -392,26 +418,70 @@ export function segmentThumbnailSvg(
 
   const drawn = new Set<string>();
   const lines: string[] = [];
-  for (const faceIndex of segment.faceIndices) {
-    const face = faces[faceIndex] ?? [];
-    for (let i = 0; i < face.length; i += 1) {
-      const a = face[i] ?? 0;
-      const b = face[(i + 1) % face.length] ?? 0;
-      if (a === b) continue;
-      const key = edgeKey(a, b);
-      if (drawn.has(key)) continue;
-      drawn.add(key);
-      const style = THUMBNAIL_STROKES[assignmentByKey.get(key) ?? 'F'] ?? THUMBNAIL_STROKES.F!;
-      const [x1, y1] = project(a);
-      const [x2, y2] = project(b);
-      const dash = style.dash ? ` stroke-dasharray="${style.dash}"` : '';
-      lines.push(
-        `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${style.color}" stroke-width="${style.width}"${dash} stroke-linecap="round"/>`
-      );
+  for (const segment of segments) {
+    for (const faceIndex of segment.faceIndices) {
+      const face = faces[faceIndex] ?? [];
+      for (let i = 0; i < face.length; i += 1) {
+        const a = face[i] ?? 0;
+        const b = face[(i + 1) % face.length] ?? 0;
+        if (a === b) continue;
+        const key = edgeKey(a, b);
+        if (drawn.has(key)) continue;
+        drawn.add(key);
+        const assignment = assignmentByKey.get(key) ?? 'F';
+        const style = THUMBNAIL_STROKES[assignment] ?? THUMBNAIL_STROKES.F!;
+        const color = options.strokes?.[assignment] ?? options.strokes?.F ?? style.color;
+        const [x1, y1] = project(a);
+        const [x2, y2] = project(b);
+        const dash = style.dash ? ` stroke-dasharray="${style.dash}"` : '';
+        lines.push(
+          `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="${style.width}"${dash} stroke-linecap="round"/>`
+        );
+      }
     }
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img">${lines.join('')}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img">${background}${lines.join('')}</svg>`;
+}
+
+/** Single-segment thumbnail. See {@link cpThumbnailSvg}. */
+export function segmentThumbnailSvg(
+  fold: FoldDocument,
+  segment: CpSegment,
+  options: SegmentThumbnailOptions = {}
+): string {
+  return cpThumbnailSvg(fold, [segment], options);
+}
+
+/**
+ * Whether `point` lies on one of the segment's boundary edges, within `epsilon`.
+ *
+ * The even-odd test below is undefined exactly on the boundary, and a crease
+ * that *is* the paper's edge has its midpoint precisely there — which is how a
+ * square loses half its border to a plain inside test.
+ */
+export function pointOnSegmentBoundary(
+  segment: CpSegment,
+  point: Point,
+  epsilon = 1e-6
+): boolean {
+  for (const ring of segment.boundary) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+      const a = ring[i]!;
+      const b = ring[j]!;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const lengthSquared = dx * dx + dy * dy;
+      const t =
+        lengthSquared > 0
+          ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared))
+          : 0;
+      const closestX = a.x + t * dx;
+      const closestY = a.y + t * dy;
+      if (Math.hypot(point.x - closestX, point.y - closestY) <= epsilon) return true;
+    }
+  }
+  return false;
 }
 
 /** Even-odd point-in-segment test across all boundary rings (for export). */

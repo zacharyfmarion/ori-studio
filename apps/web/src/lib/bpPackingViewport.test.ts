@@ -5,13 +5,15 @@ import type {
   OristudioBpSheetKind,
 } from '../engine/oristudioBpTypes';
 import {
-  bpArcPathNarrowness,
+  bpArcPathThickness,
   bpArcPathToSvgPath,
+  bpPackingCanResizeFlap,
   bpPackingFlapClearanceRect,
   bpPackingGridLines,
   bpPackingPaperRect,
   bpPackingPointToSvg,
   bpPackingSheetBorderPoints,
+  bpPackingSheetContains,
   bpPackingSheetFrame,
   bpPackingSvgToPoint,
 } from './bpPackingViewport';
@@ -145,33 +147,6 @@ describe('bpPackingFlapClearanceRect', () => {
   });
 });
 
-describe('bpArcPathNarrowness', () => {
-  it('is the anchor span over the endpoint span for a two-arc lens', () => {
-    const path: OristudioBpArcPath = [
-      { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
-      { x: 4, y: 0, arc: { x: 2, y: 1 }, r: 1 },
-    ];
-    // anchors are 1 apart, endpoints 4 apart
-    expect(bpArcPathNarrowness(path)).toBeCloseTo(0.25);
-  });
-
-  it('has none for paths that are not a two-arc lens', () => {
-    expect(
-      bpArcPathNarrowness([
-        { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
-        { x: 4, y: 0, arc: { x: 2, y: 1 }, r: 1 },
-        { x: 4, y: 4 },
-      ])
-    ).toBeNull();
-    expect(
-      bpArcPathNarrowness([
-        { x: 0, y: 0 },
-        { x: 4, y: 0 },
-      ])
-    ).toBeNull();
-  });
-});
-
 describe('bpArcPathToSvgPath', () => {
   const s = sheet('rectangular', 8);
   const lens: OristudioBpArcPath = [
@@ -256,5 +231,90 @@ describe('bpPackingSvgToPoint', () => {
         expect(approx(back.y, grid.y)).toBe(true);
       }
     }
+  });
+});
+
+describe('bpArcPathThickness', () => {
+  it('measures the lens across its middle, as the sum of both sagittas', () => {
+    // The real conflict from minimal_repro_circle_issue.osf: a sliver ~0.17
+    // grid units thick. The outline stroke must not dwarf it.
+    const path = [
+      { x: 9.9557, y: 7.7057, arc: { x: 9.8, y: 7.2 }, r: 1 },
+      { x: 9.2943, y: 7.0443, arc: { x: 9.5454545, y: 7.4545455 }, r: 2 },
+    ];
+    const thickness = bpArcPathThickness(path);
+    expect(thickness).not.toBeNull();
+    // r=1 sagitta 0.116 + r=2 sagitta 0.055
+    expect(thickness!).toBeGreaterThan(0.15);
+    expect(thickness!).toBeLessThan(0.19);
+  });
+
+  it('is null for paths that are not two arcs', () => {
+    expect(bpArcPathThickness([{ x: 0, y: 0 }])).toBeNull();
+    expect(
+      bpArcPathThickness([
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ])
+    ).toBeNull();
+  });
+
+  it('handles a degenerate arc whose radius cannot span the chord', () => {
+    expect(
+      bpArcPathThickness([
+        { x: 0, y: 0, arc: { x: 0, y: 1 }, r: 0.1 },
+        { x: 10, y: 0, arc: { x: 10, y: 1 }, r: 0.1 },
+      ])
+    ).toBe(0.2);
+  });
+});
+
+describe('bpPackingSheetContains', () => {
+  const s = sheet('rectangular', 8, 12);
+
+  it('accepts points on and inside the rectangular sheet, including corners', () => {
+    expect(bpPackingSheetContains({ x: 0, y: 0 }, s)).toBe(true);
+    expect(bpPackingSheetContains({ x: 8, y: 12 }, s)).toBe(true);
+    expect(bpPackingSheetContains({ x: 4, y: 6 }, s)).toBe(true);
+  });
+
+  it('rejects points outside the rectangular sheet', () => {
+    expect(bpPackingSheetContains({ x: -1, y: 4 }, s)).toBe(false);
+    expect(bpPackingSheetContains({ x: 9, y: 4 }, s)).toBe(false);
+    expect(bpPackingSheetContains({ x: 4, y: 13 }, s)).toBe(false);
+  });
+
+  it('respects the diagonal diamond region', () => {
+    const d = sheet('diagonal', 16);
+    // The diamond spans the grid but its tips clip the square corners.
+    expect(bpPackingSheetContains({ x: 8, y: 8 }, d)).toBe(true);
+    expect(bpPackingSheetContains({ x: 0, y: 0 }, d)).toBe(false);
+  });
+});
+
+describe('bpPackingCanResizeFlap', () => {
+  const s = sheet('rectangular', 10, 10);
+
+  it('allows a footprint fully inside the sheet', () => {
+    expect(bpPackingCanResizeFlap({ x: 2, y: 2 }, 4, 4, s)).toBe(true);
+  });
+
+  it('allows a point flap (0x0) anywhere inside', () => {
+    expect(bpPackingCanResizeFlap({ x: 0, y: 0 }, 0, 0, s)).toBe(true);
+  });
+
+  it('rejects a footprint with more than one corner off the sheet', () => {
+    // A tall footprint pushes both top corners past the top edge.
+    expect(bpPackingCanResizeFlap({ x: 4, y: 8 }, 2, 4, s)).toBe(false);
+  });
+
+  it('allows a single corner tip past a diagonal sheet edge (the <=1 rule)', () => {
+    // On the diamond (x+y<=24 along the upper-right facet), a 4x4 footprint at
+    // (10,10) pushes only its top-right corner (14,14) past the edge; the other
+    // three corners sit on or inside it.
+    const d = sheet('diagonal', 16);
+    expect(bpPackingCanResizeFlap({ x: 10, y: 10 }, 4, 4, d)).toBe(true);
+    // Growing it to 5x5 pushes three corners off, which is rejected.
+    expect(bpPackingCanResizeFlap({ x: 10, y: 10 }, 5, 5, d)).toBe(false);
   });
 });

@@ -52,7 +52,7 @@ import {
   toggleBpRiverSelection,
 } from '../../lib/oristudioBpSelection';
 import {
-  bpArcPathNarrowness,
+  bpArcPathThickness,
   bpArcPathToSvgPath,
   bpPackingFlapClearanceRect,
   bpPackingGridLines,
@@ -68,6 +68,7 @@ import {
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
 import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
+import { unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { type Point } from '../../lib/geometry';
 import {
@@ -78,11 +79,15 @@ import {
 import { clientPointToDesignWorld } from '../../lib/designViewport';
 import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
-import { useViewportSurface } from '../../hooks/useViewportSurface';
+import {
+  useViewportSurface,
+  VIEWPORT_PINCH_ZOOM,
+  VIEWPORT_WHEEL_ZOOM,
+} from '../../hooks/useViewportSurface';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
-import { BpNameEditor } from './BpNameEditor';
+import { BpFlapEditor } from './BpFlapEditor';
 import {
   isViewportInteractiveTarget,
   ViewportLayerMenu,
@@ -699,6 +704,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   const moveOristudioBpLayoutFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlap);
   const moveOristudioBpLayoutFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlaps);
+  const resizeOristudioBpLayoutFlap = useWorkspaceStore(
+    (state) => state.resizeOristudioBpLayoutFlap
+  );
+  const setOristudioBpTreeEdgeLength = useWorkspaceStore(
+    (state) => state.setOristudioBpTreeEdgeLength
+  );
   const renameOristudioBpVertex = useWorkspaceStore((state) => state.renameOristudioBpVertex);
   const moveOristudioBpDevice = useWorkspaceStore((state) => state.moveOristudioBpDevice);
   const switchOristudioBpStretchConfig = useWorkspaceStore(
@@ -759,6 +770,41 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     if (id === null) return null;
     return packing.flaps.find((flap) => flap.id === id) ?? null;
   }, [selection, packing.flaps]);
+  // A flap's radius is the length of its dual leaf edge in the tree, so radius
+  // editing routes through the edge-length action. Find that edge (there is only
+  // one — a flap's vertex is a leaf); when it is missing the radius field hides.
+  const tree = document.snapshot.tree;
+  const singleSelectedFlapEdge = useMemo(() => {
+    if (!singleSelectedFlap) return null;
+    const vertexId = singleSelectedFlap.vertexId;
+    return (
+      tree.edges.find(
+        (edge) => edge.vertices[0] === vertexId || edge.vertices[1] === vertexId
+      ) ?? null
+    );
+  }, [singleSelectedFlap, tree.edges]);
+  // Sheet "diameter" caps every dimension (matches BP Studio's flap panel max).
+  const flapMaxDimension = Math.max(packing.sheet.width, packing.sheet.height);
+  // Set the flap's radius by changing its leaf edge length, repositioning the
+  // leaf so the tree stays length-faithful (the subtree of a leaf is just the
+  // leaf). Reuses the same single-undo edge-length path as the tree inspector.
+  const setSelectedFlapRadius = useCallback(
+    (length: number): Promise<boolean> => {
+      if (!singleSelectedFlap || !singleSelectedFlapEdge) return Promise.resolve(false);
+      const edge = singleSelectedFlapEdge;
+      const leafId = singleSelectedFlap.vertexId;
+      const [a, b] = edge.vertices;
+      const parentId = a === leafId ? b : a;
+      const leaf = tree.vertices.find((vertex) => vertex.id === leafId);
+      const parent = tree.vertices.find((vertex) => vertex.id === parentId);
+      if (!leaf || !parent) {
+        return setOristudioBpTreeEdgeLength(edge.vertices, length);
+      }
+      const target = unitLeafLocation(parent.loc, leaf.loc, length);
+      return setOristudioBpTreeEdgeLength(edge.vertices, length, [{ id: leafId, loc: target }]);
+    },
+    [singleSelectedFlap, singleSelectedFlapEdge, tree.vertices, setOristudioBpTreeEdgeLength]
+  );
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
   // A diagonal sheet is the square rotated 45° into a diamond; render the paper,
@@ -826,19 +872,34 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     () => bpPackingAlertDiagnostics(document.snapshot.diagnostics),
     [document.snapshot.diagnostics]
   );
-  const conflictVisuals = useMemo(
-    () =>
-      packing.invalidJunctions.map((junction) => ({
+  const conflictVisuals = useMemo(() => {
+    const thicknessPx = (thickness: number | null): number | null =>
+      thickness === null ? null : thickness * unit * (zoomPercent / 100);
+    return packing.invalidJunctions.map((junction) => ({
         junction,
         active: linkedSelection.invalidJunctions.has(junction.id),
         paths: junction.paths.map((path) => ({
           d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
-          strokeWidth: conflictStrokeWidth(bpArcPathNarrowness(path), unit),
+          strokeWidth: conflictStrokeWidth(
+            // Rendered thickness: grid units → SVG units → screen pixels.
+            thicknessPx(bpArcPathThickness(path)),
+            // Screen pixels per grid cell: SVG user units scaled by the camera.
+            unit * (zoomPercent / 100)
+          ),
         })),
-      })),
-    [linkedSelection.invalidJunctions, packing.invalidJunctions, packing.sheet, paperRect, unit]
+    }));
+  }, [
+      linkedSelection.invalidJunctions,
+      packing.invalidJunctions,
+      packing.sheet,
+      paperRect,
+      unit,
+      // The stroke is in screen pixels, so it has to be recomputed as you zoom.
+      zoomPercent,
+    ]
   );
   const sheetClipId = useId();
+  const flapsClipId = useId();
 
   const eventToPackingPoint = useCallback(
     (event: PointerEvent): Point => {
@@ -1388,14 +1449,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         maxScale={30}
         centerOnInit
         limitToBounds={false}
-        wheel={{ step: 0.5, wheelDisabled: true }}
+        wheel={VIEWPORT_WHEEL_ZOOM}
         panning={{
           velocityDisabled: true,
           wheelPanning: true,
           allowMiddleClickPan: true,
           allowLeftClickPan: spacePressed,
         }}
-        pinch={{ step: 0.5 }}
+        pinch={VIEWPORT_PINCH_ZOOM}
         doubleClick={{ disabled: true }}
         onInit={onInit}
         onTransformed={onTransformed}
@@ -1420,6 +1481,28 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             onClick={onSelectionCycleClick}
           >
             <defs>
+              {/*
+                * A conflict lives inside the flaps it belongs to, so nothing in
+                * that layer may paint outside one. Its outline stroke is centred
+                * on the region's edge — and that edge *is* the flap circle — so
+                * without this half the stroke renders outside the flap and reads
+                * as the conflict being in the wrong place.
+                */}
+              <clipPath id={flapsClipId}>
+                {packing.flaps.map((flap) => {
+                  const shape = bpPackingFlapClearanceRect(flap, packing.sheet, paperRect);
+                  return (
+                    <rect
+                      key={flap.id}
+                      x={shape.x}
+                      y={shape.y}
+                      width={shape.width}
+                      height={shape.height}
+                      rx={shape.radius}
+                    />
+                  );
+                })}
+              </clipPath>
               <clipPath id={sheetClipId}>
                 {isDiagonalSheet ? (
                   <polygon points={sheetPolygonPoints} />
@@ -1516,25 +1599,27 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 clipPath={`url(#${sheetClipId})`}
                 aria-hidden="true"
               >
-                {conflictVisuals.map((visual) => (
-                  <g
-                    key={visual.junction.id}
-                    className={
-                      visual.active
-                        ? 'bp-packing-conflict-group bp-packing-conflict--selected'
-                        : 'bp-packing-conflict-group'
-                    }
-                  >
-                    {visual.paths.map((path, index) => (
-                      <path
-                        key={`${visual.junction.id}:${index}`}
-                        className="bp-packing-conflict"
-                        d={path.d}
-                        strokeWidth={path.strokeWidth}
-                      />
-                    ))}
-                  </g>
-                ))}
+                <g clipPath={`url(#${flapsClipId})`}>
+                  {conflictVisuals.map((visual) => (
+                    <g
+                      key={visual.junction.id}
+                      className={
+                        visual.active
+                          ? 'bp-packing-conflict-group bp-packing-conflict--selected'
+                          : 'bp-packing-conflict-group'
+                      }
+                    >
+                      {visual.paths.map((path, index) => (
+                        <path
+                          key={`${visual.junction.id}:${index}`}
+                          className="bp-packing-conflict"
+                          d={path.d}
+                          strokeWidth={path.strokeWidth}
+                        />
+                      ))}
+                    </g>
+                  ))}
+                </g>
               </g>
             )}
             {layers.conflicts && (
@@ -1782,17 +1867,23 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         onNudge={nudgeSelection}
       />
       {singleSelectedFlap && (
-        <BpNameEditor
+        <BpFlapEditor
           key={singleSelectedFlap.id}
-          title={t('panels:bpPacking.flapTitle', 'Flap {{id}}', {
+          flap={singleSelectedFlap}
+          namePlaceholder={bpDefaultFlapLabel(singleSelectedFlap.id)}
+          nameAriaLabel={t('panels:bpPacking.flapNameAria', 'Name of flap {{id}}', {
             id: bpDefaultFlapLabel(singleSelectedFlap.id),
           })}
-          name={singleSelectedFlap.name}
-          placeholder={bpDefaultFlapLabel(singleSelectedFlap.id)}
-          ariaLabel={t('panels:bpPacking.flapNameAria', 'Name of flap {{id}}', {
-            id: bpDefaultFlapLabel(singleSelectedFlap.id),
-          })}
+          sheet={packing.sheet}
+          maxDimension={flapMaxDimension}
+          radiusValue={singleSelectedFlapEdge?.length ?? singleSelectedFlap.radius}
+          radiusMax={singleSelectedFlapEdge?.maxLength ?? null}
+          radiusEditable={singleSelectedFlapEdge !== null}
           onRename={(name) => void renameOristudioBpVertex(singleSelectedFlap.vertexId, name)}
+          onResize={(width, height) =>
+            resizeOristudioBpLayoutFlap(singleSelectedFlap.id, width, height)
+          }
+          onRadius={setSelectedFlapRadius}
         />
       )}
       {activeStretch && (
@@ -2022,15 +2113,30 @@ function primitiveSelectToken(
 }
 
 /**
- * Box Pleating Studio strokes an invalid-junction outline only when it is too narrow
- * to read as a filled shape (`Junction.$draw`): width `2 / narrowness` screen pixels,
- * never wider than one grid cell. Everything else is fill-only.
+ * Smallest a conflict region may render before it needs help to be seen, in
+ * screen pixels.
  */
-const CONFLICT_NARROWNESS_THRESHOLD = 0.4;
+const MIN_CONFLICT_VISIBLE_PX = 2.5;
 
-function conflictStrokeWidth(narrowness: number | null, unit: number): number {
-  if (narrowness === null || narrowness >= CONFLICT_NARROWNESS_THRESHOLD) return 0;
-  return Math.min(2 / narrowness, unit);
+/**
+ * Stroke width for a conflict outline, in screen pixels — 0 for anything already
+ * thick enough to read as a filled shape.
+ *
+ * Box Pleating Studio strokes the outline when `narrowness` (the ratio of the
+ * arcs' anchor span to their chord) falls under a threshold, at width
+ * `2 / narrowness` (`Junction.$draw`). That ratio is a proxy for "this is too
+ * thin to see"; we measure the thing itself, because the stroke has a cost the
+ * ratio can't account for.
+ *
+ * The cost: the stroke is centred on the region's outline, and that outline's
+ * outer edge *is* the flap circle. Clipping it to the flap (which is what keeps
+ * it from painting outside) then truncates it at the region's tips, blunting
+ * points that should be sharp. So stroke only what would otherwise be invisible,
+ * and only by enough to reach that floor.
+ */
+function conflictStrokeWidth(thicknessPx: number | null, cellPx: number): number {
+  if (thicknessPx === null || thicknessPx >= MIN_CONFLICT_VISIBLE_PX) return 0;
+  return Math.min(MIN_CONFLICT_VISIBLE_PX - thicknessPx, cellPx);
 }
 
 /** Parse a `data-bp-select` token (`kind:id`) into a selection. */

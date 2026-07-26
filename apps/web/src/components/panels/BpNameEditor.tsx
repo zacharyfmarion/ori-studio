@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /**
@@ -16,6 +16,10 @@ import { useTranslation } from 'react-i18next';
  * while it holds focus it owns the keyboard: Delete edits the name instead of
  * deleting the node, and the undo shortcut undoes the field's text instead of
  * the edit. Click into it to rename.
+ *
+ * `children` render inside the same pill after the name field — the flap editor
+ * uses this slot to append its radius/width/height controls (see BpFlapEditor)
+ * without re-implementing the keyboard-safe name behavior above.
  */
 export function BpNameEditor({
   title,
@@ -24,8 +28,9 @@ export function BpNameEditor({
   ariaLabel,
   onRename,
   onEscape,
+  children,
 }: {
-  title: string;
+  title?: string;
   name: string;
   placeholder?: string;
   ariaLabel: string;
@@ -36,6 +41,7 @@ export function BpNameEditor({
    * the edit and drop the selection — instead of needing a second press.
    */
   onEscape?: () => void;
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(() => name);
@@ -49,7 +55,7 @@ export function BpNameEditor({
 
   return (
     <div className="bp-name-editor" role="group" aria-label={ariaLabel}>
-      <span className="bp-name-editor__title">{title}</span>
+      {title && <span className="bp-name-editor__title">{title}</span>}
       <span className="bp-name-editor__label">{t('panels:bpNameEditor.label', 'Name')}</span>
       <input
         className="bp-name-editor__input"
@@ -69,6 +75,7 @@ export function BpNameEditor({
           }
         }}
       />
+      {children}
     </div>
   );
 }

@@ -14,24 +14,50 @@ export interface CpSelectionStyle {
   widthMul: number;
 }
 
-/** A live move-drag: shift these 1-based line ids by `delta` (model coords). */
-export interface CpMovePreview {
+/**
+ * Model→model affine, row-major: `[m00, m01, m10, m11, tx, ty]`, applied as
+ *
+ *   x' = m00 * x + m01 * y + tx
+ *   y' = m10 * x + m11 * y + ty
+ *
+ * A pure translation is `[1, 0, 0, 1, dx, dy]`, whose apply reduces to `x + dx`
+ * exactly (the `0 * y` term contributes no rounding), so translation previews stay
+ * bit-for-bit what the delta-only code produced.
+ */
+export type CpAffineMatrix = readonly [number, number, number, number, number, number];
+
+/** The identity-with-translation matrix for a live move-drag's `delta`. */
+export function translationMatrix(delta: ModelPoint): CpAffineMatrix {
+  return [1, 0, 0, 1, delta.x, delta.y];
+}
+
+/** Apply {@link CpAffineMatrix} to a model point. */
+export function applyAffine(m: CpAffineMatrix, x: number, y: number): ModelPoint {
+  return { x: m[0] * x + m[1] * y + m[4], y: m[2] * x + m[3] * y + m[5] };
+}
+
+/**
+ * A live transform gesture: draw these 1-based line ids through `matrix` instead of
+ * at their stored coordinates. Covers both the selection move-drag (a translation)
+ * and the four-point move/copy tools (a similarity).
+ */
+export interface CpTransformPreview {
   ids: ReadonlySet<number>;
-  delta: ModelPoint;
+  matrix: CpAffineMatrix;
 }
 
 /**
  * Convert crease-pattern line segments into GPU-ready stroke geometry. Pure: the
  * per-colour resolution is injected so this stays testable without the DOM/theme.
  * Selected lines (1-based ids, matching the SVG's index+1) are recoloured and
- * widened. When `move` is given, the named lines are drawn shifted by its delta —
- * this is how an in-progress selection move-drag translates the real strokes.
+ * widened. When `move` is given, the named lines are drawn through its matrix —
+ * this is how an in-progress move-drag or transform tool previews the real strokes.
  */
 export function cpSnapshotToScene(
   lineSegments: readonly CpLineSegmentInput[],
   colorFor: (color: string) => Rgba,
   selection?: CpSelectionStyle,
-  move?: CpMovePreview
+  move?: CpTransformPreview
 ): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
   const a = new Float32Array(count * 2);
@@ -43,15 +69,22 @@ export function cpSnapshotToScene(
   // handful of distinct assignments.
   const colorCache = new Map<string, Rgba>();
 
+  const m = move?.matrix;
+
   for (let i = 0; i < count; i++) {
     const seg = lineSegments[i];
-    const moved = move !== undefined && move.ids.has(i + 1);
-    const dx = moved ? move.delta.x : 0;
-    const dy = moved ? move.delta.y : 0;
-    a[i * 2] = seg.a.x + dx;
-    a[i * 2 + 1] = seg.a.y + dy;
-    b[i * 2] = seg.b.x + dx;
-    b[i * 2 + 1] = seg.b.y + dy;
+    const moved = m !== undefined && move !== undefined && move.ids.has(i + 1);
+    if (moved) {
+      a[i * 2] = m[0] * seg.a.x + m[1] * seg.a.y + m[4];
+      a[i * 2 + 1] = m[2] * seg.a.x + m[3] * seg.a.y + m[5];
+      b[i * 2] = m[0] * seg.b.x + m[1] * seg.b.y + m[4];
+      b[i * 2 + 1] = m[2] * seg.b.x + m[3] * seg.b.y + m[5];
+    } else {
+      a[i * 2] = seg.a.x;
+      a[i * 2 + 1] = seg.a.y;
+      b[i * 2] = seg.b.x;
+      b[i * 2 + 1] = seg.b.y;
+    }
 
     if (selection && selection.selected.has(i + 1)) {
       const c = selection.color;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { OristudioCpCommandDefinition } from '../../lib/oristudioCpCommands';
 import {
   allowsDirectEntitySelection,
+  creaseTransformTool,
   isCircleTangentPointOperation,
   isCreaseToggleMvClickTool,
   isDefaultSelectionMode,
@@ -117,6 +118,7 @@ describe('isDefaultSelectionMode', () => {
   });
 });
 
+
 describe('toolClickAction', () => {
   it('names the click behaviour of each box tool, and nothing else', () => {
     expect(toolClickAction('CreaseSelect')).toBe('select');
@@ -127,5 +129,21 @@ describe('toolClickAction', () => {
     expect(toolClickAction('LineSegmentDelete')).toBe('erase');
     expect(toolClickAction('DrawCreaseFree')).toBeNull();
     expect(toolClickAction(null)).toBeNull();
+  });
+});
+
+describe('creaseTransformTool', () => {
+  it('classifies the four transform tools by variant and point count', () => {
+    expect(creaseTransformTool('CreaseMove')).toEqual({ kind: 'move', pointCount: 2 });
+    expect(creaseTransformTool('CreaseCopy')).toEqual({ kind: 'copy', pointCount: 2 });
+    expect(creaseTransformTool('CreaseMove4p')).toEqual({ kind: 'move', pointCount: 4 });
+    expect(creaseTransformTool('CreaseCopy4p')).toEqual({ kind: 'copy', pointCount: 4 });
+  });
+
+  it('is null for every other tool, so they keep the kernel preview', () => {
+    expect(creaseTransformTool('DrawCreaseFree')).toBeNull();
+    expect(creaseTransformTool('CreaseSelect')).toBeNull();
+    expect(creaseTransformTool(null)).toBeNull();
+    expect(creaseTransformTool(undefined)).toBeNull();
   });
 });
