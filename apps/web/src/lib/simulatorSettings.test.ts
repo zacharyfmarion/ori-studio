@@ -7,15 +7,14 @@ import {
 } from './simulatorSettings';
 
 describe('simulatorSettings', () => {
-  it('passes the integrator to the engine with the material', () => {
-    // The solver picks its integrator from the same options object as stiffness,
-    // so a UI change must arrive through here or it never reaches the backend.
-    const options = simulatorMaterialOptions({
-      ...DEFAULT_SIMULATOR_SETTINGS,
-      integrationType: 'verlet',
-    });
-    expect(options.integrationType).toBe('verlet');
+  it('sends the material to the engine but not an integrator choice', () => {
+    // Verlet is implemented on the GPU but not exposed yet (it renders wrong in
+    // the app), so the settings must not push an integrator at all -- that leaves
+    // the engine on its Euler default.
+    const options = simulatorMaterialOptions(DEFAULT_SIMULATOR_SETTINGS);
     expect(options.timeStepScale).toBe(DEFAULT_SIMULATOR_SETTINGS.timeStepScale);
+    expect(options.damping).toBe(DEFAULT_SIMULATOR_SETTINGS.damping);
+    expect('integrationType' in options).toBe(false);
   });
 
   it('clamps numeric settings into range', () => {
@@ -29,14 +28,12 @@ describe('simulatorSettings', () => {
 
   it('rejects unknown persisted values instead of trusting them', () => {
     const restored = normalizeSimulatorSettings({
-      integrationType: 'symplectic',
       colorMode: 'rainbow',
       damping: 'lots',
       lighting: false,
       creaseStiffness: 2,
     });
 
-    expect(restored.integrationType).toBe('euler');
     expect(restored.colorMode).toBe('paper');
     expect(restored.damping).toBe(DEFAULT_SIMULATOR_SETTINGS.damping);
     expect(restored.lighting).toBe(false);

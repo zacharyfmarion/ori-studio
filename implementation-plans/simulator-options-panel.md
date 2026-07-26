@@ -142,13 +142,19 @@ and `npm run i18n:check` must pass.
       capabilities, gated like the other fold exports; geometry is read on demand
       from the shared simulator worker (`exportGeometry`), since GPU-render mode
       never sends positions to the main thread
-- [x] Phase 4a: Verlet on the GPU, and the integrator toggle it unblocked.
-      Euler and Verlet now share the force shader (upstream duplicates it), so a
-      force-model fix cannot land in one and not the other; Verlet adds a
-      `u_lastLastPosition` history texture. GPU-vs-CPU parity holds for BOTH
-      integrators at 7.15e-7 worst case against a Tier C bar of 1e-3, and
-      `bench:gpu-stability` sweeps both: at timeStepScale 0.5 Euler diverges on the
-      lamprey fixture while Verlet stays stable, at roughly half the peak strain.
+- [~] Phase 4a: Verlet on the GPU -- implemented, validated numerically, but
+      **not exposed**. The integrator toggle was removed again after review: Verlet
+      renders visibly wrong in the app even though it matches the CPU oracle to
+      7.15e-7. That is consistent, because the parity bench only asserts the two
+      backends *agree* -- if the Verlet formulation is itself wrong for this
+      driven-fold setup, both are wrong together and the bench still passes.
+      Kept in the tree (shaders, shared force pass, parity + stability coverage)
+      so the work and its gates survive; `simulatorMaterialOptions` deliberately
+      sends no `integrationType`, leaving the engine on Euler.
+      Next step when picked up: find out *how* it looks wrong -- prime suspects are
+      the damping term (it reads `lastVelocity`, which under Verlet is a derived
+      quantity rather than state) and the crease-percent ramp being applied per
+      step while position history spans two.
 - [ ] Phase 4b: anchors + gravity -- still needs an interaction design (how a
       vertex gets pinned). Deliberately not started.
 - [ ] Browser check (user): pane looks native beside the Edit view's, sliders
