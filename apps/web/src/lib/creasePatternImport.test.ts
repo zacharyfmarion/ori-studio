@@ -137,4 +137,35 @@ describe('crease pattern import', () => {
     expect(result.document.stats.faces).toBe(1);
     expect(result.project.title).toBe('usable cp');
   });
+  it('splits every crossing when inferring topology (broad-phase guard)', () => {
+    // splitSegments uses a swept bounding-box broad phase rather than testing all
+    // pairs. These counts were verified to match the naive all-pairs
+    // implementation exactly; lines in general position put nearly every vertex
+    // at a crossing, so a broad phase that skipped a real pair — or that fed the
+    // asymmetric intersection predicate its arguments in the wrong order — moves
+    // these numbers.
+    const cp = (count: number) => {
+      let seed = 987654321;
+      const rand = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+      return Array.from({ length: count }, (_, i) =>
+        `${i % 3 === 0 ? 1 : 2} ${rand().toFixed(6)} ${rand().toFixed(6)} ${rand().toFixed(6)} ${rand().toFixed(6)}`
+      ).join('\n');
+    };
+
+    const topology = (text: string) => {
+      const { fold } = parseImportedCreasePattern(text, {
+        format: 'cp',
+        filename: 'general.cp',
+        path: null,
+      }).document;
+      return {
+        vertices: fold.vertices_coords.length,
+        edges: fold.edges_vertices.length,
+        faces: fold.faces_vertices.length,
+      };
+    };
+
+    expect(topology(cp(30))).toEqual({ vertices: 192, edges: 290, faces: 99 });
+    expect(topology(cp(60))).toEqual({ vertices: 606, edges: 1000, faces: 396 });
+  });
 });

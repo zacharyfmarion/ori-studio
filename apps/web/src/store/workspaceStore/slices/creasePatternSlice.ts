@@ -705,6 +705,22 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       set({ selectedSegmentId: id });
     },
 
+    simulateOristudioCpSegment: async (segmentId) => {
+      // Unlike the toolbar's fast path, the simulator needs the full artifacts
+      // (the triangulated simulation mesh). Ensure them *before* setting the scope
+      // so entering the panel finds them cached and does not reload — a reload
+      // resets selectedSegmentId, which would drop the chosen segment.
+      const artifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+      const segments = resolveCpSegments(artifacts);
+      if (!segments.some((segment) => segment.id === segmentId)) return false;
+      // Then set the scope and switch workspace via the layout store (activatePanel
+      // resolves and activates the simulator's owning workspace), mirroring
+      // sendTreeCreasePatternToEdit.
+      set({ selectedSegmentId: segmentId });
+      useLayoutStore.getState().activatePanel('simulator');
+      return true;
+    },
+
     setSequenceSimulationFocus: (sequenceSimulationFocus) => set({ sequenceSimulationFocus }),
 
     setOristudioCpViewportOption: (key, value) =>

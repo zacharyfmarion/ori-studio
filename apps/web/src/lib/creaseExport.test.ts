@@ -4,6 +4,7 @@ import { segmentFoldDocument } from './creasePatternSegmentation';
 import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
 import {
   buildCreaseExportArtwork,
+  foldProjector,
   serializeCreasePatternSvg,
   layoutCreaseExport,
   wrapExportText,
@@ -304,5 +305,33 @@ describe('export layout', () => {
     const layout = layoutCreaseExport(emptyCaption, palette, { width: 600, height: 1400 });
 
     expect(layout.height).toBe(1400);
+  });
+  it('keeps exported images the same way up as the editor', () => {
+    // FOLD coordinates are y-down: the CP editor's model space is y-down
+    // (modelPointToCpSvg / orieditaTvToSvg never flip) and the TreeMaker engine
+    // converts its internal y-up vertices on the way out (to_fold_document emits
+    // `paper_height - loc.y`). Projecting with a flip mirrored every export
+    // relative to what the user drew.
+    const projector = foldProjector({
+      vertices_coords: [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B'],
+      faces_vertices: [[0, 1, 2, 3]],
+    });
+
+    const top = projector.projectPoint({ x: 0, y: 0 });
+    const bottom = projector.projectPoint({ x: 0, y: 10 });
+    // Smaller fold y must land at a smaller SVG y (nearer the top of the image).
+    expect(top.y).toBeLessThan(bottom.y);
   });
 });

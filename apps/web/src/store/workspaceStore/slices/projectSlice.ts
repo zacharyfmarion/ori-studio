@@ -20,6 +20,12 @@ import { hexToRgbColor } from '../../../lib/rgbColor';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
 import {
+  buildSegmentSubFold,
+  isSegmentImageFormat,
+  type SegmentExportFormat,
+} from '../../../lib/creaseSegmentExport';
+import { ensureCpSegmentationArtifacts } from '../../../cp-workspace/cpSegmentationArtifacts';
+import {
   importedCreasePatternFormat,
   isCreasePatternFilename,
   parseImportedCreasePattern,
@@ -115,6 +121,7 @@ import {
   exportOristudioCpDocumentAsFold,
   exportOristudioCpDocumentAsOri,
   exportOristudioCpDocumentAsOrh,
+  exportFoldFrameAsFormat,
   clearOristudioCpKernelTexts,
   createBlankOristudioCpDocument,
   foldOristudioCpDocument,
@@ -2201,6 +2208,85 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           path: null,
           extensions: ['png'],
           mimeType: 'image/png',
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportOristudioCpSegment: async (
+      format: SegmentExportFormat,
+      segmentId: number,
+      fileService = getFileService()
+    ) => {
+      try {
+        // Segments-only artifacts (no simulation mesh) keep per-region export off
+        // the multi-second prepareSimulationFold path; captured once so the segment
+        // id can't drift under a concurrent edit mid-export.
+        const foldArtifacts = await ensureCpSegmentationArtifacts(get().oristudioCpDocument?.document);
+        if (!foldArtifacts) return false;
+        const patternTitle = `${get().project.title} pattern ${segmentId + 1}`;
+
+        if (isSegmentImageFormat(format)) {
+          // Open the export-image modal pre-scoped to this segment.
+          const fold = foldArtifacts.fold;
+          const segments = segmentFoldDocument(fold);
+          const label = format.toUpperCase();
+          const resolved = await requestCreasePatternExportOptions({
+            title: `Export ${label}`,
+            format,
+            fold,
+            segments,
+            initialOptions: { ...defaultCreaseExportOptions(get().oristudioCpViewport), segmentId },
+            // Mirrors resolveCreaseExport: only an editable crease pattern has a
+            // kernel handle to fold with, so a TreeMaker design disables it.
+            foldSegment: get().oristudioCpDocument
+              ? (segment, settings) =>
+                  foldExportSegment(get().oristudioCpDocument, fold, segment, settings)
+              : null,
+            confirmLabel: `Export ${label}`,
+          });
+          if (!resolved) return false;
+          if (format === 'svg') {
+            const result = await fileService.saveTextFile({
+              title: 'Export Crease Pattern SVG',
+              contents: serializeCreasePatternSvg(fold, segments, resolved.options, resolved.content),
+              suggestedName: defaultFilename(patternTitle, 'svg'),
+              path: null,
+              extensions: ['svg'],
+            });
+            if (!result) return false;
+            set({ projectMessage: `Exported ${result.name}` });
+            return true;
+          }
+          const bytes = await renderCreasePatternPng(fold, segments, resolved.options, resolved.content);
+          const result = await fileService.saveBinaryFile({
+            title: 'Export Crease Pattern PNG',
+            bytes,
+            suggestedName: defaultFilename(patternTitle, 'png'),
+            path: null,
+            extensions: ['png'],
+            mimeType: 'image/png',
+          });
+          if (!result) return false;
+          set({ projectMessage: `Exported ${result.name}` });
+          return true;
+        }
+
+        // File formats: extract the sub-fold and serialize it through the kernel.
+        const subFold = buildSegmentSubFold(foldArtifacts, segmentId);
+        if (!subFold) return false;
+        const contents = await exportFoldFrameAsFormat(JSON.stringify(subFold), format);
+        const result = await fileService.saveTextFile({
+          title: `Export ${format.toUpperCase()}`,
+          contents,
+          suggestedName: defaultFilename(patternTitle, format),
+          path: null,
+          extensions: [format],
         });
         if (!result) return false;
         set({ projectMessage: `Exported ${result.name}` });

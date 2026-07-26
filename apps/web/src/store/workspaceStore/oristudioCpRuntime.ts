@@ -471,6 +471,35 @@ export async function exportOristudioCpDocumentAsOrh(texts: FlatText[] = []): Pr
 }
 
 /**
+ * Serialize a standalone FOLD frame (e.g. one extracted crease-pattern segment)
+ * to a kernel-owned text format, reusing the same serializers as the active
+ * document. The frame is loaded into a scratch kernel handle that is independent
+ * of the active document's handle — so this never disturbs the editor — and freed
+ * in `finally` on every path, including serializer failure.
+ */
+export async function exportFoldFrameAsFormat(
+  foldJson: string,
+  format: 'cp' | 'fold' | 'ori' | 'orh'
+): Promise<string> {
+  const api = await getOristudioCpClient();
+  const scratch = await api.loadFold(foldJson);
+  try {
+    switch (format) {
+      case 'cp':
+        return await api.exportCp(scratch);
+      case 'fold':
+        return await api.exportFoldFile(scratch);
+      case 'ori':
+        return await api.exportOri(scratch);
+      case 'orh':
+        return await api.exportOrh(scratch);
+    }
+  } finally {
+    await api.freeDocument(scratch).catch(() => undefined);
+  }
+}
+
+/**
  * Empty the kernel document's text elements. Rich text lives web-side, so after
  * a loaded file's kernel texts are inflated into annotations the kernel copy is
  * cleared — otherwise a later re-snapshot would carry them back and they would

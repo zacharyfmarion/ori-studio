@@ -131,6 +131,7 @@ import type { TransformableCanvasObject } from '../../cp-workspace/canvasObjects
 import type { AnnotationResizeHandle } from '../../cp-workspace/annotations/annotationTransform';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
+import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
 import { cropImage, fitImageModelSize } from '../../cp-workspace/images/cpImagePlacement';
@@ -3598,6 +3599,15 @@ export function CreasePatternPanel() {
                     onSendToBack={sendSelectedImageToBack}
                     onDelete={deleteSelectedImage}
                   />
+                )}
+                {/* Deliberately not gated on `annotationsInteractive`: that flag
+                    keeps *annotations* from stealing clicks while a drawing tool
+                    is mid-gesture, and it is false for exactly the tools that
+                    produce crease selections (Box Select and friends), which
+                    would hide these actions whenever they are relevant. Only the
+                    other floating toolbars are mutually exclusive with this one. */}
+                {!editingTextId && !selectedCpImage && (
+                  <CpSelectionToolbar container={toolbarContainer} />
                 )}
                 </>
               ) : (
