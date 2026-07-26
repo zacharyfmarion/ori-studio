@@ -1773,7 +1773,18 @@
     "dialogs:export.titlePlaceholder": "59be71333c96",
     "dialogs:export.appearanceSection": "3907fa7f8072",
     "dialogs:export.foldedFigureSection": "9c96ebaaae04",
-    "dialogs:export.textSection": "71988c4d8e08"
+    "dialogs:export.textSection": "71988c4d8e08",
+    "panels:creasePattern.selectionToolbar.export": "4a4c59c5208e",
+    "panels:creasePattern.selectionToolbar.exportCp": "e4918de4024a",
+    "panels:creasePattern.selectionToolbar.exportFold": "2f4402d6203b",
+    "panels:creasePattern.selectionToolbar.exportOrh": "8b81458e661a",
+    "panels:creasePattern.selectionToolbar.exportOri": "70acd28f2541",
+    "panels:creasePattern.selectionToolbar.exportPng": "6ef9788d38d3",
+    "panels:creasePattern.selectionToolbar.exportSvg": "8592788575cc",
+    "panels:creasePattern.selectionToolbar.fold": "92c122b5b1e2",
+    "panels:creasePattern.selectionToolbar.label": "2924cd5925b4",
+    "panels:creasePattern.selectionToolbar.saveImage": "b283714984b2",
+    "panels:creasePattern.selectionToolbar.simulate": "66154a084145"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3549,7 +3560,18 @@
     "dialogs:export.titlePlaceholder": "59be71333c96",
     "dialogs:export.appearanceSection": "3907fa7f8072",
     "dialogs:export.foldedFigureSection": "9c96ebaaae04",
-    "dialogs:export.textSection": "71988c4d8e08"
+    "dialogs:export.textSection": "71988c4d8e08",
+    "panels:creasePattern.selectionToolbar.export": "4a4c59c5208e",
+    "panels:creasePattern.selectionToolbar.exportCp": "e4918de4024a",
+    "panels:creasePattern.selectionToolbar.exportFold": "2f4402d6203b",
+    "panels:creasePattern.selectionToolbar.exportOrh": "8b81458e661a",
+    "panels:creasePattern.selectionToolbar.exportOri": "70acd28f2541",
+    "panels:creasePattern.selectionToolbar.exportPng": "6ef9788d38d3",
+    "panels:creasePattern.selectionToolbar.exportSvg": "8592788575cc",
+    "panels:creasePattern.selectionToolbar.fold": "92c122b5b1e2",
+    "panels:creasePattern.selectionToolbar.label": "2924cd5925b4",
+    "panels:creasePattern.selectionToolbar.saveImage": "b283714984b2",
+    "panels:creasePattern.selectionToolbar.simulate": "66154a084145"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5351,7 +5373,18 @@
     "dialogs:export.titlePlaceholder": "59be71333c96",
     "dialogs:export.appearanceSection": "3907fa7f8072",
     "dialogs:export.foldedFigureSection": "9c96ebaaae04",
-    "dialogs:export.textSection": "71988c4d8e08"
+    "dialogs:export.textSection": "71988c4d8e08",
+    "panels:creasePattern.selectionToolbar.export": "4a4c59c5208e",
+    "panels:creasePattern.selectionToolbar.exportCp": "e4918de4024a",
+    "panels:creasePattern.selectionToolbar.exportFold": "2f4402d6203b",
+    "panels:creasePattern.selectionToolbar.exportOrh": "8b81458e661a",
+    "panels:creasePattern.selectionToolbar.exportOri": "70acd28f2541",
+    "panels:creasePattern.selectionToolbar.exportPng": "6ef9788d38d3",
+    "panels:creasePattern.selectionToolbar.exportSvg": "8592788575cc",
+    "panels:creasePattern.selectionToolbar.fold": "92c122b5b1e2",
+    "panels:creasePattern.selectionToolbar.label": "2924cd5925b4",
+    "panels:creasePattern.selectionToolbar.saveImage": "b283714984b2",
+    "panels:creasePattern.selectionToolbar.simulate": "66154a084145"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7153,7 +7186,18 @@
     "dialogs:export.titlePlaceholder": "59be71333c96",
     "dialogs:export.appearanceSection": "3907fa7f8072",
     "dialogs:export.foldedFigureSection": "9c96ebaaae04",
-    "dialogs:export.textSection": "71988c4d8e08"
+    "dialogs:export.textSection": "71988c4d8e08",
+    "panels:creasePattern.selectionToolbar.export": "4a4c59c5208e",
+    "panels:creasePattern.selectionToolbar.exportCp": "e4918de4024a",
+    "panels:creasePattern.selectionToolbar.exportFold": "2f4402d6203b",
+    "panels:creasePattern.selectionToolbar.exportOrh": "8b81458e661a",
+    "panels:creasePattern.selectionToolbar.exportOri": "70acd28f2541",
+    "panels:creasePattern.selectionToolbar.exportPng": "6ef9788d38d3",
+    "panels:creasePattern.selectionToolbar.exportSvg": "8592788575cc",
+    "panels:creasePattern.selectionToolbar.fold": "92c122b5b1e2",
+    "panels:creasePattern.selectionToolbar.label": "2924cd5925b4",
+    "panels:creasePattern.selectionToolbar.saveImage": "b283714984b2",
+    "panels:creasePattern.selectionToolbar.simulate": "66154a084145"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8955,7 +8999,18 @@
     "dialogs:export.titlePlaceholder": "59be71333c96",
     "dialogs:export.appearanceSection": "3907fa7f8072",
     "dialogs:export.foldedFigureSection": "9c96ebaaae04",
-    "dialogs:export.textSection": "71988c4d8e08"
+    "dialogs:export.textSection": "71988c4d8e08",
+    "panels:creasePattern.selectionToolbar.export": "4a4c59c5208e",
+    "panels:creasePattern.selectionToolbar.exportCp": "e4918de4024a",
+    "panels:creasePattern.selectionToolbar.exportFold": "2f4402d6203b",
+    "panels:creasePattern.selectionToolbar.exportOrh": "8b81458e661a",
+    "panels:creasePattern.selectionToolbar.exportOri": "70acd28f2541",
+    "panels:creasePattern.selectionToolbar.exportPng": "6ef9788d38d3",
+    "panels:creasePattern.selectionToolbar.exportSvg": "8592788575cc",
+    "panels:creasePattern.selectionToolbar.fold": "92c122b5b1e2",
+    "panels:creasePattern.selectionToolbar.label": "2924cd5925b4",
+    "panels:creasePattern.selectionToolbar.saveImage": "b283714984b2",
+    "panels:creasePattern.selectionToolbar.simulate": "66154a084145"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10757,7 +10812,18 @@
     "dialogs:export.titlePlaceholder": "59be71333c96",
     "dialogs:export.appearanceSection": "3907fa7f8072",
     "dialogs:export.foldedFigureSection": "9c96ebaaae04",
-    "dialogs:export.textSection": "71988c4d8e08"
+    "dialogs:export.textSection": "71988c4d8e08",
+    "panels:creasePattern.selectionToolbar.export": "4a4c59c5208e",
+    "panels:creasePattern.selectionToolbar.exportCp": "e4918de4024a",
+    "panels:creasePattern.selectionToolbar.exportFold": "2f4402d6203b",
+    "panels:creasePattern.selectionToolbar.exportOrh": "8b81458e661a",
+    "panels:creasePattern.selectionToolbar.exportOri": "70acd28f2541",
+    "panels:creasePattern.selectionToolbar.exportPng": "6ef9788d38d3",
+    "panels:creasePattern.selectionToolbar.exportSvg": "8592788575cc",
+    "panels:creasePattern.selectionToolbar.fold": "92c122b5b1e2",
+    "panels:creasePattern.selectionToolbar.label": "2924cd5925b4",
+    "panels:creasePattern.selectionToolbar.saveImage": "b283714984b2",
+    "panels:creasePattern.selectionToolbar.simulate": "66154a084145"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12559,7 +12625,18 @@
     "dialogs:export.titlePlaceholder": "59be71333c96",
     "dialogs:export.appearanceSection": "3907fa7f8072",
     "dialogs:export.foldedFigureSection": "9c96ebaaae04",
-    "dialogs:export.textSection": "71988c4d8e08"
+    "dialogs:export.textSection": "71988c4d8e08",
+    "panels:creasePattern.selectionToolbar.export": "4a4c59c5208e",
+    "panels:creasePattern.selectionToolbar.exportCp": "e4918de4024a",
+    "panels:creasePattern.selectionToolbar.exportFold": "2f4402d6203b",
+    "panels:creasePattern.selectionToolbar.exportOrh": "8b81458e661a",
+    "panels:creasePattern.selectionToolbar.exportOri": "70acd28f2541",
+    "panels:creasePattern.selectionToolbar.exportPng": "6ef9788d38d3",
+    "panels:creasePattern.selectionToolbar.exportSvg": "8592788575cc",
+    "panels:creasePattern.selectionToolbar.fold": "92c122b5b1e2",
+    "panels:creasePattern.selectionToolbar.label": "2924cd5925b4",
+    "panels:creasePattern.selectionToolbar.saveImage": "b283714984b2",
+    "panels:creasePattern.selectionToolbar.simulate": "66154a084145"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14335,6 +14412,17 @@
     "dialogs:export.titlePlaceholder": "59be71333c96",
     "dialogs:export.appearanceSection": "3907fa7f8072",
     "dialogs:export.foldedFigureSection": "9c96ebaaae04",
-    "dialogs:export.textSection": "71988c4d8e08"
+    "dialogs:export.textSection": "71988c4d8e08",
+    "panels:creasePattern.selectionToolbar.export": "4a4c59c5208e",
+    "panels:creasePattern.selectionToolbar.exportCp": "e4918de4024a",
+    "panels:creasePattern.selectionToolbar.exportFold": "2f4402d6203b",
+    "panels:creasePattern.selectionToolbar.exportOrh": "8b81458e661a",
+    "panels:creasePattern.selectionToolbar.exportOri": "70acd28f2541",
+    "panels:creasePattern.selectionToolbar.exportPng": "6ef9788d38d3",
+    "panels:creasePattern.selectionToolbar.exportSvg": "8592788575cc",
+    "panels:creasePattern.selectionToolbar.fold": "92c122b5b1e2",
+    "panels:creasePattern.selectionToolbar.label": "2924cd5925b4",
+    "panels:creasePattern.selectionToolbar.saveImage": "b283714984b2",
+    "panels:creasePattern.selectionToolbar.simulate": "66154a084145"
   }
 }

@@ -2236,19 +2236,25 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           const fold = foldArtifacts.fold;
           const segments = segmentFoldDocument(fold);
           const label = format.toUpperCase();
-          const options = await requestCreasePatternExportOptions({
+          const resolved = await requestCreasePatternExportOptions({
             title: `Export ${label}`,
             format,
             fold,
             segments,
             initialOptions: { ...defaultCreaseExportOptions(get().oristudioCpViewport), segmentId },
+            // Mirrors resolveCreaseExport: only an editable crease pattern has a
+            // kernel handle to fold with, so a TreeMaker design disables it.
+            foldSegment: get().oristudioCpDocument
+              ? (segment, settings) =>
+                  foldExportSegment(get().oristudioCpDocument, fold, segment, settings)
+              : null,
             confirmLabel: `Export ${label}`,
           });
-          if (!options) return false;
+          if (!resolved) return false;
           if (format === 'svg') {
             const result = await fileService.saveTextFile({
               title: 'Export Crease Pattern SVG',
-              contents: serializeCreasePatternSvg(fold, segments, options),
+              contents: serializeCreasePatternSvg(fold, segments, resolved.options, resolved.content),
               suggestedName: defaultFilename(patternTitle, 'svg'),
               path: null,
               extensions: ['svg'],
@@ -2257,7 +2263,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             set({ projectMessage: `Exported ${result.name}` });
             return true;
           }
-          const bytes = await renderCreasePatternPng(fold, segments, options);
+          const bytes = await renderCreasePatternPng(fold, segments, resolved.options, resolved.content);
           const result = await fileService.saveBinaryFile({
             title: 'Export Crease Pattern PNG',
             bytes,
