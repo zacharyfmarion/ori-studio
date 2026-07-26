@@ -33,6 +33,7 @@ import type { BpTreeSymmetryPair } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type { CreaseExportOptions } from '../../lib/creaseExport';
+import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
   OristudioCpCommandPayload,
@@ -219,6 +220,16 @@ export interface ProjectSliceActions {
   exportFoldedFold: (fileService?: FileService) => Promise<boolean>;
   exportObj: (fileService?: FileService) => Promise<boolean>;
   exportStl: (fileService?: FileService) => Promise<boolean>;
+  /**
+   * Export a single crease-pattern segment. File formats (cp/fold/ori/orh)
+   * download directly; image formats (svg/png) open the export-image modal
+   * pre-scoped to the segment.
+   */
+  exportOristudioCpSegment: (
+    format: SegmentExportFormat,
+    segmentId: number,
+    fileService?: FileService
+  ) => Promise<boolean>;
   loadExampleProject: (id: string) => Promise<void>;
   clearProjectMessage: () => void;
   setActivePanelId: (id: string | null) => void;
@@ -422,6 +433,12 @@ export interface CreasePatternSliceActions {
   planFoldingSequence: () => Promise<SequencePlan | null>;
   setCreaseColorMode: (mode: CreaseColorMode) => void;
   setSelectedSegment: (id: number | null) => void;
+  /**
+   * Scope the simulator to one crease-pattern segment and switch to the Simulate
+   * workspace. Ensures the full fold artifacts first (the simulator needs the
+   * simulation mesh). Resolves false when the id no longer resolves to a segment.
+   */
+  simulateOristudioCpSegment: (segmentId: number) => Promise<boolean>;
   setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
   setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
     key: K,
