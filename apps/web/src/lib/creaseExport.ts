@@ -309,8 +309,13 @@ export function foldProjector(fold: FoldDocument): CreaseExportProjector {
   const offsetY = (CP_SIZE - height) / 2;
   const projectPoint = (point: { x: number; y: number }) => ({
     x: offsetX + (point.x - minU) * scale,
-    // Flip so paper-up maps to screen-up.
-    y: offsetY + (maxV - point.y) * scale,
+    // No y flip: FOLD coordinates are already y-down, matching SVG. Both
+    // producers agree — the CP editor's model space is y-down (see
+    // `modelPointToCpSvg` / `orieditaTvToSvg`, neither of which flips), and the
+    // TreeMaker engine converts its internal y-up vertices on the way out
+    // (`to_fold_document` emits `paper_height - loc.y`). Flipping here mirrored
+    // every exported image relative to the editor.
+    y: offsetY + (point.y - minV) * scale,
   });
   const project = (vertex: number) => {
     const coord = coords[vertex];

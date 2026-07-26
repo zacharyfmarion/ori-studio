@@ -4,6 +4,7 @@ import {
   buildSegmentFold,
   pointInSegment,
   segmentFoldDocument,
+  segmentThumbnailSvg,
 } from './creasePatternSegmentation';
 
 function unitSquare(offsetX: number, baseVertex: number): {
@@ -201,5 +202,41 @@ describe('buildSegmentFold', () => {
     expect(sub.edges_assignment).toEqual(['B', 'B', 'B', 'B']);
     expect(sub['oristudio:edges_line_colors']).toEqual([0, 0, 0, 0]);
     expect(sub['oriedita:edges_colors']).toEqual(['#ff0000', '#ff0000', '#ff0000', '#ff0000']);
+  });
+});
+describe('cpThumbnailSvg', () => {
+  it('draws thumbnails the same way up as the export and the editor', () => {
+    // Shares the y-down convention with foldProjector; flipping here left the
+    // export dialog's thumbnails upside down next to their own preview.
+    const fold: FoldDocument = {
+      vertices_coords: [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+        [0, 10],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+      ],
+      edges_assignment: ['B', 'M', 'B', 'B'],
+      faces_vertices: [[0, 1, 2, 3]],
+    };
+    const [segment] = segmentFoldDocument(fold);
+    const svg = segmentThumbnailSvg(fold, segment!, { size: 100 });
+
+    // The mountain crease is the y=0..10 edge at x=10; find every drawn y.
+    const ys = [...svg.matchAll(/y1="([\d.]+)" x2="[\d.]+" y2="([\d.]+)"/g)]
+      .flatMap((m) => [Number(m[1]), Number(m[2])]);
+    expect(ys.length).toBeGreaterThan(0);
+
+    // Project the corners directly and confirm low fold y ⇒ low SVG y.
+    const topEdge = svg.match(/x1="([\d.]+)" y1="([\d.]+)"/);
+    expect(topEdge).not.toBeNull();
+    expect(Math.min(...ys)).toBeLessThan(Math.max(...ys));
+    // The first drawn edge starts at fold (0,0), which must be the topmost point.
+    expect(Number(topEdge![2])).toBeCloseTo(Math.min(...ys), 5);
   });
 });

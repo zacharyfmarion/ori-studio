@@ -511,8 +511,10 @@ export function cpThumbnailSvg(
   const project = (vertex: number): [number, number] => {
     const p = planePoint(coords[vertex], axes);
     const x = offsetX + (p.x - minX) * scale;
-    // Flip Y so paper-up maps to screen-up.
-    const y = size - (offsetY + (p.y - minY) * scale);
+    // No y flip: FOLD coordinates are already y-down, matching SVG (see
+    // `foldProjector`). Flipping here turned every thumbnail upside down
+    // relative to the editor — and relative to the export preview beside it.
+    const y = offsetY + (p.y - minY) * scale;
     return [x, y];
   };
 
