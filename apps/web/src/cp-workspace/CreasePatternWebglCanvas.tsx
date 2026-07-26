@@ -6,7 +6,9 @@ import { isPrimaryModifier } from '../lib/platform';
 import {
   fitUserCamera,
   modelViewFromCamera,
+  normalizeCameraRotation,
   panUserCamera,
+  projectModelPoint,
   unprojectDevicePoint,
   userCameraToView,
   viewTransformScale,
@@ -112,8 +114,10 @@ export type StepKind = 'point' | 'crease' | 'candidate';
  * (e.g. repeated zoom-in presses); `percent` is only used by `set-percent`.
  */
 export interface CameraCommand {
-  kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent';
+  kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent' | 'rotate-by' | 'rotate-reset';
   percent?: number;
+  /** Signed rotation step, only used by `rotate-by`. */
+  radians?: number;
   nonce: number;
 }
 
@@ -599,6 +603,8 @@ export interface CreasePatternWebglCanvasProps {
   cameraCommand: CameraCommand | null;
   /** Report the camera's current zoom percent (100% = fit) so the toolbar reflects it. */
   onZoomPercentChange: (percent: number) => void;
+  /** Current view rotation in radians, so the toolbar can show and clear it. */
+  onRotationChange: (radians: number) => void;
   /** Report the camera's model→CSS and user→CSS affines so DOM overlays can position to them. */
   onViewChange: (views: CpOverlayViews) => void;
   /**
@@ -710,6 +716,7 @@ export function CreasePatternWebglCanvas({
   focusModelBounds,
   cameraCommand,
   onZoomPercentChange,
+  onRotationChange,
   onViewChange,
   onEraseBox,
   onEraseLine,
@@ -789,6 +796,8 @@ export function CreasePatternWebglCanvas({
   // Angle Restricted Line's anchor (the press point), held while dragging the
   // angle-snapped endpoint; null when no drag is in progress.
   const angleDragAnchorRef = useRef<ModelPoint | null>(null);
+  // Last view rotation reported to the panel (dedupes the per-frame report).
+  const lastReportedRotationRef = useRef(0);
   // Last zoom percent reported to the panel (dedupes the per-frame report).
   const lastReportedZoomRef = useRef<number | null>(null);
   // Last model→CSS affine reported to the panel (for the text overlay), to dedupe.
@@ -1063,6 +1072,7 @@ export function CreasePatternWebglCanvas({
     toolCommandPreviewSegments,
     toolCommandPreviewPoints,
     onZoomPercentChange,
+    onRotationChange,
     onViewChange,
     onEraseBox,
     onEraseLine,
@@ -1183,6 +1193,9 @@ export function CreasePatternWebglCanvas({
       // shrink when zoomed out past fit so dense vertices don't dominate. Both
       // anchored at the fit zoom so they are scale-invariant.
       const bounds = liveRef.current.contentBounds;
+      // Deliberately the *unrotated* fit: this is only a reference scale for
+      // stroke/marker sizing, so passing `cam.rotation` here would make line
+      // weight breathe as the view turns.
       const fitZoom = bounds ? fitUserCamera(bounds, viewport).zoom : cam.zoom;
       const zoomRatio = cam.zoom / fitZoom;
       const widthBoost = Math.pow(Math.max(zoomRatio, 1), WIDTH_ZOOM_EXPONENT);
@@ -1195,6 +1208,11 @@ export function CreasePatternWebglCanvas({
       if (zoomPercent !== lastReportedZoomRef.current) {
         lastReportedZoomRef.current = zoomPercent;
         liveRef.current.onZoomPercentChange(zoomPercent);
+      }
+
+      if (cam.rotation !== lastReportedRotationRef.current) {
+        lastReportedRotationRef.current = cam.rotation;
+        liveRef.current.onRotationChange(cam.rotation);
       }
 
       // Report the model→CSS affine (device view / dpr) for DOM overlays to project
@@ -1346,25 +1364,62 @@ export function CreasePatternWebglCanvas({
     marquee.className = 'cp-webgl-marquee';
     marquee.style.display = 'none';
     canvas.parentElement?.appendChild(marquee);
-    const updateMarquee = (clientX: number, clientY: number) => {
-      const parent = canvas.parentElement?.getBoundingClientRect();
-      if (!parent) return;
-      marquee.style.display = 'block';
-      marquee.style.left = `${Math.min(pressX, clientX) - parent.left}px`;
-      marquee.style.top = `${Math.min(pressY, clientY) - parent.top}px`;
-      marquee.style.width = `${Math.abs(clientX - pressX)}px`;
-      marquee.style.height = `${Math.abs(clientY - pressY)}px`;
-    };
-    const boxSelect = (clientX: number, clientY: number, additive: boolean) => {
+
+    /**
+     * The drag's box in *model* space, axis-aligned there rather than on screen.
+     *
+     * Model-aligned is the load-bearing choice: the two corners are what every
+     * drag-box tool forwards to the kernel, which reads them as an axis-aligned
+     * box (Oriedita semantics). A screen-aligned box would be a rotated
+     * quadrilateral in model space and simply cannot be expressed in that
+     * contract. {@link updateMarquee} draws this same box, so the outline always
+     * matches what gets selected.
+     */
+    const dragModelBox = (clientX: number, clientY: number) => {
       const p1 = clientToModel(pressX, pressY);
       const p2 = clientToModel(clientX, clientY);
-      if (!p1 || !p2) return;
-      const box = {
+      if (!p1 || !p2) return null;
+      return {
         minX: Math.min(p1.x, p2.x),
         maxX: Math.max(p1.x, p2.x),
         minY: Math.min(p1.y, p2.y),
         maxY: Math.max(p1.y, p2.y),
       };
+    };
+
+    const updateMarquee = (clientX: number, clientY: number) => {
+      const parent = canvas.parentElement?.getBoundingClientRect();
+      const cam = cameraRef.current;
+      const box = dragModelBox(clientX, clientY);
+      if (!parent || !cam || !box) return;
+      // Project the box's origin corner and its two edge vectors, so the outline
+      // follows any rotation in the model->CSS affine (the camera's, and any the
+      // document's own Oriedita camera contributes).
+      const ratio = dpr();
+      const view = modelViewFromCamera(cam, viewportOf(ratio), liveRef.current.modelToSvg);
+      const toCssPoint = (x: number, y: number) => {
+        const d = projectModelPoint(view, x, y);
+        return { x: d.x / ratio, y: d.y / ratio };
+      };
+      const origin = toCssPoint(box.minX, box.minY);
+      const alongX = toCssPoint(box.maxX, box.minY);
+      const alongY = toCssPoint(box.minX, box.maxY);
+      const edgeX = { x: alongX.x - origin.x, y: alongX.y - origin.y };
+      const edgeY = { x: alongY.x - origin.x, y: alongY.y - origin.y };
+      // A `rotate()` about the top-left maps the div's local +x/+y onto exactly
+      // these edges, because the view transform is rigid (uniform, no shear).
+      const angle = Math.atan2(edgeX.y, edgeX.x);
+      const canvasRect = canvas.getBoundingClientRect();
+      marquee.style.display = 'block';
+      marquee.style.left = `${canvasRect.left - parent.left + origin.x}px`;
+      marquee.style.top = `${canvasRect.top - parent.top + origin.y}px`;
+      marquee.style.width = `${Math.hypot(edgeX.x, edgeX.y)}px`;
+      marquee.style.height = `${Math.hypot(edgeY.x, edgeY.y)}px`;
+      marquee.style.transform = angle === 0 ? '' : `rotate(${angle}rad)`;
+    };
+    const boxSelect = (clientX: number, clientY: number, additive: boolean) => {
+      const box = dragModelBox(clientX, clientY);
+      if (!box) return;
       const l = liveRef.current;
       const inBox = (p: ModelPoint) =>
         p.x >= box.minX && p.x <= box.maxX && p.y >= box.minY && p.y <= box.maxY;
@@ -2532,12 +2587,21 @@ export function CreasePatternWebglCanvas({
       maxY: Math.max(...ys),
     };
     const viewport: Viewport = { width: canvas.width, height: canvas.height, dpr: 1 };
-    const issue = fitUserCamera(userBounds, viewport, 0.5);
+    // Framing happens in the current rotated frame, and preserves it: jumping to
+    // a diagnostic should not also straighten the view the user turned.
+    const issue = fitUserCamera(userBounds, viewport, 0.5, cam.rotation);
     const docBounds = liveRef.current.contentBounds;
-    const docFitZoom = docBounds ? fitUserCamera(docBounds, viewport).zoom : issue.zoom;
+    const docFitZoom = docBounds
+      ? fitUserCamera(docBounds, viewport, undefined, cam.rotation).zoom
+      : issue.zoom;
     // Zoom in enough to frame the issue, but never zoom out or blow past ~4x the fit.
     const zoom = Math.max(cam.zoom, Math.min(issue.zoom, docFitZoom * 4));
-    cameraRef.current = { centerX: issue.centerX, centerY: issue.centerY, zoom };
+    cameraRef.current = {
+      centerX: issue.centerX,
+      centerY: issue.centerY,
+      zoom,
+      rotation: cam.rotation,
+    };
     renderNowRef.current();
   }, [focusModelBounds]);
 
@@ -2555,13 +2619,19 @@ export function CreasePatternWebglCanvas({
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
     if (cmd.kind === 'fit') {
-      if (docBounds) cameraRef.current = fitUserCamera(docBounds, viewport);
+      // Fit reframes; it does not straighten. Rotation is cleared only by the
+      // explicit reset, so an unrelated framing command never discards it.
+      if (docBounds) cameraRef.current = fitUserCamera(docBounds, viewport, undefined, cam.rotation);
     } else if (cmd.kind === 'zoom-in') {
       zoomUserCameraAt(cam, viewport, cx, cy, 1.35);
     } else if (cmd.kind === 'zoom-out') {
       zoomUserCameraAt(cam, viewport, cx, cy, 1 / 1.35);
     } else if (cmd.kind === 'set-percent' && cmd.percent != null) {
       cam.zoom = ratio * (cmd.percent / 100); // 100% == 1 user unit per CSS px
+    } else if (cmd.kind === 'rotate-by' && cmd.radians != null) {
+      cam.rotation = normalizeCameraRotation(cam.rotation + cmd.radians);
+    } else if (cmd.kind === 'rotate-reset') {
+      cam.rotation = 0;
     }
     renderNowRef.current();
   }, [cameraCommand]);

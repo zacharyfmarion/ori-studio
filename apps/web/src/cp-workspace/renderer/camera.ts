@@ -8,19 +8,77 @@ const MAX_ZOOM = 400;
  * Owned 2D camera over SVG *user* coordinates (Phase 2 — replaces the SVG /
  * react-zoom-pan-pinch transform the bridge used to sample). `zoom` is device
  * pixels per user unit; `center` is the user point at the viewport centre.
+ *
+ * The full mapping is
+ *
+ * ```
+ * device = viewportCentre + R(rotation) · (user − centre) · zoom
+ * ```
+ *
+ * {@link userCameraToView} is the only place that turns `rotation` into a
+ * basis, and {@link deviceDeltaToUser} the only place that inverts it — keep it
+ * that way, so there is exactly one pair of sin/cos in the view pipeline.
  */
 export interface UserCamera {
   centerX: number;
   centerY: number;
   zoom: number;
+  /**
+   * View rotation in radians. Positive turns the *content* clockwise on screen
+   * (screen y points down, so the usual CCW rotation matrix reads as clockwise).
+   *
+   * Required rather than optional on purpose: several call sites build a whole
+   * new camera object, and an optional field would let them silently reset the
+   * view to 0.
+   */
+  rotation: number;
+}
+
+function cameraTrig(rotation: number): { cos: number; sin: number } {
+  return { cos: Math.cos(rotation), sin: Math.sin(rotation) };
+}
+
+/**
+ * Wrap an angle to `(-PI, PI]`, snapping near-zero to exactly zero so repeated
+ * step-and-reverse rotation lands back on an unrotated view rather than a
+ * floating-point speck of one.
+ */
+export function normalizeCameraRotation(radians: number): number {
+  const turn = Math.PI * 2;
+  let value = radians % turn;
+  if (value > Math.PI) value -= turn;
+  if (value <= -Math.PI) value += turn;
+  return Math.abs(value) < 1e-9 ? 0 : value;
 }
 
 /** user -> device transform for the camera (folded figures draw with this). */
 export function userCameraToView(cam: UserCamera, viewport: Viewport): ViewTransform {
+  const { cos, sin } = cameraTrig(cam.rotation);
+  const ex: [number, number] = [cam.zoom * cos, cam.zoom * sin];
+  const ey: [number, number] = [-cam.zoom * sin, cam.zoom * cos];
   return {
-    origin: [viewport.width / 2 - cam.centerX * cam.zoom, viewport.height / 2 - cam.centerY * cam.zoom],
-    ex: [cam.zoom, 0],
-    ey: [0, cam.zoom],
+    origin: [
+      viewport.width / 2 - (cam.centerX * ex[0] + cam.centerY * ey[0]),
+      viewport.height / 2 - (cam.centerX * ex[1] + cam.centerY * ey[1]),
+    ],
+    ex,
+    ey,
+  };
+}
+
+/**
+ * Device-pixel delta -> user-space delta: undo the view rotation, then the zoom.
+ * The inverse of the linear part of {@link userCameraToView}.
+ */
+function deviceDeltaToUser(
+  cam: UserCamera,
+  dxDevice: number,
+  dyDevice: number
+): { x: number; y: number } {
+  const { cos, sin } = cameraTrig(cam.rotation);
+  return {
+    x: (cos * dxDevice + sin * dyDevice) / cam.zoom,
+    y: (-sin * dxDevice + cos * dyDevice) / cam.zoom,
   };
 }
 
@@ -49,38 +107,40 @@ export interface UserBounds {
   maxY: number;
 }
 
-/** Fit user-coordinate bounds into the viewport (centered), with padding. */
+/**
+ * Fit user-coordinate bounds into the viewport (centered), with padding, for a
+ * view held at `rotation`.
+ *
+ * The bounds are axis-aligned in user space, but the viewport measures them
+ * along the *rotated* screen axes, so the span used here is the extent of the
+ * rotated rectangle. Fitting the raw width/height instead would overshoot by up
+ * to a factor of sqrt(2) at 45 degrees.
+ */
 export function fitUserCamera(
   bounds: UserBounds,
   viewport: Viewport,
-  padding = 0.7
+  padding = 0.7,
+  rotation = 0
 ): UserCamera {
-  const w = Math.max(1e-6, bounds.maxX - bounds.minX);
-  const h = Math.max(1e-6, bounds.maxY - bounds.minY);
-  const zoom = Math.min(viewport.width / w, viewport.height / h) * padding;
+  const { cos, sin } = cameraTrig(rotation);
+  const halfW = Math.max(1e-6, (bounds.maxX - bounds.minX) / 2);
+  const halfH = Math.max(1e-6, (bounds.maxY - bounds.minY) / 2);
+  const spanX = 2 * (Math.abs(cos) * halfW + Math.abs(sin) * halfH);
+  const spanY = 2 * (Math.abs(sin) * halfW + Math.abs(cos) * halfH);
+  const zoom = Math.min(viewport.width / spanX, viewport.height / spanY) * padding;
   return {
     centerX: (bounds.minX + bounds.maxX) / 2,
     centerY: (bounds.minY + bounds.maxY) / 2,
     zoom,
-  };
-}
-
-/** Seed a camera from an existing user→device transform (e.g. the SVG's fit). */
-export function seedUserCamera(userView: ViewTransform, viewport: Viewport): UserCamera | null {
-  const ex = userView.ex[0];
-  const ey = userView.ey[1];
-  if (Math.abs(ex) < 1e-9 || Math.abs(ey) < 1e-9) return null;
-  return {
-    centerX: (viewport.width / 2 - userView.origin[0]) / ex,
-    centerY: (viewport.height / 2 - userView.origin[1]) / ey,
-    zoom: Math.hypot(userView.ex[0], userView.ex[1]),
+    rotation,
   };
 }
 
 /** Pan the camera by a device-pixel delta (drag). */
 export function panUserCamera(cam: UserCamera, dxDevice: number, dyDevice: number): void {
-  cam.centerX -= dxDevice / cam.zoom;
-  cam.centerY -= dyDevice / cam.zoom;
+  const delta = deviceDeltaToUser(cam, dxDevice, dyDevice);
+  cam.centerX -= delta.x;
+  cam.centerY -= delta.y;
 }
 
 /** Zoom the camera by `factor`, keeping the user point under the cursor fixed. */
@@ -93,11 +153,15 @@ export function zoomUserCameraAt(
 ): void {
   const offX = deviceX - viewport.width / 2;
   const offY = deviceY - viewport.height / 2;
-  const userX = cam.centerX + offX / cam.zoom;
-  const userY = cam.centerY + offY / cam.zoom;
+  // The user point under the cursor, before and after the zoom change; the
+  // centre shifts by the difference so that point stays put.
+  const before = deviceDeltaToUser(cam, offX, offY);
+  const userX = cam.centerX + before.x;
+  const userY = cam.centerY + before.y;
   cam.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, cam.zoom * factor));
-  cam.centerX = userX - offX / cam.zoom;
-  cam.centerY = userY - offY / cam.zoom;
+  const after = deviceDeltaToUser(cam, offX, offY);
+  cam.centerX = userX - after.x;
+  cam.centerY = userY - after.y;
 }
 
 /**

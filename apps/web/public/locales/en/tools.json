@@ -122,6 +122,9 @@
     "pan": "Pan",
     "panWithModifier": "Pan — or hold {{modifier}} and drag",
     "panWithShortcut": "Pan ({{shortcut}}) — or hold {{modifier}} and drag",
+    "resetRotation": "Reset rotation",
+    "rotateCcw": "Rotate view left",
+    "rotateCw": "Rotate view right",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out"
   }

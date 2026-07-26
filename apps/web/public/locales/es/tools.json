@@ -130,6 +130,9 @@
     "pan": "Desplazar",
     "panWithModifier": "Desplazar: o mantén {{modifier}} y arrastra",
     "panWithShortcut": "Desplazar ({{shortcut}}): o mantén {{modifier}} y arrastra",
+    "resetRotation": "Restablecer rotación",
+    "rotateCcw": "Girar vista a la izquierda",
+    "rotateCw": "Girar vista a la derecha",
     "zoomIn": "Acercar",
     "zoomOut": "Alejar"
   }

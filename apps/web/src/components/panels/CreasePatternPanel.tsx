@@ -222,6 +222,14 @@ function formatZoom(scale: number): string {
 
 const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
 
+/**
+ * View-rotation step per button press or key. 15 degrees divides 90, 180 and
+ * 360 evenly, so repeated presses land on the square and diagonal orientations
+ * origami work is laid out along. (Oriedita steps by its angle-system divider,
+ * 11.25 degrees by default, which does not divide 90.)
+ */
+const VIEW_ROTATION_STEP_RADIANS = Math.PI / 12;
+
 const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[] = [
   'Paper5',
   'Transparent3',
@@ -1014,10 +1022,13 @@ export function CreasePatternPanel() {
   // Hand tool: a plain drag pans the canvas instead of running the active
   // tool. Accel-drag pan stays available whether or not this is on.
   const [panToolActive, setPanToolActive] = useState(false);
+  // Mirrors the canvas camera's rotation so the toolbar can show the angle and
+  // offer a reset; the camera itself remains the source of truth.
+  const [viewRotation, setViewRotation] = useState(0);
   const cameraCommandNonceRef = useRef(0);
   const sendWebglCameraCommand = useCallback(
-    (kind: CameraCommand['kind'], percent?: number) => {
-      setWebglCameraCommand({ kind, percent, nonce: ++cameraCommandNonceRef.current });
+    (kind: CameraCommand['kind'], percent?: number, radians?: number) => {
+      setWebglCameraCommand({ kind, percent, radians, nonce: ++cameraCommandNonceRef.current });
     },
     []
   );
@@ -3283,6 +3294,15 @@ export function CreasePatternPanel() {
         case 'viewport.pan':
           setPanToolActive((active) => !active);
           break;
+        case 'viewport.rotateCcw':
+          sendWebglCameraCommand('rotate-by', undefined, -VIEW_ROTATION_STEP_RADIANS);
+          break;
+        case 'viewport.rotateCw':
+          sendWebglCameraCommand('rotate-by', undefined, VIEW_ROTATION_STEP_RADIANS);
+          break;
+        case 'viewport.resetRotation':
+          sendWebglCameraCommand('rotate-reset');
+          break;
         case 'viewport.actualSize':
           sendWebglCameraCommand('set-percent', 100);
           break;
@@ -3536,6 +3556,7 @@ export function CreasePatternPanel() {
                   focusModelBounds={cpDiagnosticFocusBounds}
                   cameraCommand={webglCameraCommand}
                   panToolActive={panToolActive}
+                  onRotationChange={setViewRotation}
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
                   onEraseBox={(points) => {
@@ -3637,6 +3658,17 @@ export function CreasePatternPanel() {
                 panToolActive={panToolActive}
                 togglePanTool={() => setPanToolActive((active) => !active)}
                 panShortcutLabel={shortcutLabelForAction('viewport.pan', shortcutOverrides)}
+                viewRotation={viewRotation}
+                rotateView={(direction) =>
+                  sendWebglCameraCommand(
+                    'rotate-by',
+                    undefined,
+                    direction * VIEW_ROTATION_STEP_RADIANS
+                  )
+                }
+                resetViewRotation={() => sendWebglCameraCommand('rotate-reset')}
+                rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutOverrides)}
+                rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutOverrides)}
               >
                 {editableCp && (
                   <>

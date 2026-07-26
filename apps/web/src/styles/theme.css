@@ -2192,12 +2192,15 @@
 }
 
 /* Transient marquee (box-select) rectangle over the WebGL surface. */
+/* The marquee outlines a box that is axis-aligned in *model* space, so under a
+   rotated view it is drawn rotated about its origin corner to match. */
 .cp-webgl-marquee {
   position: absolute;
   z-index: 6;
   pointer-events: none;
   border: 1px solid var(--accent-primary);
   background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  transform-origin: 0 0;
 }
 
 /* Text-tool drag: dashed outline (a box being drawn), no fill tint. */

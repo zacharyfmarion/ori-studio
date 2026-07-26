@@ -201,8 +201,8 @@ Browser checklist (author-owned):
 - [ ] Phase C: Alt-hold M/V toggle — **BLOCKED, see below**
 - [ ] Phase C: Space restricted-draw — **BLOCKED, see below**
 - [x] Phase D: bare 5/6 zoom; hand tool + `1` → pan
-- [ ] Phase E tracked separately: rotate view (3/4), grid toggle + size ±,
-      stop-calc
+- [x] Phase E: rotate view (3/4) — done, see `cp-view-rotation.md`
+- [ ] Phase E tracked separately: grid toggle + size ±, stop-calc
 - [x] Orphaned-tool policy: Mirror left unbound (available from the rail)
 - [x] tsc / lint / test:web / i18n:check green; browser checklist pending
 

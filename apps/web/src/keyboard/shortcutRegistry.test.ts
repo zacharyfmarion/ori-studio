@@ -113,6 +113,11 @@ describe('adopted single-key layout', () => {
     expect(byChord.get(chord)).toEqual([actionId]);
   });
 
+  it('binds the view-rotation chords', () => {
+    expect(byChord.get('3')).toEqual(['viewport.rotateCcw']);
+    expect(byChord.get('4')).toEqual(['viewport.rotateCw']);
+  });
+
   it('keeps the bare zoom chords alongside the accel ones', () => {
     expect(byChord.get('6')).toEqual(['viewport.zoomIn']);
     expect(byChord.get('5')).toEqual(['viewport.zoomOut']);
@@ -126,5 +131,13 @@ describe('adopted single-key layout', () => {
     for (const freed of ['v', 'l', 'p', 'n']) {
       expect(byChord.get(freed)).toBeUndefined();
     }
+  });
+
+  it('leaves reset-rotation available but unbound by default', () => {
+    // Deliberately chordless: the toolbar exposes it, and no key is worth
+    // spending on an action reachable from the readout button.
+    const reset = SHORTCUT_DEFINITIONS.find((d) => d.id === 'viewport.resetRotation');
+    expect(reset).toBeDefined();
+    expect(reset!.defaultChords).toEqual([]);
   });
 });

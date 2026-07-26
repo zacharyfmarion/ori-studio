@@ -11,7 +11,10 @@ export type ViewportShortcutId =
   | 'viewport.zoomOut'
   | 'viewport.fit'
   | 'viewport.actualSize'
-  | 'viewport.pan';
+  | 'viewport.pan'
+  | 'viewport.rotateCcw'
+  | 'viewport.rotateCw'
+  | 'viewport.resetRotation';
 export type ShortcutActionId = MenuActionId | OristudioCpActionId | ViewportShortcutId;
 export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport';
 export type ReservedKeyClassification = 'allowed' | 'soft-reserved' | 'hard-reserved';
@@ -164,6 +167,9 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   viewportShortcut('viewport.fit', 'Fit To View', { primary: true, key: '0' }),
   viewportShortcut('viewport.actualSize', 'Actual Size', { primary: true, key: '1' }),
   viewportShortcut('viewport.pan', 'Pan (hand tool)', { key: '1' }),
+  viewportShortcut('viewport.rotateCcw', 'Rotate View Left', { key: '3' }),
+  viewportShortcut('viewport.rotateCw', 'Rotate View Right', { key: '4' }),
+  viewportShortcut('viewport.resetRotation', 'Reset View Rotation', null),
 ];
 
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
@@ -199,7 +205,7 @@ function menuShortcut(
 function viewportShortcut(
   id: ViewportShortcutId,
   label: string,
-  defaultChord: KeyChord | KeyChord[]
+  defaultChord: KeyChord | KeyChord[] | null
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {

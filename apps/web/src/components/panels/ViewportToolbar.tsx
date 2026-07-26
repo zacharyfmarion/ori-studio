@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Hand, Layers, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Hand, Layers, Maximize2, RotateCcw, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
 import { primaryModifierLabel } from '../../lib/platform';
 
 const ZOOM_PRESETS = [25, 50, 100, 200, 400];
+
+/** `Label (Chord)` when the action has a chord bound, plain label otherwise. */
+function withShortcut(label: string, shortcut: string | undefined): string {
+  return shortcut ? `${label} (${shortcut})` : label;
+}
+
+/** View rotation as whole degrees, e.g. `-15°`. */
+function formatRotation(radians: number): string {
+  return `${Math.round((radians * 180) / Math.PI)}°`;
+}
 
 export function isViewportInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -32,6 +42,16 @@ interface ViewportToolbarProps {
   togglePanTool?: () => void;
   /** Resolved chord for the pan toggle, shown in its tooltip. */
   panShortcutLabel?: string;
+  /**
+   * View-rotation controls. Supplied together or not at all; a surface with no
+   * rotatable camera omits them and the buttons are not rendered.
+   */
+  viewRotation?: number;
+  /** Rotate by one step: -1 anticlockwise, +1 clockwise. */
+  rotateView?: (direction: 1 | -1) => void;
+  resetViewRotation?: () => void;
+  rotateCcwShortcutLabel?: string;
+  rotateCwShortcutLabel?: string;
   children?: ReactNode;
 }
 
@@ -45,6 +65,11 @@ export function ViewportToolbar({
   panToolActive,
   togglePanTool,
   panShortcutLabel,
+  viewRotation = 0,
+  rotateView,
+  resetViewRotation,
+  rotateCcwShortcutLabel,
+  rotateCwShortcutLabel,
   children,
 }: ViewportToolbarProps) {
   const { t } = useTranslation();
@@ -122,6 +147,47 @@ export function ViewportToolbar({
         >
           <Hand size={14} />
         </IconButton>
+      )}
+      {rotateView && (
+        <>
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            title={withShortcut(
+              t('tools:viewport.rotateCcw', 'Rotate view left'),
+              rotateCcwShortcutLabel
+            )}
+            aria-label={t('tools:viewport.rotateCcw', 'Rotate view left')}
+            onClick={() => rotateView(-1)}
+          >
+            <RotateCcw size={14} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            title={withShortcut(
+              t('tools:viewport.rotateCw', 'Rotate view right'),
+              rotateCwShortcutLabel
+            )}
+            aria-label={t('tools:viewport.rotateCw', 'Rotate view right')}
+            onClick={() => rotateView(1)}
+          >
+            <RotateCw size={14} />
+          </IconButton>
+          {/* Only shown while the view is turned: it doubles as the readout and
+              the way back to square, so an unrelated command never has to
+              silently straighten the view. */}
+          {resetViewRotation && viewRotation !== 0 && (
+            <button
+              type="button"
+              className="viewport-toolbar__zoom-button"
+              title={t('tools:viewport.resetRotation', 'Reset rotation')}
+              onClick={resetViewRotation}
+            >
+              {formatRotation(viewRotation)}
+            </button>
+          )}
+        </>
       )}
       {children}
     </div>
