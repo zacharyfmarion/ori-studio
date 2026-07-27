@@ -164,7 +164,6 @@
     "changeFoldedColor": "Cambiar color del modelo plegado",
     "changeFoldedDisplayStyle": "Cambiar estilo de visualización plegada",
     "changeFoldedModel": "Cambiar modelo plegado",
-    "colorAlpha": "Alfa del color",
     "commandFailed": "El comando falló",
     "couldNotOpenForEditing": "No se pudo abrir este patrón de pliegues para editarlo.",
     "cropImage": "Recortar imagen",
@@ -280,7 +279,6 @@
     "stale": "Obsoleto",
     "start": "Inicio",
     "startingFace": "Cara inicial",
-    "useColoredFoldedTransparency": "Usar transparencia de plegado con color",
     "viewportControls": "Controles de la vista del patrón de pliegues"
   },
   "design": {

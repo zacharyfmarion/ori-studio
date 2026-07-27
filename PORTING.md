@@ -42,6 +42,23 @@ are unchanged:
   doubles as "which solution is on screen", which only holds while movement is
   forward-only. Backwards navigation splits the two: the count keeps its meaning,
   the shown case gets its own field.
+- **Paper shadow geometry.** `FoldedFigureRenderOptions::shadow_geometry`
+  selects between `OrieditaExact` and the default `Refined`; only the band
+  rectangles differ, and which edges cast at all is otherwise unchanged.
+  `FoldedFigure_Worker_Drawer` derives the shadow's offset length from
+  `getBegin(lineId)` — the 1-based *point id* — used as an x-coordinate, so a
+  band comes out `10 · edgeLength / unrelatedNumber` wide instead of a constant
+  10. On the kabuto fixture that is a 5.1× spread within one figure, with width
+  tracking edge length. The same function then asks which side of the edge the
+  paper is on by sampling at `midpoint + ε · offset` and accepting anything that
+  is not `Outside`; because the sample sits inside `Polygon::inside`'s `Border`
+  tolerance, both directions often pass and the edge is shadowed twice.
+  `Refined` divides by the edge's true length, samples a fixed distance along
+  the unit normal, and requires a strict `Inside` — one constant-width band per
+  shadowed edge. `OrieditaExact` keeps the upstream arithmetic verbatim and is
+  what `folded_figure_paper_render_snapshot_from_segments` renders, so the
+  render oracle in `crates/oristudio-cp/tests/oriedita_render_oracle.rs` remains
+  a byte-for-byte gate.
 
 Release caveats:
 
