@@ -195,26 +195,37 @@ time. Worth confirming in browser testing that it does not feel wrong.
 
 ## Checklist
 
-- [ ] Add `tolerance?: number` to `ToolInput` with the doc comment above
-- [ ] Rewrite `dragLineTool` around the armed state machine
-- [ ] Unit tests: arm on click; hover previews from the armed start; second
+- [x] Add `tolerance?: number` to `ToolInput` with the doc comment above
+- [x] Rewrite `dragLineTool` around the armed state machine
+- [x] Unit tests: arm on click; hover previews from the armed start; second
       click commits; second click in place disarms; drag from armed commits
       `[start, release]`; `cancel` disarms; absent `tolerance` reproduces
       today's behaviour; update the zero-length-drag state assertion
-- [ ] Hoist the `drag-line` runtime to a ref; split `drawing`; clear it in the
-      tool-change reset effect and add the operation id to its deps
-- [ ] Feed `tolerance` on every `feedTool` input
-- [ ] Feed `'move'` from the `drag-line` hover branch
-- [ ] Armed cases for both `activeToolRequireSnap` gates (ignore, stay armed)
-- [ ] Escape and right-button erase cancel the armed state; pan/zoom do not
-- [ ] Pointer-leave clears the rubber band but keeps the armed start
-- [ ] Draw the armed start point via the sequence overlay
-- [ ] Two-step prompts for the 6 ops + `onToolPickProgress` on arm/disarm/commit
-- [ ] `npm run i18n:extract`, translate 8 locales, `npm run i18n:stamp`,
-      `npm run i18n:check`
-- [ ] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`
-- [ ] Browser check: each of the 6 tools draws by drag *and* by click-click;
+- [x] Hoist the `drag-line` runtime to a ref; clear it in the tool-change reset
+      effect and add the operation id to its deps
+- [x] Feed `tolerance` on every `feedTool` input
+- [x] Feed `'move'` from the `drag-line` hover branch
+- [x] Armed cases for both `activeToolRequireSnap` gates (ignore, stay armed)
+- [x] Escape and right-button erase cancel the armed state; pan/zoom do not
+- [x] Pointer-leave clears the rubber band but keeps the armed start
+- [x] Draw the armed start point via the sequence overlay
+- [x] Two-step prompts for the 6 ops + `onToolPickProgress` on arm/disarm/commit
+- [x] `npm run i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check`
+- [x] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`
+- [x] Phase 5 (`DrawCreaseAngleRestricted5` / `angle-drag`) landed here, on its
+      bespoke handler, using the same predicate
+- [ ] Browser check: each of the 7 tools draws by drag *and* by click-click;
       grid-restricted rejects unsnapped clicks without losing the armed point;
       Escape bails; pan/zoom mid-arm keeps the armed point anchored to the model
-- [ ] Decide whether Phase 5 (`DrawCreaseAngleRestricted5` / `angle-drag`) lands
-      here or as a follow-up
+
+### Implementation notes
+
+The engine reports its armed start through `ToolOutput.livePoints`, so the
+surface marks the dot, gates presses, and drives the step prompt without a
+second copy of the arming rule. `drawing` did not need splitting after all — it
+still means "a button is down", and the persistent runtime lives in a ref
+beside the other per-tool state.
+
+Two small cleanups fell out: `snapIndicatorPoints` became dead once the hover
+branch routed through `sequenceOverlayPoints` (removed), and a tool change now
+clears the preview channel so an armed rubber band cannot outlive its tool.
