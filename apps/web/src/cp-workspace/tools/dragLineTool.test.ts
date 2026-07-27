@@ -106,6 +106,19 @@ describe('dragLineTool', () => {
       expect(outs[3].state).toEqual(IDLE);
     });
 
+    it('reports the armed start through livePoints so the surface can mark it', () => {
+      const outs = run([
+        { kind: 'down', point: { x: 2, y: 4 }, tolerance: 1 },
+        { kind: 'up', point: { x: 2, y: 4 }, tolerance: 1 },
+        { kind: 'move', point: { x: 9, y: 9 }, tolerance: 1 },
+        { kind: 'up', point: { x: 9, y: 9 }, tolerance: 1 },
+      ]);
+      expect(outs[0].livePoints).toBeUndefined(); // pressing is not yet armed
+      expect(outs[1].livePoints).toEqual([{ x: 2, y: 4 }]);
+      expect(outs[2].livePoints).toEqual([{ x: 2, y: 4 }]);
+      expect(outs[3].livePoints).toBeUndefined(); // committed, back to idle
+    });
+
     it('cancel disarms an armed start', () => {
       const outs = run([
         { kind: 'down', point: { x: 5, y: 5 }, tolerance: 1 },
