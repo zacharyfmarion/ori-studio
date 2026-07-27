@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type DragEvent as ReactDragEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -130,39 +129,16 @@ import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
 import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverlay';
-import {
-  annotationAsTransformable,
-  foldedFigureAsTransformable,
-} from '../../cp-workspace/canvasObjects/transformableObject';
+import { foldedFigureAsTransformable } from '../../cp-workspace/canvasObjects/transformableObject';
 import type { TransformableCanvasObject } from '../../cp-workspace/canvasObjects/transformableObject';
-import type { AnnotationResizeHandle } from '../../cp-workspace/annotations/annotationTransform';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/CpFoldedFigureToolbar';
-import { createCpImage } from '../../cp-workspace/images/cpImage';
-import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
-import { cropImage, fitImageModelSize } from '../../cp-workspace/images/cpImagePlacement';
-import {
-  overlayCssPerModel,
-  overlayCssToModel,
-} from '../../cp-workspace/annotations/annotationTransform';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
-import {
-  annotationAtModelPoint,
-  isImageAnnotation,
-  isTextAnnotation,
-  topAnnotationZ,
-} from '../../cp-workspace/annotations/annotation';
-import type { CanvasAnnotation } from '../../cp-workspace/annotations/annotation';
-import {
-  createTextAnnotation,
-  textBoxFromDrag,
-  DEFAULT_TEXT_BOX_WIDTH,
-  DEFAULT_TEXT_FONT_SIZE,
-} from '../../cp-workspace/annotations/textAnnotation';
-import type { SerializedEditorState } from 'lexical';
+import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
+import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
 import {
   CpContextToolPanel,
   cpCommandRequiresContextApply,
@@ -942,14 +918,6 @@ export function CreasePatternPanel() {
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
   const [pendingSquareBisectorLineIds, setPendingSquareBisectorLineIds] = useState<number[]>([]);
-  // Id of the text annotation currently being inline-edited (null = none). The
-  // editStartRef records whether that edit began from a fresh box, so exit can
-  // roll back / label undo correctly.
-  const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  const editStartRef = useRef<{ id: string; created: boolean } | null>(null);
-  // Set when a text edit is committed by a click outside; that same click's
-  // create must be suppressed (it deselects instead of spawning a new box).
-  const suppressNextTextCreateRef = useRef(false);
   const [cpMeasurementSlots, setCpMeasurementSlots] = useState<CpMeasurementSlots>(
     createEmptyCpMeasurementSlots
   );
@@ -994,27 +962,28 @@ export function CreasePatternPanel() {
   }, [oristudioCpDocument, ensureEditCreasePattern]);
   const oristudioCpCamvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const oristudioCpSelection = useWorkspaceStore((state) => state.oristudioCpSelection);
-  const oristudioCpAnnotations = useWorkspaceStore((state) => state.oristudioCpAnnotations);
-  const oristudioCpSelectedAnnotationId = useWorkspaceStore(
-    (state) => state.oristudioCpSelectedAnnotationId
-  );
-  const addAnnotation = useWorkspaceStore((state) => state.addAnnotation);
-  const updateAnnotation = useWorkspaceStore((state) => state.updateAnnotation);
-  const removeAnnotation = useWorkspaceStore((state) => state.removeAnnotation);
-  const setSelectedAnnotation = useWorkspaceStore((state) => state.setSelectedAnnotation);
-  const recordAnnotationHistory = useWorkspaceStore((state) => state.recordAnnotationHistory);
+  // Reference images and text boxes: their transformable projection, the
+  // gesture/undo protocol, image import and stacking, and the inline text-edit
+  // lifecycle.
+  const annotations = useCpAnnotations({
+    overlayView: webglOverlayView,
+    viewportRef: cpViewportRef,
+  });
+  const {
+    editingTextId,
+    selectedImage: selectedCpImage,
+    imageAnnotations,
+    setSelectedAnnotation,
+    updateAnnotation,
+    imageFileInputRef,
+    addImageFromFile,
+    deleteSelectedImage,
+  } = annotations;
+  const oristudioCpAnnotations = annotations.annotations;
+  const oristudioCpSelectedAnnotationId = annotations.selectedAnnotationId;
+
   const recordFoldedFigureHistory = useWorkspaceStore(
     (state) => state.recordFoldedFigureHistory
-  );
-  const selectedAnnotation =
-    oristudioCpAnnotations.find((a) => a.id === oristudioCpSelectedAnnotationId) ?? null;
-  const selectedCpImage =
-    selectedAnnotation && isImageAnnotation(selectedAnnotation) ? selectedAnnotation : null;
-  // Image annotations only — the WebGL renderer and the image overlay narrow to
-  // this; text annotations render on their own DOM layer.
-  const imageAnnotations = useMemo(
-    () => oristudioCpAnnotations.filter(isImageAnnotation),
-    [oristudioCpAnnotations]
   );
   // Text boxes, passed to the canvas only so open + fit-to-view frame them too
   // (they render on the DOM layer, not in GL).
@@ -1038,164 +1007,13 @@ export function CreasePatternPanel() {
     cpViewportRef.current = el;
     setToolbarContainer(el);
   }, []);
-  // Annotation-layer state captured at the start of a move/resize/rotate/edit
-  // gesture, so the whole gesture records a single undo entry on commit.
-  const preGestureAnnotationsRef = useRef<readonly CanvasAnnotation[] | null>(null);
-  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
-  const beginImageGesture = useCallback(() => {
-    preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
-  }, []);
-  const commitImageGesture = useCallback(
-    (label: string) => {
-      const previous = preGestureAnnotationsRef.current;
-      preGestureAnnotationsRef.current = null;
-      if (previous) recordAnnotationHistory([...previous], label);
-    },
-    [recordAnnotationHistory]
-  );
 
-  // --- Canvas objects: annotations projected onto the shared overlay contract ---
-  const annotationObjects = useMemo(
-    () => oristudioCpAnnotations.map(annotationAsTransformable),
-    [oristudioCpAnnotations]
-  );
-  const annotationById = useCallback(
-    (id: string) => useWorkspaceStore.getState().oristudioCpAnnotations.find((a) => a.id === id),
-    []
-  );
-  const handleAnnotationBoxUpdate = useCallback(
-    (id: string, patch: CanvasObjectBoxUpdate) => updateAnnotation(id, patch),
-    [updateAnnotation]
-  );
-  // Crop needs the image's source rect, which the overlay has no view of; it
-  // hands back the dragged handle and pointer and we apply the image math here.
-  const handleAnnotationCrop = useCallback(
-    (id: string, handle: AnnotationResizeHandle, pointer: { x: number; y: number }) => {
-      const annotation = annotationById(id);
-      if (!annotation || !isImageAnnotation(annotation)) return;
-      const next = cropImage(annotation, handle, pointer);
-      updateAnnotation(id, {
-        center: next.center,
-        width: next.width,
-        height: next.height,
-        crop: next.crop,
-      });
-    },
-    [annotationById, updateAnnotation]
-  );
-  const canCropAnnotation = useCallback(
-    (id: string) => {
-      const annotation = annotationById(id);
-      return !!annotation && isImageAnnotation(annotation);
-    },
-    [annotationById]
-  );
-  const annotationGestureLabel = useCallback(
-    (kind: 'move' | 'resize' | 'rotate' | 'crop') => {
-      switch (kind) {
-        case 'move':
-          return t('panels:creasePattern.moveAnnotation', 'Move annotation');
-        case 'rotate':
-          return t('panels:creasePattern.rotateAnnotation', 'Rotate annotation');
-        case 'crop':
-          return t('panels:creasePattern.cropImage', 'Crop image');
-        case 'resize':
-          return t('panels:creasePattern.resizeAnnotation', 'Resize annotation');
-      }
-    },
-    [t]
-  );
 
-  // Import an image file and add it as a reference image, placed at the given
-  // client point (or the view center) and sized to ~half the view. Shared by the
-  // drop handler and the Insert-image button.
-  const addImageFromFile = useCallback(
-    async (file: File, client: { x: number; y: number } | null) => {
-      const view = webglOverlayView;
-      const rect = cpViewportRef.current?.getBoundingClientRect();
-      try {
-        const source = await importImageFile(file);
-        let center = { x: 0.5, y: 0.5 };
-        let targetExtent = 1;
-        if (view && rect) {
-          const cssPoint = client
-            ? { x: client.x - rect.left, y: client.y - rect.top }
-            : { x: rect.width / 2, y: rect.height / 2 };
-          const model = overlayCssToModel(view, cssPoint);
-          if (model) center = model;
-          const cssPerModel = overlayCssPerModel(view);
-          if (cssPerModel > 0) {
-            targetExtent = (0.5 * Math.min(rect.width, rect.height)) / cssPerModel;
-          }
-        }
-        const { width, height } = fitImageModelSize(
-          source.naturalWidth,
-          source.naturalHeight,
-          targetExtent
-        );
-        const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-        const topZ = images.reduce((max, image) => Math.max(max, image.z), 0);
-        addAnnotation(
-          createCpImage({
-            src: source.src,
-            naturalWidth: source.naturalWidth,
-            naturalHeight: source.naturalHeight,
-            center,
-            width,
-            height,
-            z: topZ + 1,
-          })
-        );
-        recordAnnotationHistory([...images], t('panels:creasePattern.addImage', 'Add image'));
-      } catch (error) {
-        console.error('[cp-image] failed to import image', error);
-      }
-    },
-    [addAnnotation, recordAnnotationHistory, webglOverlayView, t]
-  );
 
-  const handleViewportDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
-    if (Array.from(event.dataTransfer.types).includes('Files')) {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'copy';
-    }
-  }, []);
 
-  const handleViewportDrop = useCallback(
-    (event: ReactDragEvent<HTMLDivElement>) => {
-      const file = Array.from(event.dataTransfer.files).find(isSupportedImageFile);
-      if (!file) return;
-      event.preventDefault();
-      void addImageFromFile(file, { x: event.clientX, y: event.clientY });
-    },
-    [addImageFromFile]
-  );
 
-  // Image-layer edits driven by the inspector: each records one undo entry.
-  const bringSelectedImageToFront = useCallback(() => {
-    if (!oristudioCpSelectedAnnotationId) return;
-    const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-    const maxZ = images.reduce((max, image) => Math.max(max, image.z), 0);
-    beginImageGesture();
-    updateAnnotation(oristudioCpSelectedAnnotationId, { z: maxZ + 1 });
-    commitImageGesture(t('panels:creasePattern.bringImageToFront', 'Bring image to front'));
-  }, [oristudioCpSelectedAnnotationId, updateAnnotation, beginImageGesture, commitImageGesture, t]);
 
-  const sendSelectedImageToBack = useCallback(() => {
-    if (!oristudioCpSelectedAnnotationId) return;
-    const images = useWorkspaceStore.getState().oristudioCpAnnotations;
-    const minZ = images.reduce((min, image) => Math.min(min, image.z), 0);
-    beginImageGesture();
-    updateAnnotation(oristudioCpSelectedAnnotationId, { z: minZ - 1 });
-    commitImageGesture(t('panels:creasePattern.sendImageToBack', 'Send image to back'));
-  }, [oristudioCpSelectedAnnotationId, updateAnnotation, beginImageGesture, commitImageGesture, t]);
 
-  const deleteSelectedImage = useCallback(() => {
-    if (!oristudioCpSelectedAnnotationId) return;
-    beginImageGesture();
-    removeAnnotation(oristudioCpSelectedAnnotationId);
-    commitImageGesture(t('panels:creasePattern.deleteImage', 'Delete image'));
-  }, [oristudioCpSelectedAnnotationId, removeAnnotation, beginImageGesture, commitImageGesture, t]);
 
   const oristudioCpActionRequest = useWorkspaceStore((state) => state.oristudioCpActionRequest);
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
@@ -1481,8 +1299,8 @@ export function CreasePatternPanel() {
   // One overlay for every canvas object, so chrome and hit-testing resolve in a
   // single pass and the two kinds cannot both show handles at once.
   const canvasObjects = useMemo(
-    () => [...annotationObjects, ...foldedFigureObjects],
-    [annotationObjects, foldedFigureObjects]
+    () => [...annotations.transformableObjects, ...foldedFigureObjects],
+    [annotations.transformableObjects, foldedFigureObjects]
   );
   const isFoldedFigureId = useCallback(
     (id: string) => foldedFigureObjects.some((object) => object.id === id),
@@ -1536,26 +1354,25 @@ export function CreasePatternPanel() {
   const handleCanvasObjectUpdate = useCallback(
     (id: string, patch: CanvasObjectBoxUpdate) => {
       if (isFoldedFigureId(id)) handleFoldedFigureBoxUpdate(id, patch);
-      else handleAnnotationBoxUpdate(id, patch);
+      else annotations.applyBoxUpdate(id, patch);
     },
-    [isFoldedFigureId, handleFoldedFigureBoxUpdate, handleAnnotationBoxUpdate]
+    [isFoldedFigureId, handleFoldedFigureBoxUpdate, annotations]
   );
   const beginCanvasObjectGesture = useCallback(
     (id: string) => {
       if (isFoldedFigureId(id)) beginFoldedFigureGesture();
-      else beginImageGesture();
+      else annotations.beginGesture();
     },
-    [isFoldedFigureId, beginImageGesture, beginFoldedFigureGesture]
+    [isFoldedFigureId, annotations, beginFoldedFigureGesture]
   );
   const commitCanvasObjectGesture = useCallback(
     (id: string, kind: 'move' | 'resize' | 'rotate' | 'crop') => {
       if (isFoldedFigureId(id)) commitFoldedFigureGesture(foldedGestureLabel(kind));
-      else commitImageGesture(annotationGestureLabel(kind));
+      else annotations.commitGesture(annotations.gestureLabel(kind));
     },
     [
       isFoldedFigureId,
-      commitImageGesture,
-      annotationGestureLabel,
+      annotations,
       commitFoldedFigureGesture,
       foldedGestureLabel,
     ]
@@ -3040,144 +2857,12 @@ export function CreasePatternPanel() {
     [activeCpCommand?.operationId, cpToolState.phase, toggleOristudioCpCircleSelection]
   );
 
-  // Double-click a text box (via the annotation overlay), or a Text-tool click
-  // on one → inline editing.
-  const handleRequestEditText = useCallback(
-    (id: string) => {
-      preGestureAnnotationsRef.current = useWorkspaceStore.getState().oristudioCpAnnotations;
-      editStartRef.current = { id, created: false };
-      setSelectedAnnotation(id);
-      setEditingTextId(id);
-    },
-    [setSelectedAnnotation]
-  );
 
-  // Text tool: a click edits/selects whatever it lands on, or drops a new text
-  // box on empty canvas and enters inline editing. A click that commits an
-  // active edit (blur) must not also create — `suppressNextTextCreateRef`.
-  const handleTextCreate = useCallback(
-    (modelPoint: Point) => {
-      if (!editableCp || activeCpCommand?.operationId !== 'Text' || !webglOverlayView) return;
-      const prev = useWorkspaceStore.getState().oristudioCpAnnotations;
-      // A click over an existing annotation edits (text) or selects (image) it,
-      // rather than stacking a new box on top.
-      const hit = annotationAtModelPoint(prev, modelPoint);
-      if (hit) {
-        suppressNextTextCreateRef.current = false;
-        if (isTextAnnotation(hit)) handleRequestEditText(hit.id);
-        else setSelectedAnnotation(hit.id);
-        return;
-      }
-      // Empty canvas: if this click just committed an edit, it only deselects.
-      if (suppressNextTextCreateRef.current) {
-        suppressNextTextCreateRef.current = false;
-        setSelectedAnnotation(null);
-        return;
-      }
-      const cssPerModel = overlayCssPerModel(webglOverlayView);
-      const box = createTextAnnotation({
-        center: { x: modelPoint.x, y: modelPoint.y },
-        width: cssPerModel > 0 ? 220 / cssPerModel : DEFAULT_TEXT_BOX_WIDTH,
-        fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
-        z: topAnnotationZ(prev) + 1,
-      });
-      preGestureAnnotationsRef.current = prev; // snapshot before add, for undo
-      editStartRef.current = { id: box.id, created: true };
-      addAnnotation(box);
-      setEditingTextId(box.id);
-    },
-    [
-      activeCpCommand?.operationId,
-      editableCp,
-      webglOverlayView,
-      addAnnotation,
-      handleRequestEditText,
-      setSelectedAnnotation,
-    ]
-  );
 
-  // Text tool: a press-drag creates a fixed-size box (the dragged height seeds a
-  // minimum; content still grows it downward). Too small a drag falls back to the
-  // click-created auto-sizing box.
-  const handleTextCreateBox = useCallback(
-    (start: Point, end: Point) => {
-      if (!editableCp || activeCpCommand?.operationId !== 'Text' || !webglOverlayView) return;
-      const cssPerModel = overlayCssPerModel(webglOverlayView);
-      const minExtent = cssPerModel > 0 ? 12 / cssPerModel : DEFAULT_TEXT_FONT_SIZE;
-      const box = textBoxFromDrag(start, end, minExtent);
-      if (!box) {
-        handleTextCreate(start);
-        return;
-      }
-      const prev = useWorkspaceStore.getState().oristudioCpAnnotations;
-      const annotation = createTextAnnotation({
-        center: box.center,
-        width: box.width,
-        height: box.height,
-        minHeight: box.height,
-        fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
-        z: topAnnotationZ(prev) + 1,
-      });
-      preGestureAnnotationsRef.current = prev;
-      editStartRef.current = { id: annotation.id, created: true };
-      addAnnotation(annotation);
-      setEditingTextId(annotation.id);
-    },
-    [activeCpCommand?.operationId, editableCp, webglOverlayView, addAnnotation, handleTextCreate]
-  );
 
-  const handleTextContentChange = useCallback(
-    (id: string, doc: SerializedEditorState, plainText: string) => {
-      updateAnnotation(id, { doc, plainText });
-    },
-    [updateAnnotation]
-  );
 
-  // Leave inline editing. An empty box is discarded (parity with Oriedita's
-  // blank-text GC); otherwise the whole edit records one undo entry. A `'blur'`
-  // exit means the click outside committed it — flag so that same click, if it
-  // reaches the Text tool, deselects instead of spawning a new box.
-  const handleExitEditText = useCallback((reason: 'blur' | 'escape' = 'blur') => {
-    if (reason === 'blur') suppressNextTextCreateRef.current = true;
-    const editing = editStartRef.current;
-    setEditingTextId(null);
-    editStartRef.current = null;
-    if (!editing) {
-      preGestureAnnotationsRef.current = null;
-      return;
-    }
-    const annotation = useWorkspaceStore
-      .getState()
-      .oristudioCpAnnotations.find((a) => a.id === editing.id);
-    const empty =
-      !annotation || (annotation.kind === 'text' && annotation.plainText.trim() === '');
-    if (empty) {
-      removeAnnotation(editing.id);
-      if (editing.created) preGestureAnnotationsRef.current = null;
-      else commitImageGesture(t('panels:textAnnotation.deleteText', 'Delete text'));
-      return;
-    }
-    commitImageGesture(
-      editing.created
-        ? t('panels:textAnnotation.addText', 'Add text')
-        : t('panels:textAnnotation.editText', 'Edit text')
-    );
-  }, [removeAnnotation, commitImageGesture, t]);
 
-  const syncAnnotationHeight = useWorkspaceStore((state) => state.syncAnnotationHeight);
 
-  // Delete from the text toolbar removes the box and leaves edit mode; the
-  // pre-edit snapshot makes it undoable (unless the box was never real).
-  const handleDeleteEditingText = useCallback(() => {
-    const editing = editStartRef.current;
-    const id = editingTextId;
-    setEditingTextId(null);
-    editStartRef.current = null;
-    if (!id) return;
-    removeAnnotation(id);
-    if (editing && !editing.created) commitImageGesture(t('panels:textAnnotation.deleteText', 'Delete text'));
-    else preGestureAnnotationsRef.current = null;
-  }, [editingTextId, removeAnnotation, commitImageGesture, t]);
 
   const emptyStatusLabel =
     status === 'building_crease_pattern'
@@ -3217,7 +2902,7 @@ export function CreasePatternPanel() {
     // editor itself claims the key while it holds focus (its Lexical command),
     // so this branch is what covers focus sitting on its floating toolbar.
     if (editingTextId) {
-      handleExitEditText('escape');
+      annotations.exitEditText('escape');
       return;
     }
     if (panToolActive) {
@@ -3255,7 +2940,7 @@ export function CreasePatternPanel() {
     editableCp,
     editableSelectionSize,
     editingTextId,
-    handleExitEditText,
+    annotations,
     panToolActive,
     pendingLengthenLineId,
     pendingSquareBisectorLineIds.length,
@@ -3348,8 +3033,8 @@ export function CreasePatternPanel() {
             <div
               className="cp-panel__viewport"
               ref={attachViewport}
-              onDragOver={handleViewportDragOver}
-              onDrop={handleViewportDrop}
+              onDragOver={annotations.handleViewportDragOver}
+              onDrop={annotations.handleViewportDrop}
             >
               {diagnosticStatus && (
                 <div
@@ -3449,8 +3134,10 @@ export function CreasePatternPanel() {
                   activeToolVoronoi={webglActiveTool.voronoi}
                   activeToolDashedPreview={isCpMeasurementOperation(activeCpCommand?.operationId)}
                   activeToolTransform={webglActiveToolTransform}
-                  onTextCreate={handleTextCreate}
-                  onTextCreateBox={handleTextCreateBox}
+                  onTextCreate={webglActiveTool.mode === 'text' ? annotations.createTextAt : undefined}
+                  onTextCreateBox={
+                    webglActiveTool.mode === 'text' ? annotations.createTextBoxFromDrag : undefined
+                  }
                   voronoiSeeds={cpToolPoints}
                   onVoronoiSeedsChange={handleWebglVoronoiSeeds}
                   activeToolRequireSnap={isRestrictedDrawOperation(activeCpCommand?.operationId)}
@@ -3517,10 +3204,10 @@ export function CreasePatternPanel() {
                     annotations={oristudioCpAnnotations}
                     editingTextId={editingTextId}
                     toolbarContainer={toolbarContainer}
-                    onChangeText={handleTextContentChange}
-                    onExitEdit={handleExitEditText}
-                    onDelete={handleDeleteEditingText}
-                    onSyncHeight={syncAnnotationHeight}
+                    onChangeText={annotations.changeTextContent}
+                    onExitEdit={annotations.exitEditText}
+                    onDelete={annotations.deleteEditingText}
+                    onSyncHeight={annotations.syncAnnotationHeight}
                   />
                 )}
                 {webglOverlayView && canvasObjects.length > 0 && (
@@ -3531,10 +3218,10 @@ export function CreasePatternPanel() {
                     interactive={annotationsInteractive}
                     onSelect={selectCanvasObject}
                     onUpdate={handleCanvasObjectUpdate}
-                    onCropUpdate={handleAnnotationCrop}
-                    onRequestEdit={handleRequestEditText}
+                    onCropUpdate={annotations.applyCrop}
+                    onRequestEdit={annotations.requestEditText}
                     onContextMenu={handleCanvasObjectContextMenu}
-                    canCrop={canCropAnnotation}
+                    canCrop={annotations.canCrop}
                     onGestureStart={beginCanvasObjectGesture}
                     onGestureCommit={commitCanvasObjectGesture}
                   />
@@ -3544,10 +3231,10 @@ export function CreasePatternPanel() {
                     image={selectedCpImage}
                     container={toolbarContainer}
                     onUpdate={(patch) => updateAnnotation(selectedCpImage.id, patch)}
-                    onGestureStart={beginImageGesture}
-                    onGestureCommit={commitImageGesture}
-                    onBringToFront={bringSelectedImageToFront}
-                    onSendToBack={sendSelectedImageToBack}
+                    onGestureStart={annotations.beginGesture}
+                    onGestureCommit={annotations.commitGesture}
+                    onBringToFront={annotations.bringSelectedImageToFront}
+                    onSendToBack={annotations.sendSelectedImageToBack}
                     onDelete={deleteSelectedImage}
                   />
                 )}

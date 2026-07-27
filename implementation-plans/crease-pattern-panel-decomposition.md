@@ -394,9 +394,9 @@ badge + refold, camera zoom/fit/rotate.
 - [x] Phase 1 — collapse the Escape special case in `appKeyboard.ts`
 - [x] Phase 1 — confirm Escape-from-floating-toolbar in the browser
 - [x] Phase 1 — `no-restricted-syntax` keydown ban (CP still exempt for its Delete listener; Phase 2 removes it)
-- [ ] Phase 2a — single `activeFloatingSurface` replaces the four-way toolbar chain
+- [x] Phase 2a — single `activeFloatingSurface` replaces the four-way toolbar chain
 - [ ] Phase 2 — fold canvas-object Delete into the `edit.delete` menu action; drop the CP keydown exemption
-- [ ] Phase 2b — `useCpAnnotations`; lower the CP `max-lines` freeze
+- [x] Phase 2b — `useCpAnnotations`; lower the CP `max-lines` freeze
 - [ ] Phase 3 — `useFoldedFigures` binding layer + context-menu adapter extracted + `cp-workspace/folded/` consolidation; lower the freeze
 - [ ] Phase 4 — `useCpToolSession`; lower the freeze
 - [ ] Phase 5 — `useCpCamera`; lower the freeze
