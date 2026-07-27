@@ -1,7 +1,8 @@
-use oristudio_cp::geometry::{LineColor, LineSegment, Point, Polygon};
+use oristudio_cp::geometry::{Circle, LineColor, LineSegment, Point, Polygon};
 use oristudio_cp::model::CreasePatternModel;
 use oristudio_cp::operations::color::toggle_mountain_valley;
 use oristudio_cp::operations::selection::{
+    circle_indices_in_box, closest_circle_in_range, closest_circle_search_reverse_order,
     delete_selected_lines, line_indices_in_box, select_all, select_box,
     select_connected_from_point, select_indices, select_intersecting_line, select_lasso,
     select_polygon, unselect_all, unselect_box, unselect_indices, unselect_intersecting_line,
@@ -177,4 +178,107 @@ fn selected_flags(model: &CreasePatternModel) -> Vec<i32> {
         .iter()
         .map(|segment| segment.selected)
         .collect()
+}
+
+#[test]
+fn circle_indices_in_box_matches_totu_boundary_inside_circle() {
+    let mut model = CreasePatternModel::default();
+    // Ring crosses the box edge.
+    model.add_circle(Circle::new(0.0, 0.0, 5.0, LineColor::Cyan3));
+    // Entirely outside, ring nowhere near the box.
+    model.add_circle(Circle::new(50.0, 50.0, 1.0, LineColor::Cyan3));
+    // Center inside the box, ring entirely enclosed.
+    model.add_circle(Circle::new(1.0, 1.0, 0.25, LineColor::Cyan3));
+
+    let box_polygon = rectangle(-2.0, -2.0, 2.0, 2.0);
+
+    assert_eq!(circle_indices_in_box(&model, &box_polygon), vec![0, 2]);
+}
+
+#[test]
+fn circle_indices_in_box_includes_a_ring_enclosing_the_whole_box() {
+    let mut model = CreasePatternModel::default();
+    // Box sits entirely inside the ring: no edge crossing, center outside the box.
+    model.add_circle(Circle::new(0.0, 0.0, 100.0, LineColor::Cyan3));
+
+    assert!(
+        circle_indices_in_box(&model, &rectangle(1.0, 1.0, 2.0, 2.0)).is_empty(),
+        "Oriedita's predicate needs an edge crossing or a contained center"
+    );
+}
+
+#[test]
+fn closest_circle_in_range_accepts_ring_and_center_hits() {
+    let mut model = CreasePatternModel::default();
+    model.add_circle(Circle::new(0.0, 0.0, 10.0, LineColor::Cyan3));
+
+    // On the ring.
+    assert_eq!(
+        closest_circle_in_range(&model, Point::new(10.05, 0.0), 1.0),
+        Some(0)
+    );
+    // On the center.
+    assert_eq!(
+        closest_circle_in_range(&model, Point::new(0.1, 0.0), 1.0),
+        Some(0)
+    );
+    // Neither.
+    assert_eq!(
+        closest_circle_in_range(&model, Point::new(5.0, 0.0), 1.0),
+        None
+    );
+}
+
+#[test]
+fn closest_circle_search_prefers_the_last_drawn_circle_on_ties() {
+    let mut model = CreasePatternModel::default();
+    model.add_circle(Circle::new(0.0, 0.0, 1.0, LineColor::Cyan3));
+    model.add_circle(Circle::new(0.0, 0.0, 1.0, LineColor::Cyan3));
+
+    // Java uses `>=` when comparing, so a later circle replaces an equal earlier one.
+    assert_eq!(
+        closest_circle_search_reverse_order(&model, Point::new(1.0, 0.0)),
+        Some(1)
+    );
+}
+
+#[test]
+fn closest_circle_in_range_cannot_miss_an_in_range_ring() {
+    let mut model = CreasePatternModel::default();
+    // A ring passing exactly through the probe point.
+    model.add_circle(Circle::new(-10.0, 0.0, 10.0, LineColor::Cyan3));
+    // A later zero-radius circle sitting near the probe, competing for the pick.
+    model.add_circle(Circle::new(0.0, -0.5, 0.0, LineColor::Cyan3));
+
+    let probe = Point::new(0.0, 0.0);
+    // The single candidate is the global argmin over both the center and
+    // circumference metrics, so the ring wins even though a later circle's center
+    // is close and `>=` favors later circles on ties.
+    assert_eq!(closest_circle_search_reverse_order(&model, probe), Some(0));
+    // Range-checking that one candidate is therefore lossless: a tolerance too
+    // tight for circle 1 still finds circle 0's ring.
+    assert_eq!(closest_circle_in_range(&model, probe, 0.25), Some(0));
+}
+
+#[test]
+fn closest_circle_search_returns_none_for_an_empty_model() {
+    let model = CreasePatternModel::default();
+
+    assert_eq!(
+        closest_circle_search_reverse_order(&model, Point::new(0.0, 0.0)),
+        None
+    );
+    assert_eq!(
+        closest_circle_in_range(&model, Point::new(0.0, 0.0), 1.0),
+        None
+    );
+}
+
+fn rectangle(min_x: f64, min_y: f64, max_x: f64, max_y: f64) -> Polygon {
+    Polygon::new(vec![
+        Point::new(min_x, min_y),
+        Point::new(max_x, min_y),
+        Point::new(max_x, max_y),
+        Point::new(min_x, max_y),
+    ])
 }
