@@ -991,9 +991,10 @@ function sampleBpDocument(): import('../../engine/oristudioBpTypes').OristudioBp
     source: { format: 'generated', filename: 'Untitled.bps', path: null },
     activeSurface: 'tree',
     dirty: true,
-    // The slice centres the default symmetry axis on the tree sheet on load, so
-    // the fixture needs sheet dimensions.
-    snapshot: { tree: { sheet: { width: 20, height: 20 } } },
+    // The slice centres the default symmetry axis on the tree sheet on load and
+    // titles the replaced project from the summary, so the fixture needs sheet
+    // dimensions and a title.
+    snapshot: { summary: { title: 'Sample BP' }, tree: { sheet: { width: 20, height: 20 } } },
   } as import('../../engine/oristudioBpTypes').OristudioBpDocumentState;
 }
 
@@ -4559,6 +4560,44 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifactError).toBeNull();
   });
 
+  it('ignores a fold artifact response for a document that has since been replaced', async () => {
+    // Same guarantee as above, but for a *document load* rather than an edit.
+    // A load resets the whole fold-artifact resource, so the request bookkeeping
+    // cannot live in it: restarted at zero, the in-flight request for the file
+    // being closed matched the one for the file being opened and won the race.
+    const api = resetStores(seedSnapshot());
+    const builtSnapshot = await api.buildCreasePattern();
+    loadSnapshotIntoStore(builtSnapshot);
+    const currentArtifacts = foldArtifactsFromSnapshot(builtSnapshot);
+    const closedFileArtifacts: FoldArtifacts = {
+      ...currentArtifacts,
+      folded_base_error: 'artifacts for the file that was closed',
+    };
+    let resolveClosedFile: (artifacts: FoldArtifacts) => void = () => undefined;
+    const closedFilePromise = new Promise<FoldArtifacts>((resolve) => {
+      resolveClosedFile = resolve;
+    });
+    api.foldArtifacts
+      .mockImplementationOnce(async () => closedFilePromise)
+      .mockResolvedValueOnce(currentArtifacts);
+
+    const closedFileRequest = useWorkspaceStore.getState().ensureFoldArtifacts();
+    expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('loading');
+
+    await useWorkspaceStore.getState().loadProjectText('another tree', {
+      filename: 'another.tmd5',
+      path: '/tmp/another.tmd5',
+    });
+    await expect(useWorkspaceStore.getState().ensureFoldArtifacts()).resolves.toBe(
+      currentArtifacts
+    );
+
+    resolveClosedFile(closedFileArtifacts);
+    await expect(closedFileRequest).resolves.toBe(closedFileArtifacts);
+
+    expect(useWorkspaceStore.getState().foldArtifacts).toBe(currentArtifacts);
+  });
+
   it('plans a folding sequence from loaded fold artifacts', async () => {
     const api = resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
@@ -4643,6 +4682,54 @@ describe('workspace store slices', () => {
       expect(state.oristudioBpDocument).not.toBeNull();
       expect(state.workflowTarget).toBe('box-pleat');
       expect(state.activeEditingContext).toBe('bp-tree');
+    });
+
+    it('discards the previously open document when a .bps replaces it', async () => {
+      // Regression: opening a box-pleat project replaced only the BP document
+      // and left the previous file's project and fold artifacts in the store.
+      // The Simulate workspace simulates `foldArtifacts` verbatim and only
+      // re-derives them when they are null, so the file the user had just
+      // closed kept folding under the new project's name.
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
+        filename: 'crease.cp',
+        path: '/tmp/crease.cp',
+      });
+      expect(useWorkspaceStore.getState().foldArtifacts).not.toBeNull();
+
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: '/tmp/crane.bps',
+      });
+
+      const state = useWorkspaceStore.getState();
+      expect(state.foldArtifacts).toBeNull();
+      expect(state.foldArtifactStatus).toBe('stale');
+      expect(state.oristudioCpDocument).toBeNull();
+      expect(state.project.creases).toHaveLength(0);
+      expect(state.project.title).toBe('Sample BP');
+    });
+
+    it('keeps the live Edit canvas when the design chooser seeds a box-pleat project', async () => {
+      // The counterpart to the test above: the chooser layers a design onto the
+      // project already being authored rather than replacing it, so its crease
+      // pattern — and the artifacts derived from it — must survive.
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
+        filename: 'crease.cp',
+        path: '/tmp/crease.cp',
+      });
+      const artifacts = useWorkspaceStore.getState().foldArtifacts;
+      expect(artifacts).not.toBeNull();
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .createOristudioBpProject({ preserveEditCanvas: true, confirmDiscard: false })
+      ).resolves.toBe(true);
+
+      expect(useWorkspaceStore.getState().foldArtifacts).toBe(artifacts);
+      expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
     });
 
     it('saves a box-pleat design as a native .osf bundling the bps payload', async () => {

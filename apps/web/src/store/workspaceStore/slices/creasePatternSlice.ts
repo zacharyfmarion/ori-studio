@@ -106,6 +106,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   const wholeSimulationFocus = { kind: 'whole' as const };
   let foldArtifactPromise: Promise<FoldArtifacts | null> | null = null;
   let foldArtifactPromiseRevision: number | null = null;
+  // Newest artifact request. Loader-private rather than store state: a document
+  // load resets the whole fold-artifact resource, so a counter kept there would
+  // restart at zero and let a request still in flight for the previous document
+  // match the id of the request for the new one — and publish its crease pattern
+  // as the current document's.
+  let foldArtifactRequestId = 0;
   let foldedFigureRequestSequence = 0;
   // Newest in-flight model request per figure, so a stale response is dropped.
   const modelRequestSequence = new Map<string, number>();
@@ -490,13 +496,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       return foldArtifactPromise;
     }
 
-    const requestId = current.foldArtifactRequestId + 1;
+    const requestId = (foldArtifactRequestId += 1);
     set({
       foldArtifacts: null,
       foldArtifactError: null,
       foldArtifactStatus: 'loading',
       foldArtifactResolvedRevision: null,
-      foldArtifactRequestId: requestId,
       selectedSegmentId: null,
       sequenceTarget: null,
       sequencePlan: null,
@@ -509,11 +514,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     foldArtifactPromise = (async () => {
       try {
         const foldArtifacts = await computeFoldArtifacts();
-        const latest = get();
         if (
           foldArtifacts &&
-          latest.foldArtifactRevision === currentRevision &&
-          latest.foldArtifactRequestId === requestId
+          get().foldArtifactRevision === currentRevision &&
+          foldArtifactRequestId === requestId
         ) {
           set({
             ...readyFoldArtifactResourceState(foldArtifacts, currentRevision),
@@ -526,10 +530,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         }
         return foldArtifacts;
       } catch (error) {
-        const latest = get();
         if (
-          latest.foldArtifactRevision === currentRevision &&
-          latest.foldArtifactRequestId === requestId
+          get().foldArtifactRevision === currentRevision &&
+          foldArtifactRequestId === requestId
         ) {
           set({
             foldArtifacts: null,
@@ -661,7 +664,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // Same complete editor state File › New establishes, so interactive
           // edits (undo/redo, images, tools) behave identically on this canvas.
           set({
-            ...freshEditableCpState(document, priorState.projectLoadId),
+            ...freshEditableCpState(document, priorState),
             ...(noDesignYet ? { pendingDesignChoice: true } : {}),
           });
         } catch (error) {

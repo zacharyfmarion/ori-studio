@@ -2,6 +2,7 @@ import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import { blankCpLineage } from '../../lib/oristudioCpLineage';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
+import { staleFoldArtifactResourceState } from './foldArtifactResource';
 import type { WorkspaceState } from './types';
 
 /**
@@ -19,7 +20,7 @@ import type { WorkspaceState } from './types';
  */
 export function freshEditableCpState(
   document: OristudioCpDocumentState,
-  previousProjectLoadId: number
+  previous: Pick<WorkspaceState, 'projectLoadId' | 'foldArtifactRevision'>
 ): Partial<WorkspaceState> {
   return {
     activePanelId: 'crease-pattern',
@@ -43,9 +44,12 @@ export function freshEditableCpState(
     oristudioCpAnnotations: [],
     oristudioCpSelectedAnnotationId: null,
     oristudioCpDocumentExtensions: {},
-    projectLoadId: previousProjectLoadId + 1,
+    projectLoadId: previous.projectLoadId + 1,
     toolMode: 'select',
     symmetryAuthoringPairs: [],
     creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+    // This blank canvas is now what the Simulate workspace reads, so anything
+    // derived from the document it replaces has to go with it.
+    ...staleFoldArtifactResourceState(previous.foldArtifactRevision),
   };
 }
