@@ -411,7 +411,7 @@ function CpToolRailGroup({
         <ChevronDown className="cp-tool-rail__group-chevron" size={10} aria-hidden="true" />
       </button>
       {open && (
-        <div className="cp-tool-rail__buttons" id={buttonsId}>
+        <div className="cp-tool-rail__buttons" id={buttonsId} data-group={group.id}>
           {actions.map((action) => (
             <CpToolButton
               key={action.id}

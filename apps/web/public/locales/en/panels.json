@@ -149,7 +149,6 @@
     "yScale": "Y scale"
   },
   "creasePattern": {
-    "activeCreaseLineType": "Active crease line type",
     "addImage": "Add image",
     "angleBisectorSelect2Lines": "Angle Bisector: Select 2 lines",
     "angleBisectorSelectSegmentToEnd": "Angle Bisector: Select segment to end",
@@ -193,7 +192,6 @@
     "display": "Display",
     "duplicateFoldedModel": "Duplicate folded model",
     "duplicateFoldedModelAction": "Duplicate folded model",
-    "extraLineColors": "Extra line colors",
     "flipFoldedModel": "Flip folded model",
     "fold": "Fold",
     "foldCase": "Fold case",
@@ -231,7 +229,6 @@
     "insertImage": "Insert image...",
     "linesCount_one": "{{count}} lines",
     "linesCount_other": "{{count}} lines",
-    "moreLineColors": "More line colors",
     "moveAnnotation": "Move annotation",
     "moveFoldedForm": "Move folded form",
     "noCreasePattern": "No crease pattern",

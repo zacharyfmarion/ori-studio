@@ -119,6 +119,12 @@
   },
   "viewport": {
     "fit": "Einpassen",
+    "pan": "Schwenken",
+    "panWithModifier": "Schwenken – oder {{modifier}} halten und ziehen",
+    "panWithShortcut": "Schwenken ({{shortcut}}) – oder {{modifier}} halten und ziehen",
+    "rotateCcw": "Ansicht nach links drehen",
+    "rotateCw": "Ansicht nach rechts drehen",
+    "rotation": "Ansichtsdrehung in Grad",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern"
   }

@@ -1,4 +1,14 @@
 import type { ModelPoint, Rgba, StrokeGeometry } from '../renderer/types';
+import type { CpLineAppearance } from './cpLineStyle';
+
+/**
+ * How a crease's line colour is painted: the active line style's ink and dash
+ * slot for it. Injected so the scene builders stay pure (no DOM/theme).
+ */
+export type CpLineAppearanceFor = (color: string) => CpLineAppearance;
+
+/** The dash-pattern table {@link CpLineAppearanceFor}'s slots index into. */
+export type CpDashPatterns = readonly (readonly number[])[];
 
 /** Minimal structural shape of a crease-pattern line segment we consume. */
 export interface CpLineSegmentInput {
@@ -50,12 +60,16 @@ export interface CpTransformPreview {
  * Convert crease-pattern line segments into GPU-ready stroke geometry. Pure: the
  * per-colour resolution is injected so this stays testable without the DOM/theme.
  * Selected lines (1-based ids, matching the SVG's index+1) are recoloured and
- * widened. When `move` is given, the named lines are drawn through its matrix —
- * this is how an in-progress move-drag or transform tool previews the real strokes.
+ * widened — and drawn solid, because the selection replaces the crease's own ink
+ * rather than underlaying it as Oriedita does, so a dashed selection would read
+ * as broken geometry. When `move` is given, the named lines are drawn through its
+ * matrix — this is how an in-progress move-drag or transform tool previews the
+ * real strokes.
  */
 export function cpSnapshotToScene(
   lineSegments: readonly CpLineSegmentInput[],
-  colorFor: (color: string) => Rgba,
+  appearanceFor: CpLineAppearanceFor,
+  dashPatterns: CpDashPatterns,
   selection?: CpSelectionStyle,
   move?: CpTransformPreview
 ): { strokes: StrokeGeometry } {
@@ -64,10 +78,11 @@ export function cpSnapshotToScene(
   const b = new Float32Array(count * 2);
   const color = new Float32Array(count * 4);
   const widthMul = new Float32Array(count).fill(1);
+  const dashSlot = new Float32Array(count);
 
-  // Memoise colour lookups — a dense CP has thousands of segments but only a
+  // Memoise appearance lookups — a dense CP has thousands of segments but only a
   // handful of distinct assignments.
-  const colorCache = new Map<string, Rgba>();
+  const appearanceCache = new Map<string, CpLineAppearance>();
 
   const m = move?.matrix;
 
@@ -96,16 +111,18 @@ export function cpSnapshotToScene(
       continue;
     }
 
-    let rgba = colorCache.get(seg.color);
-    if (!rgba) {
-      rgba = colorFor(seg.color);
-      colorCache.set(seg.color, rgba);
+    let appearance = appearanceCache.get(seg.color);
+    if (!appearance) {
+      appearance = appearanceFor(seg.color);
+      appearanceCache.set(seg.color, appearance);
     }
+    const rgba = appearance.color;
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];
     color[i * 4 + 3] = rgba[3];
+    dashSlot[i] = appearance.dashSlot;
   }
 
-  return { strokes: { a, b, color, widthMul, count } };
+  return { strokes: { a, b, color, widthMul, count, dashPatterns, dashSlot } };
 }

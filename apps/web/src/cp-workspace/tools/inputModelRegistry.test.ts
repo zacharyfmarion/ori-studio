@@ -7,9 +7,15 @@
  */
 import { describe, expect, it } from 'vitest';
 import { ORISTUDIO_CP_COMMANDS } from '../../lib/oristudioCpCommands';
-import { CP_INPUT_MODELS, cpInputModel, type CpInputModel } from './inputModelRegistry';
+import {
+  CP_INPUT_MODELS,
+  cpInputModel,
+  type CpInputModel,
+  type CpStepSnap,
+} from './inputModelRegistry';
 
 const POINT_MODELS: CpInputModel[] = ['point-sequence', 'axis-from-line'];
+const SNAP_KINDS: CpStepSnap[] = ['point', 'crease', 'crease-required', 'candidate'];
 
 // Only `ready()` commands drive the pointer-tool dispatch; `not-implemented` /
 // `porting` stubs (Fold, ImportFold, FoldingEstimate, …) never do, so the registry
@@ -55,7 +61,7 @@ describe('CP input-model registry', () => {
       if (snap.length !== entry.pointCount) {
         bad.push(`${op}: snapPerStep.length=${snap.length} pointCount=${entry.pointCount}`);
       }
-      const invalid = snap.filter((k) => k !== 'point' && k !== 'crease' && k !== 'candidate');
+      const invalid = snap.filter((k) => !SNAP_KINDS.includes(k));
       if (invalid.length) bad.push(`${op}: invalid snap kinds ${JSON.stringify(invalid)}`);
     }
     expect(bad).toEqual([]);

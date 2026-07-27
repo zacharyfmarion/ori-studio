@@ -1,9 +1,37 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Layers, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  Hand,
+  Layers,
+  Maximize2,
+  RotateCcwSquare,
+  RotateCwSquare,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
+import { primaryModifierLabel } from '../../lib/platform';
 
 const ZOOM_PRESETS = [25, 50, 100, 200, 400];
+
+/** `Label (Chord)` when the action has a chord bound, plain label otherwise. */
+function withShortcut(label: string, shortcut: string | undefined): string {
+  return shortcut ? `${label} (${shortcut})` : label;
+}
+
+/**
+ * View rotation in degrees, trimmed of trailing zeros so the 11.25 degree step
+ * reads exactly (11.25, 22.5, 33.75, 45) rather than rounding to nothing.
+ */
+function formatRotationValue(radians: number): string {
+  const degrees = (radians * 180) / Math.PI;
+  return `${Number.parseFloat(degrees.toFixed(2))}`;
+}
+
+/** The same value with its degree sign, for the idle field. */
+function formatRotation(radians: number): string {
+  return `${formatRotationValue(radians)}°`;
+}
 
 export function isViewportInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -23,6 +51,25 @@ interface ViewportToolbarProps {
   zoomOut: () => void;
   fitToView: () => void;
   setZoomLevel: (scale: number) => void;
+  /**
+   * Hand-tool state. Both are supplied together, or neither — a surface that
+   * has no pan mode simply omits them and the button is not rendered.
+   */
+  panToolActive?: boolean;
+  togglePanTool?: () => void;
+  /** Resolved chord for the pan toggle, shown in its tooltip. */
+  panShortcutLabel?: string;
+  /**
+   * View-rotation controls. Supplied together or not at all; a surface with no
+   * rotatable camera omits them and the buttons are not rendered.
+   */
+  viewRotation?: number;
+  /** Rotate by one step: -1 anticlockwise, +1 clockwise. */
+  rotateView?: (direction: 1 | -1) => void;
+  /** Set an absolute view rotation, in degrees, from the readout field. */
+  setViewRotation?: (degrees: number) => void;
+  rotateCcwShortcutLabel?: string;
+  rotateCwShortcutLabel?: string;
   children?: ReactNode;
 }
 
@@ -33,11 +80,29 @@ export function ViewportToolbar({
   zoomOut,
   fitToView,
   setZoomLevel,
+  panToolActive,
+  togglePanTool,
+  panShortcutLabel,
+  viewRotation = 0,
+  rotateView,
+  setViewRotation,
+  rotateCcwShortcutLabel,
+  rotateCwShortcutLabel,
   children,
 }: ViewportToolbarProps) {
   const { t } = useTranslation();
   const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
   const zoomMenuRef = useRef<HTMLDivElement | null>(null);
+  // Null while the field is idle, so it tracks the camera; a string while the
+  // user is editing, so their partial input is not overwritten mid-frame.
+  const [rotationDraft, setRotationDraft] = useState<string | null>(null);
+
+  const commitRotationDraft = () => {
+    if (rotationDraft === null) return;
+    const degrees = Number.parseFloat(rotationDraft);
+    setRotationDraft(null);
+    if (Number.isFinite(degrees)) setViewRotation?.(degrees);
+  };
 
   useEffect(() => {
     if (!zoomMenuOpen) return undefined;
@@ -90,6 +155,85 @@ export function ViewportToolbar({
       <IconButton size="sm" variant="toolbar" title={t('tools:viewport.fit', 'Fit')} onClick={fitToView}>
         <Maximize2 size={14} />
       </IconButton>
+      {togglePanTool && (
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          title={
+            panShortcutLabel
+              ? t('tools:viewport.panWithShortcut', 'Pan ({{shortcut}}) — or hold {{modifier}} and drag', {
+                  shortcut: panShortcutLabel,
+                  modifier: primaryModifierLabel(),
+                })
+              : t('tools:viewport.panWithModifier', 'Pan — or hold {{modifier}} and drag', {
+                  modifier: primaryModifierLabel(),
+                })
+          }
+          aria-label={t('tools:viewport.pan', 'Pan')}
+          isActive={panToolActive}
+          onClick={togglePanTool}
+        >
+          <Hand size={14} />
+        </IconButton>
+      )}
+      {rotateView && (
+        <>
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            title={withShortcut(
+              t('tools:viewport.rotateCcw', 'Rotate view left'),
+              rotateCcwShortcutLabel
+            )}
+            aria-label={t('tools:viewport.rotateCcw', 'Rotate view left')}
+            onClick={() => rotateView(-1)}
+          >
+            <RotateCcwSquare size={14} />
+          </IconButton>
+          {setViewRotation && (
+            <input
+              type="text"
+              inputMode="decimal"
+              className="viewport-toolbar__rotation-input"
+              aria-label={t('tools:viewport.rotation', 'View rotation in degrees')}
+              title={t('tools:viewport.rotation', 'View rotation in degrees')}
+              value={rotationDraft ?? formatRotation(viewRotation)}
+              onFocus={(event) => {
+                // Drop the degree sign while editing so the field holds a plain
+                // number, and select it so typing replaces the angle outright.
+                setRotationDraft(formatRotationValue(viewRotation));
+                event.currentTarget.select();
+              }}
+              onChange={(event) => setRotationDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  commitRotationDraft();
+                  event.currentTarget.blur();
+                } else if (event.key === 'Escape') {
+                  setRotationDraft(null);
+                  event.currentTarget.blur();
+                }
+                // Digits typed here cannot reach the canvas shortcuts:
+                // `isShortcutEditingTarget` bails on any input at the
+                // capture-phase listener, before dispatch.
+              }}
+              onBlur={commitRotationDraft}
+            />
+          )}
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            title={withShortcut(
+              t('tools:viewport.rotateCw', 'Rotate view right'),
+              rotateCwShortcutLabel
+            )}
+            aria-label={t('tools:viewport.rotateCw', 'Rotate view right')}
+            onClick={() => rotateView(1)}
+          >
+            <RotateCwSquare size={14} />
+          </IconButton>
+        </>
+      )}
       {children}
     </div>
   );

@@ -149,7 +149,6 @@
     "yScale": "Y 缩放"
   },
   "creasePattern": {
-    "activeCreaseLineType": "当前折痕线型",
     "addImage": "添加图像",
     "angleBisectorSelect2Lines": "角平分线：选择 2 条线",
     "angleBisectorSelectSegmentToEnd": "角平分线：选择终止线段",
@@ -157,8 +156,8 @@
     "bringImageToFront": "将图像置于顶层",
     "buildingCreasePattern": "正在生成折痕图",
     "canvasDiagnostics": "画布诊断",
-    "case_other": "情形 {{count}}",
     "caseLabel": "情形",
+    "case_other": "情形 {{count}}",
     "changeFoldCase": "更改折叠情形",
     "changeFoldedColor": "更改折叠模型颜色",
     "changeFoldedDisplayStyle": "更改折叠显示样式",
@@ -187,10 +186,10 @@
     "display": "显示",
     "duplicateFoldedModel": "复制折叠模型",
     "duplicateFoldedModelAction": "复制折叠模型",
-    "extraLineColors": "额外线条颜色",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
     "foldCase": "折叠情形",
+    "foldModelAction": "折叠模型",
     "foldedColor": {
       "back": "背面",
       "backAria": "折叠背面颜色",
@@ -201,8 +200,8 @@
     },
     "foldedDisplayStyle": "折叠显示样式",
     "foldedModelControls": "折叠模型控件",
-    "foldedModels": "折叠模型",
     "foldedModelSide": "折叠模型侧面",
+    "foldedModels": "折叠模型",
     "foldedState": {
       "back": "背面",
       "backShort": "B",
@@ -221,10 +220,8 @@
       "transparent": "透明",
       "wire": "线框"
     },
-    "foldModelAction": "折叠模型",
     "insertImage": "插入图像...",
     "linesCount_other": "{{count}} 条线",
-    "moreLineColors": "更多线条颜色",
     "moveAnnotation": "移动批注",
     "moveFoldedForm": "移动折叠图",
     "noCreasePattern": "无折痕图",

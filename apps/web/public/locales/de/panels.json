@@ -149,7 +149,6 @@
     "yScale": "Y-Skalierung"
   },
   "creasePattern": {
-    "activeCreaseLineType": "Aktiver Faltlinientyp",
     "addImage": "Bild hinzufügen",
     "angleBisectorSelect2Lines": "Winkelhalbierende: 2 Linien auswählen",
     "angleBisectorSelectSegmentToEnd": "Winkelhalbierende: Segment zum Beenden auswählen",
@@ -157,9 +156,9 @@
     "bringImageToFront": "Bild in den Vordergrund bringen",
     "buildingCreasePattern": "Faltmuster wird erstellt",
     "canvasDiagnostics": "Leinwand-Diagnose",
+    "caseLabel": "Fall",
     "case_one": "Fall {{count}}",
     "case_other": "Fall {{count}}",
-    "caseLabel": "Fall",
     "changeFoldCase": "Faltfall ändern",
     "changeFoldedColor": "Farbe des gefalteten Modells ändern",
     "changeFoldedDisplayStyle": "Faltdarstellung ändern",
@@ -193,10 +192,10 @@
     "display": "Anzeige",
     "duplicateFoldedModel": "Gefaltetes Modell duplizieren",
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
-    "extraLineColors": "Zusätzliche Linienfarben",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
     "foldCase": "Faltfall",
+    "foldModelAction": "Modell falten",
     "foldedColor": {
       "back": "Rückseite",
       "backAria": "Farbe der gefalteten Rückseite",
@@ -207,8 +206,8 @@
     },
     "foldedDisplayStyle": "Anzeigestil des gefalteten Modells",
     "foldedModelControls": "Steuerung des gefalteten Modells",
-    "foldedModels": "Gefaltete Modelle",
     "foldedModelSide": "Seite des gefalteten Modells",
+    "foldedModels": "Gefaltete Modelle",
     "foldedState": {
       "back": "Rückseite",
       "backShort": "B",
@@ -227,11 +226,9 @@
       "transparent": "Transparent",
       "wire": "Draht"
     },
-    "foldModelAction": "Modell falten",
     "insertImage": "Bild einfügen...",
     "linesCount_one": "{{count}} Linie",
     "linesCount_other": "{{count}} Linien",
-    "moreLineColors": "Weitere Linienfarben",
     "moveAnnotation": "Anmerkung verschieben",
     "moveFoldedForm": "Gefaltete Form verschieben",
     "noCreasePattern": "Kein Faltmuster",

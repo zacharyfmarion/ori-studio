@@ -32,16 +32,18 @@ describe('shortcut registry', () => {
 
   it('keeps hybrid globals while applying Oriedita scoped CP defaults', () => {
     expect(shortcutLabelForAction('file.saveAs')).toMatch(/Shift\+S$/u);
+    // Line types sit on the left-hand home row: A/S/D/F.
     expect(getResolvedShortcut('cp.action.line-type.mountain')).toEqual({
-      key: 'm',
+      key: 'a',
     });
     expect(getResolvedShortcut('cp.action.line-type.valley')).toEqual({
-      key: 'v',
+      key: 's',
     });
-    // L is bound to the default Line tool rather than the edge line type.
-    expect(getResolvedShortcut('cp.action.line-type.edge')).toBeNull();
+    expect(getResolvedShortcut('cp.action.line-type.edge')).toEqual({
+      key: 'd',
+    });
     expect(getResolvedShortcut('cp.action.draw-crease')).toEqual({
-      key: 'l',
+      key: 'z',
     });
     expect(getResolvedShortcuts('edit.delete')).toEqual([
       { key: 'delete' },
@@ -50,11 +52,11 @@ describe('shortcut registry', () => {
     expect(shortcutLabelForAction('edit.delete')).toContain('Delete / Backspace');
   });
 
-  it('binds the F fold chord to a single fold action (deduped)', () => {
-    // Fold and FoldingEstimate both default to `foldAction` (F); the builder keeps
+  it('binds the fold chord to a single fold action (deduped)', () => {
+    // Fold and FoldingEstimate both default to `foldAction` (G); the builder keeps
     // the chord on FoldingEstimate and drops the duplicate on Fold. CreasePatternPanel
     // routes both operationIds to the real fold, so this pins the de-dup it relies on.
-    expect(getResolvedShortcut('cp.action.folding-estimate')).toEqual({ key: 'f' });
+    expect(getResolvedShortcut('cp.action.folding-estimate')).toEqual({ key: 'g' });
     expect(getResolvedShortcut('cp.action.fold')).toBeNull();
   });
 

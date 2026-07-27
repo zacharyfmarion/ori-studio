@@ -68,15 +68,26 @@ export type OristudioCpActionDefinition =
   | OristudioCpLineTypeActionDefinition
   | OristudioCpCommandActionDefinition;
 
+/**
+ * Line types that stay out of the rail. Unassigned is a real crease colour —
+ * imported patterns carry it and the renderer draws it — but it is not
+ * something you reach for while drawing, so it does not earn a chip.
+ */
+const HIDDEN_LINE_TYPE_IDS = new Set(['unassigned']);
+
 export const ORISTUDIO_CP_LINE_TYPE_ACTIONS = [
-  ...ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE.map((entry) =>
+  ...ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE.map((entry, index) =>
     lineTypeAction(
       entry.id,
       entry.label,
       entry.shortLabel,
       entry.lineColor,
       upstreamLineColorAction(entry.lineColor),
-      `line-type-${entry.cssClass}`
+      `line-type-${entry.cssClass}`,
+      // Keep palette order (M, V, E, A) explicit rather than leaning on a
+      // stable sort, since the rail sorts every group by `railOrder`.
+      index + 1,
+      HIDDEN_LINE_TYPE_IDS.has(entry.id) ? 'hidden-ui-only' : 'left-rail'
     )
   ),
 ] as const satisfies readonly OristudioCpLineTypeActionDefinition[];
@@ -587,7 +598,9 @@ function lineTypeAction(
   railLabel: string,
   lineColor: OristudioCpLineColor,
   upstreamAction: string,
-  icon: string
+  icon: string,
+  railOrder: number,
+  placement: OristudioCpCommandPlacement
 ): OristudioCpLineTypeActionDefinition {
   return {
     id: `cp.action.line-type.${id}`,
@@ -595,8 +608,9 @@ function lineTypeAction(
     label,
     railLabel,
     group: 'line-type',
-    placement: 'bottom-toolbar',
+    placement,
     icon,
+    railOrder,
     upstreamAction,
     tooltip: `Set active line type to ${label.toLowerCase()}`,
     uiStatus: 'ready',

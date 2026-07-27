@@ -149,7 +149,6 @@
     "yScale": "Y スケール"
   },
   "creasePattern": {
-    "activeCreaseLineType": "アクティブな折り線の種類",
     "addImage": "画像を追加",
     "angleBisectorSelect2Lines": "角の二等分線：2本の線を選択",
     "angleBisectorSelectSegmentToEnd": "角の二等分線：終点までのセグメントを選択",
@@ -157,8 +156,8 @@
     "bringImageToFront": "画像を最前面へ",
     "buildingCreasePattern": "展開図を作成中",
     "canvasDiagnostics": "キャンバス診断",
-    "case_other": "ケース {{count}}",
     "caseLabel": "ケース",
+    "case_other": "ケース {{count}}",
     "changeFoldCase": "折りケースを変更",
     "changeFoldedColor": "折り上がり図の色を変更",
     "changeFoldedDisplayStyle": "折り上がり図の表示スタイルを変更",
@@ -187,10 +186,10 @@
     "display": "表示",
     "duplicateFoldedModel": "折りモデルを複製",
     "duplicateFoldedModelAction": "折り上がり図を複製",
-    "extraLineColors": "追加の線の色",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
     "foldCase": "折りケース",
+    "foldModelAction": "モデルを折る",
     "foldedColor": {
       "back": "裏",
       "backAria": "折りの裏面の色",
@@ -201,8 +200,8 @@
     },
     "foldedDisplayStyle": "折りの表示スタイル",
     "foldedModelControls": "折りモデルの操作",
-    "foldedModels": "折りモデル",
     "foldedModelSide": "折りモデルの面",
+    "foldedModels": "折りモデル",
     "foldedState": {
       "back": "裏",
       "backShort": "B",
@@ -221,10 +220,8 @@
       "transparent": "透明",
       "wire": "ワイヤー"
     },
-    "foldModelAction": "モデルを折る",
     "insertImage": "画像を挿入...",
     "linesCount_other": "{{count}} 本の線",
-    "moreLineColors": "その他の線の色",
     "moveAnnotation": "注釈を移動",
     "moveFoldedForm": "折り上がり図を移動",
     "noCreasePattern": "展開図がありません",

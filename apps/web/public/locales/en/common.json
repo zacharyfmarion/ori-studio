@@ -49,6 +49,7 @@
     "cut": "Cut",
     "cutSelectedTreeParts": "Cut selected tree parts",
     "deleteSelected": "Delete Selected",
+    "deleteSelectedCpCircles": "Delete selected crease-pattern circles",
     "deleteSelectedCpLines": "Delete selected crease-pattern lines",
     "deleteSelectedCpLinesLabel": "Delete Selected CP Lines",
     "deleteSelectedCpPoints": "Delete selected crease-pattern points",

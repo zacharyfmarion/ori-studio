@@ -119,6 +119,12 @@
   },
   "viewport": {
     "fit": "Fit",
+    "pan": "Pan",
+    "panWithModifier": "Pan — or hold {{modifier}} and drag",
+    "panWithShortcut": "Pan ({{shortcut}}) — or hold {{modifier}} and drag",
+    "rotateCcw": "Rotate view left",
+    "rotateCw": "Rotate view right",
+    "rotation": "View rotation in degrees",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out"
   }

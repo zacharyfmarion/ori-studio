@@ -1127,6 +1127,46 @@
         "0": "Die Radiusdifferenzen zwischen den konzentrischen und den ausgewählten Kreisen sind gleich."
       }
     },
+    "colBlackAction": {
+      "intro": {
+        "0": "Neue Falten als Randlinien zeichnen."
+      },
+      "notes": {
+        "0": "Legt den aktiven Linientyp fest; er gilt, bis ein anderer gewählt wird."
+      }
+    },
+    "colBlueAction": {
+      "intro": {
+        "0": "Neue Falten als Talfalten zeichnen."
+      },
+      "notes": {
+        "0": "Legt den aktiven Linientyp fest; er gilt, bis ein anderer gewählt wird."
+      }
+    },
+    "colCyanAction": {
+      "intro": {
+        "0": "Neue Falten als Hilfslinien zeichnen."
+      },
+      "notes": {
+        "0": "Hilfslinien sind Führungen – sie werden nicht gefaltet."
+      }
+    },
+    "colRedAction": {
+      "intro": {
+        "0": "Neue Falten als Bergfalten zeichnen."
+      },
+      "notes": {
+        "0": "Legt den aktiven Linientyp fest; er gilt, bis ein anderer gewählt wird."
+      }
+    },
+    "lineColorAction": {
+      "intro": {
+        "0": "Neue Falten als nicht zugewiesene Linien zeichnen."
+      },
+      "notes": {
+        "0": "Nicht zugewiesene Falten haben noch keine Faltrichtung, daher überspringen Faltbarkeitsprüfungen sie."
+      }
+    },
     "continuousSymmetricDrawAction": {
       "intro": {
         "0": "Eine Linie zeichnen, die durch Faltlinien reflektiert wird."
