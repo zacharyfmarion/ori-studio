@@ -32,14 +32,23 @@ describe('oristudio CP action registry', () => {
       'None',
       'Cyan3',
     ]);
-    expect(ORISTUDIO_CP_LINE_TYPE_ACTIONS.every((action) => action.placement === 'left-rail')).toBe(true);
-    // The rail is now their only home, and they lead it (group order 5).
-    const rail = cpRailActions();
-    expect(rail.filter((action) => action.kind === 'line-type')).toHaveLength(
-      ORISTUDIO_CP_LINE_TYPE_ACTIONS.length
+    // Unassigned stays a real line type (imported patterns carry it) but is not
+    // worth a chip, so it is the one kept out of the rail.
+    const shown = ORISTUDIO_CP_LINE_TYPE_ACTIONS.filter(
+      (action) => action.placement === 'left-rail'
     );
-    expect(rail.slice(0, ORISTUDIO_CP_LINE_TYPE_ACTIONS.length).map((action) => action.id)).toEqual(
-      ORISTUDIO_CP_LINE_TYPE_ACTIONS.map((action) => action.id)
+    expect(shown.map((action) => action.railLabel)).toEqual(['M', 'V', 'E', 'A']);
+    expect(
+      ORISTUDIO_CP_LINE_TYPE_ACTIONS.filter((action) => action.placement === 'hidden-ui-only').map(
+        (action) => action.railLabel
+      )
+    ).toEqual(['U']);
+
+    // The rail is their only home, and they lead it (group order 5).
+    const rail = cpRailActions();
+    expect(rail.filter((action) => action.kind === 'line-type')).toHaveLength(shown.length);
+    expect(rail.slice(0, shown.length).map((action) => action.id)).toEqual(
+      shown.map((action) => action.id)
     );
   });
 

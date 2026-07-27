@@ -4823,10 +4823,17 @@
   color: var(--cp-color-other);
 }
 
-/* Six line-type chips fit one row: they are glyphs, not icons, so they do not
-   need the tool button's footprint. */
+/* Line-type chips share a single row: they are glyphs, not icons, so they do
+   not need the tool button's footprint. Flex rather than a fixed column count
+   so the row stays correct as chips are shown or hidden. */
 .cp-tool-rail__buttons[data-group='line-type'] {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  display: flex;
+  gap: 4px;
+}
+
+.cp-tool-rail__buttons[data-group='line-type'] > * {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .cp-tool-rail__button[data-line-color='None'] {
