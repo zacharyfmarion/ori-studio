@@ -56,6 +56,7 @@ import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
+import type { InlineSimulation } from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import type {
   OristudioBpDocumentState,
   OristudioBpEditingSurface,
@@ -409,6 +410,19 @@ export interface CreasePatternSliceState {
    */
   oristudioCpAnnotations: CanvasAnnotation[];
   oristudioCpSelectedAnnotationId: string | null;
+  /**
+   * Superset feature: live simulations of individual crease-pattern regions,
+   * placed on the Edit canvas. Session-only — deliberately not persisted, since
+   * a window is a scratch tool rather than document content. The heavy half (the
+   * captured fold) lives outside the store, in `inlineSimulationRuntime`.
+   */
+  oristudioCpInlineSimulations: InlineSimulation[];
+  /**
+   * The window that currently owns the solver. At most one runs at a time: the
+   * rest hold their last rendered frame, which costs nothing, and keeps the
+   * worker to a single live session.
+   */
+  oristudioCpFocusedInlineSimulationId: string | null;
   foldArtifacts: FoldArtifacts | null;
   foldArtifactError: string | null;
   foldArtifactStatus: FoldArtifactStatus;
@@ -454,6 +468,21 @@ export interface CreasePatternSliceActions {
    * simulation mesh). Resolves false when the id no longer resolves to a segment.
    */
   simulateOristudioCpSegment: (segmentId: number) => Promise<boolean>;
+  /**
+   * Open a simulation of one crease-pattern region as a window on the Edit
+   * canvas. Resolves false when the id no longer names a region, or when the
+   * concurrent-window cap is reached.
+   */
+  addOristudioCpInlineSimulation: (segmentId: number) => Promise<boolean>;
+  updateOristudioCpInlineSimulation: (
+    id: string,
+    patch: Partial<Pick<InlineSimulation, 'box' | 'view' | 'foldPercent' | 'z'>>
+  ) => void;
+  removeOristudioCpInlineSimulation: (id: string) => void;
+  /** Hand the solver to a window, or to none. */
+  focusOristudioCpInlineSimulation: (id: string | null) => void;
+  /** Rebuild a stale window's fold from the current creases, keeping its placement. */
+  refreshOristudioCpInlineSimulation: (id: string) => Promise<boolean>;
   setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
   setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
     key: K,

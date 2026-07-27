@@ -2940,6 +2940,63 @@
   opacity: 0.42;
 }
 
+/* Inline simulation windows: a live fold placed on the crease pattern. */
+.cp-inline-simulation {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-primary);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 28%);
+}
+
+.cp-inline-simulation[data-focused] {
+  border-color: var(--accent-primary);
+}
+
+/* Same fade folded figures use, so "out of date" reads identically for both. */
+.cp-inline-simulation[data-stale] {
+  opacity: 0.42;
+}
+
+.cp-inline-simulation__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The window itself owns the drag; a browser image-drag would cancel it. */
+  touch-action: none;
+  user-select: none;
+}
+
+.cp-inline-simulation__badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  pointer-events: none;
+}
+
+.cp-inline-simulation__badge--error {
+  color: var(--status-danger);
+  border-color: var(--status-danger);
+}
+
+.cp-inline-simulation-inspector__scrub {
+  width: 96px;
+}
+
+.cp-inline-simulation-inspector__readout {
+  min-width: 34px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
 .cp-folded-form-face {
   fill: #ffff32;
   fill-opacity: 0.58;

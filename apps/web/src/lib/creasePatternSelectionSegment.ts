@@ -312,6 +312,26 @@ export function explainSelectedSegment(
 }
 
 /**
+ * The 1-based crease ids inside (or on the rim of) one region.
+ *
+ * The same containment {@link resolveSelectedSegment} matches a selection
+ * against, exposed for callers that already know which region they want — an
+ * inline simulation recording the provenance of what it is about to simulate,
+ * rather than asking which region a selection happens to be.
+ */
+export function segmentContainedLineIds(
+  document: OristudioCpDocumentSnapshot | null | undefined,
+  artifacts: FoldArtifacts | null | undefined,
+  segment: CpSegment
+): number[] {
+  if (!document || !artifacts) return [];
+  const segments = resolveCpSegments(artifacts);
+  const index = segments.findIndex((candidate) => candidate.id === segment.id);
+  if (index < 0) return [];
+  return segmentContainment(artifacts, document, segments).lineIds[index] ?? [];
+}
+
+/**
  * Resolve the current crease selection to the single border-enclosed crease
  * pattern it exactly constitutes, or `null` when the selection is empty, spans
  * more than one region, or leaves part of one unselected. The selection must be

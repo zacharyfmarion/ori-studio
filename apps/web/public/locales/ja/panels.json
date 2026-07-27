@@ -156,8 +156,8 @@
     "bringImageToFront": "画像を最前面へ",
     "buildingCreasePattern": "展開図を作成中",
     "canvasDiagnostics": "キャンバス診断",
-    "caseLabel": "ケース",
     "case_other": "ケース {{count}}",
+    "caseLabel": "ケース",
     "changeFoldCase": "折りケースを変更",
     "changeFoldedColor": "折り上がり図の色を変更",
     "changeFoldedDisplayStyle": "折り上がり図の表示スタイルを変更",
@@ -189,7 +189,6 @@
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
     "foldCase": "折りケース",
-    "foldModelAction": "モデルを折る",
     "foldedColor": {
       "back": "裏",
       "backAria": "折りの裏面の色",
@@ -200,8 +199,8 @@
     },
     "foldedDisplayStyle": "折りの表示スタイル",
     "foldedModelControls": "折りモデルの操作",
-    "foldedModelSide": "折りモデルの面",
     "foldedModels": "折りモデル",
+    "foldedModelSide": "折りモデルの面",
     "foldedState": {
       "back": "裏",
       "backShort": "B",
@@ -219,6 +218,19 @@
       "paper": "用紙",
       "transparent": "透明",
       "wire": "ワイヤー"
+    },
+    "foldModelAction": "モデルを折る",
+    "inlineSimulation": {
+      "canvasAriaLabel": "インラインシミュレーション。ドラッグで回転します。",
+      "controls": "インラインシミュレーションの操作",
+      "delete": "削除",
+      "failed": "シミュレーションに失敗しました",
+      "fold": "折り",
+      "outOfDate": "最新ではありません",
+      "pause": "一時停止",
+      "play": "再生",
+      "refresh": "現在の折り線から作り直す",
+      "resetView": "ビューをリセット"
     },
     "insertImage": "画像を挿入...",
     "linesCount_other": "{{count}} 本の線",
@@ -246,7 +258,8 @@
       "fold": "折る",
       "label": "展開図の操作",
       "saveImage": "画像として保存",
-      "simulate": "シミュレート"
+      "simulate": "シミュレート",
+      "simulateInline": "ここでシミュレート"
     },
     "sendImageToBack": "画像を最背面へ",
     "shadow": "影",

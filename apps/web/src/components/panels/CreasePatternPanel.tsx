@@ -139,6 +139,13 @@ import type { AnnotationResizeHandle } from '../../cp-workspace/annotations/anno
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
+import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
+import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
+import {
+  inlineSimulationAsTransformable,
+  isInlineSimulationStale,
+} from '../../cp-workspace/inlineSimulation/inlineSimulation';
+import { DEFAULT_SIMULATOR_VIEW } from '../../simulator/SimulatorViewport';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/CpFoldedFigureToolbar';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
@@ -1478,15 +1485,80 @@ export function CreasePatternPanel() {
         .filter((object): object is TransformableCanvasObject => object !== null),
     [generatedFoldedFigures]
   );
+  // Windows share the app-wide simulator settings rather than each carrying
+  // their own: they are views of the same paper, and per-window material would
+  // be a settings surface nobody asked for.
+  const simulatorSettings = useWorkspaceStore((state) => state.simulatorSettings);
+  const inlineSimulations = useWorkspaceStore((state) => state.oristudioCpInlineSimulations);
+  const focusedInlineSimulationId = useWorkspaceStore(
+    (state) => state.oristudioCpFocusedInlineSimulationId
+  );
+  const updateInlineSimulation = useWorkspaceStore(
+    (state) => state.updateOristudioCpInlineSimulation
+  );
+  const removeInlineSimulation = useWorkspaceStore(
+    (state) => state.removeOristudioCpInlineSimulation
+  );
+  const focusInlineSimulation = useWorkspaceStore(
+    (state) => state.focusOristudioCpInlineSimulation
+  );
+  const refreshInlineSimulation = useWorkspaceStore(
+    (state) => state.refreshOristudioCpInlineSimulation
+  );
+  const inlineSimulationObjects = useMemo(
+    () => inlineSimulations.map(inlineSimulationAsTransformable),
+    [inlineSimulations]
+  );
+  /**
+   * Which windows no longer match the creases they were built from. Derived here
+   * once per document revision rather than stamped during the edit — the same
+   * shape `staleFoldedFigureIds` uses, and for the same reason.
+   */
+  const staleInlineSimulationIds = useMemo(() => {
+    const stale = new Set<string>();
+    for (const simulation of inlineSimulations) {
+      if (isInlineSimulationStale(oristudioCpDocument?.document, simulation)) {
+        stale.add(simulation.id);
+      }
+    }
+    return stale;
+  }, [inlineSimulations, oristudioCpDocument?.document]);
   // One overlay for every canvas object, so chrome and hit-testing resolve in a
-  // single pass and the two kinds cannot both show handles at once.
+  // single pass and no two kinds can show handles at once.
   const canvasObjects = useMemo(
-    () => [...annotationObjects, ...foldedFigureObjects],
-    [annotationObjects, foldedFigureObjects]
+    () => [...annotationObjects, ...foldedFigureObjects, ...inlineSimulationObjects],
+    [annotationObjects, foldedFigureObjects, inlineSimulationObjects]
   );
   const isFoldedFigureId = useCallback(
     (id: string) => foldedFigureObjects.some((object) => object.id === id),
     [foldedFigureObjects]
+  );
+  const isInlineSimulationId = useCallback(
+    (id: string) => inlineSimulations.some((simulation) => simulation.id === id),
+    [inlineSimulations]
+  );
+  const selectedInlineSimulation = useMemo(
+    () =>
+      inlineSimulations.find((simulation) => simulation.id === focusedInlineSimulationId) ?? null,
+    [inlineSimulations, focusedInlineSimulationId]
+  );
+  const [playingInlineSimulation, setPlayingInlineSimulation] = useState(false);
+  const handleInlineSimulationBoxUpdate = useCallback(
+    (id: string, patch: CanvasObjectBoxUpdate) => {
+      const simulation = useWorkspaceStore
+        .getState()
+        .oristudioCpInlineSimulations.find((candidate) => candidate.id === id);
+      if (!simulation) return;
+      updateInlineSimulation(id, {
+        box: {
+          center: patch.center ?? simulation.box.center,
+          width: patch.width ?? simulation.box.width,
+          height: patch.height ?? simulation.box.height,
+          rotation: patch.rotation ?? simulation.box.rotation,
+        },
+      });
+    },
+    [updateInlineSimulation]
   );
   // The canvas's single selection: whichever kind currently owns it. The store
   // keeps the two ids mutually exclusive, so at most one is non-null.
@@ -1496,12 +1568,31 @@ export function CreasePatternPanel() {
       if (id === null) {
         setSelectedAnnotation(null);
         setOristudioCpActiveFoldedFigure(null);
+        setPlayingInlineSimulation(false);
+        focusInlineSimulation(null);
         return;
       }
+      if (isInlineSimulationId(id)) {
+        setOristudioCpActiveFoldedFigure(null);
+        if (id !== focusedInlineSimulationId) setPlayingInlineSimulation(false);
+        focusInlineSimulation(id);
+        return;
+      }
+      // Selecting anything else hands the solver back, so at most one window is
+      // ever live.
+      setPlayingInlineSimulation(false);
+      focusInlineSimulation(null);
       if (isFoldedFigureId(id)) setOristudioCpActiveFoldedFigure(id);
       else setSelectedAnnotation(id);
     },
-    [isFoldedFigureId, setSelectedAnnotation, setOristudioCpActiveFoldedFigure]
+    [
+      isFoldedFigureId,
+      isInlineSimulationId,
+      focusedInlineSimulationId,
+      setSelectedAnnotation,
+      setOristudioCpActiveFoldedFigure,
+      focusInlineSimulation,
+    ]
   );
   const handleFoldedFigureBoxUpdate = useCallback(
     (id: string, patch: CanvasObjectBoxUpdate) => {
@@ -1535,25 +1626,37 @@ export function CreasePatternPanel() {
   // which store the update belongs in.
   const handleCanvasObjectUpdate = useCallback(
     (id: string, patch: CanvasObjectBoxUpdate) => {
-      if (isFoldedFigureId(id)) handleFoldedFigureBoxUpdate(id, patch);
+      if (isInlineSimulationId(id)) handleInlineSimulationBoxUpdate(id, patch);
+      else if (isFoldedFigureId(id)) handleFoldedFigureBoxUpdate(id, patch);
       else handleAnnotationBoxUpdate(id, patch);
     },
-    [isFoldedFigureId, handleFoldedFigureBoxUpdate, handleAnnotationBoxUpdate]
+    [
+      isFoldedFigureId,
+      isInlineSimulationId,
+      handleFoldedFigureBoxUpdate,
+      handleInlineSimulationBoxUpdate,
+      handleAnnotationBoxUpdate,
+    ]
   );
   const beginCanvasObjectGesture = useCallback(
     (id: string) => {
+      // Windows are session-only, so a move/resize is not a document edit and
+      // takes no history checkpoint.
+      if (isInlineSimulationId(id)) return;
       if (isFoldedFigureId(id)) beginFoldedFigureGesture();
       else beginImageGesture();
     },
-    [isFoldedFigureId, beginImageGesture, beginFoldedFigureGesture]
+    [isFoldedFigureId, isInlineSimulationId, beginImageGesture, beginFoldedFigureGesture]
   );
   const commitCanvasObjectGesture = useCallback(
     (id: string, kind: 'move' | 'resize' | 'rotate' | 'crop') => {
+      if (isInlineSimulationId(id)) return;
       if (isFoldedFigureId(id)) commitFoldedFigureGesture(foldedGestureLabel(kind));
       else commitImageGesture(annotationGestureLabel(kind));
     },
     [
       isFoldedFigureId,
+      isInlineSimulationId,
       commitImageGesture,
       annotationGestureLabel,
       commitFoldedFigureGesture,
@@ -3544,6 +3647,44 @@ export function CreasePatternPanel() {
                     canCrop={canCropAnnotation}
                     onGestureStart={beginCanvasObjectGesture}
                     onGestureCommit={commitCanvasObjectGesture}
+                  />
+                )}
+                {webglOverlayView && inlineSimulations.length > 0 && (
+                  <InlineSimulationLayer
+                    simulations={inlineSimulations}
+                    focusedId={focusedInlineSimulationId}
+                    staleIds={staleInlineSimulationIds}
+                    viewSettings={simulatorSettings}
+                    playing={playingInlineSimulation}
+                    onFocus={focusInlineSimulation}
+                    onFoldPercent={(id, foldPercent) =>
+                      updateInlineSimulation(id, { foldPercent })
+                    }
+                    onPlayingChange={setPlayingInlineSimulation}
+                  />
+                )}
+                {selectedInlineSimulation && (
+                  <InlineSimulationInspector
+                    simulation={selectedInlineSimulation}
+                    container={toolbarContainer}
+                    playing={playingInlineSimulation}
+                    stale={staleInlineSimulationIds.has(selectedInlineSimulation.id)}
+                    onTogglePlay={() => setPlayingInlineSimulation((playing) => !playing)}
+                    onScrub={(percent) => {
+                      setPlayingInlineSimulation(false);
+                      updateInlineSimulation(selectedInlineSimulation.id, {
+                        foldPercent: percent,
+                      });
+                    }}
+                    onResetView={() =>
+                      updateInlineSimulation(selectedInlineSimulation.id, {
+                        view: DEFAULT_SIMULATOR_VIEW,
+                      })
+                    }
+                    onRefresh={() =>
+                      void refreshInlineSimulation(selectedInlineSimulation.id)
+                    }
+                    onDelete={() => removeInlineSimulation(selectedInlineSimulation.id)}
                   />
                 )}
                 {annotationsInteractive && selectedCpImage && !editingTextId && (

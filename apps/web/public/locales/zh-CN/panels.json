@@ -156,8 +156,8 @@
     "bringImageToFront": "将图像置于顶层",
     "buildingCreasePattern": "正在生成折痕图",
     "canvasDiagnostics": "画布诊断",
-    "caseLabel": "情形",
     "case_other": "情形 {{count}}",
+    "caseLabel": "情形",
     "changeFoldCase": "更改折叠情形",
     "changeFoldedColor": "更改折叠模型颜色",
     "changeFoldedDisplayStyle": "更改折叠显示样式",
@@ -189,7 +189,6 @@
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
     "foldCase": "折叠情形",
-    "foldModelAction": "折叠模型",
     "foldedColor": {
       "back": "背面",
       "backAria": "折叠背面颜色",
@@ -200,8 +199,8 @@
     },
     "foldedDisplayStyle": "折叠显示样式",
     "foldedModelControls": "折叠模型控件",
-    "foldedModelSide": "折叠模型侧面",
     "foldedModels": "折叠模型",
+    "foldedModelSide": "折叠模型侧面",
     "foldedState": {
       "back": "背面",
       "backShort": "B",
@@ -219,6 +218,19 @@
       "paper": "纸张",
       "transparent": "透明",
       "wire": "线框"
+    },
+    "foldModelAction": "折叠模型",
+    "inlineSimulation": {
+      "canvasAriaLabel": "内嵌模拟。拖动可旋转。",
+      "controls": "内嵌模拟控件",
+      "delete": "删除",
+      "failed": "模拟失败",
+      "fold": "折叠",
+      "outOfDate": "已过期",
+      "pause": "暂停",
+      "play": "播放",
+      "refresh": "根据当前折痕重新生成",
+      "resetView": "重置视图"
     },
     "insertImage": "插入图像...",
     "linesCount_other": "{{count}} 条线",
@@ -246,7 +258,8 @@
       "fold": "折叠",
       "label": "折痕图操作",
       "saveImage": "保存为图像",
-      "simulate": "模拟"
+      "simulate": "模拟",
+      "simulateInline": "在此模拟"
     },
     "sendImageToBack": "将图像置于底层",
     "shadow": "阴影",

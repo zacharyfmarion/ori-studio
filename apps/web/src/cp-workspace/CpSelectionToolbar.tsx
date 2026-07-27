@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { FileDown, ImageDown, Origami, Play } from 'lucide-react';
+import { FileDown, ImageDown, Origami, Play, PictureInPicture2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
@@ -86,6 +86,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const foldOristudioCpDocument = useWorkspaceStore((s) => s.foldOristudioCpDocument);
   const exportSegment = useWorkspaceStore((s) => s.exportOristudioCpSegment);
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
+  const simulateInline = useWorkspaceStore((s) => s.addOristudioCpInlineSimulation);
   const clearSelection = useWorkspaceStore((s) => s.clearOristudioCpSelection);
 
   // Segments-only artifacts (no simulation mesh — see ensureCpSegmentationArtifacts).
@@ -172,6 +173,17 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         onClick={() => runAndDismiss(() => void exportSegment('png', segmentId))}
       >
         <ImageDown size={14} />
+      </IconButton>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t(
+          'panels:creasePattern.selectionToolbar.simulateInline',
+          'Simulate here'
+        )}
+        onClick={() => runAndDismiss(() => void simulateInline(segmentId))}
+      >
+        <PictureInPicture2 size={14} />
       </IconButton>
       <IconButton
         size="sm"

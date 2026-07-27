@@ -156,8 +156,8 @@
     "bringImageToFront": "이미지를 맨 앞으로 가져오기",
     "buildingCreasePattern": "전개도 생성 중",
     "canvasDiagnostics": "캔버스 진단",
-    "caseLabel": "케이스",
     "case_other": "케이스 {{count}}",
+    "caseLabel": "케이스",
     "changeFoldCase": "접기 경우 변경",
     "changeFoldedColor": "접힌 모델 색상 변경",
     "changeFoldedDisplayStyle": "접힌 표시 스타일 변경",
@@ -189,7 +189,6 @@
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
     "foldCase": "접기 케이스",
-    "foldModelAction": "모델 접기",
     "foldedColor": {
       "back": "뒷면",
       "backAria": "접힌 뒷면 색상",
@@ -200,8 +199,8 @@
     },
     "foldedDisplayStyle": "접힌 표시 스타일",
     "foldedModelControls": "접힌 모델 컨트롤",
-    "foldedModelSide": "접힌 모델 면",
     "foldedModels": "접힌 모델",
+    "foldedModelSide": "접힌 모델 면",
     "foldedState": {
       "back": "뒷면",
       "backShort": "B",
@@ -219,6 +218,19 @@
       "paper": "종이",
       "transparent": "투명",
       "wire": "와이어"
+    },
+    "foldModelAction": "모델 접기",
+    "inlineSimulation": {
+      "canvasAriaLabel": "인라인 시뮬레이션. 드래그하여 회전합니다.",
+      "controls": "인라인 시뮬레이션 컨트롤",
+      "delete": "삭제",
+      "failed": "시뮬레이션 실패",
+      "fold": "접기",
+      "outOfDate": "오래됨",
+      "pause": "일시정지",
+      "play": "재생",
+      "refresh": "현재 주름선으로 다시 만들기",
+      "resetView": "보기 초기화"
     },
     "insertImage": "이미지 삽입...",
     "linesCount_other": "선 {{count}}개",
@@ -246,7 +258,8 @@
       "fold": "접기",
       "label": "접힘 패턴 작업",
       "saveImage": "이미지로 저장",
-      "simulate": "시뮬레이션"
+      "simulate": "시뮬레이션",
+      "simulateInline": "여기에서 시뮬레이션"
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
     "shadow": "그림자",

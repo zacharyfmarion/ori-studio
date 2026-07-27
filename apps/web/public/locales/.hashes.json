@@ -1832,7 +1832,18 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "toasts:global.folding": "73700a8434f9",
-    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40"
+    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40",
+    "panels:creasePattern.inlineSimulation.canvasAriaLabel": "f11299094328",
+    "panels:creasePattern.inlineSimulation.controls": "555f4974aede",
+    "panels:creasePattern.inlineSimulation.delete": "e2d0a54968ea",
+    "panels:creasePattern.inlineSimulation.failed": "92ed0ed1a6b3",
+    "panels:creasePattern.inlineSimulation.fold": "92c122b5b1e2",
+    "panels:creasePattern.inlineSimulation.outOfDate": "c8f1506a7d60",
+    "panels:creasePattern.inlineSimulation.pause": "858e4ba7a29f",
+    "panels:creasePattern.inlineSimulation.play": "436e61016e26",
+    "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
+    "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3667,7 +3678,18 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "toasts:global.folding": "73700a8434f9",
-    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40"
+    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40",
+    "panels:creasePattern.inlineSimulation.canvasAriaLabel": "f11299094328",
+    "panels:creasePattern.inlineSimulation.controls": "555f4974aede",
+    "panels:creasePattern.inlineSimulation.delete": "e2d0a54968ea",
+    "panels:creasePattern.inlineSimulation.failed": "92ed0ed1a6b3",
+    "panels:creasePattern.inlineSimulation.fold": "92c122b5b1e2",
+    "panels:creasePattern.inlineSimulation.outOfDate": "c8f1506a7d60",
+    "panels:creasePattern.inlineSimulation.pause": "858e4ba7a29f",
+    "panels:creasePattern.inlineSimulation.play": "436e61016e26",
+    "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
+    "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5528,7 +5550,18 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "toasts:global.folding": "73700a8434f9",
-    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40"
+    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40",
+    "panels:creasePattern.inlineSimulation.canvasAriaLabel": "f11299094328",
+    "panels:creasePattern.inlineSimulation.controls": "555f4974aede",
+    "panels:creasePattern.inlineSimulation.delete": "e2d0a54968ea",
+    "panels:creasePattern.inlineSimulation.failed": "92ed0ed1a6b3",
+    "panels:creasePattern.inlineSimulation.fold": "92c122b5b1e2",
+    "panels:creasePattern.inlineSimulation.outOfDate": "c8f1506a7d60",
+    "panels:creasePattern.inlineSimulation.pause": "858e4ba7a29f",
+    "panels:creasePattern.inlineSimulation.play": "436e61016e26",
+    "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
+    "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7389,7 +7422,18 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "toasts:global.folding": "73700a8434f9",
-    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40"
+    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40",
+    "panels:creasePattern.inlineSimulation.canvasAriaLabel": "f11299094328",
+    "panels:creasePattern.inlineSimulation.controls": "555f4974aede",
+    "panels:creasePattern.inlineSimulation.delete": "e2d0a54968ea",
+    "panels:creasePattern.inlineSimulation.failed": "92ed0ed1a6b3",
+    "panels:creasePattern.inlineSimulation.fold": "92c122b5b1e2",
+    "panels:creasePattern.inlineSimulation.outOfDate": "c8f1506a7d60",
+    "panels:creasePattern.inlineSimulation.pause": "858e4ba7a29f",
+    "panels:creasePattern.inlineSimulation.play": "436e61016e26",
+    "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
+    "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9250,7 +9294,18 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "toasts:global.folding": "73700a8434f9",
-    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40"
+    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40",
+    "panels:creasePattern.inlineSimulation.canvasAriaLabel": "f11299094328",
+    "panels:creasePattern.inlineSimulation.controls": "555f4974aede",
+    "panels:creasePattern.inlineSimulation.delete": "e2d0a54968ea",
+    "panels:creasePattern.inlineSimulation.failed": "92ed0ed1a6b3",
+    "panels:creasePattern.inlineSimulation.fold": "92c122b5b1e2",
+    "panels:creasePattern.inlineSimulation.outOfDate": "c8f1506a7d60",
+    "panels:creasePattern.inlineSimulation.pause": "858e4ba7a29f",
+    "panels:creasePattern.inlineSimulation.play": "436e61016e26",
+    "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
+    "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11111,7 +11166,18 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "toasts:global.folding": "73700a8434f9",
-    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40"
+    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40",
+    "panels:creasePattern.inlineSimulation.canvasAriaLabel": "f11299094328",
+    "panels:creasePattern.inlineSimulation.controls": "555f4974aede",
+    "panels:creasePattern.inlineSimulation.delete": "e2d0a54968ea",
+    "panels:creasePattern.inlineSimulation.failed": "92ed0ed1a6b3",
+    "panels:creasePattern.inlineSimulation.fold": "92c122b5b1e2",
+    "panels:creasePattern.inlineSimulation.outOfDate": "c8f1506a7d60",
+    "panels:creasePattern.inlineSimulation.pause": "858e4ba7a29f",
+    "panels:creasePattern.inlineSimulation.play": "436e61016e26",
+    "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
+    "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12972,7 +13038,18 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "toasts:global.folding": "73700a8434f9",
-    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40"
+    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40",
+    "panels:creasePattern.inlineSimulation.canvasAriaLabel": "f11299094328",
+    "panels:creasePattern.inlineSimulation.controls": "555f4974aede",
+    "panels:creasePattern.inlineSimulation.delete": "e2d0a54968ea",
+    "panels:creasePattern.inlineSimulation.failed": "92ed0ed1a6b3",
+    "panels:creasePattern.inlineSimulation.fold": "92c122b5b1e2",
+    "panels:creasePattern.inlineSimulation.outOfDate": "c8f1506a7d60",
+    "panels:creasePattern.inlineSimulation.pause": "858e4ba7a29f",
+    "panels:creasePattern.inlineSimulation.play": "436e61016e26",
+    "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
+    "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14807,6 +14884,17 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "toasts:global.folding": "73700a8434f9",
-    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40"
+    "panels:creasePattern.refoldFoldedModelAction": "5effabec2a40",
+    "panels:creasePattern.inlineSimulation.canvasAriaLabel": "f11299094328",
+    "panels:creasePattern.inlineSimulation.controls": "555f4974aede",
+    "panels:creasePattern.inlineSimulation.delete": "e2d0a54968ea",
+    "panels:creasePattern.inlineSimulation.failed": "92ed0ed1a6b3",
+    "panels:creasePattern.inlineSimulation.fold": "92c122b5b1e2",
+    "panels:creasePattern.inlineSimulation.outOfDate": "c8f1506a7d60",
+    "panels:creasePattern.inlineSimulation.pause": "858e4ba7a29f",
+    "panels:creasePattern.inlineSimulation.play": "436e61016e26",
+    "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
+    "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
   }
 }
