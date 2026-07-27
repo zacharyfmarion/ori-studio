@@ -149,7 +149,6 @@
     "yScale": "Escala Y"
   },
   "creasePattern": {
-    "activeCreaseLineType": "Tipo de línea de pliegue activo",
     "addImage": "Añadir imagen",
     "alpha": "Alfa",
     "angleBisectorSelect2Lines": "Bisectriz de ángulo: seleccione 2 líneas",
@@ -204,7 +203,6 @@
     "duplicate": "Duplicar",
     "duplicateFoldedModel": "Duplicar modelo plegado",
     "duplicateFoldedModelAction": "Duplicar modelo plegado",
-    "extraLineColors": "Colores de línea adicionales",
     "flip": "Voltear",
     "flipFoldedModel": "Voltear modelo plegado",
     "fold": "Plegar",
@@ -248,7 +246,6 @@
     "linesCount_one": "{{count}} línea",
     "linesCount_many": "{{count}} líneas",
     "linesCount_other": "{{count}} líneas",
-    "moreLineColors": "Más colores de línea",
     "moveAnnotation": "Mover anotación",
     "moveFoldedForm": "Mover forma plegada",
     "noCreasePattern": "No hay patrón de pliegues",

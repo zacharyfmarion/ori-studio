@@ -149,7 +149,6 @@
     "yScale": "Y スケール"
   },
   "creasePattern": {
-    "activeCreaseLineType": "アクティブな折り線の種類",
     "addImage": "画像を追加",
     "alpha": "アルファ",
     "angleBisectorSelect2Lines": "角の二等分線：2本の線を選択",
@@ -192,7 +191,6 @@
     "duplicate": "複製",
     "duplicateFoldedModel": "折りモデルを複製",
     "duplicateFoldedModelAction": "折り上がり図を複製",
-    "extraLineColors": "追加の線の色",
     "flip": "反転",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
@@ -234,7 +232,6 @@
     "goToFoldedCase": "折りケースへ移動",
     "insertImage": "画像を挿入...",
     "linesCount_other": "{{count}} 本の線",
-    "moreLineColors": "その他の線の色",
     "moveAnnotation": "注釈を移動",
     "moveFoldedForm": "折り上がり図を移動",
     "noCreasePattern": "展開図がありません",

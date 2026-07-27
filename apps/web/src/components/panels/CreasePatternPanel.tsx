@@ -8,8 +8,6 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { cpActionLabel } from '../../i18n/cpVocab';
-import { cpPaletteLabel } from '../../i18n/paletteLabels';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -31,7 +29,6 @@ import {
 } from '../../keyboard/shortcutRuntime';
 import {
   shortcutLabelForAction,
-  type ShortcutOverrides,
   type ViewportShortcutId,
 } from '../../keyboard/shortcuts';
 import type {
@@ -56,7 +53,6 @@ import {
 } from '../../lib/oristudioCpDiagnostics';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
-  ORISTUDIO_CP_LINE_TYPE_ACTIONS,
   cpActionByOperation,
   cpActionById,
   cpActionByUpstreamMouseMode,
@@ -79,7 +75,6 @@ import {
   evaluateOrieditaRatioExpression,
   type OristudioCpToolOptions,
 } from '../../lib/oristudioCpToolSettings';
-import { ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE } from '../../lib/oristudioCpPalette';
 import {
   activeLineColorFromOrieditaMetadata,
   activeMouseModeFromOrieditaMetadata,
@@ -221,6 +216,14 @@ function formatZoom(scale: number): string {
 }
 
 const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
+
+/**
+ * View-rotation step per button press or key: 11.25 degrees, matching
+ * Oriedita's default angle-system divider (180/16). Sixteen presses make a
+ * half turn, and the sequence passes through 22.5 and 45 — the angles
+ * origami work is laid out along.
+ */
+const VIEW_ROTATION_STEP_RADIANS = Math.PI / 16;
 
 const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[] = [
   'Paper5',
@@ -608,117 +611,6 @@ function cpCreasesUnderPreviewEndpoints(
   return [...found].map((i) => ({ a: lineSegments[i].a, b: lineSegments[i].b }));
 }
 
-function CpLineTypeToolbar({
-  activeLineColor,
-  onSelectLineColor,
-  shortcutOverrides,
-}: {
-  activeLineColor: OristudioCpLineColor;
-  onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
-  shortcutOverrides: ShortcutOverrides;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="cp-line-type-toolbar" aria-label={t('panels:creasePattern.activeCreaseLineType', 'Active crease line type')}>
-      {ORISTUDIO_CP_LINE_TYPE_ACTIONS.map((action) => {
-        const shortcut = shortcutLabelForAction(action.id, shortcutOverrides);
-        return (
-          <IconButton
-            key={action.id}
-            size="sm"
-            variant="toolbar"
-            title={shortcut ? `${cpActionLabel(t, action)} (${shortcut})` : cpActionLabel(t, action)}
-            aria-label={cpActionLabel(t, action)}
-            className="cp-line-type-toolbar__button"
-            data-line-color={action.lineColor}
-            isActive={activeLineColor === action.lineColor}
-            onClick={() => onSelectLineColor(action.lineColor)}
-          >
-            <span aria-hidden="true">{action.railLabel}</span>
-          </IconButton>
-        );
-      })}
-      <CpLineColorMenuButton
-        activeLineColor={activeLineColor}
-        onSelectLineColor={onSelectLineColor}
-      />
-    </div>
-  );
-}
-
-function CpLineColorMenuButton({
-  activeLineColor,
-  onSelectLineColor,
-}: {
-  activeLineColor: OristudioCpLineColor;
-  onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
-}) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const activeExtraEntry = ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.find(
-    (entry) => entry.lineColor === activeLineColor
-  );
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (menuRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open]);
-
-  const chooseColor = (lineColor: OristudioCpLineColor) => {
-    onSelectLineColor(lineColor);
-    setOpen(false);
-  };
-
-  return (
-    <div className="viewport-toolbar__menu-anchor cp-line-color-menu" ref={menuRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={activeExtraEntry ? activeExtraEntry.label : t('panels:creasePattern.moreLineColors', 'More line colors')}
-        aria-label={t('panels:creasePattern.moreLineColors', 'More line colors')}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="cp-line-color-menu__trigger"
-        data-line-color={activeExtraEntry?.lineColor}
-        isActive={Boolean(activeExtraEntry)}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span className="cp-line-color-menu__trigger-swatch" aria-hidden="true" />
-      </IconButton>
-      {open && (
-        <div
-          className="viewport-toolbar__dropdown cp-line-color-menu__panel"
-          role="menu"
-          aria-label={t('panels:creasePattern.extraLineColors', 'Extra line colors')}
-        >
-          {ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              className="cp-line-color-menu__swatch-button"
-              data-active={activeLineColor === entry.lineColor ? true : undefined}
-              data-line-color={entry.lineColor}
-              role="menuitemradio"
-              aria-checked={activeLineColor === entry.lineColor}
-              aria-label={cpPaletteLabel(t, entry)}
-              onClick={() => chooseColor(entry.lineColor)}
-            >
-              <span className="cp-line-color-menu__swatch" aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function FoldedFigureMenuButton({
   figures,
   activeFigure,
@@ -1011,10 +903,16 @@ export function CreasePatternPanel() {
   // controls drive react-zoom-pan-pinch, which the GL camera ignores). A bumped nonce
   // re-fires the same command.
   const [webglCameraCommand, setWebglCameraCommand] = useState<CameraCommand | null>(null);
+  // Hand tool: a plain drag pans the canvas instead of running the active
+  // tool. Accel-drag pan stays available whether or not this is on.
+  const [panToolActive, setPanToolActive] = useState(false);
+  // Mirrors the canvas camera's rotation so the toolbar can show the angle and
+  // offer a reset; the camera itself remains the source of truth.
+  const [viewRotation, setViewRotation] = useState(0);
   const cameraCommandNonceRef = useRef(0);
   const sendWebglCameraCommand = useCallback(
-    (kind: CameraCommand['kind'], percent?: number) => {
-      setWebglCameraCommand({ kind, percent, nonce: ++cameraCommandNonceRef.current });
+    (kind: CameraCommand['kind'], percent?: number, radians?: number) => {
+      setWebglCameraCommand({ kind, percent, radians, nonce: ++cameraCommandNonceRef.current });
     },
     []
   );
@@ -1043,7 +941,6 @@ export function CreasePatternPanel() {
     window.clearTimeout(overlaySettleTimerRef.current);
     overlaySettleTimerRef.current = window.setTimeout(() => setWebglOverlayView(views.model), 100);
   }, []);
-  const [spacePressed, setSpacePressed] = useState(false);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
   const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
@@ -1376,6 +1273,9 @@ export function CreasePatternPanel() {
     (state) => state.transformOristudioCpSelection
   );
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
+  // The fold chord lands on FoldingEstimate (Fold is the deduped duplicate);
+  // `handleCpShortcutAction` routes both to the real fold path.
+  const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutOverrides);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -2146,6 +2046,9 @@ export function CreasePatternPanel() {
   const handleCpToolAction = useCallback(
     (action: OristudioCpActionDefinition) => {
       setPendingLengthenLineId(null);
+      // The hand tool and a crease tool are mutually exclusive, so the rail
+      // and the toolbar never both read as active.
+      setPanToolActive(false);
       if (action.kind === 'line-type') {
         setActiveCpLineColor(action.lineColor);
         return;
@@ -3272,6 +3175,18 @@ export function CreasePatternPanel() {
         case 'viewport.fit':
           sendWebglCameraCommand('fit');
           break;
+        case 'viewport.pan':
+          setPanToolActive((active) => !active);
+          break;
+        case 'viewport.rotateCcw':
+          sendWebglCameraCommand('rotate-by', undefined, -VIEW_ROTATION_STEP_RADIANS);
+          break;
+        case 'viewport.rotateCw':
+          sendWebglCameraCommand('rotate-by', undefined, VIEW_ROTATION_STEP_RADIANS);
+          break;
+        case 'viewport.resetRotation':
+          sendWebglCameraCommand('rotate-reset');
+          break;
         case 'viewport.actualSize':
           sendWebglCameraCommand('set-percent', 100);
           break;
@@ -3299,6 +3214,13 @@ export function CreasePatternPanel() {
       // While typing in the inline text editor, let it own ESC (commit + deselect);
       // don't also run the panel's ESC (which would clear selection / cancel the tool).
       if (event.key === 'Escape' && editableCp && !interactive) {
+        // Leaving the hand tool comes first: it is a mode, and Escape is the
+        // expected way out of one.
+        if (panToolActive) {
+          event.preventDefault();
+          setPanToolActive(false);
+          return;
+        }
         // A selection takes priority: Escape deselects for *any* resting tool (not
         // just CreaseSelect) as long as no gesture is in progress — a second Escape
         // then cancels/deactivates the tool. Matches Oriedita, and fixes "select-all,
@@ -3332,28 +3254,11 @@ export function CreasePatternPanel() {
         }
       }
 
-      if (event.key === ' ' && !interactive) {
-        event.preventDefault();
-        setSpacePressed(true);
-        return;
-      }
-
     };
-
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === ' ') setSpacePressed(false);
-    };
-    const clearSpace = () => setSpacePressed(false);
 
     container.addEventListener('keydown', onKeyDown);
-    container.addEventListener('keyup', onKeyUp);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', clearSpace);
     return () => {
       container.removeEventListener('keydown', onKeyDown);
-      container.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', clearSpace);
     };
   }, [
     activeCpCommand?.operationId,
@@ -3364,6 +3269,7 @@ export function CreasePatternPanel() {
     editableCp,
     editableSelectionSize,
     hasCreasePattern,
+    panToolActive,
     pendingLengthenLineId,
     pendingSquareBisectorLineIds.length,
   ]);
@@ -3391,7 +3297,6 @@ export function CreasePatternPanel() {
           'panel-body cp-panel__body',
           editableCp ? 'cp-panel__body--with-tools' : '',
         ].join(' ')}
-        data-space-pan={spacePressed || undefined}
         tabIndex={-1}
         onPointerDownCapture={(event) => {
           setActiveShortcutViewportSurface('crease-pattern');
@@ -3534,6 +3439,8 @@ export function CreasePatternPanel() {
                   operationFrame={cpOperationFrameStrokes}
                   focusModelBounds={cpDiagnosticFocusBounds}
                   cameraCommand={webglCameraCommand}
+                  panToolActive={panToolActive}
+                  onRotationChange={setViewRotation}
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
                   onEraseBox={(points) => {
@@ -3632,15 +3539,25 @@ export function CreasePatternPanel() {
                 zoomOut={() => sendWebglCameraCommand('zoom-out')}
                 fitToView={() => sendWebglCameraCommand('fit')}
                 setZoomLevel={setZoomLevel}
+                panToolActive={panToolActive}
+                togglePanTool={() => setPanToolActive((active) => !active)}
+                panShortcutLabel={shortcutLabelForAction('viewport.pan', shortcutOverrides)}
+                viewRotation={viewRotation}
+                rotateView={(direction) =>
+                  sendWebglCameraCommand(
+                    'rotate-by',
+                    undefined,
+                    direction * VIEW_ROTATION_STEP_RADIANS
+                  )
+                }
+                setViewRotation={(degrees) =>
+                  sendWebglCameraCommand('rotate-to', undefined, (degrees * Math.PI) / 180)
+                }
+                rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutOverrides)}
+                rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutOverrides)}
               >
                 {editableCp && (
                   <>
-                    <ViewportToolbarSeparator />
-                    <CpLineTypeToolbar
-                      activeLineColor={activeCpLineColor}
-                      onSelectLineColor={setActiveCpLineColor}
-                      shortcutOverrides={shortcutOverrides}
-                    />
                     <ViewportToolbarSeparator />
                     <IconButton
                       size="sm"
@@ -3666,7 +3583,9 @@ export function CreasePatternPanel() {
                       <IconButton
                         size="sm"
                         variant="toolbar"
-                        title={t('panels:creasePattern.fold', 'Fold')}
+                        title={foldShortcutLabel
+                          ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
+                          : t('panels:creasePattern.fold', 'Fold')}
                         disabled={!canFoldSelectedModel}
                         onClick={handleFoldModel}
                       >

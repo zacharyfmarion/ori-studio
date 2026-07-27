@@ -1127,6 +1127,46 @@
         "0": "Differences of radii between concentric and selected circles are equal."
       }
     },
+    "colBlackAction": {
+      "intro": {
+        "0": "Draw new creases as edge (border) lines."
+      },
+      "notes": {
+        "0": "Sets the active line type; it stays in effect until another type is picked."
+      }
+    },
+    "colBlueAction": {
+      "intro": {
+        "0": "Draw new creases as valley folds."
+      },
+      "notes": {
+        "0": "Sets the active line type; it stays in effect until another type is picked."
+      }
+    },
+    "colCyanAction": {
+      "intro": {
+        "0": "Draw new creases as auxiliary (construction) lines."
+      },
+      "notes": {
+        "0": "Auxiliary lines are guides — they are not folded."
+      }
+    },
+    "colRedAction": {
+      "intro": {
+        "0": "Draw new creases as mountain folds."
+      },
+      "notes": {
+        "0": "Sets the active line type; it stays in effect until another type is picked."
+      }
+    },
+    "lineColorAction": {
+      "intro": {
+        "0": "Draw new creases as unassigned lines."
+      },
+      "notes": {
+        "0": "Unassigned creases have no fold direction yet, so foldability checks skip them."
+      }
+    },
     "continuousSymmetricDrawAction": {
       "intro": {
         "0": "Draw a line reflecting through crease lines."

@@ -2192,12 +2192,15 @@
 }
 
 /* Transient marquee (box-select) rectangle over the WebGL surface. */
+/* The marquee outlines a box that is axis-aligned in *model* space, so under a
+   rotated view it is drawn rotated about its origin corner to match. */
 .cp-webgl-marquee {
   position: absolute;
   z-index: 6;
   pointer-events: none;
   border: 1px solid var(--accent-primary);
   background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  transform-origin: 0 0;
 }
 
 /* Text-tool drag: dashed outline (a box being drawn), no fill tint. */
@@ -4433,22 +4436,10 @@
   margin-inline: 1px;
 }
 
-.cp-line-type-toolbar {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
 .cp-folded-figure-actions {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-}
-
-.cp-line-type-toolbar__button {
-  min-width: 28px;
-  font-size: 0.72rem;
-  font-weight: 800;
 }
 
 .cp-folded-model-status {
@@ -4470,46 +4461,6 @@
 
 .cp-folded-model-status[data-folded-model-status='error'] {
   color: var(--status-danger);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Black0'] {
-  color: var(--fold-border);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Cyan3'] {
-  color: var(--fold-flat);
-}
-
-.cp-line-type-toolbar__button[data-line-color='None'] {
-  color: var(--fold-unassigned);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Black0'] {
-  color: var(--fold-border);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Cyan3'] {
-  color: var(--fold-flat);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='None'] {
-  color: var(--fold-unassigned);
 }
 
 .cp-view-controls-panel__empty {
@@ -4772,6 +4723,37 @@
   color: var(--text-primary);
 }
 
+/* Editable view-rotation readout. Sits quietly like the zoom percent until
+   focused, so it reads as a value rather than a form field. */
+.viewport-toolbar__rotation-input {
+  height: 28px;
+  /* Sized to the widest reachable value, -168.75 degrees, which needs 48px of
+     text; the rest is the 1px border and padding either side. */
+  width: 52px;
+  padding: 0 1px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  /* `font` shorthand for the family (inputs default to the system UI font),
+     then the toolbar's control size — inheriting alone would take the
+     container's 1rem and render larger than the zoom readout beside it. */
+  font: inherit;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.viewport-toolbar__rotation-input:hover {
+  border-color: var(--border-default);
+}
+
+.viewport-toolbar__rotation-input:focus,
+.viewport-toolbar__rotation-input:focus-visible {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
 .viewport-toolbar__zoom-button:hover,
 .viewport-toolbar__dropdown-item:hover {
   background: var(--bg-surface);
@@ -4796,102 +4778,26 @@
   transform: translateX(-50%);
 }
 
-.cp-line-color-menu__trigger {
-  min-width: 28px;
-  width: 28px;
+
+/* Line-type chips share a single row: they are glyphs, not icons, so they do
+   not need the tool button's footprint. Flex rather than a fixed column count
+   so the row stays correct as chips are shown or hidden. */
+.cp-tool-rail__buttons[data-group='line-type'] {
+  display: flex;
+  gap: 4px;
 }
 
-.cp-line-color-menu__trigger-swatch,
-.cp-line-color-menu__swatch {
-  display: block;
-  flex: 0 0 auto;
-  aspect-ratio: 1 / 1;
-  box-sizing: border-box;
-  border-radius: var(--radius-sm);
-  background: currentColor;
-  box-shadow:
-    0 0 0 1px rgba(16, 20, 23, 0.38),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-}
-
-.cp-line-color-menu__trigger-swatch {
-  inline-size: 14px;
-  block-size: 14px;
-  min-inline-size: 14px;
-  max-inline-size: 14px;
-  background: conic-gradient(
-    from 90deg,
-    var(--cp-color-orange),
-    var(--cp-color-magenta),
-    var(--cp-color-green),
-    var(--cp-color-yellow),
-    var(--cp-color-purple),
-    var(--cp-color-other),
-    var(--cp-color-orange)
-  );
-}
-
-.cp-line-color-menu__trigger[data-line-color] .cp-line-color-menu__trigger-swatch {
-  background: currentColor;
-}
-
-.cp-line-color-menu [data-line-color='Orange4'] {
-  color: var(--cp-color-orange);
-}
-
-.cp-line-color-menu [data-line-color='Magenta5'] {
-  color: var(--cp-color-magenta);
-}
-
-.cp-line-color-menu [data-line-color='Green6'] {
-  color: var(--cp-color-green);
-}
-
-.cp-line-color-menu [data-line-color='Yellow7'] {
-  color: var(--cp-color-yellow);
-}
-
-.cp-line-color-menu [data-line-color='Purple8'] {
-  color: var(--cp-color-purple);
-}
-
-.cp-line-color-menu [data-line-color='Other9'] {
-  color: var(--cp-color-other);
-}
-
-.cp-line-color-menu__panel {
-  grid-template-columns: repeat(3, 28px);
+.cp-tool-rail__buttons[data-group='line-type'] > * {
+  flex: 1 1 0;
   min-width: 0;
-  padding: 6px;
-  gap: 5px;
 }
 
-.cp-line-color-menu__swatch-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  cursor: pointer;
+.cp-tool-rail__button[data-line-color='None'] {
+  color: var(--fold-unassigned);
 }
 
-.cp-line-color-menu__swatch-button:hover {
-  background: var(--bg-surface);
-}
-
-.cp-line-color-menu__swatch-button[data-active] {
-  border-color: color-mix(in srgb, currentColor 48%, transparent);
-  background: color-mix(in srgb, currentColor 16%, transparent);
-}
-
-.cp-line-color-menu__swatch {
-  inline-size: 16px;
-  block-size: 16px;
-  min-inline-size: 16px;
-  max-inline-size: 16px;
+.cp-tool-rail__button[data-active][data-line-color='None'] {
+  color: var(--fold-unassigned);
 }
 
 .viewport-toolbar__dropdown-item {

@@ -149,7 +149,6 @@
     "yScale": "Escala Y"
   },
   "creasePattern": {
-    "activeCreaseLineType": "Tipo de linha de vinco ativa",
     "addImage": "Adicionar imagem",
     "alpha": "Alfa",
     "angleBisectorSelect2Lines": "Bissetriz: selecione 2 linhas",
@@ -204,7 +203,6 @@
     "duplicate": "Duplicar",
     "duplicateFoldedModel": "Duplicar modelo dobrado",
     "duplicateFoldedModelAction": "Duplicar modelo dobrado",
-    "extraLineColors": "Cores de linha extras",
     "flip": "Espelhar",
     "flipFoldedModel": "Virar modelo dobrado",
     "fold": "Dobrar",
@@ -248,7 +246,6 @@
     "linesCount_one": "{{count}} linha",
     "linesCount_many": "{{count}} linhas",
     "linesCount_other": "{{count}} linhas",
-    "moreLineColors": "Mais cores de linha",
     "moveAnnotation": "Mover anotação",
     "moveFoldedForm": "Mover forma dobrada",
     "noCreasePattern": "Nenhum padrão de vincos",

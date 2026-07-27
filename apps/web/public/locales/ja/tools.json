@@ -111,6 +111,12 @@
   },
   "viewport": {
     "fit": "フィット",
+    "pan": "パン",
+    "panWithModifier": "パン — または {{modifier}} を押しながらドラッグ",
+    "panWithShortcut": "パン ({{shortcut}}) — または {{modifier}} を押しながらドラッグ",
+    "rotateCcw": "左に回転",
+    "rotateCw": "右に回転",
+    "rotation": "ビューの回転角度（度）",
     "zoomIn": "拡大",
     "zoomOut": "縮小"
   }

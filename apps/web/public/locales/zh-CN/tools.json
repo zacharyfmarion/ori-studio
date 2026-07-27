@@ -111,6 +111,12 @@
   },
   "viewport": {
     "fit": "适应",
+    "pan": "平移",
+    "panWithModifier": "平移 — 或按住 {{modifier}} 拖动",
+    "panWithShortcut": "平移 ({{shortcut}}) — 或按住 {{modifier}} 拖动",
+    "rotateCcw": "向左旋转视图",
+    "rotateCw": "向右旋转视图",
+    "rotation": "视图旋转角度（度）",
     "zoomIn": "放大",
     "zoomOut": "缩小"
   }

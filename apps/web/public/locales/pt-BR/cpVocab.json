@@ -1127,6 +1127,46 @@
         "0": "As diferenças de raios entre os círculos concêntricos e os selecionados são iguais."
       }
     },
+    "colBlackAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como linhas de borda."
+      },
+      "notes": {
+        "0": "Define o tipo de linha ativo; ele permanece até outro ser escolhido."
+      }
+    },
+    "colBlueAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como vale."
+      },
+      "notes": {
+        "0": "Define o tipo de linha ativo; ele permanece até outro ser escolhido."
+      }
+    },
+    "colCyanAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como linhas auxiliares."
+      },
+      "notes": {
+        "0": "Linhas auxiliares são guias — elas não são dobradas."
+      }
+    },
+    "colRedAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como montanha."
+      },
+      "notes": {
+        "0": "Define o tipo de linha ativo; ele permanece até outro ser escolhido."
+      }
+    },
+    "lineColorAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como linhas não atribuídas."
+      },
+      "notes": {
+        "0": "Vincos não atribuídos ainda não têm direção de dobra, então as verificações de dobrabilidade os ignoram."
+      }
+    },
     "continuousSymmetricDrawAction": {
       "intro": {
         "0": "Desenhe uma linha refletindo através das linhas de vinco."

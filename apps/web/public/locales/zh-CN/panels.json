@@ -149,7 +149,6 @@
     "yScale": "Y 缩放"
   },
   "creasePattern": {
-    "activeCreaseLineType": "当前折痕线型",
     "addImage": "添加图像",
     "alpha": "透明度",
     "angleBisectorSelect2Lines": "角平分线：选择 2 条线",
@@ -192,7 +191,6 @@
     "duplicate": "复制",
     "duplicateFoldedModel": "复制折叠模型",
     "duplicateFoldedModelAction": "复制折叠模型",
-    "extraLineColors": "额外线条颜色",
     "flip": "翻转",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
@@ -234,7 +232,6 @@
     "goToFoldedCase": "转到折叠情形",
     "insertImage": "插入图像...",
     "linesCount_other": "{{count}} 条线",
-    "moreLineColors": "更多线条颜色",
     "moveAnnotation": "移动批注",
     "moveFoldedForm": "移动折叠图",
     "noCreasePattern": "无折痕图",
