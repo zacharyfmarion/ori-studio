@@ -372,6 +372,18 @@
   background: var(--border-default);
 }
 
+/* Trailing chevron on a submenu trigger; the leading slot stays the icon's. */
+.context-menu__subtrigger-arrow {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: var(--text-secondary);
+}
+
+.context-menu__item[data-highlighted] .context-menu__subtrigger-arrow {
+  color: currentcolor;
+}
+
 .panel-shell {
   display: flex;
   flex-direction: column;

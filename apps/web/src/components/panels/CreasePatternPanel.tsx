@@ -12,12 +12,9 @@ import { cpActionLabel } from '../../i18n/cpVocab';
 import { cpPaletteLabel } from '../../i18n/paletteLabels';
 import { createPortal } from 'react-dom';
 import {
-  Box,
   ChevronDown,
   ChevronRight,
   Copy,
-  Eye,
-  FlipHorizontal2,
   ImagePlus,
   ListChecks,
   Loader2,
@@ -117,7 +114,12 @@ import { useShortcutStore } from '../../store/shortcutStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CameraCommand, CpOverlayView } from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
-import { flipFoldedState } from '../../cp-workspace/foldedFigureState';
+import {
+  buildFoldedFigureActions,
+  foldedFigureFlipState,
+  type FoldedFigureActionDeps,
+} from '../../cp-workspace/foldedFigureActions';
+import { foldedFigureActionIconNode as foldedFigureMenuIcon } from '../../cp-workspace/foldedFigureActionIcons';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
@@ -133,6 +135,7 @@ import type { AnnotationResizeHandle } from '../../cp-workspace/annotations/anno
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
+import { CpFoldedFigureToolbar } from '../../cp-workspace/CpFoldedFigureToolbar';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
 import { cropImage, fitImageModelSize } from '../../cp-workspace/images/cpImagePlacement';
@@ -1493,6 +1496,20 @@ export function CreasePatternPanel() {
       ),
     [oristudioCpFoldedFigures]
   );
+  /**
+   * The figure the canvas has *selected*, for the floating toolbar.
+   *
+   * Deliberately not `activeFoldedFigure`: that memo falls back to the most
+   * recent generated figure when nothing is selected, which is right for the
+   * viewport toolbar (it acts on "the fold you just made") but would leave the
+   * floating bar parked over that figure forever.
+   */
+  const selectedFoldedFigure = useMemo(
+    () =>
+      generatedFoldedFigures.find((figure) => figure.id === oristudioCpActiveFoldedFigureId) ??
+      null,
+    [generatedFoldedFigures, oristudioCpActiveFoldedFigureId]
+  );
   // Folded-figure state captured at the start of a gesture, so a whole drag
   // records one undo entry — the same shape the annotation layer uses.
   const preGestureFoldedFiguresRef = useRef<readonly OristudioCpFoldedFigureEntry[] | null>(null);
@@ -1768,88 +1785,92 @@ export function CreasePatternPanel() {
     [activeFoldedFigure, deleteOristudioCpFoldedFigure, runFoldedFigureAction, t]
   );
 
+  /**
+   * The folded-figure verbs, shared by the floating toolbar and the right-click
+   * menu (see `buildFoldedFigureActions`). Every call goes through
+   * `runFoldedFigureAction` so each verb lands as exactly one undo entry.
+   */
+  const foldedFigureActionDeps = useMemo<Omit<FoldedFigureActionDeps, 't'>>(
+    () => ({
+      flip: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.flipFoldedModel', 'Flip folded model'),
+          () =>
+            updateOristudioCpFoldedFigureModel(figure.id, {
+              state: foldedFigureFlipState(figure),
+            })
+        ),
+      setDisplayStyle: (figure, style) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
+          () => setOristudioCpFoldedFigureDisplayStyle(figure.id, style)
+        ),
+      foldAnother: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.anotherSolutionAction', 'Another folded solution'),
+          () => foldAnotherOristudioCpFigure(figure.id)
+        ),
+      duplicate: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
+          () => duplicateOristudioCpFoldedFigure(figure.id)
+        ),
+      remove: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
+          () => deleteOristudioCpFoldedFigure(figure.id)
+        ),
+    }),
+    [
+      updateOristudioCpFoldedFigureModel,
+      setOristudioCpFoldedFigureDisplayStyle,
+      foldAnotherOristudioCpFigure,
+      duplicateOristudioCpFoldedFigure,
+      deleteOristudioCpFoldedFigure,
+      runFoldedFigureAction,
+      t,
+    ]
+  );
+
   // Right-click context menu for a folded form. Items act on the clicked figure by
   // id (not the active one), so they behave correctly even before selection settles.
   const [foldedContextMenu, setFoldedContextMenu] = useState<ContextMenuRequest | null>(null);
   const buildFoldedFigureMenuItems = useCallback(
-    (figure: OristudioCpFoldedFigureEntry): ContextMenuItem[] => {
-      const ready =
-        figure.status === 'ready' && figure.handle !== null && figure.snapshot !== null;
-      const currentState = figure.snapshot?.model.state ?? 'Front0';
-      return [
-        {
-          kind: 'action',
-          id: 'flip',
-          label: t('panels:creasePattern.flip', 'Flip'),
-          icon: <FlipHorizontal2 size={14} />,
-          disabled: !ready,
-          // Turn the paper over: Front <-> Back. The Both/Transparent overlay
-          // states live on the toolbar's "Side" control, not here.
-          onSelect: () =>
-            runFoldedFigureAction(t('panels:creasePattern.flipFoldedModel', 'Flip folded model'), () =>
-              updateOristudioCpFoldedFigureModel(figure.id, {
-                state: flipFoldedState(currentState),
-              })
-            ),
-        },
-        {
-          kind: 'action',
-          id: 'delete',
-          label: t('panels:creasePattern.delete', 'Delete'),
-          icon: <Trash2 size={14} />,
-          danger: true,
-          onSelect: () =>
-            runFoldedFigureAction(
-              t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
-              () => deleteOristudioCpFoldedFigure(figure.id)
-            ),
-        },
-        {
-          kind: 'action',
-          id: 'duplicate',
-          label: t('panels:creasePattern.duplicate', 'Duplicate'),
-          icon: <Copy size={14} />,
-          disabled: figure.handle === null,
-          onSelect: () =>
-            runFoldedFigureAction(
-              t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
-              () => duplicateOristudioCpFoldedFigure(figure.id)
-            ),
-        },
-        {
-          kind: 'action',
-          id: 'wireframe',
-          label: t('panels:creasePattern.wireframe', 'Wireframe'),
-          icon: <Box size={14} />,
-          disabled: !ready,
-          onSelect: () =>
-            runFoldedFigureAction(
-              t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
-              () => setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2')
-            ),
-        },
-        {
-          kind: 'action',
-          id: 'xray',
-          label: t('panels:creasePattern.xray', 'X-ray'),
-          icon: <Eye size={14} />,
-          disabled: !ready,
-          onSelect: () =>
-            runFoldedFigureAction(
-              t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
-              () => setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Transparent3')
-            ),
-        },
-      ];
-    },
-    [
-      updateOristudioCpFoldedFigureModel,
-      deleteOristudioCpFoldedFigure,
-      duplicateOristudioCpFoldedFigure,
-      setOristudioCpFoldedFigureDisplayStyle,
-      runFoldedFigureAction,
-      t,
-    ]
+    (figure: OristudioCpFoldedFigureEntry): ContextMenuItem[] =>
+      buildFoldedFigureActions(figure, { ...foldedFigureActionDeps, t }).map((action) => {
+        switch (action.kind) {
+          case 'separator':
+            return { kind: 'separator' };
+          case 'choice':
+            // Display style is a set of modes, so it nests as a submenu with the
+            // current value checked rather than spending top-level slots.
+            return {
+              kind: 'submenu',
+              id: action.id,
+              label: action.label,
+              icon: foldedFigureMenuIcon(action.icon),
+              disabled: action.disabled,
+              items: action.options.map((option) => ({
+                kind: 'radio',
+                id: option.id,
+                label: option.label,
+                checked: option.checked,
+                onSelect: () => action.run(option.value),
+              })),
+            };
+          case 'command':
+            return {
+              kind: 'action',
+              id: action.id,
+              label: action.label,
+              icon: foldedFigureMenuIcon(action.icon),
+              disabled: action.disabled,
+              danger: action.danger,
+              onSelect: action.run,
+            };
+        }
+      }),
+    [foldedFigureActionDeps, t]
   );
   const handleRequestContextMenu = useCallback(
     (request: CpContextMenuRequest) => {
@@ -3600,13 +3621,20 @@ export function CreasePatternPanel() {
                     onDelete={deleteSelectedImage}
                   />
                 )}
+                {!editingTextId && !selectedCpImage && selectedFoldedFigure && (
+                  <CpFoldedFigureToolbar
+                    figure={selectedFoldedFigure}
+                    container={toolbarContainer}
+                    deps={foldedFigureActionDeps}
+                  />
+                )}
                 {/* Deliberately not gated on `annotationsInteractive`: that flag
                     keeps *annotations* from stealing clicks while a drawing tool
                     is mid-gesture, and it is false for exactly the tools that
                     produce crease selections (Box Select and friends), which
                     would hide these actions whenever they are relevant. Only the
                     other floating toolbars are mutually exclusive with this one. */}
-                {!editingTextId && !selectedCpImage && (
+                {!editingTextId && !selectedCpImage && !selectedFoldedFigure && (
                   <CpSelectionToolbar container={toolbarContainer} />
                 )}
                 </>

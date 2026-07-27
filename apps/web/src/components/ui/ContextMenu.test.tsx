@@ -110,4 +110,52 @@ describe('ContextMenu', () => {
     });
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  it('renders a submenu as a trigger, keeping its items out of the top level', () => {
+    render(true, [
+      { kind: 'action', id: 'flip', label: 'Flip', onSelect: () => {} },
+      {
+        kind: 'submenu',
+        id: 'style',
+        label: 'Display style',
+        items: [
+          { kind: 'radio', id: 'paper', label: 'Paper', checked: true, onSelect: () => {} },
+          { kind: 'radio', id: 'wire', label: 'Wireframe', checked: false, onSelect: () => {} },
+        ],
+      },
+    ]);
+    // The trigger is itself a menuitem (Radix SubTrigger), distinguished by
+    // aria-haspopup rather than by being absent from the item list. Scoped to
+    // menuitems so it does not match the menu's own invisible cursor anchor.
+    const trigger = menuItems().find(
+      (element) => element.getAttribute('aria-haspopup') === 'menu'
+    );
+    expect(trigger?.textContent).toContain('Display style');
+    // Closed submenu: its options are not in the document yet, so they cannot be
+    // reached by a stray click on the parent menu.
+    const labels = menuItems().map((element) => element.textContent);
+    expect(labels).toContain('Flip');
+    expect(labels).not.toContain('Paper');
+    expect(labels).not.toContain('Wireframe');
+  });
+
+  it('renders radio items with a check on the current one', () => {
+    render(true, [
+      { kind: 'radio', id: 'paper', label: 'Paper', checked: true, onSelect: () => {} },
+      { kind: 'radio', id: 'wire', label: 'Wireframe', checked: false, onSelect: () => {} },
+    ]);
+    const [paper, wire] = menuItems();
+    // The check lives in the leading icon slot; only the current option fills it.
+    expect(paper?.querySelector('.context-menu__icon')?.childElementCount).toBe(1);
+    expect(wire?.querySelector('.context-menu__icon')?.childElementCount).toBe(0);
+  });
+
+  it('invokes onSelect for a radio item', () => {
+    const onSelect = vi.fn();
+    render(true, [{ kind: 'radio', id: 'wire', label: 'Wireframe', checked: false, onSelect }]);
+    act(() => {
+      menuItems()[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
 });

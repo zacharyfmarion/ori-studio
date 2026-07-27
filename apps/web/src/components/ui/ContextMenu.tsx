@@ -1,6 +1,73 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { Check, ChevronRight } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { ContextMenuItem } from './contextMenuTypes';
+
+/**
+ * Render one menu entry. Recursive, so a `submenu` nests arbitrarily deep;
+ * Radix's `Sub` primitives carry the nested keyboard navigation and collision
+ * handling that `Content` already provides at the top level.
+ *
+ * `key` is supplied by the caller: only separators lack a stable id, so they
+ * fall back to their index.
+ */
+function renderItem(item: ContextMenuItem, index: number): React.ReactNode {
+  switch (item.kind) {
+    case 'separator':
+      return (
+        <DropdownMenu.Separator key={`separator-${index}`} className="context-menu__separator" />
+      );
+    case 'submenu':
+      return (
+        <DropdownMenu.Sub key={item.id}>
+          <DropdownMenu.SubTrigger className="context-menu__item" disabled={item.disabled}>
+            {item.icon != null && <span className="context-menu__icon">{item.icon}</span>}
+            <span className="context-menu__label">{item.label}</span>
+            <span className="context-menu__subtrigger-arrow" aria-hidden>
+              <ChevronRight size={12} />
+            </span>
+          </DropdownMenu.SubTrigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.SubContent className="context-menu" sideOffset={2} collisionPadding={8}>
+              {item.items.map(renderItem)}
+            </DropdownMenu.SubContent>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Sub>
+      );
+    case 'radio':
+      // Rendered as a plain item carrying its own checked state rather than a
+      // Radix RadioGroup: the caller owns the set (each option knows whether it
+      // is current), and a group would need a single value binding that the
+      // generic item list deliberately does not model.
+      return (
+        <DropdownMenu.Item
+          key={item.id}
+          className="context-menu__item"
+          disabled={item.disabled}
+          onSelect={item.onSelect}
+        >
+          <span className="context-menu__icon">{item.checked && <Check size={12} />}</span>
+          <span className="context-menu__label">{item.label}</span>
+        </DropdownMenu.Item>
+      );
+    case 'action':
+      return (
+        <DropdownMenu.Item
+          key={item.id}
+          className="context-menu__item"
+          data-danger={item.danger || undefined}
+          disabled={item.disabled}
+          onSelect={item.onSelect}
+        >
+          {item.icon != null && <span className="context-menu__icon">{item.icon}</span>}
+          <span className="context-menu__label">{item.label}</span>
+          {item.shortcut != null && (
+            <span className="context-menu__shortcut">{item.shortcut}</span>
+          )}
+        </DropdownMenu.Item>
+      );
+  }
+}
 
 interface ContextMenuProps {
   open: boolean;
@@ -61,28 +128,7 @@ export function ContextMenu({ open, x, y, items, onOpenChange }: ContextMenuProp
           collisionPadding={8}
           loop
         >
-          {items.map((item, index) =>
-            item.kind === 'separator' ? (
-              <DropdownMenu.Separator
-                key={`separator-${index}`}
-                className="context-menu__separator"
-              />
-            ) : (
-              <DropdownMenu.Item
-                key={item.id}
-                className="context-menu__item"
-                data-danger={item.danger || undefined}
-                disabled={item.disabled}
-                onSelect={item.onSelect}
-              >
-                {item.icon != null && <span className="context-menu__icon">{item.icon}</span>}
-                <span className="context-menu__label">{item.label}</span>
-                {item.shortcut != null && (
-                  <span className="context-menu__shortcut">{item.shortcut}</span>
-                )}
-              </DropdownMenu.Item>
-            )
-          )}
+          {items.map(renderItem)}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
