@@ -69,10 +69,17 @@ import {
 } from '../../../cp-workspace/foldedFigureHandles';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../../engine/oristudioCpTypes';
 import type {
+  OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
 } from '../../../engine/oristudioCpTypes';
+import {
+  cpLinesByIds,
+  foldedSourceBounds,
+  foldedSourceFingerprint,
+  reselectFoldableLineIds,
+} from '../../../lib/foldedFigureStaleness';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
 /** Cap on the CP undo stack (matches historySlice's MAX_HISTORY). */
@@ -249,6 +256,32 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       figureId = `generated-${++foldedFigureRequestSequence}`;
     } while (get().oristudioCpFoldedFigures.some((figure) => figure.id === figureId));
     return figureId;
+  }
+
+  /**
+   * The provenance a fold records: the bounding box of the creases folded, plus
+   * a fingerprint of them, so the figure can later be compared against a fresh
+   * reselect of that region. Oriedita's refold check, ported per figure — see
+   * `lib/foldedFigureStaleness.ts`.
+   */
+  function foldedSourceProvenance(
+    document: OristudioCpDocumentSnapshot,
+    lineIds: readonly number[]
+  ): Pick<
+    OristudioCpFoldedFigureEntry,
+    'sourceBounds' | 'sourceFingerprint' | 'sourceLineIds'
+  > {
+    const lines = cpLinesByIds(document, lineIds);
+    const bounds = foldedSourceBounds(lines);
+    // Fingerprint the *reselected* set, not the folded one: they can differ when
+    // a crease merely crosses the region, and staleness compares against a
+    // reselect, so seeding from anything else would report stale immediately.
+    const reselected = cpLinesByIds(document, reselectFoldableLineIds(document, bounds));
+    return {
+      sourceBounds: bounds,
+      sourceFingerprint: bounds ? foldedSourceFingerprint(reselected) : null,
+      sourceLineIds: [...lineIds],
+    };
   }
 
   function clearFoldArtifactSource() {
@@ -898,6 +931,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           renderSnapshot,
           error: null,
           contradiction,
+          // Provenance, so the figure can later be told apart from the creases
+          // it came from and refolded from them. Oriedita keeps exactly this
+          // (a bounding box) — see lib/foldedFigureStaleness.ts.
+          ...foldedSourceProvenance(oristudioCpDocument.document, selectedLineIds),
         };
         set({
           oristudioCpFoldedFigures: existing.map((figure) =>
@@ -1166,6 +1203,105 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
     },
 
+    /**
+     * Re-run the fold for a figure whose source creases have changed, keeping
+     * the figure itself: same id, placement, display style, model and starting
+     * face, new geometry.
+     *
+     * Oriedita refolds in place only when the creases are *unchanged*, and
+     * discards the figure when they differ (`FoldingServiceImpl.fold`). We
+     * refold in place either way — here a folded figure is a placed canvas
+     * object, not a transient view, so throwing it away on an edit would lose
+     * work the user can see. The source selection (reselect by bounding box) and
+     * the fold itself are unchanged from upstream.
+     */
+    refoldOristudioCpFoldedFigure: async (id) => {
+      const oristudioCpDocument = get().oristudioCpDocument;
+      const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      if (!oristudioCpDocument || !figure || figure.sourceBounds == null) {
+        const message = 'This folded model has no recorded source creases to refold from';
+        set({
+          oristudioCpError: message,
+          error: { code: 'invalid_operation', message },
+        });
+        return false;
+      }
+
+      const lineIds = reselectFoldableLineIds(oristudioCpDocument.document, figure.sourceBounds);
+      if (lineIds.length < 2) {
+        const message = 'The creases this folded model came from are gone';
+        set({
+          oristudioCpError: message,
+          error: { code: 'invalid_operation', message },
+        });
+        return false;
+      }
+
+      const previousHandle = figure.handle;
+      set({
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+          candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate
+        ),
+        oristudioCpError: null,
+      });
+
+      try {
+        const result = await foldRuntimeOristudioCpDocument(
+          figure.startingFaceId ?? 1,
+          'Order5',
+          figure.snapshot?.model,
+          lineIds
+        );
+        const renderSnapshot = await renderSnapshotForFoldedFigure(
+          result.handle,
+          figure.displayStyle,
+          foldedFigureIndex(figure.id),
+          true
+        );
+        retainFoldedFigureHandle(result.handle);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? {
+                  ...candidate,
+                  handle: result.handle,
+                  status: 'ready',
+                  snapshot: result.snapshot,
+                  renderSnapshot,
+                  sourceCpRevision: get().oristudioCpRevision,
+                  contradiction: result.snapshot.contradiction ?? null,
+                  error: null,
+                  // Re-baseline against what was actually folded, so the figure
+                  // reads as up to date until the creases move again.
+                  ...foldedSourceProvenance(oristudioCpDocument.document, lineIds),
+                }
+              : candidate
+          ),
+          oristudioCpActiveFoldedFigureId: figure.id,
+          oristudioCpError: null,
+          dirty: true,
+          projectMessage: 'Refolded model',
+        });
+        // Released only after the new handle is in place: the old one may still
+        // be referenced by history entries, and releasing early would free a
+        // handle an undo still needs (see foldedFigureHandles).
+        releaseFoldedFigureHandle(previousHandle);
+        return true;
+      } catch (error) {
+        const normalized = engineError(error);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? { ...candidate, status: 'error', error: normalized.message }
+              : candidate
+          ),
+          oristudioCpError: normalized.message,
+          error: normalized,
+        });
+        return false;
+      }
+    },
+
     duplicateOristudioCpFoldedFigure: async (id) => {
       const source =
         (id
@@ -1195,6 +1331,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         snapshot: null,
         renderSnapshot: null,
         placement: source.placement,
+        // A copy is folded from the same creases, so it inherits the provenance
+        // and goes stale with its original.
+        sourceBounds: source.sourceBounds ?? null,
+        sourceFingerprint: source.sourceFingerprint ?? null,
+        sourceLineIds: [...(source.sourceLineIds ?? [])],
         error: null,
       };
 

@@ -77,6 +77,9 @@ function foldedFigure(): OristudioCpFoldedFigureEntry {
     displayStyle: 'Transparent3',
     status: 'ready',
     placement: { offset: { x: 12, y: -8 }, scale: 1.5, rotation: 0.25 },
+    sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+    sourceFingerprint: 'fingerprint-1',
+    sourceLineIds: [1, 2, 3],
     snapshot: {
       model: {
         front_color: { red: 255, green: 255, blue: 50 },
@@ -259,6 +262,98 @@ describe('native project file', () => {
       scale: 1,
       rotation: 0,
     });
+  });
+
+  it('round-trips a folded figure’s source region, so it can still be refolded', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Provenance CP',
+      filename: 'provenance.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [foldedFigure()],
+      activeFoldedFigureId: 'generated-1',
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+    const document = activeNativeDocument(parsed);
+    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.viewState.foldedFigures[0]).toMatchObject({
+      sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      sourceFingerprint: 'fingerprint-1',
+      sourceLineIds: [1, 2, 3],
+    });
+  });
+
+  // Files written before provenance was tracked simply offer no refold; they
+  // must not fail to load, and must not claim a region they do not have.
+  it('loads a folded figure with no recorded source region', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Legacy CP',
+      filename: 'legacy.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [foldedFigure()],
+      activeFoldedFigureId: 'generated-1',
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const serialized = JSON.parse(serializeNativeProjectFile(file));
+    const entry = serialized.workspace.documents[0].viewState.foldedFigures[0];
+    delete entry.sourceBounds;
+    delete entry.sourceFingerprint;
+    delete entry.sourceLineIds;
+
+    const parsed = parseNativeProjectFile(JSON.stringify(serialized));
+    const document = activeNativeDocument(parsed);
+    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.viewState.foldedFigures[0]).toMatchObject({
+      sourceBounds: null,
+      sourceFingerprint: null,
+      sourceLineIds: [],
+    });
+  });
+
+  it('drops a malformed source region rather than trusting a partial box', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Bad bounds CP',
+      filename: 'bad-bounds.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [foldedFigure()],
+      activeFoldedFigureId: 'generated-1',
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const serialized = JSON.parse(serializeNativeProjectFile(file));
+    serialized.workspace.documents[0].viewState.foldedFigures[0].sourceBounds = { minX: 0 };
+
+    const parsed = parseNativeProjectFile(JSON.stringify(serialized));
+    const document = activeNativeDocument(parsed);
+    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.viewState.foldedFigures[0].sourceBounds).toBeNull();
   });
 
   it('falls back to an identity placement when a folded figure carries neither shape', () => {

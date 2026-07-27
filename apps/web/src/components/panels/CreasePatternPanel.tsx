@@ -120,6 +120,7 @@ import {
   type FoldedFigureActionDeps,
 } from '../../cp-workspace/foldedFigureActions';
 import { foldedFigureActionIconNode as foldedFigureMenuIcon } from '../../cp-workspace/foldedFigureActionIcons';
+import { isFoldedFigureStale } from '../../lib/foldedFigureStaleness';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
@@ -1359,6 +1360,9 @@ export function CreasePatternPanel() {
   const duplicateOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.duplicateOristudioCpFoldedFigure
   );
+  const refoldOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.refoldOristudioCpFoldedFigure
+  );
   const deleteOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.deleteOristudioCpFoldedFigure
   );
@@ -1510,6 +1514,19 @@ export function CreasePatternPanel() {
       null,
     [generatedFoldedFigures, oristudioCpActiveFoldedFigureId]
   );
+  /**
+   * Which figures no longer match the creases they were folded from. Computed
+   * here, once per document revision, rather than stamped onto every figure
+   * during the edit — see `lib/foldedFigureStaleness.ts` for the ported test and
+   * why the old always-stale flag was both wrong and unusable for refolding.
+   */
+  const staleFoldedFigureIds = useMemo(() => {
+    const stale = new Set<string>();
+    for (const figure of generatedFoldedFigures) {
+      if (isFoldedFigureStale(oristudioCpDocument?.document, figure)) stale.add(figure.id);
+    }
+    return stale;
+  }, [generatedFoldedFigures, oristudioCpDocument?.document]);
   // Folded-figure state captured at the start of a gesture, so a whole drag
   // records one undo entry — the same shape the annotation layer uses.
   const preGestureFoldedFiguresRef = useRef<readonly OristudioCpFoldedFigureEntry[] | null>(null);
@@ -1820,6 +1837,16 @@ export function CreasePatternPanel() {
           t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
           () => deleteOristudioCpFoldedFigure(figure.id)
         ),
+      refold: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.refoldFoldedModelAction', 'Refold folded model'),
+          () => refoldOristudioCpFoldedFigure(figure.id)
+        ),
+      // Derived, not stamped: an edit outside a figure's source region leaves it
+      // alone, which is the whole point of porting Oriedita's box + content
+      // check. Memoized on the document so a pan or a selection does not re-run
+      // it, and never touched on the edit path.
+      isStale: (figure) => staleFoldedFigureIds.has(figure.id),
     }),
     [
       updateOristudioCpFoldedFigureModel,
@@ -1827,7 +1854,9 @@ export function CreasePatternPanel() {
       foldAnotherOristudioCpFigure,
       duplicateOristudioCpFoldedFigure,
       deleteOristudioCpFoldedFigure,
+      refoldOristudioCpFoldedFigure,
       runFoldedFigureAction,
+      staleFoldedFigureIds,
       t,
     ]
   );

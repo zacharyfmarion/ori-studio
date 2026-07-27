@@ -466,6 +466,13 @@ export interface CreasePatternSliceActions {
     update: Partial<OristudioCpFoldedFigureModel>
   ) => Promise<boolean>;
   duplicateOristudioCpFoldedFigure: (id?: string) => Promise<boolean>;
+  /**
+   * Re-fold a figure from its recorded source region, in place — same id,
+   * placement, style and model, fresh geometry. See
+   * `lib/foldedFigureStaleness.ts` for how that region is recorded and how a
+   * figure is judged out of date.
+   */
+  refoldOristudioCpFoldedFigure: (id: string) => Promise<boolean>;
   deleteOristudioCpFoldedFigure: (id: string) => Promise<void>;
   setOristudioCpActiveFoldedFigure: (id: string | null) => void;
   /**

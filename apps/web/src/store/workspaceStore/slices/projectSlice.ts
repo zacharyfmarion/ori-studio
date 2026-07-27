@@ -200,9 +200,9 @@ function cpHistoryEntry(
     document,
     selection,
     annotations,
-    // A crease edit marks generated figures stale (see staleGeneratedFoldedFigures),
-    // so capturing them here is what lets undo put them back to `ready` rather
-    // than leaving them stale forever.
+    // Captured so undo restores the figures a crease edit was made alongside —
+    // including their recorded source region, which is what decides whether they
+    // read as out of date (see lib/foldedFigureStaleness.ts).
     foldedFigures,
     activeFoldedFigureId,
     label,
@@ -210,15 +210,6 @@ function cpHistoryEntry(
   };
 }
 
-function staleGeneratedFoldedFigures(
-  entries: OristudioCpFoldedFigureEntry[]
-): OristudioCpFoldedFigureEntry[] {
-  return entries.map((entry) =>
-    entry.sourceKind === 'generated-from-current-cp' && entry.status === 'ready'
-      ? { ...entry, status: 'stale' as const }
-      : entry
-  );
-}
 
 function importedSourceFromNativeSource(
   source: { format: string; filename: string; path: string | null } | null | undefined
@@ -669,7 +660,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpActiveDiagnosticId: null,
         oristudioCpSelection: selectedLineSelectionFromDocument(commandDocument.document),
         oristudioCpRevision: nextRevision,
-        oristudioCpFoldedFigures: staleGeneratedFoldedFigures(get().oristudioCpFoldedFigures),
         oristudioCpHistoryPast: previousDocument
           ? [
               ...get().oristudioCpHistoryPast,
@@ -1727,9 +1717,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             nextDocument.document
           ),
           oristudioCpRevision: nextRevision,
-          oristudioCpFoldedFigures: editsCreasePattern
-            ? staleGeneratedFoldedFigures(get().oristudioCpFoldedFigures)
-            : get().oristudioCpFoldedFigures,
           oristudioCpHistoryPast: previousDocument
             ? mutatesDocument
               ? [
