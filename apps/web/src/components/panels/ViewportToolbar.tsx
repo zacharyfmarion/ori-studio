@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Hand, Layers, Maximize2, RotateCcw, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  Hand,
+  Layers,
+  Maximize2,
+  RotateCcwSquare,
+  RotateCwSquare,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
 import { primaryModifierLabel } from '../../lib/platform';
 
@@ -11,9 +19,18 @@ function withShortcut(label: string, shortcut: string | undefined): string {
   return shortcut ? `${label} (${shortcut})` : label;
 }
 
-/** View rotation as whole degrees, e.g. `-15°`. */
+/**
+ * View rotation in degrees, trimmed of trailing zeros so the 11.25 degree step
+ * reads exactly (11.25, 22.5, 33.75, 45) rather than rounding to nothing.
+ */
+function formatRotationValue(radians: number): string {
+  const degrees = (radians * 180) / Math.PI;
+  return `${Number.parseFloat(degrees.toFixed(2))}`;
+}
+
+/** The same value with its degree sign, for the idle field. */
 function formatRotation(radians: number): string {
-  return `${Math.round((radians * 180) / Math.PI)}°`;
+  return `${formatRotationValue(radians)}°`;
 }
 
 export function isViewportInteractiveTarget(target: EventTarget | null): boolean {
@@ -49,7 +66,8 @@ interface ViewportToolbarProps {
   viewRotation?: number;
   /** Rotate by one step: -1 anticlockwise, +1 clockwise. */
   rotateView?: (direction: 1 | -1) => void;
-  resetViewRotation?: () => void;
+  /** Set an absolute view rotation, in degrees, from the readout field. */
+  setViewRotation?: (degrees: number) => void;
   rotateCcwShortcutLabel?: string;
   rotateCwShortcutLabel?: string;
   children?: ReactNode;
@@ -67,7 +85,7 @@ export function ViewportToolbar({
   panShortcutLabel,
   viewRotation = 0,
   rotateView,
-  resetViewRotation,
+  setViewRotation,
   rotateCcwShortcutLabel,
   rotateCwShortcutLabel,
   children,
@@ -75,6 +93,16 @@ export function ViewportToolbar({
   const { t } = useTranslation();
   const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
   const zoomMenuRef = useRef<HTMLDivElement | null>(null);
+  // Null while the field is idle, so it tracks the camera; a string while the
+  // user is editing, so their partial input is not overwritten mid-frame.
+  const [rotationDraft, setRotationDraft] = useState<string | null>(null);
+
+  const commitRotationDraft = () => {
+    if (rotationDraft === null) return;
+    const degrees = Number.parseFloat(rotationDraft);
+    setRotationDraft(null);
+    if (Number.isFinite(degrees)) setViewRotation?.(degrees);
+  };
 
   useEffect(() => {
     if (!zoomMenuOpen) return undefined;
@@ -160,7 +188,7 @@ export function ViewportToolbar({
             aria-label={t('tools:viewport.rotateCcw', 'Rotate view left')}
             onClick={() => rotateView(-1)}
           >
-            <RotateCcw size={14} />
+            <RotateCcwSquare size={14} />
           </IconButton>
           <IconButton
             size="sm"
@@ -172,20 +200,37 @@ export function ViewportToolbar({
             aria-label={t('tools:viewport.rotateCw', 'Rotate view right')}
             onClick={() => rotateView(1)}
           >
-            <RotateCw size={14} />
+            <RotateCwSquare size={14} />
           </IconButton>
-          {/* Only shown while the view is turned: it doubles as the readout and
-              the way back to square, so an unrelated command never has to
-              silently straighten the view. */}
-          {resetViewRotation && viewRotation !== 0 && (
-            <button
-              type="button"
-              className="viewport-toolbar__zoom-button"
-              title={t('tools:viewport.resetRotation', 'Reset rotation')}
-              onClick={resetViewRotation}
-            >
-              {formatRotation(viewRotation)}
-            </button>
+          {setViewRotation && (
+            <input
+              type="text"
+              inputMode="decimal"
+              className="viewport-toolbar__rotation-input"
+              aria-label={t('tools:viewport.rotation', 'View rotation in degrees')}
+              title={t('tools:viewport.rotation', 'View rotation in degrees')}
+              value={rotationDraft ?? formatRotation(viewRotation)}
+              onFocus={(event) => {
+                // Drop the degree sign while editing so the field holds a plain
+                // number, and select it so typing replaces the angle outright.
+                setRotationDraft(formatRotationValue(viewRotation));
+                event.currentTarget.select();
+              }}
+              onChange={(event) => setRotationDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  commitRotationDraft();
+                  event.currentTarget.blur();
+                } else if (event.key === 'Escape') {
+                  setRotationDraft(null);
+                  event.currentTarget.blur();
+                }
+                // Digits typed here cannot reach the canvas shortcuts:
+                // `isShortcutEditingTarget` bails on any input at the
+                // capture-phase listener, before dispatch.
+              }}
+              onBlur={commitRotationDraft}
+            />
           )}
         </>
       )}

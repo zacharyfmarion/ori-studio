@@ -218,12 +218,12 @@ function formatZoom(scale: number): string {
 const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
 
 /**
- * View-rotation step per button press or key. 15 degrees divides 90, 180 and
- * 360 evenly, so repeated presses land on the square and diagonal orientations
- * origami work is laid out along. (Oriedita steps by its angle-system divider,
- * 11.25 degrees by default, which does not divide 90.)
+ * View-rotation step per button press or key: 11.25 degrees, matching
+ * Oriedita's default angle-system divider (180/16). Sixteen presses make a
+ * half turn, and the sequence passes through 22.5 and 45 — the angles
+ * origami work is laid out along.
  */
-const VIEW_ROTATION_STEP_RADIANS = Math.PI / 12;
+const VIEW_ROTATION_STEP_RADIANS = Math.PI / 16;
 
 const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[] = [
   'Paper5',
@@ -3550,7 +3550,9 @@ export function CreasePatternPanel() {
                     direction * VIEW_ROTATION_STEP_RADIANS
                   )
                 }
-                resetViewRotation={() => sendWebglCameraCommand('rotate-reset')}
+                setViewRotation={(degrees) =>
+                  sendWebglCameraCommand('rotate-to', undefined, (degrees * Math.PI) / 180)
+                }
                 rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutOverrides)}
                 rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutOverrides)}
               >

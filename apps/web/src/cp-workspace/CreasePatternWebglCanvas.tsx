@@ -114,9 +114,9 @@ export type StepKind = 'point' | 'crease' | 'candidate';
  * (e.g. repeated zoom-in presses); `percent` is only used by `set-percent`.
  */
 export interface CameraCommand {
-  kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent' | 'rotate-by' | 'rotate-reset';
+  kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent' | 'rotate-by' | 'rotate-to' | 'rotate-reset';
   percent?: number;
-  /** Signed rotation step, only used by `rotate-by`. */
+  /** Rotation payload: a signed step for `rotate-by`, an absolute angle for `rotate-to`. */
   radians?: number;
   nonce: number;
 }
@@ -2630,6 +2630,8 @@ export function CreasePatternWebglCanvas({
       cam.zoom = ratio * (cmd.percent / 100); // 100% == 1 user unit per CSS px
     } else if (cmd.kind === 'rotate-by' && cmd.radians != null) {
       cam.rotation = normalizeCameraRotation(cam.rotation + cmd.radians);
+    } else if (cmd.kind === 'rotate-to' && cmd.radians != null) {
+      cam.rotation = normalizeCameraRotation(cmd.radians);
     } else if (cmd.kind === 'rotate-reset') {
       cam.rotation = 0;
     }

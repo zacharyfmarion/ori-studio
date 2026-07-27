@@ -130,10 +130,10 @@
     "pan": "Deslocar",
     "panWithModifier": "Deslocar — ou segure {{modifier}} e arraste",
     "panWithShortcut": "Deslocar ({{shortcut}}) — ou segure {{modifier}} e arraste",
-    "resetRotation": "Redefinir rotação",
     "rotateCcw": "Girar vista à esquerda",
     "rotateCw": "Girar vista à direita",
     "zoomIn": "Ampliar",
-    "zoomOut": "Reduzir"
+    "zoomOut": "Reduzir",
+    "rotation": "Rotação da vista em graus"
   }
 }

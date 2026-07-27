@@ -4702,6 +4702,31 @@
   color: var(--text-primary);
 }
 
+/* Editable view-rotation readout. Sits quietly like the zoom percent until
+   focused, so it reads as a value rather than a form field. */
+.viewport-toolbar__rotation-input {
+  height: 28px;
+  width: 56px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: center;
+}
+
+.viewport-toolbar__rotation-input:hover {
+  border-color: var(--border-default);
+}
+
+.viewport-toolbar__rotation-input:focus,
+.viewport-toolbar__rotation-input:focus-visible {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
 .viewport-toolbar__zoom-button:hover,
 .viewport-toolbar__dropdown-item:hover {
   background: var(--bg-surface);
