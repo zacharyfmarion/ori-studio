@@ -175,7 +175,6 @@
     "current_one": "Actual {{count}}",
     "current_many": "Actual {{count}}",
     "current_other": "Actual {{count}}",
-    "delete": "Eliminar",
     "deleteFoldedModel": "Eliminar modelo plegado",
     "deleteFoldedModelAction": "Eliminar modelo plegado",
     "deleteImage": "Eliminar imagen",
@@ -201,11 +200,9 @@
       "warningOther_other": "{{count}} advertencias de {{label}}"
     },
     "display": "Visualización",
-    "duplicate": "Duplicar",
     "duplicateFoldedModel": "Duplicar modelo plegado",
     "duplicateFoldedModelAction": "Duplicar modelo plegado",
     "extraLineColors": "Colores de línea adicionales",
-    "flip": "Voltear",
     "flipFoldedModel": "Voltear modelo plegado",
     "fold": "Plegar",
     "foldCase": "Caso de plegado",
@@ -257,6 +254,7 @@
     "none": "Ninguno",
     "optimizingScale": "Optimizando escala",
     "preparing": "Preparando el editor…",
+    "refoldFoldedModelAction": "Volver a plegar el modelo",
     "resizeAnnotation": "Redimensionar anotación",
     "resizeFoldedForm": "Redimensionar forma plegada",
     "rotateAnnotation": "Rotar anotación",
@@ -285,9 +283,7 @@
     "startingFace": "Cara inicial",
     "unsupported": "No admitido",
     "useColoredFoldedTransparency": "Usar transparencia de plegado con color",
-    "viewportControls": "Controles de la vista del patrón de pliegues",
-    "wireframe": "Estructura alámbrica",
-    "xray": "Rayos X"
+    "viewportControls": "Controles de la vista del patrón de pliegues"
   },
   "design": {
     "attributionBoxPleating": "Adaptado de <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
@@ -385,6 +381,24 @@
     "editCp": "Editar CP",
     "newTree": "Nuevo árbol",
     "open": "Abrir"
+  },
+  "foldedFigureActions": {
+    "anotherSolution": "Otra solución",
+    "delete": "Eliminar",
+    "displayStyle": "Estilo de visualización",
+    "duplicate": "Duplicar",
+    "export": "Exportar…",
+    "exportPng": "Imagen PNG",
+    "exportSvg": "Imagen SVG",
+    "flip": "Voltear",
+    "label": "Acciones del modelo plegado",
+    "refold": "Volver a plegar",
+    "styleDev1": "Desarrollo 1",
+    "styleDev4": "Desarrollo 4",
+    "styleNone": "Ninguno",
+    "stylePaper": "Papel",
+    "styleWireframe": "Alambre",
+    "styleXray": "Rayos X"
   },
   "imageInspector": {
     "adjustOpacity": "Ajustar opacidad",

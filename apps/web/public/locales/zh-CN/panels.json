@@ -171,7 +171,6 @@
     "couldNotOpenForEditing": "无法打开此折痕图进行编辑。",
     "cropImage": "裁剪图像",
     "current_other": "当前 {{count}}",
-    "delete": "删除",
     "deleteFoldedModel": "删除折叠模型",
     "deleteFoldedModelAction": "删除折叠模型",
     "deleteImage": "删除图像",
@@ -189,11 +188,9 @@
       "warningOther_other": "{{count}} 个 {{label}} 警告"
     },
     "display": "显示",
-    "duplicate": "复制",
     "duplicateFoldedModel": "复制折叠模型",
     "duplicateFoldedModelAction": "复制折叠模型",
     "extraLineColors": "额外线条颜色",
-    "flip": "翻转",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
     "foldCase": "折叠情形",
@@ -243,6 +240,7 @@
     "none": "无",
     "optimizingScale": "正在优化比例",
     "preparing": "正在准备编辑器…",
+    "refoldFoldedModelAction": "重新折叠模型",
     "resizeAnnotation": "调整批注大小",
     "resizeFoldedForm": "调整折叠图大小",
     "rotateAnnotation": "旋转批注",
@@ -269,9 +267,7 @@
     "startingFace": "起始面",
     "unsupported": "不支持",
     "useColoredFoldedTransparency": "使用彩色折叠透明度",
-    "viewportControls": "折痕图视口控件",
-    "wireframe": "线框",
-    "xray": "透视"
+    "viewportControls": "折痕图视口控件"
   },
   "design": {
     "attributionBoxPleating": "改编自 <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
@@ -365,6 +361,24 @@
     "editCp": "编辑 CP",
     "newTree": "新建树",
     "open": "打开"
+  },
+  "foldedFigureActions": {
+    "anotherSolution": "另一个解",
+    "delete": "删除",
+    "displayStyle": "显示样式",
+    "duplicate": "复制",
+    "export": "导出…",
+    "exportPng": "PNG 图像",
+    "exportSvg": "SVG 图像",
+    "flip": "翻转",
+    "label": "折叠模型操作",
+    "refold": "重新折叠",
+    "styleDev1": "开发 1",
+    "styleDev4": "开发 4",
+    "styleNone": "无",
+    "stylePaper": "纸张",
+    "styleWireframe": "线框",
+    "styleXray": "透视"
   },
   "imageInspector": {
     "adjustOpacity": "调整不透明度",

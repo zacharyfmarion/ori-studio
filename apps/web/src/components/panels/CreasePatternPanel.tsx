@@ -1827,7 +1827,7 @@ export function CreasePatternPanel() {
         ),
       foldAnother: (figure) =>
         runFoldedFigureAction(
-          t('panels:creasePattern.anotherSolutionAction', 'Another folded solution'),
+          t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
           () => foldAnotherOristudioCpFigure(figure.id)
         ),
       duplicate: (figure) =>

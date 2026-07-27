@@ -112,9 +112,13 @@ and there is no crease selection:
    the axis-aligned rect of *the very line set that was folded*, in flat CP
    coordinates. That is the only record of "which creases made this figure".
 2. **Re-derive the source set.** `foldLineSet.select(figure.getBoundingBox())`
-   selects every folding line **fully inside** that rect (`FoldLineSet.select(Polygon)`
-   → `totu_boundary_inside`), then `getForSelectFolding()` clones the selected
-   folding lines into a `LineSegmentSet`.
+   selects every folding line **overlapping** that rect, then
+   `getForSelectFolding()` clones the selected folding lines into a
+   `LineSegmentSet`. Note `FoldLineSet.select(Polygon)` → `totu_boundary_inside`
+   is an *overlap* test, not containment: it returns true when the segment meets
+   any boundary edge **or** its midpoint is inside, i.e. when any part of the
+   segment lies in the closed region. So a crease that merely crosses the figure's
+   region counts as one of its source creases.
 3. **The staleness test is content equality.** `reFold.contentEquals(lastFold)`
    (`LineSegmentSet.java:107`): equal segment counts, and every segment of one
    present in a `HashSet` of the other. `LineSegment.equals` (`:223`) compares
@@ -238,10 +242,11 @@ in it.)
 2. **New `apps/web/src/lib/foldedFigureStaleness.ts`** — the ported mechanism,
    pure and unit-testable:
    - `foldedSourceBounds(lines)` — port of `GetBoundingBox`.
-   - `reselectFoldableLines(document, bounds)` — port of
-     `FoldLineSet.select(Polygon)` restricted to a rect: folding lines with
-     **both endpoints inside** the rect (`totu_boundary_inside` on an
-     axis-aligned box reduces to containment of both endpoints), filtered by
+   - `reselectFoldableLineIds(document, bounds)` — port of
+     `FoldLineSet.select(Polygon)` restricted to a rect: folding lines **any part
+     of which** lies in the closed rect (`totu_boundary_inside` is an overlap
+     test, which on an axis-aligned box is the standard segment/AABB overlap —
+     implemented by Liang–Barsky clipping), filtered by
      `isOrieditaFoldableLineColor` to match `getSaveForSelectFolding`.
    - `foldedSourceFingerprint(lines)` — port of `contentEquals`: order-independent
      over `(a, b, active, color, customized, customized_color)`. **Excludes
@@ -324,48 +329,48 @@ app-layer logic (`FoldingServiceImpl`) that has no kernel counterpart.
 ## Checklist
 
 ### Phase A — Toolbar, shared builder, submenus
-- [ ] `foldedFigureActions.ts` builder + unit test (ordering, gating per status,
+- [x] `foldedFigureActions.ts` builder + unit test (ordering, gating per status,
       `find_another_overlap_valid`, `handle === null`)
-- [ ] `ContextMenu` `submenu` + `radio` item kinds; recursive item render; styles;
+- [x] `ContextMenu` `submenu` + `radio` item kinds; recursive item render; styles;
       test that a submenu renders and selects
-- [ ] `CpFoldedFigureToolbar.tsx` — anchored in `'user'` space, style dropdown,
+- [x] `CpFoldedFigureToolbar.tsx` — anchored in `'user'` space, style dropdown,
       five Tier-A controls
-- [ ] Context menu rebuilt on the builder, display style as a submenu with the
+- [x] Context menu rebuilt on the builder, display style as a submenu with the
       current value checked
-- [ ] Mounted in `CreasePatternPanel`; resolves from `oristudioCpActiveFoldedFigureId`,
+- [x] Mounted in `CreasePatternPanel`; resolves from `oristudioCpActiveFoldedFigureId`,
       never the fallback memo
-- [ ] `CpSelectionToolbar` mount gated on no active folded figure
-- [ ] Toolbar test: appears on selection, hidden with nothing selected, hidden
+- [x] `CpSelectionToolbar` mount gated on no active folded figure
+- [x] Toolbar test: appears on selection, hidden with nothing selected, hidden
       while editing text / with an image selected, absent for an imported form
-- [ ] `.cp-folded-figure-toolbar` styles
+- [x] `.cp-folded-figure-toolbar` styles
 
 ### Phase B — Staleness port + refold
-- [ ] `foldedFigureStaleness.ts` — `foldedSourceBounds`, `reselectFoldableLines`,
+- [x] `foldedFigureStaleness.ts` — `foldedSourceBounds`, `reselectFoldableLines`,
       `foldedSourceFingerprint`, `isFoldedFigureStale`, with the deviation note
       in the module header
-- [ ] Port tests: edit inside the bbox → stale; edit outside → **not** stale
+- [x] Port tests: edit inside the bbox → stale; edit outside → **not** stale
       (the case today's flag gets wrong); crease added inside the bbox → stale and
       picked up by refold; colour change → stale; selecting lines → not stale;
       moving an endpoint out of the bbox → stale
-- [ ] `sourceBounds` / `sourceFingerprint` / `sourceLineIds` on the entry;
+- [x] `sourceBounds` / `sourceFingerprint` / `sourceLineIds` on the entry;
       captured at fold, carried through duplicate
-- [ ] `staleGeneratedFoldedFigures` removed; staleness derived at display sites,
+- [x] `staleGeneratedFoldedFigures` removed; staleness derived at display sites,
       memoized on `oristudioCpRevision`
-- [ ] `nativeProjectFile` round-trip, tolerant of older `.osf` (no provenance →
+- [x] `nativeProjectFile` round-trip, tolerant of older `.osf` (no provenance →
       no Refold)
-- [ ] `refoldOristudioCpFoldedFigure` — preserves id/placement/model/startingFace,
+- [x] `refoldOristudioCpFoldedFigure` — preserves id/placement/model/startingFace,
       swaps handle under the refcount, refreshes provenance, one undo entry
-- [ ] Refold surfaces only when derived-stale with usable provenance
+- [x] Refold surfaces only when derived-stale with usable provenance
 
 ### Phase C — Export
-- [ ] `foldedFigureExport.ts` (SVG + PNG from `renderSnapshot`) + test
-- [ ] `exportOristudioCpFoldedFigure` store action
+- [x] `foldedFigureExport.ts` (SVG + PNG from `renderSnapshot`) + test
+- [x] `exportOristudioCpFoldedFigure` store action
 
 ### Phase D — i18n + validation
-- [ ] Inline English defaults; `i18n:extract`; 8 locales; `i18n:stamp`; `i18n:check`
-- [ ] `cd apps/web && npx tsc --noEmit`, `vitest run`, `eslint .`
-- [ ] Confirm no spurious `apps/web/src/generated/**` churn before committing
-- [ ] Browser pass (author): select a figure → bar appears anchored and tracks
+- [x] Inline English defaults; `i18n:extract`; 8 locales; `i18n:stamp`; `i18n:check`
+- [x] `cd apps/web && npx tsc --noEmit`, `vitest run`, `eslint .`
+- [x] Confirm no spurious `apps/web/src/generated/**` churn before committing
+- [x] Browser pass (author): select a figure → bar appears anchored and tracks
       pan/zoom; each action fires; flip/style/another-solution/duplicate/delete
       each land as one undo entry; right-click menu matches the bar item for item
       with style as a submenu; bar and crease-selection bar never both appear;

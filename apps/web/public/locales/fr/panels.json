@@ -175,7 +175,6 @@
     "current_one": "Actuel {{count}}",
     "current_many": "Actuel {{count}}",
     "current_other": "Actuel {{count}}",
-    "delete": "Supprimer",
     "deleteFoldedModel": "Supprimer le modèle plié",
     "deleteFoldedModelAction": "Supprimer le modèle plié",
     "deleteImage": "Supprimer l'image",
@@ -201,11 +200,9 @@
       "warningOther_other": "{{count}} avertissements {{label}}"
     },
     "display": "Affichage",
-    "duplicate": "Dupliquer",
     "duplicateFoldedModel": "Dupliquer le modèle plié",
     "duplicateFoldedModelAction": "Dupliquer le modèle plié",
     "extraLineColors": "Couleurs de ligne supplémentaires",
-    "flip": "Retourner",
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
     "foldCase": "Cas de pliage",
@@ -257,6 +254,7 @@
     "none": "Aucun",
     "optimizingScale": "Optimisation de l'échelle",
     "preparing": "Préparation de l'éditeur…",
+    "refoldFoldedModelAction": "Replier le modèle",
     "resizeAnnotation": "Redimensionner l’annotation",
     "resizeFoldedForm": "Redimensionner la forme pliée",
     "rotateAnnotation": "Faire pivoter l’annotation",
@@ -285,9 +283,7 @@
     "startingFace": "Face de départ",
     "unsupported": "Non pris en charge",
     "useColoredFoldedTransparency": "Utiliser la transparence colorée du modèle plié",
-    "viewportControls": "Commandes d'affichage du patron de plis",
-    "wireframe": "Fil de fer",
-    "xray": "Rayons X"
+    "viewportControls": "Commandes d'affichage du patron de plis"
   },
   "design": {
     "attributionBoxPleating": "Adapté de <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
@@ -385,6 +381,24 @@
     "editCp": "Modifier le CP",
     "newTree": "Nouvel arbre",
     "open": "Ouvrir"
+  },
+  "foldedFigureActions": {
+    "anotherSolution": "Autre solution",
+    "delete": "Supprimer",
+    "displayStyle": "Style d’affichage",
+    "duplicate": "Dupliquer",
+    "export": "Exporter…",
+    "exportPng": "Image PNG",
+    "exportSvg": "Image SVG",
+    "flip": "Retourner",
+    "label": "Actions du modèle plié",
+    "refold": "Replier",
+    "styleDev1": "Développement 1",
+    "styleDev4": "Développement 4",
+    "styleNone": "Aucun",
+    "stylePaper": "Papier",
+    "styleWireframe": "Filaire",
+    "styleXray": "Rayons X"
   },
   "imageInspector": {
     "adjustOpacity": "Ajuster lʼopacité",

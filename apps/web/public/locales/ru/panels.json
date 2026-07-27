@@ -177,7 +177,6 @@
     "current_few": "Текущий {{count}}",
     "current_many": "Текущий {{count}}",
     "current_other": "Текущий {{count}}",
-    "delete": "Удалить",
     "deleteFoldedModel": "Удалить сложенную модель",
     "deleteFoldedModelAction": "Удалить сложенную модель",
     "deleteImage": "Удалить изображение",
@@ -207,11 +206,9 @@
       "warningOther_other": "{{label}}: {{count}} предупреждения"
     },
     "display": "Отображение",
-    "duplicate": "Дублировать",
     "duplicateFoldedModel": "Дублировать сложенную модель",
     "duplicateFoldedModelAction": "Дублировать сложенную модель",
     "extraLineColors": "Дополнительные цвета линий",
-    "flip": "Отразить",
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
     "foldCase": "Вариант складывания",
@@ -264,6 +261,7 @@
     "none": "Нет",
     "optimizingScale": "Оптимизация масштаба",
     "preparing": "Подготовка редактора…",
+    "refoldFoldedModelAction": "Сложить модель заново",
     "resizeAnnotation": "Изменить размер аннотации",
     "resizeFoldedForm": "Изменить размер сложенной формы",
     "rotateAnnotation": "Повернуть аннотацию",
@@ -293,9 +291,7 @@
     "startingFace": "Начальная грань",
     "unsupported": "Не поддерживается",
     "useColoredFoldedTransparency": "Использовать цветную прозрачность сложенной модели",
-    "viewportControls": "Элементы управления областью просмотра паттерна складок",
-    "wireframe": "Каркас",
-    "xray": "Рентген"
+    "viewportControls": "Элементы управления областью просмотра паттерна складок"
   },
   "design": {
     "attributionBoxPleating": "Адаптировано из <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
@@ -395,6 +391,24 @@
     "editCp": "Редактировать CP",
     "newTree": "Новое дерево",
     "open": "Открыть"
+  },
+  "foldedFigureActions": {
+    "anotherSolution": "Другое решение",
+    "delete": "Удалить",
+    "displayStyle": "Стиль отображения",
+    "duplicate": "Дублировать",
+    "export": "Экспорт…",
+    "exportPng": "Изображение PNG",
+    "exportSvg": "Изображение SVG",
+    "flip": "Перевернуть",
+    "label": "Действия со сложенной моделью",
+    "refold": "Сложить заново",
+    "styleDev1": "Разработка 1",
+    "styleDev4": "Разработка 4",
+    "styleNone": "Нет",
+    "stylePaper": "Бумага",
+    "styleWireframe": "Каркас",
+    "styleXray": "Рентген"
   },
   "imageInspector": {
     "adjustOpacity": "Настроить непрозрачность",

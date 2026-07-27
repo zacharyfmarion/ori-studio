@@ -173,7 +173,6 @@
     "cropImage": "Crop image",
     "current_one": "Current {{count}}",
     "current_other": "Current {{count}}",
-    "delete": "Delete",
     "deleteFoldedModel": "Delete folded model",
     "deleteFoldedModelAction": "Delete folded model",
     "deleteImage": "Delete image",
@@ -195,11 +194,9 @@
       "warningOther_other": "{{count}} {{label}} Warnings"
     },
     "display": "Display",
-    "duplicate": "Duplicate",
     "duplicateFoldedModel": "Duplicate folded model",
     "duplicateFoldedModelAction": "Duplicate folded model",
     "extraLineColors": "Extra line colors",
-    "flip": "Flip",
     "flipFoldedModel": "Flip folded model",
     "fold": "Fold",
     "foldCase": "Fold case",
@@ -250,6 +247,7 @@
     "none": "None",
     "optimizingScale": "Optimizing scale",
     "preparing": "Preparing the editor…",
+    "refoldFoldedModelAction": "Refold folded model",
     "resizeAnnotation": "Resize annotation",
     "resizeFoldedForm": "Resize folded form",
     "rotateAnnotation": "Rotate annotation",
@@ -277,9 +275,7 @@
     "startingFace": "Starting face",
     "unsupported": "Unsupported",
     "useColoredFoldedTransparency": "Use colored folded transparency",
-    "viewportControls": "Crease pattern viewport controls",
-    "wireframe": "Wireframe",
-    "xray": "X-ray"
+    "viewportControls": "Crease pattern viewport controls"
   },
   "design": {
     "attributionBoxPleating": "Adapted from <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
@@ -375,6 +371,24 @@
     "editCp": "Edit CP",
     "newTree": "New Tree",
     "open": "Open"
+  },
+  "foldedFigureActions": {
+    "anotherSolution": "Another solution",
+    "delete": "Delete",
+    "displayStyle": "Display style",
+    "duplicate": "Duplicate",
+    "export": "Export…",
+    "exportPng": "PNG image",
+    "exportSvg": "SVG image",
+    "flip": "Flip",
+    "label": "Folded figure actions",
+    "refold": "Refold",
+    "styleDev1": "Dev 1",
+    "styleDev4": "Dev 4",
+    "styleNone": "None",
+    "stylePaper": "Paper",
+    "styleWireframe": "Wireframe",
+    "styleXray": "X-ray"
   },
   "imageInspector": {
     "adjustOpacity": "Adjust opacity",

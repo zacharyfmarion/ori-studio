@@ -173,7 +173,6 @@
     "cropImage": "Bild zuschneiden",
     "current_one": "Aktuell {{count}}",
     "current_other": "Aktuell {{count}}",
-    "delete": "Löschen",
     "deleteFoldedModel": "Gefaltetes Modell löschen",
     "deleteFoldedModelAction": "Gefaltetes Modell löschen",
     "deleteImage": "Bild löschen",
@@ -195,11 +194,9 @@
       "warningOther_other": "{{count}} {{label}}-Warnungen"
     },
     "display": "Anzeige",
-    "duplicate": "Duplizieren",
     "duplicateFoldedModel": "Gefaltetes Modell duplizieren",
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
     "extraLineColors": "Zusätzliche Linienfarben",
-    "flip": "Spiegeln",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
     "foldCase": "Faltfall",
@@ -250,6 +247,7 @@
     "none": "Ohne",
     "optimizingScale": "Skalierung wird optimiert",
     "preparing": "Editor wird vorbereitet…",
+    "refoldFoldedModelAction": "Gefaltetes Modell neu falten",
     "resizeAnnotation": "Anmerkungsgröße ändern",
     "resizeFoldedForm": "Größe der gefalteten Form ändern",
     "rotateAnnotation": "Anmerkung drehen",
@@ -277,9 +275,7 @@
     "startingFace": "Startfläche",
     "unsupported": "Nicht unterstützt",
     "useColoredFoldedTransparency": "Farbige Transparenz des gefalteten Modells verwenden",
-    "viewportControls": "Ansichtssteuerung des Faltmusters",
-    "wireframe": "Drahtgitter",
-    "xray": "Röntgen"
+    "viewportControls": "Ansichtssteuerung des Faltmusters"
   },
   "design": {
     "attributionBoxPleating": "Adaptiert von <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
@@ -375,6 +371,24 @@
     "editCp": "CP bearbeiten",
     "newTree": "Neuer Baum",
     "open": "Öffnen"
+  },
+  "foldedFigureActions": {
+    "anotherSolution": "Andere Lösung",
+    "delete": "Löschen",
+    "displayStyle": "Anzeigestil",
+    "duplicate": "Duplizieren",
+    "export": "Exportieren…",
+    "exportPng": "PNG-Bild",
+    "exportSvg": "SVG-Bild",
+    "flip": "Umdrehen",
+    "label": "Aktionen für gefaltetes Modell",
+    "refold": "Neu falten",
+    "styleDev1": "Entwicklung 1",
+    "styleDev4": "Entwicklung 4",
+    "styleNone": "Keiner",
+    "stylePaper": "Papier",
+    "styleWireframe": "Drahtgitter",
+    "styleXray": "Röntgen"
   },
   "imageInspector": {
     "adjustOpacity": "Deckkraft anpassen",

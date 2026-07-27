@@ -171,7 +171,6 @@
     "couldNotOpenForEditing": "この展開図は編集用に開けませんでした。",
     "cropImage": "画像を切り抜き",
     "current_other": "現在 {{count}}",
-    "delete": "削除",
     "deleteFoldedModel": "折りモデルを削除",
     "deleteFoldedModelAction": "折り上がり図を削除",
     "deleteImage": "画像を削除",
@@ -189,11 +188,9 @@
       "warningOther_other": "{{label}} 警告 {{count}} 件"
     },
     "display": "表示",
-    "duplicate": "複製",
     "duplicateFoldedModel": "折りモデルを複製",
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "extraLineColors": "追加の線の色",
-    "flip": "反転",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
     "foldCase": "折りケース",
@@ -243,6 +240,7 @@
     "none": "なし",
     "optimizingScale": "スケールを最適化中",
     "preparing": "エディターを準備中…",
+    "refoldFoldedModelAction": "折り上がり図を折り直す",
     "resizeAnnotation": "注釈をサイズ変更",
     "resizeFoldedForm": "折り上がり図をサイズ変更",
     "rotateAnnotation": "注釈を回転",
@@ -269,9 +267,7 @@
     "startingFace": "開始面",
     "unsupported": "サポート対象外",
     "useColoredFoldedTransparency": "色付きの折り透明度を使用",
-    "viewportControls": "展開図のビューポート操作",
-    "wireframe": "ワイヤーフレーム",
-    "xray": "X 線"
+    "viewportControls": "展開図のビューポート操作"
   },
   "design": {
     "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> を基に · MIT",
@@ -365,6 +361,24 @@
     "editCp": "CP を編集",
     "newTree": "新規ツリー",
     "open": "開く"
+  },
+  "foldedFigureActions": {
+    "anotherSolution": "別の解",
+    "delete": "削除",
+    "displayStyle": "表示スタイル",
+    "duplicate": "複製",
+    "export": "エクスポート…",
+    "exportPng": "PNG 画像",
+    "exportSvg": "SVG 画像",
+    "flip": "裏返す",
+    "label": "折り上がり図の操作",
+    "refold": "折り直す",
+    "styleDev1": "開発 1",
+    "styleDev4": "開発 4",
+    "styleNone": "なし",
+    "stylePaper": "用紙",
+    "styleWireframe": "ワイヤーフレーム",
+    "styleXray": "透視"
   },
   "imageInspector": {
     "adjustOpacity": "不透明度を調整",
