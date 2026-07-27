@@ -954,41 +954,6 @@ function FoldedFigureMenuButton({
               aria-label={t('panels:creasePattern.useColoredFoldedTransparency', 'Use colored folded transparency')}
             />
           </div>
-          <label className="folded-figure-menu__field folded-figure-menu__field--range">
-            <span>{t('panels:creasePattern.alpha', 'Alpha')}</span>
-            <input
-              aria-label={t('panels:creasePattern.foldedTransparency', 'Folded transparency')}
-              type="range"
-              min={0}
-              max={255}
-              step={1}
-              value={model?.transparent_transparency ?? 16}
-              disabled={!activeReady}
-              onChange={(event) =>
-                onModelUpdate(
-                  {
-                    transparent_transparency: Math.max(
-                      0,
-                      Math.min(255, Math.round(Number(event.currentTarget.value)))
-                    ),
-                  },
-                  'alpha'
-                )
-              }
-              onPointerUp={() =>
-                onModelGestureEnd(
-                  'alpha',
-                  t('panels:creasePattern.changeFoldedAlpha', 'Change folded transparency')
-                )
-              }
-              onBlur={() =>
-                onModelGestureEnd(
-                  'alpha',
-                  t('panels:creasePattern.changeFoldedAlpha', 'Change folded transparency')
-                )
-              }
-            />
-          </label>
           <div className="folded-figure-menu__actions">
             <IconButton
               size="sm"
@@ -3612,6 +3577,7 @@ export function CreasePatternPanel() {
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}
                   foldedFigures={generatedFoldedFigures}
+                  staleFoldedFigureIds={staleFoldedFigureIds}
                   importedForms={cpImportedFoldedFormsGeometry}
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}

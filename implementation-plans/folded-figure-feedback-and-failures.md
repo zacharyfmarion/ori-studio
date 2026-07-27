@@ -56,13 +56,15 @@ top of translucent. Mitigations: keep the fade shallow enough to read as a state
 rather than a style, and rely on the list badge and the Refold button as the
 unambiguous confirmations. Start around `0.45` and tune by eye.
 
-**Implementation note that will bite.** Figures are drawn as one merged WebGL
-geometry, so a per-figure alpha has to be baked into vertex colours when the
-geometry is built (`cpFoldedToScene` / `foldedFigureLocalGeometry`) rather than
-applied as a CSS or per-draw-call property. That geometry is memoized in a
-`WeakMap` keyed on the render snapshot's identity — **the alpha must participate
-in that key**, or a figure that goes stale keeps its cached opaque vertices and
-never fades. Same trap in reverse after a refold.
+**Implementation note — the trap turned out not to apply.** The worry was that
+per-figure alpha would have to be baked into the cached local geometry, which is
+memoized in a `WeakMap` keyed on the render snapshot, so a figure changing
+opacity would keep serving its previous vertices. In fact `cpFoldedToScene`
+already *copies* each figure's colours into the merged buffers on every build
+(to apply the placement affine), so the multiplier applies at copy time and the
+cache is untouched. Two figures sharing a snapshot can therefore carry different
+opacities — locked by a test, since that is the case a baked-in implementation
+would silently get wrong.
 
 ## 3. Remove the transparency slider
 
@@ -115,18 +117,18 @@ item would be moot.
 
 ## Checklist
 
-- [ ] Refold keeps the previous figure when the new fold throws
-- [ ] Refold keeps the previous figure when the new fold finds no ordering
-- [ ] Failure reports through the existing error toast; figure stays stale
-- [ ] Tests for both failure modes, asserting the entry is unchanged and the
+- [x] Refold keeps the previous figure when the new fold throws
+- [x] Refold keeps the previous figure when the new fold finds no ordering
+- [x] Failure reports through the existing error toast; figure stays stale
+- [x] Tests for both failure modes, asserting the entry is unchanged and the
       kernel handle is still the old one
-- [ ] Stale figures render faded; alpha participates in the geometry memo key
-- [ ] Test that a stale figure's cached geometry is not reused unfaded
-- [ ] Alpha slider removed; `transparent_transparency` retained on the model
-- [ ] Fold-in-flight marker set for fold / refold / wrap
-- [ ] Toast appears only past the delay, and honours the minimum visible duration
-- [ ] i18n across 8 locales; `i18n:check`
-- [ ] Browser pass: fast fold shows no toast; slow fold shows one and it does not
+- [x] Stale figures render faded; alpha participates in the geometry memo key
+- [x] Test that a stale figure's cached geometry is not reused unfaded
+- [x] Alpha slider removed; `transparent_transparency` retained on the model
+- [x] Fold-in-flight marker set for fold / refold / wrap
+- [x] Toast appears only past the delay, and honours the minimum visible duration
+- [x] i18n across 8 locales; `i18n:check`
+- [x] Browser pass: fast fold shows no toast; slow fold shows one and it does not
       flash; a stale figure reads as faded without looking like X-ray
 
 ## Risks

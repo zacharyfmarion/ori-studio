@@ -151,7 +151,6 @@
   "creasePattern": {
     "activeCreaseLineType": "Active crease line type",
     "addImage": "Add image",
-    "alpha": "Alpha",
     "angleBisectorSelect2Lines": "Angle Bisector: Select 2 lines",
     "angleBisectorSelectSegmentToEnd": "Angle Bisector: Select segment to end",
     "anotherSolutionAction": "Show another solution",
@@ -162,7 +161,6 @@
     "case_other": "Case {{count}}",
     "caseLabel": "Case",
     "changeFoldCase": "Change fold case",
-    "changeFoldedAlpha": "Change folded transparency",
     "changeFoldedColor": "Change folded model color",
     "changeFoldedDisplayStyle": "Change folded display style",
     "changeFoldedModel": "Change folded model",
@@ -229,7 +227,6 @@
       "transparent": "Transparent",
       "wire": "Wire"
     },
-    "foldedTransparency": "Folded transparency",
     "foldModelAction": "Fold model",
     "insertImage": "Insert image...",
     "linesCount_one": "{{count}} lines",

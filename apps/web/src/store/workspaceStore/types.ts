@@ -394,6 +394,11 @@ export interface CreasePatternSliceState {
   oristudioCpActiveDiagnosticId: string | null;
   oristudioCpRevision: number;
   oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
+  /**
+   * How many fold operations are in flight. A count, not a flag, so overlapping
+   * folds cannot clear each other's indicator. Drives the delayed progress toast.
+   */
+  oristudioCpFoldsInFlight: number;
   oristudioCpActiveFoldedFigureId: string | null;
   oristudioCpViewport: OristudioCpViewportOptions;
   /**

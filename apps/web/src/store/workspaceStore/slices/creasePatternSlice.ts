@@ -284,6 +284,54 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     };
   }
 
+  /**
+   * Whether a completed fold actually produced something to draw.
+   *
+   * A fold can return without a result: a global flat-foldability contradiction
+   * concludes at the transparent development with no layer ordering
+   * (`conclude_with_contradiction`). Mirrors the canvas's own renderability test
+   * so "we will show this" and "we will keep this" cannot disagree.
+   */
+  function isDrawableFoldResult(
+    snapshot: OristudioCpFoldedFigureEntry['snapshot'],
+    renderSnapshot: OristudioCpFoldedFigureEntry['renderSnapshot']
+  ): boolean {
+    return Boolean(renderSnapshot?.primitives.length || snapshot?.wireframe);
+  }
+
+  /**
+   * Put a figure back exactly as it was and report why, for a refold that could
+   * not produce a replacement. The figure itself was never invalid — the crease
+   * pattern is — so destroying it would lose work over someone else's problem.
+   */
+  function restorePreviousFigure(
+    previous: OristudioCpFoldedFigureEntry,
+    message: string
+  ): boolean {
+    set({
+      oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+        candidate.id === previous.id ? previous : candidate
+      ),
+      oristudioCpError: message,
+      error: { code: 'invalid_operation', message },
+    });
+    return false;
+  }
+
+  /**
+   * Mark a fold as in flight for as long as `run` takes, so the UI can show
+   * progress for a slow one. Folding happens in the CP worker, so the main
+   * thread stays free to actually paint that indicator.
+   */
+  async function withFoldInFlight<T>(run: () => Promise<T>): Promise<T> {
+    set({ oristudioCpFoldsInFlight: get().oristudioCpFoldsInFlight + 1 });
+    try {
+      return await run();
+    } finally {
+      set({ oristudioCpFoldsInFlight: Math.max(0, get().oristudioCpFoldsInFlight - 1) });
+    }
+  }
+
   function clearFoldArtifactSource() {
     set({
       ...emptyFoldArtifactResourceState(),
@@ -462,6 +510,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpRevision: 0,
     oristudioCpFoldedFigures: [],
     oristudioCpActiveFoldedFigureId: null,
+    oristudioCpFoldsInFlight: 0,
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
     oristudioCpAnnotations: [],
     oristudioCpSelectedAnnotationId: null,
@@ -892,11 +941,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           options.model ??
           foldedFigureModelFromOrieditaMetadata(oristudioCpDocument.document.metadata) ??
           undefined;
-        const result = await foldRuntimeOristudioCpDocument(
-          options.startingFaceId ?? 1,
-          options.order ?? 'Order5',
-          model,
-          selectedLineIds
+        const result = await withFoldInFlight(() =>
+          foldRuntimeOristudioCpDocument(
+            options.startingFaceId ?? 1,
+            options.order ?? 'Order5',
+            model,
+            selectedLineIds
+          )
         );
         const displayStyle = result.snapshot.display_style;
         // Rendered unselected: a fresh fold is not the canvas selection, so it
@@ -1007,7 +1058,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
 
       try {
-        const snapshot = await foldRuntimeOristudioCpFigureAnother(figure.handle);
+        // Captured after the guard above: the closure would otherwise lose the
+        // narrowing on a mutable property.
+        const handle = figure.handle;
+        const snapshot = await withFoldInFlight(() =>
+          foldRuntimeOristudioCpFigureAnother(handle)
+        );
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,
@@ -1065,7 +1121,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
 
       try {
-        const result = await foldRuntimeOristudioCpFigureToCase(figure.handle, objective, 'Order5');
+        const handle = figure.handle;
+        const result = await withFoldInFlight(() =>
+          foldRuntimeOristudioCpFigureToCase(handle, objective, 'Order5')
+        );
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,
@@ -1228,7 +1287,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
 
       const lineIds = reselectFoldableLineIds(oristudioCpDocument.document, figure.sourceBounds);
-      if (lineIds.length < 2) {
+      // Matches what folding itself requires (`foldOristudioCpDocument` rejects
+      // an empty selection); anything the kernel will accept, a refold should.
+      if (lineIds.length === 0) {
         const message = 'The creases this folded model came from are gone';
         set({
           oristudioCpError: message,
@@ -1246,11 +1307,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
 
       try {
-        const result = await foldRuntimeOristudioCpDocument(
-          figure.startingFaceId ?? 1,
-          'Order5',
-          figure.snapshot?.model,
-          lineIds
+        const result = await withFoldInFlight(() =>
+          foldRuntimeOristudioCpDocument(
+            figure.startingFaceId ?? 1,
+            'Order5',
+            figure.snapshot?.model,
+            lineIds
+          )
         );
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           result.handle,
@@ -1258,6 +1321,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           foldedFigureIndex(figure.id),
           true
         );
+        // A fold that *returns* has not necessarily produced anything: a global
+        // flat-foldability contradiction concludes at the transparent
+        // development with no layer ordering and nothing to draw. Swapping that
+        // in would replace a perfectly good figure with an empty one, so treat
+        // it exactly like a throw and keep what the user is looking at.
+        if (!isDrawableFoldResult(result.snapshot, renderSnapshot)) {
+          await freeOristudioCpFoldedFigure(result.handle).catch(() => {});
+          return restorePreviousFigure(
+            figure,
+            'This crease pattern can no longer be folded flat, so the folded model is unchanged'
+          );
+        }
         retainFoldedFigureHandle(result.handle);
         set({
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -1288,17 +1363,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         releaseFoldedFigureHandle(previousHandle);
         return true;
       } catch (error) {
-        const normalized = engineError(error);
-        set({
-          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-            candidate.id === figure.id
-              ? { ...candidate, status: 'error', error: normalized.message }
-              : candidate
-          ),
-          oristudioCpError: normalized.message,
-          error: normalized,
-        });
-        return false;
+        // A refold is a no-op when it fails. The figure on the canvas is still
+        // valid — it is the *crease pattern* that cannot be folded — and the old
+        // kernel handle is untouched, since it is released only after a success.
+        return restorePreviousFigure(figure, engineError(error).message);
       }
     },
 

@@ -646,7 +646,6 @@
     "panels:cpViewControls.yScale": "058082fa21b2",
     "panels:creasePattern.activeCreaseLineType": "62b300c1907a",
     "panels:creasePattern.addImage": "04136060b40f",
-    "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
@@ -700,7 +699,6 @@
     "panels:creasePattern.foldedStyle.paper": "35045eff549e",
     "panels:creasePattern.foldedStyle.transparent": "aac7e89fcd0e",
     "panels:creasePattern.foldedStyle.wire": "149987d3bbcb",
-    "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
     "panels:creasePattern.moreLineColors": "544d5e07fea4",
@@ -1710,7 +1708,6 @@
     "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
     "panels:creasePattern.anotherSolutionAction": "538aa2082763",
     "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
-    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
     "panels:creasePattern.changeFoldedColor": "07b13b860c68",
     "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
     "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
@@ -1820,7 +1817,8 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "panels:foldedFigureActions.firstSolution": "7de3e1910867",
-    "panels:creasePattern.stale": "40c9e59c5e15"
+    "panels:creasePattern.stale": "40c9e59c5e15",
+    "toasts:global.folding": "73700a8434f9"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2469,7 +2467,6 @@
     "panels:cpViewControls.yScale": "058082fa21b2",
     "panels:creasePattern.activeCreaseLineType": "62b300c1907a",
     "panels:creasePattern.addImage": "04136060b40f",
-    "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
@@ -2523,7 +2520,6 @@
     "panels:creasePattern.foldedStyle.paper": "35045eff549e",
     "panels:creasePattern.foldedStyle.transparent": "aac7e89fcd0e",
     "panels:creasePattern.foldedStyle.wire": "149987d3bbcb",
-    "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
     "panels:creasePattern.moreLineColors": "544d5e07fea4",
@@ -3533,7 +3529,6 @@
     "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
     "panels:creasePattern.anotherSolutionAction": "538aa2082763",
     "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
-    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
     "panels:creasePattern.changeFoldedColor": "07b13b860c68",
     "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
     "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
@@ -3643,7 +3638,8 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "panels:foldedFigureActions.firstSolution": "7de3e1910867",
-    "panels:creasePattern.stale": "40c9e59c5e15"
+    "panels:creasePattern.stale": "40c9e59c5e15",
+    "toasts:global.folding": "73700a8434f9"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4304,7 +4300,6 @@
     "panels:cpViewControls.yScale": "058082fa21b2",
     "panels:creasePattern.activeCreaseLineType": "62b300c1907a",
     "panels:creasePattern.addImage": "04136060b40f",
-    "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
@@ -4364,7 +4359,6 @@
     "panels:creasePattern.foldedStyle.paper": "35045eff549e",
     "panels:creasePattern.foldedStyle.transparent": "aac7e89fcd0e",
     "panels:creasePattern.foldedStyle.wire": "149987d3bbcb",
-    "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -5381,7 +5375,6 @@
     "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
     "panels:creasePattern.anotherSolutionAction": "538aa2082763",
     "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
-    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
     "panels:creasePattern.changeFoldedColor": "07b13b860c68",
     "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
     "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
@@ -5492,7 +5485,8 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "panels:foldedFigureActions.firstSolution": "7de3e1910867",
-    "panels:creasePattern.stale": "40c9e59c5e15"
+    "panels:creasePattern.stale": "40c9e59c5e15",
+    "toasts:global.folding": "73700a8434f9"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6153,7 +6147,6 @@
     "panels:cpViewControls.yScale": "058082fa21b2",
     "panels:creasePattern.activeCreaseLineType": "62b300c1907a",
     "panels:creasePattern.addImage": "04136060b40f",
-    "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
@@ -6213,7 +6206,6 @@
     "panels:creasePattern.foldedStyle.paper": "35045eff549e",
     "panels:creasePattern.foldedStyle.transparent": "aac7e89fcd0e",
     "panels:creasePattern.foldedStyle.wire": "149987d3bbcb",
-    "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -7230,7 +7222,6 @@
     "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
     "panels:creasePattern.anotherSolutionAction": "538aa2082763",
     "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
-    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
     "panels:creasePattern.changeFoldedColor": "07b13b860c68",
     "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
     "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
@@ -7341,7 +7332,8 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "panels:foldedFigureActions.firstSolution": "7de3e1910867",
-    "panels:creasePattern.stale": "40c9e59c5e15"
+    "panels:creasePattern.stale": "40c9e59c5e15",
+    "toasts:global.folding": "73700a8434f9"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8002,7 +7994,6 @@
     "panels:cpViewControls.yScale": "058082fa21b2",
     "panels:creasePattern.activeCreaseLineType": "62b300c1907a",
     "panels:creasePattern.addImage": "04136060b40f",
-    "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
@@ -8062,7 +8053,6 @@
     "panels:creasePattern.foldedStyle.paper": "35045eff549e",
     "panels:creasePattern.foldedStyle.transparent": "aac7e89fcd0e",
     "panels:creasePattern.foldedStyle.wire": "149987d3bbcb",
-    "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -9079,7 +9069,6 @@
     "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
     "panels:creasePattern.anotherSolutionAction": "538aa2082763",
     "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
-    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
     "panels:creasePattern.changeFoldedColor": "07b13b860c68",
     "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
     "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
@@ -9190,7 +9179,8 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "panels:foldedFigureActions.firstSolution": "7de3e1910867",
-    "panels:creasePattern.stale": "40c9e59c5e15"
+    "panels:creasePattern.stale": "40c9e59c5e15",
+    "toasts:global.folding": "73700a8434f9"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9851,7 +9841,6 @@
     "panels:cpViewControls.yScale": "058082fa21b2",
     "panels:creasePattern.activeCreaseLineType": "62b300c1907a",
     "panels:creasePattern.addImage": "04136060b40f",
-    "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
@@ -9911,7 +9900,6 @@
     "panels:creasePattern.foldedStyle.paper": "35045eff549e",
     "panels:creasePattern.foldedStyle.transparent": "aac7e89fcd0e",
     "panels:creasePattern.foldedStyle.wire": "149987d3bbcb",
-    "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -10928,7 +10916,6 @@
     "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
     "panels:creasePattern.anotherSolutionAction": "538aa2082763",
     "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
-    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
     "panels:creasePattern.changeFoldedColor": "07b13b860c68",
     "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
     "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
@@ -11039,7 +11026,8 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "panels:foldedFigureActions.firstSolution": "7de3e1910867",
-    "panels:creasePattern.stale": "40c9e59c5e15"
+    "panels:creasePattern.stale": "40c9e59c5e15",
+    "toasts:global.folding": "73700a8434f9"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11700,7 +11688,6 @@
     "panels:cpViewControls.yScale": "058082fa21b2",
     "panels:creasePattern.activeCreaseLineType": "62b300c1907a",
     "panels:creasePattern.addImage": "04136060b40f",
-    "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
@@ -11760,7 +11747,6 @@
     "panels:creasePattern.foldedStyle.paper": "35045eff549e",
     "panels:creasePattern.foldedStyle.transparent": "aac7e89fcd0e",
     "panels:creasePattern.foldedStyle.wire": "149987d3bbcb",
-    "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -12777,7 +12763,6 @@
     "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
     "panels:creasePattern.anotherSolutionAction": "538aa2082763",
     "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
-    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
     "panels:creasePattern.changeFoldedColor": "07b13b860c68",
     "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
     "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
@@ -12888,7 +12873,8 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "panels:foldedFigureActions.firstSolution": "7de3e1910867",
-    "panels:creasePattern.stale": "40c9e59c5e15"
+    "panels:creasePattern.stale": "40c9e59c5e15",
+    "toasts:global.folding": "73700a8434f9"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13537,7 +13523,6 @@
     "panels:cpViewControls.yScale": "058082fa21b2",
     "panels:creasePattern.activeCreaseLineType": "62b300c1907a",
     "panels:creasePattern.addImage": "04136060b40f",
-    "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
@@ -13591,7 +13576,6 @@
     "panels:creasePattern.foldedStyle.paper": "35045eff549e",
     "panels:creasePattern.foldedStyle.transparent": "aac7e89fcd0e",
     "panels:creasePattern.foldedStyle.wire": "149987d3bbcb",
-    "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
     "panels:creasePattern.moreLineColors": "544d5e07fea4",
@@ -14601,7 +14585,6 @@
     "panels:creasePattern.rotateFoldedForm": "bd9b2311ddd5",
     "panels:creasePattern.anotherSolutionAction": "538aa2082763",
     "panels:creasePattern.changeFoldCase": "21ec0ac52ccf",
-    "panels:creasePattern.changeFoldedAlpha": "511a1c0aa262",
     "panels:creasePattern.changeFoldedColor": "07b13b860c68",
     "panels:creasePattern.changeFoldedDisplayStyle": "eb424b07e2ec",
     "panels:creasePattern.changeFoldedModel": "a73dc0c3482b",
@@ -14711,6 +14694,7 @@
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
     "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
     "panels:foldedFigureActions.firstSolution": "7de3e1910867",
-    "panels:creasePattern.stale": "40c9e59c5e15"
+    "panels:creasePattern.stale": "40c9e59c5e15",
+    "toasts:global.folding": "73700a8434f9"
   }
 }

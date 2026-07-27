@@ -1,5 +1,6 @@
 {
   "global": {
-    "error": "Ori Studio error"
+    "error": "Ori Studio error",
+    "folding": "Folding…"
   }
 }

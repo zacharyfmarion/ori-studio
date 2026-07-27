@@ -2477,6 +2477,69 @@ describe('workspace store slices', () => {
     ).toBe(false);
   });
 
+  // A refold that fails is a no-op: the figure on the canvas is still valid, it
+  // is the crease pattern that cannot be folded. Destroying it would lose the
+  // user's placement and styling over a problem elsewhere.
+  it('keeps the figure when a refold throws', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    oristudioCpMocks.foldOristudioCpDocument.mockRejectedValueOnce({
+      code: 'invalid_operation',
+      message: 'two faces meet with the same orientation across a crease',
+    });
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+    ).resolves.toBe(false);
+
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(after).toEqual(before);
+    expect(after.status).toBe('ready');
+    expect(after.renderSnapshot).not.toBeNull();
+    // The old kernel handle is untouched: it is released only after a success.
+    expect(after.handle).toBe(before.handle);
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).not.toHaveBeenCalledWith(before.handle);
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('same orientation');
+  });
+
+  // The subtler half: a fold can *return* having found nothing. A global
+  // flat-foldability contradiction concludes at the transparent development with
+  // no layer ordering, so swapping the result in would blank the figure.
+  it('keeps the figure when a refold returns nothing drawable', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    oristudioCpMocks.foldOristudioCpDocument.mockResolvedValueOnce({
+      handle: 21,
+      snapshot: { ...foldedFigureSnapshot(), wireframe: null, discovered_fold_cases: 0 },
+    });
+    oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockResolvedValueOnce({
+      ...foldedRenderSnapshot(),
+      primitives: [],
+    });
+
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+    ).resolves.toBe(false);
+
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(after).toEqual(before);
+    expect(after.handle).toBe(before.handle);
+    // The handle the failed fold allocated is freed rather than leaked.
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(21);
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('folded flat');
+  });
+
   it('refuses to refold a figure whose source creases are gone', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
