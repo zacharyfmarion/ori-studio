@@ -108,13 +108,13 @@ describe('oristudio CP action registry', () => {
         .filter((action) => action.group === 'generators')
         .map((action) => action.label)
     ).toEqual([
-      'Regular Polygon',
-      'Voronoi',
       'Blintz base',
       'Fish base',
       'Dove base',
       'Bird base',
       'Frog base',
+      'Regular Polygon',
+      'Voronoi',
     ]);
 
     expect(
