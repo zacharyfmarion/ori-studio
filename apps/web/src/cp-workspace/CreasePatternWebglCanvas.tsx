@@ -44,6 +44,12 @@ import {
 } from './adapters/cpSnapshotToScene';
 import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import { matrixFromPointPairs } from './tools/creaseTransform';
+import type { CpStepSnap } from './tools/inputModelRegistry';
+import {
+  isCreaseStep,
+  loneCandidateAutoPick,
+  requiresCreaseInRange,
+} from './tools/sequenceSteps';
 import {
   createTransformGhost,
   ghostBaseFromGeometry,
@@ -103,16 +109,21 @@ type ActiveToolMode =
   // model point so the panel can start an inline-edit draft there.
   | 'text';
 /**
- * Per-step snap/feedback mode: snap to grid/vertices (`point`), onto an existing
- * crease (`crease`), or onto the nearest kernel-computed candidate ray (`candidate`,
- * used by the flat-foldable/candidate tools whose middle step picks one of the
- * previewed option lines rather than free geometry).
+ * Per-step snap/feedback mode — the input registry's {@link CpStepSnap}, which is
+ * where each tool's steps are declared. Aliased (not redeclared) so the surface and
+ * the registry cannot drift apart.
  */
-export type StepKind = 'point' | 'crease' | 'candidate';
+export type StepKind = CpStepSnap;
 /**
  * A viewport-toolbar command for the WebGL camera. `nonce` re-fires the same command
  * (e.g. repeated zoom-in presses); `percent` is only used by `set-percent`.
  */
+/**
+ * How far a stale folded figure fades. Shallow enough to read as a state rather
+ * than as the Transparent display style, which is a deliberate look a user picks.
+ */
+const STALE_FOLDED_FIGURE_OPACITY = 0.45;
+
 export interface CameraCommand {
   kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent' | 'rotate-by' | 'rotate-to' | 'rotate-reset';
   percent?: number;
@@ -451,6 +462,12 @@ export interface CreasePatternWebglCanvasProps {
   panToolActive: boolean;
   /** Per-step input kinds for a `sequence` tool (free point vs picked crease). */
   activeToolStepKinds: readonly StepKind[];
+  /**
+   * The selection distance (model units) the panel sends with the active command, so
+   * a `crease-required` step can gate its pick on exactly the radius the kernel will
+   * search — a click the kernel would reject is ignored instead of erroring.
+   */
+  activeToolSelectionDistance: number;
   /** Number of crease picks a `line-entity` tool collects before committing. */
   activeToolLineCount: number;
   /**
@@ -644,6 +661,12 @@ export interface CreasePatternWebglCanvasProps {
   circleRadiusToSvg: (radius: number) => number;
   /** Generated folded figures (render-snapshot primitives). */
   foldedFigures: readonly OristudioCpFoldedFigureEntry[];
+  /**
+   * Figures that no longer match the creases they were folded from. Drawn faded,
+   * so an out-of-date figure looks out of date on the canvas rather than only in
+   * the folded-models list.
+   */
+  staleFoldedFigureIds?: ReadonlySet<string>;
   /** Imported `.fold` folded-form frames as fills + strokes (user coords), or null. */
   importedForms: FoldedGeometry | null;
   /** Grid parameters, or null when there is no grid. */
@@ -685,6 +708,7 @@ export function CreasePatternWebglCanvas({
   activeToolInputMode,
   panToolActive,
   activeToolStepKinds,
+  activeToolSelectionDistance,
   activeToolLineCount,
   activeToolRequireSnap,
   activeToolClickAction,
@@ -731,6 +755,7 @@ export function CreasePatternWebglCanvas({
   circles,
   circleRadiusToSvg,
   foldedFigures,
+  staleFoldedFigureIds,
   importedForms,
   grid,
   gridVisible,
@@ -1048,6 +1073,7 @@ export function CreasePatternWebglCanvas({
     activeToolInputMode,
     panToolActive,
     activeToolStepKinds,
+    activeToolSelectionDistance,
     activeToolLineCount,
     activeToolRequireSnap,
     activeToolClickAction,
@@ -1088,6 +1114,27 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   });
 
+  // Resolve a lone candidate the moment the kernel preview reports it, rather than
+  // on the next click. The step prompt is driven by the picks reported here, so
+  // deferring this told the user to "select flat foldable line" while the click that
+  // followed was already being read as the destination — and a click on the one ray
+  // on screen, the thing the prompt named, is exactly what the destination step
+  // cannot accept.
+  useEffect(() => {
+    const runtime = persistentToolRuntimeRef.current;
+    if (!runtime) return;
+    const stepKinds = dynamicStepKindsRef.current ?? activeToolStepKinds;
+    const auto = loneCandidateAutoPick(
+      stepKinds,
+      sequenceStepRef.current,
+      toolCommandPreviewSegments
+    );
+    if (!auto) return;
+    runtime.feed({ kind: 'down', point: auto });
+    sequenceStepRef.current += 1;
+    onToolPickProgress(sequenceStepRef.current);
+  }, [activeToolStepKinds, onToolPickProgress, toolCommandPreviewSegments]);
+
   // A new document: drop the one-shot camera seed so the next frame re-fits
   // against the current bounds (creases + images + text boxes). Declared after
   // the liveRef effect so `contentBounds` is already up to date when it re-fits.
@@ -1110,9 +1157,11 @@ export function CreasePatternWebglCanvas({
     () => ({
       strokes: buildStrokes(),
       points: buildPoints(),
-      folded: cpFoldedToScene(foldedFigures),
+      folded: cpFoldedToScene(foldedFigures, (figure) =>
+        staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1
+      ),
     }),
-    [buildStrokes, buildPoints, foldedFigures]
+    [buildStrokes, buildPoints, foldedFigures, staleFoldedFigureIds]
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global
@@ -1603,22 +1652,8 @@ export function CreasePatternWebglCanvas({
         sequenceStepRef.current = 0;
       }
       const runtime = persistentToolRuntimeRef.current;
-      // Auto-select a lone candidate: when the candidate step has exactly one
-      // previewed option, Oriedita skips the pick. Inject a point on that ray and
-      // advance, so this event lands on the following (destination) step.
-      while (
-        stepKinds[sequenceStepRef.current] === 'candidate' &&
-        liveRef.current.toolCommandPreviewSegments.length === 1
-      ) {
-        const only = liveRef.current.toolCommandPreviewSegments[0];
-        runtime.feed({
-          kind: 'down',
-          point: { x: (only.a.x + only.b.x) / 2, y: (only.a.y + only.b.y) / 2 },
-        });
-        sequenceStepRef.current += 1;
-      }
       const stepKind = stepKinds[sequenceStepRef.current];
-      const creaseStep = stepKind === 'crease';
+      const creaseStep = isCreaseStep(stepKind);
       const candidateStep = stepKind === 'candidate';
       let point: ModelPoint;
       let snappedToVertex = false;
@@ -1626,6 +1661,21 @@ export function CreasePatternWebglCanvas({
         const resolved = liveRef.current.resolveDrawPointOnCrease(raw, tol);
         point = resolved.point;
         snappedToVertex = resolved.snappedToVertex;
+        // A destination step takes the crease the kernel will find from this point,
+        // so a pick with none in its selection distance is ignored — upstream stays
+        // on the step for it, where committing raises a "nearest line is outside
+        // selection distance" error and throws the whole gesture away.
+        if (
+          requiresCreaseInRange(stepKind) &&
+          kind === 'down' &&
+          liveRef.current.hitIndex.query(
+            point.x,
+            point.y,
+            liveRef.current.activeToolSelectionDistance
+          ) <= 0
+        ) {
+          return;
+        }
       } else if (candidateStep) {
         // Snap onto the nearest previewed candidate ray. A pick that lands on no ray
         // is ignored (Oriedita's candidate step gates on selection distance) rather

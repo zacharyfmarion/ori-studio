@@ -10,12 +10,9 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { createPortal } from 'react-dom';
 import {
-  Box,
   ChevronDown,
   ChevronRight,
   Copy,
-  Eye,
-  FlipHorizontal2,
   ImagePlus,
   ListChecks,
   Loader2,
@@ -111,9 +108,22 @@ import {
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
-import type { CameraCommand, CpOverlayView } from '../../cp-workspace/CreasePatternWebglCanvas';
+import type {
+  CameraCommand,
+  CpOverlayView,
+  StepKind,
+} from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
-import { flipFoldedState } from '../../cp-workspace/foldedFigureState';
+import {
+  buildFoldedFigureActions,
+  foldedFigureFlipState,
+  type FoldedFigureActionDeps,
+} from '../../cp-workspace/foldedFigureActions';
+import { foldedFigureActionIconNode as foldedFigureMenuIcon } from '../../cp-workspace/foldedFigureActionIcons';
+import { isFoldedFigureStale } from '../../lib/foldedFigureStaleness';
+// Registers `__foldedStaleDebug()` in dev builds; no-op in production.
+import '../../cp-workspace/foldedFigureStalenessDebug';
+import { foldedFigureCurrentCase } from '../../cp-workspace/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
@@ -129,6 +139,7 @@ import type { AnnotationResizeHandle } from '../../cp-workspace/annotations/anno
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
+import { CpFoldedFigureToolbar } from '../../cp-workspace/CpFoldedFigureToolbar';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
 import { cropImage, fitImageModelSize } from '../../cp-workspace/images/cpImagePlacement';
@@ -619,6 +630,7 @@ function FoldedFigureMenuButton({
   caseDraft,
   onStartingFaceIdChange,
   onCaseDraftChange,
+  staleFigureIds,
   onSelectFigure,
   onDisplayStyle,
   onModelUpdate,
@@ -631,6 +643,12 @@ function FoldedFigureMenuButton({
   activeFigure: OristudioCpFoldedFigureEntry | null;
   startingFaceId: number;
   caseDraft: string;
+  /**
+   * Figures whose source creases have changed since they were folded. Derived
+   * per document revision rather than stamped on the entry — see
+   * `lib/foldedFigureStaleness.ts`.
+   */
+  staleFigureIds: ReadonlySet<string>;
   onStartingFaceIdChange: (startingFaceId: number) => void;
   onCaseDraftChange: (draft: string) => void;
   onSelectFigure: (id: string) => void;
@@ -653,7 +671,7 @@ function FoldedFigureMenuButton({
   const model = activeFigure?.snapshot?.model ?? null;
   const activeReady =
     activeFigure?.status === 'ready' && activeFigure.handle !== null && activeFigure.snapshot !== null;
-  const currentCase = Math.max(activeFigure?.snapshot?.discovered_fold_cases ?? 1, 1);
+  const currentCase = Math.max(foldedFigureCurrentCase(activeFigure), 1);
   const canJumpCase = activeReady && Number.isFinite(Number(caseDraft));
 
   // Keep any display style already saved on a document selectable even if it is no
@@ -716,7 +734,15 @@ function FoldedFigureMenuButton({
                   onClick={() => onSelectFigure(figure.id)}
                 >
                   <span>{figure.title}</span>
-                  <small>{figure.status === 'ready' ? t('panels:creasePattern.case', 'Case {{count}}', { count: figure.snapshot?.discovered_fold_cases ?? 0 }) : figure.status}</small>
+                  <small data-stale={staleFigureIds.has(figure.id) || undefined}>
+                    {staleFigureIds.has(figure.id)
+                      ? t('panels:creasePattern.stale', 'Stale')
+                      : figure.status === 'ready'
+                        ? t('panels:creasePattern.case', 'Case {{count}}', {
+                            count: foldedFigureCurrentCase(figure),
+                          })
+                        : figure.status}
+                  </small>
                 </button>
               ))}
             </div>
@@ -789,6 +815,9 @@ function FoldedFigureMenuButton({
           </div>
           <label className="folded-figure-menu__field">
             <span>{t('panels:creasePattern.caseLabel', 'Case')}</span>
+            {/* The field is the control: Enter or blur commits it. A separate
+                "go" button alongside an input the user has already typed into
+                is a second thing to find for no extra ability. */}
             <div className="folded-figure-menu__case">
               <input
                 aria-label={t('panels:creasePattern.foldCase', 'Fold case')}
@@ -798,19 +827,15 @@ function FoldedFigureMenuButton({
                 value={caseDraft}
                 disabled={!activeReady}
                 onChange={(event) => onCaseDraftChange(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return;
+                  event.preventDefault();
+                  if (canJumpCase) onFoldToCase();
+                }}
                 onBlur={() => {
                   if (canJumpCase) onFoldToCase();
                 }}
               />
-              <IconButton
-                size="sm"
-                variant="toolbar"
-                title={t('panels:creasePattern.goToFoldedCase', 'Go to folded case')}
-                disabled={!canJumpCase}
-                onClick={onFoldToCase}
-              >
-                <ChevronRight size={14} />
-              </IconButton>
             </div>
           </label>
           <div className="folded-figure-menu__hint">{t('panels:creasePattern.current', 'Current {{count}}', { count: currentCase })}</div>
@@ -832,41 +857,6 @@ function FoldedFigureMenuButton({
               aria-label={t('panels:creasePattern.useColoredFoldedTransparency', 'Use colored folded transparency')}
             />
           </div>
-          <label className="folded-figure-menu__field folded-figure-menu__field--range">
-            <span>{t('panels:creasePattern.alpha', 'Alpha')}</span>
-            <input
-              aria-label={t('panels:creasePattern.foldedTransparency', 'Folded transparency')}
-              type="range"
-              min={0}
-              max={255}
-              step={1}
-              value={model?.transparent_transparency ?? 16}
-              disabled={!activeReady}
-              onChange={(event) =>
-                onModelUpdate(
-                  {
-                    transparent_transparency: Math.max(
-                      0,
-                      Math.min(255, Math.round(Number(event.currentTarget.value)))
-                    ),
-                  },
-                  'alpha'
-                )
-              }
-              onPointerUp={() =>
-                onModelGestureEnd(
-                  'alpha',
-                  t('panels:creasePattern.changeFoldedAlpha', 'Change folded transparency')
-                )
-              }
-              onBlur={() =>
-                onModelGestureEnd(
-                  'alpha',
-                  t('panels:creasePattern.changeFoldedAlpha', 'Change folded transparency')
-                )
-              }
-            />
-          </label>
           <div className="folded-figure-menu__actions">
             <IconButton
               size="sm"
@@ -1260,6 +1250,12 @@ export function CreasePatternPanel() {
   const duplicateOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.duplicateOristudioCpFoldedFigure
   );
+  const refoldOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.refoldOristudioCpFoldedFigure
+  );
+  const exportOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.exportOristudioCpFoldedFigure
+  );
   const deleteOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.deleteOristudioCpFoldedFigure
   );
@@ -1400,6 +1396,33 @@ export function CreasePatternPanel() {
       ),
     [oristudioCpFoldedFigures]
   );
+  /**
+   * The figure the canvas has *selected*, for the floating toolbar.
+   *
+   * Deliberately not `activeFoldedFigure`: that memo falls back to the most
+   * recent generated figure when nothing is selected, which is right for the
+   * viewport toolbar (it acts on "the fold you just made") but would leave the
+   * floating bar parked over that figure forever.
+   */
+  const selectedFoldedFigure = useMemo(
+    () =>
+      generatedFoldedFigures.find((figure) => figure.id === oristudioCpActiveFoldedFigureId) ??
+      null,
+    [generatedFoldedFigures, oristudioCpActiveFoldedFigureId]
+  );
+  /**
+   * Which figures no longer match the creases they were folded from. Computed
+   * here, once per document revision, rather than stamped onto every figure
+   * during the edit — see `lib/foldedFigureStaleness.ts` for the ported test and
+   * why the old always-stale flag was both wrong and unusable for refolding.
+   */
+  const staleFoldedFigureIds = useMemo(() => {
+    const stale = new Set<string>();
+    for (const figure of generatedFoldedFigures) {
+      if (isFoldedFigureStale(oristudioCpDocument?.document, figure)) stale.add(figure.id);
+    }
+    return stale;
+  }, [generatedFoldedFigures, oristudioCpDocument?.document]);
   // Folded-figure state captured at the start of a gesture, so a whole drag
   // records one undo entry — the same shape the annotation layer uses.
   const preGestureFoldedFiguresRef = useRef<readonly OristudioCpFoldedFigureEntry[] | null>(null);
@@ -1539,21 +1562,6 @@ export function CreasePatternPanel() {
     ]
   );
 
-  const foldedFigureStatusLabel = activeFoldedFigure
-    ? activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
-      ? t('panels:creasePattern.case', 'Case {{count}}', {
-          count: activeFoldedFigure.snapshot?.discovered_fold_cases ?? 0,
-        })
-      : activeFoldedFigure.status === 'loading'
-        ? t('panels:creasePattern.folding', 'Folding')
-        : activeFoldedFigure.status === 'error'
-          ? t('panels:creasePattern.foldError', 'Fold error')
-          : t('panels:creasePattern.unsupported', 'Unsupported')
-    : t('panels:creasePattern.noFold', 'No fold');
-  const canFoldAnother =
-    activeFoldedFigure?.status === 'ready' &&
-    activeFoldedFigure.handle !== null &&
-    activeFoldedFigure.snapshot?.find_another_overlap_valid === true;
   const selectedEditableFoldLineIds = useMemo(
     () => selectedFoldableCpLineIds(editableCp, oristudioCpSelection),
     [editableCp, oristudioCpSelection]
@@ -1561,8 +1569,8 @@ export function CreasePatternPanel() {
   const canFoldSelectedModel = selectedEditableFoldLineIds.length > 0;
 
   useEffect(() => {
-    setFoldCaseDraft(String(Math.max(activeFoldedFigure?.snapshot?.discovered_fold_cases ?? 1, 1)));
-  }, [activeFoldedFigure?.id, activeFoldedFigure?.snapshot?.discovered_fold_cases]);
+    setFoldCaseDraft(String(Math.max(foldedFigureCurrentCase(activeFoldedFigure), 1)));
+  }, [activeFoldedFigure]);
 
   const handleFoldModel = useCallback(() => {
     if (!canFoldSelectedModel) return;
@@ -1580,19 +1588,11 @@ export function CreasePatternPanel() {
     runFoldedFigureAction,
     t,
   ]);
-  const handleFoldAnother = useCallback(() => {
-    if (!activeFoldedFigure) return;
-    const id = activeFoldedFigure.id;
-    runFoldedFigureAction(
-      t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
-      () => foldAnotherOristudioCpFigure(id)
-    );
-  }, [activeFoldedFigure, foldAnotherOristudioCpFigure, runFoldedFigureAction, t]);
   const handleFoldToCase = useCallback(() => {
     if (!activeFoldedFigure || activeFoldedFigure.status !== 'ready') return;
     const objective = Math.max(1, Math.round(Number(foldCaseDraft)));
     if (!Number.isFinite(objective)) {
-      setFoldCaseDraft(String(Math.max(activeFoldedFigure.snapshot?.discovered_fold_cases ?? 1, 1)));
+      setFoldCaseDraft(String(Math.max(foldedFigureCurrentCase(activeFoldedFigure), 1)));
       return;
     }
     setFoldCaseDraft(String(objective));
@@ -1675,88 +1675,121 @@ export function CreasePatternPanel() {
     [activeFoldedFigure, deleteOristudioCpFoldedFigure, runFoldedFigureAction, t]
   );
 
+  /**
+   * The folded-figure verbs, shared by the floating toolbar and the right-click
+   * menu (see `buildFoldedFigureActions`). Every call goes through
+   * `runFoldedFigureAction` so each verb lands as exactly one undo entry.
+   */
+  const foldedFigureActionDeps = useMemo<Omit<FoldedFigureActionDeps, 't'>>(
+    () => ({
+      flip: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.flipFoldedModel', 'Flip folded model'),
+          () =>
+            updateOristudioCpFoldedFigureModel(figure.id, {
+              state: foldedFigureFlipState(figure),
+            })
+        ),
+      setDisplayStyle: (figure, style) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
+          () => setOristudioCpFoldedFigureDisplayStyle(figure.id, style)
+        ),
+      foldAnother: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
+          () => foldAnotherOristudioCpFigure(figure.id)
+        ),
+      duplicate: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
+          () => duplicateOristudioCpFoldedFigure(figure.id)
+        ),
+      remove: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
+          () => deleteOristudioCpFoldedFigure(figure.id)
+        ),
+      refold: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.refoldFoldedModelAction', 'Refold folded model'),
+          () => refoldOristudioCpFoldedFigure(figure.id)
+        ),
+      // Derived, not stamped: an edit outside a figure's source region leaves it
+      // alone, which is the whole point of porting Oriedita's box + content
+      // check. Memoized on the document so a pan or a selection does not re-run
+      // it, and never touched on the edit path.
+      isStale: (figure) => staleFoldedFigureIds.has(figure.id),
+      // Not wrapped in runFoldedFigureAction: saving a file changes nothing
+      // about the document, so it is not an undo step.
+      exportAs: (figure, format) => {
+        void exportOristudioCpFoldedFigure(format, figure.id);
+      },
+    }),
+    [
+      updateOristudioCpFoldedFigureModel,
+      setOristudioCpFoldedFigureDisplayStyle,
+      foldAnotherOristudioCpFigure,
+      duplicateOristudioCpFoldedFigure,
+      deleteOristudioCpFoldedFigure,
+      refoldOristudioCpFoldedFigure,
+      exportOristudioCpFoldedFigure,
+      runFoldedFigureAction,
+      staleFoldedFigureIds,
+      t,
+    ]
+  );
+
   // Right-click context menu for a folded form. Items act on the clicked figure by
   // id (not the active one), so they behave correctly even before selection settles.
   const [foldedContextMenu, setFoldedContextMenu] = useState<ContextMenuRequest | null>(null);
   const buildFoldedFigureMenuItems = useCallback(
-    (figure: OristudioCpFoldedFigureEntry): ContextMenuItem[] => {
-      const ready =
-        figure.status === 'ready' && figure.handle !== null && figure.snapshot !== null;
-      const currentState = figure.snapshot?.model.state ?? 'Front0';
-      return [
-        {
-          kind: 'action',
-          id: 'flip',
-          label: t('panels:creasePattern.flip', 'Flip'),
-          icon: <FlipHorizontal2 size={14} />,
-          disabled: !ready,
-          // Turn the paper over: Front <-> Back. The Both/Transparent overlay
-          // states live on the toolbar's "Side" control, not here.
-          onSelect: () =>
-            runFoldedFigureAction(t('panels:creasePattern.flipFoldedModel', 'Flip folded model'), () =>
-              updateOristudioCpFoldedFigureModel(figure.id, {
-                state: flipFoldedState(currentState),
-              })
-            ),
-        },
-        {
-          kind: 'action',
-          id: 'delete',
-          label: t('panels:creasePattern.delete', 'Delete'),
-          icon: <Trash2 size={14} />,
-          danger: true,
-          onSelect: () =>
-            runFoldedFigureAction(
-              t('panels:creasePattern.deleteFoldedModelAction', 'Delete folded model'),
-              () => deleteOristudioCpFoldedFigure(figure.id)
-            ),
-        },
-        {
-          kind: 'action',
-          id: 'duplicate',
-          label: t('panels:creasePattern.duplicate', 'Duplicate'),
-          icon: <Copy size={14} />,
-          disabled: figure.handle === null,
-          onSelect: () =>
-            runFoldedFigureAction(
-              t('panels:creasePattern.duplicateFoldedModelAction', 'Duplicate folded model'),
-              () => duplicateOristudioCpFoldedFigure(figure.id)
-            ),
-        },
-        {
-          kind: 'action',
-          id: 'wireframe',
-          label: t('panels:creasePattern.wireframe', 'Wireframe'),
-          icon: <Box size={14} />,
-          disabled: !ready,
-          onSelect: () =>
-            runFoldedFigureAction(
-              t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
-              () => setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Wire2')
-            ),
-        },
-        {
-          kind: 'action',
-          id: 'xray',
-          label: t('panels:creasePattern.xray', 'X-ray'),
-          icon: <Eye size={14} />,
-          disabled: !ready,
-          onSelect: () =>
-            runFoldedFigureAction(
-              t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
-              () => setOristudioCpFoldedFigureDisplayStyle(figure.id, 'Transparent3')
-            ),
-        },
-      ];
-    },
-    [
-      updateOristudioCpFoldedFigureModel,
-      deleteOristudioCpFoldedFigure,
-      duplicateOristudioCpFoldedFigure,
-      setOristudioCpFoldedFigureDisplayStyle,
-      runFoldedFigureAction,
-      t,
-    ]
+    (figure: OristudioCpFoldedFigureEntry): ContextMenuItem[] =>
+      buildFoldedFigureActions(figure, { ...foldedFigureActionDeps, t }).map((action) => {
+        switch (action.kind) {
+          case 'separator':
+            return { kind: 'separator' };
+          case 'choice':
+            // Grouped picks nest as a submenu rather than spending top-level
+            // slots. An exclusive set (display style) becomes radio items so the
+            // current mode is checked; a list of one-shot actions (export)
+            // becomes plain items, which carry no check column to sit under.
+            return {
+              kind: 'submenu',
+              id: action.id,
+              label: action.label,
+              icon: foldedFigureMenuIcon(action.icon),
+              disabled: action.disabled,
+              items: action.options.map((option) =>
+                action.exclusive
+                  ? {
+                      kind: 'radio',
+                      id: option.id,
+                      label: option.label,
+                      checked: option.checked,
+                      onSelect: option.run,
+                    }
+                  : {
+                      kind: 'action',
+                      id: option.id,
+                      label: option.label,
+                      onSelect: option.run,
+                    }
+              ),
+            };
+          case 'command':
+            return {
+              kind: 'action',
+              id: action.id,
+              label: action.label,
+              icon: foldedFigureMenuIcon(action.icon),
+              disabled: action.disabled,
+              danger: action.danger,
+              onSelect: action.run,
+            };
+        }
+      }),
+    [foldedFigureActionDeps, t]
   );
   const handleRequestContextMenu = useCallback(
     (request: CpContextMenuRequest) => {
@@ -1995,6 +2028,12 @@ export function CreasePatternPanel() {
       ? { minX: bounds.minX, minY: bounds.minY, maxX: bounds.maxX, maxY: bounds.maxY }
       : null;
   }, [activeDiagnosticEntry]);
+  // The `selection_distance` every tool command carries, exposed to the canvas so a
+  // destination pick is gated on the same radius the kernel searches.
+  const cpToolSelectionDistance = useMemo(
+    () => modelSelectionDistance(editableCpBounds, zoomPercent / 100),
+    [editableCpBounds, zoomPercent]
+  );
   const buildCpCommandPayload = useCallback(
     (
       command: OristudioCpCommandDefinition,
@@ -2517,7 +2556,7 @@ export function CreasePatternPanel() {
       | 'angle-drag'
       | 'text'
       | null;
-    stepKinds: ('point' | 'crease' | 'candidate')[];
+    stepKinds: StepKind[];
     lineCount: number;
     dualMirror: boolean;
     converging: boolean;
@@ -2526,7 +2565,7 @@ export function CreasePatternPanel() {
   }>(() => {
     const idle = {
       mode: null,
-      stepKinds: [] as ('point' | 'crease' | 'candidate')[],
+      stepKinds: [] as StepKind[],
       lineCount: 0,
       dualMirror: false,
       converging: false,
@@ -3428,6 +3467,7 @@ export function CreasePatternPanel() {
                   resolveMoveSnap={resolveEditableMoveSnap}
                   activeToolInputMode={webglActiveTool.mode}
                   activeToolStepKinds={webglActiveTool.stepKinds}
+                  activeToolSelectionDistance={cpToolSelectionDistance}
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolDualMirror={webglActiveTool.dualMirror}
                   activeToolConverging={webglActiveTool.converging}
@@ -3484,6 +3524,7 @@ export function CreasePatternPanel() {
                   circles={editableCp.crease_pattern.circles}
                   circleRadiusToSvg={editableCircleRadiusToSvg}
                   foldedFigures={generatedFoldedFigures}
+                  staleFoldedFigureIds={staleFoldedFigureIds}
                   importedForms={cpImportedFoldedFormsGeometry}
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}
@@ -3536,13 +3577,20 @@ export function CreasePatternPanel() {
                     onDelete={deleteSelectedImage}
                   />
                 )}
+                {!editingTextId && !selectedCpImage && selectedFoldedFigure && (
+                  <CpFoldedFigureToolbar
+                    figure={selectedFoldedFigure}
+                    container={toolbarContainer}
+                    deps={foldedFigureActionDeps}
+                  />
+                )}
                 {/* Deliberately not gated on `annotationsInteractive`: that flag
                     keeps *annotations* from stealing clicks while a drawing tool
                     is mid-gesture, and it is false for exactly the tools that
                     produce crease selections (Box Select and friends), which
                     would hide these actions whenever they are relevant. Only the
                     other floating toolbars are mutually exclusive with this one. */}
-                {!editingTextId && !selectedCpImage && (
+                {!editingTextId && !selectedCpImage && !selectedFoldedFigure && (
                   <CpSelectionToolbar container={toolbarContainer} />
                 )}
                 </>
@@ -3610,20 +3658,16 @@ export function CreasePatternPanel() {
                       >
                         <Origami size={14} />
                       </IconButton>
-                      <IconButton
-                        size="sm"
-                        variant="toolbar"
-                        title={t('panels:creasePattern.anotherSolution', 'Another solution')}
-                        disabled={!canFoldAnother}
-                        onClick={handleFoldAnother}
-                      >
-                        <ChevronRight size={14} />
-                      </IconButton>
+                      {/* "Another solution" lives on the figure's own contextual
+                          bar, which acts on the figure you clicked. This copy
+                          acted on the *active* figure — after a fold, a fallback
+                          to whichever was made most recently. */}
                       <FoldedFigureMenuButton
                         figures={oristudioCpFoldedFigures}
                         activeFigure={activeFoldedFigure}
                         startingFaceId={foldStartingFaceId}
                         caseDraft={foldCaseDraft}
+                        staleFigureIds={staleFoldedFigureIds}
                         onStartingFaceIdChange={setFoldStartingFaceId}
                         onCaseDraftChange={setFoldCaseDraft}
                         onSelectFigure={setOristudioCpActiveFoldedFigure}
@@ -3635,12 +3679,6 @@ export function CreasePatternPanel() {
                         onDelete={handleDeleteFoldedFigure}
                       />
                     </div>
-                    <span
-                      className="viewport-toolbar__meta cp-folded-model-status"
-                      data-folded-model-status={activeFoldedFigure?.status ?? 'none'}
-                    >
-                      {foldedFigureStatusLabel}
-                    </span>
                   </>
                 )}
               </ViewportToolbar>

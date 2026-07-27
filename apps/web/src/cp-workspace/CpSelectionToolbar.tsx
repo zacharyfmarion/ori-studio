@@ -5,6 +5,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { FileDown, ImageDown, Origami, Play } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
+import { MenuIconButton } from '../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
@@ -46,13 +47,7 @@ function ExportMenu({
   const { t } = useTranslation();
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        {/* No `title`: an IconButton with a title wraps itself in a Tooltip
-            trigger, which cannot also be a Radix `asChild` trigger. */}
-        <IconButton size="sm" variant="toolbar" aria-label={label}>
-          <FileDown size={14} />
-        </IconButton>
-      </DropdownMenu.Trigger>
+      <MenuIconButton label={label} icon={<FileDown size={14} />} />
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           className="context-menu"

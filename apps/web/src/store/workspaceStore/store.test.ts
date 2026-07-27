@@ -47,6 +47,7 @@ import {
   cpUserAnchorForLineIds,
   foldedFigureUserBounds,
 } from '../../cp-workspace/adapters/cpFoldedToScene';
+import { isFoldedFigureStale } from '../../lib/foldedFigureStaleness';
 import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
@@ -1056,6 +1057,24 @@ function editableCpState(lines: OristudioCpLineSegment[]): OristudioCpDocumentSt
       is_empty: lines.length === 0,
     },
   };
+}
+
+/**
+ * Make the next `insertOristudioCpLineSegments` append to the live document
+ * rather than returning the blank one the default mock hands back. Needed by
+ * any test that reads the document *after* an edit — folded-figure staleness
+ * reselects creases from it, so a blank document would look like "every crease
+ * deleted".
+ */
+function insertAppendsToDocument(): void {
+  oristudioCpMocks.insertOristudioCpLineSegments.mockImplementationOnce(
+    async (segments: OristudioCpLineSegment[]) =>
+      editableCpState([
+        ...(useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern
+          .line_segments ?? []),
+        ...segments,
+      ])
+  );
 }
 
 function foldedFigureSnapshot(): OristudioCpFoldedFigureSnapshot {
@@ -2310,7 +2329,7 @@ describe('workspace store slices', () => {
     ).toHaveLength(2);
   });
 
-  it('tracks generated folded figures and marks them stale after CP geometry edits', async () => {
+  it('tracks generated folded figures and records the region they were folded from', async () => {
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
       filename: 'line.cp',
@@ -2368,22 +2387,179 @@ describe('workspace store slices', () => {
     // after folding doesn't take them with it.
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
 
+    // The fold records where its creases were, so it can later be compared
+    // against a fresh reselect of that region (Oriedita's refold check, ported
+    // per figure — see lib/foldedFigureStaleness.ts).
+    expect(foldedFigure.sourceBounds).toEqual({ minX: 0, minY: 0, maxX: 1, maxY: 0 });
+    expect(foldedFigure.sourceLineIds).toEqual([1]);
+    expect(foldedFigure.sourceFingerprint).toEqual(expect.any(String));
+
+    // An edit clear of that region leaves the figure alone. The flag this
+    // replaced marked *every* figure stale on *any* edit, which is both wrong
+    // and useless for deciding whether a refold is warranted.
+    insertAppendsToDocument();
+    await expect(
+      useWorkspaceStore.getState().insertOristudioCpLineSegments([
+        cpLine({ x: 5, y: 5 }, { x: 6, y: 6 }),
+      ])
+    ).resolves.toBe(true);
+    expect(
+      isFoldedFigureStale(
+        useWorkspaceStore.getState().oristudioCpDocument!.document,
+        useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!
+      )
+    ).toBe(false);
+
+    // An edit touching the region does mark it out of date.
+    insertAppendsToDocument();
     await expect(
       useWorkspaceStore.getState().insertOristudioCpLineSegments([
         cpLine({ x: 0, y: 0 }, { x: 1, y: 1 }),
       ])
     ).resolves.toBe(true);
 
-    expect(useWorkspaceStore.getState().oristudioCpRevision).toBe(1);
+    expect(useWorkspaceStore.getState().oristudioCpRevision).toBe(2);
+    expect(
+      isFoldedFigureStale(
+        useWorkspaceStore.getState().oristudioCpDocument!.document,
+        useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!
+      )
+    ).toBe(true);
+    // Status stays `ready`: the kernel handle is still valid, it was just folded
+    // from creases that have since moved. Upstream likewise keeps folding the
+    // handle it has (FoldingServiceImpl holds its own lineSegmentsForFolding).
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toMatchObject({
       id: foldedFigure.id,
       handle: 7,
-      status: 'stale',
+      status: 'ready',
+    });
+    await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(true);
+  });
+
+  it('refolds a stale figure in place, keeping its placement and identity', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    // Move the figure, then edit one of its creases.
+    useWorkspaceStore.getState().setOristudioCpFoldedFigurePlacement(before.id, {
+      offset: { x: 12, y: 34 },
+    });
+    insertAppendsToDocument();
+    await expect(
+      useWorkspaceStore.getState().insertOristudioCpLineSegments([
+        cpLine({ x: 0, y: 0 }, { x: 1, y: 1 }),
+      ])
+    ).resolves.toBe(true);
+
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+    ).resolves.toBe(true);
+
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    // Same figure, where the user left it — upstream discards on a changed CP,
+    // but here a folded figure is a placed canvas object, not a transient view.
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(1);
+    expect(after.id).toBe(before.id);
+    expect(after.placement.offset).toEqual({ x: 12, y: 34 });
+    expect(after.displayStyle).toBe(before.displayStyle);
+    expect(after.status).toBe('ready');
+    // Re-baselined, so it reads as up to date until the creases move again.
+    expect(
+      isFoldedFigureStale(
+        useWorkspaceStore.getState().oristudioCpDocument!.document,
+        after
+      )
+    ).toBe(false);
+  });
+
+  // A refold that fails is a no-op: the figure on the canvas is still valid, it
+  // is the crease pattern that cannot be folded. Destroying it would lose the
+  // user's placement and styling over a problem elsewhere.
+  it('keeps the figure when a refold throws', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    oristudioCpMocks.foldOristudioCpDocument.mockRejectedValueOnce({
+      code: 'invalid_operation',
+      message: 'two faces meet with the same orientation across a crease',
+    });
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+    ).resolves.toBe(false);
+
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(after).toEqual(before);
+    expect(after.status).toBe('ready');
+    expect(after.renderSnapshot).not.toBeNull();
+    // The old kernel handle is untouched: it is released only after a success.
+    expect(after.handle).toBe(before.handle);
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).not.toHaveBeenCalledWith(before.handle);
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('same orientation');
+  });
+
+  // The subtler half: a fold can *return* having found nothing. A global
+  // flat-foldability contradiction concludes at the transparent development with
+  // no layer ordering, so swapping the result in would blank the figure.
+  it('keeps the figure when a refold returns nothing drawable', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    oristudioCpMocks.foldOristudioCpDocument.mockResolvedValueOnce({
+      handle: 21,
+      snapshot: { ...foldedFigureSnapshot(), wireframe: null, discovered_fold_cases: 0 },
+    });
+    oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockResolvedValueOnce({
+      ...foldedRenderSnapshot(),
+      primitives: [],
     });
 
-    await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(false);
-    expect(oristudioCpMocks.foldOristudioCpFigureAnother).not.toHaveBeenCalled();
-    expect(useWorkspaceStore.getState().oristudioCpError).toContain('Refold');
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+    ).resolves.toBe(false);
+
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(after).toEqual(before);
+    expect(after.handle).toBe(before.handle);
+    // The handle the failed fold allocated is freed rather than leaked.
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(21);
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('folded flat');
+  });
+
+  it('refuses to refold a figure whose source creases are gone', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const figure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    // Empty the crease pattern out from under it.
+    useWorkspaceStore.setState({ oristudioCpDocument: editableCpState([]) });
+
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id)
+    ).resolves.toBe(false);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toMatchObject({
+      id: figure.id,
+      status: 'ready',
+    });
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('gone');
   });
 
   it('passes active editable CP line selection into folded figure folding', async () => {

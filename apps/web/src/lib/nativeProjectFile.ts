@@ -2,6 +2,7 @@ import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import { IDENTITY_FOLDED_PLACEMENT } from '../engine/oristudioCpTypes';
 import type {
   FoldedFigurePlacement,
+  FoldedSourceBounds,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
@@ -494,8 +495,30 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
       ? (entry.renderSnapshot as unknown as OristudioCpFoldedFigureEntry['renderSnapshot'])
       : null,
     placement: foldedFigurePlacement(entry),
+    sourceBounds: foldedSourceBoundsField(entry.sourceBounds),
+    sourceFingerprint:
+      typeof entry.sourceFingerprint === 'string' ? entry.sourceFingerprint : null,
+    sourceLineIds: Array.isArray(entry.sourceLineIds)
+      ? entry.sourceLineIds.filter((id): id is number => typeof id === 'number')
+      : [],
     error: typeof entry.error === 'string' ? entry.error : null,
   };
+}
+
+/**
+ * A folded figure's source region, absent in files written before provenance
+ * was tracked. Such a figure simply offers no refold — see
+ * `lib/foldedFigureStaleness.ts` — so a missing or malformed box is null rather
+ * than an error.
+ */
+function foldedSourceBoundsField(value: unknown): FoldedSourceBounds | null {
+  if (!isRecord(value)) return null;
+  const minX = finiteNumber(value.minX);
+  const minY = finiteNumber(value.minY);
+  const maxX = finiteNumber(value.maxX);
+  const maxY = finiteNumber(value.maxY);
+  if (minX === null || minY === null || maxX === null || maxY === null) return null;
+  return { minX, minY, maxX, maxY };
 }
 
 /**

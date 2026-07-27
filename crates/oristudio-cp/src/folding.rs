@@ -279,6 +279,11 @@ pub struct FoldedFigureSnapshot {
     pub estimation_step: EstimationStep,
     pub display_style: DisplayStyle,
     pub discovered_fold_cases: usize,
+    /// 1-based index of the solution being shown. Defaults to
+    /// `discovered_fold_cases` when absent, which is what it meant before
+    /// backwards navigation split the two.
+    #[serde(default)]
+    pub current_fold_case: usize,
     pub find_another_overlap_valid: bool,
     pub text_result: String,
     pub wireframe: Option<FoldedWireframe>,
@@ -1049,7 +1054,16 @@ fn render_parse_error(line: usize, message: impl Into<String>) -> FoldedFigureRe
 pub struct FoldingEstimate {
     pub estimation_step: EstimationStep,
     pub display_style: DisplayStyle,
+    /// How many layer-ordering solutions the enumeration has found so far.
+    ///
+    /// Upstream this doubles as "which solution is on screen", because the only
+    /// way to move is forward. Navigating backwards (see
+    /// [`FoldingEstimateSession::restart`]) makes the two different numbers, so
+    /// the one being shown lives in [`Self::current_fold_case`].
     pub discovered_fold_cases: usize,
+    /// 1-based index of the solution currently rendered, or 0 before any is
+    /// found. Never exceeds [`Self::discovered_fold_cases`].
+    pub current_fold_case: usize,
     pub find_another_overlap_valid: bool,
     pub text_result: String,
     pub overlap: Option<WorkerOverlapSearch>,
@@ -1318,6 +1332,7 @@ pub fn two_colored_folding_estimate_from_segments(
         estimation_step: EstimationStep::Step0,
         display_style: DisplayStyle::None0,
         discovered_fold_cases: 0,
+        current_fold_case: 0,
         find_another_overlap_valid: false,
         text_result: String::new(),
         overlap: None,
@@ -1539,6 +1554,7 @@ impl FoldingEstimateSession {
                 estimation_step: EstimationStep::Step0,
                 display_style: DisplayStyle::None0,
                 discovered_fold_cases: 0,
+                current_fold_case: 0,
                 find_another_overlap_valid: false,
                 text_result: String::new(),
                 overlap: None,
@@ -1594,6 +1610,7 @@ impl FoldingEstimateSession {
                     self.estimate.display_style = DisplayStyle::Development4;
                     self.estimate.find_another_overlap_valid = self.worker.is_some();
                     self.estimate.discovered_fold_cases = 0;
+                    self.estimate.current_fold_case = 0;
                 }
                 Err(error) => {
                     if let Some(contradiction) = error.contradiction() {
@@ -1646,6 +1663,7 @@ impl FoldingEstimateSession {
         self.estimate.estimation_step = EstimationStep::Step3;
         self.estimate.display_style = DisplayStyle::Transparent3;
         self.estimate.discovered_fold_cases = 0;
+        self.estimate.current_fold_case = 0;
         self.estimate.find_another_overlap_valid = false;
         self.estimate.overlap = None;
         self.estimate.clone()
@@ -1653,6 +1671,39 @@ impl FoldingEstimateSession {
 
     fn folding_estimated_05(&mut self) -> Result<(), WorkerOverlapSearchError> {
         run_folding_estimated_05(&mut self.estimate, self.worker.as_mut())
+    }
+
+    /// Rewind the enumeration and run back to the first solution.
+    ///
+    /// The overlap enumerator is a forward-only stream — `possible_overlapping_search`
+    /// advances search state and nothing retains a solution once it has moved
+    /// past — so this is what makes an earlier case reachable at all. Because the
+    /// enumeration is deterministic, replaying it from the start yields exactly
+    /// the same solutions in the same order, which is what lets
+    /// [`folding_estimate_to_case`] seek backwards by restarting and stepping
+    /// forward again.
+    ///
+    /// Self-contained: the session already owns the segments and starting face,
+    /// so the caller supplies nothing and a figure with no other provenance can
+    /// still be navigated.
+    ///
+    /// **Not in Oriedita.** Upstream can only move forward
+    /// (`FoldingServiceImpl.fold` re-folds or discards); this is an additive
+    /// capability that leaves the search algorithm and its solution order
+    /// untouched. See PORTING.md.
+    pub fn restart(&mut self) -> Result<FoldingEstimate, FoldingEstimateError> {
+        self.worker = None;
+        self.estimate = FoldingEstimate {
+            estimation_step: EstimationStep::Step0,
+            display_style: DisplayStyle::None0,
+            discovered_fold_cases: 0,
+            current_fold_case: 0,
+            find_another_overlap_valid: false,
+            text_result: String::new(),
+            overlap: None,
+            contradiction: None,
+        };
+        self.folding_estimated(EstimationOrder::Order5)
     }
 }
 
@@ -1669,6 +1720,10 @@ fn run_folding_estimated_05(
         let overlap = worker.possible_overlapping_search(estimate.discovered_fold_cases == 0)?;
         if overlap.found {
             estimate.discovered_fold_cases += 1;
+            // A forward step always lands on the newest solution, so the two
+            // stay equal here; they diverge only after a restart replays into
+            // the middle of an enumeration already known to be longer.
+            estimate.current_fold_case = estimate.discovered_fold_cases;
         }
         let next_subface = worker.next(worker.valid_count())?;
         estimate.find_another_overlap_valid = overlap.found && next_subface > 0;
@@ -1687,21 +1742,39 @@ fn run_folding_estimated_05(
     Ok(())
 }
 
+/// Step to the next layer-ordering solution, wrapping to the first once the
+/// enumeration is exhausted.
+///
+/// The wrap is a [`FoldingEstimateSession::restart`], which costs a re-fold
+/// rather than a single search — acceptable for something that happens once per
+/// lap, and it keeps the session free of any retained per-solution state.
+///
+/// **Wrapping is not in Oriedita**, where the action simply stops at the last
+/// solution.
 pub fn fold_another(
     session: &mut FoldingEstimateSession,
 ) -> Result<FoldingEstimate, FoldingEstimateError> {
+    // Only wrap when there is somewhere else to land: with a single solution a
+    // restart would re-fold to exactly where we already are.
+    if !session.estimate.find_another_overlap_valid && session.estimate.discovered_fold_cases > 1 {
+        return session.restart();
+    }
     session.folding_estimated(EstimationOrder::Order6)
 }
 
 /// Oriedita `FoldingEstimateSpecificTask` without UI timing/dirty-state
-/// side-effects: run a reusable folded figure until the requested discovered
-/// case count is reached or no later overlap exists.
+/// side-effects: run a reusable folded figure until the requested case is
+/// reached or no later overlap exists.
+///
+/// Extends upstream with **backwards** seeking: an objective behind the current
+/// case restarts the enumeration and replays forward to it. Upstream can only
+/// count up, so asking for an earlier case there does nothing at all.
 pub fn folding_estimate_to_case(
     session: &mut FoldingEstimateSession,
     objective: usize,
     initial_order: EstimationOrder,
 ) -> Result<FoldingEstimateBatch, FoldingEstimateError> {
-    if objective == session.estimate.discovered_fold_cases {
+    if objective == session.estimate.current_fold_case {
         session.estimate.text_result = format!(
             "Number of found solutions = {}  ",
             session.estimate.discovered_fold_cases
@@ -1711,7 +1784,25 @@ pub fn folding_estimate_to_case(
     let mut estimates = Vec::new();
     let mut discovered_case_numbers = Vec::new();
     let mut order = initial_order;
-    while objective > session.estimate.discovered_fold_cases {
+
+    // Behind the current case: rewind and replay. The enumeration is
+    // deterministic, so the objective's solution is byte-identical to the one it
+    // produced on the way out.
+    if objective < session.estimate.current_fold_case && objective >= 1 {
+        let restarted = session.restart()?;
+        discovered_case_numbers.push(restarted.discovered_fold_cases);
+        let can_continue = restarted.find_another_overlap_valid;
+        estimates.push(restarted);
+        order = EstimationOrder::Order6;
+        if !can_continue {
+            return Ok(FoldingEstimateBatch {
+                estimates,
+                discovered_case_numbers,
+            });
+        }
+    }
+
+    while objective > session.estimate.current_fold_case {
         let estimate = session.folding_estimated(order)?;
         discovered_case_numbers.push(estimate.discovered_fold_cases);
         let can_continue = estimate.find_another_overlap_valid;
@@ -1813,6 +1904,7 @@ pub fn folded_figure_snapshot_from_session(
         estimation_step: estimate.estimation_step,
         display_style: estimate.display_style,
         discovered_fold_cases: estimate.discovered_fold_cases,
+        current_fold_case: estimate.current_fold_case,
         find_another_overlap_valid: estimate.find_another_overlap_valid,
         text_result: estimate.text_result.clone(),
         wireframe,

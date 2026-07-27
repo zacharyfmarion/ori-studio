@@ -34,6 +34,7 @@ import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type { CreaseExportOptions } from '../../lib/creaseExport';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
+import type { FoldedFigureExportFormat } from '../../lib/foldedFigureExport';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
   OristudioCpCommandPayload,
@@ -230,6 +231,15 @@ export interface ProjectSliceActions {
     segmentId: number,
     fileService?: FileService
   ) => Promise<boolean>;
+  /**
+   * Save one folded figure as a standalone image, serialized from the snapshot
+   * already on screen rather than re-folded. See `lib/foldedFigureExport.ts`.
+   */
+  exportOristudioCpFoldedFigure: (
+    format: FoldedFigureExportFormat,
+    figureId: string,
+    fileService?: FileService
+  ) => Promise<boolean>;
   loadExampleProject: (id: string) => Promise<void>;
   clearProjectMessage: () => void;
   setActivePanelId: (id: string | null) => void;
@@ -384,6 +394,11 @@ export interface CreasePatternSliceState {
   oristudioCpActiveDiagnosticId: string | null;
   oristudioCpRevision: number;
   oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
+  /**
+   * How many fold operations are in flight. A count, not a flag, so overlapping
+   * folds cannot clear each other's indicator. Drives the delayed progress toast.
+   */
+  oristudioCpFoldsInFlight: number;
   oristudioCpActiveFoldedFigureId: string | null;
   oristudioCpViewport: OristudioCpViewportOptions;
   /**
@@ -466,6 +481,13 @@ export interface CreasePatternSliceActions {
     update: Partial<OristudioCpFoldedFigureModel>
   ) => Promise<boolean>;
   duplicateOristudioCpFoldedFigure: (id?: string) => Promise<boolean>;
+  /**
+   * Re-fold a figure from its recorded source region, in place — same id,
+   * placement, style and model, fresh geometry. See
+   * `lib/foldedFigureStaleness.ts` for how that region is recorded and how a
+   * figure is judged out of date.
+   */
+  refoldOristudioCpFoldedFigure: (id: string) => Promise<boolean>;
   deleteOristudioCpFoldedFigure: (id: string) => Promise<void>;
   setOristudioCpActiveFoldedFigure: (id: string | null) => void;
   /**
