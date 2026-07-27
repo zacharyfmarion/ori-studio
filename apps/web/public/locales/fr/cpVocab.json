@@ -93,7 +93,8 @@
       "tooltip": "Faites glisser un pli avec le type de ligne actuel",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser l'extrémité du pli"
+        "0": "Cliquez ou faites glisser pour définir le début du pli",
+        "1": "Cliquez pour définir la fin du pli"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "Tracer un pli restreint",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser entre des points existants"
+        "0": "Cliquez ou faites glisser depuis un point existant",
+        "1": "Cliquez sur un autre point existant"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "Diviser la ligne par nombre",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser pour tracer une ligne à diviser"
+        "0": "Cliquez ou faites glisser pour commencer la ligne à diviser",
+        "1": "Cliquez pour terminer la ligne"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "Diviser la ligne par rapport",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser pour tracer une ligne à diviser"
+        "0": "Cliquez ou faites glisser pour commencer la ligne à diviser",
+        "1": "Cliquez pour terminer la ligne"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "Attribuer des plis montagne et vallée alternés le long d'une ligne guide",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser une ligne guide le long des plis"
+        "0": "Cliquez ou faites glisser pour commencer la ligne guide",
+        "1": "Cliquez pour terminer la ligne guide"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "Attribuer des plis montagne et vallée alternés aux croisements le long d'une ligne guide",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser une ligne guide à travers les croisements"
+        "0": "Cliquez ou faites glisser pour commencer la ligne guide",
+        "1": "Cliquez pour terminer la ligne guide"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -502,8 +508,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Mesurer la longueur 1",
-      "tooltip": "Mesurer la longueur 1",
+      "label": "Mesurer la longueur",
+      "tooltip": "Mesure la distance entre deux points, ou cliquer sur un pli",
       "disabledReason": "Prêt",
       "steps": {
         "0": "Choisissez le premier point",
@@ -520,8 +526,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Mesurer l'angle 1",
-      "tooltip": "Mesurer l'angle 1",
+      "label": "Mesurer l’angle",
+      "tooltip": "Mesure l’angle à un sommet entre deux points",
       "disabledReason": "Prêt",
       "steps": {
         "0": "Choisissez le premier point",
@@ -972,7 +978,8 @@
       "tooltip": "Tracer une ligne auxiliaire Oriedita",
       "disabledReason": "Le mode d'insertion de ligne auxiliaire n'est pas encore implémenté dans le noyau CP",
       "steps": {
-        "0": "Faites glisser l'extrémité du pli"
+        "0": "Cliquez ou faites glisser pour définir le début du pli",
+        "1": "Cliquez pour définir la fin du pli"
       }
     }
   },
@@ -1019,11 +1026,6 @@
       },
       "notes": {
         "0": "Le point ne doit pas être sur l'étendue de la ligne A et la ligne B ne doit pas être parallèle à la ligne A."
-      }
-    },
-    "a1Action": {
-      "intro": {
-        "0": "Mesurez l'angle en sélectionnant les points ABC."
       }
     },
     "a2Action": {
@@ -1366,22 +1368,9 @@
         "0": "La forme pliée est calculée par rapport à la face de départ."
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "Mesurez la longueur en sélectionnant 2 points."
-      },
-      "notes": {
-        "0": "La longueur est mesurée en unités de grille.",
-        "1": "La longueur est relative à la taille du patron de plis avec une taille de grille de 1."
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "Mesurez la longueur en sélectionnant 2 points."
-      },
-      "notes": {
-        "0": "La longueur est mesurée en unités de grille.",
-        "1": "La longueur est relative à la taille du patron de plis avec une taille de grille de 1."
       }
     },
     "makeFlatFoldableAction": {

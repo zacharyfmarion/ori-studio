@@ -19,6 +19,14 @@ export interface ToolInput {
    * when none. Used by entity-pick tools; free-point tools ignore it.
    */
   lineId?: number | null;
+  /**
+   * Click-vs-drag threshold in model units — the surface converts its screen-space
+   * threshold through the live camera, so the same gesture reads the same way at
+   * any zoom. A release within this distance of the tool's start point is a
+   * *click*, not a drag. Absent → 0, i.e. any non-zero movement reads as a drag.
+   * Only the drag-line engine consumes it; box/path engines ignore it.
+   */
+  tolerance?: number;
 }
 
 /** A candidate crease segment shown while a tool is in progress. */

@@ -44,9 +44,6 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
     ],
     notes: ["The point must not be on line A's span and line B must not be parallel with line A."],
   },
-  a1Action: {
-    intro: ['Measure angle by selecting points ABC.'],
-  },
   a2Action: {
     intro: ['Measure angle by selecting points ABC.'],
   },
@@ -240,19 +237,8 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
     intro: ['Set starting face by selecting a face.'],
     notes: ['Folded shape is calculated relative to starting face.'],
   },
-  l1Action: {
-    intro: ['Measure length by selecting 2 points.'],
-    notes: [
-      'Length is measured in grid units.',
-      'Length is relative to crease pattern size with grid size of 1.',
-    ],
-  },
   l2Action: {
     intro: ['Measure length by selecting 2 points.'],
-    notes: [
-      'Length is measured in grid units.',
-      'Length is relative to crease pattern size with grid size of 1.',
-    ],
   },
   makeFlatFoldableAction: {
     intro: ['Draw flat foldable line.'],

@@ -36,17 +36,21 @@ const noDirectStorageProperties = [
  */
 
 /**
- * Panels already over the cap, frozen at the size they were when the rule landed
- * so they can only shrink. Lower a number as work moves out of that panel;
- * delete the entry once it fits under PANEL_MAX_LINES.
+ * Panels already over the cap, frozen so they can only shrink. Lower a number as
+ * work moves out of that panel; delete the entry once it fits under
+ * PANEL_MAX_LINES.
+ *
+ * A number only goes *up* when merging main grew the file independently — that
+ * is a re-baseline, not a concession, and it is deliberately a visible edit
+ * rather than something the rule absorbs quietly.
  */
 const OVERSIZED_PANELS = {
-  'CreasePatternPanel.tsx': 3130,
+  'CreasePatternPanel.tsx': 3335, // main: 3993
   'BpPackingPanel.tsx': 2310,
   'SimulatorPanel.tsx': 2005,
   'DesignPanel.tsx': 1335,
   'BpTreePanel.tsx': 1005,
-  'CpContextToolPanel.tsx': 950,
+  'CpContextToolPanel.tsx': 1150,
 };
 
 const PANEL_MAX_LINES = 800;

@@ -93,7 +93,8 @@
       "tooltip": "Drag a crease using the current line type",
       "disabledReason": "Ready",
       "steps": {
-        "0": "Drag crease endpoint"
+        "0": "Click or drag to set the crease start",
+        "1": "Click to set the crease end"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "Draw restricted crease",
       "disabledReason": "Ready",
       "steps": {
-        "0": "Drag between existing points"
+        "0": "Click or drag from an existing point",
+        "1": "Click another existing point"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "Divide line by count",
       "disabledReason": "Ready",
       "steps": {
-        "0": "Drag to draw a line to divide"
+        "0": "Click or drag to start the line to divide",
+        "1": "Click to end the line"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "Divide line by ratio",
       "disabledReason": "Ready",
       "steps": {
-        "0": "Drag to draw a line to divide"
+        "0": "Click or drag to start the line to divide",
+        "1": "Click to end the line"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "Assign alternating mountain and valley folds along a guide line",
       "disabledReason": "Ready",
       "steps": {
-        "0": "Drag a guide line along the creases"
+        "0": "Click or drag to start the guide line",
+        "1": "Click to end the guide line"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "Assign alternating mountain and valley folds to crossings along a guide line",
       "disabledReason": "Ready",
       "steps": {
-        "0": "Drag a guide line across the crossings"
+        "0": "Click or drag to start the guide line",
+        "1": "Click to end the guide line"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -502,8 +508,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Measure length 1",
-      "tooltip": "Measure length 1",
+      "label": "Measure Length",
+      "tooltip": "Measure the distance between two points, or click a crease",
       "disabledReason": "Ready",
       "steps": {
         "0": "Pick first point",
@@ -520,8 +526,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Measure angle 1",
-      "tooltip": "Measure angle 1",
+      "label": "Measure Angle",
+      "tooltip": "Measure the angle at a vertex between two points",
       "disabledReason": "Ready",
       "steps": {
         "0": "Pick first point",
@@ -972,7 +978,8 @@
       "tooltip": "Draw an Oriedita auxiliary line",
       "disabledReason": "Auxiliary-line insertion mode is not implemented in the CP kernel yet",
       "steps": {
-        "0": "Drag crease endpoint"
+        "0": "Click or drag to set the crease start",
+        "1": "Click to set the crease end"
       }
     }
   },
@@ -1019,11 +1026,6 @@
       },
       "notes": {
         "0": "The point must not be on line A's span and line B must not be parallel with line A."
-      }
-    },
-    "a1Action": {
-      "intro": {
-        "0": "Measure angle by selecting points ABC."
       }
     },
     "a2Action": {
@@ -1366,22 +1368,9 @@
         "0": "Folded shape is calculated relative to starting face."
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "Measure length by selecting 2 points."
-      },
-      "notes": {
-        "0": "Length is measured in grid units.",
-        "1": "Length is relative to crease pattern size with grid size of 1."
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "Measure length by selecting 2 points."
-      },
-      "notes": {
-        "0": "Length is measured in grid units.",
-        "1": "Length is relative to crease pattern size with grid size of 1."
       }
     },
     "makeFlatFoldableAction": {

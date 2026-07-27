@@ -93,7 +93,8 @@
       "tooltip": "Eine Falte mit dem aktuellen Linientyp ziehen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Faltenendpunkt ziehen"
+        "0": "Klicken oder ziehen, um den Faltenanfang zu setzen",
+        "1": "Klicken, um das Faltenende zu setzen"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "Beschränkte Falte zeichnen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Zwischen vorhandenen Punkten ziehen"
+        "0": "Von einem vorhandenen Punkt klicken oder ziehen",
+        "1": "Auf einen weiteren vorhandenen Punkt klicken"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "Linie nach Anzahl teilen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Ziehen, um eine zu teilende Linie zu zeichnen"
+        "0": "Klicken oder ziehen, um die zu teilende Linie zu beginnen",
+        "1": "Klicken, um die Linie zu beenden"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "Linie nach Verhältnis teilen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Ziehen, um eine zu teilende Linie zu zeichnen"
+        "0": "Klicken oder ziehen, um die zu teilende Linie zu beginnen",
+        "1": "Klicken, um die Linie zu beenden"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "Abwechselnde Berg- und Talfalten entlang einer Führungslinie zuweisen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Eine Führungslinie entlang der Falten ziehen"
+        "0": "Klicken oder ziehen, um die Führungslinie zu beginnen",
+        "1": "Klicken, um die Führungslinie zu beenden"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "Abwechselnde Berg- und Talfalten den Kreuzungen entlang einer Führungslinie zuweisen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Eine Führungslinie über die Kreuzungen ziehen"
+        "0": "Klicken oder ziehen, um die Führungslinie zu beginnen",
+        "1": "Klicken, um die Führungslinie zu beenden"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -502,8 +508,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Länge messen 1",
-      "tooltip": "Länge messen 1",
+      "label": "Länge messen",
+      "tooltip": "Misst den Abstand zwischen zwei Punkten oder klickt eine Falte an",
       "disabledReason": "Bereit",
       "steps": {
         "0": "Ersten Punkt wählen",
@@ -520,8 +526,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Winkel messen 1",
-      "tooltip": "Winkel messen 1",
+      "label": "Winkel messen",
+      "tooltip": "Misst den Winkel an einem Scheitelpunkt zwischen zwei Punkten",
       "disabledReason": "Bereit",
       "steps": {
         "0": "Ersten Punkt wählen",
@@ -972,7 +978,8 @@
       "tooltip": "Eine Oriedita-Hilfslinie zeichnen",
       "disabledReason": "Der Einfügemodus für Hilfslinien ist im CP-Kernel noch nicht implementiert",
       "steps": {
-        "0": "Faltenendpunkt ziehen"
+        "0": "Klicken oder ziehen, um den Faltenanfang zu setzen",
+        "1": "Klicken, um das Faltenende zu setzen"
       }
     }
   },
@@ -1019,11 +1026,6 @@
       },
       "notes": {
         "0": "Der Punkt darf nicht auf der Spanne von Linie A liegen, und Linie B darf nicht parallel zu Linie A sein."
-      }
-    },
-    "a1Action": {
-      "intro": {
-        "0": "Winkel durch Auswahl der Punkte ABC messen."
       }
     },
     "a2Action": {
@@ -1366,22 +1368,9 @@
         "0": "Die gefaltete Form wird relativ zur Startfläche berechnet."
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "Länge durch Auswahl von 2 Punkten messen."
-      },
-      "notes": {
-        "0": "Die Länge wird in Rastereinheiten gemessen.",
-        "1": "Die Länge ist relativ zur Faltmustergröße bei einer Rastergröße von 1."
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "Länge durch Auswahl von 2 Punkten messen."
-      },
-      "notes": {
-        "0": "Die Länge wird in Rastereinheiten gemessen.",
-        "1": "Die Länge ist relativ zur Faltmustergröße bei einer Rastergröße von 1."
       }
     },
     "makeFlatFoldableAction": {

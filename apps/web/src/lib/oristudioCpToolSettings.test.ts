@@ -74,7 +74,7 @@ describe('oristudioCpToolSettings', () => {
     ]);
     expect(cpToolSettingGroupsForOperation('Text')).toEqual([]);
     expect(cpToolSettingGroupsForOperation('DisplayLengthBetweenPoints1')).toEqual([
-      'measurement-readout',
+      'measure',
     ]);
   });
 

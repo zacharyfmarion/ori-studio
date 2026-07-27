@@ -124,6 +124,7 @@ import { foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedTo
 import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
 import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverlay';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
+import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
@@ -173,11 +174,19 @@ import {
   toolClickAction,
 } from '../../cp-workspace/tools/predicates';
 import {
-  cpMeasurementSlotForOperation,
-  createEmptyCpMeasurementSlots,
+  cpMeasureKindForOperation,
+  cpMeasurePointCount,
   isCpMeasurementOperation,
-  type CpMeasurementSlots,
+  type CpAngleUnit,
+  type CpMeasureKind,
+  type CpMeasureScale,
+  type CpMeasureUnit,
+  type CpMeasurement,
 } from '../../cp-workspace/measure';
+import {
+  readCpMeasurePreferences,
+  writeCpMeasurePreferences,
+} from '../../cp-workspace/measurePreferences';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -299,6 +308,37 @@ function foldedColorAria(t: TFunction, key: FoldedColorKey): string {
       return t('panels:creasePattern.foldedColor.lineAria', 'Folded line color');
     default:
       return key;
+  }
+}
+
+/**
+ * The measure tool's per-step prompt. Literal `t()` keys so the i18n extractor
+ * sees every prompt; the step list follows the kind (2 points / 3 with a vertex).
+ */
+function measureStepPrompt(t: TFunction, kind: CpMeasureKind, picked: number): string {
+  if (kind === 'angle') {
+    if (picked <= 0) return t('panels:creasePattern.measurePickFirstPoint', 'Pick first point');
+    if (picked === 1) return t('panels:creasePattern.measurePickVertexPoint', 'Pick vertex point');
+    return t('panels:creasePattern.measurePickSecondPoint', 'Pick second point');
+  }
+  return picked <= 0
+    ? t('panels:creasePattern.measurePickFirstPoint', 'Pick first point')
+    : t('panels:creasePattern.measurePickSecondPoint', 'Pick second point');
+}
+
+/** Literal-key `t()` calls so the extractor sees every snap name. */
+function measureSnapLabel(t: TFunction, kind: CpSnapTarget['kind'] | null): string {
+  switch (kind) {
+    case 'vertex':
+      return t('panels:creasePattern.measureSnapVertex', 'vertex');
+    case 'grid':
+      return t('panels:creasePattern.measureSnapGrid', 'grid');
+    case 'point':
+      return t('panels:creasePattern.measureSnapPoint', 'point');
+    case 'line':
+      return t('panels:creasePattern.measureSnapCrease', 'crease');
+    default:
+      return t('panels:creasePattern.measureSnapFree', 'free');
   }
 }
 
@@ -816,15 +856,9 @@ function FoldedFigureMenuButton({
               aria-label={t('panels:creasePattern.showFoldedModelShadow', 'Show folded model shadow')}
             />
           </div>
-          <div className="folded-figure-menu__toggle-row">
-            <span>{t('panels:creasePattern.colorAlpha', 'Color alpha')}</span>
-            <Toggle
-              checked={model?.transparency_color ?? false}
-              disabled={!activeReady}
-              onChange={(transparency_color) => onModelUpdate({ transparency_color })}
-              aria-label={t('panels:creasePattern.useColoredFoldedTransparency', 'Use colored folded transparency')}
-            />
-          </div>
+          {/* No Color alpha toggle: it only reaches the Transparent display
+              style, and transparency is not a supported surface right now. The
+              model keeps `transparency_color` so Oriedita files round-trip. */}
           <div className="folded-figure-menu__actions">
             <IconButton
               size="sm"
@@ -909,9 +943,45 @@ export function CreasePatternPanel() {
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
   const [pendingSquareBisectorLineIds, setPendingSquareBisectorLineIds] = useState<number[]>([]);
-  const [cpMeasurementSlots, setCpMeasurementSlots] = useState<CpMeasurementSlots>(
-    createEmptyCpMeasurementSlots
-  );
+  // Readings taken in this measure session, oldest first, so several can be compared
+  // side by side. They live for the tool session only — Escape (which deactivates the
+  // tool) clears them; nothing is persisted.
+  const [cpMeasurements, setCpMeasurements] = useState<readonly CpMeasurement[]>([]);
+  const [cpHoveredMeasureIndex, setCpHoveredMeasureIndex] = useState<number | null>(null);
+  // Points placed so far in the current measure pick, for the step prompt. A
+  // sequence tool's points live on the canvas, so this mirrors its pick progress.
+  const [cpMeasurePicked, setCpMeasurePicked] = useState(0);
+  // The pick in progress — placed points plus the cursor — so the on-canvas figure
+  // and its value track the mouse before anything is committed.
+  const [cpMeasureLivePoints, setCpMeasureLivePoints] = useState<readonly Point[]>([]);
+  const [cpMeasureLiveValue, setCpMeasureLiveValue] = useState<number | null>(null);
+  // What the live point snapped onto, so a measurement never silently reads between
+  // two points that only look like vertices.
+  const [cpMeasureSnapKind, setCpMeasureSnapKind] = useState<CpSnapTarget['kind'] | null>(null);
+  // Display units are a persisted user preference, not a document property: a
+  // designer reads in the units they think in, whatever the file was authored in.
+  const [cpMeasurePreferences, setCpMeasurePreferences] = useState(readCpMeasurePreferences);
+  const setCpMeasureUnit = useCallback((unit: CpMeasureUnit) => {
+    setCpMeasurePreferences((current) => {
+      const next = { ...current, unit };
+      writeCpMeasurePreferences(next);
+      return next;
+    });
+  }, []);
+  const setCpMeasureAngleUnit = useCallback((angleUnit: CpAngleUnit) => {
+    setCpMeasurePreferences((current) => {
+      const next = { ...current, angleUnit };
+      writeCpMeasurePreferences(next);
+      return next;
+    });
+  }, []);
+  const setCpMeasurePaperEdgeMm = useCallback((paperEdgeMm: number) => {
+    setCpMeasurePreferences((current) => {
+      const next = { ...current, paperEdgeMm };
+      writeCpMeasurePreferences(next);
+      return next;
+    });
+  }, []);
   const [diagnosticHudExpanded, setDiagnosticHudExpanded] = useState(false);
   const defaultCpToolDocumentRef = useRef<string | null>(null);
   const restoredNativeCanvasModelRef = useRef<string | null>(null);
@@ -1382,7 +1452,33 @@ export function CreasePatternPanel() {
           ? t('panels:creasePattern.angleBisectorSelectSegmentToEnd', 'Angle Bisector: Select segment to end')
           : cpToolState.prompt
       : cpToolState.prompt;
-  const activeCpToolPrompt = squareBisectorToolPrompt;
+  // Which measure tool is active decides what is being measured — there is no
+  // kind parameter: Measure Length and Measure Angle are separate tools.
+  const cpMeasureKind = cpMeasureKindForOperation(activeCpCommand?.operationId);
+
+  // What one model unit is worth for this document: the Oriedita paper frame's
+  // width is the "paper edge = 1" reference, and the grid width comes from the
+  // document's own grid so "grid squares" tracks a grid change.
+  const cpMeasureScale = useMemo<CpMeasureScale>(
+    () => ({
+      paperEdge: editableCpBounds.spanX,
+      gridWidth: editableCpGridWidth ?? editableCpBounds.spanX,
+      paperEdgeMm: cpMeasurePreferences.paperEdgeMm,
+    }),
+    [editableCpBounds.spanX, editableCpGridWidth, cpMeasurePreferences.paperEdgeMm]
+  );
+
+  // Measure's prompt follows its kind, not the command's static 2-step list: an
+  // angle collects three points, and the middle one is the vertex.
+  const measureToolPrompt =
+    isCpMeasurementOperation(activeCpCommand?.operationId) && cpToolState.phase === 'active'
+      ? `${t('panels:creasePattern.measure', 'Measure')}: ${measureStepPrompt(
+          t,
+          cpMeasureKind ?? 'distance',
+          cpMeasurePicked
+        )}`
+      : squareBisectorToolPrompt;
+  const activeCpToolPrompt = measureToolPrompt;
   const lastCommandResult = oristudioCpDocument?.lastCommandResult ?? null;
   const camvDiagnosticEntries = camvIssuesVisible
     ? (oristudioCpCamvResult?.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES)
@@ -1778,7 +1874,10 @@ export function CreasePatternPanel() {
   // WebGL draw tools: snap a raw model draw point to nearby geometry (the surface
   // supplies its camera-derived tolerance), mirroring resolveEditableDrawPoint.
   const resolveEditableDrawModelPoint = useCallback(
-    (rawPoint: Point, toleranceModel: number): { point: Point; snapped: boolean } => {
+    (
+      rawPoint: Point,
+      toleranceModel: number
+    ): { point: Point; snapped: boolean; kind?: CpSnapTarget['kind'] } => {
       if (!editableCp) return { point: rawPoint, snapped: false };
       const target = nearestOrieditaDrawPointTarget(
         editableCp,
@@ -1788,8 +1887,9 @@ export function CreasePatternPanel() {
         toleranceModel
       );
       // Report whether the point locked onto a grid point / vertex, so a restricted
-      // draw can reject a start/end that doesn't snap.
-      return { point: target?.point ?? rawPoint, snapped: target !== null };
+      // draw can reject a start/end that doesn't snap — and *what* it locked onto, so
+      // the measure tool can say whether an endpoint is a real vertex or a free point.
+      return { point: target?.point ?? rawPoint, snapped: target !== null, kind: target?.kind };
     },
     [editableCp, editableCpBounds, oristudioCpViewport]
   );
@@ -1877,18 +1977,32 @@ export function CreasePatternPanel() {
 
       // Measure tools are non-mutating: never execute (the kernel has no execute arm
       // by design). Ask the kernel for the exact length/angle at the committed points
-      // and store it in the panel slot; then just finalize the tool state.
-      const measurementSlot = cpMeasurementSlotForOperation(command.operationId);
-      if (measurementSlot) {
+      // and show it; then just finalize the tool state. The active *command* is always
+      // the one Measure tool; which kernel operation computes the value follows the
+      // chosen kind.
+      const commitMeasureKind = cpMeasureKindForOperation(command.operationId);
+      if (commitMeasureKind) {
+        const kind = commitMeasureKind;
+        // A one-click crease pick commits the crease id; its endpoints are the two
+        // points the kernel measures between.
+        const pickedCrease =
+          points.length === 0 && pickedLineIds.length > 0
+            ? editableCp?.crease_pattern.line_segments[pickedLineIds[0] - 1]
+            : undefined;
+        const measurePoints = pickedCrease ? [pickedCrease.a, pickedCrease.b] : [...points];
+        if (measurePoints.length === 0) return;
         void previewOristudioCpCommand(
           command.operationId,
-          buildCpCommandPayload(command, { points: [...points] })
+          buildCpCommandPayload(command, { points: measurePoints })
         ).then((preview) => {
           const value = preview?.measurement;
           if (value != null) {
-            setCpMeasurementSlots((current) => ({ ...current, [measurementSlot]: value }));
+            setCpMeasurements((current) => [...current, { kind, value, points: measurePoints }]);
           }
         });
+        setCpMeasurePicked(0);
+        setCpMeasureLivePoints([]);
+        setCpMeasureLiveValue(null);
         setCpToolState((state) =>
           state.activeOperationId === command.operationId
             ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
@@ -1952,6 +2066,7 @@ export function CreasePatternPanel() {
     [
       activeCpCommand,
       buildCpCommandPayload,
+      editableCp?.crease_pattern.line_segments,
       executeOristudioCpCommand,
       previewOristudioCpCommand,
       oristudioCpSelection.circles,
@@ -1969,6 +2084,7 @@ export function CreasePatternPanel() {
     (picked: number) => {
       const command = activeCpCommand;
       if (!command || command.uiStatus !== 'ready') return;
+      if (isCpMeasurementOperation(command.operationId)) setCpMeasurePicked(picked);
       setCpToolState((state) => {
         if (state.activeOperationId !== command.operationId) return state;
         let next = transitionOristudioCpToolState(state, { type: 'cancel', keepActive: true });
@@ -2127,6 +2243,10 @@ export function CreasePatternPanel() {
         .map((id) => editableCp?.crease_pattern.line_segments[id - 1])
         .filter((s): s is OristudioCpLineSegment => Boolean(s))
         .map((s) => ({ a: s.a, b: s.b }));
+      if (isCpMeasurementOperation(command?.operationId)) {
+        setCpMeasureLivePoints([...points]);
+        if (points.length === 0) setCpMeasureLiveValue(null);
+      }
       if (!command || points.length === 0) {
         webglPreviewRequestRef.current += 1;
         setWebglToolPreviewSegments(highlight);
@@ -2170,13 +2290,11 @@ export function CreasePatternPanel() {
           : [];
         setWebglToolPreviewSegments([...kernel, ...rings, ...highlight, ...snapped]);
         setWebglToolPreviewPoints(preview?.points ?? []);
-        // Measure tools: surface the kernel-computed length/angle into its panel slot
-        // live as points are placed (the value is Oriedita-parity math, not recomputed
-        // in JS). Only update once the kernel actually returns a value.
-        const measurementSlot = cpMeasurementSlotForOperation(command.operationId);
-        const measurement = preview?.measurement;
-        if (measurementSlot && measurement != null) {
-          setCpMeasurementSlots((current) => ({ ...current, [measurementSlot]: measurement }));
+        // Measure: surface the kernel-computed length/angle live as points are placed
+        // (Oriedita-parity math, never recomputed in JS). Only once the kernel returns
+        // a value — it needs the full point count for the kind.
+        if (isCpMeasurementOperation(command.operationId)) {
+          setCpMeasureLiveValue(preview?.measurement ?? null);
         }
       });
     },
@@ -2628,6 +2746,48 @@ export function CreasePatternPanel() {
 
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !hasCreasePattern) return undefined;
+
+    // Backspace drops the most recent measurement while the measure tool is active.
+    // Only with nothing selected: with a selection, Delete/Backspace is the crease
+    // delete shortcut, and quietly stealing it would risk the geometry instead of a
+    // readout. preventDefault keeps the global shortcut from also firing.
+    //
+    // Still a container listener rather than a registered shortcut, unlike Escape
+    // above it: `edit.delete` owns this chord at global scope and viewport scope
+    // resolves first, so a viewport binding would shadow crease deletion outright.
+    // Giving the dispatcher a way for an executor to decline is what would let this
+    // move; until then it carries the same focus caveat as the canvas-object delete
+    // beside it (see AGENTS.md > "Panel components").
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        (event.key === 'Backspace' || event.key === 'Delete') &&
+        editableCp &&
+        !isViewportInteractiveTarget(event.target) &&
+        editableSelectionSize === 0 &&
+        cpMeasurements.length > 0 &&
+        isCpMeasurementOperation(cpToolState.activeOperationId)
+      ) {
+        event.preventDefault();
+        setCpMeasurements((current) => current.slice(0, -1));
+        setCpHoveredMeasureIndex(null);
+      }
+    };
+
+    container.addEventListener('keydown', onKeyDown);
+    return () => {
+      container.removeEventListener('keydown', onKeyDown);
+    };
+  }, [
+    cpMeasurements.length,
+    cpToolState.activeOperationId,
+    editableCp,
+    editableSelectionSize,
+    hasCreasePattern,
+  ]);
+
+  useEffect(() => {
     if (!editableCp) {
       setCpToolPoints([]);
       setCpToolPath([]);
@@ -2639,8 +2799,25 @@ export function CreasePatternPanel() {
   }, [editableCp]);
 
   useEffect(() => {
-    setCpMeasurementSlots(createEmptyCpMeasurementSlots());
+    setCpMeasurements([]);
+    setCpMeasurePicked(0);
   }, [editableCpHandle]);
+
+  // V1 measurement lifetime: a reading lives only while the measure tool is active.
+  // Escape deactivates the tool (cancelOristudioCpToolState → idle) and switching
+  // tools changes the operation, so both paths land here and clear it.
+  useEffect(() => {
+    if (
+      cpToolState.phase !== 'active' ||
+      !isCpMeasurementOperation(cpToolState.activeOperationId)
+    ) {
+      setCpMeasurements([]);
+      setCpHoveredMeasureIndex(null);
+      setCpMeasurePicked(0);
+      setCpMeasureLivePoints([]);
+      setCpMeasureLiveValue(null);
+    }
+  }, [cpToolState.activeOperationId, cpToolState.phase]);
 
   return (
     <section className="panel-shell cp-panel">
@@ -2761,10 +2938,12 @@ export function CreasePatternPanel() {
                   }}
                   resolveMoveSnap={resolveEditableMoveSnap}
                   activeToolInputMode={webglActiveTool.mode}
+                  activeToolOperationId={activeCpCommand?.operationId ?? null}
                   activeToolStepKinds={webglActiveTool.stepKinds}
                   activeToolSelectionDistance={cpToolSelectionDistance}
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolDualMirror={webglActiveTool.dualMirror}
+                  activeToolMeasureCreasePick={cpMeasureKind === 'distance'}
                   activeToolConverging={webglActiveTool.converging}
                   activeToolSquareBisector={webglActiveTool.squareBisector}
                   activeToolVoronoi={webglActiveTool.voronoi}
@@ -2784,6 +2963,7 @@ export function CreasePatternPanel() {
                   onToolCommit={handleWebglToolCommit}
                   onToolPreviewInput={handleWebglToolPreviewInput}
                   onToolPickProgress={handleWebglToolPickProgress}
+                  onToolSnapKind={setCpMeasureSnapKind}
                   toolCommandPreviewSegments={webglToolPreviewSegments}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
@@ -2835,6 +3015,26 @@ export function CreasePatternPanel() {
                     if (!open) setFoldedContextMenu(null);
                   }}
                 />
+                {webglOverlayView &&
+                  isCpMeasurementOperation(activeCpCommand?.operationId) &&
+                  cpToolState.phase === 'active' && (
+                    <CpMeasureLayer
+                      measurements={cpMeasurements}
+                      hoveredIndex={cpHoveredMeasureIndex}
+                      liveKind={cpMeasureKind ?? 'distance'}
+                      livePoints={cpMeasureLivePoints}
+                      liveValue={cpMeasureLiveValue}
+                      liveSnapLabel={
+                        cpMeasurePicked > 0 &&
+                        cpMeasurePicked < cpMeasurePointCount(cpMeasureKind ?? 'distance')
+                          ? measureSnapLabel(t, cpMeasureSnapKind)
+                          : null
+                      }
+                      unit={cpMeasurePreferences.unit}
+                      angleUnit={cpMeasurePreferences.angleUnit}
+                      scale={cpMeasureScale}
+                    />
+                  )}
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}
@@ -2989,7 +3189,14 @@ export function CreasePatternPanel() {
                     options={cpToolOptions}
                     setOptions={setCpToolOptions}
                     activeLineColor={activeCpLineColor}
-                    measurementSlots={cpMeasurementSlots}
+                    measurements={cpMeasurements}
+                    onHoverMeasurement={setCpHoveredMeasureIndex}
+                    measureUnit={cpMeasurePreferences.unit}
+                    measureAngleUnit={cpMeasurePreferences.angleUnit}
+                    measureScale={cpMeasureScale}
+                    onMeasureUnitChange={setCpMeasureUnit}
+                    onMeasureAngleUnitChange={setCpMeasureAngleUnit}
+                    onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
                     pendingPointCount={cpToolPoints.length}
                     selection={oristudioCpSelection}
                     onApply={
