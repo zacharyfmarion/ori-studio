@@ -1,9 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import { applyAffine, cpSnapshotToScene, translationMatrix } from './cpSnapshotToScene';
+import type { CpLineAppearance } from './cpLineStyle';
 import type { Rgba } from '../renderer/types';
 
 const RED: Rgba = [1, 0, 0, 1];
 const BLUE: Rgba = [0, 0, 1, 1];
+
+/** A solid appearance for `color` — the whole of the "color" line style. */
+function solid(color: Rgba): CpLineAppearance {
+  return { color, dashSlot: 0 };
+}
+
+/** No dash patterns in play, matching the solid styles. */
+const SOLID_PATTERNS: readonly (readonly number[])[] = [];
 
 describe('cpSnapshotToScene', () => {
   it('packs endpoints and per-segment colours', () => {
@@ -11,7 +20,7 @@ describe('cpSnapshotToScene', () => {
       { a: { x: 0, y: 0 }, b: { x: 10, y: 20 }, color: 'Red1' },
       { a: { x: 5, y: 6 }, b: { x: 7, y: 8 }, color: 'Blue2' },
     ];
-    const scene = cpSnapshotToScene(segments, (c) => (c === 'Red1' ? RED : BLUE));
+    const scene = cpSnapshotToScene(segments, (c) => solid(c === 'Red1' ? RED : BLUE), SOLID_PATTERNS);
     expect(scene.strokes.count).toBe(2);
     expect(Array.from(scene.strokes.a)).toEqual([0, 0, 5, 6]);
     expect(Array.from(scene.strokes.b)).toEqual([10, 20, 7, 8]);
@@ -19,18 +28,47 @@ describe('cpSnapshotToScene', () => {
   });
 
   it('memoises colour resolution per distinct assignment', () => {
-    const colorFor = vi.fn((): Rgba => RED);
+    const appearanceFor = vi.fn((): CpLineAppearance => solid(RED));
     const segments = Array.from({ length: 5 }, () => ({
       a: { x: 0, y: 0 },
       b: { x: 1, y: 1 },
       color: 'Red1',
     }));
-    cpSnapshotToScene(segments, colorFor);
-    expect(colorFor).toHaveBeenCalledTimes(1);
+    cpSnapshotToScene(segments, appearanceFor, SOLID_PATTERNS);
+    expect(appearanceFor).toHaveBeenCalledTimes(1);
+  });
+
+  it('carries the line style through as per-segment dash slots', () => {
+    const patterns = [
+      [10, 3, 3, 3],
+      [8, 8],
+    ];
+    const segments = [
+      { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, color: 'Red1' },
+      { a: { x: 0, y: 1 }, b: { x: 1, y: 1 }, color: 'Blue2' },
+      { a: { x: 0, y: 2 }, b: { x: 1, y: 2 }, color: 'Black0' },
+    ];
+    const { strokes } = cpSnapshotToScene(
+      segments,
+      (color) => ({ color: RED, dashSlot: color === 'Red1' ? 1 : color === 'Blue2' ? 2 : 0 }),
+      patterns
+    );
+    expect(strokes.dashPatterns).toBe(patterns);
+    expect(Array.from(strokes.dashSlot ?? [])).toEqual([1, 2, 0]);
+  });
+
+  it('keeps selected creases solid so the highlight does not read as broken', () => {
+    const segments = [{ a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, color: 'Red1' }];
+    const { strokes } = cpSnapshotToScene(segments, () => ({ color: RED, dashSlot: 1 }), [[8, 8]], {
+      selected: new Set([1]),
+      color: BLUE,
+      widthMul: 2,
+    });
+    expect(Array.from(strokes.dashSlot ?? [])).toEqual([0]);
   });
 
   it('handles an empty document', () => {
-    const scene = cpSnapshotToScene([], () => RED);
+    const scene = cpSnapshotToScene([], () => solid(RED), SOLID_PATTERNS);
     expect(scene.strokes.count).toBe(0);
     expect(scene.strokes.a).toHaveLength(0);
   });
@@ -46,7 +84,7 @@ describe('cpSnapshotToScene move preview', () => {
   const selection = { selected: new Set([1, 3]), color: SEL, widthMul: 2.5 };
 
   it('shifts only the moved lines in place and leaves others put', () => {
-    const { strokes } = cpSnapshotToScene(segments, () => RED, selection, {
+    const { strokes } = cpSnapshotToScene(segments, () => solid(RED), SOLID_PATTERNS, selection, {
       ids: new Set([1, 3]),
       matrix: translationMatrix({ x: 2, y: -3 }),
     });
@@ -66,7 +104,7 @@ describe('cpSnapshotToScene move preview', () => {
   });
 
   it('is a no-op offset when move is omitted', () => {
-    const { strokes } = cpSnapshotToScene(segments, () => RED, selection);
+    const { strokes } = cpSnapshotToScene(segments, () => solid(RED), SOLID_PATTERNS, selection);
     expect(Array.from(strokes.a.slice(0, 2))).toEqual([0, 0]);
     expect(Array.from(strokes.a.slice(4, 6))).toEqual([20, 20]);
   });
@@ -75,7 +113,7 @@ describe('cpSnapshotToScene move preview', () => {
     // Quarter turn about the origin, doubled, then shifted — the shape a
     // four-point move produces.
     const matrix = [0, -2, 2, 0, 1, 1] as const;
-    const { strokes } = cpSnapshotToScene(segments, () => RED, selection, {
+    const { strokes } = cpSnapshotToScene(segments, () => solid(RED), SOLID_PATTERNS, selection, {
       ids: new Set([1]),
       matrix,
     });

@@ -1,3 +1,4 @@
+import { mixHexColors } from '../lib/rgbColor';
 import type { ThemeTokens, TreeMakerTheme } from './types';
 import { tokenToCssVar } from './types';
 
@@ -46,6 +47,14 @@ function colorMix(color: string, amount: number): string {
   return `color-mix(in srgb, ${color} ${amount}%, transparent)`;
 }
 
+/**
+ * Oriedita's `GREY_10` (`#A2A2A2`) — the black-and-white line style's valley — is
+ * its black ink washed out over white paper: exactly black at 36.5%. Reproduce
+ * that *relationship* against the theme's own ink and canvas rather than the
+ * literal colour, so the style stays legible whichever way the theme runs.
+ */
+const MONOCHROME_VALLEY_INK_RATIO = 0.365;
+
 function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: string, value: string) => void) {
   const { colors } = theme;
   const isLight = theme.type === 'light';
@@ -66,6 +75,10 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--fold-valley', MOUNTAIN_VALLEY_COLORS[theme.type].valley);
   setVar('--fold-flat', MOUNTAIN_VALLEY_COLORS[theme.type].aux);
   setVar('--fold-border', colors['text.primary']);
+  setVar(
+    '--fold-monochrome-valley',
+    mixHexColors(colors['text.primary'], colors['bg.canvas'], MONOCHROME_VALLEY_INK_RATIO)
+  );
   setVar('--fold-ridge', colors['status.danger']);
   setVar('--fold-hinge', colors['port.image']);
   setVar('--fold-pseudohinge', colors['port.bool']);

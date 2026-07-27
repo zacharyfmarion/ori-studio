@@ -18,16 +18,17 @@ import {
   circleRingIntersectsAabb,
   segmentIntersectsAabb,
 } from './picking/lineHitIndex';
-import type {
-  FoldedGeometry,
-  MarkerGeometry,
-  ModelPoint,
-  PointGeometry,
-  Rgba,
-  StrokeGeometry,
-  ViewTransform,
-  Viewport,
-  WedgeGeometry,
+import {
+  OVERLAY_DASH_PATTERN,
+  type FoldedGeometry,
+  type MarkerGeometry,
+  type ModelPoint,
+  type PointGeometry,
+  type Rgba,
+  type StrokeGeometry,
+  type ViewTransform,
+  type Viewport,
+  type WedgeGeometry,
 } from './renderer/types';
 import type { CpOverlayViews } from './cpOverlayViewStore';
 import {
@@ -51,7 +52,8 @@ import type { CpImage } from './images/cpImage';
 import { imageCornersModel } from './images/cpImagePlacement';
 import { boxCornersModel } from './annotations/annotationTransform';
 import { cpPointsToScene } from './adapters/cpPointsToScene';
-import { resolveCpLineColor } from './adapters/cpLineColor';
+import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
+import { cpLineStyleDashPatterns } from '../lib/oristudioCpLineStyle';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
 import {
   cpContradictionFaceFills,
@@ -66,7 +68,11 @@ import {
   gridBoundsKey,
   visibleGridBounds,
 } from './adapters/cpGridToScene';
-import { cpVertexId, orieditaGridLinesForModelBounds } from '../lib/creasePatternViewport';
+import {
+  cpVertexId,
+  orieditaGridLinesForModelBounds,
+  type OristudioCpLineStyle,
+} from '../lib/creasePatternViewport';
 import { toolEngineFor, type ToolInputMode } from './tools/registry';
 import { createToolRuntime, type ToolRuntime } from './tools/runtime';
 import { createStepSequenceTool } from './tools/stepSequenceTool';
@@ -227,7 +233,7 @@ function previewSegmentsToStrokes(
     col[i * 4 + 2] = color[2];
     col[i * 4 + 3] = color[3];
   }
-  return { a, b, color: col, widthMul, count, dashed };
+  return { a, b, color: col, widthMul, count, dashPatterns: dashed ? [OVERLAY_DASH_PATTERN] : [] };
 }
 
 /** A single ring marker (transparent fill + coloured outline) at a snap point. */
@@ -603,6 +609,8 @@ export interface CreasePatternWebglCanvasProps {
   onRequestContextMenu: (request: CpContextMenuRequest) => void;
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
+  /** Oriedita line style: how each crease colour is inked and dashed. */
+  lineStyle: OristudioCpLineStyle;
   /** `--cp-line-width` value driving stroke thickness. */
   lineWidth: number;
   /** Explicit crease points in model coordinates. */
@@ -693,6 +701,7 @@ export function CreasePatternWebglCanvas({
   onEraseLine,
   onRequestContextMenu,
   mode,
+  lineStyle,
   lineWidth,
   points,
   vertices,
@@ -893,7 +902,12 @@ export function CreasePatternWebglCanvas({
         pickedLineIds && pickedLineIds.length
           ? new Set([...selectedLineSet, ...pickedLineIds])
           : selectedLineSet;
-      const colorFor = (color: string) => resolveCpLineColor(color, mode, document.documentElement);
+      const appearanceFor = createCpLineAppearanceResolver(
+        lineStyle,
+        mode,
+        document.documentElement
+      );
+      const dashPatterns = cpLineStyleDashPatterns(lineStyle);
       const selection = {
         selected,
         color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
@@ -904,13 +918,14 @@ export function CreasePatternWebglCanvas({
       // the structured fallback below is only for the rare state that carries no
       // geometry (e.g. a fixture); it never runs on a real edit.
       if (geometry) {
-        return cpGeometryStrokesToScene(geometry, colorFor, selection, move).strokes;
+        return cpGeometryStrokesToScene(geometry, appearanceFor, dashPatterns, selection, move)
+          .strokes;
       }
-      return cpSnapshotToScene(lineSegments, colorFor, selection, move).strokes;
+      return cpSnapshotToScene(lineSegments, appearanceFor, dashPatterns, selection, move).strokes;
     },
     // currentTheme drives DOM-resolved colours; rebuild callers on theme change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lineSegments, geometry, mode, selectedLineSet, currentTheme]
+    [lineSegments, geometry, mode, lineStyle, selectedLineSet, currentTheme]
   );
   useEffect(() => {
     buildStrokesRef.current = buildStrokes;
@@ -958,20 +973,25 @@ export function CreasePatternWebglCanvas({
   }, [buildPoints]);
 
   // Snapshot the selected creases for a copy gesture's ghost. Each keeps its own
-  // M/V colour (as Oriedita's transform preview draws them) at a reduced alpha, so
-  // the prospective geometry reads as new rather than as more selection.
+  // M/V appearance (as Oriedita's transform preview draws them, through the same
+  // `drawCpLine` the crease pattern uses) at a reduced alpha, so the prospective
+  // geometry reads as new rather than as more selection.
   const createSelectionGhost = useCallback(
     (ids: ReadonlySet<number>): CpTransformGhost | null => {
-      const colorFor = (color: string) => resolveCpLineColor(color, mode, document.documentElement);
+      const appearanceFor = createCpLineAppearanceResolver(
+        lineStyle,
+        mode,
+        document.documentElement
+      );
       const style = { alpha: GHOST_ALPHA, widthMul: SELECTION_WIDTH_MUL };
       const base = geometry
-        ? ghostBaseFromGeometry(geometry, ids, colorFor, style)
-        : ghostBaseFromSegments(lineSegments, ids, colorFor, style);
-      return createTransformGhost(base, style);
+        ? ghostBaseFromGeometry(geometry, ids, appearanceFor, style)
+        : ghostBaseFromSegments(lineSegments, ids, appearanceFor, style);
+      return createTransformGhost(base, style, cpLineStyleDashPatterns(lineStyle));
     },
     // currentTheme drives DOM-resolved colours; rebuild on theme change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [geometry, lineSegments, mode, currentTheme]
+    [geometry, lineSegments, mode, lineStyle, currentTheme]
   );
 
   // Per-frame / per-interaction inputs the effect reads without re-subscribing.

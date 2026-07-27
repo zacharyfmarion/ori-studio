@@ -9,6 +9,11 @@ import {
 
 const RED: Rgba = [1, 0, 0, 1];
 const STYLE: CpGhostStyle = { alpha: 0.5, widthMul: 2 };
+/** No dash patterns in play, matching the solid line styles. */
+const SOLID_PATTERNS: readonly (readonly number[])[] = [];
+
+/** Every crease solid in `RED` — the "color" line style over a red selection. */
+const solidRed = () => ({ color: RED, dashSlot: 0 });
 
 const segments = [
   { a: { x: 0, y: 0 }, b: { x: 10, y: 0 }, color: 'Red1' },
@@ -18,31 +23,41 @@ const segments = [
 
 describe('ghostBaseFromSegments', () => {
   it('snapshots only the selected creases, compacted', () => {
-    const base = ghostBaseFromSegments(segments, new Set([1, 3]), () => RED, STYLE);
+    const base = ghostBaseFromSegments(segments, new Set([1, 3]), solidRed, STYLE);
     expect(base.count).toBe(2);
     expect(Array.from(base.a)).toEqual([0, 0, 20, 20]);
     expect(Array.from(base.b)).toEqual([10, 0, 30, 30]);
   });
 
   it('scales each segment alpha by the ghost style, keeping its own colour', () => {
-    const base = ghostBaseFromSegments(segments, new Set([1]), () => RED, STYLE);
+    const base = ghostBaseFromSegments(segments, new Set([1]), solidRed, STYLE);
     expect(Array.from(base.color)).toEqual([1, 0, 0, 0.5]);
   });
 
+  it('snapshots each crease dash slot so the ghost keeps the line style', () => {
+    const base = ghostBaseFromSegments(
+      segments,
+      new Set([1, 2]),
+      (color) => ({ color: RED, dashSlot: color === 'Red1' ? 1 : 2 }),
+      STYLE
+    );
+    expect(Array.from(base.dashSlot)).toEqual([1, 2]);
+  });
+
   it('is empty for an empty selection', () => {
-    expect(ghostBaseFromSegments(segments, new Set(), () => RED, STYLE).count).toBe(0);
+    expect(ghostBaseFromSegments(segments, new Set(), solidRed, STYLE).count).toBe(0);
   });
 });
 
 describe('createTransformGhost', () => {
   it('is null when there is nothing selected to ghost', () => {
-    const base = ghostBaseFromSegments(segments, new Set(), () => RED, STYLE);
-    expect(createTransformGhost(base, STYLE)).toBeNull();
+    const base = ghostBaseFromSegments(segments, new Set(), solidRed, STYLE);
+    expect(createTransformGhost(base, STYLE, SOLID_PATTERNS)).toBeNull();
   });
 
   it('transforms the snapshot without mutating it', () => {
-    const base = ghostBaseFromSegments(segments, new Set([1]), () => RED, STYLE);
-    const ghost = createTransformGhost(base, STYLE);
+    const base = ghostBaseFromSegments(segments, new Set([1]), solidRed, STYLE);
+    const ghost = createTransformGhost(base, STYLE, SOLID_PATTERNS);
     const strokes = ghost?.update(translationMatrix({ x: 3, y: -4 }));
     expect(Array.from(strokes!.a)).toEqual([3, -4]);
     expect(Array.from(strokes!.b)).toEqual([13, -4]);
@@ -52,16 +67,16 @@ describe('createTransformGhost', () => {
   });
 
   it('does not compound across successive updates', () => {
-    const base = ghostBaseFromSegments(segments, new Set([1]), () => RED, STYLE);
-    const ghost = createTransformGhost(base, STYLE);
+    const base = ghostBaseFromSegments(segments, new Set([1]), solidRed, STYLE);
+    const ghost = createTransformGhost(base, STYLE, SOLID_PATTERNS);
     ghost?.update(translationMatrix({ x: 3, y: -4 }));
     const strokes = ghost?.update(translationMatrix({ x: 1, y: 1 }));
     expect(Array.from(strokes!.a)).toEqual([1, 1]);
   });
 
   it('applies rotation and scale, not just translation', () => {
-    const base = ghostBaseFromSegments(segments, new Set([1]), () => RED, STYLE);
-    const ghost = createTransformGhost(base, STYLE);
+    const base = ghostBaseFromSegments(segments, new Set([1]), solidRed, STYLE);
+    const ghost = createTransformGhost(base, STYLE, SOLID_PATTERNS);
     // Quarter turn about the origin, doubled.
     const strokes = ghost?.update([0, -2, 2, 0, 0, 0]);
     expect(Array.from(strokes!.a)).toEqual([0, 0]);
@@ -69,8 +84,8 @@ describe('createTransformGhost', () => {
   });
 
   it('carries the style width and reuses one buffer object', () => {
-    const base = ghostBaseFromSegments(segments, new Set([1, 3]), () => RED, STYLE);
-    const ghost = createTransformGhost(base, STYLE);
+    const base = ghostBaseFromSegments(segments, new Set([1, 3]), solidRed, STYLE);
+    const ghost = createTransformGhost(base, STYLE, SOLID_PATTERNS);
     const first = ghost?.update(translationMatrix({ x: 0, y: 0 }));
     const second = ghost?.update(translationMatrix({ x: 1, y: 0 }));
     expect(first).toBe(second);

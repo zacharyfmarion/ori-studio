@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hexToRgbColor, rgbColorToHex } from './rgbColor';
+import { hexToRgbColor, mixHexColors, rgbColorToHex } from './rgbColor';
 
 describe('rgbColorToHex', () => {
   it('formats channels as zero-padded #rrggbb', () => {
@@ -28,5 +28,20 @@ describe('hexToRgbColor', () => {
 
   it('falls back to black on malformed input', () => {
     expect(hexToRgbColor('nope')).toEqual({ red: 0, green: 0, blue: 0 });
+  });
+});
+
+describe('mixHexColors', () => {
+  it('reproduces Oriedita GREY_10 as its black ink washed out over white paper', () => {
+    expect(mixHexColors('#000000', '#ffffff', 0.365)).toBe('#a2a2a2');
+  });
+
+  it('keeps either end of the ratio intact', () => {
+    expect(mixHexColors('#123456', '#ffffff', 1)).toBe('#123456');
+    expect(mixHexColors('#123456', '#ffffff', 0)).toBe('#ffffff');
+  });
+
+  it('blends channel by channel', () => {
+    expect(mixHexColors('#ff0000', '#0000ff', 0.5)).toBe('#800080');
   });
 });

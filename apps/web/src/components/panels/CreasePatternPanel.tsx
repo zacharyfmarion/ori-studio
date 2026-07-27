@@ -95,6 +95,7 @@ import {
   CP_PAPER_RECT,
   cpSelectionSize,
   cpSvgPointToModel,
+  DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   emptyOristudioCpSelection,
   getCpVertexPoints,
   getOrieditaGridBasis,
@@ -174,7 +175,12 @@ import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { useThemeStore } from '../../store/themeStore';
-import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../cp-workspace/renderer/types';
+import {
+  OVERLAY_DASH_PATTERN,
+  type FoldedGeometry,
+  type Rgba,
+  type StrokeGeometry,
+} from '../../cp-workspace/renderer/types';
 import { foldedFigureBox, foldedGeometryFromShapes } from '../../cp-workspace/adapters/cpFoldedToScene';
 import {
   allowsDirectEntitySelection,
@@ -2047,7 +2053,7 @@ export function CreasePatternPanel() {
       b[i * 2 + 1] = end.y;
       colors.set(color, i * 4);
     });
-    return { a, b, color: colors, widthMul, count, dashed: true };
+    return { a, b, color: colors, widthMul, count, dashPatterns: [OVERLAY_DASH_PATTERN] };
   }, [editableCp?.operation_frame, currentTheme]);
   const diagnosticStatus = useMemo(
     () => {
@@ -3541,6 +3547,7 @@ export function CreasePatternPanel() {
                   }}
                   onRequestContextMenu={handleRequestContextMenu}
                   mode={mode}
+                  lineStyle={oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE}
                   lineWidth={oristudioCpViewport.lineWidth ?? 1}
                   points={editableCp.crease_pattern.points}
                   vertices={editableCpVertexPoints}

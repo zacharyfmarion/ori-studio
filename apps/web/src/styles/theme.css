@@ -74,6 +74,9 @@
   --cp-color-yellow: #eab308;
   --cp-color-purple: #8b5cf6;
   --cp-color-other: #14b8a6;
+  /* Oriedita GREY_10 — the black-and-white line style's valley. Themes derive
+     this from their own ink and canvas (see themes/applyTheme). */
+  --fold-monochrome-valley: #a2a2a2;
   --fold-ridge: #d2545f;
   --fold-hinge: #4d88e8;
   --fold-pseudohinge: #3fbec4;

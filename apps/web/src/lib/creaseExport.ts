@@ -20,6 +20,7 @@ import {
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
   type OristudioCpLineStyle,
 } from './creasePatternViewport';
+import { cpLineStyleDashPattern, cpLineStyleInk } from './oristudioCpLineStyle';
 
 /** Side of the square content box the crease pattern is drawn into. */
 const CP_SIZE = 1024;
@@ -225,39 +226,47 @@ interface EdgeAppearance {
   dash: string;
 }
 
-// Line-style rules mirroring the editable crease-pattern view. In the "color"
-// style, mountain and valley are distinguished by color alone (solid red /
-// solid blue); the black/shape styles use dash patterns instead.
+/**
+ * The Oriedita `LineColor` a FOLD edge assignment stands for, so the export
+ * resolves line style through the same ported rules the canvas does. `F` is how
+ * an auxiliary (`CYAN_3`) crease round-trips through FOLD.
+ */
+function edgeLineColor(assignment: string): string {
+  switch (assignment) {
+    case 'M':
+      return 'Red1';
+    case 'V':
+      return 'Blue2';
+    case 'B':
+      return 'Black0';
+    case 'F':
+      return 'Cyan3';
+    default:
+      return 'None';
+  }
+}
+
+// The ported line-style table (see lib/oristudioCpLineStyle), rendered with the
+// export palette: its monochrome ink and grey stand in for Oriedita's black and
+// GREY_10 so a dark export stays legible.
 function edgeAppearance(
   assignment: string,
   lineStyle: OristudioCpLineStyle,
   palette: CreaseExportPalette
 ): EdgeAppearance {
-  const black = lineStyle === 'black-one-dot' || lineStyle === 'black-two-dot';
-  let stroke: string;
-  if (lineStyle === 'black-white') {
-    stroke = assignment === 'V' ? palette.monochromeValley : palette.monochromeInk;
-  } else if (black) {
-    stroke = palette.monochromeInk;
-  } else {
-    stroke = assignmentColor(assignment, palette);
-  }
-
-  let dash = '';
-  if (assignment === 'V') {
-    if (lineStyle === 'color') dash = ''; // solid blue
-    else if (lineStyle === 'black-white') dash = scaleDash([10, 7]);
-    else dash = scaleDash([8, 8]); // color-and-shape / dot styles
-  } else if (assignment === 'M') {
-    // 'color' and 'black-white' keep mountains solid; the shape/dot styles use a
-    // dash-dot chain (kept fairly sparse so it doesn't read as dense).
-    if (lineStyle === 'color-and-shape' || lineStyle === 'black-one-dot') dash = scaleDash([16, 6, 4, 6]);
-    else if (lineStyle === 'black-two-dot') dash = scaleDash([16, 6, 4, 6, 4, 6]);
-  }
-  return { stroke, dash };
+  const lineColor = edgeLineColor(assignment);
+  const ink = cpLineStyleInk(lineStyle, lineColor);
+  const stroke =
+    ink === 'black'
+      ? palette.monochromeInk
+      : ink === 'grey'
+        ? palette.monochromeValley
+        : assignmentColor(assignment, palette);
+  const pattern = cpLineStyleDashPattern(lineStyle, lineColor);
+  return { stroke, dash: pattern ? scaleDash(pattern) : '' };
 }
 
-function scaleDash(pattern: number[]): string {
+function scaleDash(pattern: readonly number[]): string {
   return pattern.map((value) => (value * VIEW_SCALE).toFixed(2)).join(' ');
 }
 

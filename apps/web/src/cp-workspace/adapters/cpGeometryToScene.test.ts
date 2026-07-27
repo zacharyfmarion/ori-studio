@@ -18,7 +18,12 @@ import {
 import { initCpWasm, loadBatteryDocument } from '../../engine/oristudioCpTestSupport';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import { getCpVertexPoints } from '../../lib/creasePatternViewport';
+import {
+  cpLineStyleDashPatterns,
+  cpLineStyleDashSlot,
+} from '../../lib/oristudioCpLineStyle';
 import type { Rgba } from '../renderer/types';
+import type { CpLineAppearance } from './cpLineStyle';
 import {
   cpSnapshotToScene,
   translationMatrix,
@@ -36,6 +41,14 @@ function colorFor(name: string): Rgba {
   return [(h & 0xff) / 255, ((h >> 8) & 0xff) / 255, ((h >> 16) & 0xff) / 255, 1];
 }
 
+// A dashing line style, so the gate covers the dash slots as well as colours.
+const LINE_STYLE = 'black-two-dot';
+const DASH_PATTERNS = cpLineStyleDashPatterns(LINE_STYLE);
+
+function appearanceFor(name: string): CpLineAppearance {
+  return { color: colorFor(name), dashSlot: cpLineStyleDashSlot(LINE_STYLE, name) };
+}
+
 function expectStrokesEqual(
   a: ReturnType<typeof cpSnapshotToScene>['strokes'],
   b: ReturnType<typeof cpGeometryStrokesToScene>['strokes']
@@ -45,6 +58,8 @@ function expectStrokesEqual(
   expect(Array.from(b.b)).toEqual(Array.from(a.b));
   expect(Array.from(b.color)).toEqual(Array.from(a.color));
   expect(Array.from(b.widthMul)).toEqual(Array.from(a.widthMul));
+  expect(Array.from(b.dashSlot ?? [])).toEqual(Array.from(a.dashSlot ?? []));
+  expect(b.dashPatterns).toEqual(a.dashPatterns);
 }
 
 describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
@@ -67,8 +82,8 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
 
   it('plain (no selection, no move)', () => {
     expectStrokesEqual(
-      cpSnapshotToScene(segmentsInput(), colorFor).strokes,
-      cpGeometryStrokesToScene(transport, colorFor).strokes
+      cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS).strokes,
+      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS).strokes
     );
   });
 
@@ -79,8 +94,8 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
       widthMul: 2.5,
     };
     expectStrokesEqual(
-      cpSnapshotToScene(segmentsInput(), colorFor, selection).strokes,
-      cpGeometryStrokesToScene(transport, colorFor, selection).strokes
+      cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection).strokes,
+      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection).strokes
     );
   });
 
@@ -95,8 +110,8 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
       matrix: translationMatrix({ x: 12.5, y: -3.25 }),
     };
     expectStrokesEqual(
-      cpSnapshotToScene(segmentsInput(), colorFor, selection, move).strokes,
-      cpGeometryStrokesToScene(transport, colorFor, selection, move).strokes
+      cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection, move).strokes,
+      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection, move).strokes
     );
   });
 
@@ -114,8 +129,8 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
       matrix: [c, -s, s, c, 3.5, -1.25],
     };
     expectStrokesEqual(
-      cpSnapshotToScene(segmentsInput(), colorFor, selection, move).strokes,
-      cpGeometryStrokesToScene(transport, colorFor, selection, move).strokes
+      cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection, move).strokes,
+      cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection, move).strokes
     );
   });
 
