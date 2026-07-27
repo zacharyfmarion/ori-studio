@@ -326,6 +326,24 @@ pub enum OrieditaFoldedFigureCameraTarget {
     TransparentRear,
 }
 
+/// Which shadow-band geometry the paper renderer draws.
+///
+/// Oriedita's Java2D drawer derives the shadow's offset length from
+/// `getBegin(lineId)` — the 1-based *point id* — used as an x-coordinate
+/// (`FoldedFigure_Worker_Drawer.java`). The band width therefore comes out as
+/// `SHADOW_OFFSET · edgeLength / unrelatedNumber` rather than the constant
+/// `SHADOW_OFFSET` the surrounding code reads as intending, which makes a
+/// figure's bands vary several-fold in width with no relation to the light.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FoldedShadowGeometry {
+    /// Constant-width bands: the offset uses the edge's true length.
+    #[default]
+    Refined,
+    /// The upstream arithmetic reproduced verbatim, for oracle parity.
+    OrieditaExact,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FoldedFigureRenderOptions {
@@ -336,6 +354,7 @@ pub struct FoldedFigureRenderOptions {
     pub selected_flat_point_indices: Vec<usize>,
     pub selected_folded_point_indices: Vec<usize>,
     pub custom_constraints: Vec<OrieditaCustomConstraint>,
+    pub shadow_geometry: FoldedShadowGeometry,
 }
 
 impl Default for FoldedFigureRenderOptions {
@@ -348,6 +367,7 @@ impl Default for FoldedFigureRenderOptions {
             selected_flat_point_indices: Vec::new(),
             selected_folded_point_indices: Vec::new(),
             custom_constraints: Vec::new(),
+            shadow_geometry: FoldedShadowGeometry::default(),
         }
     }
 }
@@ -1958,6 +1978,13 @@ pub fn folded_figure_paper_front_render_snapshot_from_segments(
     folded_figure_paper_render_snapshot_from_segments(segments, starting_face_id, model)
 }
 
+/// Paper-style render of a fold, in a single pass, for oracle comparison.
+///
+/// Shadows use [`FoldedShadowGeometry::OrieditaExact`]: this entry point exists
+/// to be diffed against the Oriedita render oracle, so it has to reproduce
+/// upstream's shadow-width quirk rather than the product's corrected geometry.
+/// The renderer the app drives is `folded_figure_render_snapshot_from_segments`,
+/// which takes [`FoldedFigureRenderOptions`] and defaults to `Refined`.
 pub fn folded_figure_paper_render_snapshot_from_segments(
     segments: &[LineSegment],
     starting_face_id: i32,
@@ -1995,6 +2022,7 @@ pub fn folded_figure_paper_render_snapshot_from_segments(
             &overlap.hierarchy,
             &model,
             &[],
+            FoldedShadowGeometry::OrieditaExact,
         ),
     }))
 }
@@ -2156,6 +2184,7 @@ fn render_snapshot_impl(
             &model,
             &options.custom_constraints,
             front,
+            options.shadow_geometry,
             &mut render_state,
             &mut primitives,
         );
@@ -2180,6 +2209,7 @@ fn render_snapshot_impl(
             &model,
             &options.custom_constraints,
             rear,
+            options.shadow_geometry,
             &mut render_state,
             &mut primitives,
         );
@@ -2782,6 +2812,7 @@ fn folded_figure_camera_set(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn paper_render_primitives(
     flat_graph: &FoldGraph,
     folded: &FoldedWireframe,
@@ -2790,6 +2821,7 @@ fn paper_render_primitives(
     hierarchy: &InitialHierarchy,
     model: &FoldedFigureModel,
     custom_constraints: &[OrieditaCustomConstraint],
+    shadow_geometry: FoldedShadowGeometry,
 ) -> Vec<FoldedFigureRenderPrimitive> {
     let hierarchy = HierarchyTable::from_initial(hierarchy);
     let mut primitives = Vec::new();
@@ -2808,6 +2840,7 @@ fn paper_render_primitives(
             model,
             custom_constraints,
             pass,
+            shadow_geometry,
             &mut render_state,
             &mut primitives,
         );
@@ -3006,6 +3039,7 @@ fn push_folded_display_style_pass_primitives(
     model: &FoldedFigureModel,
     custom_constraints: &[OrieditaCustomConstraint],
     pass: OrieditaPaperRenderPass,
+    shadow_geometry: FoldedShadowGeometry,
     render_state: &mut OrieditaRenderState,
     primitives: &mut Vec<FoldedFigureRenderPrimitive>,
 ) {
@@ -3034,6 +3068,7 @@ fn push_folded_display_style_pass_primitives(
                 model,
                 custom_constraints,
                 pass,
+                shadow_geometry,
                 render_state,
                 primitives,
             );
@@ -3516,6 +3551,7 @@ fn push_paper_render_pass_primitives(
     model: &FoldedFigureModel,
     custom_constraints: &[OrieditaCustomConstraint],
     pass: OrieditaPaperRenderPass,
+    shadow_geometry: FoldedShadowGeometry,
     render_state: &mut OrieditaRenderState,
     primitives: &mut Vec<FoldedFigureRenderPrimitive>,
 ) {
@@ -3554,6 +3590,7 @@ fn push_paper_render_pass_primitives(
             subfaces,
             hierarchy,
             pass,
+            shadow_geometry,
             render_state,
             primitives,
         );
@@ -3600,11 +3637,15 @@ fn push_paper_render_pass_primitives(
     push_custom_constraint_primitives(custom_constraints, pass, render_state, primitives);
 }
 
+/// How far a shadow band reaches from its edge, in object units (Oriedita's `10.0`).
+const SHADOW_OFFSET: f64 = 10.0;
+
 fn push_paper_shadow_primitives(
     subface_graph: &FoldGraph,
     subfaces: &SubFaceConfiguration,
     hierarchy: &HierarchyTable,
     pass: OrieditaPaperRenderPass,
+    geometry: FoldedShadowGeometry,
     render_state: &OrieditaRenderState,
     primitives: &mut Vec<FoldedFigureRenderPrimitive>,
 ) {
@@ -3623,23 +3664,29 @@ fn push_paper_shadow_primitives(
         let Some(end) = subface_graph.points.get(line.end).copied() else {
             continue;
         };
-        // Oriedita's Java2D drawer accidentally uses getBegin(lineId), the
-        // 1-based point id, as the x-coordinate when computing shadow length.
-        // The rectangle coordinates still use the real point coordinates.
-        let shadow_length_origin = Point::new((line.begin + 1) as f64, begin.y);
-        let length = shadow_length_origin.distance(end);
+        let length = match geometry {
+            // `(begin.x - end.x, begin.y - end.y)` rotated a quarter turn has the
+            // edge's length, so dividing by that length is what makes the offset
+            // a constant SHADOW_OFFSET across every band.
+            FoldedShadowGeometry::Refined => begin.distance(end),
+            // Oriedita's Java2D drawer accidentally uses getBegin(lineId), the
+            // 1-based point id, as the x-coordinate when computing shadow length.
+            // The rectangle coordinates still use the real point coordinates.
+            FoldedShadowGeometry::OrieditaExact => {
+                Point::new((line.begin + 1) as f64, begin.y).distance(end)
+            }
+        };
         if length == 0.0 {
             continue;
         }
 
         let offset = Point::new(
-            -(begin.y - end.y) * 10.0 / length,
-            (begin.x - end.x) * 10.0 / length,
+            -(begin.y - end.y) * SHADOW_OFFSET / length,
+            (begin.x - end.x) * SHADOW_OFFSET / length,
         );
         let reverse_offset = Point::new(-offset.x, -offset.y);
         let midpoint = Point::new((begin.x + end.x) / 2.0, (begin.y + end.y) / 2.0);
-
-        if shadow_offset_inside(subface_graph, shadow_subface, midpoint, offset) {
+        if shadow_offset_inside(subface_graph, shadow_subface, midpoint, offset, geometry) {
             push_shadow_rectangle(
                 begin,
                 end,
@@ -3652,7 +3699,13 @@ fn push_paper_shadow_primitives(
             );
         }
 
-        if shadow_offset_inside(subface_graph, shadow_subface, midpoint, reverse_offset) {
+        if shadow_offset_inside(
+            subface_graph,
+            shadow_subface,
+            midpoint,
+            reverse_offset,
+            geometry,
+        ) {
             push_shadow_rectangle(
                 begin,
                 end,
@@ -3712,19 +3765,53 @@ fn shadow_subface_for_line(
     }
 }
 
+/// How far off an edge to sample when asking which side its subface lies on.
+///
+/// `Polygon::inside` reports `Border` within `Epsilon::UNKNOWN_001` of an edge,
+/// so the sample has to clear that band by a wide margin to get a definite
+/// answer. Two orders of magnitude does it while staying negligible against
+/// subface sizes, which run in the tens of units.
+const SHADOW_PROBE_DISTANCE: f64 = Epsilon::UNKNOWN_001 * 100.0;
+
+/// Whether the shadow cast along `offset` falls inside the subface casting it.
+///
+/// Upstream samples at `midpoint + ε · offset` and accepts anything that is not
+/// `Outside`. Both halves of that misfire once the band width is corrected: the
+/// step scales with the band, and `Border` counts as a hit. Since the sample sits
+/// within a hair of the edge it usually *is* on the border, so both directions
+/// pass and the edge gets a shadow on each side — the doubled, muddy bands.
+/// `Refined` samples a fixed distance along the unit normal and demands a strict
+/// `Inside`, which is the actual question: which side is the paper on.
 fn shadow_offset_inside(
     subface_graph: &FoldGraph,
     subface_index: usize,
     midpoint: Point,
     offset: Point,
+    geometry: FoldedShadowGeometry,
 ) -> bool {
     let Some(face) = subface_graph.faces.get(subface_index) else {
         return false;
     };
-    subface_polygon(subface_graph, face).inside(Point::new(
-        midpoint.x + Epsilon::UNKNOWN_001 * offset.x,
-        midpoint.y + Epsilon::UNKNOWN_001 * offset.y,
-    )) != PolygonIntersection::Outside
+    let polygon = subface_polygon(subface_graph, face);
+    match geometry {
+        FoldedShadowGeometry::Refined => {
+            let length = offset.distance(Point::new(0.0, 0.0));
+            if length == 0.0 {
+                return false;
+            }
+            let step = SHADOW_PROBE_DISTANCE / length;
+            polygon.inside(Point::new(
+                midpoint.x + step * offset.x,
+                midpoint.y + step * offset.y,
+            )) == PolygonIntersection::Inside
+        }
+        FoldedShadowGeometry::OrieditaExact => {
+            polygon.inside(Point::new(
+                midpoint.x + Epsilon::UNKNOWN_001 * offset.x,
+                midpoint.y + Epsilon::UNKNOWN_001 * offset.y,
+            )) != PolygonIntersection::Outside
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

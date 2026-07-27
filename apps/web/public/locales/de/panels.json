@@ -163,7 +163,6 @@
     "changeFoldedColor": "Farbe des gefalteten Modells ändern",
     "changeFoldedDisplayStyle": "Faltdarstellung ändern",
     "changeFoldedModel": "Gefaltetes Modell ändern",
-    "colorAlpha": "Farb-Alpha",
     "commandFailed": "Befehl fehlgeschlagen",
     "couldNotOpenForEditing": "Dieses Faltmuster konnte nicht zur Bearbeitung geöffnet werden.",
     "cropImage": "Bild zuschneiden",
@@ -272,7 +271,6 @@
     "stale": "Veraltet",
     "start": "Start",
     "startingFace": "Startfläche",
-    "useColoredFoldedTransparency": "Farbige Transparenz des gefalteten Modells verwenden",
     "viewportControls": "Ansichtssteuerung des Faltmusters"
   },
   "design": {

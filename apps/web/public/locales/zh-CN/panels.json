@@ -162,7 +162,6 @@
     "changeFoldedColor": "更改折叠模型颜色",
     "changeFoldedDisplayStyle": "更改折叠显示样式",
     "changeFoldedModel": "更改折叠模型",
-    "colorAlpha": "颜色透明度",
     "commandFailed": "命令失败",
     "couldNotOpenForEditing": "无法打开此折痕图进行编辑。",
     "cropImage": "裁剪图像",
@@ -264,7 +263,6 @@
     "stale": "已过期",
     "start": "起始",
     "startingFace": "起始面",
-    "useColoredFoldedTransparency": "使用彩色折叠透明度",
     "viewportControls": "折痕图视口控件"
   },
   "design": {

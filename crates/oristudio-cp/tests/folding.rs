@@ -1,13 +1,14 @@
 use oristudio_cp::folding::{
     AdditionalEstimationError, ChainPermutationGenerator, DisplayStyle, EstimationOrder,
     EstimationStep, FoldContradiction, FoldedFigureModel, FoldedFigureRenderAntialias,
-    FoldedFigureRenderGeometry, FoldedFigureRenderPaint, FoldedFigureRenderPrimitiveKind,
-    FoldedFigureRenderStroke, FoldedFigureState, FoldingEstimateError, FoldingEstimateSession,
-    HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor, SubFacePermutationSearch,
-    SubFaceSwapper, WorkerOverlapEnumerator, WorkerOverlapSearchError,
-    additional_estimation_from_segments, configure_subfaces_from_segments,
-    duplicate_estimation_order_for_display, equivalence_condition_candidates_from_segments,
-    estimate_wireframe_from_segments, fold_another, folded_figure_snapshot_from_segments,
+    FoldedFigureRenderGeometry, FoldedFigureRenderOptions, FoldedFigureRenderPaint,
+    FoldedFigureRenderPrimitiveKind, FoldedFigureRenderStroke, FoldedFigureState,
+    FoldedShadowGeometry, FoldingEstimateError, FoldingEstimateSession, HierarchyRelation,
+    InitialHierarchy, RenderPathCommand, RgbaColor, SubFacePermutationSearch, SubFaceSwapper,
+    WorkerOverlapEnumerator, WorkerOverlapSearchError, additional_estimation_from_segments,
+    configure_subfaces_from_segments, duplicate_estimation_order_for_display,
+    equivalence_condition_candidates_from_segments, estimate_wireframe_from_segments, fold_another,
+    folded_figure_render_snapshot_from_segments, folded_figure_snapshot_from_segments,
     folding_estimate_case_filename, folding_estimate_from_segments, folding_estimate_save_batch,
     folding_estimate_to_case, initial_hierarchy_from_segments, overlap_search_from_segments,
     overlap_search_from_segments_with_swap, parse_oriedita_render_primitives,
@@ -1045,4 +1046,162 @@ fn folding_estimate_to_case_still_seeks_forwards() {
 
     assert_eq!(session.estimate().current_fold_case, 4);
     assert_eq!(session.estimate().discovered_fold_cases, 4);
+}
+
+/// The kabuto fixture folds to a stack with several layer steps, so its paper
+/// render carries shadow bands — unlike a single-crease fold, whose one subface
+/// has no interior step to cast onto.
+fn kabuto_segments() -> Vec<LineSegment> {
+    let fold: treemaker_fold::FoldDocument = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/flat-folder/kabuto.fold"
+    ))
+    .expect("kabuto fold fixture");
+    fold.edges_vertices
+        .iter()
+        .enumerate()
+        .map(|(index, edge)| {
+            let a = &fold.vertices_coords[edge[0]];
+            let b = &fold.vertices_coords[edge[1]];
+            let color = match fold.edges_assignment.get(index).map(|value| value.as_str()) {
+                Some("M") => LineColor::Red1,
+                Some("V") => LineColor::Blue2,
+                _ => LineColor::Black0,
+            };
+            LineSegment::with_color(
+                Point::new(a[0] * 400.0, a[1] * 400.0),
+                Point::new(b[0] * 400.0, b[1] * 400.0),
+                color,
+            )
+        })
+        .collect()
+}
+
+fn kabuto_shadow_bands(geometry: FoldedShadowGeometry) -> Vec<ShadowBand> {
+    let segments = kabuto_segments();
+    let model = FoldedFigureModel {
+        display_shadows: true,
+        ..FoldedFigureModel::default()
+    };
+    let snapshot = folded_figure_render_snapshot_from_segments(
+        &segments,
+        1,
+        DisplayStyle::Paper5,
+        model,
+        FoldedFigureRenderOptions {
+            shadow_geometry: geometry,
+            ..FoldedFigureRenderOptions::default()
+        },
+    )
+    .expect("kabuto paper render")
+    .expect("paper primitives");
+
+    snapshot
+        .primitives
+        .iter()
+        .filter(|primitive| {
+            matches!(
+                primitive.style.paint,
+                FoldedFigureRenderPaint::Gradient { .. }
+            )
+        })
+        .filter_map(|primitive| {
+            let FoldedFigureRenderGeometry::Path { commands } = &primitive.geometry else {
+                return None;
+            };
+            let points = commands
+                .iter()
+                .filter_map(|command| match command {
+                    RenderPathCommand::MoveTo { point } | RenderPathCommand::LineTo { point } => {
+                        Some(*point)
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            // The band is begin, begin + offset, end + offset, end.
+            (points.len() >= 4).then(|| ShadowBand {
+                width: points[0].distance(points[1]),
+                edge: (points[0], points[3]),
+            })
+        })
+        .collect()
+}
+
+struct ShadowBand {
+    width: f64,
+    edge: (Point, Point),
+}
+
+#[test]
+fn refined_shadow_bands_all_share_one_width() {
+    let bands = kabuto_shadow_bands(FoldedShadowGeometry::Refined);
+    assert!(!bands.is_empty(), "kabuto should cast shadows");
+
+    for band in &bands {
+        assert!(
+            (band.width - 10.0).abs() < 1e-9,
+            "every band is the constant offset wide, got {}",
+            band.width
+        );
+    }
+}
+
+#[test]
+fn refined_shadows_fall_on_one_side_of_each_edge() {
+    let bands = kabuto_shadow_bands(FoldedShadowGeometry::Refined);
+
+    // Two bands on the same edge means the "which side is the paper on" probe
+    // answered yes both ways, which paints the edge twice and reads as a muddy
+    // double shadow.
+    for (index, band) in bands.iter().enumerate() {
+        let duplicates = bands
+            .iter()
+            .skip(index + 1)
+            .filter(|other| {
+                other.edge.0.distance(band.edge.0) < 1e-9
+                    && other.edge.1.distance(band.edge.1) < 1e-9
+            })
+            .count();
+        assert_eq!(duplicates, 0, "edge {:?} is shadowed twice", band.edge);
+    }
+}
+
+#[test]
+fn oriedita_exact_shadows_keep_the_upstream_width_quirk() {
+    let bands = kabuto_shadow_bands(FoldedShadowGeometry::OrieditaExact);
+    assert!(!bands.is_empty(), "kabuto should cast shadows");
+
+    let min = bands.iter().map(|band| band.width).fold(f64::MAX, f64::min);
+    let max = bands.iter().map(|band| band.width).fold(0.0, f64::max);
+
+    // Upstream derives the offset length from a point id used as an
+    // x-coordinate, so band width tracks edge length instead of staying
+    // constant. The oracle test diffs against this, so it has to stay.
+    assert!(
+        max / min > 2.0,
+        "upstream widths vary with edge length, got {min}..{max}"
+    );
+}
+
+#[test]
+fn shadows_need_the_model_flag() {
+    let bands = kabuto_shadow_bands(FoldedShadowGeometry::Refined);
+    assert!(!bands.is_empty());
+
+    let snapshot = folded_figure_render_snapshot_from_segments(
+        &kabuto_segments(),
+        1,
+        DisplayStyle::Paper5,
+        FoldedFigureModel::default(),
+        FoldedFigureRenderOptions::default(),
+    )
+    .expect("kabuto paper render")
+    .expect("paper primitives");
+
+    assert!(
+        !snapshot.primitives.iter().any(|primitive| matches!(
+            primitive.style.paint,
+            FoldedFigureRenderPaint::Gradient { .. }
+        )),
+        "shadows are off by default"
+    );
 }
