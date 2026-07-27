@@ -4,6 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
+import { MenuIconButton } from '../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import { foldedFigureBox } from './adapters/cpFoldedToScene';
 import {
@@ -32,18 +33,11 @@ function CommandButton({ action }: { action: FoldedFigureCommand }) {
 function ChoiceMenu({ action }: { action: FoldedFigureChoice }) {
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        {/* No `title`: an IconButton with a title wraps itself in a Tooltip
-            trigger, which cannot also be a Radix `asChild` trigger. */}
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          aria-label={action.label}
-          disabled={action.disabled}
-        >
-          {foldedFigureActionIconNode(action.icon)}
-        </IconButton>
-      </DropdownMenu.Trigger>
+      <MenuIconButton
+        label={action.label}
+        icon={foldedFigureActionIconNode(action.icon)}
+        disabled={action.disabled}
+      />
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           className="context-menu"

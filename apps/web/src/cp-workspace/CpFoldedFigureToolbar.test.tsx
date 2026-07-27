@@ -108,7 +108,7 @@ describe('CpFoldedFigureToolbar', () => {
   ) {
     act(() => {
       root.render(
-        <TooltipProvider>
+        <TooltipProvider delayDuration={0}>
           <CpFoldedFigureToolbar figure={figure} container={container} deps={deps} />
         </TooltipProvider>
       );
@@ -149,6 +149,24 @@ describe('CpFoldedFigureToolbar', () => {
       'Duplicate',
       'Delete',
     ]);
+  });
+
+  // Regression: a dropdown trigger used to carry only an aria-label, because
+  // IconButton's own tooltip trigger and the Radix menu trigger could not both
+  // wrap the button. Hovering a menu button showed nothing at all.
+  it('gives dropdown triggers a tooltip, not just an accessible name', () => {
+    render(makeFigure(), makeDeps({ exportAs: vi.fn() }));
+    const menuButtons = buttons().filter(
+      (button) => button.getAttribute('aria-haspopup') === 'menu'
+    );
+    expect(menuButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Display style',
+      'Export…',
+    ]);
+    // Whether the tooltip actually appears is Radix's contract and needs a real
+    // browser — it gates on focus-visible and pointer state that jsdom does not
+    // model, so asserting it here would only ever test the stub. `data-state` is
+    // no help either: a menu trigger sets it too. Browser-verified instead.
   });
 
   it('separates the action groups', () => {
