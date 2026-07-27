@@ -49,6 +49,7 @@
     "cut": "Cortar",
     "cutSelectedTreeParts": "Cortar las partes del árbol seleccionadas",
     "deleteSelected": "Eliminar selección",
+    "deleteSelectedCpCircles": "Eliminar los círculos del patrón de pliegues seleccionados",
     "deleteSelectedCpLines": "Eliminar las líneas del patrón de pliegues seleccionadas",
     "deleteSelectedCpLinesLabel": "Eliminar líneas CP seleccionadas",
     "deleteSelectedCpPoints": "Eliminar los puntos del patrón de pliegues seleccionados",

@@ -89,6 +89,62 @@ function createDeps() {
   };
 }
 
+// The `edit.delete` CP branch is gated on a non-null document, so circle-only
+// cases still need one even though circles are read straight off the selection.
+function cpDocumentWithCircles(circleCount: number): OristudioCpDocumentState {
+  return {
+    handle: 1,
+    loadSerial: 1,
+    geometry: null,
+    source: { format: 'cp', filename: 'circles.cp', path: null },
+    operationDescriptors: [],
+    lastCommandResult: null,
+    summary: {
+      title: 'circles',
+      line_segments: 0,
+      circles: circleCount,
+      points: 0,
+      aux_line_segments: 0,
+      texts: 0,
+      can_save_as_cp: false,
+      is_empty: false,
+    },
+    document: {
+      title: 'circles',
+      metadata: {},
+      crease_pattern: {
+        line_segments: [],
+        circles: Array.from({ length: circleCount }, (_, index) => ({
+          x: index,
+          y: 0,
+          r: 1,
+          color: 'Cyan3' as const,
+          customized: 0,
+          customized_color: { red: 0, green: 0, blue: 0 },
+        })),
+        points: [],
+        aux_line_segments: [],
+        texts: [],
+        grid: {
+          interval_grid_size: 2,
+          grid_size: 8,
+          grid_xa: 1,
+          grid_xb: 0,
+          grid_xc: 1,
+          grid_ya: 1,
+          grid_yb: 0,
+          grid_yc: 1,
+          grid_angle: 90,
+          base_state: 'WithinPaper',
+          vertical_scale_position: 0,
+          horizontal_scale_position: 0,
+          draw_diagonal_gridlines: false,
+        },
+      },
+    },
+  };
+}
+
 describe('menu actions', () => {
   it('recognizes shared command ids', () => {
     expect(isMenuActionId('file.new')).toBe(true);
@@ -352,7 +408,7 @@ describe('menu actions', () => {
     expect(deps.workspace.clearOristudioCpSelection).toHaveBeenCalledOnce();
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith(
       'LineSegmentDelete',
-      { line_ids: [1, 2] }
+      { line_ids: [1, 2], circle_ids: [] }
     );
     expect(deps.workspace.selectAll).not.toHaveBeenCalled();
     expect(deps.workspace.selectNone).not.toHaveBeenCalled();
@@ -441,6 +497,68 @@ describe('menu actions', () => {
       points: [{ x: 2, y: 2 }],
       selection_distance: 1,
     });
+  });
+
+  it('routes Delete to selected CP circles', async () => {
+    const deps = createDeps();
+    deps.workspace.activeEditingContext = 'crease-pattern';
+    deps.workspace.oristudioCpSelection = {
+      lines: [],
+      points: [],
+      circles: [2],
+      texts: [],
+      faces: [],
+    };
+    deps.workspace.oristudioCpDocument = cpDocumentWithCircles(3);
+    const handle = createMenuActionHandler(deps);
+
+    await expect(handle('edit.delete')).resolves.toBe(true);
+
+    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('LineSegmentDelete', {
+      line_ids: [],
+      circle_ids: [2],
+    });
+  });
+
+  it('deletes selected CP lines and circles in one command', async () => {
+    const deps = createDeps();
+    deps.workspace.activeEditingContext = 'crease-pattern';
+    deps.workspace.oristudioCpSelection = {
+      lines: [1],
+      points: [],
+      circles: [3],
+      texts: [],
+      faces: [],
+    };
+    deps.workspace.oristudioCpDocument = cpDocumentWithCircles(3);
+    const handle = createMenuActionHandler(deps);
+
+    await expect(handle('edit.delete')).resolves.toBe(true);
+
+    // One command, so a mixed selection produces a single history entry.
+    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledTimes(1);
+    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('LineSegmentDelete', {
+      line_ids: [1],
+      circle_ids: [3],
+    });
+  });
+
+  it('does not dispatch Delete for an empty CP selection', async () => {
+    const deps = createDeps();
+    deps.workspace.activeEditingContext = 'crease-pattern';
+    deps.workspace.oristudioCpDocument = cpDocumentWithCircles(1);
+    deps.workspace.oristudioCpSelection = {
+      lines: [],
+      points: [],
+      circles: [],
+      texts: [],
+      faces: [],
+    };
+    const handle = createMenuActionHandler(deps);
+
+    await expect(handle('edit.delete')).resolves.toBe(false);
+
+    expect(deps.workspace.executeOristudioCpCommand).not.toHaveBeenCalled();
   });
 
   it('requests in-app numeric values for parameterized edit commands', async () => {

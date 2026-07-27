@@ -49,6 +49,7 @@
     "cut": "잘라내기",
     "cutSelectedTreeParts": "선택한 트리 부분 잘라내기",
     "deleteSelected": "선택 항목 삭제",
+    "deleteSelectedCpCircles": "선택한 전개도 원 삭제",
     "deleteSelectedCpLines": "선택한 전개도 선 삭제",
     "deleteSelectedCpLinesLabel": "선택한 CP 선 삭제",
     "deleteSelectedCpPoints": "선택한 전개도 점 삭제",

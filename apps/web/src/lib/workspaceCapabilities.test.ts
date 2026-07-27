@@ -314,6 +314,23 @@ describe('workspace capabilities', () => {
     expect(state['cp.deleteSelectedLines'].enabled).toBe(false);
   });
 
+  it('enables Delete Selected when editable CP circles are selected', () => {
+    const state = capabilities({
+      documentMode: 'crease-pattern',
+      status: 'crease_pattern_ready',
+      hasEditableCreasePattern: true,
+      hasImportedCreasePattern: true,
+      oristudioCpSelectedCircleCount: 1,
+    });
+
+    expect(state['edit.delete']).toMatchObject({
+      enabled: true,
+      reason: 'Delete selected crease-pattern circles',
+    });
+    // Circles are not lines, so the line-specific menu entry stays disabled.
+    expect(state['cp.deleteSelectedLines'].enabled).toBe(false);
+  });
+
   it('enables selected-circle CP actions only when circle or auxiliary selections exist', () => {
     const noSelection = capabilities({
       documentMode: 'crease-pattern',

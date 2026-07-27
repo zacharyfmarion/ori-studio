@@ -162,9 +162,14 @@ Circles already land in `oristudioCpSelection.circles` from both click
 - `lib/workspaceCapabilities.ts:375` omits `hasSelectedCpCircles` from the
   `edit.delete` predicate, though it is already computed at `:168` and used for
   `cp.changeCircleColor` at `:756-761`. Add it.
-- `cp-workspace/CpSelectionToolbar.tsx:104` gates entirely on
-  `selection.lines.length > 0`, so a circles-only selection surfaces no toolbar.
-  Extend the gate and add a delete action.
+- ~~`cp-workspace/CpSelectionToolbar.tsx:104`~~ — **scoped out after reading it.**
+  This is not a general selection toolbar. It exists for segment-level actions
+  (fold, export per-region, save-to-image, simulate) and renders only when
+  `resolveSelectedSegment` matches one complete border-enclosed sub-pattern; the
+  `selection.lines.length > 0` gate drives segmentation, not a delete affordance.
+  A circles-only selection has no segment, so there is nothing for the toolbar to
+  anchor to. `edit.delete` (Delete/Backspace and the Edit menu) is the general
+  delete affordance and covers circles once the two changes above land.
 
 Leave `cp.deleteSelectedLines` (`menuActions.ts:637-643`) line-only — its label
 says lines and `edit.delete` is the general path.
@@ -181,7 +186,6 @@ Undo needs no work: history stores whole-document snapshots
 - `apps/web/src/components/panels/CreasePatternPanel.tsx` — `onEraseCircle`
 - `apps/web/src/commands/menuActions.ts` — `edit.delete`
 - `apps/web/src/lib/workspaceCapabilities.ts` — delete capability
-- `apps/web/src/cp-workspace/CpSelectionToolbar.tsx` — circles-only selection
 - `crates/oristudio-cp/tests/circle_operations.rs`,
   `tests/selection_operations.rs` — kernel tests
 - No wasm bridge change (`circle_ids` already flows; no new `OperationId`)
@@ -195,6 +199,11 @@ Undo needs no work: history stores whole-document snapshots
   regeneration of tracked `apps/web/src/generated/**` that `npm run
   typecheck:web` triggers.
 - `npm run lint:web`, `npm run test:web`.
+- `npm run i18n:check` — the new `capability.deleteSelectedCpCircles` key needs
+  `i18n:extract`, translations in all 8 locales, then `i18n:stamp` (run from
+  `apps/web`; there is no root-level `i18n:stamp` script). Translations reuse each
+  locale's own `deleteSelectedCpLines` phrasing with the circle noun it already
+  uses in `changeCircleColor`.
 - Oracle parity is **not** required: this adds a delete path over already-ported
   geometry predicates rather than changing ported model semantics. If
   `closest_circle_in_range` proves worth pinning, add a case to
@@ -215,8 +224,8 @@ Browser checklist for Zach (not tool-verifiable):
 - [x] Phase 2 — `circle_indices_in_box` + `closest_circle_in_range` in `operations/selection.rs`, losslessness documented
 - [x] Phase 3 — `LineSegmentDelete` dispatch resolves circles, gates on `CustomLineType::Any`, calls `organize`, counts deletions
 - [x] Kernel tests: click delete, box delete, filter suppresses circles, organize-after-delete asymmetry, hit-test losslessness
-- [ ] Phase 4 — `onEraseCircle` wired through canvas + panel; circle hits no longer dropped
-- [ ] Phase 5 — `edit.delete`, capability predicate, selection toolbar handle circles
-- [ ] Web tests for the selection-delete path
-- [ ] `cargo fmt` / `clippy` / `cargo test -p oristudio-cp` / `tsc --noEmit` / `lint:web` / `test:web`
+- [x] Phase 4 — `onEraseCircle` wired through canvas + panel; circle hits no longer dropped
+- [x] Phase 5 — `edit.delete` and the capability predicate handle circles (selection toolbar scoped out, see Phase 5)
+- [x] Web tests for the selection-delete path
+- [x] `cargo fmt` / `clippy` / `cargo test -p oristudio-cp` / `tsc --noEmit` / `lint:web` / `test:web` / `i18n:check`
 - [ ] Browser checklist confirmed

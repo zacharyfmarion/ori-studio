@@ -49,6 +49,7 @@
     "cut": "剪切",
     "cutSelectedTreeParts": "剪切所选树部件",
     "deleteSelected": "删除所选",
+    "deleteSelectedCpCircles": "删除所选折痕图圆",
     "deleteSelectedCpLines": "删除所选折痕图线",
     "deleteSelectedCpLinesLabel": "删除所选 CP 线",
     "deleteSelectedCpPoints": "删除所选折痕图点",

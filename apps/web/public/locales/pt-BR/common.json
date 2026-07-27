@@ -49,6 +49,7 @@
     "cut": "Recortar",
     "cutSelectedTreeParts": "Recortar partes selecionadas da árvore",
     "deleteSelected": "Excluir selecionados",
+    "deleteSelectedCpCircles": "Excluir círculos selecionados do padrão de vincos",
     "deleteSelectedCpLines": "Excluir linhas selecionadas do padrão de vincos",
     "deleteSelectedCpLinesLabel": "Excluir linhas de CP selecionadas",
     "deleteSelectedCpPoints": "Excluir pontos selecionados do padrão de vincos",

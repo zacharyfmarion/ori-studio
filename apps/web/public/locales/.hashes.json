@@ -1812,7 +1812,8 @@
     "panels:simulatorViewControls.strainClip": "26b4d82e779f",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3627,7 +3628,8 @@
     "panels:simulatorViewControls.strainClip": "26b4d82e779f",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5468,7 +5470,8 @@
     "panels:simulatorViewControls.strainClip": "26b4d82e779f",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7309,7 +7312,8 @@
     "panels:simulatorViewControls.strainClip": "26b4d82e779f",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9150,7 +9154,8 @@
     "panels:simulatorViewControls.strainClip": "26b4d82e779f",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10991,7 +10996,8 @@
     "panels:simulatorViewControls.strainClip": "26b4d82e779f",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12832,7 +12838,8 @@
     "panels:simulatorViewControls.strainClip": "26b4d82e779f",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14647,6 +14654,7 @@
     "panels:simulatorViewControls.strainClip": "26b4d82e779f",
     "panels:simulatorViewControls.style": "7e744141b40e",
     "panels:simulatorViewControls.stylePaper": "35045eff549e",
-    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e"
+    "panels:simulatorViewControls.styleXray": "e0ab46db3d8e",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   }
 }

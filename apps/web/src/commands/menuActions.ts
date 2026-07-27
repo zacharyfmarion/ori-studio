@@ -460,15 +460,20 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           deps.workspace.oristudioCpDocument
         ) {
           const lineIds = deps.workspace.oristudioCpSelection.lines;
+          const circleIds = deps.workspace.oristudioCpSelection.circles;
           const points = selectedCpDeletePoints(
             deps.workspace.oristudioCpSelection,
             deps.workspace.oristudioCpDocument
           );
-          if (lineIds.length === 0 && points.length === 0) return false;
+          if (lineIds.length === 0 && circleIds.length === 0 && points.length === 0) return false;
           let succeeded = false;
-          if (lineIds.length > 0) {
+          // Lines and circles go in one command so a mixed selection produces a
+          // single history entry. Oriedita has no circle selection at all, so this
+          // is an Ori Studio addition rather than ported behavior.
+          if (lineIds.length > 0 || circleIds.length > 0) {
             succeeded = await deps.workspace.executeOristudioCpCommand('LineSegmentDelete', {
               line_ids: lineIds,
+              circle_ids: circleIds,
             });
           }
           for (const point of points) {
