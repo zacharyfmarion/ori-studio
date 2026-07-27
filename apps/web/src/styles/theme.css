@@ -4727,8 +4727,10 @@
    focused, so it reads as a value rather than a form field. */
 .viewport-toolbar__rotation-input {
   height: 28px;
-  width: 56px;
-  padding: 0 6px;
+  /* Sized to the widest reachable value, -168.75 degrees, which needs 48px of
+     text; the rest is the 1px border and padding either side. */
+  width: 52px;
+  padding: 0 1px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
