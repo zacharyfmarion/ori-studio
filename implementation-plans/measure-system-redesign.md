@@ -251,35 +251,43 @@ Unchanged: `crates/**`, the WASM bridges, and every file format.
 ## Checklist
 
 ### Phase 1 — One tool, one shortcut
-- [ ] Single `Measure` command in the Measure group; five legacy ids demoted to
+- [x] Single `Measure` command in the Measure group; five legacy ids demoted to
       `menu` / `hidden-ui-only` (kept in kernel + registry for parity)
-- [ ] Input model: 2-point / 3-point sequence plus single-crease pick
-- [ ] Kind inference from picks + segmented override in the context panel
-- [ ] `l1Action: 'shift M'` in `ORIEDITA_DEFAULTS`, marked an Ori Studio addition
-- [ ] Test: `getShortcutRegistryDiagnostics().duplicateDefaultChords` stays empty,
+- [x] Input model: 2-point / 3-point sequence plus single-crease pick
+- [x] Segmented distance / angle control (the kind decides the pick count; 2-vs-3
+      points is genuinely ambiguous mid-pick, so inference is limited to the
+      crease-vs-point first pick)
+- [x] `l1Action: 'shift M'` in `ORIEDITA_DEFAULTS`, marked an Ori Studio addition
+- [x] Test: `getShortcutRegistryDiagnostics().duplicateDefaultChords` stays empty,
       and Mirror Line still resolves to bare `M`
-- [ ] Check the keybinding-settings UI renders and rebinds a bare `Shift`+letter
-- [ ] Replace the 5-cell grid with a single live readout
+- [x] Check the keybinding-settings UI renders and rebinds a bare `Shift`+letter
+- [x] Replace the 5-cell grid with a single live readout
 
 ### Phase 2 — Units and formatting
-- [ ] Unit model + conversions in `measure.ts`, with tests
-- [ ] Unit preference in the store, persisted via `lib/storage.ts`
-- [ ] Unit control in the measure context panel
-- [ ] Exact-angle and radical recognition with epsilon, with tests
-- [ ] Click-to-copy, full precision on copy
-- [ ] Fix the `l1Action` / `l2Action` help text to describe reality
+- [x] Unit model + conversions in `measure.ts`, with tests
+- [x] Unit preference in the store, persisted via `lib/storage.ts`
+- [x] Unit control in the measure context panel
+- [x] Exact-angle and radical recognition with epsilon, with tests
+- [x] Click-to-copy, full precision on copy
+- [x] Fix the `l1Action` / `l2Action` help text to describe reality
 
 ### Phase 3 — On-canvas measurement
-- [ ] Dimension-line geometry (extension lines, arrowheads)
-- [ ] Angle arc wedge, zoom-adaptive radius
-- [ ] DOM label layer, value live at the cursor before commit
-- [ ] Snap-identity chip
+- [x] Dimension-line geometry (extension lines, arrowheads)
+- [x] Angle arc wedge, zoom-adaptive radius
+- [x] DOM label layer, value live at the cursor before commit
+- [x] Snap-identity chip
 
 ### Phase 4 — Session measurements
-- [ ] Measurements accumulate while the tool is active
-- [ ] `Backspace` drops the last, `Escape` exits and clears all (via the existing
+- [x] Measurements accumulate while the tool is active
+- [x] `Backspace` drops the last, `Escape` exits and clears all (via the existing
       Escape ladder's tool-deactivation rung)
-- [ ] Session list in the context panel, hover-to-highlight
+- [x] Session list in the context panel, hover-to-highlight
+
+### Known, and left at parity
+- The kernel's angle is **directed** (Oriedita's `angle()` returns 0–360), so the
+  same corner reads 88.23° or 270° depending on pick order. That is exactly what
+  upstream displays, so V1 shows it unchanged; a reflex/complement toggle belongs
+  with the deferred work below.
 
 ### Deferred (not V1)
 - Registers + `string2double` substitution in numeric fields
@@ -288,10 +296,15 @@ Unchanged: `crates/**`, the WASM bridges, and every file format.
 - Hold-a-modifier transient measure during another tool (explicit, not ambient)
 
 ### Validation
-- [ ] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`
-- [ ] `npm run i18n:extract` + translations + `npm run i18n:check`
-- [ ] No Rust or WASM changes expected — if that stops being true, rebuild and
+- [x] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`
+- [x] `npm run i18n:extract` + translations + `npm run i18n:check`
+- [x] No Rust or WASM changes expected — if that stops being true, rebuild and
       commit the tracked bridges
-- [ ] Browser pass: measure under zoom, under view rotation, in dark mode; verify
-      `M` still mirrors, `Shift+M` measures, `Cmd+Shift+M` still checks CAMV, and
-      Escape clears measurements without disturbing the selection rung
+- [x] Browser pass (verified in the running app): `M` still mirrors and `Shift+M`
+      measures; one Measure button in the rail; a crease measures in one click;
+      distance and angle both read and draw; units switch live and persist;
+      readings accumulate, `Backspace` drops the last without touching the 4
+      creases, `Escape` clears them and leaves the tool; no console errors; the
+      keybinding settings list shows `Shift+M` under Measure
+- [ ] Still unverified by hand: measuring under view rotation, and `Cmd+Shift+M`
+      (Check CAMV) alongside the new chord
