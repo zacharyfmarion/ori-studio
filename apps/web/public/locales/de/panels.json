@@ -232,6 +232,7 @@
       "delete": "Löschen",
       "failed": "Simulation fehlgeschlagen",
       "fold": "Faltung",
+      "gpuUnavailable": "Benötigt WebGL2 – im Simulieren-Arbeitsbereich öffnen",
       "outOfDate": "Nicht mehr aktuell",
       "pause": "Pause",
       "play": "Abspielen",

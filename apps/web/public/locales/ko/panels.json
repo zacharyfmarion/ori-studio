@@ -226,6 +226,7 @@
       "delete": "삭제",
       "failed": "시뮬레이션 실패",
       "fold": "접기",
+      "gpuUnavailable": "WebGL2가 필요합니다 — 시뮬레이션 작업 공간에서 열어 주세요",
       "outOfDate": "오래됨",
       "pause": "일시정지",
       "play": "재생",

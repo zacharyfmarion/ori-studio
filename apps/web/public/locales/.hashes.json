@@ -1843,7 +1843,8 @@
     "panels:creasePattern.inlineSimulation.play": "436e61016e26",
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
-    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
+    "panels:creasePattern.inlineSimulation.gpuUnavailable": "2d5fc99f4a15"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3689,7 +3690,8 @@
     "panels:creasePattern.inlineSimulation.play": "436e61016e26",
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
-    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
+    "panels:creasePattern.inlineSimulation.gpuUnavailable": "2d5fc99f4a15"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5561,7 +5563,8 @@
     "panels:creasePattern.inlineSimulation.play": "436e61016e26",
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
-    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
+    "panels:creasePattern.inlineSimulation.gpuUnavailable": "2d5fc99f4a15"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7433,7 +7436,8 @@
     "panels:creasePattern.inlineSimulation.play": "436e61016e26",
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
-    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
+    "panels:creasePattern.inlineSimulation.gpuUnavailable": "2d5fc99f4a15"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9305,7 +9309,8 @@
     "panels:creasePattern.inlineSimulation.play": "436e61016e26",
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
-    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
+    "panels:creasePattern.inlineSimulation.gpuUnavailable": "2d5fc99f4a15"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11177,7 +11182,8 @@
     "panels:creasePattern.inlineSimulation.play": "436e61016e26",
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
-    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
+    "panels:creasePattern.inlineSimulation.gpuUnavailable": "2d5fc99f4a15"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13049,7 +13055,8 @@
     "panels:creasePattern.inlineSimulation.play": "436e61016e26",
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
-    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
+    "panels:creasePattern.inlineSimulation.gpuUnavailable": "2d5fc99f4a15"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14895,6 +14902,7 @@
     "panels:creasePattern.inlineSimulation.play": "436e61016e26",
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.resetView": "ce89ae822e8b",
-    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a"
+    "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
+    "panels:creasePattern.inlineSimulation.gpuUnavailable": "2d5fc99f4a15"
   }
 }

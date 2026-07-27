@@ -291,110 +291,115 @@ and live are the same code path.
       moves to fan-out, and the plan deliberately leaves it on
       `transferControlToOffscreen`.
 
-### Phase 1 — Standalone fixes (ship independently; worth doing regardless)
+### Phase 1 — Standalone fixes (ship independently; worth doing regardless) — DONE
 
-- [ ] `webglcontextlost` / `webglcontextrestored` handling in `GlCore` and the CP
+- [x] `webglcontextlost` / `webglcontextrestored` handling in `GlCore` and the CP
       regl renderer — currently **zero** handling anywhere in the repo
-- [ ] Call `releaseSimulatorWorker()` when the Simulate workspace unmounts; it is
-      never called in production today, so the worker and its model stay resident
-- [ ] Dispose the probe context in `webglRenderSupported()`
+- [x] Reference-counted worker lifetime (`retainSimulatorClient` /
+      `releaseSimulatorClient` / `peekSimulatorClient`), tied to the runtime hook
+      rather than to any one panel. The old teardown existed but was never called
+      from anywhere, so the worker and its model stayed resident for the tab
+- [x] Dispose the probe context in `webglRenderSupported()`
       ([useSimulatorRuntime.ts:54](../apps/web/src/simulator/useSimulatorRuntime.ts#L54))
       — it leaks one context per runtime load
 
-### Phase 2 — Extract the viewport (pure refactor, no behaviour change)
+### Phase 2 — Extract the viewport (pure refactor, no behaviour change) — DONE
 
-- [ ] Extract `SimulatorViewport`: canvas element, `useSimulatorRuntime` wiring,
+- [x] Extract `SimulatorViewport`: canvas element, `useSimulatorRuntime` wiring,
       orbit/wheel handlers, `ResizeObserver`, theme `MutationObserver`,
       `toRenderSettings`. Presentational — **no store subscriptions**
-- [ ] `SimulatorPanel` consumes it; the ~800-line canvas-2D rasterizer
+- [x] `SimulatorPanel` consumes it; the ~800-line canvas-2D rasterizer
       (`drawFrame` + `rasterize*` / `triangle*` / `drawEdge*`, ~L1117–2003) stays
       in the panel, since inline windows never use it
-- [ ] Existing `SimulatorPanel.test.tsx` passes unchanged
-- [ ] Exit gate: Simulate workspace visually and behaviourally identical. If this
+- [x] Existing `SimulatorPanel.test.tsx` passes unchanged
+- [x] Exit gate: Simulate workspace visually and behaviourally identical. If this
       cannot be kept neutral, stop — that is the early signal the extraction is
       fighting the panel's store coupling
 
-### Phase 3 — Worker: swappable session + bitmap output (still no UI)
+### Phase 3 — Worker: swappable session + bitmap output (still no UI) — DONE
 
-- [ ] Session handoff token in `simulatorSession.ts`; `tick` / `settle` /
+- [x] Session handoff token in `simulatorSession.ts`; `tick` / `settle` /
       `setCamera` drop work for a stale token so a deposed window's in-flight call
       cannot land on its successor
-- [ ] `renderGpu()` output fork: internal `OffscreenCanvas` +
+- [x] `renderGpu()` output fork: internal `OffscreenCanvas` +
       `transferToImageBitmap()`, transferred to the caller
-- [ ] Revive `PreparedModelCache` so switching the focused window is cheap
-- [ ] Tests: two alternating sessions on one worker; assert no cross-talk and that
+- [x] Revive `PreparedModelCache` so switching the focused window is cheap
+- [x] Tests: two alternating sessions on one worker; assert no cross-talk and that
       stale ticks are dropped
-- [ ] Exit gate: Simulate panel unchanged; a headless test drives two sessions
+- [x] Exit gate: Simulate panel unchanged; a headless test drives two sessions
 
-### Phase 4 — The inline window
+### Phase 4 — The inline window — DONE
 
-- [ ] `InlineSimulation` descriptor + runtime side table; new store slice, **not**
+- [x] `InlineSimulation` descriptor + runtime side table; new store slice, **not**
       merged into `oristudioCpAnnotations`
-- [ ] `inlineSimulationAsTransformable()` → `TransformableCanvasObject`
+- [x] `inlineSimulationAsTransformable()` → `TransformableCanvasObject`
       (`space: 'model'`, `aspectLock: 'default-off'`), so `CanvasObjectOverlay`
       handles select/move/resize/rotate unchanged
-- [ ] DOM layer of `bitmaprenderer` canvases, modelled on `CpTextAnnotationLayer`
+- [x] DOM layer of `bitmaprenderer` canvases, modelled on `CpTextAnnotationLayer`
       (per-frame camera subscription via `useCpOverlayViews`, panel untouched);
       z-index between the text layer (7) and the selection overlay (8)
-- [ ] "Simulate inline" in `CpSelectionToolbar`, beside the existing Simulate
+- [x] "Simulate inline" in `CpSelectionToolbar`, beside the existing Simulate
       action, reusing `resolveSelectedSegment` + `buildSegmentFold`
-- [ ] Record provenance on create: `sourceBoundary` from the matched
+- [x] Record provenance on create: `sourceBoundary` from the matched
       `CpSegment.boundary`, `sourceBounds` from the selection's lines,
       `sourceFingerprint` from the **reselected** set
-- [ ] `pointInRings` factored out of `pointInSegment`
-- [ ] Resolve a window to its segment by **boundary match**, bounds as prefilter
+- [~] `pointInRings` **not needed**: identity compares boundary *rings* directly
+      (`ringsMatch`/`boundariesMatch`), which is exact, so no point-in-polygon
+      containment test was required
+- [x] Resolve a window to its segment by **boundary match**, bounds as prefilter
       only; `segmentIdHint` is a same-segmentation fast path
-- [ ] No boundary match ⇒ "region no longer exists"; delete or re-pick. **Never
+- [x] No boundary match ⇒ "region no longer exists"; delete or re-pick. **Never
       fall back to a nearest match**
-- [ ] Fixtures: L-shaped region with a second region in its notch, concentric
+- [x] Fixtures: L-shaped region with a second region in its notch, concentric
       frame + inner square, repeated tessellation unit
-- [ ] Per-window `FloatingToolbar` controls (play/pause, scrub, reset view,
+- [x] Per-window `FloatingToolbar` controls (play/pause, scrub, reset view,
       delete), modelled on `CpImageInspector`
-- [ ] Focus model: focusable wrapper per window, exactly one focused, blur
+- [x] Focus model: focusable wrapper per window, exactly one focused, blur
       releases the live session
-- [ ] Hard cap on concurrent windows; over the cap, refuse politely
+- [x] Hard cap on concurrent windows; over the cap, refuse politely
 
-### Phase 5 — Keyboard
+### Phase 5 — Keyboard — DONE
 
-- [ ] Add `'inline-simulation'` to `ShortcutScope`, pushed to the front of the
+- [x] Add `'inline-simulation'` to `ShortcutScope`, pushed to the front of the
       stack while a window is focused
-- [ ] Register the simulator bindings as real `ShortcutDefinition`s — they
+- [x] Register the simulator bindings as real `ShortcutDefinition`s — they
       currently bypass the dispatcher and the user's overrides entirely
-- [ ] Delete the ad-hoc `window` keydown listener in `SimulatorPanel`
+- [x] Delete the ad-hoc `window` keydown listener in `SimulatorPanel`
       ([L709](../apps/web/src/components/panels/SimulatorPanel.tsx#L709)); its
       design note assumes the panel only mounts in the Simulate workspace, which
       this feature invalidates
-- [ ] Verify no regression against Edit's bindings: `Space` (space-to-pan), `F`
+- [x] Verify no regression against Edit's bindings: `Space` (space-to-pan), `F`
       (Fold), `C`, `R` (Mirror Line), `L` (Line tool), `Escape`, `Delete`
 
-### Phase 6 — Behaviour polish
+### Phase 6 — Behaviour polish — DONE
 
-- [ ] `isInlineSimulationStale` + tests mirroring `foldedFigureStaleness.test.ts`
+- [x] `isInlineSimulationStale` + tests mirroring `foldedFigureStaleness.test.ts`
       (moved crease, recoloured crease, crease added outside the box,
       selection-only change ⇒ **not** stale), **plus** an aux-coloured crease
       added inside the region ⇒ **not** stale, locking in the decision below
-- [ ] Compute stale ids in a `useMemo` keyed on
+- [x] Compute stale ids in a `useMemo` keyed on
       `[inlineSimulations, oristudioCpDocument?.document]`, exactly as
       `staleFoldedFigureIds` does
       ([CreasePatternPanel.tsx:1418](../apps/web/src/components/panels/CreasePatternPanel.tsx#L1418))
       — derived, never stamped
-- [ ] Match the folded-figure visual language: fade the window (cf.
+- [x] Match the folded-figure visual language: fade the window (cf.
       `.cp-generated-folded-figure--stale`, `opacity: 0.42`) plus an "Out of date"
       label, and a Refresh action on the window's floating toolbar
-- [ ] Refresh re-derives the fold and reloads the session, keeping `box`, `view`
+- [x] Refresh re-derives the fold and reloads the session, keeping `box`, `view`
       and `foldPercent`. On failure, **keep the existing window and report** — the
       rule `0b3b1ea6` established for failed refolds. **Never auto-recompute on
       edit**
-- [ ] Reuse `lib/delayedProgress.ts` for the refresh toast (nothing for 500 ms,
-      then a minimum second on screen)
-- [ ] `__inlineSimStaleDebug()` dev hook mirroring `__foldedStaleDebug()` — for the
+- [~] Refresh toast **dropped**. Phase 0 measured `prepareFoldModel` at 120ms on
+      a 14,641-vertex model — well under the 500ms delay, so the toast could
+      never appear. Revisit only if a real document proves slower
+- [x] `__inlineSimStaleDebug()` dev hook mirroring `__foldedStaleDebug()` — for the
       reason `c4dc8e92` gives: every "not stale" looks identical from outside,
       whether the cause is missing provenance, a region that no longer covers the
       edit, or a genuine match
-- [ ] Empty / error / "GPU unavailable — open in Simulate" states
-- [ ] i18n: extract → translate 8 locales → stamp → `i18n:check`
-- [ ] Undo/redo: create / delete / move / resize go through the existing
-      canvas-object gesture checkpoints
+- [x] Empty / error / "GPU unavailable — open in Simulate" states
+- [x] i18n: extract → translate 8 locales → stamp → `i18n:check`
+- [~] Undo/redo **not applicable**: windows are session-only, so a move or
+      resize is not a document edit and takes no history checkpoint
 
 ### Phase 7 — Persistence (deferred; only if wanted)
 
@@ -407,6 +412,27 @@ Nothing above depends on this. If the data-model rule held, this is additive.
 - [ ] Files written before this load with null provenance ⇒ not stale
 - [ ] Write/read + migration + round-trip tests; older files load as `[]`
 - [ ] Forward-compat: unknown keys survive a round trip through an older build
+
+## What shipped that the plan did not anticipate
+
+**`pointInRings` was not needed.** The plan expected a point-in-polygon
+containment test. Identity compares boundary *rings* directly instead
+(`ringsMatch` / `boundariesMatch`, tolerant of start vertex and winding, which
+are artifacts of how a ring was traced). That is exact, so no containment test
+was required.
+
+**Artifacts from an import are in a different coordinate space.** The coordinate
+note in `creasePatternSelectionSegment.ts` holds for the steady state, but
+artifacts produced by the *importer* are not in the kernel document's space — a
+`.cp` loads as a unit square while the document is Oriedita's 400-space. A window
+built from those would place itself wrongly and record no provenance, so it could
+never report itself out of date. `addOristudioCpInlineSimulation` detects the
+empty containment that betrays it and recomputes from the kernel once.
+
+**The dispatcher swallowed chords for unregistered executors.** Pre-existing, and
+harmless while every scope's executor was permanent. With a scope that comes and
+goes it would have left Space, F, C and R dead in the CP editor whenever the
+scope and its executor briefly disagreed. It now falls through.
 
 ## Decisions and rejected alternatives
 

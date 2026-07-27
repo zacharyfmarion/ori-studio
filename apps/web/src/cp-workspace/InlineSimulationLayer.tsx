@@ -19,6 +19,7 @@ import {
 } from '../simulator/SimulatorViewport';
 import {
   useSimulatorRuntime,
+  webglRenderSupported,
   type SimulatorFrameView,
 } from '../simulator/useSimulatorRuntime';
 import { foldNeedsTriangulation } from '../simulator/canvas2dFrame';
@@ -165,17 +166,25 @@ function InlineSimulationWindow({
   const [, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
   const source = getInlineSimulationSource(simulation.id);
 
+  /**
+   * Inline windows are GPU-only. Bitmap presentation is what lets them share one
+   * GL context, and the canvas-2D fallback cannot draw into a canvas that holds a
+   * `bitmaprenderer` context — so without WebGL2 a window would show an empty box
+   * with no explanation. Say so, and point at the workspace that can still run it.
+   */
+  const gpuAvailable = useMemo(() => webglRenderSupported(), []);
+
   // Device-pixel size of this window's render, from its on-screen box. Rounded
   // to a step so a drag-resize does not reallocate the render target on every
   // pointer move.
   const bitmapOutput = useMemo(() => {
-    if (!focused) return null;
+    if (!focused || !gpuAvailable) return null;
     const dpr = Math.max(1, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
     const step = 64;
     const edge = (value: unknown) =>
       Math.max(step, Math.ceil(((typeof value === 'number' ? value : 256) * dpr) / step) * step);
     return { width: edge(style.width), height: edge(style.height) };
-  }, [focused, style.width, style.height]);
+  }, [focused, gpuAvailable, style.width, style.height]);
 
   const solverOptions = useMemo(
     () => simulatorMaterialOptions(viewSettings),
@@ -205,7 +214,10 @@ function InlineSimulationWindow({
   // hook idle, so it neither loads a model nor drives a tick loop, and its canvas
   // keeps whatever it was last handed.
   const runtime = useSimulatorRuntime({
-    fold: focused && source ? (source.fold as unknown as SimulatorFoldDocument) : null,
+    fold:
+      focused && source && gpuAvailable
+        ? (source.fold as unknown as SimulatorFoldDocument)
+        : null,
     solverOptions,
     triangulate: source ? foldNeedsTriangulation(source.fold as unknown as SimulatorFoldDocument) : true,
     canvas: null,
@@ -333,7 +345,15 @@ function InlineSimulationWindow({
           'Inline simulation. Drag to rotate.'
         )}
       />
-      {stale && (
+      {!gpuAvailable && (
+        <span className="cp-inline-simulation__badge">
+          {t(
+            'panels:creasePattern.inlineSimulation.gpuUnavailable',
+            'Needs WebGL2 — open in the Simulate workspace'
+          )}
+        </span>
+      )}
+      {gpuAvailable && stale && (
         <span className="cp-inline-simulation__badge">
           {t('panels:creasePattern.inlineSimulation.outOfDate', 'Out of date')}
         </span>

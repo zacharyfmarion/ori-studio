@@ -226,6 +226,7 @@
       "delete": "削除",
       "failed": "シミュレーションに失敗しました",
       "fold": "折り",
+      "gpuUnavailable": "WebGL2 が必要です — シミュレートワークスペースで開いてください",
       "outOfDate": "最新ではありません",
       "pause": "一時停止",
       "play": "再生",

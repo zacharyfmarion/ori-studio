@@ -112,7 +112,13 @@ describe('ring matching', () => {
     expect(ringsMatch(UNIT_SQUARE, shifted)).toBe(false);
   });
 
-  it('matches a boundary whose holes are listed in another order', () => {
+  it('matches the same region however its holes changed', () => {
+    // Holes are not part of a region's identity. Drawing any interior crease
+    // re-infers the faces and can open new pockets: a region traced as one ring
+    // before an edit routinely comes back as several after. Observed live —
+    // adding a single mountain crease inside a square turned [16] into
+    // [16, 4, 3, 3]. Requiring every ring to match would make the region
+    // unrecognisable after exactly the edit that refreshing exists to absorb.
     const holeA = ring([
       [1, 1],
       [2, 1],
@@ -123,16 +129,30 @@ describe('ring matching', () => {
       [7, 6],
       [7, 7],
     ]);
-    expect(boundariesMatch([UNIT_SQUARE, holeA, holeB], [UNIT_SQUARE, holeB, holeA])).toBe(true);
+    expect(boundariesMatch([UNIT_SQUARE, holeA, holeB], [UNIT_SQUARE])).toBe(true);
+    expect(boundariesMatch([UNIT_SQUARE], [UNIT_SQUARE, holeB])).toBe(true);
   });
 
-  it('rejects a boundary that lost a hole', () => {
-    const hole = ring([
-      [1, 1],
-      [2, 1],
-      [2, 2],
+  it('still rejects a different region that happens to carry holes', () => {
+    const other = ring([
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [1, 10],
     ]);
-    expect(boundariesMatch([UNIT_SQUARE, hole], [UNIT_SQUARE])).toBe(false);
+    expect(boundariesMatch([UNIT_SQUARE, ring([[1, 1], [2, 1], [2, 2]])], [other])).toBe(false);
+  });
+
+  it('picks the enclosing ring regardless of tracing order', () => {
+    const hole = ring([
+      [3, 3],
+      [7, 3],
+      [7, 7],
+      [3, 7],
+    ]);
+    // Rings arrive in whatever order the rim walk produced, so the outer one is
+    // identified by area rather than by position.
+    expect(boundariesMatch([hole, UNIT_SQUARE], [UNIT_SQUARE, hole])).toBe(true);
   });
 });
 

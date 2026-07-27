@@ -232,6 +232,7 @@
       "delete": "Delete",
       "failed": "Simulation failed",
       "fold": "Fold",
+      "gpuUnavailable": "Needs WebGL2 — open in the Simulate workspace",
       "outOfDate": "Out of date",
       "pause": "Pause",
       "play": "Play",

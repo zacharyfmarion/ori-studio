@@ -188,16 +188,52 @@ export function ringsMatch(a: readonly Point[], b: readonly Point[]): boolean {
   return false;
 }
 
-/** Whether two boundaries describe the same region (outer ring plus any holes). */
-export function boundariesMatch(a: readonly Point[][], b: readonly Point[][]): boolean {
-  if (a.length !== b.length) return false;
-  const unmatched = [...b];
-  for (const ring of a) {
-    const index = unmatched.findIndex((candidate) => ringsMatch(ring, candidate));
-    if (index < 0) return false;
-    unmatched.splice(index, 1);
+/** Twice the signed area of a ring; sign is winding, magnitude is size. */
+function ringArea2(ring: readonly Point[]): number {
+  let total = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    total += (ring[j]!.x - ring[i]!.x) * (ring[j]!.y + ring[i]!.y);
   }
-  return true;
+  return total;
+}
+
+/**
+ * The ring that encloses the region: the largest by absolute area.
+ *
+ * Chosen by area rather than by position, because the tracing order of rings is
+ * an implementation detail of how the region's rim was walked.
+ */
+export function outerRing(rings: readonly Point[][]): Point[] | null {
+  let best: Point[] | null = null;
+  let bestArea = -1;
+  for (const ring of rings) {
+    const area = Math.abs(ringArea2(ring));
+    if (area > bestArea) {
+      bestArea = area;
+      best = ring as Point[];
+    }
+  }
+  return best;
+}
+
+/**
+ * Whether two boundaries describe the same region.
+ *
+ * Compares **outer rings only**. A region's holes are not part of its identity:
+ * drawing any interior crease re-infers the faces and can open new untriangulated
+ * pockets, so a region that had one ring before an edit routinely has several
+ * after. Requiring every ring to match would make a region unrecognisable after
+ * exactly the edit that refreshing exists to absorb.
+ *
+ * The outer ring still separates the cases a bounding box cannot: an L from the
+ * region in its notch, a frame from the square inside it, and one tessellation
+ * unit from the next.
+ */
+export function boundariesMatch(a: readonly Point[][], b: readonly Point[][]): boolean {
+  const outerA = outerRing(a);
+  const outerB = outerRing(b);
+  if (!outerA || !outerB) return false;
+  return ringsMatch(outerA, outerB);
 }
 
 /**

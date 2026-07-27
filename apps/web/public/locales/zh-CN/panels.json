@@ -226,6 +226,7 @@
       "delete": "删除",
       "failed": "模拟失败",
       "fold": "折叠",
+      "gpuUnavailable": "需要 WebGL2 — 请在模拟工作区中打开",
       "outOfDate": "已过期",
       "pause": "暂停",
       "play": "播放",

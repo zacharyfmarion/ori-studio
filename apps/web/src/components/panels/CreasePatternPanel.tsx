@@ -123,6 +123,8 @@ import { foldedFigureActionIconNode as foldedFigureMenuIcon } from '../../cp-wor
 import { isFoldedFigureStale } from '../../lib/foldedFigureStaleness';
 // Registers `__foldedStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/foldedFigureStalenessDebug';
+// Registers `__inlineSimStaleDebug()` in dev builds; no-op in production.
+import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
 import { foldedFigureCurrentCase } from '../../cp-workspace/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';

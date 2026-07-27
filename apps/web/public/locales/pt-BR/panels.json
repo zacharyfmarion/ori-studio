@@ -238,6 +238,7 @@
       "delete": "Excluir",
       "failed": "Falha na simulação",
       "fold": "Dobra",
+      "gpuUnavailable": "Requer WebGL2 — abra no espaço Simular",
       "outOfDate": "Desatualizada",
       "pause": "Pausar",
       "play": "Reproduzir",
