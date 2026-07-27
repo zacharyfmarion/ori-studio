@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "测量长度 1",
-      "tooltip": "测量长度 1",
+      "label": "测量长度",
+      "tooltip": "测量两点之间的距离，或点击折线",
       "disabledReason": "就绪",
       "steps": {
         "0": "选取第一个点",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "测量角度 1",
-      "tooltip": "测量角度 1",
+      "label": "测量角度",
+      "tooltip": "测量顶点处两点之间的角度",
       "disabledReason": "就绪",
       "steps": {
         "0": "选取第一个点",
@@ -1021,11 +1021,6 @@
         "0": "该点不能位于线 A 的延伸范围上，且线 B 不能与线 A 平行。"
       }
     },
-    "a1Action": {
-      "intro": {
-        "0": "通过选择点 ABC 测量角度。"
-      }
-    },
     "a2Action": {
       "intro": {
         "0": "通过选择点 ABC 测量角度。"
@@ -1366,22 +1361,9 @@
         "0": "折叠形状相对于起始面进行计算。"
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "通过选择 2 个点测量长度。"
-      },
-      "notes": {
-        "0": "长度以网格单位测量。",
-        "1": "长度相对于网格大小为 1 的折痕图尺寸。"
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "通过选择 2 个点测量长度。"
-      },
-      "notes": {
-        "0": "长度以网格单位测量。",
-        "1": "长度相对于网格大小为 1 的折痕图尺寸。"
       }
     },
     "makeFlatFoldableAction": {

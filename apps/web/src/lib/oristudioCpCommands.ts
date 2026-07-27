@@ -455,19 +455,29 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('ContinuousSymmetricDraw', 'Continuous symmetric draw', 'construct', 'repeat', 'MouseHandlerContinuousSymmetricDraw', {
     toolSteps: ['Pick start point', 'Pick through point'],
   }),
-  ready('DisplayLengthBetweenPoints1', 'Measure length 1', 'measure', 'ruler', 'MouseHandlerDisplayLengthBetweenPoints', {
+  // The two Measure tools. Upstream splits measuring across five operations that
+  // differ only in which `MeasuresModel` register they write to; Ori Studio shows
+  // one per *question* — length and angle — and hides the other three, which stay
+  // `ready` so the kernel, menus, and `.cp` mouse modes keep upstream parity.
+  // See cp-workspace/measure.ts.
+  ready('DisplayLengthBetweenPoints1', 'Measure Length', 'measure', 'ruler', 'MouseHandlerDisplayLengthBetweenPoints', {
     toolSteps: ['Pick first point', 'Pick second point'],
+    tooltip: 'Measure the distance between two points, or click a crease',
   }),
   ready('DisplayLengthBetweenPoints2', 'Measure length 2', 'measure', 'ruler-dimension-line', 'MouseHandlerDisplayLengthBetweenPoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick second point'],
   }),
-  ready('DisplayAngleBetweenThreePoints1', 'Measure angle 1', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
+  ready('DisplayAngleBetweenThreePoints1', 'Measure Angle', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
+    tooltip: 'Measure the angle at a vertex between two points',
   }),
   ready('DisplayAngleBetweenThreePoints2', 'Measure angle 2', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
   ready('DisplayAngleBetweenThreePoints3', 'Measure angle 3', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
   ready('CreaseToggleMv', 'Toggle mountain/valley', 'color', 'repeat-2', 'MouseHandlerCreaseToggleMV', {

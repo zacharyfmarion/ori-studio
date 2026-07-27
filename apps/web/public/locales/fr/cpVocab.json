@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Mesurer la longueur 1",
-      "tooltip": "Mesurer la longueur 1",
+      "label": "Mesurer la longueur",
+      "tooltip": "Mesure la distance entre deux points, ou cliquer sur un pli",
       "disabledReason": "Prêt",
       "steps": {
         "0": "Choisissez le premier point",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Mesurer l'angle 1",
-      "tooltip": "Mesurer l'angle 1",
+      "label": "Mesurer l’angle",
+      "tooltip": "Mesure l’angle à un sommet entre deux points",
       "disabledReason": "Prêt",
       "steps": {
         "0": "Choisissez le premier point",
@@ -1021,11 +1021,6 @@
         "0": "Le point ne doit pas être sur l'étendue de la ligne A et la ligne B ne doit pas être parallèle à la ligne A."
       }
     },
-    "a1Action": {
-      "intro": {
-        "0": "Mesurez l'angle en sélectionnant les points ABC."
-      }
-    },
     "a2Action": {
       "intro": {
         "0": "Mesurez l'angle en sélectionnant les points ABC."
@@ -1366,22 +1361,9 @@
         "0": "La forme pliée est calculée par rapport à la face de départ."
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "Mesurez la longueur en sélectionnant 2 points."
-      },
-      "notes": {
-        "0": "La longueur est mesurée en unités de grille.",
-        "1": "La longueur est relative à la taille du patron de plis avec une taille de grille de 1."
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "Mesurez la longueur en sélectionnant 2 points."
-      },
-      "notes": {
-        "0": "La longueur est mesurée en unités de grille.",
-        "1": "La longueur est relative à la taille du patron de plis avec une taille de grille de 1."
       }
     },
     "makeFlatFoldableAction": {

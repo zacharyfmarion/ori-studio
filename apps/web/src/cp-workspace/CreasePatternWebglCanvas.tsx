@@ -500,6 +500,13 @@ export interface CreasePatternWebglCanvasProps {
    */
   activeToolDualMirror: boolean;
   /**
+   * True for the Measure tool in its distance kind: a first pick that lands on a
+   * bare crease measures *that crease* in one click (committed as its line id), so
+   * a designer never has to click both endpoints of a line already on the canvas.
+   * A pick on a vertex/point falls through to the normal 2-point sequence.
+   */
+  activeToolMeasureCreasePick: boolean;
+  /**
    * True for Converging Lines (DrawCreaseAngleRestricted): a bespoke handler drives
    * its dual first click (a crease → its two endpoints are the base, or two points)
    * then a converge pick on one of the ray intersections in {@link
@@ -562,7 +569,12 @@ export interface CreasePatternWebglCanvasProps {
   resolveDrawPoint: (
     rawPoint: ModelPoint,
     toleranceModel: number
-  ) => { point: ModelPoint; snapped: boolean };
+  ) => {
+    point: ModelPoint;
+    snapped: boolean;
+    /** What the point locked onto when it snapped; reported via {@link onToolSnapKind}. */
+    kind?: 'grid' | 'vertex' | 'point' | 'line';
+  };
   /**
    * Snap a raw model draw point onto nearby geometry incl. creases (for crease
    * steps), reporting whether the result landed on a crease *junction* (a vertex
@@ -587,6 +599,13 @@ export interface CreasePatternWebglCanvasProps {
    * can advance the step prompt in lock-step with them. Cumulative, not a delta.
    */
   onToolPickProgress: (picked: number) => void;
+  /**
+   * What the live point of a `sequence` tool has snapped onto, or null when it is
+   * free. Taken from the resolve the step already does, so naming the snap costs no
+   * extra geometry scan. The measure tool uses it to say whether an endpoint is a
+   * real vertex or a point that merely looks like one.
+   */
+  onToolSnapKind: (kind: 'grid' | 'vertex' | 'point' | 'line' | null) => void;
   /** Kernel-computed preview + pick-highlight segments for the active sequence tool. */
   toolCommandPreviewSegments: readonly ToolPreviewSegment[];
   /** Kernel-computed candidate *points* (Converging Lines ray intersections). */
@@ -713,6 +732,7 @@ export function CreasePatternWebglCanvas({
   activeToolRequireSnap,
   activeToolClickAction,
   activeToolDualMirror,
+  activeToolMeasureCreasePick,
   activeToolConverging,
   activeToolSquareBisector,
   activeToolVoronoi,
@@ -728,6 +748,7 @@ export function CreasePatternWebglCanvas({
   onToolCommit,
   onToolPreviewInput,
   onToolPickProgress,
+  onToolSnapKind,
   toolCommandPreviewSegments,
   toolCommandPreviewPoints,
   toolPreviewColor,
@@ -869,6 +890,7 @@ export function CreasePatternWebglCanvas({
     activeToolStepKinds,
     activeToolLineCount,
     activeToolDualMirror,
+    activeToolMeasureCreasePick,
     activeToolConverging,
     activeToolSquareBisector,
     activeToolTransform,
@@ -1078,6 +1100,7 @@ export function CreasePatternWebglCanvas({
     activeToolRequireSnap,
     activeToolClickAction,
     activeToolDualMirror,
+    activeToolMeasureCreasePick,
     activeToolConverging,
     activeToolSquareBisector,
     activeToolVoronoi,
@@ -1094,6 +1117,7 @@ export function CreasePatternWebglCanvas({
     onToolCommit,
     onToolPreviewInput,
     onToolPickProgress,
+    onToolSnapKind,
     toolPreviewColor,
     toolCommandPreviewSegments,
     toolCommandPreviewPoints,
@@ -1646,6 +1670,33 @@ export function CreasePatternWebglCanvas({
         dynamicStepKindsRef.current =
           firstPickKind === 'line' ? ['crease', 'crease'] : ['point', 'point', 'point'];
       }
+      // Measure (distance): a first pick on a bare crease measures that crease
+      // outright. Same classifier as Mirror Line, so "vertex wins over line" reads
+      // identically in both tools.
+      if (liveRef.current.activeToolMeasureCreasePick && !persistentToolRuntimeRef.current) {
+        const firstPickKind = liveRef.current.resolveFirstPickKind(
+          raw,
+          tol,
+          modelToleranceOf(POINT_HIT_TOLERANCE_CSS)
+        );
+        if (firstPickKind === 'line') {
+          const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, tol);
+          if (lineId > 0) {
+            if (kind !== 'down') {
+              // Hovering: light up the crease this click would measure.
+              liveRef.current.onToolPreviewInput([], [lineId]);
+              renderer.setOverlayPoints(null);
+              renderNow();
+              return;
+            }
+            liveRef.current.onToolCommit({ lineIds: [lineId] });
+            liveRef.current.onToolPreviewInput([], []);
+            renderer.setOverlayPoints(null);
+            renderNow();
+            return;
+          }
+        }
+      }
       const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
       if (!persistentToolRuntimeRef.current) {
         persistentToolRuntimeRef.current = createToolRuntime(createStepSequenceTool(stepKinds.length));
@@ -1684,7 +1735,9 @@ export function CreasePatternWebglCanvas({
         if (snapped === null && kind === 'down') return;
         point = snapped ?? raw;
       } else {
-        point = liveRef.current.resolveDrawPoint(raw, tol).point;
+        const resolved = liveRef.current.resolveDrawPoint(raw, tol);
+        point = resolved.point;
+        liveRef.current.onToolSnapKind(resolved.snapped ? (resolved.kind ?? null) : null);
       }
       // On a crease step, highlight the single line under the snapped point — so a
       // crease the point lands on lights up even when it snapped to a grid point on

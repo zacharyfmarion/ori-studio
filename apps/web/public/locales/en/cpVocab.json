@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Measure length 1",
-      "tooltip": "Measure length 1",
+      "label": "Measure Length",
+      "tooltip": "Measure the distance between two points, or click a crease",
       "disabledReason": "Ready",
       "steps": {
         "0": "Pick first point",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Measure angle 1",
-      "tooltip": "Measure angle 1",
+      "label": "Measure Angle",
+      "tooltip": "Measure the angle at a vertex between two points",
       "disabledReason": "Ready",
       "steps": {
         "0": "Pick first point",
@@ -1021,11 +1021,6 @@
         "0": "The point must not be on line A's span and line B must not be parallel with line A."
       }
     },
-    "a1Action": {
-      "intro": {
-        "0": "Measure angle by selecting points ABC."
-      }
-    },
     "a2Action": {
       "intro": {
         "0": "Measure angle by selecting points ABC."
@@ -1366,22 +1361,9 @@
         "0": "Folded shape is calculated relative to starting face."
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "Measure length by selecting 2 points."
-      },
-      "notes": {
-        "0": "Length is measured in grid units.",
-        "1": "Length is relative to crease pattern size with grid size of 1."
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "Measure length by selecting 2 points."
-      },
-      "notes": {
-        "0": "Length is measured in grid units.",
-        "1": "Length is relative to crease pattern size with grid size of 1."
       }
     },
     "makeFlatFoldableAction": {

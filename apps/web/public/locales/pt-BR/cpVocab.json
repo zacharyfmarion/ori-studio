@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Medir comprimento 1",
-      "tooltip": "Medir comprimento 1",
+      "label": "Medir comprimento",
+      "tooltip": "Mede a distância entre dois pontos, ou clique em um vinco",
       "disabledReason": "Pronto",
       "steps": {
         "0": "Escolha o primeiro ponto",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Medir ângulo 1",
-      "tooltip": "Medir ângulo 1",
+      "label": "Medir ângulo",
+      "tooltip": "Mede o ângulo em um vértice entre dois pontos",
       "disabledReason": "Pronto",
       "steps": {
         "0": "Escolha o primeiro ponto",
@@ -1021,11 +1021,6 @@
         "0": "O ponto não deve estar sobre a extensão da linha A e a linha B não deve ser paralela à linha A."
       }
     },
-    "a1Action": {
-      "intro": {
-        "0": "Meça o ângulo selecionando os pontos ABC."
-      }
-    },
     "a2Action": {
       "intro": {
         "0": "Meça o ângulo selecionando os pontos ABC."
@@ -1366,22 +1361,9 @@
         "0": "A forma dobrada é calculada em relação à face inicial."
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "Meça o comprimento selecionando 2 pontos."
-      },
-      "notes": {
-        "0": "O comprimento é medido em unidades de grade.",
-        "1": "O comprimento é relativo ao tamanho do padrão de vincos com tamanho de grade de 1."
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "Meça o comprimento selecionando 2 pontos."
-      },
-      "notes": {
-        "0": "O comprimento é medido em unidades de grade.",
-        "1": "O comprimento é relativo ao tamanho do padrão de vincos com tamanho de grade de 1."
       }
     },
     "makeFlatFoldableAction": {
