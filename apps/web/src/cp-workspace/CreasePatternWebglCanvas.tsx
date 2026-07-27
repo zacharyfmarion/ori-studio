@@ -2131,6 +2131,14 @@ export function CreasePatternWebglCanvas({
         erasing = true;
         eraseRuntime = createToolRuntime(toolEngineFor('drag-box'));
         feedErase('down', e.clientX, e.clientY);
+      } else if (e.button === 1) {
+        // Middle button: pan, whatever tool is active. Oriedita makes this
+        // unclaimable by design — its handler `Feature` enum has no BUTTON_2,
+        // so every tool declines the middle button and the canvas' own pan
+        // always wins (`Canvas.java` mousePressed/Dragged). preventDefault also
+        // suppresses the browser's middle-click autoscroll.
+        e.preventDefault();
+        panning = true;
       } else if (isPrimaryModifier(e) || liveRef.current.panToolActive) {
         // The platform accel (Cmd on Apple, Ctrl elsewhere) pans, as does a
         // plain drag while the hand tool is on. Folded figures are grabbed
