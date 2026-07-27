@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -86,8 +86,6 @@ import {
   type OristudioCpActionId,
 } from '../../lib/oristudioCpActions';
 import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
-import { ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE } from '../../lib/oristudioCpPalette';
-import { cpPaletteLabel } from '../../i18n/paletteLabels';
 import { shortcutLabelForAction, type ShortcutOverrides } from '../../keyboard/shortcuts';
 import { readJson, storageKey, writeJson, STORAGE_KEYS } from '../../lib/storage';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
@@ -124,12 +122,6 @@ interface CpToolRailProps {
   activeLineColor: OristudioCpLineColor;
   editable: boolean;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
-  /**
-   * Picks a line colour outside the primary palette. The primary types arrive
-   * as ordinary actions through {@link onSelectAction}; only the extra-colour
-   * menu needs this direct channel, since those colours have no action.
-   */
-  onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
 }
 
 const LUCIDE_ICONS: Record<string, CpToolIcon> = {
@@ -340,7 +332,6 @@ export const CpToolRail = memo(function CpToolRail({
   activeLineColor,
   editable,
   onSelectAction,
-  onSelectLineColor,
 }: CpToolRailProps) {
   const { t } = useTranslation();
   const shortcutOverrides = useShortcutStore((state) => state.overrides);
@@ -365,7 +356,6 @@ export const CpToolRail = memo(function CpToolRail({
               activeLineColor={activeLineColor}
               editable={editable}
               onSelectAction={onSelectAction}
-              onSelectLineColor={onSelectLineColor}
               shortcutOverrides={shortcutOverrides}
             />
           );
@@ -382,7 +372,6 @@ function CpToolRailGroup({
   activeLineColor,
   editable,
   onSelectAction,
-  onSelectLineColor,
   shortcutOverrides,
 }: {
   group: OristudioCpActionGroupDefinition;
@@ -391,7 +380,6 @@ function CpToolRailGroup({
   activeLineColor: OristudioCpLineColor;
   editable: boolean;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
-  onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
   shortcutOverrides: ShortcutOverrides;
 }) {
   const { t } = useTranslation();
@@ -438,113 +426,9 @@ function CpToolRailGroup({
               shortcutLabel={shortcutLabelForAction(action.id, shortcutOverrides)}
             />
           ))}
-          {group.id === 'line-type' && (
-            <CpRailLineColorMenu
-              activeLineColor={activeLineColor}
-              editable={editable}
-              onSelectLineColor={onSelectLineColor}
-            />
-          )}
         </div>
       )}
     </section>
-  );
-}
-
-/**
- * The extra line colours (orange, magenta, green, ...) as a popover on the end
- * of the line-type row. They are palette entries rather than actions, so unlike
- * every other chip in the rail they cannot come through `onSelectAction`.
- *
- * The panel opens to the right because the rail is pinned to the left edge —
- * the bottom-toolbar version opened upward.
- */
-function CpRailLineColorMenu({
-  activeLineColor,
-  editable,
-  onSelectLineColor,
-}: {
-  activeLineColor: OristudioCpLineColor;
-  editable: boolean;
-  onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
-}) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const activeExtra = ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.find(
-    (entry) => entry.lineColor === activeLineColor
-  );
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      if (menuRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open]);
-
-  useEffect(() => {
-    if (!editable && open) setOpen(false);
-  }, [editable, open]);
-
-  const label = activeExtra
-    ? cpPaletteLabel(t, activeExtra)
-    : t('tools:cpRail.moreLineColors', 'More line colors');
-
-  const trigger = (
-    <button
-      type="button"
-      className="cp-tool-rail__button cp-rail-color-menu__trigger"
-      aria-label={t('tools:cpRail.moreLineColors', 'More line colors')}
-      aria-haspopup="menu"
-      aria-expanded={open}
-      aria-disabled={!editable}
-      data-active={activeExtra ? true : undefined}
-      data-line-color={activeExtra?.lineColor}
-      onClick={() => {
-        if (!editable) return;
-        setOpen((current) => !current);
-      }}
-    >
-      <span className="cp-rail-color-menu__swatch" aria-hidden="true" />
-    </button>
-  );
-
-  return (
-    <div className="cp-rail-color-menu" ref={menuRef}>
-      <Tooltip>
-        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-        <TooltipContent side="right">{label}</TooltipContent>
-      </Tooltip>
-      {open && (
-        <div
-          className="cp-rail-color-menu__panel"
-          role="menu"
-          aria-label={t('tools:cpRail.extraLineColors', 'Extra line colors')}
-        >
-          {ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              className="cp-rail-color-menu__option"
-              data-active={activeLineColor === entry.lineColor ? true : undefined}
-              data-line-color={entry.lineColor}
-              role="menuitemradio"
-              aria-checked={activeLineColor === entry.lineColor}
-              aria-label={cpPaletteLabel(t, entry)}
-              onClick={() => {
-                onSelectLineColor(entry.lineColor);
-                setOpen(false);
-              }}
-            >
-              <span className="cp-rail-color-menu__swatch" aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 

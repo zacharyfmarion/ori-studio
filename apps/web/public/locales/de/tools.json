@@ -82,8 +82,6 @@
   },
   "cpRail": {
     "ariaLabel": "Faltmuster-Werkzeuge",
-    "extraLineColors": "Zusätzliche Linienfarben",
-    "moreLineColors": "Weitere Linienfarben",
     "openEditableFirst": "Öffnen Sie zuerst ein bearbeitbares Faltmuster"
   },
   "lineStyle": {

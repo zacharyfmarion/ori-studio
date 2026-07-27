@@ -98,8 +98,6 @@
   },
   "cpRail": {
     "ariaLabel": "Инструменты паттерна складок",
-    "extraLineColors": "Дополнительные цвета линий",
-    "moreLineColors": "Другие цвета линий",
     "openEditableFirst": "Сначала откройте редактируемый паттерн складок"
   },
   "lineStyle": {

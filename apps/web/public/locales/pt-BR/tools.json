@@ -90,8 +90,6 @@
   },
   "cpRail": {
     "ariaLabel": "Ferramentas de padrão de vincos",
-    "extraLineColors": "Cores de linha adicionais",
-    "moreLineColors": "Mais cores de linha",
     "openEditableFirst": "Abra primeiro um padrão de vincos editável"
   },
   "lineStyle": {

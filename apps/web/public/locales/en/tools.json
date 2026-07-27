@@ -82,8 +82,6 @@
   },
   "cpRail": {
     "ariaLabel": "Crease pattern tools",
-    "extraLineColors": "Extra line colors",
-    "moreLineColors": "More line colors",
     "openEditableFirst": "Open an editable crease pattern first"
   },
   "lineStyle": {

@@ -74,8 +74,6 @@
   },
   "cpRail": {
     "ariaLabel": "전개도 도구",
-    "extraLineColors": "기타 선 색상",
-    "moreLineColors": "추가 선 색상",
     "openEditableFirst": "편집 가능한 전개도를 먼저 여세요"
   },
   "lineStyle": {

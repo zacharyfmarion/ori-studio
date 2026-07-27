@@ -74,8 +74,6 @@
   },
   "cpRail": {
     "ariaLabel": "展開図ツール",
-    "extraLineColors": "追加の線色",
-    "moreLineColors": "その他の線色",
     "openEditableFirst": "まず編集可能な展開図を開いてください"
   },
   "lineStyle": {

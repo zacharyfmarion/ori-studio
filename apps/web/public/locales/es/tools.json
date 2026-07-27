@@ -90,8 +90,6 @@
   },
   "cpRail": {
     "ariaLabel": "Herramientas de patrón de pliegues",
-    "extraLineColors": "Colores de línea adicionales",
-    "moreLineColors": "Más colores de línea",
     "openEditableFirst": "Abre primero un patrón de pliegues editable"
   },
   "lineStyle": {

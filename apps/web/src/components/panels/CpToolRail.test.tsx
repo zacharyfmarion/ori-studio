@@ -34,7 +34,6 @@ function renderRail(): HTMLDivElement {
           activeLineColor="Red1"
           editable
           onSelectAction={() => {}}
-          onSelectLineColor={() => {}}
         />
       </TooltipProvider>
     );

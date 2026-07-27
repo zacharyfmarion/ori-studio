@@ -3311,7 +3311,6 @@ export function CreasePatternPanel() {
                 activeLineColor={activeCpLineColor}
                 editable={!!editableCp}
                 onSelectAction={handleCpToolAction}
-                onSelectLineColor={setActiveCpLineColor}
               />
             )}
             <div
