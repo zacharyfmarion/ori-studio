@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import {
+  ChevronFirst,
   ChevronRight,
   Copy,
   FileDown,
@@ -30,6 +31,9 @@ export function foldedFigureActionIconNode(
       return <Layers size={size} />;
     case 'another':
       return <ChevronRight size={size} />;
+    // Rewind-to-start, so the wrap at the end of a lap reads as what it is.
+    case 'first-solution':
+      return <ChevronFirst size={size} />;
     case 'refold':
       return <RefreshCw size={size} />;
     case 'export':

@@ -917,3 +917,132 @@ fn position(permutation: &[usize], value: usize) -> usize {
 fn segment(ax: f64, ay: f64, bx: f64, by: f64, color: LineColor) -> LineSegment {
     LineSegment::with_color(Point::new(ax, ay), Point::new(bx, by), color)
 }
+
+/// A pattern with several layer-ordering solutions, so navigation has somewhere
+/// to go. `solution_sample_1.cp` yields 15.
+fn multi_solution_session() -> FoldingEstimateSession {
+    FoldingEstimateSession::new(&solution_sample_segments(), 1)
+}
+
+#[test]
+fn restart_returns_to_the_first_solution() {
+    let mut session = multi_solution_session();
+    session
+        .folding_estimated(oristudio_cp::folding::EstimationOrder::Order5)
+        .expect("first");
+    let first_overlap = session.estimate().overlap.clone().expect("first overlap");
+
+    // Walk a few solutions in, then rewind.
+    for _ in 0..3 {
+        fold_another(&mut session).expect("advance");
+    }
+    assert!(session.estimate().current_fold_case > 1);
+
+    let restarted = session.restart().expect("restart");
+    assert_eq!(restarted.current_fold_case, 1);
+    assert_eq!(restarted.discovered_fold_cases, 1);
+    // Deterministic enumeration: the rewound solution is the one we started on.
+    assert_eq!(session.estimate().overlap, Some(first_overlap));
+}
+
+#[test]
+fn forward_walk_keeps_current_and_discovered_in_step() {
+    let mut session = multi_solution_session();
+    let mut estimate = session
+        .folding_estimated(oristudio_cp::folding::EstimationOrder::Order5)
+        .expect("first");
+    assert_eq!(estimate.current_fold_case, estimate.discovered_fold_cases);
+    while estimate.find_another_overlap_valid {
+        estimate = fold_another(&mut session).expect("advance");
+        // Stepping forward always lands on the newest solution, so the count and
+        // the shown case only diverge after a rewind.
+        assert_eq!(estimate.current_fold_case, estimate.discovered_fold_cases);
+    }
+    assert!(
+        estimate.discovered_fold_cases > 1,
+        "fixture needs >1 solution"
+    );
+}
+
+#[test]
+fn fold_another_wraps_to_the_first_solution_at_the_end() {
+    let mut session = multi_solution_session();
+    let first = session
+        .folding_estimated(oristudio_cp::folding::EstimationOrder::Order5)
+        .expect("first");
+    let first_overlap = first.overlap.clone().expect("first overlap");
+
+    let mut estimate = first;
+    while estimate.find_another_overlap_valid {
+        estimate = fold_another(&mut session).expect("advance");
+    }
+    let last_case = estimate.current_fold_case;
+    assert!(last_case > 1);
+
+    // One more press at the end wraps rather than dead-ending, which is what
+    // upstream does.
+    let wrapped = fold_another(&mut session).expect("wrap");
+    assert_eq!(wrapped.current_fold_case, 1);
+    assert_eq!(session.estimate().overlap, Some(first_overlap));
+}
+
+#[test]
+fn fold_another_does_not_wrap_when_there_is_only_one_solution() {
+    let mut session = FoldingEstimateSession::new(&square_with_diagonal(), 1);
+    session
+        .folding_estimated(oristudio_cp::folding::EstimationOrder::Order5)
+        .expect("first");
+    assert_eq!(session.estimate().discovered_fold_cases, 1);
+
+    // Wrapping here would re-fold to exactly where we already are.
+    let estimate = fold_another(&mut session).expect("another");
+    assert_eq!(estimate.discovered_fold_cases, 1);
+    assert_eq!(estimate.current_fold_case, 1);
+}
+
+#[test]
+fn folding_estimate_to_case_seeks_backwards_by_replaying() {
+    let mut session = multi_solution_session();
+    session
+        .folding_estimated(oristudio_cp::folding::EstimationOrder::Order5)
+        .expect("first");
+
+    // Record what case 2 looks like on the way out.
+    let second = fold_another(&mut session).expect("second");
+    assert_eq!(second.current_fold_case, 2);
+    let second_overlap = session.estimate().overlap.clone().expect("second overlap");
+
+    for _ in 0..3 {
+        fold_another(&mut session).expect("advance");
+    }
+    assert!(session.estimate().current_fold_case > 2);
+
+    folding_estimate_to_case(
+        &mut session,
+        2,
+        oristudio_cp::folding::EstimationOrder::Order5,
+    )
+    .expect("seek back");
+
+    assert_eq!(session.estimate().current_fold_case, 2);
+    // Replay is exact, not merely "some solution numbered 2".
+    assert_eq!(session.estimate().overlap, Some(second_overlap));
+}
+
+#[test]
+fn folding_estimate_to_case_still_seeks_forwards() {
+    let mut session = multi_solution_session();
+    session
+        .folding_estimated(oristudio_cp::folding::EstimationOrder::Order5)
+        .expect("first");
+
+    folding_estimate_to_case(
+        &mut session,
+        4,
+        oristudio_cp::folding::EstimationOrder::Order5,
+    )
+    .expect("seek forward");
+
+    assert_eq!(session.estimate().current_fold_case, 4);
+    assert_eq!(session.estimate().discovered_fold_cases, 4);
+}

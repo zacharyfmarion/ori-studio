@@ -649,7 +649,6 @@
     "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
-    "panels:creasePattern.anotherSolution": "7e041d61a730",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
     "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
@@ -704,7 +703,6 @@
     "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.foldError": "976aaa1be300",
     "panels:creasePattern.folding": "5fad9cc3dcdc",
-    "panels:creasePattern.goToFoldedCase": "3b9ebd5c385b",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
     "panels:creasePattern.moreLineColors": "544d5e07fea4",
@@ -1824,7 +1822,8 @@
     "panels:foldedFigureActions.styleNone": "dc937b598926",
     "panels:foldedFigureActions.stylePaper": "35045eff549e",
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
-    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e"
+    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
+    "panels:foldedFigureActions.firstSolution": "7de3e1910867"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2476,7 +2475,6 @@
     "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
-    "panels:creasePattern.anotherSolution": "7e041d61a730",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
     "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
@@ -2531,7 +2529,6 @@
     "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.foldError": "976aaa1be300",
     "panels:creasePattern.folding": "5fad9cc3dcdc",
-    "panels:creasePattern.goToFoldedCase": "3b9ebd5c385b",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
     "panels:creasePattern.moreLineColors": "544d5e07fea4",
@@ -3651,7 +3648,8 @@
     "panels:foldedFigureActions.styleNone": "dc937b598926",
     "panels:foldedFigureActions.stylePaper": "35045eff549e",
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
-    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e"
+    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
+    "panels:foldedFigureActions.firstSolution": "7de3e1910867"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4315,7 +4313,6 @@
     "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
-    "panels:creasePattern.anotherSolution": "7e041d61a730",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
     "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
@@ -4376,7 +4373,6 @@
     "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.foldError": "976aaa1be300",
     "panels:creasePattern.folding": "5fad9cc3dcdc",
-    "panels:creasePattern.goToFoldedCase": "3b9ebd5c385b",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -5504,7 +5500,8 @@
     "panels:foldedFigureActions.styleNone": "dc937b598926",
     "panels:foldedFigureActions.stylePaper": "35045eff549e",
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
-    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e"
+    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
+    "panels:foldedFigureActions.firstSolution": "7de3e1910867"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6168,7 +6165,6 @@
     "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
-    "panels:creasePattern.anotherSolution": "7e041d61a730",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
     "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
@@ -6229,7 +6225,6 @@
     "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.foldError": "976aaa1be300",
     "panels:creasePattern.folding": "5fad9cc3dcdc",
-    "panels:creasePattern.goToFoldedCase": "3b9ebd5c385b",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -7357,7 +7352,8 @@
     "panels:foldedFigureActions.styleNone": "dc937b598926",
     "panels:foldedFigureActions.stylePaper": "35045eff549e",
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
-    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e"
+    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
+    "panels:foldedFigureActions.firstSolution": "7de3e1910867"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8021,7 +8017,6 @@
     "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
-    "panels:creasePattern.anotherSolution": "7e041d61a730",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
     "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
@@ -8082,7 +8077,6 @@
     "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.foldError": "976aaa1be300",
     "panels:creasePattern.folding": "5fad9cc3dcdc",
-    "panels:creasePattern.goToFoldedCase": "3b9ebd5c385b",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -9210,7 +9204,8 @@
     "panels:foldedFigureActions.styleNone": "dc937b598926",
     "panels:foldedFigureActions.stylePaper": "35045eff549e",
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
-    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e"
+    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
+    "panels:foldedFigureActions.firstSolution": "7de3e1910867"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9874,7 +9869,6 @@
     "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
-    "panels:creasePattern.anotherSolution": "7e041d61a730",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
     "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
@@ -9935,7 +9929,6 @@
     "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.foldError": "976aaa1be300",
     "panels:creasePattern.folding": "5fad9cc3dcdc",
-    "panels:creasePattern.goToFoldedCase": "3b9ebd5c385b",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -11063,7 +11056,8 @@
     "panels:foldedFigureActions.styleNone": "dc937b598926",
     "panels:foldedFigureActions.stylePaper": "35045eff549e",
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
-    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e"
+    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
+    "panels:foldedFigureActions.firstSolution": "7de3e1910867"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11727,7 +11721,6 @@
     "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
-    "panels:creasePattern.anotherSolution": "7e041d61a730",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
     "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
@@ -11788,7 +11781,6 @@
     "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.foldError": "976aaa1be300",
     "panels:creasePattern.folding": "5fad9cc3dcdc",
-    "panels:creasePattern.goToFoldedCase": "3b9ebd5c385b",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_one": "e90b5c8a4def",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
@@ -12916,7 +12908,8 @@
     "panels:foldedFigureActions.styleNone": "dc937b598926",
     "panels:foldedFigureActions.stylePaper": "35045eff549e",
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
-    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e"
+    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
+    "panels:foldedFigureActions.firstSolution": "7de3e1910867"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13568,7 +13561,6 @@
     "panels:creasePattern.alpha": "b1a96dd646bc",
     "panels:creasePattern.angleBisectorSelect2Lines": "2063fc00ac37",
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
-    "panels:creasePattern.anotherSolution": "7e041d61a730",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
     "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
@@ -13623,7 +13615,6 @@
     "panels:creasePattern.foldedTransparency": "e95fa8f59a6e",
     "panels:creasePattern.foldError": "976aaa1be300",
     "panels:creasePattern.folding": "5fad9cc3dcdc",
-    "panels:creasePattern.goToFoldedCase": "3b9ebd5c385b",
     "panels:creasePattern.insertImage": "bf90032874cc",
     "panels:creasePattern.linesCount_other": "e90b5c8a4def",
     "panels:creasePattern.moreLineColors": "544d5e07fea4",
@@ -14743,6 +14734,7 @@
     "panels:foldedFigureActions.styleNone": "dc937b598926",
     "panels:foldedFigureActions.stylePaper": "35045eff549e",
     "panels:foldedFigureActions.styleWireframe": "04b765747018",
-    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e"
+    "panels:foldedFigureActions.styleXray": "e0ab46db3d8e",
+    "panels:foldedFigureActions.firstSolution": "7de3e1910867"
   }
 }

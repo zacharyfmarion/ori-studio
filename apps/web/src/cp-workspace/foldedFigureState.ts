@@ -1,4 +1,22 @@
-import type { OristudioCpFoldedFigureState } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureState,
+} from '../engine/oristudioCpTypes';
+
+/**
+ * Which layer-ordering solution a figure is showing, 1-based.
+ *
+ * Falls back to the discovered count for a figure saved before backwards
+ * navigation split the two — which is exactly what the count meant then, since
+ * stepping forward was the only way to move.
+ */
+export function foldedFigureCurrentCase(
+  figure: OristudioCpFoldedFigureEntry | null | undefined
+): number {
+  const snapshot = figure?.snapshot;
+  if (!snapshot) return 0;
+  return snapshot.current_fold_case ?? snapshot.discovered_fold_cases;
+}
 
 /**
  * Toggle a folded figure between its front and back — turning the paper over.

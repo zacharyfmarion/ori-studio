@@ -313,7 +313,15 @@ export interface OristudioCpFoldedFigureSnapshot {
   model: OristudioCpFoldedFigureModel;
   estimation_step: OristudioCpEstimationStep;
   display_style: OristudioCpFoldedFigureDisplayStyle;
+  /** How many layer-ordering solutions the enumeration has found so far. */
   discovered_fold_cases: number;
+  /**
+   * 1-based index of the solution being shown. Equal to
+   * {@link discovered_fold_cases} while stepping forward; they diverge only
+   * after navigating back to an earlier case. Absent in figures saved before
+   * backwards navigation existed — see {@link foldedFigureCurrentCase}.
+   */
+  current_fold_case?: number;
   find_another_overlap_valid: boolean;
   text_result: string;
   wireframe: OristudioCpFoldedWireframe | null;

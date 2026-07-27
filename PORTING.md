@@ -24,6 +24,25 @@ Current exact/anchored surface:
 - `tmScaleOptimizer`, `tmEdgeOptimizer`, and `tmStrainOptimizer` are ported for
   the headless all-owned-parts usage exercised by `tmModelTester`.
 
+## Oriedita (`oristudio-cp*`)
+
+Deliberate divergences, each additive — the ported algorithms and their outputs
+are unchanged:
+
+- **Restartable fold-solution enumeration.** `FoldingEstimateSession::restart()`
+  rewinds to the first layer-ordering solution, and `folding_estimate_to_case`
+  uses it to seek *backwards* by replaying the (deterministic) enumeration.
+  Oriedita's enumerator is forward-only — `possible_overlapping_search` advances
+  search state and nothing retains a solution once it has passed, so asking for
+  an earlier case there does nothing. `fold_another` likewise wraps to the first
+  solution at the end instead of dead-ending. The search itself, the solutions it
+  yields and the order it yields them in are untouched; the oracle test in
+  `crates/oristudio-cp/tests/oriedita_folding_oracle.rs` is the gate.
+- **`FoldingEstimate.current_fold_case`.** Upstream's `discovered_fold_cases`
+  doubles as "which solution is on screen", which only holds while movement is
+  forward-only. Backwards navigation splits the two: the count keeps its meaning,
+  the shown case gets its own field.
+
 Release caveats:
 
 - Public parity targets TreeMaker 5.0.1's distributable ALM optimizer. CFSQP

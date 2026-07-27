@@ -121,6 +121,7 @@ import {
 } from '../../cp-workspace/foldedFigureActions';
 import { foldedFigureActionIconNode as foldedFigureMenuIcon } from '../../cp-workspace/foldedFigureActionIcons';
 import { isFoldedFigureStale } from '../../lib/foldedFigureStaleness';
+import { foldedFigureCurrentCase } from '../../cp-workspace/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem, ContextMenuRequest } from '../ui/contextMenuTypes';
@@ -758,7 +759,7 @@ function FoldedFigureMenuButton({
   const model = activeFigure?.snapshot?.model ?? null;
   const activeReady =
     activeFigure?.status === 'ready' && activeFigure.handle !== null && activeFigure.snapshot !== null;
-  const currentCase = Math.max(activeFigure?.snapshot?.discovered_fold_cases ?? 1, 1);
+  const currentCase = Math.max(foldedFigureCurrentCase(activeFigure), 1);
   const canJumpCase = activeReady && Number.isFinite(Number(caseDraft));
 
   // Keep any display style already saved on a document selectable even if it is no
@@ -821,7 +822,7 @@ function FoldedFigureMenuButton({
                   onClick={() => onSelectFigure(figure.id)}
                 >
                   <span>{figure.title}</span>
-                  <small>{figure.status === 'ready' ? t('panels:creasePattern.case', 'Case {{count}}', { count: figure.snapshot?.discovered_fold_cases ?? 0 }) : figure.status}</small>
+                  <small>{figure.status === 'ready' ? t('panels:creasePattern.case', 'Case {{count}}', { count: foldedFigureCurrentCase(figure) }) : figure.status}</small>
                 </button>
               ))}
             </div>
@@ -894,6 +895,9 @@ function FoldedFigureMenuButton({
           </div>
           <label className="folded-figure-menu__field">
             <span>{t('panels:creasePattern.caseLabel', 'Case')}</span>
+            {/* The field is the control: Enter or blur commits it. A separate
+                "go" button alongside an input the user has already typed into
+                is a second thing to find for no extra ability. */}
             <div className="folded-figure-menu__case">
               <input
                 aria-label={t('panels:creasePattern.foldCase', 'Fold case')}
@@ -903,19 +907,15 @@ function FoldedFigureMenuButton({
                 value={caseDraft}
                 disabled={!activeReady}
                 onChange={(event) => onCaseDraftChange(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return;
+                  event.preventDefault();
+                  if (canJumpCase) onFoldToCase();
+                }}
                 onBlur={() => {
                   if (canJumpCase) onFoldToCase();
                 }}
               />
-              <IconButton
-                size="sm"
-                variant="toolbar"
-                title={t('panels:creasePattern.goToFoldedCase', 'Go to folded case')}
-                disabled={!canJumpCase}
-                onClick={onFoldToCase}
-              >
-                <ChevronRight size={14} />
-              </IconButton>
             </div>
           </label>
           <div className="folded-figure-menu__hint">{t('panels:creasePattern.current', 'Current {{count}}', { count: currentCase })}</div>
@@ -1672,7 +1672,7 @@ export function CreasePatternPanel() {
   const foldedFigureStatusLabel = activeFoldedFigure
     ? activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
       ? t('panels:creasePattern.case', 'Case {{count}}', {
-          count: activeFoldedFigure.snapshot?.discovered_fold_cases ?? 0,
+          count: foldedFigureCurrentCase(activeFoldedFigure),
         })
       : activeFoldedFigure.status === 'loading'
         ? t('panels:creasePattern.folding', 'Folding')
@@ -1680,10 +1680,6 @@ export function CreasePatternPanel() {
           ? t('panels:creasePattern.foldError', 'Fold error')
           : t('panels:creasePattern.unsupported', 'Unsupported')
     : t('panels:creasePattern.noFold', 'No fold');
-  const canFoldAnother =
-    activeFoldedFigure?.status === 'ready' &&
-    activeFoldedFigure.handle !== null &&
-    activeFoldedFigure.snapshot?.find_another_overlap_valid === true;
   const selectedEditableFoldLineIds = useMemo(
     () => selectedFoldableCpLineIds(editableCp, oristudioCpSelection),
     [editableCp, oristudioCpSelection]
@@ -1691,8 +1687,8 @@ export function CreasePatternPanel() {
   const canFoldSelectedModel = selectedEditableFoldLineIds.length > 0;
 
   useEffect(() => {
-    setFoldCaseDraft(String(Math.max(activeFoldedFigure?.snapshot?.discovered_fold_cases ?? 1, 1)));
-  }, [activeFoldedFigure?.id, activeFoldedFigure?.snapshot?.discovered_fold_cases]);
+    setFoldCaseDraft(String(Math.max(foldedFigureCurrentCase(activeFoldedFigure), 1)));
+  }, [activeFoldedFigure]);
 
   const handleFoldModel = useCallback(() => {
     if (!canFoldSelectedModel) return;
@@ -1710,19 +1706,11 @@ export function CreasePatternPanel() {
     runFoldedFigureAction,
     t,
   ]);
-  const handleFoldAnother = useCallback(() => {
-    if (!activeFoldedFigure) return;
-    const id = activeFoldedFigure.id;
-    runFoldedFigureAction(
-      t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
-      () => foldAnotherOristudioCpFigure(id)
-    );
-  }, [activeFoldedFigure, foldAnotherOristudioCpFigure, runFoldedFigureAction, t]);
   const handleFoldToCase = useCallback(() => {
     if (!activeFoldedFigure || activeFoldedFigure.status !== 'ready') return;
     const objective = Math.max(1, Math.round(Number(foldCaseDraft)));
     if (!Number.isFinite(objective)) {
-      setFoldCaseDraft(String(Math.max(activeFoldedFigure.snapshot?.discovered_fold_cases ?? 1, 1)));
+      setFoldCaseDraft(String(Math.max(foldedFigureCurrentCase(activeFoldedFigure), 1)));
       return;
     }
     setFoldCaseDraft(String(objective));
@@ -3739,15 +3727,10 @@ export function CreasePatternPanel() {
                       >
                         <Origami size={14} />
                       </IconButton>
-                      <IconButton
-                        size="sm"
-                        variant="toolbar"
-                        title={t('panels:creasePattern.anotherSolution', 'Another solution')}
-                        disabled={!canFoldAnother}
-                        onClick={handleFoldAnother}
-                      >
-                        <ChevronRight size={14} />
-                      </IconButton>
+                      {/* "Another solution" lives on the figure's own contextual
+                          bar, which acts on the figure you clicked. This copy
+                          acted on the *active* figure — after a fold, a fallback
+                          to whichever was made most recently. */}
                       <FoldedFigureMenuButton
                         figures={oristudioCpFoldedFigures}
                         activeFigure={activeFoldedFigure}

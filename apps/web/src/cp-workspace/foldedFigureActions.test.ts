@@ -33,6 +33,8 @@ function makeFigure(
     snapshot: {
       model: { state: 'Front0' },
       find_another_overlap_valid: true,
+      discovered_fold_cases: 3,
+      current_fold_case: 3,
     },
     renderSnapshot: {},
     placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: 0 },
@@ -120,11 +122,36 @@ describe('buildFoldedFigureActions', () => {
     expect(command(loading, deps, 'delete').disabled).toBe(false);
   });
 
-  it('disables Another solution when no further overlap-valid ordering remains', () => {
+  // At the end of the enumeration the kernel restarts rather than dead-ending,
+  // so the button keeps working and says so.
+  it('offers a wrap back to the first solution at the end of the enumeration', () => {
     const figure = makeFigure({
       snapshot: {
         model: { state: 'Front0' },
         find_another_overlap_valid: false,
+        discovered_fold_cases: 8,
+      },
+    } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+    const action = command(figure, makeDeps(), 'another');
+    expect(action.disabled).toBe(false);
+    expect(action.label).toBe('Back to first solution');
+    expect(action.icon).toBe('first-solution');
+  });
+
+  it('reads as a forward step while solutions remain', () => {
+    const action = command(makeFigure(), makeDeps(), 'another');
+    expect(action.label).toBe('Another solution');
+    expect(action.icon).toBe('another');
+  });
+
+  // Wrapping a single-solution fold would land exactly where it started, and
+  // costs a re-fold to get there.
+  it('disables Another solution when the fold has only one solution', () => {
+    const figure = makeFigure({
+      snapshot: {
+        model: { state: 'Front0' },
+        find_another_overlap_valid: false,
+        discovered_fold_cases: 1,
       },
     } as unknown as Partial<OristudioCpFoldedFigureEntry>);
     expect(command(figure, makeDeps(), 'another').disabled).toBe(true);

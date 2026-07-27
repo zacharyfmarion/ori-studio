@@ -31,6 +31,7 @@ export type FoldedFigureActionIcon =
   | 'flip'
   | 'style'
   | 'another'
+  | 'first-solution'
   | 'refold'
   | 'export'
   | 'duplicate'
@@ -181,6 +182,10 @@ export function buildFoldedFigureActions(
   const ready = isFoldedFigureReady(figure);
   const currentStyle = figure.displayStyle;
   const canRefold = deps.refold !== undefined && deps.isStale?.(figure) === true;
+  const hasNextSolution = figure.snapshot?.find_another_overlap_valid === true;
+  // The kernel wraps by restarting the enumeration, so wrapping only makes sense
+  // once more than one solution is known to exist.
+  const wrapsToFirst = !hasNextSolution && (figure.snapshot?.discovered_fold_cases ?? 0) > 1;
 
   const actions: FoldedFigureAction[] = [
     {
@@ -212,13 +217,15 @@ export function buildFoldedFigureActions(
     {
       kind: 'command',
       id: 'another',
-      label: t('panels:foldedFigureActions.anotherSolution', 'Another solution'),
-      icon: 'another',
-      // A fold is one of several valid layer orderings only when the kernel says
-      // another overlap-valid ordering remains. Wrapping back to the first is
-      // blocked on the enumerator being seekable — see
-      // implementation-plans/folded-figure-solution-navigation.md.
-      disabled: !ready || figure.snapshot?.find_another_overlap_valid !== true,
+      // At the end of the enumeration the kernel wraps to the first solution
+      // rather than dead-ending, so say which of the two the press will do.
+      label: wrapsToFirst
+        ? t('panels:foldedFigureActions.firstSolution', 'Back to first solution')
+        : t('panels:foldedFigureActions.anotherSolution', 'Another solution'),
+      icon: wrapsToFirst ? 'first-solution' : 'another',
+      // Disabled only with nowhere to go: a single-solution fold, where wrapping
+      // would land exactly where it started.
+      disabled: !ready || (!hasNextSolution && !wrapsToFirst),
       run: () => deps.foldAnother(figure),
     },
   ];
