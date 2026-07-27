@@ -414,7 +414,6 @@ export interface CreasePatternSliceState {
   foldArtifactStatus: FoldArtifactStatus;
   foldArtifactRevision: number;
   foldArtifactResolvedRevision: number | null;
-  foldArtifactRequestId: number;
   selectedSegmentId: number | null;
   sequenceTarget: SequenceTargetState | null;
   sequencePlan: SequencePlan | null;

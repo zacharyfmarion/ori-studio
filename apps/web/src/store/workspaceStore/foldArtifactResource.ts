@@ -10,7 +10,6 @@ export interface FoldArtifactResourceState {
   foldArtifactStatus: FoldArtifactStatus;
   foldArtifactRevision: number;
   foldArtifactResolvedRevision: number | null;
-  foldArtifactRequestId: number;
   /**
    * Selected crease-pattern segment (index into `foldArtifacts.segments`), or
    * null when there are no segments. Lifecycle is tied to the fold resource so
@@ -40,7 +39,6 @@ export function emptyFoldArtifactResourceState(): FoldArtifactResourceState {
     foldArtifactStatus: 'idle',
     foldArtifactRevision: 0,
     foldArtifactResolvedRevision: null,
-    foldArtifactRequestId: 0,
     selectedSegmentId: null,
   };
 }
@@ -60,11 +58,21 @@ export function pickFoldArtifactResourceState(
     foldArtifactStatus: state.foldArtifactStatus,
     foldArtifactRevision: state.foldArtifactRevision,
     foldArtifactResolvedRevision: state.foldArtifactResolvedRevision,
-    foldArtifactRequestId: state.foldArtifactRequestId,
     selectedSegmentId: state.selectedSegmentId,
   };
 }
 
+/**
+ * The simulation source changed — a document was replaced, or the current one
+ * was edited. Drops the cached artifacts and bumps the revision, which is what
+ * makes a request already in flight for the previous source be discarded when
+ * it lands instead of being published as the current document's.
+ *
+ * Every path that swaps the document the simulator reads from must go through
+ * this. The Simulate workspace treats a non-null `foldArtifacts` as the current
+ * document's crease pattern and never re-derives it, so a missed invalidation
+ * shows the previously opened file rather than merely showing stale data.
+ */
 export function staleFoldArtifactResourceState(
   currentRevision: number
 ): FoldArtifactResourceState & FoldArtifactDependentState {
@@ -74,7 +82,6 @@ export function staleFoldArtifactResourceState(
     foldArtifactStatus: 'stale',
     foldArtifactRevision: currentRevision + 1,
     foldArtifactResolvedRevision: null,
-    foldArtifactRequestId: 0,
     selectedSegmentId: null,
     sequenceTarget: null,
     sequencePlan: null,
@@ -87,7 +94,7 @@ export function staleFoldArtifactResourceState(
 export function readyFoldArtifactResourceState(
   foldArtifacts: FoldArtifacts,
   revision: number
-): Omit<FoldArtifactResourceState, 'foldArtifactRequestId'> {
+): FoldArtifactResourceState {
   return {
     foldArtifacts,
     foldArtifactError: null,
