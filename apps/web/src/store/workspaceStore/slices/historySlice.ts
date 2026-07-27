@@ -264,6 +264,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             historyBusy: false,
             projectMessage: `Undid ${previous.label}`,
           });
+          // The state swap above is web-side only, so the kernel still holds the
+          // model this step just undid. Reconcile after the synchronous `set`,
+          // never awaited: making the branch async would make `historyBusy` a
+          // real gate and silently drop undos held down on the keyboard.
+          get().reconcileFoldedFigureModels(previous.foldedFigures?.map((f) => f.id) ?? []);
           return true;
         }
         const restored = await restoreOristudioCpDocumentInPlace(
@@ -396,6 +401,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             historyBusy: false,
             projectMessage: `Redid ${next.label}`,
           });
+          get().reconcileFoldedFigureModels(next.foldedFigures?.map((f) => f.id) ?? []);
           return true;
         }
         const restored = await restoreOristudioCpDocumentInPlace(

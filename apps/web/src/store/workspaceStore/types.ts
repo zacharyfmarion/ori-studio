@@ -535,6 +535,11 @@ export interface CreasePatternSliceActions {
    * Pushes an `overlayOnly` entry and clears the redo stack — the counterpart of
    * {@link recordAnnotationHistory} for the other overlay layer.
    */
+  /**
+   * Re-push each figure's stored model into its kernel handle. Fire-and-forget;
+   * safe to call repeatedly, since redundant reconciles are skipped.
+   */
+  reconcileFoldedFigureModels: (ids: readonly string[]) => void;
   recordFoldedFigureHistory: (
     previous: OristudioCpFoldedFigureEntry[],
     label: string,
