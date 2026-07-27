@@ -158,8 +158,8 @@
     "bringImageToFront": "画像を最前面へ",
     "buildingCreasePattern": "展開図を作成中",
     "canvasDiagnostics": "キャンバス診断",
-    "caseLabel": "ケース",
     "case_other": "ケース {{count}}",
+    "caseLabel": "ケース",
     "changeFoldCase": "折りケースを変更",
     "changeFoldedAlpha": "折り上がり図の透明度を変更",
     "changeFoldedColor": "折り上がり図の色を変更",
@@ -195,8 +195,6 @@
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
     "foldCase": "折りケース",
-    "foldError": "折りエラー",
-    "foldModelAction": "モデルを折る",
     "foldedColor": {
       "back": "裏",
       "backAria": "折りの裏面の色",
@@ -207,8 +205,8 @@
     },
     "foldedDisplayStyle": "折りの表示スタイル",
     "foldedModelControls": "折りモデルの操作",
-    "foldedModelSide": "折りモデルの面",
     "foldedModels": "折りモデル",
+    "foldedModelSide": "折りモデルの面",
     "foldedState": {
       "back": "裏",
       "backShort": "B",
@@ -228,7 +226,9 @@
       "wire": "ワイヤー"
     },
     "foldedTransparency": "折りの透明度",
+    "foldError": "折りエラー",
     "folding": "折りたたみ中",
+    "foldModelAction": "モデルを折る",
     "goToFoldedCase": "折りケースへ移動",
     "insertImage": "画像を挿入...",
     "linesCount_other": "{{count}} 本の線",

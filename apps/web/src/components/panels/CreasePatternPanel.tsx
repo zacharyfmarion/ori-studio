@@ -990,9 +990,11 @@ export function CreasePatternPanel() {
   // Set when a text edit is committed by a click outside; that same click's
   // create must be suppressed (it deselects instead of spawning a new box).
   const suppressNextTextCreateRef = useRef(false);
-  // The measure tool's latest reading. Lives for the tool session only — Escape
-  // (which deactivates the tool) clears it; nothing is persisted.
-  const [cpMeasurement, setCpMeasurement] = useState<CpMeasurement | null>(null);
+  // Readings taken in this measure session, oldest first, so several can be compared
+  // side by side. They live for the tool session only — Escape (which deactivates the
+  // tool) clears them; nothing is persisted.
+  const [cpMeasurements, setCpMeasurements] = useState<readonly CpMeasurement[]>([]);
+  const [cpHoveredMeasureIndex, setCpHoveredMeasureIndex] = useState<number | null>(null);
   // Points placed so far in the current measure pick, for the step prompt. A
   // sequence tool's points live on the canvas, so this mirrors its pick progress.
   const [cpMeasurePicked, setCpMeasurePicked] = useState(0);
@@ -2535,7 +2537,9 @@ export function CreasePatternPanel() {
           buildCpCommandPayload(command, { points: measurePoints })
         ).then((preview) => {
           const value = preview?.measurement;
-          if (value != null) setCpMeasurement({ kind, value, points: measurePoints });
+          if (value != null) {
+            setCpMeasurements((current) => [...current, { kind, value, points: measurePoints }]);
+          }
         });
         setCpMeasurePicked(0);
         setCpMeasureLivePoints([]);
@@ -3381,6 +3385,23 @@ export function CreasePatternPanel() {
       const interactive = isViewportInteractiveTarget(event.target);
       // While typing in the inline text editor, let it own ESC (commit + deselect);
       // don't also run the panel's ESC (which would clear selection / cancel the tool).
+      // Backspace drops the most recent measurement while the measure tool is active.
+      // Only with nothing selected: with a selection, Delete/Backspace is the crease
+      // delete shortcut, and quietly stealing it would risk the geometry instead of a
+      // readout. preventDefault keeps the global shortcut from also firing.
+      if (
+        (event.key === 'Backspace' || event.key === 'Delete') &&
+        editableCp &&
+        !interactive &&
+        editableSelectionSize === 0 &&
+        cpMeasurements.length > 0 &&
+        isCpMeasurementOperation(cpToolState.activeOperationId)
+      ) {
+        event.preventDefault();
+        setCpMeasurements((current) => current.slice(0, -1));
+        setCpHoveredMeasureIndex(null);
+        return;
+      }
       if (event.key === 'Escape' && editableCp && !interactive) {
         // Leaving the hand tool comes first: it is a mode, and Escape is the
         // expected way out of one.
@@ -3431,6 +3452,7 @@ export function CreasePatternPanel() {
   }, [
     activeCpCommand?.operationId,
     clearOristudioCpSelection,
+    cpMeasurements.length,
     cpToolPath.length,
     cpToolPoints.length,
     cpToolState,
@@ -3454,7 +3476,7 @@ export function CreasePatternPanel() {
   }, [editableCp]);
 
   useEffect(() => {
-    setCpMeasurement(null);
+    setCpMeasurements([]);
     setCpMeasurePicked(0);
   }, [editableCpHandle]);
 
@@ -3466,7 +3488,8 @@ export function CreasePatternPanel() {
       cpToolState.phase !== 'active' ||
       !isCpMeasurementOperation(cpToolState.activeOperationId)
     ) {
-      setCpMeasurement(null);
+      setCpMeasurements([]);
+      setCpHoveredMeasureIndex(null);
       setCpMeasurePicked(0);
       setCpMeasureLivePoints([]);
       setCpMeasureLiveValue(null);
@@ -3680,7 +3703,8 @@ export function CreasePatternPanel() {
                   isCpMeasurementOperation(activeCpCommand?.operationId) &&
                   cpToolState.phase === 'active' && (
                     <CpMeasureLayer
-                      measurement={cpMeasurement}
+                      measurements={cpMeasurements}
+                      hoveredIndex={cpHoveredMeasureIndex}
                       liveKind={cpToolOptions.measureKind}
                       livePoints={cpMeasureLivePoints}
                       liveValue={cpMeasureLiveValue}
@@ -3847,8 +3871,9 @@ export function CreasePatternPanel() {
                     options={cpToolOptions}
                     setOptions={setCpToolOptions}
                     activeLineColor={activeCpLineColor}
-                    measurement={cpMeasurement}
+                    measurements={cpMeasurements}
                     measurePicked={cpMeasurePicked}
+                    onHoverMeasurement={setCpHoveredMeasureIndex}
                     measureUnit={cpMeasurePreferences.unit}
                     measureScale={cpMeasureScale}
                     onMeasureUnitChange={setCpMeasureUnit}

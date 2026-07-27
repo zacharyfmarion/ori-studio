@@ -125,8 +125,9 @@ export function CpContextToolPanel({
   options,
   setOptions,
   activeLineColor,
-  measurement,
+  measurements,
   measurePicked,
+  onHoverMeasurement,
   measureUnit,
   measureScale,
   onMeasureUnitChange,
@@ -141,9 +142,11 @@ export function CpContextToolPanel({
   options: OristudioCpToolOptions;
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
   activeLineColor: OristudioCpLineColor;
-  measurement: CpMeasurement | null;
+  measurements: readonly CpMeasurement[];
   /** Points placed so far in the in-progress measure pick. */
   measurePicked: number;
+  /** Highlight a session measurement on the canvas while its row is hovered. */
+  onHoverMeasurement: (index: number | null) => void;
   measureUnit: CpMeasureUnit;
   measureScale: CpMeasureScale;
   onMeasureUnitChange: (unit: CpMeasureUnit) => void;
@@ -196,8 +199,9 @@ export function CpContextToolPanel({
               setOptions={setOptions}
               activeLineColor={activeLineColor}
               activeOperationId={command.operationId}
-              measurement={measurement}
+              measurements={measurements}
               measurePicked={measurePicked}
+              onHoverMeasurement={onHoverMeasurement}
               measureUnit={measureUnit}
               measureScale={measureScale}
               onMeasureUnitChange={onMeasureUnitChange}
@@ -271,8 +275,9 @@ function CpContextToolGroup({
   setOptions,
   activeLineColor,
   activeOperationId,
-  measurement,
+  measurements,
   measurePicked,
+  onHoverMeasurement,
   measureUnit,
   measureScale,
   onMeasureUnitChange,
@@ -285,8 +290,9 @@ function CpContextToolGroup({
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
   activeLineColor: OristudioCpLineColor;
   activeOperationId: OristudioCpCommandDefinition['operationId'];
-  measurement: CpMeasurement | null;
+  measurements: readonly CpMeasurement[];
   measurePicked: number;
+  onHoverMeasurement: (index: number | null) => void;
   measureUnit: CpMeasureUnit;
   measureScale: CpMeasureScale;
   onMeasureUnitChange: (unit: CpMeasureUnit) => void;
@@ -588,9 +594,13 @@ function CpContextToolGroup({
   if (group === 'measure') {
     const kind = options.measureKind;
     const remaining = cpMeasurePointCount(kind) - measurePicked;
+    // Newest first: the reading just taken is the one being read, and older ones
+    // stay available for comparison until the tool is left.
+    const rows = measurements.map((entry, index) => ({ entry, index })).reverse();
+    const latest = rows[0];
     const exactLabel =
-      measurement && measurement.kind === 'distance'
-        ? exactCpLengthLabel(measurement.value, measureScale)
+      latest && latest.entry.kind === 'distance'
+        ? exactCpLengthLabel(latest.entry.value, measureScale)
         : null;
     return (
       <div className="cp-context-panel__group">
@@ -618,24 +628,24 @@ function CpContextToolGroup({
         <button
           type="button"
           className="cp-context-panel__measure-value"
-          data-empty={measurement === null || undefined}
-          disabled={measurement === null}
+          data-empty={latest === undefined || undefined}
+          disabled={latest === undefined}
           aria-live="polite"
           title={
-            measurement
-              ? t('tools:cpContext.measureCopy', 'Copy the full-precision value')
-              : undefined
+            latest ? t('tools:cpContext.measureCopy', 'Copy the full-precision value') : undefined
           }
+          onMouseEnter={() => latest && onHoverMeasurement(latest.index)}
+          onMouseLeave={() => onHoverMeasurement(null)}
           onClick={() => {
-            if (!measurement) return;
+            if (!latest) return;
             void navigator.clipboard?.writeText(
-              copyTextForCpMeasurement(measurement, measureUnit, measureScale)
+              copyTextForCpMeasurement(latest.entry, measureUnit, measureScale)
             );
           }}
         >
-          {measurement === null
+          {latest === undefined
             ? t('tools:cpContext.measureEmpty', 'No measurement yet')
-            : formatCpMeasurement(measurement, measureUnit, measureScale)}
+            : formatCpMeasurement(latest.entry, measureUnit, measureScale)}
         </button>
         {exactLabel && (
           <div className="cp-context-panel__readout cp-context-panel__measure-exact">
@@ -643,6 +653,28 @@ function CpContextToolGroup({
               exact: exactLabel,
             })}
           </div>
+        )}
+        {rows.length > 1 && (
+          <ul className="cp-context-panel__measure-list">
+            {rows.slice(1).map(({ entry, index }) => (
+              <li key={index}>
+                <button
+                  type="button"
+                  className="cp-context-panel__measure-row"
+                  onMouseEnter={() => onHoverMeasurement(index)}
+                  onMouseLeave={() => onHoverMeasurement(null)}
+                  onClick={() =>
+                    void navigator.clipboard?.writeText(
+                      copyTextForCpMeasurement(entry, measureUnit, measureScale)
+                    )
+                  }
+                >
+                  <span>{measureKindLabel(t, entry.kind)}</span>
+                  <span>{formatCpMeasurement(entry, measureUnit, measureScale)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
         <label className="cp-context-panel__field">
           <span>{t('tools:cpContext.measureUnit', 'Units')}</span>
@@ -675,6 +707,11 @@ function CpContextToolGroup({
               : t('tools:cpContext.measurePointsLeftOther', '{{count}} more points', { count: remaining })
             : t('tools:cpContext.measureRepeat', 'Pick again to measure another')}
         </div>
+        {rows.length > 0 && (
+          <div className="cp-context-panel__readout">
+            {t('tools:cpContext.measureClearHint', 'Backspace removes the last, Escape clears all')}
+          </div>
+        )}
       </div>
     );
   }

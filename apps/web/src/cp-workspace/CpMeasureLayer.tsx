@@ -32,18 +32,26 @@ function MeasureFigure({
   points,
   label,
   live,
+  hovered,
 }: {
   kind: CpMeasureKind;
   points: readonly Vec2[];
   label: string | null;
   /** A measurement still being placed draws lighter than the committed one. */
   live: boolean;
+  /** True while its row in the session list is hovered. */
+  hovered?: boolean;
 }) {
   const anchor = labelAnchor(kind, points);
   const state = live ? 'live' : 'committed';
   return (
     <>
-      <svg className="cp-measure-layer__figure" data-state={state} aria-hidden="true">
+      <svg
+        className="cp-measure-layer__figure"
+        data-state={state}
+        data-hovered={hovered || undefined}
+        aria-hidden="true"
+      >
         {kind === 'distance' && points.length >= 2 && (
           <>
             <line x1={points[0].x} y1={points[0].y} x2={points[1].x} y2={points[1].y} />
@@ -66,6 +74,7 @@ function MeasureFigure({
         <div
           className="cp-measure-layer__label"
           data-state={state}
+          data-hovered={hovered || undefined}
           style={{ transform: `translate(-50%, -50%) translate(${anchor.x}px, ${anchor.y}px)` }}
         >
           {label}
@@ -76,7 +85,8 @@ function MeasureFigure({
 }
 
 export function CpMeasureLayer({
-  measurement,
+  measurements,
+  hoveredIndex,
   liveKind,
   livePoints,
   liveValue,
@@ -84,8 +94,10 @@ export function CpMeasureLayer({
   unit,
   scale,
 }: {
-  /** The committed reading, drawn until the tool is left. */
-  measurement: CpMeasurement | null;
+  /** Committed readings, in the order they were taken. Cleared when the tool is left. */
+  measurements: readonly CpMeasurement[];
+  /** Index of the session-list row under the pointer, or null. */
+  hoveredIndex: number | null;
   /** Kind of the pick in progress. */
   liveKind: CpMeasureKind;
   /** Points placed so far plus the cursor, in model coords. */
@@ -105,10 +117,7 @@ export function CpMeasureLayer({
 
   const project = (points: readonly Vec2[]) => points.map((point) => overlayModelToCss(view, point));
 
-  // The live figure supersedes the committed one while it is being placed, so the
-  // canvas never shows two labels stacked on the same geometry.
   const liveComplete = liveKind === 'angle' ? livePoints.length >= 3 : livePoints.length >= 2;
-  const showCommitted = measurement !== null && !liveComplete;
 
   return (
     <div
@@ -125,14 +134,16 @@ export function CpMeasureLayer({
       }}
       aria-hidden="true"
     >
-      {showCommitted && measurement && (
+      {measurements.map((measurement, index) => (
         <MeasureFigure
+          key={index}
           kind={measurement.kind}
           points={project(measurement.points)}
           label={format(measurement.kind, measurement.value)}
           live={false}
+          hovered={index === hoveredIndex}
         />
-      )}
+      ))}
       {liveComplete && (
         <MeasureFigure
           kind={liveKind}

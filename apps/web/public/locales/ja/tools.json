@@ -48,6 +48,7 @@
     "lineSelection": "線の選択",
     "lineType": "線種",
     "measure": "測定",
+    "measureClearHint": "Backspace で直前を削除、Escape ですべて消去",
     "measureCopy": "完全な精度の値をコピー",
     "measureEmpty": "まだ測定していません",
     "measureExact": "紙の辺のおよそ {{exact}}",

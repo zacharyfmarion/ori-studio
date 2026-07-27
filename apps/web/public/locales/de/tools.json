@@ -52,6 +52,7 @@
     "lineSelection": "Linienauswahl",
     "lineType": "Linientyp",
     "measure": "Messen",
+    "measureClearHint": "Rücktaste entfernt die letzte, Esc löscht alle",
     "measureCopy": "Wert in voller Genauigkeit kopieren",
     "measureEmpty": "Noch keine Messung",
     "measureExact": "etwa {{exact}} der Papierkante",

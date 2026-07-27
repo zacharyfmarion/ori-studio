@@ -6140,3 +6140,48 @@ button.bp-packing-alert:focus-visible {
   text-transform: uppercase;
   white-space: nowrap;
 }
+
+.cp-context-panel__measure-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-context-panel__measure-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cp-context-panel__measure-row:hover,
+.cp-context-panel__measure-row:focus-visible {
+  border-color: var(--border-subtle);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.cp-context-panel__measure-row span:first-child {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+}
+
+/* A hovered session row lifts its figure out of the quiet default. */
+.cp-measure-layer__figure[data-hovered],
+.cp-measure-layer__label[data-hovered] {
+  stroke-width: 2;
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}

@@ -48,6 +48,7 @@
     "lineSelection": "线选择",
     "lineType": "线型",
     "measure": "测量",
+    "measureClearHint": "Backspace 删除最后一个，Escape 清除全部",
     "measureCopy": "复制完整精度的数值",
     "measureEmpty": "尚无测量结果",
     "measureExact": "约为纸边的 {{exact}}",
