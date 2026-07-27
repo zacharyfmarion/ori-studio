@@ -1,5 +1,6 @@
 {
   "global": {
-    "error": "Ori Studio-Fehler"
+    "error": "Ori Studio-Fehler",
+    "folding": "Wird gefaltet…"
   }
 }

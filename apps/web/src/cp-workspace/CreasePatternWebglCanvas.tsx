@@ -118,6 +118,12 @@ export type StepKind = CpStepSnap;
  * A viewport-toolbar command for the WebGL camera. `nonce` re-fires the same command
  * (e.g. repeated zoom-in presses); `percent` is only used by `set-percent`.
  */
+/**
+ * How far a stale folded figure fades. Shallow enough to read as a state rather
+ * than as the Transparent display style, which is a deliberate look a user picks.
+ */
+const STALE_FOLDED_FIGURE_OPACITY = 0.45;
+
 export interface CameraCommand {
   kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent' | 'rotate-by' | 'rotate-to' | 'rotate-reset';
   percent?: number;
@@ -655,6 +661,12 @@ export interface CreasePatternWebglCanvasProps {
   circleRadiusToSvg: (radius: number) => number;
   /** Generated folded figures (render-snapshot primitives). */
   foldedFigures: readonly OristudioCpFoldedFigureEntry[];
+  /**
+   * Figures that no longer match the creases they were folded from. Drawn faded,
+   * so an out-of-date figure looks out of date on the canvas rather than only in
+   * the folded-models list.
+   */
+  staleFoldedFigureIds?: ReadonlySet<string>;
   /** Imported `.fold` folded-form frames as fills + strokes (user coords), or null. */
   importedForms: FoldedGeometry | null;
   /** Grid parameters, or null when there is no grid. */
@@ -743,6 +755,7 @@ export function CreasePatternWebglCanvas({
   circles,
   circleRadiusToSvg,
   foldedFigures,
+  staleFoldedFigureIds,
   importedForms,
   grid,
   gridVisible,
@@ -1144,9 +1157,11 @@ export function CreasePatternWebglCanvas({
     () => ({
       strokes: buildStrokes(),
       points: buildPoints(),
-      folded: cpFoldedToScene(foldedFigures),
+      folded: cpFoldedToScene(foldedFigures, (figure) =>
+        staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1
+      ),
     }),
-    [buildStrokes, buildPoints, foldedFigures]
+    [buildStrokes, buildPoints, foldedFigures, staleFoldedFigureIds]
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global

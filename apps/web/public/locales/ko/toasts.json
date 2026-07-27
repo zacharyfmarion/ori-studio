@@ -1,5 +1,6 @@
 {
   "global": {
-    "error": "Ori Studio 오류"
+    "error": "Ori Studio 오류",
+    "folding": "접는 중…"
   }
 }

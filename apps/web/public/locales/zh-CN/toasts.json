@@ -1,5 +1,6 @@
 {
   "global": {
-    "error": "Ori Studio 错误"
+    "error": "Ori Studio 错误",
+    "folding": "正在折叠…"
   }
 }

@@ -1,5 +1,6 @@
 {
   "global": {
-    "error": "Ошибка Ori Studio"
+    "error": "Ошибка Ori Studio",
+    "folding": "Складывание…"
   }
 }

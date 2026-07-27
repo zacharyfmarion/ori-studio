@@ -313,7 +313,15 @@ export interface OristudioCpFoldedFigureSnapshot {
   model: OristudioCpFoldedFigureModel;
   estimation_step: OristudioCpEstimationStep;
   display_style: OristudioCpFoldedFigureDisplayStyle;
+  /** How many layer-ordering solutions the enumeration has found so far. */
   discovered_fold_cases: number;
+  /**
+   * 1-based index of the solution being shown. Equal to
+   * {@link discovered_fold_cases} while stepping forward; they diverge only
+   * after navigating back to an earlier case. Absent in figures saved before
+   * backwards navigation existed — see {@link foldedFigureCurrentCase}.
+   */
+  current_fold_case?: number;
   find_another_overlap_valid: boolean;
   text_result: string;
   wireframe: OristudioCpFoldedWireframe | null;
@@ -369,6 +377,19 @@ export interface FoldedFigurePlacement {
   rotation: number;
 }
 
+/**
+ * Axis-aligned rect in flat crease-pattern coordinates — a port of Oriedita's
+ * `Rectangle` as used for a folded figure's source region. Lives here rather
+ * than beside the staleness logic so the entry type can name it without the
+ * two modules importing each other.
+ */
+export interface FoldedSourceBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
 /** Identity placement: folded where the kernel put it, unscaled, unrotated. */
 export const IDENTITY_FOLDED_PLACEMENT: FoldedFigurePlacement = {
   offset: { x: 0, y: 0 },
@@ -389,6 +410,26 @@ export interface OristudioCpFoldedFigureEntry {
   renderSnapshot: OristudioCpFoldedRenderSnapshot | null;
   /** Display placement on the canvas. See {@link FoldedFigurePlacement}. */
   placement: FoldedFigurePlacement;
+  /**
+   * Bounding box of the creases this figure was folded from, in flat CP
+   * coordinates — the provenance record Oriedita keeps (`FoldedFigure_Drawer`'s
+   * `boundingBox`). Reselecting from it is how a refold finds its source, and
+   * how staleness is decided. Null for a figure folded before this was tracked.
+   * See `lib/foldedFigureStaleness.ts`.
+   */
+  sourceBounds?: FoldedSourceBounds | null;
+  /**
+   * Digest of the crease set folded, standing in for Oriedita's
+   * `LineSegmentSet.contentEquals`. Compared against a fresh reselect to decide
+   * whether the figure is out of date.
+   */
+  sourceFingerprint?: string | null;
+  /**
+   * The line ids that were folded. Not authoritative — `sourceBounds` is, so a
+   * refold picks up creases added inside the region since — but kept for
+   * diagnostics and as the seed for the first fingerprint.
+   */
+  sourceLineIds?: number[];
   error: string | null;
   /**
    * Set when the fold concluded with a global flat-foldability contradiction.

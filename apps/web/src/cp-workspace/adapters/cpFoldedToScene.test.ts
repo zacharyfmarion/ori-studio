@@ -562,3 +562,54 @@ describe('cpUserAnchorForLineIds', () => {
     expect(Number.isFinite(anchor.top)).toBe(true);
   });
 });
+
+describe('cpFoldedToScene figure opacity', () => {
+  const square = [
+    {
+      sequence: 0,
+      kind: 'fill_polygon',
+      style: { paint: solid(255, 0, 0, 255), stroke: { kind: 'none' }, antialias: 'default' },
+      geometry: {
+        kind: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+          { x: 0, y: 10 },
+        ],
+      },
+    },
+  ] as unknown as OristudioCpFoldedRenderPrimitive[];
+
+  function alphas(geo: ReturnType<typeof cpFoldedToScene>): number[] {
+    const out: number[] = [];
+    for (let i = 3; i < geo.fills.color.length; i += 4) out.push(geo.fills.color[i]);
+    return out;
+  }
+
+  it('draws figures fully opaque by default', () => {
+    const geo = cpFoldedToScene([figure(square)]);
+    expect(alphas(geo).every((a) => a === 1)).toBe(true);
+  });
+
+  it('scales only the alpha channel, leaving colour intact', () => {
+    const geo = cpFoldedToScene([figure(square)], () => 0.45);
+    expect(alphas(geo).every((a) => Math.abs(a - 0.45) < 1e-6)).toBe(true);
+    // Red stays red: fading must not desaturate a user-chosen paper colour.
+    expect(geo.fills.color[0]).toBe(1);
+    expect(geo.fills.color[1]).toBe(0);
+  });
+
+  // The cached local geometry is keyed on the render snapshot, so a naive
+  // implementation that baked opacity into it would serve the first figure's
+  // alpha to the second.
+  it('applies per-figure opacity even when two figures share a snapshot', () => {
+    const shared = figure(square);
+    const other = { ...shared, id: 'f2' };
+    const geo = cpFoldedToScene([shared, other], (f) => (f.id === 'f2' ? 0.45 : 1));
+    const values = alphas(geo);
+    const half = values.length / 2;
+    expect(values.slice(0, half).every((a) => a === 1)).toBe(true);
+    expect(values.slice(half).every((a) => Math.abs(a - 0.45) < 1e-6)).toBe(true);
+  });
+});

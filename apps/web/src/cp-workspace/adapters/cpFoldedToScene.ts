@@ -331,7 +331,17 @@ export function applyFoldedPlacementToPoint(
  * placement affine, so it is safe to run on every frame of a drag.
  */
 export function cpFoldedToScene(
-  figures: readonly OristudioCpFoldedFigureEntry[]
+  figures: readonly OristudioCpFoldedFigureEntry[],
+  /**
+   * Per-figure opacity multiplier, 0..1. Used to fade a figure that no longer
+   * matches its creases; defaults to fully opaque.
+   *
+   * Applied while copying the cached colours into the merged buffers, *not*
+   * baked into the cached local geometry — that cache is keyed on the render
+   * snapshot, so a figure changing opacity would otherwise keep serving its
+   * previous vertices.
+   */
+  figureOpacity?: (figure: OristudioCpFoldedFigureEntry) => number
 ): FoldedGeometry {
   const fillPos: number[] = [];
   const fillColor: number[] = [];
@@ -344,6 +354,7 @@ export function cpFoldedToScene(
     const snapshot = figure.renderSnapshot;
     if (!snapshot?.primitives.length) continue;
     const local = foldedFigureLocalGeometry(snapshot);
+    const opacity = figureOpacity?.(figure) ?? 1;
     const { a, b, tx, ty } = placementAffine(figure.placement, local.center);
 
     for (let i = 0; i < local.fillPos.length; i += 2) {
@@ -351,7 +362,9 @@ export function cpFoldedToScene(
       const y = local.fillPos[i + 1];
       fillPos.push(a * x - b * y + tx, b * x + a * y + ty);
     }
-    for (let i = 0; i < local.fillColor.length; i++) fillColor.push(local.fillColor[i]);
+    for (let i = 0; i < local.fillColor.length; i++) {
+      fillColor.push(i % 4 === 3 ? local.fillColor[i] * opacity : local.fillColor[i]);
+    }
 
     for (let i = 0; i < local.strokeA.length; i += 2) {
       const ax = local.strokeA[i];
@@ -361,7 +374,9 @@ export function cpFoldedToScene(
       strokeA.push(a * ax - b * ay + tx, b * ax + a * ay + ty);
       strokeB.push(a * bx - b * by + tx, b * bx + a * by + ty);
     }
-    for (let i = 0; i < local.strokeColor.length; i++) strokeColor.push(local.strokeColor[i]);
+    for (let i = 0; i < local.strokeColor.length; i++) {
+      strokeColor.push(i % 4 === 3 ? local.strokeColor[i] * opacity : local.strokeColor[i]);
+    }
     for (let i = 0; i < local.strokeWidthMul.length; i++) {
       strokeWidthMul.push(local.strokeWidthMul[i]);
     }
