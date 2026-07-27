@@ -454,7 +454,8 @@ export interface CreasePatternWebglCanvasProps {
    * - `'crease'` — CreaseToggleMv: only a crease hit routes to {@link onSelect} (the
    *   panel dispatches the flip); a click on empty space leaves the selection alone.
    * - `'erase'` — LineSegmentDelete: deletes the crease under the cursor via
-   *   {@link onEraseLine}. Mirrors Oriedita's LINE_SEGMENT_DELETE_3.
+   *   {@link onEraseLine}, or the circle ring under it via {@link onEraseCircle}.
+   *   Mirrors Oriedita's LINE_SEGMENT_DELETE_3.
    */
   activeToolClickAction: ToolClickAction | null;
   /**
@@ -596,6 +597,12 @@ export interface CreasePatternWebglCanvasProps {
   /** Right-click erase: delete the 1-based crease id under the cursor. */
   onEraseLine: (id: number) => void;
   /**
+   * Right-click erase on a circle ring: delete the 1-based circle id under the
+   * cursor. Oriedita's right-click eraser runs in `BOTH_4`, the additional-input
+   * mode that erases circles as well as creases.
+   */
+  onEraseCircle: (id: number) => void;
+  /**
    * Open a context menu for what a right-*click* (press + release without a drag)
    * landed on. Right-*drag* remains the erase gesture and never calls this. The
    * canvas resolves the target; the panel decides what menu to show.
@@ -691,6 +698,7 @@ export function CreasePatternWebglCanvas({
   onViewChange,
   onEraseBox,
   onEraseLine,
+  onEraseCircle,
   onRequestContextMenu,
   mode,
   lineWidth,
@@ -1027,6 +1035,7 @@ export function CreasePatternWebglCanvas({
     onViewChange,
     onEraseBox,
     onEraseLine,
+    onEraseCircle,
     onRequestContextMenu,
     diagnosticHits,
     onSelectDiagnostic,
@@ -1292,6 +1301,13 @@ export function CreasePatternWebglCanvas({
         }
       }
       return null;
+    };
+
+    // Erase whatever a click landed on. Creases and circles are both erasable;
+    // points are not, matching Oriedita's `deleteSingleLineOrCircle`.
+    const eraseHit = (hit: CpSelectHit | null) => {
+      if (hit?.kind === 'line') liveRef.current.onEraseLine(hit.id);
+      else if (hit?.kind === 'circle') liveRef.current.onEraseCircle(hit.id);
     };
 
     // Transient marquee rectangle rendered as a plain DOM overlay.
@@ -2268,9 +2284,8 @@ export function CreasePatternWebglCanvas({
               // Right-drag: erase every crease inside the box.
               liveRef.current.onEraseBox(out.commit.points ?? []);
             } else {
-              // Right-click (degenerate box): erase the crease under the cursor.
-              const hit = hitTest(e.clientX, e.clientY);
-              if (hit && hit.kind === 'line') liveRef.current.onEraseLine(hit.id);
+              // Right-click (degenerate box): erase the primitive under the cursor.
+              eraseHit(hitTest(e.clientX, e.clientY));
             }
           }
         }
@@ -2287,7 +2302,7 @@ export function CreasePatternWebglCanvas({
           feedTool('cancel', e.clientX, e.clientY);
           const hit = hitTest(e.clientX, e.clientY);
           if (clickAction === 'erase') {
-            if (hit && hit.kind === 'line') liveRef.current.onEraseLine(hit.id);
+            eraseHit(hit);
           } else if (clickAction === 'select' || hit?.kind === 'line') {
             liveRef.current.onSelect(hit, e.shiftKey);
           }
