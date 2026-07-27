@@ -111,7 +111,11 @@ import {
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
-import type { CameraCommand, CpOverlayView } from '../../cp-workspace/CreasePatternWebglCanvas';
+import type {
+  CameraCommand,
+  CpOverlayView,
+  StepKind,
+} from '../../cp-workspace/CreasePatternWebglCanvas';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
 import { flipFoldedState } from '../../cp-workspace/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
@@ -1994,6 +1998,12 @@ export function CreasePatternPanel() {
       ? { minX: bounds.minX, minY: bounds.minY, maxX: bounds.maxX, maxY: bounds.maxY }
       : null;
   }, [activeDiagnosticEntry]);
+  // The `selection_distance` every tool command carries, exposed to the canvas so a
+  // destination pick is gated on the same radius the kernel searches.
+  const cpToolSelectionDistance = useMemo(
+    () => modelSelectionDistance(editableCpBounds, zoomPercent / 100),
+    [editableCpBounds, zoomPercent]
+  );
   const buildCpCommandPayload = useCallback(
     (
       command: OristudioCpCommandDefinition,
@@ -2516,7 +2526,7 @@ export function CreasePatternPanel() {
       | 'angle-drag'
       | 'text'
       | null;
-    stepKinds: ('point' | 'crease' | 'candidate')[];
+    stepKinds: StepKind[];
     lineCount: number;
     dualMirror: boolean;
     converging: boolean;
@@ -2525,7 +2535,7 @@ export function CreasePatternPanel() {
   }>(() => {
     const idle = {
       mode: null,
-      stepKinds: [] as ('point' | 'crease' | 'candidate')[],
+      stepKinds: [] as StepKind[],
       lineCount: 0,
       dualMirror: false,
       converging: false,
@@ -3409,6 +3419,7 @@ export function CreasePatternPanel() {
                   resolveMoveSnap={resolveEditableMoveSnap}
                   activeToolInputMode={webglActiveTool.mode}
                   activeToolStepKinds={webglActiveTool.stepKinds}
+                  activeToolSelectionDistance={cpToolSelectionDistance}
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolDualMirror={webglActiveTool.dualMirror}
                   activeToolConverging={webglActiveTool.converging}

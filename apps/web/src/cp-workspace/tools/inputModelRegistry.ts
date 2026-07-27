@@ -38,11 +38,16 @@ export type CpInputModel =
   | 'select-apply'; // no canvas interaction; operates on the selection via Apply
 
 /**
- * Per-step snap mode for point/axis tools. Mirrors the canvas `StepKind`:
- * `point` → free grid/vertex snap, `crease` → onto an existing crease, `candidate`
- * → onto the nearest kernel-previewed candidate ray (flat-foldable middle step).
+ * Per-step snap mode for point/axis tools. The canvas `StepKind` is this type:
+ * `point` → free grid/vertex snap; `crease` → onto an existing crease when one is
+ * near, else the raw point (a step the kernel is happy to resolve from free
+ * geometry, e.g. FoldableLineDraw's "draw anywhere to free draw"); `crease-required`
+ * → the same snap, but a pick with no crease inside the kernel's selection distance
+ * is *ignored* rather than committed, because the kernel would reject it (Oriedita's
+ * "select a destination line" steps simply stay on the step); `candidate` → onto the
+ * nearest kernel-previewed candidate ray (flat-foldable middle step).
  */
-export type CpStepSnap = 'point' | 'crease' | 'candidate';
+export type CpStepSnap = 'point' | 'crease' | 'crease-required' | 'candidate';
 
 export interface CpInputModelEntry {
   model: CpInputModel;
@@ -109,7 +114,11 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   SymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
   UnselectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   VertexDeleteOnCrease: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
-  VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'candidate', 'crease'] },
+  // Flat Foldable Line: vertex → one of the previewed candidate rays → the existing
+  // crease to extend to. That last step is `crease-required`: the kernel resolves the
+  // destination with `nearest_line_segment`, which errors when nothing is in range,
+  // and upstream's `release_select_destination` ignores such a click outright.
+  VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'candidate', 'crease-required'] },
 
   // LENGTHEN — drag a selection line across the crease(s) to extend (a click is the
   // degenerate nearest-crease fallback), then click the target line to extend to.
