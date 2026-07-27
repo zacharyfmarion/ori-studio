@@ -85,6 +85,19 @@ export interface SimulatorViewportProps {
   interactive: boolean;
   /** True when the worker owns this canvas and draws on the GPU. */
   gpuActive: boolean;
+  /**
+   * Present frames handed back as ImageBitmaps rather than drawn by the worker
+   * into this canvas. The canvas then takes a `bitmaprenderer` context, which is
+   * not a WebGL context — the property that lets many simulations share one.
+   */
+  bitmapPresent?: boolean;
+  /**
+   * Floor on the drawing-buffer edge, in device pixels. The panel keeps a large
+   * floor so a narrow pane still renders a usable image; an inline window is
+   * deliberately small and would otherwise over-render by several times its own
+   * area.
+   */
+  minDeviceSize?: number;
   viewSettings: SimulatorViewSettings;
   /** Creases/faces a sequence step is emphasising. CPU path only. */
   highlights?: SimulatorHighlights;
@@ -103,6 +116,8 @@ export function SimulatorViewport({
   canvasKey,
   interactive,
   gpuActive,
+  bitmapPresent = false,
+  minDeviceSize = 360,
   viewSettings,
   highlights = EMPTY_HIGHLIGHTS,
   pushCamera,
@@ -129,13 +144,33 @@ export function SimulatorViewport({
   const highlightsRef = useRef(highlights);
   const interactiveRef = useRef(interactive);
 
+  // The bitmaprenderer context, acquired once per canvas element. Acquiring it
+  // is exclusive — a canvas that has one can never take a 2D or WebGL context —
+  // so it is only taken when the caller has asked for bitmap presentation.
+  const bitmapContextRef = useRef<ImageBitmapRenderingContext | null>(null);
+
   const setCanvas = useCallback(
     (element: HTMLCanvasElement | null) => {
       canvasRef.current = element;
+      bitmapContextRef.current =
+        element && bitmapPresent ? element.getContext('bitmaprenderer') : null;
       onCanvasChange(element);
     },
-    [onCanvasChange]
+    [onCanvasChange, bitmapPresent]
   );
+
+  /**
+   * Present a rendered frame. Ownership of the bitmap transfers to the canvas,
+   * so it must not be retained or closed afterwards.
+   */
+  const presentBitmap = useCallback((bitmap: ImageBitmap) => {
+    const context = bitmapContextRef.current;
+    if (!context) {
+      bitmap.close();
+      return;
+    }
+    context.transferFromImageBitmap(bitmap);
+  }, []);
 
   // In GPU mode the worker owns the canvas and draws; this no-ops. In CPU mode
   // it rasterises the latest frame on this thread.
@@ -164,10 +199,10 @@ export function SimulatorViewport({
     const rect = canvas?.getBoundingClientRect();
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     return {
-      width: Math.max(360, Math.floor((rect?.width || 720) * dpr)),
-      height: Math.max(360, Math.floor((rect?.height || 720) * dpr)),
+      width: Math.max(minDeviceSize, Math.floor((rect?.width || 720) * dpr)),
+      height: Math.max(minDeviceSize, Math.floor((rect?.height || 720) * dpr)),
     };
-  }, []);
+  }, [minDeviceSize]);
 
   /**
    * Apply the current orbit view: forward it to the worker (GPU) or redraw here
@@ -276,7 +311,8 @@ export function SimulatorViewport({
       zoomBy,
       showFrame: (frame: SimulatorFrameView) => {
         frameRef.current = frame;
-        drawCurrentFrame();
+        if (frame.bitmap) presentBitmap(frame.bitmap);
+        else drawCurrentFrame();
       },
       setModel: (model: SimulatorRenderModel | null) => {
         modelRef.current = model;
@@ -284,7 +320,7 @@ export function SimulatorViewport({
         drawCurrentFrame();
       },
     }),
-    [resetView, zoomBy, drawCurrentFrame]
+    [resetView, zoomBy, drawCurrentFrame, presentBitmap]
   );
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {

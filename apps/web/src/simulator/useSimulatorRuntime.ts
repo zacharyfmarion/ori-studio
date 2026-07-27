@@ -33,6 +33,12 @@ export type SimulatorStatus = 'idle' | 'loading' | 'ready' | 'error';
 export interface SimulatorFrameView {
   /** Null in GPU-render mode: the worker already drew, nothing to draw here. */
   positions: Float32Array | null;
+  /**
+   * The rendered frame, when the worker is in bitmap-present mode. The consumer
+   * hands it to a `bitmaprenderer` canvas. Null when the worker drew straight to
+   * a transferred canvas, or in the CPU path.
+   */
+  bitmap: ImageBitmap | null;
   step: number;
   stepsThisTick: number;
   /** Solver ms spent in the worker for this tick. */
@@ -101,6 +107,16 @@ export interface UseSimulatorRuntimeOptions {
   canvas?: HTMLCanvasElement | null;
   /** Whether the GPU render path may be used for this source (no fold profile / Verlet). */
   allowGpuRender?: boolean;
+  /**
+   * Present frames as ImageBitmaps from a worker-private canvas, instead of
+   * transferring this canvas to the worker.
+   *
+   * This is how several simulations share one GL context: the receiving canvas
+   * takes a `bitmaprenderer` context, which does not count against the four
+   * WebGL contexts a worker gets, so the cap stops being a limit on how many
+   * simulations can be open. Costs one bitmap transfer per frame.
+   */
+  bitmapOutput?: { width: number; height: number } | null;
   /** Called on the main thread whenever a new frame is available. */
   onFrame?: (frame: SimulatorFrameView) => void;
 }
@@ -132,6 +148,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     triangulate = true,
     canvas = null,
     allowGpuRender = true,
+    bitmapOutput = null,
     onFrame,
   } = options;
 
@@ -156,6 +173,22 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   const playingRef = useRef(false);
   const recycledRef = useRef<ArrayBuffer | undefined>(undefined);
   const generationRef = useRef(0);
+  // The worker session this runtime loaded. Quoted on every later call, so that
+  // when another consumer loads its own model in between, this runtime's replies
+  // are dropped in the worker instead of arriving with the wrong geometry.
+  const tokenRef = useRef<number | undefined>(undefined);
+  // A camera or settings redraw produces a new image but no new solver state, so
+  // it reuses the last frame's scalars rather than inventing zeros — which would
+  // make the readouts flicker every time the user orbits.
+  const lastScalarsRef = useRef<Omit<SimulatorFrameView, 'bitmap'>>({
+    positions: null,
+    step: 0,
+    stepsThisTick: 0,
+    elapsedMs: 0,
+    converged: true,
+    foldPercent: 0,
+    maxStrain: 0,
+  });
   // Kept in a ref so the play loop does not have to tear down and rebuild every
   // time the caller passes a new closure. Assigned in an effect rather than
   // during render, which is a real hazard: a ref written during render can be
@@ -178,12 +211,16 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   }, []);
 
   const publish = useCallback((payload: Awaited<ReturnType<SimulatorClient['tick']>>) => {
+    // Null means this call quoted a session that has since been replaced — the
+    // ordinary outcome of focus moving to another simulation, not an error.
+    if (!payload) return;
     // GPU-render mode: the worker already drew to the canvas and sent no
     // positions. Still surface the scalars (step, strain, fold percent) so the
     // readouts update; positions are null and there is nothing to draw here.
     const positions = payload.positions ? new Float32Array(payload.positions) : null;
     onFrameRef.current?.({
       positions,
+      bitmap: payload.bitmap,
       step: payload.step,
       stepsThisTick: payload.stepsThisTick,
       elapsedMs: payload.elapsedMs,
@@ -192,6 +229,15 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       maxStrain: payload.maxStrain,
     });
     convergedRef.current = payload.converged;
+    lastScalarsRef.current = {
+      positions: null,
+      step: payload.step,
+      stepsThisTick: payload.stepsThisTick,
+      elapsedMs: payload.elapsedMs,
+      converged: payload.converged,
+      foldPercent: payload.foldPercent,
+      maxStrain: payload.maxStrain,
+    };
     // Give the buffer straight back to the worker on the next request so the
     // steady-state CPU loop allocates nothing. (Null in GPU mode.)
     recycledRef.current = payload.positions ?? undefined;
@@ -216,7 +262,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     // canvas but the worker falls back to positions, which the panel then cannot
     // draw -- so the panel swaps the canvas element (React key) when the desired
     // path changes, giving a fresh untransferred one.
-    const wantsGpu = Boolean(canvas && allowGpuRender && webglRenderSupported());
+    const wantsGpu = Boolean(
+      (canvas || bitmapOutput) && allowGpuRender && webglRenderSupported()
+    );
 
     void (async () => {
       try {
@@ -224,7 +272,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
         const client = clientRef.current;
         if (!client) return;
 
-        if (wantsGpu && canvas && transferredCanvasRef.current !== canvas) {
+        if (wantsGpu && bitmapOutput) {
+          await client.attachBitmapOutput(bitmapOutput.width, bitmapOutput.height);
+        } else if (wantsGpu && canvas && transferredCanvasRef.current !== canvas) {
           const offscreen = canvas.transferControlToOffscreen();
           await client.attachCanvas(transfer(offscreen, [offscreen]));
           transferredCanvasRef.current = canvas;
@@ -236,6 +286,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           preferGpu: wantsGpu,
         });
         if (cancelled || generation !== generationRef.current) return;
+        tokenRef.current = info.token;
 
         const gpu = info.backend === 'webgl2' && wantsGpu;
         gpuActiveRef.current = gpu;
@@ -253,7 +304,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
         // flash a flat sheet. Bounded deliberately: at foldPercent 0 this
         // converges within a few dozen steps, and an unbounded settle would tie
         // the worker up for seconds on a model that oscillates above epsilon.
-        const first = await client.settle(2000, {});
+        const first = await client.settle(2000, { token: tokenRef.current });
         if (cancelled || generation !== generationRef.current) return;
         publish(first);
       } catch (cause) {
@@ -267,7 +318,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fold, foldProfile, triangulate, canvas, allowGpuRender, publish]);
+  }, [fold, foldProfile, triangulate, canvas, allowGpuRender, bitmapOutput, publish]);
 
   useEffect(() => {
     playingRef.current = playing;
@@ -295,7 +346,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       recycledRef.current = undefined;
       const dispatched = performance.now();
       void client
-        .tick(recycled ? { recycled } : {})
+        .tick(recycled ? { recycled, token: tokenRef.current } : { token: tokenRef.current })
         .then((payload) => {
           // Round-trip: dispatch -> worker tick -> reply. If the solver loop is
           // slow because the worker tick is slow (e.g. a GPU pipeline stall),
@@ -338,7 +389,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
 
   const setFoldPercent = useCallback(
     (percent: number) => {
-      retarget((client) => client.setFoldPercent(percent));
+      retarget((client) => client.setFoldPercent(percent, tokenRef.current));
     },
     [retarget]
   );
@@ -358,7 +409,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
 
   const setMaterial = useCallback(
     (materialOptions: Partial<SimulatorOptions>) => {
-      retarget((client) => client.setMaterial(materialOptions));
+      retarget((client) => client.setMaterial(materialOptions, tokenRef.current));
     },
     [retarget]
   );
@@ -366,8 +417,8 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   const reset = useCallback(() => {
     setPlaying(false);
     retarget(async (client) => {
-      await client.reset();
-      await client.setFoldPercent(0);
+      await client.reset(tokenRef.current);
+      await client.setFoldPercent(0, tokenRef.current);
     });
   }, [retarget]);
 
@@ -381,14 +432,26 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     // (comlink proxy + structured clone). If orbit lag lives on the main thread,
     // it shows up here.
     const started = performance.now();
-    void clientRef.current?.setCamera({ view, width, height }).catch(() => undefined);
+    void clientRef.current
+      ?.setCamera({ view, width, height }, tokenRef.current)
+      .then((bitmap) => {
+        // Bitmap-present mode: an orbit redraw comes back as a frame, and the
+        // consumer has to be handed it or the view would not move.
+        if (bitmap) onFrameRef.current?.({ ...lastScalarsRef.current, bitmap });
+      })
+      .catch(() => undefined);
     cameraDispatchTotal += performance.now() - started;
     cameraDispatchCount += 1;
   }, []);
 
   const setRenderSettings = useCallback((settings: RenderSettings) => {
     if (!gpuActiveRef.current) return;
-    void clientRef.current?.setRenderSettings(settings).catch(() => undefined);
+    void clientRef.current
+      ?.setRenderSettings(settings, tokenRef.current)
+      .then((bitmap) => {
+        if (bitmap) onFrameRef.current?.({ ...lastScalarsRef.current, bitmap });
+      })
+      .catch(() => undefined);
   }, []);
 
   // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then
