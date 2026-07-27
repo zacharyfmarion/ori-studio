@@ -4,6 +4,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Palette, Pause, Play, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
+import { Slider } from '../components/ui/Slider';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
 import type { SimulatorSettings } from '../lib/simulatorSettings';
@@ -137,15 +138,14 @@ export function InlineSimulationInspector({
       >
         {playing ? <Pause size={14} /> : <Play size={14} />}
       </IconButton>
-      <input
+      <Slider
         className="cp-inline-simulation-inspector__scrub"
-        type="range"
         min={0}
         max={100}
         step={1}
         value={simulation.foldPercent}
         aria-label={t('panels:creasePattern.inlineSimulation.fold', 'Fold')}
-        onChange={(event) => onScrub(Number(event.target.value))}
+        onChange={onScrub}
       />
       <span className="cp-inline-simulation-inspector__readout">
         {Math.round(simulation.foldPercent)}%
