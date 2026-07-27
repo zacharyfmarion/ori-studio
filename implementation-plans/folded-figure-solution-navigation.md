@@ -77,19 +77,21 @@ UI alone.
 
 ### Phase 1 — Make discovered solutions addressable (Rust)
 
-1. `FoldingEstimateSession` grows `discovered: Vec<WorkerOverlapSearch>`, pushed
-   in `run_folding_estimated_05` whenever `overlap.found`.
+1. `FoldingEstimateSession` grows a **bounded** cache of discovered solutions
+   (see "Memory" below — not a plain `Vec` that grows forever), populated in
+   `run_folding_estimated_05` whenever `overlap.found`.
 2. Split the counter on `FoldingEstimate`:
    - `discovered_fold_cases` — how many have been found (unchanged meaning).
    - `current_fold_case` — 1-based index of the one being shown (new).
    Every existing read of `discovered_fold_cases`-as-current moves to
    `current_fold_case`.
-3. `folding_estimate_to_case(objective)`:
-   - `objective <= discovered.len()` → restore `estimate.overlap` from the cache,
-     set `current_fold_case`, return. No search.
-   - `objective > discovered.len()` → enumerate forward as today, appending.
-4. `fold_another` at the end of the enumeration wraps to case 1 via the same
-   restore path (instant, no re-fold).
+3. `folding_estimate_to_case(objective)` gains three paths, in cost order:
+   - **cached** → restore `estimate.overlap`, set `current_fold_case`, return.
+   - **ahead of the frontier** → enumerate forward as today, caching as it goes.
+   - **behind the frontier but evicted** → restart the session and fast-forward.
+     Slow, rare, and the reason the cache can never be load-bearing.
+4. `fold_another` at the end of the enumeration wraps to case 1, which is pinned
+   in the cache, so the wrap is instant and never triggers a replay.
 5. Tests: sequence of solutions is byte-identical to today for a
    forward-only walk; going back to case N re-renders the same snapshot that
    case N produced on the way out; wrap returns to case 1. Run the Oriedita
@@ -98,11 +100,55 @@ UI alone.
    plus the reason (upstream cannot navigate backwards; we can, and the data
    costs nothing to keep).
 
-**Memory.** One `InitialHierarchy` per discovered case. Fine for the tens of
-cases a person steps through; a pattern with thousands of solutions that someone
-enumerates exhaustively is the case to watch. Measure a hierarchy's real size on
-a dense CP before deciding whether a cap is needed; if it is, cap the cache and
-fall back to restart-and-fast-forward for evicted cases (correct, just slower).
+### Memory: the cache must be bounded, and must never be load-bearing
+
+Measured on `tests/fixtures/oriedita/solution_sample_1.cp` (21 faces, 15
+solutions): a solution's `InitialHierarchy` holds **76 relations ≈ 1.2 KB**, at
+roughly 36% of the maximum `F(F−1)/2` pair density. Note the *dense*
+`faces_total²` `HierarchyTable` is an internal working structure built per
+search — it is not what a solution carries — so the per-solution cost is the
+sparse relation list. Extrapolating that density at 16 bytes per relation:
+
+| Faces | Relations | Bytes/solution |
+| --- | --- | --- |
+| 21 (measured) | 76 | 1.2 KB |
+| 100 | ~1,800 | ~29 KB |
+| 1,000 | ~180,000 | ~2.9 MB |
+| 2,000 | ~720,000 | ~11.5 MB |
+
+Per-solution cost is O(F²), and solution *count* is combinatorial — a pattern
+with many independent flaps has effectively unbounded valid orderings. That is
+exactly why the enumerator is a lazy stream, and caching it wholesale would
+throw away the property that makes it viable. **An unbounded cache is not an
+option.**
+
+So the design has one load-bearing invariant:
+
+> **The cache is a pure optimization. Navigation must be correct without it.**
+
+Reaching case N is always expressible as *restart the session and enumerate
+forward N times* — deterministic, since the enumeration order is fixed. The
+cache only decides whether that is instant or slow, never whether it works. That
+frees us to evict on any policy we like without risking correctness, and it is
+what keeps a 2,000-face pattern from being a memory hazard.
+
+Concretely:
+
+- Bound the cache **per figure** (a document can hold many figures), with a
+  small cap — on the order of 32–64 recent solutions.
+- **Always pin case 1.** It is one entry, it makes the wrap-around instant, and
+  it is the most likely destination.
+- Evict least-recently-visited; on a miss, restart-and-fast-forward.
+- Consider a byte budget rather than an entry count, since entry size varies by
+  three orders of magnitude across patterns. A count-based cap sized for a
+  21-face model is 32 KB; the same cap on a 2,000-face model is 350 MB.
+
+Phase 1 must **measure the replay cost** (session restart plus N searches) on a
+dense pattern before settling the cap — if replay is cheap, the cache can be
+small; if it is expensive, checkpointing every M cases bounds the fast-forward
+to M steps. Related history: folding a large CP was a multi-minute operation
+before the Italiano incremental-closure port, so restart cost is not assumed
+negligible.
 
 ### Phase 2 — Case navigation UI (web)
 
@@ -157,8 +203,13 @@ unnecessary.
 
 - **Parity.** The whole argument rests on the enumeration being untouched. The
   oracle test is the gate; if memoizing perturbs the search in any way, stop.
-- **Hierarchy size.** Unmeasured. Phase 1 measures before committing to an
-  unbounded cache.
+- **Memory.** Measured at ~1.2 KB/solution for 21 faces but O(F²) — ~2.9 MB at
+  1,000 faces — against a combinatorial solution count. Handled by bounding the
+  cache and keeping it non-load-bearing; the residual risk is a count-based cap
+  that is far too generous for a dense pattern, which a byte budget avoids.
+- **Replay cost.** A cache miss restarts the fold. Unmeasured, and folding a
+  large CP was historically expensive; Phase 1 measures it, and checkpointing
+  bounds it if needed.
 - **`.osf` compatibility.** The counter split changes the meaning of a persisted
   field's neighbours; the loader must default `current_fold_case` rather than
   assume it.
