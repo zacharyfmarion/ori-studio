@@ -57,6 +57,8 @@ import { useWorkspaceCapabilities } from "../../store/workspaceStore/useWorkspac
 import { IconButton } from "../ui/IconButton";
 import { SegmentedControl } from "../ui/SegmentedControl";
 import { NextDocumentAction } from "./NextDocumentAction";
+// Registers `__simCapabilityProbe()` in dev builds; no-op in production.
+import "../../simulator/capabilityProbe";
 
 type LoadState = "idle" | "loading" | "ready" | "empty" | "error";
 
