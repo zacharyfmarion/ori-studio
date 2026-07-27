@@ -43,8 +43,6 @@ import {
   CP_MEASURE_UNITS,
   copyTextForCpMeasurement,
   cpMeasureKindForOperation,
-  cpMeasurePointCount,
-  isCpMeasurementOperation,
   cpMeasureUnitIsPhysical,
   exactCpLengthLabel,
   formatCpMeasurement,
@@ -137,7 +135,6 @@ export function CpContextToolPanel({
   setOptions,
   activeLineColor,
   measurements,
-  measurePicked,
   onHoverMeasurement,
   measureUnit,
   measureAngleUnit,
@@ -156,8 +153,6 @@ export function CpContextToolPanel({
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
   activeLineColor: OristudioCpLineColor;
   measurements: readonly CpMeasurement[];
-  /** Points placed so far in the in-progress measure pick. */
-  measurePicked: number;
   /** Highlight a session measurement on the canvas while its row is hovered. */
   onHoverMeasurement: (index: number | null) => void;
   measureUnit: CpMeasureUnit;
@@ -174,12 +169,7 @@ export function CpContextToolPanel({
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const groups = cpToolSettingGroupsForCommand(command);
-  // The measure tools carry no panel prose: the step prompt already sits in the
-  // status bar, the readout says how many points are left, and the value speaks for
-  // itself. Anything more is noise stacked above the number you came to read.
-  const instructions = isCpMeasurementOperation(command.operationId)
-    ? null
-    : cpToolInstructions(t, action, command);
+  const instructions = cpToolInstructions(t, action, command);
   const applyDisabled = contextApplyDisabledForCommand(command, selection, pendingPointCount);
   const title = action?.kind === 'command' ? cpActionLabel(t, action) : command.label;
   const meta =
@@ -220,7 +210,6 @@ export function CpContextToolPanel({
               activeLineColor={activeLineColor}
               activeOperationId={command.operationId}
               measurements={measurements}
-              measurePicked={measurePicked}
               onHoverMeasurement={onHoverMeasurement}
               measureUnit={measureUnit}
               measureAngleUnit={measureAngleUnit}
@@ -320,7 +309,6 @@ function CpContextToolGroup({
   activeLineColor,
   activeOperationId,
   measurements,
-  measurePicked,
   onHoverMeasurement,
   measureUnit,
   measureAngleUnit,
@@ -337,7 +325,6 @@ function CpContextToolGroup({
   activeLineColor: OristudioCpLineColor;
   activeOperationId: OristudioCpCommandDefinition['operationId'];
   measurements: readonly CpMeasurement[];
-  measurePicked: number;
   onHoverMeasurement: (index: number | null) => void;
   measureUnit: CpMeasureUnit;
   measureAngleUnit: CpAngleUnit;
@@ -644,7 +631,6 @@ function CpContextToolGroup({
     // Which measure tool is active decides the kind — Measure Length and Measure
     // Angle are separate tools, so there is nothing to choose here.
     const kind = cpMeasureKindForOperation(activeOperationId) ?? 'distance';
-    const remaining = cpMeasurePointCount(kind) - measurePicked;
     // Newest first: the reading just taken is the one being read, and older ones
     // stay available for comparison until the tool is left.
     const rows = measurements.map((entry, index) => ({ entry, index })).reverse();
@@ -756,13 +742,6 @@ function CpContextToolGroup({
             )}
           </>
         )}
-        <div className="cp-context-panel__readout">
-          {remaining > 0
-            ? remaining === 1
-              ? t('tools:cpContext.measurePointsLeftOne', '{{count}} more point', { count: remaining })
-              : t('tools:cpContext.measurePointsLeftOther', '{{count}} more points', { count: remaining })
-            : t('tools:cpContext.measureRepeat', 'Pick again to measure another')}
-        </div>
         {rows.length > 0 && (
           <div className="cp-context-panel__readout">
             {t('tools:cpContext.measureClearHint', 'Backspace removes the last, Escape clears all')}

@@ -3855,7 +3855,6 @@ export function CreasePatternPanel() {
                     setOptions={setCpToolOptions}
                     activeLineColor={activeCpLineColor}
                     measurements={cpMeasurements}
-                    measurePicked={cpMeasurePicked}
                     onHoverMeasurement={setCpHoveredMeasureIndex}
                     measureUnit={cpMeasurePreferences.unit}
                     measureAngleUnit={cpMeasurePreferences.angleUnit}
