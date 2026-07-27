@@ -1825,7 +1825,8 @@
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
     "dialogs:export.titlePlaceholder": "59be71333c96",
-    "tools:viewport.rotation": "a291dceb8de5"
+    "tools:viewport.rotation": "a291dceb8de5",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3653,7 +3654,8 @@
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
     "dialogs:export.titlePlaceholder": "59be71333c96",
-    "tools:viewport.rotation": "a291dceb8de5"
+    "tools:viewport.rotation": "a291dceb8de5",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5507,7 +5509,8 @@
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
     "dialogs:export.titlePlaceholder": "59be71333c96",
-    "tools:viewport.rotation": "a291dceb8de5"
+    "tools:viewport.rotation": "a291dceb8de5",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7361,7 +7364,8 @@
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
     "dialogs:export.titlePlaceholder": "59be71333c96",
-    "tools:viewport.rotation": "a291dceb8de5"
+    "tools:viewport.rotation": "a291dceb8de5",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9215,7 +9219,8 @@
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
     "dialogs:export.titlePlaceholder": "59be71333c96",
-    "tools:viewport.rotation": "a291dceb8de5"
+    "tools:viewport.rotation": "a291dceb8de5",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11069,7 +11074,8 @@
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
     "dialogs:export.titlePlaceholder": "59be71333c96",
-    "tools:viewport.rotation": "a291dceb8de5"
+    "tools:viewport.rotation": "a291dceb8de5",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12923,7 +12929,8 @@
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
     "dialogs:export.titlePlaceholder": "59be71333c96",
-    "tools:viewport.rotation": "a291dceb8de5"
+    "tools:viewport.rotation": "a291dceb8de5",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14751,6 +14758,7 @@
     "dialogs:export.themeLight": "dbcd5e7bb7a0",
     "dialogs:export.title": "7e8cd2056da7",
     "dialogs:export.titlePlaceholder": "59be71333c96",
-    "tools:viewport.rotation": "a291dceb8de5"
+    "tools:viewport.rotation": "a291dceb8de5",
+    "common:capability.deleteSelectedCpCircles": "f17eea70508a"
   }
 }

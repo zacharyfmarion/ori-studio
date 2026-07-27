@@ -132,8 +132,8 @@
     "panWithShortcut": "Desplazar ({{shortcut}}): o mantén {{modifier}} y arrastra",
     "rotateCcw": "Girar vista a la izquierda",
     "rotateCw": "Girar vista a la derecha",
+    "rotation": "Rotación de la vista en grados",
     "zoomIn": "Acercar",
-    "zoomOut": "Alejar",
-    "rotation": "Rotación de la vista en grados"
+    "zoomOut": "Alejar"
   }
 }

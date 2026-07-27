@@ -124,8 +124,8 @@
     "panWithShortcut": "Schwenken ({{shortcut}}) – oder {{modifier}} halten und ziehen",
     "rotateCcw": "Ansicht nach links drehen",
     "rotateCw": "Ansicht nach rechts drehen",
+    "rotation": "Ansichtsdrehung in Grad",
     "zoomIn": "Vergrößern",
-    "zoomOut": "Verkleinern",
-    "rotation": "Ansichtsdrehung in Grad"
+    "zoomOut": "Verkleinern"
   }
 }

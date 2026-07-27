@@ -132,8 +132,8 @@
     "panWithShortcut": "Panoramique ({{shortcut}}) — ou maintenez {{modifier}} et faites glisser",
     "rotateCcw": "Pivoter la vue à gauche",
     "rotateCw": "Pivoter la vue à droite",
+    "rotation": "Rotation de la vue en degrés",
     "zoomIn": "Zoom avant",
-    "zoomOut": "Zoom arrière",
-    "rotation": "Rotation de la vue en degrés"
+    "zoomOut": "Zoom arrière"
   }
 }
