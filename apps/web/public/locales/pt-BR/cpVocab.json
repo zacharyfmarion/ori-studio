@@ -93,7 +93,8 @@
       "tooltip": "Arraste um vinco usando o tipo de linha atual",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste a extremidade do vinco"
+        "0": "Clique ou arraste para definir o início do vinco",
+        "1": "Clique para definir o fim do vinco"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "Desenhar vinco restrito",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste entre pontos existentes"
+        "0": "Clique ou arraste a partir de um ponto existente",
+        "1": "Clique em outro ponto existente"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "Dividir a linha por quantidade",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste para desenhar uma linha a dividir"
+        "0": "Clique ou arraste para iniciar a linha a dividir",
+        "1": "Clique para terminar a linha"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "Dividir a linha por proporção",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste para desenhar uma linha a dividir"
+        "0": "Clique ou arraste para iniciar a linha a dividir",
+        "1": "Clique para terminar a linha"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "Atribuir dobras alternadas de montanha e vale ao longo de uma linha-guia",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste uma linha-guia ao longo dos vincos"
+        "0": "Clique ou arraste para iniciar a linha-guia",
+        "1": "Clique para terminar a linha-guia"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "Atribuir dobras alternadas de montanha e vale aos cruzamentos ao longo de uma linha-guia",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste uma linha-guia através dos cruzamentos"
+        "0": "Clique ou arraste para iniciar a linha-guia",
+        "1": "Clique para terminar a linha-guia"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -972,7 +978,8 @@
       "tooltip": "Desenhar uma linha auxiliar do Oriedita",
       "disabledReason": "O modo de inserção de linha auxiliar ainda não foi implementado no núcleo de CP",
       "steps": {
-        "0": "Arraste a extremidade do vinco"
+        "0": "Clique ou arraste para definir o início do vinco",
+        "1": "Clique para definir o fim do vinco"
       }
     }
   },

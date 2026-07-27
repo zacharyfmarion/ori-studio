@@ -887,15 +887,9 @@ function FoldedFigureMenuButton({
               aria-label={t('panels:creasePattern.showFoldedModelShadow', 'Show folded model shadow')}
             />
           </div>
-          <div className="folded-figure-menu__toggle-row">
-            <span>{t('panels:creasePattern.colorAlpha', 'Color alpha')}</span>
-            <Toggle
-              checked={model?.transparency_color ?? false}
-              disabled={!activeReady}
-              onChange={(transparency_color) => onModelUpdate({ transparency_color })}
-              aria-label={t('panels:creasePattern.useColoredFoldedTransparency', 'Use colored folded transparency')}
-            />
-          </div>
+          {/* No Color alpha toggle: it only reaches the Transparent display
+              style, and transparency is not a supported surface right now. The
+              model keeps `transparency_color` so Oriedita files round-trip. */}
           <div className="folded-figure-menu__actions">
             <IconButton
               size="sm"
@@ -3606,6 +3600,7 @@ export function CreasePatternPanel() {
                   }}
                   resolveMoveSnap={resolveEditableMoveSnap}
                   activeToolInputMode={webglActiveTool.mode}
+                  activeToolOperationId={activeCpCommand?.operationId ?? null}
                   activeToolStepKinds={webglActiveTool.stepKinds}
                   activeToolSelectionDistance={cpToolSelectionDistance}
                   activeToolLineCount={webglActiveTool.lineCount}

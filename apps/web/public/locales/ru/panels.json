@@ -165,7 +165,6 @@
     "changeFoldedColor": "Изменить цвет сложенной модели",
     "changeFoldedDisplayStyle": "Изменить стиль отображения сложенной формы",
     "changeFoldedModel": "Изменить сложенную модель",
-    "colorAlpha": "Альфа цвета",
     "commandFailed": "Команда не выполнена",
     "couldNotOpenForEditing": "Этот паттерн складок не удалось открыть для редактирования.",
     "cropImage": "Обрезать изображение",
@@ -288,7 +287,6 @@
     "stale": "Устарело",
     "start": "Старт",
     "startingFace": "Начальная грань",
-    "useColoredFoldedTransparency": "Использовать цветную прозрачность сложенной модели",
     "viewportControls": "Элементы управления областью просмотра паттерна складок"
   },
   "design": {

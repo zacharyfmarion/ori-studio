@@ -31,11 +31,53 @@ function normColor(c: OristudioCpRgbaColor): Rgba {
   return [c.red / 255, c.green / 255, c.blue / 255, c.alpha / 255];
 }
 
-function paintColor(paint: OristudioCpFoldedRenderPaint): Rgba | null {
+function mixColor(from: Rgba, to: Rgba, t: number): Rgba {
+  return [
+    from[0] + (to[0] - from[0]) * t,
+    from[1] + (to[1] - from[1]) * t,
+    from[2] + (to[2] - from[2]) * t,
+    from[3] + (to[3] - from[3]) * t,
+  ];
+}
+
+/**
+ * Whether a paint draws anything at all — `none`, `texture` and `other` do not.
+ * Checked before tessellating so an undrawable primitive costs nothing.
+ */
+function paintDraws(paint: OristudioCpFoldedRenderPaint): boolean {
+  return paint.kind === 'color' || paint.kind === 'gradient';
+}
+
+/**
+ * A paint's colour at one point, in the primitive's own coordinate space — the
+ * space a gradient's `from`/`to` are expressed in, so this must run before the
+ * points are mapped to user coordinates.
+ *
+ * Evaluating per vertex and letting the rasterizer interpolate reproduces a
+ * linear gradient exactly wherever the polygon's vertices bracket the gradient
+ * axis without clamping in between, which is the case for the shadow bands this
+ * exists for: the band is spanned by its edge and the offset, the gradient axis
+ * *is* the offset, so all four corners land at t=0 or t=1. Elsewhere it degrades
+ * to a per-vertex approximation.
+ */
+function paintColorAt(paint: OristudioCpFoldedRenderPaint, point: Point): Rgba | null {
   if (paint.kind === 'color') return normColor(paint.color);
-  // Gradients are approximated by their start colour for now.
-  if (paint.kind === 'gradient') return normColor(paint.from_color);
-  return null;
+  if (paint.kind !== 'gradient') return null;
+
+  const dx = paint.to.x - paint.from.x;
+  const dy = paint.to.y - paint.from.y;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq === 0) return normColor(paint.from_color);
+
+  const raw = ((point.x - paint.from.x) * dx + (point.y - paint.from.y) * dy) / lengthSq;
+  // Java2D's GradientPaint clamps outside [0,1] when acyclic and reflects when
+  // cyclic, which is what `cyclic` on the kernel primitive records.
+  const t = paint.cyclic
+    ? Math.abs(raw % 2) > 1
+      ? 2 - Math.abs(raw % 2)
+      : Math.abs(raw % 2)
+    : Math.min(1, Math.max(0, raw));
+  return mixColor(normColor(paint.from_color), normColor(paint.to_color), t);
 }
 
 function strokeWidth(stroke: OristudioCpFoldedRenderStroke): number {
@@ -150,21 +192,33 @@ class FoldedBuilder {
   strokeColor: number[] = [];
   strokeWidthMul: number[] = [];
 
-  addFillRing(ring: Point[], color: Rgba): void {
+  /**
+   * `colors` is either one colour for the whole ring or one per vertex, in which
+   * case the rasterizer interpolates between them — that is what turns a shadow
+   * band's gradient into an actual fade.
+   */
+  addFillRing(ring: Point[], colors: Rgba | Rgba[]): void {
     if (ring.length < 3) return;
     const flat: number[] = [];
     for (const p of ring) flat.push(p.x, p.y);
     const indices = earcut(flat);
+    const perVertex = Array.isArray(colors[0]);
     for (const i of indices) {
+      const color = (perVertex ? (colors as Rgba[])[i] : colors) as Rgba;
       this.fillPos.push(flat[i * 2], flat[i * 2 + 1]);
       this.fillColor.push(color[0], color[1], color[2], color[3]);
     }
   }
 
-  addStrokePolyline(points: Point[], color: Rgba, width: number): void {
+  addStrokePolyline(points: Point[], colors: Rgba | Rgba[], width: number): void {
+    const perVertex = Array.isArray(colors[0]);
     for (let i = 0; i + 1 < points.length; i++) {
       const a = points[i];
       const b = points[i + 1];
+      // One colour per segment, so a gradient stroke samples at its midpoint.
+      const color = perVertex
+        ? mixColor((colors as Rgba[])[i], (colors as Rgba[])[i + 1], 0.5)
+        : (colors as Rgba);
       this.strokeA.push(a.x, a.y);
       this.strokeB.push(b.x, b.y);
       this.strokeColor.push(color[0], color[1], color[2], color[3]);
@@ -260,7 +314,8 @@ const localGeometryCache = new WeakMap<
  * memoized on the snapshot's identity. Primitives are emitted in `sequence`
  * order so overlapping, semi-transparent facets composite correctly.
  *
- * Solid colours only (gradients use their start colour); text is skipped.
+ * Gradients are carried as per-vertex colour (see {@link paintColorAt}); text is
+ * skipped.
  */
 export function foldedFigureLocalGeometry(
   snapshot: OristudioCpFoldedRenderSnapshot
@@ -275,16 +330,19 @@ export function foldedFigureLocalGeometry(
   );
 
   for (const primitive of primitives) {
-    const color = paintColor(primitive.style.paint);
-    if (!color) continue;
+    const paint = primitive.style.paint;
+    if (!paintDraws(paint)) continue;
     const isFill = primitive.kind.startsWith('fill_');
-    const subpaths = geometrySubpaths(primitive.geometry).map((sp) => sp.map(toUser));
+    const width = isFill ? 0 : strokeWidth(primitive.style.stroke);
 
-    if (isFill) {
-      for (const ring of subpaths) builder.addFillRing(ring, color);
-    } else {
-      const width = strokeWidth(primitive.style.stroke);
-      for (const line of subpaths) builder.addStrokePolyline(line, color, width);
+    for (const local of geometrySubpaths(primitive.geometry)) {
+      // Colours are sampled in the primitive's space, where a gradient's axis is
+      // defined; the points are only then carried into user space.
+      const colors = local.map((point) => paintColorAt(paint, point));
+      if (colors.some((color) => color === null)) continue;
+      const ring = local.map(toUser);
+      if (isFill) builder.addFillRing(ring, colors as Rgba[]);
+      else builder.addStrokePolyline(ring, colors as Rgba[], width);
     }
   }
 

@@ -180,7 +180,7 @@ describe('oristudio CP action registry', () => {
       label: 'Line',
       inputMode: 'drag-line',
       repeatable: true,
-      toolSteps: ['Drag crease endpoint'],
+      toolSteps: ['Click or drag to set the crease start', 'Click to set the crease end'],
       upstreamAction: 'drawCreaseFreeAction',
     });
 
