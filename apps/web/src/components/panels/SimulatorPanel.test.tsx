@@ -29,8 +29,9 @@ function asPromiseClient<T extends object>(session: T): T {
 }
 
 vi.mock('../../store/workspaceStore/simulatorRuntime', () => ({
-  getSimulatorClient: () => asPromiseClient(createSimulatorSession()),
-  releaseSimulatorWorker: () => {},
+  retainSimulatorClient: () => asPromiseClient(createSimulatorSession()),
+  releaseSimulatorClient: () => {},
+  simulatorClientRefCount: () => 1,
 }));
 
 /**

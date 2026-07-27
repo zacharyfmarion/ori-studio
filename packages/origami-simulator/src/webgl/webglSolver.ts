@@ -99,6 +99,19 @@ export class WebglSolver implements SolverBackend {
     return true;
   }
 
+  /** True once this solver's GL context has gone away; every result is stale. */
+  get contextLost(): boolean {
+    return this.gl.contextLost;
+  }
+
+  /**
+   * Notify when the context is lost. The session uses this to fail the run
+   * rather than let a dead solver keep reporting a settled, motionless mesh.
+   */
+  onContextLost(handler: () => void): () => void {
+    return this.gl.onContextLost(handler);
+  }
+
   constructor(canvas: HTMLCanvasElement | OffscreenCanvas, model: OrigamiModel, options: SimulatorOptions = {}) {
     const gl = GlCore.create(canvas);
     if (!gl) throw new Error('WebGL2 is not available for the GPU solver');

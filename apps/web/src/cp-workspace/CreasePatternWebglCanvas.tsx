@@ -805,6 +805,11 @@ export function CreasePatternWebglCanvas({
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
   const cameraRef = useRef<UserCamera | null>(null);
+  // Bumped when the GL context is lost, to rebuild the renderer. The camera is
+  // stashed across that rebuild so recovery does not also throw away wherever the
+  // user had panned and zoomed to.
+  const [rendererGeneration, setRendererGeneration] = useState(0);
+  const preservedCameraRef = useRef<UserCamera | null>(null);
   // Persistent runtime for the click-based `sequence` tool: points accumulate
   // across pointer gestures. Reset when the active tool changes (below).
   const persistentToolRuntimeRef = useRef<ToolRuntime | null>(null);
@@ -1172,7 +1177,8 @@ export function CreasePatternWebglCanvas({
     [foldedFigures]
   );
 
-  // Renderer lifecycle + render loop (once per mount).
+  // Renderer lifecycle + render loop. Re-runs only when the GL context is lost
+  // and a replacement renderer has to be built (see `rendererGeneration`).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1182,6 +1188,14 @@ export function CreasePatternWebglCanvas({
       renderer = createReglRenderer(canvas, {
         // Redraw once an async image texture finishes decoding.
         onAsyncLoad: () => renderNowRef.current(),
+        // The context and every regl resource on it are gone. Nothing here can
+        // repair that, so keep the camera the user was working at and rebuild
+        // the whole renderer from scratch on the next tick.
+        onContextLost: () => {
+          console.warn('[cp-webgl] WebGL context lost; rebuilding the renderer');
+          preservedCameraRef.current = cameraRef.current;
+          setRendererGeneration((generation) => generation + 1);
+        },
       });
     } catch (error) {
       console.error('[cp-webgl] failed to initialise WebGL renderer', error);
@@ -1200,6 +1214,13 @@ export function CreasePatternWebglCanvas({
     // geometry yet) the camera stays unseeded and nothing draws until geometry arrives.
     const ensureCamera = (viewport: Viewport): UserCamera | null => {
       if (cameraRef.current) return cameraRef.current;
+      // Recovering from context loss: adopt the camera the dead renderer had,
+      // so the surface comes back where the user left it instead of re-fitting.
+      if (preservedCameraRef.current) {
+        cameraRef.current = preservedCameraRef.current;
+        preservedCameraRef.current = null;
+        return cameraRef.current;
+      }
       const bounds = liveRef.current.contentBounds;
       if (!bounds) return null;
       cameraRef.current = fitUserCamera(bounds, viewport);
@@ -2541,8 +2562,11 @@ export function CreasePatternWebglCanvas({
       renderer.dispose();
       rendererRef.current = null;
     };
-    // Set up once on mount; all live inputs are read through liveRef, not deps.
-  }, []);
+    // Live inputs are read through liveRef rather than deps, so this runs once
+    // per mount. `rendererGeneration` is the sole trigger for a re-run: it
+    // changes only on context loss, where the dead renderer must be torn down
+    // and replaced.
+  }, [rendererGeneration]);
 
   // Upload geometry whenever it is rebuilt, then redraw immediately.
   useEffect(() => {
@@ -2558,7 +2582,7 @@ export function CreasePatternWebglCanvas({
       renderer.setPreview(null);
     }
     renderNowRef.current();
-  }, [scene]);
+  }, [scene, rendererGeneration]);
 
   // Point-sequence kernel preview: render the controller-supplied candidate
   // segments on the preview channel (cleared when there are none). Drag tools
@@ -2576,7 +2600,7 @@ export function CreasePatternWebglCanvas({
         : null
     );
     renderNowRef.current();
-  }, [toolCommandPreviewSegments, toolPreviewColor, activeToolDashedPreview]);
+  }, [toolCommandPreviewSegments, toolPreviewColor, activeToolDashedPreview, rendererGeneration]);
 
   // Diagnostic overlays (CAMV / check-fix): shape markers + segment highlights, built
   // model-space by the panel and forwarded straight to the renderer's overlay layer.
@@ -2585,33 +2609,33 @@ export function CreasePatternWebglCanvas({
       diagnosticMarkers.count > 0 ? diagnosticMarkers : null
     );
     renderNowRef.current();
-  }, [diagnosticMarkers]);
+  }, [diagnosticMarkers, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticStrokes(
       diagnosticStrokes.count > 0 ? diagnosticStrokes : null
     );
     renderNowRef.current();
-  }, [diagnosticStrokes]);
+  }, [diagnosticStrokes, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticWedges(
       diagnosticWedges.count > 0 ? diagnosticWedges : null
     );
     renderNowRef.current();
-  }, [diagnosticWedges]);
+  }, [diagnosticWedges, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticFills(
       contradictionFaceFills.count > 0 ? contradictionFaceFills : null
     );
     renderNowRef.current();
-  }, [contradictionFaceFills]);
+  }, [contradictionFaceFills, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setOverlayFrame(operationFrame);
     renderNowRef.current();
-  }, [operationFrame]);
+  }, [operationFrame, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setImportedForms(importedForms);
     renderNowRef.current();
-  }, [importedForms]);
+  }, [importedForms, rendererGeneration]);
 
   // Reference-image layer: upload/evict textures when the image list changes,
   // then redraw. Textures are cached by `src` in the renderer, so transform-only
@@ -2619,7 +2643,7 @@ export function CreasePatternWebglCanvas({
   useEffect(() => {
     rendererRef.current?.setImages(images ?? EMPTY_IMAGES);
     renderNowRef.current();
-  }, [images]);
+  }, [images, rendererGeneration]);
 
   // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
   // show the vertex + its creases (capped so it never over-zooms), matching the SVG's

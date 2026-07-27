@@ -21,6 +21,16 @@ export interface ReglRendererOptions {
    * returned).
    */
   onAsyncLoad?: () => void;
+  /**
+   * Invoked when the canvas loses its WebGL context. Every regl resource dies
+   * with it, so there is nothing this module can repair — the host has to build
+   * a new renderer. Loss is silent otherwise: draws become no-ops and the
+   * surface simply freezes on its last frame, which reads as a hung editor.
+   *
+   * The event is preventDefault()ed first, which is what keeps the context
+   * eligible for restoration rather than gone for good.
+   */
+  onContextLost?: () => void;
 }
 
 /** Decode an image `src` (data URL) to a GPU-ready bitmap, off the main thread. */
@@ -59,6 +69,12 @@ export function createReglRenderer(
       preserveDrawingBuffer: true,
     },
   });
+
+  const onContextLost = (event: Event) => {
+    event.preventDefault();
+    options.onContextLost?.();
+  };
+  canvas.addEventListener('webglcontextlost', onContextLost);
 
   const strokes = createStrokeProgram(regl);
   const gridStrokes = createStrokeProgram(regl);
@@ -337,6 +353,7 @@ export function createReglRenderer(
     dispose() {
       if (disposed) return;
       disposed = true;
+      canvas.removeEventListener('webglcontextlost', onContextLost);
       strokes.dispose();
       gridStrokes.dispose();
       images.dispose();

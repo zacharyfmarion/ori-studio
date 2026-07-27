@@ -174,6 +174,18 @@ const DEFAULT_RENDER_SETTINGS: RenderSettings = {
 let session: Session | null = null;
 
 /**
+ * Set when the live session's GL context is lost, and cleared by the next
+ * successful load.
+ *
+ * A lost context does not throw — GL calls become no-ops and reads return
+ * zeros — so the solver would go on "converging" a flat, motionless mesh and the
+ * panel would show a settled fold that is simply wrong. Failing every subsequent
+ * call with this message routes it to the runtime's error state instead, which
+ * is the only honest thing to show.
+ */
+let sessionFailure: string | null = null;
+
+/**
  * The panel's canvas, transferred once via `transferControlToOffscreen`. A
  * canvas can only be transferred a single time, so it is held here and reused
  * across model reloads — each new WebglSolver renders to the same canvas.
@@ -228,6 +240,7 @@ function resetPerf(at: number): void {
 }
 
 function requireSession(): Session {
+  if (sessionFailure) throw new Error(sessionFailure);
   if (!session) throw new Error('Simulator worker: no model loaded');
   return session;
 }
@@ -257,6 +270,10 @@ function createBackend(
     try {
       if (WebglSolver.isSupported(renderCanvas)) {
         const solver = new WebglSolver(renderCanvas, model, solverOptions);
+        solver.onContextLost(() => {
+          sessionFailure =
+            'The graphics context was lost, so the simulation stopped. Reload the model to restart it.';
+        });
         return { backend: solver, backendId: 'webgl2', gpuSolver: solver };
       }
     } catch {
@@ -294,6 +311,9 @@ const api = {
     // (center/radius) is model-specific and recomputed by refitOnce.
     const previous = session?.gpuRender;
     session?.backend.dispose();
+    // A fresh load gets a fresh context, so a previous loss is no longer the
+    // truth about this session.
+    sessionFailure = null;
 
     // prepareFoldModel runs here rather than on the main thread: it is O(n)
     // heavy (earcut triangulation, edge indexing) and used to block the UI

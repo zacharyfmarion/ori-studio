@@ -8,7 +8,11 @@ import type {
   SimulatorDiagnostics,
   SimulatorOptions,
 } from '@treemaker/origami-simulator';
-import { getSimulatorClient, type SimulatorClient } from '../store/workspaceStore/simulatorRuntime';
+import {
+  releaseSimulatorClient,
+  retainSimulatorClient,
+  type SimulatorClient,
+} from '../store/workspaceStore/simulatorRuntime';
 import { inflateRenderModel, type SimulatorRenderModel } from './renderModel';
 import { readString, storageKey } from '../lib/storage';
 
@@ -50,14 +54,29 @@ function tickRoundTripAvg(): number {
   return tickRoundTripCount ? tickRoundTripTotal / tickRoundTripCount : 0;
 }
 
-/** True if this canvas can host the WebGL2 float-render-target GPU path. */
+/**
+ * True if this canvas can host the WebGL2 float-render-target GPU path.
+ *
+ * The probe context is explicitly released. Contexts are a small, hard-capped
+ * resource — four per worker, sixteen per page in Chromium 148 — and this runs
+ * on every model load, so leaving each probe to garbage collection spends the
+ * budget the simulator itself needs. The result is cached because the answer
+ * cannot change within a session, which makes the common case free.
+ */
+let webglRenderSupportedCache: boolean | null = null;
+
 export function webglRenderSupported(): boolean {
+  if (webglRenderSupportedCache !== null) return webglRenderSupportedCache;
   if (typeof document === 'undefined' || typeof OffscreenCanvas === 'undefined') return false;
   try {
     const probe = document.createElement('canvas');
     const gl = probe.getContext('webgl2');
-    return Boolean(gl && gl.getExtension('EXT_color_buffer_float'));
+    const supported = Boolean(gl && gl.getExtension('EXT_color_buffer_float'));
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    webglRenderSupportedCache = supported;
+    return supported;
   } catch {
+    webglRenderSupportedCache = false;
     return false;
   }
 }
@@ -146,6 +165,18 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     onFrameRef.current = onFrame;
   }, [onFrame]);
 
+  // A mounted runtime is exactly what "someone is using the simulator" means, so
+  // the worker's lifetime is tied to it rather than to any particular panel.
+  // Without this the worker — and its model, and one of the four WebGL2 contexts
+  // a worker gets — outlived every consumer and stayed resident for the session.
+  useEffect(() => {
+    clientRef.current = retainSimulatorClient();
+    return () => {
+      clientRef.current = null;
+      releaseSimulatorClient();
+    };
+  }, []);
+
   const publish = useCallback((payload: Awaited<ReturnType<SimulatorClient['tick']>>) => {
     // GPU-render mode: the worker already drew to the canvas and sent no
     // positions. Still surface the scalars (step, strain, fold percent) so the
@@ -189,8 +220,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
 
     void (async () => {
       try {
-        const client = getSimulatorClient();
-        clientRef.current = client;
+        // Retained by the mount effect above; null only while unmounting.
+        const client = clientRef.current;
+        if (!client) return;
 
         if (wantsGpu && canvas && transferredCanvasRef.current !== canvas) {
           const offscreen = canvas.transferControlToOffscreen();

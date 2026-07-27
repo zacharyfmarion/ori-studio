@@ -61,7 +61,7 @@ import {
   foldedStl,
   type FoldedMesh,
 } from '../../../lib/foldedExport';
-import { getSimulatorClient } from '../simulatorRuntime';
+import { peekSimulatorClient } from '../simulatorRuntime';
 import { simulationFoldOf } from '../../../lib/creasePatternSegmentation';
 import {
   flattenTextAnnotations,
@@ -577,16 +577,23 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       set({ projectMessage: 'Simulate a crease pattern before exporting its folded form' });
       return null;
     }
+    // Reads the live session rather than starting one: there is nothing to
+    // export from a simulator that was never opened, and spinning a worker up
+    // just to ask would take one of the four WebGL2 contexts a worker gets.
+    const client = peekSimulatorClient();
+    if (!client) {
+      set({ projectMessage: 'Open the Simulate workspace before exporting the folded form' });
+      return null;
+    }
     try {
-      const snapshot = await getSimulatorClient().exportGeometry();
+      const snapshot = await client.exportGeometry();
       return {
         positions: new Float32Array(snapshot.positions),
         triangles: new Uint32Array(snapshot.triangles),
         foldPercent: snapshot.foldPercent,
       };
     } catch {
-      // requireSession throws when no model is loaded (the Simulate workspace has
-      // not been opened yet, or its panel released the worker).
+      // requireSession throws when the worker is running but holds no model.
       set({ projectMessage: 'Open the Simulate workspace before exporting the folded form' });
       return null;
     }
