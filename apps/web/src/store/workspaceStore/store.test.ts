@@ -19,6 +19,7 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpLineSegment,
@@ -47,11 +48,11 @@ import {
   cpUserAnchorForLineIds,
   foldedFigureUserBounds,
 } from '../../cp-workspace/adapters/cpFoldedToScene';
-import { isFoldedFigureStale } from '../../lib/foldedFigureStaleness';
+import { isFoldedFigureStale } from '../../cp-workspace/folded/foldedFigureStaleness';
 import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
-} from '../../cp-workspace/foldedFigureHandles';
+} from '../../cp-workspace/folded/foldedFigureHandles';
 import { useLayoutStore } from '../layoutStore';
 import {
   registerCommandDialogHost,
@@ -1075,6 +1076,11 @@ function insertAppendsToDocument(): void {
         ...segments,
       ])
   );
+}
+
+/** Let the fire-and-forget reconcile chain drain. */
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 8; i += 1) await Promise.resolve();
 }
 
 function foldedFigureSnapshot(): OristudioCpFoldedFigureSnapshot {
@@ -2784,6 +2790,245 @@ describe('workspace store slices', () => {
       offset: { x: 40, y: 5 },
       scale: 3,
     });
+  });
+
+  // --- Kernel/cache reconciliation on overlay undo -------------------------
+  //
+  // A figure's appearance lives in the kernel behind its handle, and every
+  // history entry for that figure points at the same mutable handle. Overlay
+  // undo swaps only the web entries, so without a reconcile the kernel keeps the
+  // undone model and the next kernel re-render (a reselect is the cheapest one)
+  // brings it back.
+
+  // A fresh handle per test. The kernel hands out a new slot for every fold, and
+  // the slice remembers what it last wrote per *handle* — so reusing one across
+  // tests would let one test's belief silently satisfy the next test's reconcile.
+  let nextTestHandle = 100;
+
+  function seedFoldedFigureForModelTests(model?: Partial<OristudioCpFoldedFigureModel>) {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const snapshot = foldedFigureSnapshot();
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: (nextTestHandle += 1),
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: { ...snapshot, model: { ...snapshot.model, ...model } },
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+    });
+    return figure;
+  }
+
+  /** The model each `setOristudioCpFoldedFigureModel` call pushed, in order. */
+  function kernelModelWrites(): OristudioCpFoldedFigureModel[] {
+    return oristudioCpMocks.setOristudioCpFoldedFigureModel.mock.calls.map(
+      (call) => call[1] as OristudioCpFoldedFigureModel
+    );
+  }
+
+  const RED = { red: 255, green: 0, blue: 0 };
+  const BLUE = { red: 0, green: 0, blue: 255 };
+
+  it('pushes the restored model back into the kernel after an overlay undo', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    const original = figure.snapshot!.model;
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
+        ...foldedFigureSnapshot(),
+        model,
+      })
+    );
+
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    await useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: RED });
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
+
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+
+    // The web state reverted, and the kernel was told about it.
+    expect(
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.model.front_color
+    ).toEqual(original.front_color);
+    expect(kernelModelWrites().at(-1)?.front_color).toEqual(original.front_color);
+  });
+
+  it('leaves undo synchronous, so a burst is never dropped by historyBusy', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    let resolveWrite: null | (() => void) = null;
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      (_handle: number, model: OristudioCpFoldedFigureModel) =>
+        new Promise<OristudioCpFoldedFigureSnapshot>((resolve) => {
+          resolveWrite = () => resolve({ ...foldedFigureSnapshot(), model });
+        })
+    );
+
+    // Three recorded model steps.
+    for (const color of [RED, BLUE, { red: 0, green: 255, blue: 0 }]) {
+      const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: [
+          {
+            ...useWorkspaceStore.getState().oristudioCpFoldedFigures[0],
+            snapshot: {
+              ...figure.snapshot!,
+              model: { ...figure.snapshot!.model, front_color: color },
+            },
+          },
+        ],
+      });
+      useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
+    }
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(3);
+
+    // Undo three times without yielding — the kernel write is still pending, so
+    // if the branch had become async, historyBusy would swallow calls 2 and 3.
+    const results = [
+      useWorkspaceStore.getState().undo(),
+      useWorkspaceStore.getState().undo(),
+      useWorkspaceStore.getState().undo(),
+    ];
+    await Promise.all(results);
+    // Each call consumed an entry. If the overlay branch awaited the kernel,
+    // historyBusy would still be set for calls 2 and 3 and they would no-op.
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(0);
+    expect(useWorkspaceStore.getState().historyBusy).toBe(false);
+    (resolveWrite as (() => void) | null)?.();
+  });
+
+  it('settles the kernel on the final state after a burst of undos', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    const original = figure.snapshot!.model;
+    // Resolve out of order: each write takes longer than the one after it, so a
+    // design that let writes race would leave the kernel on an intermediate.
+    let delay = 30;
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      (_handle: number, model: OristudioCpFoldedFigureModel) => {
+        const wait = (delay -= 10);
+        return new Promise((resolve) =>
+          setTimeout(() => resolve({ ...foldedFigureSnapshot(), model }), Math.max(wait, 0))
+        );
+      }
+    );
+
+    for (const color of [RED, BLUE]) {
+      const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: [
+          {
+            ...useWorkspaceStore.getState().oristudioCpFoldedFigures[0],
+            snapshot: {
+              ...figure.snapshot!,
+              model: { ...figure.snapshot!.model, front_color: color },
+            },
+          },
+        ],
+      });
+      useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
+    }
+
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
+    await Promise.all([
+      useWorkspaceStore.getState().undo(),
+      useWorkspaceStore.getState().undo(),
+    ]);
+    // Whatever order the round-trips completed in, the kernel ends on the state
+    // the burst settled on — never on the intermediate it passed through.
+    await vi.waitFor(() =>
+      expect(kernelModelWrites().at(-1)?.front_color).toEqual(original.front_color)
+    );
+    expect(kernelModelWrites().some((m) => m.front_color.blue === 255)).toBe(false);
+  });
+
+  it('skips a reconcile that would not change the kernel', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
+        ...foldedFigureSnapshot(),
+        model,
+      })
+    );
+    // Colour first, so the kernel holds RED...
+    await useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: RED });
+    // ...then a placement-only step on top of it. Undoing that step restores a
+    // model identical to what the kernel already has.
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    useWorkspaceStore
+      .getState()
+      .setOristudioCpFoldedFigurePlacement(figure.id, { offset: { x: 4, y: 0 } });
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Move folded form');
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
+
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].placement).toEqual(
+      IDENTITY_FOLDED_PLACEMENT
+    );
+    // Nothing kernel-held changed, so the reconcile cost a comparison and no
+    // round-trip. This is what keeps a held-down undo cheap.
+    expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a failed reconcile instead of drifting silently', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
+        ...foldedFigureSnapshot(),
+        model,
+      })
+    );
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    await useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: RED });
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
+
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockRejectedValue(new Error('kernel gone'));
+    await useWorkspaceStore.getState().undo();
+    await vi.waitFor(() =>
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].status).toBe('error')
+    );
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('kernel gone');
+  });
+
+  it('does not reconcile a figure the undo removed', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
+        ...foldedFigureSnapshot(),
+        model,
+      })
+    );
+    // Undoing "add figure": the previous state had no figures at all.
+    useWorkspaceStore.getState().recordFoldedFigureHistory([], 'Fold model');
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
+
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(0);
+    expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).not.toHaveBeenCalled();
+    expect(figure.id).toBe('generated-1');
   });
 
   it('shares renderSnapshot objects across history entries so undo memory stays bounded', () => {

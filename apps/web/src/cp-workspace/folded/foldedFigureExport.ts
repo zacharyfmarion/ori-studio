@@ -1,7 +1,7 @@
-import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
-import { creaseExportPalette, svgToPng, type CreaseExportTheme } from './creaseExport';
-import { foldedFigureSvgBody, projectedFoldedFigureBounds } from './foldedFigureSvg';
-import type { Point } from './geometry';
+import type { OristudioCpFoldedRenderSnapshot } from '../../engine/oristudioCpTypes';
+import { creaseExportPalette, svgToPng, type CreaseExportTheme } from '../../lib/creaseExport';
+import { foldedFigureSvgBody, projectedFoldedFigureBounds } from '../../lib/foldedFigureSvg';
+import type { Point } from '../../lib/geometry';
 
 /**
  * Export one folded figure on its own, straight from its render snapshot.

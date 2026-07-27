@@ -5,8 +5,10 @@ import {
   $getSelection,
   $isRangeSelection,
   $isElementNode,
+  COMMAND_PRIORITY_HIGH,
   FORMAT_ELEMENT_COMMAND,
   FORMAT_TEXT_COMMAND,
+  KEY_ESCAPE_COMMAND,
   type EditorState,
   type ElementFormatType,
   type SerializedEditorState,
@@ -93,15 +95,7 @@ export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }
     [onExit]
   );
 
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onExit('escape');
-      }
-    },
-    [onExit]
-  );
+  const handleEscape = useCallback(() => onExit('escape'), [onExit]);
 
   return (
     <LexicalComposer
@@ -116,11 +110,7 @@ export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }
     >
       <RichTextPlugin
         contentEditable={
-          <ContentEditable
-            className="cp-text-editor__content"
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
-          />
+          <ContentEditable className="cp-text-editor__content" onBlur={handleBlur} />
         }
         placeholder={
           <div className="cp-text-editor__placeholder">
@@ -132,9 +122,37 @@ export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }
       <HistoryPlugin />
       <AutoFocusPlugin />
       <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
+      <EscapeExitPlugin onEscape={handleEscape} />
       <TextToolbar box={box} container={container} onDelete={onDelete} />
     </LexicalComposer>
   );
+}
+
+/**
+ * Routes Escape to {@link CpTextEditorProps.onExit} as a keyboard exit.
+ *
+ * It has to be a Lexical command rather than a `keydown` prop on the
+ * contenteditable: `@lexical/rich-text` answers `KEY_ESCAPE_COMMAND` by blurring
+ * the editor, and that blur beats React's delegated listener — so Escape would
+ * otherwise arrive as a click-away commit, taking the caller's focus handling
+ * and click-suppression down the wrong branch. Claiming the command first keeps
+ * the editor focused until the caller decides what to do.
+ */
+function EscapeExitPlugin({ onEscape }: { onEscape: () => void }) {
+  const [editor] = useLexicalComposerContext();
+  useEffect(
+    () =>
+      editor.registerCommand(
+        KEY_ESCAPE_COMMAND,
+        () => {
+          onEscape();
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH
+      ),
+    [editor, onEscape]
+  );
+  return null;
 }
 
 interface ToolbarState {

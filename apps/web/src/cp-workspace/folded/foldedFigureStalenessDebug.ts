@@ -1,10 +1,10 @@
-import { useWorkspaceStore } from '../store/workspaceStore/store';
+import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import {
   cpLinesByIds,
   foldedSourceFingerprint,
   isFoldedFigureStale,
   reselectFoldableLineIds,
-} from '../lib/foldedFigureStaleness';
+} from './foldedFigureStaleness';
 
 /**
  * Dev-only console hook: `__foldedStaleDebug()`.

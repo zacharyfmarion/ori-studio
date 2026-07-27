@@ -2,11 +2,11 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check } from 'lucide-react';
-import { FloatingToolbar } from '../components/ui/FloatingToolbar';
-import { IconButton } from '../components/ui/IconButton';
-import { MenuIconButton } from '../components/ui/MenuIconButton';
-import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
-import { foldedFigureBox } from './adapters/cpFoldedToScene';
+import { FloatingToolbar } from '../../components/ui/FloatingToolbar';
+import { IconButton } from '../../components/ui/IconButton';
+import { MenuIconButton } from '../../components/ui/MenuIconButton';
+import { useCanvasObjectAnchor } from '../canvasObjects/useCanvasObjectAnchor';
+import { foldedFigureBox } from '../adapters/cpFoldedToScene';
 import {
   buildFoldedFigureActions,
   type FoldedFigureActionDeps,
@@ -14,7 +14,7 @@ import {
   type FoldedFigureCommand,
 } from './foldedFigureActions';
 import { foldedFigureActionIconNode } from './foldedFigureActionIcons';
-import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
+import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
 
 function CommandButton({ action }: { action: FoldedFigureCommand }) {
   return (

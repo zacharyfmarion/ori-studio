@@ -1,9 +1,9 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
-import { cpOverlayViewStore } from './cpOverlayViewStore';
-import { TooltipProvider } from '../components/ui/Tooltip';
+import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
+import { cpOverlayViewStore } from '../cpOverlayViewStore';
+import { TooltipProvider } from '../../components/ui/Tooltip';
 import { CpFoldedFigureToolbar } from './CpFoldedFigureToolbar';
 import type { FoldedFigureActionDeps } from './foldedFigureActions';
 

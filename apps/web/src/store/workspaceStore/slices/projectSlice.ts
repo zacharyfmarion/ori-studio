@@ -28,7 +28,7 @@ import {
   renderFoldedFigurePng,
   serializeFoldedFigureSvg,
   type FoldedFigureExportFormat,
-} from '../../../lib/foldedFigureExport';
+} from '../../../cp-workspace/folded/foldedFigureExport';
 import { ensureCpSegmentationArtifacts } from '../../../cp-workspace/cpSegmentationArtifacts';
 import {
   importedCreasePatternFormat,
@@ -154,7 +154,7 @@ import {
   setOristudioCpDocumentSource,
 } from '../oristudioCpRuntime';
 import type { OristudioCpHistoryEntry, ProjectSlice, WorkspaceSliceCreator } from '../types';
-import { retainFoldedFigureHandles } from '../../../cp-workspace/foldedFigureHandles';
+import { retainFoldedFigureHandles } from '../../../cp-workspace/folded/foldedFigureHandles';
 import type { FoldDocument } from '../../../engine/types';
 import type {
   OristudioCpCommandResult,

@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureStatus,
-} from '../engine/oristudioCpTypes';
+} from '../../engine/oristudioCpTypes';
 import {
   buildFoldedFigureActions,
   foldedFigureFlipState,

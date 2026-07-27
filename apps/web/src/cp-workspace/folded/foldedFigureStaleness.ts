@@ -3,8 +3,8 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureEntry,
   OristudioCpLineSegment,
-} from '../engine/oristudioCpTypes';
-import { isOrieditaFoldableLineColor } from './creasePatternClipboard';
+} from '../../engine/oristudioCpTypes';
+import { isOrieditaFoldableLineColor } from '../../lib/creasePatternClipboard';
 
 /**
  * Whether a folded figure still matches the creases it was folded from — a port
