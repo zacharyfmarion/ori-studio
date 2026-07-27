@@ -1,6 +1,12 @@
 import { lineColorName, SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import type { Rgba, StrokeGeometry } from '../renderer/types';
-import type { CpSelectionStyle, CpTransformPreview } from './cpSnapshotToScene';
+import type { StrokeGeometry } from '../renderer/types';
+import type { CpLineAppearance } from './cpLineStyle';
+import type {
+  CpDashPatterns,
+  CpLineAppearanceFor,
+  CpSelectionStyle,
+  CpTransformPreview,
+} from './cpSnapshotToScene';
 
 /**
  * Transport-driven mirror of {@link cpSnapshotToScene}: build GPU stroke geometry
@@ -12,12 +18,13 @@ import type { CpSelectionStyle, CpTransformPreview } from './cpSnapshotToScene';
  * object (and two `Point`s) per crease on every frame. The output is
  * byte-identical to `cpSnapshotToScene` for the same document — the f64→f32
  * narrowing happens at the exact same point (assignment into the `Float32Array`),
- * and colors resolve through the same `colorFor` after mapping the color number
- * to its name. This equivalence is the Phase 2 parity gate.
+ * and colors resolve through the same `appearanceFor` after mapping the color
+ * number to its name. This equivalence is the Phase 2 parity gate.
  */
 export function cpGeometryStrokesToScene(
   transport: CpGeometryTransport,
-  colorFor: (color: string) => Rgba,
+  appearanceFor: CpLineAppearanceFor,
+  dashPatterns: CpDashPatterns,
   selection?: CpSelectionStyle,
   move?: CpTransformPreview
 ): { strokes: StrokeGeometry } {
@@ -28,10 +35,11 @@ export function cpGeometryStrokesToScene(
   const b = new Float32Array(count * 2);
   const color = new Float32Array(count * 4);
   const widthMul = new Float32Array(count).fill(1);
+  const dashSlot = new Float32Array(count);
 
-  // Memoise colour lookups by color number — a dense CP has thousands of
+  // Memoise appearance lookups by color number — a dense CP has thousands of
   // segments but only a handful of distinct assignments.
-  const colorCache = new Map<number, Rgba>();
+  const appearanceCache = new Map<number, CpLineAppearance>();
 
   const m = move?.matrix;
 
@@ -61,16 +69,18 @@ export function cpGeometryStrokesToScene(
     }
 
     const colorNumber = attr[i * SEG_ATTR_STRIDE];
-    let rgba = colorCache.get(colorNumber);
-    if (!rgba) {
-      rgba = colorFor(lineColorName(colorNumber));
-      colorCache.set(colorNumber, rgba);
+    let appearance = appearanceCache.get(colorNumber);
+    if (!appearance) {
+      appearance = appearanceFor(lineColorName(colorNumber));
+      appearanceCache.set(colorNumber, appearance);
     }
+    const rgba = appearance.color;
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];
     color[i * 4 + 3] = rgba[3];
+    dashSlot[i] = appearance.dashSlot;
   }
 
-  return { strokes: { a, b, color, widthMul, count } };
+  return { strokes: { a, b, color, widthMul, count, dashPatterns, dashSlot } };
 }

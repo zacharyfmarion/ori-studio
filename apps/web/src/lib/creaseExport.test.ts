@@ -13,6 +13,11 @@ import {
   type CreaseExportCaption,
   type CreaseExportOptions,
 } from './creaseExport';
+import {
+  ORIEDITA_DASH_ONE_DOT,
+  ORIEDITA_DASH_TWO_DOT,
+  ORIEDITA_DASH_VALLEY,
+} from './oristudioCpLineStyle';
 
 // A square (border) split by a mountain and a valley diagonal, plus a second
 // disjoint square, so segmentation yields two crease patterns.
@@ -78,7 +83,7 @@ describe('crease pattern export', () => {
     expect(svg).toContain('stroke="#111417"'); // border
   });
 
-  it('draws every crease black in the black-white style', () => {
+  it('draws mountains and edges black, valleys grey, in the black-white style', () => {
     const fold = twoPatternFold();
     const segments = segmentFoldDocument(fold);
     const svg = serializeCreasePatternSvg(fold, segments, {
@@ -86,8 +91,36 @@ describe('crease pattern export', () => {
       lineStyle: 'black-white',
     });
 
+    // Oriedita's SvgExporter: BLACK_0/RED_1 -> black, BLUE_2 -> #A2A2A2, solid.
     expect(svg).toContain('stroke="#000000"');
+    expect(svg).toContain(`stroke="${CREASE_EXPORT_PALETTES.light.monochromeValley}"`);
     expect(svg).not.toContain('stroke="#ff4d5d"');
+    expect(svg).not.toContain('stroke-dasharray');
+  });
+
+  it('dashes mountains and valleys with the Oriedita patterns', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    // The export viewBox is scaled up from the editable canvas, so the dash runs
+    // are the upstream device-px pattern times that same factor.
+    const scaled = (pattern: readonly number[]) =>
+      pattern.map((run) => (run * (1024 / 720)).toFixed(2)).join(' ');
+
+    const oneDot = serializeCreasePatternSvg(fold, segments, {
+      ...DEFAULT_CREASE_EXPORT_OPTIONS,
+      lineStyle: 'color-and-shape',
+    });
+    expect(oneDot).toContain(`stroke-dasharray="${scaled(ORIEDITA_DASH_ONE_DOT)}"`);
+    expect(oneDot).toContain(`stroke-dasharray="${scaled(ORIEDITA_DASH_VALLEY)}"`);
+    // "Color + shape" keeps every crease its own colour.
+    expect(oneDot).toContain('stroke="#ff4d5d"');
+
+    const twoDot = serializeCreasePatternSvg(fold, segments, {
+      ...DEFAULT_CREASE_EXPORT_OPTIONS,
+      lineStyle: 'black-two-dot',
+    });
+    expect(twoDot).toContain(`stroke-dasharray="${scaled(ORIEDITA_DASH_TWO_DOT)}"`);
+    expect(twoDot).not.toContain('stroke="#ff4d5d"');
   });
 
   it('exports a single segment when a segmentId is given', () => {

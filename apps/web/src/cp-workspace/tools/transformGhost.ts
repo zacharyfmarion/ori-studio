@@ -13,8 +13,13 @@
  * per frame.
  */
 import { lineColorName, SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import type { CpAffineMatrix } from '../adapters/cpSnapshotToScene';
-import type { CpLineSegmentInput } from '../adapters/cpSnapshotToScene';
+import type { CpLineAppearance } from '../adapters/cpLineStyle';
+import type {
+  CpAffineMatrix,
+  CpDashPatterns,
+  CpLineAppearanceFor,
+  CpLineSegmentInput,
+} from '../adapters/cpSnapshotToScene';
 import type { Rgba, StrokeGeometry } from '../renderer/types';
 
 /** How a ghost is drawn relative to the creases it copies. */
@@ -36,13 +41,15 @@ export interface CpTransformGhost {
   update(matrix: CpAffineMatrix): StrokeGeometry;
 }
 
-/** Endpoints + colours of the creases a gesture is transforming. */
+/** Endpoints + appearance of the creases a gesture is transforming. */
 export interface CpGhostBase {
   /** Source endpoints, [ax, ay] * count and [bx, by] * count. */
   a: Float32Array;
   b: Float32Array;
   /** Per-segment RGBA, alpha already scaled by the ghost style. */
   color: Float32Array;
+  /** Per-segment dash slot under the active line style. */
+  dashSlot: Float32Array;
   count: number;
 }
 
@@ -53,14 +60,14 @@ export interface CpGhostBase {
 export function ghostBaseFromGeometry(
   transport: CpGeometryTransport,
   selectedIds: ReadonlySet<number>,
-  colorFor: (color: string) => Rgba,
+  appearanceFor: CpLineAppearanceFor,
   style: CpGhostStyle
 ): CpGhostBase {
   const endpoints = transport.segEndpoints;
   const attr = transport.segAttr;
   const total = endpoints.length / 4;
   const base = allocateBase(countSelected(total, selectedIds));
-  const colorCache = new Map<number, Rgba>();
+  const appearanceCache = new Map<number, CpLineAppearance>();
 
   let out = 0;
   for (let i = 0; i < total; i += 1) {
@@ -72,12 +79,12 @@ export function ghostBaseFromGeometry(
     base.b[out * 2 + 1] = endpoints[e + 3];
 
     const colorNumber = attr[i * SEG_ATTR_STRIDE];
-    let rgba = colorCache.get(colorNumber);
-    if (!rgba) {
-      rgba = colorFor(lineColorName(colorNumber));
-      colorCache.set(colorNumber, rgba);
+    let appearance = appearanceCache.get(colorNumber);
+    if (!appearance) {
+      appearance = appearanceFor(lineColorName(colorNumber));
+      appearanceCache.set(colorNumber, appearance);
     }
-    writeColor(base.color, out, rgba, style.alpha);
+    writeAppearance(base, out, appearance, style.alpha);
     out += 1;
   }
   return base;
@@ -87,11 +94,11 @@ export function ghostBaseFromGeometry(
 export function ghostBaseFromSegments(
   lineSegments: readonly CpLineSegmentInput[],
   selectedIds: ReadonlySet<number>,
-  colorFor: (color: string) => Rgba,
+  appearanceFor: CpLineAppearanceFor,
   style: CpGhostStyle
 ): CpGhostBase {
   const base = allocateBase(countSelected(lineSegments.length, selectedIds));
-  const colorCache = new Map<string, Rgba>();
+  const appearanceCache = new Map<string, CpLineAppearance>();
 
   let out = 0;
   for (let i = 0; i < lineSegments.length; i += 1) {
@@ -102,12 +109,12 @@ export function ghostBaseFromSegments(
     base.b[out * 2] = segment.b.x;
     base.b[out * 2 + 1] = segment.b.y;
 
-    let rgba = colorCache.get(segment.color);
-    if (!rgba) {
-      rgba = colorFor(segment.color);
-      colorCache.set(segment.color, rgba);
+    let appearance = appearanceCache.get(segment.color);
+    if (!appearance) {
+      appearance = appearanceFor(segment.color);
+      appearanceCache.set(segment.color, appearance);
     }
-    writeColor(base.color, out, rgba, style.alpha);
+    writeAppearance(base, out, appearance, style.alpha);
     out += 1;
   }
   return base;
@@ -119,7 +126,8 @@ export function ghostBaseFromSegments(
  */
 export function createTransformGhost(
   base: CpGhostBase,
-  style: CpGhostStyle
+  style: CpGhostStyle,
+  dashPatterns: CpDashPatterns
 ): CpTransformGhost | null {
   if (base.count === 0) return null;
 
@@ -129,6 +137,8 @@ export function createTransformGhost(
     color: base.color,
     widthMul: new Float32Array(base.count).fill(style.widthMul),
     count: base.count,
+    dashPatterns,
+    dashSlot: base.dashSlot,
   };
 
   return {
@@ -161,13 +171,21 @@ function allocateBase(count: number): CpGhostBase {
     a: new Float32Array(count * 2),
     b: new Float32Array(count * 2),
     color: new Float32Array(count * 4),
+    dashSlot: new Float32Array(count),
     count,
   };
 }
 
-function writeColor(target: Float32Array, index: number, rgba: Rgba, alpha: number): void {
-  target[index * 4] = rgba[0];
-  target[index * 4 + 1] = rgba[1];
-  target[index * 4 + 2] = rgba[2];
-  target[index * 4 + 3] = rgba[3] * alpha;
+function writeAppearance(
+  base: CpGhostBase,
+  index: number,
+  appearance: CpLineAppearance,
+  alpha: number
+): void {
+  const rgba: Rgba = appearance.color;
+  base.color[index * 4] = rgba[0];
+  base.color[index * 4 + 1] = rgba[1];
+  base.color[index * 4 + 2] = rgba[2];
+  base.color[index * 4 + 3] = rgba[3] * alpha;
+  base.dashSlot[index] = appearance.dashSlot;
 }

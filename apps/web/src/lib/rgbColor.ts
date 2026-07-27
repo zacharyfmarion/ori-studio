@@ -9,6 +9,15 @@ export function rgbColorToHex(color: OristudioCpRgbColor): string {
   return `#${hexByte(color.red)}${hexByte(color.green)}${hexByte(color.blue)}`;
 }
 
+/** Blend two `#rgb`/`#rrggbb` hexes, `ratio` being how much of `color` survives. */
+export function mixHexColors(color: string, against: string, ratio: number): string {
+  const a = hexToRgbColor(color);
+  const b = hexToRgbColor(against);
+  const mix = (channel: keyof OristudioCpRgbColor) =>
+    a[channel] * ratio + b[channel] * (1 - ratio);
+  return rgbColorToHex({ red: mix('red'), green: mix('green'), blue: mix('blue') });
+}
+
 /**
  * A `#rgb`/`#rrggbb` hex (as produced by `<input type="color">`) → `{ red, green,
  * blue }`. Malformed input falls back to black rather than throwing.
