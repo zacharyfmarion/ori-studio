@@ -717,7 +717,12 @@ export function composeCreaseExportSvg(
   return { svg, width: layout.width, height: layout.height };
 }
 
-async function svgToPng(svg: string, width: number, height: number): Promise<Uint8Array> {
+/**
+ * Rasterize a standalone SVG document through an offscreen canvas. Shared with
+ * the folded-figure export, which composes a different page from the same
+ * primitives.
+ */
+export async function svgToPng(svg: string, width: number, height: number): Promise<Uint8Array> {
   const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   try {
@@ -725,7 +730,7 @@ async function svgToPng(svg: string, width: number, height: number): Promise<Uin
     image.decoding = 'async';
     const loaded = new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
-      image.onerror = () => reject(new Error('Failed to render crease pattern SVG'));
+      image.onerror = () => reject(new Error('Failed to render export SVG'));
     });
     image.src = url;
     await loaded;
@@ -739,7 +744,7 @@ async function svgToPng(svg: string, width: number, height: number): Promise<Uin
     const pngBlob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((result) => {
         if (result) resolve(result);
-        else reject(new Error('Failed to encode crease pattern PNG'));
+        else reject(new Error('Failed to encode export PNG'));
       }, 'image/png');
     });
     return new Uint8Array(await pngBlob.arrayBuffer());

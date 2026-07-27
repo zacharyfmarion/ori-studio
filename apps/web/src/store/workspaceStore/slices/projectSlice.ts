@@ -24,6 +24,11 @@ import {
   isSegmentImageFormat,
   type SegmentExportFormat,
 } from '../../../lib/creaseSegmentExport';
+import {
+  renderFoldedFigurePng,
+  serializeFoldedFigureSvg,
+  type FoldedFigureExportFormat,
+} from '../../../lib/foldedFigureExport';
 import { ensureCpSegmentationArtifacts } from '../../../cp-workspace/cpSegmentationArtifacts';
 import {
   importedCreasePatternFormat,
@@ -2374,6 +2379,62 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           suggestedName: defaultFilename(patternTitle, format),
           path: null,
           extensions: [format],
+        });
+        if (!result) return false;
+        set({ projectMessage: `Exported ${result.name}` });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    exportOristudioCpFoldedFigure: async (
+      format: FoldedFigureExportFormat,
+      figureId: string,
+      fileService = getFileService()
+    ) => {
+      try {
+        const figure = get().oristudioCpFoldedFigures.find(
+          (candidate) => candidate.id === figureId
+        );
+        // Serialized straight from the snapshot the canvas is drawing, so the
+        // file is the figure the user is looking at — no second fold.
+        const snapshot = figure?.renderSnapshot;
+        if (!snapshot) {
+          const message = 'This folded model has nothing to export yet';
+          set({
+            oristudioCpError: message,
+            error: { code: 'invalid_operation', message },
+          });
+          return false;
+        }
+        const name = `${get().project.title} ${figure.title}`;
+
+        if (format === 'svg') {
+          const contents = serializeFoldedFigureSvg(snapshot);
+          if (!contents) return false;
+          const result = await fileService.saveTextFile({
+            title: 'Export Folded Figure SVG',
+            contents,
+            suggestedName: defaultFilename(name, 'svg'),
+            path: null,
+            extensions: ['svg'],
+          });
+          if (!result) return false;
+          set({ projectMessage: `Exported ${result.name}` });
+          return true;
+        }
+
+        const bytes = await renderFoldedFigurePng(snapshot);
+        if (!bytes) return false;
+        const result = await fileService.saveBinaryFile({
+          title: 'Export Folded Figure PNG',
+          bytes,
+          suggestedName: defaultFilename(name, 'png'),
+          path: null,
+          extensions: ['png'],
+          mimeType: 'image/png',
         });
         if (!result) return false;
         set({ projectMessage: `Exported ${result.name}` });

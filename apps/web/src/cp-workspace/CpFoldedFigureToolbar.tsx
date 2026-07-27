@@ -57,7 +57,7 @@ function ChoiceMenu({ action }: { action: FoldedFigureChoice }) {
             <DropdownMenu.Item
               key={option.id}
               className="context-menu__item"
-              onSelect={() => action.run(option.value)}
+              onSelect={option.run}
             >
               <span className="context-menu__icon">{option.checked && <Check size={12} />}</span>
               <span className="context-menu__label">{option.label}</span>

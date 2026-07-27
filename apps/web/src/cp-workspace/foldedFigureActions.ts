@@ -3,6 +3,7 @@ import type {
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
 } from '../engine/oristudioCpTypes';
+import type { FoldedFigureExportFormat } from '../lib/foldedFigureExport';
 import { flipFoldedState } from './foldedFigureState';
 
 /**
@@ -45,21 +46,29 @@ export interface FoldedFigureCommand {
   run: () => void;
 }
 
-export interface FoldedFigureChoiceOption<T> {
+export interface FoldedFigureChoiceOption {
   id: string;
   label: string;
-  value: T;
+  /** Marks the current member of a mutually exclusive set (a display mode). */
   checked: boolean;
+  run: () => void;
 }
 
+/**
+ * A group of related picks rendered as one control: a dropdown on the toolbar,
+ * a submenu in the context menu.
+ *
+ * Each option carries its own `run` rather than the group carrying a
+ * `run(value)`, so the option's value type never escapes into the renderers —
+ * they only ever need a label, a checked flag, and something to call.
+ */
 export interface FoldedFigureChoice {
   kind: 'choice';
-  id: 'display-style';
+  id: 'display-style' | 'export';
   label: string;
   icon: FoldedFigureActionIcon;
   disabled: boolean;
-  options: FoldedFigureChoiceOption<OristudioCpFoldedFigureDisplayStyle>[];
-  run: (value: OristudioCpFoldedFigureDisplayStyle) => void;
+  options: FoldedFigureChoiceOption[];
 }
 
 export interface FoldedFigureSeparator {
@@ -95,11 +104,32 @@ export interface FoldedFigureActionDeps {
   refold?: (figure: OristudioCpFoldedFigureEntry) => void;
   /** Whether the figure's source creases have changed since it was folded. */
   isStale?: (figure: OristudioCpFoldedFigureEntry) => boolean;
+  /** Save the figure on its own as an image. Omitted drops the export menu. */
+  exportAs?: (
+    figure: OristudioCpFoldedFigureEntry,
+    format: FoldedFigureExportFormat
+  ) => void;
 }
 
 /** A figure whose kernel handle and snapshot are both live. */
 export function isFoldedFigureReady(figure: OristudioCpFoldedFigureEntry): boolean {
   return figure.status === 'ready' && figure.handle !== null && figure.snapshot !== null;
+}
+
+/** A folded figure is geometry on a page, so it exports as an image only. */
+export const FOLDED_FIGURE_EXPORT_FORMATS: readonly FoldedFigureExportFormat[] = [
+  'svg',
+  'png',
+];
+
+export function foldedExportFormatLabel(t: TFunction, value: FoldedFigureExportFormat): string {
+  // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
+  switch (value) {
+    case 'svg':
+      return t('panels:foldedFigureActions.exportSvg', 'SVG image');
+    case 'png':
+      return t('panels:foldedFigureActions.exportPng', 'PNG image');
+  }
 }
 
 export function foldedDisplayStyleChoiceLabel(
@@ -162,10 +192,9 @@ export function buildFoldedFigureActions(
       options: FOLDED_FIGURE_STYLE_CHOICES.map((value) => ({
         id: `display-style-${value}`,
         label: foldedDisplayStyleChoiceLabel(t, value),
-        value,
         checked: value === currentStyle,
+        run: () => deps.setDisplayStyle(figure, value),
       })),
-      run: (value) => deps.setDisplayStyle(figure, value),
     },
     { kind: 'separator', id: 'after-appearance' },
     {
@@ -191,6 +220,28 @@ export function buildFoldedFigureActions(
       disabled: false,
       run: () => deps.refold?.(figure),
     });
+  }
+
+  if (deps.exportAs) {
+    const exportAs = deps.exportAs;
+    actions.push(
+      { kind: 'separator', id: 'before-export' },
+      {
+        kind: 'choice',
+        id: 'export',
+        label: t('panels:foldedFigureActions.export', 'Export…'),
+        icon: 'export',
+        // Exported from the render snapshot, so anything on screen can be saved
+        // — including a figure whose creases have since moved.
+        disabled: figure.renderSnapshot === null,
+        options: FOLDED_FIGURE_EXPORT_FORMATS.map((value) => ({
+          id: `export-${value}`,
+          label: foldedExportFormatLabel(t, value),
+          checked: false,
+          run: () => exportAs(figure, value),
+        })),
+      }
+    );
   }
 
   actions.push(

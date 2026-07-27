@@ -34,6 +34,7 @@ import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type { CreaseExportOptions } from '../../lib/creaseExport';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
+import type { FoldedFigureExportFormat } from '../../lib/foldedFigureExport';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
   OristudioCpCommandPayload,
@@ -228,6 +229,15 @@ export interface ProjectSliceActions {
   exportOristudioCpSegment: (
     format: SegmentExportFormat,
     segmentId: number,
+    fileService?: FileService
+  ) => Promise<boolean>;
+  /**
+   * Save one folded figure as a standalone image, serialized from the snapshot
+   * already on screen rather than re-folded. See `lib/foldedFigureExport.ts`.
+   */
+  exportOristudioCpFoldedFigure: (
+    format: FoldedFigureExportFormat,
+    figureId: string,
     fileService?: FileService
   ) => Promise<boolean>;
   loadExampleProject: (id: string) => Promise<void>;

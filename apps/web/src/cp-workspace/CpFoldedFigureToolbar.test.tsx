@@ -177,6 +177,19 @@ describe('CpFoldedFigureToolbar', () => {
     expect(disabled).not.toContain('Delete');
   });
 
+  it('shows the export control when the caller supports exporting', () => {
+    render(makeFigure(), makeDeps({ exportAs: vi.fn() }));
+    expect(labels()).toEqual([
+      'Flip',
+      'Display style',
+      'Another solution',
+      'Export…',
+      'Duplicate',
+      'Delete',
+    ]);
+    expect(toolbar()?.querySelectorAll('.floating-toolbar__separator')).toHaveLength(3);
+  });
+
   it('surfaces Refold only when the figure is stale', () => {
     const refold = vi.fn();
     render(makeFigure(), makeDeps({ refold, isStale: () => false }));

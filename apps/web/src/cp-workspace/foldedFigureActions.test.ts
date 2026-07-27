@@ -73,13 +73,20 @@ function command(
 
 function choice(
   figure: OristudioCpFoldedFigureEntry,
-  deps: FoldedFigureActionDeps
+  deps: FoldedFigureActionDeps,
+  id: FoldedFigureChoice['id'] = 'display-style'
 ): FoldedFigureChoice {
   const found = buildFoldedFigureActions(figure, deps).find(
-    (action): action is FoldedFigureChoice => action.kind === 'choice'
+    (action): action is FoldedFigureChoice => action.kind === 'choice' && action.id === id
   );
-  if (!found) throw new Error('no choice action');
+  if (!found) throw new Error(`no ${id} choice`);
   return found;
+}
+
+function choiceIds(figure: OristudioCpFoldedFigureEntry, deps: FoldedFigureActionDeps) {
+  return buildFoldedFigureActions(figure, deps)
+    .filter((action): action is FoldedFigureChoice => action.kind === 'choice')
+    .map((action) => action.id);
 }
 
 describe('buildFoldedFigureActions', () => {
@@ -130,10 +137,14 @@ describe('buildFoldedFigureActions', () => {
 
   it('checks the current display style and no other', () => {
     const options = choice(makeFigure({ displayStyle: 'Wire2' }), makeDeps()).options;
-    expect(options.filter((option) => option.checked).map((option) => option.value)).toEqual([
-      'Wire2',
+    expect(options.filter((option) => option.checked).map((option) => option.id)).toEqual([
+      'display-style-Wire2',
     ]);
-    expect(options.map((option) => option.value)).toEqual(['Paper5', 'Wire2', 'Transparent3']);
+    expect(options.map((option) => option.id)).toEqual([
+      'display-style-Paper5',
+      'display-style-Wire2',
+      'display-style-Transparent3',
+    ]);
   });
 
   it('routes each verb to its dependency', () => {
@@ -143,7 +154,7 @@ describe('buildFoldedFigureActions', () => {
     command(figure, deps, 'another').run();
     command(figure, deps, 'duplicate').run();
     command(figure, deps, 'delete').run();
-    choice(figure, deps).run('Wire2');
+    choice(figure, deps).options.find((option) => option.id === 'display-style-Wire2')?.run();
     expect(deps.flip).toHaveBeenCalledWith(figure);
     expect(deps.foldAnother).toHaveBeenCalledWith(figure);
     expect(deps.duplicate).toHaveBeenCalledWith(figure);
@@ -158,6 +169,59 @@ describe('buildFoldedFigureActions', () => {
       .filter((action) => action.danger)
       .map((action) => action.id);
     expect(danger).toEqual(['delete']);
+  });
+
+  describe('export', () => {
+    it('is absent when the caller supplies no export support', () => {
+      expect(choiceIds(makeFigure(), makeDeps())).toEqual(['display-style']);
+    });
+
+    it('sits between the solution group and the manage group', () => {
+      const deps = makeDeps({ exportAs: vi.fn() });
+      const ids = buildFoldedFigureActions(makeFigure(), deps)
+        .filter((action) => action.kind !== 'separator')
+        .map((action) => action.id);
+      expect(ids).toEqual([
+        'flip',
+        'display-style',
+        'another',
+        'export',
+        'duplicate',
+        'delete',
+      ]);
+    });
+
+    it('offers image formats only — a folded figure is geometry on a page', () => {
+      const deps = makeDeps({ exportAs: vi.fn() });
+      expect(choice(makeFigure(), deps, 'export').options.map((option) => option.id)).toEqual([
+        'export-svg',
+        'export-png',
+      ]);
+    });
+
+    it('checks nothing: export is a set of actions, not a current mode', () => {
+      const deps = makeDeps({ exportAs: vi.fn() });
+      expect(
+        choice(makeFigure(), deps, 'export').options.every((option) => !option.checked)
+      ).toBe(true);
+    });
+
+    it('routes each format to the export dependency', () => {
+      const exportAs = vi.fn();
+      const deps = makeDeps({ exportAs });
+      const figure = makeFigure();
+      choice(figure, deps, 'export').options.forEach((option) => option.run());
+      expect(exportAs).toHaveBeenNthCalledWith(1, figure, 'svg');
+      expect(exportAs).toHaveBeenNthCalledWith(2, figure, 'png');
+    });
+
+    // Exported from the render snapshot, so a figure whose creases have since
+    // moved can still be saved — but one that has never drawn cannot.
+    it('is disabled only when the figure has no render snapshot', () => {
+      const deps = makeDeps({ exportAs: vi.fn() });
+      expect(choice(makeFigure({ status: 'stale' }), deps, 'export').disabled).toBe(false);
+      expect(choice(makeFigure({ renderSnapshot: null }), deps, 'export').disabled).toBe(true);
+    });
   });
 
   describe('refold', () => {

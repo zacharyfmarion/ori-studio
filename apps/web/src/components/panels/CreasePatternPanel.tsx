@@ -1363,6 +1363,9 @@ export function CreasePatternPanel() {
   const refoldOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.refoldOristudioCpFoldedFigure
   );
+  const exportOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.exportOristudioCpFoldedFigure
+  );
   const deleteOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.deleteOristudioCpFoldedFigure
   );
@@ -1847,6 +1850,11 @@ export function CreasePatternPanel() {
       // check. Memoized on the document so a pan or a selection does not re-run
       // it, and never touched on the edit path.
       isStale: (figure) => staleFoldedFigureIds.has(figure.id),
+      // Not wrapped in runFoldedFigureAction: saving a file changes nothing
+      // about the document, so it is not an undo step.
+      exportAs: (figure, format) => {
+        void exportOristudioCpFoldedFigure(format, figure.id);
+      },
     }),
     [
       updateOristudioCpFoldedFigureModel,
@@ -1855,6 +1863,7 @@ export function CreasePatternPanel() {
       duplicateOristudioCpFoldedFigure,
       deleteOristudioCpFoldedFigure,
       refoldOristudioCpFoldedFigure,
+      exportOristudioCpFoldedFigure,
       runFoldedFigureAction,
       staleFoldedFigureIds,
       t,
@@ -1884,7 +1893,7 @@ export function CreasePatternPanel() {
                 id: option.id,
                 label: option.label,
                 checked: option.checked,
-                onSelect: () => action.run(option.value),
+                onSelect: option.run,
               })),
             };
           case 'command':
