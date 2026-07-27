@@ -69,14 +69,17 @@ export type OristudioCpActionDefinition =
   | OristudioCpCommandActionDefinition;
 
 export const ORISTUDIO_CP_LINE_TYPE_ACTIONS = [
-  ...ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE.map((entry) =>
+  ...ORISTUDIO_CP_PRIMARY_LINE_COLOR_PALETTE.map((entry, index) =>
     lineTypeAction(
       entry.id,
       entry.label,
       entry.shortLabel,
       entry.lineColor,
       upstreamLineColorAction(entry.lineColor),
-      `line-type-${entry.cssClass}`
+      `line-type-${entry.cssClass}`,
+      // Keep palette order (M, V, E, U, A) explicit rather than leaning on a
+      // stable sort, since the rail sorts every group by `railOrder`.
+      index + 1
     )
   ),
 ] as const satisfies readonly OristudioCpLineTypeActionDefinition[];
@@ -587,7 +590,8 @@ function lineTypeAction(
   railLabel: string,
   lineColor: OristudioCpLineColor,
   upstreamAction: string,
-  icon: string
+  icon: string,
+  railOrder: number
 ): OristudioCpLineTypeActionDefinition {
   return {
     id: `cp.action.line-type.${id}`,
@@ -595,8 +599,9 @@ function lineTypeAction(
     label,
     railLabel,
     group: 'line-type',
-    placement: 'bottom-toolbar',
+    placement: 'left-rail',
     icon,
+    railOrder,
     upstreamAction,
     tooltip: `Set active line type to ${label.toLowerCase()}`,
     uiStatus: 'ready',

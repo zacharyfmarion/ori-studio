@@ -78,7 +78,6 @@ export type OristudioCpCommandGroupId = (typeof ORISTUDIO_CP_COMMAND_GROUPS)[num
 export type OristudioCpCommandPlacement =
   | 'left-rail'
   | 'left-rail-overflow'
-  | 'bottom-toolbar'
   | 'menu'
   | 'palette'
   | 'hidden-ui-only';

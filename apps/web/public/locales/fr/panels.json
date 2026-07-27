@@ -149,7 +149,6 @@
     "yScale": "Échelle Y"
   },
   "creasePattern": {
-    "activeCreaseLineType": "Type de ligne de pli actif",
     "addImage": "Ajouter une image",
     "alpha": "Alpha",
     "angleBisectorSelect2Lines": "Bissectrice : sélectionnez 2 lignes",
@@ -204,7 +203,6 @@
     "duplicate": "Dupliquer",
     "duplicateFoldedModel": "Dupliquer le modèle plié",
     "duplicateFoldedModelAction": "Dupliquer le modèle plié",
-    "extraLineColors": "Couleurs de ligne supplémentaires",
     "flip": "Retourner",
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
@@ -248,7 +246,6 @@
     "linesCount_one": "{{count}} ligne",
     "linesCount_many": "{{count}} lignes",
     "linesCount_other": "{{count}} lignes",
-    "moreLineColors": "Plus de couleurs de ligne",
     "moveAnnotation": "Déplacer l’annotation",
     "moveFoldedForm": "Déplacer la forme pliée",
     "noCreasePattern": "Aucun patron de plis",

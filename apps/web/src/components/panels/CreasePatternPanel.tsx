@@ -8,8 +8,6 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { cpActionLabel } from '../../i18n/cpVocab';
-import { cpPaletteLabel } from '../../i18n/paletteLabels';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -31,7 +29,6 @@ import {
 } from '../../keyboard/shortcutRuntime';
 import {
   shortcutLabelForAction,
-  type ShortcutOverrides,
   type ViewportShortcutId,
 } from '../../keyboard/shortcuts';
 import type {
@@ -56,7 +53,6 @@ import {
 } from '../../lib/oristudioCpDiagnostics';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
-  ORISTUDIO_CP_LINE_TYPE_ACTIONS,
   cpActionByOperation,
   cpActionById,
   cpActionByUpstreamMouseMode,
@@ -79,7 +75,6 @@ import {
   evaluateOrieditaRatioExpression,
   type OristudioCpToolOptions,
 } from '../../lib/oristudioCpToolSettings';
-import { ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE } from '../../lib/oristudioCpPalette';
 import {
   activeLineColorFromOrieditaMetadata,
   activeMouseModeFromOrieditaMetadata,
@@ -614,117 +609,6 @@ function cpCreasesUnderPreviewEndpoints(
     if (count === 1) found.add(onlyHit);
   }
   return [...found].map((i) => ({ a: lineSegments[i].a, b: lineSegments[i].b }));
-}
-
-function CpLineTypeToolbar({
-  activeLineColor,
-  onSelectLineColor,
-  shortcutOverrides,
-}: {
-  activeLineColor: OristudioCpLineColor;
-  onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
-  shortcutOverrides: ShortcutOverrides;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="cp-line-type-toolbar" aria-label={t('panels:creasePattern.activeCreaseLineType', 'Active crease line type')}>
-      {ORISTUDIO_CP_LINE_TYPE_ACTIONS.map((action) => {
-        const shortcut = shortcutLabelForAction(action.id, shortcutOverrides);
-        return (
-          <IconButton
-            key={action.id}
-            size="sm"
-            variant="toolbar"
-            title={shortcut ? `${cpActionLabel(t, action)} (${shortcut})` : cpActionLabel(t, action)}
-            aria-label={cpActionLabel(t, action)}
-            className="cp-line-type-toolbar__button"
-            data-line-color={action.lineColor}
-            isActive={activeLineColor === action.lineColor}
-            onClick={() => onSelectLineColor(action.lineColor)}
-          >
-            <span aria-hidden="true">{action.railLabel}</span>
-          </IconButton>
-        );
-      })}
-      <CpLineColorMenuButton
-        activeLineColor={activeLineColor}
-        onSelectLineColor={onSelectLineColor}
-      />
-    </div>
-  );
-}
-
-function CpLineColorMenuButton({
-  activeLineColor,
-  onSelectLineColor,
-}: {
-  activeLineColor: OristudioCpLineColor;
-  onSelectLineColor: (lineColor: OristudioCpLineColor) => void;
-}) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const activeExtraEntry = ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.find(
-    (entry) => entry.lineColor === activeLineColor
-  );
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (menuRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open]);
-
-  const chooseColor = (lineColor: OristudioCpLineColor) => {
-    onSelectLineColor(lineColor);
-    setOpen(false);
-  };
-
-  return (
-    <div className="viewport-toolbar__menu-anchor cp-line-color-menu" ref={menuRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={activeExtraEntry ? activeExtraEntry.label : t('panels:creasePattern.moreLineColors', 'More line colors')}
-        aria-label={t('panels:creasePattern.moreLineColors', 'More line colors')}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="cp-line-color-menu__trigger"
-        data-line-color={activeExtraEntry?.lineColor}
-        isActive={Boolean(activeExtraEntry)}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span className="cp-line-color-menu__trigger-swatch" aria-hidden="true" />
-      </IconButton>
-      {open && (
-        <div
-          className="viewport-toolbar__dropdown cp-line-color-menu__panel"
-          role="menu"
-          aria-label={t('panels:creasePattern.extraLineColors', 'Extra line colors')}
-        >
-          {ORISTUDIO_CP_EXTRA_LINE_COLOR_PALETTE.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              className="cp-line-color-menu__swatch-button"
-              data-active={activeLineColor === entry.lineColor ? true : undefined}
-              data-line-color={entry.lineColor}
-              role="menuitemradio"
-              aria-checked={activeLineColor === entry.lineColor}
-              aria-label={cpPaletteLabel(t, entry)}
-              onClick={() => chooseColor(entry.lineColor)}
-            >
-              <span className="cp-line-color-menu__swatch" aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function FoldedFigureMenuButton({
@@ -3427,6 +3311,7 @@ export function CreasePatternPanel() {
                 activeLineColor={activeCpLineColor}
                 editable={!!editableCp}
                 onSelectAction={handleCpToolAction}
+                onSelectLineColor={setActiveCpLineColor}
               />
             )}
             <div
@@ -3672,12 +3557,6 @@ export function CreasePatternPanel() {
               >
                 {editableCp && (
                   <>
-                    <ViewportToolbarSeparator />
-                    <CpLineTypeToolbar
-                      activeLineColor={activeCpLineColor}
-                      onSelectLineColor={setActiveCpLineColor}
-                      shortcutOverrides={shortcutOverrides}
-                    />
                     <ViewportToolbarSeparator />
                     <IconButton
                       size="sm"

@@ -74,6 +74,8 @@
   },
   "cpRail": {
     "ariaLabel": "折痕图工具",
+    "extraLineColors": "其他线条颜色",
+    "moreLineColors": "更多线条颜色",
     "openEditableFirst": "请先打开可编辑折痕图"
   },
   "lineStyle": {

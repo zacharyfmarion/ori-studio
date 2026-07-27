@@ -11,7 +11,7 @@ import {
 import { ORISTUDIO_CP_COMMANDS } from './oristudioCpCommands';
 
 describe('oristudio CP action registry', () => {
-  it('keeps Oriedita line type actions in the bottom toolbar', () => {
+  it('puts the line type actions first in the left rail', () => {
     expect(ORISTUDIO_CP_ACTION_GROUPS.map((group) => group.id).slice(0, 4)).toEqual([
       'line-type',
       'select-edit',
@@ -32,8 +32,15 @@ describe('oristudio CP action registry', () => {
       'None',
       'Cyan3',
     ]);
-    expect(ORISTUDIO_CP_LINE_TYPE_ACTIONS.every((action) => action.placement === 'bottom-toolbar')).toBe(true);
-    expect(cpRailActions().some((action) => action.kind === 'line-type')).toBe(false);
+    expect(ORISTUDIO_CP_LINE_TYPE_ACTIONS.every((action) => action.placement === 'left-rail')).toBe(true);
+    // The rail is now their only home, and they lead it (group order 5).
+    const rail = cpRailActions();
+    expect(rail.filter((action) => action.kind === 'line-type')).toHaveLength(
+      ORISTUDIO_CP_LINE_TYPE_ACTIONS.length
+    );
+    expect(rail.slice(0, ORISTUDIO_CP_LINE_TYPE_ACTIONS.length).map((action) => action.id)).toEqual(
+      ORISTUDIO_CP_LINE_TYPE_ACTIONS.map((action) => action.id)
+    );
   });
 
   it('keeps every operation-backed command reachable through an action', () => {
@@ -51,7 +58,10 @@ describe('oristudio CP action registry', () => {
   });
 
   it('orders rail actions like Oriedita while exposing dropdown entries', () => {
-    expect(cpRailActions().slice(0, 10).map((action) => action.label)).toEqual([
+    // Line types lead the rail in their own group, so the Oriedita tool order
+    // is asserted from the first command action onward.
+    const tools = cpRailActions().filter((action) => action.kind === 'command');
+    expect(tools.slice(0, 10).map((action) => action.label)).toEqual([
       'Box Select',
       'Lasso Select',
       'Box Deselect',
@@ -64,7 +74,7 @@ describe('oristudio CP action registry', () => {
       'Lengthen by Same Color',
     ]);
 
-    expect(cpRailActions().slice(10, 11).map((action) => action.label)).toEqual([
+    expect(tools.slice(10, 11).map((action) => action.label)).toEqual([
       'Perpendicular Line',
     ]);
 

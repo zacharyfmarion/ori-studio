@@ -1577,6 +1577,46 @@
         "0": "Erneutes Auswählen von Punkten hebt sie auf.",
         "1": "Anwenden auswählen, um die temporären Linien in Faltlinien umzuwandeln."
       }
+    },
+    "colRedAction": {
+      "intro": {
+        "0": "Neue Falten als Bergfalten zeichnen."
+      },
+      "notes": {
+        "0": "Legt den aktiven Linientyp fest; er gilt, bis ein anderer gewählt wird."
+      }
+    },
+    "colBlueAction": {
+      "intro": {
+        "0": "Neue Falten als Talfalten zeichnen."
+      },
+      "notes": {
+        "0": "Legt den aktiven Linientyp fest; er gilt, bis ein anderer gewählt wird."
+      }
+    },
+    "colBlackAction": {
+      "intro": {
+        "0": "Neue Falten als Randlinien zeichnen."
+      },
+      "notes": {
+        "0": "Legt den aktiven Linientyp fest; er gilt, bis ein anderer gewählt wird."
+      }
+    },
+    "colCyanAction": {
+      "intro": {
+        "0": "Neue Falten als Hilfslinien zeichnen."
+      },
+      "notes": {
+        "0": "Hilfslinien sind Führungen – sie werden nicht gefaltet."
+      }
+    },
+    "lineColorAction": {
+      "intro": {
+        "0": "Neue Falten als nicht zugewiesene Linien zeichnen."
+      },
+      "notes": {
+        "0": "Nicht zugewiesene Falten haben noch keine Faltrichtung, daher überspringen Faltbarkeitsprüfungen sie."
+      }
     }
   }
 }

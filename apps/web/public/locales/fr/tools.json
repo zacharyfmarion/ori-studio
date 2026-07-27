@@ -90,6 +90,8 @@
   },
   "cpRail": {
     "ariaLabel": "Outils de patron de plis",
+    "extraLineColors": "Couleurs de ligne supplémentaires",
+    "moreLineColors": "Plus de couleurs de ligne",
     "openEditableFirst": "Ouvrez d'abord un patron de plis modifiable"
   },
   "lineStyle": {

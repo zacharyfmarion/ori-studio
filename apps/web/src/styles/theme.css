@@ -4436,83 +4436,10 @@
   margin-inline: 1px;
 }
 
-.cp-line-type-toolbar {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
 .cp-folded-figure-actions {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-}
-
-.cp-line-type-toolbar__button {
-  min-width: 28px;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.cp-folded-model-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 58px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: 0.72rem;
-  font-weight: 760;
-}
-
-.cp-folded-model-status[data-folded-model-status='stale'] {
-  color: var(--status-warning);
-}
-
-.cp-folded-model-status[data-folded-model-status='error'] {
-  color: var(--status-danger);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Black0'] {
-  color: var(--fold-border);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Cyan3'] {
-  color: var(--fold-flat);
-}
-
-.cp-line-type-toolbar__button[data-line-color='None'] {
-  color: var(--fold-unassigned);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Black0'] {
-  color: var(--fold-border);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Cyan3'] {
-  color: var(--fold-flat);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='None'] {
-  color: var(--fold-unassigned);
 }
 
 .cp-view-controls-panel__empty {
@@ -4799,17 +4726,21 @@
   transform: translateX(-50%);
 }
 
-.cp-line-color-menu__trigger {
-  min-width: 28px;
-  width: 28px;
+
+/* Extra line colours, as the last chip on the rail's line-type row. The rail is
+   pinned to the left edge, so the popover opens to the right. */
+.cp-rail-color-menu {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
 }
 
-.cp-line-color-menu__trigger-swatch,
-.cp-line-color-menu__swatch {
+.cp-rail-color-menu__swatch {
   display: block;
   flex: 0 0 auto;
   aspect-ratio: 1 / 1;
-  box-sizing: border-box;
+  inline-size: 14px;
+  block-size: 14px;
   border-radius: var(--radius-sm);
   background: currentColor;
   box-shadow:
@@ -4817,11 +4748,9 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
-.cp-line-color-menu__trigger-swatch {
-  inline-size: 14px;
-  block-size: 14px;
-  min-inline-size: 14px;
-  max-inline-size: 14px;
+/* An untinted trigger advertises the whole extra palette; once an extra colour
+   is active the trigger takes that colour instead. */
+.cp-rail-color-menu__trigger:not([data-line-color]) .cp-rail-color-menu__swatch {
   background: conic-gradient(
     from 90deg,
     var(--cp-color-orange),
@@ -4834,67 +4763,78 @@
   );
 }
 
-.cp-line-color-menu__trigger[data-line-color] .cp-line-color-menu__trigger-swatch {
-  background: currentColor;
-}
-
-.cp-line-color-menu [data-line-color='Orange4'] {
-  color: var(--cp-color-orange);
-}
-
-.cp-line-color-menu [data-line-color='Magenta5'] {
-  color: var(--cp-color-magenta);
-}
-
-.cp-line-color-menu [data-line-color='Green6'] {
-  color: var(--cp-color-green);
-}
-
-.cp-line-color-menu [data-line-color='Yellow7'] {
-  color: var(--cp-color-yellow);
-}
-
-.cp-line-color-menu [data-line-color='Purple8'] {
-  color: var(--cp-color-purple);
-}
-
-.cp-line-color-menu [data-line-color='Other9'] {
-  color: var(--cp-color-other);
-}
-
-.cp-line-color-menu__panel {
-  grid-template-columns: repeat(3, 28px);
-  min-width: 0;
-  padding: 6px;
+.cp-rail-color-menu__panel {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 6px);
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(3, 26px);
   gap: 5px;
+  padding: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
 }
 
-.cp-line-color-menu__swatch-button {
+.cp-rail-color-menu__option {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   cursor: pointer;
 }
 
-.cp-line-color-menu__swatch-button:hover {
+.cp-rail-color-menu__option:hover {
   background: var(--bg-surface);
 }
 
-.cp-line-color-menu__swatch-button[data-active] {
+.cp-rail-color-menu__option[data-active] {
   border-color: color-mix(in srgb, currentColor 48%, transparent);
   background: color-mix(in srgb, currentColor 16%, transparent);
 }
 
-.cp-line-color-menu__swatch {
-  inline-size: 16px;
-  block-size: 16px;
-  min-inline-size: 16px;
-  max-inline-size: 16px;
+.cp-rail-color-menu [data-line-color='Orange4'] {
+  color: var(--cp-color-orange);
+}
+
+.cp-rail-color-menu [data-line-color='Magenta5'] {
+  color: var(--cp-color-magenta);
+}
+
+.cp-rail-color-menu [data-line-color='Green6'] {
+  color: var(--cp-color-green);
+}
+
+.cp-rail-color-menu [data-line-color='Yellow7'] {
+  color: var(--cp-color-yellow);
+}
+
+.cp-rail-color-menu [data-line-color='Purple8'] {
+  color: var(--cp-color-purple);
+}
+
+.cp-rail-color-menu [data-line-color='Other9'] {
+  color: var(--cp-color-other);
+}
+
+/* Six line-type chips fit one row: they are glyphs, not icons, so they do not
+   need the tool button's footprint. */
+.cp-tool-rail__buttons[data-group='line-type'] {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.cp-tool-rail__button[data-line-color='None'] {
+  color: var(--fold-unassigned);
+}
+
+.cp-tool-rail__button[data-active][data-line-color='None'] {
+  color: var(--fold-unassigned);
 }
 
 .viewport-toolbar__dropdown-item {

@@ -149,7 +149,6 @@
     "yScale": "Y-Skalierung"
   },
   "creasePattern": {
-    "activeCreaseLineType": "Aktiver Faltlinientyp",
     "addImage": "Bild hinzufügen",
     "alpha": "Alpha",
     "angleBisectorSelect2Lines": "Winkelhalbierende: 2 Linien auswählen",
@@ -198,7 +197,6 @@
     "duplicate": "Duplizieren",
     "duplicateFoldedModel": "Gefaltetes Modell duplizieren",
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
-    "extraLineColors": "Zusätzliche Linienfarben",
     "flip": "Spiegeln",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
@@ -241,7 +239,6 @@
     "insertImage": "Bild einfügen...",
     "linesCount_one": "{{count}} Linie",
     "linesCount_other": "{{count}} Linien",
-    "moreLineColors": "Weitere Linienfarben",
     "moveAnnotation": "Anmerkung verschieben",
     "moveFoldedForm": "Gefaltete Form verschieben",
     "noCreasePattern": "Kein Faltmuster",

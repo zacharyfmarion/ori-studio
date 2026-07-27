@@ -149,7 +149,6 @@
     "yScale": "Масштаб по Y"
   },
   "creasePattern": {
-    "activeCreaseLineType": "Активный тип линии складки",
     "addImage": "Добавить изображение",
     "alpha": "Альфа",
     "angleBisectorSelect2Lines": "Биссектриса угла: выберите 2 линии",
@@ -210,7 +209,6 @@
     "duplicate": "Дублировать",
     "duplicateFoldedModel": "Дублировать сложенную модель",
     "duplicateFoldedModelAction": "Дублировать сложенную модель",
-    "extraLineColors": "Дополнительные цвета линий",
     "flip": "Отразить",
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
@@ -255,7 +253,6 @@
     "linesCount_few": "{{count}} линии",
     "linesCount_many": "{{count}} линий",
     "linesCount_other": "{{count}} линии",
-    "moreLineColors": "Больше цветов линий",
     "moveAnnotation": "Переместить аннотацию",
     "moveFoldedForm": "Переместить сложенную форму",
     "noCreasePattern": "Нет паттерна складок",

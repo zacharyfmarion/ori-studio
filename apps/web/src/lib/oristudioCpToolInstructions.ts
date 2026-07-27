@@ -104,6 +104,26 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
     intro: ['Draw connecting concentric circles by selecting two circles.'],
     notes: ['Differences of radii between concentric and selected circles are equal.'],
   },
+  colBlackAction: {
+    intro: ['Draw new creases as edge (border) lines.'],
+    notes: ['Sets the active line type; it stays in effect until another type is picked.'],
+  },
+  colBlueAction: {
+    intro: ['Draw new creases as valley folds.'],
+    notes: ['Sets the active line type; it stays in effect until another type is picked.'],
+  },
+  colCyanAction: {
+    intro: ['Draw new creases as auxiliary (construction) lines.'],
+    notes: ['Auxiliary lines are guides — they are not folded.'],
+  },
+  colRedAction: {
+    intro: ['Draw new creases as mountain folds.'],
+    notes: ['Sets the active line type; it stays in effect until another type is picked.'],
+  },
+  lineColorAction: {
+    intro: ['Draw new creases as unassigned lines.'],
+    notes: ['Unassigned creases have no fold direction yet, so foldability checks skip them.'],
+  },
   continuousSymmetricDrawAction: {
     intro: ['Draw a line reflecting through crease lines.'],
     steps: ['Select 2 points to draw a line reflecting and alternating through crease lines.'],
