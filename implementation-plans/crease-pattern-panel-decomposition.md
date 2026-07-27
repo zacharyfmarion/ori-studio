@@ -212,7 +212,9 @@ the config already uses for `NO_DIRECT_STORAGE` (ban + message naming the
 sanctioned home + scoped exemptions):
 
 - `src/components/panels/**/*.tsx` (excluding tests): `max-lines: 800`, message
-  pointing at the AGENTS.md section above.
+  pointing at the AGENTS.md section above. Comments and blank lines are **not**
+  counted — a cap that counts them makes deleting explanation the cheapest way to
+  comply, which is the opposite of what this is for.
 - Per-file exemptions frozen at **today's** counts so existing panels can only
   shrink: CreasePatternPanel 3,830 (main's 3,810 + the 19-line Escape fix on
   this branch, rounded) · BpPackingPanel 2,310 · SimulatorPanel 2,005 ·

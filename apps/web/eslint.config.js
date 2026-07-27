@@ -28,34 +28,39 @@ const noDirectStorageProperties = [
 /*
  * Panels are composition sites, not where behavior accumulates.
  *
- * `max-lines` has no custom-message option, so if it is what sent you here: move
- * the behavior into a `use*` hook beside its concern under
- * `cp-workspace/<concern>/`, into an action catalog, or into a child component —
- * do not raise the number. See AGENTS.md > "Panel components" for which of those
- * a given addition belongs in.
+ * `max-lines` has no custom-message option, so if it is what sent you here: this
+ * is a prompt to decide, not a ceiling. Two answers are legitimate — move the
+ * behavior to where it belongs (AGENTS.md > "Panel components" says where), or
+ * raise the number and justify it in the PR. What is not legitimate is making
+ * the count go down without making the code better: splitting a file along no
+ * conceptual seam, extracting a hook that needs a dozen arguments to work, or
+ * deleting comments to fit. A raised cap with a reason beats any of those.
+ *
+ * Comments and blank lines are not counted, so explanation is never the cheapest
+ * thing to cut.
  */
 
 /**
- * Panels already over the cap, frozen so they can only shrink. Lower a number as
- * work moves out of that panel; delete the entry once it fits under
- * PANEL_MAX_LINES.
+ * Panels already over the cap. Lower a number as work moves out; delete the entry
+ * once the file fits under PANEL_MAX_LINES.
  *
- * A number only goes *up* when merging main grew the file independently — that
- * is a re-baseline, not a concession, and it is deliberately a visible edit
- * rather than something the rule absorbs quietly.
+ * Raising one is allowed and sometimes right — a feature that genuinely belongs
+ * in a panel, or a merge where main grew the file. The point of the entry is
+ * that the raise is a visible line in a diff someone reviews, not that it never
+ * happens.
  */
 const OVERSIZED_PANELS = {
-  'CreasePatternPanel.tsx': 3335, // main: 3993
-  'BpPackingPanel.tsx': 2310,
-  'SimulatorPanel.tsx': 2005,
-  'DesignPanel.tsx': 1335,
-  'BpTreePanel.tsx': 1005,
-  'CpContextToolPanel.tsx': 1150,
+  'CreasePatternPanel.tsx': 2860,
+  'BpPackingPanel.tsx': 2085,
+  'SimulatorPanel.tsx': 1770,
+  'DesignPanel.tsx': 1260,
+  'BpTreePanel.tsx': 890,
+  'CpContextToolPanel.tsx': 1080,
 };
 
 const PANEL_MAX_LINES = 800;
 
-const maxLines = (max) => ['error', { max, skipBlankLines: false, skipComments: false }];
+const maxLines = (max) => ['error', { max, skipBlankLines: true, skipComments: true }];
 
 const NO_PANEL_KEYDOWN =
   'Do not listen for keydown in a panel. A container-scoped listener dies whenever a text editor, floating toolbar, or portalled menu takes focus, and never sees portalled content at all. Register the key in src/keyboard/ and implement it in the surface executor (AGENTS.md > Panel components).';

@@ -153,8 +153,8 @@ or crease-pattern behavior.
 
 Panels under `apps/web/src/components/panels/` are **composition sites**: they
 choose which surfaces mount and wire them together. They are not where behavior
-accumulates. `max-lines` is enforced on them, and the existing large panels are
-frozen at their current size so they can only shrink.
+accumulates. `max-lines` is enforced on them — see below for what that does and
+does not mean.
 
 Before adding state, a ref, an effect, a memo, or an event listener to a panel,
 place it:
@@ -187,6 +187,35 @@ Three rules follow from this, and past bugs came from breaking the first two:
 If a change genuinely fits no row above, the panel is missing an abstraction. Say
 so in the PR rather than adding another effect. See
 `implementation-plans/crease-pattern-panel-decomposition.md`.
+
+#### The line cap is a prompt, not a ceiling
+
+`max-lines` exists because this panel went from 7.6k lines to 2.8k and back to
+3.8k within a week, and nothing made that visible while it happened. The number
+is a proxy — it is there to force a decision at the moment of growth, not to be
+optimized.
+
+So when it fires, **two answers are legitimate**, and it is the author's call
+which applies:
+
+- Move the behavior to where the table above says it belongs.
+- Raise the cap in `apps/web/eslint.config.js` and say why in the PR. A feature
+  that genuinely belongs in a panel is a real thing.
+
+What is **not** legitimate is making the count go down without making the code
+better. Each of these is worse than a raised cap, and reviewers should say so:
+
+- Splitting a file along no conceptual seam (`FooPanelParts.tsx`).
+- Extracting a hook that needs a dozen arguments and returns twenty fields. If
+  the interface is worse than the inlining, leave it inlined and explain — see
+  the Phase 4 note in the decomposition plan, which was stopped for exactly this.
+- Deleting comments to fit. Comments and blank lines are not counted, so this
+  never helps anyway.
+- Moving code out of `components/panels/` only to escape the rule.
+
+The signal worth acting on is a panel growing *because behavior keeps landing
+there*, which is what the table above is for. A panel that is long because it
+composes a genuinely large surface is fine.
 
 ## Build commands
 
