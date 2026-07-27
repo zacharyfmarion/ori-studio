@@ -263,10 +263,18 @@ listener, and `handleShortcutKeyDown` bails on `event.defaultPrevented`. Radix
 menus likewise handle Escape internally and stop it. Moving Escape into the
 runtime does not steal it from either.
 
-**Open decision:** registering these makes Cancel/Delete appear in the Settings
-shortcut editor as rebindable. Recommendation: allow it — `classifyReservedKey`
-already returns `allowed` for both. Flag in the PR so it is a decision rather
-than a side effect.
+**Deviation, found during implementation.** `viewport.deleteSelection` was
+dropped. `edit.delete` already owns Delete/Backspace at `global` scope, and
+`handleShortcutKeyDown` resolves `viewport` first, so registering a viewport
+Delete shadows crease deletion entirely — confirmed against the dispatcher, not
+reasoned about. The panel's Delete listener is `window`-scoped and therefore not
+focus-coupled, so it is not the bug class this phase targets; it folds into the
+`edit.delete` menu action in Phase 2 alongside the annotation bindings it calls.
+
+**Open decision:** registering `viewport.cancel` makes Escape appear in the
+Settings shortcut editor as rebindable. Recommendation: allow it —
+`classifyReservedKey` already returns `allowed` for it. Flagged in the PR so it
+is a decision rather than a side effect.
 
 ### Phase 2 — `useCpAnnotations`, and toolbar arbitration
 
@@ -380,13 +388,14 @@ badge + refold, camera zoom/fit/rotate.
 
 - [x] Phase 0a — `AGENTS.md` "Panel components" section (incl. the action-catalogue and placement rules)
 - [x] Phase 0b — `max-lines` ratchet + per-file freezes at today's counts
-- [ ] Phase 1 — `viewport.cancel` / `viewport.deleteSelection` in the registry
-- [ ] Phase 1 — move Escape + Delete into `handleViewportShortcut`; delete both container `keydown` effects
-- [ ] Phase 1 — delete `refocusAfterTextEditRef` and `isEscapeConsumingTarget`
-- [ ] Phase 1 — collapse the Escape special case in `appKeyboard.ts`
-- [ ] Phase 1 — confirm Escape-from-floating-toolbar (text **and** folded) in the browser
-- [ ] Phase 1 — `no-restricted-syntax` keydown ban, non-CP panels exempted
+- [x] Phase 1 — `viewport.cancel` in the registry (no `viewport.deleteSelection`: it shadows `edit.delete`, see below)
+- [x] Phase 1 — move Escape into `handleViewportShortcut`; delete the container `keydown` effect
+- [x] Phase 1 — delete `refocusAfterTextEditRef` and `isEscapeConsumingTarget`
+- [x] Phase 1 — collapse the Escape special case in `appKeyboard.ts`
+- [x] Phase 1 — confirm Escape-from-floating-toolbar in the browser
+- [x] Phase 1 — `no-restricted-syntax` keydown ban (CP still exempt for its Delete listener; Phase 2 removes it)
 - [ ] Phase 2a — single `activeFloatingSurface` replaces the four-way toolbar chain
+- [ ] Phase 2 — fold canvas-object Delete into the `edit.delete` menu action; drop the CP keydown exemption
 - [ ] Phase 2b — `useCpAnnotations`; lower the CP `max-lines` freeze
 - [ ] Phase 3 — `useFoldedFigures` binding layer + context-menu adapter extracted + `cp-workspace/folded/` consolidation; lower the freeze
 - [ ] Phase 4 — `useCpToolSession`; lower the freeze

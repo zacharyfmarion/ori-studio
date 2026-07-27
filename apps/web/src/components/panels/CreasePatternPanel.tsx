@@ -215,7 +215,6 @@ import { Toggle } from '../ui/Toggle';
 import { CpToolRail } from './CpToolRail';
 import { NextDocumentAction } from './NextDocumentAction';
 import {
-  isEscapeConsumingTarget,
   isViewportInteractiveTarget,
   ViewportToolbar,
   ViewportToolbarSeparator,
@@ -3134,26 +3133,12 @@ export function CreasePatternPanel() {
     [updateAnnotation]
   );
 
-  // Leaving inline editing by keyboard (Escape) or by the toolbar's delete button
-  // unmounts the contenteditable with nothing else focused, so focus falls to
-  // `document.body` and the panel's viewport shortcuts — a second Escape to cancel
-  // the Text tool, most visibly — stop arriving. Refocus the panel once the editor
-  // is actually gone: doing it while the editor is still mounted would blur it and
-  // re-enter the exit path as a `'blur'`.
-  const refocusAfterTextEditRef = useRef(false);
-  useEffect(() => {
-    if (editingTextId || !refocusAfterTextEditRef.current) return;
-    refocusAfterTextEditRef.current = false;
-    containerRef.current?.focus();
-  }, [editingTextId]);
-
   // Leave inline editing. An empty box is discarded (parity with Oriedita's
   // blank-text GC); otherwise the whole edit records one undo entry. A `'blur'`
   // exit means the click outside committed it — flag so that same click, if it
   // reaches the Text tool, deselects instead of spawning a new box.
   const handleExitEditText = useCallback((reason: 'blur' | 'escape' = 'blur') => {
     if (reason === 'blur') suppressNextTextCreateRef.current = true;
-    else refocusAfterTextEditRef.current = true;
     const editing = editStartRef.current;
     setEditingTextId(null);
     editStartRef.current = null;
@@ -3186,7 +3171,6 @@ export function CreasePatternPanel() {
   const handleDeleteEditingText = useCallback(() => {
     const editing = editStartRef.current;
     const id = editingTextId;
-    refocusAfterTextEditRef.current = true;
     setEditingTextId(null);
     editStartRef.current = null;
     if (!id) return;
@@ -3218,9 +3202,71 @@ export function CreasePatternPanel() {
     [sendWebglCameraCommand]
   );
 
+  /**
+   * Escape, as a layered cancel: leave the hand tool, else drop the selection,
+   * else deactivate the tool. Matches Oriedita, and fixes "select-all, Escape,
+   * select-one ⇒ everything selected again" for Polygon/Lasso and friends.
+   *
+   * Reached through the shortcut runtime rather than a listener on this panel,
+   * so it fires wherever focus happens to be — including the floating toolbars,
+   * which are the surfaces a container-scoped listener silently loses.
+   */
+  const cancelActiveCpInput = useCallback(() => {
+    if (!editableCp) return;
+    // An open text editor owns Escape: leave the edit rather than the tool. The
+    // editor itself claims the key while it holds focus (its Lexical command),
+    // so this branch is what covers focus sitting on its floating toolbar.
+    if (editingTextId) {
+      handleExitEditText('escape');
+      return;
+    }
+    if (panToolActive) {
+      setPanToolActive(false);
+      return;
+    }
+    // A selection takes priority as long as no gesture is in progress; a second
+    // Escape then cancels the tool.
+    const gestureInProgress =
+      cpToolPoints.length > 0 ||
+      cpToolPath.length > 0 ||
+      pendingLengthenLineId !== null ||
+      pendingSquareBisectorLineIds.length > 0 ||
+      cpToolDragRef.current !== null;
+    if (editableSelectionSize > 0 && !gestureInProgress) {
+      clearOristudioCpSelection();
+      return;
+    }
+    const cancellation = cancelOristudioCpToolState(cpToolState);
+    if (cancellation.handled) {
+      setCpToolPoints([]);
+      setCpToolPath([]);
+      setPendingLengthenLineId(null);
+      setPendingSquareBisectorLineIds([]);
+      cpToolDragRef.current = null;
+      setCpToolState(cancellation.state);
+      return;
+    }
+    if (editableSelectionSize > 0) clearOristudioCpSelection();
+  }, [
+    clearOristudioCpSelection,
+    cpToolPath.length,
+    cpToolPoints.length,
+    cpToolState,
+    editableCp,
+    editableSelectionSize,
+    editingTextId,
+    handleExitEditText,
+    panToolActive,
+    pendingLengthenLineId,
+    pendingSquareBisectorLineIds.length,
+  ]);
+
   const handleViewportShortcut = useCallback(
     (id: ViewportShortcutId) => {
       switch (id) {
+        case 'viewport.cancel':
+          cancelActiveCpInput();
+          break;
         case 'viewport.zoomIn':
           sendWebglCameraCommand('zoom-in');
           break;
@@ -3247,7 +3293,7 @@ export function CreasePatternPanel() {
           break;
       }
     },
-    [sendWebglCameraCommand]
+    [cancelActiveCpInput, sendWebglCameraCommand]
   );
 
   useEffect(
@@ -3259,78 +3305,6 @@ export function CreasePatternPanel() {
     if (!diagnosticStatus) setDiagnosticHudExpanded(false);
   }, [diagnosticStatus]);
 
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !hasCreasePattern) return undefined;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      // An open inline text editor owns ESC (commit + leave edit), whatever holds
-      // focus inside it — including its floating toolbar. Fields and menus answer
-      // ESC themselves too. Everything else, focused buttons included, falls
-      // through so the panel can cancel the tool.
-      const escapeHandledElsewhere = editingTextId !== null || isEscapeConsumingTarget(event.target);
-      if (event.key === 'Escape' && editableCp && !escapeHandledElsewhere) {
-        // Leaving the hand tool comes first: it is a mode, and Escape is the
-        // expected way out of one.
-        if (panToolActive) {
-          event.preventDefault();
-          setPanToolActive(false);
-          return;
-        }
-        // A selection takes priority: Escape deselects for *any* resting tool (not
-        // just CreaseSelect) as long as no gesture is in progress — a second Escape
-        // then cancels/deactivates the tool. Matches Oriedita, and fixes "select-all,
-        // Escape, select-one ⇒ everything selected again" for Polygon/Lasso/etc.
-        const gestureInProgress =
-          cpToolPoints.length > 0 ||
-          cpToolPath.length > 0 ||
-          pendingLengthenLineId !== null ||
-          pendingSquareBisectorLineIds.length > 0 ||
-          cpToolDragRef.current !== null;
-        if (editableSelectionSize > 0 && !gestureInProgress) {
-          event.preventDefault();
-          clearOristudioCpSelection();
-          return;
-        }
-        const cancellation = cancelOristudioCpToolState(cpToolState);
-        if (cancellation.handled) {
-          event.preventDefault();
-          setCpToolPoints([]);
-          setCpToolPath([]);
-          setPendingLengthenLineId(null);
-          setPendingSquareBisectorLineIds([]);
-          cpToolDragRef.current = null;
-          setCpToolState(cancellation.state);
-          return;
-        }
-        if (editableSelectionSize > 0) {
-          event.preventDefault();
-          clearOristudioCpSelection();
-          return;
-        }
-      }
-
-    };
-
-    container.addEventListener('keydown', onKeyDown);
-    return () => {
-      container.removeEventListener('keydown', onKeyDown);
-    };
-  }, [
-    activeCpCommand?.operationId,
-    clearOristudioCpSelection,
-    cpToolPath.length,
-    cpToolPoints.length,
-    cpToolState,
-    editableCp,
-    editableSelectionSize,
-    editingTextId,
-    hasCreasePattern,
-    panToolActive,
-    pendingLengthenLineId,
-    pendingSquareBisectorLineIds.length,
-  ]);
 
   useEffect(() => {
     if (!editableCp) {

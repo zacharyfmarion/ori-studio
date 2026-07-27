@@ -7,7 +7,6 @@ import type { ShortcutOverrides } from '../keyboard/shortcuts';
 
 export interface AppKeyboardActions {
   getActiveEditingContext: () => EditingContext;
-  getCpSelectionSize: () => number;
   getSelection: () => Selection;
   handleMenuAction: (id: string) => unknown;
   selectNone: () => void;
@@ -17,13 +16,12 @@ export interface AppKeyboardActions {
 export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActions): boolean {
   if (event.defaultPrevented || isShortcutEditingTarget(event.target)) return false;
 
-  if (event.key === 'Escape') {
-    if (actions.getActiveEditingContext() === 'crease-pattern') {
-      if (actions.getCpSelectionSize() === 0) return false;
-      event.preventDefault();
-      void actions.handleMenuAction('edit.deselectAll');
-      return true;
-    }
+  // The crease-pattern viewport owns Escape as `viewport.cancel`, dispatched
+  // through the runtime below: deselecting is only its first rung, above leaving
+  // the hand tool and cancelling the active tool, and only the panel knows which
+  // applies. Other contexts have no such ladder, so a plain deselect is the
+  // whole behaviour.
+  if (event.key === 'Escape' && actions.getActiveEditingContext() !== 'crease-pattern') {
     if (selectionSize(actions.getSelection()) === 0) return false;
     event.preventDefault();
     actions.selectNone();

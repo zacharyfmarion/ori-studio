@@ -44,19 +44,6 @@ export function isViewportInteractiveTarget(target: EventTarget | null): boolean
   );
 }
 
-/**
- * Targets that answer Escape themselves: text entry (which reverts its draft)
- * and open menus (which close). Narrower than
- * {@link isViewportInteractiveTarget} by leaving buttons out — a button never
- * consumes Escape, so pressing it right after clicking a tool in the rail (which
- * leaves that button focused) must still reach the viewport and cancel the tool.
- */
-export function isEscapeConsumingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false;
-  if (target instanceof HTMLElement && target.isContentEditable) return true;
-  return Boolean(target.closest('input, textarea, select, [role="menu"], [contenteditable="true"]'));
-}
-
 interface ViewportToolbarProps {
   ariaLabel: string;
   zoomPercent: number;

@@ -53,6 +53,34 @@ const PANEL_MAX_LINES = 800;
 
 const maxLines = (max) => ['error', { max, skipBlankLines: false, skipComments: false }];
 
+const NO_PANEL_KEYDOWN =
+  'Do not listen for keydown in a panel. A container-scoped listener dies whenever a text editor, floating toolbar, or portalled menu takes focus, and never sees portalled content at all. Register the key in src/keyboard/ and implement it in the surface executor (AGENTS.md > Panel components).';
+
+const noPanelKeydown = [
+  'error',
+  {
+    selector:
+      "CallExpression[callee.property.name='addEventListener'][arguments.0.value='keydown']",
+    message: NO_PANEL_KEYDOWN,
+  },
+];
+
+/**
+ * Panels that still bind keydown directly. This is a debt register, not a
+ * settled exception: delete an entry as that panel's keys move into the shortcut
+ * registry, and do not add to it.
+ */
+const PANELS_WITH_LEGACY_KEYDOWN = [
+  // Only the Delete-selected-canvas-object listener is left; it is already
+  // window-scoped, so it is not the focus-coupled failure this rule targets. It
+  // folds into the `edit.delete` menu action with the annotation bindings.
+  'src/components/panels/CreasePatternPanel.tsx',
+  'src/components/panels/DesignPanel.tsx', // space-to-pan
+  'src/components/panels/BpPackingPanel.tsx', // arrow-nudge + space-to-pan
+  'src/components/panels/BpTreePanel.tsx',
+  'src/components/panels/SimulatorPanel.tsx',
+];
+
 export default tseslint.config(
   {
     ignores: ['dist', 'src/generated'],
@@ -121,12 +149,19 @@ export default tseslint.config(
     ignores: ['src/components/panels/**/*.test.tsx'],
     rules: {
       'max-lines': maxLines(PANEL_MAX_LINES),
+      'no-restricted-syntax': noPanelKeydown,
     },
   },
   ...Object.entries(OVERSIZED_PANELS).map(([file, max]) => ({
     files: [`src/components/panels/${file}`],
     rules: { 'max-lines': maxLines(max) },
   })),
+  {
+    // Pre-existing container keydown listeners. Delete an entry as its panel's
+    // keys move into the shortcut registry; do not add to this list.
+    files: PANELS_WITH_LEGACY_KEYDOWN,
+    rules: { 'no-restricted-syntax': 'off' },
+  },
   {
     // Catch hardcoded user-facing text that bypasses t(). Scoped to JSX text nodes
     // (jsx-text-only) — the main regression risk — with low false-positive noise. Tests are

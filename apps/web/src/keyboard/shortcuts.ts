@@ -14,7 +14,8 @@ export type ViewportShortcutId =
   | 'viewport.pan'
   | 'viewport.rotateCcw'
   | 'viewport.rotateCw'
-  | 'viewport.resetRotation';
+  | 'viewport.resetRotation'
+  | 'viewport.cancel';
 export type ShortcutActionId = MenuActionId | OristudioCpActionId | ViewportShortcutId;
 export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport';
 export type ReservedKeyClassification = 'allowed' | 'soft-reserved' | 'hard-reserved';
@@ -170,6 +171,16 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   viewportShortcut('viewport.rotateCcw', 'Rotate View Left', { key: '3' }),
   viewportShortcut('viewport.rotateCw', 'Rotate View Right', { key: '4' }),
   viewportShortcut('viewport.resetRotation', 'Reset View Rotation', null),
+  // Escape is a viewport shortcut like any other, so it dispatches
+  // focus-independently. A viewport that scopes it to its own container instead
+  // loses it to whatever floating editor, toolbar, or portalled menu took focus
+  // last — see AGENTS.md > "Panel components".
+  //
+  // Delete deliberately has no viewport shortcut: `edit.delete` already owns
+  // that chord at global scope, and viewport scope is resolved first, so one
+  // here would shadow crease deletion entirely. Delete stays one verb, and the
+  // per-context branching lives in the menu action.
+  viewportShortcut('viewport.cancel', 'Cancel / Deselect', { key: 'escape' }),
 ];
 
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
