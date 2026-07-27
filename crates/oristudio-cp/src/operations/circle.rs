@@ -360,6 +360,45 @@ pub fn invert_line_segment(
     CircleInversionOutput::Circle
 }
 
+/// Oriedita `FoldLineSet.deleteCircle(Circle)`.
+pub fn delete_circle(model: &mut CreasePatternModel, index: usize) -> bool {
+    if index >= model.circles.len() {
+        return false;
+    }
+
+    model.circles.remove(index);
+    true
+}
+
+/// Delete the circles at the given zero-based indices.
+///
+/// Resolves every target to a value before removing any of them, so the caller's
+/// indices all refer to the pre-delete ordering. Mirrors
+/// `arrangement::delete_line_segments_for_indices`, and through it Oriedita's
+/// repeated `deleteCircle` calls over a collected list.
+pub fn delete_circles_for_indices(
+    model: &mut CreasePatternModel,
+    circle_indices: &[usize],
+) -> usize {
+    let targets: Vec<Circle> = circle_indices
+        .iter()
+        .filter_map(|&index| model.circles.get(index).copied())
+        .collect();
+    let mut deleted = 0;
+    for target in targets {
+        let Some(index) = model
+            .circles
+            .iter()
+            .position(|candidate| candidate == &target)
+        else {
+            continue;
+        };
+        model.circles.remove(index);
+        deleted += 1;
+    }
+    deleted
+}
+
 /// Apply Oriedita's zero-radius circle pruning worker.
 pub fn organize(model: &mut CreasePatternModel) -> usize {
     let mut deleted = 0;

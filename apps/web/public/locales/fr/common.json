@@ -49,6 +49,7 @@
     "cut": "Couper",
     "cutSelectedTreeParts": "Couper les parties d'arbre sélectionnées",
     "deleteSelected": "Supprimer la sélection",
+    "deleteSelectedCpCircles": "Supprimer les cercles du patron de plis sélectionnés",
     "deleteSelectedCpLines": "Supprimer les lignes du patron de plis sélectionnées",
     "deleteSelectedCpLinesLabel": "Supprimer les lignes de CP sélectionnées",
     "deleteSelectedCpPoints": "Supprimer les points du patron de plis sélectionnés",

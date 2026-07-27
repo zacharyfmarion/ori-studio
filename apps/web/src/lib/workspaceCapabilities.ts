@@ -372,7 +372,9 @@ export function getWorkspaceCapabilities(
     'edit.delete': capability(
       (isBpContext && input.hasDeletableBpSelection && !isBusy) ||
         (!isBpContext && treeMode && !activeCpSurface && hasSelection && !isBusy) ||
-        (canEditCp && activeCpSurface && (hasSelectedCpLines || hasSelectedCpPoints)),
+        (canEditCp &&
+          activeCpSurface &&
+          (hasSelectedCpLines || hasSelectedCpPoints || hasSelectedCpCircles)),
       t('common:capability.deleteSelected', 'Delete Selected'),
       treeMode && !activeCpSurface
         ? t('common:capability.deleteSelectedTreeParts', 'Delete selected tree parts')
@@ -381,7 +383,9 @@ export function getWorkspaceCapabilities(
             ? t('common:capability.deleteSelectedCpLines', 'Delete selected crease-pattern lines')
             : hasSelectedCpPoints
               ? t('common:capability.deleteSelectedCpPoints', 'Delete selected crease-pattern points')
-              : t('common:capability.selectCpLinesOrPointsFirst', 'Select one or more crease-pattern lines or points first')
+              : hasSelectedCpCircles
+                ? t('common:capability.deleteSelectedCpCircles', 'Delete selected crease-pattern circles')
+                : t('common:capability.selectCpLinesOrPointsFirst', 'Select one or more crease-pattern lines or points first')
           : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
     ),
     'edit.selectAll': capability(

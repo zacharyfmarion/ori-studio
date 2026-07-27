@@ -1459,21 +1459,38 @@ pub fn execute_command(
             ))
         }
         OperationId::LineSegmentDelete => {
-            // Oriedita `LINE_SEGMENT_DELETE_3` (the eraser): a single crease click
-            // erases that crease, a dragged box erases every crease it encloses.
-            // The tool-options line-type filter restricts which creases are
-            // removed (`Any` erases everything, matching the legacy behavior).
+            // Oriedita `LINE_SEGMENT_DELETE_3` (the eraser): a single click erases
+            // the primitive under the cursor, a dragged box erases everything it
+            // encloses. The tool-options line-type filter restricts which creases
+            // are removed (`Any` erases everything, matching the legacy behavior).
+            //
+            // `Any` also stands in for Oriedita's `BOTH_4` additional-input mode,
+            // the only mode in which `MouseHandlerLineSegmentDelete` erases
+            // circles; the four line-filtered modes leave circles untouched.
             let line_type = command
                 .payload
                 .custom_line_type
                 .unwrap_or(model::CustomLineType::Any);
-            let line_indices = if command.payload.line_ids.is_empty() {
-                let polygon = required_selection_polygon(&command)?;
-                operations::selection::line_indices_in_box(&document.crease_pattern, &polygon)
+            let erases_circles = matches!(line_type, model::CustomLineType::Any);
+            let explicit_targets =
+                !command.payload.line_ids.is_empty() || !command.payload.circle_ids.is_empty();
+            let (line_indices, circle_indices) = if explicit_targets {
+                (
+                    optional_line_indices(&command)?,
+                    optional_circle_indices(&command)?,
+                )
             } else {
-                required_line_indices(&command)?
+                let polygon = required_selection_polygon(&command)?;
+                let lines =
+                    operations::selection::line_indices_in_box(&document.crease_pattern, &polygon);
+                let circles = if erases_circles {
+                    operations::selection::circle_indices_in_box(&document.crease_pattern, &polygon)
+                } else {
+                    Vec::new()
+                };
+                (lines, circles)
             };
-            if matches!(line_type, model::CustomLineType::Any) {
+            let mut deleted = if erases_circles {
                 operations::arrangement::delete_line_segments_for_indices(
                     &mut document.crease_pattern,
                     &line_indices,
@@ -1484,7 +1501,24 @@ pub fn execute_command(
                     &line_indices,
                     line_type,
                 )
+            };
+            let deleted_circles = if erases_circles {
+                operations::circle::delete_circles_for_indices(
+                    &mut document.crease_pattern,
+                    &circle_indices,
+                )
+            } else {
+                0
+            };
+            deleted += deleted_circles;
+            // `deleteInsideBox` organizes circles unconditionally, so a boxed
+            // crease deletion can also prune zero-radius circles that the crease
+            // was holding in place. `deleteSingleLineOrCircle` organizes only when
+            // it actually removed a circle.
+            if !explicit_targets || deleted_circles > 0 {
+                operations::circle::organize(&mut document.crease_pattern);
             }
+            deleted
         }
         OperationId::ChangeCreaseType => {
             let line_indices = required_line_indices(&command)?;

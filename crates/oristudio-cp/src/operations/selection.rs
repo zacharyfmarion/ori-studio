@@ -1,8 +1,8 @@
 //! Selection operations ported from Oriedita `FoldLineSet` and selection handlers.
 
 use crate::geometry::{
-    LineSegment, Point, Polygon, PolygonIntersection, equal, is_line_segment_overlapping,
-    line_segment_x_kousa_decide,
+    LineSegment, Point, Polygon, PolygonIntersection, distance, distance_circumference, equal,
+    is_line_segment_overlapping, line_segment_x_kousa_decide,
 };
 use crate::model::CreasePatternModel;
 
@@ -52,6 +52,76 @@ pub fn line_indices_in_box(model: &CreasePatternModel, polygon: &Polygon) -> Vec
         .filter(|(_, segment)| polygon.totu_boundary_inside_line_segment(segment))
         .map(|(index, _)| index)
         .collect()
+}
+
+/// Circle indices collected by Oriedita's `FoldLineSet.circlesInside(Polygon)`
+/// predicate (`Polygon.totu_boundary_inside_circle`): the ring crosses a box edge,
+/// or the center lies inside the box.
+///
+/// Circles carry no selected flag in Oriedita, so this collects indices for tools
+/// that act on the boxed circles directly rather than mutating selection state.
+pub fn circle_indices_in_box(model: &CreasePatternModel, polygon: &Polygon) -> Vec<usize> {
+    model
+        .circles
+        .iter()
+        .enumerate()
+        .filter(|(_, circle)| polygon.totu_boundary_inside_circle(**circle))
+        .map(|(index, _)| index)
+        .collect()
+}
+
+/// Oriedita `FoldLineSet.closestCircleInRange(Point, double)`.
+///
+/// Range-checks a single candidate with no fallback to the next-best circle,
+/// which looks lossy but is not: the candidate owns the global minimum over both
+/// the center and circumference metrics, and the range check tests exactly those
+/// two metrics. Any circle in range therefore forces the candidate to be in
+/// range as well.
+pub fn closest_circle_in_range(
+    model: &CreasePatternModel,
+    point: Point,
+    selection_distance: f64,
+) -> Option<usize> {
+    let index = closest_circle_search_reverse_order(model, point)?;
+    let circle = model.circles.get(index)?;
+    if distance_circumference(point, *circle) < selection_distance
+        || distance(point, circle.determine_center()) < selection_distance
+    {
+        return Some(index);
+    }
+    None
+}
+
+/// Oriedita `FoldLineSet.closest_circle_search_reverse_order(Point)`.
+///
+/// One pass minimizing over both the center distance and the circumference
+/// distance. The comparison is `>=`, so later circles win ties: the most recently
+/// drawn circle takes priority.
+pub fn closest_circle_search_reverse_order(
+    model: &CreasePatternModel,
+    point: Point,
+) -> Option<usize> {
+    if model.circles.is_empty() {
+        return None;
+    }
+
+    let mut best_index = 0;
+    let mut best = 100000.0_f64;
+    for (index, circle) in model.circles.iter().enumerate() {
+        let center_distance = distance(point, circle.determine_center());
+        if best >= center_distance {
+            best = center_distance;
+            best_index = index;
+        }
+
+        let circumference_distance = (center_distance - circle.r).abs();
+        if best >= circumference_distance {
+            best = circumference_distance;
+            best_index = index;
+        }
+    }
+
+    Some(best_index)
 }
 
 /// Box-line unselection using Oriedita's `lineSegmentsInside` predicate.

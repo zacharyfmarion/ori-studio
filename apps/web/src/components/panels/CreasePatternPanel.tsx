@@ -3545,6 +3545,9 @@ export function CreasePatternPanel() {
                   onEraseLine={(id) => {
                     void executeOristudioCpCommand('LineSegmentDelete', { line_ids: [id] });
                   }}
+                  onEraseCircle={(id) => {
+                    void executeOristudioCpCommand('LineSegmentDelete', { circle_ids: [id] });
+                  }}
                   onRequestContextMenu={handleRequestContextMenu}
                   mode={mode}
                   lineStyle={oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE}

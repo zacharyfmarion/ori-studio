@@ -49,6 +49,7 @@
     "cut": "Вырезать",
     "cutSelectedTreeParts": "Вырезать выбранные части дерева",
     "deleteSelected": "Удалить выбранное",
+    "deleteSelectedCpCircles": "Удалить выбранные круги паттерна складок",
     "deleteSelectedCpLines": "Удалить выбранные линии паттерна складок",
     "deleteSelectedCpLinesLabel": "Удалить выбранные линии CP",
     "deleteSelectedCpPoints": "Удалить выбранные точки паттерна складок",

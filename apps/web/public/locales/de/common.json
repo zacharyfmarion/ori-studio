@@ -49,6 +49,7 @@
     "cut": "Ausschneiden",
     "cutSelectedTreeParts": "Ausgewählte Baumteile ausschneiden",
     "deleteSelected": "Auswahl löschen",
+    "deleteSelectedCpCircles": "Ausgewählte Faltmuster-Kreise löschen",
     "deleteSelectedCpLines": "Ausgewählte Faltmuster-Linien löschen",
     "deleteSelectedCpLinesLabel": "Ausgewählte CP-Linien löschen",
     "deleteSelectedCpPoints": "Ausgewählte Faltmuster-Punkte löschen",
