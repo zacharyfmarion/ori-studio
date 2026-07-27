@@ -79,9 +79,15 @@ export interface CpMeasurement {
  * fraction of the paper edge — the reading origami instructions actually use.
  * ------------------------------------------------------------------------- */
 
+/** Units a *length* can read in. An angle has its own set — see {@link CpAngleUnit}. */
 export type CpMeasureUnit = 'paper' | 'grid' | 'mm' | 'cm' | 'in' | 'model';
 
 export const CP_MEASURE_UNITS: readonly CpMeasureUnit[] = ['paper', 'grid', 'mm', 'cm', 'in', 'model'];
+
+/** Units an *angle* can read in. Nothing about the paper affects these. */
+export type CpAngleUnit = 'deg' | 'rad';
+
+export const CP_ANGLE_UNITS: readonly CpAngleUnit[] = ['deg', 'rad'];
 
 /** Units that need a physical paper size to mean anything. */
 export function cpMeasureUnitIsPhysical(unit: CpMeasureUnit): boolean {
@@ -193,9 +199,18 @@ export function snapExactCpAngle(degrees: number): number {
   return degrees;
 }
 
-export function formatCpAngle(degrees: number): string {
+export function convertCpAngle(degrees: number, unit: CpAngleUnit): number {
+  return unit === 'rad' ? (degrees * Math.PI) / 180 : degrees;
+}
+
+export function formatCpAngle(degrees: number, unit: CpAngleUnit = 'deg'): string {
   if (!Number.isFinite(degrees)) return '-';
-  return `${formatNumber(snapExactCpAngle(interiorCpAngle(degrees)), 2)}°`;
+  // Snap in degrees, where the exact origami angles are whole or half numbers,
+  // then convert — so a radian reading inherits the same noise-free value.
+  const snapped = snapExactCpAngle(interiorCpAngle(degrees));
+  return unit === 'rad'
+    ? `${formatNumber(convertCpAngle(snapped, 'rad'), 4)} rad`
+    : `${formatNumber(snapped, 2)}°`;
 }
 
 /**
@@ -247,10 +262,11 @@ export function exactCpLengthLabel(modelValue: number, scale: CpMeasureScale): s
 export function formatCpMeasurement(
   measurement: CpMeasurement,
   unit: CpMeasureUnit,
-  scale: CpMeasureScale
+  scale: CpMeasureScale,
+  angleUnit: CpAngleUnit = 'deg'
 ): string {
   return measurement.kind === 'angle'
-    ? formatCpAngle(measurement.value)
+    ? formatCpAngle(measurement.value, angleUnit)
     : formatCpLength(measurement.value, unit, scale);
 }
 
@@ -262,9 +278,10 @@ export function formatCpMeasurement(
 export function copyTextForCpMeasurement(
   measurement: CpMeasurement,
   unit: CpMeasureUnit,
-  scale: CpMeasureScale
+  scale: CpMeasureScale,
+  angleUnit: CpAngleUnit = 'deg'
 ): string {
   return measurement.kind === 'angle'
-    ? String(snapExactCpAngle(interiorCpAngle(measurement.value)))
+    ? String(convertCpAngle(snapExactCpAngle(interiorCpAngle(measurement.value)), angleUnit))
     : String(convertCpLength(measurement.value, unit, scale));
 }

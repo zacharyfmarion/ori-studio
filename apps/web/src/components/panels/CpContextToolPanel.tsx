@@ -39,6 +39,7 @@ import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/crea
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
 import { copyTextToClipboard } from '../../lib/clipboardText';
 import {
+  CP_ANGLE_UNITS,
   CP_MEASURE_UNITS,
   copyTextForCpMeasurement,
   cpMeasureKindForOperation,
@@ -46,6 +47,7 @@ import {
   cpMeasureUnitIsPhysical,
   exactCpLengthLabel,
   formatCpMeasurement,
+  type CpAngleUnit,
   type CpMeasureKind,
   type CpMeasureScale,
   type CpMeasureUnit,
@@ -60,6 +62,13 @@ function measureKindLabel(t: TFunction, kind: CpMeasureKind): string {
   return kind === 'angle'
     ? t('tools:cpContext.measureKindAngle', 'Angle')
     : t('tools:cpContext.measureKindDistance', 'Distance');
+}
+
+/** Literal-key `t()` calls so the extractor sees both angle-unit names. */
+function angleUnitLabel(t: TFunction, unit: CpAngleUnit): string {
+  return unit === 'rad'
+    ? t('tools:cpContext.measureAngleUnitRad', 'Radians')
+    : t('tools:cpContext.measureAngleUnitDeg', 'Degrees');
 }
 
 /** Literal-key `t()` calls so the extractor sees every unit name. */
@@ -130,8 +139,10 @@ export function CpContextToolPanel({
   measurePicked,
   onHoverMeasurement,
   measureUnit,
+  measureAngleUnit,
   measureScale,
   onMeasureUnitChange,
+  onMeasureAngleUnitChange,
   onMeasurePaperEdgeMmChange,
   pendingPointCount,
   selection,
@@ -149,8 +160,10 @@ export function CpContextToolPanel({
   /** Highlight a session measurement on the canvas while its row is hovered. */
   onHoverMeasurement: (index: number | null) => void;
   measureUnit: CpMeasureUnit;
+  measureAngleUnit: CpAngleUnit;
   measureScale: CpMeasureScale;
   onMeasureUnitChange: (unit: CpMeasureUnit) => void;
+  onMeasureAngleUnitChange: (unit: CpAngleUnit) => void;
   onMeasurePaperEdgeMmChange: (paperEdgeMm: number) => void;
   pendingPointCount: number;
   selection: OristudioCpSelection;
@@ -204,8 +217,10 @@ export function CpContextToolPanel({
               measurePicked={measurePicked}
               onHoverMeasurement={onHoverMeasurement}
               measureUnit={measureUnit}
+              measureAngleUnit={measureAngleUnit}
               measureScale={measureScale}
               onMeasureUnitChange={onMeasureUnitChange}
+              onMeasureAngleUnitChange={onMeasureAngleUnitChange}
               onMeasurePaperEdgeMmChange={onMeasurePaperEdgeMmChange}
               pendingPointCount={pendingPointCount}
               selection={selection}
@@ -302,8 +317,10 @@ function CpContextToolGroup({
   measurePicked,
   onHoverMeasurement,
   measureUnit,
+  measureAngleUnit,
   measureScale,
   onMeasureUnitChange,
+  onMeasureAngleUnitChange,
   onMeasurePaperEdgeMmChange,
   pendingPointCount,
   selection,
@@ -317,8 +334,10 @@ function CpContextToolGroup({
   measurePicked: number;
   onHoverMeasurement: (index: number | null) => void;
   measureUnit: CpMeasureUnit;
+  measureAngleUnit: CpAngleUnit;
   measureScale: CpMeasureScale;
   onMeasureUnitChange: (unit: CpMeasureUnit) => void;
+  onMeasureAngleUnitChange: (unit: CpAngleUnit) => void;
   onMeasurePaperEdgeMmChange: (paperEdgeMm: number) => void;
   pendingPointCount: number;
   selection: OristudioCpSelection;
@@ -645,12 +664,12 @@ function CpContextToolGroup({
           onMouseLeave={() => onHoverMeasurement(null)}
           onClick={() => {
             if (!latest) return;
-            copyMeasurement(copyTextForCpMeasurement(latest.entry, measureUnit, measureScale));
+            copyMeasurement(copyTextForCpMeasurement(latest.entry, measureUnit, measureScale, measureAngleUnit));
           }}
         >
           {latest === undefined
             ? t('tools:cpContext.measureEmpty', 'No measurement yet')
-            : formatCpMeasurement(latest.entry, measureUnit, measureScale)}
+            : formatCpMeasurement(latest.entry, measureUnit, measureScale, measureAngleUnit)}
           {copyStatus !== 'idle' && (
             <span className="cp-context-panel__measure-copied" data-copy-status={copyStatus}>
               {copyStatus === 'copied'
@@ -676,39 +695,60 @@ function CpContextToolGroup({
                   onMouseEnter={() => onHoverMeasurement(index)}
                   onMouseLeave={() => onHoverMeasurement(null)}
                   onClick={() =>
-                    copyMeasurement(copyTextForCpMeasurement(entry, measureUnit, measureScale))
+                    copyMeasurement(copyTextForCpMeasurement(entry, measureUnit, measureScale, measureAngleUnit))
                   }
                 >
                   <span>{measureKindLabel(t, entry.kind)}</span>
-                  <span>{formatCpMeasurement(entry, measureUnit, measureScale)}</span>
+                  <span>{formatCpMeasurement(entry, measureUnit, measureScale, measureAngleUnit)}</span>
                 </button>
               </li>
             ))}
           </ul>
         )}
-        <label className="cp-context-panel__field">
-          <span>{t('tools:cpContext.measureUnit', 'Units')}</span>
-          <select
-            aria-label={t('tools:cpContext.measureUnit', 'Units')}
-            value={measureUnit}
-            onChange={(event) => onMeasureUnitChange(event.currentTarget.value as CpMeasureUnit)}
-          >
-            {CP_MEASURE_UNITS.map((unit) => (
-              <option key={unit} value={unit}>
-                {measureUnitLabel(t, unit)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {cpMeasureUnitIsPhysical(measureUnit) && (
-          <NumericToolOption
-            label={t('tools:cpContext.measurePaperEdge', 'Paper edge (mm)')}
-            ariaLabel={t('tools:cpContext.measurePaperEdge', 'Paper edge (mm)')}
-            min={1}
-            step={1}
-            value={measureScale.paperEdgeMm}
-            onChange={onMeasurePaperEdgeMmChange}
-          />
+        {kind === 'angle' ? (
+          <label className="cp-context-panel__field">
+            <span>{t('tools:cpContext.measureUnit', 'Units')}</span>
+            <select
+              aria-label={t('tools:cpContext.measureUnit', 'Units')}
+              value={measureAngleUnit}
+              onChange={(event) =>
+                onMeasureAngleUnitChange(event.currentTarget.value as CpAngleUnit)
+              }
+            >
+              {CP_ANGLE_UNITS.map((unit) => (
+                <option key={unit} value={unit}>
+                  {angleUnitLabel(t, unit)}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <>
+            <label className="cp-context-panel__field">
+              <span>{t('tools:cpContext.measureUnit', 'Units')}</span>
+              <select
+                aria-label={t('tools:cpContext.measureUnit', 'Units')}
+                value={measureUnit}
+                onChange={(event) => onMeasureUnitChange(event.currentTarget.value as CpMeasureUnit)}
+              >
+                {CP_MEASURE_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {measureUnitLabel(t, unit)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {cpMeasureUnitIsPhysical(measureUnit) && (
+              <NumericToolOption
+                label={t('tools:cpContext.measurePaperEdge', 'Paper edge (mm)')}
+                ariaLabel={t('tools:cpContext.measurePaperEdge', 'Paper edge (mm)')}
+                min={1}
+                step={1}
+                value={measureScale.paperEdgeMm}
+                onChange={onMeasurePaperEdgeMmChange}
+              />
+            )}
+          </>
         )}
         <div className="cp-context-panel__readout">
           {remaining > 0

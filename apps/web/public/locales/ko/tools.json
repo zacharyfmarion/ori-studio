@@ -48,6 +48,8 @@
     "lineSelection": "선 선택",
     "lineType": "선 종류",
     "measure": "측정",
+    "measureAngleUnitDeg": "도",
+    "measureAngleUnitRad": "라디안",
     "measureClearHint": "Backspace 는 마지막을 삭제, Escape 는 전체 삭제",
     "measureCopied": "복사됨",
     "measureCopy": "전체 정밀도 값 복사",

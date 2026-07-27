@@ -4,6 +4,7 @@ import { arcPath, arrowheadPoints, labelAnchor, type Vec2 } from './measureFigur
 import {
   formatCpAngle,
   formatCpLength,
+  type CpAngleUnit,
   type CpMeasureKind,
   type CpMeasureScale,
   type CpMeasureUnit,
@@ -92,6 +93,7 @@ export function CpMeasureLayer({
   liveValue,
   liveSnapLabel,
   unit,
+  angleUnit,
   scale,
 }: {
   /** Committed readings, in the order they were taken. Cleared when the tool is left. */
@@ -107,13 +109,14 @@ export function CpMeasureLayer({
   /** What the cursor is snapped onto right now, or null once the pick is complete. */
   liveSnapLabel: string | null;
   unit: CpMeasureUnit;
+  angleUnit: CpAngleUnit;
   scale: CpMeasureScale;
 }) {
   const view = useCpOverlayView();
   if (!view) return null;
 
   const format = (kind: CpMeasureKind, value: number) =>
-    kind === 'angle' ? formatCpAngle(value) : formatCpLength(value, unit, scale);
+    kind === 'angle' ? formatCpAngle(value, angleUnit) : formatCpLength(value, unit, scale);
 
   const project = (points: readonly Vec2[]) => points.map((point) => overlayModelToCss(view, point));
 

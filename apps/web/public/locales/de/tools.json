@@ -52,6 +52,8 @@
     "lineSelection": "Linienauswahl",
     "lineType": "Linientyp",
     "measure": "Messen",
+    "measureAngleUnitDeg": "Grad",
+    "measureAngleUnitRad": "Bogenmaß",
     "measureClearHint": "Rücktaste entfernt die letzte, Esc löscht alle",
     "measureCopied": "Kopiert",
     "measureCopy": "Wert in voller Genauigkeit kopieren",

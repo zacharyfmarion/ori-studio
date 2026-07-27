@@ -8,6 +8,7 @@ import {
   interiorCpAngle,
   copyTextForCpMeasurement,
   exactCpLengthLabel,
+  convertCpAngle,
   formatCpAngle,
   formatCpLength,
   formatCpMeasurement,
@@ -89,6 +90,19 @@ describe('formatCpLength / formatCpAngle', () => {
     expect(formatCpLength(400, 'grid', SCALE)).toBe('8');
   });
 
+  it('reads an angle in the unit asked for, snapping in degrees either way', () => {
+    expect(formatCpAngle(90)).toBe('90°');
+    expect(formatCpAngle(90, 'deg')).toBe('90°');
+    expect(formatCpAngle(90, 'rad')).toBe('1.5708 rad');
+    expect(formatCpAngle(180, 'rad')).toBe('3.1416 rad');
+    // The directed-angle fold and the exact-angle snap both apply before the
+    // conversion, so a radian reading never inherits the float noise.
+    expect(formatCpAngle(270, 'rad')).toBe('1.5708 rad');
+    expect(formatCpAngle(89.99999999999999, 'rad')).toBe('1.5708 rad');
+    expect(convertCpAngle(180, 'rad')).toBeCloseTo(Math.PI, 12);
+    expect(convertCpAngle(180, 'deg')).toBe(180);
+  });
+
   it('formats a non-finite value as a dash', () => {
     expect(formatCpLength(Number.NaN, 'paper', SCALE)).toBe('-');
     expect(formatCpAngle(Number.POSITIVE_INFINITY)).toBe('-');
@@ -144,6 +158,12 @@ describe('formatCpMeasurement / copyTextForCpMeasurement', () => {
     expect(copyTextForCpMeasurement({ kind: 'angle', value: 270, points: [] }, 'paper', SCALE)).toBe(
       '90'
     );
+  });
+
+  it('copies an angle in the chosen angle unit', () => {
+    expect(
+      copyTextForCpMeasurement({ kind: 'angle', value: 180, points: [] }, 'paper', SCALE, 'rad')
+    ).toBe(String(Math.PI));
   });
 
   it('copies the converted value at full precision, not the rounded display', () => {

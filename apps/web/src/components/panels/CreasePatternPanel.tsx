@@ -208,6 +208,7 @@ import {
   cpMeasureKindForOperation,
   cpMeasurePointCount,
   isCpMeasurementOperation,
+  type CpAngleUnit,
   type CpMeasureKind,
   type CpMeasureScale,
   type CpMeasureUnit,
@@ -1010,6 +1011,13 @@ export function CreasePatternPanel() {
   const setCpMeasureUnit = useCallback((unit: CpMeasureUnit) => {
     setCpMeasurePreferences((current) => {
       const next = { ...current, unit };
+      writeCpMeasurePreferences(next);
+      return next;
+    });
+  }, []);
+  const setCpMeasureAngleUnit = useCallback((angleUnit: CpAngleUnit) => {
+    setCpMeasurePreferences((current) => {
+      const next = { ...current, angleUnit };
       writeCpMeasurePreferences(next);
       return next;
     });
@@ -3688,6 +3696,7 @@ export function CreasePatternPanel() {
                           : null
                       }
                       unit={cpMeasurePreferences.unit}
+                      angleUnit={cpMeasurePreferences.angleUnit}
                       scale={cpMeasureScale}
                     />
                   )}
@@ -3849,8 +3858,10 @@ export function CreasePatternPanel() {
                     measurePicked={cpMeasurePicked}
                     onHoverMeasurement={setCpHoveredMeasureIndex}
                     measureUnit={cpMeasurePreferences.unit}
+                    measureAngleUnit={cpMeasurePreferences.angleUnit}
                     measureScale={cpMeasureScale}
                     onMeasureUnitChange={setCpMeasureUnit}
+                    onMeasureAngleUnitChange={setCpMeasureAngleUnit}
                     onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
                     pendingPointCount={cpToolPoints.length}
                     selection={oristudioCpSelection}

@@ -56,6 +56,8 @@
     "lineSelection": "Seleção de linhas",
     "lineType": "Tipo de linha",
     "measure": "Medir",
+    "measureAngleUnitDeg": "Graus",
+    "measureAngleUnitRad": "Radianos",
     "measureClearHint": "Backspace remove a última, Esc apaga todas",
     "measureCopied": "Copiado",
     "measureCopy": "Copiar o valor com precisão total",
