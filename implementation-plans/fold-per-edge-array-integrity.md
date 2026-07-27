@@ -71,4 +71,4 @@ reported bug kept 228 edges and changed only their order.
 - [x] Web: regression test for the latent folded-export site
 - [x] Rebuild and commit the tracked `oristudio-cp-wasm` bridge
 - [x] Validate: cargo fmt/clippy/test, web lint/typecheck/test
-- [ ] Open draft PR against `main` and drive it to green CI
+- [x] Open draft PR against `main` and drive it to green CI (#144)
