@@ -27,8 +27,22 @@ export interface InlineSimulation {
   /** Placement on the canvas, in crease-pattern model space. */
   box: AnnotationBox;
   z: number;
-  /** Orbit camera, so a window keeps its viewing angle across a refresh. */
+  /**
+   * The orbit camera a window opens at.
+   *
+   * Live orbit is held by the viewport component, which stays mounted across
+   * focus changes, so this is the starting value rather than a running mirror of
+   * it. Persisting a window (see the plan's Phase 7) is what would need the
+   * write-back.
+   */
   view: SimulatorOrbitView;
+  /**
+   * Where the fold is, and the reason a window survives losing focus.
+   *
+   * A blurred window gives up its solver session — one worker, one live model —
+   * so regaining focus reloads it. The solver is seeded from this, which is why a
+   * window comes back where it was rather than flat.
+   */
   foldPercent: number;
 
   /**

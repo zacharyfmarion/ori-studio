@@ -1545,6 +1545,16 @@ export function CreasePatternPanel() {
     [inlineSimulations, focusedInlineSimulationId]
   );
   const [playingInlineSimulation, setPlayingInlineSimulation] = useState(false);
+  /**
+   * The focused window's body takes no overlay gestures: its interior orbits the
+   * fold, and the overlay polygon sits above it, so leaving it live meant every
+   * drag aimed at the simulation moved the window instead. Handles are untouched,
+   * so it can still be resized and rotated.
+   */
+  const inertCanvasObjectBodies = useMemo(
+    () => new Set(focusedInlineSimulationId ? [focusedInlineSimulationId] : []),
+    [focusedInlineSimulationId]
+  );
   const handleInlineSimulationBoxUpdate = useCallback(
     (id: string, patch: CanvasObjectBoxUpdate) => {
       const simulation = useWorkspaceStore
@@ -3640,6 +3650,7 @@ export function CreasePatternPanel() {
                     objects={canvasObjects}
                     selectedId={selectedCanvasObjectId}
                     suppressedId={editingTextId}
+                    inertBodyIds={inertCanvasObjectBodies}
                     interactive={annotationsInteractive}
                     onSelect={selectCanvasObject}
                     onUpdate={handleCanvasObjectUpdate}
@@ -3658,6 +3669,7 @@ export function CreasePatternPanel() {
                     staleIds={staleInlineSimulationIds}
                     viewSettings={simulatorSettings}
                     playing={playingInlineSimulation}
+                    overlayInteractive={annotationsInteractive}
                     onFocus={focusInlineSimulation}
                     onFoldPercent={(id, foldPercent) =>
                       updateInlineSimulation(id, { foldPercent })

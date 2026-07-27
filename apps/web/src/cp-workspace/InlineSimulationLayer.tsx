@@ -69,6 +69,7 @@ export function InlineSimulationLayer({
   staleIds,
   viewSettings,
   playing,
+  overlayInteractive,
   onFocus,
   onFoldPercent,
   onPlayingChange,
@@ -79,6 +80,13 @@ export function InlineSimulationLayer({
   viewSettings: SimulatorSettings;
   /** Whether the focused window is advancing its fold. */
   playing: boolean;
+  /**
+   * Whether the shared selection overlay is currently taking pointer events. It
+   * goes inert while a drawing tool is mid-gesture, and an unfocused window is
+   * inert too — so without this a window would be unreachable exactly then, with
+   * clicks landing on nothing.
+   */
+  overlayInteractive: boolean;
   onFocus: (id: string) => void;
   onFoldPercent: (id: string, percent: number) => void;
   onPlayingChange: (playing: boolean) => void;
@@ -113,9 +121,13 @@ export function InlineSimulationLayer({
           height: simulation.box.height * pxPerModel,
           transform: `translate(-50%, -50%) rotate(${angle}rad)`,
           transformOrigin: 'center center',
-          // Only the focused window takes pointer events, so a drag anywhere
-          // else still reaches the selection overlay and the canvas beneath.
-          pointerEvents: simulation.id === focusedId ? 'auto' : 'none',
+          // The focused window takes its own gestures (its interior orbits the
+          // fold). An unfocused one normally defers to the selection overlay, so
+          // a drag there moves it like any other canvas object — except while
+          // that overlay is inert, when taking the press here is the only way a
+          // window stays clickable at all.
+          pointerEvents:
+            simulation.id === focusedId || !overlayInteractive ? 'auto' : 'none',
         };
         return (
           <InlineSimulationWindow
@@ -124,6 +136,7 @@ export function InlineSimulationLayer({
             focused={simulation.id === focusedId}
             playing={playing && simulation.id === focusedId}
             stale={staleIds.has(simulation.id)}
+            overlayInteractive={overlayInteractive}
             style={style}
             viewSettings={viewSettings}
             onFocus={onFocus}
@@ -145,6 +158,7 @@ function InlineSimulationWindow({
   focused,
   playing,
   stale,
+  overlayInteractive,
   style,
   viewSettings,
   onFocus,
@@ -155,6 +169,7 @@ function InlineSimulationWindow({
   focused: boolean;
   playing: boolean;
   stale: boolean;
+  overlayInteractive: boolean;
   style: CSSProperties;
   viewSettings: SimulatorSettings;
   onFocus: (id: string) => void;
@@ -174,6 +189,13 @@ function InlineSimulationWindow({
    */
   const gpuAvailable = useMemo(() => webglRenderSupported(), []);
 
+  // The fold percent the solver last reported. Held in a ref so a 60fps frame
+  // stream does not re-render this component; the store copy is throttled below
+  // purely so the toolbar's readout and slider track it. Seeded from the stored
+  // value so a window reloaded on refocus resumes where it was.
+  const solverFoldPercentRef = useRef(simulation.foldPercent);
+  const lastPublishedRef = useRef(0);
+
   // Device-pixel size of this window's render, from its on-screen box. Rounded
   // to a step so a drag-resize does not reallocate the render target on every
   // pointer move.
@@ -186,16 +208,33 @@ function InlineSimulationWindow({
     return { width: edge(style.width), height: edge(style.height) };
   }, [focused, gpuAvailable, style.width, style.height]);
 
-  const solverOptions = useMemo(
+  // Where the fold should be when the solver loads.
+  //
+  // A window gives up its solver session when focus moves elsewhere — one worker,
+  // one live model — so regaining focus is a fresh load. Without seeding it, the
+  // fold came back flat and the window appeared to reset itself every time it was
+  // clicked away from and back. Read from a ref so this is the value at the
+  // moment of loading, without making the solver options change identity on every
+  // frame while playing.
+  //
+  // Safe to put here specifically because `useSimulatorRuntime` deliberately
+  // excludes `solverOptions` from its load effect: it is read when a model loads
+  // and never re-triggers one, so later scrubbing still goes through
+  // `setFoldPercent` rather than reloading.
+  const materialOptions = useMemo(
     () => simulatorMaterialOptions(viewSettings),
     [viewSettings]
   );
-
-  // The fold percent the solver last reported. Held in a ref so a 60fps frame
-  // stream does not re-render this component; the store copy is throttled below
-  // purely so the toolbar's readout and slider track it.
-  const solverFoldPercentRef = useRef(simulation.foldPercent);
-  const lastPublishedRef = useRef(0);
+  // Seeded from the stored fold percent, which is where the user left this
+  // window, and not from the last frame the solver reported — those are only
+  // delivered while the window is focused, so the reported value is stale by
+  // definition at the moment a blurred window reloads.
+  //
+  // Deliberately not memoized: the load effect closes over whatever the render
+  // produced, so a memo would freeze this at mount. Recomputing costs an object
+  // literal, and `useSimulatorRuntime` reads it only when a model loads, so a
+  // fresh identity every render triggers nothing.
+  const solverOptions = { ...materialOptions, foldPercent: simulation.foldPercent };
 
   const handleFrame = useCallback(
     (frame: SimulatorFrameView) => {
@@ -326,7 +365,14 @@ function InlineSimulationWindow({
       data-focused={focused || undefined}
       data-stale={stale || undefined}
       style={style}
-      onPointerDownCapture={() => onFocus(simulation.id)}
+      onPointerDownCapture={(event) => {
+        if (focused) return;
+        onFocus(simulation.id);
+        // Reached only while the overlay is inert, where this element is the
+        // sole thing that can claim the press. Stop it so the tool underneath
+        // does not also act on a click that was aimed at the window.
+        if (!overlayInteractive) event.stopPropagation();
+      }}
     >
       <SimulatorViewport
         ref={viewportRef}
