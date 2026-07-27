@@ -838,6 +838,10 @@ export function CreasePatternWebglCanvas({
   // Angle Restricted Line's anchor (the press point), held while dragging the
   // angle-snapped endpoint; null when no drag is in progress.
   const angleDragAnchorRef = useRef<ModelPoint | null>(null);
+  // True once a click in place has parked that anchor between gestures, so the next
+  // click is its endpoint rather than a new anchor — the same arming the shared
+  // drag-line engine does for the other crease-draw tools.
+  const angleDragArmedRef = useRef(false);
   // Last view rotation reported to the panel (dedupes the per-frame report).
   const lastReportedRotationRef = useRef(0);
   // Last zoom percent reported to the panel (dedupes the per-frame report).
@@ -884,6 +888,7 @@ export function CreasePatternWebglCanvas({
     dynamicStepKindsRef.current = null;
     convergingBaseRef.current = [];
     angleDragAnchorRef.current = null;
+    angleDragArmedRef.current = false;
     squareBisectorRef.current = { mode: null, points: [], lineIds: [] };
     linePickHighlightRef.current = [];
     lengthenRef.current = { phase: 'select', a: null, b: null };
@@ -1933,12 +1938,17 @@ export function CreasePatternWebglCanvas({
       }
       renderNow();
     };
-    // Angle Restricted Line (DrawCreaseAngleRestricted5): press-drag-release like the
-    // Line tool. Press anchors the start (snapped to grid/vertices, as Oriedita's
-    // move_click_drag_point snaps to the closest point); dragging kernel-previews the
-    // angle-system-snapped segment [anchor, cursor]; release commits those two points
-    // (the kernel re-snaps the endpoint on execute). Before a press, hover just shows
-    // the anchor snap indicator.
+    // Angle Restricted Line (DrawCreaseAngleRestricted5). Press anchors the start
+    // (snapped to grid/vertices, as Oriedita's move_click_drag_point snaps to the
+    // closest point); moving kernel-previews the angle-system-snapped segment
+    // [anchor, cursor]; a release away from the anchor commits those two points (the
+    // kernel re-snaps the endpoint on execute). Before an anchor exists, hover just
+    // shows the anchor snap indicator.
+    //
+    // Like the shared drag-line engine, it takes either gesture: press-drag-release,
+    // or click the anchor and click the endpoint. The same predicate splits them — a
+    // release within the click threshold of the anchor parks it for a second click
+    // instead of committing, and clicking the parked anchor again drops it.
     const feedAngleDrag = (
       kind: 'down' | 'move' | 'up' | 'cancel',
       clientX: number,
@@ -1947,9 +1957,12 @@ export function CreasePatternWebglCanvas({
       const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
       const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
       const reset = () => {
+        const wasArmed = angleDragArmedRef.current;
         angleDragAnchorRef.current = null;
+        angleDragArmedRef.current = false;
         liveRef.current.onToolPreviewInput([], []);
         renderer.setOverlayPoints(null);
+        if (wasArmed) liveRef.current.onToolPickProgress(0);
       };
       if (kind === 'cancel') {
         reset();
@@ -1959,9 +1972,12 @@ export function CreasePatternWebglCanvas({
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
       if (kind === 'down') {
-        const anchor = liveRef.current.resolveDrawPoint(raw, tol).point;
+        // A press with the anchor already parked is the endpoint, not a new anchor.
+        const anchor = angleDragArmedRef.current
+          ? angleDragAnchorRef.current
+          : liveRef.current.resolveDrawPoint(raw, tol).point;
         angleDragAnchorRef.current = anchor;
-        renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
+        if (anchor) renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
         renderNow();
         return;
       }
@@ -1981,8 +1997,18 @@ export function CreasePatternWebglCanvas({
         return;
       }
       // up
-      if (anchor && moved) liveRef.current.onToolCommit({ points: [anchor, raw] });
-      reset();
+      if (!anchor) {
+        reset();
+      } else if (Math.hypot(raw.x - anchor.x, raw.y - anchor.y) > modelToleranceOf(CLICK_MOVE_THRESHOLD)) {
+        liveRef.current.onToolCommit({ points: [anchor, raw] });
+        reset();
+      } else if (angleDragArmedRef.current) {
+        reset();
+      } else {
+        // A click on the anchor: park it and move the prompt to the endpoint step.
+        angleDragArmedRef.current = true;
+        liveRef.current.onToolPickProgress(1);
+      }
       renderNow();
     };
     // Square Bisector (modes A + B): the first pick decides the mode. A point starts
@@ -2281,9 +2307,10 @@ export function CreasePatternWebglCanvas({
       const toolMode = liveRef.current.activeToolInputMode;
       if (e.button === 2) {
         // Right button: universal erase gesture, overrides any active tool — including
-        // a drag-line waiting on its second click, whose parked start it abandons.
+        // a crease draw waiting on its second click, whose parked start it abandons.
         e.preventDefault();
         if (toolMode === 'drag-line' && dragLineArmedRef.current) feedTool('cancel', 0, 0);
+        if (toolMode === 'angle-drag' && angleDragArmedRef.current) feedAngleDrag('cancel', 0, 0);
         erasing = true;
         eraseRuntime = createToolRuntime(toolEngineFor('drag-box'));
         feedErase('down', e.clientX, e.clientY);
@@ -2609,16 +2636,21 @@ export function CreasePatternWebglCanvas({
     };
     // Suppress the browser menu so the right button is free for the erase gesture.
     const onContextMenu = (e: Event) => e.preventDefault();
-    // Drop the hover snap indicator when the cursor leaves the canvas. A drag-line's
-    // armed start stays parked — the cursor is coming back — but its rubber band goes,
-    // since there is no cursor left to stretch it to.
+    // Drop the hover snap indicator when the cursor leaves the canvas. A parked crease
+    // start stays put — the cursor is coming back — but its rubber band goes, since
+    // there is no cursor left to stretch it to.
     const onPointerLeave = () => {
-      const armed = dragLineArmedRef.current;
-      if (armed && liveRef.current.activeToolInputMode === 'drag-line') {
+      const mode = liveRef.current.activeToolInputMode;
+      const parked =
+        (mode === 'drag-line' && dragLineArmedRef.current) ||
+        (mode === 'angle-drag' && angleDragArmedRef.current && angleDragAnchorRef.current) ||
+        null;
+      if (parked) {
         renderer.setPreview(null);
+        if (mode === 'angle-drag') liveRef.current.onToolPreviewInput([], []);
         renderer.setOverlayPoints(
           sequenceOverlayPoints(
-            [armed],
+            [parked],
             null,
             readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
           )
@@ -2639,6 +2671,8 @@ export function CreasePatternWebglCanvas({
         feedLengthen('cancel', 0, 0);
       } else if (liveRef.current.activeToolInputMode === 'drag-line') {
         feedTool('cancel', 0, 0);
+      } else if (liveRef.current.activeToolInputMode === 'angle-drag') {
+        feedAngleDrag('cancel', 0, 0);
       }
     };
     canvas.addEventListener('pointerdown', onPointerDown);
