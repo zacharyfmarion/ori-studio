@@ -313,21 +313,52 @@ the `FOLDED_*` option constants to their own files, and consolidate the ten
 folded-figure modules under `cp-workspace/folded/` per the Phase 0 placement
 rule. Nearly contiguous work — the cheapest phase by line count moved.
 
-### Phase 4 — `useCpToolSession`
+### Phase 4 — `useCpToolSession` (not started; sized)
 
-`cp-workspace/tools/useCpToolSession.ts`: `cpToolState`, `cpToolPoints`,
-`cpToolPath`, `pendingLengthenLineId`, `pendingSquareBisectorLineIds`,
-`cpToolDragRef`, `webglActiveTool`, the preview segment/point state, the new
-`cpToolSelectionDistance` memo, `handleCpToolAction`, `buildCpCommandPayload`,
-and the three entity-click handlers. Widest prop surface — deliberately last.
+`cp-workspace/tools/useCpToolSession.ts`: `cpToolState`, `cpToolOptions`,
+`cpToolPoints`, `cpToolPath`, `pendingLengthenLineId`,
+`pendingSquareBisectorLineIds`, `cpToolDragRef`, `activeCpAction`,
+`activeCpCommand`, `cpToolSelectionDistance`, `buildCpCommandPayload`,
+`handleCpToolAction`, `webglActiveTool`, the preview segment/point state and its
+request ref, `webglActiveToolTransform`, and the three entity-click handlers.
 
-### Phase 5 — `useCpCamera`
+**Measured before starting, and the reason it was left:** the lift is **525
+lines**, dominated by `handleEditableLineClick` (252) and `webglActiveTool`
+(108). The hook would need roughly fifteen threaded inputs — `editableCp`,
+`editableCpBounds`, `editableCpGridWidth`, `zoomPercent`, `oristudioCpSelection`,
+`activeCpLineColor`, `nativeActiveMouseMode`, plus half a dozen store actions and
+`t`. That is a real design question rather than a mechanical move: **one hook or
+two?** The cluster splits fairly cleanly into *tool lifecycle* (which tool is
+active, its steps, payload building, cancel) and *canvas input routing* (points,
+path, pending picks, drag ref, preview, entity clicks), and the second reads the
+first. Decide that before writing it.
 
-`cp-workspace/useCpCamera.ts`: `zoomPercentRef`, `cameraCommandNonceRef`,
-`overlaySettleTimerRef`, `viewSeededRef`, `sendWebglCameraCommand`,
-`panToolActive`, and what remains of `handleViewportShortcut`. The WebGL
-analogue of `useViewportSurface`; once both exist, consider unifying their
-shared shape — do not force it.
+`cpToolState` is read in 29 places, but only four are outside the session —
+`annotationsInteractive`, the status prompt, `CpToolRail`'s `activeActionId`, and
+the Escape ladder — so the panel can keep reading `session.state.phase` for
+those.
+
+Its failure mode is a dropped dependency showing up as a stale preview, which
+neither `tsc`, ESLint, nor the unit suite catches. Budget a real browser pass:
+draw with each `inputMode` (drag-line, drag-box, drag-path, sequence,
+line-entity, lengthen, angle-drag), and check the live preview updates during a
+drag rather than only on release.
+
+### Phase 5 — `useCpCamera` (not started)
+
+`cp-workspace/useCpCamera.ts`: `zoomPercentRef`, `zoomPercent`,
+`webglCameraCommand`, `cameraCommandNonceRef`, `overlaySettleTimerRef`,
+`viewSeededRef`, `sendWebglCameraCommand`, `setZoomLevel`, `panToolActive`.
+
+Small (~60 lines) but note one coupling introduced by Phase 1:
+`handleViewportShortcut` now dispatches `viewport.cancel` to
+`cancelActiveCpInput`, which is tool state, not camera. So the hook returns the
+camera actions and the **panel composes the executor** from camera + cancel —
+do not pull the cancel ladder into the camera hook to keep the switch in one
+place.
+
+The WebGL analogue of `useViewportSurface`; once both exist, consider unifying
+their shared shape — do not force it.
 
 ### Phase 6 — Ratchet down, remove exemptions
 
@@ -383,6 +414,21 @@ badge + refold, camera zoom/fit/rotate.
 - **The guard is the deliverable, not the line count.** If phases 2–5 slip, the
   Phase 0 ratchet still holds the floor — which is the whole lesson of the
   post-migration re-accumulation.
+
+## Status
+
+Phases 0–3 are landed and committed. Panel **3,829 -> 3,126 lines (-18%)**, with
+both guards in place so the floor holds whether or not 4 and 5 follow.
+
+| Phase | State |
+| --- | --- |
+| 0 — guards | done |
+| 1 — Escape via the shortcut runtime | done |
+| 2 — `activeFloatingSurface` + `useCpAnnotations` | done |
+| 3 — `useFoldedFigures` + consolidation | done (folded-figure UI wants a manual pass) |
+| 4 — `useCpToolSession` | sized, not started — see the phase for the open design question |
+| 5 — `useCpCamera` | not started |
+| 6 — ratchet down | blocked on 4 and 5 |
 
 ## Checklist
 
