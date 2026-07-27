@@ -93,7 +93,8 @@
       "tooltip": "Faites glisser un pli avec le type de ligne actuel",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser l'extrémité du pli"
+        "0": "Cliquez ou faites glisser pour définir le début du pli",
+        "1": "Cliquez pour définir la fin du pli"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "Tracer un pli restreint",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser entre des points existants"
+        "0": "Cliquez ou faites glisser depuis un point existant",
+        "1": "Cliquez sur un autre point existant"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "Diviser la ligne par nombre",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser pour tracer une ligne à diviser"
+        "0": "Cliquez ou faites glisser pour commencer la ligne à diviser",
+        "1": "Cliquez pour terminer la ligne"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "Diviser la ligne par rapport",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser pour tracer une ligne à diviser"
+        "0": "Cliquez ou faites glisser pour commencer la ligne à diviser",
+        "1": "Cliquez pour terminer la ligne"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "Attribuer des plis montagne et vallée alternés le long d'une ligne guide",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser une ligne guide le long des plis"
+        "0": "Cliquez ou faites glisser pour commencer la ligne guide",
+        "1": "Cliquez pour terminer la ligne guide"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "Attribuer des plis montagne et vallée alternés aux croisements le long d'une ligne guide",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Faites glisser une ligne guide à travers les croisements"
+        "0": "Cliquez ou faites glisser pour commencer la ligne guide",
+        "1": "Cliquez pour terminer la ligne guide"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -972,7 +978,8 @@
       "tooltip": "Tracer une ligne auxiliaire Oriedita",
       "disabledReason": "Le mode d'insertion de ligne auxiliaire n'est pas encore implémenté dans le noyau CP",
       "steps": {
-        "0": "Faites glisser l'extrémité du pli"
+        "0": "Cliquez ou faites glisser pour définir le début du pli",
+        "1": "Cliquez pour définir la fin du pli"
       }
     }
   },

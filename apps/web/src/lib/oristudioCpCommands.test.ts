@@ -75,7 +75,7 @@ describe('oristudio CP command registry', () => {
     });
     expect(cpCommandByOperation('DrawCreaseFree')).toMatchObject({
       uiStatus: 'ready',
-      toolSteps: ['Drag crease endpoint'],
+      toolSteps: ['Click or drag to set the crease start', 'Click to set the crease end'],
       inputMode: 'drag-line',
     });
     expect(cpCommandByOperation('Axiom5')).toMatchObject({

@@ -93,7 +93,8 @@
       "tooltip": "Eine Falte mit dem aktuellen Linientyp ziehen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Faltenendpunkt ziehen"
+        "0": "Klicken oder ziehen, um den Faltenanfang zu setzen",
+        "1": "Klicken, um das Faltenende zu setzen"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "Beschränkte Falte zeichnen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Zwischen vorhandenen Punkten ziehen"
+        "0": "Von einem vorhandenen Punkt klicken oder ziehen",
+        "1": "Auf einen weiteren vorhandenen Punkt klicken"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "Linie nach Anzahl teilen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Ziehen, um eine zu teilende Linie zu zeichnen"
+        "0": "Klicken oder ziehen, um die zu teilende Linie zu beginnen",
+        "1": "Klicken, um die Linie zu beenden"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "Linie nach Verhältnis teilen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Ziehen, um eine zu teilende Linie zu zeichnen"
+        "0": "Klicken oder ziehen, um die zu teilende Linie zu beginnen",
+        "1": "Klicken, um die Linie zu beenden"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "Abwechselnde Berg- und Talfalten entlang einer Führungslinie zuweisen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Eine Führungslinie entlang der Falten ziehen"
+        "0": "Klicken oder ziehen, um die Führungslinie zu beginnen",
+        "1": "Klicken, um die Führungslinie zu beenden"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "Abwechselnde Berg- und Talfalten den Kreuzungen entlang einer Führungslinie zuweisen",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Eine Führungslinie über die Kreuzungen ziehen"
+        "0": "Klicken oder ziehen, um die Führungslinie zu beginnen",
+        "1": "Klicken, um die Führungslinie zu beenden"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -972,7 +978,8 @@
       "tooltip": "Eine Oriedita-Hilfslinie zeichnen",
       "disabledReason": "Der Einfügemodus für Hilfslinien ist im CP-Kernel noch nicht implementiert",
       "steps": {
-        "0": "Faltenendpunkt ziehen"
+        "0": "Klicken oder ziehen, um den Faltenanfang zu setzen",
+        "1": "Klicken, um das Faltenende zu setzen"
       }
     }
   },

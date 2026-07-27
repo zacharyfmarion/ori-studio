@@ -211,7 +211,7 @@ function commandId(operationId: string): `cp.${string}` {
 
 export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('DrawCreaseFree', 'Draw crease', 'draw', 'pen-line', 'MouseHandlerDrawCreaseFree', {
-    toolSteps: ['Drag crease endpoint'],
+    toolSteps: ['Click or drag to set the crease start', 'Click to set the crease end'],
     inputMode: 'drag-line',
     tooltip: 'Drag a crease using the current line type',
   }),
@@ -265,7 +265,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick source crease', 'Pick mirror crease'],
   }),
   ready('DrawCreaseRestricted', 'Draw restricted crease', 'draw', 'pen-tool', 'MouseHandlerDrawCreaseRestricted', {
-    toolSteps: ['Drag between existing points'],
+    toolSteps: ['Click or drag from an existing point', 'Click another existing point'],
     inputMode: 'drag-line',
   }),
   ready('DrawCreaseSymmetric', 'Reflect selection over line', 'transform', 'flip-horizontal', 'MouseHandlerDrawCreaseSymmetric', {
@@ -344,11 +344,11 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ),
   ready('LineSegmentDivision', 'Divide line by count', 'draw', 'split', 'MouseHandlerLineSegmentDivision', {
     inputMode: 'drag-line',
-    toolSteps: ['Drag to draw a line to divide'],
+    toolSteps: ['Click or drag to start the line to divide', 'Click to end the line'],
   }),
   ready('LineSegmentRatioSet', 'Divide line by ratio', 'draw', 'divide', 'MouseHandlerLineSegmentRatioSet', {
     inputMode: 'drag-line',
-    toolSteps: ['Drag to draw a line to divide'],
+    toolSteps: ['Click or drag to start the line to divide', 'Click to end the line'],
   }),
   ready('PolygonSetNoCorners', 'Regular polygon', 'generators', 'hexagon', 'MouseHandlerPolygonSetNoCorners', {
     toolSteps: ['Pick first corner', 'Pick second corner'],
@@ -381,7 +381,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick spine start point', 'Pick spine end point'],
   }),
   ready('CreaseMakeMv', 'Make alternating M/V', 'color', 'git-branch', 'MouseHandlerCreaseMakeMV', {
-    toolSteps: ['Drag a guide line along the creases'],
+    toolSteps: ['Click or drag to start the guide line', 'Click to end the guide line'],
     inputMode: 'drag-line',
     tooltip: 'Assign alternating mountain and valley folds along a guide line',
   }),
@@ -389,7 +389,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick symmetry axis start', 'Pick symmetry axis end'],
   }),
   ready('CreasesAlternateMv', 'Alternate crossing M/V', 'color', 'shuffle', 'MouseHandlerCreasesAlternateMV', {
-    toolSteps: ['Drag a guide line across the crossings'],
+    toolSteps: ['Click or drag to start the guide line', 'Click to end the guide line'],
     inputMode: 'drag-line',
     tooltip: 'Assign alternating mountain and valley folds to crossings along a guide line',
   }),
