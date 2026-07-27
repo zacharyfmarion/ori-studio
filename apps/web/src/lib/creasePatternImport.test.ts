@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseImportedCreasePattern,
   parseImportedCreasePatternFromFold,
+  segmentationFoldArtifactsFromFold,
 } from './creasePatternImport';
 
 describe('crease pattern import', () => {
@@ -167,5 +168,67 @@ describe('crease pattern import', () => {
 
     expect(topology(cp(30))).toEqual({ vertices: 192, edges: 290, faces: 99 });
     expect(topology(cp(60))).toEqual({ vertices: 606, edges: 1000, faces: 396 });
+  });
+
+  /**
+   * Regression: inferring topology rebuilds the edge list (segments split at
+   * intersections, coincident ones merge, survivors come out in a new order),
+   * so the source fold's per-edge extension arrays no longer describe it. They
+   * used to be carried over verbatim, and because the edge *count* can survive
+   * unchanged a length check could not catch it. The CP kernel's importer
+   * trusts `oristudio:edges_line_colors` over `edges_assignment`, so the stale
+   * array came back as scrambled crease types — borders exporting as mountains
+   * and valleys.
+   */
+  it('keeps per-edge extension arrays aligned when topology is inferred', () => {
+    // Edges are deliberately not in the order the rebuild emits them, so a
+    // carried-over array lands on the wrong creases.
+    const fold = {
+      file_spec: 1.1,
+      vertices_coords: [
+        [0, 0],
+        [2, 0],
+        [2, 2],
+        [0, 2],
+      ],
+      edges_vertices: [
+        [2, 3],
+        [0, 1],
+        [3, 0],
+        [1, 2],
+      ],
+      edges_assignment: ['M', 'B', 'V', 'F'],
+      // Oriedita line colours: 0 = border, 1 = mountain, 2 = valley, 3 = aux.
+      // All four differ, so the rebuild's reordering cannot cancel itself out.
+      'oristudio:edges_line_colors': [1, 0, 2, 3],
+      faces_vertices: [],
+    } as unknown as Parameters<typeof segmentationFoldArtifactsFromFold>[0];
+
+    const { fold: inferred } = segmentationFoldArtifactsFromFold(fold);
+    const colors = (inferred as unknown as Record<string, number[]>)[
+      'oristudio:edges_line_colors'
+    ];
+    expect(colors).toHaveLength(inferred.edges_vertices.length);
+
+    // Every rebuilt edge must carry the colour of the source edge with the same
+    // geometry, and that colour must agree with its assignment.
+    const expectedFor = new Map([
+      ['0,2|2,2', 1],
+      ['0,0|2,0', 0],
+      ['0,0|0,2', 2],
+      ['2,0|2,2', 3],
+    ]);
+    const key = (index: number) => {
+      const [a, b] = inferred.edges_vertices[index]!;
+      const pa = inferred.vertices_coords[a]!;
+      const pb = inferred.vertices_coords[b]!;
+      return [`${pa[0]},${pa[1]}`, `${pb[0]},${pb[1]}`].sort().join('|');
+    };
+    const colorForAssignment: Record<string, number> = { B: 0, M: 1, V: 2, F: 3 };
+
+    inferred.edges_vertices.forEach((_edge, index) => {
+      expect(colors[index]).toBe(expectedFor.get(key(index)));
+      expect(colors[index]).toBe(colorForAssignment[inferred.edges_assignment![index]!]);
+    });
   });
 });

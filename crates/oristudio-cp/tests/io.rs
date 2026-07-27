@@ -297,13 +297,17 @@ fn fold_file_document_import_export_preserves_multiple_nested_frames_exactly() {
     );
 }
 
+/// The extension is the more expressive of the two encodings: all eight
+/// auxiliary colours map to `F`, so `edges_assignment` alone would flatten
+/// Purple8 to Cyan3. Where the two agree, the colour wins and that detail
+/// survives.
 #[test]
 fn fold_import_prefers_oristudio_line_color_extension_over_assignment() {
     let input = r##"{
       "file_spec": 1.1,
       "vertices_coords": [[0, 0], [10, 0], [10, 10]],
       "edges_vertices": [[0, 1], [1, 2]],
-      "edges_assignment": ["M", "U"],
+      "edges_assignment": ["F", "U"],
       "oristudio:edges_line_colors": [8, -1]
     }"##;
 
@@ -311,6 +315,46 @@ fn fold_import_prefers_oristudio_line_color_extension_over_assignment() {
 
     assert_eq!(model.line_segments[0].color, LineColor::Purple8);
     assert_eq!(model.line_segments[1].color, LineColor::None);
+}
+
+/// A colour that contradicts `edges_assignment` is describing some other edge:
+/// the pair is only ever written together, so they cannot legitimately disagree.
+/// Preferring the extension unconditionally is how a rebuilt edge list twice
+/// shipped crease patterns with borders turned into mountains and valleys, so a
+/// conflicting entry loses to the standard field instead of silently winning.
+#[test]
+fn fold_import_falls_back_to_assignment_when_line_color_conflicts() {
+    let input = r##"{
+      "file_spec": 1.1,
+      "vertices_coords": [[0, 0], [10, 0], [10, 10], [0, 10]],
+      "edges_vertices": [[0, 1], [1, 2], [2, 3]],
+      "edges_assignment": ["B", "M", "V"],
+      "oristudio:edges_line_colors": [2, 0, 1]
+    }"##;
+
+    let model = fold::import_fold_json(input).expect("valid fold");
+
+    assert_eq!(model.line_segments[0].color, LineColor::Black0);
+    assert_eq!(model.line_segments[1].color, LineColor::Red1);
+    assert_eq!(model.line_segments[2].color, LineColor::Blue2);
+}
+
+/// Guard the fallback's precondition: `assignment_for_edge` reports `Unassigned`
+/// for an absent array, so cross-checking against it unconditionally would
+/// discard every colour in a document that carries only the extension.
+#[test]
+fn fold_import_keeps_line_colors_when_assignments_are_absent() {
+    let input = r##"{
+      "file_spec": 1.1,
+      "vertices_coords": [[0, 0], [10, 0], [10, 10]],
+      "edges_vertices": [[0, 1], [1, 2]],
+      "oristudio:edges_line_colors": [1, 8]
+    }"##;
+
+    let model = fold::import_fold_json(input).expect("valid fold");
+
+    assert_eq!(model.line_segments[0].color, LineColor::Red1);
+    assert_eq!(model.line_segments[1].color, LineColor::Purple8);
 }
 
 #[test]
