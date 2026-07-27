@@ -93,7 +93,8 @@
       "tooltip": "使用当前线型拖动绘制折痕",
       "disabledReason": "就绪",
       "steps": {
-        "0": "拖动折痕端点"
+        "0": "点击或拖动以设置折痕起点",
+        "1": "点击以设置折痕终点"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "绘制约束折痕",
       "disabledReason": "就绪",
       "steps": {
-        "0": "在现有点之间拖动"
+        "0": "从已有的点点击或拖动",
+        "1": "点击另一个已有的点"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "按数量分割线",
       "disabledReason": "就绪",
       "steps": {
-        "0": "拖动绘制要分割的线"
+        "0": "点击或拖动以开始要分割的线",
+        "1": "点击以结束该线"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "按比率分割线",
       "disabledReason": "就绪",
       "steps": {
-        "0": "拖动绘制要分割的线"
+        "0": "点击或拖动以开始要分割的线",
+        "1": "点击以结束该线"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "沿参考线交替指定山折和谷折",
       "disabledReason": "就绪",
       "steps": {
-        "0": "沿折痕拖动参考线"
+        "0": "点击或拖动以开始参考线",
+        "1": "点击以结束参考线"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "沿参考线为交叉点交替指定山折和谷折",
       "disabledReason": "就绪",
       "steps": {
-        "0": "拖动参考线穿过交叉点"
+        "0": "点击或拖动以开始参考线",
+        "1": "点击以结束参考线"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -972,7 +978,8 @@
       "tooltip": "绘制 Oriedita 辅助线",
       "disabledReason": "折痕图内核中尚未实现辅助线插入模式",
       "steps": {
-        "0": "拖动折痕端点"
+        "0": "点击或拖动以设置折痕起点",
+        "1": "点击以设置折痕终点"
       }
     }
   },

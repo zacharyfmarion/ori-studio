@@ -93,7 +93,8 @@
       "tooltip": "Arrastra un pliegue con el tipo de línea actual",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra el extremo del pliegue"
+        "0": "Haz clic o arrastra para fijar el inicio del pliegue",
+        "1": "Haz clic para fijar el final del pliegue"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "Dibujar pliegue restringido",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra entre puntos existentes"
+        "0": "Haz clic o arrastra desde un punto existente",
+        "1": "Haz clic en otro punto existente"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "Dividir la línea por cantidad",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra para trazar una línea que dividir"
+        "0": "Haz clic o arrastra para iniciar la línea a dividir",
+        "1": "Haz clic para terminar la línea"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "Dividir la línea por proporción",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra para trazar una línea que dividir"
+        "0": "Haz clic o arrastra para iniciar la línea a dividir",
+        "1": "Haz clic para terminar la línea"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "Asignar pliegues de monte y valle alternos a lo largo de una línea guía",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra una línea guía a lo largo de los pliegues"
+        "0": "Haz clic o arrastra para iniciar la línea guía",
+        "1": "Haz clic para terminar la línea guía"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "Asignar pliegues de monte y valle alternos a los cruces a lo largo de una línea guía",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra una línea guía a través de los cruces"
+        "0": "Haz clic o arrastra para iniciar la línea guía",
+        "1": "Haz clic para terminar la línea guía"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -972,7 +978,8 @@
       "tooltip": "Dibujar una línea auxiliar de Oriedita",
       "disabledReason": "El modo de inserción de líneas auxiliares aún no está implementado en el núcleo de CP",
       "steps": {
-        "0": "Arrastra el extremo del pliegue"
+        "0": "Haz clic o arrastra para fijar el inicio del pliegue",
+        "1": "Haz clic para fijar el final del pliegue"
       }
     }
   },
