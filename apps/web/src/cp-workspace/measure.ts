@@ -2,32 +2,31 @@ import { formatNumber } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 
 /**
- * The measure tool's model.
+ * The measure tools' model.
  *
  * Upstream Oriedita ships *five* measure tools (`l1`, `l2`, `a1`, `a2`, `a3`) whose
  * only difference is which of five `MeasuresModel` registers they write to. That is
  * a storage detail, and putting it in the tool rail forces the user to pick a
- * register before they can ask a question. Ori Studio exposes **one** Measure tool
- * whose *kind* (distance / angle) is a tool option; the five upstream operations
- * stay in the kernel and command registry for parity, with `l1`/`a1` doing the work.
+ * register before they can ask a question. Ori Studio exposes **two** — Measure
+ * Length (`l1`, Shift+M) and Measure Angle (`a1`, Shift+A) — because length and
+ * angle are different questions, not one question with a parameter. The other three
+ * operations stay in the kernel and command registry for parity, hidden from the UI.
  *
  * Values always come from the **kernel** (`preview.measurement`, exact Oriedita
- * parity). This module owns kind ↔ operation mapping and formatting only; picks are
- * resolved to points frontend-side, exactly as every other point-sequence tool does.
+ * parity). This module owns the operation ↔ kind mapping and formatting only; picks
+ * are resolved to points frontend-side, as every other point-sequence tool does.
  *
  * See implementation-plans/measure-system-redesign.md.
  */
 
-/** What the measure tool is currently measuring. */
+/** What a measure tool measures. Follows from *which* tool is active. */
 export type CpMeasureKind = 'distance' | 'angle';
 
-export const CP_MEASURE_KINDS: readonly CpMeasureKind[] = ['distance', 'angle'];
-
-/**
- * The operation the Measure tool is activated as, and therefore its rail button,
- * shortcut (`Shift+M`), and upstream identity (`l1Action`).
- */
-export const CP_MEASURE_OPERATION_ID = 'DisplayLengthBetweenPoints1' satisfies OristudioCpOperationId;
+/** The two operations that carry the visible measure tools. */
+export const CP_MEASURE_LENGTH_OPERATION_ID =
+  'DisplayLengthBetweenPoints1' satisfies OristudioCpOperationId;
+export const CP_MEASURE_ANGLE_OPERATION_ID =
+  'DisplayAngleBetweenThreePoints1' satisfies OristudioCpOperationId;
 
 /** Every operation that measures rather than mutates. */
 const CP_MEASUREMENT_OPERATION_IDS: readonly OristudioCpOperationId[] = [
@@ -38,23 +37,20 @@ const CP_MEASUREMENT_OPERATION_IDS: readonly OristudioCpOperationId[] = [
   'DisplayAngleBetweenThreePoints3',
 ];
 
-/**
- * The kernel operation that computes a given kind. The tool is always *activated*
- * as {@link CP_MEASURE_OPERATION_ID}; only the preview/commit request switches, so
- * the rail highlight and tool state stay on one action.
- */
-export function cpMeasureOperationForKind(kind: CpMeasureKind): OristudioCpOperationId {
-  return kind === 'angle' ? 'DisplayAngleBetweenThreePoints1' : 'DisplayLengthBetweenPoints1';
+/** What the active operation measures, or null when it is not a measure tool. */
+export function cpMeasureKindForOperation(
+  operationId: OristudioCpOperationId | null | undefined
+): CpMeasureKind | null {
+  if (!isCpMeasurementOperation(operationId)) return null;
+  return operationId === 'DisplayLengthBetweenPoints1' ||
+    operationId === 'DisplayLengthBetweenPoints2'
+    ? 'distance'
+    : 'angle';
 }
 
 /** Points a kind collects before it can be measured. */
 export function cpMeasurePointCount(kind: CpMeasureKind): number {
   return kind === 'angle' ? 3 : 2;
-}
-
-/** Per-step snap kinds for the canvas sequence engine (all free-point steps). */
-export function cpMeasureStepKinds(kind: CpMeasureKind): ('point' | 'crease' | 'candidate')[] {
-  return Array.from({ length: cpMeasurePointCount(kind) }, () => 'point' as const);
 }
 
 export function isCpMeasurementOperation(
@@ -175,6 +171,21 @@ const EXACT_ANGLES = [
 ];
 const ANGLE_EPSILON = 1e-6;
 
+/**
+ * The interior angle of the two picked rays.
+ *
+ * The kernel returns Oriedita's *directed* angle (0–360 from the first ray to the
+ * second), so the same 90° corner reads 90 or 270 depending on pick order — which
+ * is not what anyone means by "the angle at this vertex". Fold the reflex half back
+ * so a corner always reads the ≤180° angle you can see. Display only: the kernel's
+ * value is untouched, and nothing about parity changes.
+ */
+export function interiorCpAngle(degrees: number): number {
+  if (!Number.isFinite(degrees)) return degrees;
+  const wrapped = ((degrees % 360) + 360) % 360;
+  return wrapped > 180 ? 360 - wrapped : wrapped;
+}
+
 export function snapExactCpAngle(degrees: number): number {
   for (const exact of EXACT_ANGLES) {
     if (Math.abs(degrees - exact) <= ANGLE_EPSILON) return exact;
@@ -184,7 +195,7 @@ export function snapExactCpAngle(degrees: number): number {
 
 export function formatCpAngle(degrees: number): string {
   if (!Number.isFinite(degrees)) return '-';
-  return `${formatNumber(snapExactCpAngle(degrees), 2)}°`;
+  return `${formatNumber(snapExactCpAngle(interiorCpAngle(degrees)), 2)}°`;
 }
 
 /**
@@ -254,6 +265,6 @@ export function copyTextForCpMeasurement(
   scale: CpMeasureScale
 ): string {
   return measurement.kind === 'angle'
-    ? String(snapExactCpAngle(measurement.value))
+    ? String(snapExactCpAngle(interiorCpAngle(measurement.value)))
     : String(convertCpLength(measurement.value, unit, scale));
 }

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CP_MEASURE_KINDS,
-  CP_MEASURE_OPERATION_ID,
-  cpMeasureOperationForKind,
+  CP_MEASURE_ANGLE_OPERATION_ID,
+  CP_MEASURE_LENGTH_OPERATION_ID,
+  cpMeasureKindForOperation,
   cpMeasurePointCount,
-  cpMeasureStepKinds,
   convertCpLength,
+  interiorCpAngle,
   copyTextForCpMeasurement,
   exactCpLengthLabel,
   formatCpAngle,
@@ -16,30 +16,24 @@ import {
   type CpMeasureScale,
 } from './measure';
 
-describe('cpMeasureOperationForKind', () => {
-  it('routes each kind to the upstream operation that computes it', () => {
-    expect(cpMeasureOperationForKind('distance')).toBe('DisplayLengthBetweenPoints1');
-    expect(cpMeasureOperationForKind('angle')).toBe('DisplayAngleBetweenThreePoints1');
+describe('cpMeasureKindForOperation', () => {
+  it('reads the kind off the active tool — length and angle are separate tools', () => {
+    expect(cpMeasureKindForOperation(CP_MEASURE_LENGTH_OPERATION_ID)).toBe('distance');
+    expect(cpMeasureKindForOperation(CP_MEASURE_ANGLE_OPERATION_ID)).toBe('angle');
+    expect(cpMeasureKindForOperation('DisplayLengthBetweenPoints2')).toBe('distance');
+    expect(cpMeasureKindForOperation('DisplayAngleBetweenThreePoints3')).toBe('angle');
   });
 
-  it('activates as the length-1 operation, so one action owns the rail and shortcut', () => {
-    expect(CP_MEASURE_OPERATION_ID).toBe('DisplayLengthBetweenPoints1');
-    expect(cpMeasureOperationForKind('distance')).toBe(CP_MEASURE_OPERATION_ID);
+  it('is null for anything that is not a measure tool', () => {
+    expect(cpMeasureKindForOperation('DrawCreaseFree')).toBeNull();
+    expect(cpMeasureKindForOperation(null)).toBeNull();
   });
 });
 
-describe('cpMeasurePointCount / cpMeasureStepKinds', () => {
+describe('cpMeasurePointCount', () => {
   it('collects 2 points for a distance and 3 for an angle', () => {
     expect(cpMeasurePointCount('distance')).toBe(2);
     expect(cpMeasurePointCount('angle')).toBe(3);
-  });
-
-  it('gives one free-point snap step per collected point', () => {
-    for (const kind of CP_MEASURE_KINDS) {
-      const steps = cpMeasureStepKinds(kind);
-      expect(steps).toHaveLength(cpMeasurePointCount(kind));
-      expect(steps.every((step) => step === 'point')).toBe(true);
-    }
   });
 });
 
@@ -100,6 +94,20 @@ describe('formatCpLength / formatCpAngle', () => {
     expect(formatCpAngle(Number.POSITIVE_INFINITY)).toBe('-');
   });
 
+  it('folds the kernel\'s directed angle onto the interior one you can see', () => {
+    // Oriedita's angle() is directed 0-360, so the same 90-degree corner reads 90
+    // or 270 depending on pick order. Both must read 90.
+    expect(interiorCpAngle(90)).toBe(90);
+    expect(interiorCpAngle(270)).toBe(90);
+    expect(interiorCpAngle(180)).toBe(180);
+    expect(interiorCpAngle(200)).toBe(160);
+    expect(interiorCpAngle(0)).toBe(0);
+    expect(interiorCpAngle(-90)).toBe(90);
+    expect(interiorCpAngle(405)).toBe(45);
+    expect(formatCpAngle(270)).toBe('90°');
+    expect(formatCpAngle(292.5)).toBe('67.5°');
+  });
+
   it('snaps float noise onto the exact origami angle, and leaves others alone', () => {
     expect(snapExactCpAngle(44.99999999999999)).toBe(45);
     expect(snapExactCpAngle(22.500000000000004)).toBe(22.5);
@@ -129,6 +137,12 @@ describe('formatCpMeasurement / copyTextForCpMeasurement', () => {
     ).toBe('0.5');
     expect(formatCpMeasurement({ kind: 'angle', value: 45, points: [] }, 'paper', SCALE)).toBe(
       '45°'
+    );
+  });
+
+  it('copies the interior angle, not the kernel\'s directed one', () => {
+    expect(copyTextForCpMeasurement({ kind: 'angle', value: 270, points: [] }, 'paper', SCALE)).toBe(
+      '90'
     );
   });
 

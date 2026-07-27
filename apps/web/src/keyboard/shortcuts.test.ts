@@ -108,15 +108,24 @@ describe('shortcut registry', () => {
     expect(getShortcutRegistryDiagnostics().duplicateDefaultChords).toEqual([]);
   });
 
-  it('keeps the mirror family on M and gives Measure Shift+M', () => {
+  it('keeps the mirror family on M and puts the measure tools on Shift+M / Shift+A', () => {
     expect(getResolvedShortcut('cp.action.symmetric-draw')).toEqual({ key: 'm' });
     expect(getResolvedShortcut('cp.action.draw-crease-symmetric')).toEqual({ primary: true, key: 'm' });
     expect(getResolvedShortcut('cp.action.display-length-between-points1')).toEqual({
       key: 'm',
       shift: true,
     });
+    expect(getResolvedShortcut('cp.action.display-angle-between-three-points1')).toEqual({
+      key: 'a',
+      shift: true,
+    });
+    // The bare keys they shift stay with their own tools.
+    expect(getResolvedShortcut('cp.action.line-type.mountain')).toEqual({ key: 'a' });
     expect(shortcutLabelForAction('cp.action.display-length-between-points1')).toMatch(
       /Shift\+M$/u
+    );
+    expect(shortcutLabelForAction('cp.action.display-angle-between-three-points1')).toMatch(
+      /Shift\+A$/u
     );
   });
 

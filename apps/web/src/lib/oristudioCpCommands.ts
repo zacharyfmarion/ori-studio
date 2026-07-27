@@ -455,22 +455,22 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('ContinuousSymmetricDraw', 'Continuous symmetric draw', 'construct', 'repeat', 'MouseHandlerContinuousSymmetricDraw', {
     toolSteps: ['Pick start point', 'Pick through point'],
   }),
-  // The one Measure tool. Upstream splits measuring across five operations that
+  // The two Measure tools. Upstream splits measuring across five operations that
   // differ only in which `MeasuresModel` register they write to; Ori Studio shows
-  // this one (kind — distance / angle — is a tool option) and hides the rest. The
-  // four below stay `ready` so the kernel, menus, and `.cp` mouse modes keep
-  // upstream parity. See cp-workspace/measure.ts.
-  ready('DisplayLengthBetweenPoints1', 'Measure', 'measure', 'ruler', 'MouseHandlerDisplayLengthBetweenPoints', {
+  // one per *question* — length and angle — and hides the other three, which stay
+  // `ready` so the kernel, menus, and `.cp` mouse modes keep upstream parity.
+  // See cp-workspace/measure.ts.
+  ready('DisplayLengthBetweenPoints1', 'Measure Length', 'measure', 'ruler', 'MouseHandlerDisplayLengthBetweenPoints', {
     toolSteps: ['Pick first point', 'Pick second point'],
-    tooltip: 'Measure a distance or an angle',
+    tooltip: 'Measure the distance between two points, or click a crease',
   }),
   ready('DisplayLengthBetweenPoints2', 'Measure length 2', 'measure', 'ruler-dimension-line', 'MouseHandlerDisplayLengthBetweenPoints', {
     placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick second point'],
   }),
-  ready('DisplayAngleBetweenThreePoints1', 'Measure angle 1', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
-    placement: 'hidden-ui-only',
+  ready('DisplayAngleBetweenThreePoints1', 'Measure Angle', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
+    tooltip: 'Measure the angle at a vertex between two points',
   }),
   ready('DisplayAngleBetweenThreePoints2', 'Measure angle 2', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
     placement: 'hidden-ui-only',

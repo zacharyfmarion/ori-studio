@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Medir longitud 1",
-      "tooltip": "Medir longitud 1",
+      "label": "Medir longitud",
+      "tooltip": "Mide la distancia entre dos puntos, o haz clic en un pliegue",
       "disabledReason": "Listo",
       "steps": {
         "0": "Elige el primer punto",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Medir ángulo 1",
-      "tooltip": "Medir ángulo 1",
+      "label": "Medir ángulo",
+      "tooltip": "Mide el ángulo en un vértice entre dos puntos",
       "disabledReason": "Listo",
       "steps": {
         "0": "Elige el primer punto",

@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Länge messen 1",
-      "tooltip": "Länge messen 1",
+      "label": "Länge messen",
+      "tooltip": "Misst den Abstand zwischen zwei Punkten oder klickt eine Falte an",
       "disabledReason": "Bereit",
       "steps": {
         "0": "Ersten Punkt wählen",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Winkel messen 1",
-      "tooltip": "Winkel messen 1",
+      "label": "Winkel messen",
+      "tooltip": "Misst den Winkel an einem Scheitelpunkt zwischen zwei Punkten",
       "disabledReason": "Bereit",
       "steps": {
         "0": "Ersten Punkt wählen",

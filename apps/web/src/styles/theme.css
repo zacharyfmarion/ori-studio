@@ -6185,3 +6185,34 @@ button.bp-packing-alert:focus-visible {
   border-color: var(--accent-primary);
   color: var(--text-primary);
 }
+
+/* "Copied" confirmation over the measure value — a copy with no feedback reads as
+   a dead click. Overlays rather than reflows so the value doesn't jump. */
+.cp-context-panel__measure-value {
+  position: relative;
+}
+
+.cp-context-panel__measure-value[data-copy-status] {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, var(--border-default));
+}
+
+.cp-context-panel__measure-copied[data-copy-status='failed'] {
+  background: color-mix(in srgb, var(--text-muted) 22%, var(--bg-secondary));
+  color: var(--text-secondary);
+}
+
+.cp-context-panel__measure-copied {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-secondary));
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}

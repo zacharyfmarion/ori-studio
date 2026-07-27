@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "長さを測定 1",
-      "tooltip": "長さを測定 1",
+      "label": "長さを測定",
+      "tooltip": "2 点間の距離を測定、または折り線をクリック",
       "disabledReason": "準備完了",
       "steps": {
         "0": "1 点目を選択",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "角度を測定 1",
-      "tooltip": "角度を測定 1",
+      "label": "角度を測定",
+      "tooltip": "頂点で 2 点の間の角度を測定",
       "disabledReason": "準備完了",
       "steps": {
         "0": "1 点目を選択",

@@ -37,10 +37,11 @@ import type { OristudioCpToolInstructions } from '../../lib/oristudioCpToolInstr
 import { cpPaletteEntryForColor } from '../../lib/oristudioCpPalette';
 import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
+import { copyTextToClipboard } from '../../lib/clipboardText';
 import {
-  CP_MEASURE_KINDS,
   CP_MEASURE_UNITS,
   copyTextForCpMeasurement,
+  cpMeasureKindForOperation,
   cpMeasurePointCount,
   cpMeasureUnitIsPhysical,
   exactCpLengthLabel,
@@ -269,6 +270,28 @@ function CpContextToolInstructions({
   );
 }
 
+/**
+ * Copy a measurement and say what happened: a copy with no feedback reads as a dead
+ * click. Upstream pops a temporary "Copied" label on the measure field
+ * (`TextFieldTempPopupAdapter`); this is the same idea on the value button, plus a
+ * failure state so a blocked clipboard is visible instead of silent.
+ */
+type CopyStatus = 'idle' | 'copied' | 'failed';
+
+function useCopyStatus(): [CopyStatus, (text: string) => void] {
+  const [status, setStatus] = useState<CopyStatus>('idle');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  const copy = useCallback((text: string) => {
+    void copyTextToClipboard(text).then((copied) => {
+      setStatus(copied ? 'copied' : 'failed');
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setStatus('idle'), 1200);
+    });
+  }, []);
+  return [status, copy];
+}
+
 function CpContextToolGroup({
   group,
   options,
@@ -301,6 +324,7 @@ function CpContextToolGroup({
   selection: OristudioCpSelection;
 }) {
   const { t } = useTranslation();
+  const [copyStatus, copyMeasurement] = useCopyStatus();
   if (group === 'line-color') {
     return (
       <div className="cp-context-panel__group">
@@ -592,7 +616,9 @@ function CpContextToolGroup({
   }
 
   if (group === 'measure') {
-    const kind = options.measureKind;
+    // Which measure tool is active decides the kind — Measure Length and Measure
+    // Angle are separate tools, so there is nothing to choose here.
+    const kind = cpMeasureKindForOperation(activeOperationId) ?? 'distance';
     const remaining = cpMeasurePointCount(kind) - measurePicked;
     // Newest first: the reading just taken is the one being read, and older ones
     // stay available for comparison until the tool is left.
@@ -605,26 +631,6 @@ function CpContextToolGroup({
     return (
       <div className="cp-context-panel__group">
         <div className="cp-context-panel__group-title">{t('tools:cpContext.measure', 'Measure')}</div>
-        <div
-          className="cp-context-panel__preset-grid cp-context-panel__measure-kinds"
-          role="radiogroup"
-          aria-label={t('tools:cpContext.measureKindLabel', 'What to measure')}
-        >
-          {CP_MEASURE_KINDS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={option === kind}
-              className="cp-context-panel__preset"
-              data-active={option === kind || undefined}
-              data-measure-kind={option}
-              onClick={() => setOptions((current) => ({ ...current, measureKind: option }))}
-            >
-              {measureKindLabel(t, option)}
-            </button>
-          ))}
-        </div>
         <button
           type="button"
           className="cp-context-panel__measure-value"
@@ -634,18 +640,24 @@ function CpContextToolGroup({
           title={
             latest ? t('tools:cpContext.measureCopy', 'Copy the full-precision value') : undefined
           }
+          data-copy-status={copyStatus === 'idle' ? undefined : copyStatus}
           onMouseEnter={() => latest && onHoverMeasurement(latest.index)}
           onMouseLeave={() => onHoverMeasurement(null)}
           onClick={() => {
             if (!latest) return;
-            void navigator.clipboard?.writeText(
-              copyTextForCpMeasurement(latest.entry, measureUnit, measureScale)
-            );
+            copyMeasurement(copyTextForCpMeasurement(latest.entry, measureUnit, measureScale));
           }}
         >
           {latest === undefined
             ? t('tools:cpContext.measureEmpty', 'No measurement yet')
             : formatCpMeasurement(latest.entry, measureUnit, measureScale)}
+          {copyStatus !== 'idle' && (
+            <span className="cp-context-panel__measure-copied" data-copy-status={copyStatus}>
+              {copyStatus === 'copied'
+                ? t('tools:cpContext.measureCopied', 'Copied')
+                : t('tools:cpContext.measureCopyFailed', 'Copy blocked')}
+            </span>
+          )}
         </button>
         {exactLabel && (
           <div className="cp-context-panel__readout cp-context-panel__measure-exact">
@@ -664,9 +676,7 @@ function CpContextToolGroup({
                   onMouseEnter={() => onHoverMeasurement(index)}
                   onMouseLeave={() => onHoverMeasurement(null)}
                   onClick={() =>
-                    void navigator.clipboard?.writeText(
-                      copyTextForCpMeasurement(entry, measureUnit, measureScale)
-                    )
+                    copyMeasurement(copyTextForCpMeasurement(entry, measureUnit, measureScale))
                   }
                 >
                   <span>{measureKindLabel(t, entry.kind)}</span>

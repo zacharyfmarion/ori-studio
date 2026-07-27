@@ -6,7 +6,6 @@ import type {
   OristudioCpCommandDefinition,
   OristudioCpOperationId,
 } from './oristudioCpCommands';
-import type { CpMeasureKind } from '../cp-workspace/measure';
 
 export type OristudioCpToolSettingGroup =
   | 'line-color'
@@ -57,8 +56,6 @@ export interface OristudioCpToolOptions {
   candidateIndex: number | null;
   customCircleColor: OristudioCpRgbColor;
   textContent: string;
-  /** What the single Measure tool measures. See cp-workspace/measure.ts. */
-  measureKind: CpMeasureKind;
 }
 
 export const DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS: OristudioCpToolOptions = {
@@ -84,7 +81,6 @@ export const DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS: OristudioCpToolOptions = {
   candidateIndex: null,
   customCircleColor: { red: 100, green: 200, blue: 200 },
   textContent: '',
-  measureKind: 'distance',
 };
 
 export const ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS = [

@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Mesurer la longueur 1",
-      "tooltip": "Mesurer la longueur 1",
+      "label": "Mesurer la longueur",
+      "tooltip": "Mesure la distance entre deux points, ou cliquer sur un pli",
       "disabledReason": "Prêt",
       "steps": {
         "0": "Choisissez le premier point",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Mesurer l'angle 1",
-      "tooltip": "Mesurer l'angle 1",
+      "label": "Mesurer l’angle",
+      "tooltip": "Mesure l’angle à un sommet entre deux points",
       "disabledReason": "Prêt",
       "steps": {
         "0": "Choisissez le premier point",

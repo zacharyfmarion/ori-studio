@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "测量长度 1",
-      "tooltip": "测量长度 1",
+      "label": "测量长度",
+      "tooltip": "测量两点之间的距离，或点击折线",
       "disabledReason": "就绪",
       "steps": {
         "0": "选取第一个点",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "测量角度 1",
-      "tooltip": "测量角度 1",
+      "label": "测量角度",
+      "tooltip": "测量顶点处两点之间的角度",
       "disabledReason": "就绪",
       "steps": {
         "0": "选取第一个点",

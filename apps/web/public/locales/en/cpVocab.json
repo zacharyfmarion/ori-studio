@@ -502,8 +502,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Measure",
-      "tooltip": "Measure a distance or an angle",
+      "label": "Measure Length",
+      "tooltip": "Measure the distance between two points, or click a crease",
       "disabledReason": "Ready",
       "steps": {
         "0": "Pick first point",
@@ -520,8 +520,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Measure angle 1",
-      "tooltip": "Measure angle 1",
+      "label": "Measure Angle",
+      "tooltip": "Measure the angle at a vertex between two points",
       "disabledReason": "Ready",
       "steps": {
         "0": "Pick first point",

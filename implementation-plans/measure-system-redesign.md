@@ -7,10 +7,10 @@ five anonymous registers in a corner panel — with **one measure tool** that
 answers on the canvas, in a unit a person can read, and leaves nothing behind
 when you leave it.
 
-Deliverable: a single `Measure` tool on `Shift+M`, live on-canvas dimension
-lines and angle arcs with the value at the cursor, a unit system, and
-measurements that accumulate while the tool is active and are **discarded when
-the tool is escaped**.
+Deliverable: `Measure Length` (`Shift+M`) and `Measure Angle` (`Shift+A`), live
+on-canvas dimension lines and angle arcs with the value at the cursor, a unit
+system, and measurements that accumulate while the tool is active and are
+**discarded when the tool is escaped**.
 
 ## Scope decisions (settled)
 
@@ -283,11 +283,21 @@ Unchanged: `crates/**`, the WASM bridges, and every file format.
       Escape ladder's tool-deactivation rung)
 - [x] Session list in the context panel, hover-to-highlight
 
-### Known, and left at parity
-- The kernel's angle is **directed** (Oriedita's `angle()` returns 0–360), so the
-  same corner reads 88.23° or 270° depending on pick order. That is exactly what
-  upstream displays, so V1 shows it unchanged; a reflex/complement toggle belongs
-  with the deferred work below.
+### Corrected after review
+- **The angle now reads the interior one.** The kernel's angle is directed
+  (Oriedita's `angle()` returns 0–360), so the same 90° corner read 90 or 270
+  depending on pick order. Shipping that was wrong: nobody means the reflex angle
+  by "the angle at this vertex". The display folds it onto the ≤180° reading
+  (`interiorCpAngle`); the kernel value is untouched, so parity is unaffected.
+- **Length and angle are two tools, not one tool with a kind parameter.** The
+  segmented control is gone; `Measure Length` (`Shift+M`) and `Measure Angle`
+  (`Shift+A`) each own a rail button, and the kind follows from whichever is
+  active. This also deleted the dynamic step-kind branch — the input registry
+  already declares 2 points for length and 3 for angle.
+- **Copying says so.** A click with no feedback read as a dead click. The value
+  button now flashes "Copied", and falls back to the `execCommand` path when the
+  async Clipboard API is denied — reporting "Copy blocked" if both fail, rather
+  than silently doing nothing.
 
 ### Deferred (not V1)
 - Registers + `string2double` substitution in numeric fields
