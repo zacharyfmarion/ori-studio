@@ -100,6 +100,26 @@ describe('shortcut registry', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  // The registry drops a duplicate default chord silently (buildCpShortcutDefinitions
+  // keeps the first in ORISTUDIO_CP_ACTIONS order), so a collision would otherwise
+  // disable a tool with no test failure. Measure on Shift+M is exactly the case that
+  // would have shadowed Mirror Line had it taken the bare key.
+  it('has no duplicate default chords in any scope', () => {
+    expect(getShortcutRegistryDiagnostics().duplicateDefaultChords).toEqual([]);
+  });
+
+  it('keeps the mirror family on M and gives Measure Shift+M', () => {
+    expect(getResolvedShortcut('cp.action.symmetric-draw')).toEqual({ key: 'm' });
+    expect(getResolvedShortcut('cp.action.draw-crease-symmetric')).toEqual({ primary: true, key: 'm' });
+    expect(getResolvedShortcut('cp.action.display-length-between-points1')).toEqual({
+      key: 'm',
+      shift: true,
+    });
+    expect(shortcutLabelForAction('cp.action.display-length-between-points1')).toMatch(
+      /Shift\+M$/u
+    );
+  });
+
   it('reports import diagnostics for follow-up mapping work', () => {
     const diagnostics = getShortcutRegistryDiagnostics();
 

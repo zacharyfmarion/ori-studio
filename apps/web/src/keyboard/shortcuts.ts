@@ -100,6 +100,15 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   // mnemonic, and freed when the line types moved onto the home row.
   symmetricDrawAction: 'M',
 
+  // -- Measure -----------------------------------------------------------
+  // Ori Studio addition: upstream ships no hotkey for l1Action (hotkey.properties
+  // is empty for it). `l1Action` is the single Measure tool's upstream identity —
+  // the other four measure operations are hidden from the UI — and it takes
+  // Shift+M so the mirror family keeps the bare key (M mirror line, Ctrl+M
+  // reflect). This is the app's first bare Shift+letter chord; the dispatcher
+  // records `shift` on every event, so M and Shift+M stay distinct.
+  l1Action: 'shift M',
+
   // -- Mountain / valley -------------------------------------------------
   senbun_henkan2Action: 'C', // flip M/V of the selection
   in_L_col_changeAction: 'X', // alternate M/V along a line (ridges)

@@ -1,73 +1,80 @@
 import { formatNumber } from '../lib/geometry';
-import type { OristudioCpCommandDefinition } from '../lib/oristudioCpCommands';
+import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 
 /**
- * Measure-tool slots: the five display values (2 lengths + 3 angles) the measure tools
- * surface into the bottom-right panel. The values themselves come from the **kernel**
- * (`preview.measurement`, exact Oriedita parity) on the WebGL surface — this module is
- * just the slot mapping/formatting. Extracted from `CreasePatternPanel` (Phase 8
- * decompose).
+ * The measure tool's model.
  *
- * (The frontend recompute `computeCpMeasurementValue` is the SVG-only path and is not
- * here — it dies with the SVG surface.)
+ * Upstream Oriedita ships *five* measure tools (`l1`, `l2`, `a1`, `a2`, `a3`) whose
+ * only difference is which of five `MeasuresModel` registers they write to. That is
+ * a storage detail, and putting it in the tool rail forces the user to pick a
+ * register before they can ask a question. Ori Studio exposes **one** Measure tool
+ * whose *kind* (distance / angle) is a tool option; the five upstream operations
+ * stay in the kernel and command registry for parity, with `l1`/`a1` doing the work.
+ *
+ * Values always come from the **kernel** (`preview.measurement`, exact Oriedita
+ * parity). This module owns kind ↔ operation mapping and formatting only; picks are
+ * resolved to points frontend-side, exactly as every other point-sequence tool does.
+ *
+ * See implementation-plans/measure-system-redesign.md.
  */
-export type CpMeasurementSlotId = 'length1' | 'length2' | 'angle1' | 'angle2' | 'angle3';
-export type CpMeasurementSlots = Record<CpMeasurementSlotId, number | null>;
 
-export const CP_MEASUREMENT_SLOT_LABELS: Record<CpMeasurementSlotId, string> = {
-  length1: 'L1',
-  length2: 'L2',
-  angle1: 'A1',
-  angle2: 'A2',
-  angle3: 'A3',
-};
+/** What the measure tool is currently measuring. */
+export type CpMeasureKind = 'distance' | 'angle';
 
-export const CP_MEASUREMENT_SLOT_ORDER: readonly CpMeasurementSlotId[] = [
-  'length1',
-  'length2',
-  'angle1',
-  'angle2',
-  'angle3',
+export const CP_MEASURE_KINDS: readonly CpMeasureKind[] = ['distance', 'angle'];
+
+/**
+ * The operation the Measure tool is activated as, and therefore its rail button,
+ * shortcut (`Shift+M`), and upstream identity (`l1Action`).
+ */
+export const CP_MEASURE_OPERATION_ID = 'DisplayLengthBetweenPoints1' satisfies OristudioCpOperationId;
+
+/** Every operation that measures rather than mutates. */
+const CP_MEASUREMENT_OPERATION_IDS: readonly OristudioCpOperationId[] = [
+  'DisplayLengthBetweenPoints1',
+  'DisplayLengthBetweenPoints2',
+  'DisplayAngleBetweenThreePoints1',
+  'DisplayAngleBetweenThreePoints2',
+  'DisplayAngleBetweenThreePoints3',
 ];
 
-export function createEmptyCpMeasurementSlots(): CpMeasurementSlots {
-  return {
-    length1: null,
-    length2: null,
-    angle1: null,
-    angle2: null,
-    angle3: null,
-  };
+/**
+ * The kernel operation that computes a given kind. The tool is always *activated*
+ * as {@link CP_MEASURE_OPERATION_ID}; only the preview/commit request switches, so
+ * the rail highlight and tool state stay on one action.
+ */
+export function cpMeasureOperationForKind(kind: CpMeasureKind): OristudioCpOperationId {
+  return kind === 'angle' ? 'DisplayAngleBetweenThreePoints1' : 'DisplayLengthBetweenPoints1';
 }
 
-export function cpMeasurementSlotForOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
-): CpMeasurementSlotId | null {
-  switch (operationId) {
-    case 'DisplayLengthBetweenPoints1':
-      return 'length1';
-    case 'DisplayLengthBetweenPoints2':
-      return 'length2';
-    case 'DisplayAngleBetweenThreePoints1':
-      return 'angle1';
-    case 'DisplayAngleBetweenThreePoints2':
-      return 'angle2';
-    case 'DisplayAngleBetweenThreePoints3':
-      return 'angle3';
-    default:
-      return null;
-  }
+/** Points a kind collects before it can be measured. */
+export function cpMeasurePointCount(kind: CpMeasureKind): number {
+  return kind === 'angle' ? 3 : 2;
+}
+
+/** Per-step snap kinds for the canvas sequence engine (all free-point steps). */
+export function cpMeasureStepKinds(kind: CpMeasureKind): ('point' | 'crease' | 'candidate')[] {
+  return Array.from({ length: cpMeasurePointCount(kind) }, () => 'point' as const);
 }
 
 export function isCpMeasurementOperation(
-  operationId: OristudioCpCommandDefinition['operationId'] | null | undefined
+  operationId: OristudioCpOperationId | null | undefined
 ): boolean {
-  return cpMeasurementSlotForOperation(operationId) !== null;
+  return operationId != null && CP_MEASUREMENT_OPERATION_IDS.includes(operationId);
 }
 
-export function formatCpMeasurementValue(slot: CpMeasurementSlotId, value: number | null): string {
-  if (value === null) return '-';
-  const precision = slot.startsWith('angle') ? 2 : 3;
-  const unit = slot.startsWith('angle') ? ' deg' : '';
-  return `${formatNumber(value, precision)}${unit}`;
+/** A measurement the tool has taken, live for the duration of the tool session. */
+export interface CpMeasurement {
+  kind: CpMeasureKind;
+  /** Kernel-computed length (model units) or angle (degrees). */
+  value: number;
+  /** The points it was taken from — 2 for a distance, 3 (rays about [1]) for an angle. */
+  points: readonly { x: number; y: number }[];
+}
+
+export function formatCpMeasurementValue(kind: CpMeasureKind, value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '-';
+  return kind === 'angle'
+    ? `${formatNumber(value, 2)}°`
+    : formatNumber(value, 3);
 }

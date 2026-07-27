@@ -6,6 +6,7 @@ import type {
   OristudioCpCommandDefinition,
   OristudioCpOperationId,
 } from './oristudioCpCommands';
+import type { CpMeasureKind } from '../cp-workspace/measure';
 
 export type OristudioCpToolSettingGroup =
   | 'line-color'
@@ -22,7 +23,7 @@ export type OristudioCpToolSettingGroup =
   | 'line-select-help'
   | 'circle-select-help'
   | 'apply-lines'
-  | 'measurement-readout'
+  | 'measure'
   | 'custom-circle-color';
 
 export interface OristudioCpRatioExpression {
@@ -56,6 +57,8 @@ export interface OristudioCpToolOptions {
   candidateIndex: number | null;
   customCircleColor: OristudioCpRgbColor;
   textContent: string;
+  /** What the single Measure tool measures. See cp-workspace/measure.ts. */
+  measureKind: CpMeasureKind;
 }
 
 export const DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS: OristudioCpToolOptions = {
@@ -81,6 +84,7 @@ export const DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS: OristudioCpToolOptions = {
   candidateIndex: null,
   customCircleColor: { red: 100, green: 200, blue: 200 },
   textContent: '',
+  measureKind: 'distance',
 };
 
 export const ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS = [
@@ -187,11 +191,11 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   SelectLineIntersecting: ['line-select-help'],
   UnselectLineIntersecting: ['line-select-help'],
   CreaseDeleteIntersecting: ['line-select-help'],
-  DisplayLengthBetweenPoints1: ['measurement-readout'],
-  DisplayLengthBetweenPoints2: ['measurement-readout'],
-  DisplayAngleBetweenThreePoints1: ['measurement-readout'],
-  DisplayAngleBetweenThreePoints2: ['measurement-readout'],
-  DisplayAngleBetweenThreePoints3: ['measurement-readout'],
+  DisplayLengthBetweenPoints1: ['measure'],
+  DisplayLengthBetweenPoints2: ['measure'],
+  DisplayAngleBetweenThreePoints1: ['measure'],
+  DisplayAngleBetweenThreePoints2: ['measure'],
+  DisplayAngleBetweenThreePoints3: ['measure'],
   CircleChangeColor: ['custom-circle-color'],
   CircleDrawTangentLine: ['circle-select-help', 'candidate-choice'],
   CircleDrawInverted: ['circle-select-help'],

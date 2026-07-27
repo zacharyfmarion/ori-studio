@@ -500,6 +500,13 @@ export interface CreasePatternWebglCanvasProps {
    */
   activeToolDualMirror: boolean;
   /**
+   * True for the Measure tool in its distance kind: a first pick that lands on a
+   * bare crease measures *that crease* in one click (committed as its line id), so
+   * a designer never has to click both endpoints of a line already on the canvas.
+   * A pick on a vertex/point falls through to the normal 2-point sequence.
+   */
+  activeToolMeasureCreasePick: boolean;
+  /**
    * True for Converging Lines (DrawCreaseAngleRestricted): a bespoke handler drives
    * its dual first click (a crease → its two endpoints are the base, or two points)
    * then a converge pick on one of the ray intersections in {@link
@@ -713,6 +720,7 @@ export function CreasePatternWebglCanvas({
   activeToolRequireSnap,
   activeToolClickAction,
   activeToolDualMirror,
+  activeToolMeasureCreasePick,
   activeToolConverging,
   activeToolSquareBisector,
   activeToolVoronoi,
@@ -869,6 +877,7 @@ export function CreasePatternWebglCanvas({
     activeToolStepKinds,
     activeToolLineCount,
     activeToolDualMirror,
+    activeToolMeasureCreasePick,
     activeToolConverging,
     activeToolSquareBisector,
     activeToolTransform,
@@ -1078,6 +1087,7 @@ export function CreasePatternWebglCanvas({
     activeToolRequireSnap,
     activeToolClickAction,
     activeToolDualMirror,
+    activeToolMeasureCreasePick,
     activeToolConverging,
     activeToolSquareBisector,
     activeToolVoronoi,
@@ -1645,6 +1655,33 @@ export function CreasePatternWebglCanvas({
         }
         dynamicStepKindsRef.current =
           firstPickKind === 'line' ? ['crease', 'crease'] : ['point', 'point', 'point'];
+      }
+      // Measure (distance): a first pick on a bare crease measures that crease
+      // outright. Same classifier as Mirror Line, so "vertex wins over line" reads
+      // identically in both tools.
+      if (liveRef.current.activeToolMeasureCreasePick && !persistentToolRuntimeRef.current) {
+        const firstPickKind = liveRef.current.resolveFirstPickKind(
+          raw,
+          tol,
+          modelToleranceOf(POINT_HIT_TOLERANCE_CSS)
+        );
+        if (firstPickKind === 'line') {
+          const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, tol);
+          if (lineId > 0) {
+            if (kind !== 'down') {
+              // Hovering: light up the crease this click would measure.
+              liveRef.current.onToolPreviewInput([], [lineId]);
+              renderer.setOverlayPoints(null);
+              renderNow();
+              return;
+            }
+            liveRef.current.onToolCommit({ lineIds: [lineId] });
+            liveRef.current.onToolPreviewInput([], []);
+            renderer.setOverlayPoints(null);
+            renderNow();
+            return;
+          }
+        }
       }
       const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
       if (!persistentToolRuntimeRef.current) {

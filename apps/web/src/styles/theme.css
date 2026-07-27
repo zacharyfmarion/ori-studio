@@ -4322,45 +4322,29 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cp-context-panel__measurement-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+.cp-context-panel__measure-kinds {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.cp-context-panel__measurement-row {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-  padding: 5px 4px;
+/* The measured value is the answer the tool exists to give: largest type in the
+   panel, tabular so digits don't jitter as the live value updates. */
+.cp-context-panel__measure-value {
+  padding: 6px 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 0.62rem;
+  font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
-  line-height: 1.15;
+  line-height: 1.2;
+  text-align: center;
 }
 
-.cp-context-panel__measurement-row span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cp-context-panel__measurement-row span:first-child {
+.cp-context-panel__measure-value[data-empty] {
   color: var(--text-muted);
   font-family: var(--font-sans);
-  font-size: 0.56rem;
-  font-weight: 800;
-}
-
-.cp-context-panel__measurement-row[data-active] {
-  border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-tertiary));
-  color: var(--text-primary);
+  font-size: 0.66rem;
 }
 
 .cp-context-panel__color-swatch {

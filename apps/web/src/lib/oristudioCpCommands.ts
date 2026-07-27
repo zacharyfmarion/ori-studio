@@ -455,19 +455,29 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('ContinuousSymmetricDraw', 'Continuous symmetric draw', 'construct', 'repeat', 'MouseHandlerContinuousSymmetricDraw', {
     toolSteps: ['Pick start point', 'Pick through point'],
   }),
-  ready('DisplayLengthBetweenPoints1', 'Measure length 1', 'measure', 'ruler', 'MouseHandlerDisplayLengthBetweenPoints', {
+  // The one Measure tool. Upstream splits measuring across five operations that
+  // differ only in which `MeasuresModel` register they write to; Ori Studio shows
+  // this one (kind — distance / angle — is a tool option) and hides the rest. The
+  // four below stay `ready` so the kernel, menus, and `.cp` mouse modes keep
+  // upstream parity. See cp-workspace/measure.ts.
+  ready('DisplayLengthBetweenPoints1', 'Measure', 'measure', 'ruler', 'MouseHandlerDisplayLengthBetweenPoints', {
     toolSteps: ['Pick first point', 'Pick second point'],
+    tooltip: 'Measure a distance or an angle',
   }),
   ready('DisplayLengthBetweenPoints2', 'Measure length 2', 'measure', 'ruler-dimension-line', 'MouseHandlerDisplayLengthBetweenPoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick second point'],
   }),
   ready('DisplayAngleBetweenThreePoints1', 'Measure angle 1', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
   ready('DisplayAngleBetweenThreePoints2', 'Measure angle 2', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
   ready('DisplayAngleBetweenThreePoints3', 'Measure angle 3', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
   ready('CreaseToggleMv', 'Toggle mountain/valley', 'color', 'repeat-2', 'MouseHandlerCreaseToggleMV', {

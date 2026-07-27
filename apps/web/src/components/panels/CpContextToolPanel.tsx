@@ -38,16 +38,22 @@ import { cpPaletteEntryForColor } from '../../lib/oristudioCpPalette';
 import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
 import {
-  CP_MEASUREMENT_SLOT_LABELS,
-  CP_MEASUREMENT_SLOT_ORDER,
-  cpMeasurementSlotForOperation,
+  CP_MEASURE_KINDS,
+  cpMeasurePointCount,
   formatCpMeasurementValue,
-  type CpMeasurementSlotId,
-  type CpMeasurementSlots,
+  type CpMeasureKind,
+  type CpMeasurement,
 } from '../../cp-workspace/measure';
 
 const identityTranslate = ((_key: string, defaultValue?: string) =>
   defaultValue ?? _key) as unknown as TFunction;
+
+/** Literal-key `t()` calls so the extractor sees both measure-kind labels. */
+function measureKindLabel(t: TFunction, kind: CpMeasureKind): string {
+  return kind === 'angle'
+    ? t('tools:cpContext.measureKindAngle', 'Angle')
+    : t('tools:cpContext.measureKindDistance', 'Distance');
+}
 
 export function cpLineTypeStatusLabel(
   lineColor: OristudioCpLineColor,
@@ -95,7 +101,8 @@ export function CpContextToolPanel({
   options,
   setOptions,
   activeLineColor,
-  measurementSlots,
+  measurement,
+  measurePicked,
   pendingPointCount,
   selection,
   onApply,
@@ -106,7 +113,9 @@ export function CpContextToolPanel({
   options: OristudioCpToolOptions;
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
   activeLineColor: OristudioCpLineColor;
-  measurementSlots: CpMeasurementSlots;
+  measurement: CpMeasurement | null;
+  /** Points placed so far in the in-progress measure pick. */
+  measurePicked: number;
   pendingPointCount: number;
   selection: OristudioCpSelection;
   onApply?: () => void;
@@ -154,9 +163,9 @@ export function CpContextToolPanel({
               options={options}
               setOptions={setOptions}
               activeLineColor={activeLineColor}
-              activeMeasurementSlot={cpMeasurementSlotForOperation(command.operationId)}
               activeOperationId={command.operationId}
-              measurementSlots={measurementSlots}
+              measurement={measurement}
+              measurePicked={measurePicked}
               pendingPointCount={pendingPointCount}
               selection={selection}
             />
@@ -225,9 +234,9 @@ function CpContextToolGroup({
   options,
   setOptions,
   activeLineColor,
-  activeMeasurementSlot,
   activeOperationId,
-  measurementSlots,
+  measurement,
+  measurePicked,
   pendingPointCount,
   selection,
 }: {
@@ -235,9 +244,9 @@ function CpContextToolGroup({
   options: OristudioCpToolOptions;
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
   activeLineColor: OristudioCpLineColor;
-  activeMeasurementSlot: CpMeasurementSlotId | null;
   activeOperationId: OristudioCpCommandDefinition['operationId'];
-  measurementSlots: CpMeasurementSlots;
+  measurement: CpMeasurement | null;
+  measurePicked: number;
   pendingPointCount: number;
   selection: OristudioCpSelection;
 }) {
@@ -532,22 +541,47 @@ function CpContextToolGroup({
     );
   }
 
-  if (group === 'measurement-readout') {
+  if (group === 'measure') {
+    const kind = options.measureKind;
+    const remaining = cpMeasurePointCount(kind) - measurePicked;
     return (
       <div className="cp-context-panel__group">
-        <div className="cp-context-panel__group-title">{t('tools:cpContext.measurement', 'Measurement')}</div>
-        <div className="cp-context-panel__measurement-grid">
-          {CP_MEASUREMENT_SLOT_ORDER.map((slot) => (
-            <div
-              key={slot}
-              className="cp-context-panel__measurement-row"
-              data-active={slot === activeMeasurementSlot || undefined}
-              data-measurement-slot={slot}
+        <div className="cp-context-panel__group-title">{t('tools:cpContext.measure', 'Measure')}</div>
+        <div
+          className="cp-context-panel__preset-grid cp-context-panel__measure-kinds"
+          role="radiogroup"
+          aria-label={t('tools:cpContext.measureKindLabel', 'What to measure')}
+        >
+          {CP_MEASURE_KINDS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={option === kind}
+              className="cp-context-panel__preset"
+              data-active={option === kind || undefined}
+              data-measure-kind={option}
+              onClick={() => setOptions((current) => ({ ...current, measureKind: option }))}
             >
-              <span>{CP_MEASUREMENT_SLOT_LABELS[slot]}</span>
-              <span>{formatCpMeasurementValue(slot, measurementSlots[slot])}</span>
-            </div>
+              {measureKindLabel(t, option)}
+            </button>
           ))}
+        </div>
+        <div
+          className="cp-context-panel__measure-value"
+          data-empty={measurement === null || undefined}
+          aria-live="polite"
+        >
+          {measurement === null
+            ? t('tools:cpContext.measureEmpty', 'No measurement yet')
+            : formatCpMeasurementValue(measurement.kind, measurement.value)}
+        </div>
+        <div className="cp-context-panel__readout">
+          {remaining > 0
+            ? remaining === 1
+              ? t('tools:cpContext.measurePointsLeftOne', '{{count}} more point', { count: remaining })
+              : t('tools:cpContext.measurePointsLeftOther', '{{count}} more points', { count: remaining })
+            : t('tools:cpContext.measureRepeat', 'Pick again to measure another')}
         </div>
       </div>
     );
