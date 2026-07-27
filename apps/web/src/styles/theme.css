@@ -4442,6 +4442,27 @@
   gap: 2px;
 }
 
+.cp-folded-model-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.cp-folded-model-status[data-folded-model-status='stale'] {
+  color: var(--status-warning);
+}
+
+.cp-folded-model-status[data-folded-model-status='error'] {
+  color: var(--status-danger);
+}
+
 .cp-view-controls-panel__empty {
   display: flex;
   align-items: flex-start;
@@ -4712,7 +4733,11 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-primary);
+  /* `font` shorthand for the family (inputs default to the system UI font),
+     then the toolbar's control size — inheriting alone would take the
+     container's 1rem and render larger than the zoom readout beside it. */
   font: inherit;
+  font-size: 0.72rem;
   text-align: center;
 }
 

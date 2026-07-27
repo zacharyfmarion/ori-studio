@@ -190,18 +190,6 @@ export function ViewportToolbar({
           >
             <RotateCcwSquare size={14} />
           </IconButton>
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={withShortcut(
-              t('tools:viewport.rotateCw', 'Rotate view right'),
-              rotateCwShortcutLabel
-            )}
-            aria-label={t('tools:viewport.rotateCw', 'Rotate view right')}
-            onClick={() => rotateView(1)}
-          >
-            <RotateCwSquare size={14} />
-          </IconButton>
           {setViewRotation && (
             <input
               type="text"
@@ -232,6 +220,18 @@ export function ViewportToolbar({
               onBlur={commitRotationDraft}
             />
           )}
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            title={withShortcut(
+              t('tools:viewport.rotateCw', 'Rotate view right'),
+              rotateCwShortcutLabel
+            )}
+            aria-label={t('tools:viewport.rotateCw', 'Rotate view right')}
+            onClick={() => rotateView(1)}
+          >
+            <RotateCwSquare size={14} />
+          </IconButton>
         </>
       )}
       {children}
