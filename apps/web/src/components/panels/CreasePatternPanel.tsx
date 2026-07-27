@@ -831,9 +831,9 @@ function FoldedFigureMenuButton({
                   onClick={() => onSelectFigure(figure.id)}
                 >
                   <span>{figure.title}</span>
-                  <small>
+                  <small data-stale={staleFigureIds.has(figure.id) || undefined}>
                     {staleFigureIds.has(figure.id)
-                      ? t('panels:creasePattern.outOfDate', 'Out of date')
+                      ? t('panels:creasePattern.stale', 'Stale')
                       : figure.status === 'ready'
                         ? t('panels:creasePattern.case', 'Case {{count}}', {
                             count: foldedFigureCurrentCase(figure),
@@ -1686,21 +1686,6 @@ export function CreasePatternPanel() {
     ]
   );
 
-  const foldedFigureStatusLabel = activeFoldedFigure
-    ? // Out-of-date wins over the case number: a case is only meaningful for the
-      // creases it was folded from, and those have moved.
-      staleFoldedFigureIds.has(activeFoldedFigure.id)
-      ? t('panels:creasePattern.outOfDate', 'Out of date')
-      : activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
-      ? t('panels:creasePattern.case', 'Case {{count}}', {
-          count: foldedFigureCurrentCase(activeFoldedFigure),
-        })
-      : activeFoldedFigure.status === 'loading'
-        ? t('panels:creasePattern.folding', 'Folding')
-        : activeFoldedFigure.status === 'error'
-          ? t('panels:creasePattern.foldError', 'Fold error')
-          : t('panels:creasePattern.unsupported', 'Unsupported')
-    : t('panels:creasePattern.noFold', 'No fold');
   const selectedEditableFoldLineIds = useMemo(
     () => selectedFoldableCpLineIds(editableCp, oristudioCpSelection),
     [editableCp, oristudioCpSelection]
@@ -3769,12 +3754,6 @@ export function CreasePatternPanel() {
                         onDelete={handleDeleteFoldedFigure}
                       />
                     </div>
-                    <span
-                      className="viewport-toolbar__meta cp-folded-model-status"
-                      data-folded-model-status={activeFoldedFigure?.status ?? 'none'}
-                    >
-                      {foldedFigureStatusLabel}
-                    </span>
                   </>
                 )}
               </ViewportToolbar>

@@ -4460,25 +4460,11 @@
   font-weight: 800;
 }
 
-.cp-folded-model-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 58px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: 0.72rem;
-  font-weight: 760;
-}
-
-.cp-folded-model-status[data-folded-model-status='stale'] {
+/* A figure that no longer matches its creases, in the folded-models list. Reads
+   as a state rather than another case number. */
+.folded-figure-menu__figure small[data-stale] {
   color: var(--status-warning);
-}
-
-.cp-folded-model-status[data-folded-model-status='error'] {
-  color: var(--status-danger);
+  font-weight: 700;
 }
 
 .cp-line-type-toolbar__button[data-line-color='Red1'] {
