@@ -1,5 +1,6 @@
 import { prepareFoldModel, type FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
 import type { FoldAssignment, FoldArtifacts, FoldDocument } from '../engine/types';
+import { remapEdgeExtensionArrays } from './foldEdgeArrays';
 import type { CreaseLine, FacetShape, TreeProject } from './sampleProject';
 
 export type ImportedCreasePatternFormat = 'fold' | 'cp' | 'ori' | 'orh';
@@ -67,12 +68,19 @@ interface RawSegment {
   a: RawPoint;
   b: RawPoint;
   assignment: FoldAssignment;
+  /**
+   * Index of the edge this segment came from in the source fold, so per-edge
+   * extension arrays can be re-indexed onto the rebuilt edge list. Absent when
+   * the segments have no source fold (parsing a `.cp` file).
+   */
+  source?: number;
 }
 
 interface NormalizedSegment {
   a: RawPoint;
   b: RawPoint;
   assignment: FoldAssignment;
+  source?: number;
 }
 
 const EPSILON = 1e-8;
@@ -454,15 +462,16 @@ function inferTopology(
         a: { x: a[0] ?? 0, y: a[1] ?? 0 },
         b: { x: b[0] ?? 0, y: b[1] ?? 0 },
         assignment: fold.edges_assignment?.[index] ?? 'U',
+        source: index,
       },
     ];
   });
-  const { vertices, edges, assignments } = splitSegments(segments);
+  const { vertices, edges, assignments, sources } = splitSegments(segments);
   const faces = buildPlanarFaces(vertices, edges);
   if (faces.length === 0) {
     diagnostics.warnings.push('No bounded faces could be inferred; simulation is unavailable');
   }
-  return completeFold({
+  const next = completeFold({
     ...fold,
     vertices_coords: vertices.map((point) => [point.x, point.y]),
     edges_vertices: edges,
@@ -472,6 +481,12 @@ function inferTopology(
     faces_edges: [],
     edges_faces: [],
   });
+  // The spread above carries the source fold's per-edge extension arrays, which
+  // describe the edge list this function just replaced: segments are split at
+  // intersections, coincident ones merge, and the survivors come out in a new
+  // order. `sources` is the provenance that puts them back in step.
+  remapEdgeExtensionArrays(next, fold, fold.edges_vertices.length, sources);
+  return next;
 }
 
 // The simulator derives each face's normal from its winding, and the triangulation
@@ -565,6 +580,8 @@ function splitSegments(segments: NormalizedSegment[]): {
   vertices: RawPoint[];
   edges: [number, number][];
   assignments: FoldAssignment[];
+  /** Source segment index behind each output edge, parallel to `edges`. */
+  sources: number[];
 } {
   const cuts = segments.map(() => [0, 1]);
   collectIntersectionCuts(segments, cuts);
@@ -572,6 +589,10 @@ function splitSegments(segments: NormalizedSegment[]): {
   const vertices: RawPoint[] = [];
   const vertexKeys = new Map<string, number>();
   const edgeMap = new Map<string, FoldAssignment>();
+  // The source segment whose assignment survived the merge for each output
+  // edge, so per-edge extension data (line colours) follows the crease type it
+  // belongs to rather than an arbitrary coincident segment.
+  const edgeSources = new Map<string, number>();
 
   const vertexId = (point: RawPoint) => {
     const key = `${roundKey(point.x)}:${roundKey(point.y)}`;
@@ -596,12 +617,21 @@ function splitSegments(segments: NormalizedSegment[]): {
       const vb = vertexId(b);
       if (va === vb) continue;
       const key = va < vb ? `${va}:${vb}` : `${vb}:${va}`;
-      edgeMap.set(key, mergeAssignment(edgeMap.get(key), segment.assignment));
+      const previous = edgeMap.get(key);
+      const merged = mergeAssignment(previous, segment.assignment);
+      edgeMap.set(key, merged);
+      // Claim the edge on first sight, and again whenever this segment changes
+      // the merged assignment — that is precisely when it out-ranks the segment
+      // holding the slot, so the two stay consistent.
+      if (previous === undefined || merged !== previous) {
+        edgeSources.set(key, segment.source ?? index);
+      }
     }
   });
 
   const edges: [number, number][] = [];
   const assignments: FoldAssignment[] = [];
+  const sources: number[] = [];
   [...edgeMap.entries()]
     .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
     .forEach(([key, assignment]) => {
@@ -609,9 +639,10 @@ function splitSegments(segments: NormalizedSegment[]): {
       if (a === undefined || b === undefined || !Number.isInteger(a) || !Number.isInteger(b)) return;
       edges.push([a, b]);
       assignments.push(assignment);
+      sources.push(edgeSources.get(key) ?? 0);
     });
 
-  return { vertices, edges, assignments };
+  return { vertices, edges, assignments, sources };
 }
 
 /**
@@ -765,6 +796,7 @@ function normalizeSegments(segments: RawSegment[]): NormalizedSegment[] {
     a: points[index * 2] ?? segment.a,
     b: points[index * 2 + 1] ?? segment.b,
     assignment: segment.assignment,
+    source: segment.source,
   }));
 }
 

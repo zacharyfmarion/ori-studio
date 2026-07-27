@@ -1,4 +1,5 @@
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
+import { remapEdgeExtensionArrays } from './foldEdgeArrays';
 import type { Point } from './geometry';
 
 /**
@@ -365,12 +366,9 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
     faces_vertices: nextFaces,
   };
 
-  // Extension arrays are positional, so the blanket spread above pairs each kept
-  // edge with a different edge's data. Re-index them with the edges. This matters
-  // beyond cosmetics: the CP kernel's importer trusts
-  // `oristudio:edges_line_colors` over `edges_assignment`, so a stale array comes
-  // back as scrambled crease types (borders arriving as auxiliary lines, etc.).
-  remapEdgeExtras(next, fold, edges.length, keptEdges);
+  // The blanket spread above pairs each kept edge with a different edge's data;
+  // `keptEdges` is the provenance that puts them back in step.
+  remapEdgeExtensionArrays(next, fold, edges.length, keptEdges);
   // Circles and texts are whole-document entities; keep only those inside this
   // segment, or every exported region carries the entire sheet's annotations.
   scopeAnnotationExtrasToSegment(next, fold, segment);
@@ -383,33 +381,6 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
   delete next.edges_faces;
   delete next.face_orders;
   return next;
-}
-
-/**
- * Re-index every namespaced extension array that is positionally aligned with
- * `edges_vertices` (`oristudio:edges_line_colors`, `oriedita:edges_colors`, …).
- * Matching on the `:edges_` prefix and the source edge count keeps this correct
- * for extensions added later without listing each key here.
- *
- * An array whose length no longer matches the source edges is already stale —
- * inferred topology re-derives the edge list, leaving the kernel's original
- * per-edge arrays describing a different graph. Drop those rather than carry
- * them: `edges_assignment` is re-indexed correctly here, and the CP importer
- * falls back to it when the line-colour extension is absent, so dropping yields
- * correct crease types while keeping them yields scrambled ones.
- */
-function remapEdgeExtras(
-  next: FoldDocument,
-  source: FoldDocument,
-  sourceEdgeCount: number,
-  keptEdges: number[]
-): void {
-  for (const [key, value] of Object.entries(source)) {
-    if (!key.includes(':edges_')) continue;
-    if (!Array.isArray(value)) continue;
-    if (value.length === sourceEdgeCount) next[key] = keptEdges.map((index) => value[index]);
-    else delete next[key];
-  }
 }
 
 /** Parallel arrays describing one annotation kind, keyed by its coordinate array. */

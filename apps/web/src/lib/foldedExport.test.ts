@@ -72,6 +72,28 @@ describe('foldedFoldDocument', () => {
     expect(folded.edges_foldAngle).toBeUndefined();
   });
 
+  it('drops namespaced per-edge arrays along with the edges they describe', () => {
+    // These ride in on the spread of the source document. Deleting only the
+    // typed fields left a folded form asserting 5 line colours for 0 edges --
+    // self-contradictory, and a leak of the whole sheet's data into a fragment.
+    const source: FoldDocument = {
+      ...sourceFold(),
+      'oristudio:edges_line_colors': [0, 0, 0, 0, 2],
+      'oriedita:edges_colors': ['', '', '', '', ''],
+    };
+    const denser: FoldedMesh = {
+      positions: new Float32Array(15),
+      triangles: new Uint32Array([0, 1, 2]),
+      foldPercent: 100,
+    };
+
+    const folded = foldedFoldDocument(source, denser) as Record<string, unknown>;
+
+    expect(folded.edges_vertices).toEqual([]);
+    expect(folded['oristudio:edges_line_colors']).toBeUndefined();
+    expect(folded['oriedita:edges_colors']).toBeUndefined();
+  });
+
   it('drops derived topology that the new faces would contradict', () => {
     const source = { ...sourceFold(), faces_edges: [[0, 1, 4]], edges_faces: [[0]] };
     const folded = foldedFoldDocument(source, mesh());
