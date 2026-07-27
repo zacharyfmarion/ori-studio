@@ -243,7 +243,7 @@
       "pause": "Pausar",
       "play": "Reproducir",
       "refresh": "Regenerar a partir de los pliegues actuales",
-      "resetView": "Restablecer vista"
+      "replay": "Volver a plano"
     },
     "insertImage": "Insertar imagen...",
     "linesCount_one": "{{count}} línea",

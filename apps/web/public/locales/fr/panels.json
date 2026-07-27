@@ -243,7 +243,7 @@
       "pause": "Pause",
       "play": "Lecture",
       "refresh": "Reconstruire à partir des plis actuels",
-      "resetView": "Réinitialiser la vue"
+      "replay": "Revenir à plat"
     },
     "insertImage": "Insérer une image...",
     "linesCount_one": "{{count}} ligne",

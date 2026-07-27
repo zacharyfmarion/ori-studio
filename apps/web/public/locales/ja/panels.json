@@ -231,7 +231,7 @@
       "pause": "一時停止",
       "play": "再生",
       "refresh": "現在の折り線から作り直す",
-      "resetView": "ビューをリセット"
+      "replay": "平らに戻す"
     },
     "insertImage": "画像を挿入...",
     "linesCount_other": "{{count}} 本の線",

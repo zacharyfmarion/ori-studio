@@ -69,8 +69,12 @@ function ColorModeMenu({
 }
 
 /**
- * Floating controls for the focused inline simulation: play/pause, scrub, reset
- * view, refresh when out of date, and delete.
+ * Floating controls for the focused inline simulation: play/pause, scrub, colour
+ * mode, reset to flat, refresh when out of date, and delete.
+ *
+ * `RotateCcw` means "back to flat" here because that is what it means in the
+ * Simulate workspace's transport. The camera reset lives on the keyboard (0 or
+ * Home) rather than taking a second slot in a bar this narrow.
  *
  * Hovers above the window via {@link FloatingToolbar}, sharing the pattern with
  * {@link CpImageInspector} — including subscribing to the camera here rather
@@ -86,7 +90,7 @@ export function InlineSimulationInspector({
   onTogglePlay,
   onScrub,
   onColorMode,
-  onResetView,
+  onReplay,
   onRefresh,
   onDelete,
 }: {
@@ -104,7 +108,8 @@ export function InlineSimulationInspector({
   onTogglePlay: () => void;
   onScrub: (percent: number) => void;
   onColorMode: (mode: ColorMode) => void;
-  onResetView: () => void;
+  /** Return the fold to flat, as the Simulate workspace's Reset does. */
+  onReplay: () => void;
   onRefresh: () => void;
   onDelete: () => void;
 }) {
@@ -149,8 +154,8 @@ export function InlineSimulationInspector({
       <IconButton
         size="sm"
         variant="toolbar"
-        title={t('panels:creasePattern.inlineSimulation.resetView', 'Reset view')}
-        onClick={onResetView}
+        title={t('panels:creasePattern.inlineSimulation.replay', 'Reset to flat')}
+        onClick={onReplay}
       >
         <RotateCcw size={14} />
       </IconButton>

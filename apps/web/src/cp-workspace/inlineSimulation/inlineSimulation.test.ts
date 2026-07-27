@@ -297,3 +297,47 @@ describe('inline simulation staleness', () => {
     expect(isInlineSimulationStale(document, noProvenance)).toBe(false);
   });
 });
+
+describe('where a new window parks', () => {
+  const document = documentOf(SQUARE_LINES);
+  const seg = segment(0, [UNIT_SQUARE]);
+
+  function place(blockers: Array<{ minX: number; minY: number; maxX: number; maxY: number }>) {
+    return createInlineSimulation({
+      id: 'sim-place',
+      segment: seg,
+      document,
+      cpLineIds: document.crease_pattern.line_segments.map((_, index) => index + 1),
+      z: 1,
+      view: { yaw: 0, pitch: 0, zoom: 1 },
+      blockers,
+    }).box;
+  }
+
+  it('parks beside the region rather than on top of it', () => {
+    // Written over its own creases, a window hides exactly the thing you opened
+    // it to compare against.
+    const box = place([]);
+    expect(box.center.x - box.width / 2).toBeGreaterThan(10);
+  });
+
+  it('aligns its top with the region it came from', () => {
+    const box = place([]);
+    expect(box.center.y - box.height / 2).toBe(0);
+  });
+
+  it('clears something already parked in the same band', () => {
+    const first = place([]);
+    const firstLeft = first.center.x - first.width / 2;
+    const second = place([
+      { minX: firstLeft, minY: 0, maxX: firstLeft + first.width, maxY: first.height },
+    ]);
+    expect(second.center.x - second.width / 2).toBeGreaterThanOrEqual(firstLeft + first.width);
+  });
+
+  it('ignores something parked well below the band', () => {
+    const alone = place([]);
+    const withDistant = place([{ minX: 0, minY: 900, maxX: 999, maxY: 999 }]);
+    expect(withDistant.center.x).toBe(alone.center.x);
+  });
+});

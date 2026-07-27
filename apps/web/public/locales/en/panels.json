@@ -237,7 +237,7 @@
       "pause": "Pause",
       "play": "Play",
       "refresh": "Rebuild from the current creases",
-      "resetView": "Reset view"
+      "replay": "Reset to flat"
     },
     "insertImage": "Insert image...",
     "linesCount_one": "{{count}} lines",

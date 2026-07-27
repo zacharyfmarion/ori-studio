@@ -29,6 +29,10 @@ import {
   setInlineSimulationSource,
 } from '../../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
+import { boxAabb } from '../../../cp-workspace/canvasObjects/placeBesideCp';
+import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
+import { cpSvgPointToModel, ORIEDITA_PAPER_BOUNDS } from '../../../lib/creasePatternViewport';
+import type { Aabb } from '../../../cp-workspace/picking/lineHitIndex';
 import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
 import {
   generatedCpLineage,
@@ -73,7 +77,7 @@ import {
   runOristudioCpCheckCommand,
   setOristudioCpFoldedFigureModel as setRuntimeOristudioCpFoldedFigureModel,
 } from '../oristudioCpRuntime';
-import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
+import type { CreasePatternSlice, WorkspaceSliceCreator, WorkspaceState } from '../types';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import {
   releaseFoldedFigureHandle,
@@ -122,6 +126,44 @@ let nextInlineSimulationId = 1;
  * model key and the worker's prepared-model cache cannot serve the old mesh.
  */
 const inlineSimulationRevisions = new Map<string, number>();
+
+/**
+ * What is already on the canvas, in crease-pattern model coordinates, so a new
+ * window parks clear of all of it rather than only of its own kind.
+ *
+ * Folded figures are placed in SVG user space -- the space their render
+ * primitives land in -- so their bounds are mapped back through the same affine
+ * the flat pattern uses. It is positive and axis-preserving, so an axis-aligned
+ * box stays axis-aligned and the corners are enough.
+ */
+function occupiedModelSpace(state: WorkspaceState): Aabb[] {
+  const boxes = [
+    ...state.oristudioCpInlineSimulations.map((simulation) => boxAabb(simulation.box)),
+    ...state.oristudioCpAnnotations
+      .filter((annotation) => !annotation.hidden)
+      .map((annotation) =>
+        boxAabb({
+          center: annotation.center,
+          width: annotation.width,
+          height: annotation.height,
+          rotation: annotation.rotation,
+        })
+      ),
+  ];
+  for (const figure of state.oristudioCpFoldedFigures) {
+    const userAabb = foldedFigureUserAabb(figure);
+    if (!userAabb) continue;
+    const min = cpSvgPointToModel({ x: userAabb.minX, y: userAabb.minY }, ORIEDITA_PAPER_BOUNDS);
+    const max = cpSvgPointToModel({ x: userAabb.maxX, y: userAabb.maxY }, ORIEDITA_PAPER_BOUNDS);
+    boxes.push({
+      minX: Math.min(min.x, max.x),
+      minY: Math.min(min.y, max.y),
+      maxX: Math.max(min.x, max.x),
+      maxY: Math.max(min.y, max.y),
+    });
+  }
+  return boxes;
+}
 
 function inlineSimulationRevision(id: string): number {
   const next = (inlineSimulationRevisions.get(id) ?? 0) + 1;
@@ -891,6 +933,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         cpLineIds: containment,
         z: topInlineSimulationZ(simulations) + 1,
         view: DEFAULT_SIMULATOR_VIEW,
+        blockers: occupiedModelSpace(get()),
       });
       setInlineSimulationSource(id, {
         fold: buildSegmentFold(simulationFoldOf(artifacts), segment),

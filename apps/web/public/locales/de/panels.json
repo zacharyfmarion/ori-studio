@@ -237,7 +237,7 @@
       "pause": "Pause",
       "play": "Abspielen",
       "refresh": "Aus den aktuellen Falzlinien neu aufbauen",
-      "resetView": "Ansicht zurücksetzen"
+      "replay": "Auf flach zurücksetzen"
     },
     "insertImage": "Bild einfügen...",
     "linesCount_one": "{{count}} Linie",

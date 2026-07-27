@@ -76,7 +76,7 @@ export function InlineSimulationLayer({
   viewSettings,
   playing,
   overlayInteractive,
-  viewResetRequest,
+  replayRequest,
   onFocus,
   onFoldPercent,
   onPlayingChange,
@@ -95,10 +95,10 @@ export function InlineSimulationLayer({
    */
   overlayInteractive: boolean;
   /**
-   * Bumped to return the focused window's camera to its default. The live camera
-   * belongs to the viewport, so this is the only way in from outside the layer.
+   * Bumped to return the focused window's fold to flat. The solver lives down
+   * here, so this is the only way in from outside the layer.
    */
-  viewResetRequest: number;
+  replayRequest: number;
   onFocus: (id: string) => void;
   onFoldPercent: (id: string, percent: number) => void;
   onPlayingChange: (playing: boolean) => void;
@@ -149,7 +149,7 @@ export function InlineSimulationLayer({
             playing={playing && simulation.id === focusedId}
             stale={staleIds.has(simulation.id)}
             overlayInteractive={overlayInteractive}
-            viewResetRequest={viewResetRequest}
+            replayRequest={replayRequest}
             style={style}
             viewSettings={viewSettings}
             onFocus={onFocus}
@@ -172,7 +172,7 @@ function InlineSimulationWindow({
   playing,
   stale,
   overlayInteractive,
-  viewResetRequest,
+  replayRequest,
   style,
   viewSettings,
   onFocus,
@@ -184,7 +184,7 @@ function InlineSimulationWindow({
   playing: boolean;
   stale: boolean;
   overlayInteractive: boolean;
-  viewResetRequest: number;
+  replayRequest: number;
   style: CSSProperties;
   viewSettings: SimulatorSettings;
   onFocus: (id: string) => void;
@@ -352,12 +352,7 @@ function InlineSimulationWindow({
         setFoldPercent(percent);
         onFoldPercent(simulation.id, percent);
       },
-      replay: () => {
-        onPlayingChange(false);
-        solverFoldPercentRef.current = 0;
-        runtime.reset();
-        onFoldPercent(simulation.id, 0);
-      },
+      replay: () => replayRef.current(),
       resetView: () => viewportRef.current?.resetView(),
       zoomBy: (factor) => viewportRef.current?.zoomBy(factor),
       // No toggleSetting: an inline window has no options pane of its own, and
@@ -366,14 +361,35 @@ function InlineSimulationWindow({
     },
   });
 
-  // Reset the camera on request, for the focused window only. Skips the first
-  // run so mounting a window does not count as a reset.
-  const seenViewResetRef = useRef(viewResetRequest);
+  /**
+   * Back to flat: stop playing, put the solver at rest, and report zero.
+   *
+   * Held in a ref so the toolbar's nonce effect and the keyboard binding drive
+   * one definition rather than two, and so neither has to re-subscribe when the
+   * closures around it change.
+   */
+  const replayRef = useRef(() => {});
+  // Assigned in an effect, not during render: a ref written during render can be
+  // left stale when React discards that render pass.
+  const { reset: resetSolver } = runtime;
   useEffect(() => {
-    if (seenViewResetRef.current === viewResetRequest) return;
-    seenViewResetRef.current = viewResetRequest;
-    if (focused) viewportRef.current?.resetView();
-  }, [viewResetRequest, focused]);
+    replayRef.current = () => {
+      onPlayingChange(false);
+      solverFoldPercentRef.current = 0;
+      resetSolver();
+      onFoldPercent(simulation.id, 0);
+    };
+  });
+
+  // Return the fold to flat on request, for the focused window only. Skips the
+  // first run so mounting a window does not count as a reset.
+  const seenReplayRef = useRef(replayRequest);
+  useEffect(() => {
+    if (seenReplayRef.current === replayRequest) return;
+    seenReplayRef.current = replayRequest;
+    if (!focused) return;
+    replayRef.current();
+  }, [replayRequest, focused]);
 
   // Keep the window's stored camera in step, so a refresh comes back where the
   // user was looking rather than at the default view.

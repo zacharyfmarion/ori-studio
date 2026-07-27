@@ -18,6 +18,11 @@ import type {
   OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
 import type { Aabb } from '../picking/lineHitIndex';
+import {
+  CANVAS_OBJECT_GAP,
+  firstFreeSlotBeside,
+  type BesideAnchor,
+} from '../canvasObjects/placeBesideCp';
 import type { FillGeometry, FoldedGeometry, Rgba } from '../renderer/types';
 
 /** Steps used to flatten quadratic/cubic path curves into polylines. */
@@ -490,13 +495,8 @@ export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
 }
 
 /** Gap (SVG user units) between the crease pattern and a figure parked beside it. */
-const FOLDED_FIGURE_GAP = 48;
-
 /** The edges a parked folded figure lines up against, in SVG user coordinates. */
-export interface FoldedFigureAnchor {
-  right: number;
-  top: number;
-}
+export type FoldedFigureAnchor = BesideAnchor;
 
 /**
  * Where a fold's *source* creases sit, in SVG user coordinates — the edges a
@@ -558,31 +558,16 @@ export function placeFoldedFigureBesideCp(
 
   // The figure is placed unrotated and unscaled, so its footprint is just its
   // local extent, and its vertical band is fixed by the top alignment.
-  const width = local.bounds.maxX - local.bounds.minX;
-  const height = local.bounds.maxY - local.bounds.minY;
-  const top = paper.top;
-  const bottom = top + height;
-
-  // Only figures sharing this horizontal band can block it. One parked below or
-  // above is simply not in the way, and treating it as if it were is what used
-  // to fling a new figure far off to the right.
-  const blockers = existing
-    .filter((other) => other.id !== figure.id)
-    .map(foldedFigureUserAabb)
-    .filter((aabb): aabb is Aabb => aabb !== null)
-    .filter((aabb) => aabb.minY - FOLDED_FIGURE_GAP < bottom && aabb.maxY + FOLDED_FIGURE_GAP > top)
-    .sort((a, b) => a.minX - b.minX);
-
-  // First fit: walk the band left to right and take the first slot wide enough.
-  // Scanning rather than taking the far end means a figure deleted from the
-  // middle of a row leaves a hole the next fold reuses, so repeated folding
-  // stays put instead of marching off to the right forever.
-  let left = paper.right + FOLDED_FIGURE_GAP;
-  for (const blocker of blockers) {
-    if (blocker.maxX + FOLDED_FIGURE_GAP <= left) continue; // already behind us
-    if (blocker.minX - FOLDED_FIGURE_GAP >= left + width) break; // the slot fits here
-    left = blocker.maxX + FOLDED_FIGURE_GAP; // overlaps: move past it and re-check
-  }
+  const { left, top } = firstFreeSlotBeside({
+    anchor: paper,
+    width: local.bounds.maxX - local.bounds.minX,
+    height: local.bounds.maxY - local.bounds.minY,
+    gap: CANVAS_OBJECT_GAP,
+    blockers: existing
+      .filter((other) => other.id !== figure.id)
+      .map(foldedFigureUserAabb)
+      .filter((aabb): aabb is Aabb => aabb !== null),
+  });
 
   return {
     offset: { x: left - local.bounds.minX, y: top - local.bounds.minY },

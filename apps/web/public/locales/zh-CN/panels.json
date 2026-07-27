@@ -231,7 +231,7 @@
       "pause": "暂停",
       "play": "播放",
       "refresh": "根据当前折痕重新生成",
-      "resetView": "重置视图"
+      "replay": "恢复为平面"
     },
     "insertImage": "插入图像...",
     "linesCount_other": "{{count}} 条线",

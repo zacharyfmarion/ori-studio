@@ -1546,14 +1546,13 @@ export function CreasePatternPanel() {
   );
   const [playingInlineSimulation, setPlayingInlineSimulation] = useState(false);
   /**
-   * Bumped to reset the focused window's camera.
+   * Bumped to return the focused window's fold to flat.
    *
-   * The live camera belongs to the viewport component inside the layer, not to
-   * the descriptor in the store — writing a view there did nothing, which is why
-   * the button had no effect. A nonce is how the rest of this panel reaches into
+   * The solver lives in the layer, not in the descriptor, so this cannot be done
+   * by writing to the store. A nonce is how the rest of this panel reaches into
    * the canvas imperatively (see `cameraCommand`).
    */
-  const [inlineSimulationViewReset, setInlineSimulationViewReset] = useState(0);
+  const [inlineSimulationReplay, setInlineSimulationReplay] = useState(0);
   /**
    * The focused window's body takes no overlay gestures: its interior orbits the
    * fold, and the overlay polygon sits above it, so leaving it live meant every
@@ -3679,7 +3678,7 @@ export function CreasePatternPanel() {
                     viewSettings={simulatorSettings}
                     playing={playingInlineSimulation}
                     overlayInteractive={annotationsInteractive}
-                    viewResetRequest={inlineSimulationViewReset}
+                    replayRequest={inlineSimulationReplay}
                     onFocus={focusInlineSimulation}
                     onFoldPercent={(id, foldPercent) =>
                       updateInlineSimulation(id, { foldPercent })
@@ -3702,7 +3701,7 @@ export function CreasePatternPanel() {
                         foldPercent: percent,
                       });
                     }}
-                    onResetView={() => setInlineSimulationViewReset((nonce) => nonce + 1)}
+                    onReplay={() => setInlineSimulationReplay((nonce) => nonce + 1)}
                     onRefresh={() =>
                       void refreshInlineSimulation(selectedInlineSimulation.id)
                     }

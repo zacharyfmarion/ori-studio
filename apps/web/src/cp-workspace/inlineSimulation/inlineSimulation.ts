@@ -10,6 +10,8 @@ import {
 } from '../../lib/foldedFigureStaleness';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { AnnotationBox } from '../annotations/annotationTransform';
+import type { Aabb } from '../picking/lineHitIndex';
+import { CANVAS_OBJECT_GAP, firstFreeSlotBeside } from '../canvasObjects/placeBesideCp';
 import type { TransformableCanvasObject } from '../canvasObjects/transformableObject';
 import type { SimulatorOrbitView } from '../../lib/simulatorOrbit';
 
@@ -76,12 +78,30 @@ export interface InlineSimulationRuntime {
   error: string | null;
 }
 
-/** Default on-canvas edge, as a fraction of the simulated region's larger side. */
-const DEFAULT_SIZE_FACTOR = 0.9;
+/**
+ * Gap between the crease pattern and a window parked beside it, in crease-pattern
+ * model units.
+ *
+ * {@link CANVAS_OBJECT_GAP} is in SVG user units, where the paper square is 400
+ * wide; the model square is 400 wide too under the default Oriedita bounds, so
+ * the two are the same number. Kept as its own constant rather than reused
+ * directly, because they are quantities in different spaces that happen to
+ * coincide.
+ */
+const INLINE_SIMULATION_GAP = CANVAS_OBJECT_GAP;
 
 /**
- * Place a new window over the region it simulates, slightly inset, so it reads
- * as belonging to that part of the pattern rather than floating anywhere.
+ * Park a new window beside the region it simulates, rather than on top of it.
+ *
+ * Written on top of the pattern it came from, a window hides exactly the thing
+ * you wanted to compare it against. Folded figures had this problem first and
+ * solved it by parking to the right of their source creases, aligned to the top,
+ * in the first slot wide enough; {@link firstFreeSlotBeside} is that rule, shared
+ * so the two cannot drift.
+ *
+ * `blockers` is whatever is already on the canvas, in model coordinates — other
+ * windows, annotations, and folded figures — so a new window lands clear of all
+ * of them, not just of its own kind.
  */
 export function createInlineSimulation(options: {
   id: string;
@@ -90,23 +110,29 @@ export function createInlineSimulation(options: {
   cpLineIds: readonly number[];
   z: number;
   view: SimulatorOrbitView;
+  blockers?: readonly Aabb[];
 }): InlineSimulation {
-  const { id, segment, document, cpLineIds, z, view } = options;
+  const { id, segment, document, cpLineIds, z, view, blockers = [] } = options;
   const bounds = foldedSourceBounds(cpLinesByIds(document, cpLineIds));
-  // Place from the crease bounds, which are the document's own coordinates by
-  // construction, rather than from the segment's — those come from the fold, and
-  // a fold that did not originate in this document is in a different space.
-  const placement = bounds ?? segment.bounds;
-  const width = placement.maxX - placement.minX;
-  const height = placement.maxY - placement.minY;
-  const edge = Math.max(width, height) * DEFAULT_SIZE_FACTOR;
+  // Sized and anchored from the crease bounds, which are the document's own
+  // coordinates by construction, rather than from the segment's — those come
+  // from the fold, and a fold that did not originate in this document is in a
+  // different space.
+  const source = bounds ?? segment.bounds;
+  // Square, at the region's larger side: the fold is three-dimensional and can
+  // stand taller or wider than the flat footprint it came from.
+  const edge = Math.max(source.maxX - source.minX, source.maxY - source.minY);
+  const { left, top } = firstFreeSlotBeside({
+    anchor: { right: source.maxX, top: source.minY },
+    width: edge,
+    height: edge,
+    gap: INLINE_SIMULATION_GAP,
+    blockers,
+  });
   return {
     id,
     box: {
-      center: {
-        x: (placement.minX + placement.maxX) / 2,
-        y: (placement.minY + placement.maxY) / 2,
-      },
+      center: { x: left + edge / 2, y: top + edge / 2 },
       width: edge,
       height: edge,
       rotation: 0,
