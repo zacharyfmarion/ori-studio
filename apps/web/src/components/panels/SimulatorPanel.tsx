@@ -34,6 +34,7 @@ import {
   SimulatorViewport,
   type SimulatorViewportHandle,
 } from "../../simulator/SimulatorViewport";
+import { useSimulatorShortcuts } from "../../simulator/useSimulatorShortcuts";
 import {
   foldNeedsTriangulation,
   type SimulatorHighlights,
@@ -457,103 +458,26 @@ export function SimulatorPanel() {
     [setFoldTarget],
   );
 
-  // Keyboard controls. Scoped to when the panel is mounted (only in the Simulate
-  // workspace), and inert while the user is typing in a field or holding a
-  // modifier that belongs to a menu/browser shortcut.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.isContentEditable ||
-          /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
-      ) {
-        return;
-      }
-      if (loadState !== "ready") return;
-
-      switch (event.key) {
-        // Space plays/pauses. preventDefault also suppresses the native
-        // activation of a focused toolbar button (which fires on Space), so the
-        // action has a single source of truth.
-        case " ":
-        case "Spacebar":
-          event.preventDefault();
-          setPlaying(!playing);
-          return;
-        // Left/right scrub the fold timeline; Shift jumps to the ends.
-        case "ArrowRight":
-          event.preventDefault();
-          if (event.shiftKey) setFoldTarget(100);
-          else nudgeFold(runConfig.foldStepPercent);
-          return;
-        case "ArrowLeft":
-          event.preventDefault();
-          if (event.shiftKey) setFoldTarget(0);
-          else nudgeFold(-runConfig.foldStepPercent);
-          return;
-        case "r":
-        case "R":
-          event.preventDefault();
-          replayFromFlat();
-          return;
-        case "0":
-        case "Home":
-          event.preventDefault();
-          resetView();
-          return;
-        // `+`/`=` and `-`/`_` cover the key whether or not Shift is needed to
-        // produce it; event.key is the resolved character.
-        case "+":
-        case "=":
-          event.preventDefault();
-          zoomBy(1.1);
-          return;
-        case "-":
-        case "_":
-          event.preventDefault();
-          zoomBy(1 / 1.1);
-          return;
-        case "f":
-        case "F":
-          setSimulatorSetting("showFaces", !viewSettings.showFaces);
-          return;
-        case "c":
-        case "C":
-          setSimulatorSetting("showEdges", !viewSettings.showEdges);
-          return;
-        case "h":
-        case "H":
-          // Hidden lines only mean anything while crease lines are drawn.
-          if (viewSettings.showEdges) {
-            setSimulatorSetting("showHiddenLines", !viewSettings.showHiddenLines);
-          }
-          return;
-        case "l":
-        case "L":
-          setSimulatorSetting("lighting", !viewSettings.lighting);
-          return;
-        default:
-          return;
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    loadState,
-    playing,
-    setPlaying,
-    setFoldTarget,
-    nudgeFold,
-    runConfig.foldStepPercent,
-    replayFromFlat,
-    resetView,
-    zoomBy,
-    setSimulatorSetting,
-    viewSettings,
-  ]);
-
+  // Keyboard controls, through the shared dispatcher rather than a window
+  // listener of our own. The panel is no longer the only thing that can hold a
+  // simulation, so "only mounted here" stopped being a scoping argument.
+  useSimulatorShortcuts({
+    active: loadState === "ready",
+    foldStepPercent: runConfig.foldStepPercent,
+    handlers: {
+      playPause: () => setPlaying(!playing),
+      nudgeFold,
+      setFoldPercent: setFoldTarget,
+      replay: replayFromFlat,
+      resetView,
+      zoomBy,
+      toggleSetting: (key) => {
+        // Hidden lines only mean anything while crease lines are drawn.
+        if (key === "showHiddenLines" && !viewSettings.showEdges) return;
+        setSimulatorSetting(key, !viewSettings[key]);
+      },
+    },
+  });
 
   const errorDetail =
     stepSimulationError ??

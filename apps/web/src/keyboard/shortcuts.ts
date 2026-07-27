@@ -5,7 +5,15 @@ import {
 } from '../lib/oristudioCpActions';
 import { isApplePlatform } from '../lib/platform';
 
-export type ShortcutScope = 'global' | 'crease-pattern' | 'viewport';
+/**
+ * Scopes are searched front-to-back, so a more specific one wins a chord it
+ * shares with a broader one. `simulator` sits ahead of `crease-pattern` and is
+ * pushed only while a simulation owns the keyboard — a focused inline window on
+ * the Edit canvas, or the Simulate workspace. Without it, the simulator's bare
+ * letters (F, C, R, L) and Space would fight the CP tools bound to the same
+ * keys, and Space is already space-to-pan on the Edit canvas.
+ */
+export type ShortcutScope = 'global' | 'crease-pattern' | 'viewport' | 'simulator';
 export type ViewportShortcutId =
   | 'viewport.zoomIn'
   | 'viewport.zoomOut'
@@ -15,8 +23,26 @@ export type ViewportShortcutId =
   | 'viewport.rotateCcw'
   | 'viewport.rotateCw'
   | 'viewport.resetRotation';
-export type ShortcutActionId = MenuActionId | OristudioCpActionId | ViewportShortcutId;
-export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport';
+export type SimulatorShortcutId =
+  | 'simulator.playPause'
+  | 'simulator.foldForward'
+  | 'simulator.foldBackward'
+  | 'simulator.foldEnd'
+  | 'simulator.foldStart'
+  | 'simulator.replay'
+  | 'simulator.resetView'
+  | 'simulator.zoomIn'
+  | 'simulator.zoomOut'
+  | 'simulator.toggleFaces'
+  | 'simulator.toggleCreases'
+  | 'simulator.toggleHiddenLines'
+  | 'simulator.toggleLighting';
+export type ShortcutActionId =
+  | MenuActionId
+  | OristudioCpActionId
+  | ViewportShortcutId
+  | SimulatorShortcutId;
+export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport' | 'simulator';
 export type ReservedKeyClassification = 'allowed' | 'soft-reserved' | 'hard-reserved';
 
 export interface KeyChord {
@@ -159,6 +185,49 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
   }),
 ];
 
+function simulatorShortcut(
+  id: SimulatorShortcutId,
+  label: string,
+  defaultChord: KeyChord | KeyChord[]
+): ShortcutDefinition {
+  const defaultChords = normalizeDefaultChords(defaultChord);
+  return {
+    id,
+    label,
+    category: 'Simulator',
+    scope: 'simulator',
+    target: 'simulator',
+    defaultChord: defaultChords[0] ?? null,
+    defaultChords,
+  };
+}
+
+/**
+ * Simulator bindings. These used to be a bare `window` keydown listener inside
+ * the Simulate panel, justified by the panel only ever mounting in its own
+ * workspace — which stopped being true when inline simulation windows arrived on
+ * the Edit canvas. Going through the registry also means they finally honour the
+ * user's shortcut overrides, which the ad-hoc listener bypassed entirely.
+ */
+const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
+  simulatorShortcut('simulator.playPause', 'Play / Pause Fold', { key: ' ' }),
+  simulatorShortcut('simulator.foldForward', 'Fold Forward', { key: 'arrowright' }),
+  simulatorShortcut('simulator.foldBackward', 'Fold Backward', { key: 'arrowleft' }),
+  simulatorShortcut('simulator.foldEnd', 'Jump To Folded', { shift: true, key: 'arrowright' }),
+  simulatorShortcut('simulator.foldStart', 'Jump To Flat', { shift: true, key: 'arrowleft' }),
+  simulatorShortcut('simulator.replay', 'Replay From Flat', { key: 'r' }),
+  simulatorShortcut('simulator.resetView', 'Reset Simulator View', [
+    { key: '0' },
+    { key: 'home' },
+  ]),
+  simulatorShortcut('simulator.zoomIn', 'Zoom In Simulator', [{ key: '=' }, { key: '+' }]),
+  simulatorShortcut('simulator.zoomOut', 'Zoom Out Simulator', [{ key: '-' }, { key: '_' }]),
+  simulatorShortcut('simulator.toggleFaces', 'Toggle Faces', { key: 'f' }),
+  simulatorShortcut('simulator.toggleCreases', 'Toggle Crease Lines', { key: 'c' }),
+  simulatorShortcut('simulator.toggleHiddenLines', 'Toggle Hidden Lines', { key: 'h' }),
+  simulatorShortcut('simulator.toggleLighting', 'Toggle Lighting', { key: 'l' }),
+];
+
 const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   // The bare 6/5 chords come from the Oriedita layout, so the left hand can
   // zoom without reaching for a modifier.
@@ -175,6 +244,7 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   ...MENU_SHORTCUTS,
   ...buildCpShortcutDefinitions(),
+  ...SIMULATOR_SHORTCUTS,
   ...VIEWPORT_SHORTCUTS,
 ];
 

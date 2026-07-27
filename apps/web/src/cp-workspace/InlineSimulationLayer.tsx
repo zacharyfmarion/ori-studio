@@ -22,6 +22,7 @@ import {
   type SimulatorFrameView,
 } from '../simulator/useSimulatorRuntime';
 import { foldNeedsTriangulation } from '../simulator/canvas2dFrame';
+import { useSimulatorShortcuts } from '../simulator/useSimulatorShortcuts';
 import {
   simulatorMaterialOptions,
   type SimulatorSettings,
@@ -43,6 +44,9 @@ import {
 
 /** How often the store's fold readout is refreshed while the solver runs. */
 const READOUT_INTERVAL_MS = 66;
+
+/** Fold percentage per arrow press, matching the Simulate workspace's default. */
+const FOLD_STEP_PERCENT = 5;
 
 /** Screen-space rotation (radians) of the box's local +x axis under the camera. */
 function screenAngle(
@@ -258,6 +262,41 @@ function InlineSimulationWindow({
     onPlayingChange,
     viewSettings.foldPlayPercentPerSecond,
   ]);
+
+  // The same keymap the Simulate workspace uses, bound only while this window has
+  // focus. The `simulator` scope it pushes sits ahead of `crease-pattern`, so
+  // Space plays the fold here and still pans the canvas everywhere else.
+  useSimulatorShortcuts({
+    active: focused && runtimeStatus === 'ready',
+    foldStepPercent: FOLD_STEP_PERCENT,
+    handlers: {
+      playPause: () => onPlayingChange(!playing),
+      nudgeFold: (delta) => {
+        onPlayingChange(false);
+        const next = Math.min(100, Math.max(0, solverFoldPercentRef.current + delta));
+        solverFoldPercentRef.current = next;
+        setFoldPercent(next);
+        onFoldPercent(simulation.id, next);
+      },
+      setFoldPercent: (percent) => {
+        onPlayingChange(false);
+        solverFoldPercentRef.current = percent;
+        setFoldPercent(percent);
+        onFoldPercent(simulation.id, percent);
+      },
+      replay: () => {
+        onPlayingChange(false);
+        solverFoldPercentRef.current = 0;
+        runtime.reset();
+        onFoldPercent(simulation.id, 0);
+      },
+      resetView: () => viewportRef.current?.resetView(),
+      zoomBy: (factor) => viewportRef.current?.zoomBy(factor),
+      // No toggleSetting: an inline window has no options pane of its own, and
+      // silently changing the app-wide render settings from a small window on
+      // the Edit canvas would be a surprise.
+    },
+  });
 
   // Keep the window's stored camera in step, so a refresh comes back where the
   // user was looking rather than at the default view.

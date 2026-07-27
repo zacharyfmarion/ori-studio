@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { SimulatorPanel } from './SimulatorPanel';
 import { createSimulatorSession } from '../../simulator/simulatorSession';
+import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -191,8 +192,23 @@ describe('SimulatorPanel', () => {
   });
 });
 
+/**
+ * Drive a chord through the real shortcut dispatcher.
+ *
+ * The panel no longer owns a `window` keydown listener — its bindings are
+ * registered with the dispatcher, which the app shell installs on `document` in
+ * the capture phase and which this unit test does not mount. Going through
+ * `handleShortcutRuntimeKeyDown` exercises the registration and the scope stack,
+ * which is the part that can actually regress.
+ */
 function pressKey(key: string, init: KeyboardEventInit = {}): void {
-  window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
+  handleShortcutRuntimeKeyDown(
+    new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }),
+    {
+      context: { activeEditingContext: 'crease-pattern' },
+      menu: () => {},
+    }
+  );
 }
 
 function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
