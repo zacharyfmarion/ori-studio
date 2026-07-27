@@ -1368,20 +1368,21 @@
     },
     "l1Action": {
       "intro": {
-        "0": "Mesurez la longueur en sélectionnant 2 points."
+        "0": "Mesure une distance entre deux points, ou un angle à un sommet."
+      },
+      "steps": {
+        "0": "Choisir distance ou angle.",
+        "1": "Choisir les points, ou cliquer sur un pli pour le mesurer en un clic."
       },
       "notes": {
-        "0": "La longueur est mesurée en unités de grille.",
-        "1": "La longueur est relative à la taille du patron de plis avec une taille de grille de 1."
+        "0": "Choisir les unités de la valeur ; le côté du papier vaut 1 par défaut.",
+        "1": "Cliquer sur la valeur pour la copier en pleine précision.",
+        "2": "Les mesures sont effacées en quittant l’outil."
       }
     },
     "l2Action": {
       "intro": {
         "0": "Mesurez la longueur en sélectionnant 2 points."
-      },
-      "notes": {
-        "0": "La longueur est mesurée en unités de grille.",
-        "1": "La longueur est relative à la taille du patron de plis avec une taille de grille de 1."
       }
     },
     "makeFlatFoldableAction": {

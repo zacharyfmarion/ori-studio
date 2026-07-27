@@ -240,19 +240,23 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
     intro: ['Set starting face by selecting a face.'],
     notes: ['Folded shape is calculated relative to starting face.'],
   },
+  // Upstream's help says only "Display the length between two points"; the
+  // grid-units claim these notes used to carry described neither what the kernel
+  // computes (a raw model-space distance) nor what is displayed.
   l1Action: {
-    intro: ['Measure length by selecting 2 points.'],
+    intro: ['Measure a distance between two points, or an angle at a vertex.'],
+    steps: [
+      'Choose distance or angle.',
+      'Pick the points, or click a crease to measure it in one click.',
+    ],
     notes: [
-      'Length is measured in grid units.',
-      'Length is relative to crease pattern size with grid size of 1.',
+      'Choose the units the value reads in; the paper edge is 1 by default.',
+      'Click the value to copy it at full precision.',
+      'Measurements are cleared when you leave the tool.',
     ],
   },
   l2Action: {
     intro: ['Measure length by selecting 2 points.'],
-    notes: [
-      'Length is measured in grid units.',
-      'Length is relative to crease pattern size with grid size of 1.',
-    ],
   },
   makeFlatFoldableAction: {
     intro: ['Draw flat foldable line.'],

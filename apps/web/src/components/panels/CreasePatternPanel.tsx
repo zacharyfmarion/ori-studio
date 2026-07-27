@@ -208,8 +208,14 @@ import {
   cpMeasureStepKinds,
   isCpMeasurementOperation,
   type CpMeasureKind,
+  type CpMeasureScale,
+  type CpMeasureUnit,
   type CpMeasurement,
 } from '../../cp-workspace/measure';
+import {
+  readCpMeasurePreferences,
+  writeCpMeasurePreferences,
+} from '../../cp-workspace/measurePreferences';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -972,6 +978,23 @@ export function CreasePatternPanel() {
   // Points placed so far in the current measure pick, for the step prompt. A
   // sequence tool's points live on the canvas, so this mirrors its pick progress.
   const [cpMeasurePicked, setCpMeasurePicked] = useState(0);
+  // Display units are a persisted user preference, not a document property: a
+  // designer reads in the units they think in, whatever the file was authored in.
+  const [cpMeasurePreferences, setCpMeasurePreferences] = useState(readCpMeasurePreferences);
+  const setCpMeasureUnit = useCallback((unit: CpMeasureUnit) => {
+    setCpMeasurePreferences((current) => {
+      const next = { ...current, unit };
+      writeCpMeasurePreferences(next);
+      return next;
+    });
+  }, []);
+  const setCpMeasurePaperEdgeMm = useCallback((paperEdgeMm: number) => {
+    setCpMeasurePreferences((current) => {
+      const next = { ...current, paperEdgeMm };
+      writeCpMeasurePreferences(next);
+      return next;
+    });
+  }, []);
   const [diagnosticHudExpanded, setDiagnosticHudExpanded] = useState(false);
   const defaultCpToolDocumentRef = useRef<string | null>(null);
   const restoredNativeCanvasModelRef = useRef<string | null>(null);
@@ -1948,6 +1971,18 @@ export function CreasePatternPanel() {
           ? t('panels:creasePattern.angleBisectorSelectSegmentToEnd', 'Angle Bisector: Select segment to end')
           : cpToolState.prompt
       : cpToolState.prompt;
+  // What one model unit is worth for this document: the Oriedita paper frame's
+  // width is the "paper edge = 1" reference, and the grid width comes from the
+  // document's own grid so "grid squares" tracks a grid change.
+  const cpMeasureScale = useMemo<CpMeasureScale>(
+    () => ({
+      paperEdge: editableCpBounds.spanX,
+      gridWidth: editableCpGridWidth ?? editableCpBounds.spanX,
+      paperEdgeMm: cpMeasurePreferences.paperEdgeMm,
+    }),
+    [editableCpBounds.spanX, editableCpGridWidth, cpMeasurePreferences.paperEdgeMm]
+  );
+
   // Measure's prompt follows its kind, not the command's static 2-step list: an
   // angle collects three points, and the middle one is the vertex.
   const measureToolPrompt =
@@ -3761,6 +3796,10 @@ export function CreasePatternPanel() {
                     activeLineColor={activeCpLineColor}
                     measurement={cpMeasurement}
                     measurePicked={cpMeasurePicked}
+                    measureUnit={cpMeasurePreferences.unit}
+                    measureScale={cpMeasureScale}
+                    onMeasureUnitChange={setCpMeasureUnit}
+                    onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
                     pendingPointCount={cpToolPoints.length}
                     selection={oristudioCpSelection}
                     onApply={

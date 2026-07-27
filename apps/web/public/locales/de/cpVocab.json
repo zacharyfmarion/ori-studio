@@ -1368,20 +1368,21 @@
     },
     "l1Action": {
       "intro": {
-        "0": "Länge durch Auswahl von 2 Punkten messen."
+        "0": "Misst einen Abstand zwischen zwei Punkten oder einen Winkel an einem Scheitelpunkt."
+      },
+      "steps": {
+        "0": "Abstand oder Winkel wählen.",
+        "1": "Punkte wählen oder eine Falte anklicken, um sie mit einem Klick zu messen."
       },
       "notes": {
-        "0": "Die Länge wird in Rastereinheiten gemessen.",
-        "1": "Die Länge ist relativ zur Faltmustergröße bei einer Rastergröße von 1."
+        "0": "Einheiten des Werts wählen; standardmäßig ist die Papierkante 1.",
+        "1": "Auf den Wert klicken, um ihn in voller Genauigkeit zu kopieren.",
+        "2": "Messungen werden beim Verlassen des Werkzeugs gelöscht."
       }
     },
     "l2Action": {
       "intro": {
         "0": "Länge durch Auswahl von 2 Punkten messen."
-      },
-      "notes": {
-        "0": "Die Länge wird in Rastereinheiten gemessen.",
-        "1": "Die Länge ist relativ zur Faltmustergröße bei einer Rastergröße von 1."
       }
     },
     "makeFlatFoldableAction": {

@@ -1368,20 +1368,21 @@
     },
     "l1Action": {
       "intro": {
-        "0": "Mide la longitud seleccionando 2 puntos."
+        "0": "Mide una distancia entre dos puntos, o un ángulo en un vértice."
+      },
+      "steps": {
+        "0": "Elige distancia o ángulo.",
+        "1": "Elige los puntos, o haz clic en un pliegue para medirlo de una vez."
       },
       "notes": {
-        "0": "La longitud se mide en unidades de cuadrícula.",
-        "1": "La longitud es relativa al tamaño del patrón de pliegues con un tamaño de cuadrícula de 1."
+        "0": "Elige las unidades del valor; el lado del papel es 1 por defecto.",
+        "1": "Haz clic en el valor para copiarlo con precisión completa.",
+        "2": "Las mediciones se borran al salir de la herramienta."
       }
     },
     "l2Action": {
       "intro": {
         "0": "Mide la longitud seleccionando 2 puntos."
-      },
-      "notes": {
-        "0": "La longitud se mide en unidades de cuadrícula.",
-        "1": "La longitud es relativa al tamaño del patrón de pliegues con un tamaño de cuadrícula de 1."
       }
     },
     "makeFlatFoldableAction": {

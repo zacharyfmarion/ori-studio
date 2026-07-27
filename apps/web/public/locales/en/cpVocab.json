@@ -1368,20 +1368,21 @@
     },
     "l1Action": {
       "intro": {
-        "0": "Measure length by selecting 2 points."
+        "0": "Measure a distance between two points, or an angle at a vertex."
+      },
+      "steps": {
+        "0": "Choose distance or angle.",
+        "1": "Pick the points, or click a crease to measure it in one click."
       },
       "notes": {
-        "0": "Length is measured in grid units.",
-        "1": "Length is relative to crease pattern size with grid size of 1."
+        "0": "Choose the units the value reads in; the paper edge is 1 by default.",
+        "1": "Click the value to copy it at full precision.",
+        "2": "Measurements are cleared when you leave the tool."
       }
     },
     "l2Action": {
       "intro": {
         "0": "Measure length by selecting 2 points."
-      },
-      "notes": {
-        "0": "Length is measured in grid units.",
-        "1": "Length is relative to crease pattern size with grid size of 1."
       }
     },
     "makeFlatFoldableAction": {

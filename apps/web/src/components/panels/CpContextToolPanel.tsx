@@ -39,9 +39,15 @@ import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/crea
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
 import {
   CP_MEASURE_KINDS,
+  CP_MEASURE_UNITS,
+  copyTextForCpMeasurement,
   cpMeasurePointCount,
-  formatCpMeasurementValue,
+  cpMeasureUnitIsPhysical,
+  exactCpLengthLabel,
+  formatCpMeasurement,
   type CpMeasureKind,
+  type CpMeasureScale,
+  type CpMeasureUnit,
   type CpMeasurement,
 } from '../../cp-workspace/measure';
 
@@ -53,6 +59,24 @@ function measureKindLabel(t: TFunction, kind: CpMeasureKind): string {
   return kind === 'angle'
     ? t('tools:cpContext.measureKindAngle', 'Angle')
     : t('tools:cpContext.measureKindDistance', 'Distance');
+}
+
+/** Literal-key `t()` calls so the extractor sees every unit name. */
+function measureUnitLabel(t: TFunction, unit: CpMeasureUnit): string {
+  switch (unit) {
+    case 'paper':
+      return t('tools:cpContext.measureUnitPaper', 'Paper edge = 1');
+    case 'grid':
+      return t('tools:cpContext.measureUnitGrid', 'Grid squares');
+    case 'mm':
+      return t('tools:cpContext.measureUnitMm', 'Millimetres');
+    case 'cm':
+      return t('tools:cpContext.measureUnitCm', 'Centimetres');
+    case 'in':
+      return t('tools:cpContext.measureUnitIn', 'Inches');
+    case 'model':
+      return t('tools:cpContext.measureUnitModel', 'Model units (Oriedita)');
+  }
 }
 
 export function cpLineTypeStatusLabel(
@@ -103,6 +127,10 @@ export function CpContextToolPanel({
   activeLineColor,
   measurement,
   measurePicked,
+  measureUnit,
+  measureScale,
+  onMeasureUnitChange,
+  onMeasurePaperEdgeMmChange,
   pendingPointCount,
   selection,
   onApply,
@@ -116,6 +144,10 @@ export function CpContextToolPanel({
   measurement: CpMeasurement | null;
   /** Points placed so far in the in-progress measure pick. */
   measurePicked: number;
+  measureUnit: CpMeasureUnit;
+  measureScale: CpMeasureScale;
+  onMeasureUnitChange: (unit: CpMeasureUnit) => void;
+  onMeasurePaperEdgeMmChange: (paperEdgeMm: number) => void;
   pendingPointCount: number;
   selection: OristudioCpSelection;
   onApply?: () => void;
@@ -166,6 +198,10 @@ export function CpContextToolPanel({
               activeOperationId={command.operationId}
               measurement={measurement}
               measurePicked={measurePicked}
+              measureUnit={measureUnit}
+              measureScale={measureScale}
+              onMeasureUnitChange={onMeasureUnitChange}
+              onMeasurePaperEdgeMmChange={onMeasurePaperEdgeMmChange}
               pendingPointCount={pendingPointCount}
               selection={selection}
             />
@@ -237,6 +273,10 @@ function CpContextToolGroup({
   activeOperationId,
   measurement,
   measurePicked,
+  measureUnit,
+  measureScale,
+  onMeasureUnitChange,
+  onMeasurePaperEdgeMmChange,
   pendingPointCount,
   selection,
 }: {
@@ -247,6 +287,10 @@ function CpContextToolGroup({
   activeOperationId: OristudioCpCommandDefinition['operationId'];
   measurement: CpMeasurement | null;
   measurePicked: number;
+  measureUnit: CpMeasureUnit;
+  measureScale: CpMeasureScale;
+  onMeasureUnitChange: (unit: CpMeasureUnit) => void;
+  onMeasurePaperEdgeMmChange: (paperEdgeMm: number) => void;
   pendingPointCount: number;
   selection: OristudioCpSelection;
 }) {
@@ -544,6 +588,10 @@ function CpContextToolGroup({
   if (group === 'measure') {
     const kind = options.measureKind;
     const remaining = cpMeasurePointCount(kind) - measurePicked;
+    const exactLabel =
+      measurement && measurement.kind === 'distance'
+        ? exactCpLengthLabel(measurement.value, measureScale)
+        : null;
     return (
       <div className="cp-context-panel__group">
         <div className="cp-context-panel__group-title">{t('tools:cpContext.measure', 'Measure')}</div>
@@ -567,15 +615,59 @@ function CpContextToolGroup({
             </button>
           ))}
         </div>
-        <div
+        <button
+          type="button"
           className="cp-context-panel__measure-value"
           data-empty={measurement === null || undefined}
+          disabled={measurement === null}
           aria-live="polite"
+          title={
+            measurement
+              ? t('tools:cpContext.measureCopy', 'Copy the full-precision value')
+              : undefined
+          }
+          onClick={() => {
+            if (!measurement) return;
+            void navigator.clipboard?.writeText(
+              copyTextForCpMeasurement(measurement, measureUnit, measureScale)
+            );
+          }}
         >
           {measurement === null
             ? t('tools:cpContext.measureEmpty', 'No measurement yet')
-            : formatCpMeasurementValue(measurement.kind, measurement.value)}
-        </div>
+            : formatCpMeasurement(measurement, measureUnit, measureScale)}
+        </button>
+        {exactLabel && (
+          <div className="cp-context-panel__readout cp-context-panel__measure-exact">
+            {t('tools:cpContext.measureExact', 'about {{exact}} of the paper edge', {
+              exact: exactLabel,
+            })}
+          </div>
+        )}
+        <label className="cp-context-panel__field">
+          <span>{t('tools:cpContext.measureUnit', 'Units')}</span>
+          <select
+            aria-label={t('tools:cpContext.measureUnit', 'Units')}
+            value={measureUnit}
+            onChange={(event) => onMeasureUnitChange(event.currentTarget.value as CpMeasureUnit)}
+          >
+            {CP_MEASURE_UNITS.map((unit) => (
+              <option key={unit} value={unit}>
+                {measureUnitLabel(t, unit)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {cpMeasureUnitIsPhysical(measureUnit) && (
+          <NumericToolOption
+            label={t('tools:cpContext.measurePaperEdge', 'Paper edge (mm)')}
+            ariaLabel={t('tools:cpContext.measurePaperEdge', 'Paper edge (mm)')}
+            min={1}
+            step={1}
+            value={measureScale.paperEdgeMm}
+            onChange={onMeasurePaperEdgeMmChange}
+          />
+        )}
         <div className="cp-context-panel__readout">
           {remaining > 0
             ? remaining === 1

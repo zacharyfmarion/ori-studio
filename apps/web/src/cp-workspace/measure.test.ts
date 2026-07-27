@@ -5,8 +5,15 @@ import {
   cpMeasureOperationForKind,
   cpMeasurePointCount,
   cpMeasureStepKinds,
-  formatCpMeasurementValue,
+  convertCpLength,
+  copyTextForCpMeasurement,
+  exactCpLengthLabel,
+  formatCpAngle,
+  formatCpLength,
+  formatCpMeasurement,
   isCpMeasurementOperation,
+  snapExactCpAngle,
+  type CpMeasureScale,
 } from './measure';
 
 describe('cpMeasureOperationForKind', () => {
@@ -47,12 +54,87 @@ describe('isCpMeasurementOperation', () => {
   });
 });
 
-describe('formatCpMeasurementValue', () => {
-  it('formats lengths to 3 dp, angles to 2 dp with a degree sign, null as a dash', () => {
-    expect(formatCpMeasurementValue('distance', null)).toBe('-');
-    expect(formatCpMeasurementValue('distance', 1.23456)).toBe('1.235');
-    expect(formatCpMeasurementValue('angle', 44.999)).toBe('45°');
-    expect(formatCpMeasurementValue('angle', null)).toBe('-');
-    expect(formatCpMeasurementValue('distance', Number.NaN)).toBe('-');
+// An Oriedita frame: paper edge 400 model units, an 8-division grid, 150 mm paper.
+const SCALE: CpMeasureScale = { paperEdge: 400, gridWidth: 50, paperEdgeMm: 150 };
+
+describe('convertCpLength', () => {
+  it('reads the paper edge as 1 and the diagonal as sqrt(2)', () => {
+    expect(convertCpLength(400, 'paper', SCALE)).toBe(1);
+    expect(convertCpLength(Math.SQRT2 * 400, 'paper', SCALE)).toBeCloseTo(Math.SQRT2, 12);
+  });
+
+  it('counts grid squares against the document grid', () => {
+    expect(convertCpLength(400, 'grid', SCALE)).toBe(8);
+    expect(convertCpLength(25, 'grid', SCALE)).toBe(0.5);
+  });
+
+  it('scales physical units off the paper edge', () => {
+    expect(convertCpLength(400, 'mm', SCALE)).toBe(150);
+    expect(convertCpLength(400, 'cm', SCALE)).toBe(15);
+    expect(convertCpLength(400, 'in', SCALE)).toBeCloseTo(150 / 25.4, 12);
+  });
+
+  it('leaves model units alone — the value Oriedita itself displays', () => {
+    expect(convertCpLength(565.685424949238, 'model', SCALE)).toBe(565.685424949238);
+  });
+
+  it('falls back rather than dividing by zero on a degenerate scale', () => {
+    const degenerate: CpMeasureScale = { paperEdge: 0, gridWidth: 0, paperEdgeMm: 150 };
+    expect(convertCpLength(7, 'paper', degenerate)).toBe(7);
+    expect(convertCpLength(7, 'grid', degenerate)).toBe(7);
+  });
+});
+
+describe('formatCpLength / formatCpAngle', () => {
+  it('carries four decimals in paper units, so the diagonal is recognisable', () => {
+    expect(formatCpLength(Math.SQRT1_2 * 400, 'paper', SCALE)).toBe('0.7071');
+  });
+
+  it('suffixes only the physical units', () => {
+    expect(formatCpLength(400, 'mm', SCALE)).toBe('150 mm');
+    expect(formatCpLength(400, 'grid', SCALE)).toBe('8');
+  });
+
+  it('formats a non-finite value as a dash', () => {
+    expect(formatCpLength(Number.NaN, 'paper', SCALE)).toBe('-');
+    expect(formatCpAngle(Number.POSITIVE_INFINITY)).toBe('-');
+  });
+
+  it('snaps float noise onto the exact origami angle, and leaves others alone', () => {
+    expect(snapExactCpAngle(44.99999999999999)).toBe(45);
+    expect(snapExactCpAngle(22.500000000000004)).toBe(22.5);
+    expect(snapExactCpAngle(44.9)).toBe(44.9);
+    expect(formatCpAngle(89.99999999999999)).toBe('90°');
+  });
+});
+
+describe('exactCpLengthLabel', () => {
+  it('recognises the constants a reference construction aims at', () => {
+    expect(exactCpLengthLabel(200, SCALE)).toBe('1/2');
+    expect(exactCpLengthLabel(Math.SQRT1_2 * 400, SCALE)).toBe('√2/2');
+    expect(exactCpLengthLabel(400 / 3, SCALE)).toBe('1/3');
+    expect(exactCpLengthLabel(Math.SQRT2 * 400, SCALE)).toBe('√2');
+  });
+
+  it('stays silent for a length that is not near one', () => {
+    expect(exactCpLengthLabel(173, SCALE)).toBeNull();
+    expect(exactCpLengthLabel(Number.NaN, SCALE)).toBeNull();
+  });
+});
+
+describe('formatCpMeasurement / copyTextForCpMeasurement', () => {
+  it('formats each kind in its own terms', () => {
+    expect(
+      formatCpMeasurement({ kind: 'distance', value: 200, points: [] }, 'paper', SCALE)
+    ).toBe('0.5');
+    expect(formatCpMeasurement({ kind: 'angle', value: 45, points: [] }, 'paper', SCALE)).toBe(
+      '45°'
+    );
+  });
+
+  it('copies the converted value at full precision, not the rounded display', () => {
+    const measurement = { kind: 'distance' as const, value: Math.SQRT1_2 * 400, points: [] };
+    expect(formatCpMeasurement(measurement, 'paper', SCALE)).toBe('0.7071');
+    expect(copyTextForCpMeasurement(measurement, 'paper', SCALE)).toBe(String(Math.SQRT1_2));
   });
 });

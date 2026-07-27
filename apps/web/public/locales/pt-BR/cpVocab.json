@@ -1368,20 +1368,21 @@
     },
     "l1Action": {
       "intro": {
-        "0": "Meça o comprimento selecionando 2 pontos."
+        "0": "Mede uma distância entre dois pontos, ou um ângulo em um vértice."
+      },
+      "steps": {
+        "0": "Escolha distância ou ângulo.",
+        "1": "Escolha os pontos, ou clique em um vinco para medi-lo de uma vez."
       },
       "notes": {
-        "0": "O comprimento é medido em unidades de grade.",
-        "1": "O comprimento é relativo ao tamanho do padrão de vincos com tamanho de grade de 1."
+        "0": "Escolha as unidades do valor; a borda do papel é 1 por padrão.",
+        "1": "Clique no valor para copiá-lo com precisão total.",
+        "2": "As medições são apagadas ao sair da ferramenta."
       }
     },
     "l2Action": {
       "intro": {
         "0": "Meça o comprimento selecionando 2 pontos."
-      },
-      "notes": {
-        "0": "O comprimento é medido em unidades de grade.",
-        "1": "O comprimento é relativo ao tamanho do padrão de vincos com tamanho de grade de 1."
       }
     },
     "makeFlatFoldableAction": {

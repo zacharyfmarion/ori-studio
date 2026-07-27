@@ -4327,8 +4327,10 @@
 }
 
 /* The measured value is the answer the tool exists to give: largest type in the
-   panel, tabular so digits don't jitter as the live value updates. */
+   panel, tabular so digits don't jitter as the live value updates. It is a button
+   because clicking it copies the full-precision value. */
 .cp-context-panel__measure-value {
+  width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
@@ -4339,12 +4341,25 @@
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   text-align: center;
+  cursor: pointer;
+}
+
+.cp-context-panel__measure-value:hover:not([data-empty]),
+.cp-context-panel__measure-value:focus-visible:not([data-empty]) {
+  border-color: var(--border-default);
+  background: var(--bg-tertiary);
+  outline: none;
 }
 
 .cp-context-panel__measure-value[data-empty] {
   color: var(--text-muted);
   font-family: var(--font-sans);
   font-size: 0.66rem;
+  cursor: default;
+}
+
+.cp-context-panel__measure-exact {
+  text-align: center;
 }
 
 .cp-context-panel__color-swatch {
