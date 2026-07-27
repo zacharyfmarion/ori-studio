@@ -66,7 +66,7 @@ import {
   retainFoldedFigureHandle,
   retainFoldedFigureHandles,
   setFoldedFigureHandleFree,
-} from '../../../cp-workspace/foldedFigureHandles';
+} from '../../../cp-workspace/folded/foldedFigureHandles';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../../engine/oristudioCpTypes';
 import type {
   OristudioCpDocumentSnapshot,
@@ -79,7 +79,7 @@ import {
   foldedSourceBounds,
   foldedSourceFingerprint,
   reselectFoldableLineIds,
-} from '../../../lib/foldedFigureStaleness';
+} from '../../../cp-workspace/folded/foldedFigureStaleness';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
 /** Cap on the CP undo stack (matches historySlice's MAX_HISTORY). */

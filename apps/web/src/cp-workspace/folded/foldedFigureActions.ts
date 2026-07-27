@@ -2,8 +2,8 @@ import type { TFunction } from 'i18next';
 import type {
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
-} from '../engine/oristudioCpTypes';
-import type { FoldedFigureExportFormat } from '../lib/foldedFigureExport';
+} from '../../engine/oristudioCpTypes';
+import type { FoldedFigureExportFormat } from './foldedFigureExport';
 import { flipFoldedState } from './foldedFigureState';
 
 /**

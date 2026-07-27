@@ -162,7 +162,7 @@ place it:
 | What you are adding | Where it goes |
 | --- | --- |
 | A keyboard shortcut, of any kind | `apps/web/src/keyboard/` — register it in the shortcut registry, implement it in the surface's executor. Never a `keydown` listener on the panel container. |
-| The set of verbs a thing offers (toolbar + context menu + menu bar) | A React-free, store-free action catalog returning plain descriptors, next to that thing's modules. `cp-workspace/foldedFigureActions.ts` is the reference implementation. |
+| The set of verbs a thing offers (toolbar + context menu + menu bar) | A React-free, store-free action catalog returning plain descriptors, next to that thing's modules. `cp-workspace/folded/foldedFigureActions.ts` is the reference implementation. |
 | Store bindings for those verbs, or state and derived data for one concern | A `use*` hook beside that concern's modules — `cp-workspace/<concern>/use*.ts`. `hooks/useViewportSurface.ts` is the shape to copy. A `useMemo` whose body is a bag of store callbacks belongs here, not in the panel. |
 | Pure geometry or model logic | That concern's module, with unit tests. |
 | Presentation | A child component. |

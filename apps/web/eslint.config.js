@@ -41,7 +41,7 @@ const noDirectStorageProperties = [
  * delete the entry once it fits under PANEL_MAX_LINES.
  */
 const OVERSIZED_PANELS = {
-  'CreasePatternPanel.tsx': 3495,
+  'CreasePatternPanel.tsx': 3130,
   'BpPackingPanel.tsx': 2310,
   'SimulatorPanel.tsx': 2005,
   'DesignPanel.tsx': 1335,

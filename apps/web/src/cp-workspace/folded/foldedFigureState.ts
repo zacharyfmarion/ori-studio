@@ -1,7 +1,7 @@
 import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureState,
-} from '../engine/oristudioCpTypes';
+} from '../../engine/oristudioCpTypes';
 
 /**
  * Which layer-ordering solution a figure is showing, 1-based.

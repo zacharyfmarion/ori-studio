@@ -34,7 +34,7 @@ import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type { CreaseExportOptions } from '../../lib/creaseExport';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
-import type { FoldedFigureExportFormat } from '../../lib/foldedFigureExport';
+import type { FoldedFigureExportFormat } from '../../cp-workspace/folded/foldedFigureExport';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
   OristudioCpCommandPayload,

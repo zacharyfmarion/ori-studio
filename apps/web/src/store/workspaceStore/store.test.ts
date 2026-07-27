@@ -47,11 +47,11 @@ import {
   cpUserAnchorForLineIds,
   foldedFigureUserBounds,
 } from '../../cp-workspace/adapters/cpFoldedToScene';
-import { isFoldedFigureStale } from '../../lib/foldedFigureStaleness';
+import { isFoldedFigureStale } from '../../cp-workspace/folded/foldedFigureStaleness';
 import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
-} from '../../cp-workspace/foldedFigureHandles';
+} from '../../cp-workspace/folded/foldedFigureHandles';
 import { useLayoutStore } from '../layoutStore';
 import {
   registerCommandDialogHost,

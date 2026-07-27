@@ -397,7 +397,7 @@ badge + refold, camera zoom/fit/rotate.
 - [x] Phase 2a — single `activeFloatingSurface` replaces the four-way toolbar chain
 - [ ] Phase 2 — fold canvas-object Delete into the `edit.delete` menu action; drop the CP keydown exemption
 - [x] Phase 2b — `useCpAnnotations`; lower the CP `max-lines` freeze
-- [ ] Phase 3 — `useFoldedFigures` binding layer + context-menu adapter extracted + `cp-workspace/folded/` consolidation; lower the freeze
+- [x] Phase 3 — `useFoldedFigures` binding layer + context-menu adapter extracted + `cp-workspace/folded/` consolidation; lower the freeze
 - [ ] Phase 4 — `useCpToolSession`; lower the freeze
 - [ ] Phase 5 — `useCpCamera`; lower the freeze
 - [ ] Phase 6 — remove the CP exemption; panel under the 800 default

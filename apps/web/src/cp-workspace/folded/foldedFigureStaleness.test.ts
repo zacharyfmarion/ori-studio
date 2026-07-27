@@ -3,7 +3,7 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureEntry,
   OristudioCpLineSegment,
-} from '../engine/oristudioCpTypes';
+} from '../../engine/oristudioCpTypes';
 import {
   cpLinesByIds,
   foldedSourceBounds,

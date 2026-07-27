@@ -42,7 +42,7 @@ import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 import {
   releaseFoldedFigureHandles,
   retainFoldedFigureHandles,
-} from '../../../cp-workspace/foldedFigureHandles';
+} from '../../../cp-workspace/folded/foldedFigureHandles';
 
 const MAX_HISTORY = 100;
 

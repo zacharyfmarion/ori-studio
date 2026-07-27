@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   OristudioCpFoldedRenderPrimitive,
   OristudioCpFoldedRenderSnapshot,
-} from '../engine/oristudioCpTypes';
+} from '../../engine/oristudioCpTypes';
 import { foldedFigureExportDocument, serializeFoldedFigureSvg } from './foldedFigureExport';
 
 const solid = (r: number, g: number, b: number, a: number) =>
