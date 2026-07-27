@@ -1127,6 +1127,46 @@
         "0": "Les différences de rayons entre les cercles concentriques et sélectionnés sont égales."
       }
     },
+    "colBlackAction": {
+      "intro": {
+        "0": "Trace les nouveaux plis en lignes de bord."
+      },
+      "notes": {
+        "0": "Définit le type de ligne actif ; il reste actif jusqu'au choix d'un autre."
+      }
+    },
+    "colBlueAction": {
+      "intro": {
+        "0": "Trace les nouveaux plis en vallée."
+      },
+      "notes": {
+        "0": "Définit le type de ligne actif ; il reste actif jusqu'au choix d'un autre."
+      }
+    },
+    "colCyanAction": {
+      "intro": {
+        "0": "Trace les nouveaux plis en lignes auxiliaires."
+      },
+      "notes": {
+        "0": "Les lignes auxiliaires sont des repères : elles ne sont pas pliées."
+      }
+    },
+    "colRedAction": {
+      "intro": {
+        "0": "Trace les nouveaux plis en montagne."
+      },
+      "notes": {
+        "0": "Définit le type de ligne actif ; il reste actif jusqu'au choix d'un autre."
+      }
+    },
+    "lineColorAction": {
+      "intro": {
+        "0": "Trace les nouveaux plis en lignes non attribuées."
+      },
+      "notes": {
+        "0": "Les plis non attribués n'ont pas encore de sens de pliage ; les contrôles de pliabilité les ignorent."
+      }
+    },
     "continuousSymmetricDrawAction": {
       "intro": {
         "0": "Tracez une ligne se reflétant à travers les lignes de pli."
@@ -1576,46 +1616,6 @@
       "notes": {
         "0": "Sélectionner à nouveau des points les annulera.",
         "1": "Sélectionnez appliquer les lignes temporaires pour les changer en lignes de pli."
-      }
-    },
-    "colRedAction": {
-      "intro": {
-        "0": "Trace les nouveaux plis en montagne."
-      },
-      "notes": {
-        "0": "Définit le type de ligne actif ; il reste actif jusqu'au choix d'un autre."
-      }
-    },
-    "colBlueAction": {
-      "intro": {
-        "0": "Trace les nouveaux plis en vallée."
-      },
-      "notes": {
-        "0": "Définit le type de ligne actif ; il reste actif jusqu'au choix d'un autre."
-      }
-    },
-    "colBlackAction": {
-      "intro": {
-        "0": "Trace les nouveaux plis en lignes de bord."
-      },
-      "notes": {
-        "0": "Définit le type de ligne actif ; il reste actif jusqu'au choix d'un autre."
-      }
-    },
-    "colCyanAction": {
-      "intro": {
-        "0": "Trace les nouveaux plis en lignes auxiliaires."
-      },
-      "notes": {
-        "0": "Les lignes auxiliaires sont des repères : elles ne sont pas pliées."
-      }
-    },
-    "lineColorAction": {
-      "intro": {
-        "0": "Trace les nouveaux plis en lignes non attribuées."
-      },
-      "notes": {
-        "0": "Les plis non attribués n'ont pas encore de sens de pliage ; les contrôles de pliabilité les ignorent."
       }
     }
   }

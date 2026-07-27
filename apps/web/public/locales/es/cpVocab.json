@@ -1127,6 +1127,46 @@
         "0": "Las diferencias de radios entre los círculos concéntricos y los seleccionados son iguales."
       }
     },
+    "colBlackAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como líneas de borde."
+      },
+      "notes": {
+        "0": "Define el tipo de línea activo; se mantiene hasta elegir otro."
+      }
+    },
+    "colBlueAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como valle."
+      },
+      "notes": {
+        "0": "Define el tipo de línea activo; se mantiene hasta elegir otro."
+      }
+    },
+    "colCyanAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como líneas auxiliares."
+      },
+      "notes": {
+        "0": "Las líneas auxiliares son guías: no se pliegan."
+      }
+    },
+    "colRedAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como monte."
+      },
+      "notes": {
+        "0": "Define el tipo de línea activo; se mantiene hasta elegir otro."
+      }
+    },
+    "lineColorAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como líneas sin asignar."
+      },
+      "notes": {
+        "0": "Los pliegues sin asignar aún no tienen dirección, así que las comprobaciones de plegado los omiten."
+      }
+    },
     "continuousSymmetricDrawAction": {
       "intro": {
         "0": "Traza una línea que se refleja a través de las líneas de pliegue."
@@ -1576,46 +1616,6 @@
       "notes": {
         "0": "Volver a seleccionar los puntos los cancelará.",
         "1": "Selecciona aplicar las líneas temporales para convertirlas en líneas de pliegue."
-      }
-    },
-    "colRedAction": {
-      "intro": {
-        "0": "Dibuja los pliegues nuevos como monte."
-      },
-      "notes": {
-        "0": "Define el tipo de línea activo; se mantiene hasta elegir otro."
-      }
-    },
-    "colBlueAction": {
-      "intro": {
-        "0": "Dibuja los pliegues nuevos como valle."
-      },
-      "notes": {
-        "0": "Define el tipo de línea activo; se mantiene hasta elegir otro."
-      }
-    },
-    "colBlackAction": {
-      "intro": {
-        "0": "Dibuja los pliegues nuevos como líneas de borde."
-      },
-      "notes": {
-        "0": "Define el tipo de línea activo; se mantiene hasta elegir otro."
-      }
-    },
-    "colCyanAction": {
-      "intro": {
-        "0": "Dibuja los pliegues nuevos como líneas auxiliares."
-      },
-      "notes": {
-        "0": "Las líneas auxiliares son guías: no se pliegan."
-      }
-    },
-    "lineColorAction": {
-      "intro": {
-        "0": "Dibuja los pliegues nuevos como líneas sin asignar."
-      },
-      "notes": {
-        "0": "Los pliegues sin asignar aún no tienen dirección, así que las comprobaciones de plegado los omiten."
       }
     }
   }
