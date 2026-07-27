@@ -613,3 +613,98 @@ describe('cpFoldedToScene figure opacity', () => {
     expect(values.slice(half).every((a) => Math.abs(a - 0.45) < 1e-6)).toBe(true);
   });
 });
+
+describe('gradient paint', () => {
+  /**
+   * The shape a shadow band takes: a quad spanned by the shadowed edge and the
+   * offset, with the gradient running along that same offset.
+   */
+  const shadowBand = (): OristudioCpFoldedRenderPrimitive => ({
+    sequence: 0,
+    kind: 'fill_path',
+    style: {
+      paint: {
+        kind: 'gradient',
+        from: { x: 0, y: 0 },
+        from_color: { red: 0, green: 0, blue: 0, alpha: 50 },
+        to: { x: 0, y: 10 },
+        to_color: { red: 0, green: 0, blue: 0, alpha: 0 },
+        cyclic: false,
+      },
+      stroke: { kind: 'none' },
+      antialias: 'default',
+    },
+    geometry: {
+      kind: 'path',
+      commands: [
+        { command: 'move_to', point: { x: 0, y: 0 } },
+        { command: 'line_to', point: { x: 0, y: 10 } },
+        { command: 'line_to', point: { x: 40, y: 10 } },
+        { command: 'line_to', point: { x: 40, y: 0 } },
+        { command: 'close' },
+      ],
+    },
+  });
+
+  it('fades a shadow band from its start colour to transparent', () => {
+    const geo = cpFoldedToScene([figure([shadowBand()])]);
+
+    const alphas = new Set<number>();
+    for (let i = 3; i < geo.fills.color.length; i += 4) {
+      alphas.add(Number(geo.fills.color[i].toFixed(6)));
+    }
+
+    // Both ends of the gradient are present, which a flat fill could not produce.
+    expect(alphas.has(Number((50 / 255).toFixed(6)))).toBe(true);
+    expect(alphas.has(0)).toBe(true);
+  });
+
+  it('places the opaque end on the shadowed edge and the clear end away from it', () => {
+    const geo = cpFoldedToScene([figure([shadowBand()])]);
+
+    // The gradient runs along +y, so every vertex's alpha must fall as y rises.
+    const byY = new Map<number, number>();
+    for (let v = 0; v < geo.fills.count; v++) {
+      const y = Number(geo.fills.position[v * 2 + 1].toFixed(4));
+      byY.set(y, geo.fills.color[v * 4 + 3]);
+    }
+    const ys = [...byY.keys()].sort((l, r) => l - r);
+    expect(ys.length).toBeGreaterThan(1);
+
+    const first = byY.get(ys[0]);
+    const last = byY.get(ys[ys.length - 1]);
+    expect(first).toBeDefined();
+    expect(last).toBeDefined();
+    expect(first as number).toBeGreaterThan(last as number);
+  });
+
+  it('keeps a solid fill uniform', () => {
+    const geo = cpFoldedToScene([
+      figure([
+        {
+          sequence: 0,
+          kind: 'fill_polygon',
+          style: {
+            paint: solid(0, 0, 255, 128),
+            stroke: { kind: 'none' },
+            antialias: 'default',
+          },
+          geometry: {
+            kind: 'polygon',
+            points: [
+              { x: 0, y: 0 },
+              { x: 10, y: 0 },
+              { x: 10, y: 10 },
+            ],
+          },
+        },
+      ]),
+    ]);
+
+    const alphas = new Set<number>();
+    for (let i = 3; i < geo.fills.color.length; i += 4) alphas.add(geo.fills.color[i]);
+    // Colours round-trip through a Float32Array, so compare with tolerance.
+    expect(alphas.size).toBe(1);
+    expect([...alphas][0]).toBeCloseTo(128 / 255, 6);
+  });
+});

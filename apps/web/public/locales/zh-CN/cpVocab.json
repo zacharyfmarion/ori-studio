@@ -93,7 +93,8 @@
       "tooltip": "使用当前线型拖动绘制折痕",
       "disabledReason": "就绪",
       "steps": {
-        "0": "拖动折痕端点"
+        "0": "点击或拖动以设置折痕起点",
+        "1": "点击以设置折痕终点"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "绘制约束折痕",
       "disabledReason": "就绪",
       "steps": {
-        "0": "在现有点之间拖动"
+        "0": "从已有的点点击或拖动",
+        "1": "点击另一个已有的点"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "按数量分割线",
       "disabledReason": "就绪",
       "steps": {
-        "0": "拖动绘制要分割的线"
+        "0": "点击或拖动以开始要分割的线",
+        "1": "点击以结束该线"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "按比率分割线",
       "disabledReason": "就绪",
       "steps": {
-        "0": "拖动绘制要分割的线"
+        "0": "点击或拖动以开始要分割的线",
+        "1": "点击以结束该线"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "沿参考线交替指定山折和谷折",
       "disabledReason": "就绪",
       "steps": {
-        "0": "沿折痕拖动参考线"
+        "0": "点击或拖动以开始参考线",
+        "1": "点击以结束参考线"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "沿参考线为交叉点交替指定山折和谷折",
       "disabledReason": "就绪",
       "steps": {
-        "0": "拖动参考线穿过交叉点"
+        "0": "点击或拖动以开始参考线",
+        "1": "点击以结束参考线"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -502,8 +508,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "测量长度 1",
-      "tooltip": "测量长度 1",
+      "label": "测量长度",
+      "tooltip": "测量两点之间的距离，或点击折线",
       "disabledReason": "就绪",
       "steps": {
         "0": "选取第一个点",
@@ -520,8 +526,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "测量角度 1",
-      "tooltip": "测量角度 1",
+      "label": "测量角度",
+      "tooltip": "测量顶点处两点之间的角度",
       "disabledReason": "就绪",
       "steps": {
         "0": "选取第一个点",
@@ -972,7 +978,8 @@
       "tooltip": "绘制 Oriedita 辅助线",
       "disabledReason": "折痕图内核中尚未实现辅助线插入模式",
       "steps": {
-        "0": "拖动折痕端点"
+        "0": "点击或拖动以设置折痕起点",
+        "1": "点击以设置折痕终点"
       }
     }
   },
@@ -1019,11 +1026,6 @@
       },
       "notes": {
         "0": "该点不能位于线 A 的延伸范围上，且线 B 不能与线 A 平行。"
-      }
-    },
-    "a1Action": {
-      "intro": {
-        "0": "通过选择点 ABC 测量角度。"
       }
     },
     "a2Action": {
@@ -1366,22 +1368,9 @@
         "0": "折叠形状相对于起始面进行计算。"
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "通过选择 2 个点测量长度。"
-      },
-      "notes": {
-        "0": "长度以网格单位测量。",
-        "1": "长度相对于网格大小为 1 的折痕图尺寸。"
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "通过选择 2 个点测量长度。"
-      },
-      "notes": {
-        "0": "长度以网格单位测量。",
-        "1": "长度相对于网格大小为 1 的折痕图尺寸。"
       }
     },
     "makeFlatFoldableAction": {

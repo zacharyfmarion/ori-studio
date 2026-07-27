@@ -211,7 +211,7 @@ function commandId(operationId: string): `cp.${string}` {
 
 export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('DrawCreaseFree', 'Draw crease', 'draw', 'pen-line', 'MouseHandlerDrawCreaseFree', {
-    toolSteps: ['Drag crease endpoint'],
+    toolSteps: ['Click or drag to set the crease start', 'Click to set the crease end'],
     inputMode: 'drag-line',
     tooltip: 'Drag a crease using the current line type',
   }),
@@ -265,7 +265,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick source crease', 'Pick mirror crease'],
   }),
   ready('DrawCreaseRestricted', 'Draw restricted crease', 'draw', 'pen-tool', 'MouseHandlerDrawCreaseRestricted', {
-    toolSteps: ['Drag between existing points'],
+    toolSteps: ['Click or drag from an existing point', 'Click another existing point'],
     inputMode: 'drag-line',
   }),
   ready('DrawCreaseSymmetric', 'Reflect selection over line', 'transform', 'flip-horizontal', 'MouseHandlerDrawCreaseSymmetric', {
@@ -344,11 +344,11 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ),
   ready('LineSegmentDivision', 'Divide line by count', 'draw', 'split', 'MouseHandlerLineSegmentDivision', {
     inputMode: 'drag-line',
-    toolSteps: ['Drag to draw a line to divide'],
+    toolSteps: ['Click or drag to start the line to divide', 'Click to end the line'],
   }),
   ready('LineSegmentRatioSet', 'Divide line by ratio', 'draw', 'divide', 'MouseHandlerLineSegmentRatioSet', {
     inputMode: 'drag-line',
-    toolSteps: ['Drag to draw a line to divide'],
+    toolSteps: ['Click or drag to start the line to divide', 'Click to end the line'],
   }),
   ready('PolygonSetNoCorners', 'Regular polygon', 'generators', 'hexagon', 'MouseHandlerPolygonSetNoCorners', {
     toolSteps: ['Pick first corner', 'Pick second corner'],
@@ -381,7 +381,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick spine start point', 'Pick spine end point'],
   }),
   ready('CreaseMakeMv', 'Make alternating M/V', 'color', 'git-branch', 'MouseHandlerCreaseMakeMV', {
-    toolSteps: ['Drag a guide line along the creases'],
+    toolSteps: ['Click or drag to start the guide line', 'Click to end the guide line'],
     inputMode: 'drag-line',
     tooltip: 'Assign alternating mountain and valley folds along a guide line',
   }),
@@ -389,7 +389,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick symmetry axis start', 'Pick symmetry axis end'],
   }),
   ready('CreasesAlternateMv', 'Alternate crossing M/V', 'color', 'shuffle', 'MouseHandlerCreasesAlternateMV', {
-    toolSteps: ['Drag a guide line across the crossings'],
+    toolSteps: ['Click or drag to start the guide line', 'Click to end the guide line'],
     inputMode: 'drag-line',
     tooltip: 'Assign alternating mountain and valley folds to crossings along a guide line',
   }),
@@ -455,19 +455,29 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('ContinuousSymmetricDraw', 'Continuous symmetric draw', 'construct', 'repeat', 'MouseHandlerContinuousSymmetricDraw', {
     toolSteps: ['Pick start point', 'Pick through point'],
   }),
-  ready('DisplayLengthBetweenPoints1', 'Measure length 1', 'measure', 'ruler', 'MouseHandlerDisplayLengthBetweenPoints', {
+  // The two Measure tools. Upstream splits measuring across five operations that
+  // differ only in which `MeasuresModel` register they write to; Ori Studio shows
+  // one per *question* — length and angle — and hides the other three, which stay
+  // `ready` so the kernel, menus, and `.cp` mouse modes keep upstream parity.
+  // See cp-workspace/measure.ts.
+  ready('DisplayLengthBetweenPoints1', 'Measure Length', 'measure', 'ruler', 'MouseHandlerDisplayLengthBetweenPoints', {
     toolSteps: ['Pick first point', 'Pick second point'],
+    tooltip: 'Measure the distance between two points, or click a crease',
   }),
   ready('DisplayLengthBetweenPoints2', 'Measure length 2', 'measure', 'ruler-dimension-line', 'MouseHandlerDisplayLengthBetweenPoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick second point'],
   }),
-  ready('DisplayAngleBetweenThreePoints1', 'Measure angle 1', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
+  ready('DisplayAngleBetweenThreePoints1', 'Measure Angle', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
+    tooltip: 'Measure the angle at a vertex between two points',
   }),
   ready('DisplayAngleBetweenThreePoints2', 'Measure angle 2', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
   ready('DisplayAngleBetweenThreePoints3', 'Measure angle 3', 'measure', 'angle', 'MouseHandlerDisplayAngleBetweenThreePoints', {
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick first point', 'Pick vertex point', 'Pick second point'],
   }),
   ready('CreaseToggleMv', 'Toggle mountain/valley', 'color', 'repeat-2', 'MouseHandlerCreaseToggleMV', {

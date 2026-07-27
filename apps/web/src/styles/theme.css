@@ -4379,45 +4379,44 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cp-context-panel__measurement-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+.cp-context-panel__measure-kinds {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.cp-context-panel__measurement-row {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-  padding: 5px 4px;
+/* The measured value is the answer the tool exists to give: largest type in the
+   panel, tabular so digits don't jitter as the live value updates. It is a button
+   because clicking it copies the full-precision value. */
+.cp-context-panel__measure-value {
+  width: 100%;
+  padding: 6px 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 0.62rem;
+  font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
-  line-height: 1.15;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
 }
 
-.cp-context-panel__measurement-row span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.cp-context-panel__measure-value:hover:not([data-empty]),
+.cp-context-panel__measure-value:focus-visible:not([data-empty]) {
+  border-color: var(--border-default);
+  background: var(--bg-tertiary);
+  outline: none;
 }
 
-.cp-context-panel__measurement-row span:first-child {
+.cp-context-panel__measure-value[data-empty] {
   color: var(--text-muted);
   font-family: var(--font-sans);
-  font-size: 0.56rem;
-  font-weight: 800;
+  font-size: 0.66rem;
+  cursor: default;
 }
 
-.cp-context-panel__measurement-row[data-active] {
-  border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-tertiary));
-  color: var(--text-primary);
+.cp-context-panel__measure-exact {
+  text-align: center;
 }
 
 .cp-context-panel__color-swatch {
@@ -6135,4 +6134,142 @@ button.bp-packing-alert:focus-visible {
 .bp-tree-panel,
 .bp-tree-panel .design-panel__body {
   height: 100%;
+}
+
+/* Measure tool: the on-canvas dimension figure and its value label. Everything is
+   screen-space (see CpMeasureLayer), so nothing here scales with zoom. */
+.cp-measure-layer__figure {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cp-measure-layer__figure[data-state='live'] {
+  opacity: 0.75;
+}
+
+.cp-measure-layer__arrow {
+  stroke-width: 1.5;
+}
+
+.cp-measure-layer__arc {
+  stroke-dasharray: none;
+}
+
+.cp-measure-layer__label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, var(--border-default));
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.cp-measure-layer__label[data-state='live'] {
+  color: var(--text-secondary);
+}
+
+/* What the cursor is snapped to, beside the cursor while a pick is in progress. */
+.cp-measure-layer__snap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cp-context-panel__measure-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-context-panel__measure-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cp-context-panel__measure-row:hover,
+.cp-context-panel__measure-row:focus-visible {
+  border-color: var(--border-subtle);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.cp-context-panel__measure-row span:first-child {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+}
+
+/* A hovered session row lifts its figure out of the quiet default. */
+.cp-measure-layer__figure[data-hovered],
+.cp-measure-layer__label[data-hovered] {
+  stroke-width: 2;
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+/* "Copied" confirmation over the measure value — a copy with no feedback reads as
+   a dead click. Overlays rather than reflows so the value doesn't jump. */
+.cp-context-panel__measure-value {
+  position: relative;
+}
+
+.cp-context-panel__measure-value[data-copy-status] {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, var(--border-default));
+}
+
+.cp-context-panel__measure-copied[data-copy-status='failed'] {
+  background: color-mix(in srgb, var(--text-muted) 22%, var(--bg-secondary));
+  color: var(--text-secondary);
+}
+
+.cp-context-panel__measure-copied {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-secondary));
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }

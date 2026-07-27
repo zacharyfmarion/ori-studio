@@ -4,9 +4,9 @@
     {
       "name": "web",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "apps/web", "--port", "5191", "--strictPort"],
+      "runtimeArgs": ["vite", "apps/web", "--port", "5191"],
       "port": 5191,
-      "autoPort": false
+      "autoPort": true
     },
     {
       "name": "upstream-oracle",

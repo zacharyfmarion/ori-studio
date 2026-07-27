@@ -4,7 +4,7 @@ import {
   cpLinesByIds,
   foldedSourceFingerprint,
   reselectFoldableLineIds,
-} from '../../lib/foldedFigureStaleness';
+} from '../folded/foldedFigureStaleness';
 import {
   isInlineSimulationStale,
   resolveInlineSimulationSegment,

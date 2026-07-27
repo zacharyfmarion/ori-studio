@@ -7,7 +7,7 @@ import {
   foldedSourceFingerprint,
   reselectFoldableLineIds,
   type FoldedSourceBounds,
-} from '../../lib/foldedFigureStaleness';
+} from '../folded/foldedFigureStaleness';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { AnnotationBox } from '../annotations/annotationTransform';
 import type { Aabb } from '../picking/lineHitIndex';

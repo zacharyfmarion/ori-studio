@@ -12,7 +12,6 @@ import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
 import { installAppKeyboardListener } from './lib/appKeyboard';
-import { cpSelectionSize } from './lib/creasePatternViewport';
 import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
 import { createOpenedPathFileService } from './platform/fileService';
 import { getRuntimeSurface } from './platform/runtime';
@@ -106,8 +105,6 @@ export default function App() {
     return installAppKeyboardListener(
       {
         getActiveEditingContext: () => useWorkspaceStore.getState().activeEditingContext,
-        getCpSelectionSize: () =>
-          cpSelectionSize(useWorkspaceStore.getState().oristudioCpSelection),
         getSelection: () => useWorkspaceStore.getState().selection,
         handleMenuAction,
         selectNone,

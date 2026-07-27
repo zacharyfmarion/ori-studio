@@ -28,7 +28,7 @@ import {
   renderFoldedFigurePng,
   serializeFoldedFigureSvg,
   type FoldedFigureExportFormat,
-} from '../../../lib/foldedFigureExport';
+} from '../../../cp-workspace/folded/foldedFigureExport';
 import { ensureCpSegmentationArtifacts } from '../../../cp-workspace/cpSegmentationArtifacts';
 import {
   importedCreasePatternFormat,
@@ -154,7 +154,7 @@ import {
   setOristudioCpDocumentSource,
 } from '../oristudioCpRuntime';
 import type { OristudioCpHistoryEntry, ProjectSlice, WorkspaceSliceCreator } from '../types';
-import { retainFoldedFigureHandles } from '../../../cp-workspace/foldedFigureHandles';
+import { retainFoldedFigureHandles } from '../../../cp-workspace/folded/foldedFigureHandles';
 import type { FoldDocument } from '../../../engine/types';
 import type {
   OristudioCpCommandResult,
@@ -1064,6 +1064,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpRevision: 0,
       oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
       oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
+      // The companion becomes the simulator's source, so whatever the design
+      // load left behind must not be simulated in its place.
+      ...staleFoldArtifactResourceState(get().foldArtifactRevision),
     });
   };
 
@@ -1524,6 +1527,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpActiveFoldedFigureId: null,
               oristudioCpAnnotations: [],
               oristudioCpSelectedAnnotationId: null,
+              oristudioCpInlineSimulations: [],
+              oristudioCpFocusedInlineSimulationId: null,
               oristudioCpDocumentExtensions: {},
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
               ...emptyFoldArtifactResourceState(),
@@ -1612,8 +1617,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const documentState = await createBlankOristudioCpDocument();
         set({
           // Shared "fresh blank CP" editor state (activePanelId, history reset,
-          // projectLoadId bump, …) — the same bundle the Edit self-provision uses.
-          ...freshEditableCpState(documentState, get().projectLoadId),
+          // projectLoadId bump, fold-artifact invalidation, …) — the same bundle
+          // the Edit self-provision uses.
+          ...freshEditableCpState(documentState, get()),
           // File › New additionally discards the whole project back to a bare CP:
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
           workflowTarget: 'treemaker',
@@ -1626,12 +1632,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           projectMessage: null,
           selection: { kind: 'tree' },
           nativeProjectExtensions: {},
-          ...emptyFoldArtifactResourceState(),
-          sequenceTarget: null,
-          sequencePlan: null,
-          sequenceSimulationFocus: { kind: 'whole' },
-          sequencePlanning: false,
-          sequenceError: null,
           // `status: 'crease_pattern_ready'` comes from `freshEditableCpState`.
           dirty: false,
           lastOptimization: null,
@@ -1753,7 +1753,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                 foldArtifactStatus: get().foldArtifactStatus,
                 foldArtifactRevision: get().foldArtifactRevision,
                 foldArtifactResolvedRevision: get().foldArtifactResolvedRevision,
-                foldArtifactRequestId: get().foldArtifactRequestId,
                 sequenceTarget: get().sequenceTarget,
                 sequencePlan: get().sequencePlan,
                 sequenceSimulationFocus: get().sequenceSimulationFocus,
@@ -1931,6 +1930,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpFoldedFigures: [],
         oristudioCpActiveFoldedFigureId: null,
         oristudioCpCamvResult: null,
+        // The document the artifacts were derived from is gone with it.
+        ...staleFoldArtifactResourceState(get().foldArtifactRevision),
       });
     },
 

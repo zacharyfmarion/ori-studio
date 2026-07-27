@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditingContext } from '../workspaces/editingContext';
+import { registerViewportShortcutExecutor } from '../keyboard/shortcutRuntime';
 import { handleAppKeyDown, installAppKeyboardListener } from './appKeyboard';
 import { createSampleProject, type Selection } from './sampleProject';
 import { selectEverything } from './selection';
@@ -8,17 +9,20 @@ function createActions(
   selection: Selection,
   options: {
     activeEditingContext?: EditingContext;
-    cpSelectionSize?: number;
   } = {}
 ) {
   return {
     getActiveEditingContext: vi.fn(() => options.activeEditingContext ?? 'treemaker-tree'),
-    getCpSelectionSize: vi.fn(() => options.cpSelectionSize ?? 0),
     getSelection: vi.fn(() => selection),
     handleMenuAction: vi.fn(),
     selectNone: vi.fn(),
   };
 }
+
+const cleanups: Array<() => void> = [];
+afterEach(() => {
+  while (cleanups.length) cleanups.pop()?.();
+});
 
 describe('app keyboard shortcuts', () => {
   it('clears the active selection on Escape', () => {
@@ -61,18 +65,60 @@ describe('app keyboard shortcuts', () => {
     expect(actions.selectNone).not.toHaveBeenCalled();
   });
 
-  it('routes Escape through CP deselection when editing an imported crease pattern', () => {
+  it('hands Escape to the crease-pattern viewport instead of a plain deselect', () => {
+    // Deselecting is only the first rung of the CP ladder (hand tool, then
+    // selection, then the active tool), and only the panel knows which applies —
+    // so the app layer must not answer Escape itself in that context.
+    const viewport = vi.fn();
+    cleanups.push(registerViewportShortcutExecutor('crease-pattern', viewport));
     const actions = createActions(
-      { kind: 'tree' },
-      { activeEditingContext: 'crease-pattern', cpSelectionSize: 2 }
+      selectEverything(createSampleProject()),
+      { activeEditingContext: 'crease-pattern' }
     );
     const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
 
     expect(handleAppKeyDown(event, actions)).toBe(true);
 
     expect(event.defaultPrevented).toBe(true);
-    expect(actions.handleMenuAction).toHaveBeenCalledWith('edit.deselectAll');
+    expect(viewport).toHaveBeenCalledWith('viewport.cancel');
     expect(actions.selectNone).not.toHaveBeenCalled();
+    expect(actions.handleMenuAction).not.toHaveBeenCalled();
+  });
+
+  it('reaches the crease-pattern viewport with a toolbar button focused', () => {
+    // The regression this replaces: Escape was scoped to the panel container and
+    // skipped for any focused button, so it did nothing right after clicking a
+    // tool in the rail or a control on a floating toolbar.
+    const viewport = vi.fn();
+    cleanups.push(registerViewportShortcutExecutor('crease-pattern', viewport));
+    const actions = createActions({ kind: 'tree' }, { activeEditingContext: 'crease-pattern' });
+    const button = document.body.appendChild(document.createElement('button'));
+    const event = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    });
+
+    Object.defineProperty(event, 'target', { value: button });
+    expect(handleAppKeyDown(event, actions)).toBe(true);
+    expect(viewport).toHaveBeenCalledWith('viewport.cancel');
+    button.remove();
+  });
+
+  it('leaves Escape to a focused text editor rather than the viewport', () => {
+    const viewport = vi.fn();
+    cleanups.push(registerViewportShortcutExecutor('crease-pattern', viewport));
+    const actions = createActions({ kind: 'tree' }, { activeEditingContext: 'crease-pattern' });
+    const editor = document.body.appendChild(document.createElement('div'));
+    // jsdom does not implement `isContentEditable`, which is what the dispatcher
+    // reads; setting the `contentEditable` attribute alone leaves it undefined.
+    Object.defineProperty(editor, 'isContentEditable', { value: true });
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+
+    Object.defineProperty(event, 'target', { value: editor });
+    expect(handleAppKeyDown(event, actions)).toBe(false);
+    expect(viewport).not.toHaveBeenCalled();
+    editor.remove();
   });
 
   it('preserves Select All routing through the shared command layer', () => {

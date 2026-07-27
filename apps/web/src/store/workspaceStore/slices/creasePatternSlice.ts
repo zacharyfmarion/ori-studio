@@ -86,20 +86,22 @@ import {
   retainFoldedFigureHandle,
   retainFoldedFigureHandles,
   setFoldedFigureHandleFree,
-} from '../../../cp-workspace/foldedFigureHandles';
+} from '../../../cp-workspace/folded/foldedFigureHandles';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../../engine/oristudioCpTypes';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
+  OristudioCpFoldedFigureSnapshot,
 } from '../../../engine/oristudioCpTypes';
+import { foldedModelsEqual } from '../../../cp-workspace/folded/foldedFigureState';
 import {
   cpLinesByIds,
   foldedSourceBounds,
   foldedSourceFingerprint,
   reselectFoldableLineIds,
-} from '../../../lib/foldedFigureStaleness';
+} from '../../../cp-workspace/folded/foldedFigureStaleness';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
 /** Cap on the CP undo stack (matches historySlice's MAX_HISTORY). */
@@ -177,14 +179,62 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 ) => {
   // Handles are owned by reachability (live list + history), not by the delete
   // action — see cp-workspace/foldedFigureHandles.
-  setFoldedFigureHandleFree(freeOristudioCpFoldedFigure);
+  setFoldedFigureHandleFree((handle) => {
+    // Forget what we believed about a slot the kernel is free to reuse.
+    lastWrittenKernelModel.delete(handle);
+    return freeOristudioCpFoldedFigure(handle);
+  });
 
   const wholeSimulationFocus = { kind: 'whole' as const };
   let foldArtifactPromise: Promise<FoldArtifacts | null> | null = null;
   let foldArtifactPromiseRevision: number | null = null;
+  // Newest artifact request. Loader-private rather than store state: a document
+  // load resets the whole fold-artifact resource, so a counter kept there would
+  // restart at zero and let a request still in flight for the previous document
+  // match the id of the request for the new one — and publish its crease pattern
+  // as the current document's.
+  let foldArtifactRequestId = 0;
   let foldedFigureRequestSequence = 0;
   // Newest in-flight model request per figure, so a stale response is dropped.
   const modelRequestSequence = new Map<string, number>();
+  /**
+   * Serializes *reconciles* per figure.
+   *
+   * Live edits stay concurrent: a colour picker fires a write per pointer move,
+   * and queueing those would make every drag N round-trips deep. Reconciles are
+   * different — they arrive in bursts (holding undo) and each re-reads the
+   * desired state when it runs, so running them in order lets all but the first
+   * collapse into no-ops.
+   */
+  const modelWriteChain = new Map<string, Promise<unknown>>();
+  /** Figures with a live model edit in flight; see `reconcileFoldedFigureModel`. */
+  const pendingLiveModelWrites = new Set<string>();
+  /**
+   * What we last wrote into each kernel handle, so a reconcile that would change
+   * nothing costs a comparison instead of a round-trip. Cleared when the handle
+   * is freed: the kernel may hand the same slot to a later figure, and a stale
+   * belief about a reused slot would skip a write that was actually needed.
+   */
+  const lastWrittenKernelModel = new Map<number, OristudioCpFoldedFigureModel>();
+
+  /** Run `task` after any reconcile already queued for `id`. */
+  function enqueueModelWrite<T>(id: string, task: () => Promise<T>): Promise<T> {
+    const prior = modelWriteChain.get(id) ?? Promise.resolve();
+    const next = prior.then(task, task);
+    // Swallow on the chain copy only; the returned promise keeps its rejection.
+    modelWriteChain.set(id, next.then(undefined, () => undefined));
+    return next;
+  }
+
+  /** Push `model` into the kernel and remember it, so reconciles can skip. */
+  async function writeFoldedFigureModel(
+    handle: number,
+    model: OristudioCpFoldedFigureModel
+  ): Promise<OristudioCpFoldedFigureSnapshot> {
+    const snapshot = await setRuntimeOristudioCpFoldedFigureModel(handle, model);
+    lastWrittenKernelModel.set(handle, model);
+    return snapshot;
+  }
 
   async function requireActiveTree() {
     const result = await ensureTreeHandle();
@@ -255,6 +305,65 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       selected,
       index,
     });
+  }
+
+  /**
+   * Push a figure's stored model back into its kernel handle.
+   *
+   * Undo and redo swap the *web* entries only — deliberately, so an overlay-only
+   * step stays synchronous and never reloads the wasm document. But a figure's
+   * appearance lives in the kernel, and every history entry for a figure points
+   * at the same mutable handle (see `cp-workspace/folded/foldedFigureHandles.ts`),
+   * so after an undo the cached snapshot and the kernel disagree. Nothing shows
+   * it until something re-renders from the kernel — a reselect is the cheapest
+   * trigger — at which point the undone colour reappears.
+   *
+   * Reading the desired model *here*, at execution time rather than at schedule
+   * time, is what makes a burst of undos correct: every queued reconcile sees
+   * the state the burst settled on, so all but the first are skipped below.
+   */
+  async function reconcileFoldedFigureModel(id: string): Promise<void> {
+    const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+    // A figure the step removed, or one reopened from a file without a handle.
+    if (figure?.handle == null || !figure.snapshot) return;
+    const handle = figure.handle;
+    const desired = figure.snapshot.model;
+    if (foldedModelsEqual(lastWrittenKernelModel.get(handle), desired)) return;
+    // A live edit issued while this sat in the queue is newer intent than the
+    // history position that scheduled it, and its response lands after ours.
+    if (pendingLiveModelWrites.has(id)) return;
+
+    const requestId = (modelRequestSequence.get(id) ?? 0) + 1;
+    modelRequestSequence.set(id, requestId);
+    try {
+      const snapshot = await writeFoldedFigureModel(handle, desired);
+      const renderSnapshot = await renderSnapshotForFoldedFigure(
+        handle,
+        figure.displayStyle,
+        foldedFigureIndex(id),
+        get().oristudioCpActiveFoldedFigureId === id
+      );
+      if (modelRequestSequence.get(id) !== requestId) return;
+      set({
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+          candidate.id === id ? { ...candidate, snapshot, renderSnapshot, error: null } : candidate
+        ),
+      });
+    } catch (error) {
+      // Deliberately not swallowed. A failed reconcile leaves the kernel and the
+      // cache disagreeing, which is the exact condition this exists to prevent —
+      // surfacing it beats drifting silently.
+      const normalized = engineError(error);
+      lastWrittenKernelModel.delete(handle);
+      set({
+        oristudioCpError: normalized.message,
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+          candidate.id === id
+            ? { ...candidate, status: 'error', error: normalized.message }
+            : candidate
+        ),
+      });
+    }
   }
 
   async function refreshFoldedFigureSelectionMarker(id: string | null | undefined) {
@@ -469,13 +578,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       return foldArtifactPromise;
     }
 
-    const requestId = current.foldArtifactRequestId + 1;
+    const requestId = (foldArtifactRequestId += 1);
     set({
       foldArtifacts: null,
       foldArtifactError: null,
       foldArtifactStatus: 'loading',
       foldArtifactResolvedRevision: null,
-      foldArtifactRequestId: requestId,
       selectedSegmentId: null,
       sequenceTarget: null,
       sequencePlan: null,
@@ -488,11 +596,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     foldArtifactPromise = (async () => {
       try {
         const foldArtifacts = await computeFoldArtifacts();
-        const latest = get();
         if (
           foldArtifacts &&
-          latest.foldArtifactRevision === currentRevision &&
-          latest.foldArtifactRequestId === requestId
+          get().foldArtifactRevision === currentRevision &&
+          foldArtifactRequestId === requestId
         ) {
           set({
             ...readyFoldArtifactResourceState(foldArtifacts, currentRevision),
@@ -505,10 +612,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         }
         return foldArtifacts;
       } catch (error) {
-        const latest = get();
         if (
-          latest.foldArtifactRevision === currentRevision &&
-          latest.foldArtifactRequestId === requestId
+          get().foldArtifactRevision === currentRevision &&
+          foldArtifactRequestId === requestId
         ) {
           set({
             foldArtifacts: null,
@@ -642,7 +748,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // Same complete editor state File › New establishes, so interactive
           // edits (undo/redo, images, tools) behave identically on this canvas.
           set({
-            ...freshEditableCpState(document, priorState.projectLoadId),
+            ...freshEditableCpState(document, priorState),
             ...(noDesignYet ? { pendingDesignChoice: true } : {}),
           });
         } catch (error) {
@@ -1451,8 +1557,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // is allowed to write.
       const requestId = (modelRequestSequence.get(id) ?? 0) + 1;
       modelRequestSequence.set(id, requestId);
+      pendingLiveModelWrites.add(id);
       try {
-        const snapshot = await setRuntimeOristudioCpFoldedFigureModel(figure.handle, model);
+        const snapshot = await writeFoldedFigureModel(figure.handle, model);
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,
@@ -1483,6 +1590,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           error: normalized,
         });
         return false;
+      } finally {
+        pendingLiveModelWrites.delete(id);
       }
     },
 
@@ -1887,6 +1996,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
         label,
       }),
+
+    /**
+     * Bring the kernel back in line with what the store says a figure looks
+     * like. Fire-and-forget by design: the caller's state transition stays
+     * synchronous, so holding undo never blocks on a wasm round-trip and never
+     * trips the `historyBusy` guard.
+     */
+    reconcileFoldedFigureModels: (ids) => {
+      for (const id of new Set(ids)) {
+        void enqueueModelWrite(id, () => reconcileFoldedFigureModel(id));
+      }
+    },
 
     recordFoldedFigureHistory: (previous, label, previousActiveId) =>
       pushOverlayHistoryEntry({

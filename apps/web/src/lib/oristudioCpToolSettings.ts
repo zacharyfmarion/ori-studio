@@ -22,7 +22,7 @@ export type OristudioCpToolSettingGroup =
   | 'line-select-help'
   | 'circle-select-help'
   | 'apply-lines'
-  | 'measurement-readout'
+  | 'measure'
   | 'custom-circle-color';
 
 export interface OristudioCpRatioExpression {
@@ -187,11 +187,11 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   SelectLineIntersecting: ['line-select-help'],
   UnselectLineIntersecting: ['line-select-help'],
   CreaseDeleteIntersecting: ['line-select-help'],
-  DisplayLengthBetweenPoints1: ['measurement-readout'],
-  DisplayLengthBetweenPoints2: ['measurement-readout'],
-  DisplayAngleBetweenThreePoints1: ['measurement-readout'],
-  DisplayAngleBetweenThreePoints2: ['measurement-readout'],
-  DisplayAngleBetweenThreePoints3: ['measurement-readout'],
+  DisplayLengthBetweenPoints1: ['measure'],
+  DisplayLengthBetweenPoints2: ['measure'],
+  DisplayAngleBetweenThreePoints1: ['measure'],
+  DisplayAngleBetweenThreePoints2: ['measure'],
+  DisplayAngleBetweenThreePoints3: ['measure'],
   CircleChangeColor: ['custom-circle-color'],
   CircleDrawTangentLine: ['circle-select-help', 'candidate-choice'],
   CircleDrawInverted: ['circle-select-help'],
