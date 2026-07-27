@@ -204,6 +204,7 @@ import { Toggle } from '../ui/Toggle';
 import { CpToolRail } from './CpToolRail';
 import { NextDocumentAction } from './NextDocumentAction';
 import {
+  isEscapeConsumingTarget,
   isViewportInteractiveTarget,
   ViewportToolbar,
   ViewportToolbarSeparator,
@@ -3094,12 +3095,26 @@ export function CreasePatternPanel() {
     [updateAnnotation]
   );
 
+  // Leaving inline editing by keyboard (Escape) or by the toolbar's delete button
+  // unmounts the contenteditable with nothing else focused, so focus falls to
+  // `document.body` and the panel's viewport shortcuts — a second Escape to cancel
+  // the Text tool, most visibly — stop arriving. Refocus the panel once the editor
+  // is actually gone: doing it while the editor is still mounted would blur it and
+  // re-enter the exit path as a `'blur'`.
+  const refocusAfterTextEditRef = useRef(false);
+  useEffect(() => {
+    if (editingTextId || !refocusAfterTextEditRef.current) return;
+    refocusAfterTextEditRef.current = false;
+    containerRef.current?.focus();
+  }, [editingTextId]);
+
   // Leave inline editing. An empty box is discarded (parity with Oriedita's
   // blank-text GC); otherwise the whole edit records one undo entry. A `'blur'`
   // exit means the click outside committed it — flag so that same click, if it
   // reaches the Text tool, deselects instead of spawning a new box.
   const handleExitEditText = useCallback((reason: 'blur' | 'escape' = 'blur') => {
     if (reason === 'blur') suppressNextTextCreateRef.current = true;
+    else refocusAfterTextEditRef.current = true;
     const editing = editStartRef.current;
     setEditingTextId(null);
     editStartRef.current = null;
@@ -3132,6 +3147,7 @@ export function CreasePatternPanel() {
   const handleDeleteEditingText = useCallback(() => {
     const editing = editStartRef.current;
     const id = editingTextId;
+    refocusAfterTextEditRef.current = true;
     setEditingTextId(null);
     editStartRef.current = null;
     if (!id) return;
@@ -3210,10 +3226,12 @@ export function CreasePatternPanel() {
     if (!container || !hasCreasePattern) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      const interactive = isViewportInteractiveTarget(event.target);
-      // While typing in the inline text editor, let it own ESC (commit + deselect);
-      // don't also run the panel's ESC (which would clear selection / cancel the tool).
-      if (event.key === 'Escape' && editableCp && !interactive) {
+      // An open inline text editor owns ESC (commit + leave edit), whatever holds
+      // focus inside it — including its floating toolbar. Fields and menus answer
+      // ESC themselves too. Everything else, focused buttons included, falls
+      // through so the panel can cancel the tool.
+      const escapeHandledElsewhere = editingTextId !== null || isEscapeConsumingTarget(event.target);
+      if (event.key === 'Escape' && editableCp && !escapeHandledElsewhere) {
         // Leaving the hand tool comes first: it is a mode, and Escape is the
         // expected way out of one.
         if (panToolActive) {
@@ -3268,6 +3286,7 @@ export function CreasePatternPanel() {
     cpToolState,
     editableCp,
     editableSelectionSize,
+    editingTextId,
     hasCreasePattern,
     panToolActive,
     pendingLengthenLineId,
