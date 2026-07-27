@@ -121,6 +121,8 @@ import {
 } from '../../cp-workspace/foldedFigureActions';
 import { foldedFigureActionIconNode as foldedFigureMenuIcon } from '../../cp-workspace/foldedFigureActionIcons';
 import { isFoldedFigureStale } from '../../lib/foldedFigureStaleness';
+// Registers `__foldedStaleDebug()` in dev builds; no-op in production.
+import '../../cp-workspace/foldedFigureStalenessDebug';
 import { foldedFigureCurrentCase } from '../../cp-workspace/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -725,6 +727,7 @@ function FoldedFigureMenuButton({
   caseDraft,
   onStartingFaceIdChange,
   onCaseDraftChange,
+  staleFigureIds,
   onSelectFigure,
   onDisplayStyle,
   onModelUpdate,
@@ -737,6 +740,12 @@ function FoldedFigureMenuButton({
   activeFigure: OristudioCpFoldedFigureEntry | null;
   startingFaceId: number;
   caseDraft: string;
+  /**
+   * Figures whose source creases have changed since they were folded. Derived
+   * per document revision rather than stamped on the entry — see
+   * `lib/foldedFigureStaleness.ts`.
+   */
+  staleFigureIds: ReadonlySet<string>;
   onStartingFaceIdChange: (startingFaceId: number) => void;
   onCaseDraftChange: (draft: string) => void;
   onSelectFigure: (id: string) => void;
@@ -822,7 +831,15 @@ function FoldedFigureMenuButton({
                   onClick={() => onSelectFigure(figure.id)}
                 >
                   <span>{figure.title}</span>
-                  <small>{figure.status === 'ready' ? t('panels:creasePattern.case', 'Case {{count}}', { count: foldedFigureCurrentCase(figure) }) : figure.status}</small>
+                  <small>
+                    {staleFigureIds.has(figure.id)
+                      ? t('panels:creasePattern.outOfDate', 'Out of date')
+                      : figure.status === 'ready'
+                        ? t('panels:creasePattern.case', 'Case {{count}}', {
+                            count: foldedFigureCurrentCase(figure),
+                          })
+                        : figure.status}
+                  </small>
                 </button>
               ))}
             </div>
@@ -1670,7 +1687,11 @@ export function CreasePatternPanel() {
   );
 
   const foldedFigureStatusLabel = activeFoldedFigure
-    ? activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
+    ? // Out-of-date wins over the case number: a case is only meaningful for the
+      // creases it was folded from, and those have moved.
+      staleFoldedFigureIds.has(activeFoldedFigure.id)
+      ? t('panels:creasePattern.outOfDate', 'Out of date')
+      : activeFoldedFigure.status === 'ready' || activeFoldedFigure.status === 'stale'
       ? t('panels:creasePattern.case', 'Case {{count}}', {
           count: foldedFigureCurrentCase(activeFoldedFigure),
         })
@@ -3736,6 +3757,7 @@ export function CreasePatternPanel() {
                         activeFigure={activeFoldedFigure}
                         startingFaceId={foldStartingFaceId}
                         caseDraft={foldCaseDraft}
+                        staleFigureIds={staleFoldedFigureIds}
                         onStartingFaceIdChange={setFoldStartingFaceId}
                         onCaseDraftChange={setFoldCaseDraft}
                         onSelectFigure={setOristudioCpActiveFoldedFigure}
