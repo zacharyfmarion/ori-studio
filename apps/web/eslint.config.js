@@ -25,6 +25,34 @@ const noDirectStorageProperties = [
   { object: 'globalThis', property: 'sessionStorage', message: NO_DIRECT_STORAGE },
 ];
 
+/*
+ * Panels are composition sites, not where behavior accumulates.
+ *
+ * `max-lines` has no custom-message option, so if it is what sent you here: move
+ * the behavior into a `use*` hook beside its concern under
+ * `cp-workspace/<concern>/`, into an action catalog, or into a child component —
+ * do not raise the number. See AGENTS.md > "Panel components" for which of those
+ * a given addition belongs in.
+ */
+
+/**
+ * Panels already over the cap, frozen at the size they were when the rule landed
+ * so they can only shrink. Lower a number as work moves out of that panel;
+ * delete the entry once it fits under PANEL_MAX_LINES.
+ */
+const OVERSIZED_PANELS = {
+  'CreasePatternPanel.tsx': 3830,
+  'BpPackingPanel.tsx': 2310,
+  'SimulatorPanel.tsx': 2005,
+  'DesignPanel.tsx': 1335,
+  'BpTreePanel.tsx': 1005,
+  'CpContextToolPanel.tsx': 950,
+};
+
+const PANEL_MAX_LINES = 800;
+
+const maxLines = (max) => ['error', { max, skipBlankLines: false, skipComments: false }];
+
 export default tseslint.config(
   {
     ignores: ['dist', 'src/generated'],
@@ -88,6 +116,17 @@ export default tseslint.config(
       'no-restricted-properties': 'off',
     },
   },
+  {
+    files: ['src/components/panels/**/*.tsx'],
+    ignores: ['src/components/panels/**/*.test.tsx'],
+    rules: {
+      'max-lines': maxLines(PANEL_MAX_LINES),
+    },
+  },
+  ...Object.entries(OVERSIZED_PANELS).map(([file, max]) => ({
+    files: [`src/components/panels/${file}`],
+    rules: { 'max-lines': maxLines(max) },
+  })),
   {
     // Catch hardcoded user-facing text that bypasses t(). Scoped to JSX text nodes
     // (jsx-text-only) — the main regression risk — with low false-positive noise. Tests are

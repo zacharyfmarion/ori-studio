@@ -149,6 +149,45 @@ or crease-pattern behavior.
 - Use existing UI primitives, theme tokens, Zustand store slices, and command
   patterns before adding new ones.
 
+### Panel components
+
+Panels under `apps/web/src/components/panels/` are **composition sites**: they
+choose which surfaces mount and wire them together. They are not where behavior
+accumulates. `max-lines` is enforced on them, and the existing large panels are
+frozen at their current size so they can only shrink.
+
+Before adding state, a ref, an effect, a memo, or an event listener to a panel,
+place it:
+
+| What you are adding | Where it goes |
+| --- | --- |
+| A keyboard shortcut, of any kind | `apps/web/src/keyboard/` — register it in the shortcut registry, implement it in the surface's executor. Never a `keydown` listener on the panel container. |
+| The set of verbs a thing offers (toolbar + context menu + menu bar) | A React-free, store-free action catalog returning plain descriptors, next to that thing's modules. `cp-workspace/foldedFigureActions.ts` is the reference implementation. |
+| Store bindings for those verbs, or state and derived data for one concern | A `use*` hook beside that concern's modules — `cp-workspace/<concern>/use*.ts`. `hooks/useViewportSurface.ts` is the shape to copy. A `useMemo` whose body is a bag of store callbacks belongs here, not in the panel. |
+| Pure geometry or model logic | That concern's module, with unit tests. |
+| Presentation | A child component. |
+
+CP-specific modules live under `cp-workspace/<concern>/`. `src/lib/` is for code
+with no CP-workspace dependency, reusable by another surface.
+
+Three rules follow from this, and past bugs came from breaking the first two:
+
+- **No panel behavior may depend on where DOM focus is.** A container-scoped
+  `keydown` listener goes dead the moment a text editor, floating toolbar, or
+  portalled menu takes focus, and portalled content it never sees at all. The fix
+  is never to hand focus back manually — route the key through the shortcut
+  runtime, which is focus-independent.
+- **One predicate per question.** `isShortcutEditingTarget` in
+  `keyboard/shortcutDispatcher.ts` is the canonical "does this target own its
+  keystrokes" test. Do not write a near-copy in a component.
+- **Extracting logic is not enough.** If the extraction leaves a deps-memo and a
+  descriptor-to-UI adapter behind in the panel, the panel did not get smaller.
+  Take the binding with it.
+
+If a change genuinely fits no row above, the panel is missing an abstraction. Say
+so in the PR rather than adding another effect. See
+`implementation-plans/crease-pattern-panel-decomposition.md`.
+
 ## Build commands
 
 ```bash
