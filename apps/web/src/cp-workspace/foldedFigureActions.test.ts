@@ -135,6 +135,16 @@ describe('buildFoldedFigureActions', () => {
     expect(command(figure, makeDeps(), 'duplicate').disabled).toBe(true);
   });
 
+  // Exclusive even when nothing is checked: the figure's current style can be a
+  // value the quick list does not offer, and a check column that vanished in
+  // that case would shift every label sideways.
+  it('marks display style as an exclusive set regardless of the current value', () => {
+    expect(choice(makeFigure({ displayStyle: 'Wire2' }), makeDeps()).exclusive).toBe(true);
+    const offList = choice(makeFigure({ displayStyle: 'Development1' }), makeDeps());
+    expect(offList.exclusive).toBe(true);
+    expect(offList.options.some((option) => option.checked)).toBe(false);
+  });
+
   it('checks the current display style and no other', () => {
     const options = choice(makeFigure({ displayStyle: 'Wire2' }), makeDeps()).options;
     expect(options.filter((option) => option.checked).map((option) => option.id)).toEqual([
@@ -199,11 +209,13 @@ describe('buildFoldedFigureActions', () => {
       ]);
     });
 
-    it('checks nothing: export is a set of actions, not a current mode', () => {
+    // Not an exclusive set, so renderers must not reserve a check column for it:
+    // an always-empty column reads as a stray indent beside the labels.
+    it('is a list of actions, not a current mode', () => {
       const deps = makeDeps({ exportAs: vi.fn() });
-      expect(
-        choice(makeFigure(), deps, 'export').options.every((option) => !option.checked)
-      ).toBe(true);
+      const group = choice(makeFigure(), deps, 'export');
+      expect(group.exclusive).toBe(false);
+      expect(group.options.every((option) => !option.checked)).toBe(true);
     });
 
     it('routes each format to the export dependency', () => {

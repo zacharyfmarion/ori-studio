@@ -59,7 +59,13 @@ function ChoiceMenu({ action }: { action: FoldedFigureChoice }) {
               className="context-menu__item"
               onSelect={option.run}
             >
-              <span className="context-menu__icon">{option.checked && <Check size={12} />}</span>
+              {/* The check column is reserved for an exclusive set only, so its
+                  labels stay put as the check moves. A list of one-shot actions
+                  has nothing to check, and an always-empty column just reads as
+                  a stray indent. */}
+              {action.exclusive && (
+                <span className="context-menu__icon">{option.checked && <Check size={12} />}</span>
+              )}
               <span className="context-menu__label">{option.label}</span>
             </DropdownMenu.Item>
           ))}

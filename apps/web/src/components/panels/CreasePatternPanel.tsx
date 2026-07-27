@@ -1880,21 +1880,32 @@ export function CreasePatternPanel() {
           case 'separator':
             return { kind: 'separator' };
           case 'choice':
-            // Display style is a set of modes, so it nests as a submenu with the
-            // current value checked rather than spending top-level slots.
+            // Grouped picks nest as a submenu rather than spending top-level
+            // slots. An exclusive set (display style) becomes radio items so the
+            // current mode is checked; a list of one-shot actions (export)
+            // becomes plain items, which carry no check column to sit under.
             return {
               kind: 'submenu',
               id: action.id,
               label: action.label,
               icon: foldedFigureMenuIcon(action.icon),
               disabled: action.disabled,
-              items: action.options.map((option) => ({
-                kind: 'radio',
-                id: option.id,
-                label: option.label,
-                checked: option.checked,
-                onSelect: option.run,
-              })),
+              items: action.options.map((option) =>
+                action.exclusive
+                  ? {
+                      kind: 'radio',
+                      id: option.id,
+                      label: option.label,
+                      checked: option.checked,
+                      onSelect: option.run,
+                    }
+                  : {
+                      kind: 'action',
+                      id: option.id,
+                      label: option.label,
+                      onSelect: option.run,
+                    }
+              ),
             };
           case 'command':
             return {

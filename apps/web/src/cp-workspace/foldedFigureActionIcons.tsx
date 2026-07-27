@@ -3,9 +3,9 @@ import {
   ChevronRight,
   Copy,
   FileDown,
-  FlipHorizontal2,
   Layers,
   RefreshCw,
+  RotateCcwSquare,
   Trash2,
 } from 'lucide-react';
 import type { FoldedFigureActionIcon } from './foldedFigureActions';
@@ -22,8 +22,10 @@ export function foldedFigureActionIconNode(
   size = 14
 ): ReactNode {
   switch (icon) {
+    // A sheet with a turn arrow, not a mirror glyph: Flip turns the paper over
+    // to show its other side, which is not the same as mirroring the shape.
     case 'flip':
-      return <FlipHorizontal2 size={size} />;
+      return <RotateCcwSquare size={size} />;
     case 'style':
       return <Layers size={size} />;
     case 'another':

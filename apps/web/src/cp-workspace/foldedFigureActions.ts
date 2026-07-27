@@ -49,7 +49,7 @@ export interface FoldedFigureCommand {
 export interface FoldedFigureChoiceOption {
   id: string;
   label: string;
-  /** Marks the current member of a mutually exclusive set (a display mode). */
+  /** Marks the current member of an exclusive set. Always false otherwise. */
   checked: boolean;
   run: () => void;
 }
@@ -68,6 +68,17 @@ export interface FoldedFigureChoice {
   label: string;
   icon: FoldedFigureActionIcon;
   disabled: boolean;
+  /**
+   * Whether the options are a mutually exclusive set (a display mode) rather
+   * than a list of one-shot actions (export formats).
+   *
+   * Renderers use this to decide whether to reserve the leading check column.
+   * It cannot be derived from `options.some(checked)`: an exclusive set can
+   * legitimately have nothing checked — the figure's current display style may
+   * be one of the values the quick list does not offer — and a column that
+   * disappears in that case would shift every label sideways.
+   */
+  exclusive: boolean;
   options: FoldedFigureChoiceOption[];
 }
 
@@ -189,6 +200,7 @@ export function buildFoldedFigureActions(
       label: t('panels:foldedFigureActions.displayStyle', 'Display style'),
       icon: 'style',
       disabled: !ready,
+      exclusive: true,
       options: FOLDED_FIGURE_STYLE_CHOICES.map((value) => ({
         id: `display-style-${value}`,
         label: foldedDisplayStyleChoiceLabel(t, value),
@@ -203,7 +215,9 @@ export function buildFoldedFigureActions(
       label: t('panels:foldedFigureActions.anotherSolution', 'Another solution'),
       icon: 'another',
       // A fold is one of several valid layer orderings only when the kernel says
-      // another overlap-valid ordering remains.
+      // another overlap-valid ordering remains. Wrapping back to the first is
+      // blocked on the enumerator being seekable — see
+      // implementation-plans/folded-figure-solution-navigation.md.
       disabled: !ready || figure.snapshot?.find_another_overlap_valid !== true,
       run: () => deps.foldAnother(figure),
     },
@@ -234,6 +248,8 @@ export function buildFoldedFigureActions(
         // Exported from the render snapshot, so anything on screen can be saved
         // — including a figure whose creases have since moved.
         disabled: figure.renderSnapshot === null,
+        // One-shot actions, not a mode: no current format to check.
+        exclusive: false,
         options: FOLDED_FIGURE_EXPORT_FORMATS.map((value) => ({
           id: `export-${value}`,
           label: foldedExportFormatLabel(t, value),
