@@ -147,7 +147,6 @@ import {
   inlineSimulationAsTransformable,
   isInlineSimulationStale,
 } from '../../cp-workspace/inlineSimulation/inlineSimulation';
-import { DEFAULT_SIMULATOR_VIEW } from '../../simulator/SimulatorViewport';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/CpFoldedFigureToolbar';
 import { createCpImage } from '../../cp-workspace/images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../../cp-workspace/images/cpImageImport';
@@ -1491,6 +1490,7 @@ export function CreasePatternPanel() {
   // their own: they are views of the same paper, and per-window material would
   // be a settings surface nobody asked for.
   const simulatorSettings = useWorkspaceStore((state) => state.simulatorSettings);
+  const setSimulatorSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const inlineSimulations = useWorkspaceStore((state) => state.oristudioCpInlineSimulations);
   const focusedInlineSimulationId = useWorkspaceStore(
     (state) => state.oristudioCpFocusedInlineSimulationId
@@ -1545,6 +1545,15 @@ export function CreasePatternPanel() {
     [inlineSimulations, focusedInlineSimulationId]
   );
   const [playingInlineSimulation, setPlayingInlineSimulation] = useState(false);
+  /**
+   * Bumped to reset the focused window's camera.
+   *
+   * The live camera belongs to the viewport component inside the layer, not to
+   * the descriptor in the store — writing a view there did nothing, which is why
+   * the button had no effect. A nonce is how the rest of this panel reaches into
+   * the canvas imperatively (see `cameraCommand`).
+   */
+  const [inlineSimulationViewReset, setInlineSimulationViewReset] = useState(0);
   /**
    * The focused window's body takes no overlay gestures: its interior orbits the
    * fold, and the overlay polygon sits above it, so leaving it live meant every
@@ -3670,6 +3679,7 @@ export function CreasePatternPanel() {
                     viewSettings={simulatorSettings}
                     playing={playingInlineSimulation}
                     overlayInteractive={annotationsInteractive}
+                    viewResetRequest={inlineSimulationViewReset}
                     onFocus={focusInlineSimulation}
                     onFoldPercent={(id, foldPercent) =>
                       updateInlineSimulation(id, { foldPercent })
@@ -3683,6 +3693,8 @@ export function CreasePatternPanel() {
                     container={toolbarContainer}
                     playing={playingInlineSimulation}
                     stale={staleInlineSimulationIds.has(selectedInlineSimulation.id)}
+                    colorMode={simulatorSettings.colorMode}
+                    onColorMode={(mode) => setSimulatorSetting('colorMode', mode)}
                     onTogglePlay={() => setPlayingInlineSimulation((playing) => !playing)}
                     onScrub={(percent) => {
                       setPlayingInlineSimulation(false);
@@ -3690,11 +3702,7 @@ export function CreasePatternPanel() {
                         foldPercent: percent,
                       });
                     }}
-                    onResetView={() =>
-                      updateInlineSimulation(selectedInlineSimulation.id, {
-                        view: DEFAULT_SIMULATOR_VIEW,
-                      })
-                    }
+                    onResetView={() => setInlineSimulationViewReset((nonce) => nonce + 1)}
                     onRefresh={() =>
                       void refreshInlineSimulation(selectedInlineSimulation.id)
                     }

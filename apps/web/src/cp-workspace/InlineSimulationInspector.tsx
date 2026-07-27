@@ -2,8 +2,16 @@ import { useTranslation } from 'react-i18next';
 import { Pause, Play, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/Select';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
+import type { SimulatorSettings } from '../lib/simulatorSettings';
 
 /**
  * Floating controls for the focused inline simulation: play/pause, scrub, reset
@@ -19,8 +27,10 @@ export function InlineSimulationInspector({
   container,
   playing,
   stale,
+  colorMode,
   onTogglePlay,
   onScrub,
+  onColorMode,
   onResetView,
   onRefresh,
   onDelete,
@@ -30,8 +40,15 @@ export function InlineSimulationInspector({
   container: HTMLElement | null;
   playing: boolean;
   stale: boolean;
+  /**
+   * How the paper is coloured. Shared with the Simulate workspace rather than
+   * per-window: it is a way of looking at the same paper, and two places to set
+   * it that disagree would be worse than one that follows you.
+   */
+  colorMode: SimulatorSettings['colorMode'];
   onTogglePlay: () => void;
   onScrub: (percent: number) => void;
+  onColorMode: (mode: SimulatorSettings['colorMode']) => void;
   onResetView: () => void;
   onRefresh: () => void;
   onDelete: () => void;
@@ -73,6 +90,22 @@ export function InlineSimulationInspector({
       <span className="cp-inline-simulation-inspector__readout">
         {Math.round(simulation.foldPercent)}%
       </span>
+      <Select value={colorMode} onValueChange={(value) => onColorMode(value as SimulatorSettings['colorMode'])}>
+        <SelectTrigger
+          aria-label={t('panels:simulatorViewControls.colorMode', 'Colour')}
+          className="cp-inline-simulation-inspector__select"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="paper">
+            {t('panels:simulatorViewControls.colorPaper', 'Paper')}
+          </SelectItem>
+          <SelectItem value="strain">
+            {t('panels:simulatorViewControls.colorStrain', 'Strain')}
+          </SelectItem>
+        </SelectContent>
+      </Select>
       <IconButton
         size="sm"
         variant="toolbar"

@@ -203,8 +203,55 @@ const DEFAULT_RENDER_SETTINGS: RenderSettings = {
  */
 export type SimulatorSessionToken = number;
 
-let session: Session | null = null;
+/**
+ * Every loaded model, newest last. Keyed by the token `load` handed back.
+ *
+ * Originally there was one. That was enough while an unfocused inline simulation
+ * only ever had to hold still: it kept the last frame its canvas received, which
+ * costs nothing. But the crease-pattern camera keeps moving underneath it — pan
+ * and zoom resize the window — and a bitmap rendered for the old size is then
+ * scaled, so the fold goes soft when zoomed in and its creases go to threads
+ * when zoomed out.
+ *
+ * Re-rendering needs the mesh, and the mesh lives in solver textures, so the
+ * sessions have to stay. They are cheap to keep and cheap to draw: bitmap
+ * presentation means they share a single GL context, and a settled model spends
+ * no solver budget. Only the focused window ticks; the rest cost a draw when the
+ * camera moves them, which is the whole point.
+ */
+const sessions = new Map<SimulatorSessionToken, Session>();
 let sessionToken: SimulatorSessionToken = 0;
+
+/**
+ * How many models stay resident. Matched to the window cap, so in practice
+ * nothing is ever evicted and a window cannot lose its session while it is still
+ * on screen. The eviction path exists so a caller that ignores the cap degrades
+ * to a stale frame rather than exhausting memory.
+ */
+const MAX_LIVE_SESSIONS = 6;
+
+/** The most recently loaded session, for callers with no token to quote. */
+function latestSession(): Session | null {
+  let latest: Session | null = null;
+  for (const candidate of sessions.values()) latest = candidate;
+  return latest;
+}
+
+function disposeSession(token: SimulatorSessionToken): void {
+  const existing = sessions.get(token);
+  if (!existing) return;
+  existing.backend.dispose();
+  sessions.delete(token);
+}
+
+/** Drop the oldest sessions until the cap is met. */
+function evictBeyondCap(): void {
+  while (sessions.size > MAX_LIVE_SESSIONS) {
+    const oldest = sessions.keys().next().value;
+    if (oldest === undefined) break;
+    disposeSession(oldest);
+  }
+}
 
 /**
  * Prepared models kept across loads, keyed by the caller's `modelKey`.
@@ -260,6 +307,8 @@ export interface PerfSnapshot {
   cameraCalls: number;
   /** Solver ticks (budgeted frames) this window. */
   ticks: number;
+  /** Models resident in the worker. Only the focused one ticks; the rest draw. */
+  liveSessions: number;
   solveAvgMs: number;
   solveMaxMs: number;
   stepsTotal: number;
@@ -297,8 +346,9 @@ function resetPerf(at: number): void {
 
 function requireSession(): Session {
   if (sessionFailure) throw new Error(sessionFailure);
-  if (!session) throw new Error('Simulator worker: no model loaded');
-  return session;
+  const latest = latestSession();
+  if (!latest) throw new Error('Simulator worker: no model loaded');
+  return latest;
 }
 
 /**
@@ -309,9 +359,9 @@ function requireSession(): Session {
  * fault worth surfacing.
  */
 function sessionFor(token: SimulatorSessionToken | undefined): Session | null {
-  if (token !== undefined && token !== sessionToken) return null;
   if (sessionFailure) throw new Error(sessionFailure);
-  return session;
+  if (token === undefined) return latestSession();
+  return sessions.get(token) ?? null;
 }
 
 /**
@@ -401,12 +451,13 @@ const api = {
     // would make every segment switch snap back to the default view and the
     // default (blue) front colour until the next user interaction. Only the fit
     // (center/radius) is model-specific and recomputed by refitOnce.
-    const previous = session?.gpuRender;
-    session?.backend.dispose();
+    // Carried from the most recent session, not from one being replaced: a load
+    // no longer displaces anything, so this is only about a new model opening
+    // with the camera and palette already in use rather than the defaults.
+    const previous = latestSession()?.gpuRender;
     // A fresh load gets a fresh context, so a previous loss is no longer the
     // truth about this session.
     sessionFailure = null;
-    // Anything still in flight against the outgoing model is now stale.
     sessionToken += 1;
 
     // prepareFoldModel runs here rather than on the main thread: it is O(n)
@@ -441,7 +492,7 @@ const api = {
           }
     );
 
-    session = {
+    const created: Session = {
       model,
       backend,
       backendId,
@@ -463,6 +514,8 @@ const api = {
             }
           : null,
     };
+    sessions.set(sessionToken, created);
+    evictBeyondCap();
 
     const indices = prepared.indices.slice();
 
@@ -642,8 +695,9 @@ const api = {
     const windowMs = now - perf.windowStart;
     const snapshot: PerfSnapshot = {
       windowMs,
-      backend: session?.backendId ?? 'reference',
-      gpuRender: Boolean(session?.gpuRender),
+      backend: latestSession()?.backendId ?? 'reference',
+      gpuRender: Boolean(latestSession()?.gpuRender),
+      liveSessions: sessions.size,
       renders: perf.renders,
       renderAvgMs: perf.renders ? perf.renderTotalMs / perf.renders : 0,
       renderMaxMs: perf.renderMaxMs,
@@ -657,9 +711,16 @@ const api = {
     return snapshot;
   },
 
+  /**
+   * Drop one model. Called when a window is closed, so its textures go with it
+   * rather than waiting to be evicted by something else loading.
+   */
+  release(token: SimulatorSessionToken): void {
+    disposeSession(token);
+  },
+
   dispose(): void {
-    session?.backend.dispose();
-    session = null;
+    for (const token of [...sessions.keys()]) disposeSession(token);
   },
 };
 

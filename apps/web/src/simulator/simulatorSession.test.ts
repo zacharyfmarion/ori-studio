@@ -182,12 +182,11 @@ describe('simulator session', () => {
   });
 });
 
-describe('session handoff', () => {
+describe('session tokens', () => {
   // One worker serves several consumers -- the Simulate panel, and each inline
-  // simulation window -- but holds one live model. Their calls are asynchronous,
-  // so a tick dispatched by the window that just lost focus can land after its
-  // successor has loaded. Without a token it would be answered with the *new*
-  // model's geometry and drawn into the old window.
+  // simulation window -- and now holds several models at once, so that an
+  // unfocused window can still be re-rendered when the crease-pattern camera
+  // resizes it. Tokens are what keep those apart.
 
   it('gives each load a distinct token', () => {
     const session = createSimulatorSession();
@@ -198,44 +197,72 @@ describe('session handoff', () => {
     session.dispose();
   });
 
-  it('answers the current token', () => {
+  it('keeps answering an earlier token after a later load', () => {
+    const session = createSimulatorSession();
+    const first = session.load(miura(4, 4), {});
+    const second = session.load(miura(8, 8), {});
+
+    // Loading no longer displaces: a window that lost focus keeps its model, so
+    // a camera change can still redraw it rather than scaling a stale bitmap.
+    expect(frame(session.tick({ token: first.token })).step).toBeGreaterThan(0);
+    expect(frame(session.tick({ token: second.token })).step).toBeGreaterThan(0);
+    session.dispose();
+  });
+
+  it('answers each token with its own model', () => {
+    const session = createSimulatorSession();
+    const small = session.load(miura(4, 4), {});
+    const large = session.load(miura(8, 8), {});
+
+    // The cross-talk this prevents: a call from one window being answered with
+    // whatever model another window loaded most recently.
+    const smallFrame = frame(session.settle(2000, { token: small.token }));
+    const largeFrame = frame(session.settle(2000, { token: large.token }));
+    expect(positionsOf(smallFrame).byteLength / 4 / 3).toBe(small.vertexCount);
+    expect(positionsOf(largeFrame).byteLength / 4 / 3).toBe(large.vertexCount);
+    expect(small.vertexCount).not.toBe(large.vertexCount);
+    session.dispose();
+  });
+
+  it('keeps a mutation to one model off the other', () => {
+    const session = createSimulatorSession();
+    const first = session.load(miura(4, 4), {});
+    const second = session.load(miura(8, 8), {});
+
+    session.setFoldPercent(90, first.token);
+
+    expect(frame(session.tick({ token: first.token })).foldPercent).toBe(90);
+    expect(frame(session.tick({ token: second.token })).foldPercent).toBe(0);
+    session.dispose();
+  });
+
+  it('stops answering a released token', () => {
     const session = createSimulatorSession();
     const info = session.load(miura(4, 4), {});
+    session.release(info.token);
 
-    expect(session.tick({ token: info.token })).not.toBeNull();
-    expect(session.settle(200, { token: info.token })).not.toBeNull();
+    // Null rather than a throw: a window closing is ordinary, not a fault.
+    expect(session.tick({ token: info.token })).toBeNull();
+    expect(session.settle(200, { token: info.token })).toBeNull();
+    expect(
+      session.setCamera({ view: { yaw: 0, pitch: 0, zoom: 1 }, width: 8, height: 8 }, info.token)
+    ).toBeNull();
     session.dispose();
   });
 
-  it('drops work quoting a superseded token', () => {
+  it('evicts the oldest model past the cap rather than growing without bound', () => {
     const session = createSimulatorSession();
-    const stale = session.load(miura(4, 4), {});
-    session.load(miura(8, 8), {});
+    // The cap matches the window cap, so this should not happen in practice;
+    // when it does, the oldest degrades to its last frame instead of the worker
+    // holding every model ever loaded.
+    const tokens = Array.from({ length: 8 }, () => session.load(miura(4, 4), {}).token);
 
-    // Null rather than a throw: being superseded is the ordinary result of
-    // moving focus between windows, not a fault to surface.
-    expect(session.tick({ token: stale.token })).toBeNull();
-    expect(session.settle(200, { token: stale.token })).toBeNull();
-    expect(session.setCamera({ view: { yaw: 0, pitch: 0, zoom: 1 }, width: 8, height: 8 }, stale.token)).toBeNull();
+    expect(session.tick({ token: tokens[0]! })).toBeNull();
+    expect(session.tick({ token: tokens[tokens.length - 1]! })).not.toBeNull();
     session.dispose();
   });
 
-  it('ignores a stale mutation instead of applying it to the new model', () => {
-    const session = createSimulatorSession();
-    const stale = session.load(miura(4, 4), {});
-    const live = session.load(miura(8, 8), {});
-
-    // The bug this prevents: the outgoing window's fold scrub arriving late and
-    // dragging its successor's model to a fold percent nobody asked for.
-    session.setFoldPercent(90, stale.token);
-    expect(frame(session.tick({ token: live.token })).foldPercent).toBe(0);
-
-    session.setFoldPercent(90, live.token);
-    expect(frame(session.tick({ token: live.token })).foldPercent).toBe(90);
-    session.dispose();
-  });
-
-  it('serves the live model to a caller quoting no token', () => {
+  it('serves the most recent model to a caller quoting no token', () => {
     const session = createSimulatorSession();
     session.load(miura(4, 4), {});
     session.load(miura(8, 8), {});
@@ -243,24 +270,6 @@ describe('session handoff', () => {
     // The exporters read "whatever is loaded" and have no token to quote.
     expect(session.tick({})).not.toBeNull();
     expect(session.exportGeometry().vertexCount).toBe(81);
-    session.dispose();
-  });
-
-  it('keeps each model\'s own geometry across an alternation', () => {
-    const session = createSimulatorSession();
-
-    const small = session.load(miura(4, 4), {});
-    const smallVertices = small.vertexCount;
-    frame(session.settle(2000, { token: small.token }));
-
-    const large = session.load(miura(8, 8), {});
-    expect(large.vertexCount).not.toBe(smallVertices);
-    const largeFrame = frame(session.settle(2000, { token: large.token }));
-    expect(positionsOf(largeFrame).byteLength / 4 / 3).toBe(large.vertexCount);
-
-    const backToSmall = session.load(miura(4, 4), {});
-    const smallFrame = frame(session.settle(2000, { token: backToSmall.token }));
-    expect(positionsOf(smallFrame).byteLength / 4 / 3).toBe(smallVertices);
     session.dispose();
   });
 });

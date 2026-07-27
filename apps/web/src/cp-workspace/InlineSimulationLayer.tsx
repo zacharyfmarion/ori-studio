@@ -70,6 +70,7 @@ export function InlineSimulationLayer({
   viewSettings,
   playing,
   overlayInteractive,
+  viewResetRequest,
   onFocus,
   onFoldPercent,
   onPlayingChange,
@@ -87,6 +88,11 @@ export function InlineSimulationLayer({
    * clicks landing on nothing.
    */
   overlayInteractive: boolean;
+  /**
+   * Bumped to return the focused window's camera to its default. The live camera
+   * belongs to the viewport, so this is the only way in from outside the layer.
+   */
+  viewResetRequest: number;
   onFocus: (id: string) => void;
   onFoldPercent: (id: string, percent: number) => void;
   onPlayingChange: (playing: boolean) => void;
@@ -137,6 +143,7 @@ export function InlineSimulationLayer({
             playing={playing && simulation.id === focusedId}
             stale={staleIds.has(simulation.id)}
             overlayInteractive={overlayInteractive}
+            viewResetRequest={viewResetRequest}
             style={style}
             viewSettings={viewSettings}
             onFocus={onFocus}
@@ -159,6 +166,7 @@ function InlineSimulationWindow({
   playing,
   stale,
   overlayInteractive,
+  viewResetRequest,
   style,
   viewSettings,
   onFocus,
@@ -170,6 +178,7 @@ function InlineSimulationWindow({
   playing: boolean;
   stale: boolean;
   overlayInteractive: boolean;
+  viewResetRequest: number;
   style: CSSProperties;
   viewSettings: SimulatorSettings;
   onFocus: (id: string) => void;
@@ -200,13 +209,13 @@ function InlineSimulationWindow({
   // to a step so a drag-resize does not reallocate the render target on every
   // pointer move.
   const bitmapOutput = useMemo(() => {
-    if (!focused || !gpuAvailable) return null;
+    if (!gpuAvailable) return null;
     const dpr = Math.max(1, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
     const step = 64;
     const edge = (value: unknown) =>
       Math.max(step, Math.ceil(((typeof value === 'number' ? value : 256) * dpr) / step) * step);
     return { width: edge(style.width), height: edge(style.height) };
-  }, [focused, gpuAvailable, style.width, style.height]);
+  }, [gpuAvailable, style.width, style.height]);
 
   // Where the fold should be when the solver loads.
   //
@@ -249,14 +258,17 @@ function InlineSimulationWindow({
     [onFoldPercent, simulation.id]
   );
 
-  // A window that is not focused holds no runtime at all: `fold: null` leaves the
-  // hook idle, so it neither loads a model nor drives a tick loop, and its canvas
-  // keeps whatever it was last handed.
+  // Every window keeps its model loaded, focused or not.
+  //
+  // An unfocused one costs a converged clock, which spends no budget, and the
+  // tick loop skips entirely once settled — so it is idle rather than running.
+  // What it buys is the ability to re-render: the crease-pattern camera keeps
+  // resizing these windows underneath us, and a window that cannot draw is stuck
+  // showing a bitmap made for the size it used to be, which goes soft zoomed in
+  // and threadbare zoomed out.
   const runtime = useSimulatorRuntime({
     fold:
-      focused && source && gpuAvailable
-        ? (source.fold as unknown as SimulatorFoldDocument)
-        : null,
+      source && gpuAvailable ? (source.fold as unknown as SimulatorFoldDocument) : null,
     solverOptions,
     triangulate: source ? foldNeedsTriangulation(source.fold as unknown as SimulatorFoldDocument) : true,
     canvas: null,
@@ -349,6 +361,15 @@ function InlineSimulationWindow({
     },
   });
 
+  // Reset the camera on request, for the focused window only. Skips the first
+  // run so mounting a window does not count as a reset.
+  const seenViewResetRef = useRef(viewResetRequest);
+  useEffect(() => {
+    if (seenViewResetRef.current === viewResetRequest) return;
+    seenViewResetRef.current = viewResetRequest;
+    if (focused) viewportRef.current?.resetView();
+  }, [viewResetRequest, focused]);
+
   // Keep the window's stored camera in step, so a refresh comes back where the
   // user was looking rather than at the default view.
   const pushCamera = useCallback(
@@ -364,6 +385,11 @@ function InlineSimulationWindow({
       className="cp-inline-simulation"
       data-focused={focused || undefined}
       data-stale={stale || undefined}
+      // A window that renders nothing looks the same whether it is still loading,
+      // errored, or ready but never handed a frame. Surfaced so that is one
+      // glance in the inspector rather than a bisect.
+      data-status={runtime.status}
+      data-gpu={runtime.gpuActive || undefined}
       style={style}
       onPointerDownCapture={(event) => {
         if (focused) return;

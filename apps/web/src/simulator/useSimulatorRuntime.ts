@@ -205,6 +205,12 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   useEffect(() => {
     clientRef.current = retainSimulatorClient();
     return () => {
+      // Hand back this runtime's model before dropping the worker reference, so
+      // its textures go when the consumer does rather than waiting to be evicted
+      // by whatever loads next.
+      const token = tokenRef.current;
+      const client = clientRef.current;
+      if (token !== undefined && client) void client.release(token).catch(() => undefined);
       clientRef.current = null;
       releaseSimulatorClient();
     };
