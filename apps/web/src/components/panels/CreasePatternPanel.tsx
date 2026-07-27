@@ -137,6 +137,7 @@ import {
 import type { TransformableCanvasObject } from '../../cp-workspace/canvasObjects/transformableObject';
 import type { AnnotationResizeHandle } from '../../cp-workspace/annotations/annotationTransform';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
+import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/CpFoldedFigureToolbar';
@@ -205,6 +206,7 @@ import {
 } from '../../cp-workspace/tools/predicates';
 import {
   cpMeasureOperationForKind,
+  cpMeasurePointCount,
   cpMeasureStepKinds,
   isCpMeasurementOperation,
   type CpMeasureKind,
@@ -353,6 +355,22 @@ function measureStepPrompt(t: TFunction, kind: CpMeasureKind, picked: number): s
   return picked <= 0
     ? t('panels:creasePattern.measurePickFirstPoint', 'Pick first point')
     : t('panels:creasePattern.measurePickSecondPoint', 'Pick second point');
+}
+
+/** Literal-key `t()` calls so the extractor sees every snap name. */
+function measureSnapLabel(t: TFunction, kind: CpSnapTarget['kind'] | null): string {
+  switch (kind) {
+    case 'vertex':
+      return t('panels:creasePattern.measureSnapVertex', 'vertex');
+    case 'grid':
+      return t('panels:creasePattern.measureSnapGrid', 'grid');
+    case 'point':
+      return t('panels:creasePattern.measureSnapPoint', 'point');
+    case 'line':
+      return t('panels:creasePattern.measureSnapCrease', 'crease');
+    default:
+      return t('panels:creasePattern.measureSnapFree', 'free');
+  }
 }
 
 interface CpDiagnosticHudStatus {
@@ -978,6 +996,13 @@ export function CreasePatternPanel() {
   // Points placed so far in the current measure pick, for the step prompt. A
   // sequence tool's points live on the canvas, so this mirrors its pick progress.
   const [cpMeasurePicked, setCpMeasurePicked] = useState(0);
+  // The pick in progress — placed points plus the cursor — so the on-canvas figure
+  // and its value track the mouse before anything is committed.
+  const [cpMeasureLivePoints, setCpMeasureLivePoints] = useState<readonly Point[]>([]);
+  const [cpMeasureLiveValue, setCpMeasureLiveValue] = useState<number | null>(null);
+  // What the live point snapped onto, so a measurement never silently reads between
+  // two points that only look like vertices.
+  const [cpMeasureSnapKind, setCpMeasureSnapKind] = useState<CpSnapTarget['kind'] | null>(null);
   // Display units are a persisted user preference, not a document property: a
   // designer reads in the units they think in, whatever the file was authored in.
   const [cpMeasurePreferences, setCpMeasurePreferences] = useState(readCpMeasurePreferences);
@@ -2389,7 +2414,10 @@ export function CreasePatternPanel() {
   // WebGL draw tools: snap a raw model draw point to nearby geometry (the surface
   // supplies its camera-derived tolerance), mirroring resolveEditableDrawPoint.
   const resolveEditableDrawModelPoint = useCallback(
-    (rawPoint: Point, toleranceModel: number): { point: Point; snapped: boolean } => {
+    (
+      rawPoint: Point,
+      toleranceModel: number
+    ): { point: Point; snapped: boolean; kind?: CpSnapTarget['kind'] } => {
       if (!editableCp) return { point: rawPoint, snapped: false };
       const target = nearestOrieditaDrawPointTarget(
         editableCp,
@@ -2399,8 +2427,9 @@ export function CreasePatternPanel() {
         toleranceModel
       );
       // Report whether the point locked onto a grid point / vertex, so a restricted
-      // draw can reject a start/end that doesn't snap.
-      return { point: target?.point ?? rawPoint, snapped: target !== null };
+      // draw can reject a start/end that doesn't snap — and *what* it locked onto, so
+      // the measure tool can say whether an endpoint is a real vertex or a free point.
+      return { point: target?.point ?? rawPoint, snapped: target !== null, kind: target?.kind };
     },
     [editableCp, editableCpBounds, oristudioCpViewport]
   );
@@ -2509,6 +2538,8 @@ export function CreasePatternPanel() {
           if (value != null) setCpMeasurement({ kind, value, points: measurePoints });
         });
         setCpMeasurePicked(0);
+        setCpMeasureLivePoints([]);
+        setCpMeasureLiveValue(null);
         setCpToolState((state) =>
           state.activeOperationId === command.operationId
             ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
@@ -2762,6 +2793,10 @@ export function CreasePatternPanel() {
         .map((id) => editableCp?.crease_pattern.line_segments[id - 1])
         .filter((s): s is OristudioCpLineSegment => Boolean(s))
         .map((s) => ({ a: s.a, b: s.b }));
+      if (isCpMeasurementOperation(command?.operationId)) {
+        setCpMeasureLivePoints([...points]);
+        if (points.length === 0) setCpMeasureLiveValue(null);
+      }
       if (!command || points.length === 0) {
         webglPreviewRequestRef.current += 1;
         setWebglToolPreviewSegments(highlight);
@@ -2815,12 +2850,8 @@ export function CreasePatternPanel() {
         // (Oriedita-parity math, never recomputed in JS). Only once the kernel returns
         // a value — it needs the full point count for the kind.
         const measurement = preview?.measurement;
-        if (isCpMeasurementOperation(command.operationId) && measurement != null) {
-          setCpMeasurement({
-            kind: cpToolOptions.measureKind,
-            value: measurement,
-            points: [...points],
-          });
+        if (isCpMeasurementOperation(command.operationId)) {
+          setCpMeasureLiveValue(measurement ?? null);
         }
       });
     },
@@ -3437,12 +3468,16 @@ export function CreasePatternPanel() {
     ) {
       setCpMeasurement(null);
       setCpMeasurePicked(0);
+      setCpMeasureLivePoints([]);
+      setCpMeasureLiveValue(null);
     }
   }, [cpToolState.activeOperationId, cpToolState.phase]);
 
   // Changing what is being measured restarts the pick.
   useEffect(() => {
     setCpMeasurePicked(0);
+    setCpMeasureLivePoints([]);
+    setCpMeasureLiveValue(null);
   }, [cpToolOptions.measureKind]);
 
   return (
@@ -3589,6 +3624,7 @@ export function CreasePatternPanel() {
                   onToolCommit={handleWebglToolCommit}
                   onToolPreviewInput={handleWebglToolPreviewInput}
                   onToolPickProgress={handleWebglToolPickProgress}
+                  onToolSnapKind={setCpMeasureSnapKind}
                   toolCommandPreviewSegments={webglToolPreviewSegments}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
@@ -3640,6 +3676,23 @@ export function CreasePatternPanel() {
                     if (!open) setFoldedContextMenu(null);
                   }}
                 />
+                {webglOverlayView &&
+                  isCpMeasurementOperation(activeCpCommand?.operationId) &&
+                  cpToolState.phase === 'active' && (
+                    <CpMeasureLayer
+                      measurement={cpMeasurement}
+                      liveKind={cpToolOptions.measureKind}
+                      livePoints={cpMeasureLivePoints}
+                      liveValue={cpMeasureLiveValue}
+                      liveSnapLabel={
+                        cpMeasurePicked < cpMeasurePointCount(cpToolOptions.measureKind)
+                          ? measureSnapLabel(t, cpMeasureSnapKind)
+                          : null
+                      }
+                      unit={cpMeasurePreferences.unit}
+                      scale={cpMeasureScale}
+                    />
+                  )}
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}

@@ -569,7 +569,12 @@ export interface CreasePatternWebglCanvasProps {
   resolveDrawPoint: (
     rawPoint: ModelPoint,
     toleranceModel: number
-  ) => { point: ModelPoint; snapped: boolean };
+  ) => {
+    point: ModelPoint;
+    snapped: boolean;
+    /** What the point locked onto when it snapped; reported via {@link onToolSnapKind}. */
+    kind?: 'grid' | 'vertex' | 'point' | 'line';
+  };
   /**
    * Snap a raw model draw point onto nearby geometry incl. creases (for crease
    * steps), reporting whether the result landed on a crease *junction* (a vertex
@@ -594,6 +599,13 @@ export interface CreasePatternWebglCanvasProps {
    * can advance the step prompt in lock-step with them. Cumulative, not a delta.
    */
   onToolPickProgress: (picked: number) => void;
+  /**
+   * What the live point of a `sequence` tool has snapped onto, or null when it is
+   * free. Taken from the resolve the step already does, so naming the snap costs no
+   * extra geometry scan. The measure tool uses it to say whether an endpoint is a
+   * real vertex or a point that merely looks like one.
+   */
+  onToolSnapKind: (kind: 'grid' | 'vertex' | 'point' | 'line' | null) => void;
   /** Kernel-computed preview + pick-highlight segments for the active sequence tool. */
   toolCommandPreviewSegments: readonly ToolPreviewSegment[];
   /** Kernel-computed candidate *points* (Converging Lines ray intersections). */
@@ -736,6 +748,7 @@ export function CreasePatternWebglCanvas({
   onToolCommit,
   onToolPreviewInput,
   onToolPickProgress,
+  onToolSnapKind,
   toolCommandPreviewSegments,
   toolCommandPreviewPoints,
   toolPreviewColor,
@@ -1104,6 +1117,7 @@ export function CreasePatternWebglCanvas({
     onToolCommit,
     onToolPreviewInput,
     onToolPickProgress,
+    onToolSnapKind,
     toolPreviewColor,
     toolCommandPreviewSegments,
     toolCommandPreviewPoints,
@@ -1721,7 +1735,9 @@ export function CreasePatternWebglCanvas({
         if (snapped === null && kind === 'down') return;
         point = snapped ?? raw;
       } else {
-        point = liveRef.current.resolveDrawPoint(raw, tol).point;
+        const resolved = liveRef.current.resolveDrawPoint(raw, tol);
+        point = resolved.point;
+        liveRef.current.onToolSnapKind(resolved.snapped ? (resolved.kind ?? null) : null);
       }
       // On a crease step, highlight the single line under the snapped point — so a
       // crease the point lands on lights up even when it snapped to a grid point on

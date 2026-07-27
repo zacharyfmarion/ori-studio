@@ -6078,3 +6078,65 @@ button.bp-packing-alert:focus-visible {
 .bp-tree-panel .design-panel__body {
   height: 100%;
 }
+
+/* Measure tool: the on-canvas dimension figure and its value label. Everything is
+   screen-space (see CpMeasureLayer), so nothing here scales with zoom. */
+.cp-measure-layer__figure {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cp-measure-layer__figure[data-state='live'] {
+  opacity: 0.75;
+}
+
+.cp-measure-layer__arrow {
+  stroke-width: 1.5;
+}
+
+.cp-measure-layer__arc {
+  stroke-dasharray: none;
+}
+
+.cp-measure-layer__label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, var(--border-default));
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.cp-measure-layer__label[data-state='live'] {
+  color: var(--text-secondary);
+}
+
+/* What the cursor is snapped to, beside the cursor while a pick is in progress. */
+.cp-measure-layer__snap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
