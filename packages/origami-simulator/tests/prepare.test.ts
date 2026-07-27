@@ -170,6 +170,105 @@ describe('prepareFoldModel', () => {
   });
 });
 
+// Faces with five or more vertices go through earcut, which the hand-built
+// fixtures (all triangles and quads) never reach. Real Oriedita exports are full
+// of them, and every property below was broken there.
+describe('n-gon triangulation', () => {
+  /** A 20x1 pleat band, subdivided along both long sides like a real CP. */
+  function makeStrip(project: (x: number, y: number) => number[]) {
+    const top = Array.from({ length: 21 }, (_, i) => project(i, 1));
+    const bottom = Array.from({ length: 21 }, (_, i) => project(i, 0));
+    const ring = [...bottom, ...top.slice().reverse()];
+    const edges = ring.map((_, i): [number, number] => [i, (i + 1) % ring.length]);
+    return {
+      vertices_coords: ring,
+      edges_vertices: edges,
+      edges_assignment: edges.map(() => 'B' as const),
+      edges_foldAngle: edges.map(() => null),
+      faces_vertices: [ring.map((_, i) => i)],
+    };
+  }
+
+  const signedArea = (prepared: ReturnType<typeof prepareFoldModel>, face: number[]) => {
+    const p = prepared.originalPositions;
+    const at = (i: number) => [p[i * 3]!, p[i * 3 + 1]!, p[i * 3 + 2]!] as const;
+    const [a, b, c] = [at(face[0]!), at(face[1]!), at(face[2]!)];
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const normal = [
+      u[1]! * v[2]! - u[2]! * v[1]!,
+      u[2]! * v[0]! - u[0]! * v[2]!,
+      u[0]! * v[1]! - u[1]! * v[0]!,
+    ];
+    // Flat sheet: exactly one component is non-zero, and its sign is the winding.
+    return normal.reduce((best, n) => (Math.abs(n) > Math.abs(best) ? n : best), 0);
+  };
+
+  const smallestAngleDeg = (prepared: ReturnType<typeof prepareFoldModel>, face: number[]) => {
+    const p = prepared.originalPositions;
+    const at = (i: number) => [p[i * 3]!, p[i * 3 + 1]!, p[i * 3 + 2]!] as const;
+    const [a, b, c] = [at(face[0]!), at(face[1]!), at(face[2]!)];
+    const len = (x: readonly number[], y: readonly number[]) =>
+      Math.hypot(x[0]! - y[0]!, x[1]! - y[1]!, x[2]! - y[2]!);
+    const [shortest, mid, longest] = [len(b, c), len(a, c), len(a, b)].sort((m, n) => m - n);
+    const cosine = (mid! ** 2 + longest! ** 2 - shortest! ** 2) / (2 * mid! * longest!);
+    return (Math.acos(Math.max(-1, Math.min(1, cosine))) * 180) / Math.PI;
+  };
+
+  it('winds n-gon triangles the same way as the sheet\'s 3-vertex faces', () => {
+    // Both faces below are wound clockwise, which is what Oriedita writes. The
+    // triangle passes through untouched while earcut normalises the n-gon's ring
+    // to its own winding, so the two disagree unless the output is re-oriented.
+    // Mixed winding flips half the sheet's normals, and every crease between a
+    // flipped face and an unflipped one then folds the wrong way.
+    const strip = makeStrip((x, y) => [x, y]);
+    const apex = strip.vertices_coords.length;
+    const prepared = prepareFoldModel({
+      ...strip,
+      vertices_coords: [...strip.vertices_coords, [0.5, -1]],
+      edges_vertices: [...strip.edges_vertices, [0, apex], [apex, 1]],
+      edges_assignment: [...strip.edges_assignment, 'B', 'B'],
+      edges_foldAngle: [...strip.edges_foldAngle, null, null],
+      faces_vertices: [
+        strip.faces_vertices[0]!.slice().reverse(),
+        [0, 1, apex],
+      ],
+    });
+
+    const windings = new Set(prepared.facesVertices.map((f) => Math.sign(signedArea(prepared, f))));
+    expect(windings.size).toBe(1);
+    expect(prepared.diagnostics.warnings).toEqual([]);
+  });
+
+  it('triangulates a long strip without slivers', () => {
+    // Ear clipping spans a corner to the far end of a strip, which leaves
+    // triangles a tenth of a degree wide. The solver's crease force divides by
+    // the adjacent triangle's height, so those never settle. The Delaunay
+    // criterion zig-zags across the strip instead: every triangle is a unit
+    // right triangle, so 45 degrees is the exact optimum here.
+    const prepared = prepareFoldModel(makeStrip((x, y) => [x, y]));
+    const angles = prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f));
+
+    expect(Math.min(...angles)).toBeGreaterThan(44);
+  });
+
+  it('triangulates a sheet given as 3-component coordinates', () => {
+    // `normalizePoint` lifts 2-component FOLD into the xz plane, but leaves a
+    // 3-component file in whatever plane it used -- commonly xy. Projecting on
+    // a fixed axis pair collapses one of the two to a line, and earcut then
+    // returns nothing for every polygon in the sheet.
+    const xy = prepareFoldModel(makeStrip((x, y) => [x, y, 0]));
+    const xz = prepareFoldModel(makeStrip((x, y) => [x, 0, y]));
+
+    for (const prepared of [xy, xz]) {
+      expect(prepared.diagnostics.warnings).toEqual([]);
+      // A 20x1 strip with unit subdivisions: 40 unit right triangles.
+      expect(prepared.faceCount).toBe(40);
+      expect(Math.min(...prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f)))).toBeGreaterThan(44);
+    }
+  });
+});
+
 describe('createOrigamiSimulator', () => {
   it('steps deterministically without requiring WebGL', () => {
     const prepared = prepareFoldModel(makeBookFoldFixture());
