@@ -297,16 +297,14 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   },
   PolygonSetNoCorners: {
     label: 'Regular Polygon',
-    group: 'draw',
     upstreamAction: 'regularPolygonAction',
     upstreamMouseMode: 'POLYGON_SET_NO_CORNERS_29',
-    railOrder: 200,
+    railOrder: 10,
   },
   VoronoiCreate: {
-    group: 'draw',
     upstreamAction: 'voronoiAction',
     upstreamMouseMode: 'VORONOI_CREATE_62',
-    railOrder: 210,
+    railOrder: 20,
   },
   Axiom5: {
     group: 'draw',
@@ -421,22 +419,27 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   DrawBlintz: {
     upstreamAction: 'drawBlintzAction',
     upstreamMouseMode: 'DRAW_BLINTZ',
+    railOrder: 30,
   },
   DrawFishBase: {
     upstreamAction: 'drawFishBaseAction',
     upstreamMouseMode: 'DRAW_FISH_BASE',
+    railOrder: 40,
   },
   DrawDoveBase: {
     upstreamAction: 'drawDoveBaseAction',
     upstreamMouseMode: 'DRAW_DOVE_BASE',
+    railOrder: 50,
   },
   DrawBirdBase: {
     upstreamAction: 'drawBirdBaseAction',
     upstreamMouseMode: 'DRAW_BIRD_BASE',
+    railOrder: 60,
   },
   DrawFrogBase: {
     upstreamAction: 'drawFrogBaseAction',
     upstreamMouseMode: 'DRAW_FROG_BASE',
+    railOrder: 70,
   },
   DisplayLengthBetweenPoints1: {
     upstreamAction: 'l1Action',

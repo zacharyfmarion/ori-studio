@@ -102,6 +102,31 @@ describe('oristudio CP action registry', () => {
     });
   });
 
+  it('rails the pattern generators under Generate rather than Draw', () => {
+    expect(
+      cpRailActions()
+        .filter((action) => action.group === 'generators')
+        .map((action) => action.label)
+    ).toEqual([
+      'Regular Polygon',
+      'Voronoi',
+      'Blintz base',
+      'Fish base',
+      'Dove base',
+      'Bird base',
+      'Frog base',
+    ]);
+
+    expect(
+      cpRailActions().some(
+        (action) =>
+          action.group === 'draw' &&
+          action.kind === 'command' &&
+          (action.operationId === 'PolygonSetNoCorners' || action.operationId === 'VoronoiCreate')
+      )
+    ).toBe(false);
+  });
+
   it('keeps Oriedita mouse-mode edit tools in the sidebar', () => {
     expect(
       cpRailActions()
