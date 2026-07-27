@@ -1021,11 +1021,6 @@
         "0": "O ponto não deve estar sobre a extensão da linha A e a linha B não deve ser paralela à linha A."
       }
     },
-    "a1Action": {
-      "intro": {
-        "0": "Meça o ângulo selecionando os pontos ABC."
-      }
-    },
     "a2Action": {
       "intro": {
         "0": "Meça o ângulo selecionando os pontos ABC."
@@ -1364,20 +1359,6 @@
       },
       "notes": {
         "0": "A forma dobrada é calculada em relação à face inicial."
-      }
-    },
-    "l1Action": {
-      "intro": {
-        "0": "Mede uma distância entre dois pontos, ou um ângulo em um vértice."
-      },
-      "steps": {
-        "0": "Escolha distância ou ângulo.",
-        "1": "Escolha os pontos, ou clique em um vinco para medi-lo de uma vez."
-      },
-      "notes": {
-        "0": "Escolha as unidades do valor; a borda do papel é 1 por padrão.",
-        "1": "Clique no valor para copiá-lo com precisão total.",
-        "2": "As medições são apagadas ao sair da ferramenta."
       }
     },
     "l2Action": {

@@ -1021,11 +1021,6 @@
         "0": "El punto no debe estar sobre el tramo de la línea A y la línea B no debe ser paralela a la línea A."
       }
     },
-    "a1Action": {
-      "intro": {
-        "0": "Mide el ángulo seleccionando los puntos ABC."
-      }
-    },
     "a2Action": {
       "intro": {
         "0": "Mide el ángulo seleccionando los puntos ABC."
@@ -1364,20 +1359,6 @@
       },
       "notes": {
         "0": "La forma plegada se calcula en relación con la cara inicial."
-      }
-    },
-    "l1Action": {
-      "intro": {
-        "0": "Mide una distancia entre dos puntos, o un ángulo en un vértice."
-      },
-      "steps": {
-        "0": "Elige distancia o ángulo.",
-        "1": "Elige los puntos, o haz clic en un pliegue para medirlo de una vez."
-      },
-      "notes": {
-        "0": "Elige las unidades del valor; el lado del papel es 1 por defecto.",
-        "1": "Haz clic en el valor para copiarlo con precisión completa.",
-        "2": "Las mediciones se borran al salir de la herramienta."
       }
     },
     "l2Action": {

@@ -1021,11 +1021,6 @@
         "0": "Le point ne doit pas être sur l'étendue de la ligne A et la ligne B ne doit pas être parallèle à la ligne A."
       }
     },
-    "a1Action": {
-      "intro": {
-        "0": "Mesurez l'angle en sélectionnant les points ABC."
-      }
-    },
     "a2Action": {
       "intro": {
         "0": "Mesurez l'angle en sélectionnant les points ABC."
@@ -1364,20 +1359,6 @@
       },
       "notes": {
         "0": "La forme pliée est calculée par rapport à la face de départ."
-      }
-    },
-    "l1Action": {
-      "intro": {
-        "0": "Mesure une distance entre deux points, ou un angle à un sommet."
-      },
-      "steps": {
-        "0": "Choisir distance ou angle.",
-        "1": "Choisir les points, ou cliquer sur un pli pour le mesurer en un clic."
-      },
-      "notes": {
-        "0": "Choisir les unités de la valeur ; le côté du papier vaut 1 par défaut.",
-        "1": "Cliquer sur la valeur pour la copier en pleine précision.",
-        "2": "Les mesures sont effacées en quittant l’outil."
       }
     },
     "l2Action": {

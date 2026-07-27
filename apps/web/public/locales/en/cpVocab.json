@@ -1021,11 +1021,6 @@
         "0": "The point must not be on line A's span and line B must not be parallel with line A."
       }
     },
-    "a1Action": {
-      "intro": {
-        "0": "Measure angle by selecting points ABC."
-      }
-    },
     "a2Action": {
       "intro": {
         "0": "Measure angle by selecting points ABC."
@@ -1364,20 +1359,6 @@
       },
       "notes": {
         "0": "Folded shape is calculated relative to starting face."
-      }
-    },
-    "l1Action": {
-      "intro": {
-        "0": "Measure a distance between two points, or an angle at a vertex."
-      },
-      "steps": {
-        "0": "Choose distance or angle.",
-        "1": "Pick the points, or click a crease to measure it in one click."
-      },
-      "notes": {
-        "0": "Choose the units the value reads in; the paper edge is 1 by default.",
-        "1": "Click the value to copy it at full precision.",
-        "2": "Measurements are cleared when you leave the tool."
       }
     },
     "l2Action": {

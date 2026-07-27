@@ -44,6 +44,7 @@ import {
   copyTextForCpMeasurement,
   cpMeasureKindForOperation,
   cpMeasurePointCount,
+  isCpMeasurementOperation,
   cpMeasureUnitIsPhysical,
   exactCpLengthLabel,
   formatCpMeasurement,
@@ -173,7 +174,12 @@ export function CpContextToolPanel({
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const groups = cpToolSettingGroupsForCommand(command);
-  const instructions = cpToolInstructions(t, action, command);
+  // The measure tools carry no panel prose: the step prompt already sits in the
+  // status bar, the readout says how many points are left, and the value speaks for
+  // itself. Anything more is noise stacked above the number you came to read.
+  const instructions = isCpMeasurementOperation(command.operationId)
+    ? null
+    : cpToolInstructions(t, action, command);
   const applyDisabled = contextApplyDisabledForCommand(command, selection, pendingPointCount);
   const title = action?.kind === 'command' ? cpActionLabel(t, action) : command.label;
   const meta =

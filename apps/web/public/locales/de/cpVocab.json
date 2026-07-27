@@ -1021,11 +1021,6 @@
         "0": "Der Punkt darf nicht auf der Spanne von Linie A liegen, und Linie B darf nicht parallel zu Linie A sein."
       }
     },
-    "a1Action": {
-      "intro": {
-        "0": "Winkel durch Auswahl der Punkte ABC messen."
-      }
-    },
     "a2Action": {
       "intro": {
         "0": "Winkel durch Auswahl der Punkte ABC messen."
@@ -1364,20 +1359,6 @@
       },
       "notes": {
         "0": "Die gefaltete Form wird relativ zur Startfläche berechnet."
-      }
-    },
-    "l1Action": {
-      "intro": {
-        "0": "Misst einen Abstand zwischen zwei Punkten oder einen Winkel an einem Scheitelpunkt."
-      },
-      "steps": {
-        "0": "Abstand oder Winkel wählen.",
-        "1": "Punkte wählen oder eine Falte anklicken, um sie mit einem Klick zu messen."
-      },
-      "notes": {
-        "0": "Einheiten des Werts wählen; standardmäßig ist die Papierkante 1.",
-        "1": "Auf den Wert klicken, um ihn in voller Genauigkeit zu kopieren.",
-        "2": "Messungen werden beim Verlassen des Werkzeugs gelöscht."
       }
     },
     "l2Action": {
