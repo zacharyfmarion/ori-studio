@@ -2990,12 +2990,6 @@
   width: 96px;
 }
 
-.cp-inline-simulation-inspector__select {
-  min-width: 84px;
-  height: 24px;
-  font-size: 11px;
-}
-
 .cp-inline-simulation-inspector__readout {
   min-width: 34px;
   font-size: 11px;

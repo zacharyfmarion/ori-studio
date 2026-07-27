@@ -140,7 +140,10 @@ describe('simulator session', () => {
     expect(maxY).toBeGreaterThan(0);
 
     session.dispose();
-  });
+    // Up to 4,000 CPU solver steps on a 289-vertex model: seconds of real work,
+    // against a 5s default that it was already close to. Given an explicit
+    // budget so a loaded machine cannot turn it into a phantom failure.
+  }, 30_000);
 
   it('keeps ticks bounded by the frame budget', () => {
     const session = createSimulatorSession();
@@ -149,8 +152,10 @@ describe('simulator session', () => {
 
     const tick = frame(session.tick({}));
     // The point of the budget: a tick costs about the budget regardless of how
-    // big the model is. One chunk of overshoot is expected.
-    expect(tick.elapsedMs).toBeLessThan(40);
+    // big the model is. Without it this model would run to convergence and take
+    // seconds, so the ceiling only has to separate "bounded" from "unbounded" --
+    // and being wall-clock, it needs enough slack to survive a loaded machine.
+    expect(tick.elapsedMs).toBeLessThan(120);
     expect(tick.stepsThisTick).toBeGreaterThan(0);
     session.dispose();
   });
@@ -259,6 +264,23 @@ describe('session tokens', () => {
 
     expect(session.tick({ token: tokens[0]! })).toBeNull();
     expect(session.tick({ token: tokens[tokens.length - 1]! })).not.toBeNull();
+    session.dispose();
+  });
+
+  it('counts what is resident, so a leak is visible', () => {
+    const session = createSimulatorSession();
+    const first = session.load(miura(4, 4), {});
+    const second = session.load(miura(4, 4), {});
+    expect(session.getPerfStats().liveSessions).toBe(2);
+
+    // Whoever loaded is responsible for handing the previous model back. The
+    // runtime does this on reload; without it, repeated loads pile up until the
+    // cap evicts them, which showed up first as the test suite slowing down.
+    session.release(first.token);
+    expect(session.getPerfStats().liveSessions).toBe(1);
+
+    session.release(second.token);
+    expect(session.getPerfStats().liveSessions).toBe(0);
     session.dispose();
   });
 

@@ -117,6 +117,16 @@ export interface UseSimulatorRuntimeOptions {
    * simulations can be open. Costs one bitmap transfer per frame.
    */
   bitmapOutput?: { width: number; height: number } | null;
+  /**
+   * Stop stepping the solver, without unloading it.
+   *
+   * A paused runtime still answers `setCamera`, so its model can be re-rendered
+   * at a new size or angle — which is the whole reason an unfocused inline
+   * simulation keeps its session. It simply stops advancing: freezing the fold
+   * is what the user asked for, and it is also the honest reading of "only one
+   * simulation runs at a time".
+   */
+  paused?: boolean;
   /** Called on the main thread whenever a new frame is available. */
   onFrame?: (frame: SimulatorFrameView) => void;
 }
@@ -149,6 +159,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     canvas = null,
     allowGpuRender = true,
     bitmapOutput = null,
+    paused = false,
     onFrame,
   } = options;
 
@@ -197,6 +208,23 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   useEffect(() => {
     onFrameRef.current = onFrame;
   }, [onFrame]);
+  // Only whether bitmap presentation is wanted takes part in loading; the size
+  // itself is read at load time and changes thereafter through `setCamera`.
+  const wantsBitmapOutput = bitmapOutput !== null;
+  const bitmapOutputRef = useRef(bitmapOutput);
+  useEffect(() => {
+    bitmapOutputRef.current = bitmapOutput;
+  });
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
+
+  /** Hand a model back to the worker, if there is one. Safe to call with none. */
+  const releaseToken = useCallback((token: number | undefined) => {
+    if (token === undefined) return;
+    void clientRef.current?.release(token).catch(() => undefined);
+  }, []);
 
   // A mounted runtime is exactly what "someone is using the simulator" means, so
   // the worker's lifetime is tied to it rather than to any particular panel.
@@ -254,10 +282,15 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     if (!fold) {
       setStatus('idle');
       setModel(null);
+      // Nothing to show and nothing to render: hand the model back rather than
+      // leaving it resident until something else pushes it out.
+      releaseToken(tokenRef.current);
+      tokenRef.current = undefined;
       return;
     }
 
     const generation = (generationRef.current += 1);
+    const previousToken = tokenRef.current;
     let cancelled = false;
     setStatus('loading');
     setError(null);
@@ -269,7 +302,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     // draw -- so the panel swaps the canvas element (React key) when the desired
     // path changes, giving a fresh untransferred one.
     const wantsGpu = Boolean(
-      (canvas || bitmapOutput) && allowGpuRender && webglRenderSupported()
+      (canvas || wantsBitmapOutput) && allowGpuRender && webglRenderSupported()
     );
 
     void (async () => {
@@ -278,8 +311,11 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
         const client = clientRef.current;
         if (!client) return;
 
-        if (wantsGpu && bitmapOutput) {
-          await client.attachBitmapOutput(bitmapOutput.width, bitmapOutput.height);
+        if (wantsGpu && bitmapOutputRef.current) {
+          await client.attachBitmapOutput(
+            bitmapOutputRef.current.width,
+            bitmapOutputRef.current.height
+          );
         } else if (wantsGpu && canvas && transferredCanvasRef.current !== canvas) {
           const offscreen = canvas.transferControlToOffscreen();
           await client.attachCanvas(transfer(offscreen, [offscreen]));
@@ -292,6 +328,10 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           preferGpu: wantsGpu,
         });
         if (cancelled || generation !== generationRef.current) return;
+        // Each load makes a new model; the one this runtime had is now nobody's.
+        // Released only once the replacement exists, so the window is never
+        // briefly backed by nothing.
+        releaseToken(previousToken);
         tokenRef.current = info.token;
 
         const gpu = info.backend === 'webgl2' && wantsGpu;
@@ -323,8 +363,14 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     return () => {
       cancelled = true;
     };
+    // `solverOptions` is deliberately absent -- reloading the model would throw
+    // away the current fold -- and so is `bitmapOutput`: it carries a size, and a
+    // size change must not reload. It used to be a dependency, so every time a
+    // window crossed a size step the whole thing re-loaded and re-settled, which
+    // both restarted a fold meant to be still and left the previous frame
+    // stretched while it happened. Later sizes ride on `setCamera`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fold, foldProfile, triangulate, canvas, allowGpuRender, bitmapOutput, publish]);
+  }, [fold, foldProfile, triangulate, canvas, allowGpuRender, wantsBitmapOutput, publish]);
 
   useEffect(() => {
     playingRef.current = playing;
@@ -344,6 +390,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       rafRef.current = window.requestAnimationFrame(tick);
       const client = clientRef.current;
       if (!client || inFlightRef.current) return;
+      // Frozen: the caller wants this model held where it is. It still renders
+      // on demand, it just does not advance.
+      if (pausedRef.current) return;
       // Idle: nothing to solve and nothing playing.
       if (convergedRef.current && !playingRef.current) return;
 

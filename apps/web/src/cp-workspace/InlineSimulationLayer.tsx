@@ -49,6 +49,12 @@ const READOUT_INTERVAL_MS = 66;
 /** Fold percentage per arrow press, matching the Simulate workspace's default. */
 const FOLD_STEP_PERCENT = 5;
 
+/**
+ * Render-target edge a window opens at, in device pixels. Replaced by the real
+ * size as soon as the viewport's ResizeObserver reports one.
+ */
+const INITIAL_RENDER_EDGE = 512;
+
 /** Screen-space rotation (radians) of the box's local +x axis under the camera. */
 function screenAngle(
   view: CpOverlayView,
@@ -205,17 +211,13 @@ function InlineSimulationWindow({
   const solverFoldPercentRef = useRef(simulation.foldPercent);
   const lastPublishedRef = useRef(0);
 
-  // Device-pixel size of this window's render, from its on-screen box. Rounded
-  // to a step so a drag-resize does not reallocate the render target on every
-  // pointer move.
-  const bitmapOutput = useMemo(() => {
-    if (!gpuAvailable) return null;
-    const dpr = Math.max(1, typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1);
-    const step = 64;
-    const edge = (value: unknown) =>
-      Math.max(step, Math.ceil(((typeof value === 'number' ? value : 256) * dpr) / step) * step);
-    return { width: edge(style.width), height: edge(style.height) };
-  }, [gpuAvailable, style.width, style.height]);
+  // Only the *initial* render size. Every later size rides on `setCamera`, which
+  // the viewport pushes from its ResizeObserver — so this stays a stable object
+  // and a window changing size does not reload its model.
+  const bitmapOutput = useMemo(
+    () => (gpuAvailable ? { width: INITIAL_RENDER_EDGE, height: INITIAL_RENDER_EDGE } : null),
+    [gpuAvailable]
+  );
 
   // Where the fold should be when the solver loads.
   //
@@ -273,6 +275,9 @@ function InlineSimulationWindow({
     triangulate: source ? foldNeedsTriangulation(source.fold as unknown as SimulatorFoldDocument) : true,
     canvas: null,
     bitmapOutput,
+    // Frozen unless this window has focus. It still redraws when the camera
+    // moves it — that is what keeps it crisp — it simply stops advancing.
+    paused: !focused,
     onFrame: handleFrame,
   });
 
