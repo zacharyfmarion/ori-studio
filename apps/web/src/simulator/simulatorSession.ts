@@ -836,20 +836,44 @@ export const MAX_BITMAP_RENDER_EDGE = 2048;
 const MIN_BITMAP_RENDER_EDGE = 128;
 
 /**
- * The size to render a bitmap-mode frame at: the next power of two at or above
- * what was asked for, capped.
+ * Quantised edge for the *canvas*, which is the expensive thing to change.
  *
- * Quantising is what makes the grow-only canvas actually pay off. Grow-only
- * alone does nothing for a monotonically increasing sequence, and zooming in is
- * exactly that — every frame wants a few more pixels than the last, so the
- * buffer reallocated every frame regardless, at 3.6ms when small and 95ms by the
- * time it reached 8192. Snapped to powers of two there are at most four growth
- * events in a session.
+ * Grow-only alone does nothing for a monotonically increasing sequence, and
+ * zooming in is exactly that — every frame wants a few more pixels than the
+ * last, so the buffer reallocated every frame regardless, at 3.6ms when small
+ * and 95ms by the time it reached 8192. Snapped to powers of two there are at
+ * most four growth events in a session.
+ *
+ * Deliberately *not* used for the render viewport. Quantising each axis
+ * separately changes the aspect ratio — a 257x255 window would render 512x256
+ * and be stretched to twice its width on the way to the screen — and setting a
+ * viewport costs nothing, so there is nothing to buy by rounding it.
  */
-export function bitmapRenderEdge(edge: number): number {
+export function bitmapCanvasEdge(edge: number): number {
   const wanted = Math.max(MIN_BITMAP_RENDER_EDGE, Math.ceil(edge));
   if (wanted >= MAX_BITMAP_RENDER_EDGE) return MAX_BITMAP_RENDER_EDGE;
   return 2 ** Math.ceil(Math.log2(wanted));
+}
+
+/**
+ * Scale a requested render down to fit a limit, keeping its shape.
+ *
+ * Uniform, never per-axis: the bitmap is stretched to the window's box when it
+ * is presented, so any difference between its aspect and the window's shows up
+ * as a squashed fold.
+ */
+export function fitRenderWithin(
+  requested: { width: number; height: number },
+  limit: { width: number; height: number }
+): { width: number; height: number } {
+  const width = Math.max(1, Math.floor(requested.width));
+  const height = Math.max(1, Math.floor(requested.height));
+  const scale = Math.min(1, limit.width / width, limit.height / height);
+  if (scale >= 1) return { width, height };
+  return {
+    width: Math.max(1, Math.floor(width * scale)),
+    height: Math.max(1, Math.floor(height * scale)),
+  };
 }
 
 export function nextRenderCanvasSize(
@@ -863,8 +887,8 @@ export function nextRenderCanvasSize(
     if (current.width === width && current.height === height) return null;
     return { width, height };
   }
-  const width = bitmapRenderEdge(requested.width);
-  const height = bitmapRenderEdge(requested.height);
+  const width = bitmapCanvasEdge(requested.width);
+  const height = bitmapCanvasEdge(requested.height);
   if (current.width >= width && current.height >= height) return null;
   return {
     width: Math.max(current.width, width),
@@ -885,19 +909,16 @@ async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
   // work that turned out to dominate — the instrumentation meant to catch this
   // could not see it.
   const started = nowMs();
+  // The canvas is quantised so it rarely reallocates; the viewport inside it is
+  // the window's true shape, because changing a viewport is free and the bitmap
+  // is stretched to the window's box when it is presented. Rounding the viewport
+  // too is what squashed the fold: a 257x255 window rendered 512x256.
   sizeRenderCanvas(state.width, state.height);
   // What GL actually gave us, which is not always what the canvas was set to —
   // see {@link WebglSolver.drawingBufferSize}. Rendering or cropping past this
   // reads nothing back and shows an empty window with no error anywhere.
   const buffer = state.solver.drawingBufferSize;
-  const width = Math.max(
-    1,
-    Math.min(presentMode === 'bitmap' ? bitmapRenderEdge(state.width) : state.width, buffer.width)
-  );
-  const height = Math.max(
-    1,
-    Math.min(presentMode === 'bitmap' ? bitmapRenderEdge(state.height) : state.height, buffer.height)
-  );
+  const { width, height } = fitRenderWithin(state, buffer);
   const camera = cameraUniforms(state.view, state.center, state.radius, width, height);
   state.solver.render(camera, state.settings);
   // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
