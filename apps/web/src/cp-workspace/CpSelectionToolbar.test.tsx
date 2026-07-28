@@ -145,10 +145,10 @@ describe('CpSelectionToolbar', () => {
     await act(async () => renderToolbar(root, container));
     const toolbar = document.querySelector('[role="toolbar"]');
     expect(toolbar).not.toBeNull();
-    // Fold, Export, Save to image, Simulate here, Simulate.
+    // Fold, Export, Save to image, Simulate inline, Simulate.
     expect(toolbar?.querySelectorAll('button').length).toBe(5);
     expect(document.querySelector('button[aria-label="Fold"]')).not.toBeNull();
-    expect(document.querySelector('button[aria-label="Simulate here"]')).not.toBeNull();
+    expect(document.querySelector('button[aria-label="Simulate inline"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Simulate"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Export…"]')).not.toBeNull();
   });

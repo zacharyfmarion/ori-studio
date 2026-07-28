@@ -181,7 +181,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         variant="toolbar"
         title={t(
           'panels:creasePattern.selectionToolbar.simulateInline',
-          'Simulate here'
+          'Simulate inline'
         )}
         onClick={() => runAndDismiss(() => void simulateSelectionInline())}
       >

@@ -284,7 +284,7 @@
       "label": "Acciones del patrón de pliegues",
       "saveImage": "Guardar como imagen",
       "simulate": "Simular",
-      "simulateInline": "Simular aquí"
+      "simulateInline": "Simular incrustado"
     },
     "sendImageToBack": "Enviar imagen al fondo",
     "shadow": "Sombra",
