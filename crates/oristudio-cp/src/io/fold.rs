@@ -1,10 +1,13 @@
 use super::{IoError, Result};
 use crate::CreasePatternDocument;
 use crate::fold_graph::FoldGraph;
-use crate::geometry::{Circle, LineColor, LineSegment, Point, angle, point_rotate_scaled};
+use crate::geometry::{
+    Circle, FoldMagnitude, LineColor, LineSegment, Point, angle, point_rotate_scaled,
+};
 use crate::model::{
-    CreasePatternModel, GridState, TextElement, custom_color_from_hex, custom_color_hex,
-    fold_angle_for_line_color, fold_assignment_for_line_color, line_color_for_fold_assignment,
+    CreasePatternModel, GridState, TextElement, crease_fold_angle, custom_color_from_hex,
+    custom_color_hex, fold_angle_for_line_color, fold_assignment_for_line_color,
+    line_color_for_fold_assignment,
 };
 use serde_json::{Value, json};
 use treemaker_fold::FoldDocument;
@@ -99,6 +102,22 @@ fn line_color_agrees_with_assignment(fold: &FoldDocument, index: usize, color: L
     fold_assignment_for_line_color(color) == *assignment
 }
 
+/// Magnitude to import for one FOLD edge, from `edges_foldAngle`.
+///
+/// Only the *magnitude* is taken. Colour derivation is left exactly as it was —
+/// it is oracle-tested against Oriedita, and for any well-formed FOLD the sign
+/// of `edges_foldAngle` already agrees with `edges_assignment` (a valley is `V`
+/// at every angle). Taking `|angle|` means a contradictory file keeps its
+/// Oriedita-compatible colour rather than silently flipping.
+///
+/// A full +/-180 normalises to `None`, so a classic FOLD imports to a classic
+/// crease and round-trips byte-identically.
+fn imported_fold_magnitude(fold: &FoldDocument, index: usize) -> Option<FoldMagnitude> {
+    let angle = fold.fold_angle_for_edge(index)?;
+    let magnitude = FoldMagnitude::from_degrees(angle.abs())?;
+    (!magnitude.is_full()).then_some(magnitude)
+}
+
 pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
     let mut model = CreasePatternModel::default();
     let edge_line_colors = line_color_array_extra(fold, ORISTUDIO_EDGES_LINE_COLORS)?;
@@ -115,7 +134,8 @@ pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
             .and_then(|colors| colors.get(index).copied().flatten())
             .filter(|color| line_color_agrees_with_assignment(fold, index, *color))
             .unwrap_or_else(|| line_color_for_fold_assignment(fold.assignment_for_edge(index)));
-        let mut segment = LineSegment::with_color(a, b, line_color);
+        let mut segment = LineSegment::with_color(a, b, line_color)
+            .with_fold_magnitude(imported_fold_magnitude(fold, index));
 
         if let Some(hex) = edge_colors.as_ref().and_then(|colors| colors.get(index))
             && !hex.is_empty()
@@ -144,7 +164,11 @@ pub fn export_fold_document(model: &CreasePatternModel, title: Option<String>) -
 
     for segment in &topology.segments {
         assignments.push(fold_assignment_for_line_color(segment.color));
-        fold_angles.push(Some(fold_angle_for_line_color(segment.color)));
+        // `crease_fold_angle` is `None` for anything that is not a crease, which
+        // is exactly where the old colour-only mapping produced 0.
+        fold_angles.push(Some(
+            crease_fold_angle(segment).unwrap_or_else(|| fold_angle_for_line_color(segment.color)),
+        ));
         edge_line_colors.push(segment.color.number());
         edge_custom_colors.push(if segment.customized == 1 {
             custom_color_hex(segment.customized_color)
