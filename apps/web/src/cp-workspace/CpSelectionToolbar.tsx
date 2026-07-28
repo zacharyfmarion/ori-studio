@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { toast } from 'sonner';
 import { FileDown, ImageDown, Origami, Play, PictureInPicture2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
+import { MAX_INLINE_SIMULATIONS } from './inlineSimulation/inlineSimulation';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
 import { cpLineSelectionBounds, selectedCpLineSegments } from '../lib/creasePatternClipboard';
@@ -148,6 +150,29 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
     clearSelection();
   };
 
+  /**
+   * Open a window, and say so when the cap refuses one.
+   *
+   * Without this the button simply did nothing on the seventh region, with no
+   * indication a limit existed — the store recorded a `projectMessage`, which
+   * nothing renders. Silent about `unavailable`: that means the region cannot be
+   * simulated at all, which the toolbar should not have offered in the first
+   * place, so a toast would be reporting our own bug at the user.
+   */
+  const openInlineSimulation = async (id: number) => {
+    if ((await simulateInline(id)) !== 'at-capacity') return;
+    toast.message(
+      // `max`, not `count`: i18next reads `count` as a plural selector and would
+      // fan this out into every locale's plural categories, for a number that is
+      // a constant.
+      t('toasts:creasePattern.inlineSimulationCap', {
+        defaultValue:
+          'Up to {{max}} simulation windows at once. Close one to open another.',
+        max: MAX_INLINE_SIMULATIONS,
+      })
+    );
+  };
+
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
@@ -181,7 +206,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
           'panels:creasePattern.selectionToolbar.simulateInline',
           'Simulate here'
         )}
-        onClick={() => runAndDismiss(() => void simulateInline(segmentId))}
+        onClick={() => runAndDismiss(() => void openInlineSimulation(segmentId))}
       >
         <PictureInPicture2 size={14} />
       </IconButton>

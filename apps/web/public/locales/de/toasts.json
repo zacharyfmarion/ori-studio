@@ -1,4 +1,7 @@
 {
+  "creasePattern": {
+    "inlineSimulationCap": "Bis zu {{max}} Simulationsfenster gleichzeitig. Schließe eines, um ein weiteres zu öffnen."
+  },
   "global": {
     "error": "Ori Studio-Fehler",
     "folding": "Wird gefaltet…"

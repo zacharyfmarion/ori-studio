@@ -1,4 +1,7 @@
 {
+  "creasePattern": {
+    "inlineSimulationCap": "Hasta {{max}} ventanas de simulación a la vez. Cierra una para abrir otra."
+  },
   "global": {
     "error": "Error de Ori Studio",
     "folding": "Plegando…"

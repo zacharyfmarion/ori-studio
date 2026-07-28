@@ -1,6 +1,33 @@
 import { execFileSync } from 'node:child_process';
-import { defineConfig } from 'vitest/config';
+import { existsSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+
+const DIST_PLACEHOLDER = 'apps/web/dist/.gitkeep';
+const DIST_PLACEHOLDER_TEXT =
+  "Placeholder so Tauri's compile-time context can resolve frontendDist in clean checkouts.\n";
+
+/**
+ * Put `dist/.gitkeep` back after a build.
+ *
+ * It is a *tracked* file, and `vite build` empties its output directory — so
+ * building deletes it, and the next `git add -A` commits the deletion. The
+ * result is a branch where `cargo test --workspace` fails on the Tauri crate
+ * with "frontendDist … doesn't exist", nowhere near anything the branch
+ * actually changed, and only on a clean checkout where nothing has built the
+ * frontend yet. Cheaper to restore it here than to have everyone rediscover it.
+ */
+function keepTauriFrontendDistPath(): Plugin {
+  return {
+    name: 'keep-tauri-frontend-dist-path',
+    apply: 'build',
+    closeBundle() {
+      const path = resolve(__dirname, '../../', DIST_PLACEHOLDER);
+      if (!existsSync(path)) writeFileSync(path, DIST_PLACEHOLDER_TEXT);
+    },
+  };
+}
 
 const crossOriginIsolationHeaders = {
   'Cross-Origin-Embedder-Policy': 'require-corp',
@@ -32,7 +59,7 @@ function appCommit(): string {
 const profiling = process.env.PROFILE === '1';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), keepTauriFrontendDistPath()],
   define: {
     __APP_COMMIT__: JSON.stringify(appCommit()),
   },

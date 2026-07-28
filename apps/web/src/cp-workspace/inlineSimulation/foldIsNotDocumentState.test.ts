@@ -8,7 +8,7 @@ import {
   subscribeInlineSimulationFold,
   subscribeInlineSimulationFoldTarget,
 } from './inlineSimulationRuntime';
-import type { InlineSimulation } from './inlineSimulation';
+import { MAX_INLINE_SIMULATIONS, type InlineSimulation } from './inlineSimulation';
 
 function windowAt(id: string): InlineSimulation {
   return {
@@ -122,5 +122,35 @@ describe('surviving a loss of focus', () => {
     publishInlineSimulationFold('sim-1', 63);
     clearAllInlineSimulationSources();
     expect(getInlineSimulationFoldPercent('sim-1')).toBe(0);
+  });
+});
+
+describe('the window cap', () => {
+  it('reports at-capacity rather than failing silently', async () => {
+    // The symptom this fixes: on the seventh region the button simply did
+    // nothing. The store recorded a `projectMessage`, and nothing renders that
+    // channel — so the cap existed with no way for anyone to find out.
+    useWorkspaceStore.setState({
+      oristudioCpDocument: {
+        document: { crease_pattern: { line_segments: [], points: [], circles: [] } },
+      } as never,
+      oristudioCpInlineSimulations: Array.from({ length: MAX_INLINE_SIMULATIONS }, (_, i) =>
+        windowAt(`sim-${i}`)
+      ),
+    });
+
+    const result = await useWorkspaceStore.getState().addOristudioCpInlineSimulation(0);
+    expect(result).toBe('at-capacity');
+  });
+
+  it('tells a full workspace apart from a region that cannot be simulated', async () => {
+    // Different outcomes, and only one of them is worth interrupting for.
+    useWorkspaceStore.setState({
+      oristudioCpDocument: null,
+      oristudioCpInlineSimulations: [],
+    });
+    expect(await useWorkspaceStore.getState().addOristudioCpInlineSimulation(0)).toBe(
+      'unavailable'
+    );
   });
 });

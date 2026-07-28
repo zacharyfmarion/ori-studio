@@ -1,4 +1,7 @@
 {
+  "creasePattern": {
+    "inlineSimulationCap": "同時に開けるシミュレーションウィンドウは最大 {{max}} 個です。別のウィンドウを開くには、いずれかを閉じてください。"
+  },
   "global": {
     "error": "Ori Studio エラー",
     "folding": "折り上げ中…"

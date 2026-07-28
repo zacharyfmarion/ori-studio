@@ -56,7 +56,10 @@ import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
-import type { InlineSimulation } from '../../cp-workspace/inlineSimulation/inlineSimulation';
+import type {
+  AddInlineSimulationResult,
+  InlineSimulation,
+} from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import type {
   OristudioBpDocumentState,
   OristudioBpEditingSurface,
@@ -469,10 +472,13 @@ export interface CreasePatternSliceActions {
   simulateOristudioCpSegment: (segmentId: number) => Promise<boolean>;
   /**
    * Open a simulation of one crease-pattern region as a window on the Edit
-   * canvas. Resolves false when the id no longer names a region, or when the
-   * concurrent-window cap is reached.
+   * canvas.
+   *
+   * Reports why rather than resolving a boolean: hitting the window cap is a
+   * normal outcome worth telling the user about, and the caller is where a
+   * translated message can be produced.
    */
-  addOristudioCpInlineSimulation: (segmentId: number) => Promise<boolean>;
+  addOristudioCpInlineSimulation: (segmentId: number) => Promise<AddInlineSimulationResult>;
   updateOristudioCpInlineSimulation: (
     id: string,
     // No fold percentage: that is per-frame transport and lives in

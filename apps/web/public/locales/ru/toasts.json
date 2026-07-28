@@ -1,4 +1,7 @@
 {
+  "creasePattern": {
+    "inlineSimulationCap": "Одновременно можно открыть до {{max}} окон симуляции. Закройте одно, чтобы открыть другое."
+  },
   "global": {
     "error": "Ошибка Ori Studio",
     "folding": "Складывание…"

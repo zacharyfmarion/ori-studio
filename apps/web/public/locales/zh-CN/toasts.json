@@ -1,4 +1,7 @@
 {
+  "creasePattern": {
+    "inlineSimulationCap": "最多可同时打开 {{max}} 个模拟窗口。请先关闭一个再打开新的。"
+  },
   "global": {
     "error": "Ori Studio 错误",
     "folding": "正在折叠…"

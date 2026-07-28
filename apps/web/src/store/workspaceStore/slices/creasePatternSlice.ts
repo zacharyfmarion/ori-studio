@@ -19,6 +19,7 @@ import {
 } from '../../../lib/creasePatternSegmentation';
 import { segmentContainedLineIds } from '../../../lib/creasePatternSelectionSegment';
 import {
+  MAX_INLINE_SIMULATIONS,
   createInlineSimulation,
   resolveInlineSimulationSegment,
   sourceFingerprintFor,
@@ -110,16 +111,6 @@ const MAX_CP_HISTORY = 100;
 // Dedupe concurrent `ensureEditCreasePattern` calls (e.g. React StrictMode
 // double-invoking the seeding effect) so only one blank document is created.
 let ensureEditInFlight: Promise<void> | null = null;
-
-/**
- * How many inline simulation windows can be open at once.
- *
- * Each is a solver session the worker may be asked to swap to, and a surface the
- * camera has to keep placed. The limit is a product choice rather than a
- * technical one -- bitmap presentation means they share a single GL context --
- * but an unbounded count degrades quietly, which is worse than refusing.
- */
-const MAX_INLINE_SIMULATIONS = 6;
 
 let nextInlineSimulationId = 1;
 
@@ -995,17 +986,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     addOristudioCpInlineSimulation: async (segmentId) => {
       const document = get().oristudioCpDocument?.document ?? null;
-      if (!document) return false;
+      if (!document) return 'unavailable';
       const simulations = get().oristudioCpInlineSimulations;
       // A hard cap, not a soft one. Each open window is a solver session the
       // worker may be asked to swap to, and a canvas the camera has to track;
       // an unbounded count degrades quietly rather than failing.
-      if (simulations.length >= MAX_INLINE_SIMULATIONS) {
-        set({
-          projectMessage: `At most ${MAX_INLINE_SIMULATIONS} inline simulations can be open at once`,
-        });
-        return false;
-      }
+      //
+      // Reported rather than set as a `projectMessage`: that channel is rendered
+      // by nothing (see GlobalToasts), and a raw string in the store could not be
+      // translated anyway. The caller says it, in the user's language.
+      if (simulations.length >= MAX_INLINE_SIMULATIONS) return 'at-capacity';
 
       // The simulator needs the triangulated mesh, so the full artifacts, not
       // the segmentation-only fast path the toolbar uses to decide it can offer
@@ -1030,7 +1020,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         containment =
           artifacts && segment ? segmentContainedLineIds(document, artifacts, segment) : [];
       }
-      if (!segment || !artifacts) return false;
+      if (!segment || !artifacts) return 'unavailable';
       const id = `inline-sim-${nextInlineSimulationId++}`;
       const simulation = createInlineSimulation({
         id,
@@ -1053,7 +1043,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         oristudioCpFocusedInlineSimulationId: id,
         oristudioCpSelectedAnnotationId: null,
       });
-      return true;
+      return 'added';
     },
 
     updateOristudioCpInlineSimulation: (id, patch) => {
