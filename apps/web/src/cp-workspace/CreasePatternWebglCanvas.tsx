@@ -236,6 +236,9 @@ const VERTEX_CROWD_GONE_AT = 0.45;
 const VERTEX_RING_FULL_AT = 0.12;
 const VERTEX_RING_GONE_AT = 0.3;
 
+/** Creases sampled when estimating vertex spacing. See `vertexSpacingModel`. */
+const VERTEX_SPACING_SAMPLE_CAP = 2048;
+
 /** Hermite ramp between two edges, clamped — the GLSL `smoothstep`. */
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
@@ -973,9 +976,16 @@ export function CreasePatternWebglCanvas({
   // (iguana_19.osf: 25-unit grid, 71-unit median crease), so the grid says
   // "crowded" while the vertices have ample room. It is kept only as the
   // fallback for a document with no creases to measure.
+  // Sampled rather than exhaustive: this runs again whenever the geometry
+  // changes, and sorting every length costs ~17ms on a 52k-edge document —
+  // a dropped frame per edit. A strided sample bounds it to a fixed ~0.1ms and
+  // is not an approximation worth worrying about: on a real 7.4k-edge pattern
+  // even a 512-sample stride reproduces the exhaustive median exactly.
   const vertexSpacingModel = useMemo(() => {
+    const stride = Math.max(1, Math.ceil(lineSegments.length / VERTEX_SPACING_SAMPLE_CAP));
     const lengths: number[] = [];
-    for (const seg of lineSegments) {
+    for (let i = 0; i < lineSegments.length; i += stride) {
+      const seg = lineSegments[i];
       const length = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
       if (length > 1e-9) lengths.push(length);
     }
