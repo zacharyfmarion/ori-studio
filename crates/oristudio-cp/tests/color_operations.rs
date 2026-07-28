@@ -343,3 +343,52 @@ fn mountain_valley_flip_preserves_the_magnitude() {
         "flipping M/V must negate rho with no magnitude-aware code"
     );
 }
+
+/// Splitting a crease at a new intersection must carry the fold angle into both
+/// halves. This falls out of `with_coordinates` using `..*self`, exactly as the
+/// colour does — but it is load-bearing enough to pin, because silently
+/// flattening half a crease would be very hard to notice.
+#[test]
+fn splitting_a_crease_preserves_its_fold_angle() {
+    use oristudio_cp::geometry::FoldMagnitude;
+    use oristudio_cp::operations::arrangement::divide_line_segment_with_new_lines;
+
+    let ninety = FoldMagnitude::from_degrees(90.0).expect("in range");
+    let mut model = CreasePatternModel::default();
+    // A horizontal 90-degree mountain...
+    model.add_line_segment(
+        LineSegment::from_coordinates(-100.0, 0.0, 100.0, 0.0)
+            .with_line_color(LineColor::Red1)
+            .with_fold_magnitude(Some(ninety)),
+    );
+    let original_end = model.line_segments.len();
+    // ...crossed by a classic valley.
+    model.add_line_segment(
+        LineSegment::from_coordinates(0.0, -100.0, 0.0, 100.0).with_line_color(LineColor::Blue2),
+    );
+    let added_end = model.line_segments.len();
+
+    divide_line_segment_with_new_lines(&mut model, original_end, added_end);
+
+    let mountains: Vec<_> = model
+        .line_segments
+        .iter()
+        .filter(|segment| segment.color == LineColor::Red1)
+        .collect();
+    assert!(mountains.len() >= 2, "the mountain should have been split");
+    for piece in mountains {
+        assert_eq!(
+            piece.fold_magnitude,
+            Some(ninety),
+            "every piece of a 90-degree crease must still be 90 degrees"
+        );
+    }
+    // The classic valley's pieces stay classic — the split must not invent an angle.
+    for piece in model
+        .line_segments
+        .iter()
+        .filter(|segment| segment.color == LineColor::Blue2)
+    {
+        assert_eq!(piece.fold_magnitude, None);
+    }
+}

@@ -80,6 +80,11 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   colBlueAction: 'S', // Valley
   colBlackAction: 'D', // Edge
   colCyanAction: 'F', // Auxiliary
+  // Ori Studio addition: no Oriedita equivalent, because Oriedita creases are
+  // always a full +/-180. Shift+F sits in the same left-hand family as the line
+  // types it complements and leaves A/S/D/F untouched. (Shift+A was the first
+  // choice but belongs to a1Action, the three-point angle readout.)
+  OriStudioSetFoldAngle: 'shift F',
 
   // -- Draw / construct --------------------------------------------------
   drawCreaseFreeAction: 'Z', // free line

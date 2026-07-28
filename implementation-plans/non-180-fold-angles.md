@@ -715,13 +715,34 @@ Named so they don't creep in:
 
 See **Editing UX** above for the reasoning behind each item.
 
-*Active angle — the fast path, and the highest-leverage item here*
+*Active angle — DEFERRED, see below*
 - [ ] `activeFoldMagnitude` store state beside `activeLineColor`
 - [ ] New folding creases inherit it; edges and aux never do
 - [ ] Readout in the `CpContextToolPanel` Line type group reads `Mountain 90°`,
       never bare `Mountain`
 - [ ] In-progress line preview renders in the ramped colour
 - [ ] One-action return to classic
+
+> **Deferred after looking at the draw path.** `active_line_color` has 51 call
+> sites across the ported draw operations, and threading a magnitude beside it is
+> a medium refactor of the port surface.
+>
+> The cheap alternative — apply the active magnitude to segments appended by a
+> draw command — is **unsafe**, and it took reading `divide_line_segment_with_new_lines`
+> to see why: drawing across an existing crease *splits* it, and the split pieces
+> are appended too. They correctly inherit the original's magnitude via
+> `with_coordinates`, but a piece of a *classic* crease has `None` and would be
+> indistinguishable from a newly drawn one. Drawing a 90° crease over a classic
+> mountain would silently turn that mountain's two halves into 90°.
+>
+> Nothing about the merge criteria needs this: without it a user draws classic
+> and then assigns, which is the workhorse path and is already shipped. It buys
+> clicks, not correctness. Revisit as its own change, where the draw-path
+> refactor can be reviewed on its own merits.
+
+*Splitting*
+- [x] Splitting a crease carries the fold angle into both halves, and a classic
+      crease's pieces stay classic (`splitting_a_crease_preserves_its_fold_angle`)
 
 *Assign to selection — the transcription workhorse*
 - [ ] `OperationId::CreaseSetFoldAngle` with payload, undo/redo
