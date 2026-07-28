@@ -437,8 +437,10 @@ const api = {
    */
   attachBitmapOutput(width: number, height: number): void {
     if (renderCanvas && presentMode === 'bitmap') {
-      renderCanvas.width = width;
-      renderCanvas.height = height;
+      // Grow-only, like every other size request in this mode — see
+      // {@link sizeRenderCanvas}. Shrinking here would hand the reallocation
+      // back on the next window that wants the larger size.
+      sizeRenderCanvas(width, height);
       return;
     }
     renderCanvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
@@ -598,13 +600,13 @@ const api = {
    * awaits this instead of doing the work itself, so its own frame stays free
    * regardless of how long the solve takes.
    */
-  tick(
+  async tick(
     options: {
       withColors?: boolean;
       recycled?: ArrayBuffer;
       token?: SimulatorSessionToken;
     } = {}
-  ): SimulatorFramePayload | null {
+  ): Promise<SimulatorFramePayload | null> {
     const active = sessionFor(options.token);
     if (!active) return null;
     const tick = active.clock.runFrame(active.backend);
@@ -616,14 +618,14 @@ const api = {
    * was on the main thread; used for initial settle and for scrubbing to a new
    * fold target where an immediately-correct result beats an animated one.
    */
-  settle(
+  async settle(
     maxSteps = 20_000,
     options: {
       withColors?: boolean;
       recycled?: ArrayBuffer;
       token?: SimulatorSessionToken;
     } = {}
-  ): SimulatorFramePayload | null {
+  ): Promise<SimulatorFramePayload | null> {
     const active = sessionFor(options.token);
     if (!active) return null;
     const tick = active.clock.runToConvergence(active.backend, maxSteps);
@@ -661,26 +663,29 @@ const api = {
    * orbit/zoom: it runs no solver work and no readback — just a re-draw with a
    * new view — which is what makes camera manipulation cheap at any model size.
    */
-  setCamera(camera: SimulatorCamera, token?: SimulatorSessionToken): ImageBitmap | null {
+  async setCamera(
+    camera: SimulatorCamera,
+    token?: SimulatorSessionToken
+  ): Promise<ImageBitmap | null> {
     const active = sessionFor(token);
     if (!active?.gpuRender) return null;
     perf.cameraCalls += 1;
     active.gpuRender.view = camera.view;
     active.gpuRender.width = camera.width;
     active.gpuRender.height = camera.height;
-    const bitmap = renderGpu(active.gpuRender);
+    const bitmap = await renderGpu(active.gpuRender);
     return bitmap ? transfer(bitmap, [bitmap]) : null;
   },
 
   /** Update render settings (colours, faces/edges/lighting, x-ray) and redraw. */
-  setRenderSettings(
+  async setRenderSettings(
     settings: RenderSettings,
     token?: SimulatorSessionToken
-  ): ImageBitmap | null {
+  ): Promise<ImageBitmap | null> {
     const active = sessionFor(token);
     if (!active?.gpuRender) return null;
     active.gpuRender.settings = settings;
-    const bitmap = renderGpu(active.gpuRender);
+    const bitmap = await renderGpu(active.gpuRender);
     return bitmap ? transfer(bitmap, [bitmap]) : null;
   },
 
@@ -724,11 +729,11 @@ const api = {
   },
 };
 
-function readFrame(
+async function readFrame(
   active: Session,
   tick: { steps: number; elapsedMs: number; converged: boolean; maxVelocity: number },
   options: { withColors?: boolean; recycled?: ArrayBuffer }
-): SimulatorFramePayload {
+): Promise<SimulatorFramePayload> {
   perf.ticks += 1;
   perf.solveTotalMs += tick.elapsedMs;
   perf.stepsTotal += tick.steps;
@@ -748,7 +753,7 @@ function readFrame(
   // positions cross to the main thread at all -- the whole point of this path.
   if (active.gpuRender) {
     refitOnce(active.gpuRender);
-    const bitmap = renderGpu(active.gpuRender);
+    const bitmap = await renderGpu(active.gpuRender);
     const payload = {
       positions: null,
       colors: null,
@@ -793,20 +798,70 @@ function readFrame(
  * to a transferred canvas. This is the single fork between the two paths —
  * solver, camera, settings and MeshRenderer are identical either side of it.
  */
-function renderGpu(state: GpuRenderState): ImageBitmap | null {
-  // The drawing-buffer size lives on the canvas, not the GL viewport; keep it in
-  // step with the requested render size so a panel resize is not stretched.
-  if (renderCanvas && (renderCanvas.width !== state.width || renderCanvas.height !== state.height)) {
-    renderCanvas.width = state.width;
-    renderCanvas.height = state.height;
+/**
+ * Size the shared drawing buffer for a render.
+ *
+ * Resizing a drawing buffer reallocates it, which costs ~2.2ms and stalls on the
+ * GPU process. Sizing it to each request meant paying that on *every* render:
+ * once per frame while a window zooms, and once per message when two windows of
+ * different sizes take turns — measured at 78% worker occupancy with only ~95ms
+ * of actual GL command submission behind it.
+ *
+ * In bitmap mode the canvas is scratch, not the frame, so it grows to the
+ * largest render anyone has asked for and stays there; each render takes the
+ * corner it needs and is cropped out. Window size stops being a performance
+ * variable. See `implementation-plans/inline-simulation-performance.md`.
+ *
+ * In canvas mode it stays exact: the transferred canvas *is* the visible
+ * surface, and a buffer larger than the drawing would be stretched across it by
+ * the compositor.
+ */
+export function nextRenderCanvasSize(
+  current: { width: number; height: number },
+  requested: { width: number; height: number },
+  mode: PresentMode
+): { width: number; height: number } | null {
+  const width = Math.max(1, Math.floor(requested.width));
+  const height = Math.max(1, Math.floor(requested.height));
+  if (mode === 'canvas') {
+    if (current.width === width && current.height === height) return null;
+    return { width, height };
   }
-  const camera = cameraUniforms(state.view, state.center, state.radius, state.width, state.height);
+  if (current.width >= width && current.height >= height) return null;
+  return {
+    width: Math.max(current.width, width),
+    height: Math.max(current.height, height),
+  };
+}
+
+function sizeRenderCanvas(width: number, height: number): void {
+  if (!renderCanvas) return;
+  const next = nextRenderCanvasSize(renderCanvas, { width, height }, presentMode);
+  if (!next) return;
+  renderCanvas.width = next.width;
+  renderCanvas.height = next.height;
+}
+
+async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
+  // Timed as a whole. It used to start after the resize, which is exactly the
+  // work that turned out to dominate — the instrumentation meant to catch this
+  // could not see it.
   const started = nowMs();
+  sizeRenderCanvas(state.width, state.height);
+  const camera = cameraUniforms(state.view, state.center, state.radius, state.width, state.height);
   state.solver.render(camera, state.settings);
-  // transferToImageBitmap also *clears* the canvas, which is why it is safe to
-  // reuse the same one every frame without an explicit clear.
+  // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
+  // is top-left, so the crop is measured down from the top of the canvas.
   const bitmap =
-    presentMode === 'bitmap' && renderCanvas ? renderCanvas.transferToImageBitmap() : null;
+    presentMode === 'bitmap' && renderCanvas
+      ? await createImageBitmap(
+          renderCanvas,
+          0,
+          renderCanvas.height - state.height,
+          state.width,
+          state.height
+        )
+      : null;
   // render() issues GL commands but they run async on the GPU; this measures the
   // CPU-side command cost, which is what would block the worker. A readPixels
   // would be needed to time actual GPU work, and that would itself stall.

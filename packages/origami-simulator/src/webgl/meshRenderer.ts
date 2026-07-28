@@ -338,6 +338,11 @@ export class MeshRenderer {
   render(camera: CameraUniforms, settings: RenderSettings, target: WebGLFramebuffer | null): void {
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+    // The buffer may be larger than this render: it is shared by every inline
+    // simulation window and sized to the largest of them, so each one draws into
+    // the corner it needs. `clear` below ignores the viewport and covers the
+    // whole buffer, which is what keeps a previous window's pixels out of this
+    // one's crop.
     gl.viewport(0, 0, camera.width, camera.height);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);

@@ -7,9 +7,12 @@ import type { FoldDocument } from '@treemaker/origami-simulator';
  * caller quotes a superseded session token; these cases quote none, so a null
  * here is a real failure rather than the ordinary stale-call path.
  */
-function frame(payload: SimulatorFramePayload | null): SimulatorFramePayload {
-  if (!payload) throw new Error('expected a frame, got a stale-session null');
-  return payload;
+async function frame(
+  payload: Promise<SimulatorFramePayload | null> | SimulatorFramePayload | null
+): Promise<SimulatorFramePayload> {
+  const resolved = await payload;
+  if (!resolved) throw new Error('expected a frame, got a stale-session null');
+  return resolved;
 }
 
 // Exercises the worker session the way the panel drives it. These are the paths
@@ -70,7 +73,7 @@ function positionsOf(payload: { positions: ArrayBuffer | null }): ArrayBuffer {
 }
 
 describe('simulator session', () => {
-  it('reports model topology for the renderer', () => {
+  it('reports model topology for the renderer', async () => {
     const session = createSimulatorSession();
     const info = session.load(miura(8, 8), {});
 
@@ -82,35 +85,35 @@ describe('simulator session', () => {
     session.dispose();
   });
 
-  it('settles immediately at rest, then folds when the target changes', () => {
+  it('settles immediately at rest, then folds when the target changes', async () => {
     const session = createSimulatorSession();
     session.load(miura(8, 8), {});
 
     // Flat with no crease torque: the clock should converge at once rather than
     // burning its whole step allowance.
-    const flat = frame(session.settle(4000, {}));
+    const flat = await frame(session.settle(4000, {}));
     expect(flat.converged).toBe(true);
     const flatPositions = new Float32Array(positionsOf(flat));
 
     // The regression this guards: a converged clock spends no budget, so
     // changing the fold target must un-converge it or the model never moves.
     session.setFoldPercent(90);
-    let folded = frame(session.tick({}));
-    for (let i = 0; i < 40 && !folded.converged; i += 1) folded = frame(session.tick({}));
+    let folded = await frame(session.tick({}));
+    for (let i = 0; i < 40 && !folded.converged; i += 1) folded = await frame(session.tick({}));
     const foldedPositions = new Float32Array(positionsOf(folded));
 
     expect(maxAbsDelta(flatPositions, foldedPositions)).toBeGreaterThan(0.01);
     session.dispose();
   });
 
-  it('carries live strain in the frame payload', () => {
+  it('carries live strain in the frame payload', async () => {
     const session = createSimulatorSession();
     session.load(miura(8, 8), {});
-    frame(session.settle(4000, {}));
+    await frame(session.settle(4000, {}));
 
     session.setFoldPercent(90);
-    let folded = frame(session.tick({}));
-    for (let i = 0; i < 40 && !folded.converged; i += 1) folded = frame(session.tick({}));
+    let folded = await frame(session.tick({}));
+    for (let i = 0; i < 40 && !folded.converged; i += 1) folded = await frame(session.tick({}));
 
     // Strain used to be read once from load-time diagnostics, which are taken
     // on the flat sheet and are therefore always zero.
@@ -118,11 +121,11 @@ describe('simulator session', () => {
     session.dispose();
   });
 
-  it('exports the current folded geometry', () => {
+  it('exports the current folded geometry', async () => {
     const session = createSimulatorSession();
     const info = session.load(miura(8, 8), {});
     session.setFoldPercent(70);
-    frame(session.settle(4000, {}));
+    await frame(session.settle(4000, {}));
 
     const geometry = session.exportGeometry();
     const positions = new Float32Array(geometry.positions);
@@ -145,12 +148,12 @@ describe('simulator session', () => {
     // budget so a loaded machine cannot turn it into a phantom failure.
   }, 30_000);
 
-  it('keeps ticks bounded by the frame budget', () => {
+  it('keeps ticks bounded by the frame budget', async () => {
     const session = createSimulatorSession();
     session.load(miura(16, 16), { budgetMs: 8 });
     session.setFoldPercent(80);
 
-    const tick = frame(session.tick({}));
+    const tick = await frame(session.tick({}));
     // The point of the budget: a tick costs about the budget regardless of how
     // big the model is. Without it this model would run to convergence and take
     // seconds, so the ceiling only has to separate "bounded" from "unbounded" --
@@ -160,28 +163,28 @@ describe('simulator session', () => {
     session.dispose();
   });
 
-  it('reuses a returned buffer instead of allocating', () => {
+  it('reuses a returned buffer instead of allocating', async () => {
     const session = createSimulatorSession();
     session.load(miura(8, 8), {});
-    const first = frame(session.tick({}));
+    const first = await frame(session.tick({}));
     const recycled = positionsOf(first);
 
-    const second = frame(session.tick({ recycled }));
+    const second = await frame(session.tick({ recycled }));
     expect(second.positions).toBe(recycled);
     session.dispose();
   });
 
-  it('returns to flat on reset', () => {
+  it('returns to flat on reset', async () => {
     const session = createSimulatorSession();
     session.load(miura(8, 8), {});
-    const flat = new Float32Array(positionsOf(frame(session.settle(4000, {}))));
+    const flat = new Float32Array(positionsOf(await frame(session.settle(4000, {}))));
 
     session.setFoldPercent(90);
-    for (let i = 0; i < 20; i += 1) frame(session.tick({}));
+    for (let i = 0; i < 20; i += 1) await frame(session.tick({}));
     session.reset();
     session.setFoldPercent(0);
 
-    const back = new Float32Array(positionsOf(frame(session.tick({}))));
+    const back = new Float32Array(positionsOf(await frame(session.tick({}))));
     expect(maxAbsDelta(flat, back)).toBeLessThan(1e-5);
     session.dispose();
   });
@@ -193,7 +196,7 @@ describe('session tokens', () => {
   // unfocused window can still be re-rendered when the crease-pattern camera
   // resizes it. Tokens are what keep those apart.
 
-  it('gives each load a distinct token', () => {
+  it('gives each load a distinct token', async () => {
     const session = createSimulatorSession();
     const first = session.load(miura(4, 4), {});
     const second = session.load(miura(8, 8), {});
@@ -202,72 +205,72 @@ describe('session tokens', () => {
     session.dispose();
   });
 
-  it('keeps answering an earlier token after a later load', () => {
+  it('keeps answering an earlier token after a later load', async () => {
     const session = createSimulatorSession();
     const first = session.load(miura(4, 4), {});
     const second = session.load(miura(8, 8), {});
 
     // Loading no longer displaces: a window that lost focus keeps its model, so
     // a camera change can still redraw it rather than scaling a stale bitmap.
-    expect(frame(session.tick({ token: first.token })).step).toBeGreaterThan(0);
-    expect(frame(session.tick({ token: second.token })).step).toBeGreaterThan(0);
+    expect((await frame(session.tick({ token: first.token }))).step).toBeGreaterThan(0);
+    expect((await frame(session.tick({ token: second.token }))).step).toBeGreaterThan(0);
     session.dispose();
   });
 
-  it('answers each token with its own model', () => {
+  it('answers each token with its own model', async () => {
     const session = createSimulatorSession();
     const small = session.load(miura(4, 4), {});
     const large = session.load(miura(8, 8), {});
 
     // The cross-talk this prevents: a call from one window being answered with
     // whatever model another window loaded most recently.
-    const smallFrame = frame(session.settle(2000, { token: small.token }));
-    const largeFrame = frame(session.settle(2000, { token: large.token }));
+    const smallFrame = await frame(session.settle(2000, { token: small.token }));
+    const largeFrame = await frame(session.settle(2000, { token: large.token }));
     expect(positionsOf(smallFrame).byteLength / 4 / 3).toBe(small.vertexCount);
     expect(positionsOf(largeFrame).byteLength / 4 / 3).toBe(large.vertexCount);
     expect(small.vertexCount).not.toBe(large.vertexCount);
     session.dispose();
   });
 
-  it('keeps a mutation to one model off the other', () => {
+  it('keeps a mutation to one model off the other', async () => {
     const session = createSimulatorSession();
     const first = session.load(miura(4, 4), {});
     const second = session.load(miura(8, 8), {});
 
     session.setFoldPercent(90, first.token);
 
-    expect(frame(session.tick({ token: first.token })).foldPercent).toBe(90);
-    expect(frame(session.tick({ token: second.token })).foldPercent).toBe(0);
+    expect((await frame(session.tick({ token: first.token }))).foldPercent).toBe(90);
+    expect((await frame(session.tick({ token: second.token }))).foldPercent).toBe(0);
     session.dispose();
   });
 
-  it('stops answering a released token', () => {
+  it('stops answering a released token', async () => {
     const session = createSimulatorSession();
     const info = session.load(miura(4, 4), {});
     session.release(info.token);
 
     // Null rather than a throw: a window closing is ordinary, not a fault.
-    expect(session.tick({ token: info.token })).toBeNull();
-    expect(session.settle(200, { token: info.token })).toBeNull();
+    expect(await session.tick({ token: info.token })).toBeNull();
+    expect(await session.settle(200, { token: info.token })).toBeNull();
     expect(
-      session.setCamera({ view: { yaw: 0, pitch: 0, zoom: 1 }, width: 8, height: 8 }, info.token)
+      await session.setCamera({ view: { yaw: 0, pitch: 0, zoom: 1 }, width: 8, height: 8 }, info.token)
     ).toBeNull();
     session.dispose();
   });
 
-  it('evicts the oldest model past the cap rather than growing without bound', () => {
+  it('evicts the oldest model past the cap rather than growing without bound', async () => {
     const session = createSimulatorSession();
     // The cap matches the window cap, so this should not happen in practice;
     // when it does, the oldest degrades to its last frame instead of the worker
     // holding every model ever loaded.
     const tokens = Array.from({ length: 8 }, () => session.load(miura(4, 4), {}).token);
 
-    expect(session.tick({ token: tokens[0]! })).toBeNull();
-    expect(session.tick({ token: tokens[tokens.length - 1]! })).not.toBeNull();
+    expect(await session.tick({ token: tokens[0]! })).toBeNull();
+    expect(await session.tick({ token: tokens[tokens.length - 1]! })).not.toBeNull();
     session.dispose();
   });
 
-  it('counts what is resident, so a leak is visible', () => {
+  it('counts what is resident, so a leak is visible', async () => {
     const session = createSimulatorSession();
     const first = session.load(miura(4, 4), {});
     const second = session.load(miura(4, 4), {});
@@ -284,28 +287,28 @@ describe('session tokens', () => {
     session.dispose();
   });
 
-  it('serves the most recent model to a caller quoting no token', () => {
+  it('serves the most recent model to a caller quoting no token', async () => {
     const session = createSimulatorSession();
     session.load(miura(4, 4), {});
     session.load(miura(8, 8), {});
 
     // The exporters read "whatever is loaded" and have no token to quote.
-    expect(session.tick({})).not.toBeNull();
+    expect(await session.tick({})).not.toBeNull();
     expect(session.exportGeometry().vertexCount).toBe(81);
     session.dispose();
   });
 });
 
 describe('prepared-model reuse', () => {
-  it('does not leak solver state between loads that share a model key', () => {
+  it('does not leak solver state between loads that share a model key', async () => {
     const session = createSimulatorSession();
     const fold = miura(6, 6);
 
     const first = session.load(fold, { modelKey: 'shared' });
     session.setFoldPercent(90, first.token);
-    let folded = frame(session.tick({ token: first.token }));
+    let folded = await frame(session.tick({ token: first.token }));
     for (let i = 0; i < 40 && !folded.converged; i += 1) {
-      folded = frame(session.tick({ token: first.token }));
+      folded = await frame(session.tick({ token: first.token }));
     }
     expect(folded.foldPercent).toBe(90);
 
@@ -313,7 +316,7 @@ describe('prepared-model reuse', () => {
     // still start from a fresh solver at rest, or a window would inherit the
     // fold state of whichever window used the same source before it.
     const second = session.load(fold, { modelKey: 'shared' });
-    const reloaded = frame(session.settle(2000, { token: second.token }));
+    const reloaded = await frame(session.settle(2000, { token: second.token }));
     expect(reloaded.foldPercent).toBe(0);
     expect(reloaded.step).toBeLessThan(folded.step);
     session.dispose();
