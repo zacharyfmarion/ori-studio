@@ -1,4 +1,22 @@
 {
+  "boundary": {
+    "appDescription": "Tu trabajo sigue en memoria, pero la interfaz no ha podido recuperarse por sí sola. Copia los detalles antes de recargar: le indican al desarrollador exactamente qué ha fallado.",
+    "appTitle": "Ori Studio ha tenido un problema",
+    "copied": "Copiado",
+    "copy": "Copiar detalles",
+    "copyFailed": "No se pudo copiar",
+    "description": "El resto de Ori Studio sigue funcionando. Inténtalo de nuevo, o copia los detalles y comunícalo.",
+    "detailsSummary": "Detalles técnicos",
+    "dismiss": "Descartar",
+    "miniTitle": "Esta barra lateral ha dejado de funcionar",
+    "overlayTitle": "Este diálogo ha dejado de funcionar",
+    "paneTitle": "Este panel ha dejado de funcionar",
+    "reload": "Recargar",
+    "report": "Informar de un problema",
+    "resetLayout": "Restablecer el diseño y recargar",
+    "retry": "Reintentar",
+    "stripTitle": "Esta barra de herramientas ha dejado de funcionar"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D no está disponible",
     "unsupportedImage": "Usa una imagen PNG, JPEG o WebP."
@@ -7,5 +25,15 @@
     "contradiction": "Este patrón de pliegues no es plegable en plano: algunas caras no tienen un orden de apilamiento coherente.",
     "layerSearch": "No se pudo plegar este patrón de pliegues: sus capas no se pueden ordenar sin superponerse.",
     "sameParity": "Este patrón de pliegues no se puede aplanar: dos caras se encuentran con la misma orientación a través de un pliegue."
+  },
+  "global": {
+    "title": "Algo ha fallado en segundo plano"
+  },
+  "worker": {
+    "cpDetect": "La detección de patrones de pliegues se ha detenido inesperadamente. Prueba a importar la imagen de nuevo.",
+    "oristudioBp": "El motor de plegado en caja se ha detenido inesperadamente. Recarga Ori Studio para seguir trabajando en este diseño.",
+    "oristudioCp": "El motor de patrones de pliegues se ha detenido inesperadamente. Recarga Ori Studio: puedes perder los cambios posteriores al último guardado.",
+    "simulator": "El simulador se ha detenido inesperadamente. Vuelve a abrir el espacio de trabajo de simulación para reiniciarlo.",
+    "treemaker": "El motor de diseño se ha detenido inesperadamente. Recarga Ori Studio para seguir trabajando en este árbol."
   }
 }

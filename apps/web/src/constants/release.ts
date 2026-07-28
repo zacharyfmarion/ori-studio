@@ -3,6 +3,7 @@ import packageJson from '../../package.json';
 export const APP_VERSION = packageJson.version;
 export const REPOSITORY_URL = 'https://github.com/zacharyfmarion/ori-studio';
 export const RELEASES_URL = `${REPOSITORY_URL}/releases`;
+export const ISSUES_URL = `${REPOSITORY_URL}/issues`;
 export const RELEASE_BASE = `${RELEASES_URL}/latest/download`;
 
 // Only Apple Silicon (aarch64) builds are currently published.

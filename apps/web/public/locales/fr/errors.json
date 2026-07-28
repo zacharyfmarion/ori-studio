@@ -1,4 +1,22 @@
 {
+  "boundary": {
+    "appDescription": "Votre travail est toujours en mémoire, mais l'interface n'a pas pu se rétablir seule. Copiez les détails ci-dessous avant de recharger : ils indiquent au développeur exactement ce qui s'est passé.",
+    "appTitle": "Ori Studio a rencontré un problème",
+    "copied": "Copié",
+    "copy": "Copier les détails",
+    "copyFailed": "Copie impossible",
+    "description": "Le reste d'Ori Studio fonctionne toujours. Réessayez, ou copiez les détails et signalez le problème.",
+    "detailsSummary": "Détails techniques",
+    "dismiss": "Fermer",
+    "miniTitle": "Cette barre latérale ne fonctionne plus",
+    "overlayTitle": "Cette boîte de dialogue ne fonctionne plus",
+    "paneTitle": "Ce panneau ne fonctionne plus",
+    "reload": "Recharger",
+    "report": "Signaler un problème",
+    "resetLayout": "Réinitialiser la disposition et recharger",
+    "retry": "Réessayer",
+    "stripTitle": "Cette barre d'outils ne fonctionne plus"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D n’est pas disponible",
     "unsupportedImage": "Utilisez une image PNG, JPEG ou WebP."
@@ -7,5 +25,15 @@
     "contradiction": "Ce patron de plis n'est pas pliable à plat : certaines facettes n'ont pas d'ordre d'empilement cohérent.",
     "layerSearch": "Ce patron de plis n'a pas pu être plié : ses couches ne peuvent pas être disposées sans chevauchement.",
     "sameParity": "Ce patron de plis ne peut pas être plié à plat : deux facettes se rencontrent avec la même orientation de part et d'autre d'un pli."
+  },
+  "global": {
+    "title": "Une erreur s'est produite en arrière-plan"
+  },
+  "worker": {
+    "cpDetect": "La détection de patron de plis s'est arrêtée de façon inattendue. Réessayez d'importer l'image.",
+    "oristudioBp": "Le moteur de pliage en boîte s'est arrêté de façon inattendue. Rechargez Ori Studio pour continuer à travailler sur ce modèle.",
+    "oristudioCp": "Le moteur de patrons de plis s'est arrêté de façon inattendue. Rechargez Ori Studio — les modifications postérieures à la dernière sauvegarde peuvent être perdues.",
+    "simulator": "Le simulateur s'est arrêté de façon inattendue. Rouvrez l'espace de travail Simuler pour le relancer.",
+    "treemaker": "Le moteur de conception s'est arrêté de façon inattendue. Rechargez Ori Studio pour continuer à travailler sur cet arbre."
   }
 }
