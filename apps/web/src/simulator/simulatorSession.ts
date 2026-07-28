@@ -1,4 +1,6 @@
 import { transfer } from 'comlink';
+import { PreparedModelCache } from '../lib/preparedModelCache';
+import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
 import {
   OrigamiModel,
   ReferenceSolver,
@@ -45,6 +47,15 @@ export interface SimulatorLoadOptions {
   preferGpu?: boolean;
   /** GPU steps per tick (bounds async GPU work; overrides the default). */
   gpuStepsPerTick?: number;
+  /**
+   * Stable identity of this fold, so re-loading it skips `prepareFoldModel`.
+   *
+   * Switching the focused inline window means loading its model again, and
+   * preparation is the expensive part — triangulation, edge indexing, crease
+   * params — where stepping the solver afterwards is not. Omit it and every load
+   * prepares from scratch, which is right for a source that actually changed.
+   */
+  modelKey?: string;
 }
 
 /**
@@ -86,6 +97,8 @@ export interface SimulatorModelInfo {
   diagnostics: SimulatorDiagnostics;
   /** Which solver actually got selected, for the UI's backend indicator. */
   backend: SimulatorBackendId;
+  /** Quote this on later calls; see {@link SimulatorSessionToken}. */
+  token: SimulatorSessionToken;
 }
 
 /** Index -> FOLD assignment letter, shared with the render side. */
@@ -102,6 +115,12 @@ export interface SimulatorFramePayload {
   colors: ArrayBuffer | null;
   /** True when the worker rendered this frame itself (GPU-render mode). */
   renderedInWorker: boolean;
+  /**
+   * The rendered frame, in bitmap-present mode. Transferred; the caller hands it
+   * to a `bitmaprenderer` canvas. Null when the worker drew straight to a
+   * transferred canvas, or when there was nothing to draw.
+   */
+  bitmap: ImageBitmap | null;
   step: number;
   stepsThisTick: number;
   elapsedMs: number;
@@ -171,14 +190,113 @@ const DEFAULT_RENDER_SETTINGS: RenderSettings = {
   faceAlpha: 1,
 };
 
-let session: Session | null = null;
+/**
+ * Identifies one loaded model, handed back by `load` and quoted by every later
+ * call.
+ *
+ * The worker holds a single live session, and more than one consumer can ask it
+ * to load: the Simulate panel, and any of the inline simulation windows on the
+ * Edit canvas. Those calls are asynchronous, so a `tick` dispatched by the
+ * window that just lost focus can arrive after its successor has loaded — and
+ * would otherwise be answered with the *new* model's geometry, which the caller
+ * would happily draw into the old window. Quoting a token makes that arrival
+ * identifiable, and it is dropped instead.
+ */
+export type SimulatorSessionToken = number;
 
 /**
- * The panel's canvas, transferred once via `transferControlToOffscreen`. A
- * canvas can only be transferred a single time, so it is held here and reused
- * across model reloads — each new WebglSolver renders to the same canvas.
+ * Every loaded model, newest last. Keyed by the token `load` handed back.
+ *
+ * Originally there was one. That was enough while an unfocused inline simulation
+ * only ever had to hold still: it kept the last frame its canvas received, which
+ * costs nothing. But the crease-pattern camera keeps moving underneath it — pan
+ * and zoom resize the window — and a bitmap rendered for the old size is then
+ * scaled, so the fold goes soft when zoomed in and its creases go to threads
+ * when zoomed out.
+ *
+ * Re-rendering needs the mesh, and the mesh lives in solver textures, so the
+ * sessions have to stay. They are cheap to keep and cheap to draw: bitmap
+ * presentation means they share a single GL context, and a settled model spends
+ * no solver budget. Only the focused window ticks; the rest cost a draw when the
+ * camera moves them, which is the whole point.
  */
+const sessions = new Map<SimulatorSessionToken, Session>();
+let sessionToken: SimulatorSessionToken = 0;
+
+/**
+ * How many models stay resident.
+ *
+ * The same limit the UI uses to cap open windows, so nothing is ever evicted in
+ * practice and a window cannot lose its session while it is still on screen. The
+ * eviction path exists so a caller that ignores the cap degrades to a stale
+ * frame rather than exhausting memory.
+ */
+const MAX_LIVE_SESSIONS = MAX_CONCURRENT_SIMULATIONS;
+
+/** The most recently loaded session, for callers with no token to quote. */
+function latestSession(): Session | null {
+  let latest: Session | null = null;
+  for (const candidate of sessions.values()) latest = candidate;
+  return latest;
+}
+
+function disposeSession(token: SimulatorSessionToken): void {
+  const existing = sessions.get(token);
+  if (!existing) return;
+  existing.backend.dispose();
+  sessions.delete(token);
+}
+
+/** Drop the oldest sessions until the cap is met. */
+function evictBeyondCap(): void {
+  while (sessions.size > MAX_LIVE_SESSIONS) {
+    const oldest = sessions.keys().next().value;
+    if (oldest === undefined) break;
+    disposeSession(oldest);
+  }
+}
+
+/**
+ * Prepared models kept across loads, keyed by the caller's `modelKey`.
+ *
+ * Bounded, because a prepared model is the triangulated mesh plus its adjacency
+ * — tens of megabytes on a large crease pattern — so an unbounded cache would
+ * simply move the memory problem rather than solve it. Four is enough to make
+ * alternating between a handful of open windows feel instant.
+ */
+const preparedModels = new PreparedModelCache(4);
+
+/**
+ * Set when the live session's GL context is lost, and cleared by the next
+ * successful load.
+ *
+ * A lost context does not throw — GL calls become no-ops and reads return
+ * zeros — so the solver would go on "converging" a flat, motionless mesh and the
+ * panel would show a settled fold that is simply wrong. Failing every subsequent
+ * call with this message routes it to the runtime's error state instead, which
+ * is the only honest thing to show.
+ */
+let sessionFailure: string | null = null;
+
+/**
+ * The surface the GPU solver's context lives on, and how its frames get out.
+ *
+ * `'canvas'` — the caller transferred its own canvas via
+ * `transferControlToOffscreen`. The worker draws straight to it and nothing
+ * crosses back. One canvas can only be transferred once, so it is held here and
+ * reused across model reloads.
+ *
+ * `'bitmap'` — the worker owns a private OffscreenCanvas and hands each frame
+ * out as an ImageBitmap. This costs one transfer per frame, and buys the thing
+ * inline windows need: **one** GL context serving any number of on-screen
+ * surfaces, because the receiving canvases take a `bitmaprenderer` context,
+ * which is not a WebGL context and so does not count against the four a worker
+ * gets. Measured at 0.011ms per 512px frame — see `__simCapabilityProbe`.
+ */
+type PresentMode = 'canvas' | 'bitmap';
+
 let renderCanvas: OffscreenCanvas | null = null;
+let presentMode: PresentMode = 'canvas';
 
 export interface PerfSnapshot {
   windowMs: number;
@@ -192,6 +310,8 @@ export interface PerfSnapshot {
   cameraCalls: number;
   /** Solver ticks (budgeted frames) this window. */
   ticks: number;
+  /** Models resident in the worker. Only the focused one ticks; the rest draw. */
+  liveSessions: number;
   solveAvgMs: number;
   solveMaxMs: number;
   stepsTotal: number;
@@ -228,8 +348,23 @@ function resetPerf(at: number): void {
 }
 
 function requireSession(): Session {
-  if (!session) throw new Error('Simulator worker: no model loaded');
-  return session;
+  if (sessionFailure) throw new Error(sessionFailure);
+  const latest = latestSession();
+  if (!latest) throw new Error('Simulator worker: no model loaded');
+  return latest;
+}
+
+/**
+ * The live session, or null when `token` refers to one that has been replaced.
+ *
+ * Callers that quote a stale token get a no-op rather than an error: being
+ * superseded is the normal outcome of moving focus between inline windows, not a
+ * fault worth surfacing.
+ */
+function sessionFor(token: SimulatorSessionToken | undefined): Session | null {
+  if (sessionFailure) throw new Error(sessionFailure);
+  if (token === undefined) return latestSession();
+  return sessions.get(token) ?? null;
 }
 
 /**
@@ -257,6 +392,10 @@ function createBackend(
     try {
       if (WebglSolver.isSupported(renderCanvas)) {
         const solver = new WebglSolver(renderCanvas, model, solverOptions);
+        solver.onContextLost(() => {
+          sessionFailure =
+            'The graphics context was lost, so the simulation stopped. Reload the model to restart it.';
+        });
         return { backend: solver, backendId: 'webgl2', gpuSolver: solver };
       }
     } catch {
@@ -281,9 +420,34 @@ function scratchFrom(recycled: ArrayBuffer | undefined, floats: number): Float32
 }
 
 const api = {
-  /** Transfer the panel's canvas to the worker, once. */
+  /**
+   * Transfer a caller-owned canvas to the worker, once. The solver renders
+   * straight to it and no pixels cross back.
+   */
   attachCanvas(canvas: OffscreenCanvas): void {
     renderCanvas = canvas;
+    presentMode = 'canvas';
+  },
+
+  /**
+   * Render into a worker-private canvas and hand each frame back as an
+   * ImageBitmap, instead of drawing to a transferred one.
+   *
+   * This is what lets many on-screen surfaces share a single GL context: the
+   * receiving canvases hold `bitmaprenderer` contexts, which do not count
+   * against the four WebGL contexts a worker is allowed. Resizing reuses the
+   * same canvas, so switching size does not churn the context.
+   */
+  attachBitmapOutput(width: number, height: number): void {
+    if (renderCanvas && presentMode === 'bitmap') {
+      // Grow-only, like every other size request in this mode — see
+      // {@link sizeRenderCanvas}. Shrinking here would hand the reallocation
+      // back on the next window that wants the larger size.
+      sizeRenderCanvas(width, height);
+      return;
+    }
+    renderCanvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
+    presentMode = 'bitmap';
   },
 
   load(fold: FoldDocument, options: SimulatorLoadOptions = {}): SimulatorModelInfo {
@@ -292,13 +456,24 @@ const api = {
     // would make every segment switch snap back to the default view and the
     // default (blue) front colour until the next user interaction. Only the fit
     // (center/radius) is model-specific and recomputed by refitOnce.
-    const previous = session?.gpuRender;
-    session?.backend.dispose();
+    // Carried from the most recent session, not from one being replaced: a load
+    // no longer displaces anything, so this is only about a new model opening
+    // with the camera and palette already in use rather than the defaults.
+    const previous = latestSession()?.gpuRender;
+    // A fresh load gets a fresh context, so a previous loss is no longer the
+    // truth about this session.
+    sessionFailure = null;
+    sessionToken += 1;
 
     // prepareFoldModel runs here rather than on the main thread: it is O(n)
     // heavy (earcut triangulation, edge indexing) and used to block the UI
-    // before a single solver step had run.
-    const prepared = prepareFoldModel(fold, options.prepare ?? { triangulate: true });
+    // before a single solver step had run. Prepared models are immutable, so a
+    // keyed one is safe to share between loads; solver state is not cached and a
+    // fresh backend is always built, so no fold state leaks across a switch.
+    const prepareOptions = options.prepare ?? { triangulate: true };
+    const prepared = options.modelKey
+      ? preparedModels.get(options.modelKey, () => prepareFoldModel(fold, prepareOptions))
+      : prepareFoldModel(fold, prepareOptions);
     const model = new OrigamiModel(prepared);
     const { backend, backendId, gpuSolver } = createBackend(model, options, renderCanvas);
     // The GPU tick is bounded by a fixed step COUNT, not a CPU-time budget. GPU
@@ -322,7 +497,7 @@ const api = {
           }
     );
 
-    session = {
+    const created: Session = {
       model,
       backend,
       backendId,
@@ -344,6 +519,8 @@ const api = {
             }
           : null,
     };
+    sessions.set(sessionToken, created);
+    evictBeyondCap();
 
     const indices = prepared.indices.slice();
 
@@ -378,6 +555,7 @@ const api = {
         facesEdges: facesEdges.buffer as ArrayBuffer,
         diagnostics: backend.readDiagnostics(),
         backend: backendId,
+        token: sessionToken,
       },
       [
         indices.buffer as ArrayBuffer,
@@ -388,8 +566,9 @@ const api = {
     );
   },
 
-  setFoldPercent(percent: number): void {
-    const active = requireSession();
+  setFoldPercent(percent: number, token?: SimulatorSessionToken): void {
+    const active = sessionFor(token);
+    if (!active) return;
     active.backend.setFoldPercent(percent);
     active.foldPercent = percent;
     // A converged clock spends no budget, so a new target must un-converge it
@@ -397,21 +576,24 @@ const api = {
     active.clock.invalidate();
   },
 
-  setFoldProfile(profile: FoldProfile | null): void {
-    const active = requireSession();
+  setFoldProfile(profile: FoldProfile | null, token?: SimulatorSessionToken): void {
+    const active = sessionFor(token);
+    if (!active) return;
     active.backend.setFoldProfile(profile);
     active.clock.invalidate();
   },
 
-  setMaterial(options: Partial<SimulatorOptions>): void {
-    const active = requireSession();
+  setMaterial(options: Partial<SimulatorOptions>, token?: SimulatorSessionToken): void {
+    const active = sessionFor(token);
+    if (!active) return;
     active.backend.setMaterial(options);
     if (options.foldPercent !== undefined) active.foldPercent = options.foldPercent;
     active.clock.invalidate();
   },
 
-  reset(): void {
-    const active = requireSession();
+  reset(token?: SimulatorSessionToken): void {
+    const active = sessionFor(token);
+    if (!active) return;
     active.backend.reset();
     active.clock.reset();
   },
@@ -421,8 +603,15 @@ const api = {
    * awaits this instead of doing the work itself, so its own frame stays free
    * regardless of how long the solve takes.
    */
-  tick(options: { withColors?: boolean; recycled?: ArrayBuffer } = {}): SimulatorFramePayload {
-    const active = requireSession();
+  async tick(
+    options: {
+      withColors?: boolean;
+      recycled?: ArrayBuffer;
+      token?: SimulatorSessionToken;
+    } = {}
+  ): Promise<SimulatorFramePayload | null> {
+    const active = sessionFor(options.token);
+    if (!active) return null;
     const tick = active.clock.runFrame(active.backend);
     return readFrame(active, tick, options);
   },
@@ -432,8 +621,16 @@ const api = {
    * was on the main thread; used for initial settle and for scrubbing to a new
    * fold target where an immediately-correct result beats an animated one.
    */
-  settle(maxSteps = 20_000, options: { withColors?: boolean; recycled?: ArrayBuffer } = {}): SimulatorFramePayload {
-    const active = requireSession();
+  async settle(
+    maxSteps = 20_000,
+    options: {
+      withColors?: boolean;
+      recycled?: ArrayBuffer;
+      token?: SimulatorSessionToken;
+    } = {}
+  ): Promise<SimulatorFramePayload | null> {
+    const active = sessionFor(options.token);
+    if (!active) return null;
     const tick = active.clock.runToConvergence(active.backend, maxSteps);
     return readFrame(active, tick, options);
   },
@@ -469,22 +666,30 @@ const api = {
    * orbit/zoom: it runs no solver work and no readback — just a re-draw with a
    * new view — which is what makes camera manipulation cheap at any model size.
    */
-  setCamera(camera: SimulatorCamera): void {
-    const active = requireSession();
-    if (!active.gpuRender) return;
+  async setCamera(
+    camera: SimulatorCamera,
+    token?: SimulatorSessionToken
+  ): Promise<ImageBitmap | null> {
+    const active = sessionFor(token);
+    if (!active?.gpuRender) return null;
     perf.cameraCalls += 1;
     active.gpuRender.view = camera.view;
     active.gpuRender.width = camera.width;
     active.gpuRender.height = camera.height;
-    renderGpu(active.gpuRender);
+    const bitmap = await renderGpu(active.gpuRender);
+    return bitmap ? transfer(bitmap, [bitmap]) : null;
   },
 
   /** Update render settings (colours, faces/edges/lighting, x-ray) and redraw. */
-  setRenderSettings(settings: RenderSettings): void {
-    const active = requireSession();
-    if (!active.gpuRender) return;
+  async setRenderSettings(
+    settings: RenderSettings,
+    token?: SimulatorSessionToken
+  ): Promise<ImageBitmap | null> {
+    const active = sessionFor(token);
+    if (!active?.gpuRender) return null;
     active.gpuRender.settings = settings;
-    renderGpu(active.gpuRender);
+    const bitmap = await renderGpu(active.gpuRender);
+    return bitmap ? transfer(bitmap, [bitmap]) : null;
   },
 
   /**
@@ -498,8 +703,9 @@ const api = {
     const windowMs = now - perf.windowStart;
     const snapshot: PerfSnapshot = {
       windowMs,
-      backend: session?.backendId ?? 'reference',
-      gpuRender: Boolean(session?.gpuRender),
+      backend: latestSession()?.backendId ?? 'reference',
+      gpuRender: Boolean(latestSession()?.gpuRender),
+      liveSessions: sessions.size,
       renders: perf.renders,
       renderAvgMs: perf.renders ? perf.renderTotalMs / perf.renders : 0,
       renderMaxMs: perf.renderMaxMs,
@@ -513,17 +719,24 @@ const api = {
     return snapshot;
   },
 
+  /**
+   * Drop one model. Called when a window is closed, so its textures go with it
+   * rather than waiting to be evicted by something else loading.
+   */
+  release(token: SimulatorSessionToken): void {
+    disposeSession(token);
+  },
+
   dispose(): void {
-    session?.backend.dispose();
-    session = null;
+    for (const token of [...sessions.keys()]) disposeSession(token);
   },
 };
 
-function readFrame(
+async function readFrame(
   active: Session,
   tick: { steps: number; elapsedMs: number; converged: boolean; maxVelocity: number },
   options: { withColors?: boolean; recycled?: ArrayBuffer }
-): SimulatorFramePayload {
+): Promise<SimulatorFramePayload> {
   perf.ticks += 1;
   perf.solveTotalMs += tick.elapsedMs;
   perf.stepsTotal += tick.steps;
@@ -543,8 +756,15 @@ function readFrame(
   // positions cross to the main thread at all -- the whole point of this path.
   if (active.gpuRender) {
     refitOnce(active.gpuRender);
-    renderGpu(active.gpuRender);
-    return { positions: null, colors: null, renderedInWorker: true, ...scalars };
+    const bitmap = await renderGpu(active.gpuRender);
+    const payload = {
+      positions: null,
+      colors: null,
+      renderedInWorker: true,
+      bitmap,
+      ...scalars,
+    };
+    return bitmap ? transfer(payload, [bitmap]) : payload;
   }
 
   const floats = active.model.positions.length;
@@ -566,23 +786,150 @@ function readFrame(
       positions: positions.buffer as ArrayBuffer,
       colors: colors ? (colors.buffer as ArrayBuffer) : null,
       renderedInWorker: false,
+      bitmap: null,
       ...scalars,
     },
     transferables
   );
 }
 
-/** Draw the current GPU state to the transferred canvas. No readback. */
-function renderGpu(state: GpuRenderState): void {
-  // The drawing-buffer size lives on the canvas, not the GL viewport; keep it in
-  // step with the requested render size so a panel resize is not stretched.
-  if (renderCanvas && (renderCanvas.width !== state.width || renderCanvas.height !== state.height)) {
-    renderCanvas.width = state.width;
-    renderCanvas.height = state.height;
+/**
+ * Draw the current GPU state. No readback in either mode: the mesh is drawn from
+ * the solver's position texture, so nothing crosses to the CPU.
+ *
+ * Returns an ImageBitmap in bitmap-present mode and null when drawing straight
+ * to a transferred canvas. This is the single fork between the two paths —
+ * solver, camera, settings and MeshRenderer are identical either side of it.
+ */
+/**
+ * Size the shared drawing buffer for a render.
+ *
+ * Resizing a drawing buffer reallocates it, which costs ~2.2ms and stalls on the
+ * GPU process. Sizing it to each request meant paying that on *every* render:
+ * once per frame while a window zooms, and once per message when two windows of
+ * different sizes take turns — measured at 78% worker occupancy with only ~95ms
+ * of actual GL command submission behind it.
+ *
+ * In bitmap mode the canvas is scratch, not the frame, so it grows to the
+ * largest render anyone has asked for and stays there; each render takes the
+ * corner it needs and is cropped out. Window size stops being a performance
+ * variable. See `implementation-plans/inline-simulation-performance.md`.
+ *
+ * In canvas mode it stays exact: the transferred canvas *is* the visible
+ * surface, and a buffer larger than the drawing would be stretched across it by
+ * the compositor.
+ */
+/**
+ * Ceiling on a bitmap-mode render, in device pixels.
+ *
+ * Not a quality choice — a correctness one. A browser silently clamps the
+ * drawing buffer when it cannot back the size asked for: a canvas set to 16384
+ * came back with a 5760 buffer, `isContextLost()` false and no GL error. Past
+ * that point the render lands outside the buffer and the crop reads nothing, so
+ * every window goes transparent at once and, with a grow-only canvas, stays that
+ * way. Well under the observed clamp, and ~9ms to allocate once.
+ *
+ * A window larger than this renders at the cap and is scaled up slightly by the
+ * time it reaches the screen. That is a window filling most of a large display,
+ * where mild softness is a better outcome than a blank one.
+ */
+export const MAX_BITMAP_RENDER_EDGE = 2048;
+
+/** Floor, so a window measured mid-collapse still renders something usable. */
+const MIN_BITMAP_RENDER_EDGE = 128;
+
+/**
+ * Quantised edge for the *canvas*, which is the expensive thing to change.
+ *
+ * Grow-only alone does nothing for a monotonically increasing sequence, and
+ * zooming in is exactly that — every frame wants a few more pixels than the
+ * last, so the buffer reallocated every frame regardless, at 3.6ms when small
+ * and 95ms by the time it reached 8192. Snapped to powers of two there are at
+ * most four growth events in a session.
+ *
+ * Deliberately *not* used for the render viewport. Quantising each axis
+ * separately changes the aspect ratio — a 257x255 window would render 512x256
+ * and be stretched to twice its width on the way to the screen — and setting a
+ * viewport costs nothing, so there is nothing to buy by rounding it.
+ */
+export function bitmapCanvasEdge(edge: number): number {
+  const wanted = Math.max(MIN_BITMAP_RENDER_EDGE, Math.ceil(edge));
+  if (wanted >= MAX_BITMAP_RENDER_EDGE) return MAX_BITMAP_RENDER_EDGE;
+  return 2 ** Math.ceil(Math.log2(wanted));
+}
+
+/**
+ * Scale a requested render down to fit a limit, keeping its shape.
+ *
+ * Uniform, never per-axis: the bitmap is stretched to the window's box when it
+ * is presented, so any difference between its aspect and the window's shows up
+ * as a squashed fold.
+ */
+export function fitRenderWithin(
+  requested: { width: number; height: number },
+  limit: { width: number; height: number }
+): { width: number; height: number } {
+  const width = Math.max(1, Math.floor(requested.width));
+  const height = Math.max(1, Math.floor(requested.height));
+  const scale = Math.min(1, limit.width / width, limit.height / height);
+  if (scale >= 1) return { width, height };
+  return {
+    width: Math.max(1, Math.floor(width * scale)),
+    height: Math.max(1, Math.floor(height * scale)),
+  };
+}
+
+export function nextRenderCanvasSize(
+  current: { width: number; height: number },
+  requested: { width: number; height: number },
+  mode: PresentMode
+): { width: number; height: number } | null {
+  if (mode === 'canvas') {
+    const width = Math.max(1, Math.floor(requested.width));
+    const height = Math.max(1, Math.floor(requested.height));
+    if (current.width === width && current.height === height) return null;
+    return { width, height };
   }
-  const camera = cameraUniforms(state.view, state.center, state.radius, state.width, state.height);
+  const width = bitmapCanvasEdge(requested.width);
+  const height = bitmapCanvasEdge(requested.height);
+  if (current.width >= width && current.height >= height) return null;
+  return {
+    width: Math.max(current.width, width),
+    height: Math.max(current.height, height),
+  };
+}
+
+function sizeRenderCanvas(width: number, height: number): void {
+  if (!renderCanvas) return;
+  const next = nextRenderCanvasSize(renderCanvas, { width, height }, presentMode);
+  if (!next) return;
+  renderCanvas.width = next.width;
+  renderCanvas.height = next.height;
+}
+
+async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
+  // Timed as a whole. It used to start after the resize, which is exactly the
+  // work that turned out to dominate — the instrumentation meant to catch this
+  // could not see it.
   const started = nowMs();
+  // The canvas is quantised so it rarely reallocates; the viewport inside it is
+  // the window's true shape, because changing a viewport is free and the bitmap
+  // is stretched to the window's box when it is presented. Rounding the viewport
+  // too is what squashed the fold: a 257x255 window rendered 512x256.
+  sizeRenderCanvas(state.width, state.height);
+  // What GL actually gave us, which is not always what the canvas was set to —
+  // see {@link WebglSolver.drawingBufferSize}. Rendering or cropping past this
+  // reads nothing back and shows an empty window with no error anywhere.
+  const buffer = state.solver.drawingBufferSize;
+  const { width, height } = fitRenderWithin(state, buffer);
+  const camera = cameraUniforms(state.view, state.center, state.radius, width, height);
   state.solver.render(camera, state.settings);
+  // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
+  // is top-left, so the crop is measured down from the top of the buffer.
+  const bitmap =
+    presentMode === 'bitmap' && renderCanvas
+      ? await createImageBitmap(renderCanvas, 0, buffer.height - height, width, height)
+      : null;
   // render() issues GL commands but they run async on the GPU; this measures the
   // CPU-side command cost, which is what would block the worker. A readPixels
   // would be needed to time actual GPU work, and that would itself stall.
@@ -590,6 +937,7 @@ function renderGpu(state: GpuRenderState): void {
   perf.renders += 1;
   perf.renderTotalMs += elapsed;
   if (elapsed > perf.renderMaxMs) perf.renderMaxMs = elapsed;
+  return bitmap;
 }
 
 /**

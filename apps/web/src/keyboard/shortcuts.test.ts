@@ -108,6 +108,20 @@ describe('shortcut registry', () => {
     expect(getShortcutRegistryDiagnostics().duplicateDefaultChords).toEqual([]);
   });
 
+  it('puts inline simulation on Shift+S, clear of Save As', () => {
+    // Bare Shift+S, joining the surface's other Shift+<letter> verbs. Save As is
+    // Mod+Shift+S — a different chord, but close enough to be worth pinning.
+    expect(getResolvedShortcut('viewport.simulateSelectionInline')).toEqual({
+      shift: true,
+      key: 's',
+    });
+    expect(getResolvedShortcut('file.saveAs')).toEqual({
+      primary: true,
+      shift: true,
+      key: 's',
+    });
+  });
+
   it('keeps the mirror family on M and puts the measure tools on Shift+M / Shift+A', () => {
     expect(getResolvedShortcut('cp.action.symmetric-draw')).toEqual({ key: 'm' });
     expect(getResolvedShortcut('cp.action.draw-crease-symmetric')).toEqual({ primary: true, key: 'm' });

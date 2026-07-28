@@ -26,6 +26,7 @@ import type {
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
+import type { InlineSimulation } from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
@@ -1084,6 +1085,19 @@ async function flushMicrotasks(): Promise<void> {
   for (let i = 0; i < 8; i += 1) await Promise.resolve();
 }
 
+function inlineSimulationFixture(): InlineSimulation {
+  return {
+    id: 'inline-sim-1',
+    box: { center: { x: 0, y: 0 }, width: 100, height: 100, rotation: 0 },
+    z: 1,
+    view: { yaw: 0, pitch: 0, zoom: 1 },
+    sourceBoundary: null,
+    sourceBounds: null,
+    sourceFingerprint: null,
+    segmentIdHint: null,
+  };
+}
+
 function foldedFigureSnapshot(): OristudioCpFoldedFigureSnapshot {
   return {
     model: {
@@ -1610,6 +1624,25 @@ describe('workspace store slices', () => {
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
     // A bare CP establishes no design, so the Design workspace keeps the chooser.
     expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+  });
+
+  it('drops inline simulation windows when the document is replaced', async () => {
+    // Windows name a region of the document they were opened over. Leaving them
+    // behind parks a live simulation of the old paper on top of the new one —
+    // the same reason folded figures and annotations are cleared here.
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({
+      engineReady: true,
+      status: 'ready',
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+    });
+
+    await useWorkspaceStore.getState().createNewCreasePattern();
+
+    expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
   });
 
   it('ensureEditCreasePattern offers the Design chooser only for a design-less bare CP', async () => {

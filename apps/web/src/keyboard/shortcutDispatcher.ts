@@ -6,6 +6,8 @@ import {
   type ShortcutActionId,
   type ShortcutOverrides,
   type ShortcutScope,
+  type ShortcutTarget,
+  type SimulatorShortcutId,
   type ViewportShortcutId,
 } from './shortcuts';
 import type { MenuActionId } from '../commands/menuActions';
@@ -15,6 +17,13 @@ export interface ShortcutExecutors {
   menu?: (id: MenuActionId) => unknown;
   cpAction?: (id: OristudioCpActionId) => unknown;
   viewport?: (id: ViewportShortcutId) => unknown;
+  /**
+   * Registered only while a simulation owns the keyboard. Absent means the
+   * `simulator` scope resolves nothing and the chord falls through to the next
+   * scope, which is what keeps F, C, R, L and Space on the CP tools the rest of
+   * the time.
+   */
+  simulator?: (id: SimulatorShortcutId) => unknown;
 }
 
 export interface ShortcutDispatchOptions {
@@ -53,7 +62,12 @@ export function handleShortcutKeyDown(
     });
 
     if (!definition) continue;
-    if (!executeShortcut(definition.id, definition.target, options.executors)) return false;
+    // A scope whose executor is not registered must not swallow the chord: fall
+    // through and let a lower scope claim it. This matters most for `simulator`,
+    // which shares Space, F, C and R with the crease-pattern tools -- a moment
+    // where the scope is in the stack but nothing has claimed it would otherwise
+    // leave those keys dead rather than merely un-shadowed.
+    if (!executeShortcut(definition.id, definition.target, options.executors)) continue;
     event.preventDefault();
     return true;
   }
@@ -63,7 +77,7 @@ export function handleShortcutKeyDown(
 
 function executeShortcut(
   id: ShortcutActionId,
-  target: 'menu' | 'cp-action' | 'viewport',
+  target: ShortcutTarget,
   executors: ShortcutExecutors
 ): boolean {
   switch (target) {
@@ -78,6 +92,10 @@ function executeShortcut(
     case 'viewport':
       if (!executors.viewport) return false;
       void executors.viewport(id as ViewportShortcutId);
+      return true;
+    case 'simulator':
+      if (!executors.simulator) return false;
+      void executors.simulator(id as SimulatorShortcutId);
       return true;
   }
 }

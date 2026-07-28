@@ -219,6 +219,19 @@
       "wire": "线框"
     },
     "foldModelAction": "折叠模型",
+    "inlineSimulation": {
+      "canvasAriaLabel": "内嵌模拟。拖动可旋转。",
+      "controls": "内嵌模拟控件",
+      "delete": "删除",
+      "failed": "模拟失败",
+      "fold": "折叠",
+      "gpuUnavailable": "需要 WebGL2 — 请在模拟工作区中打开",
+      "outOfDate": "已过期",
+      "pause": "暂停",
+      "play": "播放",
+      "refresh": "根据当前折痕重新生成",
+      "replay": "恢复为平面"
+    },
     "insertImage": "插入图像...",
     "linesCount_other": "{{count}} 条线",
     "measure": "测量",
@@ -254,7 +267,8 @@
       "fold": "折叠",
       "label": "折痕图操作",
       "saveImage": "保存为图像",
-      "simulate": "模拟"
+      "simulate": "模拟",
+      "simulateInline": "在此模拟"
     },
     "sendImageToBack": "将图像置于底层",
     "shadow": "阴影",

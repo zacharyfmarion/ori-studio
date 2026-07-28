@@ -225,6 +225,19 @@
       "wire": "Draht"
     },
     "foldModelAction": "Modell falten",
+    "inlineSimulation": {
+      "canvasAriaLabel": "Eingebettete Simulation. Zum Drehen ziehen.",
+      "controls": "Steuerung der eingebetteten Simulation",
+      "delete": "Löschen",
+      "failed": "Simulation fehlgeschlagen",
+      "fold": "Faltung",
+      "gpuUnavailable": "Benötigt WebGL2 – im Simulieren-Arbeitsbereich öffnen",
+      "outOfDate": "Nicht mehr aktuell",
+      "pause": "Pause",
+      "play": "Abspielen",
+      "refresh": "Aus den aktuellen Falzlinien neu aufbauen",
+      "replay": "Auf flach zurücksetzen"
+    },
     "insertImage": "Bild einfügen...",
     "linesCount_one": "{{count}} Linie",
     "linesCount_other": "{{count}} Linien",
@@ -262,7 +275,8 @@
       "fold": "Falten",
       "label": "Aktionen für Faltmuster",
       "saveImage": "Als Bild speichern",
-      "simulate": "Simulieren"
+      "simulate": "Simulieren",
+      "simulateInline": "Hier simulieren"
     },
     "sendImageToBack": "Bild in den Hintergrund senden",
     "shadow": "Schatten",

@@ -115,6 +115,8 @@ import {
 } from '../../cp-workspace/folded/foldedFigureActions';
 // Registers `__foldedStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/folded/foldedFigureStalenessDebug';
+// Registers `__inlineSimStaleDebug()` in dev builds; no-op in production.
+import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
 import { foldedFigureCurrentCase } from '../../cp-workspace/folded/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -130,6 +132,11 @@ import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
 import { useFoldedFigures } from '../../cp-workspace/folded/useFoldedFigures';
 import { foldedFigureMenuItemsWith } from '../../cp-workspace/folded/foldedFigureMenuItems';
+import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-workspace/canvasObjects/transformableObject';
+import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
+import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
+import { useInlineSimulations } from '../../cp-workspace/inlineSimulation/useInlineSimulations';
+import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSimulateSelection';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
@@ -1247,50 +1254,109 @@ export function CreasePatternPanel() {
     setFoldCaseDraft,
   } = folded;
 
+  // Inline simulation windows: the third canvas-object kind, and the only one
+  // whose contents keep running after you place them.
+  const inlineSimulations = useInlineSimulations({ cpDocument: oristudioCpDocument });
+  const focusedInlineSimulation = inlineSimulations.selected;
+  /**
+   * Everything placed on the canvas that the WebGL renderer does not draw
+   * itself, for framing. Both kinds live on their own DOM layers, so without
+   * this the camera cannot see them: fitting to view would frame the creases
+   * alone and leave a simulation window off screen.
+   */
+  const overlayBoxes = useMemo(
+    () => [
+      ...textAnnotations,
+      // Windows are never hidden — there is no affordance for it — but the
+      // framing contract is "skip what is not drawn", so say so rather than
+      // leaving the reader to infer it.
+      ...inlineSimulations.simulations.map((simulation) => ({
+        ...simulation.box,
+        hidden: false,
+      })),
+    ],
+    [textAnnotations, inlineSimulations.simulations]
+  );
+  // Shared with the selection toolbar, so the keyboard and the button cannot
+  // disagree about what counts as a simulatable region.
+  const simulateSelectionInline = useSimulateSelection();
+
   // One overlay for every canvas object, so chrome and hit-testing resolve in a
-  // single pass and the two kinds cannot both show handles at once.
+  // single pass and no two kinds can show handles at once.
   const canvasObjects = useMemo(
-    () => [...annotations.transformableObjects, ...folded.transformableObjects],
-    [annotations.transformableObjects, folded.transformableObjects]
+    () => [
+      ...annotations.transformableObjects,
+      ...folded.transformableObjects,
+      ...inlineSimulations.transformableObjects,
+    ],
+    [
+      annotations.transformableObjects,
+      folded.transformableObjects,
+      inlineSimulations.transformableObjects,
+    ]
   );
   const isFoldedFigureId = useCallback(
     (id: string) => folded.transformableObjects.some((object) => object.id === id),
     [folded.transformableObjects]
   );
   // The canvas's single selection: whichever kind currently owns it. The store
-  // keeps the two ids mutually exclusive, so at most one is non-null.
-  const selectedCanvasObjectId = oristudioCpSelectedAnnotationId ?? oristudioCpActiveFoldedFigureId;
+  // keeps the ids mutually exclusive, so at most one is non-null.
+  //
+  // A window's focus *is* its selection — only one can be focused, and a focused
+  // window is exactly the one whose handles should be live.
+  const selectedCanvasObjectId = selectedCanvasObjectIdOf({
+    annotationId: oristudioCpSelectedAnnotationId,
+    foldedFigureId: oristudioCpActiveFoldedFigureId,
+    inlineSimulationId: inlineSimulations.focusedId,
+  });
   const selectCanvasObject = useCallback(
     (id: string | null) => {
       if (id === null) {
         setSelectedAnnotation(null);
         setOristudioCpActiveFoldedFigure(null);
+        inlineSimulations.blur();
         return;
       }
+      if (inlineSimulations.isInlineSimulationId(id)) {
+        // Both, or a still-selected annotation would win the `??` above and the
+        // window would take focus without ever showing handles.
+        setSelectedAnnotation(null);
+        setOristudioCpActiveFoldedFigure(null);
+        inlineSimulations.focus(id);
+        return;
+      }
+      // Selecting anything else hands the solver back, so at most one window is
+      // ever live.
+      inlineSimulations.blur();
       if (isFoldedFigureId(id)) setOristudioCpActiveFoldedFigure(id);
       else setSelectedAnnotation(id);
     },
-    [isFoldedFigureId, setSelectedAnnotation, setOristudioCpActiveFoldedFigure]
+    [isFoldedFigureId, inlineSimulations, setSelectedAnnotation, setOristudioCpActiveFoldedFigure]
   );
 
   // Gesture dispatch: the overlay reports box updates by id, and the id decides
   // which store the update belongs in.
   const handleCanvasObjectUpdate = useCallback(
     (id: string, patch: CanvasObjectBoxUpdate) => {
-      if (isFoldedFigureId(id)) folded.applyBoxUpdate(id, patch);
+      if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.applyBoxUpdate(id, patch);
+      else if (isFoldedFigureId(id)) folded.applyBoxUpdate(id, patch);
       else annotations.applyBoxUpdate(id, patch);
     },
-    [isFoldedFigureId, folded, annotations]
+    [isFoldedFigureId, folded, annotations, inlineSimulations]
   );
   const beginCanvasObjectGesture = useCallback(
     (id: string) => {
+      // Windows are session-only, so a move/resize is not a document edit and
+      // takes no history checkpoint.
+      if (inlineSimulations.isInlineSimulationId(id)) return;
       if (isFoldedFigureId(id)) folded.beginGesture();
       else annotations.beginGesture();
     },
-    [isFoldedFigureId, annotations, folded]
+    [isFoldedFigureId, annotations, folded, inlineSimulations]
   );
   const commitCanvasObjectGesture = useCallback(
     (id: string, kind: 'move' | 'resize' | 'rotate' | 'crop') => {
+      if (inlineSimulations.isInlineSimulationId(id)) return;
       if (isFoldedFigureId(id)) folded.commitGesture(folded.gestureLabel(kind));
       else annotations.commitGesture(annotations.gestureLabel(kind));
     },
@@ -1298,6 +1364,7 @@ export function CreasePatternPanel() {
       isFoldedFigureId,
       annotations,
       folded,
+      inlineSimulations,
     ]
   );
 
@@ -1431,7 +1498,9 @@ export function CreasePatternPanel() {
       }
       event.preventDefault();
       if (oristudioCpSelectedAnnotationId) deleteSelectedImage();
-      else folded.remove(selectedCanvasObjectId);
+      else if (inlineSimulations.isInlineSimulationId(selectedCanvasObjectId)) {
+        inlineSimulations.remove(selectedCanvasObjectId);
+      } else folded.remove(selectedCanvasObjectId);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -1441,6 +1510,7 @@ export function CreasePatternPanel() {
     oristudioCpSelectedAnnotationId,
     deleteSelectedImage,
     folded,
+    inlineSimulations,
   ]);
   const squareBisectorToolPrompt =
     isSquareBisectorOperation(activeCpCommand?.operationId) &&
@@ -2706,6 +2776,9 @@ export function CreasePatternPanel() {
         case 'viewport.cancel':
           cancelActiveCpInput();
           break;
+        case 'viewport.simulateSelectionInline':
+          void simulateSelectionInline();
+          break;
         case 'viewport.zoomIn':
           sendWebglCameraCommand('zoom-in');
           break;
@@ -2732,7 +2805,7 @@ export function CreasePatternPanel() {
           break;
       }
     },
-    [cancelActiveCpInput, sendWebglCameraCommand]
+    [cancelActiveCpInput, sendWebglCameraCommand, simulateSelectionInline]
   );
 
   useEffect(
@@ -2901,7 +2974,7 @@ export function CreasePatternPanel() {
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
                   images={imageAnnotations}
-                  textBoxes={textAnnotations}
+                  overlayBoxes={overlayBoxes}
                   framingKey={`${projectLoadId}:${editableCpHandle ?? 'none'}`}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
@@ -3051,6 +3124,7 @@ export function CreasePatternPanel() {
                     objects={canvasObjects}
                     selectedId={selectedCanvasObjectId}
                     suppressedId={editingTextId}
+                    inertBodyIds={inlineSimulations.inertBodyIds}
                     interactive={annotationsInteractive}
                     onSelect={selectCanvasObject}
                     onUpdate={handleCanvasObjectUpdate}
@@ -3060,6 +3134,36 @@ export function CreasePatternPanel() {
                     canCrop={annotations.canCrop}
                     onGestureStart={beginCanvasObjectGesture}
                     onGestureCommit={commitCanvasObjectGesture}
+                  />
+                )}
+                {webglOverlayView && inlineSimulations.simulations.length > 0 && (
+                  <InlineSimulationLayer
+                    simulations={inlineSimulations.simulations}
+                    focusedId={inlineSimulations.focusedId}
+                    staleIds={inlineSimulations.staleIds}
+                    viewSettings={inlineSimulations.settings}
+                    playing={inlineSimulations.playing}
+                    overlayInteractive={annotationsInteractive}
+                    replayRequest={inlineSimulations.replayRequest}
+                    onFocus={inlineSimulations.focus}
+                    onPlayingChange={inlineSimulations.setPlaying}
+                  />
+                )}
+                {focusedInlineSimulation && (
+                  <InlineSimulationInspector
+                    simulation={focusedInlineSimulation}
+                    container={toolbarContainer}
+                    playing={inlineSimulations.playing}
+                    stale={inlineSimulations.staleIds.has(focusedInlineSimulation.id)}
+                    colorMode={inlineSimulations.settings.colorMode}
+                    onColorMode={(mode) => inlineSimulations.setSetting('colorMode', mode)}
+                    onTogglePlay={inlineSimulations.togglePlay}
+                    onScrub={(percent) =>
+                      inlineSimulations.scrub(focusedInlineSimulation.id, percent)
+                    }
+                    onReplay={inlineSimulations.replay}
+                    onRefresh={() => inlineSimulations.refresh(focusedInlineSimulation.id)}
+                    onDelete={() => inlineSimulations.remove(focusedInlineSimulation.id)}
                   />
                 )}
                 {annotationsInteractive && selectedCpImage && !editingTextId && (

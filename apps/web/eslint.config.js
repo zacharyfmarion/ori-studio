@@ -50,7 +50,14 @@ const noDirectStorageProperties = [
  * happens.
  */
 const OVERSIZED_PANELS = {
-  'CreasePatternPanel.tsx': 2860,
+  // 2860 -> 2936: inline simulation windows. The behaviour is in
+  // `inlineSimulation/useInlineSimulations` and `useSimulateSelection`,
+  // matching `useFoldedFigures` and `useCpAnnotations`; what landed here is the
+  // composition — two hook calls, the canvas layer, its floating toolbar, one
+  // more case in the viewport-shortcut switch, the boxes the camera frames
+  // against, and the window's arm of the two dispatches every canvas-object
+  // kind passes through (selection and delete).
+  'CreasePatternPanel.tsx': 2936,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

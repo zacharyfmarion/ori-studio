@@ -219,6 +219,19 @@
       "wire": "와이어"
     },
     "foldModelAction": "모델 접기",
+    "inlineSimulation": {
+      "canvasAriaLabel": "인라인 시뮬레이션. 드래그하여 회전합니다.",
+      "controls": "인라인 시뮬레이션 컨트롤",
+      "delete": "삭제",
+      "failed": "시뮬레이션 실패",
+      "fold": "접기",
+      "gpuUnavailable": "WebGL2가 필요합니다 — 시뮬레이션 작업 공간에서 열어 주세요",
+      "outOfDate": "오래됨",
+      "pause": "일시정지",
+      "play": "재생",
+      "refresh": "현재 주름선으로 다시 만들기",
+      "replay": "평평하게 되돌리기"
+    },
     "insertImage": "이미지 삽입...",
     "linesCount_other": "선 {{count}}개",
     "measure": "측정",
@@ -254,7 +267,8 @@
       "fold": "접기",
       "label": "접힘 패턴 작업",
       "saveImage": "이미지로 저장",
-      "simulate": "시뮬레이션"
+      "simulate": "시뮬레이션",
+      "simulateInline": "여기에서 시뮬레이션"
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
     "shadow": "그림자",

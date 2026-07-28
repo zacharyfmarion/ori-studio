@@ -231,6 +231,19 @@
       "wire": "Aramado"
     },
     "foldModelAction": "Dobrar modelo",
+    "inlineSimulation": {
+      "canvasAriaLabel": "Simulação incorporada. Arraste para girar.",
+      "controls": "Controles da simulação incorporada",
+      "delete": "Excluir",
+      "failed": "Falha na simulação",
+      "fold": "Dobra",
+      "gpuUnavailable": "Requer WebGL2 — abra no espaço Simular",
+      "outOfDate": "Desatualizada",
+      "pause": "Pausar",
+      "play": "Reproduzir",
+      "refresh": "Reconstruir a partir dos vincos atuais",
+      "replay": "Voltar ao plano"
+    },
     "insertImage": "Inserir imagem...",
     "linesCount_one": "{{count}} linha",
     "linesCount_many": "{{count}} linhas",
@@ -270,7 +283,8 @@
       "fold": "Dobrar",
       "label": "Ações do padrão de vincos",
       "saveImage": "Salvar como imagem",
-      "simulate": "Simular"
+      "simulate": "Simular",
+      "simulateInline": "Simular aqui"
     },
     "sendImageToBack": "Enviar imagem para trás",
     "shadow": "Sombra",

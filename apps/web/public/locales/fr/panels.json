@@ -231,6 +231,19 @@
       "wire": "Filaire"
     },
     "foldModelAction": "Plier le modèle",
+    "inlineSimulation": {
+      "canvasAriaLabel": "Simulation intégrée. Faites glisser pour pivoter.",
+      "controls": "Commandes de la simulation intégrée",
+      "delete": "Supprimer",
+      "failed": "Échec de la simulation",
+      "fold": "Pliage",
+      "gpuUnavailable": "Nécessite WebGL2 — ouvrez-le dans l'espace Simuler",
+      "outOfDate": "Obsolète",
+      "pause": "Pause",
+      "play": "Lecture",
+      "refresh": "Reconstruire à partir des plis actuels",
+      "replay": "Revenir à plat"
+    },
     "insertImage": "Insérer une image...",
     "linesCount_one": "{{count}} ligne",
     "linesCount_many": "{{count}} lignes",
@@ -270,7 +283,8 @@
       "fold": "Plier",
       "label": "Actions du patron de plis",
       "saveImage": "Enregistrer en image",
-      "simulate": "Simuler"
+      "simulate": "Simuler",
+      "simulateInline": "Simuler ici"
     },
     "sendImageToBack": "Mettre l'image à l'arrière-plan",
     "shadow": "Ombre",

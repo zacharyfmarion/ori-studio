@@ -225,6 +225,19 @@
       "wire": "Wire"
     },
     "foldModelAction": "Fold model",
+    "inlineSimulation": {
+      "canvasAriaLabel": "Inline simulation. Drag to rotate.",
+      "controls": "Inline simulation controls",
+      "delete": "Delete",
+      "failed": "Simulation failed",
+      "fold": "Fold",
+      "gpuUnavailable": "Needs WebGL2 — open in the Simulate workspace",
+      "outOfDate": "Out of date",
+      "pause": "Pause",
+      "play": "Play",
+      "refresh": "Rebuild from the current creases",
+      "replay": "Reset to flat"
+    },
     "insertImage": "Insert image...",
     "linesCount_one": "{{count}} lines",
     "linesCount_other": "{{count}} lines",
@@ -262,7 +275,8 @@
       "fold": "Fold",
       "label": "Crease pattern actions",
       "saveImage": "Save to image",
-      "simulate": "Simulate"
+      "simulate": "Simulate",
+      "simulateInline": "Simulate here"
     },
     "sendImageToBack": "Send image to back",
     "shadow": "Shadow",

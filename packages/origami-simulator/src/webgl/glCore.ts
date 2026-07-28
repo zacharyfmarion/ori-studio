@@ -35,12 +35,29 @@ interface ProgramRecord {
   uniforms: Map<string, WebGLUniformLocation | null>;
 }
 
+/**
+ * Thrown once the GL context has gone away.
+ *
+ * A lost context does not fail loudly on its own: every GL call becomes a no-op
+ * and every read returns zeros, so a solver would keep "running" and quietly
+ * produce a flat, motionless mesh. Turning the first touch after loss into a
+ * typed throw is what lets the caller report it instead of rendering nonsense.
+ */
+export class WebGlContextLostError extends Error {
+  constructor() {
+    super('The WebGL context was lost');
+    this.name = 'WebGlContextLostError';
+  }
+}
+
 export class GlCore {
   readonly gl: WebGL2RenderingContext;
   private readonly programs = new Map<string, ProgramRecord>();
   private readonly textures = new Map<string, TextureRecord>();
   private readonly quadBuffer: WebGLBuffer;
   private disposed = false;
+  private lost = false;
+  private readonly lostHandlers = new Set<() => void>();
 
   private constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -71,14 +88,67 @@ export class GlCore {
       preserveDrawingBuffer: false,
     });
     if (!gl) return null;
+    let core: GlCore;
     try {
-      return new GlCore(gl as WebGL2RenderingContext);
+      core = new GlCore(gl as WebGL2RenderingContext);
     } catch {
       return null;
+    }
+    // Browsers evict contexts to stay under a per-thread budget -- four per
+    // worker in Chromium 148 -- and the eviction is silent: the victim gets an
+    // event, not an exception. Without a listener the solver keeps stepping a
+    // dead context forever. preventDefault() additionally keeps the context
+    // eligible for restoration rather than gone for good.
+    //
+    // Both spellings are registered because the two canvas types disagree:
+    // HTMLCanvasElement fires the legacy `webglcontextlost`, OffscreenCanvas the
+    // unprefixed `contextlost`. The worker path -- the one that actually runs
+    // into the per-worker cap -- is the OffscreenCanvas one, so listening for
+    // only the familiar name would miss exactly the case this exists for.
+    const onLost = (event: Event) => {
+      event.preventDefault();
+      core.markLost();
+    };
+    const target = canvas as unknown as EventTarget;
+    target.addEventListener('webglcontextlost', onLost);
+    target.addEventListener('contextlost', onLost);
+    return core;
+  }
+
+  /** True once the context has gone away, from either the event or the driver. */
+  get contextLost(): boolean {
+    return this.lost || this.gl.isContextLost();
+  }
+
+  /**
+   * Register a listener for context loss. Returns an unsubscribe. Owners use this
+   * to tear the session down and surface an error, rather than discovering the
+   * loss as a mesh that stopped moving.
+   */
+  onContextLost(handler: () => void): () => void {
+    this.lostHandlers.add(handler);
+    return () => this.lostHandlers.delete(handler);
+  }
+
+  private markLost(): void {
+    if (this.lost) return;
+    this.lost = true;
+    for (const handler of this.lostHandlers) handler();
+  }
+
+  /**
+   * Every entry point that touches GL calls this first. Checking the driver as
+   * well as the flag covers a loss that has not yet dispatched its event.
+   */
+  private assertLive(): void {
+    if (this.contextLost) {
+      this.markLost();
+      throw new WebGlContextLostError();
     }
   }
 
   createProgram(name: string, fragmentSource: string, vertexSource = DEFAULT_VERTEX_SHADER): void {
+    this.assertLive();
     const gl = this.gl;
     const vertex = this.compileShader(gl.VERTEX_SHADER, vertexSource);
     const fragment = this.compileShader(gl.FRAGMENT_SHADER, fragmentSource);
@@ -100,6 +170,7 @@ export class GlCore {
 
   /** Create a named float texture (and its framebuffer, so it can be rendered to). */
   createTexture(name: string, spec: FloatTextureData): void {
+    this.assertLive();
     const gl = this.gl;
     this.deleteTexture(name);
 
@@ -136,6 +207,7 @@ export class GlCore {
 
   /** Overwrite the contents of an existing texture, keeping its framebuffer. */
   updateTexture(name: string, data: Float32Array): void {
+    this.assertLive();
     const record = this.requireTexture(name);
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, record.texture);
@@ -153,6 +225,7 @@ export class GlCore {
   }
 
   setUniform(programName: string, name: string, value: number | number[], type: '1f' | '2f' | '3f' | '1i'): void {
+    this.assertLive();
     const gl = this.gl;
     const record = this.requireProgram(programName);
     gl.useProgram(record.program);
@@ -173,6 +246,7 @@ export class GlCore {
    * units 0..n. Sampler uniforms must have been set to those unit indices.
    */
   step(programName: string, inputs: string[], output: string): void {
+    this.assertLive();
     const gl = this.gl;
     const record = this.requireProgram(programName);
     const target = this.requireTexture(output);
@@ -206,6 +280,7 @@ export class GlCore {
 
   /** Read an RGBA float texture back to the CPU. Slow; use sparingly. */
   readTexture(name: string): Float32Array {
+    this.assertLive();
     const gl = this.gl;
     const record = this.requireTexture(name);
     const out = new Float32Array(record.width * record.height * 4);

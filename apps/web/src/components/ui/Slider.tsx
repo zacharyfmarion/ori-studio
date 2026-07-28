@@ -1,3 +1,5 @@
+import type { Ref } from 'react';
+
 interface SliderProps {
   id?: string;
   min: number;
@@ -7,6 +9,12 @@ interface SliderProps {
   onChange: (value: number) => void;
   'aria-label'?: string;
   className?: string;
+  /**
+   * The underlying input, for callers that need the native `change` event —
+   * React's `onChange` maps to `input`, so a drag cannot be told from its end
+   * without it.
+   */
+  ref?: Ref<HTMLInputElement>;
 }
 
 /**
@@ -23,10 +31,12 @@ export function Slider({
   onChange,
   'aria-label': ariaLabel,
   className = '',
+  ref,
 }: SliderProps) {
   const fillPercent = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return (
     <input
+      ref={ref}
       id={id}
       type="range"
       min={min}

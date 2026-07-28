@@ -2940,6 +2940,82 @@
   opacity: 0.42;
 }
 
+/* Inline simulation windows: a live fold placed on the crease pattern. */
+/* No backdrop: a window is a view onto the fold sitting on the crease pattern,
+   not a panel laid over it, so the creases and grid stay visible around the
+   paper. The border stays — it is the only thing left marking the window's
+   extent, and it carries the focus state. The drop shadow goes with the
+   background; a shadow cast by nothing reads as a rendering error. */
+/* The border is the whole of the window's edge now, so it carries a weight it
+   did not have to when a filled panel sat behind it. Two paired hairlines, light
+   inside and dark outside: a single line is legible against one of the things
+   this edge crosses and not the other -- the dark grid it sits on, and the
+   bright paper that reaches the frame whenever the fold fills it. */
+/* Neither border token works here. `--border-default` resolves within a shade of
+   `--bg-canvas-grid` — it is meant to divide two panels, and the grid is exactly
+   what this edge has to be told apart from. `--border-strong` is the theme's
+   *active* border, a saturated blue that would read as focus. So it is derived
+   from the foreground, the one token guaranteed to contrast with the canvas
+   whatever the theme. */
+.cp-inline-simulation {
+  border: 1px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
+}
+
+.cp-inline-simulation[data-focused] {
+  border-color: var(--accent-primary);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 55%),
+    0 0 0 4px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+/* Same fade folded figures use, so "out of date" reads identically for both. */
+.cp-inline-simulation[data-stale] {
+  opacity: 0.42;
+}
+
+.cp-inline-simulation__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The window itself owns the drag; a browser image-drag would cancel it. */
+  touch-action: none;
+  user-select: none;
+}
+
+.cp-inline-simulation__badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  pointer-events: none;
+}
+
+.cp-inline-simulation__badge--error {
+  color: var(--status-danger);
+  border-color: var(--status-danger);
+}
+
+.cp-inline-simulation-inspector__scrub {
+  width: 96px;
+}
+
+.cp-inline-simulation-inspector__readout {
+  min-width: 34px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
 .cp-folded-form-face {
   fill: #ffff32;
   fill-opacity: 0.58;
