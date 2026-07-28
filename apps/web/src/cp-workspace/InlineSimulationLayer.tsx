@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +18,7 @@ import {
   getInlineSimulationFoldPercent,
   getInlineSimulationSource,
   publishInlineSimulationFold,
+  subscribeInlineSimulationSources,
   subscribeInlineSimulationFoldTarget,
 } from './inlineSimulation/inlineSimulationRuntime';
 import {
@@ -254,7 +256,13 @@ function InlineSimulationWindow({
   const { t } = useTranslation();
   const viewportRef = useRef<SimulatorViewportHandle | null>(null);
   const [, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
-  const source = getInlineSimulationSource(simulation.id);
+  // Subscribed, not read: a window restored from a file gets its fold rebuilt
+  // *after* the descriptors reach the store, and that rebuild deliberately does
+  // not write to the store. A plain read found nothing and never looked again.
+  const source = useSyncExternalStore(
+    subscribeInlineSimulationSources,
+    useCallback(() => getInlineSimulationSource(simulation.id), [simulation.id])
+  );
 
   /**
    * Inline windows are GPU-only. Bitmap presentation is what lets them share one

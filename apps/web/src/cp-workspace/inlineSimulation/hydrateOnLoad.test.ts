@@ -5,32 +5,64 @@ import type { InlineSimulation } from './inlineSimulation';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import { foldedSourceBounds, foldedSourceFingerprint, cpLinesByIds, reselectFoldableLineIds }
   from '../folded/foldedFigureStaleness';
-import { getInlineSimulationSource } from './inlineSimulationRuntime';
+import {
+  getInlineSimulationSource,
+  setInlineSimulationSource,
+  subscribeInlineSimulationSources,
+} from './inlineSimulationRuntime';
 
 /**
  * Fold artifacts with the segmentation already attached, which is what the CP
- * worker supplies in the app. Without this, `ensureFoldArtifacts` needs a worker
- * that jsdom has not got, hydration bails at its first guard, and every
- * assertion below passes for having done nothing at all.
+ * worker supplies in the app. Without this, computing them needs a worker that
+ * jsdom has not got, hydration bails at its first guard, and every assertion
+ * below passes for having done nothing at all.
+ *
+ * `scale` exists because a region's boundary — its identity for resolution —
+ * is expressed in the *fold's* coordinate space, and that space is not the same
+ * everywhere. Artifacts computed from the kernel document are in its own
+ * 400-space; the ones sitting in the store just after a file load were observed
+ * in a unit square. Passing 1/400 here is not a synthetic edge case, it is what
+ * shipped: hydration reused the stale field, no saved boundary matched anything,
+ * and every restored window was a permanently empty frame.
  */
-function artifactsForSquare() {
+function artifactsForSquare(scale = 1) {
+  const at = (x: number, y: number) => ({ x: x * scale, y: y * scale });
   const segment = {
     id: 0,
     faceIndices: [0],
-    boundary: [[
-      { x: -200, y: -200 }, { x: 200, y: -200 },
-      { x: 200, y: 200 }, { x: -200, y: 200 },
-    ]],
-    bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 },
+    boundary: [[at(-200, -200), at(200, -200), at(200, 200), at(-200, 200)]],
+    bounds: {
+      minX: -200 * scale, minY: -200 * scale,
+      maxX: 200 * scale, maxY: 200 * scale,
+    },
   };
   return {
     fold: {
-      vertices_coords: [[-200, -200], [200, -200], [200, 200], [-200, 200]],
+      vertices_coords: [
+        [-200 * scale, -200 * scale], [200 * scale, -200 * scale],
+        [200 * scale, 200 * scale], [-200 * scale, 200 * scale],
+      ],
       edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0]],
       edges_assignment: ['B', 'B', 'B', 'B'],
       faces_vertices: [[0, 1, 2, 3]],
     },
     segments: [segment],
+  } as never;
+}
+
+/**
+ * Stands in for the CP worker: hydration recomputes artifacts rather than
+ * trusting whatever the load left in the store, so that is the seam to fill.
+ *
+ * The stale field is seeded alongside, in the unit space a load leaves behind,
+ * so that a hydration which reads it instead of refreshing resolves nothing and
+ * these tests fail.
+ */
+function seedArtifacts(state: Record<string, unknown>) {
+  return {
+    ...state,
+    foldArtifacts: artifactsForSquare(1 / 400),
+    refreshFoldArtifacts: async () => artifactsForSquare(),
   } as never;
 }
 
@@ -91,11 +123,10 @@ describe('provenance across a load', () => {
 
     // The file's creases changed after that window was recorded.
     const nowOpened = doc([...SQUARE.slice(0, 3), line(-200, 200, -200, -199)]);
-    useWorkspaceStore.setState({
+    useWorkspaceStore.setState(seedArtifacts({
       oristudioCpInlineSimulations: [saved],
-      oristudioCpDocument: { document: nowOpened } as never,
-      foldArtifacts: artifactsForSquare(),
-    });
+      oristudioCpDocument: { document: nowOpened },
+    }));
 
     const hydrated = await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations();
     // Asserted, not assumed: if hydration bails early every check below is
@@ -137,13 +168,53 @@ describe('provenance across a load', () => {
       ]],
       segmentIdHint: 99,
     };
-    useWorkspaceStore.setState({
+    useWorkspaceStore.setState(seedArtifacts({
       oristudioCpInlineSimulations: [orphan],
-      oristudioCpDocument: { document } as never,
-      foldArtifacts: artifactsForSquare(),
-    });
+      oristudioCpDocument: { document },
+    }));
 
     expect(await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations()).toBe(0);
     expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+  });
+});
+
+describe('telling the canvas a fold has arrived', () => {
+  it('notifies when a source is set', () => {
+    // The layer reads its fold from the side table. Creating a window sets the
+    // source *before* the store write that re-renders, so a plain read works;
+    // loading cannot, because the descriptors have to land first and the folds
+    // are rebuilt afterwards without touching the store. Without a notification
+    // the layer looked once, found nothing, and a restored window stayed an
+    // empty frame — which is exactly what shipped, and what nothing caught.
+    let woken = 0;
+    const stop = subscribeInlineSimulationSources(() => { woken += 1; });
+    setInlineSimulationSource('sim-notify', { fold: {} as never, modelKey: 'k' });
+    expect(woken).toBe(1);
+    expect(getInlineSimulationSource('sim-notify')).not.toBeNull();
+    stop();
+  });
+
+  it('wakes the canvas for every window hydration restores', async () => {
+    const document = doc(SQUARE);
+    useWorkspaceStore.setState(seedArtifacts({
+      oristudioCpInlineSimulations: [savedWindow(document)],
+      oristudioCpDocument: { document },
+    }));
+
+    let woken = 0;
+    const stop = subscribeInlineSimulationSources(() => { woken += 1; });
+    const hydrated = await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations();
+    stop();
+
+    expect(hydrated).toBe(1);
+    expect(woken).toBe(1);
+  });
+
+  it('stops notifying once unsubscribed', () => {
+    let woken = 0;
+    const stop = subscribeInlineSimulationSources(() => { woken += 1; });
+    stop();
+    setInlineSimulationSource('sim-gone', { fold: {} as never, modelKey: 'k' });
+    expect(woken).toBe(0);
   });
 });

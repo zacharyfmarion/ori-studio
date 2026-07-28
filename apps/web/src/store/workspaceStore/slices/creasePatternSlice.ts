@@ -1083,10 +1083,17 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const document = get().oristudioCpDocument?.document ?? null;
       if (!document || simulations.length === 0) return 0;
 
-      // Once for the document, not once per window. Refresh fetches these
-      // itself, which is right for the one window a user asked about and wrong
-      // for twenty arriving together.
-      const artifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+      // Recomputed, and once for the whole document rather than once per window.
+      //
+      // Both halves matter. Reusing whatever `foldArtifacts` held after the load
+      // looked like the cheaper path and silently broke resolution: a region's
+      // boundary lives in the *fold's* coordinate space, and the artifacts a
+      // file load leaves behind are normalised to a unit square while the ones
+      // computed from the kernel document are in its own 400-space. Every saved
+      // boundary then matched nothing, so every restored window stayed empty.
+      // `refreshOristudioCpInlineSimulation` refreshes for this reason; what it
+      // must not do is refresh per window.
+      const artifacts = await get().refreshFoldArtifacts();
       if (!artifacts) return 0;
       const segments = resolveCpSegments(artifacts);
       const simulationFold = simulationFoldOf(artifacts);
