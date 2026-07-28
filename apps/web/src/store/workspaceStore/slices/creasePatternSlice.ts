@@ -1078,6 +1078,47 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
     },
 
+    hydrateOristudioCpInlineSimulations: async () => {
+      const simulations = get().oristudioCpInlineSimulations;
+      const document = get().oristudioCpDocument?.document ?? null;
+      if (!document || simulations.length === 0) return 0;
+
+      // Recomputed, and once for the whole document rather than once per window.
+      //
+      // Both halves matter. Reusing whatever `foldArtifacts` held after the load
+      // looked like the cheaper path and silently broke resolution: a region's
+      // boundary lives in the *fold's* coordinate space, and the artifacts a
+      // file load leaves behind are normalised to a unit square while the ones
+      // computed from the kernel document are in its own 400-space. Every saved
+      // boundary then matched nothing, so every restored window stayed empty.
+      // `refreshOristudioCpInlineSimulation` refreshes for this reason; what it
+      // must not do is refresh per window.
+      const artifacts = await get().refreshFoldArtifacts();
+      if (!artifacts) return 0;
+      const segments = resolveCpSegments(artifacts);
+      const simulationFold = simulationFoldOf(artifacts);
+
+      let hydrated = 0;
+      for (const simulation of simulations) {
+        const segment = resolveInlineSimulationSegment(simulation, segments);
+        // A region that no longer resolves keeps its window and its provenance.
+        // Dropping it would lose placement the user chose, and re-pointing it at
+        // the nearest region would silently simulate something else — the rule
+        // refresh already follows.
+        if (!segment) continue;
+        setInlineSimulationSource(simulation.id, {
+          fold: buildSegmentFold(simulationFold, segment),
+          modelKey: `${simulation.id}:${inlineSimulationRevision(simulation.id)}`,
+        });
+        hydrated += 1;
+      }
+      // Deliberately no `set` here. The descriptors are exactly as loaded, and
+      // recomputing `sourceFingerprint` from the document we just opened is the
+      // one change that would look harmless and disable staleness for good: a
+      // file can legitimately hold a window that is out of date.
+      return hydrated;
+    },
+
     refreshOristudioCpInlineSimulation: async (id) => {
       const document = get().oristudioCpDocument?.document ?? null;
       const simulation = get().oristudioCpInlineSimulations.find(

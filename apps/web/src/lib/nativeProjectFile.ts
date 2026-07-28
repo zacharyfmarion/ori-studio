@@ -22,11 +22,13 @@ import {
   validateTextAnnotations,
   type TextAnnotation,
 } from '../cp-workspace/annotations/textAnnotation';
+import { validateInlineSimulations } from '../cp-workspace/inlineSimulation/inlineSimulationFile';
+import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
 
 export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
 export const NATIVE_PROJECT_EXTENSION = 'osf';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
-export const NATIVE_PROJECT_SCHEMA_VERSION = 4;
+export const NATIVE_PROJECT_SCHEMA_VERSION = 5;
 
 export type NativeProjectDocumentKind = 'treemaker-tree' | 'crease-pattern' | 'box-pleat';
 
@@ -87,6 +89,15 @@ export interface NativeCreasePatternDocumentV1 extends NativeProjectBaseDocument
      * absent in older files (migrated to `[]`).
      */
     textAnnotations: TextAnnotation[];
+    /**
+     * Superset feature: live simulation windows placed on the canvas. Added in
+     * schema v5; absent in older files (migrated to `[]`).
+     *
+     * Placement and provenance only — the captured fold each window runs is
+     * rebuilt on load rather than stored. See
+     * `implementation-plans/persist-inline-simulations.md`.
+     */
+    inlineSimulations: InlineSimulation[];
   };
   viewState: {
     creaseColorMode: CreaseColorMode;
@@ -113,7 +124,7 @@ export type NativeProjectDocumentV1 =
 
 export interface NativeProjectFileV1 {
   format: typeof NATIVE_PROJECT_FORMAT;
-  schemaVersion: 1 | 2 | 3 | 4;
+  schemaVersion: 1 | 2 | 3 | 4 | 5;
   minimumReaderSchemaVersion: 1;
   createdBy: NativeProjectActor;
   modifiedBy: NativeProjectActor;
@@ -171,6 +182,8 @@ export interface NativeCreasePatternProjectInput {
   images?: CpImage[];
   /** Superset feature: rich-text boxes placed on the canvas (schema v4). */
   textAnnotations?: TextAnnotation[];
+  /** Superset feature: inline simulation windows (schema v5). */
+  inlineSimulations?: InlineSimulation[];
   /**
    * Document-level extension bag carried forward from a loaded file. Threading
    * this back on save preserves data written by a *newer* app version across a
@@ -267,7 +280,13 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   }
 
   const schemaVersion = numberField(value.schemaVersion);
-  if (schemaVersion === 1 || schemaVersion === 2 || schemaVersion === 3 || schemaVersion === 4) {
+  if (
+    schemaVersion === 1 ||
+    schemaVersion === 2 ||
+    schemaVersion === 3 ||
+    schemaVersion === 4 ||
+    schemaVersion === 5
+  ) {
     return validateV1(value);
   }
   if (schemaVersion === null) throw new Error('Ori Studio project is missing schemaVersion');
@@ -326,7 +345,7 @@ export function createNativeProjectFile(
 
   return {
     format: NATIVE_PROJECT_FORMAT,
-    schemaVersion: 4,
+    schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
     minimumReaderSchemaVersion: 1,
     createdBy: actor,
     modifiedBy: actor,
@@ -389,7 +408,7 @@ export function createNativeCreasePatternProjectFile(
   const title = input.title.trim() || input.document.title || 'Untitled CP';
   return {
     format: NATIVE_PROJECT_FORMAT,
-    schemaVersion: 4,
+    schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
     minimumReaderSchemaVersion: 1,
     createdBy: actor,
     modifiedBy: actor,
@@ -435,6 +454,7 @@ function createNativeCreasePatternDocument(
       lineage: input.lineage,
       images: input.images ?? [],
       textAnnotations: input.textAnnotations ?? [],
+      inlineSimulations: input.inlineSimulations ?? [],
     },
     viewState: {
       creaseColorMode: input.creaseColorMode,
@@ -646,7 +666,7 @@ function validateV1(value: Record<string, unknown>): NativeProjectFileV1 {
 
   return {
     format: NATIVE_PROJECT_FORMAT,
-    schemaVersion: 4,
+    schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
     minimumReaderSchemaVersion: 1,
     createdBy: validateActor(recordField(value.createdBy, 'createdBy')),
     modifiedBy: validateActor(recordField(value.modifiedBy, 'modifiedBy')),
@@ -721,6 +741,7 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
         images: validateCpImages(creasePattern.images),
         // Absent before schema v4 → []. Invalid entries are dropped, not thrown.
         textAnnotations: validateTextAnnotations(creasePattern.textAnnotations),
+        inlineSimulations: validateInlineSimulations(creasePattern.inlineSimulations),
       },
       viewState: {
         creaseColorMode:
