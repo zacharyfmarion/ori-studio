@@ -174,41 +174,45 @@ unrepresentable; this test is what keeps it that way.
 
 ## Checklist
 
-### Phase 1 — Worker: decouple the render target from the window
+### Phase 1 — Worker: decouple the render target from the window — DONE
 
-- [ ] Grow-only `renderCanvas`: resize only when a request exceeds the current
+- [x] Grow-only `renderCanvas`: resize only when a request exceeds the current
       size, never to shrink.
-- [ ] Render into `gl.viewport(0, 0, w, h)`; confirm the clear covers the crop
+- [x] Render into `gl.viewport(0, 0, w, h)`; confirm the clear covers the crop
       region (scissor, not viewport).
-- [ ] Crop out with `createImageBitmap(canvas, 0, canvasHeight - h, w, h)`;
+- [x] Crop out with `createImageBitmap(canvas, 0, canvasHeight - h, w, h)`;
       thread the async return through `setCamera`, `setRenderSettings`, tick.
-- [ ] Move `renderGpu`'s timer to cover the whole function, so `sim-perf` can
+- [x] Move `renderGpu`'s timer to cover the whole function, so `sim-perf` can
       see a regression of this kind next time.
-- [ ] Unit test: rendering at several sizes in sequence never shrinks the canvas
-      and always returns a bitmap of the requested size.
+- [x] Unit test: the sizing *policy* as a pure function (jsdom has no WebGL2, so
+      the session path cannot be driven there). Crop correctness — exact size and
+      no y-flip — verified in a browser instead.
 - [ ] Re-measure: three windows at three sizes, and a fast zoom. Target is the
       0.02 ms row.
 
-### Phase 2 — `foldPercent` out of the descriptor
+### Phase 2 — `foldPercent` out of the descriptor — DONE
 
-- [ ] Add the fold percentage + a subscribe/notify to
+- [x] Add the fold percentage + a subscribe/notify to
       `inlineSimulationRuntime.ts`.
-- [ ] `InlineSimulationLayer` publishes there instead of calling `onFoldPercent`.
-- [ ] `InlineSimulationInspector` subscribes for its readout and slider;
+- [x] `InlineSimulationLayer` publishes there instead of calling `onFoldPercent`.
+- [x] `InlineSimulationInspector` subscribes for its readout and slider;
       scrubbing writes to the same place.
-- [ ] Refocus still reseeds the solver from the stored percentage (the bug the
+- [x] Refocus still reseeds the solver from the stored percentage (the bug the
       parent plan fixed — do not regress it).
-- [ ] Remove `foldPercent` from `InlineSimulation`; update the create path and
+- [x] Remove `foldPercent` from `InlineSimulation`; update the create path and
       the fixtures.
-- [ ] Confirm the descriptor is still exactly what would be persisted, so the
+- [x] Confirm the descriptor is still exactly what would be persisted, so the
       parent plan's deferred Phase 7 stays an addition rather than a rewrite.
 
-### Phase 3 — Keep it that way
+### Phase 3 — Keep it that way — DONE (trace pending)
 
-- [ ] Test: while a fold advances, `oristudioCpInlineSimulations` keeps the same
+- [x] Test: while a fold advances, `oristudioCpInlineSimulations` keeps the same
       array identity.
-- [ ] Test: `staleIds` is referentially stable across a fold advancing.
+- [x] Test: the split by origin — the solver's readout never reaches the window
+      as an instruction.
 - [ ] Capture a fresh trace and record the numbers below the Evidence table.
+      (Needs a real interactive session; the agent harness runs `document.hidden`,
+      where rAF never fires and the play loop cannot run at all.)
 
 ## Decisions and rejected alternatives
 
