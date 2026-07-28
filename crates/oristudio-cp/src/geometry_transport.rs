@@ -16,7 +16,9 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 use crate::CreasePatternDocument;
-use crate::geometry::{ActiveState, Circle, LineColor, LineSegment, Point, RgbColor};
+use crate::geometry::{
+    ActiveState, Circle, FoldMagnitude, LineColor, LineSegment, Point, RgbColor,
+};
 use crate::model::{CreasePatternModel, GridMetadata, TextElement};
 use crate::operations::transform::OperationFrame;
 
@@ -39,6 +41,13 @@ pub struct CompactGeometry {
     pub seg_attr: Vec<i32>,
     /// `[r, g, b]` per line segment (only meaningful when `customized`).
     pub seg_custom_color: Vec<u8>,
+    /// Fold magnitude per line segment, in [`FoldMagnitude`] storage units, with
+    /// `u32::MAX` standing for "classic" (`None`).
+    ///
+    /// **Empty when no segment carries one**, which is every Oriedita-compatible
+    /// document — so the common case pays 4 header bytes rather than 4 bytes per
+    /// segment. See `decode`: an empty array means all-classic, not all-zero.
+    pub seg_fold_magnitude: Vec<u32>,
     pub aux_endpoints: Vec<f64>,
     pub aux_attr: Vec<i32>,
     pub aux_custom_color: Vec<u8>,
@@ -53,9 +62,12 @@ pub struct CompactGeometry {
     pub tail: CompactTail,
 }
 
-/// Magic + version header for [`CompactGeometry::to_bytes`] ("OCG1"). Bumping
+/// Magic + version header for [`CompactGeometry::to_bytes`] ("OCG2"). Bumping
 /// the last byte is how the format version advances.
-const COMPACT_GEOMETRY_MAGIC: u32 = 0x4f_43_47_31;
+///
+/// OCG2 added `seg_fold_magnitude`. A reader rejects an unrecognised magic
+/// outright, so a version mismatch is a loud error rather than a misparse.
+const COMPACT_GEOMETRY_MAGIC: u32 = 0x4f43_4732;
 
 /// Single-buffer binary codec for the native (Tauri) IPC path.
 ///
@@ -66,9 +78,9 @@ const COMPACT_GEOMETRY_MAGIC: u32 = 0x4f_43_47_31;
 ///
 /// Layout (all integers little-endian `u32`):
 /// ```text
-/// magic(=OCG1) | 10 array element-counts (field order) | tail_byte_len
+/// magic(=OCG2) | 11 array element-counts (field order) | tail_byte_len
 /// tail_bytes (serde_json of `CompactTail`)
-/// seg_endpoints(f64) seg_attr(i32) seg_custom_color(u8)
+/// seg_endpoints(f64) seg_attr(i32) seg_custom_color(u8) seg_fold_magnitude(u32)
 /// aux_endpoints(f64) aux_attr(i32) aux_custom_color(u8)
 /// point_coords(f64) circle_data(f64) circle_attr(i32) circle_custom_color(u8)
 /// ```
@@ -76,7 +88,7 @@ const COMPACT_GEOMETRY_MAGIC: u32 = 0x4f_43_47_31;
 /// the expected total and rejects any buffer whose size or magic disagrees —
 /// making a Rust/TS format mismatch a loud error, never silent corruption.
 impl CompactGeometry {
-    const HEADER_U32S: usize = 12; // magic + 10 lengths + tail_len
+    const HEADER_U32S: usize = 13; // magic + 11 lengths + tail_len
 
     pub fn to_bytes(&self) -> Result<Vec<u8>, String> {
         let tail = serde_json::to_vec(&self.tail).map_err(|error| error.to_string())?;
@@ -84,6 +96,7 @@ impl CompactGeometry {
             self.seg_endpoints.len(),
             self.seg_attr.len(),
             self.seg_custom_color.len(),
+            self.seg_fold_magnitude.len(),
             self.aux_endpoints.len(),
             self.aux_attr.len(),
             self.aux_custom_color.len(),
@@ -100,7 +113,11 @@ impl CompactGeometry {
                 + self.point_coords.len()
                 + self.circle_data.len())
                 * 8
-            + (self.seg_attr.len() + self.aux_attr.len() + self.circle_attr.len()) * 4
+            + (self.seg_attr.len()
+                + self.aux_attr.len()
+                + self.circle_attr.len()
+                + self.seg_fold_magnitude.len())
+                * 4
             + self.seg_custom_color.len()
             + self.aux_custom_color.len()
             + self.circle_custom_color.len();
@@ -126,6 +143,9 @@ impl CompactGeometry {
         write_f64(&mut out, &self.seg_endpoints);
         write_i32(&mut out, &self.seg_attr);
         out.extend_from_slice(&self.seg_custom_color);
+        for &value in &self.seg_fold_magnitude {
+            out.extend_from_slice(&value.to_le_bytes());
+        }
         write_f64(&mut out, &self.aux_endpoints);
         write_i32(&mut out, &self.aux_attr);
         out.extend_from_slice(&self.aux_custom_color);
@@ -141,7 +161,7 @@ impl CompactGeometry {
         if reader.read_u32()? != COMPACT_GEOMETRY_MAGIC {
             return Err("compact geometry: bad magic/version".to_string());
         }
-        let counts: [usize; 10] = std::array::from_fn(|_| 0);
+        let counts: [usize; 11] = std::array::from_fn(|_| 0);
         let mut counts = counts;
         for count in &mut counts {
             *count = reader.read_u32()? as usize;
@@ -153,6 +173,7 @@ impl CompactGeometry {
             seg_e,
             seg_a,
             seg_c,
+            seg_fm,
             aux_e,
             aux_a,
             aux_c,
@@ -164,7 +185,7 @@ impl CompactGeometry {
         let expected = Self::HEADER_U32S * 4
             + tail_len
             + (seg_e + aux_e + pt + circ_d) * 8
-            + (seg_a + aux_a + circ_a) * 4
+            + (seg_a + aux_a + circ_a + seg_fm) * 4
             + seg_c
             + aux_c
             + circ_c;
@@ -180,6 +201,7 @@ impl CompactGeometry {
             seg_endpoints: reader.read_f64s(seg_e)?,
             seg_attr: reader.read_i32s(seg_a)?,
             seg_custom_color: reader.take(seg_c)?.to_vec(),
+            seg_fold_magnitude: reader.read_u32s(seg_fm)?,
             aux_endpoints: reader.read_f64s(aux_e)?,
             aux_attr: reader.read_i32s(aux_a)?,
             aux_custom_color: reader.take(aux_c)?.to_vec(),
@@ -233,6 +255,14 @@ impl<'a> ByteReader<'a> {
             .map(|c| i32::from_le_bytes(c.try_into().unwrap()))
             .collect())
     }
+
+    fn read_u32s(&mut self, count: usize) -> Result<Vec<u32>, String> {
+        let slice = self.take(count * 4)?;
+        Ok(slice
+            .chunks_exact(4)
+            .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+            .collect())
+    }
 }
 
 /// Low-count / non-numeric document remainder (serde-serialized; always small).
@@ -283,10 +313,28 @@ fn encode_segments(segments: &[LineSegment]) -> (Vec<f64>, Vec<i32>, Vec<u8>) {
     (endpoints, attr, custom)
 }
 
+/// Per-segment magnitudes, or an empty vector when every segment is classic.
+///
+/// Omitting the array is the whole point: an Oriedita-compatible document pays
+/// 4 header bytes instead of 4 bytes per segment.
+fn encode_fold_magnitudes(segments: &[LineSegment]) -> Vec<u32> {
+    if segments
+        .iter()
+        .all(|segment| segment.fold_magnitude.is_none())
+    {
+        return Vec::new();
+    }
+    segments
+        .iter()
+        .map(|segment| FoldMagnitude::to_transport(segment.fold_magnitude))
+        .collect()
+}
+
 fn decode_segments(
     endpoints: &[f64],
     attr: &[i32],
     custom: &[u8],
+    fold_magnitude: &[u32],
 ) -> Result<Vec<LineSegment>, String> {
     let count = endpoints.len() / 4;
     if endpoints.len() != count * 4
@@ -294,6 +342,11 @@ fn decode_segments(
         || custom.len() != count * 3
     {
         return Err("compact segment buffers have inconsistent lengths".to_string());
+    }
+    // Empty means "every segment is classic" -- the all-Oriedita case, which is
+    // why the array is omitted rather than filled with sentinels.
+    if !fold_magnitude.is_empty() && fold_magnitude.len() != count {
+        return Err("compact fold-magnitude buffer has inconsistent length".to_string());
     }
     let mut segments = Vec::with_capacity(count);
     for i in 0..count {
@@ -315,6 +368,10 @@ fn decode_segments(
             selected: attr[a + 2],
             customized: attr[a + 3],
             customized_color: RgbColor::new(custom[c], custom[c + 1], custom[c + 2]),
+            fold_magnitude: fold_magnitude
+                .get(i)
+                .copied()
+                .and_then(FoldMagnitude::from_transport),
         });
     }
     Ok(segments)
@@ -325,6 +382,7 @@ pub fn encode(document: &CreasePatternDocument) -> CompactGeometry {
     let model = &document.crease_pattern;
     let (seg_endpoints, seg_attr, seg_custom_color) = encode_segments(&model.line_segments);
     let (aux_endpoints, aux_attr, aux_custom_color) = encode_segments(&model.aux_line_segments);
+    let seg_fold_magnitude = encode_fold_magnitudes(&model.line_segments);
 
     let mut point_coords = Vec::with_capacity(model.points.len() * 2);
     for point in &model.points {
@@ -350,6 +408,7 @@ pub fn encode(document: &CreasePatternDocument) -> CompactGeometry {
         seg_endpoints,
         seg_attr,
         seg_custom_color,
+        seg_fold_magnitude,
         aux_endpoints,
         aux_attr,
         aux_custom_color,
@@ -373,11 +432,14 @@ pub fn decode(compact: &CompactGeometry) -> Result<CreasePatternDocument, String
         &compact.seg_endpoints,
         &compact.seg_attr,
         &compact.seg_custom_color,
+        &compact.seg_fold_magnitude,
     )?;
+    // Auxiliary lines are not creases, so they never carry a magnitude.
     let aux_line_segments = decode_segments(
         &compact.aux_endpoints,
         &compact.aux_attr,
         &compact.aux_custom_color,
+        &[],
     )?;
 
     let point_count = compact.point_coords.len() / 2;
@@ -454,6 +516,7 @@ mod tests {
             selected,
             customized,
             customized_color: RgbColor::new(rgb.0, rgb.1, rgb.2),
+            fold_magnitude: None,
         }
     }
 
@@ -564,7 +627,96 @@ mod tests {
         ));
         docs.push(extreme);
 
+        // Non-classic fold angles: the OCG2 addition. Mixed with classic creases
+        // in one document, because that is the real shape of a design (a box with
+        // flat-folded flaps) and it exercises the sentinel alongside real values.
+        let mut angled = CreasePatternDocument::default();
+        for (color, degrees) in [
+            (LineColor::Red1, Some(90.0)),
+            (LineColor::Blue2, Some(45.5)),
+            (LineColor::Red1, None),
+            (LineColor::Blue2, Some(0.0)),
+            (LineColor::Red1, Some(179.9999999)),
+            (LineColor::Black0, None),
+        ] {
+            let base = segment(
+                (0.0, 0.0),
+                (1.0, 1.0),
+                color,
+                ActiveState::Inactive0,
+                0,
+                0,
+                (0, 0, 0),
+            );
+            let magnitude = degrees.and_then(FoldMagnitude::from_degrees);
+            angled
+                .crease_pattern
+                .line_segments
+                .push(base.with_fold_magnitude(magnitude));
+        }
+        docs.push(angled);
+
         docs
+    }
+
+    #[test]
+    fn classic_documents_omit_the_magnitude_array_entirely() {
+        // The R3 mitigation: an Oriedita-compatible document must not pay 4
+        // bytes per segment for a feature it does not use.
+        for document in battery() {
+            let compact = encode(&document);
+            let any_angled = document
+                .crease_pattern
+                .line_segments
+                .iter()
+                .any(|segment| segment.fold_magnitude.is_some());
+            if any_angled {
+                assert_eq!(
+                    compact.seg_fold_magnitude.len(),
+                    document.crease_pattern.line_segments.len()
+                );
+            } else {
+                assert!(
+                    compact.seg_fold_magnitude.is_empty(),
+                    "classic document allocated a magnitude array"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn magnitude_survives_the_binary_codec() {
+        let ninety = FoldMagnitude::from_degrees(90.0).expect("in range");
+        let mut document = CreasePatternDocument::default();
+        document.crease_pattern.line_segments.push(
+            segment(
+                (0.0, 0.0),
+                (1.0, 0.0),
+                LineColor::Red1,
+                ActiveState::Inactive0,
+                0,
+                0,
+                (0, 0, 0),
+            )
+            .with_fold_magnitude(Some(ninety)),
+        );
+        let bytes = encode(&document).to_bytes().expect("to_bytes");
+        let restored =
+            decode(&CompactGeometry::from_bytes(&bytes).expect("from_bytes")).expect("decode");
+        assert_eq!(
+            restored.crease_pattern.line_segments[0].fold_magnitude,
+            Some(ninety)
+        );
+        assert_eq!(restored, document);
+    }
+
+    #[test]
+    fn an_older_magic_is_rejected_rather_than_misparsed() {
+        let mut bytes = encode(&CreasePatternDocument::default())
+            .to_bytes()
+            .expect("to_bytes");
+        bytes[3] = b'1'; // OCG2 -> OCG1
+        assert!(CompactGeometry::from_bytes(&bytes).is_err());
     }
 
     #[test]
@@ -607,14 +759,15 @@ mod tests {
         assert!(CompactGeometry::from_bytes(&[0u8; 4]).is_err());
     }
 
-    /// Pins the on-the-wire layout the TS decoder relies on: magic, then the ten
-    /// element counts in field order, then the tail length, then the data.
+    /// Pins the on-the-wire layout the TS decoder relies on: magic, then the
+    /// eleven element counts in field order, then the tail length, then the data.
     #[test]
     fn binary_codec_header_matches_the_spec() {
         let compact = CompactGeometry {
             seg_endpoints: vec![1.0, 2.0, 3.0, 4.0],
             seg_attr: vec![5, 6, 7, 8],
             seg_custom_color: vec![9, 10, 11],
+            seg_fold_magnitude: vec![],
             aux_endpoints: vec![],
             aux_attr: vec![],
             aux_custom_color: vec![],
@@ -638,7 +791,8 @@ mod tests {
         assert_eq!(counts_at(0), 4, "seg_endpoints count");
         assert_eq!(counts_at(1), 4, "seg_attr count");
         assert_eq!(counts_at(2), 3, "seg_custom_color count");
-        assert_eq!(counts_at(6), 2, "point_coords count");
+        assert_eq!(counts_at(3), 0, "seg_fold_magnitude count (OCG2)");
+        assert_eq!(counts_at(7), 2, "point_coords count");
         // Round-trips regardless.
         assert_eq!(
             CompactGeometry::from_bytes(&bytes).expect("decode"),
