@@ -591,10 +591,23 @@ const api = {
     active.clock.invalidate();
   },
 
+  /**
+   * Back to flat — the paper *and* the target it was heading for.
+   *
+   * Zeroing the target here rather than leaving it to the caller is what makes
+   * this safe to call. Every caller means "flat" and every one of them followed
+   * this with a separate `setFoldPercent(0)`, which is a second round-trip to
+   * the worker: for the frames in between, a flat sheet sat under the old
+   * target with the clock freshly un-converged, so the solver drove it straight
+   * back where it came from. Pressing play on a fully folded window snapped to
+   * folded instead of replaying from the start.
+   */
   reset(token?: SimulatorSessionToken): void {
     const active = sessionFor(token);
     if (!active) return;
     active.backend.reset();
+    active.backend.setFoldPercent(0);
+    active.foldPercent = 0;
     active.clock.reset();
   },
 
