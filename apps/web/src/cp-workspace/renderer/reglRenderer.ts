@@ -287,12 +287,19 @@ export function createReglRenderer(
         importedStrokes.draw({ view: frame.userView, viewport, widthPx: viewport.dpr });
       }
       // Points and vertices sit on top of the crease lines.
+      // Crease points and vertices are content: they ride `pointScalePx` and
+      // shrink in lockstep with the pattern. Circles in this same layer are real
+      // geometry, outlined by a constant hairline like the creases.
       points.draw({
         view: frame.view,
         viewport,
         userScalePx: frame.userScalePx,
-        markerScalePx: frame.markerScalePx,
-        outlinePx: frame.pointOutlinePx,
+        markerScalePx: frame.pointScalePx,
+        userOutlinePx: frame.constantOutlinePx,
+        markerOutlinePx: frame.pointOutlinePx,
+        // Circles are geometry and stay put; the point/vertex markers fade out.
+        userOpacity: 1,
+        markerOpacity: frame.pointOpacity,
       });
       // Diagnostic overlays sit above the crease pattern: fills (sector wedges /
       // frame region) under the segment highlights, with the shape markers on top.
@@ -307,11 +314,13 @@ export function createReglRenderer(
         diagnosticWedges.draw({ view: frame.view, viewport, scalePx: frame.markerScalePx });
       }
       if (hasDiagnosticMarkers) {
+        // Diagnostics annotate the pattern, so they shrink and fade with it
+        // rather than pinning at a constant size over a collapsing CP.
         diagnosticMarkers.draw({
           view: frame.view,
           viewport,
           scalePx: frame.markerScalePx,
-          outlinePx: frame.pointOutlinePx,
+          outlinePx: frame.markerOutlinePx,
         });
       }
       // Operation-frame outline (dashed, screen-constant width) sits above the CP.
@@ -324,12 +333,17 @@ export function createReglRenderer(
       }
       // Cursor decorations (snap indicator) sit on the very top.
       if (hasOverlayPoints) {
+        // Cursor decorations keep the affordance scale and a fixed outline — a
+        // snap ring that shrank with the paper would stop reading as a target.
         overlayPoints.draw({
           view: frame.view,
           viewport,
           userScalePx: frame.userScalePx,
           markerScalePx: frame.markerScalePx,
-          outlinePx: frame.pointOutlinePx,
+          userOutlinePx: frame.constantOutlinePx,
+          markerOutlinePx: frame.constantOutlinePx,
+          userOpacity: 1,
+          markerOpacity: 1,
         });
       }
     },

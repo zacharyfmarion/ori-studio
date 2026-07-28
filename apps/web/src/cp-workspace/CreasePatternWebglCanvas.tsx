@@ -60,7 +60,7 @@ import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
 import { imageCornersModel } from './images/cpImagePlacement';
 import { boxCornersModel } from './annotations/annotationTransform';
-import { cpPointsToScene } from './adapters/cpPointsToScene';
+import { cpPointsToScene, VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
 import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
 import { cpLineStyleDashPatterns } from '../lib/oristudioCpLineStyle';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
@@ -81,6 +81,7 @@ import {
   cpVertexId,
   orieditaGridLinesForModelBounds,
   type OristudioCpLineStyle,
+  getOrieditaGridBasis,
 } from '../lib/creasePatternViewport';
 import { toolEngineFor, type ToolInputMode } from './tools/registry';
 import { createToolRuntime, type ToolRuntime } from './tools/runtime';
@@ -183,16 +184,63 @@ const CREASE_WIDTH_FACTOR = 1.5;
 const WIDTH_ZOOM_EXPONENT = 0.15;
 
 /**
- * How fast point/vertex markers shrink when zoomed *out* past the fit view, so a
- * dense CP's vertices don't dominate the zoomed-out picture. 0 = constant screen
- * size (they'd swamp the view), 1 = shrink in lockstep with the content. ~0.7
- * declutters while keeping them visible. Only markers shrink — crease lines keep
- * their constant screen width so structure stays legible.
+ * How fast diagnostic markers and cursor decorations shrink when zoomed *out*
+ * past the fit view. 0 = constant screen size, 1 = lockstep with the content.
+ * These are affordances rather than content — a snap ring that shrank with the
+ * paper would stop reading as a target — so they keep a partial shrink.
  */
 const MARKER_SHRINK_EXPONENT = 0.7;
 
+/**
+ * How fast crease points and vertices shrink when zoomed *out* past the fit view.
+ * 1 = lockstep with the content, so a vertex stays the same fraction of the
+ * pattern at every zoom and the picture reads identically at any scale. Anything
+ * below 1 makes vertices grow relative to the creases as you zoom out, which on a
+ * dense CP turns the pattern into a field of dots. Sub-pixel dots then fade
+ * rather than clamp (see the point program), which is what "shrink with the
+ * pattern" means once a dot is asking for less than a pixel of ink.
+ *
+ * Note this rides `zoomRatio`, which is normalised against the whole document's
+ * bounding box and so is meaningless on a sheet holding several patterns — there
+ * it pins at 1 and dots keep their full size. Visibility is handled separately
+ * by the crowding ramp below, which does not have that flaw.
+ */
+const VERTEX_SHRINK_EXPONENT = 1;
+
 /** Point/vertex outline width in CSS px (SVG non-scaling stroke ~1.4). */
 const POINT_OUTLINE_CSS = 1.4;
+
+/**
+ * Crease point/vertex visibility, in units of *crowding*: a dot's diameter as a
+ * fraction of the on-screen distance between neighbouring vertices. 0.1 means
+ * dots take up a tenth of the gap between them; 1.0 means they touch and the
+ * pattern reads as a field of dots rather than as creases.
+ *
+ * Vertices are an up-close editing affordance (snap and hit targets). Surveying
+ * a dense pattern, they are noise over the creases they annotate, so they fade
+ * out entirely rather than shrinking forever.
+ *
+ * Crowding is a ratio of two CSS-px lengths, which is what makes it behave the
+ * same everywhere: on any display density, at any `Point size`, at any document
+ * coordinate scale. An earlier version keyed this to `cam.zoom / fitZoom`, which
+ * measures zoom against the bounding box of the *whole document* — on a sheet
+ * holding several patterns spread over thousands of units that reads as "zoomed
+ * way in" while you look at one small pattern, and every fade stayed off.
+ */
+const VERTEX_CROWD_FULL_AT = 0.15;
+const VERTEX_CROWD_GONE_AT = 0.45;
+/**
+ * Where the outline ring collapses into the fill, same units. It goes first: a
+ * ring reads as a target, and a plain dot is quieter at the same size.
+ */
+const VERTEX_RING_FULL_AT = 0.12;
+const VERTEX_RING_GONE_AT = 0.3;
+
+/** Hermite ramp between two edges, clamped — the GLSL `smoothstep`. */
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
 
 /** Selection highlight: accent colour + a wider stroke. */
 const SELECTION_COLOR_VAR = '--accent-primary';
@@ -912,6 +960,30 @@ export function CreasePatternWebglCanvas({
     clearTransformPreview,
   ]);
 
+  // The distance between neighbouring vertices, in model units — vertices are
+  // crease endpoints, so the median crease length measures it directly. This is
+  // the reference for sizing vertex dots: it is what "the dots are crowding the
+  // pattern" actually means, and it is unaffected by how far apart several
+  // patterns sit on one sheet.
+  //
+  // Oriedita's grid pitch (`ORIEDITA_PAPER_SIZE / grid_size`) is the tempting
+  // choice here, being declared by the document rather than measured. It does
+  // not survive contact with real files: a crease pattern drawn at a scale where
+  // one pattern spans thousands of units has creases several grid cells long
+  // (iguana_19.osf: 25-unit grid, 71-unit median crease), so the grid says
+  // "crowded" while the vertices have ample room. It is kept only as the
+  // fallback for a document with no creases to measure.
+  const vertexSpacingModel = useMemo(() => {
+    const lengths: number[] = [];
+    for (const seg of lineSegments) {
+      const length = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
+      if (length > 1e-9) lengths.push(length);
+    }
+    if (lengths.length === 0) return grid ? getOrieditaGridBasis(grid).gridWidth : 0;
+    lengths.sort((a, b) => a - b);
+    return lengths[lengths.length >> 1];
+  }, [lineSegments, grid]);
+
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
   const contentBounds = useMemo<UserBounds | null>(() => {
@@ -1091,6 +1163,8 @@ export function CreasePatternWebglCanvas({
     grid,
     gridVisible,
     contentBounds,
+    vertexSpacingModel,
+    pointSize,
     hitIndex,
     pointIndex,
     lineSegments,
@@ -1288,6 +1362,20 @@ export function CreasePatternWebglCanvas({
       const zoomRatio = cam.zoom / fitZoom;
       const widthBoost = Math.pow(Math.max(zoomRatio, 1), WIDTH_ZOOM_EXPONENT);
       const markerShrink = zoomRatio < 1 ? Math.pow(zoomRatio, MARKER_SHRINK_EXPONENT) : 1;
+      const markerScalePx = ratio * widthBoost * markerShrink;
+      const vertexShrink = zoomRatio < 1 ? Math.pow(zoomRatio, VERTEX_SHRINK_EXPONENT) : 1;
+      const pointScalePx = ratio * widthBoost * vertexShrink;
+      // How much of the on-screen gap between neighbouring vertices a dot eats
+      // up. Both terms are CSS px, so this is a pure ratio: independent of
+      // display density, of the document's coordinate scale, and of how far
+      // apart several patterns happen to sit on one sheet. `view.ex` is the
+      // model->device basis, so its length is device px per model unit.
+      const vertexDiameterCss = 2 * VERTEX_RADIUS_FACTOR * liveRef.current.pointSize;
+      const modelPxPerUnit = Math.hypot(view.ex[0], view.ex[1]);
+      const spacingCss = (liveRef.current.vertexSpacingModel * modelPxPerUnit) / ratio;
+      const crowding = spacingCss > 1e-6 ? vertexDiameterCss / spacingCss : 0;
+      const pointOpacity = 1 - smoothstep(VERTEX_CROWD_FULL_AT, VERTEX_CROWD_GONE_AT, crowding);
+      const pointRingScale = 1 - smoothstep(VERTEX_RING_FULL_AT, VERTEX_RING_GONE_AT, crowding);
 
       // Report the zoom percent so the viewport toolbar reflects the owned camera.
       // 100% = actual size (1 user unit == 1 CSS px, i.e. zoom == dpr), matching the
@@ -1334,8 +1422,14 @@ export function CreasePatternWebglCanvas({
         // radii still scale fully with zoom via userScalePx — real geometry.
         strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
         userScalePx: cam.zoom,
-        markerScalePx: ratio * widthBoost * markerShrink,
-        pointOutlinePx: POINT_OUTLINE_CSS * ratio,
+        markerScalePx,
+        pointScalePx,
+        // Outlines ride the scale of whatever they outline, so a shrinking dot
+        // does not keep a full-width ring and bottom out at a constant size.
+        constantOutlinePx: POINT_OUTLINE_CSS * ratio,
+        markerOutlinePx: POINT_OUTLINE_CSS * markerScalePx,
+        pointOutlinePx: POINT_OUTLINE_CSS * pointScalePx * pointRingScale,
+        pointOpacity,
       });
     };
     renderNowRef.current = renderNow;
