@@ -268,7 +268,7 @@
       "label": "展開図の操作",
       "saveImage": "画像として保存",
       "simulate": "シミュレート",
-      "simulateInline": "ここでシミュレート"
+      "simulateInline": "インラインでシミュレート"
     },
     "sendImageToBack": "画像を最背面へ",
     "shadow": "影",

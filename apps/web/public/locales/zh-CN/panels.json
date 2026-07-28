@@ -268,7 +268,7 @@
       "label": "折痕图操作",
       "saveImage": "保存为图像",
       "simulate": "模拟",
-      "simulateInline": "在此模拟"
+      "simulateInline": "内嵌模拟"
     },
     "sendImageToBack": "将图像置于底层",
     "shadow": "阴影",

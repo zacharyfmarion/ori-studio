@@ -268,7 +268,7 @@
       "label": "접힘 패턴 작업",
       "saveImage": "이미지로 저장",
       "simulate": "시뮬레이션",
-      "simulateInline": "여기에서 시뮬레이션"
+      "simulateInline": "인라인 시뮬레이션"
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
     "shadow": "그림자",
