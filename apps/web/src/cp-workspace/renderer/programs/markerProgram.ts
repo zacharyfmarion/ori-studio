@@ -9,11 +9,17 @@ type Buffer = ReturnType<Regl['buffer']>;
  * shapes anchored at model points. A unit quad is projected at the anchor and
  * expanded to the marker's device size; the fragment shader evaluates a per-shape
  * signed-distance field (disc / ring / triangle / square / pentagon / cross) to
- * fill the interior and straddle-stroke the border, antialiased. Screen-constant
- * like Oriedita's diagnostic markers — size does not change with zoom.
+ * fill the interior and straddle-stroke the border, antialiased.
+ *
+ * Markers are sized in screen space, shrinking with `u_scalePx` as the view zooms
+ * out past the fit. They are far larger than the crease points they annotate
+ * ({@link MIN_SIZE_PX} aside, a diagnostic half-extent is ~10 CSS px), so once
+ * they hit the floor they fade rather than pin — otherwise a zoomed-out pattern
+ * vanishes under a field of same-size diagnostic blobs.
  */
 const VERT = `
 precision highp float;
+const float MIN_SIZE_PX = 1.0;
 attribute vec2 corner;      // unit quad in [-1,1]^2
 attribute vec2 aCenter;     // model coords
 attribute float aSizePx;    // half-extent, CSS px
@@ -24,16 +30,22 @@ uniform vec2 u_origin;
 uniform vec2 u_ex;
 uniform vec2 u_ey;
 uniform vec2 u_viewport;
-uniform float u_scalePx;    // CSS px -> device px (dpr)
+uniform float u_scalePx;    // CSS px -> device px (dpr x marker shrink)
 uniform float u_outlinePx;  // outline width, device px
 varying vec2 vLocal;        // device px offset from the anchor
 varying float vSizePx;      // half-extent, device px
 varying float vShape;
+varying float vFade;
 varying vec4 vFill;
 varying vec4 vStroke;
 void main() {
   vec2 centerDev = u_origin + aCenter.x * u_ex + aCenter.y * u_ey;
-  float sizePx = max(1.0, aSizePx * u_scalePx);
+  float wantedPx = aSizePx * u_scalePx;
+  float sizePx = max(MIN_SIZE_PX, wantedPx);
+  // Give back the area the floor handed us as alpha, so the ink a marker
+  // contributes keeps tracking the size it asked for.
+  float kept = wantedPx / sizePx;
+  vFade = clamp(kept * kept, 0.0, 1.0);
   float outerPx = sizePx + u_outlinePx;
   vLocal = corner * outerPx;
   vSizePx = sizePx;
@@ -52,6 +64,7 @@ precision highp float;
 varying vec2 vLocal;
 varying float vSizePx;
 varying float vShape;
+varying float vFade;
 varying vec4 vFill;
 varying vec4 vStroke;
 uniform float u_outlinePx;
@@ -104,7 +117,7 @@ void main() {
   float fillMask = outlineOnly ? 0.0 : (1.0 - smoothstep(-aa, aa, sdf));
   float outlineMask = 1.0 - smoothstep(halfW - aa, halfW + aa, abs(sdf));
   vec4 color = mix(vFill * fillMask, vStroke, outlineMask);
-  float alpha = color.a;
+  float alpha = color.a * vFade;
   if (alpha < 0.003) discard;
   gl_FragColor = vec4(color.rgb * alpha, alpha);
 }`;

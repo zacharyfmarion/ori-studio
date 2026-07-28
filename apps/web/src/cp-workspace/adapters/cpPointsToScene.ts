@@ -2,7 +2,7 @@ import type { ModelPoint, PointGeometry, Rgba } from '../renderer/types';
 
 /** SVG editable radii, in user units: `calc(var(--cp-point-size) * N)`. */
 const POINT_RADIUS_FACTOR = 2;
-const VERTEX_RADIUS_FACTOR = 1.6;
+export const VERTEX_RADIUS_FACTOR = 1.6;
 
 export interface CpPointStyle {
   /** `--cp-point-size` value (default 1). */

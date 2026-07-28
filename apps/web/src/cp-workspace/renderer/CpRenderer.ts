@@ -106,8 +106,27 @@ export interface CpRenderFrame {
   strokeWidthPx: number;
   /** SVG user unit → device px (scales circle radii with zoom). */
   userScalePx: number;
-  /** CSS px → device px (dpr): sizes marker points/vertices independent of zoom. */
+  /**
+   * CSS px → device px for diagnostic markers and cursor decorations. Shrinks
+   * only partially as the view zooms out, so affordances stay readable.
+   */
   markerScalePx: number;
-  /** Point outline width in device px (constant / non-scaling). */
+  /**
+   * CSS px → device px for crease points and vertices. Shrinks in lockstep with
+   * the pattern, so a vertex stays the same fraction of the crease pattern at
+   * every zoom instead of growing relative to it on a zoomed-out view.
+   */
+  pointScalePx: number;
+  /** Outline width in device px for circle rings and cursor decorations. */
+  constantOutlinePx: number;
+  /** Diagnostic-marker outline width in device px; rides {@link markerScalePx}. */
+  markerOutlinePx: number;
+  /** Crease point/vertex outline width in device px; rides {@link pointScalePx}. */
   pointOutlinePx: number;
+  /**
+   * Opacity of the crease point/vertex layer, 0–1. Driven by the camera's zoom
+   * ratio (not by any pixel size) so the layer fades out at the same point on
+   * every display density.
+   */
+  pointOpacity: number;
 }
