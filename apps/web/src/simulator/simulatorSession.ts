@@ -816,17 +816,55 @@ async function readFrame(
  * surface, and a buffer larger than the drawing would be stretched across it by
  * the compositor.
  */
+/**
+ * Ceiling on a bitmap-mode render, in device pixels.
+ *
+ * Not a quality choice — a correctness one. A browser silently clamps the
+ * drawing buffer when it cannot back the size asked for: a canvas set to 16384
+ * came back with a 5760 buffer, `isContextLost()` false and no GL error. Past
+ * that point the render lands outside the buffer and the crop reads nothing, so
+ * every window goes transparent at once and, with a grow-only canvas, stays that
+ * way. Well under the observed clamp, and ~9ms to allocate once.
+ *
+ * A window larger than this renders at the cap and is scaled up slightly by the
+ * time it reaches the screen. That is a window filling most of a large display,
+ * where mild softness is a better outcome than a blank one.
+ */
+export const MAX_BITMAP_RENDER_EDGE = 2048;
+
+/** Floor, so a window measured mid-collapse still renders something usable. */
+const MIN_BITMAP_RENDER_EDGE = 128;
+
+/**
+ * The size to render a bitmap-mode frame at: the next power of two at or above
+ * what was asked for, capped.
+ *
+ * Quantising is what makes the grow-only canvas actually pay off. Grow-only
+ * alone does nothing for a monotonically increasing sequence, and zooming in is
+ * exactly that — every frame wants a few more pixels than the last, so the
+ * buffer reallocated every frame regardless, at 3.6ms when small and 95ms by the
+ * time it reached 8192. Snapped to powers of two there are at most four growth
+ * events in a session.
+ */
+export function bitmapRenderEdge(edge: number): number {
+  const wanted = Math.max(MIN_BITMAP_RENDER_EDGE, Math.ceil(edge));
+  if (wanted >= MAX_BITMAP_RENDER_EDGE) return MAX_BITMAP_RENDER_EDGE;
+  return 2 ** Math.ceil(Math.log2(wanted));
+}
+
 export function nextRenderCanvasSize(
   current: { width: number; height: number },
   requested: { width: number; height: number },
   mode: PresentMode
 ): { width: number; height: number } | null {
-  const width = Math.max(1, Math.floor(requested.width));
-  const height = Math.max(1, Math.floor(requested.height));
   if (mode === 'canvas') {
+    const width = Math.max(1, Math.floor(requested.width));
+    const height = Math.max(1, Math.floor(requested.height));
     if (current.width === width && current.height === height) return null;
     return { width, height };
   }
+  const width = bitmapRenderEdge(requested.width);
+  const height = bitmapRenderEdge(requested.height);
   if (current.width >= width && current.height >= height) return null;
   return {
     width: Math.max(current.width, width),
@@ -848,19 +886,25 @@ async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
   // could not see it.
   const started = nowMs();
   sizeRenderCanvas(state.width, state.height);
-  const camera = cameraUniforms(state.view, state.center, state.radius, state.width, state.height);
+  // What GL actually gave us, which is not always what the canvas was set to —
+  // see {@link WebglSolver.drawingBufferSize}. Rendering or cropping past this
+  // reads nothing back and shows an empty window with no error anywhere.
+  const buffer = state.solver.drawingBufferSize;
+  const width = Math.max(
+    1,
+    Math.min(presentMode === 'bitmap' ? bitmapRenderEdge(state.width) : state.width, buffer.width)
+  );
+  const height = Math.max(
+    1,
+    Math.min(presentMode === 'bitmap' ? bitmapRenderEdge(state.height) : state.height, buffer.height)
+  );
+  const camera = cameraUniforms(state.view, state.center, state.radius, width, height);
   state.solver.render(camera, state.settings);
   // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
-  // is top-left, so the crop is measured down from the top of the canvas.
+  // is top-left, so the crop is measured down from the top of the buffer.
   const bitmap =
     presentMode === 'bitmap' && renderCanvas
-      ? await createImageBitmap(
-          renderCanvas,
-          0,
-          renderCanvas.height - state.height,
-          state.width,
-          state.height
-        )
+      ? await createImageBitmap(renderCanvas, 0, buffer.height - height, width, height)
       : null;
   // render() issues GL commands but they run async on the GPU; this measures the
   // CPU-side command cost, which is what would block the worker. A readPixels
