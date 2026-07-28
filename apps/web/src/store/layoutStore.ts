@@ -84,6 +84,25 @@ export function clearPersistedLayout(workspace: WorkspaceId): void {
   removeKey(layoutVersionKey(scope));
 }
 
+/** Every scope `layoutScope` can produce. */
+const ALL_LAYOUT_SCOPES = ['design', 'design:box-pleat', 'design:nux', 'edit', 'simulate'];
+
+/**
+ * Drop every persisted layout, for the app-level error recovery path: when the
+ * whole shell has failed to render we cannot know which workspace's stored
+ * layout is at fault, and a corrupt one would survive an ordinary reload.
+ *
+ * Unlike `clearPersistedLayout` this reads no store state (no design variant, no
+ * active workspace) — it is called from an error fallback, where any store may
+ * be the thing that is broken.
+ */
+export function clearAllPersistedLayouts(): void {
+  for (const scope of ALL_LAYOUT_SCOPES) {
+    removeKey(layoutStorageKey(scope));
+    removeKey(layoutVersionKey(scope));
+  }
+}
+
 interface PrimaryPanelOptions {
   id: string;
   component: string;

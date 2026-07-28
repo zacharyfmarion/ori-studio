@@ -4,6 +4,8 @@ import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { CommandDialogModal } from './components/CommandDialogModal';
 import { CpDetectImportModal } from './components/CpDetectImportModal';
+import { GlobalErrorReporter } from './components/errors/GlobalErrorReporter';
+import { OverlayErrorBoundary } from './components/errors/OverlayErrorBoundary';
 import { GlobalToasts } from './components/GlobalToasts';
 import { HelpModal } from './components/HelpModal';
 import { SelectByIndexModal } from './components/SelectByIndexModal';
@@ -12,6 +14,7 @@ import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
 import { installAppKeyboardListener } from './lib/appKeyboard';
+import { registerWorkerFailureSink, workerErrorCode } from './lib/workerDiagnostics';
 import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
 import { createOpenedPathFileService } from './platform/fileService';
 import { getRuntimeSurface } from './platform/runtime';
@@ -50,6 +53,18 @@ export default function App() {
   useEffect(() => {
     void initEngine();
   }, [initEngine]);
+
+  // Route worker deaths into the store's error envelope so they reach the same
+  // toast as engine errors. The runtime modules that own the workers keep no
+  // store dependency, hence the registered sink.
+  useEffect(() => {
+    registerWorkerFailureSink((failure) => {
+      useWorkspaceStore.setState({
+        error: { code: workerErrorCode(failure.worker), message: failure.message },
+      });
+    });
+    return () => registerWorkerFailureSink(null);
+  }, []);
 
   useEffect(() => {
     const title = formatWindowTitle({ projectTitle: project.title, dirty });
@@ -128,12 +143,25 @@ export default function App() {
   return (
     <TooltipProvider>
       <Outlet />
-      <HelpModal />
-      <SelectByIndexModal />
-      <CpDetectImportModal />
-      <SettingsModal />
-      <CommandDialogModal />
-      <GlobalToasts />
+      <OverlayErrorBoundary id="help">
+        <HelpModal />
+      </OverlayErrorBoundary>
+      <OverlayErrorBoundary id="select-by-index">
+        <SelectByIndexModal />
+      </OverlayErrorBoundary>
+      <OverlayErrorBoundary id="cp-detect-import">
+        <CpDetectImportModal />
+      </OverlayErrorBoundary>
+      <OverlayErrorBoundary id="settings">
+        <SettingsModal />
+      </OverlayErrorBoundary>
+      <OverlayErrorBoundary id="command-dialog">
+        <CommandDialogModal />
+      </OverlayErrorBoundary>
+      <OverlayErrorBoundary id="global-toasts">
+        <GlobalToasts />
+        <GlobalErrorReporter />
+      </OverlayErrorBoundary>
       <Toaster
         theme={toasterTheme}
         position="bottom-right"

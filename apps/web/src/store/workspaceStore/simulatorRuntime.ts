@@ -1,5 +1,6 @@
 import { wrap, type Remote } from 'comlink';
 import type { SimulatorWorkerApi } from '../../workers/simulatorWorker';
+import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
 export type SimulatorClient = Remote<SimulatorWorkerApi>;
 
@@ -34,6 +35,7 @@ export function retainSimulatorClient(): SimulatorClient {
   worker = new Worker(new URL('../../workers/simulatorWorker.ts', import.meta.url), {
     type: 'module',
   });
+  attachWorkerDiagnostics(worker, 'simulator');
   client = wrap<SimulatorWorkerApi>(worker);
   return client;
 }

@@ -1,4 +1,5 @@
 import type { FoldDocument } from '../engine/types';
+import { dropPerEdgeArrays } from './foldEdgeArrays';
 
 /**
  * Serializers for the simulator's folded 3D result.
@@ -61,12 +62,13 @@ export function foldedFoldDocument(source: FoldDocument, mesh: FoldedMesh): Fold
   // The simulator triangulates, so the source's edge lists no longer index the
   // same vertices; keep assignments only when the vertex set still lines up.
   // Otherwise emit no edges rather than edges pointing at the wrong vertices --
-  // the faces still carry the full geometry.
+  // the faces still carry the full geometry. Every per-edge array goes with
+  // them, including the namespaced colour extensions the spread carried in:
+  // keeping those would assert colours for edges this document no longer has.
   const sourceVertexCount = source.vertices_coords?.length ?? 0;
   if (sourceVertexCount !== vertexCount) {
+    dropPerEdgeArrays(folded);
     folded.edges_vertices = [];
-    delete folded.edges_assignment;
-    delete folded.edges_foldAngle;
   }
   // Rebuilt by consumers from the new faces; stale copies would contradict them.
   delete folded.faces_edges;

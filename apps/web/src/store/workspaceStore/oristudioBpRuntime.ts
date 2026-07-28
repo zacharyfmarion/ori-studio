@@ -24,6 +24,7 @@ import type { Point } from '../../lib/geometry';
 import type { WasmErrorEnvelope } from '../../engine/types';
 import type { OristudioBpOptimizerWorkerApi } from '../../workers/oristudioBpOptimizerWorker';
 import type { OristudioBpWorkerApi } from '../../workers/oristudioBpWorker';
+import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
 export type OristudioBpClient = Remote<OristudioBpWorkerApi>;
 type OristudioBpOptimizerClient = Remote<OristudioBpOptimizerWorkerApi>;
@@ -59,6 +60,7 @@ export async function getOristudioBpClient(): Promise<OristudioBpClient> {
   worker = new Worker(new URL('../../workers/oristudioBpWorker.ts', import.meta.url), {
     type: 'module',
   });
+  attachWorkerDiagnostics(worker, 'oristudio-bp');
   client = wrap<OristudioBpWorkerApi>(worker);
   return client;
 }
@@ -79,6 +81,7 @@ async function solveOptimizerRequestWithProgress(
   optimizerWorker = new Worker(new URL('../../workers/oristudioBpOptimizerWorker.ts', import.meta.url), {
     type: 'module',
   });
+  attachWorkerDiagnostics(optimizerWorker, 'oristudio-bp-optimizer');
   optimizerClient = wrap<OristudioBpOptimizerWorkerApi>(optimizerWorker);
   const activeWorker = optimizerWorker;
   try {

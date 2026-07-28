@@ -28,6 +28,7 @@ import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDo
 import type { OristudioCpWorkerApi } from '../../workers/oristudioCpWorker';
 import { createOristudioCpNativeClient } from '../../engine/oristudioCpNativeClient';
 import { isDesktopRuntime } from '../../platform/runtime';
+import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
 export type OristudioCpClient = Remote<OristudioCpWorkerApi>;
 
@@ -70,6 +71,7 @@ export async function getOristudioCpClient(): Promise<OristudioCpClient> {
   worker = new Worker(new URL('../../workers/oristudioCpWorker.ts', import.meta.url), {
     type: 'module',
   });
+  attachWorkerDiagnostics(worker, 'oristudio-cp');
   client = wrap<OristudioCpWorkerApi>(worker);
   return client;
 }

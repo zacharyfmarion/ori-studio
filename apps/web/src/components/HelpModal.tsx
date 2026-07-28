@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { BookOpen, ExternalLink, X } from 'lucide-react';
+import { ISSUES_URL } from '../constants/release';
 import { useHelpStore, type HelpModalKind } from '../store/helpStore';
 import { IconButton } from './ui/IconButton';
 
@@ -131,11 +132,7 @@ function AboutModal() {
               leans heavily on ports of existing origami tools created by the community — the
               Edit workspace, for instance, is a port of Oriedita to Rust, focused on usability
               and performance. If you have any suggestions, feel free to{' '}
-              <a
-                href="https://github.com/zacharyfmarion/ori-studio/issues"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
+              <a href={ISSUES_URL} target="_blank" rel="noreferrer noopener">
                 open an issue on GitHub
               </a>
               .

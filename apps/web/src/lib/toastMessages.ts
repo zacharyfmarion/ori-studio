@@ -28,6 +28,35 @@ function errorEnvelopeCode(error: unknown): string | null {
  */
 export function humanizeError(error: unknown, t: TFunction): string {
   switch (errorEnvelopeCode(error)) {
+    // Worker failures (see lib/workerDiagnostics.ts). The raw event message is
+    // never useful ("uncaught exception in worker"), and what the user needs to
+    // know is which capability just stopped and that reopening restores it.
+    case 'worker_treemaker':
+      return t(
+        'errors:worker.treemaker',
+        'The design engine stopped unexpectedly. Reload Ori Studio to continue working on this tree.'
+      );
+    case 'worker_oristudio_cp':
+      return t(
+        'errors:worker.oristudioCp',
+        'The crease-pattern engine stopped unexpectedly. Reload Ori Studio — unsaved edits since the last save may be lost.'
+      );
+    case 'worker_oristudio_bp':
+    case 'worker_oristudio_bp_optimizer':
+      return t(
+        'errors:worker.oristudioBp',
+        'The box-pleating engine stopped unexpectedly. Reload Ori Studio to continue working on this design.'
+      );
+    case 'worker_simulator':
+      return t(
+        'errors:worker.simulator',
+        'The simulator stopped unexpectedly. Reopen the Simulate workspace to restart it.'
+      );
+    case 'worker_cp_detect':
+      return t(
+        'errors:worker.cpDetect',
+        'Crease-pattern detection stopped unexpectedly. Try importing the image again.'
+      );
     case 'fold_same_parity':
       return t(
         'errors:fold.sameParity',

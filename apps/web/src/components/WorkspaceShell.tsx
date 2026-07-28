@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { MenuBar } from './MenuBar';
 import { DesignAttributionFooter } from './DesignAttributionFooter';
+import { ErrorBoundary } from './errors/ErrorBoundary';
 import { panelComponents } from './panels/PanelComponents';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -309,19 +310,29 @@ export function WorkspaceShell() {
     [loadLayout, saveLayout, setDockviewApi]
   );
 
+  // The chrome and the canvas get separate boundaries: a capability selector
+  // that throws in the toolbar must not take the user's document down with it,
+  // and vice versa. Each dock panel inside Dockview has its own (see
+  // `withPanelErrorBoundary`), so this one only catches Dockview itself.
   return (
     <div className="app-layout">
-      <Toolbar />
+      <ErrorBoundary surface="shell:toolbar" variant="strip">
+        <Toolbar />
+      </ErrorBoundary>
       <div className="workspace-shell">
-        <WorkspaceRail />
+        <ErrorBoundary surface="shell:rail" variant="mini">
+          <WorkspaceRail />
+        </ErrorBoundary>
         <div className="workspace-shell__canvas">
-          <DockviewReact
-            components={panelComponents}
-            defaultTabComponent={FixedDockTab}
-            onReady={onReady}
-            className="dockview-theme-treemaker workspace-shell__dockview"
-            disableFloatingGroups
-          />
+          <ErrorBoundary surface="shell:dockview" variant="pane">
+            <DockviewReact
+              components={panelComponents}
+              defaultTabComponent={FixedDockTab}
+              onReady={onReady}
+              className="dockview-theme-treemaker workspace-shell__dockview"
+              disableFloatingGroups
+            />
+          </ErrorBoundary>
           <DesignWorkspaceFooter />
         </div>
       </div>
