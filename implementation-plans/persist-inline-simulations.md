@@ -146,31 +146,46 @@ first.
 
 ## Checklist
 
-### Phase 1 — Round-trip the descriptor
+### Phase 1 — Round-trip the descriptor — DONE
 
-- [ ] Field on `NativeCreasePatternProjectInput`; write it; validate on read.
-- [ ] Bump `NATIVE_PROJECT_SCHEMA_VERSION` to 5; confirm v1–v4 files still load
+- [x] Field on `NativeCreasePatternProjectInput`; write it; validate on read.
+- [x] Bump `NATIVE_PROJECT_SCHEMA_VERSION` to 5; confirm v1–v4 files still load
       (absent means `[]`, as `images` and `textAnnotations` do).
-- [ ] Save path includes `oristudioCpInlineSimulations`.
-- [ ] Test: save → load → identical descriptors.
+- [x] Save path includes `oristudioCpInlineSimulations`.
+- [x] Test: save → load → identical descriptors.
 
-### Phase 2 — Rebuild the folds on load
+### Phase 2 — Rebuild the folds on load — DONE
 
-- [ ] Resolve each descriptor to a region and rebuild its fold into the runtime
+- [x] Resolve each descriptor to a region and rebuild its fold into the runtime
       side table; fold artifacts computed once for the document.
-- [ ] **Keep the saved provenance.** Do not recompute `sourceFingerprint`.
-- [ ] Test: save, mutate the document externally, load → the window reports
+- [x] **Keep the saved provenance.** Do not recompute `sourceFingerprint`.
+- [x] Test: save, mutate the document externally, load → the window reports
       stale. This is the one that fails silently without it.
-- [ ] A window whose region no longer resolves keeps its placement and says so,
+- [x] A window whose region no longer resolves keeps its placement and says so,
       matching refresh's existing rule rather than re-pointing at the nearest
       region.
-- [ ] Windows are cleared on document replace already; confirm load populates
+- [x] Windows are cleared on document replace already; confirm load populates
       after that clear rather than racing it.
 
-### Phase 3 — Don't lose them quietly
+### Phase 3 — Don't lose them quietly — DONE
 
-- [ ] `SUPERSET_FEATURES` entry so `.cp`/Oriedita export warns.
-- [ ] Test: the export-loss warning counts open windows.
+- [x] `SUPERSET_FEATURES` entry so `.cp`/Oriedita export warns.
+- [x] Test: the export-loss warning counts open windows.
+
+## What the work turned up that the plan did not
+
+**A window with no boundary is now dropped on read.** The boundary is the
+region's identity, so `resolveInlineSimulationSegment` returns null without one
+and the window would load as an empty frame that refreshing could not repair
+either. Every window this app writes has one; a missing one means the field is
+corrupt.
+
+**The provenance test passed against a build that recomputed the fingerprint.**
+`ensureFoldArtifacts` needs a CP worker jsdom has not got, so hydration bailed at
+its first guard and every assertion was vacuous — the exact failure the test
+existed to prevent, in the test itself. It now seeds artifacts with the
+segmentation attached and asserts how many windows hydrated, so a silent bail
+fails rather than passes.
 
 ## Decisions and rejected alternatives
 

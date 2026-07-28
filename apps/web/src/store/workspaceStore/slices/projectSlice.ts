@@ -1262,6 +1262,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const warnings = collectExportLossWarnings(format, {
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      inlineSimulations: get().oristudioCpInlineSimulations,
     });
     if (warnings.length === 0) return true;
     return requestConfirmation({
