@@ -1,4 +1,22 @@
 {
+  "boundary": {
+    "appDescription": "Seu trabalho ainda está na memória, mas a interface não conseguiu se recuperar sozinha. Copie os detalhes abaixo antes de recarregar — eles dizem ao desenvolvedor exatamente o que deu errado.",
+    "appTitle": "O Ori Studio encontrou um problema",
+    "copied": "Copiado",
+    "copy": "Copiar detalhes",
+    "copyFailed": "Não foi possível copiar",
+    "description": "O restante do Ori Studio continua funcionando. Tente novamente, ou copie os detalhes e relate o problema.",
+    "detailsSummary": "Detalhes técnicos",
+    "dismiss": "Dispensar",
+    "miniTitle": "Esta barra lateral parou de funcionar",
+    "overlayTitle": "Esta caixa de diálogo parou de funcionar",
+    "paneTitle": "Este painel parou de funcionar",
+    "reload": "Recarregar",
+    "report": "Relatar um problema",
+    "resetLayout": "Redefinir o layout e recarregar",
+    "retry": "Tentar novamente",
+    "stripTitle": "Esta barra de ferramentas parou de funcionar"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D não está disponível",
     "unsupportedImage": "Use uma imagem PNG, JPEG ou WebP."
@@ -7,5 +25,15 @@
     "contradiction": "Este padrão de vincos não é dobrável plano: algumas faces não têm uma ordem de empilhamento consistente.",
     "layerSearch": "Não foi possível dobrar este padrão de vincos: suas camadas não podem ser organizadas sem sobreposição.",
     "sameParity": "Este padrão de vincos não pode ser dobrado plano: duas faces se encontram com a mesma orientação através de um vinco."
+  },
+  "global": {
+    "title": "Algo deu errado em segundo plano"
+  },
+  "worker": {
+    "cpDetect": "A detecção de padrão de vincos parou inesperadamente. Tente importar a imagem novamente.",
+    "oristudioBp": "O motor de box pleating parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando neste design.",
+    "oristudioCp": "O motor de padrões de vincos parou inesperadamente. Recarregue o Ori Studio — as edições feitas após o último salvamento podem ser perdidas.",
+    "simulator": "O simulador parou inesperadamente. Reabra o workspace de simulação para reiniciá-lo.",
+    "treemaker": "O motor de design parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando nesta árvore."
   }
 }

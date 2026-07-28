@@ -392,6 +392,213 @@
   }
 }
 
+/* Error-boundary fallback (see components/errors/ErrorFallback.tsx). Sized by
+   variant: `pane` fills a dock panel like .surface-loading does, `app` centers
+   in the window, `strip` is a single inline row where a toolbar used to be, and
+   `overlay` is a floating card in place of a crashed dialog. */
+.error-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.error-fallback--pane,
+.error-fallback--app {
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  /* Explicit height, not just `flex: 1`: a dock panel's wrapper
+     (`.dv-react-part`) is `display: block`, so a flex-grow alone would leave
+     the fallback collapsed to its content at the top of an empty pane. */
+  height: 100%;
+  min-height: 0;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--bg-primary);
+}
+
+.error-fallback--app {
+  align-items: center;
+  text-align: center;
+}
+
+/* The full-window state stacks its icon above the text. Side-by-side (what the
+   pane does) leaves the icon stranded to the left of centered prose. */
+.error-fallback--app .error-fallback__body {
+  flex-direction: column;
+  align-items: center;
+}
+
+.error-fallback--app .error-fallback__text {
+  align-items: center;
+}
+
+.error-fallback--app .error-fallback__actions {
+  justify-content: center;
+}
+
+.error-fallback--pane,
+.error-fallback--app {
+  /* Keep the block readable rather than stretched across an ultrawide pane. */
+  --error-fallback-measure: 560px;
+}
+
+/* Centered in the pane, but the text itself stays left-aligned — the block is
+   mostly a stack trace and a paragraph, which are harder to read ragged-both. */
+.error-fallback--pane > *,
+.error-fallback--app > * {
+  max-width: var(--error-fallback-measure);
+  width: 100%;
+  margin-inline: auto;
+}
+
+.error-fallback--strip {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* For a narrow vertical container (the workspace rail). `strip` is a horizontal
+   row and wraps to one character per line at rail width, so anything mounted in
+   a column gets this instead. */
+.error-fallback--mini {
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 100%;
+  padding: var(--space-3) var(--space-1);
+  background: var(--bg-secondary);
+}
+
+.error-fallback--overlay {
+  position: fixed;
+  z-index: var(--z-modal);
+  inset-block-end: var(--space-4);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  max-width: min(520px, calc(100vw - var(--space-6)));
+  padding: var(--space-4);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-context-menu);
+}
+
+.error-fallback__body {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.error-fallback--strip .error-fallback__body {
+  align-items: center;
+}
+
+.error-fallback__icon {
+  flex: 0 0 auto;
+  color: var(--status-danger);
+}
+
+.error-fallback__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.error-fallback__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.error-fallback__description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.error-fallback__message {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+
+/* The strip has one line in a toolbar-height row, so it keeps the smaller
+   scale the rest of the chrome uses. */
+.error-fallback--strip .error-fallback__title {
+  font-size: 13px;
+}
+
+.error-fallback--strip .error-fallback__message {
+  font-size: 11px;
+}
+
+.error-fallback__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.error-fallback--strip .error-fallback__actions {
+  margin-inline-start: auto;
+}
+
+.error-fallback__report {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.error-fallback__report:hover {
+  color: var(--text-primary);
+}
+
+.error-fallback__details > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+.error-fallback__details > summary:hover {
+  color: var(--text-primary);
+}
+
+.error-fallback__report-text {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  max-height: 260px;
+  overflow: auto;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  /* The point of showing it is that a developer can select and copy it by hand
+     when the clipboard API is unavailable. */
+  user-select: text;
+}
+
 .workspace-rail {
   display: flex;
   min-width: 0;

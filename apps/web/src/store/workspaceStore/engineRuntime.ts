@@ -10,6 +10,7 @@ import type { Point } from '../../lib/geometry';
 import type { AppStatus, Selection } from '../../lib/sampleProject';
 import type { TreemakerWorkerApi } from '../../workers/treemakerWorker';
 import { emptyFoldArtifactResourceState } from './foldArtifactResource';
+import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
 export type EngineClient = Remote<TreemakerWorkerApi>;
 
@@ -39,6 +40,7 @@ export async function getEngine(): Promise<EngineClient> {
   worker = new Worker(new URL('../../workers/treemakerWorker.ts', import.meta.url), {
     type: 'module',
   });
+  attachWorkerDiagnostics(worker, 'treemaker');
   engine = wrap<TreemakerWorkerApi>(worker);
   return engine;
 }

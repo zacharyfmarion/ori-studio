@@ -10,8 +10,9 @@ import { SimulatorViewControlsPanel } from './SimulatorViewControlsPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { SequencePanel } from './SequencePanel';
+import { withPanelErrorBoundary } from '../errors/withPanelErrorBoundary';
 
-export const panelComponents: Record<string, FC<IDockviewPanelProps>> = {
+const panels: Record<string, FC<IDockviewPanelProps>> = {
   design: DesignPanel,
   'bp-editor': BpEditorPanel,
   inspector: InspectorPanel,
@@ -23,3 +24,13 @@ export const panelComponents: Record<string, FC<IDockviewPanelProps>> = {
   sequence: SequencePanel,
   conditions: ConditionsPanel,
 };
+
+/**
+ * Every dock panel, each wrapped in its own error boundary. Wrapping happens
+ * here rather than in the panels so a panel added to `panels` above cannot
+ * forget it — a crash in one pane costs that pane and leaves the rest of the
+ * workspace interactive.
+ */
+export const panelComponents: Record<string, FC<IDockviewPanelProps>> = Object.fromEntries(
+  Object.entries(panels).map(([id, Panel]) => [id, withPanelErrorBoundary(Panel, id)])
+);

@@ -1,4 +1,22 @@
 {
+  "boundary": {
+    "appDescription": "您的工作仍在内存中，但界面无法自行恢复。请在重新加载前复制下方的详细信息——它们能准确告诉开发者出了什么问题。",
+    "appTitle": "Ori Studio 遇到了问题",
+    "copied": "已复制",
+    "copy": "复制详细信息",
+    "copyFailed": "无法复制",
+    "description": "Ori Studio 的其余部分仍在运行。请重试，或复制详细信息并报告问题。",
+    "detailsSummary": "技术详情",
+    "dismiss": "关闭",
+    "miniTitle": "此侧边栏已停止工作",
+    "overlayTitle": "此对话框已停止工作",
+    "paneTitle": "此面板已停止工作",
+    "reload": "重新加载",
+    "report": "报告问题",
+    "resetLayout": "重置布局并重新加载",
+    "retry": "重试",
+    "stripTitle": "此工具栏已停止工作"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D 不可用",
     "unsupportedImage": "请使用 PNG、JPEG 或 WebP 图像。"
@@ -7,5 +25,15 @@
     "contradiction": "此折痕图不可平折：部分面没有一致的堆叠顺序。",
     "layerSearch": "无法折叠此折痕图：其层无法在不重叠的情况下排列。",
     "sameParity": "此折痕图无法平折：折线两侧的两个面朝向相同。"
+  },
+  "global": {
+    "title": "后台发生了错误"
+  },
+  "worker": {
+    "cpDetect": "折痕图检测意外停止。请重新导入该图像。",
+    "oristudioBp": "箱形褶皱引擎意外停止。请重新加载 Ori Studio 以继续处理此设计。",
+    "oristudioCp": "折痕图引擎意外停止。请重新加载 Ori Studio——上次保存后的编辑可能会丢失。",
+    "simulator": "模拟器意外停止。请重新打开模拟工作区以重新启动。",
+    "treemaker": "设计引擎意外停止。请重新加载 Ori Studio 以继续处理此树结构。"
   }
 }
