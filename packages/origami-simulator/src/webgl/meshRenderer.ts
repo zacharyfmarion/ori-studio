@@ -37,6 +37,13 @@ export interface RenderSettings {
   borderColor: [number, number, number];
   lightDir: [number, number, number];
   background: [number, number, number];
+  /**
+   * Opacity of {@link background}. 1 fills the frame; 0 clears it to nothing, so
+   * whatever sits behind the canvas shows through wherever the model does not
+   * cover it — which is how an inline simulation window reads as sitting on the
+   * crease pattern rather than over a hole punched in it. Defaults to opaque.
+   */
+  backgroundAlpha?: number;
   showFaces: boolean;
   showEdges: boolean;
   lighting: boolean;
@@ -334,7 +341,14 @@ export class MeshRenderer {
     gl.viewport(0, 0, camera.width, camera.height);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
-    gl.clearColor(settings.background[0], settings.background[1], settings.background[2], 1);
+    // Straight (non-premultiplied) alpha, matching the context GlCore requests,
+    // so the colour is left alone and only the alpha decides what shows through.
+    gl.clearColor(
+      settings.background[0],
+      settings.background[1],
+      settings.background[2],
+      settings.backgroundAlpha ?? 1
+    );
     gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 

@@ -2941,12 +2941,16 @@
 }
 
 /* Inline simulation windows: a live fold placed on the crease pattern. */
+/* No backdrop: a window is a view onto the fold sitting on the crease pattern,
+   not a panel laid over it, so the creases and grid stay visible around the
+   paper. The border stays — it is the only thing left marking the window's
+   extent, and it carries the focus state. The drop shadow goes with the
+   background; a shadow cast by nothing reads as a rendering error. */
 .cp-inline-simulation {
   border: 1px solid var(--border-default);
   border-radius: 6px;
   overflow: hidden;
-  background: var(--bg-primary);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 28%);
+  background: transparent;
 }
 
 .cp-inline-simulation[data-focused] {

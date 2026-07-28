@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   annotationAsTransformable,
   foldedFigureAsTransformable,
+  selectedCanvasObjectId,
 } from './transformableObject';
 import { createCpImage } from '../images/cpImage';
 import { createTextAnnotation } from '../annotations/textAnnotation';
@@ -113,5 +114,39 @@ describe('foldedFigureAsTransformable', () => {
     expect(
       foldedFigureAsTransformable({ ...foldedFigure(), renderSnapshot: null })
     ).toBeNull();
+  });
+});
+
+describe('which canvas object holds the selection', () => {
+  const none = { annotationId: null, foldedFigureId: null, inlineSimulationId: null };
+
+  it('is null when nothing is selected', () => {
+    expect(selectedCanvasObjectId(none)).toBeNull();
+  });
+
+  it('names an inline simulation window', () => {
+    // The overlay draws handles for this id and no other, so omitting windows
+    // here left them with no way to resize or rotate at all.
+    expect(selectedCanvasObjectId({ ...none, inlineSimulationId: 'sim-1' })).toBe('sim-1');
+  });
+
+  it('names an annotation', () => {
+    expect(selectedCanvasObjectId({ ...none, annotationId: 'img-1' })).toBe('img-1');
+  });
+
+  it('names a folded figure', () => {
+    expect(selectedCanvasObjectId({ ...none, foldedFigureId: 'fig-1' })).toBe('fig-1');
+  });
+
+  it('resolves a transient overlap rather than returning nothing', () => {
+    // The three clear each other on select, so this only covers the frame
+    // between two store writes; it must still name exactly one.
+    expect(
+      selectedCanvasObjectId({
+        annotationId: 'img-1',
+        foldedFigureId: 'fig-1',
+        inlineSimulationId: 'sim-1',
+      })
+    ).toBe('img-1');
   });
 });

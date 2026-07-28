@@ -116,6 +116,16 @@ function surfaceFor(canvas: HTMLCanvasElement): SimulatorSurface {
   return surface;
 }
 
+/**
+ * How the surface is framed, as opposed to what the user chose to look at. Kept
+ * apart from {@link SimulatorViewSettings} because it belongs to the place the
+ * simulation is mounted, not to the simulation.
+ */
+export interface SimulatorSurfaceOptions {
+  /** Leave the frame unpainted so whatever is behind the canvas shows through. */
+  transparentBackground?: boolean;
+}
+
 export function drawFrame(
   canvas: HTMLCanvasElement,
   model: SimulatorRenderModel,
@@ -123,6 +133,7 @@ export function drawFrame(
   view: SimulatorView,
   settings: SimulatorViewSettings,
   highlights: SimulatorHighlights,
+  surfaceOptions: SimulatorSurfaceOptions = {},
 ): void {
   // Canvas size and palette are cached rather than read per frame. Both used to
   // be recomputed on every draw: getBoundingClientRect forces layout and
@@ -140,9 +151,13 @@ export function drawFrame(
   if (!ctx) return;
   const palette = surface.palette;
 
+  // clearRect alone already leaves the frame transparent; the fill is what makes
+  // it a backdrop, so a transparent surface simply skips it.
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = palette.canvas;
-  ctx.fillRect(0, 0, width, height);
+  if (!surfaceOptions.transparentBackground) {
+    ctx.fillStyle = palette.canvas;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   // Only the canvas-2D path calls this, and only with a frame that carries
   // positions (GPU-render frames are null and drawn by the worker).
@@ -441,6 +456,7 @@ function readSimulatorPalette(canvas: HTMLCanvasElement): SimulatorPalette {
 export function toRenderSettings(
   canvas: HTMLCanvasElement,
   settings: SimulatorViewSettings,
+  surfaceOptions: SimulatorSurfaceOptions = {},
 ): RenderSettings {
   const palette = readSimulatorPalette(canvas);
   const norm = (rgb: [number, number, number]): [number, number, number] => [
@@ -460,6 +476,7 @@ export function toRenderSettings(
     valleyColor: [0.11, 0.36, 0.85],
     borderColor: norm(parseCssRgb(palette.border, [232, 237, 240])),
     background: norm(parseCssRgb(palette.canvas, [12, 15, 18])),
+    backgroundAlpha: surfaceOptions.transparentBackground ? 0 : 1,
     lightDir: [
       PAPER_LIGHT_DIRECTION.x,
       PAPER_LIGHT_DIRECTION.y,

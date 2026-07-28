@@ -13,6 +13,7 @@ import {
   invalidateSimulatorSurface,
   toRenderSettings,
   type SimulatorHighlights,
+  type SimulatorSurfaceOptions,
   EMPTY_HIGHLIGHTS,
 } from "./canvas2dFrame";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
@@ -98,6 +99,12 @@ export interface SimulatorViewportProps {
    * area.
    */
   minDeviceSize?: number;
+  /**
+   * Leave the frame unpainted so whatever the canvas is mounted over shows
+   * through. An inline window sits on the crease pattern, and an opaque backdrop
+   * makes it read as a hole punched in the drawing rather than a view onto it.
+   */
+  transparentBackground?: boolean;
   viewSettings: SimulatorViewSettings;
   /** Creases/faces a sequence step is emphasising. CPU path only. */
   highlights?: SimulatorHighlights;
@@ -118,6 +125,7 @@ export function SimulatorViewport({
   gpuActive,
   bitmapPresent = false,
   minDeviceSize = 360,
+  transparentBackground = false,
   viewSettings,
   highlights = EMPTY_HIGHLIGHTS,
   pushCamera,
@@ -143,6 +151,7 @@ export function SimulatorViewport({
   const viewSettingsRef = useRef(viewSettings);
   const highlightsRef = useRef(highlights);
   const interactiveRef = useRef(interactive);
+  const surfaceOptionsRef = useRef<SimulatorSurfaceOptions>({ transparentBackground });
 
   // The bitmaprenderer context, acquired once per canvas element. Acquiring it
   // is exclusive — a canvas that has one can never take a 2D or WebGL context —
@@ -186,7 +195,8 @@ export function SimulatorViewport({
       frame,
       viewRef.current,
       viewSettingsRef.current,
-      highlightsRef.current
+      highlightsRef.current,
+      surfaceOptionsRef.current
     );
   }, []);
 
@@ -226,15 +236,22 @@ export function SimulatorViewport({
     interactiveRef.current = interactive;
   }, [interactive]);
 
+  // Framing and view settings both end up in one RenderSettings, so a change to
+  // either has to be pushed the same way.
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
+    surfaceOptionsRef.current = { transparentBackground };
     if (gpuActiveRef.current) {
       const canvas = canvasRef.current;
-      if (canvas) pushRenderSettings(toRenderSettings(canvas, viewSettings));
+      if (canvas) {
+        pushRenderSettings(
+          toRenderSettings(canvas, viewSettings, surfaceOptionsRef.current)
+        );
+      }
     } else {
       drawCurrentFrame();
     }
-  }, [drawCurrentFrame, pushRenderSettings, viewSettings]);
+  }, [drawCurrentFrame, pushRenderSettings, viewSettings, transparentBackground]);
 
   useEffect(() => {
     highlightsRef.current = highlights;
@@ -266,7 +283,7 @@ export function SimulatorViewport({
       invalidateSimulatorSurface(canvasRef.current);
       const canvas = canvasRef.current;
       if (gpuActiveRef.current) {
-        if (canvas) pushRenderSettings(toRenderSettings(canvas, viewSettingsRef.current));
+        if (canvas) pushRenderSettings(toRenderSettings(canvas, viewSettingsRef.current, surfaceOptionsRef.current));
       } else {
         drawCurrentFrame();
       }
@@ -284,7 +301,7 @@ export function SimulatorViewport({
     if (!gpuActive) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    pushRenderSettings(toRenderSettings(canvas, viewSettingsRef.current));
+    pushRenderSettings(toRenderSettings(canvas, viewSettingsRef.current, surfaceOptionsRef.current));
     pushView();
   }, [gpuActive, pushRenderSettings, pushView]);
 

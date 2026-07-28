@@ -429,6 +429,7 @@ function InlineSimulationWindow({
         gpuActive={runtime.gpuActive}
         bitmapPresent
         minDeviceSize={64}
+        transparentBackground
         viewSettings={viewSettings}
         pushCamera={pushCamera}
         pushRenderSettings={runtime.setRenderSettings}

@@ -132,6 +132,7 @@ import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
 import { useFoldedFigures } from '../../cp-workspace/folded/useFoldedFigures';
 import { foldedFigureMenuItemsWith } from '../../cp-workspace/folded/foldedFigureMenuItems';
+import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-workspace/canvasObjects/transformableObject';
 import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
 import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
 import { useInlineSimulations } from '../../cp-workspace/inlineSimulation/useInlineSimulations';
@@ -1277,7 +1278,14 @@ export function CreasePatternPanel() {
   );
   // The canvas's single selection: whichever kind currently owns it. The store
   // keeps the ids mutually exclusive, so at most one is non-null.
-  const selectedCanvasObjectId = oristudioCpSelectedAnnotationId ?? oristudioCpActiveFoldedFigureId;
+  //
+  // A window's focus *is* its selection — only one can be focused, and a focused
+  // window is exactly the one whose handles should be live.
+  const selectedCanvasObjectId = selectedCanvasObjectIdOf({
+    annotationId: oristudioCpSelectedAnnotationId,
+    foldedFigureId: oristudioCpActiveFoldedFigureId,
+    inlineSimulationId: inlineSimulations.focusedId,
+  });
   const selectCanvasObject = useCallback(
     (id: string | null) => {
       if (id === null) {
@@ -1287,6 +1295,9 @@ export function CreasePatternPanel() {
         return;
       }
       if (inlineSimulations.isInlineSimulationId(id)) {
+        // Both, or a still-selected annotation would win the `??` above and the
+        // window would take focus without ever showing handles.
+        setSelectedAnnotation(null);
         setOristudioCpActiveFoldedFigure(null);
         inlineSimulations.focus(id);
         return;
@@ -1464,7 +1475,9 @@ export function CreasePatternPanel() {
       }
       event.preventDefault();
       if (oristudioCpSelectedAnnotationId) deleteSelectedImage();
-      else folded.remove(selectedCanvasObjectId);
+      else if (inlineSimulations.isInlineSimulationId(selectedCanvasObjectId)) {
+        inlineSimulations.remove(selectedCanvasObjectId);
+      } else folded.remove(selectedCanvasObjectId);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -1474,6 +1487,7 @@ export function CreasePatternPanel() {
     oristudioCpSelectedAnnotationId,
     deleteSelectedImage,
     folded,
+    inlineSimulations,
   ]);
   const squareBisectorToolPrompt =
     isSquareBisectorOperation(activeCpCommand?.operationId) &&
