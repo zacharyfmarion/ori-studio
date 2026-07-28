@@ -1,7 +1,7 @@
 //! Line color/type operations ported from Oriedita handlers and `FoldLineSet`.
 
 use crate::geometry::{
-    Epsilon, Intersection, LineColor, LineSegment, determine_line_segment_distance,
+    Epsilon, FoldMagnitude, Intersection, LineColor, LineSegment, determine_line_segment_distance,
     determine_line_segment_intersection_with_precision, distance, find_intersection_segments,
     is_line_segment_overlapping,
 };
@@ -363,4 +363,36 @@ fn delete_lines_by_value(model: &mut CreasePatternModel, lines: &[LineSegment]) 
         }
     }
     deleted
+}
+
+/// Set the fold magnitude on the given line indices.
+///
+/// Ori Studio native — Oriedita has no equivalent, because Oriedita creases are
+/// always a full +/-180.
+///
+/// Only folding creases (`Red1`/`Blue2`) are touched; a border or auxiliary line
+/// in the selection is skipped rather than silently mutated, so the caller can
+/// report how many of the selection actually changed. Setting 180 degrees stores
+/// `None`, the canonical classic representation — see `LineSegment::fold_magnitude`.
+pub fn set_fold_magnitude_for_indices(
+    model: &mut CreasePatternModel,
+    indices: &[usize],
+    magnitude: Option<FoldMagnitude>,
+) -> usize {
+    let mut changed = 0;
+    for &index in indices {
+        let Some(segment) = model.line_segments.get(index) else {
+            continue;
+        };
+        if !matches!(segment.color, LineColor::Red1 | LineColor::Blue2) {
+            continue;
+        }
+        let updated = segment.with_fold_magnitude(magnitude);
+        if updated.fold_magnitude == segment.fold_magnitude {
+            continue;
+        }
+        model.line_segments[index] = updated;
+        changed += 1;
+    }
+    changed
 }

@@ -1877,7 +1877,13 @@
     "errors:worker.oristudioCp": "3c28bb63413b",
     "errors:worker.simulator": "81a14b73d64c",
     "errors:worker.treemaker": "52300490baa5",
-    "errors:boundary.miniTitle": "230a5570bb59"
+    "errors:boundary.miniTitle": "230a5570bb59",
+    "tools:cpContext.foldAngle": "ff587e07897c",
+    "tools:cpContext.foldAngleDegrees": "4b7e73642ab7",
+    "tools:cpContext.foldAngleMixed": "f340b6d6edef",
+    "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
+    "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3757,7 +3763,13 @@
     "errors:worker.oristudioCp": "3c28bb63413b",
     "errors:worker.simulator": "81a14b73d64c",
     "errors:worker.treemaker": "52300490baa5",
-    "errors:boundary.miniTitle": "230a5570bb59"
+    "errors:boundary.miniTitle": "230a5570bb59",
+    "tools:cpContext.foldAngle": "ff587e07897c",
+    "tools:cpContext.foldAngleDegrees": "4b7e73642ab7",
+    "tools:cpContext.foldAngleMixed": "f340b6d6edef",
+    "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
+    "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5663,7 +5675,13 @@
     "errors:worker.oristudioCp": "3c28bb63413b",
     "errors:worker.simulator": "81a14b73d64c",
     "errors:worker.treemaker": "52300490baa5",
-    "errors:boundary.miniTitle": "230a5570bb59"
+    "errors:boundary.miniTitle": "230a5570bb59",
+    "tools:cpContext.foldAngle": "ff587e07897c",
+    "tools:cpContext.foldAngleDegrees": "4b7e73642ab7",
+    "tools:cpContext.foldAngleMixed": "f340b6d6edef",
+    "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
+    "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7569,7 +7587,13 @@
     "errors:worker.oristudioCp": "3c28bb63413b",
     "errors:worker.simulator": "81a14b73d64c",
     "errors:worker.treemaker": "52300490baa5",
-    "errors:boundary.miniTitle": "230a5570bb59"
+    "errors:boundary.miniTitle": "230a5570bb59",
+    "tools:cpContext.foldAngle": "ff587e07897c",
+    "tools:cpContext.foldAngleDegrees": "4b7e73642ab7",
+    "tools:cpContext.foldAngleMixed": "f340b6d6edef",
+    "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
+    "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9475,7 +9499,13 @@
     "errors:worker.oristudioCp": "3c28bb63413b",
     "errors:worker.simulator": "81a14b73d64c",
     "errors:worker.treemaker": "52300490baa5",
-    "errors:boundary.miniTitle": "230a5570bb59"
+    "errors:boundary.miniTitle": "230a5570bb59",
+    "tools:cpContext.foldAngle": "ff587e07897c",
+    "tools:cpContext.foldAngleDegrees": "4b7e73642ab7",
+    "tools:cpContext.foldAngleMixed": "f340b6d6edef",
+    "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
+    "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11381,7 +11411,13 @@
     "errors:worker.oristudioCp": "3c28bb63413b",
     "errors:worker.simulator": "81a14b73d64c",
     "errors:worker.treemaker": "52300490baa5",
-    "errors:boundary.miniTitle": "230a5570bb59"
+    "errors:boundary.miniTitle": "230a5570bb59",
+    "tools:cpContext.foldAngle": "ff587e07897c",
+    "tools:cpContext.foldAngleDegrees": "4b7e73642ab7",
+    "tools:cpContext.foldAngleMixed": "f340b6d6edef",
+    "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
+    "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13287,7 +13323,13 @@
     "errors:worker.oristudioCp": "3c28bb63413b",
     "errors:worker.simulator": "81a14b73d64c",
     "errors:worker.treemaker": "52300490baa5",
-    "errors:boundary.miniTitle": "230a5570bb59"
+    "errors:boundary.miniTitle": "230a5570bb59",
+    "tools:cpContext.foldAngle": "ff587e07897c",
+    "tools:cpContext.foldAngleDegrees": "4b7e73642ab7",
+    "tools:cpContext.foldAngleMixed": "f340b6d6edef",
+    "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
+    "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15167,6 +15209,12 @@
     "errors:worker.oristudioCp": "3c28bb63413b",
     "errors:worker.simulator": "81a14b73d64c",
     "errors:worker.treemaker": "52300490baa5",
-    "errors:boundary.miniTitle": "230a5570bb59"
+    "errors:boundary.miniTitle": "230a5570bb59",
+    "tools:cpContext.foldAngle": "ff587e07897c",
+    "tools:cpContext.foldAngleDegrees": "4b7e73642ab7",
+    "tools:cpContext.foldAngleMixed": "f340b6d6edef",
+    "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
+    "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
   }
 }

@@ -281,6 +281,11 @@
       "tooltip": "Aplicar a cor de linha ativa às linhas selecionadas",
       "disabledReason": "Pronto"
     },
+    "cp_action_crease_set_fold_angle": {
+      "label": "Definir ângulo de dobra",
+      "tooltip": "Define o quanto os vincos selecionados dobram",
+      "disabledReason": "Pronto"
+    },
     "cp_action_background_change_position": {
       "label": "Mover plano de fundo",
       "tooltip": "A manipulação da imagem de fundo é apenas da interface e não faz parte do núcleo de CP",

@@ -281,6 +281,11 @@
       "tooltip": "アクティブな線の色を選択した線に適用します",
       "disabledReason": "準備完了"
     },
+    "cp_action_crease_set_fold_angle": {
+      "label": "折り角度を設定",
+      "tooltip": "選択した折り線の折り角度を設定します",
+      "disabledReason": "準備完了"
+    },
     "cp_action_background_change_position": {
       "label": "背景を移動",
       "tooltip": "背景画像の操作は UI のみで、CP カーネルの一部ではありません",

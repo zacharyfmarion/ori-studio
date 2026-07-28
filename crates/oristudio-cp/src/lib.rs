@@ -110,6 +110,12 @@ pub struct CreasePatternCommandPayload {
     /// Optional active Oriedita line color for commands that use the current color.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub line_color: Option<geometry::LineColor>,
+    /// Fold magnitude in degrees for `CreaseSetFoldAngle`, `0..=180`.
+    ///
+    /// This is `|rho|`, not a signed angle: direction lives in the line colour.
+    /// `Some(180.0)` and `None` both mean a classic crease.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold_magnitude_degrees: Option<f64>,
     /// Optional model-space hit tolerance for point/line tools.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selection_distance: Option<f64>,
@@ -334,6 +340,7 @@ pub enum OperationId {
     CreaseMakeValley,
     CreaseMakeEdge,
     CreaseSetLineColor,
+    CreaseSetFoldAngle,
     BackgroundChangePosition,
     LineSegmentDivision,
     LineSegmentRatioSet,
@@ -654,6 +661,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         CreaseSetLineColor,
         "OriStudioSetLineColor",
         "operations::color::set_line_color_for_indices",
+        Kernel,
+        8,
+        UnitTested
+    ),
+    descriptor!(
+        CreaseSetFoldAngle,
+        "OriStudioSetFoldAngle",
+        "operations::color::set_fold_magnitude_for_indices",
         Kernel,
         8,
         UnitTested
@@ -1600,6 +1615,25 @@ pub fn execute_command(
                 &mut document.crease_pattern,
                 &line_indices,
                 color,
+            )
+        }
+        OperationId::CreaseSetFoldAngle => {
+            let line_indices = required_line_indices(&command)?;
+            // Absent means "make classic"; a value out of 0..=180 is a caller
+            // bug, so reject it rather than clamping to something plausible.
+            let magnitude = match command.payload.fold_magnitude_degrees {
+                None => None,
+                Some(degrees) => Some(geometry::FoldMagnitude::from_degrees(degrees).ok_or_else(
+                    || CommandError::InvalidInput {
+                        operation: command.operation,
+                        message: format!("fold magnitude {degrees} is outside 0..=180 degrees"),
+                    },
+                )?),
+            };
+            operations::color::set_fold_magnitude_for_indices(
+                &mut document.crease_pattern,
+                &line_indices,
+                magnitude,
             )
         }
         OperationId::CreaseMakeAux => {

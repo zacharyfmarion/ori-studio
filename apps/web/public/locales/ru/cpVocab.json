@@ -281,6 +281,11 @@
       "tooltip": "Применить активный цвет линии к выбранным линиям",
       "disabledReason": "Готово"
     },
+    "cp_action_crease_set_fold_angle": {
+      "label": "Задать угол сгиба",
+      "tooltip": "Задаёт, насколько сгибаются выбранные сгибы",
+      "disabledReason": "Готово"
+    },
     "cp_action_background_change_position": {
       "label": "Переместить фон",
       "tooltip": "Работа с фоновым изображением выполняется только в интерфейсе и не входит в ядро CP",

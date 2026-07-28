@@ -281,6 +281,11 @@
       "tooltip": "Aplicar el color de línea activo a las líneas seleccionadas",
       "disabledReason": "Listo"
     },
+    "cp_action_crease_set_fold_angle": {
+      "label": "Definir ángulo de plegado",
+      "tooltip": "Define cuánto se pliegan los pliegues seleccionados",
+      "disabledReason": "Listo"
+    },
     "cp_action_background_change_position": {
       "label": "Mover fondo",
       "tooltip": "La manipulación de la imagen de fondo es solo de la interfaz y no forma parte del núcleo de CP",

@@ -334,6 +334,11 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     selectionRequirement: 'selected lines',
     tooltip: 'Apply the active line color to selected lines',
   }),
+  ready('CreaseSetFoldAngle', 'Set fold angle', 'color', 'palette', 'OriStudioSetFoldAngle', {
+    placement: 'palette',
+    selectionRequirement: 'selected lines',
+    tooltip: 'Set how far the selected creases fold',
+  }),
   outOfScopeUi(
     'BackgroundChangePosition',
     'Move background',
@@ -791,6 +796,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'CreaseMakeValley',
   'CreaseMakeEdge',
   'CreaseSetLineColor',
+  'CreaseSetFoldAngle',
   'BackgroundChangePosition',
   'LineSegmentDivision',
   'LineSegmentRatioSet',

@@ -457,6 +457,11 @@ export interface OristudioCpCommandPayload {
   text_ids?: number[];
   points?: Point[];
   line_color?: OristudioCpLineColor;
+  /**
+   * `|ρ|` in degrees for `CreaseSetFoldAngle`, `0..=180`. Not a signed angle —
+   * direction lives in the line colour. Omitted means "make classic".
+   */
+  fold_magnitude_degrees?: number;
   selection_distance?: number;
   replace_selection?: boolean;
   grid_width?: number;

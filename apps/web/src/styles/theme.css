@@ -4322,6 +4322,36 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Fold-angle quick-pick chips. Keeps typing off the common path: a box is 90
+   everywhere, a prism 60/120. */
+.cp-context-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cp-context-panel__chip {
+  padding: 2px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cp-context-panel__chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.cp-context-panel__chip[aria-pressed='true'] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--surface-base);
+}
+
 .cp-context-panel__measure-kinds {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
