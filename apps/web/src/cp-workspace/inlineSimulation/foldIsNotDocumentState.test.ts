@@ -8,7 +8,8 @@ import {
   subscribeInlineSimulationFold,
   subscribeInlineSimulationFoldTarget,
 } from './inlineSimulationRuntime';
-import { MAX_INLINE_SIMULATIONS, type InlineSimulation } from './inlineSimulation';
+import type { InlineSimulation } from './inlineSimulation';
+import { MAX_CONCURRENT_SIMULATIONS } from '../../simulator/simulatorLimits';
 
 function windowAt(id: string): InlineSimulation {
   return {
@@ -134,7 +135,7 @@ describe('the window cap', () => {
       oristudioCpDocument: {
         document: { crease_pattern: { line_segments: [], points: [], circles: [] } },
       } as never,
-      oristudioCpInlineSimulations: Array.from({ length: MAX_INLINE_SIMULATIONS }, (_, i) =>
+      oristudioCpInlineSimulations: Array.from({ length: MAX_CONCURRENT_SIMULATIONS }, (_, i) =>
         windowAt(`sim-${i}`)
       ),
     });

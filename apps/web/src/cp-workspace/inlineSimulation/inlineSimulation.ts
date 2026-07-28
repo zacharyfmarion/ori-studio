@@ -25,19 +25,6 @@ import type { SimulatorOrbitView } from '../../lib/simulatorOrbit';
  * keeping the split means adding it later is additive rather than a rewrite.
  */
 /**
- * How many inline simulation windows can be open at once.
- *
- * Each is a solver session the worker may be asked to swap to, and a surface the
- * camera has to keep placed. The limit is a product choice rather than a
- * technical one — bitmap presentation means they share a single GL context — but
- * an unbounded count degrades quietly, which is worse than refusing.
- *
- * Lives here rather than in the store slice so the message that explains it can
- * quote the same number the check uses.
- */
-export const MAX_INLINE_SIMULATIONS = 6;
-
-/**
  * Why opening a window did or did not happen.
  *
  * A boolean was not enough: refusing at the cap is a normal outcome the user

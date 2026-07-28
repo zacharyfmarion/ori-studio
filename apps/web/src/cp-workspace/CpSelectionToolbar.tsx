@@ -8,7 +8,7 @@ import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
-import { MAX_INLINE_SIMULATIONS } from './inlineSimulation/inlineSimulation';
+import { MAX_CONCURRENT_SIMULATIONS } from '../simulator/simulatorLimits';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
 import { cpLineSelectionBounds, selectedCpLineSegments } from '../lib/creasePatternClipboard';
@@ -168,7 +168,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
       t('toasts:creasePattern.inlineSimulationCap', {
         defaultValue:
           'Up to {{max}} simulation windows at once. Close one to open another.',
-        max: MAX_INLINE_SIMULATIONS,
+        max: MAX_CONCURRENT_SIMULATIONS,
       })
     );
   };

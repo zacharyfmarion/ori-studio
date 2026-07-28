@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createSimulatorSession, type SimulatorFramePayload } from './simulatorSession';
+import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
 import type { FoldDocument } from '@treemaker/origami-simulator';
 
 /**
@@ -263,7 +264,11 @@ describe('session tokens', () => {
     // The cap matches the window cap, so this should not happen in practice;
     // when it does, the oldest degrades to its last frame instead of the worker
     // holding every model ever loaded.
-    const tokens = Array.from({ length: 8 }, () => session.load(miura(4, 4), {}).token);
+    // Two past the cap, read from the constant: hard-coding a count meant the
+    // test kept passing for the wrong reason the moment the cap moved.
+    const tokens = Array.from({ length: MAX_CONCURRENT_SIMULATIONS + 2 }, () =>
+      session.load(miura(4, 4), {}).token
+    );
 
     expect(await session.tick({ token: tokens[0]! })).toBeNull();
     expect(await session.tick({ token: tokens[tokens.length - 1]! })).not.toBeNull();

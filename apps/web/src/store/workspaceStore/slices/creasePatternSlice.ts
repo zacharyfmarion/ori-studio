@@ -18,8 +18,8 @@ import {
   simulationFoldOf,
 } from '../../../lib/creasePatternSegmentation';
 import { segmentContainedLineIds } from '../../../lib/creasePatternSelectionSegment';
+import { MAX_CONCURRENT_SIMULATIONS } from '../../../simulator/simulatorLimits';
 import {
-  MAX_INLINE_SIMULATIONS,
   createInlineSimulation,
   resolveInlineSimulationSegment,
   sourceFingerprintFor,
@@ -995,7 +995,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // Reported rather than set as a `projectMessage`: that channel is rendered
       // by nothing (see GlobalToasts), and a raw string in the store could not be
       // translated anyway. The caller says it, in the user's language.
-      if (simulations.length >= MAX_INLINE_SIMULATIONS) return 'at-capacity';
+      if (simulations.length >= MAX_CONCURRENT_SIMULATIONS) return 'at-capacity';
 
       // The simulator needs the triangulated mesh, so the full artifacts, not
       // the segmentation-only fast path the toolbar uses to decide it can offer

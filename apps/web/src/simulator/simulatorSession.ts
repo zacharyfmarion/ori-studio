@@ -1,5 +1,6 @@
 import { transfer } from 'comlink';
 import { PreparedModelCache } from '../lib/preparedModelCache';
+import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
 import {
   OrigamiModel,
   ReferenceSolver,
@@ -223,12 +224,14 @@ const sessions = new Map<SimulatorSessionToken, Session>();
 let sessionToken: SimulatorSessionToken = 0;
 
 /**
- * How many models stay resident. Matched to the window cap, so in practice
- * nothing is ever evicted and a window cannot lose its session while it is still
- * on screen. The eviction path exists so a caller that ignores the cap degrades
- * to a stale frame rather than exhausting memory.
+ * How many models stay resident.
+ *
+ * The same limit the UI uses to cap open windows, so nothing is ever evicted in
+ * practice and a window cannot lose its session while it is still on screen. The
+ * eviction path exists so a caller that ignores the cap degrades to a stale
+ * frame rather than exhausting memory.
  */
-const MAX_LIVE_SESSIONS = 6;
+const MAX_LIVE_SESSIONS = MAX_CONCURRENT_SIMULATIONS;
 
 /** The most recently loaded session, for callers with no token to quote. */
 function latestSession(): Session | null {
