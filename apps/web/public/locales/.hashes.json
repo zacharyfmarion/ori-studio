@@ -1893,7 +1893,9 @@
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.replay": "581e7e1f2fdc",
     "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
-    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e"
+    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
+    "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3789,7 +3791,9 @@
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.replay": "581e7e1f2fdc",
     "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
-    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e"
+    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
+    "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5711,7 +5715,9 @@
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.replay": "581e7e1f2fdc",
     "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
-    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e"
+    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
+    "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7633,7 +7639,9 @@
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.replay": "581e7e1f2fdc",
     "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
-    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e"
+    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
+    "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9555,7 +9563,9 @@
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.replay": "581e7e1f2fdc",
     "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
-    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e"
+    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
+    "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11477,7 +11487,9 @@
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.replay": "581e7e1f2fdc",
     "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
-    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e"
+    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
+    "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13399,7 +13411,9 @@
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.replay": "581e7e1f2fdc",
     "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
-    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e"
+    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
+    "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15295,6 +15309,8 @@
     "panels:creasePattern.inlineSimulation.refresh": "ae8b2172b824",
     "panels:creasePattern.inlineSimulation.replay": "581e7e1f2fdc",
     "panels:creasePattern.selectionToolbar.simulateInline": "e02b9c02849a",
-    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e"
+    "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
+    "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
   }
 }

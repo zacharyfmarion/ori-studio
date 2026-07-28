@@ -136,6 +136,7 @@ import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-wor
 import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
 import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
 import { useInlineSimulations } from '../../cp-workspace/inlineSimulation/useInlineSimulations';
+import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSimulateSelection';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
@@ -1257,6 +1258,9 @@ export function CreasePatternPanel() {
   // whose contents keep running after you place them.
   const inlineSimulations = useInlineSimulations({ cpDocument: oristudioCpDocument });
   const focusedInlineSimulation = inlineSimulations.selected;
+  // Shared with the selection toolbar, so the keyboard and the button cannot
+  // disagree about what counts as a simulatable region.
+  const simulateSelectionInline = useSimulateSelection();
 
   // One overlay for every canvas object, so chrome and hit-testing resolve in a
   // single pass and no two kinds can show handles at once.
@@ -2753,6 +2757,9 @@ export function CreasePatternPanel() {
         case 'viewport.cancel':
           cancelActiveCpInput();
           break;
+        case 'viewport.simulateSelectionInline':
+          void simulateSelectionInline();
+          break;
         case 'viewport.zoomIn':
           sendWebglCameraCommand('zoom-in');
           break;
@@ -2779,7 +2786,7 @@ export function CreasePatternPanel() {
           break;
       }
     },
-    [cancelActiveCpInput, sendWebglCameraCommand]
+    [cancelActiveCpInput, sendWebglCameraCommand, simulateSelectionInline]
   );
 
   useEffect(

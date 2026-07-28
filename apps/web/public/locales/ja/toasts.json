@@ -1,6 +1,8 @@
 {
   "creasePattern": {
-    "inlineSimulationCap": "同時に開けるシミュレーションウィンドウは最大 {{max}} 個です。別のウィンドウを開くには、いずれかを閉じてください。"
+    "inlineSimulationCap": "同時に開けるシミュレーションウィンドウは最大 {{max}} 個です。別のウィンドウを開くには、いずれかを閉じてください。",
+    "simulateFailed": "この領域はシミュレーションできませんでした。",
+    "simulateNoRegion": "シミュレーションするには閉じた領域を選択してください。"
   },
   "global": {
     "error": "Ori Studio エラー",

@@ -1,6 +1,8 @@
 {
   "creasePattern": {
-    "inlineSimulationCap": "Bis zu {{max}} Simulationsfenster gleichzeitig. Schließe eines, um ein weiteres zu öffnen."
+    "inlineSimulationCap": "Bis zu {{max}} Simulationsfenster gleichzeitig. Schließe eines, um ein weiteres zu öffnen.",
+    "simulateFailed": "Dieser Bereich konnte nicht simuliert werden.",
+    "simulateNoRegion": "Wähle einen geschlossenen Bereich zum Simulieren aus."
   },
   "global": {
     "error": "Ori Studio-Fehler",

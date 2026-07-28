@@ -23,7 +23,8 @@ export type ViewportShortcutId =
   | 'viewport.rotateCcw'
   | 'viewport.rotateCw'
   | 'viewport.resetRotation'
-  | 'viewport.cancel';
+  | 'viewport.cancel'
+  | 'viewport.simulateSelectionInline';
 export type SimulatorShortcutId =
   | 'simulator.playPause'
   | 'simulator.foldForward'
@@ -261,6 +262,13 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   // here would shadow crease deletion entirely. Delete stays one verb, and the
   // per-context branching lives in the menu action.
   viewportShortcut('viewport.cancel', 'Cancel / Deselect', { key: 'escape' }),
+  // Shift+<letter> is where the crease-pattern surface's own verbs live —
+  // Shift+A and Shift+M are the measure tools. Plain S is free; Mod+Shift+S is
+  // Save As, which is a different chord.
+  viewportShortcut('viewport.simulateSelectionInline', 'Simulate Selection Inline', {
+    shift: true,
+    key: 's',
+  }),
 ];
 
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [

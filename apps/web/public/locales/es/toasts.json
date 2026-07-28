@@ -1,6 +1,8 @@
 {
   "creasePattern": {
-    "inlineSimulationCap": "Hasta {{max}} ventanas de simulación a la vez. Cierra una para abrir otra."
+    "inlineSimulationCap": "Hasta {{max}} ventanas de simulación a la vez. Cierra una para abrir otra.",
+    "simulateFailed": "No se pudo simular esa región.",
+    "simulateNoRegion": "Selecciona una región cerrada para simular."
   },
   "global": {
     "error": "Error de Ori Studio",
