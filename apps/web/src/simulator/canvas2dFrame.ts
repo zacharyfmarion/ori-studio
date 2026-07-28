@@ -1,3 +1,4 @@
+import { fitExtent } from "@treemaker/origami-simulator";
 import type {
   FoldDocument as SimulatorFoldDocument,
   RenderSettings,
@@ -149,8 +150,8 @@ export function drawFrame(
   if (!positions) return;
 
   const projected = projectPositions(positions, view);
-  const padding = Math.max(28, Math.min(width, height) * 0.08);
-  const availableSize = Math.max(1, Math.min(width, height) - padding * 2);
+  // Shared with the GPU renderer so the two frame a model identically.
+  const availableSize = fitExtent(width, height);
   // Framing radius is measured once per model rather than per frame. Refitting
   // every frame made the model visibly "breathe" as it folded -- the sheet gets
   // smaller as it closes, so the auto-fit zoomed in to compensate -- and cost

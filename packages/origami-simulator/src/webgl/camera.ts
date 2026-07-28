@@ -39,6 +39,25 @@ const PADDING_FRACTION = 0.08;
 // architectural one-point perspective without fisheye distortion.
 const CAM_DISTANCE_FACTOR = 3.2;
 
+/**
+ * Device pixels the model's diameter is fitted to, given a drawing buffer — the
+ * fit rule shared with the canvas-2D renderer, so a machine without WebGL2
+ * frames a model identically.
+ *
+ * Deliberately a pure fraction of the short edge, which makes the fit
+ * scale-invariant: halve the frame and the model halves with it. The padding
+ * used to be `max(28px, 8% of edge)`, and that floor is only inert above 350
+ * device pixels. Below it the constant 28px is an ever-larger share of the
+ * frame, so the model shrinks faster than its own viewport — 56% of the frame
+ * at 128px against 84% at 512px, reaching nothing at 56px. A Simulate-workspace
+ * panel is never that small; an inline simulation window is sized by the
+ * crease-pattern zoom and routinely renders at 64-200px, where the model
+ * visibly shrank away as you zoomed out.
+ */
+export function fitExtent(width: number, height: number): number {
+  return Math.max(1, Math.min(width, height) * (1 - 2 * PADDING_FRACTION));
+}
+
 export function cameraUniforms(
   view: OrbitView,
   center: [number, number, number],
@@ -46,10 +65,8 @@ export function cameraUniforms(
   width: number,
   height: number
 ): CameraUniforms {
-  const padding = Math.max(28, Math.min(width, height) * PADDING_FRACTION);
-  const available = Math.max(1, Math.min(width, height) - padding * 2);
   const safeRadius = Math.max(1e-3, radius);
-  const scale = (available / (2 * safeRadius)) * view.zoom;
+  const scale = (fitExtent(width, height) / (2 * safeRadius)) * view.zoom;
   return {
     center,
     cosYaw: Math.cos(view.yaw),

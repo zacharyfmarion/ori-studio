@@ -11,6 +11,7 @@ export {
   cameraUniforms,
   centroid,
   boundingRadius,
+  fitExtent,
   type OrbitView,
   type CameraUniforms,
 } from './webgl/camera.js';
