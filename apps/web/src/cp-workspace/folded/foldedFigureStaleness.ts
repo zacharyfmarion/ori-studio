@@ -181,16 +181,68 @@ function segmentKey(line: OristudioCpLineSegment): string {
 }
 
 /**
- * An order-independent digest of a crease set, standing in for
- * `LineSegmentSet.contentEquals`: two sets share a fingerprint exactly when they
- * have the same segments with the same multiplicities.
+ * Names the algorithm in the value itself. Nothing reads it today — the previous
+ * form is deliberately not supported, see {@link foldedSourceFingerprint} — but
+ * it costs four bytes and makes the *next* change to this hash cheap, since a
+ * stored value can then be told apart from one this build would produce.
+ */
+const FINGERPRINT_PREFIX = 'cs1:';
+
+/**
+ * 64 bits over the sorted keys, as two FNV-1a streams with different bases and
+ * primes.
  *
- * Sorting rather than hashing keeps it exact — no collisions to reason about —
- * and the cost is irrelevant beside the fold it guards.
+ * Two streams rather than one because a single 32-bit word leaves a 2^-32 chance
+ * that an edit reads as "unchanged", and the cost of that is a stale model that
+ * never says so — a wrong answer with nothing on screen to question. Consumed
+ * incrementally rather than over a joined string, so this never materialises the
+ * megabyte-scale text the old form did.
+ */
+function creaseSetDigest(sortedKeys: readonly string[]): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9dc5811c;
+  const mix = (code: number) => {
+    h1 = Math.imul(h1 ^ code, 0x01000193);
+    h2 = Math.imul(h2 ^ code, 0x85ebca6b);
+  };
+  for (const key of sortedKeys) {
+    for (let i = 0; i < key.length; i += 1) mix(key.charCodeAt(i));
+    // A separator per key, or `["ab", "c"]` and `["a", "bc"]` would be the same
+    // byte stream — different crease sets sharing a fingerprint for free.
+    mix(0x3b);
+  }
+  const hex = (h: number) => (h >>> 0).toString(16).padStart(8, '0');
+  return `${FINGERPRINT_PREFIX}${hex(h1)}${hex(h2)}`;
+}
+
+/**
+ * An order-independent fingerprint of a crease set, standing in for
+ * `LineSegmentSet.contentEquals`: two sets share a fingerprint when they have
+ * the same segments with the same multiplicities.
+ *
+ * This used to be the sorted keys themselves, joined — exact, with no collisions
+ * to reason about. That is the better property, and it was the right call while
+ * the value only ever lived in memory. It stopped being right when the value
+ * started being written to `.osf`: a key runs ~60 bytes, so a figure over a
+ * dense region carried tens of kilobytes and twenty of them megabytes, for a
+ * string nothing ever reads. Hashing trades an exactness nobody could observe
+ * for a bound on file size.
+ *
+ * The sort still does the real work — it is what makes re-selecting the same
+ * creases in a different order produce the same answer.
+ *
+ * Values written by the previous form are **not** recognised, on purpose. They
+ * existed for two days (fingerprints began being persisted 2026-07-26), and a
+ * file holding one shows its folded figures as `Stale` rather than `Case N` and
+ * offers a Refold — which is opt-in, refolds in place keeping placement and
+ * style, and rewrites the fingerprint. Self-correcting on the next save. Keeping
+ * a second algorithm alive permanently to avoid one wrong label in a two-day
+ * window of files is the worse trade.
  */
 export function foldedSourceFingerprint(lines: readonly OristudioCpLineSegment[]): string {
-  return lines.map(segmentKey).sort().join(';');
+  return creaseSetDigest(lines.map(segmentKey).sort());
 }
+
 
 /**
  * Whether `figure`'s source creases have changed since it was folded.
@@ -208,6 +260,5 @@ export function isFoldedFigureStale(
   // Only figures folded from this document's creases have creases to drift.
   if (figure.sourceKind !== 'generated-from-current-cp') return false;
   const ids = reselectFoldableLineIds(document, figure.sourceBounds);
-  const fingerprint = foldedSourceFingerprint(cpLinesByIds(document, ids));
-  return fingerprint !== figure.sourceFingerprint;
+  return foldedSourceFingerprint(cpLinesByIds(document, ids)) !== figure.sourceFingerprint;
 }

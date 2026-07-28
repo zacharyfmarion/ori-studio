@@ -258,3 +258,84 @@ describe('isFoldedFigureStale', () => {
     expect(isFoldedFigureStale(null, figureFrom(document, SQUARE_IDS))).toBe(false);
   });
 });
+
+/** The pre-hash form, reproduced here so the compatibility path has something real to meet. */
+function legacyFingerprint(lines: OristudioCpLineSegment[]): string {
+  return lines
+    .map((l) =>
+      [l.a.x, l.a.y, l.b.x, l.b.y, l.active, l.color, l.customized,
+        l.customized_color.red, l.customized_color.green, l.customized_color.blue].join(',')
+    )
+    .sort()
+    .join(';');
+}
+
+function grid(count: number): OristudioCpLineSegment[] {
+  return Array.from({ length: count }, (_, i) =>
+    line(i * 0.3125, -200, i * 0.3125, 200, 'Red1')
+  );
+}
+
+describe('fingerprint size', () => {
+  it('does not grow with the number of creases', () => {
+    // The reason for hashing at all. The old form was every crease key joined —
+    // about 60 bytes each — so a figure over a dense region carried tens of
+    // kilobytes into the .osf, and twenty of them megabytes, for a string
+    // nothing ever reads.
+    const small = foldedSourceFingerprint(grid(4));
+    const large = foldedSourceFingerprint(grid(4000));
+    expect(small.length).toBe(large.length);
+    expect(large.length).toBeLessThan(32);
+  });
+
+  it('is still smaller than the legacy form at four creases', () => {
+    // Not just asymptotically better — better immediately, so there is no size
+    // at which the old form wins.
+    expect(foldedSourceFingerprint(SQUARE).length).toBeLessThan(
+      legacyFingerprint(SQUARE).length
+    );
+  });
+
+  it('shrinks a dense region by orders of magnitude', () => {
+    const dense = grid(2000);
+    const ratio = legacyFingerprint(dense).length / foldedSourceFingerprint(dense).length;
+    expect(ratio).toBeGreaterThan(1000);
+  });
+});
+
+describe('a fingerprint written by the previous form', () => {
+  it('does not match, and is meant not to', () => {
+    // Deliberate: the joined form is not recognised. Files holding one show
+    // their figures as Stale and offer a Refold, which rewrites the fingerprint
+    // — self-correcting on the next save. Pinned so the behaviour is a decision
+    // on the record rather than an omission someone later "fixes".
+    expect(foldedSourceFingerprint(SQUARE)).not.toBe(legacyFingerprint(SQUARE));
+  });
+
+  it('is distinguishable from one this build wrote', () => {
+    // What makes the above safe to reason about, and a future migration cheap.
+    expect(foldedSourceFingerprint(SQUARE).startsWith('cs1:')).toBe(true);
+    expect(legacyFingerprint(SQUARE).startsWith('cs1:')).toBe(false);
+  });
+});
+
+describe('digest correctness', () => {
+  it('separates the keys, so regrouping cannot collide', () => {
+    // Without a separator per key the digest sees one byte stream, and two
+    // different crease sets whose keys concatenate the same way would share a
+    // fingerprint — a stale model that never says so.
+    const a = [line(1, 2, 3, 4, 'Red1'), line(11, 22, 33, 44, 'Red1')];
+    const b = [line(1, 22, 3, 44, 'Red1'), line(11, 2, 33, 4, 'Red1')];
+    expect(foldedSourceFingerprint(a)).not.toBe(foldedSourceFingerprint(b));
+  });
+
+  it('gives distinct values across many near-identical crease sets', () => {
+    // A weak digest shows up here rather than in a contrived case: these differ
+    // only in one coordinate.
+    const seen = new Set<string>();
+    for (let i = 0; i < 2000; i += 1) {
+      seen.add(foldedSourceFingerprint([line(0, 0, 400, i * 0.0625, 'Red1')]));
+    }
+    expect(seen.size).toBe(2000);
+  });
+});
