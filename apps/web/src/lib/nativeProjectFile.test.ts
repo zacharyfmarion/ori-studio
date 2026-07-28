@@ -10,6 +10,7 @@ import {
   createNativeProjectFile,
   createNativeTreeProjectFile,
   isNativeProjectFilename,
+  NATIVE_PROJECT_SCHEMA_VERSION,
   parseNativeProjectFile,
   serializeNativeProjectFile,
 } from './nativeProjectFile';
@@ -439,7 +440,7 @@ describe('native project file', () => {
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
 
-    expect(parsed.schemaVersion).toBe(4);
+    expect(parsed.schemaVersion).toBe(NATIVE_PROJECT_SCHEMA_VERSION);
     expect(parsed.workspace.documents.map((document) => document.kind)).toEqual([
       'treemaker-tree',
       'crease-pattern',
@@ -600,7 +601,7 @@ describe('native project file', () => {
     const parsed = parseNativeProjectFile(JSON.stringify(legacy));
     const document = activeNativeDocument(parsed);
 
-    expect(parsed.schemaVersion).toBe(4);
+    expect(parsed.schemaVersion).toBe(NATIVE_PROJECT_SCHEMA_VERSION);
     expect(document.kind).toBe('crease-pattern');
     if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
     expect(document.creasePattern.lineage).toMatchObject({ kind: 'imported', stale: false });
@@ -612,11 +613,11 @@ describe('native project file', () => {
       parseNativeProjectFile(
         JSON.stringify({
           format: 'oristudio.project',
-          schemaVersion: 5,
-          minimumReaderSchemaVersion: 5,
+          schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION + 1,
+          minimumReaderSchemaVersion: NATIVE_PROJECT_SCHEMA_VERSION + 1,
         })
       )
-    ).toThrow(/requires reader schema 5/i);
+    ).toThrow(/requires reader schema/i);
   });
 
   it('round-trips crease-pattern reference images (superset feature)', () => {
@@ -659,6 +660,118 @@ describe('native project file', () => {
     const document = activeNativeDocument(parsed);
     if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
     expect(document.creasePattern.images).toEqual([image]);
+  });
+
+  it('round-trips inline simulation windows (superset feature)', () => {
+    const simulation = {
+      id: 'inline-sim-3',
+      box: { center: { x: 448, y: -102.5 }, width: 412.5, height: 412.5, rotation: Math.PI / 4 },
+      z: 2,
+      view: { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 },
+      sourceBoundary: [
+        [
+          { x: -200, y: -200 },
+          { x: 200, y: -200 },
+          { x: 200, y: 200 },
+        ],
+      ],
+      sourceBounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 },
+      sourceFingerprint: 'cs1:0123456789abcdef',
+      segmentIdHint: 7,
+    };
+    const file = createNativeCreasePatternProjectFile({
+      title: 'CP with a simulation',
+      filename: 'sim.osf',
+      path: '/tmp/sim.osf',
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      inlineSimulations: [simulation],
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+    const document = activeNativeDocument(parsed);
+    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.creasePattern.inlineSimulations).toEqual([simulation]);
+  });
+
+  it('keeps a window whose provenance says it is stale', () => {
+    // The fingerprint is what the staleness check compares against, so it has to
+    // survive the round-trip byte for byte. Losing it reads as "cannot tell",
+    // which the check treats as *not* stale — the indicator would simply never
+    // fire again for a window restored from a file.
+    const simulation = {
+      id: 'inline-sim-1',
+      box: { center: { x: 0, y: 0 }, width: 100, height: 100, rotation: 0 },
+      z: 1,
+      view: { yaw: 0, pitch: 0, zoom: 1 },
+      sourceBoundary: null,
+      sourceBounds: { minX: -50, minY: -50, maxX: 50, maxY: 50 },
+      sourceFingerprint: 'cs1:deadbeefdeadbeef',
+      segmentIdHint: null,
+    };
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Stale window',
+      filename: 'stale.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      inlineSimulations: [simulation],
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+    const document = activeNativeDocument(parsed);
+    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.creasePattern.inlineSimulations[0]?.sourceFingerprint).toBe(
+      'cs1:deadbeefdeadbeef'
+    );
+  });
+
+  it('migrates files written before simulations to an empty list', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Legacy CP',
+      filename: 'legacy.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const raw = JSON.parse(serializeNativeProjectFile(file));
+    for (const doc of raw.workspace.documents) delete doc.creasePattern?.inlineSimulations;
+    raw.schemaVersion = 4;
+
+    const parsed = parseNativeProjectFile(JSON.stringify(raw));
+    const document = activeNativeDocument(parsed);
+    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.creasePattern.inlineSimulations).toEqual([]);
   });
 
   it('migrates v2 files with no images to an empty image layer', () => {

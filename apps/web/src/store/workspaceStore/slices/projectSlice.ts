@@ -995,6 +995,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
       oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
       oristudioCpSelectedAnnotationId: null,
+      // Placement and provenance only. Each window's fold is rebuilt from the
+      // loaded document below, and until then a window has no mesh to draw.
+      oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
+      oristudioCpFocusedInlineSimulationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: documentState.operationDescriptors,
@@ -1053,6 +1057,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
       oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
       oristudioCpSelectedAnnotationId: null,
+      // Placement and provenance only. Each window's fold is rebuilt from the
+      // loaded document below, and until then a window has no mesh to draw.
+      oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
+      oristudioCpFocusedInlineSimulationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: checked.documentState.operationDescriptors,
@@ -1232,6 +1240,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       textAnnotations: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      inlineSimulations: get().oristudioCpInlineSimulations,
       extensions: get().oristudioCpDocumentExtensions,
       appVersion: APP_VERSION,
     };
