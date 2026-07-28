@@ -10,46 +10,73 @@ type Buffer = ReturnType<Regl['buffer']>;
  * fragment shader renders the disc (antialiased) and an outline ring.
  *
  * Each instance sizes one of two ways (`aScreenSpace`): markers (crease points
- * and derived vertices) are a constant screen size — radius in CSS px scaled by
- * `u_markerScalePx` (dpr) so they stay crisp at any zoom, like Oriedita — while
- * circles are real geometry, radius in SVG user units scaled by `u_userScalePx`
- * (grows with zoom). The outline width is constant device px (`u_outlinePx`).
+ * and derived vertices) are sized in screen space — radius in CSS px scaled by
+ * `u_markerScalePx` so they stay crisp at any zoom, like Oriedita — while circles
+ * are real geometry, radius in SVG user units scaled by `u_userScalePx` (grows
+ * with zoom). Each carries its own outline width, since the marker outline scales
+ * with its marker while the circle outline stays a constant-width hairline.
+ *
+ * Instances shrink the whole way down rather than pinning at a floor, and the
+ * caller supplies a per-layer opacity so a layer can be faded out entirely on a
+ * zoomed-out view. That opacity is computed from the camera's zoom ratio rather
+ * than from a pixel size, so the behaviour is identical on every display
+ * density — see the vertex-visibility constants in the canvas component.
+ *
+ * The only pixel-keyed rule left here is an anti-flicker guard: a disc under
+ * half a device pixel cannot land reliably on a sample, so it is dropped.
  */
 const VERT = `
 precision highp float;
+/** Anti-flicker guard: a disc below this cannot sample reliably, so it goes. */
+const float MIN_RADIUS_PX = 0.25;
+const float MIN_RADIUS_FULL_PX = 0.75;
 attribute vec2 corner;      // unit quad in [-1,1]^2
 attribute vec2 aCenter;     // model coords
 attribute float aRadius;    // CSS px (markers) or user units (circles)
-attribute float aScreenSpace; // 1 = constant screen size, 0 = scales with zoom
+attribute float aScreenSpace; // 1 = screen-space size, 0 = scales with zoom
 attribute vec4 aFill;
 attribute vec4 aStroke;
 uniform vec2 u_origin;
 uniform vec2 u_ex;
 uniform vec2 u_ey;
 uniform vec2 u_viewport;
-uniform float u_userScalePx;   // user units -> device px (zoom)
-uniform float u_markerScalePx; // CSS px -> device px (dpr, zoom-independent)
-uniform float u_outlinePx;     // outline width, device px
-varying vec2 vLocal;
+uniform float u_userScalePx;     // user units -> device px (zoom)
+uniform float u_markerScalePx;   // CSS px -> device px (dpr x marker shrink)
+uniform float u_userOutlinePx;   // circle outline width, device px
+uniform float u_markerOutlinePx; // marker outline width, device px
+uniform float u_userOpacity;     // layer opacity for user-space instances
+uniform float u_markerOpacity;   // layer opacity for screen-space instances
+varying vec2 vLocal;        // device px offset from the centre
 varying float vRadiusPx;
 varying float vOuterPx;
+varying float vOutlinePx;
+varying float vFade;
 varying vec4 vFill;
 varying vec4 vStroke;
 void main() {
   vec2 centerDev = u_origin + aCenter.x * u_ex + aCenter.y * u_ey;
-  float scale = aScreenSpace > 0.5 ? u_markerScalePx : u_userScalePx;
-  float radiusPx = max(1.0, aRadius * scale);
+  bool marker = aScreenSpace > 0.5;
+  float scale = marker ? u_markerScalePx : u_userScalePx;
+  float radiusPx = aRadius * scale;
+  float outlinePx = marker ? u_markerOutlinePx : u_userOutlinePx;
+  float opacity = marker ? u_markerOpacity : u_userOpacity;
+  vFade = opacity * smoothstep(MIN_RADIUS_PX, MIN_RADIUS_FULL_PX, radiusPx);
   // Outline straddles the fill edge (like the SVG's centred stroke), so expand
   // the quad by half the outline width to leave room for the outer half.
-  float outerPx = radiusPx + u_outlinePx * 0.5;
-  vec2 posDev = centerDev + corner * outerPx;
-  vec2 clip = vec2(posDev.x / u_viewport.x * 2.0 - 1.0, 1.0 - posDev.y / u_viewport.y * 2.0);
-  gl_Position = vec4(clip, 0.0, 1.0);
-  vLocal = corner;
+  float outerPx = radiusPx + outlinePx * 0.5;
+  // Give the quad a pixel of slack so a sub-pixel disc still lands on a sample;
+  // the fragment stage clips back to the true radius. A fully faded instance
+  // collapses to a degenerate quad so the GPU discards it outright.
+  float quadPx = vFade > 0.0 ? max(outerPx, 1.0) : 0.0;
+  vLocal = corner * quadPx;
   vRadiusPx = radiusPx;
   vOuterPx = outerPx;
+  vOutlinePx = outlinePx;
   vFill = aFill;
   vStroke = aStroke;
+  vec2 posDev = centerDev + vLocal;
+  vec2 clip = vec2(posDev.x / u_viewport.x * 2.0 - 1.0, 1.0 - posDev.y / u_viewport.y * 2.0);
+  gl_Position = vec4(clip, 0.0, 1.0);
 }`;
 
 const FRAG = `
@@ -57,21 +84,25 @@ precision highp float;
 varying vec2 vLocal;
 varying float vRadiusPx;
 varying float vOuterPx;
+varying float vOutlinePx;
+varying float vFade;
 varying vec4 vFill;
 varying vec4 vStroke;
-uniform float u_outlinePx;
 void main() {
-  float d = length(vLocal) * vOuterPx; // distance from center, device px
+  float d = length(vLocal); // distance from center, device px
   if (d > vOuterPx) discard;
-  float aa = 1.0;
-  float halfOutline = u_outlinePx * 0.5;
+  // Never smooth over more than the disc itself, or a one-pixel dot is eaten
+  // whole by its own antialiasing band.
+  float aa = min(1.0, vOuterPx);
+  float halfOutline = vOutlinePx * 0.5;
   // Stroke band straddles the fill radius; fill everywhere inside it.
-  float strokeMask = u_outlinePx > 0.0
+  float strokeMask = vOutlinePx > 0.0
     ? 1.0 - smoothstep(halfOutline - aa, halfOutline + aa, abs(d - vRadiusPx))
     : 0.0;
   vec4 color = mix(vFill, vStroke, strokeMask);
   float outerAlpha = 1.0 - smoothstep(vOuterPx - aa, vOuterPx, d);
-  float alpha = color.a * outerAlpha;
+  float alpha = color.a * outerAlpha * vFade;
+  if (alpha < 0.003) discard;
   gl_FragColor = vec4(color.rgb * alpha, alpha);
 }`;
 
@@ -82,7 +113,14 @@ export interface PointDrawProps {
   viewport: Viewport;
   userScalePx: number;
   markerScalePx: number;
-  outlinePx: number;
+  /** Circle (user-space) outline width in device px — a constant hairline. */
+  userOutlinePx: number;
+  /** Marker (screen-space) outline width in device px. */
+  markerOutlinePx: number;
+  /** Layer opacity applied to user-space instances (circles). */
+  userOpacity: number;
+  /** Layer opacity applied to screen-space instances (points, vertices). */
+  markerOpacity: number;
 }
 
 export interface PointProgram {
@@ -100,7 +138,10 @@ interface PointDrawParams {
   viewportArr: Vec2;
   userScalePx: number;
   markerScalePx: number;
-  outlinePx: number;
+  userOutlinePx: number;
+  markerOutlinePx: number;
+  userOpacity: number;
+  markerOpacity: number;
   centerBuf: Buffer;
   radiusBuf: Buffer;
   screenSpaceBuf: Buffer;
@@ -116,7 +157,10 @@ interface PointUniforms {
   u_viewport: Vec2;
   u_userScalePx: number;
   u_markerScalePx: number;
-  u_outlinePx: number;
+  u_userOutlinePx: number;
+  u_markerOutlinePx: number;
+  u_userOpacity: number;
+  u_markerOpacity: number;
 }
 
 interface PointAttributes {
@@ -158,7 +202,10 @@ export function createPointProgram(regl: Regl): PointProgram {
       u_viewport: (_ctx, props) => props.viewportArr,
       u_userScalePx: (_ctx, props) => props.userScalePx,
       u_markerScalePx: (_ctx, props) => props.markerScalePx,
-      u_outlinePx: (_ctx, props) => props.outlinePx,
+      u_userOutlinePx: (_ctx, props) => props.userOutlinePx,
+      u_markerOutlinePx: (_ctx, props) => props.markerOutlinePx,
+      u_userOpacity: (_ctx, props) => props.userOpacity,
+      u_markerOpacity: (_ctx, props) => props.markerOpacity,
     },
     // Points overlap crease lines and each other; blend for antialiased edges.
     blend: {
@@ -184,7 +231,16 @@ export function createPointProgram(regl: Regl): PointProgram {
       fillBuf = regl.buffer(geometry.fill);
       strokeBuf = regl.buffer(geometry.stroke);
     },
-    draw({ view, viewport, userScalePx, markerScalePx, outlinePx }) {
+    draw({
+      view,
+      viewport,
+      userScalePx,
+      markerScalePx,
+      userOutlinePx,
+      markerOutlinePx,
+      userOpacity,
+      markerOpacity,
+    }) {
       if (
         count === 0 ||
         !centerBuf ||
@@ -202,7 +258,10 @@ export function createPointProgram(regl: Regl): PointProgram {
         viewportArr: [viewport.width, viewport.height],
         userScalePx,
         markerScalePx,
-        outlinePx,
+        userOutlinePx,
+        markerOutlinePx,
+        userOpacity,
+        markerOpacity,
         centerBuf,
         radiusBuf,
         screenSpaceBuf,

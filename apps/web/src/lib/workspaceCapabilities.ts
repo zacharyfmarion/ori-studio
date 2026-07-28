@@ -259,9 +259,13 @@ export function getWorkspaceCapabilities(
           ? t('common:capability.buildCpBeforeExportingFold', 'Build a crease pattern before exporting FOLD')
           : t('common:capability.openCpBeforeExportingFold', 'Open a crease pattern before exporting FOLD')
     ),
-    // Folded-form exports. Gated on the same "there is a crease pattern" condition
-    // as the FOLD export: the simulator loads from those artifacts, and the
-    // handlers fail cleanly if it has not produced geometry yet.
+    // Folded-form exports. No menu entry: they belong to the simulator surface,
+    // which will drive the store actions directly, so these gate that surface
+    // rather than a File > Export item.
+    //
+    // Gated on the same "there is a crease pattern" condition as the FOLD export:
+    // the simulator loads from those artifacts, and the handlers fail cleanly if
+    // it has not produced geometry yet.
     'file.exportFoldedFold': capability(
       (canExportTreeFold || canExportEditableOrImportedFold) && !isBusy,
       t('common:capability.exportFoldedFold', 'Export Folded FOLD...'),
