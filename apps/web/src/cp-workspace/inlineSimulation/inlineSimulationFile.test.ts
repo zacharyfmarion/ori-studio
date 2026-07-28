@@ -35,29 +35,36 @@ describe('reading a window back out of a file', () => {
     expect(validateInlineSimulation({ ...valid, view: { yaw: 0, pitch: 0, zoom: 0 } })).toBeNull();
   });
 
-  it('keeps provenance exactly, including when it is absent', () => {
-    // These three are what staleness compares. A window with none reads as "cannot
-    // tell", which the check treats as not stale — so downgrading a field that was
-    // merely written oddly would silence the indicator for good.
+  it('keeps the fingerprint and bounds exactly, including when absent', () => {
+    // These are what staleness compares. A window with no fingerprint reads as
+    // "cannot tell", which the check treats as not stale — so downgrading a
+    // field that was merely written oddly would silence the indicator for good.
     const bare = validateInlineSimulation({
       ...valid,
-      sourceBoundary: null,
       sourceBounds: null,
       sourceFingerprint: null,
     });
     expect(bare?.sourceFingerprint).toBeNull();
+    expect(bare?.sourceBounds).toBeNull();
     expect(validateInlineSimulation(valid)?.sourceFingerprint).toBe('cs1:abcd');
   });
 
-  it('rejects a boundary with a malformed point rather than dropping that point', () => {
+  it('drops a window with no boundary, which can never be given a fold', () => {
+    // `resolveInlineSimulationSegment` needs the rings; without them the window
+    // loads as an empty frame that refreshing cannot repair either.
+    expect(validateInlineSimulation({ ...valid, sourceBoundary: null })).toBeNull();
+    expect(validateInlineSimulation({ ...valid, sourceBoundary: [] })).toBeNull();
+  });
+
+  it('drops a window whose boundary has a malformed point', () => {
     // A ring missing a vertex is a different region, and would resolve to the
-    // wrong one — worse than having no boundary at all, which falls back to the
-    // bounds and the id hint.
-    const bad = validateInlineSimulation({
-      ...valid,
-      sourceBoundary: [[{ x: 0, y: 0 }, { x: 'nope', y: 1 }]],
-    });
-    expect(bad?.sourceBoundary).toBeNull();
+    // wrong one — the failure that actually simulates the wrong part of the CP.
+    expect(
+      validateInlineSimulation({
+        ...valid,
+        sourceBoundary: [[{ x: 0, y: 0 }, { x: 'nope', y: 1 }]],
+      })
+    ).toBeNull();
   });
 
   it('defaults only the fields where zero is a real answer', () => {

@@ -1035,6 +1035,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       historyFuture: [],
       clipboardPasteCount: 0,
     });
+    // After the document is in place: each restored window needs a fold
+    // rebuilt from the creases just loaded, and the artifacts that produces
+    // are shared. Not awaited — a window draws nothing until its fold arrives,
+    // and blocking the open on twenty of them would freeze it for no benefit.
+    void get().hydrateOristudioCpInlineSimulations();
     useLayoutStore.getState().activateWorkspace('edit');
   };
 
@@ -1076,6 +1081,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // load left behind must not be simulated in its place.
       ...staleFoldArtifactResourceState(get().foldArtifactRevision),
     });
+    void get().hydrateOristudioCpInlineSimulations();
   };
 
   const loadNativeProject = async (

@@ -490,6 +490,17 @@ export interface CreasePatternSliceActions {
   focusOristudioCpInlineSimulation: (id: string | null) => void;
   /** Rebuild a stale window's fold from the current creases, keeping its placement. */
   refreshOristudioCpInlineSimulation: (id: string) => Promise<boolean>;
+  /**
+   * Give every window restored from a file the fold it draws.
+   *
+   * Distinct from calling refresh per window, in the two ways that matter: fold
+   * artifacts are computed once for the document rather than per window, and the
+   * *saved* provenance is left alone. Recomputing it would make every loaded
+   * window read as up to date forever, however far the creases had moved since.
+   *
+   * Resolves the number of windows that found their region.
+   */
+  hydrateOristudioCpInlineSimulations: () => Promise<number>;
   setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
   setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
     key: K,

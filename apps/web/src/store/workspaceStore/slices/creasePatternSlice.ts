@@ -1078,6 +1078,40 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
     },
 
+    hydrateOristudioCpInlineSimulations: async () => {
+      const simulations = get().oristudioCpInlineSimulations;
+      const document = get().oristudioCpDocument?.document ?? null;
+      if (!document || simulations.length === 0) return 0;
+
+      // Once for the document, not once per window. Refresh fetches these
+      // itself, which is right for the one window a user asked about and wrong
+      // for twenty arriving together.
+      const artifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+      if (!artifacts) return 0;
+      const segments = resolveCpSegments(artifacts);
+      const simulationFold = simulationFoldOf(artifacts);
+
+      let hydrated = 0;
+      for (const simulation of simulations) {
+        const segment = resolveInlineSimulationSegment(simulation, segments);
+        // A region that no longer resolves keeps its window and its provenance.
+        // Dropping it would lose placement the user chose, and re-pointing it at
+        // the nearest region would silently simulate something else — the rule
+        // refresh already follows.
+        if (!segment) continue;
+        setInlineSimulationSource(simulation.id, {
+          fold: buildSegmentFold(simulationFold, segment),
+          modelKey: `${simulation.id}:${inlineSimulationRevision(simulation.id)}`,
+        });
+        hydrated += 1;
+      }
+      // Deliberately no `set` here. The descriptors are exactly as loaded, and
+      // recomputing `sourceFingerprint` from the document we just opened is the
+      // one change that would look harmless and disable staleness for good: a
+      // file can legitimately hold a window that is out of date.
+      return hydrated;
+    },
+
     refreshOristudioCpInlineSimulation: async (id) => {
       const document = get().oristudioCpDocument?.document ?? null;
       const simulation = get().oristudioCpInlineSimulations.find(

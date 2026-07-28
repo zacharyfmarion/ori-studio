@@ -714,7 +714,11 @@ describe('native project file', () => {
       box: { center: { x: 0, y: 0 }, width: 100, height: 100, rotation: 0 },
       z: 1,
       view: { yaw: 0, pitch: 0, zoom: 1 },
-      sourceBoundary: null,
+      sourceBoundary: [[
+        { x: -50, y: -50 },
+        { x: 50, y: -50 },
+        { x: 50, y: 50 },
+      ]],
       sourceBounds: { minX: -50, minY: -50, maxX: 50, maxY: 50 },
       sourceFingerprint: 'cs1:deadbeefdeadbeef',
       segmentIdHint: null,

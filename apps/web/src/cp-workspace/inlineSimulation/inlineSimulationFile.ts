@@ -9,12 +9,12 @@ import type { InlineSimulation } from './inlineSimulation';
  * malformed entry is dropped rather than throwing, so one bad window never
  * blocks opening a project.
  *
- * Provenance is a different matter. `sourceBoundary`, `sourceBounds` and
- * `sourceFingerprint` are all nullable in the descriptor and mean "we cannot
- * tell whether this is stale", which the staleness check reads as *not* stale —
- * so quietly nulling a field that was merely written oddly would turn the
- * indicator off for that window forever. They are preserved as written or the
- * window is dropped, never silently downgraded.
+ * Provenance is a different matter. `sourceBounds` and `sourceFingerprint` are
+ * nullable in the descriptor and mean "we cannot tell whether this is stale",
+ * which the staleness check reads as *not* stale — so quietly nulling a field
+ * that was merely written oddly would turn the indicator off for that window
+ * forever. They are preserved as written or the window is dropped, never
+ * silently downgraded.
  */
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -81,6 +81,14 @@ export function validateInlineSimulation(value: unknown): InlineSimulation | nul
   const zoom = positiveNumber(view?.zoom);
   if (yaw === null || pitch === null || zoom === null) return null;
 
+  // The boundary is the region's identity: `resolveInlineSimulationSegment`
+  // returns null without one, so such a window can never be given a fold and
+  // would load as a permanently empty frame that refreshing cannot repair.
+  // Every window this app writes has one; a missing one means the field is
+  // corrupt, and dropping it is kinder than restoring something inert.
+  const rings = boundary(value.sourceBoundary);
+  if (!rings || rings.length === 0) return null;
+
   return {
     id: value.id,
     box: {
@@ -91,7 +99,7 @@ export function validateInlineSimulation(value: unknown): InlineSimulation | nul
     },
     z: finiteNumber(value.z) ?? 0,
     view: { yaw, pitch, zoom },
-    sourceBoundary: boundary(value.sourceBoundary),
+    sourceBoundary: rings,
     sourceBounds: sourceBounds(value.sourceBounds),
     sourceFingerprint:
       typeof value.sourceFingerprint === 'string' ? value.sourceFingerprint : null,
