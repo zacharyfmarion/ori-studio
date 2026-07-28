@@ -187,8 +187,9 @@ unrepresentable; this test is what keeps it that way.
 - [x] Unit test: the sizing *policy* as a pure function (jsdom has no WebGL2, so
       the session path cannot be driven there). Crop correctness — exact size and
       no y-flip — verified in a browser instead.
-- [ ] Re-measure: three windows at three sizes, and a fast zoom. Target is the
-      0.02 ms row.
+- [x] Re-measure: three windows at three sizes, and a fast zoom. Target is the
+      0.02 ms row. Reached — the worker went from 78% busy to 3%, with
+      `renderGpu` at 1 ms.
 
 ### Phase 2 — `foldPercent` out of the descriptor — DONE
 
@@ -204,15 +205,63 @@ unrepresentable; this test is what keeps it that way.
 - [x] Confirm the descriptor is still exactly what would be persisted, so the
       parent plan's deferred Phase 7 stays an addition rather than a rewrite.
 
-### Phase 3 — Keep it that way — DONE (trace pending)
+### Phase 3 — Keep it that way — DONE
 
 - [x] Test: while a fold advances, `oristudioCpInlineSimulations` keeps the same
       array identity.
 - [x] Test: the split by origin — the solver's readout never reaches the window
       as an instruction.
-- [ ] Capture a fresh trace and record the numbers below the Evidence table.
-      (Needs a real interactive session; the agent harness runs `document.hidden`,
-      where rAF never fires and the play loop cannot run at all.)
+- [x] Capture a fresh trace and record the numbers. See "What the traces
+      actually showed" below — three rounds, each of which moved the bottleneck
+      somewhere new.
+
+### Phase 4 — Twenty windows — DONE
+
+Raising the cap to 20 for testing moved the bottleneck off every thread.
+
+- [x] One constant for the cap. It was two — the UI's window cap and the
+      worker's residency cap — held equal by a comment. Below the window cap is
+      a silent failure: windows evict each other's models and come back stale.
+- [x] Position *and* scale via transform, so a pan or zoom touches no
+      layout-affecting property and the canvases' ResizeObservers stay quiet.
+- [x] Re-render on settle, bounded by `MAX_UNSETTLED_UPSCALE` so a slow
+      continuous zoom cannot stay soft indefinitely by resetting the timer.
+- [x] Pin that settling changes resolution only: painted size is layout size
+      times the transform's scale, independent of how stale the layout is.
+- [ ] Re-trace at 20 to confirm the dropped frames go away rather than move.
+
+## What the traces actually showed
+
+Three rounds, and each fix moved the bottleneck rather than ending the exercise.
+Worth recording, because the second and third were caused by the fix before them.
+
+| Round | Worker | Main | GPU | What dominated |
+| --- | --- | --- | --- | --- |
+| Before | 78% | 42% | 75% | `renderGpu` reallocating the buffer; the staleness memo |
+| After phases 1–2 | 46% | 23% | 57% | `sizeRenderCanvas` — 74% of the worker |
+| At 20 windows | 3% | 17% | 30% | nothing on any thread; 206 dropped frames |
+
+**Grow-only was half a fix.** It does nothing for a monotonically increasing
+sequence, and zooming in is exactly that — 146 reallocations over one zoom,
+worst 148.9 ms. Then it broke outright: a browser silently clamps the drawing
+buffer when it cannot back the size (16384 asked, 5760 given, no GL error,
+`isContextLost()` false), and past that `createImageBitmap` returns a fully
+transparent bitmap. Every window blanked at once and, because the canvas only
+grew, never recovered. The old code shrank back and so self-healed. Fixed by
+capping and quantising: 4 reallocations, worst 7.3 ms, no blank frames.
+
+**Quantising per axis broke the aspect ratio.** Snapping width and height to
+powers of two independently meant a window whose axes fell in different buckets
+rendered at the wrong shape and was stretched to fill its box — 98% error at
+worst, flipping as a zoom crossed a boundary on one axis but not the other. The
+two sizes were never the same thing: resizing the canvas is what costs, so that
+stays quantised; setting a viewport is free, so it is the window's own size.
+
+**At 20, the bottleneck was layout, not compute.** No thread was saturated and
+206 frames still dropped. The layer wrote `left/top/width/height` per camera
+frame, so twenty boxes relaid out every frame — and a canvas whose box changes
+wakes its ResizeObserver, which is what asked the worker for a fresh render.
+640 bitmaps a second. The layout churn and the render storm were one thing.
 
 ## Decisions and rejected alternatives
 
@@ -246,3 +295,17 @@ rejected as the fix. See Approach §3.
 measured in the parent plan's Phase 0. This constraint is what produced the
 shared canvas, and it is worth keeping written down — the shared canvas is not
 incidental, but the shared canvas *size* always was.
+
+**Bounding the render size by capping alone.** Capping without quantising still
+reallocates on every frame up to the cap; quantising without capping still walks
+off the end into the silent drawing-buffer clamp. Both, or neither works.
+
+**Restricting window resizing to avoid the thrash.** Rejected: it trades a
+capability the user asked for against a problem that turned out to be an
+implementation detail.
+
+**Throttling the per-frame re-render instead of moving to a transform.** A
+throttle leaves the layout on the critical path — twenty boxes still relaid out,
+just less often — and leaves the ResizeObserver as the thing driving renders. A
+transform removes the trigger rather than rate-limiting it: `ResizeObserver`
+watches the layout box, which a transform provably does not change.
