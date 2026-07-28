@@ -1258,6 +1258,25 @@ export function CreasePatternPanel() {
   // whose contents keep running after you place them.
   const inlineSimulations = useInlineSimulations({ cpDocument: oristudioCpDocument });
   const focusedInlineSimulation = inlineSimulations.selected;
+  /**
+   * Everything placed on the canvas that the WebGL renderer does not draw
+   * itself, for framing. Both kinds live on their own DOM layers, so without
+   * this the camera cannot see them: fitting to view would frame the creases
+   * alone and leave a simulation window off screen.
+   */
+  const overlayBoxes = useMemo(
+    () => [
+      ...textAnnotations,
+      // Windows are never hidden — there is no affordance for it — but the
+      // framing contract is "skip what is not drawn", so say so rather than
+      // leaving the reader to infer it.
+      ...inlineSimulations.simulations.map((simulation) => ({
+        ...simulation.box,
+        hidden: false,
+      })),
+    ],
+    [textAnnotations, inlineSimulations.simulations]
+  );
   // Shared with the selection toolbar, so the keyboard and the button cannot
   // disagree about what counts as a simulatable region.
   const simulateSelectionInline = useSimulateSelection();
@@ -2955,7 +2974,7 @@ export function CreasePatternPanel() {
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
                   images={imageAnnotations}
-                  textBoxes={textAnnotations}
+                  overlayBoxes={overlayBoxes}
                   framingKey={`${projectLoadId}:${editableCpHandle ?? 'none'}`}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}

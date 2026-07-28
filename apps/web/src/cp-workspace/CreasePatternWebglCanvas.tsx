@@ -58,8 +58,7 @@ import {
 } from './tools/transformGhost';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
-import { imageCornersModel } from './images/cpImagePlacement';
-import { boxCornersModel } from './annotations/annotationTransform';
+import { cpContentBounds } from './cpContentBounds';
 import { cpPointsToScene, VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
 import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
 import { cpLineStyleDashPatterns } from '../lib/oristudioCpLineStyle';
@@ -152,15 +151,6 @@ const MAX_DPR = 2;
 
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
-/** Stable empty text-box list so the bounds memo doesn't re-run each render. */
-const EMPTY_TEXT_BOXES: readonly {
-  center: ModelPoint;
-  width: number;
-  height: number;
-  rotation: number;
-  hidden: boolean;
-}[] = [];
-
 /**
  * The editable SVG canvas is transparent, so the colour behind it is the panel
  * body background (`--bg-primary`). Clearing the WebGL surface to the same
@@ -447,10 +437,15 @@ export interface CreasePatternWebglCanvasProps {
    */
   images?: readonly CpImage[];
   /**
-   * Text-annotation boxes (rendered on their own DOM layer, not here) folded into
-   * the framing bounds so open + fit-to-view include them. Model coords.
+   * Boxes that live on their own DOM layer rather than being drawn here — text
+   * annotations and inline simulation windows — folded into the framing bounds
+   * so opening a document and fitting to view include them. Model coords.
+   *
+   * Anything placed on the canvas belongs here. A kind that is missing is
+   * invisible to framing, so fitting to view can leave it off screen entirely,
+   * with nothing to suggest why.
    */
-  textBoxes?: readonly {
+  overlayBoxes?: readonly {
     center: ModelPoint;
     width: number;
     height: number;
@@ -759,7 +754,7 @@ export function CreasePatternWebglCanvas({
   lineSegments,
   geometry,
   images,
-  textBoxes,
+  overlayBoxes,
   framingKey,
   modelToSvg,
   svgToModel,
@@ -1001,38 +996,10 @@ export function CreasePatternWebglCanvas({
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
-  const contentBounds = useMemo<UserBounds | null>(() => {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    let has = false;
-    const extend = (point: ModelPoint) => {
-      const u = modelToSvg(point);
-      if (u.x < minX) minX = u.x;
-      if (u.y < minY) minY = u.y;
-      if (u.x > maxX) maxX = u.x;
-      if (u.y > maxY) maxY = u.y;
-      has = true;
-    };
-    for (const seg of lineSegments) {
-      extend(seg.a);
-      extend(seg.b);
-    }
-    // Reference images are placed content too, so framing (open + fit-to-view)
-    // must include them. Their model-space quad corners are folded into the
-    // bounds; hidden images are excluded (they aren't drawn).
-    for (const image of images ?? EMPTY_IMAGES) {
-      if (image.hidden) continue;
-      for (const corner of imageCornersModel(image)) extend(corner);
-    }
-    // Text boxes are placed content too; fold their model-space box corners in.
-    for (const box of textBoxes ?? EMPTY_TEXT_BOXES) {
-      if (box.hidden) continue;
-      for (const corner of boxCornersModel(box)) extend(corner);
-    }
-    return has ? { minX, minY, maxX, maxY } : null;
-  }, [lineSegments, images, textBoxes, modelToSvg]);
+  const contentBounds = useMemo<UserBounds | null>(
+    () => cpContentBounds({ lineSegments, images, overlayBoxes, modelToSvg }),
+    [lineSegments, images, overlayBoxes, modelToSvg]
+  );
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
   // segments so the same distance query applies (id = index + 1). Vertices are
