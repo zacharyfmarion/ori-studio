@@ -38,14 +38,16 @@ export interface InlineSimulation {
    * write-back.
    */
   view: SimulatorOrbitView;
-  /**
-   * Where the fold is, and the reason a window survives losing focus.
+  /*
+   * Note what is NOT here: where the fold currently is.
    *
-   * A blurred window gives up its solver session — one worker, one live model —
-   * so regaining focus reloads it. The solver is seeded from this, which is why a
-   * window comes back where it was rather than flat.
+   * This descriptor is document-shaped — it changes when the user acts, and much
+   * of the crease-pattern panel is keyed on the array that holds it. A fold
+   * percentage changes ~15 times a second, so putting it here made every one of
+   * those consumers recompute at 15Hz; the staleness walk alone cost 901ms of a
+   * 7.2s profile. It lives in `inlineSimulationRuntime` instead, which is where
+   * per-frame state belongs and which has the same lifetime.
    */
-  foldPercent: number;
 
   /**
    * The region's boundary rings — the durable identity of what is simulated.
@@ -139,7 +141,6 @@ export function createInlineSimulation(options: {
     },
     z,
     view,
-    foldPercent: 0,
     sourceBoundary: segment.boundary.map((ring) => ring.map((point) => ({ ...point }))),
     sourceBounds: bounds,
     sourceFingerprint: sourceFingerprintFor(document, bounds),

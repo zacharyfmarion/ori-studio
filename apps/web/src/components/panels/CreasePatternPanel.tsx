@@ -3120,7 +3120,6 @@ export function CreasePatternPanel() {
                     overlayInteractive={annotationsInteractive}
                     replayRequest={inlineSimulations.replayRequest}
                     onFocus={inlineSimulations.focus}
-                    onFoldPercent={inlineSimulations.setFoldPercent}
                     onPlayingChange={inlineSimulations.setPlaying}
                   />
                 )}

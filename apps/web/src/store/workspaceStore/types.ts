@@ -475,7 +475,9 @@ export interface CreasePatternSliceActions {
   addOristudioCpInlineSimulation: (segmentId: number) => Promise<boolean>;
   updateOristudioCpInlineSimulation: (
     id: string,
-    patch: Partial<Pick<InlineSimulation, 'box' | 'view' | 'foldPercent' | 'z'>>
+    // No fold percentage: that is per-frame transport and lives in
+    // `inlineSimulationRuntime`, not in document-shaped store state.
+    patch: Partial<Pick<InlineSimulation, 'box' | 'view' | 'z'>>
   ) => void;
   removeOristudioCpInlineSimulation: (id: string) => void;
   /** Hand the solver to a window, or to none. */

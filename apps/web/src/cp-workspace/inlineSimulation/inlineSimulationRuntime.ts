@@ -35,11 +35,73 @@ export function getInlineSimulationSource(id: string): InlineSimulationSource | 
 
 export function clearInlineSimulationSource(id: string): void {
   sources.delete(id);
+  foldPercents.delete(id);
 }
 
 /** Drop every source — used when the document is replaced. */
 export function clearAllInlineSimulationSources(): void {
   sources.clear();
+  foldPercents.clear();
+}
+
+/**
+ * Where each window's fold is, and who last moved it.
+ *
+ * Here rather than in the store descriptor for the reason at the top of this
+ * file: it changes ~15 times a second while a fold runs, and the descriptor is
+ * document-shaped state that half the crease-pattern panel is keyed on. It used
+ * to live there, and the result was a full staleness walk over every crease in
+ * the document, 15 times a second, costing 901ms of a 7.2s profile with two
+ * stalls over 180ms. See `implementation-plans/inline-simulation-performance.md`.
+ *
+ * Lifetime matches the source above: keyed by window id, dropped only on delete
+ * or document replace. That outlives losing focus, which is what a window needs
+ * — it gives up its solver session on blur, so refocusing reloads and reseeds
+ * the fold from here rather than snapping back to flat.
+ */
+const foldPercents = new Map<string, number>();
+
+/** Listeners split by what they care about — see {@link publishInlineSimulationFold}. */
+const readoutListeners = new Set<() => void>();
+const targetListeners = new Set<(id: string, percent: number) => void>();
+
+export function getInlineSimulationFoldPercent(id: string): number {
+  return foldPercents.get(id) ?? 0;
+}
+
+/**
+ * Report where the solver actually is. Wakes the readout (the toolbar's
+ * percentage and slider) and nothing else.
+ *
+ * Deliberately does not notify the target listeners: a window must not treat the
+ * solver's own output as a new instruction. Separating the two is what replaced
+ * a "is this value more than 0.5 away from what the solver last said" heuristic
+ * that existed only to guess which of the two a store write had come from.
+ */
+export function publishInlineSimulationFold(id: string, percent: number): void {
+  foldPercents.set(id, percent);
+  for (const listener of readoutListeners) listener();
+}
+
+/** Ask a window to fold to a percentage — a scrub, a replay, or the play loop. */
+export function requestInlineSimulationFold(id: string, percent: number): void {
+  foldPercents.set(id, percent);
+  for (const listener of targetListeners) listener(id, percent);
+  for (const listener of readoutListeners) listener();
+}
+
+/** Subscribe to fold changes from any source. For `useSyncExternalStore`. */
+export function subscribeInlineSimulationFold(listener: () => void): () => void {
+  readoutListeners.add(listener);
+  return () => readoutListeners.delete(listener);
+}
+
+/** Subscribe to fold *requests* only, so the solver's own frames do not echo back. */
+export function subscribeInlineSimulationFoldTarget(
+  listener: (id: string, percent: number) => void
+): () => void {
+  targetListeners.add(listener);
+  return () => targetListeners.delete(listener);
 }
 
 /** Live source count, for tests and diagnostics. */

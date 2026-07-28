@@ -12,7 +12,12 @@ import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { useCpOverlayView } from './cpOverlayViewStore';
 import { overlayCssPerModel, overlayModelToCss } from './annotations/annotationTransform';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
-import { getInlineSimulationSource } from './inlineSimulation/inlineSimulationRuntime';
+import {
+  getInlineSimulationFoldPercent,
+  getInlineSimulationSource,
+  publishInlineSimulationFold,
+  subscribeInlineSimulationFoldTarget,
+} from './inlineSimulation/inlineSimulationRuntime';
 import {
   SimulatorViewport,
   type SimulatorViewportHandle,
@@ -78,7 +83,6 @@ export function InlineSimulationLayer({
   overlayInteractive,
   replayRequest,
   onFocus,
-  onFoldPercent,
   onPlayingChange,
 }: {
   simulations: readonly InlineSimulation[];
@@ -100,7 +104,6 @@ export function InlineSimulationLayer({
    */
   replayRequest: number;
   onFocus: (id: string) => void;
-  onFoldPercent: (id: string, percent: number) => void;
   onPlayingChange: (playing: boolean) => void;
 }) {
   // Subscribed here rather than in the panel so this layer alone re-renders per
@@ -153,7 +156,6 @@ export function InlineSimulationLayer({
             style={style}
             viewSettings={viewSettings}
             onFocus={onFocus}
-            onFoldPercent={onFoldPercent}
             onPlayingChange={onPlayingChange}
           />
         );
@@ -176,7 +178,6 @@ function InlineSimulationWindow({
   style,
   viewSettings,
   onFocus,
-  onFoldPercent,
   onPlayingChange,
 }: {
   simulation: InlineSimulation;
@@ -188,7 +189,6 @@ function InlineSimulationWindow({
   style: CSSProperties;
   viewSettings: SimulatorSettings;
   onFocus: (id: string) => void;
-  onFoldPercent: (id: string, percent: number) => void;
   onPlayingChange: (playing: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -208,7 +208,7 @@ function InlineSimulationWindow({
   // stream does not re-render this component; the store copy is throttled below
   // purely so the toolbar's readout and slider track it. Seeded from the stored
   // value so a window reloaded on refocus resumes where it was.
-  const solverFoldPercentRef = useRef(simulation.foldPercent);
+  const solverFoldPercentRef = useRef(getInlineSimulationFoldPercent(simulation.id));
   const lastPublishedRef = useRef(0);
 
   // Only the *initial* render size. Every later size rides on `setCamera`, which
@@ -236,7 +236,7 @@ function InlineSimulationWindow({
     () => simulatorMaterialOptions(viewSettings),
     [viewSettings]
   );
-  // Seeded from the stored fold percent, which is where the user left this
+  // Seeded from the runtime's fold percent, which is where the user left this
   // window, and not from the last frame the solver reported — those are only
   // delivered while the window is focused, so the reported value is stale by
   // definition at the moment a blurred window reloads.
@@ -245,19 +245,24 @@ function InlineSimulationWindow({
   // produced, so a memo would freeze this at mount. Recomputing costs an object
   // literal, and `useSimulatorRuntime` reads it only when a model loads, so a
   // fresh identity every render triggers nothing.
-  const solverOptions = { ...materialOptions, foldPercent: simulation.foldPercent };
+  const solverOptions = {
+    ...materialOptions,
+    foldPercent: getInlineSimulationFoldPercent(simulation.id),
+  };
 
   const handleFrame = useCallback(
     (frame: SimulatorFrameView) => {
       viewportRef.current?.showFrame(frame);
       solverFoldPercentRef.current = frame.foldPercent;
       const now = performance.now();
+      // Still throttled, but what it now protects is one floating toolbar rather
+      // than the whole crease-pattern panel.
       if (frame.converged || now - lastPublishedRef.current > READOUT_INTERVAL_MS) {
         lastPublishedRef.current = now;
-        onFoldPercent(simulation.id, frame.foldPercent);
+        publishInlineSimulationFold(simulation.id, frame.foldPercent);
       }
     },
-    [onFoldPercent, simulation.id]
+    [simulation.id]
   );
 
   // Every window keeps its model loaded, focused or not.
@@ -281,15 +286,21 @@ function InlineSimulationWindow({
     onFrame: handleFrame,
   });
 
-  // A scrub from the toolbar moves the solver's target. Skipped while playing,
-  // where the play loop below owns the target and the store copy is a readout
-  // that would otherwise fight it.
+  // A scrub or replay from the toolbar moves the solver's target.
+  //
+  // Subscribed rather than read from a prop, so a fold advancing does not
+  // re-render this component. And subscribed to *requests* only: the solver's own
+  // readout never arrives here, which is what removed the "more than 0.5 away
+  // from the last reported value" test this used to need to tell the two apart.
   const { setFoldPercent, status: runtimeStatus } = runtime;
   useEffect(() => {
     if (!focused || playing || runtimeStatus !== 'ready') return;
-    if (Math.abs(simulation.foldPercent - solverFoldPercentRef.current) < 0.5) return;
-    setFoldPercent(simulation.foldPercent);
-  }, [focused, playing, runtimeStatus, simulation.foldPercent, setFoldPercent]);
+    return subscribeInlineSimulationFoldTarget((id, percent) => {
+      if (id !== simulation.id) return;
+      solverFoldPercentRef.current = percent;
+      setFoldPercent(percent);
+    });
+  }, [focused, playing, runtimeStatus, simulation.id, setFoldPercent]);
 
   // Advance the fold over time. The solver does the work in the worker, so this
   // only ever computes a number and hands it over.
@@ -344,13 +355,13 @@ function InlineSimulationWindow({
         const next = Math.min(100, Math.max(0, solverFoldPercentRef.current + delta));
         solverFoldPercentRef.current = next;
         setFoldPercent(next);
-        onFoldPercent(simulation.id, next);
+        publishInlineSimulationFold(simulation.id, next);
       },
       setFoldPercent: (percent) => {
         onPlayingChange(false);
         solverFoldPercentRef.current = percent;
         setFoldPercent(percent);
-        onFoldPercent(simulation.id, percent);
+        publishInlineSimulationFold(simulation.id, percent);
       },
       replay: () => replayRef.current(),
       resetView: () => viewportRef.current?.resetView(),
@@ -377,7 +388,7 @@ function InlineSimulationWindow({
       onPlayingChange(false);
       solverFoldPercentRef.current = 0;
       resetSolver();
-      onFoldPercent(simulation.id, 0);
+      publishInlineSimulationFold(simulation.id, 0);
     };
   });
 

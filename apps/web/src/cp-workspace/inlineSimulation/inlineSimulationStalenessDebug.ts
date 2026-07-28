@@ -9,7 +9,7 @@ import {
   isInlineSimulationStale,
   resolveInlineSimulationSegment,
 } from './inlineSimulation';
-import { getInlineSimulationSource } from './inlineSimulationRuntime';
+import { getInlineSimulationFoldPercent, getInlineSimulationSource } from './inlineSimulationRuntime';
 
 /**
  * Dev-only console hook: `__inlineSimStaleDebug()`.
@@ -57,7 +57,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
           // a different failure from being stale and reads the same on screen.
           resolvesToSegmentId: segment?.id ?? null,
           hasFold: getInlineSimulationSource(simulation.id) !== null,
-          foldPercent: simulation.foldPercent,
+          foldPercent: getInlineSimulationFoldPercent(simulation.id),
         };
       }),
     };

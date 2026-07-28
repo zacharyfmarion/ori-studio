@@ -1,3 +1,4 @@
+import { useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -6,6 +7,10 @@ import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
 import { Slider } from '../components/ui/Slider';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
+import {
+  getInlineSimulationFoldPercent,
+  subscribeInlineSimulationFold,
+} from './inlineSimulation/inlineSimulationRuntime';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
 import type { SimulatorSettings } from '../lib/simulatorSettings';
 
@@ -116,6 +121,13 @@ export function InlineSimulationInspector({
 }) {
   const { t } = useTranslation();
   const anchorRect = useCanvasObjectAnchor(simulation.box, 'model', container);
+  // The fold lives outside React state — it moves ~15 times a second, and the
+  // descriptor it used to live on is what half the crease-pattern panel is keyed
+  // on. Subscribing here means this bar is the only thing that re-renders for it.
+  const foldPercent = useSyncExternalStore(
+    subscribeInlineSimulationFold,
+    useCallback(() => getInlineSimulationFoldPercent(simulation.id), [simulation.id])
+  );
 
   return (
     <FloatingToolbar
@@ -143,12 +155,12 @@ export function InlineSimulationInspector({
         min={0}
         max={100}
         step={1}
-        value={simulation.foldPercent}
+        value={foldPercent}
         aria-label={t('panels:creasePattern.inlineSimulation.fold', 'Fold')}
         onChange={onScrub}
       />
       <span className="cp-inline-simulation-inspector__readout">
-        {Math.round(simulation.foldPercent)}%
+        {Math.round(foldPercent)}%
       </span>
       <ColorModeMenu colorMode={colorMode} onColorMode={onColorMode} />
       <IconButton

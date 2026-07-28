@@ -1091,7 +1091,6 @@ function inlineSimulationFixture(): InlineSimulation {
     box: { center: { x: 0, y: 0 }, width: 100, height: 100, rotation: 0 },
     z: 1,
     view: { yaw: 0, pitch: 0, zoom: 1 },
-    foldPercent: 40,
     sourceBoundary: null,
     sourceBounds: null,
     sourceFingerprint: null,

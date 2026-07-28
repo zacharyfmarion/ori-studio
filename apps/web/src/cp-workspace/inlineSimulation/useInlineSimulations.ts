@@ -3,6 +3,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
 import { inlineSimulationAsTransformable, isInlineSimulationStale } from './inlineSimulation';
+import { requestInlineSimulationFold } from './inlineSimulationRuntime';
 
 export interface UseInlineSimulationsOptions {
   /** The live CP document, for the staleness check. */
@@ -122,19 +123,18 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     focusSimulation(null);
   }, [focusSimulation]);
 
-  const setFoldPercent = useCallback(
-    (id: string, foldPercent: number) => updateSimulation(id, { foldPercent }),
-    [updateSimulation]
-  );
-
-  /** Scrubbing is a manual override, so it stops playback. */
-  const scrub = useCallback(
-    (id: string, foldPercent: number) => {
-      setPlaying(false);
-      updateSimulation(id, { foldPercent });
-    },
-    [updateSimulation]
-  );
+  /**
+   * Scrubbing is a manual override, so it stops playback.
+   *
+   * Goes to the runtime side table rather than the store: the descriptor is
+   * document-shaped state, and a fold percentage moving through it re-ran every
+   * memo keyed on it — including a full staleness walk over the document. The
+   * window subscribes for the target; the toolbar subscribes for the readout.
+   */
+  const scrub = useCallback((id: string, foldPercent: number) => {
+    setPlaying(false);
+    requestInlineSimulationFold(id, foldPercent);
+  }, []);
 
   const replay = useCallback(() => setReplayRequest((nonce) => nonce + 1), []);
   const togglePlay = useCallback(() => setPlaying((current) => !current), []);
@@ -161,7 +161,6 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     focus,
     blur,
     applyBoxUpdate,
-    setFoldPercent,
     scrub,
     refresh,
     remove: removeSimulation,
