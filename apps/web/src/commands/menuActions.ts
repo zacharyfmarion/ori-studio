@@ -42,9 +42,6 @@ export const MENU_ACTION_IDS = [
   'file.exportOrh',
   'file.exportSvg',
   'file.exportPng',
-  'file.exportFoldedFold',
-  'file.exportObj',
-  'file.exportStl',
   'edit.undo',
   'edit.redo',
   'edit.cut',
@@ -232,9 +229,6 @@ const FILE_ACTIONS: Partial<Record<MenuActionId, FileCommand>> = {
   'file.exportOrh': 'exportOrh',
   'file.exportSvg': 'exportSvg',
   'file.exportPng': 'exportPng',
-  'file.exportFoldedFold': 'exportFoldedFold',
-  'file.exportObj': 'exportObj',
-  'file.exportStl': 'exportStl',
 };
 
 const CP_OPERATION_ACTIONS: Partial<Record<MenuActionId, OristudioCpOperationId>> = {
@@ -370,6 +364,11 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         case 'exportPng':
           return deps.workspace.exportPng(deps.fileService);
       }
+      // Every FileCommand must dispatch. Without this the switch silently falls
+      // through for an unhandled one and the menu entry does nothing -- which is
+      // how the folded-form exports shipped dead.
+      const unhandled: never = fileCommand;
+      return unhandled;
     }
 
     const cpOperation = CP_OPERATION_ACTIONS[id];
