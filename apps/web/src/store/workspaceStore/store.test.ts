@@ -1886,7 +1886,11 @@ describe('workspace store slices', () => {
     );
     expect(useWorkspaceStore.getState().project.creases.length).toBeGreaterThan(0);
     expect(useWorkspaceStore.getState().project.facets.length).toBeGreaterThan(0);
-    // Simulation faces are inferred in JS (no flat-folding).
+    // Simulation faces are inferred in JS (no flat-folding). Derived on demand:
+    // a kernel-backed document's artifacts come from the kernel export, so the
+    // load leaves the resource stale rather than installing the importer's.
+    expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('stale');
+    await useWorkspaceStore.getState().ensureFoldArtifacts();
     expect(
       useWorkspaceStore.getState().foldArtifacts?.simulation_model?.fold.faces_vertices.length
     ).toBeGreaterThan(0);
@@ -1968,7 +1972,9 @@ describe('workspace store slices', () => {
     );
 
     await expect(useWorkspaceStore.getState().exportFold(fileService)).resolves.toBe(true);
-    expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledTimes(2);
+    // Three: the export above, this one, and the `ensureFoldArtifacts` that now
+    // derives the artifacts from the kernel instead of taking the importer's.
+    expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledTimes(3);
     expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
       expect.objectContaining({
         title: 'Export FOLD Document',
@@ -4728,6 +4734,9 @@ describe('workspace store slices', () => {
         filename: 'crease.cp',
         path: '/tmp/crease.cp',
       });
+      // Materialize them, so the assertion below is about the swap discarding
+      // artifacts rather than about them never having existed.
+      await useWorkspaceStore.getState().ensureFoldArtifacts();
       expect(useWorkspaceStore.getState().foldArtifacts).not.toBeNull();
 
       await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
@@ -4752,7 +4761,7 @@ describe('workspace store slices', () => {
         filename: 'crease.cp',
         path: '/tmp/crease.cp',
       });
-      const artifacts = useWorkspaceStore.getState().foldArtifacts;
+      const artifacts = await useWorkspaceStore.getState().ensureFoldArtifacts();
       expect(artifacts).not.toBeNull();
 
       await expect(

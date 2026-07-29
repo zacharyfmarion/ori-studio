@@ -423,6 +423,33 @@ export function cpSvgPointToModel(
   };
 }
 
+/**
+ * The crease-pattern canvas's model ↔ SVG-user mapping — the *only* one.
+ *
+ * Every kind of thing on the canvas goes through this pair: creases, images,
+ * text boxes, inline-simulation windows, and folded figures. That is not a
+ * stylistic preference. Placement code works in user coordinates while the
+ * document works in model coordinates, so the moment two call sites disagree
+ * about the affine between them, objects get parked at coordinates that are
+ * arithmetically correct and hundreds of units from where they render.
+ *
+ * That is exactly what happened: an `.ori` file's saved Oriedita camera was
+ * folded into the surface's `modelToSvg` while folded figures kept using the
+ * paper affine, so folding a pattern in a camera-carrying file parked the figure
+ * ~1580 user units left and ~6930 below it. A saved camera describes the view
+ * its author last had, not where the paper is; it belongs to the surface's own
+ * `UserCamera` (which fits content on open), never to this mapping. Keep this
+ * a pure function of the point.
+ */
+export function cpModelToSvg(point: Point): Point {
+  return modelPointToCpSvg(point, ORIEDITA_PAPER_BOUNDS);
+}
+
+/** Inverse of {@link cpModelToSvg}. */
+export function cpSvgToModel(point: Point): Point {
+  return cpSvgPointToModel(point, ORIEDITA_PAPER_BOUNDS);
+}
+
 export function cpLineColorClass(color: string, mode: 'mvf' | 'agrh'): string {
   if (mode === 'agrh') return 'crease crease--kind-axial';
   const paletteEntry = cpPaletteEntryForColor(color);

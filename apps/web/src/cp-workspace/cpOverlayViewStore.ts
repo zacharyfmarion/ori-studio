@@ -7,10 +7,17 @@ import type { CpOverlayView } from './CreasePatternWebglCanvas';
  *
  * Two spaces are published because the surface draws in two. Creases, images and
  * text boxes live in crease-pattern *model* space; folded figures are drawn in
- * SVG *user* space, the space their render primitives land in. The two coincide
- * only when the document carries no native Oriedita camera, so chrome for a
- * folded figure has to project through `user` while annotation chrome projects
+ * SVG *user* space, the space `foldedFigureLocalGeometry` maps their render
+ * primitives into and the space their persisted placement offsets are stored in.
+ * So chrome for a folded figure projects through `user` and annotation chrome
  * through `model`.
+ *
+ * The two now differ by exactly `cpModelToSvg` — one constant affine, the same
+ * for every document. They used not to: a file's saved Oriedita camera was
+ * folded into the surface's `modelToSvg`, so `model` carried a per-document zoom
+ * and pan that `user` did not, and anything placed in one space and drawn in the
+ * other landed hundreds of units away. Do not reintroduce a document-dependent
+ * `modelToSvg`; a saved camera belongs to the `UserCamera`.
  *
  * This is deliberately *outside* React state: the WebGL canvas reports a new view
  * on every pan/zoom frame, and routing that through the (huge) CreasePatternPanel

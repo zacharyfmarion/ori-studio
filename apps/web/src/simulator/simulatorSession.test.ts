@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createSimulatorSession, type SimulatorFramePayload } from './simulatorSession';
+import {
+  createSimulatorSession,
+  foldScaledForSolver,
+  type SimulatorFramePayload,
+} from './simulatorSession';
 import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
 import type { FoldDocument } from '@treemaker/origami-simulator';
 
@@ -325,5 +329,66 @@ describe('prepared-model reuse', () => {
     expect(reloaded.foldPercent).toBe(0);
     expect(reloaded.step).toBeLessThan(folded.step);
     session.dispose();
+  });
+});
+
+describe('foldScaledForSolver', () => {
+  const square = (size: number): FoldDocument =>
+    ({
+      vertices_coords: [
+        [0, 0, 0],
+        [size, 0, 0],
+        [size, size, 0],
+        [0, size, 0],
+      ],
+      edges_vertices: [[0, 1], [1, 2], [2, 3], [3, 0]],
+      edges_assignment: ['B', 'B', 'B', 'B'],
+      faces_vertices: [[0, 1, 2, 3]],
+    }) as unknown as FoldDocument;
+
+  const span = (fold: FoldDocument) => {
+    const xs = fold.vertices_coords!.map((c) => c[0]!);
+    return Math.max(...xs) - Math.min(...xs);
+  };
+
+  /**
+   * The constraint this exists for. The GPU solver is float32 and
+   * `SimulationClock` calls convergence at an absolute `maxVelocity < 1e-5`; a
+   * velocity below the float32 step at the model's own magnitude can never be
+   * observed, so the model never settles and every load runs to the step cap.
+   */
+  it('brings document-scale coordinates inside float32 convergence resolution', () => {
+    const CONVERGENCE_EPSILON = 1e-5;
+    const float32StepAt = (magnitude: number) =>
+      Math.abs(Math.fround(magnitude + magnitude * 2 ** -23) - Math.fround(magnitude));
+
+    // An Oriedita sheet reaches ~3900 units, where 1e-5 is unrepresentable.
+    expect(float32StepAt(3900)).toBeGreaterThan(CONVERGENCE_EPSILON);
+    expect(float32StepAt(span(foldScaledForSolver(square(3900))))).toBeLessThan(
+      CONVERGENCE_EPSILON
+    );
+  });
+
+  it('scales uniformly, so folded geometry stays similar to the input', () => {
+    const scaled = foldScaledForSolver(square(400));
+    expect(span(scaled)).toBeCloseTo(1);
+    const ys = scaled.vertices_coords!.map((c) => c[1]!);
+    // A square stays square: same span on both axes, origin at the corner.
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(1);
+    expect(Math.min(...scaled.vertices_coords!.map((c) => c[0]!))).toBeCloseTo(0);
+  });
+
+  it('leaves an already unit-scale fold exactly alone', () => {
+    // No rounding introduced where there is nothing to fix -- and this is the
+    // common case, since a single-pattern document is already unit-ish.
+    const unit = square(1);
+    expect(foldScaledForSolver(unit)).toBe(unit);
+  });
+
+  it('leaves a degenerate fold alone rather than dividing by zero', () => {
+    const point = square(0);
+    expect(foldScaledForSolver(point)).toBe(point);
+    expect(foldScaledForSolver({ vertices_coords: [] } as unknown as FoldDocument))
+      .toEqual({ vertices_coords: [] });
   });
 });

@@ -75,20 +75,14 @@ import {
   canvasToolOptionsFromOrieditaMetadata,
 } from '../../lib/orieditaNativeMetadata';
 import {
-  orieditaCameraFromMetadata,
-  orieditaCameraSvgScale,
-  orieditaObjectToSvg,
-  orieditaSvgToObject,
-} from '../../lib/orieditaCamera';
-import {
   CP_PAPER_RECT,
+  cpModelToSvg,
   cpSelectionSize,
-  cpSvgPointToModel,
+  cpSvgToModel,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   emptyOristudioCpSelection,
   getCpVertexPoints,
   getOrieditaGridBasis,
-  modelPointToCpSvg,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
   ORIEDITA_PAPER_BOUNDS,
@@ -1159,37 +1153,20 @@ export function CreasePatternPanel() {
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
-  const nativeCreasePatternCamera = useMemo(
-    () => orieditaCameraFromMetadata(editableCp?.metadata),
-    [editableCp?.metadata]
-  );
   const editableCpBounds = ORIEDITA_PAPER_BOUNDS;
-  const editableModelToSvg = useCallback(
-    (point: Point) =>
-      nativeCreasePatternCamera
-        ? orieditaObjectToSvg(point, nativeCreasePatternCamera)
-        : modelPointToCpSvg(point, editableCpBounds),
-    [editableCpBounds, nativeCreasePatternCamera]
-  );
-  const editableSvgToModel = useCallback(
-    (point: Point) =>
-      nativeCreasePatternCamera
-        ? orieditaSvgToObject(point, nativeCreasePatternCamera)
-        : cpSvgPointToModel(point, editableCpBounds),
-    [editableCpBounds, nativeCreasePatternCamera]
-  );
+  // `cpModelToSvg` / `cpSvgToModel`, not a document-derived affine: a file's
+  // saved Oriedita camera is a view, and baking it in here gave the canvas two
+  // disagreeing user spaces. See the note on `cpModelToSvg`.
+  const editableModelToSvg = cpModelToSvg;
+  const editableSvgToModel = cpSvgToModel;
   const editableCircleRadiusToSvg = useCallback(
-    (radius: number) => {
-      if (nativeCreasePatternCamera) {
-        return Math.max(1, radius * orieditaCameraSvgScale(nativeCreasePatternCamera).x);
-      }
-      return Math.max(
+    (radius: number) =>
+      Math.max(
         1,
         (radius / Math.max(editableCpBounds.spanX, editableCpBounds.spanY)) *
           Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height)
-      );
-    },
-    [editableCpBounds, nativeCreasePatternCamera]
+      ),
+    [editableCpBounds]
   );
   const editableCpVisibleGrid = useMemo(
     () =>

@@ -13,9 +13,8 @@ import {
 } from '../../../lib/creasePatternClipboard';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import {
-  buildSegmentFold,
+  buildSegmentSimulationFold,
   resolveCpSegments,
-  simulationFoldOf,
 } from '../../../lib/creasePatternSegmentation';
 import { segmentContainedLineIds } from '../../../lib/creasePatternSelectionSegment';
 import { MAX_CONCURRENT_SIMULATIONS } from '../../../simulator/simulatorLimits';
@@ -32,7 +31,7 @@ import {
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
 import { boxAabb } from '../../../cp-workspace/canvasObjects/placeBesideCp';
 import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
-import { cpSvgPointToModel, ORIEDITA_PAPER_BOUNDS } from '../../../lib/creasePatternViewport';
+import { cpSvgToModel } from '../../../lib/creasePatternViewport';
 import type { Aabb } from '../../../cp-workspace/picking/lineHitIndex';
 import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
 import {
@@ -146,8 +145,8 @@ function occupiedModelSpace(state: WorkspaceState): Aabb[] {
   for (const figure of state.oristudioCpFoldedFigures) {
     const userAabb = foldedFigureUserAabb(figure);
     if (!userAabb) continue;
-    const min = cpSvgPointToModel({ x: userAabb.minX, y: userAabb.minY }, ORIEDITA_PAPER_BOUNDS);
-    const max = cpSvgPointToModel({ x: userAabb.maxX, y: userAabb.maxY }, ORIEDITA_PAPER_BOUNDS);
+    const min = cpSvgToModel({ x: userAabb.minX, y: userAabb.minY });
+    const max = cpSvgToModel({ x: userAabb.maxX, y: userAabb.maxY });
     boxes.push({
       minX: Math.min(min.x, max.x),
       minY: Math.min(min.y, max.y),
@@ -984,7 +983,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       return true;
     },
 
-    addOristudioCpInlineSimulation: async (segmentId) => {
+    addOristudioCpInlineSimulation: async ({ segment, cpLineIds }) => {
       const document = get().oristudioCpDocument?.document ?? null;
       if (!document) return 'unavailable';
       const simulations = get().oristudioCpInlineSimulations;
@@ -999,42 +998,29 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
       // The simulator needs the triangulated mesh, so the full artifacts, not
       // the segmentation-only fast path the toolbar uses to decide it can offer
-      // this at all.
-      let artifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
-      let segment = resolveCpSegments(artifacts).find(
-        (candidate) => candidate.id === segmentId
-      );
-      let containment =
-        artifacts && segment ? segmentContainedLineIds(document, artifacts, segment) : [];
+      // this at all. The *region* is the caller's — resolving it again here from
+      // a second segmentation is what opened the wrong one.
+      const artifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+      if (!artifacts) return 'unavailable';
 
-      // Artifacts that came from an *import* are in the importer's coordinate
-      // space, not the kernel document's -- a `.cp` loads as a unit square while
-      // the document itself is Oriedita's 400-space. Containment then finds
-      // nothing, and a window built from it would place itself wrongly and carry
-      // no provenance, so it could never report itself out of date. Recomputing
-      // from the kernel puts both in the same space; the empty result is the
-      // only reliable signal that they were not.
-      if (segment && containment.length === 0) {
-        artifacts = await get().refreshFoldArtifacts();
-        segment = resolveCpSegments(artifacts).find((candidate) => candidate.id === segmentId);
-        containment =
-          artifacts && segment ? segmentContainedLineIds(document, artifacts, segment) : [];
-      }
-      if (!segment || !artifacts) return 'unavailable';
+      const fold = buildSegmentSimulationFold(artifacts, segment);
+      // No mesh faces under the region means the two are not describing the same
+      // paper — the artifacts are in some other coordinate space. Report it
+      // rather than open a window onto an empty fold, which renders as a blank
+      // pane with nothing to say why.
+      if ((fold.faces_vertices?.length ?? 0) === 0) return 'unavailable';
+
       const id = `inline-sim-${nextInlineSimulationId++}`;
       const simulation = createInlineSimulation({
         id,
         segment,
         document,
-        cpLineIds: containment,
+        cpLineIds,
         z: topInlineSimulationZ(simulations) + 1,
         view: DEFAULT_SIMULATOR_VIEW,
         blockers: occupiedModelSpace(get()),
       });
-      setInlineSimulationSource(id, {
-        fold: buildSegmentFold(simulationFoldOf(artifacts), segment),
-        modelKey: `${id}:0`,
-      });
+      setInlineSimulationSource(id, { fold, modelKey: `${id}:0` });
 
       set({
         oristudioCpInlineSimulations: [...simulations, simulation],
@@ -1103,7 +1089,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       );
       const revision = inlineSimulationRevision(id);
       setInlineSimulationSource(id, {
-        fold: buildSegmentFold(simulationFoldOf(artifacts), segment),
+        fold: buildSegmentSimulationFold(artifacts, segment),
         modelKey: `${id}:${revision}`,
       });
       set({
