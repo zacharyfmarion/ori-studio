@@ -334,6 +334,105 @@ fn a_vertex_with_stacked_layers_is_not_answered() {
     assert_eq!(vertex_link_verdict(&flat), LinkVerdict::StackedLayers);
 }
 
+/// A crease at +/-180 must decline **whatever the sectors either side are**.
+///
+/// Reading the fold-back off the geometry is not enough, and this is the case
+/// that proves it. A folded crease makes its own two arcs collinear — and those
+/// are index-adjacent, which the scan skips as legitimately sharing a corner. So
+/// when the sectors either side differ, there are no coincident corners either,
+/// and the vertex sails past every geometric signature of stacking.
+///
+/// All six of these are genuinely stacked and all six answered before the fan
+/// was consulted directly.
+#[test]
+fn a_folded_crease_declines_whatever_the_sectors() {
+    let cases: [(&[f64], &[f64]); 6] = [
+        (
+            &[60.0, 100.0, 80.0, 120.0],
+            &[180.0, -72.217330920763, 123.136588358895, 72.217330920763],
+        ),
+        (
+            &[50.0, 95.0, 105.0, 110.0],
+            &[180.0, -104.447245032961, 119.747120281201, 92.895333787723],
+        ),
+        (
+            &[40.0, 70.0, 90.0, 80.0, 80.0],
+            &[
+                180.0,
+                -172.464456628304,
+                95.491130671535,
+                70.001267246083,
+                86.095801427787,
+            ],
+        ),
+        (
+            &[55.0, 65.0, 85.0, 75.0, 80.0],
+            &[
+                180.0,
+                -176.389037974402,
+                103.529479714545,
+                88.702009519841,
+                91.892877277451,
+            ],
+        ),
+        (
+            &[35.0, 60.0, 70.0, 65.0, 75.0, 55.0],
+            &[
+                180.0,
+                -153.003236822577,
+                73.755108511721,
+                31.429532337295,
+                79.943690914256,
+                24.070416711129,
+            ],
+        ),
+        (
+            &[80.0, 40.0, 95.0, 60.0, 85.0],
+            &[
+                180.0,
+                -149.009720889746,
+                140.173796448197,
+                151.569642545188,
+                14.465935255162,
+            ],
+        ),
+    ];
+    for (sectors, rho) in cases {
+        let fan = fan(sectors, rho);
+        let residual = vertex_closure_residual(&fan).to_degrees();
+        assert!(
+            residual < 1e-6,
+            "{sectors:?}: fixture does not close ({residual})"
+        );
+        assert_eq!(
+            vertex_link_verdict(&fan),
+            LinkVerdict::StackedLayers,
+            "{sectors:?}: a folded crease was answered instead of declined"
+        );
+    }
+}
+
+/// 179.999 is *not* folded flat, so the fold-back test must not swallow it.
+/// Without this the fix above could be "widened until the bug goes away", at the
+/// cost of the whole near-flat range Q4 measured as well conditioned.
+#[test]
+fn a_nearly_folded_crease_is_still_answered() {
+    let fan = fan(
+        &[77.7, 75.3, 76.3, 80.9, 49.8],
+        &[
+            179.999,
+            -152.018099778520,
+            107.101145523990,
+            127.688597434267,
+            64.810381257281,
+        ],
+    );
+    assert!(
+        vertex_link_verdict(&fan).self_intersects(),
+        "179.999 degrees is not a flat fold; the check must still answer there"
+    );
+}
+
 /// The box-pleat vertex from the model that exposed the false positives: three
 /// creases at 180 and two at -90, closing exactly.
 #[test]

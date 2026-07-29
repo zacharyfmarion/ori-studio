@@ -358,6 +358,31 @@ genuinely partly folded, with no crease driven to +/-180.
 Answering anyway is not an option — a false positive on paper that folds is
 worse than silence, which is the whole reason Q7 existed.
 
+### Q11 — the fold-back must be read off the fan, not inferred from the link
+
+Asked how the check decides whether to run, and the answer did not survive being
+written down. The gate was purely geometric: coincident corners, or collinear
+non-adjacent arcs.
+
+**A crease at +/-180 makes its own two arcs collinear — and those are
+index-adjacent, which the scan skips as legitimately sharing a corner.** So when
+the sectors either side differ there are no coincident corners either, and a
+genuinely stacked vertex sails past every geometric signature. Six fans built
+that way, all closing to 1e-12, all answered.
+
+The reported model was caught only by luck of its geometry: box pleating is
+45/90 symmetric, so its sectors match and its corners coincide.
+
+The fan carries the fact directly, so it is now read from there — `|rho| = 180`
+on any crease means stacked, full stop. The geometric tests stay, because
+stacking can also arise without any single crease reaching 180.
+
+The tolerance is deliberately tight (1e-6 degrees, against storage that resolves
+to 1e-7 and normalises an exact 180 to `None`). It is a test for "is this crease
+classic", not a band: 179.9 is genuinely not folded flat, Q4 measured the check
+well conditioned there, and widening this to make a bug go away would throw the
+near-flat range out with it. Pinned by a test at 179.999.
+
 **Detecting the stacking must not be inferred from the crossing test.** A shared
 corner sits exactly on an arc endpoint, which is the worst case for `within_arc`'s
 exact sign comparison: coincident points differ by ~1e-16 and the test falls

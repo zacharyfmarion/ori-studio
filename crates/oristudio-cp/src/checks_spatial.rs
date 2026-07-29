@@ -300,7 +300,7 @@ pub fn vertex_link_verdict(fan: &VertexFan) -> LinkVerdict {
     // for `within_arc`'s exact sign comparison — coincident points differ by
     // ~1e-16 and the test can fall either way. Deciding it from the geometry
     // directly keeps the answer off that knife edge.
-    if has_stacked_layers(&points, &normals) {
+    if has_stacked_layers(fan, &points, &normals) {
         return LinkVerdict::StackedLayers;
     }
 
@@ -337,16 +337,36 @@ pub fn vertex_link_verdict(fan: &VertexFan) -> LinkVerdict {
 
 /// Is any part of the folded paper lying against another part?
 ///
-/// Two signatures, which are the two ways a flat-folded sector shows up:
+/// Three signatures, and the first is the one that matters:
 ///
-/// - **coincident corners** — the creases either side of a crease at +/-180 land
-///   on the same direction, which happens when the sectors either side match;
-/// - **collinear arcs** — when they do not match, the shorter sector lies along
-///   the longer one instead, so two arcs share a great circle.
+/// - **a crease at +/-180** — it folds its two sectors onto each other, full
+///   stop. Read straight off the fan, because the geometric consequences below
+///   do *not* reliably show it: the two arcs it makes collinear are its own,
+///   which are index-adjacent, and adjacent pairs are skipped as legitimately
+///   sharing a corner. Measured on six fans with a folded crease and unequal
+///   sectors either side, all six slipped past the geometric tests.
+/// - **coincident corners** — the creases either side of a folded crease land on
+///   the same direction when the sectors either side match. Kept because it also
+///   catches stacking that arises without any single crease reaching 180.
+/// - **collinear non-adjacent arcs** — two distant sectors sharing a great
+///   circle, likewise reachable without a fully folded crease.
 ///
 /// Either way two layers occupy the same place, and which is on top decides
 /// whether they collide. The link does not carry that, so the check declines.
-fn has_stacked_layers(points: &[Vec3], normals: &[Vec3]) -> bool {
+fn has_stacked_layers(fan: &VertexFan, points: &[Vec3], normals: &[Vec3]) -> bool {
+    // Storage resolves to 1e-7 degrees and an exact 180 normalises to `None`, so
+    // this is a test for "is classic", not a tolerance band. A crease at 179.9 is
+    // genuinely not folded flat, and Q4 measured the check well conditioned
+    // there — widening this would throw away the near-flat range for nothing.
+    const FLAT_EPSILON_DEGREES: f64 = 1e-6;
+    if fan
+        .creases
+        .iter()
+        .any(|(_, rho)| (rho.abs().to_degrees() - 180.0).abs() < FLAT_EPSILON_DEGREES)
+    {
+        return true;
+    }
+
     let n = points.len();
     for i in 0..n {
         for j in (i + 1)..n {
