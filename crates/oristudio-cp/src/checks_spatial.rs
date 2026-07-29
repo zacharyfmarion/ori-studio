@@ -36,7 +36,9 @@ use std::collections::HashMap;
 
 use crate::checks::point_line_map;
 use crate::geometry::{Epsilon, LineColor, LineSegment, Point};
-use crate::model::{CreasePatternModel, crease_fold_angle, is_classic_crease};
+use crate::model::{
+    CreasePatternModel, crease_fold_angle, has_non_classic_creases, is_classic_crease,
+};
 
 /// Cell size for the through-line spatial hash. Matches the endpoint-clustering
 /// epsilon in [`crate::checks`] so the two agree on what "at this point" means.
@@ -273,17 +275,10 @@ impl LinkVerdict {
 /// than four creases there is no non-adjacent pair, so a spherical triangle is
 /// rigid but never self-crossing.
 ///
-/// # Index adjacency is not the only way arcs share a corner
-///
-/// A crease at exactly +/-180 folds its sector flat, which — when the sectors
-/// either side are equal — puts those two creases on **the same point of the
-/// sphere**. The arcs leaving those coincident corners are far apart by index,
-/// so they are tested, and they trivially meet at the corner they share.
-/// Counting that as a crossing is what produced the false positives.
-///
-/// A meeting therefore only counts when it is away from a corner the two arcs
-/// share — and any contact that is not a proper crossing means stacked layers,
-/// so the verdict becomes [`LinkVerdict::StackedLayers`] rather than a guess.
+/// Stacking is settled by [`has_stacked_layers`] before any crossing is looked
+/// for, which is what lets the loop below treat every meeting as a genuine
+/// crossing: with no coincident corners and no collinear pair, two non-adjacent
+/// arcs can only meet in each other's interior.
 pub fn vertex_link_verdict(fan: &VertexFan) -> LinkVerdict {
     let points = vertex_link_polygon(fan);
     let n = points.len();
@@ -307,10 +302,14 @@ pub fn vertex_link_verdict(fan: &VertexFan) -> LinkVerdict {
     let mut crossings = 0usize;
     for i in 0..n {
         for j in (i + 1)..n {
-            if j == i + 1 || (i == 0 && j == n - 1) {
+            if arcs_are_adjacent(i, j, n) {
                 continue;
             }
             let (first, second) = (normals[i], normals[j]);
+            // Safe to normalise: `has_stacked_layers` scans the same
+            // non-adjacent pairs and returns early on a collinear one, so the
+            // scale here is bounded away from zero. That is why both loops must
+            // use `arcs_are_adjacent` rather than repeating the condition.
             let axis = cross(first, second);
             let scale = norm(axis);
             let meeting = [axis[0] / scale, axis[1] / scale, axis[2] / scale];
@@ -382,11 +381,14 @@ fn has_stacked_layers(fan: &VertexFan, points: &[Vec3], normals: &[Vec3]) -> boo
     }
     for i in 0..n {
         for j in (i + 1)..n {
-            if j == i + 1 || (i == 0 && j == n - 1) {
+            if arcs_are_adjacent(i, j, n) {
                 continue;
             }
             let (first, second) = (normals[i], normals[j]);
             let (first_norm, second_norm) = (norm(first), norm(second));
+            // A degenerate normal is a zero-length arc, not a shallow angle, so
+            // this compares a magnitude rather than the ratio below. Both use the
+            // same epsilon because both are "indistinguishable from zero".
             if first_norm < TRANSVERSE_EPSILON || second_norm < TRANSVERSE_EPSILON {
                 return true;
             }
@@ -396,6 +398,17 @@ fn has_stacked_layers(fan: &VertexFan, points: &[Vec3], normals: &[Vec3]) -> boo
         }
     }
     false
+}
+
+/// Do arcs `i` and `j` of an `n`-sided closed polygon share a corner by index?
+///
+/// One definition, used by both the stacking scan and the crossing loop. They
+/// must agree: the crossing loop normalises `n_i x n_j`, and it is only safe to
+/// do that because the stacking scan already rejected every collinear pair it
+/// will see. Two copies of this condition could drift apart into a division by
+/// zero.
+fn arcs_are_adjacent(i: usize, j: usize, n: usize) -> bool {
+    j == i + 1 || (i == 0 && j == n - 1)
 }
 
 /// Is `point` on the minor arc from `a` to `b`, whose great circle has normal
@@ -574,7 +587,22 @@ impl SpatialVertexReport {
 ///
 /// Vertices whose creases are all classic are skipped entirely — they belong to
 /// [`crate::checks`], which stays the authority for flat patterns.
+///
+/// # A classic document must cost nothing
+///
+/// `CheckCamv` is scheduled after every document mutation, so this sits on the
+/// live edit path. Both `point_line_map` and [`ThroughLineIndex::build`] walk
+/// every segment, and they ran *before* the per-vertex filter — so a purely flat
+/// pattern paid the whole bill to discover it had no spatial vertices at all.
+///
+/// Measured on a synthetic grid with no non-classic crease anywhere: 4.5ms for
+/// Oriedita's `check4` against **234ms** once this ran, a 52x regression on
+/// every existing document for no result. The scan below is linear and settles
+/// it before any index is built.
 pub fn spatial_vertex_reports(model: &CreasePatternModel) -> Vec<SpatialVertexReport> {
+    if !has_non_classic_creases(model) {
+        return Vec::new();
+    }
     let vertices = point_line_map(model);
     let through = ThroughLineIndex::build(model);
 
@@ -711,7 +739,12 @@ pub struct DispatchedCamv {
 
 pub fn dispatched_camv(model: &CreasePatternModel) -> DispatchedCamv {
     let vertices = point_line_map(model);
-    let through = ThroughLineIndex::build(model);
+    // Only the spatial branch consults this, and it walks every segment to
+    // build. `Spatial` requires a non-classic crease somewhere, so on a flat
+    // document there is nothing to consult it for — and this runs after every
+    // edit. Building it unconditionally cost 234ms on a 7,320-segment flat
+    // pattern where Oriedita's own check takes 4.5ms.
+    let through = has_non_classic_creases(model).then(|| ThroughLineIndex::build(model));
     let mut flat = Vec::new();
     let mut spatial = Vec::new();
 
@@ -725,8 +758,11 @@ pub fn dispatched_camv(model: &CreasePatternModel) -> DispatchedCamv {
                 }
             }
             VertexRegime::Spatial => {
-                if is_interior_vertex(&lines) {
-                    spatial.push(report_for(point, &lines, &through));
+                // `Spatial` means an incident crease is non-classic, which is
+                // exactly when the index was built, so this never skips a real
+                // vertex — it just avoids an unwrap on the invariant.
+                if let (true, Some(through)) = (is_interior_vertex(&lines), through.as_ref()) {
+                    spatial.push(report_for(point, &lines, through));
                 }
             }
         }
