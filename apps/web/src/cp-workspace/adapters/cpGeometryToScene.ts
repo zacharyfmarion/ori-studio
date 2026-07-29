@@ -1,5 +1,6 @@
+import { applyFoldAngleRamp } from '../foldAngle/foldAngleRamp';
 import { lineColorName, SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import type { StrokeGeometry } from '../renderer/types';
+import type { Rgba, StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
 import type {
   CpDashPatterns,
@@ -26,7 +27,12 @@ export function cpGeometryStrokesToScene(
   appearanceFor: CpLineAppearanceFor,
   dashPatterns: CpDashPatterns,
   selection?: CpSelectionStyle,
-  move?: CpTransformPreview
+  move?: CpTransformPreview,
+  /**
+   * Canvas colour that shallow fold angles wash toward. Omit to disable the
+   * fold-angle ramp entirely (classic rendering).
+   */
+  foldAngleCanvas?: Rgba
 ): { strokes: StrokeGeometry } {
   const endpoints = transport.segEndpoints;
   const attr = transport.segAttr;
@@ -74,7 +80,12 @@ export function cpGeometryStrokesToScene(
       appearance = appearanceFor(lineColorName(colorNumber));
       appearanceCache.set(colorNumber, appearance);
     }
-    const rgba = appearance.color;
+    // Ramp is applied after the colour-keyed cache: hue is the crease's
+    // direction (cacheable), lightness is its magnitude (per segment).
+    const rgba =
+      foldAngleCanvas === undefined
+        ? appearance.color
+        : applyFoldAngleRamp(appearance.color, transport.segFoldMagnitude?.[i], foldAngleCanvas);
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];

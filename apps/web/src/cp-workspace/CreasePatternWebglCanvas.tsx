@@ -1088,11 +1088,31 @@ export function CreasePatternWebglCanvas({
       // path. The two builders are byte-identical (guarded by the parity gate), so
       // the structured fallback below is only for the rare state that carries no
       // geometry (e.g. a fixture); it never runs on a real edit.
+      // Shallow fold angles wash toward the canvas, so the ramp needs the same
+      // colour the frame clears to.
+      const foldAngleCanvas = readCssVarColor(
+        document.documentElement,
+        CANVAS_BG_VAR,
+        FALLBACK_CLEAR
+      );
       if (geometry) {
-        return cpGeometryStrokesToScene(geometry, appearanceFor, dashPatterns, selection, move)
-          .strokes;
+        return cpGeometryStrokesToScene(
+          geometry,
+          appearanceFor,
+          dashPatterns,
+          selection,
+          move,
+          foldAngleCanvas
+        ).strokes;
       }
-      return cpSnapshotToScene(lineSegments, appearanceFor, dashPatterns, selection, move).strokes;
+      return cpSnapshotToScene(
+        lineSegments,
+        appearanceFor,
+        dashPatterns,
+        selection,
+        move,
+        foldAngleCanvas
+      ).strokes;
     },
     // currentTheme drives DOM-resolved colours; rebuild callers on theme change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
