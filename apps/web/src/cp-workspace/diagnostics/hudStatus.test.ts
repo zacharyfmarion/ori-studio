@@ -53,20 +53,24 @@ describe('the collapsed HUD subtitle', () => {
   it('never surfaces the kernel summary when structured entries exist', () => {
     // "Check CAMV found 2 issue(s)" — raw English that bypasses i18n, and a
     // survivor of the CAMV rename. It must not reach the UI through this path.
-    for (const count of [1, 2, 4]) {
+    for (const count of [0, 1, 2, 4]) {
       const entries = Array.from({ length: count }, (_, i) => violation(i + 1));
       expect(diagnosticHudStatus(t, camv(entries))?.detail ?? '').not.toMatch(/CAMV/u);
     }
   });
 
-  it('falls back to the kernel string only when there are no entries at all', () => {
-    // Some checks report a summary and no per-item entries. Suppressing the
-    // subtitle there would leave the HUD with nothing but a count of zero.
-    const result: OristudioCpCommandResult = {
+  it('says nothing extra on a clean result', () => {
+    // The no-entries case *is* the clean case, and the kernel's summary there is
+    // "Check CAMV found 0 issue(s)" — a restatement of the headline, in raw
+    // English, under a name the UI stopped using. It reached the screen until a
+    // fixture with no violations was opened.
+    const clean: OristudioCpCommandResult = {
       ...camv([]),
-      diagnostics: ['Boundary is not flat-foldable'],
+      diagnostics: ['Check CAMV found 0 issue(s)'],
     };
-    expect(diagnosticHudStatus(t, result)?.detail).toBe('Boundary is not flat-foldable');
+    const status = diagnosticHudStatus(t, clean);
+    expect(status?.label).toBe('Foldability OK');
+    expect(status?.detail).toBeNull();
   });
 });
 
@@ -90,6 +94,12 @@ describe('tone and count', () => {
     const clean: OristudioCpCommandResult = { ...camv([]), diagnostics: ['no issues'] };
     expect(diagnosticHudStatus(t, clean)?.tone).toBe('ok');
     expect(diagnosticHudStatus(t, clean, { issueOnly: true })).toBeNull();
+  });
+
+  it('still returns null when the kernel reported nothing to summarise', () => {
+    // Distinct from a clean result: no diagnostics at all means the check has
+    // not run, and the HUD should not appear rather than claim OK.
+    expect(diagnosticHudStatus(t, { ...camv([]), diagnostics: [] })).toBeNull();
   });
 });
 

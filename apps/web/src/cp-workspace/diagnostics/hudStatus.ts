@@ -11,10 +11,13 @@
  * A subtitle appears **only when there is exactly one issue to name**. With
  * several, any one of them reads as *the* problem rather than as a sample; the
  * count in the headline says it better alone, and expanding the HUD is how you
- * see the rest.
+ * see the rest. With none, the headline is already the whole message.
  *
- * With no structured entries at all the kernel's own string is the only content
- * there is, so it still stands in.
+ * The kernel's own summary string is never shown. It is a count — "Check CAMV
+ * found 0 issue(s)" — so it only ever restates the headline, in raw English that
+ * never passed through i18n, under a name the UI stopped using. An earlier
+ * version kept it as a fallback for the no-entries case; that case is exactly
+ * the clean result, where it was pure noise.
  */
 import type { TFunction } from 'i18next';
 import type {
@@ -73,12 +76,7 @@ export function diagnosticHudStatus(
   const label = diagnosticOperationLabel(t, result.operation);
   const errorCount = entries.filter((entry) => entry.severity === 'error').length;
   const warningCount = entries.filter((entry) => entry.severity === 'warning').length;
-  const detail =
-    entries.length === 1 && entries[0]
-      ? cpDiagnosticEntryMessage(t, entries[0])
-      : entries.length === 0
-        ? result.diagnostics[0]
-        : null;
+  const detail = entries.length === 1 && entries[0] ? cpDiagnosticEntryMessage(t, entries[0]) : null;
 
   if (errorCount > 0) {
     return {
