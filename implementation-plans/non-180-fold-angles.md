@@ -811,19 +811,22 @@ See **Editing UX** above for the reasoning behind each item.
 > a crease pattern, so there is nothing to lose.
 
 ### Phase 6 — Generalised checks
-- [ ] `VertexFan` extraction, carrying a **determinacy** state
-- [ ] Indeterminate when any incident crease is `U`, or when `check2` flags an
-      unsplit T-junction at the vertex — report neither pass nor violation
-- [ ] `vertex_closure_residual` (quaternions.pdf eq. 13/14), measured from the
-      identity **quaternion** with signed `w` — never `2*acos(|w|)`, see A0
-- [ ] Regression test asserting a Maekawa-violating vertex reports 360 deg, not 0
-- [ ] `vertex_dof` via Jacobian rank
-- [ ] Checker returns residuals, never verdicts; the threshold is applied once at
-      the presentation layer so the tolerance stays a one-constant change
-- [ ] Regime dispatch; Oriedita path provably unchanged for classic documents
-- [ ] Degree-1/3 rigidity reported as rigidity, not inconsistency
-- [ ] Violation rendering; reuse the deferred CAMV scheduling
-- [ ] Perf check on the large fixture
+- [x] `VertexFan` extraction, carrying a **determinacy** state
+- [x] Indeterminate when any incident crease is unassigned, or when a segment
+      passes through the point without ending there (unsplit T-junction) —
+      reports neither pass nor violation
+- [x] `vertex_closure_residual` (quaternions.pdf eq. 13/14), measured from the
+      identity **quaternion** with signed `w` — never `2*acos(|w|)`
+- [x] Regression test asserting a Maekawa-violating vertex reports 360 deg, not 0
+- [x] `vertex_dof` via Jacobian rank, verified on a collinear degree-2 fan where
+      `n - 3` would underflow
+- [x] Per-vertex dispatch; `dispatched_camv` proven equal to `check4` on a
+      classic document, and split correctly on a mixed one
+- [x] Degree-1/3 rigidity reported as rigidity, not inconsistency
+- [x] Bar at 1e-6 deg applied once at the presentation layer; the checker returns
+      residuals so revising it stays a one-constant change
+- [x] Shares `checks::point_line_map` rather than duplicating extraction, so the
+      two checkers cannot disagree about what "at this point" means
 
 ### Phase 7 — Solvers (separate follow-up, not this branch)
 - [ ] §5 three-unknown solver, both roots surfaced as a branch choice

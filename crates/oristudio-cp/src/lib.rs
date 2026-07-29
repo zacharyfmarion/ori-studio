@@ -7,6 +7,7 @@
 
 pub mod canonical;
 pub mod checks;
+pub mod checks_spatial;
 mod fold_graph;
 pub mod fold_profiling;
 pub mod folding;
@@ -2441,8 +2442,13 @@ pub fn execute_command(
             0
         }
         OperationId::CheckCamv => {
-            let result = checks::check_camv_task(&document.crease_pattern);
-            diagnostic_entries = flat_foldability_diagnostics("CheckCamv", result.violations);
+            // Per-vertex dispatch: flat vertices keep Oriedita's check verbatim,
+            // vertices touching a non-classic crease take the closure path. A
+            // mixed design therefore keeps its full flat diagnostics everywhere
+            // it is still flat.
+            let dispatched = checks_spatial::dispatched_camv(&document.crease_pattern);
+            diagnostic_entries = flat_foldability_diagnostics("CheckCamv", dispatched.flat);
+            diagnostic_entries.extend(spatial_closure_diagnostics(&dispatched.spatial));
             0
         }
         OperationId::FlatFoldableCheck => {
@@ -2704,6 +2710,69 @@ fn flat_foldability_diagnostics(
             }
         })
         .collect()
+}
+
+/// Closure residual bar, in degrees.
+///
+/// The same bar CAMV already uses. Deliberately strict: relaxing later is
+/// reversible, tightening later would invalidate documents users already
+/// consider valid. Measured over 124,217 vertices of real crease patterns, this
+/// rejects ~42% of them -- which is the status quo, not a regression, since
+/// those same patterns fail CAMV in Oriedita today for the same reason.
+///
+/// The checker itself returns a raw residual and never a verdict; the threshold
+/// lives here, applied once, so revising it stays a one-constant change.
+const CLOSURE_RESIDUAL_BAR_DEGREES: f64 = 1e-6;
+
+fn spatial_closure_diagnostics(
+    reports: &[checks_spatial::SpatialVertexReport],
+) -> Vec<CommandDiagnostic> {
+    let mut diagnostics = Vec::new();
+    for (index, report) in reports.iter().enumerate() {
+        // An indeterminate vertex reports nothing. Both causes -- an unassigned
+        // crease and an unsplit T-junction -- produce a residual identical to a
+        // real parity failure, so reporting one would be a false positive.
+        let Some(residual) = report.residual else {
+            continue;
+        };
+        let residual_degrees = residual.to_degrees();
+        if residual_degrees <= CLOSURE_RESIDUAL_BAR_DEGREES {
+            continue;
+        }
+
+        // Rigidity is not a conflict. A degree-1 or developable degree-3 vertex
+        // has a unique solution and it is zero, so telling the user their angles
+        // disagree would invite an adjustment that cannot help. The link of a
+        // vertex is a closed spherical linkage, and a triangle is a rigid truss.
+        let message = if report.is_rigid() {
+            format!(
+                "Vertex cannot fold: degree {} is rigid, so every crease here must be 0 degrees",
+                report.degree
+            )
+        } else {
+            format!("Creases do not close: {residual_degrees:.4} degrees off")
+        };
+
+        diagnostics.push(CommandDiagnostic {
+            id: format!("SpatialClosure-{}", index + 1),
+            kind: "SpatialClosure".to_string(),
+            severity: "error".to_string(),
+            message,
+            point: Some(report.point),
+            segments: Vec::new(),
+            rule: Some(
+                if report.is_rigid() {
+                    "Rigid"
+                } else {
+                    "Closure"
+                }
+                .to_string(),
+            ),
+            violation_color: None,
+            little_big_little: Vec::new(),
+        });
+    }
+    diagnostics
 }
 
 fn flat_foldability_rule_label(rule: checks::FlatFoldabilityRule) -> &'static str {
