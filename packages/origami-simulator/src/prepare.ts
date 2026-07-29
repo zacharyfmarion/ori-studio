@@ -444,12 +444,11 @@ function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics):
       diagnostics.warnings.push(`face ${faceIndex} could not be triangulated`);
       continue;
     }
-    const ring: Triangle[] = [];
-    for (let i = 0; i < triangles.length; i += 3) {
-      ring.push([triangles[i] ?? 0, triangles[i + 1] ?? 0, triangles[i + 2] ?? 0]);
-    }
-    delaunayFlipRing(coords, ring);
-
+    // earcut's output stands, as upstream's does (pattern.js `triangulatePolys`).
+    // It triangulates for validity, not quality, so a long thin ring can come
+    // back as slivers; upstream's answer to a model that then will not settle is
+    // a smaller timestep, not a better mesh.
+    //
     // earcut normalises its ring's winding internally, so its triangles can come
     // back wound against the source face (mapbox/earcut#44) -- and against the
     // sheet's 3- and 4-vertex faces, which pass through untouched. Half the
@@ -458,8 +457,11 @@ function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics):
     // winding too, by finding its first ring edge among the triangles and
     // flipping all of them; per-triangle signed area needs no such search.
     const ringSign = Math.sign(ringSignedArea(coords));
-    for (const [a, b, c] of ring) {
-      const oriented: Triangle =
+    for (let i = 0; i < triangles.length; i += 3) {
+      const a = triangles[i] ?? 0;
+      const b = triangles[i + 1] ?? 0;
+      const c = triangles[i + 2] ?? 0;
+      const oriented =
         ringSign !== 0 && Math.sign(triangleSignedArea(coords, a, b, c)) === -ringSign
           ? [a, c, b]
           : [a, b, c];
@@ -473,120 +475,6 @@ function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics):
       appendEdgeIfMissing(fold, edgeIndex, a, b);
     }
   }
-}
-
-type Triangle = [number, number, number];
-
-/**
- * Flip a triangulated ring's interior diagonals toward the constrained Delaunay
- * triangulation, which is the one that maximises the smallest angle.
- *
- * earcut is an ear-clipping triangulator: fast, always valid, and with no
- * quality guarantee whatsoever. Crease patterns are full of long thin polygons
- * -- a pleat band 200 units long and 8 tall is ordinary -- and on those it
- * happily spans a corner to the far end of the strip instead of zig-zagging
- * across it, producing triangles whose smallest angle is a tenth of a degree.
- *
- * That is not cosmetic. The solver's crease force divides by the moment arm,
- * the adjacent triangle's height from the crease edge, so a sliver hands the
- * explicit integrator a force hundreds of times larger than its timestep was
- * chosen for and the model never settles.
- *
- * This pass is a DELIBERATE DIVERGENCE from upstream, not a parity fix. Upstream's
- * FOLD path (pattern.js `triangulatePolys`) calls earcut and keeps whatever it
- * returns, so it produces these slivers too -- its own dense tessellations just
- * never settle, and the user is told to lower the timestep by hand. Only its
- * separate curved-folding path (curvedFolding.js) triangulates for quality, with
- * cdt2d plus an orthogonality-driven edge-swap loop.
- *
- * Delaunay is the weaker, unconditional half of what that loop does: it maximises
- * the smallest angle, which is exactly the property the moment arm depends on,
- * and it needs no new dependency. Ring edges are real creases and never move --
- * only the diagonals earcut invented. The legality test below is upstream's
- * `cross` from that same loop.
- */
-function delaunayFlipRing(coords: number[], triangles: Triangle[]): void {
-  const ringLength = coords.length / 2;
-  const constrained = new Set<number>();
-  for (let i = 0; i < ringLength; i += 1) constrained.add(edgeKey(i, (i + 1) % ringLength));
-
-  // Bounded like upstream's swap loop. Flipping strictly increases the sorted
-  // angle vector so it terminates on exact arithmetic, but a near-cocircular
-  // quad can still flip back and forth in floating point.
-  const maxFlips = triangles.length * 8 + 32;
-  for (let flips = 0; flips < maxFlips; flips += 1) {
-    if (!flipOnce(coords, triangles, constrained)) return;
-  }
-}
-
-function flipOnce(coords: number[], triangles: Triangle[], constrained: Set<number>): boolean {
-  const shared = new Map<number, number[]>();
-  triangles.forEach((triangle, index) => {
-    for (let k = 0; k < 3; k += 1) {
-      const key = edgeKey(triangle[k]!, triangle[(k + 1) % 3]!);
-      const owners = shared.get(key);
-      if (owners) owners.push(index);
-      else shared.set(key, [index]);
-    }
-  });
-
-  for (const [key, owners] of shared) {
-    if (owners.length !== 2 || constrained.has(key)) continue;
-    const [first, second] = owners as [number, number];
-    const left = triangles[first]!;
-    const right = triangles[second]!;
-    const diagonal = left.filter((vertex) => right.includes(vertex));
-    if (diagonal.length !== 2) continue;
-    const [u, v] = diagonal as [number, number];
-    const p = left.find((vertex) => vertex !== u && vertex !== v);
-    const q = right.find((vertex) => vertex !== u && vertex !== v);
-    if (p === undefined || q === undefined) continue;
-
-    // Upstream's `cross` test: the replacement diagonal has to actually lie
-    // inside the quad, or the "flip" would fold one triangle over the other.
-    if (!properlyCrosses(coords, u, v, p, q)) continue;
-    if (!inCircumcircle(coords, u, v, p, q)) continue;
-
-    triangles[first] = [u, p, q];
-    triangles[second] = [p, v, q];
-    return true;
-  }
-  return false;
-}
-
-/** True when segments `a`-`b` and `c`-`d` cross at an interior point of both. */
-function properlyCrosses(coords: number[], a: number, b: number, c: number, d: number): boolean {
-  const side = (p: number, q: number, r: number) => Math.sign(triangleSignedArea(coords, p, q, r));
-  const cd1 = side(a, b, c);
-  const cd2 = side(a, b, d);
-  const ab1 = side(c, d, a);
-  const ab2 = side(c, d, b);
-  return cd1 !== 0 && ab1 !== 0 && cd1 === -cd2 && ab1 === -ab2;
-}
-
-/**
- * The Delaunay criterion: is `d` strictly inside the circumcircle of `a`,`b`,`c`?
- * The tolerance scales as length^4 like the determinant does, so a cocircular
- * quad reads as "not inside" from both sides and the flip loop settles.
- */
-function inCircumcircle(coords: number[], a: number, b: number, c: number, d: number): boolean {
-  let second = b;
-  let third = c;
-  if (triangleSignedArea(coords, a, second, third) < 0) [second, third] = [third, second];
-
-  const dx = coords[d * 2]!;
-  const dy = coords[d * 2 + 1]!;
-  const ax = coords[a * 2]! - dx, ay = coords[a * 2 + 1]! - dy;
-  const bx = coords[second * 2]! - dx, by = coords[second * 2 + 1]! - dy;
-  const cx = coords[third * 2]! - dx, cy = coords[third * 2 + 1]! - dy;
-
-  const determinant =
-    (ax * ax + ay * ay) * (bx * cy - by * cx) -
-    (bx * bx + by * by) * (ax * cy - ay * cx) +
-    (cx * cx + cy * cy) * (ax * by - ay * bx);
-
-  const scale = Math.max(Math.abs(ax), Math.abs(ay), Math.abs(bx), Math.abs(by), Math.abs(cx), Math.abs(cy));
-  return determinant > scale ** 4 * 1e-9;
 }
 
 /**
