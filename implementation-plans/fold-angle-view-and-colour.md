@@ -4,24 +4,29 @@
 
 Two refinements to how non-180 creases read on the canvas:
 
-1. A **View-panel toggle** for fold-angle display, beside the existing CAMV
+1. A **View-panel toggle** for the fold-angle labels, beside the existing CAMV
    toggle.
 2. A **colour mapping** that distinguishes angles, replacing the lightness ramp —
    which failed twice: too weak to signal the angle, yet strong enough to make a
    third of a pattern look thinner.
 
-They turn out to be one design, not two, which is the main finding below.
+Colour is unconditional; the toggle governs only the badges.
 
 ## Part 1 — The view toggle
 
-Straightforward, and it slots into an existing pattern.
+The toggle controls the **numeric badges only**. Crease colour is unconditional:
+a non-180 crease always looks different from a full fold, in every view, with no
+way to turn that off. Colour is what the angle *is*; the badge is the readout you
+may or may not want cluttering a dense pattern.
 
 - `camvIssuesVisible?: boolean` already lives on `OristudioCpViewportOptions`
   (`lib/creasePatternViewport.ts:84`), is rendered by `CpViewControlsPanel`, and
-  persists through `.osf` `viewState.viewport`. `foldAnglesVisible` follows it
+  persists through `.osf` `viewState.viewport`. The new option follows it
   exactly — same shape, same panel, same persistence, no new machinery.
-- Default **on**. A user who has set fold angles wants to see them; a classic
-  document is unaffected either way because it has none.
+- Both badges and colour default **on**.
+- **Name it for what it does**: `foldAngleLabelsVisible`, shown as "Fold angle
+  labels". Calling it "fold angles" would imply turning it off removes the angle
+  treatment entirely, and it does not — the creases stay coloured.
 
 ## Part 2 — The colour mapping
 
@@ -81,11 +86,13 @@ magenta and blue→magenta both travel the *short* way round the hue wheel witho
 crossing neutral. Its cost is collision: 90° valley `#9c76f4` sits ΔE 18 from
 Purple8, and the mountain half runs through Magenta5.
 
-### Always on, and it does not reintroduce the thinning
+### Unconditional, and it does not reintroduce the thinning
 
-Angle colour is **on in the default view**. The Magenta5/Purple8 collision is
-accepted: those aux colours are rare enough in practice that trading them for an
-always-visible signal is the right call.
+Angle colour is **always on** — not gated, not defaulted-on-but-disableable. A
+non-180 crease is a different thing from a full fold, so it should never be able
+to masquerade as one. The Magenta5/Purple8 collision is accepted: those aux
+colours are rare enough that trading them for a permanent signal is the right
+call.
 
 The obvious worry is repeating the regression the lightness ramp caused — a
 third of the pattern reading as thinner. Measured, it does not, and the reason
@@ -127,35 +134,28 @@ encodings (`Red1+0` and `Blue2+0`) because they preserve the user's stated
 direction. Rendering them as distinct colours is consistent with keeping them as
 distinct states.
 
-### What the toggle does, then
-
-It hides the **whole** fold-angle treatment — colour and badges together —
-returning the canvas to plain Oriedita rendering. Default on, so angle colour is
-visible out of the box.
-
-Gating both together rather than badges alone avoids the confusing middle state
-where creases are magenta with nothing on screen explaining why.
-
 ## Affected Areas
 
-- `apps/web/src/lib/creasePatternViewport.ts` — `foldAnglesVisible`
+- `apps/web/src/lib/creasePatternViewport.ts` — `foldAngleLabelsVisible`
 - `apps/web/src/components/panels/CpViewControlsPanel.tsx` — the toggle
 - `apps/web/src/cp-workspace/foldAngle/foldAngleRamp.ts` — replace the wash with
-  the diverging ramp; it becomes mode-gated rather than always-on
+  the diverging ramp; stays unconditional
 - `apps/web/src/cp-workspace/adapters/{cpGeometryToScene,cpSnapshotToScene}.ts` —
   both builders, kept in step for the parity gate
-- `apps/web/src/cp-workspace/foldAngle/CpFoldAngleLayer.tsx` — gate badges
+- `apps/web/src/cp-workspace/foldAngle/CpFoldAngleLayer.tsx` — gate badges on the
+  new option
 - `apps/web/src/styles/theme.css` — the anchor token, per theme
 
 ## Checklist
 
-- [ ] `foldAnglesVisible` on `OristudioCpViewportOptions`, defaulting on
-- [ ] Toggle in `CpViewControlsPanel` beside CAMV issues, with i18n across 8 locales
+- [ ] `foldAngleLabelsVisible` on `OristudioCpViewportOptions`, defaulting on
+- [ ] Toggle in `CpViewControlsPanel` beside CAMV issues, labelled "Fold angle
+      labels", with i18n across 8 locales
 - [ ] Persists through `.osf` `viewState.viewport` (no schema change — the field
       is already a free-form viewport bag)
-- [ ] Badges gate on it
-- [ ] Crease colouring gates on it (colour and badges hide together)
-- [ ] Angle colour is **on by default**
+- [ ] **Badges** gate on it
+- [ ] **Colour does not** — test that a non-180 crease still renders differently
+      with the toggle off, so the two can never be wired together by mistake
 - [ ] Ramp stops at 60% toward the anchor; test asserting M/V stay above a ΔE
       floor across 0–180, so a later tweak cannot let them converge
 - [ ] Diverging ramp anchored on a new `--fold-angle-anchor` token, per theme
@@ -164,7 +164,10 @@ where creases are magenta with nothing on screen explaining why.
       reintroduce the grey middle
 - [ ] Classic creases return their ink by identity in both modes
 - [ ] Parity gate extended to the new ramp, with the non-vacuity assertion
-- [ ] Golden test: toggle off renders identically to pre-fold-angle Ori Studio
+- [ ] Golden test: a document with **no** fold angles renders identically to
+      pre-fold-angle Ori Studio. Note this is now the only such invariant — with
+      colour unconditional, a document that *has* angles never renders the old
+      way, by design
 - [ ] Test asserting the ramp holds luminance — this is what separates it from
       the wash ramp that made lines look thin, and it is easy to lose
 
@@ -179,9 +182,11 @@ where creases are magenta with nothing on screen explaining why.
 
 ## Resolved
 
-- **Angle colour is on by default**, not gated. The Magenta5/Purple8 collision is
+- **Angle colour is unconditional.** Not gated, not disableable. A non-180 crease
+  must never be able to look like a full fold. The Magenta5/Purple8 collision is
   accepted as an edge case.
+- **The toggle controls badges only**, and is named `foldAngleLabelsVisible` /
+  "Fold angle labels" so it does not imply otherwise. Both it and colour default
+  on.
 - **The ramp stops at 60% toward the anchor**, so mountain and valley never
   converge (ΔE 41 at worst, versus 0 for a full ramp).
-- **The toggle hides colour and badges together**, avoiding a state where creases
-  are magenta with nothing explaining why.
