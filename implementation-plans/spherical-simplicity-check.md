@@ -83,11 +83,15 @@ touching a non-classic crease, a small fraction of a typical pattern.
 great circle through a, b   ->  normal  n = a × b
 two circles meet at         ->  ±(n₁ × n₂)
 p is within arc (a,b)       ->  (a × p)·n ≥ 0  and  (p × b)·n ≥ 0
+transversality of a meeting ->  |n₁ × n₂| / (|n₁||n₂|)
 ```
 
-Adjacent arcs share an endpoint by construction and are skipped. Degenerate
-inputs — coincident or antipodal circles, zero-length arcs — need explicit
-handling rather than falling out.
+Adjacent arcs share an endpoint by construction and are skipped.
+
+**A meeting only counts when it is transverse.** A tangential meeting is two
+layers of paper lying against each other, which is legal and is what a crease at
+±180 produces by construction — see Q6. This is the part the first draft of this
+plan got wrong.
 
 ### Getting the convention right by invariant, not by algebra
 
@@ -223,11 +227,112 @@ knowing — degree-4 is the common case — but it is evidence, not proof, and t
 sample is biased: the solver fails on some fans and the survivors may be the
 better-conditioned ones. Do not turn it into a fast path that skips degree-4.
 
+### Q6 — a crease at exactly ±180 breaks the criterion, and the fix is transversality
+
+**The gap this study found, and the one that would have shipped a wrong check.**
+
+`vertex_regime` sends a vertex to the spatial path if **any** crease is
+non-classic. So a vertex with three ±180 creases and one at 90° — a box with
+flat-folded flaps, which the kernel's own comments call the expected case —
+lands here.
+
+At `rho = ±180` the link curve's interior angle is 0: the curve **doubles back on
+itself**. It is non-injective by construction, so "is this curve simple" answers
+*no* on a perfectly legal configuration. Two layers of paper lying against each
+other is what flat folding *is*.
+
+Measured on a degree-5 fan with creases progressively pinned at ±180: 0 flats →
+Simple, 1 flat → Simple, 2 flats → **SelfIntersects**. A false positive.
+
+The fix is to split contacts by **transversality** — the sine of the angle
+between the two great circles where the arcs meet:
+
+- **transverse** (real angle) → the surfaces cross → paper through paper
+- **tangential** (collinear arcs) → the surfaces coincide over a region → layers
+  touching, which is legal
+
+That is not a heuristic; it is the difference between a transverse and a
+tangential intersection of two surfaces. And it is computationally clean —
+5,146 crossings sampled across degrees 5–7 with 0–4 pinned creases:
+
+| transversality | count |
+| --- | --- |
+| < 1e-12 | 1520 |
+| 1e-12 .. 1e-9 | **0** |
+| 1e-9 .. 1e-6 | **0** |
+| 1e-6 .. 1e-3 | 4 |
+| 1e-3 .. 0.1 | 99 |
+| > 0.1 | 3523 |
+
+Bimodal with an **empty gap spanning four orders of magnitude**. Any threshold in
+1e-12 .. 1e-6 works; 1e-9 sits in the middle of the gap. No tuning required —
+the same conclusion Q4 reached about the in-arc slack.
+
+### Q7 — validation on canonical origami: zero false positives
+
+Random closed fans self-intersect often (12% at degree 5 rising to 39% at degree
+7, and higher with creases pinned flat). **That is not evidence of false
+positives** — it is the methodological trap in this whole exercise. Closure is
+necessary but nowhere near sufficient for a sensible design, so most of the
+closure variety *is* garbage, and finding it is the check working.
+
+The validation that counts is known-valid vertices swept along their folding
+paths:
+
+| vertex | sectors | fold states 5°–179° |
+| --- | --- | --- |
+| Miura deg-4 (a=60) | 60/120/60/120 | clean |
+| Miura deg-4 (a=75) | 75/105/75/105 | clean |
+| box-pleat deg-4 | 90/90/90/90 | clean |
+| box-pleat deg-4 | 45/135/45/135 | clean |
+| waterbomb deg-6 | 90/45/45/90/45/45 | clean |
+| regular deg-6 | 60×6 | clean |
+| regular deg-8 | 45×8 | clean |
+
+**63 known-valid configurations, zero transverse crossings, zero tangential
+contacts.** No false positive anywhere on the folding path, including at 179°.
+
+Realistic *mixed* vertices — canonical sectors with one crease pinned at ±180 —
+came out clean in 7 of 8 cases, including `box-pleat [180, -89, 180, 89]`. The
+eighth (a waterbomb with crease 1 pinned) flags two transverse crossings.
+
+**That one is unadjudicated**, and it is the honest residual risk: the solver
+found *some* closed completion, not a designed one, and I have no independent way
+to say whether it is physically valid. It is not evidence of a false positive; it
+is an absence of evidence either way.
+
+### Q8 — the flat-limit oracle plan was ill-posed
+
+This document proposed validating against Oriedita's LBL by taking a
+BLB-violating vertex and perturbing it just off flat.
+
+**That cannot be done, and not because of the solver.** Warm-starting from the
+exact flat solution (residual 3.1e-14) and walking down, no closed configuration
+exists at 180−ε for ε from 0.001° to 10°. A BLB-violating assignment closes
+*only* at the flat state.
+
+Which is a better outcome than the test I wanted: the configuration the check
+would have to catch near flat **does not exist**, so it never has to. My earlier
+"the solver wouldn't converge" diagnosis was wrong — the family is empty.
+
+Near-flat validation comes from Q9 instead.
+
+### Q9 — near-flat detection does work
+
+Taking a Q5 fan known to self-intersect and continuing it toward flat with a
+warm start at every step, closure held (residual 8.5e-12) and the verdict stayed
+**SelfIntersects all the way to max|rho| = 179.999°**, with zero degenerate
+skips. Detection does not thin out as the flat boundary is approached.
+
 ### Verdict
 
-Build it. The primitive is correct, the construction is pinned by a physical
-invariant, the near-flat numerics turned out benign rather than delicate, and
-the check catches real configurations that nothing else in the app catches.
+Build it — with **transversality filtering, which was not in the original
+design**. Without it the check false-positives on any vertex carrying a fully
+folded crease, which is a common and legal configuration.
+
+With it: correct primitive, construction pinned by a physical invariant, benign
+numerics with no tuned tolerances anywhere, no false positive across 63
+known-valid configurations, and detection that holds to 179.999°.
 
 ## Affected Areas
 
@@ -244,11 +349,20 @@ the check catches real configurations that nothing else in the app catches.
 - [x] Spike 3 — agrees with Oriedita on the clean case; declines at exactly flat
 - [x] Spike 4 — conditioning tracks `sin(180-|rho|)`, no cliff, slack-insensitive
 - [x] Spike 5 — self-intersection is reachable (0% at degree 4, 4-13% at 5-7)
-- [ ] Near-flat detection of a *violating* fan — unvalidated, needs a fixture
+- [x] Q6 — **transversality filter**, without which any vertex carrying a fully
+      folded crease false-positives
+- [x] Q7 — zero false positives across 63 known-valid canonical configurations
+- [x] Q8 — the LBL-perturbation oracle is impossible, and does not need to exist
+- [x] Q9 — near-flat detection holds to 179.999 degrees
+- [ ] Adjudicate a flagged *mixed* vertex (canonical sectors, one crease at 180).
+      No independent way to say whether the flagged case is physically valid
 - [ ] Polygon builder sharing the closure chain, not a second implementation
 - [ ] Arc-arc intersection with explicit degenerate handling
+- [ ] **Transverse-only contact counting**, threshold 1e-9 (mid-gap)
+- [ ] Test: a vertex with a crease at exactly 180 does not false-positive
+- [ ] Test: the canonical vertices stay clean across their folding paths
 - [ ] Simplicity test, adjacency-skipping, O(n²)
-- [ ] Near-flat policy: refuse rather than guess, if the spike says so
+- [x] ~~Near-flat policy~~ — not needed; Q4/Q9 show no thinning of detection
 - [ ] Indeterminate fans report nothing, same as closure
 - [ ] Diagnostic kind, message, glyph, 8 locales
 - [ ] Oracle suite green with no fixture edits
@@ -258,7 +372,8 @@ the check catches real configurations that nothing else in the app catches.
 | # | Risk | Mitigation |
 | --- | --- | --- |
 | R1 | ~~Near-flat numerical instability~~ | **RETIRED by the spike.** Conditioning thins smoothly as `sin(180-\|rho\|)` with no cliff, and the verdict is identical for slack from 0 to 1e-6. No tuned tolerance needed. The only failure is exact flat, which dispatch already routes to LBL |
-| R2 | No external oracle for the far-from-flat regime | Flat-limit agreement with Oriedita LBL covers the near-flat end; the rest gets hand-argued fixtures. State the limit rather than implying full coverage |
+| R2 | No external oracle at all — **the LBL-perturbation plan turned out impossible (Q8)** | Replaced by canonical-vertex sweeps: seven real origami vertices across their folding paths, which is a stronger test than a single perturbed fixture. State the limit: a flagged *mixed* vertex still cannot be adjudicated |
+| R6 | Random-fan sampling read as a false-positive rate | It is not one. Most of the closure variety is genuinely invalid, so a high rate is the check working. Only known-valid fixtures measure false positives |
 | R3 | Wrong composition convention yields a plausible but wrong polygon | The arc-length invariant catches it, and is spike step 1 |
 | R4 | Scope creep into global self-intersection | Vertex-local only. Two distant parts of the sheet colliding is a different problem and stays out — the same line Phase 6 drew |
 | R5 | A second traversal drifts from `closure_product` | **Unavoidable — the spike showed the two compose in opposite directions**, so the polygon cannot ride the closure chain. Mitigate with the arc-length invariant as a test, which is what caught the error in the first place |
