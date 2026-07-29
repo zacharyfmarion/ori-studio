@@ -117,23 +117,38 @@ circle constructions build geometry from points, not from a crease.
 
 ## Checklist
 
-- [ ] `LineSegment::with_fold_magnitude_of`
-- [ ] Unit test: inheriting onto a border/auxiliary colour drops the magnitude
-- [ ] Unit test: order-independence — colour then magnitude is always safe
-- [ ] `mirror_selected_lines` inherits magnitude
-- [ ] `double_symmetric_draw` inherits magnitude
-- [ ] `symmetric_draw` inherits magnitude while keeping the active colour
-- [ ] `add_extended_line_segment` inherits magnitude in **both** colour modes
-- [ ] Per-operation test: reflecting/extending a 90° crease yields a 90° crease
-- [ ] Per-operation test: the active line type still decides M/V, and only that
-- [ ] Per-operation negative test: deriving from a classic crease stays classic,
-      so the change cannot invent angles
-- [ ] Regression test pinning `ContinuousSymmetricDraw`, which is correct today
-      only because it clones
-- [ ] Doc-comment on `with_line_color` pointing at the new method
-- [ ] Source-level guard against a fresh `with_line_color(<x>.color)` returning
-- [ ] Oracle suite green with no fixture edits
-- [ ] Rebuild the committed `.wasm`, or none of this reaches the app
+- [x] `LineSegment::with_fold_magnitude_of`
+- [x] Unit test: inheriting onto a border/auxiliary colour drops the magnitude
+- [x] `mirror_selected_lines` inherits magnitude
+- [x] `double_symmetric_draw` inherits magnitude
+- [x] `symmetric_draw` inherits magnitude while keeping the active colour
+- [x] `add_extended_line_segment` inherits magnitude in **both** colour modes
+- [x] Per-operation test: reflecting/extending a 90° crease yields a 90° crease
+- [x] Per-operation test: the active line type still decides M/V, and only that
+- [x] Per-operation negative test: deriving from a classic crease stays classic
+- [x] Regression test pinning `ContinuousSymmetricDraw`
+- [x] Doc-comment on `with_line_color` pointing at the new method
+- [x] Source-level guard against the old idiom returning
+- [x] Oracle suite green with no fixture edits (1078 passing)
+- [x] Committed `.wasm` rebuilt
+
+### Verified by reverting
+
+Every test was checked against a temporarily reverted fix. All four operations
+fail without it and pass with it; the guard names the offending line.
+
+Two tests passed the revert check on the first attempt and were **wrong**, which
+is the part worth recording:
+
+- `double_symmetric_draw` and `continuous_symmetric_draw` were guarded by
+  `if len > before`, and their fixtures produced no output at all — so both
+  passed vacuously. `double_symmetric_draw` needs an L- or T-shaped *touch*
+  against the drag axis, not a crossing (`is_double_symmetric_intersection`).
+- `lengthen_crease`'s first argument is the stroke dragged **across** the creases
+  to extend, not the crease itself. Passing the crease extended nothing, so the
+  test only ever inspected the untouched original.
+
+Both now assert they produced output before checking it.
 
 ## Preventing the fifth occurrence
 

@@ -188,6 +188,13 @@ impl LineSegment {
     /// magnitude across a mountain/valley swap: `change_mv` goes Red1 <-> Blue2,
     /// which negates rho and leaves `|rho|` alone, which is exactly right.
     /// Turning a crease into an edge or auxiliary line drops it.
+    ///
+    /// # Deriving one segment from another
+    ///
+    /// `derived.with_line_color(source.color)` carries only half a crease's
+    /// identity. Before fold angles existed, colour *was* the whole of it; now
+    /// the angle is the other half. If `derived` should fold the way `source`
+    /// folds, follow this with [`Self::with_fold_magnitude_of`].
     pub fn with_line_color(&self, color: LineColor) -> Self {
         let fold_magnitude = match color {
             LineColor::Red1 | LineColor::Blue2 => self.fold_magnitude,
@@ -212,6 +219,32 @@ impl LineSegment {
             fold_magnitude: magnitude.filter(|value| !value.is_full()),
             ..*self
         }
+    }
+
+    /// Inherit the fold magnitude from `source`, leaving the colour alone.
+    ///
+    /// Derived geometry — extend, reflect, mirror, copy — folds the way the
+    /// crease it came from folds. The line *type* may legitimately come from
+    /// somewhere else (the active type the user has selected), but *how far* a
+    /// crease folds is a property of the crease being transformed, and the
+    /// active type has never had anything to say about it.
+    ///
+    /// Magnitude-only, rather than copying colour too, precisely so each call
+    /// site states its own answer to "where does the family come from" while
+    /// the angle is handled identically everywhere:
+    ///
+    /// ```ignore
+    /// // same-as-original tools
+    /// derived.with_line_color(source.color).with_fold_magnitude_of(source)
+    /// // active-type tools
+    /// derived.with_line_color(active).with_fold_magnitude_of(source)
+    /// ```
+    ///
+    /// Applying it after the colour is safe in every case: it is a no-op on a
+    /// line that cannot carry a magnitude, so it can never smuggle an angle onto
+    /// a border or auxiliary line.
+    pub fn with_fold_magnitude_of(&self, source: &Self) -> Self {
+        self.with_fold_magnitude(source.fold_magnitude)
     }
 
     pub fn with_active(&self, active: ActiveState) -> Self {

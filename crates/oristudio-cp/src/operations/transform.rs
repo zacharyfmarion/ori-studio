@@ -631,11 +631,20 @@ fn add_extended_line_segment(
         return false;
     }
 
+    // The colour mode decides the *family* only. The angle is a property of the
+    // crease being extended, so it is inherited either way -- extending a 90
+    // degree crease yields a 90 degree crease whether the user asked for
+    // "same as original" or picked a line type.
     let color = match color_mode {
         LengthenColorMode::Current(color) => color,
         LengthenColorMode::SameAsOriginal => original.color,
     };
-    add_line_segment_like_worker(model, &add_segment.with_line_color(color));
+    add_line_segment_like_worker(
+        model,
+        &add_segment
+            .with_line_color(color)
+            .with_fold_magnitude_of(original),
+    );
     true
 }
 
