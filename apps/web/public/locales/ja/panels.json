@@ -219,6 +219,19 @@
       "wire": "ワイヤー"
     },
     "foldModelAction": "モデルを折る",
+    "inlineSimulation": {
+      "canvasAriaLabel": "インラインシミュレーション。ドラッグで回転します。",
+      "controls": "インラインシミュレーションの操作",
+      "delete": "削除",
+      "failed": "シミュレーションに失敗しました",
+      "fold": "折り",
+      "gpuUnavailable": "WebGL2 が必要です — シミュレートワークスペースで開いてください",
+      "outOfDate": "最新ではありません",
+      "pause": "一時停止",
+      "play": "再生",
+      "refresh": "現在の折り線から作り直す",
+      "replay": "平らに戻す"
+    },
     "insertImage": "画像を挿入...",
     "linesCount_other": "{{count}} 本の線",
     "measure": "測定",
@@ -254,7 +267,8 @@
       "fold": "折る",
       "label": "展開図の操作",
       "saveImage": "画像として保存",
-      "simulate": "シミュレート"
+      "simulate": "シミュレート",
+      "simulateInline": "インラインでシミュレート"
     },
     "sendImageToBack": "画像を最背面へ",
     "shadow": "影",

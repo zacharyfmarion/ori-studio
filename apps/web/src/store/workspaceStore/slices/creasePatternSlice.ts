@@ -12,7 +12,28 @@ import {
   transformCpLineSegments,
 } from '../../../lib/creasePatternClipboard';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
-import { resolveCpSegments } from '../../../lib/creasePatternSegmentation';
+import {
+  buildSegmentFold,
+  resolveCpSegments,
+  simulationFoldOf,
+} from '../../../lib/creasePatternSegmentation';
+import { segmentContainedLineIds } from '../../../lib/creasePatternSelectionSegment';
+import { MAX_CONCURRENT_SIMULATIONS } from '../../../simulator/simulatorLimits';
+import {
+  createInlineSimulation,
+  resolveInlineSimulationSegment,
+  sourceFingerprintFor,
+  topInlineSimulationZ,
+} from '../../../cp-workspace/inlineSimulation/inlineSimulation';
+import {
+  clearInlineSimulationSource,
+  setInlineSimulationSource,
+} from '../../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
+import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
+import { boxAabb } from '../../../cp-workspace/canvasObjects/placeBesideCp';
+import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
+import { cpSvgPointToModel, ORIEDITA_PAPER_BOUNDS } from '../../../lib/creasePatternViewport';
+import type { Aabb } from '../../../cp-workspace/picking/lineHitIndex';
 import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
 import {
   generatedCpLineage,
@@ -58,7 +79,7 @@ import {
   runOristudioCpCheckCommand,
   setOristudioCpFoldedFigureModel as setRuntimeOristudioCpFoldedFigureModel,
 } from '../oristudioCpRuntime';
-import type { CreasePatternSlice, WorkspaceSliceCreator } from '../types';
+import type { CreasePatternSlice, WorkspaceSliceCreator, WorkspaceState } from '../types';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import {
   releaseFoldedFigureHandle,
@@ -91,6 +112,58 @@ const MAX_CP_HISTORY = 100;
 // Dedupe concurrent `ensureEditCreasePattern` calls (e.g. React StrictMode
 // double-invoking the seeding effect) so only one blank document is created.
 let ensureEditInFlight: Promise<void> | null = null;
+
+let nextInlineSimulationId = 1;
+
+/**
+ * How many times a window's fold has been rebuilt, so each rebuild gets a fresh
+ * model key and the worker's prepared-model cache cannot serve the old mesh.
+ */
+const inlineSimulationRevisions = new Map<string, number>();
+
+/**
+ * What is already on the canvas, in crease-pattern model coordinates, so a new
+ * window parks clear of all of it rather than only of its own kind.
+ *
+ * Folded figures are placed in SVG user space -- the space their render
+ * primitives land in -- so their bounds are mapped back through the same affine
+ * the flat pattern uses. It is positive and axis-preserving, so an axis-aligned
+ * box stays axis-aligned and the corners are enough.
+ */
+function occupiedModelSpace(state: WorkspaceState): Aabb[] {
+  const boxes = [
+    ...state.oristudioCpInlineSimulations.map((simulation) => boxAabb(simulation.box)),
+    ...state.oristudioCpAnnotations
+      .filter((annotation) => !annotation.hidden)
+      .map((annotation) =>
+        boxAabb({
+          center: annotation.center,
+          width: annotation.width,
+          height: annotation.height,
+          rotation: annotation.rotation,
+        })
+      ),
+  ];
+  for (const figure of state.oristudioCpFoldedFigures) {
+    const userAabb = foldedFigureUserAabb(figure);
+    if (!userAabb) continue;
+    const min = cpSvgPointToModel({ x: userAabb.minX, y: userAabb.minY }, ORIEDITA_PAPER_BOUNDS);
+    const max = cpSvgPointToModel({ x: userAabb.maxX, y: userAabb.maxY }, ORIEDITA_PAPER_BOUNDS);
+    boxes.push({
+      minX: Math.min(min.x, max.x),
+      minY: Math.min(min.y, max.y),
+      maxX: Math.max(min.x, max.x),
+      maxY: Math.max(min.y, max.y),
+    });
+  }
+  return boxes;
+}
+
+function inlineSimulationRevision(id: string): number {
+  const next = (inlineSimulationRevisions.get(id) ?? 0) + 1;
+  inlineSimulationRevisions.set(id, next);
+  return next;
+}
 
 export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice> = (
   set,
@@ -621,6 +694,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
     oristudioCpAnnotations: [],
     oristudioCpSelectedAnnotationId: null,
+    oristudioCpInlineSimulations: [],
+    oristudioCpFocusedInlineSimulationId: null,
     ...emptyFoldArtifactResourceState(),
     sequenceTarget: null,
     sequencePlan: null,
@@ -907,6 +982,186 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // sendTreeCreasePatternToEdit.
       set({ selectedSegmentId: segmentId });
       useLayoutStore.getState().activatePanel('simulator');
+      return true;
+    },
+
+    addOristudioCpInlineSimulation: async (segmentId) => {
+      const document = get().oristudioCpDocument?.document ?? null;
+      if (!document) return 'unavailable';
+      const simulations = get().oristudioCpInlineSimulations;
+      // A hard cap, not a soft one. Each open window is a solver session the
+      // worker may be asked to swap to, and a canvas the camera has to track;
+      // an unbounded count degrades quietly rather than failing.
+      //
+      // Reported rather than set as a `projectMessage`: that channel is rendered
+      // by nothing (see GlobalToasts), and a raw string in the store could not be
+      // translated anyway. The caller says it, in the user's language.
+      if (simulations.length >= MAX_CONCURRENT_SIMULATIONS) return 'at-capacity';
+
+      // The simulator needs the triangulated mesh, so the full artifacts, not
+      // the segmentation-only fast path the toolbar uses to decide it can offer
+      // this at all.
+      let artifacts = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+      let segment = resolveCpSegments(artifacts).find(
+        (candidate) => candidate.id === segmentId
+      );
+      let containment =
+        artifacts && segment ? segmentContainedLineIds(document, artifacts, segment) : [];
+
+      // Artifacts that came from an *import* are in the importer's coordinate
+      // space, not the kernel document's -- a `.cp` loads as a unit square while
+      // the document itself is Oriedita's 400-space. Containment then finds
+      // nothing, and a window built from it would place itself wrongly and carry
+      // no provenance, so it could never report itself out of date. Recomputing
+      // from the kernel puts both in the same space; the empty result is the
+      // only reliable signal that they were not.
+      if (segment && containment.length === 0) {
+        artifacts = await get().refreshFoldArtifacts();
+        segment = resolveCpSegments(artifacts).find((candidate) => candidate.id === segmentId);
+        containment =
+          artifacts && segment ? segmentContainedLineIds(document, artifacts, segment) : [];
+      }
+      if (!segment || !artifacts) return 'unavailable';
+      const id = `inline-sim-${nextInlineSimulationId++}`;
+      const simulation = createInlineSimulation({
+        id,
+        segment,
+        document,
+        cpLineIds: containment,
+        z: topInlineSimulationZ(simulations) + 1,
+        view: DEFAULT_SIMULATOR_VIEW,
+        blockers: occupiedModelSpace(get()),
+      });
+      setInlineSimulationSource(id, {
+        fold: buildSegmentFold(simulationFoldOf(artifacts), segment),
+        modelKey: `${id}:0`,
+      });
+
+      set({
+        oristudioCpInlineSimulations: [...simulations, simulation],
+        // A new window takes the solver: opening one and watching nothing happen
+        // would be the wrong first impression.
+        oristudioCpFocusedInlineSimulationId: id,
+        oristudioCpSelectedAnnotationId: null,
+      });
+      return 'added';
+    },
+
+    updateOristudioCpInlineSimulation: (id, patch) => {
+      set({
+        oristudioCpInlineSimulations: get().oristudioCpInlineSimulations.map((simulation) =>
+          simulation.id === id ? { ...simulation, ...patch } : simulation
+        ),
+      });
+    },
+
+    removeOristudioCpInlineSimulation: (id) => {
+      clearInlineSimulationSource(id);
+      const remaining = get().oristudioCpInlineSimulations.filter(
+        (simulation) => simulation.id !== id
+      );
+      set({
+        oristudioCpInlineSimulations: remaining,
+        oristudioCpFocusedInlineSimulationId:
+          get().oristudioCpFocusedInlineSimulationId === id
+            ? null
+            : get().oristudioCpFocusedInlineSimulationId,
+      });
+    },
+
+    focusOristudioCpInlineSimulation: (id) => {
+      if (get().oristudioCpFocusedInlineSimulationId === id) return;
+      set({
+        oristudioCpFocusedInlineSimulationId: id,
+        // The canvas allows one selected object at a time; focusing a window
+        // drops an annotation selection, as selecting an annotation drops this.
+        ...(id !== null ? { oristudioCpSelectedAnnotationId: null } : {}),
+      });
+    },
+
+    hydrateOristudioCpInlineSimulations: async () => {
+      const simulations = get().oristudioCpInlineSimulations;
+      const document = get().oristudioCpDocument?.document ?? null;
+      if (!document || simulations.length === 0) return 0;
+
+      // Recomputed, and once for the whole document rather than once per window.
+      //
+      // Both halves matter. Reusing whatever `foldArtifacts` held after the load
+      // looked like the cheaper path and silently broke resolution: a region's
+      // boundary lives in the *fold's* coordinate space, and the artifacts a
+      // file load leaves behind are normalised to a unit square while the ones
+      // computed from the kernel document are in its own 400-space. Every saved
+      // boundary then matched nothing, so every restored window stayed empty.
+      // `refreshOristudioCpInlineSimulation` refreshes for this reason; what it
+      // must not do is refresh per window.
+      const artifacts = await get().refreshFoldArtifacts();
+      if (!artifacts) return 0;
+      const segments = resolveCpSegments(artifacts);
+      const simulationFold = simulationFoldOf(artifacts);
+
+      let hydrated = 0;
+      for (const simulation of simulations) {
+        const segment = resolveInlineSimulationSegment(simulation, segments);
+        // A region that no longer resolves keeps its window and its provenance.
+        // Dropping it would lose placement the user chose, and re-pointing it at
+        // the nearest region would silently simulate something else — the rule
+        // refresh already follows.
+        if (!segment) continue;
+        setInlineSimulationSource(simulation.id, {
+          fold: buildSegmentFold(simulationFold, segment),
+          modelKey: `${simulation.id}:${inlineSimulationRevision(simulation.id)}`,
+        });
+        hydrated += 1;
+      }
+      // Deliberately no `set` here. The descriptors are exactly as loaded, and
+      // recomputing `sourceFingerprint` from the document we just opened is the
+      // one change that would look harmless and disable staleness for good: a
+      // file can legitimately hold a window that is out of date.
+      return hydrated;
+    },
+
+    refreshOristudioCpInlineSimulation: async (id) => {
+      const document = get().oristudioCpDocument?.document ?? null;
+      const simulation = get().oristudioCpInlineSimulations.find(
+        (candidate) => candidate.id === id
+      );
+      if (!document || !simulation) return false;
+
+      const artifacts = await get().refreshFoldArtifacts();
+      const segment = artifacts
+        ? resolveInlineSimulationSegment(simulation, resolveCpSegments(artifacts))
+        : null;
+      if (!artifacts || !segment) {
+        // The region merged, split, or its rim stopped being all-border. Keep
+        // the window and say so rather than silently re-pointing it at whichever
+        // region happens to be nearest — see 0b3b1ea6 for the same rule applied
+        // to a refold that cannot produce a replacement.
+        set({ projectMessage: 'That region no longer exists in the crease pattern' });
+        return false;
+      }
+
+      const bounds = foldedSourceBounds(
+        cpLinesByIds(document, segmentContainedLineIds(document, artifacts, segment))
+      );
+      const revision = inlineSimulationRevision(id);
+      setInlineSimulationSource(id, {
+        fold: buildSegmentFold(simulationFoldOf(artifacts), segment),
+        modelKey: `${id}:${revision}`,
+      });
+      set({
+        oristudioCpInlineSimulations: get().oristudioCpInlineSimulations.map((candidate) =>
+          candidate.id === id
+            ? {
+                ...candidate,
+                sourceBoundary: segment.boundary.map((ring) => ring.map((point) => ({ ...point }))),
+                sourceBounds: bounds,
+                sourceFingerprint: sourceFingerprintFor(document, bounds),
+                segmentIdHint: segment.id,
+              }
+            : candidate
+        ),
+        oristudioCpFocusedInlineSimulationId: id,
+      });
       return true;
     },
 

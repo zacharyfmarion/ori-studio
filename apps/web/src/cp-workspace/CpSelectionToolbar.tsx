@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { FileDown, ImageDown, Origami, Play } from 'lucide-react';
+import { FileDown, ImageDown, Origami, Play, PictureInPicture2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
+import { useSimulateSelection } from './inlineSimulation/useSimulateSelection';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
 import { cpLineSelectionBounds, selectedCpLineSegments } from '../lib/creasePatternClipboard';
@@ -87,6 +88,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const exportSegment = useWorkspaceStore((s) => s.exportOristudioCpSegment);
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
   const clearSelection = useWorkspaceStore((s) => s.clearOristudioCpSelection);
+  const simulateSelectionInline = useSimulateSelection();
 
   // Segments-only artifacts (no simulation mesh — see ensureCpSegmentationArtifacts).
   // Read from the module cache rather than held in state: segmentation takes ~1s on
@@ -147,6 +149,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
     clearSelection();
   };
 
+
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
@@ -172,6 +175,17 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         onClick={() => runAndDismiss(() => void exportSegment('png', segmentId))}
       >
         <ImageDown size={14} />
+      </IconButton>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t(
+          'panels:creasePattern.selectionToolbar.simulateInline',
+          'Simulate inline'
+        )}
+        onClick={() => runAndDismiss(() => void simulateSelectionInline())}
+      >
+        <PictureInPicture2 size={14} />
       </IconButton>
       <IconButton
         size="sm"

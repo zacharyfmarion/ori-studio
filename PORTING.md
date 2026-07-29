@@ -60,6 +60,25 @@ are unchanged:
   render oracle in `crates/oristudio-cp/tests/oriedita_render_oracle.rs` remains
   a byte-for-byte gate.
 
+- **Bounded lengthen extensions.** `operations::transform::lengthen_crease`
+  refuses an extension longer than the diagonal of the box already containing
+  every crease (`MAX_LENGTHEN_EXTENSION_DIAGONALS`). Upstream has no such limit:
+  `MouseHandlerLengthenCrease` decides whether a crease can reach a target purely
+  from `OritaCalc.isLineSegmentParallel(s, closestLineSegment, Epsilon.UNKNOWN_1EN6)`,
+  which compares the *unnormalized* cross product `a1*b2 - a2*b1` against a fixed
+  absolute epsilon. That quantity is an area — it scales with both segment
+  lengths — so the effective angular tolerance is `epsilon / (len1 * len2)`. For
+  creases hundreds of units long it drops below the floating-point noise in the
+  coordinates themselves, creases that are parallel by construction read as
+  crossing, and `findIntersection` answers with a point arbitrarily far away.
+  Coordinates far from the origin make it worse, because the same construction
+  leaves proportionally more dust in each one. Observed in a user file at
+  x ≈ 14,000: three pleat columns ~5.8e-12 rad off parallel extended to
+  y ≈ -4.3e12, which put the document's bounds 8 orders of magnitude past its
+  content and made the editor unusable. This bound only rejects results; it does
+  not touch the parallel test, the intersection solve, or any accepted output,
+  and `lengthen_crease_matches_oriedita_oracle` remains the gate.
+
 Release caveats:
 
 - Public parity targets TreeMaker 5.0.1's distributable ALM optimizer. CFSQP

@@ -43,6 +43,8 @@ export function freshEditableCpState(
     oristudioCpActiveFoldedFigureId: null,
     oristudioCpAnnotations: [],
     oristudioCpSelectedAnnotationId: null,
+    oristudioCpInlineSimulations: [],
+    oristudioCpFocusedInlineSimulationId: null,
     oristudioCpDocumentExtensions: {},
     projectLoadId: previous.projectLoadId + 1,
     toolMode: 'select',

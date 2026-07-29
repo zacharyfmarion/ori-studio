@@ -61,7 +61,7 @@ import {
   foldedStl,
   type FoldedMesh,
 } from '../../../lib/foldedExport';
-import { getSimulatorClient } from '../simulatorRuntime';
+import { peekSimulatorClient } from '../simulatorRuntime';
 import { simulationFoldOf } from '../../../lib/creasePatternSegmentation';
 import {
   flattenTextAnnotations,
@@ -578,16 +578,23 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       set({ projectMessage: 'Simulate a crease pattern before exporting its folded form' });
       return null;
     }
+    // Reads the live session rather than starting one: there is nothing to
+    // export from a simulator that was never opened, and spinning a worker up
+    // just to ask would take one of the four WebGL2 contexts a worker gets.
+    const client = peekSimulatorClient();
+    if (!client) {
+      set({ projectMessage: 'Open the Simulate workspace before exporting the folded form' });
+      return null;
+    }
     try {
-      const snapshot = await getSimulatorClient().exportGeometry();
+      const snapshot = await client.exportGeometry();
       return {
         positions: new Float32Array(snapshot.positions),
         triangles: new Uint32Array(snapshot.triangles),
         foldPercent: snapshot.foldPercent,
       };
     } catch {
-      // requireSession throws when no model is loaded (the Simulate workspace has
-      // not been opened yet, or its panel released the worker).
+      // requireSession throws when the worker is running but holds no model.
       set({ projectMessage: 'Open the Simulate workspace before exporting the folded form' });
       return null;
     }
@@ -989,6 +996,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
       oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
       oristudioCpSelectedAnnotationId: null,
+      // Placement and provenance only. Each window's fold is rebuilt from the
+      // loaded document below, and until then a window has no mesh to draw.
+      oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
+      oristudioCpFocusedInlineSimulationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: documentState.operationDescriptors,
@@ -1025,6 +1036,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       historyFuture: [],
       clipboardPasteCount: 0,
     });
+    // After the document is in place: each restored window needs a fold
+    // rebuilt from the creases just loaded, and the artifacts that produces
+    // are shared. Not awaited — a window draws nothing until its fold arrives,
+    // and blocking the open on twenty of them would freeze it for no benefit.
+    void get().hydrateOristudioCpInlineSimulations();
     useLayoutStore.getState().activateWorkspace('edit');
   };
 
@@ -1047,6 +1063,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
       oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
       oristudioCpSelectedAnnotationId: null,
+      // Placement and provenance only. Each window's fold is rebuilt from the
+      // loaded document below, and until then a window has no mesh to draw.
+      oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
+      oristudioCpFocusedInlineSimulationId: null,
       oristudioCpDocumentExtensions: nativeDocument.extensions,
       oristudioCpCamvResult: checked.camvResult,
       oristudioCpOperationDescriptors: checked.documentState.operationDescriptors,
@@ -1062,6 +1082,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // load left behind must not be simulated in its place.
       ...staleFoldArtifactResourceState(get().foldArtifactRevision),
     });
+    void get().hydrateOristudioCpInlineSimulations();
   };
 
   const loadNativeProject = async (
@@ -1226,6 +1247,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       textAnnotations: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      inlineSimulations: get().oristudioCpInlineSimulations,
       extensions: get().oristudioCpDocumentExtensions,
       appVersion: APP_VERSION,
     };
@@ -1241,6 +1263,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const warnings = collectExportLossWarnings(format, {
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      inlineSimulations: get().oristudioCpInlineSimulations,
       lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
     });
     if (warnings.length === 0) return true;
@@ -1548,6 +1571,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpActiveFoldedFigureId: null,
               oristudioCpAnnotations: [],
               oristudioCpSelectedAnnotationId: null,
+              oristudioCpInlineSimulations: [],
+              oristudioCpFocusedInlineSimulationId: null,
               oristudioCpDocumentExtensions: {},
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
               ...emptyFoldArtifactResourceState(),

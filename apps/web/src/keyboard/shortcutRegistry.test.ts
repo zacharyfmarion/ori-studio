@@ -101,13 +101,34 @@ const EXPECTED_SINGLE_KEY_LAYOUT: ReadonlyArray<[chord: string, actionId: string
 ];
 
 describe('adopted single-key layout', () => {
+  // The simulator scope is excluded on purpose. It reuses several of these keys
+  // -- Space, F, C, R -- and that is the design: it is pushed ahead of
+  // `crease-pattern` only while a simulation owns the keyboard, so the same
+  // chord reaches the fold then and the CP tool the rest of the time. Asserting
+  // global chord uniqueness would forbid exactly what the scope stack exists to
+  // allow. The arbitration itself is covered in shortcutDispatcher.test.ts.
   const byChord = new Map<string, string[]>();
   for (const definition of SHORTCUT_DEFINITIONS) {
+    if (definition.scope === 'simulator') continue;
     for (const chord of definition.defaultChords) {
       const id = keyChordId(chord);
       byChord.set(id, [...(byChord.get(id) ?? []), definition.id]);
     }
   }
+
+  it('reuses crease-pattern keys in the simulator scope, deliberately', () => {
+    const simulatorChords = new Set(
+      SHORTCUT_DEFINITIONS.filter((d) => d.scope === 'simulator').flatMap((d) =>
+        d.defaultChords.map(keyChordId)
+      )
+    );
+    // If these stop overlapping the layout above, the scope stack has become
+    // unnecessary and should be reconsidered rather than left in place.
+    expect(simulatorChords.has('space')).toBe(true);
+    expect(simulatorChords.has('f')).toBe(true);
+    expect(simulatorChords.has('c')).toBe(true);
+    expect(simulatorChords.has('r')).toBe(true);
+  });
 
   it.each(EXPECTED_SINGLE_KEY_LAYOUT)('binds %s to %s', (chord, actionId) => {
     expect(byChord.get(chord)).toEqual([actionId]);

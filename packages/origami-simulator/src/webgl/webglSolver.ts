@@ -99,6 +99,36 @@ export class WebglSolver implements SolverBackend {
     return true;
   }
 
+  /** True once this solver's GL context has gone away; every result is stale. */
+  get contextLost(): boolean {
+    return this.gl.contextLost;
+  }
+
+  /**
+   * What the default framebuffer *actually* is, which is not always what the
+   * canvas was set to.
+   *
+   * A browser silently clamps the drawing buffer when it cannot back the size
+   * asked for — observed at 5760 for a canvas set to 16384, with no error and
+   * `isContextLost()` still false. Rendering past that point draws outside the
+   * buffer and reads back nothing, so anything sizing a viewport or a readback
+   * has to ask here rather than trusting `canvas.width`.
+   */
+  get drawingBufferSize(): { width: number; height: number } {
+    return {
+      width: this.gl.gl.drawingBufferWidth,
+      height: this.gl.gl.drawingBufferHeight,
+    };
+  }
+
+  /**
+   * Notify when the context is lost. The session uses this to fail the run
+   * rather than let a dead solver keep reporting a settled, motionless mesh.
+   */
+  onContextLost(handler: () => void): () => void {
+    return this.gl.onContextLost(handler);
+  }
+
   constructor(canvas: HTMLCanvasElement | OffscreenCanvas, model: OrigamiModel, options: SimulatorOptions = {}) {
     const gl = GlCore.create(canvas);
     if (!gl) throw new Error('WebGL2 is not available for the GPU solver');

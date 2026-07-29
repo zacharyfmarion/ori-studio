@@ -1,4 +1,9 @@
 {
+  "creasePattern": {
+    "inlineSimulationCap": "Up to {{max}} simulation windows at once. Close one to open another.",
+    "simulateFailed": "That region could not be simulated.",
+    "simulateNoRegion": "Select a closed region to simulate."
+  },
   "global": {
     "error": "Ori Studio error",
     "folding": "Folding…"

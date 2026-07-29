@@ -58,8 +58,7 @@ import {
 } from './tools/transformGhost';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
-import { imageCornersModel } from './images/cpImagePlacement';
-import { boxCornersModel } from './annotations/annotationTransform';
+import { cpContentBounds } from './cpContentBounds';
 import { cpPointsToScene, VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
 import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
 import { cpLineStyleDashPatterns } from '../lib/oristudioCpLineStyle';
@@ -152,15 +151,6 @@ const MAX_DPR = 2;
 
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
-/** Stable empty text-box list so the bounds memo doesn't re-run each render. */
-const EMPTY_TEXT_BOXES: readonly {
-  center: ModelPoint;
-  width: number;
-  height: number;
-  rotation: number;
-  hidden: boolean;
-}[] = [];
-
 /**
  * The editable SVG canvas is transparent, so the colour behind it is the panel
  * body background (`--bg-primary`). Clearing the WebGL surface to the same
@@ -447,10 +437,15 @@ export interface CreasePatternWebglCanvasProps {
    */
   images?: readonly CpImage[];
   /**
-   * Text-annotation boxes (rendered on their own DOM layer, not here) folded into
-   * the framing bounds so open + fit-to-view include them. Model coords.
+   * Boxes that live on their own DOM layer rather than being drawn here — text
+   * annotations and inline simulation windows — folded into the framing bounds
+   * so opening a document and fitting to view include them. Model coords.
+   *
+   * Anything placed on the canvas belongs here. A kind that is missing is
+   * invisible to framing, so fitting to view can leave it off screen entirely,
+   * with nothing to suggest why.
    */
-  textBoxes?: readonly {
+  overlayBoxes?: readonly {
     center: ModelPoint;
     width: number;
     height: number;
@@ -759,7 +754,7 @@ export function CreasePatternWebglCanvas({
   lineSegments,
   geometry,
   images,
-  textBoxes,
+  overlayBoxes,
   framingKey,
   modelToSvg,
   svgToModel,
@@ -873,6 +868,11 @@ export function CreasePatternWebglCanvas({
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
   const cameraRef = useRef<UserCamera | null>(null);
+  // Bumped when the GL context is lost, to rebuild the renderer. The camera is
+  // stashed across that rebuild so recovery does not also throw away wherever the
+  // user had panned and zoomed to.
+  const [rendererGeneration, setRendererGeneration] = useState(0);
+  const preservedCameraRef = useRef<UserCamera | null>(null);
   // Persistent runtime for the click-based `sequence` tool: points accumulate
   // across pointer gestures. Reset when the active tool changes (below).
   const persistentToolRuntimeRef = useRef<ToolRuntime | null>(null);
@@ -996,38 +996,10 @@ export function CreasePatternWebglCanvas({
 
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
-  const contentBounds = useMemo<UserBounds | null>(() => {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    let has = false;
-    const extend = (point: ModelPoint) => {
-      const u = modelToSvg(point);
-      if (u.x < minX) minX = u.x;
-      if (u.y < minY) minY = u.y;
-      if (u.x > maxX) maxX = u.x;
-      if (u.y > maxY) maxY = u.y;
-      has = true;
-    };
-    for (const seg of lineSegments) {
-      extend(seg.a);
-      extend(seg.b);
-    }
-    // Reference images are placed content too, so framing (open + fit-to-view)
-    // must include them. Their model-space quad corners are folded into the
-    // bounds; hidden images are excluded (they aren't drawn).
-    for (const image of images ?? EMPTY_IMAGES) {
-      if (image.hidden) continue;
-      for (const corner of imageCornersModel(image)) extend(corner);
-    }
-    // Text boxes are placed content too; fold their model-space box corners in.
-    for (const box of textBoxes ?? EMPTY_TEXT_BOXES) {
-      if (box.hidden) continue;
-      for (const corner of boxCornersModel(box)) extend(corner);
-    }
-    return has ? { minX, minY, maxX, maxY } : null;
-  }, [lineSegments, images, textBoxes, modelToSvg]);
+  const contentBounds = useMemo<UserBounds | null>(
+    () => cpContentBounds({ lineSegments, images, overlayBoxes, modelToSvg }),
+    [lineSegments, images, overlayBoxes, modelToSvg]
+  );
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
   // segments so the same distance query applies (id = index + 1). Vertices are
@@ -1315,7 +1287,8 @@ export function CreasePatternWebglCanvas({
     [foldedFigures]
   );
 
-  // Renderer lifecycle + render loop (once per mount).
+  // Renderer lifecycle + render loop. Re-runs only when the GL context is lost
+  // and a replacement renderer has to be built (see `rendererGeneration`).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1325,6 +1298,14 @@ export function CreasePatternWebglCanvas({
       renderer = createReglRenderer(canvas, {
         // Redraw once an async image texture finishes decoding.
         onAsyncLoad: () => renderNowRef.current(),
+        // The context and every regl resource on it are gone. Nothing here can
+        // repair that, so keep the camera the user was working at and rebuild
+        // the whole renderer from scratch on the next tick.
+        onContextLost: () => {
+          console.warn('[cp-webgl] WebGL context lost; rebuilding the renderer');
+          preservedCameraRef.current = cameraRef.current;
+          setRendererGeneration((generation) => generation + 1);
+        },
       });
     } catch (error) {
       console.error('[cp-webgl] failed to initialise WebGL renderer', error);
@@ -1343,6 +1324,13 @@ export function CreasePatternWebglCanvas({
     // geometry yet) the camera stays unseeded and nothing draws until geometry arrives.
     const ensureCamera = (viewport: Viewport): UserCamera | null => {
       if (cameraRef.current) return cameraRef.current;
+      // Recovering from context loss: adopt the camera the dead renderer had,
+      // so the surface comes back where the user left it instead of re-fitting.
+      if (preservedCameraRef.current) {
+        cameraRef.current = preservedCameraRef.current;
+        preservedCameraRef.current = null;
+        return cameraRef.current;
+      }
       const bounds = liveRef.current.contentBounds;
       if (!bounds) return null;
       cameraRef.current = fitUserCamera(bounds, viewport);
@@ -2824,8 +2812,11 @@ export function CreasePatternWebglCanvas({
       renderer.dispose();
       rendererRef.current = null;
     };
-    // Set up once on mount; all live inputs are read through liveRef, not deps.
-  }, []);
+    // Live inputs are read through liveRef rather than deps, so this runs once
+    // per mount. `rendererGeneration` is the sole trigger for a re-run: it
+    // changes only on context loss, where the dead renderer must be torn down
+    // and replaced.
+  }, [rendererGeneration]);
 
   // Upload geometry whenever it is rebuilt, then redraw immediately.
   useEffect(() => {
@@ -2841,7 +2832,7 @@ export function CreasePatternWebglCanvas({
       renderer.setPreview(null);
     }
     renderNowRef.current();
-  }, [scene]);
+  }, [scene, rendererGeneration]);
 
   // Point-sequence kernel preview: render the controller-supplied candidate
   // segments on the preview channel (cleared when there are none). Drag tools
@@ -2859,7 +2850,7 @@ export function CreasePatternWebglCanvas({
         : null
     );
     renderNowRef.current();
-  }, [toolCommandPreviewSegments, toolPreviewColor, activeToolDashedPreview]);
+  }, [toolCommandPreviewSegments, toolPreviewColor, activeToolDashedPreview, rendererGeneration]);
 
   // Diagnostic overlays (CAMV / check-fix): shape markers + segment highlights, built
   // model-space by the panel and forwarded straight to the renderer's overlay layer.
@@ -2868,33 +2859,33 @@ export function CreasePatternWebglCanvas({
       diagnosticMarkers.count > 0 ? diagnosticMarkers : null
     );
     renderNowRef.current();
-  }, [diagnosticMarkers]);
+  }, [diagnosticMarkers, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticStrokes(
       diagnosticStrokes.count > 0 ? diagnosticStrokes : null
     );
     renderNowRef.current();
-  }, [diagnosticStrokes]);
+  }, [diagnosticStrokes, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticWedges(
       diagnosticWedges.count > 0 ? diagnosticWedges : null
     );
     renderNowRef.current();
-  }, [diagnosticWedges]);
+  }, [diagnosticWedges, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticFills(
       contradictionFaceFills.count > 0 ? contradictionFaceFills : null
     );
     renderNowRef.current();
-  }, [contradictionFaceFills]);
+  }, [contradictionFaceFills, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setOverlayFrame(operationFrame);
     renderNowRef.current();
-  }, [operationFrame]);
+  }, [operationFrame, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setImportedForms(importedForms);
     renderNowRef.current();
-  }, [importedForms]);
+  }, [importedForms, rendererGeneration]);
 
   // Reference-image layer: upload/evict textures when the image list changes,
   // then redraw. Textures are cached by `src` in the renderer, so transform-only
@@ -2902,7 +2893,7 @@ export function CreasePatternWebglCanvas({
   useEffect(() => {
     rendererRef.current?.setImages(images ?? EMPTY_IMAGES);
     renderNowRef.current();
-  }, [images]);
+  }, [images, rendererGeneration]);
 
   // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
   // show the vertex + its creases (capped so it never over-zooms), matching the SVG's

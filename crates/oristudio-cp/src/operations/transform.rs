@@ -512,6 +512,28 @@ pub fn extend_to_intersection_point_2(
     add_segment.with_a(segment.b)
 }
 
+/// How far a lengthen may reach, counted in diagonals of the box that already
+/// contains every crease in the model.
+///
+/// This bound is a deliberate deviation from Oriedita — see PORTING.md. Upstream
+/// decides whether a crease can be extended onto a target purely by
+/// `OritaCalc.isLineSegmentParallel`, which compares the *unnormalized* cross
+/// product `a1*b2 - a2*b1` against a fixed absolute epsilon. That quantity is an
+/// area — it scales with both segment lengths — so the effective angular
+/// tolerance is `epsilon / (len1 * len2)`. For creases hundreds of units long it
+/// falls below the floating-point noise in the coordinates themselves, two
+/// creases that are parallel by construction read as crossing, and the
+/// infinite-line solve returns a point arbitrarily far away. Working far from the
+/// origin makes it worse, because the same construction leaves proportionally
+/// more dust in each coordinate.
+///
+/// Bounding the result sidesteps the conditioning problem instead of trying to
+/// tune the guard: an extension that leaves the drawing entirely is not what the
+/// gesture asked for, whatever the parallel test concluded. Expressing the limit
+/// in diagonals keeps it scale-free, so it reads the same on a 400-unit sheet and
+/// on one tiling many patterns.
+const MAX_LENGTHEN_EXTENSION_DIAGONALS: f64 = 1.0;
+
 /// Oriedita `MouseHandlerLengthenCrease` / `MouseHandlerLengthenCreaseSameColor`
 /// final model mutation from resolved model-space inputs.
 pub fn lengthen_crease(
@@ -524,6 +546,8 @@ pub fn lengthen_crease(
     let Some(extension_line) = closest_line_segment(model, extension_point) else {
         return 0;
     };
+
+    let max_extension = MAX_LENGTHEN_EXTENSION_DIAGONALS * line_segment_extent_diagonal(model);
 
     let (selection_line, lines_to_extend) =
         lengthen_candidates(model, selection_line, selection_distance);
@@ -555,7 +579,13 @@ pub fn lengthen_crease(
                     intersection,
                     original.determine_closest_endpoint(intersection),
                 );
-                if add_extended_line_segment(model, add_segment, &original, color_mode) {
+                if add_extended_line_segment(
+                    model,
+                    add_segment,
+                    &original,
+                    color_mode,
+                    max_extension,
+                ) {
                     added += 1;
                 }
             }
@@ -570,7 +600,13 @@ pub fn lengthen_crease(
                     original
                 };
             let add_segment = extend_to_intersection_point_2(model, &line_to_extend);
-            if add_extended_line_segment(model, add_segment, &line_to_extend, color_mode) {
+            if add_extended_line_segment(
+                model,
+                add_segment,
+                &line_to_extend,
+                color_mode,
+                max_extension,
+            ) {
                 added += 1;
             }
         }
@@ -621,13 +657,40 @@ fn lengthen_candidates(
     )
 }
 
+/// Diagonal of the axis-aligned box containing every crease, or zero when the
+/// model holds none.
+fn line_segment_extent_diagonal(model: &CreasePatternModel) -> f64 {
+    let mut min = Point::new(f64::INFINITY, f64::INFINITY);
+    let mut max = Point::new(f64::NEG_INFINITY, f64::NEG_INFINITY);
+    for segment in &model.line_segments {
+        for point in [segment.a, segment.b] {
+            min = Point::new(min.x.min(point.x), min.y.min(point.y));
+            max = Point::new(max.x.max(point.x), max.y.max(point.y));
+        }
+    }
+
+    if min.x > max.x {
+        return 0.0;
+    }
+    max.distance(min)
+}
+
 fn add_extended_line_segment(
     model: &mut CreasePatternModel,
     add_segment: LineSegment,
     original: &LineSegment,
     color_mode: LengthenColorMode,
+    max_extension: f64,
 ) -> bool {
-    if !Epsilon::HIGH.gt0(add_segment.determine_length()) {
+    let length = add_segment.determine_length();
+    if !Epsilon::HIGH.gt0(length) {
+        return false;
+    }
+    // See MAX_LENGTHEN_EXTENSION_DIAGONALS. A near-parallel target that slips past
+    // the upstream guard lands the intersection astronomically far out; refusing
+    // the extension keeps that out of the model instead of writing a crease
+    // trillions of units long.
+    if length > max_extension {
         return false;
     }
 

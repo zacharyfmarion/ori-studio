@@ -231,6 +231,19 @@
       "wire": "Alambre"
     },
     "foldModelAction": "Plegar modelo",
+    "inlineSimulation": {
+      "canvasAriaLabel": "Simulación integrada. Arrastra para rotar.",
+      "controls": "Controles de la simulación integrada",
+      "delete": "Eliminar",
+      "failed": "Error en la simulación",
+      "fold": "Plegado",
+      "gpuUnavailable": "Requiere WebGL2: ábrelo en el espacio Simular",
+      "outOfDate": "Desactualizada",
+      "pause": "Pausar",
+      "play": "Reproducir",
+      "refresh": "Regenerar a partir de los pliegues actuales",
+      "replay": "Volver a plano"
+    },
     "insertImage": "Insertar imagen...",
     "linesCount_one": "{{count}} línea",
     "linesCount_many": "{{count}} líneas",
@@ -270,7 +283,8 @@
       "fold": "Plegar",
       "label": "Acciones del patrón de pliegues",
       "saveImage": "Guardar como imagen",
-      "simulate": "Simular"
+      "simulate": "Simular",
+      "simulateInline": "Simular incrustado"
     },
     "sendImageToBack": "Enviar imagen al fondo",
     "shadow": "Sombra",

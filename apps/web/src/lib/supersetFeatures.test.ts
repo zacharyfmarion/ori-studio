@@ -34,12 +34,20 @@ function image(): CpImage {
   });
 }
 
-const noText = { richText: [] as [] };
-const noCreases = { lineSegments: [] as [] };
+const noneElse = {
+  richText: [] as [],
+  inlineSimulations: [] as [],
+  lineSegments: [] as [],
+};
 
 describe('collectExportLossWarnings', () => {
   it('warns about images for every Oriedita-compatible format', () => {
-    const presence = { images: [image(), image()], richText: [], lineSegments: [] };
+    const presence = {
+      images: [image(), image()],
+      richText: [],
+      inlineSimulations: [],
+      lineSegments: [],
+    };
     for (const format of ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj', 'svg', 'png'] as const) {
       const warnings = collectExportLossWarnings(format, presence);
       expect(warnings).toEqual([{ id: 'images', label: 'Images', count: 2, blocking: false }]);
@@ -50,6 +58,7 @@ describe('collectExportLossWarnings', () => {
     const presence = {
       images: [],
       richText: [createTextAnnotation({ center: { x: 0, y: 0 } })],
+      inlineSimulations: [],
       lineSegments: [],
     };
     expect(collectExportLossWarnings('ori', presence)).toEqual([
@@ -58,14 +67,28 @@ describe('collectExportLossWarnings', () => {
   });
 
   it('is empty when there are no superset features', () => {
-    expect(collectExportLossWarnings('cp', { images: [], ...noText, ...noCreases })).toEqual([]);
+    expect(collectExportLossWarnings('cp', { images: [], ...noneElse })).toEqual([]);
+  });
+
+  it('warns that simulation windows are dropped on every non-.osf format', () => {
+    // Placement and the region each window came from; no Oriedita format has
+    // anywhere to put either, so they go whole rather than degraded.
+    const presence = {
+      images: [],
+      richText: [] as [],
+      lineSegments: [] as [],
+      inlineSimulations: [{ id: 'a' } as never, { id: 'b' } as never],
+    };
+    expect(collectExportLossWarnings('cp', presence)).toEqual([
+      { id: 'inlineSimulations', label: 'Simulation windows', count: 2, blocking: false },
+    ]);
+    expect(collectExportLossWarnings('fold', presence)).toHaveLength(1);
   });
 
   it('describes and labels the loss', () => {
     const warnings = collectExportLossWarnings('cp', {
       images: [image(), image(), image()],
-      ...noText,
-      ...noCreases,
+      ...noneElse,
     });
     expect(describeExportLoss(warnings)).toBe('Images (3)');
     expect(exportFormatLabel('fold')).toBe('FOLD');
@@ -76,6 +99,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
   const presence = (segments: OristudioCpLineSegment[]) => ({
     images: [],
     richText: [] as [],
+    inlineSimulations: [] as [],
     lineSegments: segments,
   });
   const ninety = 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE;

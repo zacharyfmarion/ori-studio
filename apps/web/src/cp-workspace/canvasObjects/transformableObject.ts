@@ -56,6 +56,29 @@ export function annotationAsTransformable(
 }
 
 /**
+ * Which canvas object currently holds the selection, given each kind's own
+ * notion of it.
+ *
+ * The overlay draws chrome — the outline and the resize/rotate handles — for
+ * exactly one id, so a kind missing from here has no transform affordance at
+ * all however complete the rest of its plumbing is. That is what happened to
+ * inline simulations: fully transformable, in `canvasObjects`, wired to write
+ * box updates back, and unresizable because the panel never named them here.
+ *
+ * The three are mutually exclusive by construction — selecting any one clears
+ * the others — so the order only settles a transient overlap.
+ */
+export function selectedCanvasObjectId(selection: {
+  annotationId: string | null;
+  foldedFigureId: string | null;
+  inlineSimulationId: string | null;
+}): string | null {
+  return (
+    selection.annotationId ?? selection.foldedFigureId ?? selection.inlineSimulationId ?? null
+  );
+}
+
+/**
  * A folded figure as the overlay sees it: a user-space box derived from its
  * cached local geometry and placement. Null when the figure draws nothing —
  * still loading, errored, or an empty fold — since there is no box to grab.

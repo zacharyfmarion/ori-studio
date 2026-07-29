@@ -50,7 +50,19 @@ const noDirectStorageProperties = [
  * happens.
  */
 const OVERSIZED_PANELS = {
-  'CreasePatternPanel.tsx': 2860,
+  // 2860 -> 2936: inline simulation windows. The behaviour is in
+  // `inlineSimulation/useInlineSimulations` and `useSimulateSelection`,
+  // matching `useFoldedFigures` and `useCpAnnotations`; what landed here is the
+  // composition — two hook calls, the canvas layer, its floating toolbar, one
+  // more case in the viewport-shortcut switch, the boxes the camera frames
+  // against, and the window's arm of the two dispatches every canvas-object
+  // kind passes through (selection and delete).
+  //
+  // 2936 -> 2938: fold-angle badges. Two lines — an import and a mount —
+  // beside the existing measure and text overlay layers. The layer, its badge
+  // planning, and its tests all live in `cp-workspace/foldAngle/`; what is here
+  // is composition, which is what a panel is for.
+  'CreasePatternPanel.tsx': 2938,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

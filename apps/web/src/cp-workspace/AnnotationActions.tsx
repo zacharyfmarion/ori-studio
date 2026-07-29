@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDownToLine, ArrowUpToLine, Trash2 } from 'lucide-react';
 import { IconButton } from '../components/ui/IconButton';
+import { Slider } from '../components/ui/Slider';
 
 /**
  * The controls common to every annotation kind: opacity, stacking order, and
@@ -47,12 +48,12 @@ export function AnnotationActions({
   }, [onGestureCommit, t]);
 
   const handleOpacityInput = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
+    (percent: number) => {
       if (!opacitySessionRef.current) {
         onGestureStart();
         opacitySessionRef.current = true;
       }
-      onOpacity(Number(event.target.value) / 100);
+      onOpacity(percent / 100);
     },
     [onGestureStart, onOpacity]
   );
@@ -61,9 +62,8 @@ export function AnnotationActions({
     <>
       <label className="floating-toolbar__opacity" title={t('panels:imageInspector.opacity', 'Opacity')}>
         <span aria-hidden="true">{t('panels:imageInspector.opacity', 'Opacity')}</span>
-        <input
+        <Slider
           ref={opacityRef}
-          type="range"
           min={0}
           max={100}
           value={Math.round(opacity * 100)}
