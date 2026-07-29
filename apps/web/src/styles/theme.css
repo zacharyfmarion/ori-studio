@@ -4324,6 +4324,41 @@
 
 /* Fold-angle quick-pick chips. Keeps typing off the common path: a box is 90
    everywhere, a prism 60/120. */
+/* Fold-angle readouts drawn at crease midpoints. The lightness ramp is a gist
+   channel; this is the readout, and its dot form is the low-zoom degradation of
+   the same badge rather than a separate affordance. */
+.cp-fold-angle-layer__badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cp-fold-angle-layer__badge[data-detail='number'] {
+  padding: 1px 5px;
+  /* Sit on the crease without hiding it: a scrim tied to the canvas colour so
+     the digits stay legible over the line in either theme. */
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  border: 1px solid var(--border-subtle);
+}
+
+.cp-fold-angle-layer__badge[data-detail='dot'] {
+  width: 5px;
+  height: 5px;
+  background: var(--text-secondary);
+  border: 1px solid color-mix(in srgb, var(--bg-primary) 70%, transparent);
+}
+
 .cp-context-panel__chips {
   display: flex;
   flex-wrap: wrap;

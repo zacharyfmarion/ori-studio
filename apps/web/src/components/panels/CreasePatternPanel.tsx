@@ -125,6 +125,7 @@ import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
 import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverlay';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
+import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
@@ -3035,6 +3036,7 @@ export function CreasePatternPanel() {
                       scale={cpMeasureScale}
                     />
                   )}
+                {webglOverlayView && <CpFoldAngleLayer lineSegments={editableCp?.crease_pattern.line_segments} />}
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}

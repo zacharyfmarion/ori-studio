@@ -776,10 +776,21 @@ See **Editing UX** above for the reasoning behind each item.
       main falsifiable prediction)
 
 ### Phase 4 — Rendering
-- [ ] Lightness ramp in colour resolution, floored so it can't read as dimmed
-- [ ] Numeric badge for non-classic creases, zoom/hover/selection gated
+- [x] Lightness ramp in colour resolution, floored so it can't read as dimmed
+- [x] Classic creases return their ink **by identity**, so a classic pattern is
+      untouched; parity gate extended to the ramp, with a non-vacuity assertion
+- [x] Midpoint badge for non-classic creases, degrading number → dot → nothing
+      by available on-screen room, capped at `MAX_BADGES` (longest creases win)
 - [ ] "Fold angles" overlay mode, sibling to the CAMV overlay
-- [ ] Golden test: a classic pattern renders pixel-identically to today
+
+> **The ramp alone was not enough**, which only became clear on real geometry.
+> At 90° the wash is 27.5% toward the canvas on a 1px stroke, and lightness is a
+> weak channel on hairlines — worse in dark theme, where washing red toward a
+> dark canvas mostly just darkens it, and with no adjacent 180° crease to compare
+> against. The midpoint badge is now the primary signal: it is the only option
+> that says *which* angle rather than merely "this one differs", and its dot form
+> at low zoom is the same badge degraded, not a separate affordance. The ramp
+> stays as reinforcement.
 
 ### Phase 5 — Export and folded-form gating
 - [ ] `supersetFeatures` entry, with `fold` excluded from `droppedByFormats`
