@@ -79,7 +79,7 @@ export function cpSnapshotToScene(
   selection?: CpSelectionStyle,
   move?: CpTransformPreview,
   /** See {@link cpGeometryStrokesToScene}; kept in step for the parity gate. */
-  foldAngleCanvas?: Rgba
+  foldAngleAnchor?: Rgba
 ): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
   const a = new Float32Array(count * 2);
@@ -125,9 +125,9 @@ export function cpSnapshotToScene(
       appearanceCache.set(seg.color, appearance);
     }
     const rgba =
-      foldAngleCanvas === undefined
+      foldAngleAnchor === undefined
         ? appearance.color
-        : applyFoldAngleRamp(appearance.color, seg.fold_magnitude, foldAngleCanvas);
+        : applyFoldAngleRamp(appearance.color, seg.fold_magnitude, foldAngleAnchor);
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];

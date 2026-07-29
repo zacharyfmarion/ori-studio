@@ -126,6 +126,7 @@
     "camvIssues": "Problemas de CAMV",
     "diagonalGridlines": "Linhas de grade diagonais",
     "emptyNote": "Abra um padrão de vincos editável para ajustar as opções de exibição.",
+    "foldAngleLabels": "Rótulos de ângulo de dobra",
     "grid": "Grade",
     "gridConfiguration": "Configuração da grade",
     "gridConstantTerm": "Termo constante de {{label}}",

@@ -126,6 +126,7 @@
     "camvIssues": "CAMV-Probleme",
     "diagonalGridlines": "Diagonale Rasterlinien",
     "emptyNote": "Öffnen Sie ein bearbeitbares Faltmuster, um die Ansichtsoptionen anzupassen.",
+    "foldAngleLabels": "Faltwinkel-Beschriftungen",
     "grid": "Raster",
     "gridConfiguration": "Rasterkonfiguration",
     "gridConstantTerm": "Konstanter Term {{label}}",

@@ -126,6 +126,7 @@
     "camvIssues": "CAMV 问题",
     "diagonalGridlines": "对角网格线",
     "emptyNote": "打开可编辑折痕图以调整视图选项。",
+    "foldAngleLabels": "折叠角度标签",
     "grid": "网格",
     "gridConfiguration": "网格配置",
     "gridConstantTerm": "{{label}} 常数项",

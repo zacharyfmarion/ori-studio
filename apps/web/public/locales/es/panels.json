@@ -126,6 +126,7 @@
     "camvIssues": "Problemas de CAMV",
     "diagonalGridlines": "Líneas de cuadrícula diagonales",
     "emptyNote": "Abra un patrón de pliegues editable para ajustar las opciones de vista.",
+    "foldAngleLabels": "Etiquetas de ángulo de plegado",
     "grid": "Cuadrícula",
     "gridConfiguration": "Configuración de la cuadrícula",
     "gridConstantTerm": "Término constante de {{label}}",

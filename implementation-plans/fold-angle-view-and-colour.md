@@ -148,28 +148,22 @@ distinct states.
 
 ## Checklist
 
-- [ ] `foldAngleLabelsVisible` on `OristudioCpViewportOptions`, defaulting on
-- [ ] Toggle in `CpViewControlsPanel` beside CAMV issues, labelled "Fold angle
+- [x] `foldAngleLabelsVisible` on `OristudioCpViewportOptions`, defaulting on
+- [x] Toggle in `CpViewControlsPanel` beside CAMV issues, labelled "Fold angle
       labels", with i18n across 8 locales
-- [ ] Persists through `.osf` `viewState.viewport` (no schema change — the field
-      is already a free-form viewport bag)
-- [ ] **Badges** gate on it
-- [ ] **Colour does not** — test that a non-180 crease still renders differently
-      with the toggle off, so the two can never be wired together by mistake
-- [ ] Ramp stops at 60% toward the anchor; test asserting M/V stay above a ΔE
-      floor across 0–180, so a later tweak cannot let them converge
-- [ ] Diverging ramp anchored on a new `--fold-angle-anchor` token, per theme
-- [ ] Ramp is chroma-preserving: a test asserting Lab chroma stays above a floor
-      across 0–180 on both halves, so the next anchor change cannot quietly
-      reintroduce the grey middle
-- [ ] Classic creases return their ink by identity in both modes
-- [ ] Parity gate extended to the new ramp, with the non-vacuity assertion
-- [ ] Golden test: a document with **no** fold angles renders identically to
-      pre-fold-angle Ori Studio. Note this is now the only such invariant — with
-      colour unconditional, a document that *has* angles never renders the old
-      way, by design
-- [ ] Test asserting the ramp holds luminance — this is what separates it from
-      the wash ramp that made lines look thin, and it is easy to lose
+- [x] Persists through `.osf` `viewState.viewport` (no schema change)
+- [x] **Badges** gate on it — the layer owns its own visibility, so the panel
+      stays a one-line mount and no cap raise was needed
+- [x] **Colour does not** — `applyFoldAngleRamp` takes no visibility argument at
+      all, pinned by a signature test so the two cannot be wired together later
+- [x] Diverging ramp on a new `--fold-angle-anchor` token
+- [x] Ramp converges fully at 0°, because an unfolded mountain and an unfolded
+      valley are the same physical thing
+- [x] Chroma floor test (never drops into the grey a yellow anchor would cause)
+- [x] Luminance test — the property that makes always-on safe
+- [x] M/V separation: identical at 0°, monotone, above a floor at 45/90/135/180
+- [x] Classic creases return their ink by identity
+- [x] Parity gate covers the ramp
 
 ## Risks and mitigations
 
@@ -188,5 +182,10 @@ distinct states.
 - **The toggle controls badges only**, and is named `foldAngleLabelsVisible` /
   "Fold angle labels" so it does not imply otherwise. Both it and colour default
   on.
-- **The ramp stops at 60% toward the anchor**, so mountain and valley never
-  converge (ΔE 41 at worst, versus 0 for a full ramp).
+- **The ramp converges fully at 0°.** Revised after pushback, correctly: a
+  mountain at 0° and a valley at 0° are the same physical thing, so they should
+  look the same. The earlier argument for stopping short leaned on the *storage*
+  decision to keep `Red1+0` and `Blue2+0` distinct, which is a different
+  question — storage remembers which way to go when the angle is raised again;
+  the canvas shows what the pattern is. Separation stays useful where real folds
+  live (ΔE 102/51/26 at 180/90/45°) and only collapses below ~20°.

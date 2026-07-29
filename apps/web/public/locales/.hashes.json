@@ -1898,7 +1898,8 @@
     "tools:cpContext.foldAngleMixed": "f340b6d6edef",
     "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
     "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
-    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c",
+    "panels:cpViewControls.foldAngleLabels": "96fa5ecda1af"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3799,7 +3800,8 @@
     "tools:cpContext.foldAngleMixed": "f340b6d6edef",
     "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
     "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
-    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c",
+    "panels:cpViewControls.foldAngleLabels": "96fa5ecda1af"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5726,7 +5728,8 @@
     "tools:cpContext.foldAngleMixed": "f340b6d6edef",
     "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
     "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
-    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c",
+    "panels:cpViewControls.foldAngleLabels": "96fa5ecda1af"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7653,7 +7656,8 @@
     "tools:cpContext.foldAngleMixed": "f340b6d6edef",
     "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
     "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
-    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c",
+    "panels:cpViewControls.foldAngleLabels": "96fa5ecda1af"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9580,7 +9584,8 @@
     "tools:cpContext.foldAngleMixed": "f340b6d6edef",
     "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
     "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
-    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c",
+    "panels:cpViewControls.foldAngleLabels": "96fa5ecda1af"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11507,7 +11512,8 @@
     "tools:cpContext.foldAngleMixed": "f340b6d6edef",
     "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
     "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
-    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c",
+    "panels:cpViewControls.foldAngleLabels": "96fa5ecda1af"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13434,7 +13440,8 @@
     "tools:cpContext.foldAngleMixed": "f340b6d6edef",
     "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
     "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
-    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c",
+    "panels:cpViewControls.foldAngleLabels": "96fa5ecda1af"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15335,6 +15342,7 @@
     "tools:cpContext.foldAngleMixed": "f340b6d6edef",
     "cpVocab:action.cp_action_crease_set_fold_angle.label": "2484a799b074",
     "cpVocab:action.cp_action_crease_set_fold_angle.tooltip": "ffa4cf138d68",
-    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c"
+    "cpVocab:action.cp_action_crease_set_fold_angle.disabledReason": "5fa7aac5375c",
+    "panels:cpViewControls.foldAngleLabels": "96fa5ecda1af"
   }
 }

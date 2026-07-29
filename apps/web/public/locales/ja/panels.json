@@ -126,6 +126,7 @@
     "camvIssues": "CAMV の問題",
     "diagonalGridlines": "対角グリッド線",
     "emptyNote": "表示オプションを調整するには編集可能な展開図を開いてください。",
+    "foldAngleLabels": "折り角度ラベル",
     "grid": "グリッド",
     "gridConfiguration": "グリッド設定",
     "gridConstantTerm": "{{label}} 定数項",

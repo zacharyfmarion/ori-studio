@@ -12,6 +12,7 @@
  * without re-rendering the panel.
  */
 import { useCpOverlayView } from '../cpOverlayViewStore';
+import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import { overlayModelToCss } from '../annotations/annotationTransform';
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
 import { creaseFoldMagnitudeDegrees, isClassicCrease, isFoldingCrease } from '../../lib/foldAngle';
@@ -28,7 +29,13 @@ export function CpFoldAngleLayer({
   lineSegments: readonly OristudioCpLineSegment[] | undefined;
 }) {
   const view = useCpOverlayView();
-  if (!view || !lineSegments) return null;
+  // The layer owns its own visibility rather than the panel deciding for it.
+  // Note this gates the *badges* only — crease colour is unconditional, and
+  // lives in the stroke builders where no visibility flag reaches it.
+  const labelsVisible = useWorkspaceStore(
+    (state) => state.oristudioCpViewport.foldAngleLabelsVisible !== false
+  );
+  if (!view || !lineSegments || !labelsVisible) return null;
 
   const candidates: FoldAngleBadgeInput[] = [];
   lineSegments.forEach((segment, index) => {

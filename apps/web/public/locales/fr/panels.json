@@ -126,6 +126,7 @@
     "camvIssues": "Problèmes CAMV",
     "diagonalGridlines": "Lignes de grille diagonales",
     "emptyNote": "Ouvrez un patron de plis modifiable pour ajuster les options d'affichage.",
+    "foldAngleLabels": "Étiquettes d’angle de pliage",
     "grid": "Grille",
     "gridConfiguration": "Configuration de la grille",
     "gridConstantTerm": "Terme constant {{label}}",

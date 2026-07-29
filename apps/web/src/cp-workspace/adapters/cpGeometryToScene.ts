@@ -29,10 +29,10 @@ export function cpGeometryStrokesToScene(
   selection?: CpSelectionStyle,
   move?: CpTransformPreview,
   /**
-   * Canvas colour that shallow fold angles wash toward. Omit to disable the
-   * fold-angle ramp entirely (classic rendering).
+   * Hue a shallower fold shifts toward. Omit to disable the fold-angle ramp
+   * (used by callers that render classic geometry only).
    */
-  foldAngleCanvas?: Rgba
+  foldAngleAnchor?: Rgba
 ): { strokes: StrokeGeometry } {
   const endpoints = transport.segEndpoints;
   const attr = transport.segAttr;
@@ -83,9 +83,9 @@ export function cpGeometryStrokesToScene(
     // Ramp is applied after the colour-keyed cache: hue is the crease's
     // direction (cacheable), lightness is its magnitude (per segment).
     const rgba =
-      foldAngleCanvas === undefined
+      foldAngleAnchor === undefined
         ? appearance.color
-        : applyFoldAngleRamp(appearance.color, transport.segFoldMagnitude?.[i], foldAngleCanvas);
+        : applyFoldAngleRamp(appearance.color, transport.segFoldMagnitude?.[i], foldAngleAnchor);
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];

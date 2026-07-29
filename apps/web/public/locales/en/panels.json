@@ -126,6 +126,7 @@
     "camvIssues": "CAMV issues",
     "diagonalGridlines": "Diagonal gridlines",
     "emptyNote": "Open an editable crease pattern to adjust view options.",
+    "foldAngleLabels": "Fold angle labels",
     "grid": "Grid",
     "gridConfiguration": "Grid configuration",
     "gridConstantTerm": "{{label}} constant term",

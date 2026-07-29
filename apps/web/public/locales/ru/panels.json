@@ -126,6 +126,7 @@
     "camvIssues": "Проблемы CAMV",
     "diagonalGridlines": "Диагональные линии сетки",
     "emptyNote": "Откройте редактируемый паттерн складок, чтобы настроить параметры отображения.",
+    "foldAngleLabels": "Подписи углов сгиба",
     "grid": "Сетка",
     "gridConfiguration": "Настройка сетки",
     "gridConstantTerm": "{{label}}: свободный член",
