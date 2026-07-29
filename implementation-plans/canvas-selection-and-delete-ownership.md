@@ -178,6 +178,14 @@ Behavior changes to confirm during implementation, both believed correct:
   fold instead of re-runnable on the same selection.
 - Selecting a diagnostic or running Select All will now drop an active figure.
 
+Implemented with one refinement the plan did not anticipate: only *taking* the
+selection is invariant-bearing. Releasing your own claim (`setSelectedAnnotation(null)`,
+`clearOristudioCpSelection`, an empty `setOristudioCpSelection`) leaves the other
+three alone. Without that asymmetry, picking any crease tool would have deselected
+the creases it was about to act on — the tool rail calls
+`setSelectedAnnotation(null)` on every tool change
+([CreasePatternPanel.tsx:1711](apps/web/src/components/panels/CreasePatternPanel.tsx:1711)).
+
 ### Phase 3 — the window gives up focus on any press outside it
 
 Two halves; both are needed, and they are not redundant.
@@ -256,9 +264,11 @@ Tests: `shortcutDispatcher.test.ts`, `shortcutRuntime.test.ts`,
       figure, simulation window
 - [x] Phase 1: confirm one undo reverses an annotation delete that today also
       ran a `LineSegmentDelete`
-- [ ] Phase 2: `canvasSelectionPatch` helper; all four fields and every raw
-      `set` site routed through it
-- [ ] Phase 2: store tests pinning that naming any owner clears the other three
+- [x] Phase 2: `takeCanvasSelection` helper (a function, not a patch — giving up
+      a selection also means deselecting in the kernel and redrawing a figure's
+      marker); all four fields and every raw `set` site routed through it
+- [x] Phase 2: store tests pinning that naming any owner clears the other three,
+      verified to fail with the invariant reverted
 - [ ] Phase 3: crease click blurs the focused window
 - [ ] Phase 3: outside-`pointerdown` blur hook, guarded against per-press state
       churn

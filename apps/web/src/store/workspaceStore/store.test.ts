@@ -3272,6 +3272,91 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
   });
 
+  // The crease selection is the fourth holder of the same single selection, and
+  // used to be outside the rule entirely. That is what let a focused simulation
+  // window and a selected crease both be live, so one Delete deleted both.
+  it('keeps the canvas selection exclusive between creases and every object kind', () => {
+    resetStores(seedSnapshot());
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    const annotation = createCpImage({
+      src: 'data:image/png;base64,AAAA',
+      naturalWidth: 10,
+      naturalHeight: 10,
+      center: { x: 0, y: 0 },
+      width: 1,
+      height: 1,
+    });
+    const selectCreases = () =>
+      useWorkspaceStore.getState().toggleOristudioCpLineSelection(3);
+    const state = () => useWorkspaceStore.getState();
+
+    for (const [name, select] of [
+      ['annotation', () => state().setSelectedAnnotation(annotation.id)],
+      ['folded figure', () => state().setOristudioCpActiveFoldedFigure(figure.id)],
+      [
+        'inline simulation',
+        () => state().focusOristudioCpInlineSimulation('inline-sim-1'),
+      ],
+    ] as const) {
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: [figure],
+        oristudioCpAnnotations: [annotation],
+        oristudioCpInlineSimulations: [inlineSimulationFixture()],
+        oristudioCpSelectedAnnotationId: null,
+        oristudioCpActiveFoldedFigureId: null,
+        oristudioCpFocusedInlineSimulationId: null,
+        oristudioCpSelection: emptyOristudioCpSelection(),
+      });
+
+      // Selecting a crease first, then the object: the creases go.
+      selectCreases();
+      expect(state().oristudioCpSelection.lines, name).toEqual([3]);
+      select();
+      expect(state().oristudioCpSelection.lines, name).toEqual([]);
+
+      // And the other way round: clicking a crease gives up the object.
+      select();
+      selectCreases();
+      expect(state().oristudioCpSelectedAnnotationId, name).toBeNull();
+      expect(state().oristudioCpActiveFoldedFigureId, name).toBeNull();
+      expect(state().oristudioCpFocusedInlineSimulationId, name).toBeNull();
+      expect(state().oristudioCpSelection.lines, name).toEqual([3]);
+    }
+  });
+
+  it('lets an empty crease selection release the canvas rather than claim it', () => {
+    // Tools clear the selection as they start; that must not also drop the
+    // reference image or folded figure the user is working next to.
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+    });
+
+    useWorkspaceStore.getState().setOristudioCpSelection(emptyOristudioCpSelection());
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe(
+      'inline-sim-1'
+    );
+
+    useWorkspaceStore.getState().clearOristudioCpSelection();
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe(
+      'inline-sim-1'
+    );
+  });
+
   it('rerenders folded figure selected markers when the active figure changes', async () => {
     resetStores(seedSnapshot());
     const first: OristudioCpFoldedFigureEntry = {

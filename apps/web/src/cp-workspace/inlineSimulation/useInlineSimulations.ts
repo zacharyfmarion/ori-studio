@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
@@ -119,9 +119,19 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
 
   /** Hand the solver back, so at most one window is ever live. */
   const blur = useCallback(() => {
-    setPlaying(false);
     focusSimulation(null);
   }, [focusSimulation]);
+
+  /**
+   * Playback is transport state out here, not in the descriptor, so it has to
+   * follow focus wherever focus is lost — and the store takes it too, whenever
+   * a crease or another canvas object claims the canvas. Watching `focusedId`
+   * covers those paths as well as `blur`, which is why `blur` no longer stops
+   * playback itself.
+   */
+  useEffect(() => {
+    if (focusedId === null) setPlaying(false);
+  }, [focusedId]);
 
   /**
    * Scrubbing is a manual override, so it stops playback.

@@ -1311,24 +1311,17 @@ export function CreasePatternPanel() {
   });
   const selectCanvasObject = useCallback(
     (id: string | null) => {
+      // Deselecting is per-kind: the store treats releasing a claim as nobody's
+      // business but the releaser's, so say it for all three. Selecting is not —
+      // whichever kind is named takes the canvas from the rest, in the store.
       if (id === null) {
         setSelectedAnnotation(null);
         setOristudioCpActiveFoldedFigure(null);
         inlineSimulations.blur();
         return;
       }
-      if (inlineSimulations.isInlineSimulationId(id)) {
-        // Both, or a still-selected annotation would win the `??` above and the
-        // window would take focus without ever showing handles.
-        setSelectedAnnotation(null);
-        setOristudioCpActiveFoldedFigure(null);
-        inlineSimulations.focus(id);
-        return;
-      }
-      // Selecting anything else hands the solver back, so at most one window is
-      // ever live.
-      inlineSimulations.blur();
-      if (isFoldedFigureId(id)) setOristudioCpActiveFoldedFigure(id);
+      if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.focus(id);
+      else if (isFoldedFigureId(id)) setOristudioCpActiveFoldedFigure(id);
       else setSelectedAnnotation(id);
     },
     [isFoldedFigureId, inlineSimulations, setSelectedAnnotation, setOristudioCpActiveFoldedFigure]
