@@ -233,42 +233,42 @@ usefulness decays as the fold closes; it does not vanish.
 
 ### Phase 1 — colours and weight
 
-- [ ] Style keys + `SIMULATOR_STYLE_KEYS` on `SimulatorSettings`; normalization
+- [x] Style keys + `SIMULATOR_STYLE_KEYS` on `SimulatorSettings`; normalization
       rejects a non-`#rrggbb` persisted colour to `null`
-- [ ] `simulatorPalette.ts`: one `resolveRenderSettings`, plus
+- [x] `simulatorPalette.ts`: one `resolveRenderSettings`, plus
       `SimulatorChrome` for the canvas-2D-only inks
-- [ ] `canvas2dFrame` consumes it and no longer resolves colours itself; a test
+- [x] `canvas2dFrame` consumes it and no longer resolves colours itself; a test
       pins that the CPU path and `RenderSettings` agree on mountain and valley
       (they do not today — valleys are teal there)
-- [ ] `null` follows the theme, a hex overrides it, and switching theme still
+- [x] `null` follows the theme, a hex overrides it, and switching theme still
       moves an unset colour
-- [ ] `creaseWidth` reaches `RenderSettings.creaseWidthPx`
-- [ ] `exportSvg({ background })`, defaulting to transparent; a dark theme no
+- [x] `creaseWidth` reaches `RenderSettings.creaseWidthPx`
+- [x] `exportSvg({ background })`, defaulting to transparent; a dark theme no
       longer exports a near-black page
-- [ ] `ColorField` primitive, adopted by the folded-figure menu and the export
+- [x] `ColorField` primitive, adopted by the folded-figure menu and the export
       dialog as well as the new pane
-- [ ] Paper + Creases groups and Reset style in `SimulatorViewControlsPanel`
-- [ ] i18n: extract, translate 8 locales, `npm --workspace @treemaker/web run
+- [x] Paper + Creases groups and Reset style in `SimulatorViewControlsPanel`
+- [x] i18n: extract, translate 8 locales, `npm --workspace @treemaker/web run
       i18n:stamp`, check
 
 ### Phase 2 — crease style
 
-- [ ] `creaseStyle` in settings; resolver flattens it to colours + `creaseDash`
+- [x] `creaseStyle` in settings; resolver flattens it to colours + `creaseDash`
       so no renderer ever sees the enum, with a unit test per style
-- [ ] `creaseDash` on `RenderSettings`; SVG emits `stroke-dasharray`; canvas-2D
+- [x] `creaseDash` on `RenderSettings`; SVG emits `stroke-dasharray`; canvas-2D
       uses `setLineDash`
-- [ ] Edge-shader dashing: distance-along-edge varying, uniform pattern array,
+- [x] Edge-shader dashing: distance-along-edge varying, uniform pattern array,
       `discard` in the gaps
-- [ ] Dash patterns are Oriedita's own values, in device px, unscaled by zoom —
+- [x] Dash patterns are Oriedita's own values, in device px, unscaled by zoom —
       a crease dashes identically here and in the CP editor
-- [ ] Hidden lines differentiate by weight/opacity, never by dash, while a
+- [x] Hidden lines differentiate by weight/opacity, never by dash, while a
       dashed style is active
-- [ ] Style select in the pane
+- [x] Style select in the pane
 
 ### Validation
 
-- [ ] `npm run build --workspace @treemaker/origami-simulator` + package vitest
-- [ ] `npx tsc --noEmit`, web vitest, `npm run lint:web`, `npm run i18n:check`
+- [x] `npm run build --workspace @treemaker/origami-simulator` + package vitest
+- [x] `npx tsc --noEmit`, web vitest, `npm run lint:web`, `npm run i18n:check`
       (note: `i18n:stamp` is workspace-only — the root does not forward it)
 - [ ] Browser, Phase 1: a colour override reaches the GPU view, the export, and
       a fold-profile simulation (the canvas-2D path) identically; export from a
