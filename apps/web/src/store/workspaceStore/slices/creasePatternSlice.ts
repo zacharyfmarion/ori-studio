@@ -27,6 +27,7 @@ import {
 import i18n from '../../../i18n';
 import { requestConfirmation, requestConfirmationWithOption } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
+import { isClassicCrease, isFoldingCrease } from '../../../lib/foldAngle';
 import { useSettingsStore } from '../../settingsStore';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { freshEditableCpState } from '../freshCreasePattern';
@@ -982,6 +983,27 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             message,
           },
         });
+        return false;
+      }
+
+      // A non-flat crease has no flat folded image at all, so the 2D folder
+      // cannot answer this. Offer the simulator, which can.
+      //
+      // The trigger is purely syntactic -- "does any selected crease carry a
+      // non-180 angle" -- so it needs no solver and no topology, and it fires
+      // before the flat-foldability check rather than as one of its results.
+      const nonClassic = selectedLineIds.filter((lineId) => {
+        const segment = oristudioCpDocument.document.crease_pattern.line_segments[lineId - 1];
+        return segment !== undefined && isFoldingCrease(segment.color) && !isClassicCrease(segment);
+      });
+      if (nonClassic.length > 0) {
+        const simulate = await requestConfirmation({
+          title: 'This pattern isn’t flat-folded',
+          message: `${nonClassic.length} of the selected creases fold to something other than a full mountain or valley, so there is no flat folded form to compute. The simulator can fold it in 3D.`,
+          confirmLabel: 'Simulate',
+          cancelLabel: 'Cancel',
+        });
+        if (simulate) useLayoutStore.getState().activatePanel('simulator');
         return false;
       }
 

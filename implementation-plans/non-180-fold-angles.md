@@ -793,11 +793,22 @@ See **Editing UX** above for the reasoning behind each item.
 > stays as reinforcement.
 
 ### Phase 5 — Export and folded-form gating
-- [ ] `supersetFeatures` entry, with `fold` excluded from `droppedByFormats`
-- [ ] `SupersetPresence` sourced from kernel geometry
-- [ ] `.cp`/`.ori`/`.orh`/`.dxf`/`.obj` disabled on non-classic creases
-- [ ] "Not flat-foldable — simulate instead?" dialog on the folded-form entry
-- [ ] i18n extraction; `i18n:check` green
+- [x] `supersetFeatures` entry, with `fold`, `svg` and `png` excluded from
+      `droppedByFormats`
+- [x] `SupersetPresence` sourced from kernel geometry (`lineSegments`)
+- [x] `.cp`/`.ori`/`.orh`/`.dxf`/`.obj` **refused**, not warned — a new
+      `blocking` flag on the registry, because losing an angle is not
+      recoverable the way losing an image is
+- [x] The refusal offers "Export FOLD instead" rather than dead-ending
+- [x] "This pattern isn't flat-folded — simulate?" on the folded-form entry,
+      triggered by the cheap syntactic scan, before the CAMV gate
+- [x] `i18n:check` green (store-slice dialogs are plain strings upstream too)
+
+> **Why `.dxf`/`.obj` block but `.svg`/`.png` do not**, which needed checking
+> rather than assuming: both DXF and OBJ carry the crease colour
+> (`dxf_layer`, OBJ's `#e` records) and can be re-imported, so a dropped angle
+> there is silent data loss. SVG and PNG are pictures — nobody re-imports one as
+> a crease pattern, so there is nothing to lose.
 
 ### Phase 6 — Generalised checks
 - [ ] `VertexFan` extraction, carrying a **determinacy** state

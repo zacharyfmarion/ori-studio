@@ -104,6 +104,7 @@ import { freshEditableCpState } from '../freshCreasePattern';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
+  blockingExportLoss,
   collectExportLossWarnings,
   describeExportLoss,
   exportFormatLabel,
@@ -1240,8 +1241,35 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const warnings = collectExportLossWarnings(format, {
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
+      lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
     });
     if (warnings.length === 0) return true;
+
+    // Some losses are refused rather than confirmed. Dropping an image still
+    // leaves a crease pattern that means what it meant; dropping a fold angle
+    // changes what the pattern *is*, and the re-imported file gives no hint that
+    // anything was lost. So there is no "export anyway" for those.
+    const blocking = blockingExportLoss(warnings);
+    if (blocking.length > 0) {
+      // A dead-end "OK" would leave the user where they started, so the
+      // affirmative button does the thing the message recommends: FOLD is the
+      // one interchange format that carries a fold angle. Re-entering the guard
+      // for `fold` is safe -- it is not in the blocking list, so this cannot
+      // recurse.
+      return requestConfirmation({
+        title: `Can’t export to ${exportFormatLabel(format)}`,
+        message: `The ${exportFormatLabel(
+          format
+        )} format can’t store ${describeExportLoss(blocking)}, and re-importing would silently read every crease as a full fold. FOLD stores them, and .osf keeps everything.`,
+        confirmLabel: 'Export FOLD instead',
+        cancelLabel: 'Cancel',
+      }).then(async (useFold) => {
+        if (useFold) await get().exportFold();
+        // Either way the requested format is not written.
+        return false;
+      });
+    }
+
     return requestConfirmation({
       title: 'Some features can’t be exported',
       message: `This project uses features the ${exportFormatLabel(
