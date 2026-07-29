@@ -189,6 +189,29 @@ describe('simulator session', () => {
     expect(maxAbsDelta(flat, back)).toBeLessThan(1e-5);
     session.dispose();
   });
+
+  it('stays flat when a tick lands between the reset and the new target', async () => {
+    // The test above sets the new target on the very next line, which no caller
+    // can actually guarantee: `reset` and `setFoldPercent` are two round-trips to
+    // the worker and the tick loop keeps running in between.
+    //
+    // That gap is what made pressing play on a fully folded window snap straight
+    // back to folded instead of replaying: reset returned the paper to flat but
+    // left the target where it was, so the solver drove the flat sheet at the old
+    // target with nothing damping it.
+    const session = createSimulatorSession();
+    session.load(miura(8, 8), {});
+    const flat = new Float32Array(positionsOf(await frame(session.settle(4000, {}))));
+
+    session.setFoldPercent(100);
+    for (let i = 0; i < 40; i += 1) await frame(session.tick({}));
+
+    session.reset();
+    const afterTick = new Float32Array(positionsOf(await frame(session.tick({}))));
+
+    expect(maxAbsDelta(flat, afterTick)).toBeLessThan(1e-5);
+    session.dispose();
+  });
 });
 
 describe('session tokens', () => {

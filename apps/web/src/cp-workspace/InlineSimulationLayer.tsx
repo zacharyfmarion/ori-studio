@@ -32,6 +32,7 @@ import {
 } from '../simulator/useSimulatorRuntime';
 import { foldNeedsTriangulation } from '../simulator/canvas2dFrame';
 import { useSimulatorShortcuts } from '../simulator/useSimulatorShortcuts';
+import { FoldPlayhead } from '../simulator/foldPlayhead';
 import {
   simulatorMaterialOptions,
   type SimulatorSettings,
@@ -272,11 +273,15 @@ function InlineSimulationWindow({
    */
   const gpuAvailable = useMemo(() => webglRenderSupported(), []);
 
-  // The fold percent the solver last reported. Held in a ref so a 60fps frame
-  // stream does not re-render this component; the store copy is throttled below
-  // purely so the toolbar's readout and slider track it. Seeded from the stored
-  // value so a window reloaded on refocus resumes where it was.
-  const solverFoldPercentRef = useRef(getInlineSimulationFoldPercent(simulation.id));
+  // Where this window's fold sits. Held in a ref so a 60fps frame stream does
+  // not re-render this component; the store copy is throttled below purely so
+  // the toolbar's readout and slider track it. Seeded from the stored value so a
+  // window reloaded on refocus resumes where it was.
+  //
+  // A playhead rather than a bare number because the playback loop and the
+  // solver both report a position and disagree at a restart -- see
+  // `FoldPlayhead`, which is where that rule lives and is tested.
+  const playheadRef = useRef(new FoldPlayhead(getInlineSimulationFoldPercent(simulation.id)));
   const lastPublishedRef = useRef(0);
 
   // Only the *initial* render size. Every later size rides on `setCamera`, which
@@ -321,7 +326,7 @@ function InlineSimulationWindow({
   const handleFrame = useCallback(
     (frame: SimulatorFrameView) => {
       viewportRef.current?.showFrame(frame);
-      solverFoldPercentRef.current = frame.foldPercent;
+      playheadRef.current.report(frame.foldPercent);
       const now = performance.now();
       // Still throttled, but what it now protects is one floating toolbar rather
       // than the whole crease-pattern panel.
@@ -365,7 +370,7 @@ function InlineSimulationWindow({
     if (!focused || playing || runtimeStatus !== 'ready') return;
     return subscribeInlineSimulationFoldTarget((id, percent) => {
       if (id !== simulation.id) return;
-      solverFoldPercentRef.current = percent;
+      playheadRef.current.set(percent);
       setFoldPercent(percent);
     });
   }, [focused, playing, runtimeStatus, simulation.id, setFoldPercent]);
@@ -374,21 +379,20 @@ function InlineSimulationWindow({
   // only ever computes a number and hands it over.
   useEffect(() => {
     if (!focused || !playing || runtimeStatus !== 'ready') return;
-    if (solverFoldPercentRef.current >= 100) {
-      solverFoldPercentRef.current = 0;
-      runtime.reset();
-    }
+    const playhead = playheadRef.current;
+    // Playing from a complete fold starts over. The playhead rewinds its own
+    // number and tells us to put the paper back to match.
+    if (playhead.begin().rewound) runtime.reset();
     let previous: number | null = null;
     let raf = 0;
     const tick = (time: number) => {
       if (previous === null) previous = time;
       const elapsedSeconds = Math.min(0.08, (time - previous) / 1000);
       previous = time;
-      const next = Math.min(
-        100,
-        solverFoldPercentRef.current + elapsedSeconds * viewSettings.foldPlayPercentPerSecond
+      const next = playhead.advance(
+        elapsedSeconds,
+        viewSettings.foldPlayPercentPerSecond
       );
-      solverFoldPercentRef.current = next;
       setFoldPercent(next);
       if (next >= 100) {
         onPlayingChange(false);
@@ -397,7 +401,10 @@ function InlineSimulationWindow({
       raf = window.requestAnimationFrame(tick);
     };
     raf = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(raf);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      playhead.end();
+    };
     // `runtime` is intentionally not a dep: it is a fresh object every render and
     // would restart the loop continuously.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -420,14 +427,16 @@ function InlineSimulationWindow({
       playPause: () => onPlayingChange(!playing),
       nudgeFold: (delta) => {
         onPlayingChange(false);
-        const next = Math.min(100, Math.max(0, solverFoldPercentRef.current + delta));
-        solverFoldPercentRef.current = next;
+        // Read back rather than reusing the sum: the playhead is what clamps to
+        // 0..100, so nudging past either end must not report past it either.
+        playheadRef.current.set(playheadRef.current.value + delta);
+        const next = playheadRef.current.value;
         setFoldPercent(next);
         publishInlineSimulationFold(simulation.id, next);
       },
       setFoldPercent: (percent) => {
         onPlayingChange(false);
-        solverFoldPercentRef.current = percent;
+        playheadRef.current.set(percent);
         setFoldPercent(percent);
         publishInlineSimulationFold(simulation.id, percent);
       },
@@ -454,7 +463,7 @@ function InlineSimulationWindow({
   useEffect(() => {
     replayRef.current = () => {
       onPlayingChange(false);
-      solverFoldPercentRef.current = 0;
+      playheadRef.current.set(0);
       resetSolver();
       publishInlineSimulationFold(simulation.id, 0);
     };
