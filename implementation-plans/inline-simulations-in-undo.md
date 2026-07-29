@@ -72,35 +72,34 @@ the undo support and can stop after 3 if the appetite runs out.
 
 Set `dirty: true` in add, update and remove. Three lines, no design.
 
-### Phase 2 — keep the fold alive as long as undo can reach the window
+### Phase 2 — rebuild the fold on restore, do not retain it
 
-The reference-counting discipline already in the history slice for wasm handles
-(`retainFoldedFigureHandles` / `releasedFrom` /
-[historySlice.ts:98](apps/web/src/store/workspaceStore/slices/historySlice.ts:98))
-is the same problem: an off-store resource whose lifetime is "as long as some
-stack still refers to it". Give inline-simulation sources the same treatment.
+Restoring a deleted window needs its fold back. Rebuild it; do not hold it.
 
-- `removeOristudioCpInlineSimulation` stops calling `clearInlineSimulationSource`
-  directly; a history entry that captures the window retains its source, an entry
-  leaving a stack releases it, and the source is dropped when the count hits zero.
-- `foldPercents` follows the same lifetime, so undoing a delete brings the window
-  back where its fold was rather than snapped to flat — matching what focus loss
-  already guarantees (`foldIsNotDocumentState.test.ts` > "remembers where the fold
-  was").
-- `clearAllInlineSimulationSources` on document replace stays the blunt reset it
-  is; history is cleared there anyway.
+- `removeOristudioCpInlineSimulation` keeps clearing the source, as it does now.
+- Restoring a window rebuilds its fold the way **`hydrateOristudioCpInlineSimulations`
+  does on file load** — `buildSegmentFold` against the window's own
+  `sourceBoundary`, with no `set` of provenance. That last part is the whole
+  reason to copy hydrate rather than `refreshOristudioCpInlineSimulation`, which
+  re-baselines `sourceFingerprint` and would quietly mark a stale window fresh.
+- Artifacts come from the add path's strategy (`get().foldArtifacts ?? await
+  ensureFoldArtifacts()`), not hydrate's unconditional `refreshFoldArtifacts()`.
+  Hydrate refreshes because a file load leaves artifacts in the importer's
+  coordinate space; mid-session they are already in the kernel's, so the warm
+  cache is both correct and free.
+- `foldPercents` is a number per window id — keep it across a delete so the
+  window comes back where its fold was, matching what focus loss already
+  guarantees (`foldIsNotDocumentState.test.ts` > "remembers where the fold was").
 
-Alternatives considered, both rejected:
+**This reverses the first version of this plan, which proposed reference-counting
+the folds against the history stacks** (mirroring `retainFoldedFigureHandles` for
+wasm handles). The shape is right and the precedent is real, but measuring the
+resource killed it — see "Memory and performance" below. Rebuilding costs a
+`buildSegmentFold` on undo against warm artifacts; retaining costs up to tens of
+MB of dead folds.
 
-- **Rebuild the fold on restore**, via a single-window hydrate. Correct-looking
-  and wrong in the same direction `persist-inline-simulations.md` already warns
-  about: the only existing single-window rebuild is
-  `refreshOristudioCpInlineSimulation`, which re-baselines provenance — so
-  undoing a delete would quietly mark a stale window fresh. A non-re-baselining
-  variant is possible but means an async artifact recompute on every undo, to
-  reproduce a fold that was never invalid.
-- **Never clear on delete.** One leaked fold per deleted window per session.
-  Cheap to write, and it is the shape the retain/release code exists to avoid.
+**Never clear on delete** was also rejected: same memory profile as retaining,
+without even a bound.
 
 ### Phase 3 — windows join the history entry
 
@@ -136,6 +135,64 @@ Labels follow the existing convention: "Add simulation window", "Delete
 simulation window", and the gesture labels the overlay already produces for move
 / resize / rotate.
 
+## Memory and performance
+
+### The descriptors are free; the folds are not
+
+A window descriptor is small JSON, and the slice `.map()`s over an immutable
+list, so an unchanged window is the *same object* in every history entry — the
+structural sharing that already bounds folded-figure memory applies unchanged.
+Adding `inlineSimulations` to the entry costs one array reference per entry.
+
+The fold is a different object entirely. Measured heap for a triangulated segment
+`FoldDocument` (arrays of `[x, y]` arrays, one JS object per coordinate pair):
+
+| Segment size | Per fold |
+| --- | --- |
+| 500 vertices (~1.5k edges, ~1k faces) | **243 KB** |
+| 2,000 vertices (~6k edges, ~4k faces) | **727 KB** |
+| 8,000 vertices (~24k edges, ~16k faces) | **2.9 MB** |
+
+With `MAX_CP_HISTORY = 100`, retaining a fold per undoable deleted window is
+100 × those figures in the worst case — ~70 MB for medium regions, ~290 MB for
+large ones, all of it dead weight for windows the user deleted. Rebuilding
+instead makes the retained cost zero and the restore cost one `buildSegmentFold`
+over already-computed artifacts.
+
+The one case where rebuilding is not free: artifacts cold (right after a load, or
+after an edit invalidated them), where `ensureFoldArtifacts` is the ~1s
+segmentation. Undo would block for that. Worth a check during implementation on
+whether it is reachable in practice — deleting a window does not invalidate
+artifacts, so the common delete-then-undo path should be warm.
+
+### Phase 4 does not add per-frame work
+
+`commitGesture` fires on pointerup, not per move, so a window drag pushes one
+entry per gesture — the same as annotations and folded figures today.
+
+Phase 1's `dirty: true` in `updateOristudioCpInlineSimulation` *does* run per
+pointermove, but the same `set` already writes the whole simulations array, and
+the added field is a boolean that is already `true` after the first move, so no
+subscriber re-renders for it.
+
+### A pre-existing cost this plan does not cause but sits next to
+
+`onUpdate` fires on every pointermove ([CanvasObjectOverlay.tsx:265](apps/web/src/cp-workspace/CanvasObjectOverlay.tsx:265)),
+so dragging a window rebuilds `oristudioCpInlineSimulations` per frame, which
+invalidates the `staleIds` memo in `useInlineSimulations`, which calls
+`isInlineSimulationStale` per window — and that walks **every line segment in the
+document** ([foldedFigureStaleness.ts:144](apps/web/src/cp-workspace/folded/foldedFigureStaleness.ts:144)).
+
+So moving a window over a 50k-edge CP with three windows open is ~150k crease
+visits per frame. This is the same failure the fold-percentage work fixed
+(`foldIsNotDocumentState`, 901ms of a 7.2s profile) — that fix took the *fold
+percentage* out of the descriptor, but a box drag still rewrites the descriptor
+at pointer rate.
+
+Out of scope here, and worth its own look: the memo could be keyed on the
+windows' provenance fields rather than the whole array, so a box change stops
+invalidating it.
+
 ### Stale comments to retire
 
 Each of these asserts the premise this plan removes, and each is why the gap was
@@ -164,9 +221,14 @@ Tests: `store.test.ts`, `foldIsNotDocumentState.test.ts`,
 
 - [ ] Phase 1: add/update/remove set `dirty`, with a test that a moved window
       makes the project dirty
-- [ ] Phase 2: sources and fold percentages are reference-counted by the history
-      stacks; a test that deleting and undoing restores the fold position, and
-      one that a source is actually freed once history can no longer reach it
+- [ ] Phase 2: restoring a window rebuilds its fold via the hydrate strategy
+      (no provenance re-baseline) against warm artifacts; tests that
+      delete-then-undo restores both the fold and its position, that a stale
+      window is still stale after the round trip, and that no fold is retained
+      for a deleted window
+- [ ] Phase 2: check whether cold artifacts on undo are reachable in practice;
+      if so, decide between blocking and restoring the window unrendered with a
+      refresh affordance
 - [ ] Phase 3: `inlineSimulations` on the history entry, restored in both undo
       and redo branches, with the missing-field rule tested (an old entry leaves
       live windows alone)
