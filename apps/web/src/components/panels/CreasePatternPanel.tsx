@@ -137,6 +137,7 @@ import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer'
 import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
 import { useInlineSimulations } from '../../cp-workspace/inlineSimulation/useInlineSimulations';
 import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSimulateSelection';
+import { useBlurOnPressOutside } from '../../cp-workspace/inlineSimulation/useBlurOnPressOutside';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
@@ -1258,6 +1259,13 @@ export function CreasePatternPanel() {
   // whose contents keep running after you place them.
   const inlineSimulations = useInlineSimulations({ cpDocument: oristudioCpDocument });
   const focusedInlineSimulation = inlineSimulations.selected;
+  // Leaving the surface gives the window up, which also hands the `simulator`
+  // shortcut scope back. Presses *on* the surface are the canvas's business.
+  useBlurOnPressOutside({
+    active: inlineSimulations.focusedId !== null,
+    panelRef: containerRef,
+    onBlur: inlineSimulations.blur,
+  });
   /**
    * Everything placed on the canvas that the WebGL renderer does not draw
    * itself, for framing. Both kinds live on their own DOM layers, so without
@@ -2957,13 +2965,15 @@ export function CreasePatternPanel() {
                   selectedPointIds={oristudioCpSelection.points}
                   selectedCircleIds={oristudioCpSelection.circles}
                   onSelect={(hit, additive) => {
+                    // Any click on the canvas is a click outside every canvas
+                    // object — the overlay captures presses that land on one and
+                    // they never reach here. So deselect first, whether or not
+                    // the click found a crease. Taking a crease selection would
+                    // clear an object anyway, but a click that *deselects* the
+                    // last crease leaves no claim behind to do it.
+                    selectCanvasObject(null);
                     if (!hit) {
                       if (!additive) clearOristudioCpSelection();
-                      // A click on empty canvas also deselects the active canvas
-                      // object — annotation or folded figure (mirrors how creases
-                      // clear on a background click). A click on an object is
-                      // captured by the overlay and never reaches here.
-                      selectCanvasObject(null);
                       return;
                     }
                     if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);

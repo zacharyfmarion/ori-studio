@@ -269,9 +269,12 @@ Tests: `shortcutDispatcher.test.ts`, `shortcutRuntime.test.ts`,
       marker); all four fields and every raw `set` site routed through it
 - [x] Phase 2: store tests pinning that naming any owner clears the other three,
       verified to fail with the invariant reverted
-- [ ] Phase 3: crease click blurs the focused window
-- [ ] Phase 3: outside-`pointerdown` blur hook, guarded against per-press state
-      churn
+- [x] Phase 3: any canvas press blurs the focused window — not only a crease
+      click, so a press that deselects the last crease still gives the window up
+- [x] Phase 3: outside-`pointerdown` blur hook, guarded against per-press state
+      churn; scoped to presses outside the *panel*, not outside the window, so it
+      cannot fight the canvas's own gestures (the resize handles live on the
+      selection overlay, and blurring mid-drag would reload the solver)
 - [ ] Phase 4: `addOristudioCpInlineSimulation` clears the crease selection
 - [ ] Phase 4: test that `Shift+S` and the toolbar button leave the same state
 - [ ] `npx tsc --noEmit`, `npm run lint:web`, web unit tests
