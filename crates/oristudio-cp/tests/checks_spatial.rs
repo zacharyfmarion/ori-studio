@@ -324,3 +324,67 @@ fn dispatched_camv_matches_check4_exactly_on_a_classic_document() {
     assert_eq!(dispatched.flat, check4(&model));
     assert!(dispatched.spatial.is_empty());
 }
+
+// ------------------------------------------------------------ boundary vertices
+
+/// The closure condition applies only to **interior** vertices.
+///
+/// Regression for a real report: a hand-authored non-flat pattern that folds
+/// fine produced eight "degree 1 is rigid" errors, all at points where a 90
+/// degree crease meets the paper edge. Border segments contribute no rotation
+/// and so are correctly absent from the fan — but that leaves a degree-1 fan,
+/// which then looks rigid. The mistake was applying closure at all: at a point
+/// on the paper edge there is no loop to walk, so there is no constraint.
+#[test]
+fn a_crease_meeting_the_paper_edge_is_not_a_closure_violation() {
+    let mut model = CreasePatternModel::default();
+    // The exact shape from the report: two border segments meeting at a corner,
+    // with one 90-degree crease running inward from it.
+    model.add_line_segment(crease(0.0, -300.0, 50.0, -250.0, LineColor::Black0, None));
+    model.add_line_segment(crease(50.0, -250.0, 350.0, 50.0, LineColor::Black0, None));
+    model.add_line_segment(crease(
+        50.0,
+        -250.0,
+        50.0,
+        50.0,
+        LineColor::Blue2,
+        Some(90.0),
+    ));
+
+    let at_edge = spatial_vertex_reports(&model)
+        .into_iter()
+        .find(|report| report.point.distance(Point::new(50.0, -250.0)) < 1e-6);
+
+    assert!(
+        at_edge.is_none(),
+        "a vertex on the paper boundary has no closure constraint, so it must \
+         produce no report at all — got {at_edge:?}"
+    );
+}
+
+/// The gate must not silence genuine interior failures.
+#[test]
+fn removing_the_border_restores_the_closure_check() {
+    let mut model = CreasePatternModel::default();
+    // Same fan shape, but the two boundary segments are creases instead, so the
+    // paper does wrap around the point and closure applies again.
+    model.add_line_segment(crease(0.0, -300.0, 50.0, -250.0, LineColor::Red1, None));
+    model.add_line_segment(crease(50.0, -250.0, 350.0, 50.0, LineColor::Red1, None));
+    model.add_line_segment(crease(
+        50.0,
+        -250.0,
+        50.0,
+        50.0,
+        LineColor::Blue2,
+        Some(90.0),
+    ));
+
+    let at_vertex = spatial_vertex_reports(&model)
+        .into_iter()
+        .find(|report| report.point.distance(Point::new(50.0, -250.0)) < 1e-6);
+
+    assert!(
+        at_vertex.is_some(),
+        "an interior vertex must still be checked"
+    );
+}

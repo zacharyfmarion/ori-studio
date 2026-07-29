@@ -222,6 +222,28 @@ fn jacobian_rank(rows: &[[f64; 3]]) -> usize {
     rank
 }
 
+/// Whether the paper wraps all the way around this point.
+///
+/// **The closure condition only applies to interior vertices.** It says that
+/// walking the creases in angular order returns you to where you started — but
+/// at a point on the paper edge there is no loop to walk, because the paper does
+/// not continue past the border. A boundary vertex has no closure constraint at
+/// all.
+///
+/// Border count is the same signal Oriedita uses (`black == 0` gates its
+/// interior flat-foldability test), so the two checkers agree on what "interior"
+/// means. Anything other than 0 or 2 borders is a malformed boundary, which is
+/// Oriedita's `NumberOfFolds` to report — the spatial check stays out of it
+/// rather than issuing a second, differently-worded complaint about the same
+/// geometry.
+fn is_interior_vertex(lines: &[LineSegment]) -> bool {
+    lines
+        .iter()
+        .filter(|line| line.color == LineColor::Black0)
+        .count()
+        == 0
+}
+
 /// Build a fan from a vertex and the segments whose endpoints land on it.
 ///
 /// `through_line` is whether some other segment passes through this point
@@ -304,7 +326,9 @@ pub fn spatial_vertex_reports(model: &CreasePatternModel) -> Vec<SpatialVertexRe
 
     vertices
         .into_iter()
-        .filter(|(_, lines)| vertex_regime(lines) == VertexRegime::Spatial)
+        .filter(|(_, lines)| {
+            vertex_regime(lines) == VertexRegime::Spatial && is_interior_vertex(lines)
+        })
         .map(|(point, lines)| report_for(point, &lines, &through))
         .collect()
 }
@@ -448,7 +472,9 @@ pub fn dispatched_camv(model: &CreasePatternModel) -> DispatchedCamv {
                 }
             }
             VertexRegime::Spatial => {
-                spatial.push(report_for(point, &lines, &through));
+                if is_interior_vertex(&lines) {
+                    spatial.push(report_for(point, &lines, &through));
+                }
             }
         }
     }
