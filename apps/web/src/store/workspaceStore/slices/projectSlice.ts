@@ -698,6 +698,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         dirty: true,
         projectMessage: label,
       });
+      // The selection above came from the document, not from the setter, so the
+      // canvas's one-selection rule has to be applied after the fact.
+      get().claimCanvasForCreaseSelection();
       get().scheduleOristudioCamvRefresh();
       return true;
     } catch (error) {
@@ -1786,6 +1789,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           error: null,
           dirty: mutatesDocument ? true : get().dirty,
         });
+        // The selection above came from the document, not from the setter, so the
+        // canvas's one-selection rule has to be applied after the fact. This is
+        // the path a select tool takes, which is how a focused simulation window
+        // and a crease selection could both be live after the invariant landed.
+        get().claimCanvasForCreaseSelection();
         // Recompute the passive CAMV overlay off the critical path (debounced),
         // now that the edit has already rendered.
         if (mutatesDocument) get().scheduleOristudioCamvRefresh();

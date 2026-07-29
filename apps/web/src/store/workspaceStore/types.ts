@@ -535,6 +535,15 @@ export interface CreasePatternSliceActions {
     value: OristudioCpViewportOptions[K]
   ) => void;
   setOristudioCpSelection: (selection: OristudioCpSelection) => void;
+  /**
+   * Hand the canvas to the creases after a selection made by the kernel.
+   *
+   * Executing a CP operation writes `oristudioCpSelection` straight from the
+   * document it returns, so that path cannot go through the usual setter. Call
+   * this immediately after; it is a no-op unless a canvas object is holding the
+   * selection the creases have just taken.
+   */
+  claimCanvasForCreaseSelection: () => void;
   requestOristudioCpAction: (operationId: OristudioCpOperationId) => void;
   setOristudioCpActiveToolId: (id: OristudioCpActionId | null) => void;
   clearOristudioCpActionRequest: (id: number) => void;

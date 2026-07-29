@@ -1344,6 +1344,26 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     setOristudioCpSelection: (oristudioCpSelection) =>
       applyCreaseSelection(oristudioCpSelection),
 
+    claimCanvasForCreaseSelection: () => {
+      // For selections that arrive from the *kernel* rather than from a click:
+      // executing a CP operation writes `oristudioCpSelection` straight from the
+      // returned document, so it cannot go through `applyCreaseSelection` without
+      // a second store write on the hot edit path. Called after that write
+      // instead, and guarded so the ordinary case — nothing else selected — costs
+      // a few reads and no `set` at all.
+      if (cpSelectionSize(get().oristudioCpSelection) === 0) return;
+      if (
+        get().oristudioCpSelectedAnnotationId === null &&
+        get().oristudioCpActiveFoldedFigureId === null &&
+        get().oristudioCpFocusedInlineSimulationId === null
+      ) {
+        return;
+      }
+      // No patch: the creases are already selected, this only takes the canvas
+      // from whatever else was holding it.
+      takeCanvasSelection('creases');
+    },
+
     requestOristudioCpAction: (operationId) => {
       const previousId = get().oristudioCpActionRequest?.id ?? 0;
       set({ oristudioCpActionRequest: { id: previousId + 1, operationId } });

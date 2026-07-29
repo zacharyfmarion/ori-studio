@@ -3439,6 +3439,39 @@ describe('workspace store slices', () => {
     }
   });
 
+  // The setters are not the only way creases get selected: executing a CP
+  // operation writes the selection straight from the document it returns. That
+  // path bypassed the invariant, so a select tool left a focused simulation
+  // window highlighted *and* creases selected — the two-selections state the
+  // invariant exists to prevent, reachable by the most ordinary route there is.
+  it('applies the canvas rule to a selection that came from the kernel', () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [2, 4] },
+    });
+
+    useWorkspaceStore.getState().claimCanvasForCreaseSelection();
+
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
+    // The creases the command selected are untouched — this only moves the claim.
+    expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([2, 4]);
+  });
+
+  it('costs nothing when the creases already hold the canvas', () => {
+    // It runs after every CP operation, so the ordinary case must not write.
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    const before = useWorkspaceStore.getState();
+
+    useWorkspaceStore.getState().claimCanvasForCreaseSelection();
+
+    expect(useWorkspaceStore.getState()).toBe(before);
+  });
+
   it('lets an empty crease selection release the canvas rather than claim it', () => {
     // Tools clear the selection as they start; that must not also drop the
     // reference image or folded figure the user is working next to.
