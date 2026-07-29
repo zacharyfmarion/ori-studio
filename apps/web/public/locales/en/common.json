@@ -211,6 +211,10 @@
     "undoLastTreeEdit": "Undo the last tree edit"
   },
   "close": "Close",
+  "colorField": {
+    "reset": "Reset to default",
+    "resetNamed": "Reset {{label}} to default"
+  },
   "toolbar": {
     "downloadMac": "Download Ori Studio for Mac",
     "new": "New",

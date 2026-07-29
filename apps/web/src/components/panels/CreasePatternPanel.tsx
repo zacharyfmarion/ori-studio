@@ -194,6 +194,7 @@ import {
   readCpMeasurePreferences,
   writeCpMeasurePreferences,
 } from '../../cp-workspace/measurePreferences';
+import { ColorField } from '../ui/ColorField';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -300,19 +301,6 @@ function foldedColorLabel(t: TFunction, key: FoldedColorKey): string {
       return t('panels:creasePattern.foldedColor.back', 'Back');
     case 'line_color':
       return t('panels:creasePattern.foldedColor.line', 'Line');
-    default:
-      return key;
-  }
-}
-
-function foldedColorAria(t: TFunction, key: FoldedColorKey): string {
-  switch (key) {
-    case 'front_color':
-      return t('panels:creasePattern.foldedColor.frontAria', 'Folded front color');
-    case 'back_color':
-      return t('panels:creasePattern.foldedColor.backAria', 'Folded back color');
-    case 'line_color':
-      return t('panels:creasePattern.foldedColor.lineAria', 'Folded line color');
     default:
       return key;
   }
@@ -805,27 +793,21 @@ function FoldedFigureMenuButton({
           </div>
           <div className="folded-figure-menu__colors">
             {FOLDED_COLOR_FIELDS.map((field) => (
-              <label key={field.key} className="folded-figure-menu__color">
-                <span>{foldedColorLabel(t, field.key)}</span>
-                <input
-                  aria-label={foldedColorAria(t, field.key)}
-                  type="color"
-                  value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
-                  disabled={!activeReady}
-                  onChange={(event) =>
-                    onModelUpdate(
-                      { [field.key]: hexToRgbColor(event.currentTarget.value) },
-                      `color:${field.key}`
-                    )
-                  }
-                  onBlur={() =>
-                    onModelGestureEnd(
-                      `color:${field.key}`,
-                      t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
-                    )
-                  }
-                />
-              </label>
+              <ColorField
+                key={field.key}
+                label={foldedColorLabel(t, field.key)}
+                value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
+                disabled={!activeReady}
+                onChange={(value) =>
+                  onModelUpdate({ [field.key]: hexToRgbColor(value) }, `color:${field.key}`)
+                }
+                onCommit={() =>
+                  onModelGestureEnd(
+                    `color:${field.key}`,
+                    t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
+                  )
+                }
+              />
             ))}
           </div>
           <label className="folded-figure-menu__field">

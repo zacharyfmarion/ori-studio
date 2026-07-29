@@ -1,14 +1,33 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { RotateCcw } from 'lucide-react';
 import {
   SIMULATOR_SETTING_RANGES,
+  type SimulatorColorSettingKey,
+  type SimulatorExportBackground,
   type SimulatorNumericSettingKey,
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
+import { simulatorStyleDefaults } from '../../simulator/simulatorPalette';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useThemeStore } from '../../store/themeStore';
+import { ColorField } from '../ui/ColorField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Slider } from '../ui/Slider';
 import { Toggle } from '../ui/Toggle';
+
+// Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
+function exportBackgroundLabel(value: SimulatorExportBackground, t: TFunction): string {
+  switch (value) {
+    case 'transparent':
+      return t('panels:simulatorViewControls.backgroundTransparent', 'Transparent');
+    case 'white':
+      return t('panels:simulatorViewControls.backgroundWhite', 'White');
+    case 'theme':
+      return t('panels:simulatorViewControls.backgroundTheme', 'Match theme');
+  }
+}
 
 /**
  * Options pane for the Simulate workspace, mirroring the Edit workspace's view
@@ -21,6 +40,27 @@ export function SimulatorViewControlsPanel() {
   const settings = useWorkspaceStore((state) => state.simulatorSettings);
   const setSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const resetMaterial = useWorkspaceStore((state) => state.resetSimulatorMaterial);
+  const resetStyle = useWorkspaceStore((state) => state.resetSimulatorStyle);
+  // What an unset colour actually resolves to, so a swatch shows the paper the
+  // user is looking at rather than a hardcoded guess. Keyed on the theme because
+  // that is what moves them.
+  const theme = useThemeStore((state) => state.currentTheme);
+  const styleDefaults = useMemo(
+    () =>
+      simulatorStyleDefaults(
+        typeof document === 'undefined' ? null : getComputedStyle(document.documentElement)
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [theme]
+  );
+  const colorRow = (key: SimulatorColorSettingKey, label: string) => (
+    <ColorField
+      label={label}
+      value={settings[key] ?? styleDefaults[key]}
+      onChange={(value) => setSetting(key, value)}
+      onClear={settings[key] === null ? undefined : () => setSetting(key, null)}
+    />
+  );
 
   return (
     <section className="panel-shell simulator-view-controls-panel">
@@ -111,6 +151,76 @@ export function SimulatorViewControlsPanel() {
             checked={settings.lighting}
             onChange={(checked) => setSetting('lighting', checked)}
           />
+        </Section>
+
+        <Section
+          title={t('panels:simulatorViewControls.paper', 'Paper')}
+          action={
+            <button
+              type="button"
+              className="simulator-view-controls-panel__reset"
+              title={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
+              aria-label={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
+              onClick={resetStyle}
+            >
+              <RotateCcw size={12} />
+            </button>
+          }
+        >
+          <div className="simulator-view-controls-panel__colors">
+            {colorRow('paperFront', t('panels:simulatorViewControls.paperFront', 'Front'))}
+            {colorRow('paperBack', t('panels:simulatorViewControls.paperBack', 'Back'))}
+          </div>
+        </Section>
+
+        <Section title={t('panels:simulatorViewControls.creases', 'Creases')}>
+          <div className="simulator-view-controls-panel__colors">
+            {colorRow('mountainColor', t('panels:simulatorViewControls.mountain', 'Mountain'))}
+            {colorRow('valleyColor', t('panels:simulatorViewControls.valley', 'Valley'))}
+            {colorRow('borderColor', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
+          </div>
+          <SliderRow
+            settingKey="creaseWidth"
+            label={t('panels:simulatorViewControls.creaseWidth', 'Weight')}
+            settings={settings}
+            setSetting={setSetting}
+          />
+        </Section>
+
+        <Section
+          title={t('panels:simulatorViewControls.export', 'Export')}
+          description={t(
+            'panels:simulatorViewControls.exportHint',
+            'Page background of an exported image.'
+          )}
+        >
+          <div className="control-row">
+            <span className="control-row__label">
+              {t('panels:simulatorViewControls.background', 'Background')}
+            </span>
+            <div className="control-row__value">
+              <Select
+                value={settings.exportBackground}
+                onValueChange={(value) =>
+                  setSetting('exportBackground', value as SimulatorExportBackground)
+                }
+              >
+                <SelectTrigger
+                  aria-label={t('panels:simulatorViewControls.background', 'Background')}
+                  className="simulator-view-controls-panel__select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(['transparent', 'white', 'theme'] as const).map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {exportBackgroundLabel(value, t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </Section>
 
         <Section

@@ -1,5 +1,6 @@
 import { transfer } from 'comlink';
 import { PreparedModelCache } from '../lib/preparedModelCache';
+import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
 import {
   OrigamiModel,
@@ -698,7 +699,18 @@ const api = {
    * Distinct from {@link exportGeometry}, which serves STL/OBJ and wants raw
    * geometry with no camera at all.
    */
-  exportSvg(options: { token?: SimulatorSessionToken } = {}): SvgRenderResult | null {
+  exportSvg(
+    options: {
+      token?: SimulatorSessionToken;
+      /**
+       * Page background. Defaults to transparent, which is not what is on
+       * screen: the panel's backdrop is the app's canvas colour, and a file
+       * carrying that would arrive in a document with the app's dark chrome
+       * baked in. Transparent composites into anything.
+       */
+      background?: SimulatorExportBackground;
+    } = {}
+  ): SvgRenderResult | null {
     const active = sessionFor(options.token);
     if (!active) return null;
     const prepared = active.model.prepared;
@@ -721,16 +733,20 @@ const api = {
       active.view.width,
       active.view.height
     );
+    const mode = options.background ?? 'transparent';
+    const settings: RenderSettings =
+      mode === 'white'
+        ? { ...active.view.settings, background: [1, 1, 1], backgroundAlpha: 1 }
+        : { ...active.view.settings, backgroundAlpha: 1 };
+
     // The page size comes back with the document because a rasterizer needs it,
     // and re-deriving it from a string we just produced would be worse.
-    return renderMeshToSvg(positions, meshTopologyFor(prepared), camera, active.view.settings, {
+    return renderMeshToSvg(positions, meshTopologyFor(prepared), camera, settings, {
       // The canvas-2D fallback is orthographic, so a machine drawing through it
       // must export the way its own screen looks.
       perspective: Boolean(active.gpuRender),
       strain,
-      // A standalone file wants its backdrop even when the on-canvas window is
-      // transparent so the crease pattern shows through it.
-      background: true,
+      background: mode !== 'transparent',
     });
   },
 

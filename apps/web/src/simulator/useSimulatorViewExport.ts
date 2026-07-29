@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import type { SvgRenderResult } from '@treemaker/origami-simulator';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { saveSimulatorView, type SimulatorViewExportFormat } from './simulatorViewExport';
+import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 
 /**
  * "Export this view" as one verb, for every surface that shows a simulation.
@@ -18,15 +19,16 @@ import { saveSimulatorView, type SimulatorViewExportFormat } from './simulatorVi
  * already lives; this hook only moves the result to disk.
  */
 export function useSimulatorViewExport(
-  exportSvg: () => Promise<SvgRenderResult | null>
+  exportSvg: (background?: SimulatorExportBackground) => Promise<SvgRenderResult | null>
 ): (format: SimulatorViewExportFormat) => Promise<boolean> {
   const { t } = useTranslation();
+  const background = useWorkspaceStore((state) => state.simulatorSettings.exportBackground);
 
   return useCallback(
     async (format: SimulatorViewExportFormat) => {
       // A worker round-trip can reject (a lost GL context, a session released
       // mid-click), and that is the same outcome for the user as an empty view.
-      const page = await exportSvg().catch(() => null);
+      const page = await exportSvg(background).catch(() => null);
       if (!page) {
         toast.error(
           t('toasts:simulatorExport.empty', 'This simulation has nothing to export yet')
@@ -54,6 +56,6 @@ export function useSimulatorViewExport(
         return false;
       }
     },
-    [exportSvg, t]
+    [exportSvg, background, t]
   );
 }

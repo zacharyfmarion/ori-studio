@@ -772,6 +772,8 @@ export interface SimulatorSliceActions {
   setSimulatorSetting: <K extends SimulatorSettingKey>(key: K, value: SimulatorSettings[K]) => void;
   /** Restore the paper's material properties (stiffness, damping) to defaults. */
   resetSimulatorMaterial: () => void;
+  /** Paper and crease appearance back to the theme / origami-convention defaults. */
+  resetSimulatorStyle: () => void;
 }
 
 export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;

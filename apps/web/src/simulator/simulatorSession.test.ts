@@ -327,6 +327,22 @@ describe('session tokens', () => {
   });
 });
 
+/** Distinct background so the "theme" mode is identifiable in the output. */
+const DEFAULT_EXPORT_SETTINGS: RenderSettings = {
+  frontColor: [1, 0, 0],
+  backColor: [0, 0, 1],
+  mountainColor: [1, 1, 0],
+  valleyColor: [0, 1, 1],
+  borderColor: [1, 0, 1],
+  lightDir: [0, 0, 1],
+  background: [0.05, 0.066, 0.078],
+  showFaces: true,
+  showEdges: true,
+  lighting: false,
+  creaseWidthPx: 2,
+  faceAlpha: 1,
+};
+
 describe('exporting the current view as SVG', () => {
   it('draws the folded model, not the flat sheet', async () => {
     const session = createSimulatorSession();
@@ -424,6 +440,41 @@ describe('exporting the current view as SVG', () => {
     expect(session.exportSvg()).toBeNull();
     session.dispose();
   });
+
+  it('leaves the page transparent by default', async () => {
+    // The on-screen backdrop is the app's canvas colour, which ranges from
+    // near-black to white across themes. A file carrying that would arrive in a
+    // document with the app's chrome baked in, so the export does not inherit it.
+    const session = createSimulatorSession();
+    session.load(miura(4, 4), {});
+    await frame(session.settle(2000, {}));
+
+    expect(session.exportSvg()!.svg).not.toContain('<rect');
+    expect(session.exportSvg({ background: 'transparent' })!.svg).not.toContain('<rect');
+    session.dispose();
+  }, 30_000);
+
+  it('paints an opaque page on request', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(4, 4), {});
+    await frame(session.settle(2000, {}));
+    // A transparent *surface* (an inline window over the crease pattern) must
+    // still export an opaque page when one is asked for.
+    await session.setRenderSettings(
+      { ...DEFAULT_EXPORT_SETTINGS, backgroundAlpha: 0 },
+      info.token
+    );
+
+    const white = session.exportSvg({ token: info.token, background: 'white' })!.svg;
+    expect(white).toContain('<rect');
+    expect(white).toContain('fill="#ffffff"');
+    expect(white).not.toContain('fill-opacity');
+
+    const themed = session.exportSvg({ token: info.token, background: 'theme' })!.svg;
+    expect(themed).toContain('fill="#0d1114"');
+    expect(themed).not.toContain('fill-opacity');
+    session.dispose();
+  }, 30_000);
 });
 
 describe('prepared-model reuse', () => {
