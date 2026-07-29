@@ -2617,12 +2617,14 @@
 }
 
 /* Hollow by definition: Oriedita's empty circle is "only the angles are wrong,
-   everything else is correct", and the cross is a stroke, not an outline. */
+   everything else is correct", and a cross is a stroke, not an outline. */
 .cp-diagnostic-glyph[data-shape='ring'],
+.cp-diagnostic-glyph[data-shape='self-intersection'],
 .cp-diagnostic-glyph[data-shape='generic'] {
   fill: none;
 }
 
+.cp-diagnostic-glyph[data-shape='self-intersection'],
 .cp-diagnostic-glyph[data-shape='generic'] {
   stroke-linecap: round;
 }

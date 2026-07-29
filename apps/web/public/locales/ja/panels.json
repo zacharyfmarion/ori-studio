@@ -199,9 +199,11 @@
       "notEnoughMountain": "山折りが足りません",
       "notEnoughValley": "谷折りが足りません",
       "oddFolds": "折り線の数が奇数です",
+      "selfIntersection": "紙がここで自身を貫通します",
       "shape": {
         "circle": "角度が正しくありません（川崎の定理）",
         "littleBigLittle": "小-大-小",
+        "selfIntersection": "折り角度は整合していますが、紙が自身を貫通せずにその状態になれません",
         "square": "折り線の種類が正しくありません",
         "triangle": "折り線の数が正しくありません（奇数）"
       }

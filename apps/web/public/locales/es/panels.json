@@ -211,9 +211,11 @@
       "notEnoughMountain": "no hay suficientes pliegues de montaña",
       "notEnoughValley": "no hay suficientes pliegues de valle",
       "oddFolds": "Número impar de pliegues",
+      "selfIntersection": "El papel se atraviesa a sí mismo aquí",
       "shape": {
         "circle": "Ángulos incorrectos (teorema de Kawasaki)",
         "littleBigLittle": "Pequeño-grande-pequeño",
+        "selfIntersection": "Los ángulos de plegado son coherentes, pero el papel no puede llegar ahí sin atravesarse a sí mismo",
         "square": "Tipos de pliegue incorrectos",
         "triangle": "Número de pliegues incorrecto (impar)"
       }

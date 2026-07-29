@@ -356,16 +356,27 @@ known-valid configurations, and detection that holds to 179.999°.
 - [x] Q9 — near-flat detection holds to 179.999 degrees
 - [ ] Adjudicate a flagged *mixed* vertex (canonical sectors, one crease at 180).
       No independent way to say whether the flagged case is physically valid
-- [ ] Polygon builder sharing the closure chain, not a second implementation
-- [ ] Arc-arc intersection with explicit degenerate handling
-- [ ] **Transverse-only contact counting**, threshold 1e-9 (mid-gap)
-- [ ] Test: a vertex with a crease at exactly 180 does not false-positive
-- [ ] Test: the canonical vertices stay clean across their folding paths
-- [ ] Simplicity test, adjacency-skipping, O(n²)
+- [x] `vertex_link_polygon`, with its own right-multiplied walk — the closure
+      chain composes the other way and cannot be shared (Q1)
+- [x] Arc-arc intersection with explicit degenerate handling
+- [x] **Transverse-only contact counting**, threshold 1e-9 (mid-gap)
+- [x] Test: a vertex with a crease at exactly 180 does not false-positive
+- [x] Test: the canonical vertices stay clean across their folding paths
+- [x] Simplicity test, adjacency-skipping, O(n²)
 - [x] ~~Near-flat policy~~ — not needed; Q4/Q9 show no thinning of detection
-- [ ] Indeterminate fans report nothing, same as closure
-- [ ] Diagnostic kind, message, glyph, 8 locales
-- [ ] Oracle suite green with no fixture edits
+- [x] Indeterminate fans report nothing, same as closure (`contacts` is `None`
+      for exactly the reasons `residual` is)
+- [x] Reported only once closure passes, so a vertex that does not close gets
+      one complaint rather than two
+- [x] `SpatialSelfIntersection` diagnostic kind, message, glyph, 8 locales
+- [x] Committed `.wasm` rebuilt — twice, because the first rebuild predated the
+      final message change and the browser showed the stale string
+- [x] Oracle suite green with no fixture edits (1090 workspace tests)
+- [x] Verified by reverting: wrong composition order fails 4 tests including
+      canonical-vertex false positives; removing the transversality filter fails
+      the fully-folded-crease test
+- [x] End-to-end in the browser: the degree-5 fixture reports
+      "Paper passes through itself here" with its own glyph
 
 ## Risks and mitigations
 

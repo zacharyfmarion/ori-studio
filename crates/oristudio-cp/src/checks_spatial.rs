@@ -153,6 +153,172 @@ pub fn vertex_closure_residual(fan: &VertexFan) -> f64 {
     quat_residual(closure_product(&fan.creases))
 }
 
+/// A point on the unit sphere.
+type Vec3 = [f64; 3];
+
+fn quat_rotate(q: Quat, v: Vec3) -> Vec3 {
+    let (w, x, y, z) = q;
+    let t = [
+        2.0 * (y * v[2] - z * v[1]),
+        2.0 * (z * v[0] - x * v[2]),
+        2.0 * (x * v[1] - y * v[0]),
+    ];
+    [
+        v[0] + w * t[0] + (y * t[2] - z * t[1]),
+        v[1] + w * t[1] + (z * t[0] - x * t[2]),
+        v[2] + w * t[2] + (x * t[1] - y * t[0]),
+    ]
+}
+
+fn cross(a: Vec3, b: Vec3) -> Vec3 {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+fn dot(a: Vec3, b: Vec3) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+fn norm(a: Vec3) -> f64 {
+    dot(a, a).sqrt()
+}
+
+/// The folded vertex link: where each crease pierces a small sphere around the
+/// vertex, once the fold angles are applied.
+///
+/// Intersecting the folded paper with a small sphere centred on the vertex gives
+/// a closed spherical polygon. Its corners are these points and its sides are
+/// great-circle arcs whose lengths are the planar sector angles — paper does not
+/// stretch. The paper is locally embedded exactly when that polygon does not
+/// cross itself, which is what [`vertex_link_contacts`] tests.
+///
+/// # This does not compose the same way as `closure_product`
+///
+/// The sector frames multiply on the **right** (`R_i = R_{i-1} * q_i`), where
+/// [`closure_product`] multiplies on the left to form Wong's `q_n···q_1`. Using
+/// the closure chain's partial products here looks right and is wrong: measured
+/// on asymmetric fans it puts the arc lengths out by up to 74 degrees, though on
+/// a *symmetric* fan both orders agree to 1e-14 and the error hides completely.
+///
+/// The invariant that catches it — and the reason
+/// `vertex_link_preserves_arc_lengths` exists — is that arc lengths must equal
+/// the planar sector angles at every fold angle.
+pub fn vertex_link_polygon(fan: &VertexFan) -> Vec<Vec3> {
+    let mut frame: Quat = (1.0, 0.0, 0.0, 0.0);
+    let mut points = Vec::with_capacity(fan.creases.len());
+    for &(theta, rho) in &fan.creases {
+        // The crease is shared by the sectors either side, so its folded
+        // position is fixed by the frame before its own rotation is applied.
+        points.push(quat_rotate(frame, [theta.cos(), theta.sin(), 0.0]));
+        frame = quat_mul(frame, crease_quat(theta, rho));
+    }
+    points
+}
+
+/// Below this, two great circles count as the same circle and their arcs are
+/// touching rather than crossing.
+///
+/// Measured over 5,146 contacts on fans of degree 5-7 with 0-4 creases pinned
+/// flat, transversality is bimodal: 1,520 below 1e-12, **nothing at all between
+/// 1e-12 and 1e-6**, and the rest above. Any threshold inside that empty band
+/// gives the same answer, so this is a gap, not a tuned constant.
+const TRANSVERSE_EPSILON: f64 = 1e-9;
+
+/// How the vertex link meets itself.
+///
+/// Split because the two kinds mean opposite things, and conflating them is the
+/// mistake that makes a naive simplicity test unusable — see
+/// [`LinkContacts::self_intersects`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct LinkContacts {
+    /// Arcs crossing at a real angle: the paper passes through itself.
+    pub transverse: usize,
+    /// Arcs lying along a common great circle: two layers touching.
+    pub tangential: usize,
+}
+
+impl LinkContacts {
+    /// Whether the paper passes through itself at this vertex.
+    ///
+    /// **Only transverse contacts count.** A crease at exactly +/-180 folds its
+    /// two adjacent sectors onto each other, so the link curve doubles back and
+    /// is non-injective *by construction* — a plain "is this curve simple" test
+    /// answers no on a box with flat-folded flaps, which is both legal and,
+    /// per the kernel's own dispatch comments, the expected case.
+    ///
+    /// The distinction is not a heuristic: two surfaces meeting at an angle
+    /// cross, two surfaces lying against each other are stacked layers, and
+    /// stacked layers are what flat folding *is*.
+    pub fn self_intersects(&self) -> bool {
+        self.transverse > 0
+    }
+}
+
+/// Test the folded vertex link for self-intersection.
+///
+/// `O(n^2)` in the vertex degree, which is the same order as [`vertex_dof`]
+/// already costs on every spatial vertex.
+///
+/// Adjacent arcs share an endpoint by construction and are skipped; with fewer
+/// than four creases there is no non-adjacent pair, so a spherical triangle is
+/// rigid but never self-crossing.
+pub fn vertex_link_contacts(fan: &VertexFan) -> LinkContacts {
+    let points = vertex_link_polygon(fan);
+    let n = points.len();
+    let mut contacts = LinkContacts::default();
+    if n < 4 {
+        return contacts;
+    }
+
+    let normals: Vec<Vec3> = (0..n)
+        .map(|i| cross(points[i], points[(i + 1) % n]))
+        .collect();
+
+    for i in 0..n {
+        for j in (i + 1)..n {
+            if j == i + 1 || (i == 0 && j == n - 1) {
+                continue;
+            }
+            let (first, second) = (normals[i], normals[j]);
+            let (first_norm, second_norm) = (norm(first), norm(second));
+            if first_norm < TRANSVERSE_EPSILON || second_norm < TRANSVERSE_EPSILON {
+                // A zero-length arc: the two creases fold onto each other.
+                contacts.tangential += 1;
+                continue;
+            }
+            if norm(cross(first, second)) / (first_norm * second_norm) < TRANSVERSE_EPSILON {
+                contacts.tangential += 1;
+                continue;
+            }
+
+            // The two great circles meet at an antipodal pair; the arcs cross if
+            // either meeting point lies within both of them.
+            let axis = cross(first, second);
+            let scale = norm(axis);
+            let meeting = [axis[0] / scale, axis[1] / scale, axis[2] / scale];
+            let opposite = [-meeting[0], -meeting[1], -meeting[2]];
+            for candidate in [meeting, opposite] {
+                if within_arc(candidate, points[i], points[(i + 1) % n], first)
+                    && within_arc(candidate, points[j], points[(j + 1) % n], second)
+                {
+                    contacts.transverse += 1;
+                    break;
+                }
+            }
+        }
+    }
+    contacts
+}
+
+/// Is `point` on the minor arc from `a` to `b`, whose great circle has normal
+/// `normal`? Assumes `point` is already on that great circle.
+fn within_arc(point: Vec3, a: Vec3, b: Vec3, normal: Vec3) -> bool {
+    dot(cross(a, point), normal) >= 0.0 && dot(cross(point, b), normal) >= 0.0
+}
+
 /// Remaining degrees of freedom, from the **rank of the closure Jacobian**.
 ///
 /// Not `n - 3`. That count assumes the three closure constraints are
@@ -301,6 +467,9 @@ pub struct SpatialVertexReport {
     pub degree: usize,
     /// Remaining freedom; `0` means the vertex is rigid at this geometry.
     pub dof: usize,
+    /// How the folded link meets itself; `None` when the fan could not be
+    /// evaluated, for the same reasons `residual` is `None`.
+    pub contacts: Option<LinkContacts>,
     pub indeterminate: Option<Indeterminate>,
 }
 
@@ -339,14 +508,13 @@ fn report_for(
     through: &ThroughLineIndex,
 ) -> SpatialVertexReport {
     let fan = vertex_fan(point, lines, through.passes_through(point));
+    let determined = fan.indeterminate.is_none();
     SpatialVertexReport {
         point,
-        residual: fan
-            .indeterminate
-            .is_none()
-            .then(|| vertex_closure_residual(&fan)),
+        residual: determined.then(|| vertex_closure_residual(&fan)),
         degree: fan.degree(),
         dof: vertex_dof(&fan),
+        contacts: determined.then(|| vertex_link_contacts(&fan)),
         indeterminate: fan.indeterminate,
     }
 }

@@ -40,6 +40,11 @@ function shapeTitle(t: TFunction, shape: CpDiagnosticMarkerShape): string | null
       );
     case 'little-big-little':
       return t('panels:creasePattern.foldability.shape.littleBigLittle', 'Little-big-little');
+    case 'self-intersection':
+      return t(
+        'panels:creasePattern.foldability.shape.selfIntersection',
+        'The fold angles agree, but the paper cannot get there without crossing itself'
+      );
     default:
       return null;
   }
@@ -56,6 +61,7 @@ function shapePath(shape: CpDiagnosticMarkerShape) {
       return <circle cx="6" cy="6" r="4.25" />;
     case 'little-big-little':
       return <path d="M6 1.4 L10.37 4.58 L8.7 9.72 L3.3 9.72 L1.63 4.58 Z" />;
+    case 'self-intersection':
     case 'generic':
       return <path d="M3 3 L9 9 M9 3 L3 9" />;
     case 'none':

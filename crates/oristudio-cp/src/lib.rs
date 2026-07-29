@@ -2737,6 +2737,26 @@ fn spatial_closure_diagnostics(
         };
         let residual_degrees = residual.to_degrees();
         if residual_degrees <= CLOSURE_RESIDUAL_BAR_DEGREES {
+            // The vertex closes. Now ask the second, independent question:
+            // does the paper pass through itself getting there? Only reachable
+            // once closure holds, since a vertex that does not close has no
+            // folded state whose geometry means anything.
+            if report.contacts.is_some_and(|contacts| contacts.self_intersects()) {
+                diagnostics.push(CommandDiagnostic {
+                    id: format!("SpatialSelfIntersection-{}", index + 1),
+                    kind: "SpatialSelfIntersection".to_string(),
+                    severity: "error".to_string(),
+                    // No crossing count: it is a property of the link geometry,
+                    // not something the user acts on one at a time. The fix is
+                    // always to change the fold angles at this vertex.
+                    message: "Paper passes through itself at this vertex".to_string(),
+                    point: Some(report.point),
+                    segments: Vec::new(),
+                    rule: Some("SelfIntersection".to_string()),
+                    violation_color: None,
+                    little_big_little: Vec::new(),
+                });
+            }
             continue;
         }
 

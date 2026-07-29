@@ -211,9 +211,11 @@
       "notEnoughMountain": "não há dobras de montanha suficientes",
       "notEnoughValley": "não há dobras de vale suficientes",
       "oddFolds": "Número ímpar de dobras",
+      "selfIntersection": "O papel atravessa a si mesmo aqui",
       "shape": {
         "circle": "Ângulos incorretos (teorema de Kawasaki)",
         "littleBigLittle": "Pequeno-grande-pequeno",
+        "selfIntersection": "Os ângulos de dobra são coerentes, mas o papel não consegue chegar lá sem atravessar a si mesmo",
         "square": "Tipos de dobra incorretos",
         "triangle": "Número de dobras incorreto (ímpar)"
       }

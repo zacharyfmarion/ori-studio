@@ -166,6 +166,14 @@ export function foldabilityEntryMessage(
   t: TFunction,
   entry: OristudioCpDiagnosticEntry
 ): string | null {
+  // Not one of Oriedita's rules: this branch's own check, that the paper does
+  // not pass through itself at a vertex whose fold angles do agree.
+  if (entry.rule === 'SelfIntersection') {
+    return t(
+      'panels:creasePattern.foldability.selfIntersection',
+      'Paper passes through itself here'
+    );
+  }
   if (!isRule(entry.rule) || !isColor(entry.violation_color)) return null;
   return foldabilityViolationMessage(t, entry.rule, entry.violation_color);
 }

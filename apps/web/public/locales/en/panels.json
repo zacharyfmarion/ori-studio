@@ -205,9 +205,11 @@
       "notEnoughMountain": "not enough mountain folds",
       "notEnoughValley": "not enough valley folds",
       "oddFolds": "Odd number of folds",
+      "selfIntersection": "Paper passes through itself here",
       "shape": {
         "circle": "Incorrect angles (Kawasaki's theorem)",
         "littleBigLittle": "Little-big-little",
+        "selfIntersection": "The fold angles agree, but the paper cannot get there without crossing itself",
         "square": "Incorrect fold types",
         "triangle": "Incorrect (odd) number of folds"
       }

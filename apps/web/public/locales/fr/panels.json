@@ -211,9 +211,11 @@
       "notEnoughMountain": "pas assez de plis montagne",
       "notEnoughValley": "pas assez de plis vallée",
       "oddFolds": "Nombre impair de plis",
+      "selfIntersection": "Le papier se traverse lui-même ici",
       "shape": {
         "circle": "Angles incorrects (théorème de Kawasaki)",
         "littleBigLittle": "Petit-grand-petit",
+        "selfIntersection": "Les angles de pliage sont cohérents, mais le papier ne peut pas y parvenir sans se traverser lui-même",
         "square": "Types de plis incorrects",
         "triangle": "Nombre de plis incorrect (impair)"
       }

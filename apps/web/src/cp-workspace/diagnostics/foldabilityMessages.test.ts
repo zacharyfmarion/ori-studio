@@ -89,6 +89,28 @@ describe('the table covers what the kernel can emit', () => {
   });
 });
 
+describe('self-intersection', () => {
+  // Not one of Oriedita's rules. The vertex closes — the fold angles agree —
+  // but the paper cannot reach that state without passing through itself, which
+  // nothing else in the app reports.
+  it('reads as the paper crossing itself, not as an angle disagreement', () => {
+    const message = cpDiagnosticEntryMessage(
+      t,
+      entry({ kind: 'SpatialSelfIntersection', rule: 'SelfIntersection' })
+    );
+    expect(message).toBe('Paper passes through itself here');
+    expect(message).not.toMatch(/close|angle/iu);
+  });
+
+  it('does not need a violation colour, unlike the Oriedita rules', () => {
+    // The flat rules carry a colour saying *how* they failed; this one has a
+    // single failure mode, so the entry arrives without one and must still
+    // resolve rather than falling through to the kernel string.
+    const message = cpDiagnosticEntryMessage(t, entry({ rule: 'SelfIntersection' }));
+    expect(message).not.toBe('Flat-foldability violation: Maekawa');
+  });
+});
+
 describe('entries this table does not speak for', () => {
   it('falls back to the kernel message for spatial closure', () => {
     // This branch's own check, not Oriedita's. Its message is already prose and

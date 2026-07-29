@@ -82,6 +82,16 @@ describe('CpDiagnosticGlyph', () => {
     expect(svg.querySelector('title')).toBeNull();
   });
 
+  it('gives self-intersection its own shape and the danger tone', () => {
+    // Distinct from a closure failure: those say the angles disagree, this says
+    // they agree and the result still is not reachable. Same row, different
+    // problem, so the glyph must not be the closure one.
+    const svg = render(entry({ kind: 'SpatialSelfIntersection', rule: 'SelfIntersection' }));
+    expect(svg.dataset.shape).toBe('self-intersection');
+    expect(svg.dataset.tone).toBe('danger');
+    expect(svg.getAttribute('aria-label')).toMatch(/crossing itself/u);
+  });
+
   it('keeps the column when there is nothing to draw', () => {
     // `None` classifies the vertex but draws no marker. The svg still occupies
     // the grid cell so rows do not jog left.
