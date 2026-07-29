@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSimulatorSession, type SimulatorFramePayload } from './simulatorSession';
 import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
-import type { FoldDocument } from '@treemaker/origami-simulator';
+import type { FoldDocument, RenderSettings } from '@treemaker/origami-simulator';
 
 /**
  * A frame the session actually produced. `tick`/`settle` return null when the
@@ -323,6 +323,102 @@ describe('session tokens', () => {
     // The exporters read "whatever is loaded" and have no token to quote.
     expect(await session.tick({})).not.toBeNull();
     expect(session.exportGeometry().vertexCount).toBe(81);
+    session.dispose();
+  });
+});
+
+describe('exporting the current view as SVG', () => {
+  it('draws the folded model, not the flat sheet', async () => {
+    const session = createSimulatorSession();
+    session.load(miura(8, 8), {});
+    session.setFoldPercent(70);
+    await frame(session.settle(4000, {}));
+
+    const svg = session.exportSvg();
+    expect(svg).not.toBeNull();
+    expect(svg).toContain('<svg');
+    expect(svg).toContain('<polygon');
+    expect(svg).not.toMatch(/NaN|Infinity/u);
+
+    // A flat sheet at the default camera projects to a much shallower box than a
+    // 70%-folded one, so the two documents cannot be the same.
+    session.reset();
+    await frame(session.settle(4000, {}));
+    expect(session.exportSvg()).not.toBe(svg);
+    session.dispose();
+  }, 30_000);
+
+  it('exports on the canvas-2D path, where the worker does not draw', async () => {
+    // No canvas was ever attached here, so there is no GPU render state. The
+    // session still has to know how it is being looked at -- setCamera used to
+    // bail out early without one and the camera was never recorded, which left
+    // nothing to export from. A fold profile forces this path even on a GPU
+    // machine, so it is not an exotic case.
+    const session = createSimulatorSession();
+    session.load(miura(6, 6), {});
+    await frame(session.settle(2000, {}));
+
+    await session.setCamera({ view: { yaw: 0.8, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 });
+    const angled = session.exportSvg();
+    expect(angled).not.toBeNull();
+
+    await session.setCamera({ view: { yaw: 0, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 });
+    expect(session.exportSvg()).not.toBe(angled);
+    session.dispose();
+  }, 30_000);
+
+  it('follows the render settings the viewport pushed', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(6, 6), {});
+    await frame(session.settle(2000, {}));
+
+    const base: RenderSettings = {
+      frontColor: [1, 0, 0],
+      backColor: [0, 0, 1],
+      mountainColor: [1, 1, 0],
+      valleyColor: [0, 1, 1],
+      borderColor: [1, 0, 1],
+      lightDir: [0, 0, 1],
+      background: [0, 0, 0],
+      showFaces: true,
+      showEdges: true,
+      lighting: false,
+      creaseWidthPx: 2,
+      faceAlpha: 1,
+    };
+
+    await session.setRenderSettings({ ...base }, info.token);
+    const both = session.exportSvg({ token: info.token })!;
+    expect(both).toContain('<polygon');
+    expect(both).toContain('<line');
+    expect(both).toContain('#ffff00');
+
+    await session.setRenderSettings({ ...base, showEdges: false }, info.token);
+    const facesOnly = session.exportSvg({ token: info.token })!;
+    expect(facesOnly).toContain('<polygon');
+    expect(facesOnly).not.toContain('<line');
+
+    await session.setRenderSettings({ ...base, faceAlpha: 0.48 }, info.token);
+    expect(session.exportSvg({ token: info.token })).toContain('fill-opacity="0.48"');
+    session.dispose();
+  }, 30_000);
+
+  it('answers null for a superseded token rather than another window’s model', async () => {
+    // The failure this prevents: an inline simulation window that lost focus
+    // exporting whatever loaded after it.
+    const session = createSimulatorSession();
+    const first = session.load(miura(4, 4), {});
+    session.load(miura(8, 8), {});
+    session.release(first.token);
+
+    expect(session.exportSvg({ token: first.token })).toBeNull();
+    expect(session.exportSvg()).not.toBeNull();
+    session.dispose();
+  });
+
+  it('answers null when nothing is loaded', () => {
+    const session = createSimulatorSession();
+    expect(session.exportSvg()).toBeNull();
     session.dispose();
   });
 });

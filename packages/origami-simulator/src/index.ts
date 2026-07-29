@@ -6,7 +6,12 @@ export type { SimulationClockOptions, SimulationTick } from './simulationClock.j
 export type { SolverBackend, SolverBackendInfo } from './solverBackend.js';
 export { WebglSolver } from './webgl/webglSolver.js';
 export { GlCore, WebGlContextLostError } from './webgl/glCore.js';
-export { MeshRenderer, type MeshTopology, type RenderSettings } from './webgl/meshRenderer.js';
+export {
+  MeshRenderer,
+  meshTopologyFor,
+  type MeshTopology,
+  type RenderSettings,
+} from './webgl/meshRenderer.js';
 export {
   renderMeshToSvg,
   type RenderMeshToSvgOptions,

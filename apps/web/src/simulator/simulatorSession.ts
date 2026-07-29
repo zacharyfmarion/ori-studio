@@ -9,7 +9,9 @@ import {
   cameraUniforms,
   centroid,
   boundingRadius,
+  meshTopologyFor,
   prepareFoldModel,
+  renderMeshToSvg,
   type FoldDocument,
   type FoldProfile,
   type OrbitView,
@@ -154,18 +156,32 @@ interface Session {
   positionScratch: Float32Array;
   colorScratch: Float32Array;
   foldPercent: number;
+  /** How this model is being looked at — see {@link SessionView}. */
+  view: SessionView;
   /**
    * Present only when the panel transferred its canvas and the GPU solver was
    * selected: the solver renders straight to that canvas in the worker, so no
    * positions are transferred to the main thread. Absent means the panel draws
    * on the main thread from transferred positions (canvas-2D fallback).
    */
-  gpuRender: GpuRenderState | null;
+  gpuRender: WebglSolver | null;
 }
 
-interface GpuRenderState {
-  solver: WebglSolver;
+/**
+ * How a session is being looked at: the orbit camera, the frame it is drawn
+ * into, the appearance the viewport asked for, and the model's own framing.
+ *
+ * Deliberately on {@link Session} rather than on the GPU renderer, even though
+ * only the GPU path draws from it here. It is a property of the *view*, not of
+ * whichever renderer happens to be attached — and a session that does not know
+ * how it is being looked at cannot answer a question like "export this view",
+ * which is exactly what happened on the canvas-2D path: `setCamera` and
+ * `setRenderSettings` used to bail out early there, so the worker never learned
+ * the camera at all. A fold profile forces that path even on a GPU machine.
+ */
+interface SessionView {
   view: OrbitView;
+  /** Drawing-buffer size in device pixels. */
   width: number;
   height: number;
   settings: RenderSettings;
@@ -459,7 +475,7 @@ const api = {
     // Carried from the most recent session, not from one being replaced: a load
     // no longer displaces anything, so this is only about a new model opening
     // with the camera and palette already in use rather than the defaults.
-    const previous = latestSession()?.gpuRender;
+    const previous = latestSession()?.view;
     // A fresh load gets a fresh context, so a previous loss is no longer the
     // truth about this session.
     sessionFailure = null;
@@ -505,19 +521,16 @@ const api = {
       positionScratch: new Float32Array(prepared.vertexCount * 3),
       colorScratch: new Float32Array(prepared.vertexCount * 3),
       foldPercent: options.solver?.foldPercent ?? 0,
-      gpuRender:
-        gpuSolver && renderCanvas
-          ? {
-              solver: gpuSolver,
-              view: previous?.view ?? { yaw: 0, pitch: 0.38, zoom: 1 },
-              width: previous?.width ?? renderCanvas.width,
-              height: previous?.height ?? renderCanvas.height,
-              settings: previous?.settings ?? DEFAULT_RENDER_SETTINGS,
-              center: [0, 0, 0],
-              radius: 1,
-              fitted: false,
-            }
-          : null,
+      view: {
+        view: previous?.view ?? { yaw: 0, pitch: 0.38, zoom: 1 },
+        width: previous?.width ?? renderCanvas?.width ?? 512,
+        height: previous?.height ?? renderCanvas?.height ?? 512,
+        settings: previous?.settings ?? DEFAULT_RENDER_SETTINGS,
+        center: [0, 0, 0],
+        radius: 1,
+        fitted: false,
+      },
+      gpuRender: gpuSolver && renderCanvas ? gpuSolver : null,
     };
     sessions.set(sessionToken, created);
     evictBeyondCap();
@@ -670,26 +683,82 @@ const api = {
     );
   },
 
+  /**
+   * The current view as a standalone SVG document, or null when there is
+   * nothing to draw.
+   *
+   * Here rather than on the main thread because this is where the complete
+   * render state already lives: positions in the solver, the camera and
+   * appearance on {@link SessionView}. It is the vector sibling of
+   * {@link renderGpu} — same positions, same topology, same camera, same
+   * settings — which is what makes the file the view the user is looking at
+   * rather than a second interpretation of it.
+   *
+   * Distinct from {@link exportGeometry}, which serves STL/OBJ and wants raw
+   * geometry with no camera at all.
+   */
+  exportSvg(options: { token?: SimulatorSessionToken } = {}): string | null {
+    const active = sessionFor(options.token);
+    if (!active) return null;
+    const prepared = active.model.prepared;
+    const positions = new Float32Array(prepared.vertexCount * 3);
+    active.backend.readPositions(positions);
+    // The GPU path fits on its first settled frame; the canvas-2D path has never
+    // had reason to, so fit here from the same positions being exported.
+    if (!active.view.fitted) fitTo(positions, active.view);
+
+    let strain: Float32Array | null = null;
+    if (active.view.settings.colorMode === 'strain') {
+      strain = new Float32Array(prepared.vertexCount);
+      active.backend.readStrain(strain);
+    }
+
+    const camera = cameraUniforms(
+      active.view.view,
+      active.view.center,
+      active.view.radius,
+      active.view.width,
+      active.view.height
+    );
+    return (
+      renderMeshToSvg(positions, meshTopologyFor(prepared, 1), camera, active.view.settings, {
+        // The canvas-2D fallback is orthographic, so a machine drawing through it
+        // must export the way its own screen looks.
+        perspective: Boolean(active.gpuRender),
+        strain,
+        // A standalone file wants its backdrop even when the on-canvas window is
+        // transparent so the crease pattern shows through it.
+        background: true,
+      })?.svg ?? null
+    );
+  },
+
   diagnostics(): SimulatorDiagnostics {
     return requireSession().backend.readDiagnostics();
   },
 
   /**
-   * Update the orbit camera (GPU-render mode only) and redraw. Called on every
-   * orbit/zoom: it runs no solver work and no readback — just a re-draw with a
-   * new view — which is what makes camera manipulation cheap at any model size.
+   * Update the orbit camera and redraw. Called on every orbit/zoom: it runs no
+   * solver work and no readback — just a re-draw with a new view — which is what
+   * makes camera manipulation cheap at any model size.
+   *
+   * The camera is recorded whether or not a GPU renderer is attached; only the
+   * redraw is skipped. On the canvas-2D path the main thread draws and there is
+   * nothing to return, but the session still has to know how it is being looked
+   * at — see {@link SessionView}.
    */
   async setCamera(
     camera: SimulatorCamera,
     token?: SimulatorSessionToken
   ): Promise<ImageBitmap | null> {
     const active = sessionFor(token);
-    if (!active?.gpuRender) return null;
+    if (!active) return null;
     perf.cameraCalls += 1;
-    active.gpuRender.view = camera.view;
-    active.gpuRender.width = camera.width;
-    active.gpuRender.height = camera.height;
-    const bitmap = await renderGpu(active.gpuRender);
+    active.view.view = camera.view;
+    active.view.width = camera.width;
+    active.view.height = camera.height;
+    if (!active.gpuRender) return null;
+    const bitmap = await renderGpu(active.gpuRender, active.view);
     return bitmap ? transfer(bitmap, [bitmap]) : null;
   },
 
@@ -699,9 +768,10 @@ const api = {
     token?: SimulatorSessionToken
   ): Promise<ImageBitmap | null> {
     const active = sessionFor(token);
-    if (!active?.gpuRender) return null;
-    active.gpuRender.settings = settings;
-    const bitmap = await renderGpu(active.gpuRender);
+    if (!active) return null;
+    active.view.settings = settings;
+    if (!active.gpuRender) return null;
+    const bitmap = await renderGpu(active.gpuRender, active.view);
     return bitmap ? transfer(bitmap, [bitmap]) : null;
   },
 
@@ -768,8 +838,8 @@ async function readFrame(
   // GPU-render mode: the worker draws straight to the transferred canvas. No
   // positions cross to the main thread at all -- the whole point of this path.
   if (active.gpuRender) {
-    refitOnce(active.gpuRender);
-    const bitmap = await renderGpu(active.gpuRender);
+    refitOnce(active.gpuRender, active.view);
+    const bitmap = await renderGpu(active.gpuRender, active.view);
     const payload = {
       positions: null,
       colors: null,
@@ -920,7 +990,10 @@ function sizeRenderCanvas(width: number, height: number): void {
   renderCanvas.height = next.height;
 }
 
-async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
+async function renderGpu(
+  solver: WebglSolver,
+  state: SessionView
+): Promise<ImageBitmap | null> {
   // Timed as a whole. It used to start after the resize, which is exactly the
   // work that turned out to dominate — the instrumentation meant to catch this
   // could not see it.
@@ -933,10 +1006,10 @@ async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
   // What GL actually gave us, which is not always what the canvas was set to —
   // see {@link WebglSolver.drawingBufferSize}. Rendering or cropping past this
   // reads nothing back and shows an empty window with no error anywhere.
-  const buffer = state.solver.drawingBufferSize;
+  const buffer = solver.drawingBufferSize;
   const { width, height } = fitRenderWithin(state, buffer);
   const camera = cameraUniforms(state.view, state.center, state.radius, width, height);
-  state.solver.render(camera, state.settings);
+  solver.render(camera, state.settings);
   // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
   // is top-left, so the crop is measured down from the top of the buffer.
   const bitmap =
@@ -959,10 +1032,15 @@ async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
  * frame makes it visibly "breathe"). A readback of positions here is a one-off
  * on load, not a per-frame cost.
  */
-function refitOnce(state: GpuRenderState): void {
+function refitOnce(solver: WebglSolver, state: SessionView): void {
   if (state.fitted) return;
-  const positions = new Float32Array(state.solver.vertexCount * 3);
-  state.solver.readPositions(positions);
+  const positions = new Float32Array(solver.vertexCount * 3);
+  solver.readPositions(positions);
+  fitTo(positions, state);
+}
+
+/** Frame a set of positions, which is what makes the camera's scale meaningful. */
+function fitTo(positions: Float32Array, state: SessionView): void {
   const center = centroid(positions);
   state.center = center;
   state.radius = boundingRadius(positions, center);

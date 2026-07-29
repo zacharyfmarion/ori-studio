@@ -12,6 +12,7 @@
 // the screen-space derivative of view position. Edges are a `LINES` pass.
 import type { GlCore } from './glCore.js';
 import type { CameraUniforms } from './camera.js';
+import type { FoldAssignment } from '../types.js';
 
 export interface MeshTopology {
   /** Triangle vertex indices, 3 per face. */
@@ -62,6 +63,58 @@ export interface RenderSettings {
    * `strainClip`, default 5%.
    */
   strainClip?: number;
+}
+
+/**
+ * Fold assignment to the code {@link MeshTopology.edgeAssignments} carries.
+ *
+ * Anything that is not a border, mountain or valley collapses to 0: the edge
+ * pass draws codes 0..2 and skips the rest, and an unassigned edge reads as a
+ * paper boundary rather than as a crease it is not.
+ */
+const ASSIGNMENT_CODE: Record<FoldAssignment, number> = {
+  B: 0,
+  M: 1,
+  V: 2,
+  F: 3,
+  U: 0,
+  C: 0,
+  J: 0,
+};
+
+/**
+ * Derive render topology from a prepared model.
+ *
+ * Shared by every renderer rather than rebuilt per renderer: the WebGL mesh
+ * renderer and the SVG one have to agree about which edges are creases and what
+ * kind, and two copies of this mapping is exactly how they would stop agreeing.
+ */
+export function meshTopologyFor(
+  prepared: {
+    indices: Uint32Array;
+    edgesVertices: ReadonlyArray<readonly [number, number]>;
+    edgesAssignment: ReadonlyArray<FoldAssignment>;
+  },
+  /**
+   * The solver's texture edge, which only the GL path reads — it is how the
+   * vertex shader finds a position, not a property of the topology. A vector
+   * renderer has no textures and can leave it out.
+   */
+  textureDim = 0
+): MeshTopology {
+  const edgeIndices = new Uint32Array(prepared.edgesVertices.length * 2);
+  const edgeAssignments = new Uint8Array(prepared.edgesVertices.length);
+  prepared.edgesVertices.forEach((edge, index) => {
+    edgeIndices[index * 2] = edge[0];
+    edgeIndices[index * 2 + 1] = edge[1];
+    edgeAssignments[index] = ASSIGNMENT_CODE[prepared.edgesAssignment[index] ?? 'U'] ?? 0;
+  });
+  return {
+    faceIndices: prepared.indices.slice(),
+    edgeIndices,
+    edgeAssignments,
+    textureDim,
+  };
 }
 
 // Interleaved edge-vertex layout: [this, a, b, side, assignment].

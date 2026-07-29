@@ -26,15 +26,6 @@ const FORCE_SHADER_SAMPLERS = [
   'u_nominalTriangles',
 ] as const;
 
-const ASSIGNMENT_CODE: Record<FoldAssignment, number> = {
-  B: 0,
-  M: 1,
-  V: 2,
-  F: 3,
-  U: 0,
-  C: 0,
-  J: 0,
-};
 import type { SolverBackend } from '../solverBackend.js';
 import { GlCore } from './glCore.js';
 import {
@@ -46,7 +37,12 @@ import {
   POSITION_CALC_VERLET,
   VELOCITY_CALC_VERLET,
 } from './passes.js';
-import { MeshRenderer, type RenderSettings } from './meshRenderer.js';
+import {
+  MeshRenderer,
+  meshTopologyFor,
+  type MeshTopology,
+  type RenderSettings,
+} from './meshRenderer.js';
 import type { CameraUniforms } from './camera.js';
 import {
   packModel,
@@ -87,9 +83,7 @@ export class WebglSolver implements SolverBackend {
   private readonly diagnostics: SimulatorDiagnostics;
   private readonly originalPositions: Float32Array;
   private readonly edgeRestLengths: Float32Array;
-  private readonly faceIndices: Uint32Array;
-  private readonly edgeIndices: Uint32Array;
-  private readonly edgeAssignments: Uint8Array;
+  private readonly topology: MeshTopology;
   private meshRenderer: MeshRenderer | null = null;
 
   static isSupported(canvas: HTMLCanvasElement | OffscreenCanvas): boolean {
@@ -139,15 +133,6 @@ export class WebglSolver implements SolverBackend {
     this.edgeRestLengths = new Float32Array(
       model.prepared.edgesVertices.map((_, index) => model.edgeRestLength(index))
     );
-    this.faceIndices = model.prepared.indices.slice();
-    this.edgeIndices = new Uint32Array(model.prepared.edgesVertices.length * 2);
-    this.edgeAssignments = new Uint8Array(model.prepared.edgesVertices.length);
-    model.prepared.edgesVertices.forEach((edge, index) => {
-      this.edgeIndices[index * 2] = edge[0];
-      this.edgeIndices[index * 2 + 1] = edge[1];
-      this.edgeAssignments[index] = ASSIGNMENT_CODE[model.prepared.edgesAssignment[index] ?? 'U'] ?? 0;
-    });
-
     this.material = {
       axialStiffness: options.axialStiffness ?? 20,
       creaseStiffness: options.creaseStiffness ?? 0.7,
@@ -159,6 +144,9 @@ export class WebglSolver implements SolverBackend {
     this.integrationType = options.integrationType === 'verlet' ? 'verlet' : 'euler';
     this.foldPercent = clampPercent(options.foldPercent ?? 0);
     this.packed = packModel(model, this.material);
+    // After `packed`, which owns the texture dimension the render topology
+    // quotes.
+    this.topology = meshTopologyFor(model.prepared, this.packed.dims.textureDim);
     this.dt = timeStepFor(this.packed, this.material);
     this.positionScratch = new Float32Array(this.packed.dims.textureDim * this.packed.dims.textureDim * 4);
 
@@ -318,12 +306,7 @@ export class WebglSolver implements SolverBackend {
    * runs on.
    */
   render(camera: CameraUniforms, settings: RenderSettings, target: WebGLFramebuffer | null = null): void {
-    this.meshRenderer ??= new MeshRenderer(this.gl, {
-      faceIndices: this.faceIndices,
-      edgeIndices: this.edgeIndices,
-      edgeAssignments: this.edgeAssignments,
-      textureDim: this.packed.dims.textureDim,
-    });
+    this.meshRenderer ??= new MeshRenderer(this.gl, this.topology);
     this.meshRenderer.render(camera, settings, target);
   }
 

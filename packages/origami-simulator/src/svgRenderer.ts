@@ -56,6 +56,13 @@ export interface RenderMeshToSvgOptions {
   background?: boolean;
 }
 
+/**
+ * What a vector renderer needs of {@link MeshTopology}: everything except the
+ * solver's texture edge, which is how the vertex shader finds a position and
+ * means nothing here. A full `MeshTopology` satisfies this.
+ */
+export type SvgMeshTopology = Omit<MeshTopology, 'textureDim'>;
+
 export interface SvgRenderResult {
   svg: string;
   /** Page size in the same device pixels the camera is measured in. */
@@ -78,7 +85,7 @@ interface DrawItem {
  */
 export function renderMeshToSvg(
   positions: Float32Array,
-  topology: MeshTopology,
+  topology: SvgMeshTopology,
   camera: CameraUniforms,
   settings: RenderSettings,
   options: RenderMeshToSvgOptions = {}
@@ -177,7 +184,7 @@ interface Crease {
  * face-to-edge table.
  */
 function collectFaces(
-  topology: MeshTopology,
+  topology: SvgMeshTopology,
   projected: ProjectedVertices
 ): { triangles: Triangle[]; items: DrawItem[]; depthByEdgeKey: Map<number, number> } {
   const triangles: Triangle[] = [];
@@ -226,7 +233,7 @@ function collectFaces(
  * triangulation and unassigned edges are skipped, matching `buildEdgeQuads`.
  */
 function collectCreases(
-  topology: MeshTopology,
+  topology: SvgMeshTopology,
   projected: ProjectedVertices,
   depthByEdgeKey: Map<number, number>
 ): Crease[] {
