@@ -275,8 +275,11 @@ Tests: `shortcutDispatcher.test.ts`, `shortcutRuntime.test.ts`,
       churn; scoped to presses outside the *panel*, not outside the window, so it
       cannot fight the canvas's own gestures (the resize handles live on the
       selection overlay, and blurring mid-drag would reload the solver)
-- [ ] Phase 4: `addOristudioCpInlineSimulation` clears the crease selection
-- [ ] Phase 4: test that `Shift+S` and the toolbar button leave the same state
-- [ ] `npx tsc --noEmit`, `npm run lint:web`, web unit tests
+- [x] Phase 4: `addOristudioCpInlineSimulation` clears the crease selection —
+      fell out of Phase 2, as the plan predicted, since it routes through
+      `takeCanvasSelection('inline-simulation', …)`
+- [x] Phase 4: tests that `Shift+S` and the toolbar button leave the same state,
+      plus one on the real store action (verified to fail with the fix reverted)
+- [x] `npx tsc --noEmit`, `npm run lint:web`, web unit tests (1445 passing)
 - [ ] Browser check: the three reported behaviors, plus fold-from-selection and
       Select All under the new invariant
