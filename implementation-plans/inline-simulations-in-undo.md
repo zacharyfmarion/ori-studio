@@ -219,8 +219,8 @@ Tests: `store.test.ts`, `foldIsNotDocumentState.test.ts`,
 
 ## Checklist
 
-- [ ] Phase 1: add/update/remove set `dirty`, with a test that a moved window
-      makes the project dirty
+- [x] Phase 1: add/update/remove/refresh set `dirty`, with tests that a moved
+      and a deleted window make the project dirty
 - [ ] Phase 2: restoring a window rebuilds its fold via the hydrate strategy
       (no provenance re-baseline) against warm artifacts; tests that
       delete-then-undo restores both the fold and its position, that a stale

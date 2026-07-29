@@ -1127,9 +1127,17 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // A new window takes the solver *and* the canvas selection: opening one
       // and watching nothing happen would be the wrong first impression, and
       // the region it was built from stays selected under it otherwise.
+      // A new window takes the solver *and* the canvas selection: opening one
+      // and watching nothing happen would be the wrong first impression, and
+      // the region it was built from stays selected under it otherwise.
+      //
+      // `dirty` because windows are written to `.osf`: without it you could
+      // arrange a workspace of them and be let back to the start screen with no
+      // prompt (see useWelcomeDiscardGuard).
       takeCanvasSelection('inline-simulation', {
         oristudioCpInlineSimulations: [...simulations, simulation],
         oristudioCpFocusedInlineSimulationId: id,
+        dirty: true,
       });
       return 'added';
     },
@@ -1139,6 +1147,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         oristudioCpInlineSimulations: get().oristudioCpInlineSimulations.map((simulation) =>
           simulation.id === id ? { ...simulation, ...patch } : simulation
         ),
+        dirty: true,
       });
     },
 
@@ -1153,6 +1162,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           get().oristudioCpFocusedInlineSimulationId === id
             ? null
             : get().oristudioCpFocusedInlineSimulationId,
+        dirty: true,
       });
     },
 
@@ -1236,6 +1246,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         fold: buildSegmentFold(simulationFoldOf(artifacts), segment),
         modelKey: `${id}:${revision}`,
       });
+      // Rewrites persisted provenance, so it dirties like the others.
       takeCanvasSelection('inline-simulation', {
         oristudioCpInlineSimulations: get().oristudioCpInlineSimulations.map((candidate) =>
           candidate.id === id
@@ -1249,6 +1260,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             : candidate
         ),
         oristudioCpFocusedInlineSimulationId: id,
+        dirty: true,
       });
       return true;
     },
