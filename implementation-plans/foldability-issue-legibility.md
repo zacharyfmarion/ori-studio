@@ -153,9 +153,19 @@ pure redundancy. Row becomes `[glyph] [message]`.
 
 The collapsed HUD subtitle was still rendering the kernel's summary string,
 which read **"Check CAMV found 2 issue(s)"** — a survivor of the CAMV rename, and
-raw English that never passed through i18n. It also only ever restated the count
-already in the label above it. It now shows the first issue by name, which is
-localised and worth reading.
+raw English that never passed through i18n.
+
+Replacing it with the first issue's name was wrong, and reported as such: with
+several issues, naming one reads as *the* problem rather than as a sample. The
+rule is now **a subtitle only when there is exactly one issue to name**. The
+count in the headline carries the multi-issue case on its own, and expanding is
+how you see the rest. With no structured entries at all the kernel string still
+stands in, since it is then the only content there is.
+
+`diagnosticHudStatus` moved to `cp-workspace/diagnostics/hudStatus.ts` to make
+that rule testable — it is a pure derivation that had no coverage, and it is
+where both subtitle mistakes happened. Verified by reverting: the multi-issue
+assertion fails against the reported behaviour and passes against the fix.
 
 `apps/web/src/lib/oristudioCpDiagnostics.ts` is deleted: `cpDiagnosticEntryMessage`
 moved next to the table, `semanticCpDiagnosticKind` went with the kind chip, and
