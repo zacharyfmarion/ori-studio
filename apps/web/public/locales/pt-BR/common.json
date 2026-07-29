@@ -24,7 +24,7 @@
     "changeCircleColor": "Alterar cor do círculo...",
     "changeCreaseType": "Alterar tipo de vinco",
     "changeSelectedCpLineTypes": "Alterar os tipos das linhas selecionadas do padrão de vincos",
-    "checkCamv": "Verificar CAMV",
+    "checkCamv": "Verificar dobrabilidade",
     "checkMaekawaAngleLblViolations": "Verificar violações de Maekawa, de ângulo e little-big-little",
     "checkMaekawaLbl": "Verificar Maekawa/LBL",
     "checkMaekawaVertexFoldability": "Verificar Maekawa e problemas relacionados de dobrabilidade plana dos vértices",

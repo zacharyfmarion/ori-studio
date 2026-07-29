@@ -859,8 +859,8 @@
       "disabledReason": "Pas encore implémenté dans l'éditeur de CP"
     },
     "cp_action_check_camv": {
-      "label": "Vérifier CAMV",
-      "tooltip": "Exécuter les diagnostics de pliabilité à plat CAMV d'Oriedita sans modifier le CP",
+      "label": "Vérifier la pliabilité",
+      "tooltip": "Vérifie à chaque sommet les problèmes qui empêcheraient le pliage, sans modifier le motif",
       "disabledReason": "Prêt"
     },
     "cp_action_folding_estimate": {

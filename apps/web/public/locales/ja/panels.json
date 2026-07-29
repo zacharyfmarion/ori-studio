@@ -123,7 +123,7 @@
   },
   "cpViewControls": {
     "angle": "角度",
-    "camvIssues": "CAMV の問題",
+    "camvIssues": "折り可能性の問題",
     "diagonalGridlines": "対角グリッド線",
     "emptyNote": "表示オプションを調整するには編集可能な展開図を開いてください。",
     "foldAngleLabels": "折り角度ラベル",
@@ -172,7 +172,7 @@
     "deleteImage": "画像を削除",
     "diagnostic": {
       "boundary": "境界",
-      "camv": "CAMV",
+      "camv": "折り可能性",
       "errorOne_other": "{{label}} エラー {{count}} 件",
       "errorOther_other": "{{label}} エラー {{count}} 件",
       "maekawaLbl": "Maekawa/LBL",

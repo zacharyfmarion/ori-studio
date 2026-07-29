@@ -123,7 +123,7 @@
   },
   "cpViewControls": {
     "angle": "각도",
-    "camvIssues": "CAMV 문제",
+    "camvIssues": "접힘 가능성 문제",
     "diagonalGridlines": "대각선 격자선",
     "emptyNote": "보기 옵션을 조정하려면 편집 가능한 전개도를 여세요.",
     "foldAngleLabels": "접기 각도 라벨",
@@ -172,7 +172,7 @@
     "deleteImage": "이미지 삭제",
     "diagnostic": {
       "boundary": "경계",
-      "camv": "CAMV",
+      "camv": "접힘 가능성",
       "errorOne_other": "{{label}} 오류 {{count}}개",
       "errorOther_other": "{{label}} 오류 {{count}}개",
       "maekawaLbl": "Maekawa/LBL",

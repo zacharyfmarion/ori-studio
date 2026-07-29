@@ -859,8 +859,8 @@
       "disabledReason": "折痕图编辑器中尚未实现"
     },
     "cp_action_check_camv": {
-      "label": "检查 CAMV",
-      "tooltip": "运行 Oriedita CAMV 平折性诊断，不更改折痕图",
+      "label": "检查可折叠性",
+      "tooltip": "逐顶点检查会阻碍折叠的问题，不修改图案",
       "disabledReason": "就绪"
     },
     "cp_action_folding_estimate": {

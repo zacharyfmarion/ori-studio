@@ -859,8 +859,8 @@
       "disabledReason": "아직 전개도 편집기에 구현되지 않음"
     },
     "cp_action_check_camv": {
-      "label": "CAMV 확인",
-      "tooltip": "전개도를 변경하지 않고 Oriedita CAMV 평면 접힘 가능성 진단 실행",
+      "label": "접힘 가능성 검사",
+      "tooltip": "각 꼭짓점에서 접기를 방해하는 문제를 검사합니다(패턴은 변경하지 않음)",
       "disabledReason": "준비됨"
     },
     "cp_action_folding_estimate": {

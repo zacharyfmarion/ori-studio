@@ -123,7 +123,7 @@
   },
   "cpViewControls": {
     "angle": "角度",
-    "camvIssues": "CAMV 问题",
+    "camvIssues": "可折叠性问题",
     "diagonalGridlines": "对角网格线",
     "emptyNote": "打开可编辑折痕图以调整视图选项。",
     "foldAngleLabels": "折叠角度标签",
@@ -172,7 +172,7 @@
     "deleteImage": "删除图像",
     "diagnostic": {
       "boundary": "边界",
-      "camv": "CAMV",
+      "camv": "可折叠性",
       "errorOne_other": "{{count}} 个 {{label}} 错误",
       "errorOther_other": "{{count}} 个 {{label}} 错误",
       "maekawaLbl": "Maekawa/LBL",

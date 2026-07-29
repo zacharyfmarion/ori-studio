@@ -123,7 +123,7 @@
   },
   "cpViewControls": {
     "angle": "Angle",
-    "camvIssues": "Problèmes CAMV",
+    "camvIssues": "Problèmes de pliabilité",
     "diagonalGridlines": "Lignes de grille diagonales",
     "emptyNote": "Ouvrez un patron de plis modifiable pour ajuster les options d'affichage.",
     "foldAngleLabels": "Étiquettes d’angle de pliage",
@@ -176,7 +176,7 @@
     "deleteImage": "Supprimer l'image",
     "diagnostic": {
       "boundary": "Contour",
-      "camv": "CAMV",
+      "camv": "Pliabilité",
       "errorOne_one": "{{count}} erreur {{label}}",
       "errorOne_many": "{{count}} erreur {{label}}",
       "errorOne_other": "{{count}} erreur {{label}}",

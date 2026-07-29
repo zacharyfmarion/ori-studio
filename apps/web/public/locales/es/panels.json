@@ -123,7 +123,7 @@
   },
   "cpViewControls": {
     "angle": "Ángulo",
-    "camvIssues": "Problemas de CAMV",
+    "camvIssues": "Problemas de plegabilidad",
     "diagonalGridlines": "Líneas de cuadrícula diagonales",
     "emptyNote": "Abra un patrón de pliegues editable para ajustar las opciones de vista.",
     "foldAngleLabels": "Etiquetas de ángulo de plegado",
@@ -176,7 +176,7 @@
     "deleteImage": "Eliminar imagen",
     "diagnostic": {
       "boundary": "Contorno",
-      "camv": "CAMV",
+      "camv": "Plegabilidad",
       "errorOne_one": "{{count}} error de {{label}}",
       "errorOne_many": "{{count}} error de {{label}}",
       "errorOne_other": "{{count}} error de {{label}}",

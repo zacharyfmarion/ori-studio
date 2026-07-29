@@ -704,7 +704,7 @@ export function getWorkspaceCapabilities(
     ),
     'cp.checkCamv': capability(
       canEditCp,
-      t('common:capability.checkCamv', 'Check CAMV'),
+      t('common:capability.checkCamv', 'Check foldability'),
       canEditCp
         ? t('common:capability.checkMaekawaVertexFoldability', 'Check Maekawa and related vertex flat-foldability issues')
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')

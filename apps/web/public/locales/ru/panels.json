@@ -123,7 +123,7 @@
   },
   "cpViewControls": {
     "angle": "Угол",
-    "camvIssues": "Проблемы CAMV",
+    "camvIssues": "Проблемы складываемости",
     "diagonalGridlines": "Диагональные линии сетки",
     "emptyNote": "Откройте редактируемый паттерн складок, чтобы настроить параметры отображения.",
     "foldAngleLabels": "Подписи углов сгиба",
@@ -178,7 +178,7 @@
     "deleteImage": "Удалить изображение",
     "diagnostic": {
       "boundary": "Граница",
-      "camv": "CAMV",
+      "camv": "Складываемость",
       "errorOne_one": "{{label}}: {{count}} ошибка",
       "errorOne_few": "{{label}}: {{count}} ошибки",
       "errorOne_many": "{{label}}: {{count}} ошибок",

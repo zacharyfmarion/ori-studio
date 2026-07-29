@@ -859,8 +859,8 @@
       "disabledReason": "Пока не реализовано в редакторе CP"
     },
     "cp_action_check_camv": {
-      "label": "Проверить CAMV",
-      "tooltip": "Запустить диагностику плоской складываемости CAMV Oriedita без изменения CP",
+      "label": "Проверить складываемость",
+      "tooltip": "Проверяет каждую вершину на проблемы, мешающие складыванию, не изменяя узор",
       "disabledReason": "Готово"
     },
     "cp_action_folding_estimate": {

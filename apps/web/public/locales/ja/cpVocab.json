@@ -859,8 +859,8 @@
       "disabledReason": "CP エディターではまだ実装されていません"
     },
     "cp_action_check_camv": {
-      "label": "CAMV をチェック",
-      "tooltip": "CP を変更せずに Oriedita の CAMV 平坦折り可能性診断を実行します",
+      "label": "折り可能性をチェック",
+      "tooltip": "頂点ごとに折りを妨げる問題を検査します（CP は変更しません）",
       "disabledReason": "準備完了"
     },
     "cp_action_folding_estimate": {

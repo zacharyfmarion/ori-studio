@@ -859,8 +859,8 @@
       "disabledReason": "Ainda não implementado no editor de CP"
     },
     "cp_action_check_camv": {
-      "label": "Verificar CAMV",
-      "tooltip": "Executar os diagnósticos de dobrabilidade plana CAMV do Oriedita sem alterar o CP",
+      "label": "Verificar dobrabilidade",
+      "tooltip": "Verifica em cada vértice os problemas que impediriam a dobra, sem alterar o padrão",
       "disabledReason": "Pronto"
     },
     "cp_action_folding_estimate": {

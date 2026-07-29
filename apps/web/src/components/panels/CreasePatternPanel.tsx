@@ -359,7 +359,7 @@ interface CpDiagnosticHudStatus {
 function diagnosticOperationLabel(t: TFunction, operation: string): string {
   switch (operation) {
     case 'CheckCamv':
-      return t('panels:creasePattern.diagnostic.camv', 'CAMV');
+      return t('panels:creasePattern.diagnostic.camv', 'Foldability');
     case 'Check1':
       return t('panels:creasePattern.diagnostic.overlap', 'Overlap');
     case 'Check2':

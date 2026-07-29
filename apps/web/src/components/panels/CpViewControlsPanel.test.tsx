@@ -84,7 +84,7 @@ describe('CpViewControlsPanel', () => {
     expect(view.querySelector('input[aria-label="Grid size"]')).toBeNull();
   });
 
-  it('toggles grid, snapping, and CAMV visibility and edits grid size', () => {
+  it('toggles grid, snapping, and foldability-issue visibility and edits grid size', () => {
     const setOristudioCpGridSize = vi.fn(async () => true);
     const view = renderPanel({
       oristudioCpDocument: editableCpState(),
@@ -107,7 +107,7 @@ describe('CpViewControlsPanel', () => {
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToVertices).toBe(false);
     expect(useWorkspaceStore.getState().oristudioCpViewport.snapToLines).toBe(false);
 
-    const camvToggle = view.querySelector<HTMLButtonElement>('button[aria-label="CAMV issues"]');
+    const camvToggle = view.querySelector<HTMLButtonElement>('button[aria-label="Foldability issues"]');
     act(() => camvToggle?.click());
     expect(useWorkspaceStore.getState().oristudioCpViewport.camvIssuesVisible).toBe(false);
 

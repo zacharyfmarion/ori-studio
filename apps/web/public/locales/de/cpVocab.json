@@ -859,8 +859,8 @@
       "disabledReason": "Im CP-Editor noch nicht implementiert"
     },
     "cp_action_check_camv": {
-      "label": "CAMV prüfen",
-      "tooltip": "Oriedita-CAMV-Flachfaltbarkeitsdiagnose ausführen, ohne das CP zu ändern",
+      "label": "Faltbarkeit prüfen",
+      "tooltip": "Prüft jeden Knoten auf Probleme, die das Falten verhindern würden, ohne das Muster zu ändern",
       "disabledReason": "Bereit"
     },
     "cp_action_folding_estimate": {

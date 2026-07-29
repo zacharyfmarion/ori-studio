@@ -123,7 +123,7 @@
   },
   "cpViewControls": {
     "angle": "Winkel",
-    "camvIssues": "CAMV-Probleme",
+    "camvIssues": "Faltbarkeitsprobleme",
     "diagonalGridlines": "Diagonale Rasterlinien",
     "emptyNote": "Öffnen Sie ein bearbeitbares Faltmuster, um die Ansichtsoptionen anzupassen.",
     "foldAngleLabels": "Faltwinkel-Beschriftungen",
@@ -174,7 +174,7 @@
     "deleteImage": "Bild löschen",
     "diagnostic": {
       "boundary": "Rand",
-      "camv": "CAMV",
+      "camv": "Faltbarkeit",
       "errorOne_one": "{{count}} {{label}}-Fehler",
       "errorOne_other": "{{count}} {{label}}-Fehler",
       "errorOther_one": "{{count}} {{label}}-Fehler",

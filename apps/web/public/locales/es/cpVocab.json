@@ -859,8 +859,8 @@
       "disabledReason": "Aún no implementado en el editor de CP"
     },
     "cp_action_check_camv": {
-      "label": "Comprobar CAMV",
-      "tooltip": "Ejecutar los diagnósticos de plegabilidad plana CAMV de Oriedita sin modificar el CP",
+      "label": "Comprobar plegabilidad",
+      "tooltip": "Comprueba en cada vértice los problemas que impedirían plegar el patrón, sin modificarlo",
       "disabledReason": "Listo"
     },
     "cp_action_folding_estimate": {

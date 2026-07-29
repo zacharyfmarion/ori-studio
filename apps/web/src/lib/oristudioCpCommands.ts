@@ -654,9 +654,9 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   notImplemented('SaveVersionDetect', 'Detect save version', 'file', 'file-search', 'FileVersionTester', {
     placement: 'palette',
   }),
-  ready('CheckCamv', 'Check CAMV', 'check-fix', 'shield-alert', 'CheckCAMVTask', {
+  ready('CheckCamv', 'Check foldability', 'check-fix', 'shield-alert', 'CheckCAMVTask', {
     placement: 'menu',
-    tooltip: 'Run Oriedita CAMV flat-foldability diagnostics without changing the CP',
+    tooltip: 'Check every vertex for problems that would stop the pattern folding, without changing it',
   }),
   porting('FoldingEstimate', 'Fold estimate', 'folding', 'origami', 'FoldingEstimateTask', {
     placement: 'hidden-ui-only',

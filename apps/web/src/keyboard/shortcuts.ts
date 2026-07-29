@@ -196,7 +196,7 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
   menuShortcut('edit.selectAll', 'Select All', 'Edit', { primary: true, key: 'a' }, 'selectAllAction'),
   menuShortcut('optimize.scale', 'Optimize Scale', 'Design', { primary: true, key: 'r' }),
   menuShortcut('cp.build', 'Build Crease Pattern', 'Design', { primary: true, key: 'b' }),
-  menuShortcut('cp.checkCamv', 'Check CAMV', 'Crease Pattern', {
+  menuShortcut('cp.checkCamv', 'Check foldability', 'Crease Pattern', {
     primary: true,
     shift: true,
     key: 'm',

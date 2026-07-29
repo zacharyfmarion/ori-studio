@@ -123,7 +123,7 @@
   },
   "cpViewControls": {
     "angle": "Ângulo",
-    "camvIssues": "Problemas de CAMV",
+    "camvIssues": "Problemas de dobrabilidade",
     "diagonalGridlines": "Linhas de grade diagonais",
     "emptyNote": "Abra um padrão de vincos editável para ajustar as opções de exibição.",
     "foldAngleLabels": "Rótulos de ângulo de dobra",
@@ -176,7 +176,7 @@
     "deleteImage": "Excluir imagem",
     "diagnostic": {
       "boundary": "Contorno",
-      "camv": "CAMV",
+      "camv": "Dobrabilidade",
       "errorOne_one": "{{count}} erro de {{label}}",
       "errorOne_many": "{{count}} erro de {{label}}",
       "errorOne_other": "{{count}} erro de {{label}}",

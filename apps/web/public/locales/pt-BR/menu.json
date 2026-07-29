@@ -9,7 +9,7 @@
     "check2": "Verificar junções em T",
     "check3": "Verificar dobrabilidade dos vértices",
     "check4": "Verificar Maekawa/LBL",
-    "checkCamv": "Verificar CAMV",
+    "checkCamv": "Verificar dobrabilidade",
     "deleteLineType": "Excluir tipo de linha selecionado...",
     "deleteSelectedLines": "Excluir linhas selecionadas",
     "diagnostics": "Diagnósticos",

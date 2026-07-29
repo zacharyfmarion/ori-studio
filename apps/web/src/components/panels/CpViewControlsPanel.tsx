@@ -66,7 +66,7 @@ export function CpViewControlsPanel() {
           />
           <GridSettingsSection grid={grid} onUpdate={updateGrid} />
           <ToggleRow
-            label={t('panels:cpViewControls.camvIssues', 'CAMV issues')}
+            label={t('panels:cpViewControls.camvIssues', 'Foldability issues')}
             checked={camvVisible}
             onChange={(checked) => setViewportOption('camvIssuesVisible', checked)}
           />
