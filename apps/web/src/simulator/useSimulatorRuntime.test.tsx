@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FoldDocument } from '@treemaker/origami-simulator';
@@ -58,15 +58,21 @@ const FOLD = {
   faces_vertices: [[0, 1, 2]],
 } as unknown as FoldDocument;
 
-function Probe({ fold }: { fold: FoldDocument | null }) {
-  useSimulatorRuntime({
+function Probe({ fold, paused = true }: { fold: FoldDocument | null; paused?: boolean }) {
+  const runtime = useSimulatorRuntime({
     fold,
     solverOptions: {},
     triangulate: false,
     canvas: null,
     bitmapOutput: null,
-    paused: true,
+    paused,
   });
+  // The loop idles on a converged, not-playing model, so playing is what makes
+  // it actually tick.
+  const { status, setPlaying } = runtime;
+  useEffect(() => {
+    if (status === 'ready') setPlaying(true);
+  }, [status, setPlaying]);
   return null;
 }
 
@@ -133,5 +139,46 @@ describe('useSimulatorRuntime session ownership', () => {
     await act(async () => root?.render(<Probe fold={FOLD} />));
     await settleLoads();
     expect(released).toEqual([]);
+  });
+});
+
+describe('recovering from an eviction', () => {
+  /** Run animation frames until `done`, or give up. */
+  async function pump(done: () => boolean, frames = 20) {
+    for (let i = 0; i < frames && !done(); i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        await Promise.resolve();
+      });
+    }
+  }
+
+  it('reloads when the worker no longer has the session it holds', async () => {
+    // The cap should make this unreachable, but when it is not, a window must not
+    // sit on a dead token reporting 'ready' while every frame it asks for is
+    // discarded. That is a silent freeze with no error anywhere — how the session
+    // leak presented, and why it took so long to find.
+    await act(async () => root?.render(<Probe fold={FOLD} paused={false} />));
+    await settleLoads();
+    expect(client.load).toHaveBeenCalledTimes(1);
+
+    // The worker has dropped our model: it answers our token with null.
+    client.tick.mockResolvedValue(null);
+    await pump(() => client.load.mock.calls.length > 1);
+
+    expect(client.load).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not spin: one eviction costs one reload', async () => {
+    await act(async () => root?.render(<Probe fold={FOLD} paused={false} />));
+    await settleLoads();
+    client.tick.mockResolvedValue(null);
+    await pump(() => client.load.mock.calls.length > 1);
+
+    // The reload is still in flight, so the loop is not ticking and cannot ask
+    // again. Without the status change it would re-fire every frame.
+    const afterFirstRecovery = client.load.mock.calls.length;
+    await pump(() => false, 5);
+    expect(client.load.mock.calls.length).toBe(afterFirstRecovery);
   });
 });

@@ -164,6 +164,13 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   } = options;
 
   const [status, setStatus] = useState<SimulatorStatus>('idle');
+  /**
+   * Bumped to reload a model the worker no longer has. The cap should make this
+   * unreachable — see MAX_LIVE_SESSIONS — so it is a recovery path, not a
+   * routine one: it exists so that being evicted costs a reload rather than
+   * leaving the window frozen and silent.
+   */
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState<SimulatorModelView | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -385,7 +392,16 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     // both restarted a fold meant to be still and left the previous frame
     // stretched while it happened. Later sizes ride on `setCamera`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fold, foldProfile, triangulate, canvas, allowGpuRender, wantsBitmapOutput, publish]);
+  }, [
+    fold,
+    foldProfile,
+    triangulate,
+    canvas,
+    allowGpuRender,
+    wantsBitmapOutput,
+    publish,
+    reloadNonce,
+  ]);
 
   useEffect(() => {
     playingRef.current = playing;
@@ -415,8 +431,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       const recycled = recycledRef.current;
       recycledRef.current = undefined;
       const dispatched = performance.now();
+      const quoted = tokenRef.current;
       void client
-        .tick(recycled ? { recycled, token: tokenRef.current } : { token: tokenRef.current })
+        .tick(recycled ? { recycled, token: quoted } : { token: quoted })
         .then((payload) => {
           // Round-trip: dispatch -> worker tick -> reply. If the solver loop is
           // slow because the worker tick is slow (e.g. a GPU pipeline stall),
@@ -424,6 +441,23 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           // throttle is on the main thread.
           tickRoundTripTotal += performance.now() - dispatched;
           tickRoundTripCount += 1;
+          // A null reply means the worker does not know this token. Usually that
+          // is our own newer load having replaced it, which `publish` ignores —
+          // but if the token we quoted is *still* the one we hold, nothing of
+          // ours replaced it and the worker dropped our model: we were evicted
+          // past the residency cap.
+          //
+          // Load it again rather than sitting on a dead token. Without this the
+          // window keeps reporting 'ready' while every frame it asks for is
+          // discarded, so it freezes with no error anywhere — which is exactly
+          // how the session leak presented, and why it took so long to find.
+          // Setting 'loading' also stops this loop, so one eviction costs one
+          // reload rather than a tick-per-frame spin.
+          if (payload === null && quoted !== undefined && quoted === tokenRef.current) {
+            setStatus('loading');
+            setReloadNonce((nonce) => nonce + 1);
+            return;
+          }
           publish(payload);
         })
         .catch((cause: unknown) => {
