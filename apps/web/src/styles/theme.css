@@ -4626,6 +4626,45 @@
   font-weight: 600;
 }
 
+/* Collapsible section header, following `.grid-settings__toggle` in the Edit
+   workspace's view pane so the two panes disclose the same way. */
+.simulator-view-controls-panel__section-toggle {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.simulator-view-controls-panel__section-toggle:hover
+  .simulator-view-controls-panel__section-title {
+  color: var(--text-primary);
+}
+
+.simulator-view-controls-panel__section-chevron {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  transition: transform 0.12s ease;
+}
+
+.simulator-view-controls-panel__section[data-open]
+  .simulator-view-controls-panel__section-chevron {
+  transform: rotate(90deg);
+}
+
+/* A closed section is just its header, so the extra bottom padding that spaces a
+   header from its controls would read as a gap. */
+.simulator-view-controls-panel__section:not([data-open])
+  .simulator-view-controls-panel__section-header {
+  padding-bottom: 8px;
+}
+
 .simulator-view-controls-panel__section-hint {
   margin: 0;
   padding: 0 var(--space-3) 6px;
@@ -6296,32 +6335,14 @@ button.bp-packing-alert:focus-visible {
 /* Shared colour swatch (components/ui/ColorField), used by the simulator options
    pane, the folded-figure menu and the crease export dialog. The three used to
    carry three near-identical copies of this block. */
-.color-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+.color-field__value {
+  display: flex;
+  align-items: center;
   gap: 4px;
   min-width: 0;
-}
-
-.color-field__label {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.color-field__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .color-field__input {
-  width: 100%;
-  height: 24px;
   padding: 2px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -6339,14 +6360,49 @@ button.bp-packing-alert:focus-visible {
   opacity: 0.5;
 }
 
+/* Stacked: label over a full-width swatch, for the narrow grid columns in the
+   folded-figure menu and the export dialog. */
+.color-field--stacked {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.color-field--stacked .color-field__name {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.color-field--stacked .color-field__input {
+  width: 100%;
+  height: 24px;
+}
+
+/* Row: a square swatch on the right, so a colour reads as one control in a
+   column of sliders and selects rather than as a full-width band. */
+.color-field--row .color-field__value {
+  justify-content: flex-end;
+}
+
+.color-field--row .color-field__input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
 /* Only rendered while the colour is overridden, so its absence is the signal
    that the value is still following the theme. */
 .color-field__clear {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 24px;
+  width: 18px;
+  height: 22px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -6360,7 +6416,6 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-primary);
 }
 
-.simulator-view-controls-panel__colors {
-  display: grid;
-  gap: 8px;
+.simulator-view-controls-panel__colors > .control-row:last-child {
+  border-bottom: 0;
 }
