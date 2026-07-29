@@ -8,6 +8,11 @@ export { WebglSolver } from './webgl/webglSolver.js';
 export { GlCore, WebGlContextLostError } from './webgl/glCore.js';
 export { MeshRenderer, type MeshTopology, type RenderSettings } from './webgl/meshRenderer.js';
 export {
+  renderMeshToSvg,
+  type RenderMeshToSvgOptions,
+  type SvgRenderResult,
+} from './svgRenderer.js';
+export {
   cameraUniforms,
   centroid,
   boundingRadius,
