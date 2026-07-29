@@ -3162,6 +3162,7 @@ export function CreasePatternPanel() {
                       inlineSimulations.scrub(focusedInlineSimulation.id, percent)
                     }
                     onReplay={inlineSimulations.replay}
+                    onExport={inlineSimulations.exportView}
                     onRefresh={() => inlineSimulations.refresh(focusedInlineSimulation.id)}
                     onDelete={() => inlineSimulations.remove(focusedInlineSimulation.id)}
                   />

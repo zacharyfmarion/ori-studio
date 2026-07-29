@@ -537,6 +537,11 @@
     "title": "Simulator",
     "unavailable": "Simulator unavailable"
   },
+  "simulatorExport": {
+    "png": "PNG image",
+    "svg": "SVG image",
+    "trigger": "Export view"
+  },
   "simulatorSegments": {
     "creasePatterns": "Crease patterns",
     "patternLabel": "Pattern {{n}}",

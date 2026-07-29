@@ -1892,7 +1892,13 @@
     "panels:creasePattern.selectionToolbar.simulateInline": "270354058d96",
     "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
     "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
-    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85",
+    "panels:simulatorExport.png": "6ef9788d38d3",
+    "panels:simulatorExport.svg": "8592788575cc",
+    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "toasts:simulatorExport.empty": "457128ee0558",
+    "toasts:simulatorExport.failed": "a70048490aab",
+    "toasts:simulatorExport.saved": "b22cd4e87ce1"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3787,7 +3793,13 @@
     "panels:creasePattern.selectionToolbar.simulateInline": "270354058d96",
     "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
     "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
-    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85",
+    "panels:simulatorExport.png": "6ef9788d38d3",
+    "panels:simulatorExport.svg": "8592788575cc",
+    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "toasts:simulatorExport.empty": "457128ee0558",
+    "toasts:simulatorExport.failed": "a70048490aab",
+    "toasts:simulatorExport.saved": "b22cd4e87ce1"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5708,7 +5720,13 @@
     "panels:creasePattern.selectionToolbar.simulateInline": "270354058d96",
     "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
     "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
-    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85",
+    "panels:simulatorExport.png": "6ef9788d38d3",
+    "panels:simulatorExport.svg": "8592788575cc",
+    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "toasts:simulatorExport.empty": "457128ee0558",
+    "toasts:simulatorExport.failed": "a70048490aab",
+    "toasts:simulatorExport.saved": "b22cd4e87ce1"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7629,7 +7647,13 @@
     "panels:creasePattern.selectionToolbar.simulateInline": "270354058d96",
     "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
     "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
-    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85",
+    "panels:simulatorExport.png": "6ef9788d38d3",
+    "panels:simulatorExport.svg": "8592788575cc",
+    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "toasts:simulatorExport.empty": "457128ee0558",
+    "toasts:simulatorExport.failed": "a70048490aab",
+    "toasts:simulatorExport.saved": "b22cd4e87ce1"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9550,7 +9574,13 @@
     "panels:creasePattern.selectionToolbar.simulateInline": "270354058d96",
     "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
     "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
-    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85",
+    "panels:simulatorExport.png": "6ef9788d38d3",
+    "panels:simulatorExport.svg": "8592788575cc",
+    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "toasts:simulatorExport.empty": "457128ee0558",
+    "toasts:simulatorExport.failed": "a70048490aab",
+    "toasts:simulatorExport.saved": "b22cd4e87ce1"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11471,7 +11501,13 @@
     "panels:creasePattern.selectionToolbar.simulateInline": "270354058d96",
     "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
     "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
-    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85",
+    "panels:simulatorExport.png": "6ef9788d38d3",
+    "panels:simulatorExport.svg": "8592788575cc",
+    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "toasts:simulatorExport.empty": "457128ee0558",
+    "toasts:simulatorExport.failed": "a70048490aab",
+    "toasts:simulatorExport.saved": "b22cd4e87ce1"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13392,7 +13428,13 @@
     "panels:creasePattern.selectionToolbar.simulateInline": "270354058d96",
     "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
     "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
-    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85",
+    "panels:simulatorExport.png": "6ef9788d38d3",
+    "panels:simulatorExport.svg": "8592788575cc",
+    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "toasts:simulatorExport.empty": "457128ee0558",
+    "toasts:simulatorExport.failed": "a70048490aab",
+    "toasts:simulatorExport.saved": "b22cd4e87ce1"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15287,6 +15329,12 @@
     "panels:creasePattern.selectionToolbar.simulateInline": "270354058d96",
     "toasts:creasePattern.inlineSimulationCap": "0b3ffffd015e",
     "toasts:creasePattern.simulateFailed": "036bc0e8b5cf",
-    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85"
+    "toasts:creasePattern.simulateNoRegion": "39fe3d510a85",
+    "panels:simulatorExport.png": "6ef9788d38d3",
+    "panels:simulatorExport.svg": "8592788575cc",
+    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "toasts:simulatorExport.empty": "457128ee0558",
+    "toasts:simulatorExport.failed": "a70048490aab",
+    "toasts:simulatorExport.saved": "b22cd4e87ce1"
   }
 }

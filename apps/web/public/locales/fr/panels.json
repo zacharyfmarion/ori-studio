@@ -549,6 +549,11 @@
     "title": "Simulateur",
     "unavailable": "Simulateur indisponible"
   },
+  "simulatorExport": {
+    "png": "Image PNG",
+    "svg": "Image SVG",
+    "trigger": "Exporter la vue"
+  },
   "simulatorSegments": {
     "creasePatterns": "Patrons de plis",
     "patternLabel": "Patron {{n}}",

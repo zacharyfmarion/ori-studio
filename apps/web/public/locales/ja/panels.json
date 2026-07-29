@@ -525,6 +525,11 @@
     "title": "シミュレーター",
     "unavailable": "シミュレーターを利用できません"
   },
+  "simulatorExport": {
+    "png": "PNG 画像",
+    "svg": "SVG 画像",
+    "trigger": "ビューを書き出す"
+  },
   "simulatorSegments": {
     "creasePatterns": "展開図",
     "patternLabel": "パターン {{n}}",

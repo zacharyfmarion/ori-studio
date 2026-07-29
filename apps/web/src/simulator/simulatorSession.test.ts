@@ -334,17 +334,20 @@ describe('exporting the current view as SVG', () => {
     session.setFoldPercent(70);
     await frame(session.settle(4000, {}));
 
-    const svg = session.exportSvg();
-    expect(svg).not.toBeNull();
-    expect(svg).toContain('<svg');
-    expect(svg).toContain('<polygon');
-    expect(svg).not.toMatch(/NaN|Infinity/u);
+    const page = session.exportSvg();
+    expect(page).not.toBeNull();
+    expect(page!.svg).toContain('<svg');
+    expect(page!.svg).toContain('<polygon');
+    expect(page!.svg).not.toMatch(/NaN|Infinity/u);
+    // The page size travels with the document because the PNG path needs it.
+    expect(page!.width).toBeGreaterThan(0);
+    expect(page!.height).toBeGreaterThan(0);
 
     // A flat sheet at the default camera projects to a much shallower box than a
     // 70%-folded one, so the two documents cannot be the same.
     session.reset();
     await frame(session.settle(4000, {}));
-    expect(session.exportSvg()).not.toBe(svg);
+    expect(session.exportSvg()!.svg).not.toBe(page!.svg);
     session.dispose();
   }, 30_000);
 
@@ -363,7 +366,7 @@ describe('exporting the current view as SVG', () => {
     expect(angled).not.toBeNull();
 
     await session.setCamera({ view: { yaw: 0, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 });
-    expect(session.exportSvg()).not.toBe(angled);
+    expect(session.exportSvg()!.svg).not.toBe(angled!.svg);
     session.dispose();
   }, 30_000);
 
@@ -388,18 +391,18 @@ describe('exporting the current view as SVG', () => {
     };
 
     await session.setRenderSettings({ ...base }, info.token);
-    const both = session.exportSvg({ token: info.token })!;
+    const both = session.exportSvg({ token: info.token })!.svg;
     expect(both).toContain('<polygon');
     expect(both).toContain('<line');
     expect(both).toContain('#ffff00');
 
     await session.setRenderSettings({ ...base, showEdges: false }, info.token);
-    const facesOnly = session.exportSvg({ token: info.token })!;
+    const facesOnly = session.exportSvg({ token: info.token })!.svg;
     expect(facesOnly).toContain('<polygon');
     expect(facesOnly).not.toContain('<line');
 
     await session.setRenderSettings({ ...base, faceAlpha: 0.48 }, info.token);
-    expect(session.exportSvg({ token: info.token })).toContain('fill-opacity="0.48"');
+    expect(session.exportSvg({ token: info.token })!.svg).toContain('fill-opacity="0.48"');
     session.dispose();
   }, 30_000);
 

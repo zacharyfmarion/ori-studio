@@ -57,7 +57,12 @@ const OVERSIZED_PANELS = {
   // more case in the viewport-shortcut switch, the boxes the camera frames
   // against, and the window's arm of the two dispatches every canvas-object
   // kind passes through (selection and delete).
-  'CreasePatternPanel.tsx': 2936,
+  // 2936 -> 2937: one prop, wiring the inline simulation toolbar's export
+  // dropdown to `useInlineSimulations.exportView`. The verb itself is in
+  // `inlineSimulation/inlineSimulationRuntime` (the exporter registry) and its
+  // store binding is in the hook, scoped to the focused window like `replay` —
+  // so what landed here is composition, which is what this file is for.
+  'CreasePatternPanel.tsx': 2937,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

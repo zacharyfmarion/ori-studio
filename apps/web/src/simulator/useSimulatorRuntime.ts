@@ -7,6 +7,7 @@ import type {
   RenderSettings,
   SimulatorDiagnostics,
   SimulatorOptions,
+  SvgRenderResult,
 } from '@treemaker/origami-simulator';
 import {
   releaseSimulatorClient,
@@ -157,7 +158,7 @@ export interface SimulatorRuntime {
    * palette from three different owners. Keeps the session token private, like
    * every other call here.
    */
-  exportSvg: () => Promise<string | null>;
+  exportSvg: () => Promise<SvgRenderResult | null>;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {

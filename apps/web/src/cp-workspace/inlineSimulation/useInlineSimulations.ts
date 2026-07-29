@@ -3,7 +3,8 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
 import { inlineSimulationAsTransformable, isInlineSimulationStale } from './inlineSimulation';
-import { requestInlineSimulationFold } from './inlineSimulationRuntime';
+import { exportInlineSimulation, requestInlineSimulationFold } from './inlineSimulationRuntime';
+import type { SimulatorViewExportFormat } from '../../simulator/simulatorViewExport';
 
 export interface UseInlineSimulationsOptions {
   /** The live CP document, for the staleness check. */
@@ -136,6 +137,21 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     requestInlineSimulationFold(id, foldPercent);
   }, []);
 
+  /**
+   * Save the focused window's current view as an image.
+   *
+   * Goes through the runtime side table for the same reason scrubbing does: the
+   * solver — and so the view — lives in the layer, not in the descriptor. Scoped
+   * to the focused window like {@link replay}, so the panel passes this straight
+   * to the toolbar rather than closing over an id at the call site.
+   */
+  const exportView = useCallback(
+    (format: SimulatorViewExportFormat) => {
+      if (focusedId) void exportInlineSimulation(focusedId, format);
+    },
+    [focusedId]
+  );
+
   const replay = useCallback(() => setReplayRequest((nonce) => nonce + 1), []);
   const togglePlay = useCallback(() => setPlaying((current) => !current), []);
   const refresh = useCallback(
@@ -162,6 +178,7 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     blur,
     applyBoxUpdate,
     scrub,
+    exportView,
     refresh,
     remove: removeSimulation,
   };

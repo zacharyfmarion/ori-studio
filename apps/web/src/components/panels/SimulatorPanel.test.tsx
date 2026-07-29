@@ -106,6 +106,24 @@ describe('SimulatorPanel', () => {
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBeNull();
   });
 
+  it('offers the current view for export once a model is loaded', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+
+    const trigger = rendered.querySelector<HTMLButtonElement>('[aria-label="Export view"]');
+    expect(trigger).not.toBeNull();
+    expect(trigger?.disabled).toBe(false);
+  });
+
+  it('does not offer an export with nothing to draw', () => {
+    // Rendered with no fold artifacts, so the panel never reaches "ready". An
+    // enabled control here would open a dialog and then fail.
+    const rendered = renderPanel({});
+
+    const trigger = rendered.querySelector<HTMLButtonElement>('[aria-label="Export view"]');
+    expect(trigger?.disabled).toBe(true);
+  });
+
   it('triangulates polygonal fold faces before rendering', async () => {
     const rendered = renderPanel({ foldArtifacts: { fold: quadFold() } });
     await flushSimulator();

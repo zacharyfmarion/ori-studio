@@ -561,6 +561,11 @@
     "title": "Симулятор",
     "unavailable": "Симулятор недоступен"
   },
+  "simulatorExport": {
+    "png": "Изображение PNG",
+    "svg": "Изображение SVG",
+    "trigger": "Экспорт вида"
+  },
   "simulatorSegments": {
     "creasePatterns": "Паттерны складок",
     "patternLabel": "Паттерн {{n}}",

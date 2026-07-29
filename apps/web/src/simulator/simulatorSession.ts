@@ -20,6 +20,7 @@ import {
   type SimulatorDiagnostics,
   type SimulatorOptions,
   type SolverBackend,
+  type SvgRenderResult,
 } from '@treemaker/origami-simulator';
 
 // The simulator's solver, off the main thread.
@@ -697,7 +698,7 @@ const api = {
    * Distinct from {@link exportGeometry}, which serves STL/OBJ and wants raw
    * geometry with no camera at all.
    */
-  exportSvg(options: { token?: SimulatorSessionToken } = {}): string | null {
+  exportSvg(options: { token?: SimulatorSessionToken } = {}): SvgRenderResult | null {
     const active = sessionFor(options.token);
     if (!active) return null;
     const prepared = active.model.prepared;
@@ -720,17 +721,17 @@ const api = {
       active.view.width,
       active.view.height
     );
-    return (
-      renderMeshToSvg(positions, meshTopologyFor(prepared, 1), camera, active.view.settings, {
-        // The canvas-2D fallback is orthographic, so a machine drawing through it
-        // must export the way its own screen looks.
-        perspective: Boolean(active.gpuRender),
-        strain,
-        // A standalone file wants its backdrop even when the on-canvas window is
-        // transparent so the crease pattern shows through it.
-        background: true,
-      })?.svg ?? null
-    );
+    // The page size comes back with the document because a rasterizer needs it,
+    // and re-deriving it from a string we just produced would be worse.
+    return renderMeshToSvg(positions, meshTopologyFor(prepared), camera, active.view.settings, {
+      // The canvas-2D fallback is orthographic, so a machine drawing through it
+      // must export the way its own screen looks.
+      perspective: Boolean(active.gpuRender),
+      strain,
+      // A standalone file wants its backdrop even when the on-canvas window is
+      // transparent so the crease pattern shows through it.
+      background: true,
+    });
   },
 
   diagnostics(): SimulatorDiagnostics {

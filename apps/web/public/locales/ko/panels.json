@@ -525,6 +525,11 @@
     "title": "시뮬레이터",
     "unavailable": "시뮬레이터 사용 불가"
   },
+  "simulatorExport": {
+    "png": "PNG 이미지",
+    "svg": "SVG 이미지",
+    "trigger": "보기 내보내기"
+  },
   "simulatorSegments": {
     "creasePatterns": "전개도",
     "patternLabel": "패턴 {{n}}",
