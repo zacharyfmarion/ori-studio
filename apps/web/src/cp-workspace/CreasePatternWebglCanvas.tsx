@@ -82,32 +82,14 @@ import {
   type OristudioCpLineStyle,
   getOrieditaGridBasis,
 } from '../lib/creasePatternViewport';
-import { toolEngineFor, type ToolInputMode } from './tools/registry';
+import { toolEngineFor } from './tools/registry';
+import { cpPointerReleaseRoute, type ActiveToolMode } from './tools/pointerRelease';
 import { createToolRuntime, type ToolRuntime } from './tools/runtime';
 import { createStepSequenceTool } from './tools/stepSequenceTool';
 import { createLinePickTool } from './tools/linePickTool';
 import type { ToolCommit, ToolPreviewSegment } from './tools/types';
 import type { ToolClickAction } from './tools/predicates';
 
-/**
- * Draw modes the canvas routes: the drag engines, the click-based persistent
- * `sequence` mode (every step collects a point; its {@link StepKind} sets how the
- * surface snaps + gives feedback), `line-entity` (each click picks an existing
- * crease by id and commits line ids), and `lengthen` (drag a selection line to pick
- * the crease(s) to extend, then click the target — commits 3 points).
- */
-type ActiveToolMode =
-  | ToolInputMode
-  | 'sequence'
-  | 'line-entity'
-  | 'lengthen'
-  // Angle Restricted Line (DrawCreaseAngleRestricted5): press-drag-release like the
-  // Line tool, but the endpoint is angle-system-snapped (kernel-previewed live).
-  | 'angle-drag'
-  // Text annotation tool: existing texts are selected/dragged via the DOM overlay
-  // (it owns the real glyph bounds); the canvas only reports an empty-space click's
-  // model point so the panel can start an inline-edit draft there.
-  | 'text';
 /**
  * Per-step snap/feedback mode — the input registry's {@link CpStepSnap}, which is
  * where each tool's steps are declared. Aliased (not redeclared) so the surface and
@@ -2593,38 +2575,40 @@ export function CreasePatternWebglCanvas({
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (
-        liveRef.current.activeToolInputMode === 'sequence' &&
-        liveRef.current.activeToolTransform?.pointCount === 2 &&
-        sequenceStepRef.current === 1 &&
-        moved &&
-        !erasing &&
-        !panning &&
-        e.type !== 'pointercancel'
-      ) {
+      const cancelled = e.type === 'pointercancel';
+      // Which handler owns this release. The precedence rule (erase and pan outrank
+      // the active tool) lives in one pure, unit-tested function rather than in the
+      // guards of each branch below, where a mode that forgot to exclude an
+      // in-flight erase stranded the whole gesture. See tools/pointerRelease.ts.
+      const route = cpPointerReleaseRoute({
+        toolMode: liveRef.current.activeToolInputMode,
+        erasing,
+        panning,
+        drawing,
+        movingSelection,
+        selecting,
+        moved,
+        cancelled,
+        transformPointCount: liveRef.current.activeToolTransform?.pointCount ?? null,
+        sequenceStep: sequenceStepRef.current,
+      });
+      if (route === 'sequence-drag-commit') {
         // Oriedita's two-point move/copy are press-drag-release, not click-click
         // (BaseMouseHandlerLineTransform commits on mouseReleased). Release after a
         // drag places the destination point and commits, so both gestures work: drag
         // it there, or click twice.
         feedSequenceTool('down', e.clientX, e.clientY);
-      } else if (
-        liveRef.current.activeToolInputMode === 'lengthen' &&
-        !erasing &&
-        !panning
-      ) {
-        feedLengthen(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
-      } else if (liveRef.current.activeToolInputMode === 'angle-drag' && !panning) {
+      } else if (route === 'lengthen') {
+        feedLengthen(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
+      } else if (route === 'angle-drag') {
         // Angle Restricted Line: release commits the [anchor, endpoint] segment.
-        feedAngleDrag(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
-      } else if (
-        liveRef.current.activeToolInputMode === 'text' &&
-        !panning 
-      ) {
+        feedAngleDrag(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
+      } else if (route === 'text') {
         // Text tool: a click (no drag) whose press started on the canvas starts an
         // inline-edit draft at that model point; a press-drag creates a text box of
         // the dragged size. A pan, or a release whose press began on the overlay
         // (dismissing an editor), does nothing.
-        if (textPressStarted && e.type !== 'pointercancel') {
+        if (textPressStarted && !cancelled) {
           if (moved) {
             const start = clientToModel(pressX, pressY);
             const end = clientToModel(e.clientX, e.clientY);
@@ -2634,14 +2618,12 @@ export function CreasePatternWebglCanvas({
             if (m) liveRef.current.onTextCreate?.(m);
           }
         }
-        textPressStarted = false;
-        marquee.classList.remove('cp-webgl-marquee--text');
-      } else if (erasing) {
+      } else if (route === 'erase') {
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);
         if (eraseRuntime && raw) {
           const figureId = !moved ? figureAt(e.clientX, e.clientY) : null;
-          if (e.type === 'pointercancel') {
+          if (cancelled) {
             eraseRuntime.feed({ kind: 'cancel', point: raw });
           } else if (figureId) {
             // Right-*click* (no drag) over a folded figure opens its context menu
@@ -2664,11 +2646,8 @@ export function CreasePatternWebglCanvas({
           }
         }
         renderNow();
-        erasing = false;
-        eraseRuntime = null;
-      } else if (drawing) {
-        const clickAction =
-          !moved && e.type !== 'pointercancel' ? liveRef.current.activeToolClickAction : null;
+      } else if (route === 'draw') {
+        const clickAction = !moved && !cancelled ? liveRef.current.activeToolClickAction : null;
         if (clickAction) {
           // A click (no drag) on a tool that defines one: discard the degenerate box
           // and run the click behaviour against the crease under the cursor, matching
@@ -2681,16 +2660,15 @@ export function CreasePatternWebglCanvas({
             liveRef.current.onSelect(hit, e.shiftKey);
           }
         } else {
-          feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+          feedTool(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
         }
-        drawing = false;
         if (liveRef.current.activeToolInputMode !== 'drag-line') {
           toolRuntime = null;
           renderer.setOverlayPoints(null);
         }
         // A drag-line keeps its runtime (a click may have just armed its start) and
         // its overlay, which feedTool has already set to the armed dot + snap ring.
-      } else if (movingSelection) {
+      } else if (route === 'move-selection') {
         if (moved && (Math.abs(moveDelta.x) > 1e-9 || Math.abs(moveDelta.y) > 1e-9)) {
           // Commit: the document update re-renders the strokes at their final
           // position, so we leave the shifted strokes in place (no snap-back).
@@ -2703,16 +2681,25 @@ export function CreasePatternWebglCanvas({
           renderNow();
           if (!moved) liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
         }
-      } else if (selecting) {
+      } else if (route === 'select') {
         if (moved) boxSelect(e.clientX, e.clientY, e.shiftKey);
         else liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
       }
+      // Every gesture flag is cleared here, not inside the branch that consumed it.
+      // A flag cleared only by its own branch survives any release routed elsewhere,
+      // and `erasing` in particular then makes the *next* press feed a dead erase
+      // runtime — a one-gesture glitch becomes a permanently broken canvas.
       marquee.style.display = 'none';
+      marquee.classList.remove('cp-webgl-marquee--text');
       panning = false;
       setPanDragging(false);
       selecting = false;
       movingSelection = false;
       moveStart = null;
+      drawing = false;
+      erasing = false;
+      eraseRuntime = null;
+      textPressStarted = false;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     };
     const onWheel = (e: WheelEvent) => {
