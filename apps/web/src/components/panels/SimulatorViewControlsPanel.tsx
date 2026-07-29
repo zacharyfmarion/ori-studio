@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { RotateCcw } from 'lucide-react';
 import {
+  SIMULATOR_CREASE_STYLES,
   SIMULATOR_SETTING_RANGES,
   type SimulatorColorSettingKey,
+  type SimulatorCreaseStyle,
   type SimulatorExportBackground,
   type SimulatorNumericSettingKey,
   type SimulatorSettings,
@@ -18,6 +20,17 @@ import { Slider } from '../ui/Slider';
 import { Toggle } from '../ui/Toggle';
 
 // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
+function creaseStyleLabel(value: SimulatorCreaseStyle, t: TFunction): string {
+  switch (value) {
+    case 'color':
+      return t('panels:simulatorViewControls.creaseStyleColor', 'Mountain / valley');
+    case 'mono':
+      return t('panels:simulatorViewControls.creaseStyleMono', 'One ink');
+    case 'mono-dashed':
+      return t('panels:simulatorViewControls.creaseStyleMonoDashed', 'One ink, dashed');
+  }
+}
+
 function exportBackgroundLabel(value: SimulatorExportBackground, t: TFunction): string {
   switch (value) {
     case 'transparent':
@@ -53,10 +66,15 @@ export function SimulatorViewControlsPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [theme]
   );
-  const colorRow = (key: SimulatorColorSettingKey, label: string) => (
+  // A mono style paints every crease in the edge ink, so the per-kind swatches
+  // stop doing anything; showing them live would promise an effect they no
+  // longer have.
+  const monoCreases = settings.creaseStyle !== 'color';
+  const colorRow = (key: SimulatorColorSettingKey, label: string, disabled = false) => (
     <ColorField
       label={label}
       value={settings[key] ?? styleDefaults[key]}
+      disabled={disabled}
       onChange={(value) => setSetting(key, value)}
       onClear={settings[key] === null ? undefined : () => setSetting(key, null)}
     />
@@ -174,9 +192,44 @@ export function SimulatorViewControlsPanel() {
         </Section>
 
         <Section title={t('panels:simulatorViewControls.creases', 'Creases')}>
+          <div className="control-row">
+            <span className="control-row__label">
+              {t('panels:simulatorViewControls.creaseStyle', 'Style')}
+            </span>
+            <div className="control-row__value">
+              <Select
+                value={settings.creaseStyle}
+                onValueChange={(value) =>
+                  setSetting('creaseStyle', value as SimulatorCreaseStyle)
+                }
+              >
+                <SelectTrigger
+                  aria-label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
+                  className="simulator-view-controls-panel__select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SIMULATOR_CREASE_STYLES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {creaseStyleLabel(value, t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className="simulator-view-controls-panel__colors">
-            {colorRow('mountainColor', t('panels:simulatorViewControls.mountain', 'Mountain'))}
-            {colorRow('valleyColor', t('panels:simulatorViewControls.valley', 'Valley'))}
+            {colorRow(
+              'mountainColor',
+              t('panels:simulatorViewControls.mountain', 'Mountain'),
+              monoCreases
+            )}
+            {colorRow(
+              'valleyColor',
+              t('panels:simulatorViewControls.valley', 'Valley'),
+              monoCreases
+            )}
             {colorRow('borderColor', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
           </div>
           <SliderRow

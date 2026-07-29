@@ -9,6 +9,9 @@ export { GlCore, WebGlContextLostError } from './webgl/glCore.js';
 export {
   MeshRenderer,
   meshTopologyFor,
+  MAX_DASH_RUNS,
+  packCreaseDash,
+  type CreaseDash,
   type MeshTopology,
   type RenderSettings,
 } from './webgl/meshRenderer.js';

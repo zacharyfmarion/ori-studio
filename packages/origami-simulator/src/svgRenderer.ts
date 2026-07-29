@@ -446,11 +446,29 @@ function creaseElement(
       : crease.assignment === VALLEY
         ? settings.valleyColor
         : settings.borderColor;
+  const dash = dashFor(crease.assignment, settings);
+  // `stroke-dasharray` takes the same alternating on/off runs the shader and
+  // setLineDash do, in the same device pixels, so all three dash alike.
+  //
+  // Butt caps override the group's round ones: a round cap extends every run by
+  // half the stroke width at both ends, which closes the small gaps in a
+  // dash-dot pattern and turns its dots into lozenges.
+  const dashAttr = dash
+    ? ` stroke-dasharray="${dash.map(num).join(' ')}" stroke-linecap="butt"`
+    : '';
   return (
     `  <line x1="${num(projected.screen[crease.from * 2]!)}" y1="${num(projected.screen[crease.from * 2 + 1]!)}" ` +
     `x2="${num(projected.screen[crease.to * 2]!)}" y2="${num(projected.screen[crease.to * 2 + 1]!)}" ` +
-    `stroke="${hex(color)}" stroke-width="${num(settings.creaseWidthPx)}"/>`
+    `stroke="${hex(color)}" stroke-width="${num(settings.creaseWidthPx)}"${dashAttr}/>`
   );
+}
+
+function dashFor(assignment: number, settings: RenderSettings): readonly number[] | null {
+  const dash = settings.creaseDash;
+  if (!dash) return null;
+  const pattern =
+    assignment === MOUNTAIN ? dash.mountain : assignment === VALLEY ? dash.valley : dash.border;
+  return pattern && pattern.length > 0 ? pattern : null;
 }
 
 function clampUnit(value: number): number {

@@ -1,5 +1,8 @@
 import { fitExtent } from "@treemaker/origami-simulator";
-import type { FoldDocument as SimulatorFoldDocument } from "@treemaker/origami-simulator";
+import type {
+  CreaseDash,
+  FoldDocument as SimulatorFoldDocument,
+} from "@treemaker/origami-simulator";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
 import type { SimulatorOrbitView as SimulatorView } from "../lib/simulatorOrbit";
@@ -217,7 +220,12 @@ export function drawFrame(
             map,
             dpr,
             0.26,
-            true,
+            // Hidden lines and crease kinds must not both speak through dashes.
+            // On a folded form a dashed line conventionally means "behind a
+            // layer", so when the crease style is already dashing for
+            // mountain/valley, this pass distinguishes itself by weight and
+            // opacity alone.
+            !palette.dash,
             palette,
             highlights,
           );
@@ -389,6 +397,8 @@ interface SimulatorPalette {
   paperBackRgb: Rgb;
   /** Device-pixel crease weight, so every path draws the chosen width. */
   creaseWidthPx: number;
+  /** Dash runs by crease kind, or null for solid. Same values the shader gets. */
+  dash: CreaseDash | undefined;
 }
 
 /**
@@ -415,6 +425,7 @@ function paletteFrom(paint: SimulatorPaint): SimulatorPalette {
     paperFrontRgb: renderColorToRgb(render.frontColor),
     paperBackRgb: renderColorToRgb(render.backColor),
     creaseWidthPx: render.creaseWidthPx,
+    dash: render.creaseDash,
   };
 }
 
@@ -768,7 +779,11 @@ function drawAllEdges(
   highlights: SimulatorHighlights,
 ): void {
   ctx.setLineDash(dashed ? [Math.max(3, dpr * 3), Math.max(3, dpr * 3)] : []);
-  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx);
+  // With dash unavailable as a signal (the crease style is already using it),
+  // weight carries the distinction instead: a hidden line is thinner than the
+  // visible pass as well as fainter. `drawEdgeSegment` then applies each crease
+  // kind's own pattern per edge, which is only ever set in this branch.
+  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx * (dashed ? 1 : 0.7));
   model.edgesVertices.forEach((edge, index) => {
     drawEdgeSegment(
       ctx,
@@ -836,6 +851,7 @@ function drawEdgeSegment(
   const assignment = model.edgesAssignment[edgeIndex];
   const highlighted = highlights.creases.has(edgeIndex);
   const previousLineWidth = ctx.lineWidth;
+  if (!highlighted) applyEdgeDash(ctx, assignment, palette);
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
   ctx.lineTo(b.x, b.y);
@@ -870,6 +886,7 @@ function drawVisibleEdgeSegment(
   const assignment = model.edgesAssignment[edgeIndex];
   const highlighted = highlights.creases.has(edgeIndex);
   const previousLineWidth = ctx.lineWidth;
+  if (!highlighted) applyEdgeDash(ctx, assignment, palette);
   const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)));
   let segmentStart: { x: number; y: number } | null = null;
   let previousVisible: { x: number; y: number } | null = null;
@@ -930,6 +947,24 @@ function findEdge(edges: [number, number][], from: number, to: number): number {
       (edge[0] === from && edge[1] === to) ||
       (edge[0] === to && edge[1] === from),
   );
+}
+
+/**
+ * Apply the crease kind's dash pattern.
+ *
+ * A highlighted crease stays solid: the sequence highlight is a different
+ * signal, and dashing it would make it read as a hidden line instead.
+ */
+function applyEdgeDash(
+  ctx: CanvasRenderingContext2D,
+  assignment: string | undefined,
+  palette: SimulatorPalette,
+): void {
+  const dash = palette.dash;
+  if (!dash) return;
+  const pattern =
+    assignment === "M" ? dash.mountain : assignment === "V" ? dash.valley : dash.border;
+  ctx.setLineDash(pattern ? [...pattern] : []);
 }
 
 function edgeColor(

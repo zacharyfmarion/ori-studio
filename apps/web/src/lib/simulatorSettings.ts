@@ -40,6 +40,28 @@ export type SimulatorExportBackground = 'transparent' | 'white' | 'theme';
  */
 export type SimulatorColorOverride = string | null;
 
+/**
+ * How mountains and valleys are drawn.
+ *
+ * Three, not Oriedita's five. `black-one-dot` versus `black-two-dot` earns its
+ * keep on a dense flat crease pattern and does not here, and `color-and-shape`
+ * collapses into `color` once the geometry is already showing the fold direction.
+ *
+ * `mono-dashed` exists because the simulator spends a lot of time near 0% fold,
+ * where the model is nearly flat and the dashes *are* the crease-pattern
+ * convention the user just came from. Its usefulness decays as the fold closes;
+ * it does not vanish. Hidden lines stay a separate axis for the same reason —
+ * on an already-folded form a dashed line usually means "behind a layer", so the
+ * two must not compete for the same signal.
+ */
+export type SimulatorCreaseStyle = 'color' | 'mono' | 'mono-dashed';
+
+export const SIMULATOR_CREASE_STYLES: readonly SimulatorCreaseStyle[] = [
+  'color',
+  'mono',
+  'mono-dashed',
+];
+
 export interface SimulatorSettings {
   renderMode: SimulatorRenderMode;
   colorMode: SimulatorColorMode;
@@ -60,6 +82,7 @@ export interface SimulatorSettings {
   borderColor: SimulatorColorOverride;
   /** Crease line weight in device pixels. */
   creaseWidth: number;
+  creaseStyle: SimulatorCreaseStyle;
   exportBackground: SimulatorExportBackground;
   /** Resistance to stretching along an edge. The stiffest element, so it sets the timestep. */
   axialStiffness: number;
@@ -105,6 +128,7 @@ export const DEFAULT_SIMULATOR_SETTINGS: SimulatorSettings = {
   valleyColor: null,
   borderColor: null,
   creaseWidth: 1.1,
+  creaseStyle: 'color',
   exportBackground: 'transparent',
   axialStiffness: 20,
   creaseStiffness: 0.7,
@@ -157,6 +181,7 @@ export const SIMULATOR_STYLE_KEYS = [
   'valleyColor',
   'borderColor',
   'creaseWidth',
+  'creaseStyle',
 ] as const satisfies readonly SimulatorSettingKey[];
 
 /** The nullable colour overrides, so one loop can validate and reset them all. */
@@ -218,6 +243,12 @@ export function normalizeSimulatorSettings(source: unknown): SimulatorSettings {
     }
     if (key === 'colorMode') {
       if (value === 'paper' || value === 'strain') next.colorMode = value;
+      continue;
+    }
+    if (key === 'creaseStyle') {
+      if ((SIMULATOR_CREASE_STYLES as readonly unknown[]).includes(value)) {
+        next.creaseStyle = value as SimulatorCreaseStyle;
+      }
       continue;
     }
     if (key === 'exportBackground') {

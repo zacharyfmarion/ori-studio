@@ -1,6 +1,11 @@
-import type { RenderSettings } from '@treemaker/origami-simulator';
+import type { CreaseDash, RenderSettings } from '@treemaker/origami-simulator';
+import {
+  ORIEDITA_DASH_ONE_DOT,
+  ORIEDITA_DASH_VALLEY,
+} from '../lib/oristudioCpLineStyle';
 import type {
   SimulatorColorSettingKey,
+  SimulatorCreaseStyle,
   SimulatorSettings,
 } from '../lib/simulatorSettings';
 
@@ -129,6 +134,31 @@ function resolve(
 }
 
 /**
+ * Flatten a crease style into concrete dash patterns.
+ *
+ * This is the whole reason no renderer sees `SimulatorCreaseStyle`: three
+ * renderers each interpreting a style name would be three chances to disagree,
+ * where three renderers reading a colour and a run-length array cannot.
+ *
+ * The patterns are Oriedita's own, in device pixels and unscaled by zoom, so a
+ * crease dashes the same here as in the crease pattern it came from.
+ */
+export function creaseDashFor(style: SimulatorCreaseStyle): CreaseDash | undefined {
+  if (style !== 'mono-dashed') return undefined;
+  return {
+    // Paper boundaries are not folds, so they stay solid under every style.
+    border: null,
+    mountain: ORIEDITA_DASH_ONE_DOT,
+    valley: ORIEDITA_DASH_VALLEY,
+  };
+}
+
+/** True when the active style dashes anything — see the hidden-line note below. */
+export function creaseStyleDashes(style: SimulatorCreaseStyle): boolean {
+  return creaseDashFor(style) !== undefined;
+}
+
+/**
  * Build the render settings every renderer draws from.
  *
  * `styles` is the computed style of the surface the simulation is mounted in,
@@ -141,12 +171,23 @@ export function resolveRenderSettings(
   surface: SimulatorSurfaceOptions = {}
 ): RenderSettings {
   const dpr = typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
+  const edge = resolve(settings.borderColor, styles, '--text-primary', FALLBACK.border);
+  const mono = settings.creaseStyle !== 'color';
   return {
     frontColor: unit(resolve(settings.paperFront, styles, '--sim-paper-front', FALLBACK.paperFront)),
     backColor: unit(resolve(settings.paperBack, styles, '--sim-paper-back', FALLBACK.paperBack)),
-    mountainColor: unit(resolve(settings.mountainColor, styles, null, DEFAULT_MOUNTAIN_COLOR)),
-    valleyColor: unit(resolve(settings.valleyColor, styles, null, DEFAULT_VALLEY_COLOR)),
-    borderColor: unit(resolve(settings.borderColor, styles, '--text-primary', FALLBACK.border)),
+    // A mono style is one ink for every crease, so it overrides the per-kind
+    // colours rather than sitting alongside them — that is what "mono" means.
+    // The ink is the edge colour, which is theme-derived, so it stays legible on
+    // dark paper where a literal black would not.
+    mountainColor: unit(
+      mono ? edge : resolve(settings.mountainColor, styles, null, DEFAULT_MOUNTAIN_COLOR)
+    ),
+    valleyColor: unit(
+      mono ? edge : resolve(settings.valleyColor, styles, null, DEFAULT_VALLEY_COLOR)
+    ),
+    borderColor: unit(edge),
+    creaseDash: creaseDashFor(settings.creaseStyle),
     background: unit(resolve(null, styles, '--bg-canvas', FALLBACK.canvas)),
     backgroundAlpha: surface.transparentBackground ? 0 : 1,
     lightDir: PAPER_LIGHT_DIRECTION,

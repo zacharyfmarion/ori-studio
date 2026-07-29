@@ -133,6 +133,45 @@ describe('rendering the folded mesh to SVG', () => {
     expect(drawn.slice(lastPolygon + 1).every((line) => line.includes('<line'))).toBe(true);
   });
 
+  it('dashes each crease kind with the pattern it was given', () => {
+    // The caller flattens its style choice into these arrays, so this renderer
+    // never sees a style name — which is what stops three renderers from each
+    // interpreting one differently.
+    const page = render({
+      creaseDash: { border: null, mountain: [10, 3, 3, 3], valley: [8, 8] },
+    })!;
+    const lines = drawOrder(page.svg).filter((line) => line.includes('<line'));
+
+    const mountain = lines.find((line) => line.includes(hexOf(SETTINGS.mountainColor)))!;
+    const valley = lines.find((line) => line.includes(hexOf(SETTINGS.valleyColor)))!;
+    const border = lines.find((line) => line.includes(hexOf(SETTINGS.borderColor)))!;
+    expect(mountain).toContain('stroke-dasharray="10.00 3.00 3.00 3.00"');
+    expect(valley).toContain('stroke-dasharray="8.00 8.00"');
+    // A paper boundary is not a fold, so it stays solid.
+    expect(border).not.toContain('stroke-dasharray');
+  });
+
+  it('gives a dashed crease butt caps, overriding the group default', () => {
+    // The group sets round caps, which extend every run by half the stroke width
+    // at both ends — that closes the gaps in a dash-dot pattern.
+    const page = render({ creaseDash: { border: null, mountain: [10, 3, 3, 3], valley: null } })!;
+    const mountain = drawOrder(page.svg).find(
+      (line) => line.includes('<line') && line.includes(hexOf(SETTINGS.mountainColor))
+    )!;
+    expect(mountain).toContain('stroke-linecap="butt"');
+    const valley = drawOrder(page.svg).find(
+      (line) => line.includes('<line') && line.includes(hexOf(SETTINGS.valleyColor))
+    )!;
+    expect(valley).not.toContain('stroke-linecap');
+  });
+
+  it('emits no dash attribute at all when nothing is dashed', () => {
+    expect(render().svg).not.toContain('stroke-dasharray');
+    expect(
+      render({ creaseDash: { border: null, mountain: null, valley: null } })!.svg
+    ).not.toContain('stroke-dasharray');
+  });
+
   it('colours creases by assignment', () => {
     const svg = render().svg;
     expect(svg).toContain(hexOf(SETTINGS.mountainColor));

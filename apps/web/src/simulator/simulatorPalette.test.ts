@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  creaseDashFor,
+  creaseStyleDashes,
   DEFAULT_MOUNTAIN_COLOR,
   DEFAULT_VALLEY_COLOR,
   parseCssRgb,
   resolveRenderSettings,
   resolveSimulatorPaint,
 } from './simulatorPalette';
+import {
+  ORIEDITA_DASH_ONE_DOT,
+  ORIEDITA_DASH_VALLEY,
+} from '../lib/oristudioCpLineStyle';
 import { DEFAULT_SIMULATOR_SETTINGS, type SimulatorSettings } from '../lib/simulatorSettings';
 
 /** A surface carrying theme tokens, as a mounted canvas would. */
@@ -151,5 +157,58 @@ describe('parsing a css colour', () => {
   it('falls back rather than producing NaN channels', () => {
     expect(parseCssRgb('', [9, 9, 9])).toEqual([9, 9, 9]);
     expect(parseCssRgb('not-a-colour', [9, 9, 9])).toEqual([9, 9, 9]);
+  });
+});
+
+describe('flattening a crease style', () => {
+  it('leaves colour styles undashed and per-kind coloured', () => {
+    const settings = resolveRenderSettings(themed(), settingsWith({ creaseStyle: 'color' }));
+    expect(settings.creaseDash).toBeUndefined();
+    expect(hex(settings.mountainColor)).toBe(DEFAULT_MOUNTAIN_COLOR);
+    expect(hex(settings.valleyColor)).toBe(DEFAULT_VALLEY_COLOR);
+  });
+
+  it('paints every crease in the edge ink under a mono style', () => {
+    const styles = themed({ '--text-primary': '#223344' });
+    for (const creaseStyle of ['mono', 'mono-dashed'] as const) {
+      const settings = resolveRenderSettings(styles, settingsWith({ creaseStyle }));
+      expect(hex(settings.mountainColor)).toBe('#223344');
+      expect(hex(settings.valleyColor)).toBe('#223344');
+      expect(hex(settings.borderColor)).toBe('#223344');
+    }
+  });
+
+  it('overrides a per-kind colour rather than sitting alongside it', () => {
+    // "Mono" means one ink; honouring a mountain override there would make the
+    // style a suggestion.
+    const settings = resolveRenderSettings(
+      themed({ '--text-primary': '#223344' }),
+      settingsWith({ creaseStyle: 'mono', mountainColor: '#ff0000' })
+    );
+    expect(hex(settings.mountainColor)).toBe('#223344');
+  });
+
+  it('dashes only the dashed style, and only folds', () => {
+    expect(creaseDashFor('color')).toBeUndefined();
+    expect(creaseDashFor('mono')).toBeUndefined();
+    const dash = creaseDashFor('mono-dashed')!;
+    // Oriedita's own patterns, so a crease dashes the same here as in the CP.
+    expect(dash.mountain).toEqual(ORIEDITA_DASH_ONE_DOT);
+    expect(dash.valley).toEqual(ORIEDITA_DASH_VALLEY);
+    // A paper boundary is not a fold.
+    expect(dash.border).toBeNull();
+  });
+
+  it('reports whether the style is using dash as a signal', () => {
+    // What the hidden-line pass consults so the two never compete: on a folded
+    // form a dashed line conventionally means "behind a layer".
+    expect(creaseStyleDashes('color')).toBe(false);
+    expect(creaseStyleDashes('mono')).toBe(false);
+    expect(creaseStyleDashes('mono-dashed')).toBe(true);
+  });
+
+  it('carries the dash onto the settings every renderer reads', () => {
+    const settings = resolveRenderSettings(themed(), settingsWith({ creaseStyle: 'mono-dashed' }));
+    expect(settings.creaseDash?.mountain).toEqual(ORIEDITA_DASH_ONE_DOT);
   });
 });

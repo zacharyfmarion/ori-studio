@@ -29,6 +29,52 @@ export interface MeshTopology {
   textureDim: number;
 }
 
+/**
+ * Dash patterns by crease kind. A pattern is alternating on/off runs in device
+ * pixels — the same shape `CanvasRenderingContext2D.setLineDash` and SVG's
+ * `stroke-dasharray` take, and the same values Oriedita uses.
+ */
+export interface CreaseDash {
+  border: readonly number[] | null;
+  mountain: readonly number[] | null;
+  valley: readonly number[] | null;
+}
+
+/** Longest pattern the edge shader can hold, which bounds its uniform array. */
+export const MAX_DASH_RUNS = 6;
+
+/**
+ * Pack dash patterns into the edge shader's flat uniform arrays, ordered by
+ * assignment code so the fragment stage can index by `v_assignment` with no
+ * per-kind branch.
+ *
+ * Exported because it is the whole of the shader's dash logic that can be
+ * checked without a GL context: everything after this is a uniform upload and a
+ * `mod`.
+ */
+export function packCreaseDash(dash: CreaseDash | undefined): {
+  runs: Float32Array;
+  counts: Int32Array;
+} {
+  const runs = new Float32Array(3 * MAX_DASH_RUNS);
+  const counts = new Int32Array(3);
+  // Index order is the assignment code: 0=B, 1=M, 2=V.
+  const kinds = [dash?.border ?? null, dash?.mountain ?? null, dash?.valley ?? null];
+  kinds.forEach((pattern, kind) => {
+    if (!pattern || pattern.length === 0) return;
+    // An odd-length pattern repeats inverted, as CSS and canvas both define it,
+    // so doubling it here keeps the shader's "even run is ink" rule true without
+    // the shader needing to know about parity.
+    const normalized = pattern.length % 2 === 0 ? pattern : [...pattern, ...pattern];
+    const count = Math.min(normalized.length, MAX_DASH_RUNS);
+    counts[kind] = count;
+    for (let i = 0; i < count; i += 1) {
+      runs[kind * MAX_DASH_RUNS + i] = Math.max(0, normalized[i] ?? 0);
+    }
+  });
+  return { runs, counts };
+}
+
 export interface RenderSettings {
   frontColor: [number, number, number];
   backColor: [number, number, number];
@@ -50,6 +96,16 @@ export interface RenderSettings {
   lighting: boolean;
   /** Crease line width in device pixels. */
   creaseWidthPx: number;
+  /**
+   * Dash pattern per crease kind, as alternating on/off run lengths in device
+   * pixels, or null for solid.
+   *
+   * Concrete arrays rather than a style name on purpose: the caller flattens its
+   * style choice into colours and these patterns, so no renderer has to
+   * interpret an enum. Three renderers each reading a style would be three
+   * chances to disagree.
+   */
+  creaseDash?: CreaseDash;
   /** 0..1; below 1 draws faces translucent with depth write off (x-ray). */
   faceAlpha: number;
   /**
@@ -278,6 +334,9 @@ uniform float u_depthRange;
 uniform float u_camDist;
 uniform float u_halfWidthPx;
 flat out int v_assignment;
+// Distance along the edge in pixels, for dashing. Exact across a straight
+// two-triangle ribbon, so the fragment stage can measure the run it is in.
+out float v_alongPx;
 
 vec3 fetchPosition(int index){
   ivec2 texel = ivec2(index % u_textureDim, index / u_textureDim);
@@ -312,6 +371,9 @@ void main(){
   // regardless of aspect ratio.
   vec2 dirPx = (ndcB - ndcA) * u_viewport * 0.5;
   float len = length(dirPx);
+  // This vertex sits at one end or the other, so the distance along the edge is
+  // 0 or the whole length; the rasterizer interpolates between them.
+  v_alongPx = int(a_this + 0.5) == int(a_a + 0.5) ? 0.0 : len;
   vec2 perpPx = len > 0.0001 ? vec2(-dirPx.y, dirPx.x) / len : vec2(0.0);
   vec2 offsetNdc = (perpPx * u_halfWidthPx * a_side) / (u_viewport * 0.5);
   // Bias toward the viewer so creases sit on top of the faces they lie on.
@@ -322,16 +384,48 @@ void main(){
 const EDGE_FRAG = `#version 300 es
 precision highp float;
 flat in int v_assignment;
+in float v_alongPx;
 // Codes match EDGE_ASSIGNMENT_CODES: 0=B, 1=M, 2=V.
 uniform vec3 u_mountainColor;
 uniform vec3 u_valleyColor;
 uniform vec3 u_borderColor;
 uniform float u_alpha;
+// Dash runs for the three drawn kinds, packed [B..., M..., V...] with MAX runs
+// each, and how many of those runs each kind actually uses (0 = solid).
+uniform float u_dashRuns[18];
+uniform int u_dashCount[3];
 out vec4 fragColor;
+
+/** True where the dash pattern is "on" at this distance along the edge. */
+bool dashOn(int kind, float alongPx){
+  int count = u_dashCount[kind];
+  if (count <= 0) return true;
+  int base = kind * 6;
+  float total = 0.0;
+  for (int i = 0; i < 6; i++){
+    if (i >= count) break;
+    total += u_dashRuns[base + i];
+  }
+  if (total <= 0.0) return true;
+  float pos = mod(alongPx, total);
+  float acc = 0.0;
+  for (int i = 0; i < 6; i++){
+    if (i >= count) break;
+    acc += u_dashRuns[base + i];
+    // Even runs are ink, odd runs are gaps, matching setLineDash and
+    // stroke-dasharray.
+    if (pos < acc) return i - (i / 2) * 2 == 0;
+  }
+  return true;
+}
+
 void main(){
   vec3 color = u_borderColor;
   if (v_assignment == 1) color = u_mountainColor;
   else if (v_assignment == 2) color = u_valleyColor;
+  // Discarding rather than blending to the background: a gap has to show the
+  // face behind the crease, and it must not write depth either.
+  if (!dashOn(v_assignment, v_alongPx)) discard;
   fragColor = vec4(color, u_alpha);
 }`;
 
@@ -457,6 +551,7 @@ export class MeshRenderer {
       const halfWidth = settings.creaseWidthPx * 0.5;
       this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx', halfWidth);
       this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_alpha', 1);
+      this.setDash(settings.creaseDash);
       gl.drawArrays(gl.TRIANGLES, 0, this.edgeVertexCount);
     }
 
@@ -501,6 +596,13 @@ export class MeshRenderer {
     this.setVec2(program, cache, 'u_viewport', [camera.width, camera.height]);
     this.setFloat(program, cache, 'u_depthRange', camera.depthRange);
     this.setFloat(program, cache, 'u_camDist', camera.camDist);
+  }
+
+  private setDash(dash: CreaseDash | undefined): void {
+    const { runs, counts } = packCreaseDash(dash);
+    const gl = this.gl;
+    gl.uniform1fv(this.location(this.edgeProgram, this.edgeUniforms, 'u_dashRuns'), runs);
+    gl.uniform1iv(this.location(this.edgeProgram, this.edgeUniforms, 'u_dashCount'), counts);
   }
 
   private location(
