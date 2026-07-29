@@ -258,6 +258,19 @@ export class WebglSolver implements SolverBackend {
     return Math.min(into.length, this.nodeCount * 3);
   }
 
+  readStrain(into: Float32Array): number {
+    // The same channel the face shader samples for its strain colouring:
+    // velocityCalc stores each node's mean axial strain in the velocity alpha.
+    // Reading it back stalls the pipeline, which is why nothing on the
+    // interactive path calls this -- an export click can afford it.
+    const raw = this.gl.readTexture('u_lastVelocity');
+    const count = Math.min(into.length, this.nodeCount);
+    for (let i = 0; i < count; i += 1) {
+      into[i] = raw[i * 4 + 3]!;
+    }
+    return count;
+  }
+
   readDiagnostics(): SimulatorDiagnostics {
     return { ...this.diagnostics, maxNodalStrain: this.maxStrain };
   }

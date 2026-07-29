@@ -83,6 +83,81 @@ export function cameraUniforms(
   };
 }
 
+/**
+ * Vertices carried through the projection, in the two spaces the renderer uses.
+ *
+ * Flat typed arrays rather than an array of points: a dense model has tens of
+ * thousands of vertices, and this is indexed by triangle, so the objects would
+ * be pure allocation.
+ */
+export interface ProjectedVertices {
+  /**
+   * View-space `x, y, depth` per vertex, 3 floats each — the fragment shader's
+   * `v_view`, *before* the perspective divide. Face normals and lighting are
+   * computed from this, and `depth` is the painter's-order key: larger is nearer
+   * the eye, because the vertex shader writes `z = -depth/depthRange` under a
+   * `LEQUAL` depth test.
+   */
+  view: Float32Array;
+  /** Pixel-space `x, y` per vertex, 2 floats each, origin top-left. */
+  screen: Float32Array;
+  count: number;
+}
+
+export interface ProjectVerticesOptions {
+  /**
+   * Apply the one-point perspective divide. True (the default) matches the
+   * WebGL renderer, which is what a user with WebGL2 sees; false matches the
+   * canvas-2D fallback, which is orthographic — so a machine drawing through
+   * that path projects the way its own screen does.
+   */
+  perspective?: boolean;
+}
+
+/**
+ * The CPU mirror of `meshRenderer`'s vertex shader.
+ *
+ * Anything that has to reproduce the on-screen view without a GL context — the
+ * SVG exporter — must project exactly as the shader does or it is not the view
+ * the user composed. Keeping the one JS statement of that math here, beside the
+ * uniforms it consumes, is what makes the two testable against each other.
+ */
+export function projectVertices(
+  positions: Float32Array,
+  camera: CameraUniforms,
+  options: ProjectVerticesOptions = {}
+): ProjectedVertices {
+  const perspective = options.perspective ?? true;
+  const count = Math.floor(positions.length / 3);
+  const view = new Float32Array(count * 3);
+  const screen = new Float32Array(count * 2);
+  const [centerX, centerY, centerZ] = camera.center;
+  const halfWidth = camera.width / 2;
+  const halfHeight = camera.height / 2;
+
+  for (let vertex = 0; vertex < count; vertex += 1) {
+    const dx = (positions[vertex * 3] ?? 0) - centerX;
+    const dy = (positions[vertex * 3 + 1] ?? 0) - centerY;
+    const dz = (positions[vertex * 3 + 2] ?? 0) - centerZ;
+    const yawX = camera.cosYaw * dx + camera.sinYaw * dz;
+    const yawZ = -camera.sinYaw * dx + camera.cosYaw * dz;
+    const x = yawX;
+    const y = camera.cosPitch * yawZ - camera.sinPitch * dy;
+    const depth = camera.sinPitch * yawZ + camera.cosPitch * dy;
+    view[vertex * 3] = x;
+    view[vertex * 3 + 1] = y;
+    view[vertex * 3 + 2] = depth;
+    // Eye at +camDist along the view axis: nearer points (larger depth) magnify
+    // and farther ones shrink, so receding parallels converge.
+    const persp = perspective ? camera.camDist / Math.max(camera.camDist - depth, 0.001) : 1;
+    // NDC -> pixels. NDC y is up and pixel y is down, hence the subtraction.
+    screen[vertex * 2] = halfWidth + x * persp * camera.scale;
+    screen[vertex * 2 + 1] = halfHeight - y * persp * camera.scale;
+  }
+
+  return { view, screen, count };
+}
+
 /** Centroid (mean of vertex positions), matching SimulatorPanel's boundsCenter. */
 export function centroid(positions: Float32Array): [number, number, number] {
   let sx = 0;

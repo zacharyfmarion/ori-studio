@@ -12,8 +12,11 @@ export {
   centroid,
   boundingRadius,
   fitExtent,
+  projectVertices,
   type OrbitView,
   type CameraUniforms,
+  type ProjectedVertices,
+  type ProjectVerticesOptions,
 } from './webgl/camera.js';
 export { GpuMath, detectWebGlSupport } from './gpuMath.js';
 export { OrigamiModel } from './model.js';
