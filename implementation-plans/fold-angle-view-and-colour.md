@@ -81,24 +81,60 @@ magenta and blue→magenta both travel the *short* way round the hue wheel witho
 crossing neutral. Its cost is collision: 90° valley `#9c76f4` sits ΔE 18 from
 Purple8, and the mountain half runs through Magenta5.
 
-### The toggle is what licenses the bold scheme
+### Always on, and it does not reintroduce the thinning
 
-This is why the two requests are one design.
+Angle colour is **on in the default view**. The Magenta5/Purple8 collision is
+accepted: those aux colours are rare enough in practice that trading them for an
+always-visible signal is the right call.
 
-- **Toggle off** — creases render exactly as Oriedita does: red, blue, no ramp
-  at all. This also *retires the lightness ramp*, which fixes the "lines look
-  thin" complaint permanently rather than tuning it.
-- **Toggle on** — the mode declares "I am showing you angles", which is what
-  makes a loud red→magenta→blue ramp legitimate and makes an aux-colour
-  collision acceptable: the user asked for this view, and aux lines are a
-  different role anyway.
+The obvious worry is repeating the regression the lightness ramp caused — a
+third of the pattern reading as thinner. Measured, it does not, and the reason
+is structural: the old ramp *washed toward the canvas*, dropping luminance; this
+one is a **hue rotation at roughly constant lightness**.
 
-So the recommendation is: **no ramp in the default view; magenta-anchored
-diverging ramp in angle view; badges in both** (they are the exact readout and
-are already working).
+| angle | mountain | L* vs 180° | valley | L* vs 180° |
+| --- | --- | --- | --- | --- |
+| 180° | `#ff4d5d` | 100% | `#60a5fa` | 100% |
+| 135° | `#f94c73` | 100% | `#7297f8` | 96% |
+| 90° | `#f44b89` | 98% | `#8488f7` | 91% |
+| 45° | `#ee4a9f` | 98% | `#967af5` | 88% |
+| 0° | `#e849b5` | 97% | `#a96cf3` | 87% |
 
-That also means the answer to "which collision hurts least" stops mattering
-much, because the collision only exists in a mode the user opted into.
+Against the old wash ramp, which put a 90° mountain at **82%** and kept falling.
+Nothing here loses enough contrast to read as weight loss.
+
+### Stop the ramp short of the anchor
+
+A full diverging ramp converges: at 0° both halves land on the anchor and become
+*the same colour*, ΔE 0. Mountain and valley would be indistinguishable exactly
+where the crease is least informative.
+
+Stopping at **60% of the way** to the anchor keeps them apart at every angle:
+
+| angle | full ramp M/V ΔE | 60% ramp M/V ΔE |
+| --- | --- | --- |
+| 180° | 102 | 102 |
+| 90° | 51 | 72 |
+| 45° | 26 | 57 |
+| 0° | **0** | **41** |
+
+ΔE 41 is still a clearly distinct pair. In a crease pattern, knowing mountain
+from valley never stops mattering, so this is worth the slightly less "pure"
+zero.
+
+It also lines up with a decision already made: `ρ = 0` deliberately keeps two
+encodings (`Red1+0` and `Blue2+0`) because they preserve the user's stated
+direction. Rendering them as distinct colours is consistent with keeping them as
+distinct states.
+
+### What the toggle does, then
+
+It hides the **whole** fold-angle treatment — colour and badges together —
+returning the canvas to plain Oriedita rendering. Default on, so angle colour is
+visible out of the box.
+
+Gating both together rather than badges alone avoids the confusing middle state
+where creases are magenta with nothing on screen explaining why.
 
 ## Affected Areas
 
@@ -118,9 +154,10 @@ much, because the collision only exists in a mode the user opted into.
 - [ ] Persists through `.osf` `viewState.viewport` (no schema change — the field
       is already a free-form viewport bag)
 - [ ] Badges gate on it
-- [ ] Crease colouring gates on it
-- [ ] **Default view drops the ramp entirely** — classic creases render exactly
-      as before, which is what retires the thinning complaint
+- [ ] Crease colouring gates on it (colour and badges hide together)
+- [ ] Angle colour is **on by default**
+- [ ] Ramp stops at 60% toward the anchor; test asserting M/V stay above a ΔE
+      floor across 0–180, so a later tweak cannot let them converge
 - [ ] Diverging ramp anchored on a new `--fold-angle-anchor` token, per theme
 - [ ] Ramp is chroma-preserving: a test asserting Lab chroma stays above a floor
       across 0–180 on both halves, so the next anchor change cannot quietly
@@ -128,6 +165,8 @@ much, because the collision only exists in a mode the user opted into.
 - [ ] Classic creases return their ink by identity in both modes
 - [ ] Parity gate extended to the new ramp, with the non-vacuity assertion
 - [ ] Golden test: toggle off renders identically to pre-fold-angle Ori Studio
+- [ ] Test asserting the ramp holds luminance — this is what separates it from
+      the wash ramp that made lines look thin, and it is easy to lose
 
 ## Risks and mitigations
 
@@ -136,19 +175,13 @@ much, because the collision only exists in a mode the user opted into.
 | R1 | Angle view is confusable with aux lines (Magenta5/Purple8) | Only in a mode the user opted into; aux lines also differ in role and usually in dash. Revisit if it bites |
 | R2 | Red↔magenta may be hard for protanopes, and the ramp compresses M/V separation as it approaches 0 | Not measured. The badge carries the sign unambiguously, so colour is never the only channel — but worth a real check before calling the scheme accessible |
 | R3 | Two stroke builders drift | Existing parity gate, extended |
-| R4 | A new always-on visual treatment repeats the thinning regression | Default view has *no* treatment at all now, which is strictly safer than today |
+| R4 | The always-on ramp repeats the thinning regression | Measured: it holds 87–100% of L* because it rotates hue rather than washing toward the canvas, against 82% and falling for the old ramp. Pinned by a luminance test |
 
-## Open decisions
+## Resolved
 
-1. **How much mountain/valley separation to trade for angle legibility.** A full
-   diverging ramp converges both hues toward the anchor, so at 45° a mountain is
-   pink-magenta and a valley is violet — distinguishable, but far less so than
-   red vs blue. The alternative is two *independent* ramps that approach the
-   anchor without meeting, keeping M/V distinct at every angle at the cost of a
-   less clean "zero" reading. I lean to the second: in a crease pattern, knowing
-   mountain from valley never stops mattering.
-
-2. **Does the toggle gate colour, or only badges?** This plan assumes colour too,
-   because that is what makes the bold ramp affordable and simultaneously fixes
-   the thinning. If you would rather angle colouring were always on, the anchor
-   has to be much more conservative and we are back to the same compromise.
+- **Angle colour is on by default**, not gated. The Magenta5/Purple8 collision is
+  accepted as an edge case.
+- **The ramp stops at 60% toward the anchor**, so mountain and valley never
+  converge (ΔE 41 at worst, versus 0 for a full ramp).
+- **The toggle hides colour and badges together**, avoiding a state where creases
+  are magenta with nothing explaining why.
