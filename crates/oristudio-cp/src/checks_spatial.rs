@@ -227,56 +227,139 @@ pub fn vertex_link_polygon(fan: &VertexFan) -> Vec<Vec3> {
 /// gives the same answer, so this is a gap, not a tuned constant.
 const TRANSVERSE_EPSILON: f64 = 1e-9;
 
-/// How the vertex link meets itself.
+/// What the folded vertex link says about the paper near a vertex.
 ///
-/// Split because the two kinds mean opposite things, and conflating them is the
-/// mistake that makes a naive simplicity test unusable — see
-/// [`LinkContacts::self_intersects`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct LinkContacts {
-    /// Arcs crossing at a real angle: the paper passes through itself.
-    pub transverse: usize,
-    /// Arcs lying along a common great circle: two layers touching.
-    pub tangential: usize,
+/// Three outcomes rather than two, because "not simple" splits into a real
+/// failure and a question this check cannot answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkVerdict {
+    /// The link is an embedded closed curve: the paper is locally embedded.
+    Simple,
+    /// Two arcs cross at an angle away from any shared corner, so the paper
+    /// passes through itself.
+    SelfIntersects { crossings: usize },
+    /// Somewhere two pieces of paper lie against each other. Whether they
+    /// actually collide is then decided by **which layer is on top**, and layer
+    /// ordering is not carried by the link — so this declines.
+    ///
+    /// This is not a rare corner. A crease at +/-180 folds a sector flat and
+    /// produces it every time, in one of two forms: the creases either side land
+    /// on the same direction when the sectors match, and their arcs overlap when
+    /// they do not. On a box-pleated model with flat-folded flaps that can be
+    /// every vertex — measured at 52 of 52 on a physically folded test model.
+    ///
+    /// Answering anyway is what the first version did, and it reported 30
+    /// crossings on paper that folds.
+    StackedLayers,
 }
 
-impl LinkContacts {
-    /// Whether the paper passes through itself at this vertex.
+impl LinkVerdict {
+    /// Whether the paper is known to pass through itself.
     ///
-    /// **Only transverse contacts count.** A crease at exactly +/-180 folds its
-    /// two adjacent sectors onto each other, so the link curve doubles back and
-    /// is non-injective *by construction* — a plain "is this curve simple" test
-    /// answers no on a box with flat-folded flaps, which is both legal and,
-    /// per the kernel's own dispatch comments, the expected case.
-    ///
-    /// The distinction is not a heuristic: two surfaces meeting at an angle
-    /// cross, two surfaces lying against each other are stacked layers, and
-    /// stacked layers are what flat folding *is*.
+    /// `StackedLayers` is **not** a self-intersection: it is the absence of an
+    /// answer, and it must read as "no complaint" everywhere a verdict is acted
+    /// on.
     pub fn self_intersects(&self) -> bool {
-        self.transverse > 0
+        matches!(self, Self::SelfIntersects { .. })
     }
 }
 
 /// Test the folded vertex link for self-intersection.
 ///
-/// `O(n^2)` in the vertex degree, which is the same order as [`vertex_dof`]
-/// already costs on every spatial vertex.
+/// `O(n^2)` in the vertex degree, the same order [`vertex_dof`] already costs on
+/// every spatial vertex.
 ///
 /// Adjacent arcs share an endpoint by construction and are skipped; with fewer
 /// than four creases there is no non-adjacent pair, so a spherical triangle is
 /// rigid but never self-crossing.
-pub fn vertex_link_contacts(fan: &VertexFan) -> LinkContacts {
+///
+/// # Index adjacency is not the only way arcs share a corner
+///
+/// A crease at exactly +/-180 folds its sector flat, which — when the sectors
+/// either side are equal — puts those two creases on **the same point of the
+/// sphere**. The arcs leaving those coincident corners are far apart by index,
+/// so they are tested, and they trivially meet at the corner they share.
+/// Counting that as a crossing is what produced the false positives.
+///
+/// A meeting therefore only counts when it is away from a corner the two arcs
+/// share — and any contact that is not a proper crossing means stacked layers,
+/// so the verdict becomes [`LinkVerdict::StackedLayers`] rather than a guess.
+pub fn vertex_link_verdict(fan: &VertexFan) -> LinkVerdict {
     let points = vertex_link_polygon(fan);
     let n = points.len();
-    let mut contacts = LinkContacts::default();
     if n < 4 {
-        return contacts;
+        return LinkVerdict::Simple;
     }
 
     let normals: Vec<Vec3> = (0..n)
         .map(|i| cross(points[i], points[(i + 1) % n]))
         .collect();
 
+    // Settled first, and deliberately not inferred from the crossing test below.
+    // A shared corner sits exactly on an arc endpoint, which is the worst case
+    // for `within_arc`'s exact sign comparison — coincident points differ by
+    // ~1e-16 and the test can fall either way. Deciding it from the geometry
+    // directly keeps the answer off that knife edge.
+    if has_stacked_layers(&points, &normals) {
+        return LinkVerdict::StackedLayers;
+    }
+
+    let mut crossings = 0usize;
+    for i in 0..n {
+        for j in (i + 1)..n {
+            if j == i + 1 || (i == 0 && j == n - 1) {
+                continue;
+            }
+            let (first, second) = (normals[i], normals[j]);
+            let axis = cross(first, second);
+            let scale = norm(axis);
+            let meeting = [axis[0] / scale, axis[1] / scale, axis[2] / scale];
+            let opposite = [-meeting[0], -meeting[1], -meeting[2]];
+            // No layers stacked, so every corner is distinct and any meeting is
+            // interior to both arcs: a genuine crossing.
+            for candidate in [meeting, opposite] {
+                if within_arc(candidate, points[i], points[(i + 1) % n], first)
+                    && within_arc(candidate, points[j], points[(j + 1) % n], second)
+                {
+                    crossings += 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    if crossings > 0 {
+        LinkVerdict::SelfIntersects { crossings }
+    } else {
+        LinkVerdict::Simple
+    }
+}
+
+/// Is any part of the folded paper lying against another part?
+///
+/// Two signatures, which are the two ways a flat-folded sector shows up:
+///
+/// - **coincident corners** — the creases either side of a crease at +/-180 land
+///   on the same direction, which happens when the sectors either side match;
+/// - **collinear arcs** — when they do not match, the shorter sector lies along
+///   the longer one instead, so two arcs share a great circle.
+///
+/// Either way two layers occupy the same place, and which is on top decides
+/// whether they collide. The link does not carry that, so the check declines.
+fn has_stacked_layers(points: &[Vec3], normals: &[Vec3]) -> bool {
+    let n = points.len();
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let delta = [
+                points[i][0] - points[j][0],
+                points[i][1] - points[j][1],
+                points[i][2] - points[j][2],
+            ];
+            if norm(delta) < TRANSVERSE_EPSILON {
+                return true;
+            }
+        }
+    }
     for i in 0..n {
         for j in (i + 1)..n {
             if j == i + 1 || (i == 0 && j == n - 1) {
@@ -285,32 +368,14 @@ pub fn vertex_link_contacts(fan: &VertexFan) -> LinkContacts {
             let (first, second) = (normals[i], normals[j]);
             let (first_norm, second_norm) = (norm(first), norm(second));
             if first_norm < TRANSVERSE_EPSILON || second_norm < TRANSVERSE_EPSILON {
-                // A zero-length arc: the two creases fold onto each other.
-                contacts.tangential += 1;
-                continue;
+                return true;
             }
             if norm(cross(first, second)) / (first_norm * second_norm) < TRANSVERSE_EPSILON {
-                contacts.tangential += 1;
-                continue;
-            }
-
-            // The two great circles meet at an antipodal pair; the arcs cross if
-            // either meeting point lies within both of them.
-            let axis = cross(first, second);
-            let scale = norm(axis);
-            let meeting = [axis[0] / scale, axis[1] / scale, axis[2] / scale];
-            let opposite = [-meeting[0], -meeting[1], -meeting[2]];
-            for candidate in [meeting, opposite] {
-                if within_arc(candidate, points[i], points[(i + 1) % n], first)
-                    && within_arc(candidate, points[j], points[(j + 1) % n], second)
-                {
-                    contacts.transverse += 1;
-                    break;
-                }
+                return true;
             }
         }
     }
-    contacts
+    false
 }
 
 /// Is `point` on the minor arc from `a` to `b`, whose great circle has normal
@@ -467,9 +532,9 @@ pub struct SpatialVertexReport {
     pub degree: usize,
     /// Remaining freedom; `0` means the vertex is rigid at this geometry.
     pub dof: usize,
-    /// How the folded link meets itself; `None` when the fan could not be
-    /// evaluated, for the same reasons `residual` is `None`.
-    pub contacts: Option<LinkContacts>,
+    /// What the folded link says; `None` when the fan could not be evaluated,
+    /// for the same reasons `residual` is `None`.
+    pub link: Option<LinkVerdict>,
     pub indeterminate: Option<Indeterminate>,
 }
 
@@ -514,7 +579,7 @@ fn report_for(
         residual: determined.then(|| vertex_closure_residual(&fan)),
         degree: fan.degree(),
         dof: vertex_dof(&fan),
-        contacts: determined.then(|| vertex_link_contacts(&fan)),
+        link: determined.then(|| vertex_link_verdict(&fan)),
         indeterminate: fan.indeterminate,
     }
 }

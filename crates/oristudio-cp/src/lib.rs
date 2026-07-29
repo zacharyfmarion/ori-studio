@@ -2741,10 +2741,9 @@ fn spatial_closure_diagnostics(
             // does the paper pass through itself getting there? Only reachable
             // once closure holds, since a vertex that does not close has no
             // folded state whose geometry means anything.
-            if report
-                .contacts
-                .is_some_and(|contacts| contacts.self_intersects())
-            {
+            // `StackedLayers` deliberately falls through to no diagnostic: it
+            // means the link cannot answer, not that anything is wrong.
+            if report.link.is_some_and(|link| link.self_intersects()) {
                 diagnostics.push(CommandDiagnostic {
                     id: format!("SpatialSelfIntersection-{}", index + 1),
                     kind: "SpatialSelfIntersection".to_string(),

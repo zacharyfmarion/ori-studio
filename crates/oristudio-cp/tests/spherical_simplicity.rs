@@ -20,7 +20,7 @@
 //! constant breaks closure, which an earlier draft of this file did.
 
 use oristudio_cp::checks_spatial::{
-    VertexFan, vertex_closure_residual, vertex_link_contacts, vertex_link_polygon,
+    LinkVerdict, VertexFan, vertex_closure_residual, vertex_link_polygon, vertex_link_verdict,
 };
 use oristudio_cp::geometry::Point;
 
@@ -164,13 +164,11 @@ fn assert_valid_and_clean(name: &str, sectors: &[f64], states: &[&[f64]]) {
             residual < 1e-6,
             "{name} state {index}: fixture does not close ({residual} degrees off)"
         );
-        let contacts = vertex_link_contacts(&fan);
+        let verdict = vertex_link_verdict(&fan);
         assert!(
-            !contacts.self_intersects(),
-            "{name} state {index} (max |rho| {:.0}): flagged {} transverse crossing(s) \
-             on a valid folded state",
-            rho.iter().fold(0.0_f64, |a, r| a.max(r.abs())),
-            contacts.transverse
+            !verdict.self_intersects(),
+            "{name} state {index} (max |rho| {:.0}): {verdict:?} on a valid folded state",
+            rho.iter().fold(0.0_f64, |a, r| a.max(r.abs()))
         );
     }
 }
@@ -313,41 +311,45 @@ fn higher_degree_canonical_vertices_stay_clean_while_folding() {
 // 3. Touching is not crossing
 // ---------------------------------------------------------------------------
 
-/// A crease at exactly +/-180 folds its two adjacent sectors onto each other, so
-/// the link doubles back and is non-injective **by construction**.
-///
-/// A plain "is this curve simple" test therefore answers no on a box with
-/// flat-folded flaps — legal, and per the dispatch comments the *expected* case.
-/// This is what made transversality necessary rather than optional: two surfaces
-/// meeting at an angle cross, two lying against each other are stacked layers,
-/// and stacked layers are what flat folding is.
+/// The domain of the check, learned the hard way.
 #[test]
-fn a_fully_folded_crease_is_not_a_self_intersection() {
+fn a_vertex_with_stacked_layers_is_not_answered() {
+    // Folding a sector flat puts the creases either side of it on the same
+    // direction, so the link is non-injective by construction. Whether the
+    // paper actually collides then depends on which layer is on top, and layer
+    // ordering is not in the link.
+    //
+    // The first version answered anyway, and reported 30 crossings on a model
+    // that had been folded out of real paper.
+    // Unequal sectors either side of the folded crease: the neighbouring arcs
+    // overlap rather than landing on one point.
     let flap = fan(&[90.0, 90.0, 90.0, 90.0], &[180.0, -89.0, 180.0, 89.0]);
-    assert!(
-        !vertex_link_contacts(&flap).self_intersects(),
-        "a fully folded crease was reported as the paper crossing itself"
+    assert_eq!(
+        vertex_link_verdict(&flap),
+        LinkVerdict::StackedLayers,
+        "a vertex with a flat-folded sector must decline, not guess"
     );
 
-    // The all-flat vertex is the extreme of the same thing. Oriedita's checker
-    // owns it in practice, but the contact test must not claim a crossing.
     let flat = fan(&[70.0, 110.0, 70.0, 110.0], &[180.0, -180.0, 180.0, -180.0]);
-    assert!(
-        !vertex_link_contacts(&flat).self_intersects(),
-        "a flat-folded vertex was reported as the paper crossing itself"
-    );
+    assert_eq!(vertex_link_verdict(&flat), LinkVerdict::StackedLayers);
 }
 
-/// Tangential contacts are counted, not silently dropped, so the distinction the
-/// check rests on stays observable.
+/// The box-pleat vertex from the model that exposed the false positives: three
+/// creases at 180 and two at -90, closing exactly.
 #[test]
-fn tangential_contacts_are_recorded_separately() {
-    let flat = fan(&[70.0, 110.0, 70.0, 110.0], &[180.0, -180.0, 180.0, -180.0]);
-    let contacts = vertex_link_contacts(&flat);
-    assert_eq!(contacts.transverse, 0);
+fn the_reported_false_positive_declines() {
+    let reported = fan(
+        &[45.0, 90.0, 90.0, 45.0, 90.0],
+        &[180.0, -90.0, 180.0, -90.0, 180.0],
+    );
     assert!(
-        contacts.tangential > 0,
-        "a flat-folded link is degenerate and must register tangential contact"
+        vertex_closure_residual(&reported).to_degrees() < 1e-6,
+        "fixture must close"
+    );
+    assert_eq!(
+        vertex_link_verdict(&reported),
+        LinkVerdict::StackedLayers,
+        "a stacked-layer vertex must decline rather than report a crossing"
     );
 }
 
@@ -377,7 +379,7 @@ fn a_self_intersecting_vertex_is_detected() {
         "fixture must close, is {residual} degrees off"
     );
     assert!(
-        vertex_link_contacts(&fan).self_intersects(),
+        vertex_link_verdict(&fan).self_intersects(),
         "known self-intersecting fixture was not detected"
     );
 }
@@ -403,7 +405,7 @@ fn detection_survives_close_to_the_flat_limit() {
         "fixture must close, is {residual} degrees off"
     );
     assert!(
-        vertex_link_contacts(&fan).self_intersects(),
+        vertex_link_verdict(&fan).self_intersects(),
         "a crossing went undetected at 179.999 degrees, where the link is nearly degenerate"
     );
 }
@@ -415,6 +417,9 @@ fn detection_survives_close_to_the_flat_limit() {
 fn low_degree_vertices_cannot_self_intersect() {
     for sectors in [vec![180.0, 180.0], vec![120.0, 120.0, 120.0]] {
         let rho = vec![0.0; sectors.len()];
-        assert_eq!(vertex_link_contacts(&fan(&sectors, &rho)).transverse, 0);
+        assert_eq!(
+            vertex_link_verdict(&fan(&sectors, &rho)),
+            LinkVerdict::Simple
+        );
     }
 }

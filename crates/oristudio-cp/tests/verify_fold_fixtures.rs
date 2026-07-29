@@ -57,13 +57,11 @@ fn shipped_fold_fixtures_behave_as_documented() {
              for a fixture — any drift would turn it into a closure failure"
         );
 
-        let contacts = report.contacts.expect("fixture vertex must be determinate");
+        let verdict = report.link.expect("fixture vertex must be determinate");
         assert_eq!(
-            contacts.self_intersects(),
+            verdict.self_intersects(),
             expect_crossing,
-            "{name}: transverse {} tangential {}",
-            contacts.transverse,
-            contacts.tangential
+            "{name}: {verdict:?}"
         );
     }
 }

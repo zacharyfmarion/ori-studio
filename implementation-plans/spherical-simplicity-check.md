@@ -324,6 +324,49 @@ warm start at every step, closure held (residual 8.5e-12) and the verdict stayed
 **SelfIntersects all the way to max|rho| = 179.999°**, with zero degenerate
 skips. Detection does not thin out as the flat boundary is approached.
 
+### Q10 — a real folded model, and the domain the check actually has
+
+**A physically folded box-pleated design reported 30 false positives.** The
+worst outcome this plan named, and the spike missed it because every fixture in
+Q1-Q9 was either fully non-flat or a synthetic mixed vertex. That model has
+**zero** fully non-flat vertices — all 52 carry a crease at +/-180.
+
+Two distinct bugs, and only the first was a bug:
+
+1. **Shared corners were counted as crossings.** A crease at +/-180 folds its
+   sector flat, and when the sectors either side match, the creases either side
+   land on *the same point of the sphere*. The arcs leaving those coincident
+   corners are far apart by index, so the adjacency skip missed them and they
+   trivially met at the corner they shared. 30 -> 1.
+
+2. **The last one was not fixable, and that is the finding.** Its remaining
+   contact is an arc passing *through* the direction where two coincident
+   creases sit. Whether that is a collision depends on **which layer is on top** —
+   layer ordering, which the link does not carry and which this plan scoped out
+   from the start as the flat folder's problem.
+
+So the criterion has a domain, and it is narrower than this document assumed:
+it holds while the folded surface is embedded, and stacked layers end that. The
+check now returns a third verdict, `StackedLayers`, and declines.
+
+The cost is not small and should not be buried: **on that model the check now
+says nothing at all, 52 vertices out of 52.** Box-pleating with flat-folded
+flaps is likely the most common way non-180 angles get used, and the check has
+nothing to say about it. What it does cover is designs whose vertices are
+genuinely partly folded, with no crease driven to +/-180.
+
+Answering anyway is not an option — a false positive on paper that folds is
+worse than silence, which is the whole reason Q7 existed.
+
+**Detecting the stacking must not be inferred from the crossing test.** A shared
+corner sits exactly on an arc endpoint, which is the worst case for `within_arc`'s
+exact sign comparison: coincident points differ by ~1e-16 and the test falls
+either way. The first attempt at the fix did infer it, and a synthetic
+flat-flap vertex came back `Simple` while the real ones came back
+`StackedLayers`. It is now settled up front from two robust signatures —
+coincident corners, and collinear arcs (which is what an *unequal* pair of
+sectors produces instead).
+
 ### Verdict
 
 Build it — with **transversality filtering, which was not in the original
