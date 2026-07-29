@@ -1345,20 +1345,20 @@ export function CreasePatternPanel() {
     },
     [isFoldedFigureId, folded, annotations, inlineSimulations]
   );
+  // All three kinds take one checkpoint per gesture, not per pointermove.
   const beginCanvasObjectGesture = useCallback(
     (id: string) => {
-      // Windows are session-only, so a move/resize is not a document edit and
-      // takes no history checkpoint.
-      if (inlineSimulations.isInlineSimulationId(id)) return;
-      if (isFoldedFigureId(id)) folded.beginGesture();
+      if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.beginGesture();
+      else if (isFoldedFigureId(id)) folded.beginGesture();
       else annotations.beginGesture();
     },
     [isFoldedFigureId, annotations, folded, inlineSimulations]
   );
   const commitCanvasObjectGesture = useCallback(
     (id: string, kind: 'move' | 'resize' | 'rotate' | 'crop') => {
-      if (inlineSimulations.isInlineSimulationId(id)) return;
-      if (isFoldedFigureId(id)) folded.commitGesture(folded.gestureLabel(kind));
+      if (inlineSimulations.isInlineSimulationId(id)) {
+        inlineSimulations.commitGesture(inlineSimulations.gestureLabel(kind));
+      } else if (isFoldedFigureId(id)) folded.commitGesture(folded.gestureLabel(kind));
       else annotations.commitGesture(annotations.gestureLabel(kind));
     },
     [

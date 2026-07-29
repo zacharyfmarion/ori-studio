@@ -3162,11 +3162,9 @@ describe('workspace store slices', () => {
     }
 
     it('restores a deleted window', async () => {
-      const before = seedWindow();
-      useWorkspaceStore.getState().recordInlineSimulationHistory(
-        [...before],
-        'Delete simulation window'
-      );
+      // The reported bug: delete, undo, nothing happened. Deleting records its
+      // own entry, so no test-side bookkeeping — this is the real path.
+      seedWindow();
       useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
       expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(0);
 
@@ -3178,26 +3176,49 @@ describe('workspace store slices', () => {
     });
 
     it('takes the window away again on redo', async () => {
-      const before = seedWindow();
-      useWorkspaceStore.getState().recordInlineSimulationHistory(
-        [...before],
-        'Delete simulation window'
-      );
+      seedWindow();
       useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
       await useWorkspaceStore.getState().undo();
       await useWorkspaceStore.getState().redo();
       expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(0);
     });
 
+    it('undoes a move as one step, not one per pointermove', async () => {
+      seedWindow();
+      const moved = { center: { x: 40, y: 40 }, width: 100, height: 100, rotation: 0 };
+      // What a drag looks like: one checkpoint, many updates, one commit.
+      useWorkspaceStore.getState().recordInlineSimulationHistory(
+        useWorkspaceStore.getState().oristudioCpInlineSimulations,
+        'Move simulation window'
+      );
+      for (let x = 10; x <= 40; x += 10) {
+        useWorkspaceStore.getState().updateOristudioCpInlineSimulation('inline-sim-1', {
+          box: { ...moved, center: { x, y: x } },
+        });
+      }
+      expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
+
+      await useWorkspaceStore.getState().undo();
+      expect(
+        useWorkspaceStore.getState().oristudioCpInlineSimulations[0].box.center
+      ).toEqual({ x: 0, y: 0 });
+    });
+
+    it('leaves focus, scrubbing and playback out of history', () => {
+      // Transport, not content. A fold percentage moves ~15 times a second, so an
+      // entry per change would bury every real edit under it.
+      seedWindow();
+      useWorkspaceStore.getState().focusOristudioCpInlineSimulation('inline-sim-1');
+      useWorkspaceStore.getState().focusOristudioCpInlineSimulation(null);
+      expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(0);
+    });
+
     it('brings a restored window back unfocused', async () => {
       // History restores content, not what was selected — the same reason undo
       // drops the annotation selection. An unfocused window is also one whose
       // solver is not running, which is right for one just reappearing.
-      const before = seedWindow();
-      useWorkspaceStore.getState().recordInlineSimulationHistory(
-        [...before],
-        'Delete simulation window'
-      );
+      seedWindow();
+      useWorkspaceStore.getState().focusOristudioCpInlineSimulation('inline-sim-1');
       useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
 
       await useWorkspaceStore.getState().undo();

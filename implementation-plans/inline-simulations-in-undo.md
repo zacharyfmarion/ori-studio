@@ -236,9 +236,14 @@ Tests: `store.test.ts`, `foldIsNotDocumentState.test.ts`,
       `recordInlineSimulationHistory` action beside the other two overlay
       layers'. Missing-field rule tested; restore verified to fail when the
       helper is stubbed out
-- [ ] Phase 4: add, delete, gesture and refresh push entries; scrub/play/focus
-      demonstrably do not
-- [ ] Retire the three stale "session-only" comments
-- [ ] `npx tsc --noEmit`, `npm run lint:web`, web unit tests
+- [x] Phase 4: add, delete and refresh push from the store (one point the
+      several call sites cannot miss); move/resize/rotate use the panel's
+      begin/commit gesture protocol, so a drag is one entry and not one per
+      pointermove. Tested that focus does not push
+- [x] Retire the stale "session-only" comments — the panel's gesture handlers,
+      `inlineSimulationRuntime`'s "if these ever persist", the descriptor's
+      "see the plan's Phase 7", and the old plan's "Undo/redo not applicable"
+- [x] `npx tsc --noEmit`, `npm run lint:web`, web unit tests (1459 passing),
+      i18n extract/translate/stamp/check for the six new labels
 - [ ] Browser check: delete → undo → redo; move → undo; open → undo; window
       arrangement survives save/reopen and prompts on discard

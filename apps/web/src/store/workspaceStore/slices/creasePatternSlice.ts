@@ -1171,9 +1171,15 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         modelKey: `${id}:0`,
       });
 
-      // A new window takes the solver *and* the canvas selection: opening one
-      // and watching nothing happen would be the wrong first impression, and
-      // the region it was built from stays selected under it otherwise.
+      // Undoable, so record the list before the window existed. Pushed here
+      // rather than at the call sites because there are several — the selection
+      // toolbar, Shift+S — and one that forgot would be an action that silently
+      // is not undoable.
+      get().recordInlineSimulationHistory(
+        simulations,
+        i18n.t('panels:creasePattern.inlineSimulation.addAction', 'Add simulation window')
+      );
+
       // A new window takes the solver *and* the canvas selection: opening one
       // and watching nothing happen would be the wrong first impression, and
       // the region it was built from stays selected under it otherwise.
@@ -1190,6 +1196,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     },
 
     updateOristudioCpInlineSimulation: (id, patch) => {
+      // Deliberately no history push: this runs on every pointermove of a
+      // move/resize gesture. The checkpoint is taken once per gesture by the
+      // panel's begin/commit protocol, the same as the other canvas objects.
       set({
         oristudioCpInlineSimulations: get().oristudioCpInlineSimulations.map((simulation) =>
           simulation.id === id ? { ...simulation, ...patch } : simulation
@@ -1199,10 +1208,15 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     },
 
     removeOristudioCpInlineSimulation: (id) => {
-      clearInlineSimulationSource(id);
-      const remaining = get().oristudioCpInlineSimulations.filter(
-        (simulation) => simulation.id !== id
+      const previous = get().oristudioCpInlineSimulations;
+      if (!previous.some((simulation) => simulation.id === id)) return;
+      get().recordInlineSimulationHistory(
+        previous,
+        i18n.t('panels:creasePattern.inlineSimulation.deleteAction', 'Delete simulation window')
       );
+      // The fold goes; undo rebuilds it rather than history holding it alive.
+      clearInlineSimulationSource(id);
+      const remaining = previous.filter((simulation) => simulation.id !== id);
       set({
         oristudioCpInlineSimulations: remaining,
         oristudioCpFocusedInlineSimulationId:
@@ -1290,6 +1304,15 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         cpLinesByIds(document, segmentContainedLineIds(document, artifacts, segment))
       );
       const revision = inlineSimulationRevision(id);
+      // Recorded before the rewrite, and after the failure paths above so a
+      // refresh that could not resolve its region leaves no entry behind.
+      get().recordInlineSimulationHistory(
+        get().oristudioCpInlineSimulations,
+        i18n.t(
+          'panels:creasePattern.inlineSimulation.refreshAction',
+          'Rebuild simulation region'
+        )
+      );
       setInlineSimulationSource(id, {
         fold: buildSegmentFold(simulationFoldOf(artifacts), segment),
         modelKey: `${id}:${revision}`,
