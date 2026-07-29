@@ -53,16 +53,26 @@ describe('CpFoldAngleLayer', () => {
     return [...host.querySelectorAll('.cp-fold-angle-layer__badge')];
   };
 
-  it('labels a non-classic crease with its magnitude', () => {
+  it('labels a non-classic crease with its signed angle', () => {
     const badges = render([crease('Red1', 10, deg(90))]);
     expect(badges).toHaveLength(1);
-    expect(badges[0].textContent).toBe('90°');
+    expect(badges[0].textContent).toBe('-90°');
     expect((badges[0] as HTMLElement).dataset.detail).toBe('number');
   });
 
-  it('shows magnitude, not the signed angle — direction is already the colour', () => {
+  it('signs the angle by direction, so the badge and the colour agree', () => {
+    // Deliberately redundant with the crease colour. That is what makes the
+    // convention learnable: a red crease reading -90 teaches "red is negative",
+    // where an unsigned 90 on both would imply they are the same fold.
     const badges = render([crease('Red1', 10, deg(90)), crease('Blue2', 20, deg(90))]);
-    expect(badges.map((b) => b.textContent)).toEqual(['90°', '90°']);
+    expect(badges.map((b) => b.textContent)).toEqual(['-90°', '90°']);
+  });
+
+  it('never prints a negative zero', () => {
+    // An unfolded mountain is an unfolded crease. `-0°` would read as a distinct
+    // state, and it is not one — the ramp renders it identically to `Blue2+0`.
+    const badges = render([crease('Red1', 10, 0), crease('Blue2', 20, 0)]);
+    expect(badges.map((b) => b.textContent)).toEqual(['0°', '0°']);
   });
 
   it('renders nothing for a classic pattern', () => {

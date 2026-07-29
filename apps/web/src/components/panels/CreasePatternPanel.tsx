@@ -41,10 +41,8 @@ import type {
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
-import {
-  cpDiagnosticEntryMessage,
-  semanticCpDiagnosticKind,
-} from '../../lib/oristudioCpDiagnostics';
+import { CpDiagnosticGlyph } from '../../cp-workspace/diagnostics/CpDiagnosticGlyph';
+import { cpDiagnosticEntryMessage } from '../../cp-workspace/diagnostics/foldabilityMessages';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
   cpActionByOperation,
@@ -386,12 +384,11 @@ function diagnosticHudStatus(
   const label = diagnosticOperationLabel(t, result.operation);
   const errorCount = entries.filter((entry) => entry.severity === 'error').length;
   const warningCount = entries.filter((entry) => entry.severity === 'warning').length;
-  const detail =
-    entries.length === 1
-      ? entries[0]
-        ? cpDiagnosticEntryMessage(entries[0])
-        : result.diagnostics[0]
-      : result.diagnostics[0];
+  // The first issue, however many there are. The kernel's own summary is only a
+  // count ("Check CAMV found 2 issue(s)") — it repeats the label above it, and
+  // it is raw English that never passes through i18n. Naming the first problem
+  // is both localised and the more useful thing to read while collapsed.
+  const detail = entries[0] ? cpDiagnosticEntryMessage(t, entries[0]) : result.diagnostics[0];
 
   if (errorCount > 0) {
     return {
@@ -2960,8 +2957,8 @@ export function CreasePatternPanel() {
                           key={entry.id}
                           onClick={() => handleSelectCpDiagnostic(entry.id)}
                         >
-                          <span>{semanticCpDiagnosticKind(entry.kind)}</span>
-                          <span>{cpDiagnosticEntryMessage(entry)}</span>
+                          <CpDiagnosticGlyph t={t} entry={entry} />
+                          <span>{cpDiagnosticEntryMessage(t, entry)}</span>
                         </button>
                       ))}
                     </div>

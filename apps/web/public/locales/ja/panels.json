@@ -188,6 +188,24 @@
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
+    "foldability": {
+      "compose": "{{lead}}：{{tail}}",
+      "edgeLineConfiguration": "外周線の構成が不正です",
+      "edgeLineCount": "外周線が多すぎるか足りません",
+      "equalMountainValley": "山折りと谷折りの数が同じ",
+      "incorrectAngles": "角度が正しくありません",
+      "incorrectFoldTypes": "折り線の種類が正しくありません",
+      "littleBigLittle": "角度を入れ子にできません（小-大-小）",
+      "notEnoughMountain": "山折りが足りません",
+      "notEnoughValley": "谷折りが足りません",
+      "oddFolds": "折り線の数が奇数です",
+      "shape": {
+        "circle": "角度が正しくありません（川崎の定理）",
+        "littleBigLittle": "小-大-小",
+        "square": "折り線の種類が正しくありません",
+        "triangle": "折り線の数が正しくありません（奇数）"
+      }
+    },
     "foldCase": "折りケース",
     "foldedColor": {
       "back": "裏",

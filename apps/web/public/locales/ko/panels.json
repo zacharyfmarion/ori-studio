@@ -188,6 +188,24 @@
     "duplicateFoldedModelAction": "접힌 모델 복제",
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
+    "foldability": {
+      "compose": "{{lead}} — {{tail}}",
+      "edgeLineConfiguration": "가장자리 선 구성이 올바르지 않음",
+      "edgeLineCount": "가장자리 선이 너무 많거나 부족함",
+      "equalMountainValley": "산접기와 골접기 수가 같음",
+      "incorrectAngles": "각도가 올바르지 않음",
+      "incorrectFoldTypes": "접기 종류가 올바르지 않음",
+      "littleBigLittle": "각도를 중첩할 수 없음(작게-크게-작게)",
+      "notEnoughMountain": "산접기가 부족함",
+      "notEnoughValley": "골접기가 부족함",
+      "oddFolds": "접는 선의 개수가 홀수",
+      "shape": {
+        "circle": "각도가 올바르지 않음(가와사키 정리)",
+        "littleBigLittle": "작게-크게-작게",
+        "square": "접기 종류가 올바르지 않음",
+        "triangle": "접는 선의 개수가 올바르지 않음(홀수)"
+      }
+    },
     "foldCase": "접기 케이스",
     "foldedColor": {
       "back": "뒷면",

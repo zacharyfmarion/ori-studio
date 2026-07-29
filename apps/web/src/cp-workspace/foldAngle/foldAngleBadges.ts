@@ -5,7 +5,7 @@
  * signal on its own, so the midpoint badge is the primary way a non-flat crease
  * announces itself. It degrades by available room rather than switching off:
  *
- * - enough crease on screen  -> the number (`90°`), which is the actual readout
+ * - enough crease on screen  -> the number (`-90°`), which is the actual readout
  * - a little                 -> a dot, which still says "this one is not flat"
  * - almost none              -> nothing, because a dot every few pixels is noise
  *
@@ -13,6 +13,11 @@
  * separate feature.
  *
  * Classic creases never get a badge, so a classic pattern is untouched.
+ *
+ * `degrees` is carried through as an opaque payload: every decision here —
+ * whether a badge fits, whether it degrades to a dot, which badges survive the
+ * cap — is made on **screen length** alone. That is what makes the signed angle
+ * safe to pass in, and there is a test that says so.
  */
 import type { Point } from '../../lib/geometry';
 
@@ -32,7 +37,7 @@ export interface FoldAngleBadge {
   lineId: number;
   /** Screen-space midpoint of the crease. */
   at: Point;
-  /** `|ρ|` in degrees. */
+  /** Signed ρ in degrees — negative is a mountain, positive a valley. */
   degrees: number;
   /** `number` draws the readout; `dot` only flags that it is non-flat. */
   detail: 'number' | 'dot';

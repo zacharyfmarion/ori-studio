@@ -200,6 +200,24 @@
     "duplicateFoldedModelAction": "Duplicar modelo plegado",
     "flipFoldedModel": "Voltear modelo plegado",
     "fold": "Plegar",
+    "foldability": {
+      "compose": "{{lead}} — {{tail}}",
+      "edgeLineConfiguration": "Configuración de líneas de borde no válida",
+      "edgeLineCount": "Demasiadas o insuficientes líneas de borde",
+      "equalMountainValley": "igual cantidad de pliegues de montaña y de valle",
+      "incorrectAngles": "Ángulos incorrectos",
+      "incorrectFoldTypes": "Tipos de pliegue incorrectos",
+      "littleBigLittle": "Los ángulos no pueden anidarse (pequeño-grande-pequeño)",
+      "notEnoughMountain": "no hay suficientes pliegues de montaña",
+      "notEnoughValley": "no hay suficientes pliegues de valle",
+      "oddFolds": "Número impar de pliegues",
+      "shape": {
+        "circle": "Ángulos incorrectos (teorema de Kawasaki)",
+        "littleBigLittle": "Pequeño-grande-pequeño",
+        "square": "Tipos de pliegue incorrectos",
+        "triangle": "Número de pliegues incorrecto (impar)"
+      }
+    },
     "foldCase": "Caso de plegado",
     "foldedColor": {
       "back": "Reverso",

@@ -206,6 +206,24 @@
     "duplicateFoldedModelAction": "Дублировать сложенную модель",
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
+    "foldability": {
+      "compose": "{{lead}} — {{tail}}",
+      "edgeLineConfiguration": "Недопустимая конфигурация краевых линий",
+      "edgeLineCount": "Слишком много или слишком мало краевых линий",
+      "equalMountainValley": "одинаковое количество горных и долинных складок",
+      "incorrectAngles": "Неверные углы",
+      "incorrectFoldTypes": "Неверные типы складок",
+      "littleBigLittle": "Углы не вкладываются (маленький-большой-маленький)",
+      "notEnoughMountain": "недостаточно горных складок",
+      "notEnoughValley": "недостаточно долинных складок",
+      "oddFolds": "Нечётное число складок",
+      "shape": {
+        "circle": "Неверные углы (теорема Кавасаки)",
+        "littleBigLittle": "Маленький-большой-маленький",
+        "square": "Неверные типы складок",
+        "triangle": "Неверное (нечётное) число складок"
+      }
+    },
     "foldCase": "Вариант складывания",
     "foldedColor": {
       "back": "Изнанка",

@@ -188,6 +188,24 @@
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
+    "foldability": {
+      "compose": "{{lead}}：{{tail}}",
+      "edgeLineConfiguration": "边界线配置无效",
+      "edgeLineCount": "边界线过多或不足",
+      "equalMountainValley": "山折与谷折数量相同",
+      "incorrectAngles": "角度不正确",
+      "incorrectFoldTypes": "折痕类型不正确",
+      "littleBigLittle": "角度无法嵌套（小-大-小）",
+      "notEnoughMountain": "山折数量不足",
+      "notEnoughValley": "谷折数量不足",
+      "oddFolds": "折痕数量为奇数",
+      "shape": {
+        "circle": "角度不正确（川崎定理）",
+        "littleBigLittle": "小-大-小",
+        "square": "折痕类型不正确",
+        "triangle": "折痕数量不正确（奇数）"
+      }
+    },
     "foldCase": "折叠情形",
     "foldedColor": {
       "back": "背面",

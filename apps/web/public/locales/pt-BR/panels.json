@@ -200,6 +200,24 @@
     "duplicateFoldedModelAction": "Duplicar modelo dobrado",
     "flipFoldedModel": "Virar modelo dobrado",
     "fold": "Dobrar",
+    "foldability": {
+      "compose": "{{lead}} — {{tail}}",
+      "edgeLineConfiguration": "Configuração inválida das linhas de borda",
+      "edgeLineCount": "Linhas de borda demais ou de menos",
+      "equalMountainValley": "quantidade igual de dobras de montanha e de vale",
+      "incorrectAngles": "Ângulos incorretos",
+      "incorrectFoldTypes": "Tipos de dobra incorretos",
+      "littleBigLittle": "Os ângulos não podem se aninhar (pequeno-grande-pequeno)",
+      "notEnoughMountain": "não há dobras de montanha suficientes",
+      "notEnoughValley": "não há dobras de vale suficientes",
+      "oddFolds": "Número ímpar de dobras",
+      "shape": {
+        "circle": "Ângulos incorretos (teorema de Kawasaki)",
+        "littleBigLittle": "Pequeno-grande-pequeno",
+        "square": "Tipos de dobra incorretos",
+        "triangle": "Número de dobras incorreto (ímpar)"
+      }
+    },
     "foldCase": "Caso de dobra",
     "foldedColor": {
       "back": "Verso",

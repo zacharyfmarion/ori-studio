@@ -158,7 +158,7 @@ export function resolveCpDiagnosticToneColors(root: Element): Record<CpDiagnosti
     mountain: readCssVarColor(root, '--fold-mountain', [1, 0.3, 0.36, 1]),
     valley: readCssVarColor(root, '--fold-valley', [0.38, 0.65, 0.98, 1]),
     neutral: readCssVarColor(root, '--fold-unassigned', [0.6, 0.6, 0.65, 1]),
-    unknown: [1, 0, 0.576, 1],
+    unknown: readCssVarColor(root, '--diagnostic-unknown', [1, 0, 0.576, 1]),
   };
 }
 

@@ -15,7 +15,7 @@ import { useCpOverlayView } from '../cpOverlayViewStore';
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import { overlayModelToCss } from '../annotations/annotationTransform';
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
-import { creaseFoldMagnitudeDegrees, isClassicCrease, isFoldingCrease } from '../../lib/foldAngle';
+import { creaseFoldAngle, isClassicCrease, isFoldingCrease } from '../../lib/foldAngle';
 import { formatFoldAngle } from '../../lib/foldAngle';
 import {
   planFoldAngleBadges,
@@ -40,7 +40,11 @@ export function CpFoldAngleLayer({
   const candidates: FoldAngleBadgeInput[] = [];
   lineSegments.forEach((segment, index) => {
     if (!isFoldingCrease(segment.color) || isClassicCrease(segment)) return;
-    const degrees = creaseFoldMagnitudeDegrees(segment);
+    // Signed, not |rho|. The sign duplicates what the colour already says, and
+    // that redundancy is the point: a red crease reading -90 teaches the
+    // convention for free, where an unsigned 90 on both a red and a blue crease
+    // teaches nothing and quietly implies they are the same fold.
+    const degrees = creaseFoldAngle(segment);
     if (degrees === null) return;
     candidates.push({
       lineId: index + 1,

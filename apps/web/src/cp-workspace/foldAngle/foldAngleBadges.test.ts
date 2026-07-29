@@ -28,6 +28,27 @@ describe('fold angle badge planning', () => {
     expect(planFoldAngleBadges([horizontal(1, DOT_MIN_SCREEN_LENGTH - 1)])).toEqual([]);
   });
 
+  it('is blind to the sign of the angle', () => {
+    // The layer feeds in signed rho so a mountain reads -90. Nothing here may
+    // react to that: every decision is screen length, and `degrees` is payload.
+    // Without this, a negative angle could plausibly be read as "no room".
+    const lengths = [
+      DOT_MIN_SCREEN_LENGTH - 1,
+      DOT_MIN_SCREEN_LENGTH + 1,
+      NUMBER_MIN_SCREEN_LENGTH + 1,
+    ];
+    for (const length of lengths) {
+      const positive = planFoldAngleBadges([horizontal(1, length, 90)]);
+      const negative = planFoldAngleBadges([horizontal(1, length, -90)]);
+      expect(negative.map((b) => ({ ...b, degrees: Math.abs(b.degrees) }))).toEqual(positive);
+    }
+  });
+
+  it('carries the sign through to the badge unchanged', () => {
+    const [badge] = planFoldAngleBadges([horizontal(1, NUMBER_MIN_SCREEN_LENGTH + 1, -135)]);
+    expect(badge.degrees).toBe(-135);
+  });
+
   it('places the badge at the screen-space midpoint', () => {
     const [badge] = planFoldAngleBadges([
       { lineId: 1, a: { x: 10, y: 20 }, b: { x: 50, y: 60 }, degrees: 45 },

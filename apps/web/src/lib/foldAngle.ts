@@ -76,7 +76,17 @@ export function isClassicCrease(segment: OristudioCpLineSegment): boolean {
   return segment.fold_magnitude === undefined || segment.fold_magnitude === FOLD_MAGNITUDE_FULL;
 }
 
-/** Format a fold angle for display, e.g. `-90°`. Trims trailing zeros. */
+/**
+ * Format a fold angle for display, e.g. `-90°`. Trims trailing zeros.
+ *
+ * Signed, because the sign is what makes the crease colour learnable — a red
+ * crease reading `-90°` teaches the convention, where an unsigned `90°` on a red
+ * and a blue crease implies they are the same fold.
+ *
+ * An unfolded mountain formats as `0°`, not `-0°`: template coercion of `-0`
+ * gives `"0"`, which is the wanted answer rather than a lucky one, since an
+ * unfolded mountain and an unfolded valley are the same physical thing.
+ */
 export function formatFoldAngle(degrees: number): string {
   const rounded = Number(degrees.toFixed(4));
   return `${rounded}°`;
