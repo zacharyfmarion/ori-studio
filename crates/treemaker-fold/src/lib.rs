@@ -511,6 +511,13 @@ fn merge_edge(
     if assignment != fold.edges_assignment[low] {
         return false;
     }
+    // Narrower than upstream, matching the TypeScript port: a merge can only
+    // rescue a crease the solver folds, and a crease-free border subdivision is
+    // mesh resolution that a quality triangulator needs. See `mergeEdge` in
+    // `packages/origami-simulator/src/prepare.ts` for the measurement behind it.
+    if !assignment.is_driven_crease() {
+        return false;
+    }
     // Upstream never meets this case, because it removes these vertices before
     // faces exist and so cannot re-run on its own output. Merging into an edge
     // that already exists would leave a duplicate with no face -- the very shape
@@ -1117,37 +1124,61 @@ mod tests {
     }
 
     #[test]
-    fn collapses_a_chain_of_collinear_vertices() {
+    fn collapses_a_chain_of_collinear_crease_segments() {
+        // One diagonal crease drawn in four strokes, split at (1,1), (2,2), (3,3).
         let mut doc = FoldDocument::new(
             vec![
                 vec![0.0, 0.0],
                 vec![4.0, 0.0],
                 vec![4.0, 4.0],
                 vec![0.0, 4.0],
-                vec![1.0, 0.0],
-                vec![2.0, 0.0],
-                vec![3.0, 0.0],
+                vec![1.0, 1.0],
+                vec![2.0, 2.0],
+                vec![3.0, 3.0],
             ],
             vec![
-                [0, 4],
-                [4, 5],
-                [5, 6],
-                [6, 1],
+                [0, 1],
                 [1, 2],
                 [2, 3],
                 [3, 0],
-                [0, 2],
+                [0, 4],
+                [4, 5],
+                [5, 6],
+                [6, 2],
             ],
         );
-        doc.edges_assignment = vec![Assignment::Boundary; 8];
-        doc.edges_assignment[7] = Assignment::Mountain;
-        doc.edges_fold_angle = vec![Some(0.0); 8];
-        doc.edges_fold_angle[7] = Some(-180.0);
-        doc.faces_vertices = vec![vec![0, 4, 5, 6, 1, 2], vec![0, 2, 3]];
+        doc.edges_assignment = vec![Assignment::Boundary; 4];
+        doc.edges_assignment.extend([Assignment::Mountain; 4]);
+        doc.edges_fold_angle = vec![Some(0.0); 4];
+        doc.edges_fold_angle.extend([Some(-180.0); 4]);
+        doc.faces_vertices = vec![vec![0, 1, 2, 6, 5, 4], vec![0, 4, 5, 6, 2, 3]];
 
         assert_eq!(remove_redundant_vertices(&mut doc, 0.01), 3);
         assert_eq!(doc.vertices_coords.len(), 4);
-        assert!(find_edge(&doc.edges_vertices, 0, 1).is_some());
+        assert!(find_edge(&doc.edges_vertices, 0, 2).is_some());
+    }
+
+    #[test]
+    fn leaves_crease_free_border_subdivisions_alone() {
+        // Narrower than upstream on purpose: no crease to lose, and these points
+        // are the mesh resolution a quality triangulator works with.
+        let mut doc = FoldDocument::new(
+            vec![
+                vec![0.0, 0.0],
+                vec![1.0, 0.0],
+                vec![2.0, 0.0],
+                vec![2.0, 2.0],
+                vec![0.0, 2.0],
+            ],
+            vec![[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]],
+        );
+        doc.edges_assignment = vec![Assignment::Boundary; 5];
+        doc.edges_fold_angle = vec![None; 5];
+        doc.faces_vertices = vec![vec![0, 1, 2, 3, 4]];
+
+        // Vertex 1 is degree-2 and collinear with 0 and 2; upstream would merge it.
+        assert_eq!(remove_redundant_vertices(&mut doc, 0.01), 0);
+        assert_eq!(doc.vertices_coords.len(), 5);
     }
 
     #[test]

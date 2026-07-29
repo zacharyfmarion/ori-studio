@@ -238,23 +238,23 @@ describe('n-gon triangulation', () => {
 
     const windings = new Set(prepared.facesVertices.map((f) => Math.sign(signedArea(prepared, f))));
     expect(windings.size).toBe(1);
-    // The strip's crease-free ring points merge away (upstream's redundant-vertex
-    // rule), which is a report, not a problem. Nothing should be degenerate or
-    // untriangulatable.
-    expect(prepared.diagnostics.warnings.some((w) => w.includes('degenerate'))).toBe(false);
-    expect(prepared.diagnostics.warnings.some((w) => w.includes('could not'))).toBe(false);
+    expect(prepared.diagnostics.warnings).toEqual([]);
   });
 
-  it('collapses a crease-free subdivided ring to the polygon it really is', () => {
-    // The strip's 21 points per long side carry no creases, so upstream's
-    // redundant-vertex rule merges every interior one and the face becomes the
-    // 4-corner rectangle it always was. The two triangles that leaves are thin
-    // (a 20x1 rectangle has no better triangulation), which is upstream's
-    // behaviour: it triangulates for validity, not for quality.
+  it('triangulates a long strip without slivers', () => {
+    // Ear clipping spans a corner to the far end of a strip, which leaves
+    // triangles a tenth of a degree wide. The solver's crease force divides by
+    // the adjacent triangle's height, so those never settle. The Delaunay
+    // criterion zig-zags across the strip instead: every triangle is a unit
+    // right triangle, so 45 degrees is the exact optimum here.
+    //
+    // This is also what keeps the redundant-vertex merge off crease-free border
+    // points: merge them and the ring has nothing left to zig-zag between.
     const prepared = prepareFoldModel(makeStrip((x, y) => [x, y]));
+    const angles = prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f));
 
-    expect(prepared.vertexCount).toBe(4);
-    expect(prepared.faceCount).toBe(2);
+    expect(prepared.vertexCount).toBe(42);
+    expect(Math.min(...angles)).toBeGreaterThan(44);
   });
 
   it('triangulates a sheet given as 3-component coordinates', () => {
@@ -266,11 +266,10 @@ describe('n-gon triangulation', () => {
     const xz = prepareFoldModel(makeStrip((x, y) => [x, 0, y]));
 
     for (const prepared of [xy, xz]) {
-      expect(prepared.diagnostics.warnings.some((w) => w.includes('could not'))).toBe(false);
-      expect(prepared.faceCount).toBeGreaterThan(0);
-      expect(
-        prepared.facesVertices.every((face) => smallestAngleDeg(prepared, face) > 0)
-      ).toBe(true);
+      expect(prepared.diagnostics.warnings).toEqual([]);
+      // A 20x1 strip with unit subdivisions: 40 unit right triangles.
+      expect(prepared.faceCount).toBe(40);
+      expect(Math.min(...prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f)))).toBeGreaterThan(44);
     }
   });
 });
@@ -525,40 +524,74 @@ describe('redundant vertex removal', () => {
     expect(twice.diagnostics.warnings.some((w) => w.includes('redundant'))).toBe(false);
   });
 
-  it('collapses a chain of collinear vertices, as upstream does', () => {
-    // Three splits along one crease. Upstream rewrites its neighbour map inside
-    // each merge, so the chain collapses progressively rather than one link.
+  it('collapses a chain of collinear crease segments, as upstream does', () => {
+    // One diagonal crease drawn in four strokes, split at (1,1), (2,2) and (3,3).
+    // Upstream rewrites its neighbour map inside each merge, so the chain collapses
+    // progressively; a batch pass over the original neighbours stops after one.
     const prepared = prepareFoldModel({
       vertices_coords: [
         [0, 0],
         [4, 0],
         [4, 4],
         [0, 4],
-        [1, 0],
-        [2, 0],
-        [3, 0],
+        [1, 1],
+        [2, 2],
+        [3, 3],
       ],
       edges_vertices: [
-        [0, 4],
-        [4, 5],
-        [5, 6],
-        [6, 1],
+        [0, 1],
         [1, 2],
         [2, 3],
         [3, 0],
-        [0, 2],
+        [0, 4],
+        [4, 5],
+        [5, 6],
+        [6, 2],
       ],
-      edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'B', 'M'],
-      edges_foldAngle: [0, 0, 0, 0, 0, 0, 0, -180],
+      edges_assignment: ['B', 'B', 'B', 'B', 'M', 'M', 'M', 'M'],
+      edges_foldAngle: [null, null, null, null, -180, -180, -180, -180],
       faces_vertices: [
-        [0, 4, 5, 6, 1, 2],
-        [0, 2, 3],
+        [0, 1, 2, 6, 5, 4],
+        [0, 4, 5, 6, 2, 3],
       ],
     });
 
     expect(prepared.vertexCount).toBe(4);
-    expect(edgeOf(prepared, 0, 1)).toBeGreaterThanOrEqual(0);
+    const diagonal = edgeOf(prepared, 0, 2);
+    expect(diagonal).toBeGreaterThanOrEqual(0);
+    expect(prepared.edgesAssignment[diagonal]).toBe('M');
+    expect(prepared.edgesFaces[diagonal]).toHaveLength(2);
     expect(prepared.faceCount).toBe(2);
+    expect(prepared.creaseParams).toHaveLength(1);
+  });
+
+  it('leaves crease-free border subdivisions alone, unlike upstream', () => {
+    // Narrower than upstream on purpose: these points carry no crease to lose, and
+    // they are the only mesh resolution `delaunayFlipRing` has to work with. See
+    // the long-strip test in n-gon triangulation for what merging them costs.
+    const prepared = prepareFoldModel({
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [2, 0],
+        [2, 2],
+        [0, 2],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [4, 0],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'B'],
+      edges_foldAngle: [null, null, null, null, null],
+      faces_vertices: [[0, 1, 2, 3, 4]],
+    });
+
+    // Vertex 1 is degree-2 and collinear with 0 and 2, and upstream would merge it.
+    expect(prepared.vertexCount).toBe(5);
+    expect(prepared.diagnostics.warnings.some((w) => w.includes('redundant'))).toBe(false);
   });
 
   it('refuses to merge halves whose assignments disagree, as upstream does', () => {

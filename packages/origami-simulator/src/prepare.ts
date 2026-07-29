@@ -141,6 +141,13 @@ function normalizeFold(
 const REDUNDANT_VERTEX_EPSILON = 0.01;
 
 /**
+ * Assignments the solver actually folds, and so the only ones a merge can rescue.
+ * See `mergeEdge` for why the merge stops at these rather than taking every
+ * matching pair as upstream does.
+ */
+const DRIVEN_ASSIGNMENTS = new Set<FoldAssignment>(['M', 'V', 'F']);
+
+/**
  * Merge a crease split across two collinear segments back into one crease.
  *
  * Port of upstream `removeRedundantVertices` (pattern.js:865) with its `mergeEdge`
@@ -254,6 +261,16 @@ function mergeEdge(
     );
     return false;
   }
+  // NARROWER THAN UPSTREAM, and deliberately. Upstream merges any matching pair,
+  // borders included, because nothing downstream of it cares about triangle
+  // quality. `delaunayFlipRing` does: it can only choose diagonals among vertices
+  // that already exist, so a face's ring points are the only mesh resolution it
+  // has. Merging a crease-free border subdivision throws that resolution away for
+  // no gain -- there is no crease on it to lose, and a zero-area sliver spanning
+  // it is covered by the straight edge that replaces it. On a 20x1 strip whose
+  // long sides carried 21 such points, merging them cost 40 triangles at 45
+  // degrees for 2 at 2.86 degrees, and slivers that size stop the solver settling.
+  if (!DRIVEN_ASSIGNMENTS.has(assignment ?? 'U')) return false;
   // Upstream never meets this case, because it removes redundant vertices before
   // faces exist and so cannot be re-run on its own output. Merging into an edge
   // that already exists would produce a duplicate, i.e. an edge with no face --
