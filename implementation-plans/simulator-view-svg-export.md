@@ -309,27 +309,27 @@ from `RenderSettings`), and `exportGeometry` (STL/OBJ wants geometry, not a view
 
 ## Checklist
 
-- [ ] `projectVertices` in `camera.ts`, with tests covering the perspective
+- [x] `projectVertices` in `camera.ts`, with tests covering the perspective
       divide, the NDC→pixel mapping, `perspective: false`, and depth sign
-- [ ] Session records `view` / `width` / `height` / `settings` on both render
+- [x] Session records `view` / `width` / `height` / `settings` on both render
       paths; redraw still skipped without `gpuRender`
-- [ ] `renderMeshToSvg`: draw list, depth sort, faces, creases, x-ray, strain,
+- [x] `renderMeshToSvg`: draw list, depth sort, faces, creases, x-ray, strain,
       degenerate-geometry guard, content-fit `viewBox`
-- [ ] `svgRenderer.test.ts`: deterministic SVG for a known two-triangle fold —
+- [x] `svgRenderer.test.ts`: deterministic SVG for a known two-triangle fold —
       document order follows depth, facet edges excluded, M/V/B stroke colours,
       `showFaces`/`showEdges`/`faceAlpha` respected, zero-area triangles
       dropped, no `NaN` in any emitted coordinate
-- [ ] `exportSvg` on the worker + runtime; stale token yields null
-- [ ] `useSimulatorViewExport` + `SimulatorExportMenu`
-- [ ] Inline: exporter registry, registration in `InlineSimulationLayer`,
+- [x] `exportSvg` on the worker + runtime; stale token yields null
+- [x] `useSimulatorViewExport` + `SimulatorExportMenu`
+- [x] Inline: exporter registry, registration in `InlineSimulationLayer`,
       dropdown in `InlineSimulationInspector`
-- [ ] Simulate workspace: dropdown in `SimulatorPanel`'s toolbar
-- [ ] i18n: extract, translate 8 locales, stamp, check
+- [x] Simulate workspace: dropdown in `SimulatorPanel`'s toolbar
+- [x] i18n: extract, translate 8 locales, stamp, check
 - [ ] Verify the exported SVG against a screenshot of the same view on a real
       model (a bird base, and something dense like a box-pleated tessellation) —
       in particular that the two-tone winding constant is not inverted, since
       `gl_FrontFacing` and the CPU winding rule are only *expected* to agree
-- [ ] Validation: `npm run build --workspace @treemaker/origami-simulator`,
-      package vitest, `npx tsc --noEmit`,
-      `npm --workspace @treemaker/web exec -- vitest run`, `npm run lint:web`,
-      `npm run i18n:check`
+- [x] Validation: package build + vitest (164 pass), `npx tsc --noEmit`,
+      web vitest (1409 pass), `npm run lint:web`, `npm run i18n:check`.
+      Note `i18n:stamp` is only a workspace script — `npm --workspace
+      @treemaker/web run i18n:stamp`, not `npm run i18n:stamp`
