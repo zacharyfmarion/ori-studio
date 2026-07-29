@@ -52,18 +52,26 @@ adopted as-is rather than tuned. Where this plan adds anything, it is only for a
 state upstream cannot reach — never a different answer for input upstream
 handles. Each such spot is called out below.
 
-Parity extends to **removing what we added on top** where the two conflict. The
-merge also collapses crease-free collinear *border* vertices, which costs
-`delaunayFlipRing` the interior ring points it relies on: a 20x1 strip whose long
-sides carry 21 crease-free points went from 40 triangles at 45 degrees to 2 at
-2.86 degrees. Rather than carve out border pairs to protect our own pass, the
-pass goes (phase 2) and earcut's output stands, as upstream's does.
+**One deliberate divergence, settled by testing rather than argument.** Upstream
+merges any matching collinear pair, borders included. That collapses crease-free
+border subdivisions, and `delaunayFlipRing` needs exactly those: it can only
+choose diagonals among vertices that already exist, so a face's ring points are
+its only mesh resolution. A 20x1 strip whose long sides carry 21 crease-free
+points goes from 40 triangles at 45 degrees to 2 at 2.86 degrees once they merge.
 
-The cost of that is bounded, and was measured rather than assumed: across 14 real
-`.fold` files in the repo (`lamprey-segment`, `kabuto`, `bad_twist`, the five
-default molecules, the folding-sequence set, `clean-smoke`), **zero** collinear
-degree-2 vertices of either kind occur. The strip is a synthetic worst case; the
-only file in hand where the merge fires at all is the reported one.
+Parity was tried first: `delaunayFlipRing` was deleted (654116b2) so earcut's
+output stood as upstream's does. That made real simulations measurably worse in
+testing, so it was reverted (8b8fd166) and the merge narrowed instead
+(59be0098) to the assignments the solver folds -- M, V, F. A border subdivision
+has no crease to lose, so leaving it costs nothing; merging it costs quality the
+solver depends on.
+
+Note the repo's fixtures cannot see any of this: across 14 real `.fold` files
+(`lamprey-segment`, `kabuto`, `bad_twist`, the five default molecules, the
+folding-sequence set, `clean-smoke`) there are **zero** collinear degree-2
+vertices of either kind, and `lamprey-segment` has zero faces with more than four
+vertices, so it never reaches the n-gon path either. Hand-drawn `.osf` files are
+the only coverage this behaviour has.
 
 **1. Port `removeRedundantVertices` into `normalizeFold`, ahead of
 `triangulateFold`** ([prepare.ts](../packages/origami-simulator/src/prepare.ts)).
@@ -246,6 +254,8 @@ only the simulated positions and triangles.
       before the app, its tests, or the dev server see it
 - [x] Phase 2: remove `delaunayFlipRing` so earcut's output stands as upstream's
       does, and drop the assertions that only described that divergence
+- [x] Phase 5: revert that removal after testing showed real simulations got
+      worse, and narrow the merge to driven creases so both passes work
 - [ ] Open draft PR against `main` and drive it to green CI
 
 ## Outcome
@@ -264,3 +274,17 @@ Validated: 140 simulator tests (golden traces included), 1431 web tests, 115 Rus
 test binaries, `npx tsc --noEmit` on both, `npm run lint:web`, `cargo fmt --check`,
 `cargo clippy --workspace --all-targets -D warnings`. Browser verification is
 outstanding and is the author's.
+
+### Phase 5, after testing
+
+Parity-by-deletion did not survive contact with real files. `654116b2` was
+reverted in `8b8fd166`, and `59be0098` narrowed the merge to driven creases so
+the two passes stop fighting over the same vertices. Final shape: upstream's
+algorithm, upstream's `0.01` tolerance, upstream's refusals, plus one stated
+divergence (crease-free border subdivisions are left alone) and one addition kept
+(`removeDegenerateGeometry`).
+
+If a pattern still simulates worse than before this branch, the next suspect is
+the merge's own tolerance: `0.01` admits an 8.11 degree kink and merges cascade
+along a chain, so a polyline approximating a curve can collapse. That is one
+constant, `REDUNDANT_VERTEX_EPSILON`, in both engines.
