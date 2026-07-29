@@ -233,7 +233,7 @@ impl LineSegment {
     /// site states its own answer to "where does the family come from" while
     /// the angle is handled identically everywhere:
     ///
-    /// ```ignore
+    /// ```text
     /// // same-as-original tools
     /// derived.with_line_color(source.color).with_fold_magnitude_of(source)
     /// // active-type tools

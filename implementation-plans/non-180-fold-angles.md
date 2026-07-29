@@ -690,10 +690,10 @@ Named so they don't creep in:
 ### Phase 1 — Representation and storage
 - [x] `FoldMagnitude` newtype; `Option<FoldMagnitude>` on `LineSegment` (Spike D)
 - [x] Legacy-JSON byte-identical round-trip test (R2)
-- [ ] `crease_fold_angle` / `is_classic_crease` accessors + unit tests
-- [ ] Magnitude-clearing rule in the colour setter, with tests for `advance_folding`
+- [x] `crease_fold_angle` / `is_classic_crease` accessors + unit tests
+- [x] Magnitude-clearing rule in the colour setter, with tests for `advance_folding`
       and make-edge/make-aux
-- [ ] Compact transport array + `OCG1` → `OCG2`, both codecs
+- [x] Compact transport array + `OCG1` → `OCG2`, both codecs
 - [x] **`.osf` needs no schema change.** It stores `OristudioCpDocumentSnapshot`
       verbatim, so the magnitude rides inside the kernel snapshot via serde. No
       v6, and the `claude/persist-inline-simulations` v5 collision evaporates
@@ -702,14 +702,14 @@ Named so they don't creep in:
 - [x] `minimumReaderSchemaVersion` stays `1` — deliberate, not an oversight. Web
       has no version skew, so there is no older reader to protect against.
       Gate on it only once desktop ships (pinned builds, no auto-update)
-- [ ] wasm bridge + **committed `.wasm` rebuild**
-- [ ] Oracle suite green with no fixture edits
+- [x] wasm bridge + **committed `.wasm` rebuild**
+- [x] Oracle suite green with no fixture edits
 
 ### Phase 2 — FOLD I/O and simulator
-- [ ] `io/fold.rs` reads and writes real angles, both directions
-- [ ] Round-trip tests including non-180 values
-- [ ] Simulator end-to-end from an imported `.fold`
-- [ ] Confirm `F`/zero-angle mapping is right
+- [x] `io/fold.rs` reads and writes real angles, both directions
+- [x] Round-trip tests including non-180 values
+- [x] Simulator end-to-end from an imported `.fold`
+- [x] Confirm `F`/zero-angle mapping is right
 
 ### Phase 3 — Editing (the core workflow)
 
@@ -745,34 +745,39 @@ See **Editing UX** above for the reasoning behind each item.
       crease's pieces stay classic (`splitting_a_crease_preserves_its_fold_angle`)
 
 *Assign to selection — the transcription workhorse*
-- [ ] `OperationId::CreaseSetFoldAngle` with payload, undo/redo
-- [ ] Angle control on `CpSelectionToolbar` + context menu
-- [ ] Mixed-selection state; applies to folding creases only, reports how many
+- [x] `OperationId::CreaseSetFoldAngle` with payload, undo/redo
+- [x] Angle control on `CpSelectionToolbar` + context menu
+- [x] Mixed-selection state; applies to folding creases only, reports how many
       were affected
-- [ ] Slider drag coalesces to one undo entry on release
+- [x] ~~Slider drag coalesces to one undo entry on release~~ — **moot, no
+      slider was built.** Chips plus a numeric field turned out to cover the
+      cases, and every commit is discrete, so there is no drag to coalesce
 
 *Entry surfaces*
-- [ ] Snap palette chips (180/135/120/90/60/45) + free numeric entry
-- [ ] Inspector shows M/V type + magnitude 0–180, with the signed FOLD value as a
+- [x] Snap palette chips (180/135/120/90/60/45) + free numeric entry
+- [x] Inspector shows M/V type + magnitude 0–180, with the signed FOLD value as a
       secondary readout — not a signed input
-- [ ] Angle control disabled (not silently ignored) on edge/aux lines
-- [ ] Magnitude 0 allowed, rendered distinctly, with a "convert to auxiliary" nudge
+- [x] Angle control disabled (not silently ignored) on edge/aux lines
+- [ ] Magnitude 0 allowed and rendered distinctly — **the nudge is not built.**
+      0 is accepted, stored and drawn (both halves converge on the anchor), but
+      nothing suggests converting to an auxiliary line. A hint, not a
+      correctness gap
 
 *Model rule*
-- [ ] Setting 180° normalises to `None`; FOLD import normalises an explicit 180
+- [x] Setting 180° normalises to `None`; FOLD import normalises an explicit 180
       the same way, so `Some(FULL)` is unreachable and the distinction never
       reaches the user
-- [ ] Test: a document round-trips byte-identically after setting 180° on a crease
+- [x] Test: a document round-trips byte-identically after setting 180° on a crease
 
 *Keyboard*
-- [ ] One chord registered in `apps/web/src/keyboard/` (proposal: `Shift+A`),
+- [x] One chord registered in `apps/web/src/keyboard/` (proposal: `Shift+A`),
       never a panel listener
-- [ ] Verified against `findShortcutConflict` — duplicate chords fail silently
-- [ ] Type-value / Enter commits / Escape reverts
-- [ ] A/S/D/F and Ctrl-toggle behaviour unchanged, asserted by test
+- [x] Verified against `findShortcutConflict` — duplicate chords fail silently
+- [x] Type-value / Enter commits / Escape reverts
+- [x] A/S/D/F and Ctrl-toggle behaviour unchanged, asserted by test
 
 *Architecture check*
-- [ ] Verify MV-flip negates the angle with no code change (the architecture's
+- [x] Verify MV-flip negates the angle with no code change (the architecture's
       main falsifiable prediction)
 
 ### Phase 4 — Rendering
@@ -781,7 +786,11 @@ See **Editing UX** above for the reasoning behind each item.
       untouched; parity gate extended to the ramp, with a non-vacuity assertion
 - [x] Midpoint badge for non-classic creases, degrading number → dot → nothing
       by available on-screen room, capped at `MAX_BADGES` (longest creases win)
-- [ ] "Fold angles" overlay mode, sibling to the CAMV overlay
+- [x] Superseded: rather than an overlay *mode*, angle colour is unconditional
+      and the View panel toggles the numeric badges only. A mode would have
+      allowed a view where a non-180 crease looks like a full fold, which is
+      exactly what must never happen. See
+      `implementation-plans/fold-angle-view-and-colour.md`
 
 > **The ramp alone was not enough**, which only became clear on real geometry.
 > At 90° the wash is 27.5% toward the canvas on a 1px stroke, and lightness is a
