@@ -221,14 +221,15 @@ Tests: `store.test.ts`, `foldIsNotDocumentState.test.ts`,
 
 - [x] Phase 1: add/update/remove/refresh set `dirty`, with tests that a moved
       and a deleted window make the project dirty
-- [ ] Phase 2: restoring a window rebuilds its fold via the hydrate strategy
-      (no provenance re-baseline) against warm artifacts; tests that
-      delete-then-undo restores both the fold and its position, that a stale
-      window is still stale after the round trip, and that no fold is retained
-      for a deleted window
-- [ ] Phase 2: check whether cold artifacts on undo are reachable in practice;
-      if so, decide between blocking and restoring the window unrendered with a
-      refresh affordance
+- [x] Phase 2: `restoreOristudioCpInlineSimulationSources` rebuilds via a
+      builder factored out of hydrate (no provenance re-baseline); tests that
+      delete-then-undo restores the fold and its position, that a stale window is
+      still stale after the round trip, and that the cache is reused
+- [x] Phase 2: cold artifacts on undo **are** reachable — a file load leaves the
+      cache in the importer's unit space, so a delete-then-undo straight
+      afterwards resolves nothing. Handled with the same detection
+      `addOristudioCpInlineSimulation` already uses: try warm, and recompute when
+      nothing resolved. Caught by a test failing, not by review
 - [ ] Phase 3: `inlineSimulations` on the history entry, restored in both undo
       and redo branches, with the missing-field rule tested (an old entry leaves
       live windows alone)

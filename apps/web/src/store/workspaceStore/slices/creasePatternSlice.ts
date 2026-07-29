@@ -25,9 +25,11 @@ import {
   resolveInlineSimulationSegment,
   sourceFingerprintFor,
   topInlineSimulationZ,
+  type InlineSimulation,
 } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
 import {
   clearInlineSimulationSource,
+  getInlineSimulationSource,
   setInlineSimulationSource,
 } from '../../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
@@ -435,6 +437,43 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function foldedFigureIndex(id: string): number {
     const index = get().oristudioCpFoldedFigures.findIndex((candidate) => candidate.id === id);
     return Math.max(index + 1, 1);
+  }
+
+  /**
+   * Give each of `simulations` the fold its solver runs, built from `artifacts`.
+   * Returns how many got one.
+   *
+   * Shared by loading a file and by undoing a delete, which want the same work
+   * from different artifacts — see each caller for why its choice differs.
+   *
+   * Deliberately writes no descriptor state. Recomputing `sourceFingerprint`
+   * from the current document is the one change here that would look harmless
+   * and disable staleness for good: a window can legitimately be out of date,
+   * and both callers can be looking at one.
+   */
+  function buildInlineSimulationSources(
+    simulations: InlineSimulation[],
+    artifacts: FoldArtifacts | null | undefined
+  ): number {
+    if (!artifacts || !get().oristudioCpDocument) return 0;
+    const segments = resolveCpSegments(artifacts);
+    const simulationFold = simulationFoldOf(artifacts);
+
+    let built = 0;
+    for (const simulation of simulations) {
+      const segment = resolveInlineSimulationSegment(simulation, segments);
+      // A region that no longer resolves keeps its window and its provenance.
+      // Dropping it would lose placement the user chose, and re-pointing it at
+      // the nearest region would silently simulate something else — the rule
+      // refresh already follows.
+      if (!segment) continue;
+      setInlineSimulationSource(simulation.id, {
+        fold: buildSegmentFold(simulationFold, segment),
+        modelKey: `${simulation.id}:${inlineSimulationRevision(simulation.id)}`,
+      });
+      built += 1;
+    }
+    return built;
   }
 
   /**
@@ -1179,8 +1218,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     hydrateOristudioCpInlineSimulations: async () => {
       const simulations = get().oristudioCpInlineSimulations;
-      const document = get().oristudioCpDocument?.document ?? null;
-      if (!document || simulations.length === 0) return 0;
+      if (simulations.length === 0) return 0;
 
       // Recomputed, and once for the whole document rather than once per window.
       //
@@ -1192,30 +1230,32 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // boundary then matched nothing, so every restored window stayed empty.
       // `refreshOristudioCpInlineSimulation` refreshes for this reason; what it
       // must not do is refresh per window.
-      const artifacts = await get().refreshFoldArtifacts();
-      if (!artifacts) return 0;
-      const segments = resolveCpSegments(artifacts);
-      const simulationFold = simulationFoldOf(artifacts);
+      return buildInlineSimulationSources(simulations, await get().refreshFoldArtifacts());
+    },
 
-      let hydrated = 0;
-      for (const simulation of simulations) {
-        const segment = resolveInlineSimulationSegment(simulation, segments);
-        // A region that no longer resolves keeps its window and its provenance.
-        // Dropping it would lose placement the user chose, and re-pointing it at
-        // the nearest region would silently simulate something else — the rule
-        // refresh already follows.
-        if (!segment) continue;
-        setInlineSimulationSource(simulation.id, {
-          fold: buildSegmentFold(simulationFold, segment),
-          modelKey: `${simulation.id}:${inlineSimulationRevision(simulation.id)}`,
-        });
-        hydrated += 1;
-      }
-      // Deliberately no `set` here. The descriptors are exactly as loaded, and
-      // recomputing `sourceFingerprint` from the document we just opened is the
-      // one change that would look harmless and disable staleness for good: a
-      // file can legitimately hold a window that is out of date.
-      return hydrated;
+    restoreOristudioCpInlineSimulationSources: async () => {
+      // Undo can bring back a window whose fold was dropped when it was deleted.
+      // Rebuild rather than having history hold folds alive: a triangulated
+      // segment fold is 240KB-2.9MB, and a hundred undoable deletions of them is
+      // tens to hundreds of MB retained for windows the user threw away.
+      const missing = get().oristudioCpInlineSimulations.filter(
+        (simulation) => getInlineSimulationSource(simulation.id) === null
+      );
+      if (missing.length === 0) return 0;
+
+      // Warm artifacts first, unlike hydrate: deleting a window does not
+      // invalidate them, so the common delete-then-undo path recomputes nothing.
+      const cached = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+      const built = buildInlineSimulationSources(missing, cached);
+      if (built > 0) return built;
+
+      // Nothing resolved. The cache may be from a *file load*, which leaves
+      // artifacts normalised to a unit square while a window's boundary is in
+      // the kernel document's 400-space — so every boundary matches nothing.
+      // Recomputing puts both in the same space; resolving nothing is the only
+      // reliable signal that they were not in it, which is exactly how
+      // `addOristudioCpInlineSimulation` detects the same hazard.
+      return buildInlineSimulationSources(missing, await get().refreshFoldArtifacts());
     },
 
     refreshOristudioCpInlineSimulation: async (id) => {

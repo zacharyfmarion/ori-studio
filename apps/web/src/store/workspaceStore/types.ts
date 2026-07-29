@@ -501,6 +501,23 @@ export interface CreasePatternSliceActions {
    * Resolves the number of windows that found their region.
    */
   hydrateOristudioCpInlineSimulations: () => Promise<number>;
+  /**
+   * Give back the fold of any window that has none — the shape undo needs after
+   * restoring a window whose fold was dropped when it was deleted.
+   *
+   * Rebuilds rather than having the history stacks hold folds alive: a
+   * triangulated segment fold measures 240KB at 500 vertices and 2.9MB at 8,000,
+   * so a hundred undoable deletions would retain tens to hundreds of MB for
+   * windows the user threw away. Uses cached fold artifacts, which deleting a
+   * window does not invalidate, so the common delete-then-undo path recomputes
+   * nothing.
+   *
+   * Like hydrate and unlike refresh, it leaves saved provenance alone: a
+   * restored window that was out of date is still out of date.
+   *
+   * Resolves the number of windows that got a fold back.
+   */
+  restoreOristudioCpInlineSimulationSources: () => Promise<number>;
   setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
   setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
     key: K,
