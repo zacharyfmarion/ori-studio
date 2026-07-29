@@ -230,17 +230,37 @@ only the simulated positions and triangles.
       record the 8.1°/chain-collapse limit there
 - [x] Unit test from the reported fold: one `M` diagonal, two faces, four creases,
       no orphaned `M`/`V` edge, no degenerate warning
-- [ ] App-path test through `foldArtifactsFromFold` (double prepare + angle-sign flip)
+- [x] App-path test through `foldArtifactsFromFold` (double prepare + angle-sign flip)
 - [x] Test that a second `prepareFoldModel` pass merges nothing, so the vertex
       count stays put — Export Folded FOLD silently drops every edge otherwise
 - [x] Confirm the golden traces and `invariants` suite are unchanged
-- [ ] Validate: `vitest run` in `packages/origami-simulator`, `npx tsc --noEmit`,
+- [x] Validate: `vitest run` in `packages/origami-simulator`, `npx tsc --noEmit`,
       web vitest, `npm run lint:web`
 - [ ] Browser check: open the reported `.osf`, inline-simulate the region, confirm
       four creases render and the model folds to a flat point
 - [ ] Browser check: Export Folded FOLD still carries `edges_assignment`
-- [ ] Optional phase 4: mirror the pass in `treemaker-fold` with Rust tests
-      (`cargo fmt`/`clippy`/`test -p treemaker-fold`)
-- [ ] Phase 2: remove `delaunayFlipRing` so earcut's output stands as upstream's
+- [x] Phase 4: mirror the pass in `treemaker-fold` with Rust tests
+      (`cargo fmt`/`clippy`/`test --workspace`)
+- [x] Note that `apps/web` consumes the simulator package's built `dist/`, so a
+      source change needs `npm run build --workspace @treemaker/origami-simulator`
+      before the app, its tests, or the dev server see it
+- [x] Phase 2: remove `delaunayFlipRing` so earcut's output stands as upstream's
       does, and drop the assertions that only described that divergence
 - [ ] Open draft PR against `main` and drive it to green CI
+
+## Outcome
+
+Four commits, one per phase, so a regression can be bisected to the decision that
+caused it:
+
+1. `fd1f601a` — the port itself, in `packages/origami-simulator`.
+2. `654116b2` — `delaunayFlipRing` removed, earcut's output kept as upstream keeps
+   it. Separate on purpose: it is the one change here that touches every pattern
+   with a face of five or more vertices, and it reverts independently.
+3. `c90564e8` — coverage on the app's own path.
+4. `833d7781` — the Rust mirror in `treemaker-fold`.
+
+Validated: 140 simulator tests (golden traces included), 1431 web tests, 115 Rust
+test binaries, `npx tsc --noEmit` on both, `npm run lint:web`, `cargo fmt --check`,
+`cargo clippy --workspace --all-targets -D warnings`. Browser verification is
+outstanding and is the author's.
