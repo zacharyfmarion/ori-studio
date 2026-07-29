@@ -402,6 +402,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     annotations: CanvasAnnotation[];
     foldedFigures: OristudioCpFoldedFigureEntry[];
     activeFoldedFigureId: string | null;
+    /** Windows before the action. Omit to capture the live list. */
+    inlineSimulations?: InlineSimulation[];
     label: string;
   }): void {
     const document = get().oristudioCpDocument;
@@ -417,6 +419,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         annotations: input.annotations,
         foldedFigures: input.foldedFigures,
         activeFoldedFigureId: input.activeFoldedFigureId,
+        // Captured on every overlay entry, not only the window ones. An
+        // annotation edit that omitted them would produce an entry whose undo
+        // leaves windows alone — which is right — but the field is also how a
+        // *later* undo past that point knows what the windows were, so a hole
+        // here would restore the wrong list.
+        inlineSimulations: input.inlineSimulations ?? get().oristudioCpInlineSimulations,
         overlayOnly: true,
         label: input.label,
         timestamp: new Date().toISOString(),
@@ -2176,6 +2184,15 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         foldedFigures: previous,
         activeFoldedFigureId:
           previousActiveId === undefined ? get().oristudioCpActiveFoldedFigureId : previousActiveId,
+        label,
+      }),
+
+    recordInlineSimulationHistory: (previous, label) =>
+      pushOverlayHistoryEntry({
+        annotations: get().oristudioCpAnnotations,
+        foldedFigures: get().oristudioCpFoldedFigures,
+        activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
+        inlineSimulations: previous,
         label,
       }),
   };

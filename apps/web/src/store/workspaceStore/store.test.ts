@@ -3147,6 +3147,87 @@ describe('workspace store slices', () => {
     expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalled();
   });
 
+  // Windows were saved to `.osf` but left out of history entirely, so deleting
+  // one and pressing undo did nothing at all.
+  describe('simulation windows in undo', () => {
+    function seedWindow() {
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+        oristudioCpInlineSimulations: [inlineSimulationFixture()],
+        oristudioCpHistoryPast: [],
+        oristudioCpHistoryFuture: [],
+      });
+      return useWorkspaceStore.getState().oristudioCpInlineSimulations;
+    }
+
+    it('restores a deleted window', async () => {
+      const before = seedWindow();
+      useWorkspaceStore.getState().recordInlineSimulationHistory(
+        [...before],
+        'Delete simulation window'
+      );
+      useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(0);
+
+      await useWorkspaceStore.getState().undo();
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations[0].id).toBe(
+        'inline-sim-1'
+      );
+    });
+
+    it('takes the window away again on redo', async () => {
+      const before = seedWindow();
+      useWorkspaceStore.getState().recordInlineSimulationHistory(
+        [...before],
+        'Delete simulation window'
+      );
+      useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
+      await useWorkspaceStore.getState().undo();
+      await useWorkspaceStore.getState().redo();
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(0);
+    });
+
+    it('brings a restored window back unfocused', async () => {
+      // History restores content, not what was selected — the same reason undo
+      // drops the annotation selection. An unfocused window is also one whose
+      // solver is not running, which is right for one just reappearing.
+      const before = seedWindow();
+      useWorkspaceStore.getState().recordInlineSimulationHistory(
+        [...before],
+        'Delete simulation window'
+      );
+      useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
+
+      await useWorkspaceStore.getState().undo();
+      expect(
+        useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId
+      ).toBeNull();
+    });
+
+    it('leaves live windows alone for an entry that never captured them', async () => {
+      // Entries written before windows joined the stack have no
+      // `inlineSimulations`; restoring `undefined` over the live list would wipe
+      // the user's windows. Same rule, same reason, as folded figures.
+      seedWindow();
+      const legacyEntry = {
+        document: useWorkspaceStore.getState().oristudioCpDocument!.document,
+        selection: emptyOristudioCpSelection(),
+        annotations: [],
+        foldedFigures: [],
+        activeFoldedFigureId: null,
+        overlayOnly: true,
+        label: 'Move image',
+        timestamp: '2026-01-01T00:00:00.000Z',
+      };
+      useWorkspaceStore.setState({ oristudioCpHistoryPast: [legacyEntry as never] });
+
+      await useWorkspaceStore.getState().undo();
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+    });
+  });
+
   it('marks the project dirty for folded figure edits so they cannot be lost silently', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({

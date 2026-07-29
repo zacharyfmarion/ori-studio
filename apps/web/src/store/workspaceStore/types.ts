@@ -89,6 +89,17 @@ export interface OristudioCpHistoryEntry {
   foldedFigures: OristudioCpFoldedFigureEntry[];
   activeFoldedFigureId: string | null;
   /**
+   * Inline simulation windows at the captured moment.
+   *
+   * Only the descriptors — plain JSON, and the same objects across entries that
+   * did not change one, so the structural sharing that bounds folded-figure
+   * memory applies here too. The fold each window's solver runs is *not* here and
+   * must not be: it is 240KB-2.9MB, and history would keep one alive per
+   * undoable deletion. It is rebuilt on restore instead — see
+   * `restoreOristudioCpInlineSimulationSources`.
+   */
+  inlineSimulations?: InlineSimulation[];
+  /**
    * True when the entry captures an *overlay-layer-only* change: annotations
    * (add/move/resize/rotate/crop/edit/delete) and/or folded figures (place,
    * recolour, refold, duplicate, delete). Folding never mutates the CP document,
@@ -609,6 +620,16 @@ export interface CreasePatternSliceActions {
     label: string,
     previousActiveId?: string | null
   ) => void;
+  /**
+   * Record a simulation-window change into the CP undo history. `previous` is the
+   * window list *before* the action; the store already holds the result. The
+   * third overlay layer's counterpart to {@link recordAnnotationHistory}.
+   *
+   * Windows never mutate the wasm document — the fold runs entirely web-side — so
+   * like the other two this is always an `overlayOnly` entry, which is the branch
+   * of undo that swaps state without reloading the kernel.
+   */
+  recordInlineSimulationHistory: (previous: InlineSimulation[], label: string) => void;
 }
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;

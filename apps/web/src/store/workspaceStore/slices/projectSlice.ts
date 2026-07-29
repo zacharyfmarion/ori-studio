@@ -73,6 +73,7 @@ import {
   textDocFromPlainText,
 } from '../../../cp-workspace/annotations/textAnnotation';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
+import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   activeNativeDocument,
@@ -196,7 +197,8 @@ function cpHistoryEntry(
   selection: OristudioCpSelection,
   annotations: CanvasAnnotation[],
   foldedFigures: OristudioCpFoldedFigureEntry[],
-  activeFoldedFigureId: string | null
+  activeFoldedFigureId: string | null,
+  inlineSimulations: InlineSimulation[]
 ): OristudioCpHistoryEntry {
   // The entry keeps these figures' wasm handles alive for as long as undo can
   // reach it — see cp-workspace/foldedFigureHandles.
@@ -210,6 +212,10 @@ function cpHistoryEntry(
     // read as out of date (see lib/foldedFigureStaleness.ts).
     foldedFigures,
     activeFoldedFigureId,
+    // Same reason as the figures above: undo restores the simulation windows the
+    // crease edit was made alongside, with the provenance that decides whether
+    // they read as out of date.
+    inlineSimulations,
     label,
     timestamp: nowIso(),
   };
@@ -681,7 +687,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                 previousSelection,
                 get().oristudioCpAnnotations,
                 get().oristudioCpFoldedFigures,
-                get().oristudioCpActiveFoldedFigureId
+                get().oristudioCpActiveFoldedFigureId,
+                get().oristudioCpInlineSimulations
               ),
             ]
           : get().oristudioCpHistoryPast,
@@ -1755,7 +1762,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                     previousSelection,
                     get().oristudioCpAnnotations,
                     get().oristudioCpFoldedFigures,
-                    get().oristudioCpActiveFoldedFigureId
+                    get().oristudioCpActiveFoldedFigureId,
+                    get().oristudioCpInlineSimulations
                   ),
                 ]
               : get().oristudioCpHistoryPast
@@ -1896,7 +1904,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                 previousSelection,
                 get().oristudioCpAnnotations,
                 get().oristudioCpFoldedFigures,
-                get().oristudioCpActiveFoldedFigureId
+                get().oristudioCpActiveFoldedFigureId,
+                get().oristudioCpInlineSimulations
               ),
           ],
           oristudioCpHistoryFuture: [],

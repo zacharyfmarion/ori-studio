@@ -230,9 +230,12 @@ Tests: `store.test.ts`, `foldIsNotDocumentState.test.ts`,
       afterwards resolves nothing. Handled with the same detection
       `addOristudioCpInlineSimulation` already uses: try warm, and recompute when
       nothing resolved. Caught by a test failing, not by review
-- [ ] Phase 3: `inlineSimulations` on the history entry, restored in both undo
-      and redo branches, with the missing-field rule tested (an old entry leaves
-      live windows alone)
+- [x] Phase 3: `inlineSimulations` on the history entry, captured by every
+      producer (both `cpHistoryEntry` builders and `pushOverlayHistoryEntry`)
+      and restored in all four undo/redo branches, plus a
+      `recordInlineSimulationHistory` action beside the other two overlay
+      layers'. Missing-field rule tested; restore verified to fail when the
+      helper is stubbed out
 - [ ] Phase 4: add, delete, gesture and refresh push entries; scrub/play/focus
       demonstrably do not
 - [ ] Retire the three stale "session-only" comments
