@@ -327,7 +327,22 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           solver: { ...solverOptions, foldProfile },
           preferGpu: wantsGpu,
         });
-        if (cancelled || generation !== generationRef.current) return;
+        // A load that has been cancelled or superseded still *made* a session in
+        // the worker — `load` registers it before it returns. Abandoning the
+        // token here leaks it: nothing else holds a reference, so it stays
+        // resident until the cap evicts it, taking a live window's session with
+        // it. StrictMode makes that one leak per mount, which halved the
+        // effective residency cap and had every eleventh window kill the first.
+        //
+        // Released through the `client` captured above, not `releaseToken`: that
+        // reads `clientRef.current`, and on unmount the retaining effect — which
+        // is declared first, so it cleans up first — has already nulled it. The
+        // release would silently no-op in exactly the StrictMode case that needs
+        // it most.
+        if (cancelled || generation !== generationRef.current) {
+          void client.release(info.token).catch(() => undefined);
+          return;
+        }
         // Each load makes a new model; the one this runtime had is now nobody's.
         // Released only once the replacement exists, so the window is never
         // briefly backed by nothing.
