@@ -10,11 +10,16 @@
 /**
  * How many simulations can be live at once.
  *
- * Two things enforce this and they are the same limit, which is why it is one
- * number: the UI refuses to open more inline simulation windows, and the worker
- * keeps at most this many models resident. Splitting them is a silent failure —
- * a residency cap below the window cap means open windows evict each other's
- * models and come back stale, which reads as a bug rather than a limit.
+ * Two things are derived from this: the UI refuses to open more inline
+ * simulation windows, and the worker keeps this many models resident *plus one*
+ * — see MAX_LIVE_SESSIONS, where the spare slot absorbs the overlap while a
+ * window reloads. Residency must never come out *below* the window cap: that
+ * means open windows evict each other's models and come back stale, which reads
+ * as a bug rather than a limit.
+ *
+ * It read that way for real. A leak in the runtime's cancellation path orphaned
+ * one session per window, so residency was effectively half of this and every
+ * eleventh window killed the first.
  *
  * What scales with it: worker memory (a prepared model and solver state per
  * simulation) and one draw per simulation per camera frame. Render-target churn
