@@ -1485,25 +1485,18 @@ export function CreasePatternPanel() {
   const annotationsInteractive =
     cpToolState.phase !== 'active' || allowsDirectEntitySelection(activeCpCommand?.operationId);
 
-  // Delete/Backspace removes the selected canvas object, whichever kind holds the
-  // selection. Only while objects are interactive, and ignored when typing in a
-  // field so it never eats text edits.
-  useEffect(() => {
-    if (!annotationsInteractive || !selectedCanvasObjectId) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
-        return;
-      }
-      event.preventDefault();
-      if (oristudioCpSelectedAnnotationId) deleteSelectedImage();
-      else if (inlineSimulations.isInlineSimulationId(selectedCanvasObjectId)) {
-        inlineSimulations.remove(selectedCanvasObjectId);
-      } else folded.remove(selectedCanvasObjectId);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+  /**
+   * Delete the selected canvas object, whichever kind holds the selection.
+   * Reports whether there was one, since that is what decides if Delete belongs
+   * to the viewport at all — see `viewport.delete` in the shortcut registry.
+   */
+  const deleteSelectedCanvasObject = useCallback((): boolean => {
+    if (!annotationsInteractive || !selectedCanvasObjectId) return false;
+    if (oristudioCpSelectedAnnotationId) deleteSelectedImage();
+    else if (inlineSimulations.isInlineSimulationId(selectedCanvasObjectId)) {
+      inlineSimulations.remove(selectedCanvasObjectId);
+    } else folded.remove(selectedCanvasObjectId);
+    return true;
   }, [
     annotationsInteractive,
     selectedCanvasObjectId,
@@ -2770,12 +2763,37 @@ export function CreasePatternPanel() {
     pendingSquareBisectorLineIds.length,
   ]);
 
+  /**
+   * Drop the most recent measurement, while the measure tool is active and
+   * nothing is selected. With a selection, Delete belongs to the crease delete —
+   * quietly stealing it would risk the geometry instead of a readout.
+   */
+  const dropLastMeasurement = useCallback((): boolean => {
+    if (!editableCp || editableSelectionSize > 0) return false;
+    if (cpMeasurements.length === 0) return false;
+    if (!isCpMeasurementOperation(cpToolState.activeOperationId)) return false;
+    setCpMeasurements((current) => current.slice(0, -1));
+    setCpHoveredMeasureIndex(null);
+    return true;
+  }, [
+    editableCp,
+    editableSelectionSize,
+    cpMeasurements.length,
+    cpToolState.activeOperationId,
+  ]);
+
   const handleViewportShortcut = useCallback(
-    (id: ViewportShortcutId) => {
+    (id: ViewportShortcutId): boolean | void => {
       switch (id) {
         case 'viewport.cancel':
           cancelActiveCpInput();
           break;
+        // Two viewport verbs share Delete, and both decline when they do not
+        // apply so the chord falls through to `edit.delete` and deletes creases.
+        // A selected canvas object outranks a measurement: it is the thing
+        // currently showing handles.
+        case 'viewport.delete':
+          return deleteSelectedCanvasObject() || dropLastMeasurement();
         case 'viewport.simulateSelectionInline':
           void simulateSelectionInline();
           break;
@@ -2805,7 +2823,13 @@ export function CreasePatternPanel() {
           break;
       }
     },
-    [cancelActiveCpInput, sendWebglCameraCommand, simulateSelectionInline]
+    [
+      cancelActiveCpInput,
+      sendWebglCameraCommand,
+      simulateSelectionInline,
+      deleteSelectedCanvasObject,
+      dropLastMeasurement,
+    ]
   );
 
   useEffect(
@@ -2817,48 +2841,6 @@ export function CreasePatternPanel() {
     if (!diagnosticStatus) setDiagnosticHudExpanded(false);
   }, [diagnosticStatus]);
 
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !hasCreasePattern) return undefined;
-
-    // Backspace drops the most recent measurement while the measure tool is active.
-    // Only with nothing selected: with a selection, Delete/Backspace is the crease
-    // delete shortcut, and quietly stealing it would risk the geometry instead of a
-    // readout. preventDefault keeps the global shortcut from also firing.
-    //
-    // Still a container listener rather than a registered shortcut, unlike Escape
-    // above it: `edit.delete` owns this chord at global scope and viewport scope
-    // resolves first, so a viewport binding would shadow crease deletion outright.
-    // Giving the dispatcher a way for an executor to decline is what would let this
-    // move; until then it carries the same focus caveat as the canvas-object delete
-    // beside it (see AGENTS.md > "Panel components").
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        (event.key === 'Backspace' || event.key === 'Delete') &&
-        editableCp &&
-        !isViewportInteractiveTarget(event.target) &&
-        editableSelectionSize === 0 &&
-        cpMeasurements.length > 0 &&
-        isCpMeasurementOperation(cpToolState.activeOperationId)
-      ) {
-        event.preventDefault();
-        setCpMeasurements((current) => current.slice(0, -1));
-        setCpHoveredMeasureIndex(null);
-      }
-    };
-
-    container.addEventListener('keydown', onKeyDown);
-    return () => {
-      container.removeEventListener('keydown', onKeyDown);
-    };
-  }, [
-    cpMeasurements.length,
-    cpToolState.activeOperationId,
-    editableCp,
-    editableSelectionSize,
-    hasCreasePattern,
-  ]);
 
   useEffect(() => {
     if (!editableCp) {
