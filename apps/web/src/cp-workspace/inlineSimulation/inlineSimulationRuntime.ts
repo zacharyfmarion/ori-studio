@@ -25,8 +25,32 @@ export interface InlineSimulationSource {
 
 const sources = new Map<string, InlineSimulationSource>();
 
+/**
+ * Woken when a window's fold appears or goes away.
+ *
+ * Creating a window sets its source *before* the store write that re-renders the
+ * layer, so the fold is already there by the time anything looks. Loading a file
+ * cannot do that: the descriptors have to be in the store first, and the folds
+ * are rebuilt from the document afterwards — deliberately without touching the
+ * store, since writing to it would mean recomputing provenance. Without this the
+ * layer read `getInlineSimulationSource` once, found nothing, and never looked
+ * again: a restored window was an empty frame forever.
+ */
+const sourceListeners = new Set<() => void>();
+
+function notifySources(): void {
+  for (const listener of sourceListeners) listener();
+}
+
+/** Subscribe to folds appearing or being dropped. For `useSyncExternalStore`. */
+export function subscribeInlineSimulationSources(listener: () => void): () => void {
+  sourceListeners.add(listener);
+  return () => sourceListeners.delete(listener);
+}
+
 export function setInlineSimulationSource(id: string, source: InlineSimulationSource): void {
   sources.set(id, source);
+  notifySources();
 }
 
 export function getInlineSimulationSource(id: string): InlineSimulationSource | null {
@@ -36,12 +60,14 @@ export function getInlineSimulationSource(id: string): InlineSimulationSource | 
 export function clearInlineSimulationSource(id: string): void {
   sources.delete(id);
   foldPercents.delete(id);
+  notifySources();
 }
 
 /** Drop every source — used when the document is replaced. */
 export function clearAllInlineSimulationSources(): void {
   sources.clear();
   foldPercents.clear();
+  notifySources();
 }
 
 /**

@@ -469,12 +469,12 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     [retarget]
   );
 
+  // One round-trip, not two: the session zeroes the fold target as part of
+  // resetting, so there is no window in which the worker holds flat paper and a
+  // stale target and springs the two together.
   const reset = useCallback(() => {
     setPlaying(false);
-    retarget(async (client) => {
-      await client.reset(tokenRef.current);
-      await client.setFoldPercent(0, tokenRef.current);
-    });
+    retarget((client) => client.reset(tokenRef.current));
   }, [retarget]);
 
   // Orbit/zoom and view-setting changes forward to the worker, which redraws

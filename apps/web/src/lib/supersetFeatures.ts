@@ -1,5 +1,6 @@
 import type { CpImage } from '../cp-workspace/images/cpImage';
 import type { TextAnnotation } from '../cp-workspace/annotations/textAnnotation';
+import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
 
 /**
  * Registry of *superset features* — capabilities Ori Studio's native `.osf`
@@ -24,6 +25,11 @@ export interface SupersetPresence {
    * feature dropped by every non-`.osf` format.
    */
   richText: readonly TextAnnotation[];
+  /**
+   * Inline simulation windows. Placement and the region each was taken from;
+   * no Oriedita format has anywhere to put either, so they are dropped whole.
+   */
+  inlineSimulations: readonly InlineSimulation[];
 }
 
 interface SupersetFeature {
@@ -57,6 +63,12 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     id: 'richText',
     label: 'Rich text formatting',
     count: (presence) => presence.richText.length,
+    droppedByFormats: ALL_LOSSY_FORMATS,
+  },
+  {
+    id: 'inlineSimulations',
+    label: 'Simulation windows',
+    count: (presence) => presence.inlineSimulations.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
   },
 ];
