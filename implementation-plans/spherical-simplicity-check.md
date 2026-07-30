@@ -392,6 +392,59 @@ flat-flap vertex came back `Simple` while the real ones came back
 coincident corners, and collinear arcs (which is what an *unequal* pair of
 sectors produces instead).
 
+### Q12 — stacking narrows the answer, it does not replace it
+
+Asked whether the reflex fix would also recover the box-pleated case. It would
+not — that model has **zero** reflex sectors, widest 90 degrees — but the
+question was pointing at something real.
+
+Declining the entire vertex on any sign of stacking is stronger than the physics
+requires. **Layer ordering can separate two coincident layers; it cannot un-cross
+a transverse crossing.** Two surfaces meeting at an angle intersect however the
+stacked layers are ordered, so a crossing away from the stacked geometry is still
+a genuine detection — and the blanket rule threw it away.
+
+The trace on the reported model shows how much was being discarded:
+
+| | flagged |
+| --- | --- |
+| original | 30 |
+| after the shared-corner fix | 1 |
+| after the blanket decline | 0, all 52 declined |
+
+The rule is now per-*contact*. A meeting is set aside when it sits at a stacked
+point, or involves an arc adjacent to a crease at +/-180 — those are the two ways
+a flat-folded sector shows up, and the second is the one with no coincident point
+to find. Every other meeting still counts.
+
+Pinned by two degree-7 fixtures with crease 0 driven to 180 and a crossing
+between arcs nowhere near it, closing to 1e-13. Verified by reverting: both fail
+against the blanket rule.
+
+**This is what decides whether the check earns its place.** Reported earlier as
+"inert on flat-folded stacks, which is most real models" — that was an artefact
+of the over-broad rule, not of the geometry. It can now catch a real crossing on
+a box-pleated design that happens to have flaps.
+
+The reported model still reports nothing, which remains correct: all 52 of its
+vertices are stacked with no crossing found elsewhere.
+
+### Q13 — reflex sectors are declined, not answered
+
+A sector wider than half a turn is built as its complement: the polygon side is
+the *minor* great-circle arc, so 240 degrees becomes a 120 degree arc going the
+wrong way round, and every containment test in that sector asks about the wrong
+region. Measured `[240, 30, 40, 50] -> arcs [120, 30, 40, ...]`.
+
+This document had already seen it and waved it through — the arc-length test
+carries `if sector > 180 { 360 - sector }` written as a fact about spherical
+geometry when it was the bug, encoded as an expectation.
+
+Declined via a fourth verdict rather than fixed. Handling it properly means
+testing the major arc when the sector is reflex, which is a small change that
+wants closing reflex fixtures to validate. It needs an interior vertex with every
+crease inside a half-plane, which is legal but unusual.
+
 ### Verdict
 
 Build it — with **transversality filtering, which was not in the original

@@ -231,38 +231,55 @@ const TRANSVERSE_EPSILON: f64 = 1e-9;
 
 /// What the folded vertex link says about the paper near a vertex.
 ///
-/// Three outcomes rather than two, because "not simple" splits into a real
-/// failure and a question this check cannot answer.
+/// Four outcomes, because "not simple" splits into a real failure and two
+/// separate questions this check cannot answer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinkVerdict {
     /// The link is an embedded closed curve: the paper is locally embedded.
     Simple,
-    /// Two arcs cross at an angle away from any shared corner, so the paper
-    /// passes through itself.
-    SelfIntersects { crossings: usize },
-    /// Somewhere two pieces of paper lie against each other. Whether they
-    /// actually collide is then decided by **which layer is on top**, and layer
-    /// ordering is not carried by the link — so this declines.
+    /// Two arcs cross at an angle, away from anywhere layers are stacked, so the
+    /// paper passes through itself.
     ///
-    /// This is not a rare corner. A crease at +/-180 folds a sector flat and
-    /// produces it every time, in one of two forms: the creases either side land
-    /// on the same direction when the sectors match, and their arcs overlap when
-    /// they do not. On a box-pleated model with flat-folded flaps that can be
-    /// every vertex — measured at 52 of 52 on a physically folded test model.
+    /// Carries no count on purpose. An earlier version reported one, nothing
+    /// read it, and the number was arc *pairs* that met rather than crossing
+    /// points — a figure that promised more precision than it had.
+    SelfIntersects,
+    /// Somewhere two pieces of paper lie against each other, and nothing else in
+    /// the link was found to cross. Whether the stacked pieces collide is decided
+    /// by **which layer is on top**, which the link does not carry.
     ///
-    /// Answering anyway is what the first version did, and it reported 30
-    /// crossings on paper that folds.
+    /// Not a rare corner: a crease at +/-180 folds a sector flat and produces it
+    /// every time, in one of two forms — the creases either side land on the same
+    /// direction when the sectors match, and their arcs overlap when they do not.
+    /// On a box-pleated model with flat-folded flaps that is typically every
+    /// vertex, measured at 52 of 52 on a physically folded test model.
+    ///
+    /// **This does not suppress a crossing found elsewhere.** Layer ordering can
+    /// separate two coincident layers; it cannot un-cross a transverse crossing.
+    /// A first attempt at this declined the whole vertex the moment any stacking
+    /// appeared, which made the check inert on exactly the designs people build.
     StackedLayers,
+    /// A sector wider than 180 degrees, which this construction cannot model.
+    ///
+    /// The polygon side between two creases is the *minor* great-circle arc, so a
+    /// reflex sector is built as its complement — a 240 degree sector becomes a
+    /// 120 degree arc going the wrong way round the sphere. Every containment
+    /// test in that sector then asks about the wrong region.
+    ///
+    /// Rare (it needs an interior vertex with every crease inside a half-plane)
+    /// and declined rather than fixed, because handling it means testing the
+    /// major arc and that wants fixtures this has not got.
+    ReflexSector,
 }
 
 impl LinkVerdict {
     /// Whether the paper is known to pass through itself.
     ///
-    /// `StackedLayers` is **not** a self-intersection: it is the absence of an
-    /// answer, and it must read as "no complaint" everywhere a verdict is acted
-    /// on.
+    /// `StackedLayers` and `ReflexSector` are **not** self-intersections: they
+    /// are the absence of an answer, and must read as "no complaint" everywhere
+    /// a verdict is acted on.
     pub fn self_intersects(&self) -> bool {
-        matches!(self, Self::SelfIntersects { .. })
+        matches!(self, Self::SelfIntersects)
     }
 }
 
@@ -275,11 +292,22 @@ impl LinkVerdict {
 /// than four creases there is no non-adjacent pair, so a spherical triangle is
 /// rigid but never self-crossing.
 ///
-/// Stacking is settled by [`has_stacked_layers`] before any crossing is looked
-/// for, which is what lets the loop below treat every meeting as a genuine
-/// crossing: with no coincident corners and no collinear pair, two non-adjacent
-/// arcs can only meet in each other's interior.
+/// # Stacking narrows the answer, it does not replace it
+///
+/// Where layers are stacked the link cannot say whether the paper collides, so
+/// meetings *at* stacked geometry are set aside. Meetings anywhere else still
+/// count: two surfaces crossing at an angle intersect however the stacked layers
+/// are ordered.
+///
+/// The distinction matters more than it sounds. Declining the whole vertex on
+/// any sign of stacking — which is what the first version did — silences the
+/// check on every box-pleated design with a flat-folded flap, which is most of
+/// them.
 pub fn vertex_link_verdict(fan: &VertexFan) -> LinkVerdict {
+    if has_reflex_sector(fan) {
+        return LinkVerdict::ReflexSector;
+    }
+
     let points = vertex_link_polygon(fan);
     let n = points.len();
     if n < 4 {
@@ -290,48 +318,138 @@ pub fn vertex_link_verdict(fan: &VertexFan) -> LinkVerdict {
         .map(|i| cross(points[i], points[(i + 1) % n]))
         .collect();
 
-    // Settled first, and deliberately not inferred from the crossing test below.
-    // A shared corner sits exactly on an arc endpoint, which is the worst case
-    // for `within_arc`'s exact sign comparison — coincident points differ by
-    // ~1e-16 and the test can fall either way. Deciding it from the geometry
-    // directly keeps the answer off that knife edge.
-    if has_stacked_layers(fan, &points, &normals) {
-        return LinkVerdict::StackedLayers;
-    }
+    // Settled from the geometry rather than inferred from the crossing test. A
+    // shared corner sits exactly on an arc endpoint, the worst case for
+    // `within_arc`'s exact sign comparison — coincident points differ by ~1e-16
+    // and the test falls either way — so the stacked *points* are identified
+    // directly and the crossing loop consults that list.
+    let stacked_points = stacked_point_set(&points);
+    let stacked_arcs = stacked_arc_set(fan);
+    let mut stacking = !stacked_points.is_empty()
+        || !stacked_arcs.is_empty()
+        || has_stacked_layers(fan, &points, &normals);
 
-    let mut crossings = 0usize;
     for i in 0..n {
         for j in (i + 1)..n {
             if arcs_are_adjacent(i, j, n) {
                 continue;
             }
             let (first, second) = (normals[i], normals[j]);
-            // Safe to normalise: `has_stacked_layers` scans the same
-            // non-adjacent pairs and returns early on a collinear one, so the
-            // scale here is bounded away from zero. That is why both loops must
-            // use `arcs_are_adjacent` rather than repeating the condition.
+            let (first_norm, second_norm) = (norm(first), norm(second));
+            if first_norm < TRANSVERSE_EPSILON || second_norm < TRANSVERSE_EPSILON {
+                stacking = true;
+                continue;
+            }
+            // Collinear arcs overlap rather than cross, and normalising their
+            // near-zero cross product would be meaningless anyway.
             let axis = cross(first, second);
             let scale = norm(axis);
+            if scale / (first_norm * second_norm) < TRANSVERSE_EPSILON {
+                stacking = true;
+                continue;
+            }
+
             let meeting = [axis[0] / scale, axis[1] / scale, axis[2] / scale];
             let opposite = [-meeting[0], -meeting[1], -meeting[2]];
-            // No layers stacked, so every corner is distinct and any meeting is
-            // interior to both arcs: a genuine crossing.
             for candidate in [meeting, opposite] {
-                if within_arc(candidate, points[i], points[(i + 1) % n], first)
-                    && within_arc(candidate, points[j], points[(j + 1) % n], second)
+                if !within_arc(candidate, points[i], points[(i + 1) % n], first)
+                    || !within_arc(candidate, points[j], points[(j + 1) % n], second)
                 {
-                    crossings += 1;
-                    break;
+                    continue;
+                }
+                // A meeting where layers are stacked is the ambiguous case: it
+                // may be two creases pointing the same way, or an arc lying along
+                // another, and only the layer order separates them. Anywhere
+                // else, a meeting is the paper crossing itself.
+                if is_at_stacked_point(candidate, &stacked_points)
+                    || stacked_arcs.contains(&i)
+                    || stacked_arcs.contains(&j)
+                {
+                    stacking = true;
+                } else {
+                    return LinkVerdict::SelfIntersects;
                 }
             }
         }
     }
 
-    if crossings > 0 {
-        LinkVerdict::SelfIntersects { crossings }
+    if stacking {
+        LinkVerdict::StackedLayers
     } else {
         LinkVerdict::Simple
     }
+}
+
+/// Does any sector span more than half a turn?
+///
+/// Sectors are the gaps between consecutive creases in angular order, plus the
+/// wrap from the last back to the first.
+fn has_reflex_sector(fan: &VertexFan) -> bool {
+    let n = fan.creases.len();
+    if n == 0 {
+        return false;
+    }
+    (0..n).any(|i| {
+        let mut sector = fan.creases[(i + 1) % n].0 - fan.creases[i].0;
+        if sector <= 0.0 {
+            sector += std::f64::consts::TAU;
+        }
+        sector > std::f64::consts::PI + TRANSVERSE_EPSILON
+    })
+}
+
+/// Link points that share a direction with another link point.
+///
+/// Two creases pointing the same way once folded is the signature of the paper
+/// between them being folded flat, so these are the directions where layers sit
+/// and a meeting cannot be judged.
+fn stacked_point_set(points: &[Vec3]) -> Vec<Vec3> {
+    let mut stacked = Vec::new();
+    for (index, point) in points.iter().enumerate() {
+        if points
+            .iter()
+            .enumerate()
+            .any(|(other, candidate)| other != index && coincident(*point, *candidate))
+        {
+            stacked.push(*point);
+        }
+    }
+    stacked
+}
+
+/// Arcs lying against another layer of paper.
+///
+/// A crease at +/-180 folds the two sectors either side onto each other, so the
+/// two arcs meeting at that crease are stacked. When the sectors match this also
+/// shows up as coincident corners, which [`stacked_point_set`] catches — but when
+/// they do not, the shorter arc simply lies along the longer one and there is no
+/// coincident *point* to find. That case is why this exists.
+///
+/// Only the arcs either side of a folded crease are set aside. Every other pair
+/// is still judged, which is the whole point of narrowing rather than declining.
+fn stacked_arc_set(fan: &VertexFan) -> Vec<usize> {
+    // Storage resolves to 1e-7 degrees and an exact 180 normalises to `None`, so
+    // this asks "is this crease classic", not "is it nearly flat".
+    const FLAT_EPSILON_DEGREES: f64 = 1e-6;
+    let n = fan.creases.len();
+    let mut arcs = Vec::new();
+    for (index, (_, rho)) in fan.creases.iter().enumerate() {
+        if (rho.abs().to_degrees() - 180.0).abs() < FLAT_EPSILON_DEGREES {
+            arcs.push((index + n - 1) % n);
+            arcs.push(index);
+        }
+    }
+    arcs.sort_unstable();
+    arcs.dedup();
+    arcs
+}
+
+fn coincident(a: Vec3, b: Vec3) -> bool {
+    norm([a[0] - b[0], a[1] - b[1], a[2] - b[2]]) < TRANSVERSE_EPSILON
+}
+
+fn is_at_stacked_point(candidate: Vec3, stacked: &[Vec3]) -> bool {
+    stacked.iter().any(|point| coincident(candidate, *point))
 }
 
 /// Is any part of the folded paper lying against another part?

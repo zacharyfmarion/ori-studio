@@ -412,6 +412,96 @@ fn a_folded_crease_declines_whatever_the_sectors() {
     }
 }
 
+/// Stacked layers must narrow the answer, not erase it.
+///
+/// The value of the whole distinction rests on this: a vertex can carry a
+/// flat-folded flap *and* have the paper cross itself somewhere else, and layer
+/// ordering cannot rescue that. Ordering separates two coincident layers; it
+/// cannot un-cross a transverse crossing.
+///
+/// An earlier version declined the entire vertex on any sign of stacking, which
+/// silenced the check on every box-pleated design with a flap — which is most of
+/// them. These two fixtures are degree-7, closing to 1e-13, with crease 0 driven
+/// to 180 and a crossing between arcs nowhere near it.
+#[test]
+fn a_crossing_away_from_stacked_layers_is_still_reported() {
+    let cases: [(&[f64], &[f64]); 2] = [
+        (
+            &[
+                36.250563656573,
+                75.895995843563,
+                48.656476819793,
+                64.544449498551,
+                48.038721098373,
+                37.098931977857,
+                49.514861105291,
+            ],
+            &[
+                180.0,
+                -99.611478591357,
+                -152.326789501432,
+                -44.018343306138,
+                163.681140166035,
+                149.149142825936,
+                174.182172500507,
+            ],
+        ),
+        (
+            &[
+                57.418718858827,
+                54.429636241535,
+                30.498496184823,
+                44.627096367388,
+                63.635437022465,
+                55.041981649456,
+                54.348633675506,
+            ],
+            &[
+                180.0,
+                -77.954048038993,
+                -20.932233246790,
+                71.690548510143,
+                153.255799352913,
+                -34.266605487195,
+                84.707821604941,
+            ],
+        ),
+    ];
+    for (sectors, rho) in cases {
+        let fan = fan(sectors, rho);
+        let residual = vertex_closure_residual(&fan).to_degrees();
+        assert!(residual < 1e-6, "fixture must close, is {residual} off");
+        assert_eq!(
+            vertex_link_verdict(&fan),
+            LinkVerdict::SelfIntersects,
+            "a crossing away from the flat-folded crease must survive the stacking rule"
+        );
+    }
+}
+
+/// A sector wider than half a turn is built as its complement — a 240 degree
+/// sector becomes a 120 degree arc going the wrong way round — so every
+/// containment test in it asks about the wrong region. Declined rather than
+/// answered wrongly.
+#[test]
+fn a_reflex_sector_is_not_answered() {
+    for sectors in [
+        vec![240.0, 30.0, 40.0, 50.0],
+        vec![30.0, 240.0, 40.0, 50.0],
+        vec![30.0, 40.0, 50.0, 240.0],
+    ] {
+        let rho = vec![70.0, -50.0, 90.0, -40.0];
+        assert_eq!(
+            vertex_link_verdict(&fan(&sectors, &rho)),
+            LinkVerdict::ReflexSector,
+            "{sectors:?}: a reflex sector must decline"
+        );
+    }
+    // The complement of each is convex and must still be answered.
+    let convex = fan(&[150.0, 60.0, 70.0, 80.0], &[70.0, -50.0, 90.0, -40.0]);
+    assert_ne!(vertex_link_verdict(&convex), LinkVerdict::ReflexSector);
+}
+
 /// 179.999 is *not* folded flat, so the fold-back test must not swallow it.
 /// Without this the fix above could be "widened until the bug goes away", at the
 /// cost of the whole near-flat range Q4 measured as well conditioned.
