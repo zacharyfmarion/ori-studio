@@ -167,6 +167,7 @@
     "changeFoldedModel": "Modifier le modèle plié",
     "commandFailed": "Échec de la commande",
     "couldNotOpenForEditing": "Ce patron de plis n'a pas pu être ouvert pour modification.",
+    "couldNotOpenForEditingHint": "Affiché en lecture seule. Vous pouvez toujours le visualiser, le plier et l’exporter.",
     "cropImage": "Rogner l'image",
     "current_one": "Actuel {{count}}",
     "current_many": "Actuel {{count}}",

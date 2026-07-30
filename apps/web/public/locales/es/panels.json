@@ -167,6 +167,7 @@
     "changeFoldedModel": "Cambiar modelo plegado",
     "commandFailed": "El comando falló",
     "couldNotOpenForEditing": "No se pudo abrir este patrón de pliegues para editarlo.",
+    "couldNotOpenForEditingHint": "Se muestra en modo de solo lectura. Aún puedes verlo, plegarlo y exportarlo.",
     "cropImage": "Recortar imagen",
     "current_one": "Actual {{count}}",
     "current_many": "Actual {{count}}",

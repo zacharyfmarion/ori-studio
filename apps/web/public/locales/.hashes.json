@@ -1935,7 +1935,8 @@
     "toasts:fileDrop.ignoredFiles": "55a746b142dc",
     "errors:fileDrop.dialogOpen": "7d5d5c6bac6d",
     "errors:fileDrop.imageNotHere": "651e9932f749",
-    "errors:fileDrop.unsupportedFile": "5d756c407b3b"
+    "errors:fileDrop.unsupportedFile": "5d756c407b3b",
+    "panels:creasePattern.couldNotOpenForEditingHint": "493db1fa9279"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3873,7 +3874,8 @@
     "toasts:fileDrop.ignoredFiles": "55a746b142dc",
     "errors:fileDrop.dialogOpen": "7d5d5c6bac6d",
     "errors:fileDrop.imageNotHere": "651e9932f749",
-    "errors:fileDrop.unsupportedFile": "5d756c407b3b"
+    "errors:fileDrop.unsupportedFile": "5d756c407b3b",
+    "panels:creasePattern.couldNotOpenForEditingHint": "493db1fa9279"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5837,7 +5839,8 @@
     "toasts:fileDrop.ignoredFiles": "55a746b142dc",
     "errors:fileDrop.dialogOpen": "7d5d5c6bac6d",
     "errors:fileDrop.imageNotHere": "651e9932f749",
-    "errors:fileDrop.unsupportedFile": "5d756c407b3b"
+    "errors:fileDrop.unsupportedFile": "5d756c407b3b",
+    "panels:creasePattern.couldNotOpenForEditingHint": "493db1fa9279"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7801,7 +7804,8 @@
     "toasts:fileDrop.ignoredFiles": "55a746b142dc",
     "errors:fileDrop.dialogOpen": "7d5d5c6bac6d",
     "errors:fileDrop.imageNotHere": "651e9932f749",
-    "errors:fileDrop.unsupportedFile": "5d756c407b3b"
+    "errors:fileDrop.unsupportedFile": "5d756c407b3b",
+    "panels:creasePattern.couldNotOpenForEditingHint": "493db1fa9279"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9765,7 +9769,8 @@
     "toasts:fileDrop.ignoredFiles": "55a746b142dc",
     "errors:fileDrop.dialogOpen": "7d5d5c6bac6d",
     "errors:fileDrop.imageNotHere": "651e9932f749",
-    "errors:fileDrop.unsupportedFile": "5d756c407b3b"
+    "errors:fileDrop.unsupportedFile": "5d756c407b3b",
+    "panels:creasePattern.couldNotOpenForEditingHint": "493db1fa9279"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11729,7 +11734,8 @@
     "toasts:fileDrop.ignoredFiles": "55a746b142dc",
     "errors:fileDrop.dialogOpen": "7d5d5c6bac6d",
     "errors:fileDrop.imageNotHere": "651e9932f749",
-    "errors:fileDrop.unsupportedFile": "5d756c407b3b"
+    "errors:fileDrop.unsupportedFile": "5d756c407b3b",
+    "panels:creasePattern.couldNotOpenForEditingHint": "493db1fa9279"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13693,7 +13699,8 @@
     "toasts:fileDrop.ignoredFiles": "55a746b142dc",
     "errors:fileDrop.dialogOpen": "7d5d5c6bac6d",
     "errors:fileDrop.imageNotHere": "651e9932f749",
-    "errors:fileDrop.unsupportedFile": "5d756c407b3b"
+    "errors:fileDrop.unsupportedFile": "5d756c407b3b",
+    "panels:creasePattern.couldNotOpenForEditingHint": "493db1fa9279"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15631,6 +15638,7 @@
     "toasts:fileDrop.ignoredFiles": "55a746b142dc",
     "errors:fileDrop.dialogOpen": "7d5d5c6bac6d",
     "errors:fileDrop.imageNotHere": "651e9932f749",
-    "errors:fileDrop.unsupportedFile": "5d756c407b3b"
+    "errors:fileDrop.unsupportedFile": "5d756c407b3b",
+    "panels:creasePattern.couldNotOpenForEditingHint": "493db1fa9279"
   }
 }

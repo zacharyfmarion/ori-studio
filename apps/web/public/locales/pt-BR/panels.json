@@ -167,6 +167,7 @@
     "changeFoldedModel": "Alterar modelo dobrado",
     "commandFailed": "Comando falhou",
     "couldNotOpenForEditing": "Não foi possível abrir este padrão de vincos para edição.",
+    "couldNotOpenForEditingHint": "Exibido somente leitura. Você ainda pode visualizar, dobrar e exportar.",
     "cropImage": "Recortar imagem",
     "current_one": "Atual {{count}}",
     "current_many": "Atual {{count}}",

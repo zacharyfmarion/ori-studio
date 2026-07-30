@@ -166,6 +166,7 @@
     "changeFoldedModel": "Change folded model",
     "commandFailed": "Command failed",
     "couldNotOpenForEditing": "This crease pattern could not be opened for editing.",
+    "couldNotOpenForEditingHint": "It is shown read-only. You can still view, fold, and export it.",
     "cropImage": "Crop image",
     "current_one": "Current {{count}}",
     "current_other": "Current {{count}}",

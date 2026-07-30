@@ -165,6 +165,7 @@
     "changeFoldedModel": "折り上がり図を変更",
     "commandFailed": "コマンドが失敗しました",
     "couldNotOpenForEditing": "この展開図は編集用に開けませんでした。",
+    "couldNotOpenForEditingHint": "読み取り専用で表示されています。表示、折り、書き出しは引き続き行えます。",
     "cropImage": "画像を切り抜き",
     "current_other": "現在 {{count}}",
     "deleteFoldedModel": "折りモデルを削除",

@@ -105,6 +105,7 @@ import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { freshEditableCpState } from '../freshCreasePattern';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
+import { getRuntimeSurface } from '../../../platform/runtime';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
   blockingExportLoss,
@@ -836,6 +837,30 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpCamvResult = checked.camvResult;
       } catch (error) {
         oristudioCpRuntimeError = oristudioCpError(error).message;
+        // The file still loads read-only, so nothing throws and nothing else
+        // records why the editable kernel refused it. Without this the user gets
+        // "could not be opened for editing" and no way to find out more.
+        console.error(
+          `[cp-load] ${filename} loaded read-only: the editable kernel refused it`,
+          {
+            filename,
+            format,
+            // Desktop runs the native Rust CP engine over Tauri commands, web
+            // runs the wasm worker (see `getOristudioCpClient`). They are
+            // separate implementations of the same surface, so a file that
+            // opens on one can fail on the other — always record which refused.
+            engine: getRuntimeSurface() === 'desktop' ? 'native (tauri)' : 'wasm (worker)',
+            characters: text.length,
+            vertices: parsed.document.stats.vertices,
+            edges: parsed.document.stats.edges,
+            faces: parsed.document.stats.faces,
+            unassigned: parsed.document.stats.unassigned,
+            parseWarnings: parsed.document.diagnostics.warnings,
+            parseErrors: parsed.document.diagnostics.errors,
+            reason: oristudioCpRuntimeError,
+          },
+          error
+        );
       }
     }
     // Simulation faces are inferred in JS by parseImportedCreasePattern (no
