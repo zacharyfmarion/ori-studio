@@ -1,3 +1,4 @@
+import { applyFoldAngleRamp } from '../foldAngle/foldAngleRamp';
 import type { ModelPoint, Rgba, StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
 
@@ -15,6 +16,11 @@ export interface CpLineSegmentInput {
   a: ModelPoint;
   b: ModelPoint;
   color: string;
+  /**
+   * `|ρ|` in kernel storage units; absent for a classic ±180 crease. Mirrors
+   * `segFoldMagnitude` on the transport so both builders stay byte-identical.
+   */
+  fold_magnitude?: number;
 }
 
 /** Selection highlighting: 1-based line ids, their colour, and width multiplier. */
@@ -71,7 +77,9 @@ export function cpSnapshotToScene(
   appearanceFor: CpLineAppearanceFor,
   dashPatterns: CpDashPatterns,
   selection?: CpSelectionStyle,
-  move?: CpTransformPreview
+  move?: CpTransformPreview,
+  /** See {@link cpGeometryStrokesToScene}; kept in step for the parity gate. */
+  foldAngleAnchor?: Rgba
 ): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
   const a = new Float32Array(count * 2);
@@ -116,7 +124,10 @@ export function cpSnapshotToScene(
       appearance = appearanceFor(seg.color);
       appearanceCache.set(seg.color, appearance);
     }
-    const rgba = appearance.color;
+    const rgba =
+      foldAngleAnchor === undefined
+        ? appearance.color
+        : applyFoldAngleRamp(appearance.color, seg.fold_magnitude, foldAngleAnchor);
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];

@@ -123,9 +123,10 @@
   },
   "cpViewControls": {
     "angle": "Угол",
-    "camvIssues": "Проблемы CAMV",
+    "camvIssues": "Проблемы складываемости",
     "diagonalGridlines": "Диагональные линии сетки",
     "emptyNote": "Откройте редактируемый паттерн складок, чтобы настроить параметры отображения.",
+    "foldAngleLabels": "Подписи углов сгиба",
     "grid": "Сетка",
     "gridConfiguration": "Настройка сетки",
     "gridConstantTerm": "{{label}}: свободный член",
@@ -177,7 +178,7 @@
     "deleteImage": "Удалить изображение",
     "diagnostic": {
       "boundary": "Граница",
-      "camv": "CAMV",
+      "camv": "Складываемость",
       "errorOne_one": "{{label}}: {{count}} ошибка",
       "errorOne_few": "{{label}}: {{count}} ошибки",
       "errorOne_many": "{{label}}: {{count}} ошибок",
@@ -205,6 +206,26 @@
     "duplicateFoldedModelAction": "Дублировать сложенную модель",
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
+    "foldability": {
+      "compose": "{{lead}} — {{tail}}",
+      "edgeLineConfiguration": "Недопустимая конфигурация краевых линий",
+      "edgeLineCount": "Слишком много или слишком мало краевых линий",
+      "equalMountainValley": "одинаковое количество горных и долинных складок",
+      "incorrectAngles": "Неверные углы",
+      "incorrectFoldTypes": "Неверные типы складок",
+      "littleBigLittle": "Углы не вкладываются (маленький-большой-маленький)",
+      "notEnoughMountain": "недостаточно горных складок",
+      "notEnoughValley": "недостаточно долинных складок",
+      "oddFolds": "Нечётное число складок",
+      "selfIntersection": "Здесь бумага проходит сквозь саму себя",
+      "shape": {
+        "circle": "Неверные углы (теорема Кавасаки)",
+        "littleBigLittle": "Маленький-большой-маленький",
+        "selfIntersection": "Углы сгибов согласованы, но бумага не может прийти в это состояние, не пройдя сквозь саму себя",
+        "square": "Неверные типы складок",
+        "triangle": "Неверное (нечётное) число складок"
+      }
+    },
     "foldCase": "Вариант складывания",
     "foldedColor": {
       "back": "Изнанка",

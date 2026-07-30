@@ -281,6 +281,11 @@
       "tooltip": "Appliquer la couleur de ligne active aux lignes sélectionnées",
       "disabledReason": "Prêt"
     },
+    "cp_action_crease_set_fold_angle": {
+      "label": "Définir l’angle de pliage",
+      "tooltip": "Définit de combien les plis sélectionnés se plient",
+      "disabledReason": "Prêt"
+    },
     "cp_action_background_change_position": {
       "label": "Déplacer l'arrière-plan",
       "tooltip": "La manipulation de l'image d'arrière-plan est purement liée à l'interface et ne fait pas partie du noyau CP",
@@ -854,8 +859,8 @@
       "disabledReason": "Pas encore implémenté dans l'éditeur de CP"
     },
     "cp_action_check_camv": {
-      "label": "Vérifier CAMV",
-      "tooltip": "Exécuter les diagnostics de pliabilité à plat CAMV d'Oriedita sans modifier le CP",
+      "label": "Vérifier la pliabilité",
+      "tooltip": "Vérifie à chaque sommet les problèmes qui empêcheraient le pliage, sans modifier le motif",
       "disabledReason": "Prêt"
     },
     "cp_action_folding_estimate": {

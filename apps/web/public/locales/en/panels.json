@@ -123,9 +123,10 @@
   },
   "cpViewControls": {
     "angle": "Angle",
-    "camvIssues": "CAMV issues",
+    "camvIssues": "Foldability issues",
     "diagonalGridlines": "Diagonal gridlines",
     "emptyNote": "Open an editable crease pattern to adjust view options.",
+    "foldAngleLabels": "Fold angle labels",
     "grid": "Grid",
     "gridConfiguration": "Grid configuration",
     "gridConstantTerm": "{{label}} constant term",
@@ -173,7 +174,7 @@
     "deleteImage": "Delete image",
     "diagnostic": {
       "boundary": "Boundary",
-      "camv": "CAMV",
+      "camv": "Foldability",
       "errorOne_one": "{{count}} {{label}} Error",
       "errorOne_other": "{{count}} {{label}} Error",
       "errorOther_one": "{{count}} {{label}} Errors",
@@ -193,6 +194,26 @@
     "duplicateFoldedModelAction": "Duplicate folded model",
     "flipFoldedModel": "Flip folded model",
     "fold": "Fold",
+    "foldability": {
+      "compose": "{{lead}} — {{tail}}",
+      "edgeLineConfiguration": "Invalid configuration of edge lines",
+      "edgeLineCount": "Too many or not enough edge lines",
+      "equalMountainValley": "equal amount of mountain and valley folds",
+      "incorrectAngles": "Incorrect angles",
+      "incorrectFoldTypes": "Incorrect fold types",
+      "littleBigLittle": "Angles cannot nest (little-big-little)",
+      "notEnoughMountain": "not enough mountain folds",
+      "notEnoughValley": "not enough valley folds",
+      "oddFolds": "Odd number of folds",
+      "selfIntersection": "Paper passes through itself here",
+      "shape": {
+        "circle": "Incorrect angles (Kawasaki's theorem)",
+        "littleBigLittle": "Little-big-little",
+        "selfIntersection": "The fold angles agree, but the paper cannot get there without crossing itself",
+        "square": "Incorrect fold types",
+        "triangle": "Incorrect (odd) number of folds"
+      }
+    },
     "foldCase": "Fold case",
     "foldedColor": {
       "back": "Back",

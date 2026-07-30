@@ -123,9 +123,10 @@
   },
   "cpViewControls": {
     "angle": "Winkel",
-    "camvIssues": "CAMV-Probleme",
+    "camvIssues": "Faltbarkeitsprobleme",
     "diagonalGridlines": "Diagonale Rasterlinien",
     "emptyNote": "Öffnen Sie ein bearbeitbares Faltmuster, um die Ansichtsoptionen anzupassen.",
+    "foldAngleLabels": "Faltwinkel-Beschriftungen",
     "grid": "Raster",
     "gridConfiguration": "Rasterkonfiguration",
     "gridConstantTerm": "Konstanter Term {{label}}",
@@ -173,7 +174,7 @@
     "deleteImage": "Bild löschen",
     "diagnostic": {
       "boundary": "Rand",
-      "camv": "CAMV",
+      "camv": "Faltbarkeit",
       "errorOne_one": "{{count}} {{label}}-Fehler",
       "errorOne_other": "{{count}} {{label}}-Fehler",
       "errorOther_one": "{{count}} {{label}}-Fehler",
@@ -193,6 +194,26 @@
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
+    "foldability": {
+      "compose": "{{lead}} — {{tail}}",
+      "edgeLineConfiguration": "Ungültige Anordnung der Randlinien",
+      "edgeLineCount": "Zu viele oder zu wenige Randlinien",
+      "equalMountainValley": "gleich viele Berg- und Talfalten",
+      "incorrectAngles": "Falsche Winkel",
+      "incorrectFoldTypes": "Falsche Faltentypen",
+      "littleBigLittle": "Winkel lassen sich nicht schachteln (klein-groß-klein)",
+      "notEnoughMountain": "nicht genug Bergfalten",
+      "notEnoughValley": "nicht genug Talfalten",
+      "oddFolds": "Ungerade Anzahl an Falten",
+      "selfIntersection": "Das Papier durchdringt sich hier selbst",
+      "shape": {
+        "circle": "Falsche Winkel (Satz von Kawasaki)",
+        "littleBigLittle": "Klein-groß-klein",
+        "selfIntersection": "Die Faltwinkel passen zusammen, aber das Papier kann diesen Zustand nicht erreichen, ohne sich selbst zu durchdringen",
+        "square": "Falsche Faltentypen",
+        "triangle": "Falsche (ungerade) Anzahl an Falten"
+      }
+    },
     "foldCase": "Faltfall",
     "foldedColor": {
       "back": "Rückseite",

@@ -9,7 +9,7 @@
     "check2": "Check T-junctions",
     "check3": "Check Vertex Foldability",
     "check4": "Check Maekawa/LBL",
-    "checkCamv": "Check CAMV",
+    "checkCamv": "Check foldability",
     "deleteLineType": "Delete Selected Line Type...",
     "deleteSelectedLines": "Delete Selected Lines",
     "diagnostics": "Diagnostics",

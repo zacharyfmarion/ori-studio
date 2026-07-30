@@ -29,7 +29,6 @@ import {
 } from '../../keyboard/shortcuts';
 import type {
   OristudioCpCommandPayload,
-  OristudioCpCommandResult,
   OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
@@ -41,10 +40,12 @@ import type {
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
+import { CpDiagnosticGlyph } from '../../cp-workspace/diagnostics/CpDiagnosticGlyph';
+import { cpDiagnosticEntryMessage } from '../../cp-workspace/diagnostics/foldabilityMessages';
 import {
-  cpDiagnosticEntryMessage,
-  semanticCpDiagnosticKind,
-} from '../../lib/oristudioCpDiagnostics';
+  diagnosticHudStatus,
+  isDiagnosticResultOperation,
+} from '../../cp-workspace/diagnostics/hudStatus';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
   cpActionByOperation,
@@ -127,6 +128,7 @@ import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
 import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverlay';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
+import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
@@ -350,90 +352,6 @@ function measureSnapLabel(t: TFunction, kind: CpSnapTarget['kind'] | null): stri
   }
 }
 
-interface CpDiagnosticHudStatus {
-  label: string;
-  detail: string | null;
-  tone: 'ok' | 'warn' | 'error';
-}
-
-function diagnosticOperationLabel(t: TFunction, operation: string): string {
-  switch (operation) {
-    case 'CheckCamv':
-      return t('panels:creasePattern.diagnostic.camv', 'CAMV');
-    case 'Check1':
-      return t('panels:creasePattern.diagnostic.overlap', 'Overlap');
-    case 'Check2':
-      return t('panels:creasePattern.diagnostic.tJunction', 'T-junction');
-    case 'Check3':
-      return t('panels:creasePattern.diagnostic.vertexFoldability', 'Vertex foldability');
-    case 'Check4':
-      return t('panels:creasePattern.diagnostic.maekawaLbl', 'Maekawa/LBL');
-    case 'FlatFoldableCheck':
-      return t('panels:creasePattern.diagnostic.boundary', 'Boundary');
-    default:
-      return operation;
-  }
-}
-
-function diagnosticHudStatus(
-  t: TFunction,
-  result: OristudioCpCommandResult | null | undefined,
-  options: { issueOnly?: boolean } = {}
-): CpDiagnosticHudStatus | null {
-  if (!result || !isDiagnosticResultOperation(result.operation)) return null;
-  if (!result?.diagnostics.length) return null;
-  const entries = result.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  const label = diagnosticOperationLabel(t, result.operation);
-  const errorCount = entries.filter((entry) => entry.severity === 'error').length;
-  const warningCount = entries.filter((entry) => entry.severity === 'warning').length;
-  const detail =
-    entries.length === 1
-      ? entries[0]
-        ? cpDiagnosticEntryMessage(entries[0])
-        : result.diagnostics[0]
-      : result.diagnostics[0];
-
-  if (errorCount > 0) {
-    return {
-      label:
-        errorCount === 1
-          ? t('panels:creasePattern.diagnostic.errorOne', '{{count}} {{label}} Error', { count: errorCount, label })
-          : t('panels:creasePattern.diagnostic.errorOther', '{{count}} {{label}} Errors', { count: errorCount, label }),
-      detail,
-      tone: 'error',
-    };
-  }
-
-  if (warningCount > 0) {
-    return {
-      label:
-        warningCount === 1
-          ? t('panels:creasePattern.diagnostic.warningOne', '{{count}} {{label}} Warning', { count: warningCount, label })
-          : t('panels:creasePattern.diagnostic.warningOther', '{{count}} {{label}} Warnings', { count: warningCount, label }),
-      detail,
-      tone: 'warn',
-    };
-  }
-
-  if (options.issueOnly) return null;
-
-  return {
-    label: t('panels:creasePattern.diagnostic.ok', '{{label}} OK', { label }),
-    detail,
-    tone: 'ok',
-  };
-}
-
-function isDiagnosticResultOperation(operation: string): boolean {
-  return (
-    operation === 'Check1' ||
-    operation === 'Check2' ||
-    operation === 'Check3' ||
-    operation === 'Check4' ||
-    operation === 'CheckCamv' ||
-    operation === 'FlatFoldableCheck'
-  );
-}
 
 function modelSelectionDistance(
   bounds: CpModelBounds,
@@ -2942,8 +2860,8 @@ export function CreasePatternPanel() {
                           key={entry.id}
                           onClick={() => handleSelectCpDiagnostic(entry.id)}
                         >
-                          <span>{semanticCpDiagnosticKind(entry.kind)}</span>
-                          <span>{cpDiagnosticEntryMessage(entry)}</span>
+                          <CpDiagnosticGlyph t={t} entry={entry} />
+                          <span>{cpDiagnosticEntryMessage(t, entry)}</span>
                         </button>
                       ))}
                     </div>
@@ -3093,6 +3011,7 @@ export function CreasePatternPanel() {
                       scale={cpMeasureScale}
                     />
                   )}
+                {webglOverlayView && <CpFoldAngleLayer lineSegments={editableCp?.crease_pattern.line_segments} />}
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}

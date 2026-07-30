@@ -108,6 +108,11 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   colBlueAction: 'S', // Valley
   colBlackAction: 'D', // Edge
   colCyanAction: 'F', // Auxiliary
+  // Ori Studio addition: no Oriedita equivalent, because Oriedita creases are
+  // always a full +/-180. Shift+F sits in the same left-hand family as the line
+  // types it complements and leaves A/S/D/F untouched. (Shift+A was the first
+  // choice but belongs to a1Action, the three-point angle readout.)
+  OriStudioSetFoldAngle: 'shift F',
 
   // -- Draw / construct --------------------------------------------------
   drawCreaseFreeAction: 'Z', // free line
@@ -192,7 +197,7 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
   menuShortcut('edit.selectAll', 'Select All', 'Edit', { primary: true, key: 'a' }, 'selectAllAction'),
   menuShortcut('optimize.scale', 'Optimize Scale', 'Design', { primary: true, key: 'r' }),
   menuShortcut('cp.build', 'Build Crease Pattern', 'Design', { primary: true, key: 'b' }),
-  menuShortcut('cp.checkCamv', 'Check CAMV', 'Crease Pattern', {
+  menuShortcut('cp.checkCamv', 'Check foldability', 'Crease Pattern', {
     primary: true,
     shift: true,
     key: 'm',

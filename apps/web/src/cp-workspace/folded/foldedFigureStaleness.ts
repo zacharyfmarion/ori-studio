@@ -163,10 +163,31 @@ export function cpLinesByIds(
   return lines;
 }
 
-/** One segment's identity, positionally in `a`/`b` as `LineSegment.equals` is. */
+/**
+ * One segment's identity, positionally in `a`/`b` as `LineSegment.equals` is.
+ *
+ * **`fold_magnitude` is ours, not upstream's.** `LineSegment.equals` has no such
+ * field because Oriedita has no such concept, and while colour *was* a crease's
+ * whole fold identity that was the same thing. It is now half of it: two creases
+ * can agree on every field here and fold to different angles. Leaving it out made
+ * changing an angle invisible to the staleness check, so a folded figure and an
+ * inline simulation both went on claiming to match creases they no longer did.
+ *
+ * An absent magnitude serialises as empty rather than as a stand-in value like
+ * `180`, which is what keeps a **classic crease's key byte-identical to the one
+ * this produced before the field existed**. Every fingerprint already written to
+ * a `.osf` therefore still matches, so no file opens with its figures wrongly
+ * marked stale and {@link FINGERPRINT_PREFIX} stays at `cs1:` — the prefix is
+ * there to mark a change that *invalidates* stored values, and this one
+ * deliberately does not.
+ *
+ * That mirrors the kernel, where `fold_magnitude` is
+ * `#[serde(skip_serializing_if = "Option::is_none")]` for the same reason: a
+ * classic crease leaks no key into the snapshot either.
+ */
 function segmentKey(line: OristudioCpLineSegment): string {
   const { customized_color: cc } = line;
-  return [
+  const classic = [
     line.a.x,
     line.a.y,
     line.b.x,
@@ -178,6 +199,10 @@ function segmentKey(line: OristudioCpLineSegment): string {
     cc.green,
     cc.blue,
   ].join(',');
+  // Appended rather than joined in as an empty field: joining would leave a
+  // trailing separator on every classic crease, which is a different string from
+  // the one this used to produce and would strand every persisted fingerprint.
+  return line.fold_magnitude === undefined ? classic : `${classic},${line.fold_magnitude}`;
 }
 
 /**

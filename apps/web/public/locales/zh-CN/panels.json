@@ -123,9 +123,10 @@
   },
   "cpViewControls": {
     "angle": "角度",
-    "camvIssues": "CAMV 问题",
+    "camvIssues": "可折叠性问题",
     "diagonalGridlines": "对角网格线",
     "emptyNote": "打开可编辑折痕图以调整视图选项。",
+    "foldAngleLabels": "折叠角度标签",
     "grid": "网格",
     "gridConfiguration": "网格配置",
     "gridConstantTerm": "{{label}} 常数项",
@@ -171,7 +172,7 @@
     "deleteImage": "删除图像",
     "diagnostic": {
       "boundary": "边界",
-      "camv": "CAMV",
+      "camv": "可折叠性",
       "errorOne_other": "{{count}} 个 {{label}} 错误",
       "errorOther_other": "{{count}} 个 {{label}} 错误",
       "maekawaLbl": "Maekawa/LBL",
@@ -187,6 +188,26 @@
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
+    "foldability": {
+      "compose": "{{lead}}：{{tail}}",
+      "edgeLineConfiguration": "边界线配置无效",
+      "edgeLineCount": "边界线过多或不足",
+      "equalMountainValley": "山折与谷折数量相同",
+      "incorrectAngles": "角度不正确",
+      "incorrectFoldTypes": "折痕类型不正确",
+      "littleBigLittle": "角度无法嵌套（小-大-小）",
+      "notEnoughMountain": "山折数量不足",
+      "notEnoughValley": "谷折数量不足",
+      "oddFolds": "折痕数量为奇数",
+      "selfIntersection": "纸张在此处穿过自身",
+      "shape": {
+        "circle": "角度不正确（川崎定理）",
+        "littleBigLittle": "小-大-小",
+        "selfIntersection": "折叠角度自洽，但纸张无法在不穿过自身的情况下达到该状态",
+        "square": "折痕类型不正确",
+        "triangle": "折痕数量不正确（奇数）"
+      }
+    },
     "foldCase": "折叠情形",
     "foldedColor": {
       "back": "背面",

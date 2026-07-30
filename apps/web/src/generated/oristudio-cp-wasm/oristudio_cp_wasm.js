@@ -671,6 +671,16 @@ function __wbg_get_imports() {
             const ret = result;
             return ret;
         },
+        __wbg_instanceof_Uint32Array_6aece1e91fed8df4: function(arg0) {
+            let result;
+            try {
+                result = arg0 instanceof Uint32Array;
+            } catch (_) {
+                result = false;
+            }
+            const ret = result;
+            return ret;
+        },
         __wbg_instanceof_Uint8Array_abd07d4bd221d50b: function(arg0) {
             let result;
             try {
@@ -694,6 +704,10 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbg_length_2591a0f4f659a55c: function(arg0) {
+            const ret = arg0.length;
+            return ret;
+        },
+        __wbg_length_3a1b902b6cde9e2c: function(arg0) {
             const ret = arg0.length;
             return ret;
         },
@@ -737,6 +751,10 @@ function __wbg_get_imports() {
             const ret = new Int32Array(getArrayI32FromWasm0(arg0, arg1));
             return ret;
         },
+        __wbg_new_from_slice_f92bf65e9a895613: function(arg0, arg1) {
+            const ret = new Uint32Array(getArrayU32FromWasm0(arg0, arg1));
+            return ret;
+        },
         __wbg_next_2a4e19f4f5083b0f: function(arg0) {
             const ret = arg0.next;
             return ret;
@@ -747,6 +765,9 @@ function __wbg_get_imports() {
         }, arguments); },
         __wbg_prototypesetcall_272875b350b1e49b: function(arg0, arg1, arg2) {
             Float64Array.prototype.set.call(getArrayF64FromWasm0(arg0, arg1), arg2);
+        },
+        __wbg_prototypesetcall_303283bf37c9f014: function(arg0, arg1, arg2) {
+            Uint32Array.prototype.set.call(getArrayU32FromWasm0(arg0, arg1), arg2);
         },
         __wbg_prototypesetcall_5f9bdc8d75e07276: function(arg0, arg1, arg2) {
             Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
@@ -889,6 +910,11 @@ function getArrayI32FromWasm0(ptr, len) {
     return getInt32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
 }
 
+function getArrayU32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
@@ -920,6 +946,14 @@ function getInt32ArrayMemory0() {
 
 function getStringFromWasm0(ptr, len) {
     return decodeText(ptr >>> 0, len);
+}
+
+let cachedUint32ArrayMemory0 = null;
+function getUint32ArrayMemory0() {
+    if (cachedUint32ArrayMemory0 === null || cachedUint32ArrayMemory0.byteLength === 0) {
+        cachedUint32ArrayMemory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachedUint32ArrayMemory0;
 }
 
 let cachedUint8ArrayMemory0 = null;
@@ -1040,6 +1074,7 @@ function __wbg_finalize_init(instance, module) {
     cachedDataViewMemory0 = null;
     cachedFloat64ArrayMemory0 = null;
     cachedInt32ArrayMemory0 = null;
+    cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;

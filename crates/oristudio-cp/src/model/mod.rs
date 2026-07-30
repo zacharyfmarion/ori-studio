@@ -1,7 +1,9 @@
 //! Editable crease-pattern model carriers ported from Oriedita save/model data.
 
 use crate::canonical::CanonicalCreasePattern;
-use crate::geometry::{ActiveState, Circle, Epsilon, LineColor, LineSegment, Point, RgbColor};
+use crate::geometry::{
+    ActiveState, Circle, Epsilon, FoldMagnitude, LineColor, LineSegment, Point, RgbColor,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use treemaker_fold::Assignment;
@@ -513,6 +515,44 @@ pub fn fold_angle_for_line_color(line_color: LineColor) -> f64 {
         LineColor::Red1 => -180.0,
         _ => 0.0,
     }
+}
+
+/// Signed fold angle in degrees for a folding crease, or `None` when the segment
+/// is not a crease at all (border, auxiliary, construction).
+///
+/// **This is the sanctioned way to ask what a crease does.** New code must not
+/// match on [`LineColor`] to decide fold semantics — colour carries only the
+/// direction, and a segment may also carry a magnitude. Following the FOLD
+/// convention this repo already uses, mountain is negative and valley positive.
+pub fn crease_fold_angle(segment: &LineSegment) -> Option<f64> {
+    let magnitude = segment.fold_magnitude.map_or(180.0, FoldMagnitude::degrees);
+    match segment.color {
+        LineColor::Red1 => Some(-magnitude),
+        LineColor::Blue2 => Some(magnitude),
+        _ => None,
+    }
+}
+
+/// Whether this segment is representable by Oriedita and the flat pipeline.
+///
+/// True for a full +/-180 crease, and trivially true for anything that is not a
+/// crease (those carry no magnitude by construction). False only for a crease
+/// that has been given an explicit non-180 angle — which is precisely the set
+/// that blocks `.cp` export, blocks the 2D folded view, and routes a vertex to
+/// the spatial check.
+pub fn is_classic_crease(segment: &LineSegment) -> bool {
+    segment.fold_magnitude.is_none_or(FoldMagnitude::is_full)
+}
+
+/// Whether any segment in the model carries an explicit non-180 fold angle.
+///
+/// The cheap syntactic scan behind export gating and the folded-form dialog;
+/// needs no solver and no topology.
+pub fn has_non_classic_creases(model: &CreasePatternModel) -> bool {
+    model
+        .line_segments
+        .iter()
+        .any(|segment| !is_classic_crease(segment))
 }
 
 pub fn custom_color_hex(color: RgbColor) -> String {

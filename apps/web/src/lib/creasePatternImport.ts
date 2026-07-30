@@ -471,12 +471,24 @@ function inferTopology(
   if (faces.length === 0) {
     diagnostics.warnings.push('No bounded faces could be inferred; simulation is unavailable');
   }
+  // Carry each split edge's fold angle over from the segment it came from.
+  // Deriving it from the assignment instead would flatten every non-180 crease
+  // back to +/-180 -- `.fold` is the only format that can express one, so that
+  // would silently destroy the angle on the way into the simulator.
+  const sourceFoldAngles = fold.edges_foldAngle;
+  const inheritedFoldAngle = (index: number): number | null => {
+    const source = sources[index];
+    const inherited = source === undefined ? undefined : sourceFoldAngles?.[source];
+    return typeof inherited === 'number' && Number.isFinite(inherited)
+      ? inherited
+      : defaultFoldAngle(assignments[index]!);
+  };
   const next = completeFold({
     ...fold,
     vertices_coords: vertices.map((point) => [point.x, point.y]),
     edges_vertices: edges,
     edges_assignment: assignments,
-    edges_foldAngle: assignments.map(defaultFoldAngle),
+    edges_foldAngle: assignments.map((_, index) => inheritedFoldAngle(index)),
     faces_vertices: faces,
     faces_edges: [],
     edges_faces: [],

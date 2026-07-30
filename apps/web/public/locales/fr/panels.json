@@ -123,9 +123,10 @@
   },
   "cpViewControls": {
     "angle": "Angle",
-    "camvIssues": "Problèmes CAMV",
+    "camvIssues": "Problèmes de pliabilité",
     "diagonalGridlines": "Lignes de grille diagonales",
     "emptyNote": "Ouvrez un patron de plis modifiable pour ajuster les options d'affichage.",
+    "foldAngleLabels": "Étiquettes d’angle de pliage",
     "grid": "Grille",
     "gridConfiguration": "Configuration de la grille",
     "gridConstantTerm": "Terme constant {{label}}",
@@ -175,7 +176,7 @@
     "deleteImage": "Supprimer l'image",
     "diagnostic": {
       "boundary": "Contour",
-      "camv": "CAMV",
+      "camv": "Pliabilité",
       "errorOne_one": "{{count}} erreur {{label}}",
       "errorOne_many": "{{count}} erreur {{label}}",
       "errorOne_other": "{{count}} erreur {{label}}",
@@ -199,6 +200,26 @@
     "duplicateFoldedModelAction": "Dupliquer le modèle plié",
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
+    "foldability": {
+      "compose": "{{lead}} — {{tail}}",
+      "edgeLineConfiguration": "Configuration des lignes de bord non valide",
+      "edgeLineCount": "Trop ou pas assez de lignes de bord",
+      "equalMountainValley": "autant de plis montagne que de plis vallée",
+      "incorrectAngles": "Angles incorrects",
+      "incorrectFoldTypes": "Types de plis incorrects",
+      "littleBigLittle": "Les angles ne peuvent pas s'imbriquer (petit-grand-petit)",
+      "notEnoughMountain": "pas assez de plis montagne",
+      "notEnoughValley": "pas assez de plis vallée",
+      "oddFolds": "Nombre impair de plis",
+      "selfIntersection": "Le papier se traverse lui-même ici",
+      "shape": {
+        "circle": "Angles incorrects (théorème de Kawasaki)",
+        "littleBigLittle": "Petit-grand-petit",
+        "selfIntersection": "Les angles de pliage sont cohérents, mais le papier ne peut pas y parvenir sans se traverser lui-même",
+        "square": "Types de plis incorrects",
+        "triangle": "Nombre de plis incorrect (impair)"
+      }
+    },
     "foldCase": "Cas de pliage",
     "foldedColor": {
       "back": "Verso",

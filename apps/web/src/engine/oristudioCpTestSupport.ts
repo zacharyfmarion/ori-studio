@@ -5,6 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../lib/foldAngle';
 
 import init, {
   document_snapshot,
@@ -62,6 +63,14 @@ export function batterySegments(): OristudioCpLineSegment[] {
     for (const active of ACTIVE_STATES) {
       const selected = SELECTED_VALUES[n % SELECTED_VALUES.length];
       const customized = n % 2;
+      // Give some creases a non-180 fold angle so the battery exercises the
+      // magnitude path -- transport round-trip, the render ramp, and export
+      // gating all key off it. Only Red1/Blue2 can carry one; the kernel drops
+      // it elsewhere, which is itself worth round-tripping.
+      const foldMagnitude =
+        n % 3 === 1 ? 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE
+        : n % 3 === 2 ? 45 * FOLD_MAGNITUDE_UNITS_PER_DEGREE
+        : undefined;
       segments.push({
         a: { x: n * 1.5, y: -n * 0.25 },
         b: { x: n === 0 ? n * 1.5 : n * 3.0, y: n === 0 ? -n * 0.25 : 1e12 - n },
@@ -70,6 +79,7 @@ export function batterySegments(): OristudioCpLineSegment[] {
         selected,
         customized,
         customized_color: { red: (n * 7) % 256, green: (n * 13) % 256, blue: (n * 29) % 256 },
+        ...(foldMagnitude === undefined ? {} : { fold_magnitude: foldMagnitude }),
       });
       n += 1;
     }

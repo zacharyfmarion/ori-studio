@@ -268,3 +268,127 @@ fn assert_segment(segment: &LineSegment, a: Point, b: Point, color: LineColor) {
     assert_eq!(segment.b, b);
     assert_eq!(segment.color, color);
 }
+
+/// `CreaseSetFoldAngle` touches only folding creases, and reports how many it
+/// actually changed so the UI can say so.
+#[test]
+fn set_fold_angle_skips_lines_that_cannot_carry_one() {
+    use oristudio_cp::geometry::FoldMagnitude;
+    use oristudio_cp::operations::color::set_fold_magnitude_for_indices;
+
+    let mut model = CreasePatternModel::default();
+    model.add_line_segment(
+        LineSegment::from_coordinates(0.0, 0.0, 1.0, 0.0).with_line_color(LineColor::Red1),
+    );
+    model.add_line_segment(
+        LineSegment::from_coordinates(0.0, 1.0, 1.0, 1.0).with_line_color(LineColor::Blue2),
+    );
+    model.add_line_segment(
+        LineSegment::from_coordinates(0.0, 2.0, 1.0, 2.0).with_line_color(LineColor::Black0),
+    );
+    model.add_line_segment(
+        LineSegment::from_coordinates(0.0, 3.0, 1.0, 3.0).with_line_color(LineColor::Cyan3),
+    );
+
+    let ninety = FoldMagnitude::from_degrees(90.0).expect("in range");
+    let changed = set_fold_magnitude_for_indices(&mut model, &[0, 1, 2, 3], Some(ninety));
+
+    assert_eq!(changed, 2, "only the two creases should change");
+    assert_eq!(model.line_segments[0].fold_magnitude, Some(ninety));
+    assert_eq!(model.line_segments[1].fold_magnitude, Some(ninety));
+    assert_eq!(model.line_segments[2].fold_magnitude, None, "border");
+    assert_eq!(model.line_segments[3].fold_magnitude, None, "auxiliary");
+}
+
+/// Setting 180 stores `None`, so a document that has been round-tripped through
+/// "set 180" is byte-identical to one that never carried an angle.
+#[test]
+fn setting_180_leaves_the_document_byte_identical() {
+    use oristudio_cp::geometry::FoldMagnitude;
+    use oristudio_cp::operations::color::set_fold_magnitude_for_indices;
+
+    let mut model = CreasePatternModel::default();
+    model.add_line_segment(
+        LineSegment::from_coordinates(0.0, 0.0, 1.0, 0.0).with_line_color(LineColor::Red1),
+    );
+    let pristine = serde_json::to_string(&model).expect("serialise");
+
+    let changed =
+        set_fold_magnitude_for_indices(&mut model, &[0], FoldMagnitude::from_degrees(180.0));
+    assert_eq!(changed, 0, "180 is already the classic state");
+    assert_eq!(serde_json::to_string(&model).expect("serialise"), pristine);
+}
+
+/// The architecture's central claim, asserted at the operation level: flipping
+/// mountain/valley negates rho and needs no fold-angle-aware code.
+#[test]
+fn mountain_valley_flip_preserves_the_magnitude() {
+    use oristudio_cp::geometry::FoldMagnitude;
+    use oristudio_cp::model::crease_fold_angle;
+    use oristudio_cp::operations::color::{
+        set_fold_magnitude_for_indices, set_line_color_for_indices,
+    };
+
+    let mut model = CreasePatternModel::default();
+    model.add_line_segment(
+        LineSegment::from_coordinates(0.0, 0.0, 1.0, 0.0).with_line_color(LineColor::Red1),
+    );
+    set_fold_magnitude_for_indices(&mut model, &[0], FoldMagnitude::from_degrees(90.0));
+    assert_eq!(crease_fold_angle(&model.line_segments[0]), Some(-90.0));
+
+    set_line_color_for_indices(&mut model, &[0], LineColor::Blue2);
+    assert_eq!(
+        crease_fold_angle(&model.line_segments[0]),
+        Some(90.0),
+        "flipping M/V must negate rho with no magnitude-aware code"
+    );
+}
+
+/// Splitting a crease at a new intersection must carry the fold angle into both
+/// halves. This falls out of `with_coordinates` using `..*self`, exactly as the
+/// colour does — but it is load-bearing enough to pin, because silently
+/// flattening half a crease would be very hard to notice.
+#[test]
+fn splitting_a_crease_preserves_its_fold_angle() {
+    use oristudio_cp::geometry::FoldMagnitude;
+    use oristudio_cp::operations::arrangement::divide_line_segment_with_new_lines;
+
+    let ninety = FoldMagnitude::from_degrees(90.0).expect("in range");
+    let mut model = CreasePatternModel::default();
+    // A horizontal 90-degree mountain...
+    model.add_line_segment(
+        LineSegment::from_coordinates(-100.0, 0.0, 100.0, 0.0)
+            .with_line_color(LineColor::Red1)
+            .with_fold_magnitude(Some(ninety)),
+    );
+    let original_end = model.line_segments.len();
+    // ...crossed by a classic valley.
+    model.add_line_segment(
+        LineSegment::from_coordinates(0.0, -100.0, 0.0, 100.0).with_line_color(LineColor::Blue2),
+    );
+    let added_end = model.line_segments.len();
+
+    divide_line_segment_with_new_lines(&mut model, original_end, added_end);
+
+    let mountains: Vec<_> = model
+        .line_segments
+        .iter()
+        .filter(|segment| segment.color == LineColor::Red1)
+        .collect();
+    assert!(mountains.len() >= 2, "the mountain should have been split");
+    for piece in mountains {
+        assert_eq!(
+            piece.fold_magnitude,
+            Some(ninety),
+            "every piece of a 90-degree crease must still be 90 degrees"
+        );
+    }
+    // The classic valley's pieces stay classic — the split must not invent an angle.
+    for piece in model
+        .line_segments
+        .iter()
+        .filter(|segment| segment.color == LineColor::Blue2)
+    {
+        assert_eq!(piece.fold_magnitude, None);
+    }
+}
