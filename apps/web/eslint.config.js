@@ -57,12 +57,18 @@ const OVERSIZED_PANELS = {
   // more case in the viewport-shortcut switch, the boxes the camera frames
   // against, and the window's arm of the two dispatches every canvas-object
   // kind passes through (selection and delete).
-  // 2936 -> 2937: one prop, wiring the inline simulation toolbar's export
+  //
+  // 2936 -> 2938: fold-angle badges. Two lines — an import and a mount —
+  // beside the existing measure and text overlay layers. The layer, its badge
+  // planning, and its tests all live in `cp-workspace/foldAngle/`; what is here
+  // is composition, which is what a panel is for.
+  //
+  // 2938 -> 2939: one prop, wiring the inline simulation toolbar's export
   // dropdown to `useInlineSimulations.exportView`. The verb itself is in
   // `inlineSimulation/inlineSimulationRuntime` (the exporter registry) and its
   // store binding is in the hook, scoped to the focused window like `replay` —
-  // so what landed here is composition, which is what this file is for.
-  'CreasePatternPanel.tsx': 2937,
+  // so what landed here is composition too.
+  'CreasePatternPanel.tsx': 2939,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

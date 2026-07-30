@@ -43,6 +43,7 @@ export function CpViewControlsPanel() {
   const grid = editableCp.crease_pattern.grid;
   const gridSize = normalizeOrieditaGridSize(grid.grid_size);
   const camvVisible = viewport.camvIssuesVisible !== false;
+  const foldAngleLabelsVisible = viewport.foldAngleLabelsVisible !== false;
   const snapEnabled =
     viewport.snapToGrid || viewport.snapToVertices || viewport.snapToLines;
 
@@ -65,9 +66,16 @@ export function CpViewControlsPanel() {
           />
           <GridSettingsSection grid={grid} onUpdate={updateGrid} />
           <ToggleRow
-            label={t('panels:cpViewControls.camvIssues', 'CAMV issues')}
+            label={t('panels:cpViewControls.camvIssues', 'Foldability issues')}
             checked={camvVisible}
             onChange={(checked) => setViewportOption('camvIssuesVisible', checked)}
+          />
+          {/* Labels only. Crease colour always distinguishes a non-180 crease,
+              which is why this is not called "fold angles". */}
+          <ToggleRow
+            label={t('panels:cpViewControls.foldAngleLabels', 'Fold angle labels')}
+            checked={foldAngleLabelsVisible}
+            onChange={(checked) => setViewportOption('foldAngleLabelsVisible', checked)}
           />
           <ToggleRow
             label={t('panels:cpViewControls.snapping', 'Snapping')}

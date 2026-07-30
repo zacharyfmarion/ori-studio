@@ -24,7 +24,7 @@
     "changeCircleColor": "Изменить цвет круга...",
     "changeCreaseType": "Изменить тип складки",
     "changeSelectedCpLineTypes": "Изменить типы выбранных линий паттерна складок",
-    "checkCamv": "Проверить CAMV",
+    "checkCamv": "Проверить складываемость",
     "checkMaekawaAngleLblViolations": "Проверить нарушения Maekawa, углов и little-big-little",
     "checkMaekawaLbl": "Проверить Maekawa/LBL",
     "checkMaekawaVertexFoldability": "Проверить Maekawa и связанные проблемы плоской складываемости вершин",

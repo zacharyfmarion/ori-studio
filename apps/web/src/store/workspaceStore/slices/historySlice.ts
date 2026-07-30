@@ -38,6 +38,7 @@ import type { OristudioCpSelection } from '../../../lib/creasePatternViewport';
 import type { BpHistorySnapshot } from '../types';
 import type { OristudioCpFoldedFigureEntry } from '../../../engine/oristudioCpTypes';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
+import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 import {
   releaseFoldedFigureHandles,
@@ -60,6 +61,7 @@ function cpHistoryEntry(
   annotations: CanvasAnnotation[],
   foldedFigures: OristudioCpFoldedFigureEntry[],
   activeFoldedFigureId: string | null,
+  inlineSimulations: InlineSimulation[],
   label = 'Edit',
   overlayOnly = false
 ): OristudioCpHistoryEntry {
@@ -69,6 +71,7 @@ function cpHistoryEntry(
     annotations,
     foldedFigures,
     activeFoldedFigureId,
+    inlineSimulations,
     overlayOnly,
     label,
     timestamp: new Date().toISOString(),
@@ -87,6 +90,22 @@ function restoredFoldedFigureState(entry: OristudioCpHistoryEntry) {
     oristudioCpFoldedFigures: entry.foldedFigures,
     oristudioCpActiveFoldedFigureId: entry.activeFoldedFigureId ?? null,
   };
+}
+
+/**
+ * The inline-simulation state a history entry restores. Same rule and same
+ * reason as {@link restoredFoldedFigureState}: entries written before windows
+ * joined the stack have no `inlineSimulations`, and restoring `undefined` over
+ * the live list would wipe the user's windows.
+ *
+ * Focus is deliberately not restored, matching how undo drops the annotation
+ * selection: history restores content, not what was selected. A window that
+ * comes back unfocused is also one whose solver is not running, which is the
+ * right default for a window the user is only just seeing again.
+ */
+function restoredInlineSimulationState(entry: OristudioCpHistoryEntry) {
+  if (!entry.inlineSimulations) return {};
+  return { oristudioCpInlineSimulations: entry.inlineSimulations };
 }
 
 /**
@@ -238,6 +257,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       const currentAnnotations = get().oristudioCpAnnotations;
       const currentFoldedFigures = get().oristudioCpFoldedFigures;
       const currentActiveFoldedId = get().oristudioCpActiveFoldedFigureId;
+      const currentInlineSimulations = get().oristudioCpInlineSimulations;
       set({ historyBusy: true, error: null, oristudioCpError: null });
       try {
         // Overlay-only edits (annotations, folded figures): swap those layers
@@ -247,6 +267,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             oristudioCpAnnotations: previous.annotations,
             oristudioCpSelectedAnnotationId: null,
             ...restoredFoldedFigureState(previous),
+            ...restoredInlineSimulationState(previous),
             oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
             oristudioCpHistoryFuture: [
               retainedCpHistoryEntry(
@@ -255,6 +276,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
                 currentAnnotations,
                 currentFoldedFigures,
                 currentActiveFoldedId,
+                currentInlineSimulations,
                 previous.label,
                 true
               ),
@@ -269,6 +291,12 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           // never awaited: making the branch async would make `historyBusy` a
           // real gate and silently drop undos held down on the keyboard.
           get().reconcileFoldedFigureModels(previous.foldedFigures?.map((f) => f.id) ?? []);
+          // A restored window's fold is rebuilt, not held by history — see
+          // `restoreOristudioCpInlineSimulationSources`. Fire-and-forget after
+          // the synchronous `set`, for the same reason as the reconcile above:
+          // awaiting here would make `historyBusy` a real gate and silently drop
+          // undos held down on the keyboard. No-ops when no fold is missing.
+          void get().restoreOristudioCpInlineSimulationSources();
           return true;
         }
         const restored = await restoreOristudioCpDocumentInPlace(
@@ -287,6 +315,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           oristudioCpAnnotations: previous.annotations,
           oristudioCpSelectedAnnotationId: null,
           ...restoredFoldedFigureState(previous),
+          ...restoredInlineSimulationState(previous),
           oristudioCpHistoryPast: releasedFrom(past.slice(0, -1), previous),
           oristudioCpHistoryFuture: [
             retainedCpHistoryEntry(
@@ -295,6 +324,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
               currentAnnotations,
               currentFoldedFigures,
               currentActiveFoldedId,
+              currentInlineSimulations,
               previous.label,
               false
             ),
@@ -305,6 +335,9 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           projectMessage: `Undid ${previous.label}`,
         });
         get().scheduleOristudioCamvRefresh();
+        // Windows restored by a document-level undo need their folds too; see
+        // the overlay branch above for why this is not awaited.
+        void get().restoreOristudioCpInlineSimulationSources();
       } catch (error) {
         const normalized = oristudioCpError(error);
         set({
@@ -377,6 +410,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       const currentAnnotations = get().oristudioCpAnnotations;
       const currentFoldedFigures = get().oristudioCpFoldedFigures;
       const currentActiveFoldedId = get().oristudioCpActiveFoldedFigureId;
+      const currentInlineSimulations = get().oristudioCpInlineSimulations;
       set({ historyBusy: true, error: null, oristudioCpError: null });
       try {
         if (next.overlayOnly) {
@@ -384,6 +418,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             oristudioCpAnnotations: next.annotations,
             oristudioCpSelectedAnnotationId: null,
             ...restoredFoldedFigureState(next),
+            ...restoredInlineSimulationState(next),
             oristudioCpHistoryPast: [
               ...get().oristudioCpHistoryPast,
               retainedCpHistoryEntry(
@@ -392,6 +427,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
                 currentAnnotations,
                 currentFoldedFigures,
                 currentActiveFoldedId,
+                currentInlineSimulations,
                 next.label,
                 true
               ),
@@ -402,6 +438,12 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
             projectMessage: `Redid ${next.label}`,
           });
           get().reconcileFoldedFigureModels(next.foldedFigures?.map((f) => f.id) ?? []);
+          // A restored window's fold is rebuilt, not held by history — see
+          // `restoreOristudioCpInlineSimulationSources`. Fire-and-forget after
+          // the synchronous `set`, for the same reason as the reconcile above:
+          // awaiting here would make `historyBusy` a real gate and silently drop
+          // undos held down on the keyboard. No-ops when no fold is missing.
+          void get().restoreOristudioCpInlineSimulationSources();
           return true;
         }
         const restored = await restoreOristudioCpDocumentInPlace(
@@ -414,6 +456,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           oristudioCpAnnotations: next.annotations,
           oristudioCpSelectedAnnotationId: null,
           ...restoredFoldedFigureState(next),
+          ...restoredInlineSimulationState(next),
           oristudioCpHistoryPast: [
             ...get().oristudioCpHistoryPast,
             retainedCpHistoryEntry(
@@ -422,6 +465,7 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
               currentAnnotations,
               currentFoldedFigures,
               currentActiveFoldedId,
+              currentInlineSimulations,
               next.label,
               false
             ),
@@ -432,6 +476,9 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           projectMessage: `Redid ${next.label}`,
         });
         get().scheduleOristudioCamvRefresh();
+        // Windows restored by a document-level undo need their folds too; see
+        // the overlay branch above for why this is not awaited.
+        void get().restoreOristudioCpInlineSimulationSources();
       } catch (error) {
         const normalized = oristudioCpError(error);
         set({

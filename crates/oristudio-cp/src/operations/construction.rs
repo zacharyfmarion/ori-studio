@@ -524,8 +524,9 @@ pub fn mirror_selected_lines(model: &mut CreasePatternModel, axis: &LineSegment)
 
     let original_end = model.line_segments.len();
     for segment in &selected {
-        let mirrored =
-            find_line_symmetry_line_segment(segment, axis).with_line_color(segment.color);
+        let mirrored = find_line_symmetry_line_segment(segment, axis)
+            .with_line_color(segment.color)
+            .with_fold_magnitude_of(segment);
         model.add_line_segment(mirrored);
     }
     let added_end = model.line_segments.len();
@@ -842,7 +843,8 @@ pub fn symmetric_draw(
         source.determine_furthest_endpoint(cross),
     );
     let add_segment = extend_to_intersection_point(model, &LineSegment::new(cross, reflected))
-        .with_line_color(color);
+        .with_line_color(color)
+        .with_fold_magnitude_of(source);
     if !Epsilon::HIGH.gt0(add_segment.determine_length()) {
         return false;
     }
@@ -884,7 +886,8 @@ pub fn double_symmetric_draw(model: &mut CreasePatternModel, drag_segment: &Line
                 reflected,
             ),
         )
-        .with_line_color(segment.color);
+        .with_line_color(segment.color)
+        .with_fold_magnitude_of(&segment);
 
         if Epsilon::HIGH.gt0(add_segment.determine_length()) {
             add_line_segment_like_worker(model, &add_segment);

@@ -60,6 +60,25 @@ are unchanged:
   render oracle in `crates/oristudio-cp/tests/oriedita_render_oracle.rs` remains
   a byte-for-byte gate.
 
+- **Bounded lengthen extensions.** `operations::transform::lengthen_crease`
+  refuses an extension longer than the diagonal of the box already containing
+  every crease (`MAX_LENGTHEN_EXTENSION_DIAGONALS`). Upstream has no such limit:
+  `MouseHandlerLengthenCrease` decides whether a crease can reach a target purely
+  from `OritaCalc.isLineSegmentParallel(s, closestLineSegment, Epsilon.UNKNOWN_1EN6)`,
+  which compares the *unnormalized* cross product `a1*b2 - a2*b1` against a fixed
+  absolute epsilon. That quantity is an area — it scales with both segment
+  lengths — so the effective angular tolerance is `epsilon / (len1 * len2)`. For
+  creases hundreds of units long it drops below the floating-point noise in the
+  coordinates themselves, creases that are parallel by construction read as
+  crossing, and `findIntersection` answers with a point arbitrarily far away.
+  Coordinates far from the origin make it worse, because the same construction
+  leaves proportionally more dust in each one. Observed in a user file at
+  x ≈ 14,000: three pleat columns ~5.8e-12 rad off parallel extended to
+  y ≈ -4.3e12, which put the document's bounds 8 orders of magnitude past its
+  content and made the editor unusable. This bound only rejects results; it does
+  not touch the parallel test, the intersection solve, or any accepted output,
+  and `lengthen_crease_matches_oriedita_oracle` remains the gate.
+
 Release caveats:
 
 - Public parity targets TreeMaker 5.0.1's distributable ALM optimizer. CFSQP
@@ -68,3 +87,53 @@ Release caveats:
 - Real-world corpus files are not committed; use the external corpus harness in
   `treemaker-cli` before making claims about a private archive of historical
   user files.
+
+## Origami Simulator (`packages/origami-simulator`)
+
+The vendored reference is `third_party/origami-simulator` at commit
+`7855983a613c879c171b2b1557f8cd102d2640cf` (recorded in `src/provenance.ts`,
+which also names the solver files the port follows). The dynamic solver is a
+faithful port: same relative-position state model, same pass order
+(`normalCalc` → `thetaCalc` → `updateCreaseGeo` → `velocityCalc`/`positionCalc`),
+same equations. `bench/upstreamParity.bench.ts` drives the vendored page in
+Chromium, so solver divergence is measured rather than assumed.
+
+Deliberate divergences, all in fold preparation and all because our inputs are
+crease graphs from a CP editor rather than upstream's hand-clean SVGs:
+
+- **`removeDegenerateGeometry` has no upstream counterpart.** Upstream never
+  needs one: a zero-area triangle NaNs its `normalize(cross(...))` face-normal
+  pass and a zero-length edge divides by a zero rest length, and its inputs
+  contain neither. It avoids them through an input-cleanup chain we have not
+  ported (`collapseNearbyVertices` → `removeLoopEdges` → `removeDuplicateEdges`,
+  `pattern.js:538-547`). Porting that chain is what would let this pass retire.
+- **`delaunayFlipRing`.** Upstream's FOLD path calls earcut and keeps whatever it
+  returns; only its curved-folding path triangulates for quality (`cdt2d` plus an
+  orthogonality-driven swap loop). Deleting this for parity was tried and
+  reverted — it made real simulations measurably worse.
+- **`triangulateQuad` picks the diagonal by max-min-angle**, where upstream uses
+  the shorter diagonal. Identical output on 42 real patterns; kept because it
+  also rejects a diagonal falling outside a non-convex quad.
+- **`removeRedundantVertices` stops at driven creases (M/V/F).** Upstream merges
+  any collinear degree-2 pair with matching assignments, borders included. A
+  crease-free border subdivision has no crease to lose, and it is the only mesh
+  resolution `delaunayFlipRing` has to work with.
+- **`projectFaceTo2D`** picks the projection plane from the face's Newell normal;
+  upstream retries earcut on each of the three axis rotations until one returns
+  enough triangles. Same intent, fewer earcut calls.
+- **Winding restoration after earcut** uses per-triangle signed area; upstream
+  finds its first ring edge among the triangles and flips all of them.
+- **`edgeKey`/`buildEdgeIndex`** replace upstream's linear `findEdge` scans.
+  Performance only: O(E²) → O(E), seconds on a large pattern.
+- **Additions with no upstream counterpart:** `ReferenceSolver`, a CPU port that
+  runs headlessly in Node and is what golden traces and CI use (upstream is
+  GPU-only); `SimulationClock`, a time-budgeted scheduler in place of a fixed
+  step count; and a WebGL2 mesh renderer drawing from the position texture rather
+  than through three.js.
+
+Not ported at all: cut edges (`C` is accepted by `normalizeAssignment` and
+otherwise ignored; upstream runs `splitCuts` plus a second redundant-vertex
+pass), the curved-folding path, the SVG import path, `removeBorderFaces`, and
+`foldUseAngles` (upstream infers target angles from an imported folded form when
+the FOLD carries no `edges_foldAngle`; our option of that name is dead and reads
+the assignment either way).

@@ -24,7 +24,7 @@
     "changeCircleColor": "Kreisfarbe ändern...",
     "changeCreaseType": "Faltentyp ändern",
     "changeSelectedCpLineTypes": "Ausgewählte Faltmuster-Linientypen ändern",
-    "checkCamv": "CAMV prüfen",
+    "checkCamv": "Faltbarkeit prüfen",
     "checkMaekawaAngleLblViolations": "Maekawa-, Winkel- und Little-Big-Little-Verletzungen prüfen",
     "checkMaekawaLbl": "Maekawa/LBL prüfen",
     "checkMaekawaVertexFoldability": "Maekawa und verwandte Probleme der Flachfaltbarkeit von Ecken prüfen",

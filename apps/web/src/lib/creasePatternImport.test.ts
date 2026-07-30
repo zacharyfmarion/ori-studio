@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  foldArtifactsFromFold,
   parseImportedCreasePattern,
   parseImportedCreasePatternFromFold,
   segmentationFoldArtifactsFromFold,
@@ -230,5 +231,143 @@ describe('crease pattern import', () => {
       expect(colors[index]).toBe(expectedFor.get(key(index)));
       expect(colors[index]).toBe(colorForAssignment[inferred.edges_assignment![index]!]);
     });
+  });
+
+  it('simulates a crease drawn as two collinear segments as one crease', () => {
+    // From test_files/simulation/inline_simulate_issue.osf. The crease to the
+    // top-right corner is two collinear mountains (1-5, 5-4) and the faces beside
+    // it are quads whose rings walk through vertex 5. Triangulating through that
+    // vertex made a zero-area sliver, the degenerate filter deleted it, and both
+    // halves were left incident to no face -- so the crease neither folded nor
+    // drew, while the flat diagonal invented in its place was pinned at 0.
+    //
+    // This is the app's own path rather than the simulator package's: it prepares
+    // twice, around a face-winding pass and a fold-angle sign flip.
+    const fold = {
+      vertices_coords: [
+        [-200, 200],
+        [200, 200],
+        [200, -200],
+        [-200, -200],
+        [0, 0],
+        [150, 150],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 4],
+        [1, 5],
+        [4, 5],
+        [3, 4],
+        [2, 4],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'M', 'M', 'M', 'M', 'V'],
+      edges_foldAngle: [0, 0, 0, 0, -180, -180, -180, -180, 180],
+      faces_vertices: [
+        [0, 1, 5, 4],
+        [1, 2, 4, 5],
+        [2, 3, 4],
+        [0, 4, 3],
+      ],
+    } as unknown as Parameters<typeof foldArtifactsFromFold>[0];
+
+    const artifacts = foldArtifactsFromFold(fold);
+    const simulation = artifacts.simulation_model?.fold;
+    expect(artifacts.simulation_model_error).toBeNull();
+    expect(simulation).toBeDefined();
+    if (!simulation) return;
+
+    // Vertex 5 and its two halves are gone, replaced by one mountain diagonal.
+    expect(simulation.vertices_coords).toHaveLength(5);
+    const centre = simulation.vertices_coords.findIndex(([x, , z]) => x === 0 && z === 0);
+    const corner = simulation.vertices_coords.findIndex(([x, , z]) => x === 200 && z === 200);
+    const diagonal = simulation.edges_vertices.findIndex(
+      ([a, b]) => (a === centre && b === corner) || (a === corner && b === centre)
+    );
+    expect(diagonal).toBeGreaterThanOrEqual(0);
+    expect(simulation.edges_assignment?.[diagonal]).toBe('M');
+
+    // Every mountain and valley drives a crease: four faces around the centre,
+    // each edge between two of them. An M or V edge with any other count is one
+    // the solver ignores and the renderer never draws.
+    const facesPerEdge = simulation.edges_vertices.map(() => 0);
+    (simulation.faces_edges ?? []).forEach((faceEdges) => {
+      faceEdges.forEach((edge) => {
+        if (edge >= 0) facesPerEdge[edge] = (facesPerEdge[edge] ?? 0) + 1;
+      });
+    });
+    const orphans = simulation.edges_vertices.filter((_edge, index) => {
+      const assignment = simulation.edges_assignment?.[index];
+      return (assignment === 'M' || assignment === 'V') && facesPerEdge[index] !== 2;
+    });
+    expect(orphans).toEqual([]);
+  });
+});
+
+describe('non-180 fold angles survive import', () => {
+  // `.fold` is the only interchange format that can carry a fold angle, so the
+  // import path must not flatten one back to +/-180. `normalizeFoldAngles` falls
+  // back to the assignment default only when a value is missing -- never when a
+  // real angle is present.
+  it('keeps an explicit angle instead of the assignment default', () => {
+    const fold = {
+      vertices_coords: [
+        [0, 0],
+        [100, 0],
+        [0, 100],
+        [100, 100],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [0, 2],
+        [1, 3],
+      ],
+      edges_assignment: ['M', 'V', 'M'],
+      edges_foldAngle: [-90, 45.5, null],
+    };
+
+    const artifacts = foldArtifactsFromFold(fold as never);
+    const angles = artifacts.fold?.edges_foldAngle;
+
+    expect(angles?.[0]).toBe(-90);
+    expect(angles?.[1]).toBe(45.5);
+    // Missing value falls back to the assignment default, as before.
+    expect(angles?.[2]).toBe(-180);
+  });
+
+  it('carries the angle all the way into the simulation model', () => {
+    // End-to-end for Phase 2: kernel FOLD -> topology inference -> triangulation
+    // -> simulation fold. The simulator negates angles into its own space
+    // (SIMULATION_FOLD_ANGLE_SIGN), which is proportional, so magnitudes survive.
+    const fold = {
+      vertices_coords: [
+        [0, 0],
+        [100, 0],
+        [100, 100],
+        [0, 100],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 2],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'M'],
+      edges_foldAngle: [null, null, null, null, -90],
+    };
+
+    const artifacts = foldArtifactsFromFold(fold as never);
+    const simulated = artifacts.simulation_model?.fold.edges_foldAngle ?? [];
+    const magnitudes = simulated
+      .filter((angle): angle is number => typeof angle === 'number' && angle !== 0)
+      .map(Math.abs);
+
+    expect(magnitudes.length).toBeGreaterThan(0);
+    for (const magnitude of magnitudes) {
+      expect(magnitude).toBeCloseTo(90, 6);
+    }
   });
 });

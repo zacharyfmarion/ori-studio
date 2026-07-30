@@ -9,7 +9,7 @@
     "check2": "T字接合をチェック",
     "check3": "頂点の折り可能性をチェック",
     "check4": "Maekawa/LBL をチェック",
-    "checkCamv": "CAMV をチェック",
+    "checkCamv": "折り可能性をチェック",
     "deleteLineType": "選択した線種を削除...",
     "deleteSelectedLines": "選択した線を削除",
     "diagnostics": "診断",

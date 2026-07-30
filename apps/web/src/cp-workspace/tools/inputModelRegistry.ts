@@ -179,6 +179,7 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   CreaseMakeMountain: { model: 'select-apply' },
   CreaseMakeValley: { model: 'select-apply' },
   CreaseSetLineColor: { model: 'select-apply' },
+  CreaseSetFoldAngle: { model: 'select-apply' },
   DeleteLineTypeSelect: { model: 'select-apply' },
   Fix1: { model: 'select-apply' },
   Fix2: { model: 'select-apply' },

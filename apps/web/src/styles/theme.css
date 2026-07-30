@@ -68,6 +68,15 @@
   --fold-flat: #64c8c8;
   --fold-border: #111417;
   --fold-unassigned: #9aa4ad;
+  /* Hue a shallower crease shifts toward: mountains run red -> magenta, valleys
+     blue -> violet. Magenta is the only anchor where both halves take the short
+     way round the wheel, so neither desaturates into grey. See
+     cp-workspace/foldAngle/foldAngleRamp.ts. */
+  --fold-angle-anchor: #d946ef;
+  /* Oriedita's magenta foldability marker: "too many or not enough edge lines"
+     on a triangle, "invalid configuration of edge lines" on a square. Read by
+     both the WebGL markers and the issue-list glyphs so they cannot drift. */
+  --diagnostic-unknown: #ff0093;
   --cp-color-orange: #f97316;
   --cp-color-magenta: #d946ef;
   --cp-color-green: #22c55e;
@@ -2534,7 +2543,11 @@
 
 .cp-diagnostic-hud__row {
   display: grid;
-  grid-template-columns: minmax(76px, max-content) minmax(0, 1fr);
+  /* The marker glyph, then the message. The kind column is gone: the HUD header
+     already names the check, and the glyph carries which rule failed — see
+     cp-workspace/diagnostics/CpDiagnosticGlyph.tsx. */
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: center;
   gap: var(--space-2);
   width: 100%;
   padding: 7px 10px;
@@ -2566,17 +2579,54 @@
   background: color-mix(in srgb, var(--status-success) 12%, transparent);
 }
 
-.cp-diagnostic-hud__row span:first-child {
-  color: var(--status-danger);
-  font-weight: 750;
+.cp-diagnostic-hud__row span {
+  color: var(--text-primary);
 }
 
-.cp-diagnostic-hud__row[data-severity='warning'] span:first-child {
+/* The issue-list twin of the WebGL diagnostic markers. Shape and tone are chosen
+   by cpDiagnosticMarkerStyle — the same call the canvas makes — and the tone
+   resolves to the same theme tokens resolveCpDiagnosticToneColors reads, so the
+   two surfaces cannot disagree about an entry. */
+.cp-diagnostic-glyph {
+  overflow: visible;
+  fill: color-mix(in srgb, currentcolor 26%, transparent);
+  stroke: currentcolor;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  color: var(--status-danger);
+}
+
+.cp-diagnostic-glyph[data-tone='warning'] {
   color: var(--status-warning);
 }
 
-.cp-diagnostic-hud__row[data-severity='info'] span:first-child {
-  color: var(--status-success);
+.cp-diagnostic-glyph[data-tone='mountain'] {
+  color: var(--fold-mountain);
+}
+
+.cp-diagnostic-glyph[data-tone='valley'] {
+  color: var(--fold-valley);
+}
+
+.cp-diagnostic-glyph[data-tone='neutral'] {
+  color: var(--fold-unassigned);
+}
+
+.cp-diagnostic-glyph[data-tone='unknown'] {
+  color: var(--diagnostic-unknown);
+}
+
+/* Hollow by definition: Oriedita's empty circle is "only the angles are wrong,
+   everything else is correct", and a cross is a stroke, not an outline. */
+.cp-diagnostic-glyph[data-shape='ring'],
+.cp-diagnostic-glyph[data-shape='self-intersection'],
+.cp-diagnostic-glyph[data-shape='generic'] {
+  fill: none;
+}
+
+.cp-diagnostic-glyph[data-shape='self-intersection'],
+.cp-diagnostic-glyph[data-shape='generic'] {
+  stroke-linecap: round;
 }
 
 .cp-diagnostic-hud[data-tone='error'] {
@@ -4396,6 +4446,71 @@
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 0.66rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* Fold-angle quick-pick chips. Keeps typing off the common path: a box is 90
+   everywhere, a prism 60/120. */
+/* Fold-angle readouts drawn at crease midpoints. The lightness ramp is a gist
+   channel; this is the readout, and its dot form is the low-zoom degradation of
+   the same badge rather than a separate affordance. */
+.cp-fold-angle-layer__badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cp-fold-angle-layer__badge[data-detail='number'] {
+  padding: 1px 5px;
+  /* Sit on the crease without hiding it: a scrim tied to the canvas colour so
+     the digits stay legible over the line in either theme. */
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  border: 1px solid var(--border-subtle);
+}
+
+.cp-fold-angle-layer__badge[data-detail='dot'] {
+  width: 5px;
+  height: 5px;
+  background: var(--text-secondary);
+  border: 1px solid color-mix(in srgb, var(--bg-primary) 70%, transparent);
+}
+
+.cp-context-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cp-context-panel__chip {
+  padding: 2px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cp-context-panel__chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.cp-context-panel__chip[aria-pressed='true'] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--surface-base);
 }
 
 .cp-context-panel__measure-kinds {

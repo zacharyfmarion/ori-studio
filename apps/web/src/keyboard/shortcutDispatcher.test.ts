@@ -25,6 +25,55 @@ describe('shortcut dispatcher', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  // The reason `viewport.delete` can share Delete with `edit.delete`: the
+  // viewport is asked first and answers whether it owns this particular press.
+  describe('viewport decline', () => {
+    function pressDelete() {
+      return new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+    }
+
+    it('falls through to the global scope when the viewport declines', () => {
+      const viewport = vi.fn().mockReturnValue(false);
+      const menu = vi.fn();
+      const event = pressDelete();
+
+      expect(
+        handleShortcutKeyDown(event, {
+          scopeStack: ['viewport', 'global'],
+          executors: { viewport, menu },
+        })
+      ).toBe(true);
+
+      expect(viewport).toHaveBeenCalledWith('viewport.delete');
+      expect(menu).toHaveBeenCalledWith('edit.delete');
+    });
+
+    it('stops at the viewport when it claims the chord', () => {
+      const viewport = vi.fn().mockReturnValue(true);
+      const menu = vi.fn();
+
+      handleShortcutKeyDown(pressDelete(), {
+        scopeStack: ['viewport', 'global'],
+        executors: { viewport, menu },
+      });
+
+      expect(viewport).toHaveBeenCalledWith('viewport.delete');
+      expect(menu).not.toHaveBeenCalled();
+    });
+
+    it('treats a void return as a claim, so existing executors are unaffected', () => {
+      const viewport = vi.fn().mockReturnValue(undefined);
+      const menu = vi.fn();
+
+      handleShortcutKeyDown(pressDelete(), {
+        scopeStack: ['viewport', 'global'],
+        executors: { viewport, menu },
+      });
+
+      expect(menu).not.toHaveBeenCalled();
+    });
+  });
+
   it('skips disabled shortcuts', () => {
     const cpAction = vi.fn();
     // `a` is the mountain line type; clearing its override leaves the key unbound.

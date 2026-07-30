@@ -24,7 +24,7 @@
     "changeCircleColor": "円の色を変更...",
     "changeCreaseType": "折り線の種類を変更",
     "changeSelectedCpLineTypes": "選択した展開図の線種を変更",
-    "checkCamv": "CAMV をチェック",
+    "checkCamv": "折り可能性をチェック",
     "checkMaekawaAngleLblViolations": "Maekawa、角度、および LBL（リトル・ビッグ・リトル）違反をチェック",
     "checkMaekawaLbl": "Maekawa/LBL をチェック",
     "checkMaekawaVertexFoldability": "Maekawa および関連する頂点の平坦折り可能性の問題をチェック",

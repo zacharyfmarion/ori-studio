@@ -40,6 +40,15 @@ export interface OristudioCpLineSegment {
   selected: number;
   customized: number;
   customized_color: OristudioCpRgbColor;
+  /**
+   * `|ρ|` in kernel storage units. **Absent** for a classic ±180 crease, which
+   * is every Oriedita-compatible segment — so a classic segment is structurally
+   * identical to what it was before fold angles existed.
+   *
+   * Do not read this directly to decide fold semantics; use `creaseFoldAngle`
+   * from `lib/foldAngle`, which combines it with the colour's direction.
+   */
+  fold_magnitude?: number;
 }
 
 export interface OristudioCpCircle {
@@ -448,6 +457,11 @@ export interface OristudioCpCommandPayload {
   text_ids?: number[];
   points?: Point[];
   line_color?: OristudioCpLineColor;
+  /**
+   * `|ρ|` in degrees for `CreaseSetFoldAngle`, `0..=180`. Not a signed angle —
+   * direction lives in the line colour. Omitted means "make classic".
+   */
+  fold_magnitude_degrees?: number;
   selection_distance?: number;
   replace_selection?: boolean;
   grid_width?: number;

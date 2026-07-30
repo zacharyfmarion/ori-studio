@@ -108,6 +108,18 @@ describe('shortcut registry', () => {
     expect(getShortcutRegistryDiagnostics().duplicateDefaultChords).toEqual([]);
   });
 
+  it('lets the viewport share Delete with edit.delete, in its own scope', () => {
+    // Deliberately the same chord as `edit.delete`: viewport scope resolves
+    // first and declines when nothing in the viewport owns the press, so the
+    // key falls through to crease deletion. The two are not a conflict for the
+    // same reason a CP tool chord is not one — different, non-overlapping scopes.
+    expect(getResolvedShortcuts('viewport.delete')).toEqual([
+      { key: 'delete' },
+      { key: 'backspace' },
+    ]);
+    expect(findShortcutConflict('viewport.delete', { key: 'delete' })).toBeNull();
+  });
+
   it('puts inline simulation on Shift+S, clear of Save As', () => {
     // Bare Shift+S, joining the surface's other Shift+<letter> verbs. Save As is
     // Mod+Shift+S — a different chord, but close enough to be worth pinning.

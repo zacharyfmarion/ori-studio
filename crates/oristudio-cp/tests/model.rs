@@ -229,3 +229,39 @@ fn save_data_default_matches_empty_oriedita_base_save_collections() {
     assert!(save.texts.is_empty());
     assert!(save.can_save_as_cp());
 }
+
+/// The `.osf` project file stores a `CreasePatternDocument` snapshot verbatim,
+/// so fold magnitudes ride inside it with no `.osf` schema change. This pins
+/// that: if the document stops round-tripping, `.osf` silently loses angles.
+#[test]
+fn document_snapshot_round_trips_fold_magnitudes() {
+    use oristudio_cp::CreasePatternDocument;
+    use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment};
+
+    let ninety = FoldMagnitude::from_degrees(90.0).expect("in range");
+    let mut document = CreasePatternDocument::default();
+    document.crease_pattern.line_segments.push(
+        LineSegment::from_coordinates(0.0, 0.0, 1.0, 0.0)
+            .with_line_color(LineColor::Red1)
+            .with_fold_magnitude(Some(ninety)),
+    );
+    document
+        .crease_pattern
+        .line_segments
+        .push(LineSegment::from_coordinates(0.0, 0.0, 0.0, 1.0).with_line_color(LineColor::Blue2));
+
+    let json = serde_json::to_string(&document).expect("serialise");
+    let restored: CreasePatternDocument = serde_json::from_str(&json).expect("deserialise");
+    assert_eq!(restored, document);
+    assert_eq!(
+        restored.crease_pattern.line_segments[0].fold_magnitude,
+        Some(ninety)
+    );
+    assert_eq!(
+        restored.crease_pattern.line_segments[1].fold_magnitude,
+        None
+    );
+
+    // The classic crease must not have leaked a key into the snapshot.
+    assert_eq!(json.matches("fold_magnitude").count(), 1);
+}

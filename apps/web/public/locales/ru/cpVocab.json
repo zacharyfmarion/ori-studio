@@ -281,6 +281,11 @@
       "tooltip": "Применить активный цвет линии к выбранным линиям",
       "disabledReason": "Готово"
     },
+    "cp_action_crease_set_fold_angle": {
+      "label": "Задать угол сгиба",
+      "tooltip": "Задаёт, насколько сгибаются выбранные сгибы",
+      "disabledReason": "Готово"
+    },
     "cp_action_background_change_position": {
       "label": "Переместить фон",
       "tooltip": "Работа с фоновым изображением выполняется только в интерфейсе и не входит в ядро CP",
@@ -854,8 +859,8 @@
       "disabledReason": "Пока не реализовано в редакторе CP"
     },
     "cp_action_check_camv": {
-      "label": "Проверить CAMV",
-      "tooltip": "Запустить диагностику плоской складываемости CAMV Oriedita без изменения CP",
+      "label": "Проверить складываемость",
+      "tooltip": "Проверяет каждую вершину на проблемы, мешающие складыванию, не изменяя узор",
       "disabledReason": "Готово"
     },
     "cp_action_folding_estimate": {

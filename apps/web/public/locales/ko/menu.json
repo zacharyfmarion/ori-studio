@@ -9,7 +9,7 @@
     "check2": "T자 접합 확인",
     "check3": "정점 접힘 가능성 확인",
     "check4": "Maekawa/LBL 확인",
-    "checkCamv": "CAMV 확인",
+    "checkCamv": "접힘 가능성 검사",
     "deleteLineType": "선택한 선 종류 삭제...",
     "deleteSelectedLines": "선택한 선 삭제",
     "diagnostics": "진단",

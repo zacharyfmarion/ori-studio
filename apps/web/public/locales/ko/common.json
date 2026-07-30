@@ -24,7 +24,7 @@
     "changeCircleColor": "원 색상 변경...",
     "changeCreaseType": "접힘선 종류 변경",
     "changeSelectedCpLineTypes": "선택한 전개도 선 종류 변경",
-    "checkCamv": "CAMV 확인",
+    "checkCamv": "접힘 가능성 검사",
     "checkMaekawaAngleLblViolations": "Maekawa, 각도, little-big-little 위반 확인",
     "checkMaekawaLbl": "Maekawa/LBL 확인",
     "checkMaekawaVertexFoldability": "Maekawa 및 관련 정점 평면 접힘 가능성 문제 확인",

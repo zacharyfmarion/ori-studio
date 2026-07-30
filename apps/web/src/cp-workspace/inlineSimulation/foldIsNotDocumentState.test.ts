@@ -126,6 +126,35 @@ describe('surviving a loss of focus', () => {
   });
 });
 
+/**
+ * Windows are written to `.osf`, so changing one is an unsaved change.
+ *
+ * They were built as session state and became persistent later, and nothing
+ * revisited the classification: every mutation left `dirty` false, so a
+ * workspace of arranged windows could be abandoned at the start screen with no
+ * prompt (`dirty` is what gates it — see useWelcomeDiscardGuard).
+ */
+describe('a window change is an unsaved change', () => {
+  beforeEach(() => {
+    useWorkspaceStore.setState({
+      dirty: false,
+      oristudioCpInlineSimulations: [windowAt('sim-1')],
+    });
+  });
+
+  it('dirties on move or resize', () => {
+    useWorkspaceStore.getState().updateOristudioCpInlineSimulation('sim-1', {
+      box: { center: { x: 5, y: 5 }, width: 10, height: 10, rotation: 0 },
+    });
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+  });
+
+  it('dirties on delete', () => {
+    useWorkspaceStore.getState().removeOristudioCpInlineSimulation('sim-1');
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+  });
+});
+
 describe('the window cap', () => {
   it('reports at-capacity rather than failing silently', async () => {
     // The symptom this fixes: on the seventh region the button simply did

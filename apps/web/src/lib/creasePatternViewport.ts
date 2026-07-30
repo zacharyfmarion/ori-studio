@@ -82,6 +82,11 @@ export interface OristudioCpViewportOptions {
   snapToVertices: boolean;
   snapToLines: boolean;
   camvIssuesVisible?: boolean;
+  /**
+   * Numeric fold-angle badges on the canvas. **Labels only** — crease colour
+   * always distinguishes a non-180 crease and is not gated by this.
+   */
+  foldAngleLabelsVisible?: boolean;
   lineStyle?: OristudioCpLineStyle;
   lineWidth?: number;
   pointSize?: number;
