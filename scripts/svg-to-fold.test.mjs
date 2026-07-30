@@ -116,3 +116,80 @@ test('flipping y mirrors the pattern and nothing else', () => {
 test('a file with no recognised crease is an error, not an empty model', () => {
   assert.throws(() => svgToFold(wrap('<line stroke="#123456" x1="0" y1="0" x2="1" y2="1"/>')));
 });
+
+test('a crease crossing another is split into a shared vertex', () => {
+  // An SVG is a drawing: two lines that cross merely look connected. A crease
+  // pattern is a graph, where meeting means sharing a vertex.
+  const { fold } = svgToFold(
+    wrap(`
+      <line stroke="#FF0000" x1="-10" y1="0" x2="10" y2="0"/>
+      <line stroke="#0000FF" x1="0" y1="-10" x2="0" y2="10"/>
+    `)
+  );
+  assert.equal(fold.edges_vertices.length, 4, 'both segments split at the crossing');
+  const centre = fold.vertices_coords.findIndex(([x, y]) => Math.abs(x) < 1e-9 && Math.abs(y) < 1e-9);
+  assert.ok(centre >= 0, 'the crossing became a vertex');
+  const touching = fold.edges_vertices.filter(([a, b]) => a === centre || b === centre);
+  assert.equal(touching.length, 4, 'all four arms meet at it');
+});
+
+test('split pieces keep their parent assignment and fold angle', () => {
+  const { fold } = svgToFold(
+    wrap(`
+      <line stroke="#FF0000" opacity="0.5" x1="-10" y1="0" x2="10" y2="0"/>
+      <line stroke="#0000FF" opacity="0.25" x1="0" y1="-10" x2="0" y2="10"/>
+    `)
+  );
+  const mountains = fold.edges_foldAngle.filter((_, i) => fold.edges_assignment[i] === 'M');
+  const valleys = fold.edges_foldAngle.filter((_, i) => fold.edges_assignment[i] === 'V');
+  assert.deepEqual(mountains, [-90, -90]);
+  assert.deepEqual(valleys, [45, 45]);
+});
+
+test('a crease ending part-way along the boundary splits it', () => {
+  // The case that produced the bug report: without this the boundary stays one
+  // edge, so the crease's endpoint is an interior vertex of degree one and the
+  // flat checker reports an odd fold count on the visible edge of the paper.
+  const { fold } = svgToFold(
+    wrap(`
+      <line stroke="#000000" x1="0" y1="0" x2="100" y2="0"/>
+      <line stroke="#FF0000" x1="50" y1="0" x2="50" y2="50"/>
+    `)
+  );
+  const boundary = fold.edges_assignment.filter((a) => a === 'B').length;
+  assert.equal(boundary, 2, 'the boundary is split at the crease endpoint');
+});
+
+test('a crease drawn short of the boundary is pulled onto it', () => {
+  // Illustrator routinely stops a crease a fraction short. Left alone there is
+  // no intersection to split at, and the endpoint stays dangling.
+  const { fold, stats } = svgToFold(
+    wrap(`
+      <line stroke="#000000" x1="0" y1="0" x2="100" y2="0"/>
+      <line stroke="#FF0000" x1="50" y1="0.05" x2="50" y2="50"/>
+    `)
+  );
+  assert.equal(stats.snapped, 1);
+  assert.equal(fold.edges_assignment.filter((a) => a === 'B').length, 2);
+});
+
+test('an endpoint far from everything is left where it is', () => {
+  // Beyond the snap radius is a genuine dangling end, not a rounding error, and
+  // moving it would invent geometry.
+  const { fold, stats } = svgToFold(
+    wrap(`
+      <line stroke="#000000" x1="0" y1="0" x2="100" y2="0"/>
+      <line stroke="#FF0000" x1="50" y1="20" x2="50" y2="50"/>
+    `)
+  );
+  assert.equal(stats.snapped, 0);
+  assert.equal(fold.edges_assignment.filter((a) => a === 'B').length, 1);
+});
+
+test('splitting can be turned off', () => {
+  const body = `
+    <line stroke="#FF0000" x1="-10" y1="0" x2="10" y2="0"/>
+    <line stroke="#0000FF" x1="0" y1="-10" x2="0" y2="10"/>
+  `;
+  assert.equal(svgToFold(wrap(body), { planar: false }).fold.edges_vertices.length, 2);
+});

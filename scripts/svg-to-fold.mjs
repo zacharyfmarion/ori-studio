@@ -53,8 +53,15 @@ const STROKE_TO_ASSIGNMENT = new Map([
   ['#ffff00', 'F'],
 ]);
 
-/** Vertices closer than this in SVG units are the same point. */
-const WELD_EPSILON = 1e-6;
+/**
+ * Geometric tolerance, as a fraction of the drawing's longer side.
+ *
+ * Relative rather than absolute because these files span anything from 10 units
+ * to 3456, and Illustrator rounds coordinates -- a crease meant to land on a
+ * boundary can miss it by a thousandth. An absolute epsilon either misses those
+ * on a large drawing or welds distinct creases on a small one.
+ */
+const TOLERANCE_FRACTION = 1e-6;
 
 /**
  * Declarations from `<style>` blocks, keyed by class name.
@@ -206,7 +213,7 @@ function extractSegments(svg) {
     }
     const fraction = opacityOf(tag, classes);
     const push = (a, b) => {
-      if (Math.hypot(b[0] - a[0], b[1] - a[1]) > WELD_EPSILON) {
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) > 0) {
         segments.push({ a, b, assignment, fraction });
       }
     };
@@ -248,16 +255,224 @@ function extractSegments(svg) {
   return { segments, skippedCurves, skippedStroke };
 }
 
-export function svgToFold(svg, { title = 'Converted', flipY = false } = {}) {
-  const { segments, skippedCurves, skippedStroke } = extractSegments(svg);
-  if (segments.length === 0) throw new Error('no recognised creases');
+/**
+ * Radius for pulling a dangling endpoint onto the line it was drawn to meet, as
+ * a fraction of the drawing's longer side.
+ *
+ * **A dangling endpoint is meaningless in a crease pattern.** Every crease has to
+ * terminate on another crease or on the paper edge, so a degree-one vertex is
+ * always a drawing error rather than a design feature — which is what makes it
+ * safe to move, and why this is aimed only at those.
+ *
+ * The number comes from the data. Endpoint-to-segment distances across the whole
+ * corpus form a smooth continuum with no natural threshold, so no global snapping
+ * tolerance is defensible. Restricted to *dangling* endpoints the picture is
+ * different and bimodal: 1,114 of them sit within 1e-3 of a segment and 141 sit
+ * beyond 1e-2, with **nothing in between**. This is the middle of that gap.
+ */
+const SNAP_FRACTION = 3e-3;
+
+/**
+ * Pull dangling endpoints onto the segment they were drawn to meet.
+ *
+ * Illustrator output routinely stops a crease a fraction short of the paper edge
+ * or overshoots it. Left alone, splitting cannot help: there is no intersection
+ * to split at, and the vertex stays a degree-one interior vertex that the flat
+ * checker correctly reports as an odd fold count.
+ */
+function snapDanglingEndpoints(segments, radius) {
+  const key = ([x, y]) => `${Math.round(x / radius)},${Math.round(y / radius)}`;
+  const degree = new Map();
+  for (const { a, b } of segments) {
+    for (const point of [a, b]) degree.set(key(point), (degree.get(key(point)) ?? 0) + 1);
+  }
+
+  let moved = 0;
+  const nearest = (point, own) => {
+    let best = null;
+    let bestDistance = radius;
+    segments.forEach((segment, index) => {
+      if (index === own) return;
+      const [dx, dy] = [segment.b[0] - segment.a[0], segment.b[1] - segment.a[1]];
+      const length = Math.hypot(dx, dy);
+      if (length < 1e-12) return;
+      let t = ((point[0] - segment.a[0]) * dx + (point[1] - segment.a[1]) * dy) / (length * length);
+      t = Math.max(0, Math.min(1, t));
+      const candidate = [segment.a[0] + t * dx, segment.a[1] + t * dy];
+      const distance = Math.hypot(point[0] - candidate[0], point[1] - candidate[1]);
+      if (distance > 0 && distance < bestDistance) {
+        bestDistance = distance;
+        best = candidate;
+      }
+    });
+    return best;
+  };
+
+  const snapped = segments.map((segment, index) => {
+    const next = { ...segment };
+    for (const end of ['a', 'b']) {
+      if ((degree.get(key(segment[end])) ?? 0) !== 1) continue;
+      const target = nearest(segment[end], index);
+      if (target) {
+        next[end] = target;
+        moved += 1;
+      }
+    }
+    return next;
+  });
+  return { segments: snapped, moved };
+}
+
+/**
+ * Split every segment where another one meets it, so the result is a planar
+ * graph rather than a drawing.
+ *
+ * **This is the difference between an SVG and a crease pattern.** An SVG is a
+ * picture: two lines that cross, or a crease that stops part-way along the paper
+ * edge, merely *look* connected. A crease pattern is a graph, where meeting
+ * means sharing a vertex.
+ *
+ * Converting verbatim produced files where a crease ended in the middle of an
+ * unsplit boundary edge. The checker then saw a vertex with one crease and no
+ * border -- an interior vertex of degree one -- and correctly reported an odd
+ * fold count, on what is visibly the edge of the paper. Oriedita does the same
+ * with the same input; the input was the problem.
+ *
+ * Two things to split at, and both matter:
+ *
+ * - **crossings**, where two segments pass through each other;
+ * - **touches**, where one segment's endpoint lies inside another. That is the
+ *   case that produced the boundary reports, and the one a crossing test alone
+ *   would miss.
+ *
+ * Each piece inherits its parent's assignment and fold angle, which is what
+ * keeps the conversion faithful.
+ */
+function splitAtIntersections(segments, tolerance) {
+  // Bucket by bounding box so this does not compare every pair: the corpus has
+  // files with 5,000 segments, and 12 million pair tests in JS is not free.
+  const cell = Math.max(tolerance, spanOf(segments) / 64);
+  const buckets = new Map();
+  const keysFor = (segment) => {
+    const keys = [];
+    const [minX, maxX] = [Math.min(segment.a[0], segment.b[0]), Math.max(segment.a[0], segment.b[0])];
+    const [minY, maxY] = [Math.min(segment.a[1], segment.b[1]), Math.max(segment.a[1], segment.b[1])];
+    for (let x = Math.floor(minX / cell); x <= Math.floor(maxX / cell); x += 1) {
+      for (let y = Math.floor(minY / cell); y <= Math.floor(maxY / cell); y += 1) {
+        keys.push(`${x},${y}`);
+      }
+    }
+    return keys;
+  };
+  segments.forEach((segment, index) => {
+    for (const key of keysFor(segment)) {
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(index);
+    }
+  });
+
+  const cuts = segments.map(() => new Set());
+  const addCut = (index, t) => {
+    if (t > 1e-12 && t < 1 - 1e-12) cuts[index].add(t);
+  };
+
+  const considered = new Set();
+  segments.forEach((first, i) => {
+    const neighbours = new Set();
+    for (const key of keysFor(first)) for (const j of buckets.get(key) ?? []) neighbours.add(j);
+    for (const j of neighbours) {
+      if (j <= i) continue;
+      const pair = i * segments.length + j;
+      if (considered.has(pair)) continue;
+      considered.add(pair);
+      const second = segments[j];
+
+      const r = [first.b[0] - first.a[0], first.b[1] - first.a[1]];
+      const sVec = [second.b[0] - second.a[0], second.b[1] - second.a[1]];
+      const denominator = r[0] * sVec[1] - r[1] * sVec[0];
+      const delta = [second.a[0] - first.a[0], second.a[1] - first.a[1]];
+
+      if (Math.abs(denominator) > 1e-12) {
+        const t = (delta[0] * sVec[1] - delta[1] * sVec[0]) / denominator;
+        const u = (delta[0] * r[1] - delta[1] * r[0]) / denominator;
+        if (t > 0 && t < 1 && u > 0 && u < 1) {
+          addCut(i, t);
+          addCut(j, u);
+          continue;
+        }
+      }
+      // Parallel, or meeting outside the spans. Either way an endpoint of one
+      // may still lie on the other -- the touch case.
+      addCut(i, parameterOnSegment(second.a, first, tolerance));
+      addCut(i, parameterOnSegment(second.b, first, tolerance));
+      addCut(j, parameterOnSegment(first.a, second, tolerance));
+      addCut(j, parameterOnSegment(first.b, second, tolerance));
+    }
+  });
+
+  const out = [];
+  segments.forEach((segment, index) => {
+    const ts = [...cuts[index]].sort((a, b) => a - b);
+    let previous = segment.a;
+    for (const t of [...ts, 1]) {
+      const point =
+        t === 1
+          ? segment.b
+          : [
+              segment.a[0] + t * (segment.b[0] - segment.a[0]),
+              segment.a[1] + t * (segment.b[1] - segment.a[1]),
+            ];
+      if (Math.hypot(point[0] - previous[0], point[1] - previous[1]) > tolerance) {
+        out.push({ ...segment, a: previous, b: point });
+      }
+      previous = point;
+    }
+  });
+  return out;
+}
+
+/** Parameter of `point` along `segment`, or NaN when it is not on it. */
+function parameterOnSegment(point, segment, tolerance) {
+  const [dx, dy] = [segment.b[0] - segment.a[0], segment.b[1] - segment.a[1]];
+  const length = Math.hypot(dx, dy);
+  if (length < tolerance) return Number.NaN;
+  const t = ((point[0] - segment.a[0]) * dx + (point[1] - segment.a[1]) * dy) / (length * length);
+  if (!(t > 0 && t < 1)) return Number.NaN;
+  const perpendicular =
+    Math.abs((point[0] - segment.a[0]) * dy - (point[1] - segment.a[1]) * dx) / length;
+  return perpendicular <= tolerance ? t : Number.NaN;
+}
+
+function spanOf(segments) {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const { a, b } of segments) {
+    for (const [x, y] of [a, b]) {
+      min = Math.min(min, x, y);
+      max = Math.max(max, x, y);
+    }
+  }
+  const span = max - min;
+  return Number.isFinite(span) && span > 0 ? span : 1;
+}
+
+export function svgToFold(svg, { title = 'Converted', flipY = false, planar = true } = {}) {
+  const { segments: raw, skippedCurves, skippedStroke } = extractSegments(svg);
+  if (raw.length === 0) throw new Error('no recognised creases');
+  const span = spanOf(raw);
+  const tolerance = span * TOLERANCE_FRACTION;
+  // Snap first: a crease drawn a hair short of the paper edge has no
+  // intersection to split at until its endpoint is actually on the edge.
+  const { segments: joined, moved } = planar
+    ? snapDanglingEndpoints(raw, span * SNAP_FRACTION)
+    : { segments: raw, moved: 0 };
+  const segments = planar ? splitAtIntersections(joined, tolerance) : joined;
 
   let maxY = -Infinity;
   for (const { a, b } of segments) maxY = Math.max(maxY, a[1], b[1]);
   const place = ([x, y]) => [x, flipY ? maxY - y : y];
 
-  const key = ([x, y]) =>
-    `${Math.round(x / WELD_EPSILON)},${Math.round(y / WELD_EPSILON)}`;
+  const key = ([x, y]) => `${Math.round(x / tolerance)},${Math.round(y / tolerance)}`;
   const indexOf = new Map();
   const vertices = [];
   const vertexIndex = (point) => {
@@ -312,6 +527,8 @@ export function svgToFold(svg, { title = 'Converted', flipY = false } = {}) {
     stats: {
       vertices: vertices.length,
       edges: edges.length,
+      splitFrom: raw.length,
+      snapped: moved,
       duplicates,
       skippedCurves,
       skippedStroke,
@@ -348,6 +565,7 @@ function main() {
       converted += 1;
       if (!quiet) {
         const notes = [
+          stats.snapped ? `${stats.snapped} snapped` : null,
           stats.duplicates ? `${stats.duplicates} dup` : null,
           stats.skippedCurves ? `${stats.skippedCurves} curved SKIPPED` : null,
           stats.skippedStroke ? `${stats.skippedStroke} unknown stroke` : null,
