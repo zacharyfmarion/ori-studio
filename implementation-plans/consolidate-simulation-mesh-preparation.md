@@ -76,4 +76,14 @@ ever read it — `simulatorSession` recomputes crease parameters from the fold.
       `cargo test --workspace`
 - [x] `npx tsc --noEmit`, `vitest run`, `npm run lint:web` in `apps/web`
 - [x] Rebuild the wasm bridge (exported artifact shape changed)
-- [ ] Browser check: Design → generate CP → Simulate
+- [x] Live check of the data path: starter design → `optimizeScale` →
+      `buildCreasePattern` in the running app gives `simulation_model` non-null
+      with no `crease_params` (so it came from `foldArtifactsFromFold`, through
+      the real worker and real wasm), 6 driven creases all incident to two
+      faces, M/V angles +180/−180, finite coordinates, one segment, no console
+      errors
+- [ ] Browser check of the simulator actually folding. The automated browser
+      pane runs with `visibilityState=hidden` and no `requestAnimationFrame`
+      callbacks, so solver playback cannot be driven there — this one is a human
+      pass over Design → generate CP → Simulate, and over a design that
+      previously reported simulation unavailable
