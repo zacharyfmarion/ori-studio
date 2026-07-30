@@ -76,6 +76,41 @@ measurement, not a guess.
 - `crates/treemaker-fold/src/lib.rs` — mirror only if the Rust path needs parity;
   it has no quality triangulator today either
 
+## Measured, before building the real thing
+
+A first attempt — subdivide the ring edges of thin faces so the flip pass has
+anchors, budgeted at +25% vertices — was implemented and **reverted**. On 42 real
+patterns:
+
+| | naive subdivision |
+| --- | --- |
+| vertices | +24.4% (budget-bound) |
+| triangles under 5 degrees | -13.4% |
+| triangles under 20 degrees | **+4.4%** |
+| worst angle | better on 5, **worse on 22**, unchanged on 15 |
+| 200 solver steps | **+25-40%** wall clock |
+
+Splitting a shared edge changes the ring of the face on the other side too, and
+without a triangulator that re-optimises globally the neighbour often comes out
+worse than it started. Paying a quarter of the vertex count for that is not a
+trade worth making.
+
+Two measurements from the same session that should shape the real attempt:
+
+- **The slivers are ours, not the design's.** On the iguana fixture the crease
+  pattern's own faces have a worst corner of 8.13 degrees and *zero* corners
+  under 5. The prepared mesh has a worst angle of 0.82 degrees and 352 triangles
+  under 5. Nothing about the pattern forces this.
+- **They come from thin faces, not bad corners.** Choosing each quad's diagonal
+  by max-min-angle instead of by length changed 1 pattern out of 42 — for most
+  quads the two rules already agree. A 100x1 quad has four 90-degree corners and
+  no good triangulation at either diagonal, which is the shape that has to be
+  fixed, and it cannot be fixed without new vertices.
+
+So refinement is still the answer, but it has to be a real constrained Delaunay
+refinement that re-triangulates affected neighbours as it inserts, not a
+subdivision pass bolted in front of earcut.
+
 ## Checklist
 
 - [ ] Baseline the corpus: min angle, sub-5-degree count, vertex count, and
