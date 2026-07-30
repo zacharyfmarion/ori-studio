@@ -405,15 +405,29 @@ Browser checklist for Zach (not tool-verifiable):
 
 ## Checklist
 
-- [ ] Phase 1 — `OperationId`s, descriptors, dispatch arms; wasm rebuilt and committed
-- [ ] Phase 2 — command catalog, input-model entries, capabilities, menu action map, Repair submenu (both actions)
-- [ ] Phase 3 — execute-vs-activate predicate so a one-shot does not latch the rail
-- [ ] Phase 3 — rail override + glyph + short rail label for the ignore-colour variant
-- [ ] Phase 4 — `primary+shift+V` chord (verified free; upstream double-books it with paste-offset)
-- [ ] Phase 5 — sweep de-quadratified against `checks::point_line_map`; duplicate deleted
-- [ ] Phase 5 — oracle fixtures for collinear chains and epsilon-boundary endpoints
-- [ ] Phase 5 — dense-grid timing guard
+- [x] Phase 1 — `OperationId`s, descriptors, dispatch arms; wasm rebuilt and committed
+- [x] Phase 2 — command catalog, input-model entries, capabilities, menu action map, Repair submenu (both actions)
+- [x] Phase 3 — execute-vs-activate predicate so a one-shot does not latch the rail
+- [x] Phase 3 — rail override + glyph for the ignore-colour variant. No rail label
+      needed after all: command actions never set `railLabel`, so the rail is
+      icon-plus-tooltip and the truncation worry did not apply. Kept the command's
+      own "(Ignore Type)" label, which is what the tooltip shows.
+- [x] Phase 4 — `primary+shift+V` chord (verified free; upstream double-books it with paste-offset)
+- [x] Phase 5 — sweep rewritten on segment indices + eps-cell spatial hash; 1.35s -> 0.01s
+      on a 10k-segment dense grid. `checks::point_line_map` was not reusable as-is —
+      it returns cloned segments with no identity, and `replaceLine` needs an
+      exact-coordinate vertex lookup — so `arrangement` grew its own index rather
+      than the planned shared one. The duplicate scan is gone either way.
+- [x] Phase 5 — oracle fixtures for collinear chains and epsilon-boundary endpoints.
+      The chain fixture caught a real divergence: `replaceLine` removes and
+      re-appends, which reorders the pair the next vertex sees and flips the merged
+      endpoints. Fixed.
+- [x] Phase 5 — dense-grid timing guard
 - [ ] Phase 6 — `fold_magnitude` decision confirmed with Zach, then implemented + tested
-- [ ] i18n: extract, 8 locales, stamp, check
-- [ ] `cargo fmt` / `clippy` / `cargo test -p oristudio-cp` / oracle / `tsc --noEmit` / `lint:web` / `vitest`
+- [x] i18n: extract, 8 locales, stamp, check
+- [x] `cargo fmt` / `clippy` / `cargo test -p oristudio-cp` / oracle / `tsc --noEmit` / `lint:web` / `vitest`
 - [ ] Browser checklist confirmed
+
+Pre-existing on this branch, untouched by this work: `symmetric_draw`,
+`double_symmetric_draw` and `fishbone_draw` fail against the Oriedita oracle.
+They are in `operations::construction`, which no commit here edits.
