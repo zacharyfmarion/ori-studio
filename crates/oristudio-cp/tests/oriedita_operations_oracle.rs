@@ -468,6 +468,83 @@ fn del_v_pair_and_all_variants_match_oriedita_foldlineset_oracle() {
     );
 }
 
+/// A chain longer than one pair, so the sweep has to fold each merged segment
+/// into the next one as it reaches the following vertex. Two pairs collapse in
+/// the middle of the walk and the survivors have to stay reachable through the
+/// vertex groups; a sweep that only ever merged the original segments would
+/// stop after the first pair.
+///
+/// Interleaves colours so both variants are exercised on the same chain: the
+/// same-colour sweep may only take the red run, while the ignore-colour sweep
+/// resolves red-against-blue to black on the way through.
+#[test]
+fn del_v_all_collinear_chain_matches_oriedita_foldlineset_oracle() {
+    let Some(oracle) = operations_oracle() else {
+        eprintln!(
+            "skipping Oriedita operations oracle test: ORIEDITA_OPERATIONS_ORACLE is not set"
+        );
+        return;
+    };
+
+    let chain = vec![
+        segment(0.0, 0.0, 10.0, 0.0, LineColor::Red1),
+        segment(10.0, 0.0, 20.0, 0.0, LineColor::Red1),
+        segment(20.0, 0.0, 30.0, 0.0, LineColor::Red1),
+        segment(30.0, 0.0, 40.0, 0.0, LineColor::Blue2),
+        segment(40.0, 0.0, 50.0, 0.0, LineColor::Blue2),
+    ];
+
+    let mut all_model = model_from_segments(&chain);
+    del_v_all(&mut all_model);
+    let mut all_args = vec!["foldline-del-v-all".to_string(), chain.len().to_string()];
+    push_segment_args(&mut all_args, &chain);
+    assert_eq!(
+        line_segment_set_summary(&all_model),
+        run_oracle(&oracle, &all_args)
+    );
+
+    let mut cc_model = model_from_segments(&chain);
+    del_v_all_color_change(&mut cc_model);
+    let mut cc_args = vec!["foldline-del-v-all-cc".to_string(), chain.len().to_string()];
+    push_segment_args(&mut cc_args, &chain);
+    assert_eq!(
+        line_segment_set_summary(&cc_model),
+        run_oracle(&oracle, &cc_args)
+    );
+}
+
+/// Endpoints that are close but not equal, straddling `PointLineMap`'s 1e-4
+/// vertex tolerance. The spatial hash buckets by eps-sized cells, so this is
+/// where its cell-neighbourhood search has to agree with upstream's scan of
+/// every vertex seen so far — including the pair that sits just outside the
+/// tolerance and must stay two vertices.
+#[test]
+fn del_v_all_near_coincident_endpoints_match_oriedita_foldlineset_oracle() {
+    let Some(oracle) = operations_oracle() else {
+        eprintln!(
+            "skipping Oriedita operations oracle test: ORIEDITA_OPERATIONS_ORACLE is not set"
+        );
+        return;
+    };
+
+    for gap in [1e-5, 5e-5, 9.9e-5, 1.01e-4, 1e-3] {
+        let segments = vec![
+            segment(0.0, 0.0, 10.0, 0.0, LineColor::Red1),
+            segment(10.0 + gap, 0.0, 20.0, 0.0, LineColor::Red1),
+        ];
+
+        let mut model = model_from_segments(&segments);
+        del_v_all(&mut model);
+        let mut args = vec!["foldline-del-v-all".to_string(), segments.len().to_string()];
+        push_segment_args(&mut args, &segments);
+        assert_eq!(
+            line_segment_set_summary(&model),
+            run_oracle(&oracle, &args),
+            "gap {gap} disagreed with the Oriedita oracle"
+        );
+    }
+}
+
 #[test]
 fn branch_trim_matches_oriedita_foldlineset_oracle() {
     let Some(oracle) = operations_oracle() else {

@@ -686,6 +686,54 @@ fn overlapping_line_removal_uses_requested_precision() {
     assert_eq!(model.line_segments.len(), 1);
 }
 
+/// The sweep's worst case: every interior vertex is degree two, so every one of
+/// them merges. This is also its *typical* case, since collapsing split creases
+/// is what the tool is for.
+///
+/// The value-based version cost O(vertices x segments) — a full scan of the
+/// segment list per deletion and of every vertex group per redirect. Measured
+/// on this exact input in a debug build: 1.35s before, 0.01s after.
+///
+/// The bound is set from those two numbers rather than picked round. It has to
+/// sit far enough above 0.01s to survive a loaded CI box and far enough below
+/// 1.35s to actually fire, which is the whole point — an earlier draft of this
+/// test used 10s and would have passed against the quadratic version it exists
+/// to catch.
+#[test]
+fn del_v_all_collapses_a_dense_grid_without_going_quadratic() {
+    const LINES: usize = 100;
+    const SPLITS: usize = 100;
+
+    let mut model = CreasePatternModel::default();
+    for row in 0..LINES {
+        let y = row as f64;
+        for split in 0..SPLITS {
+            let x = split as f64;
+            model.add_line_segment(LineSegment::with_color(
+                Point::new(x, y),
+                Point::new(x + 1.0, y),
+                LineColor::Red1,
+            ));
+        }
+    }
+    assert_eq!(model.line_segments.len(), LINES * SPLITS);
+
+    let started = std::time::Instant::now();
+    del_v_all(&mut model);
+    let elapsed = started.elapsed();
+
+    // Each row collapses to a single segment spanning it.
+    assert_eq!(model.line_segments.len(), LINES);
+    for segment in &model.line_segments {
+        assert_eq!(segment.a.x.min(segment.b.x), 0.0);
+        assert_eq!(segment.a.x.max(segment.b.x), SPLITS as f64);
+    }
+    assert!(
+        elapsed < std::time::Duration::from_millis(500),
+        "dense-grid sweep took {elapsed:?}; suspect a reintroduced quadratic"
+    );
+}
+
 fn assert_segment(segment: &LineSegment, a: Point, b: Point, color: LineColor) {
     assert_eq!(segment.a, a);
     assert_eq!(segment.b, b);
