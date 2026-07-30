@@ -37,6 +37,7 @@ import type {
 } from '../engine/oristudioCpTypes';
 import { cpLineStyleLabel } from '../i18n/enumLabels';
 import { Button } from './ui/Button';
+import { ColorField } from './ui/ColorField';
 import { IconButton } from './ui/IconButton';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Slider } from './ui/Slider';
@@ -530,28 +531,16 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   />
                 </div>
                 <div className="export-modal__colors">
-                  <label className="export-modal__color">
-                    <span>{t('dialogs:export.foldedFrontColor', 'Front')}</span>
-                    <input
-                      type="color"
-                      aria-label={t('dialogs:export.foldedFrontColor', 'Front')}
-                      value={foldedSettings.frontColor}
-                      onChange={(event) =>
-                        patchFolded({ frontColor: event.currentTarget.value })
-                      }
-                    />
-                  </label>
-                  <label className="export-modal__color">
-                    <span>{t('dialogs:export.foldedBackColor', 'Back')}</span>
-                    <input
-                      type="color"
-                      aria-label={t('dialogs:export.foldedBackColor', 'Back')}
-                      value={foldedSettings.backColor}
-                      onChange={(event) =>
-                        patchFolded({ backColor: event.currentTarget.value })
-                      }
-                    />
-                  </label>
+                  <ColorField
+                    label={t('dialogs:export.foldedFrontColor', 'Front')}
+                    value={foldedSettings.frontColor}
+                    onChange={(frontColor) => patchFolded({ frontColor })}
+                  />
+                  <ColorField
+                    label={t('dialogs:export.foldedBackColor', 'Back')}
+                    value={foldedSettings.backColor}
+                    onChange={(backColor) => patchFolded({ backColor })}
+                  />
                 </div>
                 <div className="export-modal__control-group">
                   <label className="export-modal__label" htmlFor="export-fold-case">

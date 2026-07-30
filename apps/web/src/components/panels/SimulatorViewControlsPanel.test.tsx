@@ -43,6 +43,28 @@ function slider(rendered: HTMLDivElement, label: string): HTMLInputElement {
   return found;
 }
 
+/** A section by its visible title. */
+function section(rendered: HTMLDivElement, title: string): HTMLElement {
+  const found = [
+    ...rendered.querySelectorAll<HTMLElement>('.simulator-view-controls-panel__section'),
+  ].find(
+    (element) =>
+      element.querySelector('.simulator-view-controls-panel__section-title')?.textContent === title
+  );
+  if (!found) throw new Error(`no section titled ${title}`);
+  return found;
+}
+
+function toggle(rendered: HTMLDivElement, title: string): void {
+  const button = section(rendered, title).querySelector<HTMLButtonElement>(
+    '.simulator-view-controls-panel__section-toggle'
+  );
+  if (!button) throw new Error(`section ${title} is not collapsible`);
+  act(() => {
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+}
+
 /**
  * Drive a controlled range input the way React sees it: assign through the native
  * value setter (React tracks the previous value on the node) and dispatch `input`,
@@ -94,6 +116,7 @@ describe('SimulatorViewControlsPanel', () => {
 
   it('commits a material slider to the store', () => {
     const rendered = render();
+    toggle(rendered, 'Material');
     const input = slider(rendered, 'Crease');
 
     dragSlider(input, 2.5);
@@ -111,6 +134,9 @@ describe('SimulatorViewControlsPanel', () => {
 
   it('resets only the material settings', () => {
     const rendered = render();
+    // The reset lives in the section header and shows only with the controls it
+    // resets, so the section has to be open to reach it.
+    toggle(rendered, 'Material');
     act(() => {
       const store = useWorkspaceStore.getState();
       store.setSimulatorSetting('creaseStiffness', 3);
@@ -140,6 +166,7 @@ describe('SimulatorViewControlsPanel', () => {
 
   it('shows stability inverted, so dragging right is more stable', () => {
     const rendered = render();
+    toggle(rendered, 'Solver');
     const input = slider(rendered, 'Stability');
     const settings = useWorkspaceStore.getState().simulatorSettings;
 
@@ -156,5 +183,84 @@ describe('SimulatorViewControlsPanel', () => {
       Number(input.min),
       5
     );
+  });
+});
+
+describe('collapsible sections', () => {
+  it('starts every section but Render collapsed, rendering none of their controls', () => {
+    // Render is the one people came for; everything else is secondary and open
+    // by default it pushed the rest below the fold. Follows GridSettingsSection
+    // in the Edit workspace's view pane.
+    const rendered = render();
+    for (const title of ['Paper', 'Creases', 'Export', 'Material', 'Solver']) {
+      const element = section(rendered, title);
+      expect(element.hasAttribute('data-open')).toBe(false);
+      expect(element.querySelectorAll('.control-row')).toHaveLength(0);
+    }
+    // Render stays open: it is the one people came for. Asserted on the toggle
+    // class rather than aria-expanded, which the Radix selects inside it carry.
+    expect(
+      section(rendered, 'Render').querySelector('.simulator-view-controls-panel__section-toggle')
+    ).toBeNull();
+  });
+
+  it('reveals a section’s controls when opened, and hides them again', () => {
+    const rendered = render();
+    toggle(rendered, 'Creases');
+    expect(section(rendered, 'Creases').hasAttribute('data-open')).toBe(true);
+    expect(rendered.querySelector('[aria-label="Mountain"]')).not.toBeNull();
+    expect(rendered.querySelector('[aria-label="Valley"]')).not.toBeNull();
+
+    toggle(rendered, 'Creases');
+    expect(rendered.querySelector('[aria-label="Mountain"]')).toBeNull();
+  });
+
+  it('holds each section’s state independently', () => {
+    const rendered = render();
+    toggle(rendered, 'Paper');
+    expect(section(rendered, 'Paper').hasAttribute('data-open')).toBe(true);
+    expect(section(rendered, 'Creases').hasAttribute('data-open')).toBe(false);
+  });
+
+  it('offers a colour reset only once the colour is overridden', () => {
+    // Absence of the affordance is the signal that the value still follows the
+    // theme, so it must not be there by default.
+    const rendered = render();
+    toggle(rendered, 'Paper');
+    expect(rendered.querySelector('.color-field__clear')).toBeNull();
+
+    act(() => {
+      useWorkspaceStore.getState().setSimulatorSetting('paperFront', '#ff8800');
+    });
+    expect(rendered.querySelector('.color-field__clear')).not.toBeNull();
+    expect(
+      rendered.querySelector<HTMLInputElement>('[aria-label="Front"]')?.value
+    ).toBe('#ff8800');
+  });
+
+  it('disables the per-kind swatches under a mono crease style', () => {
+    // They no longer affect anything there, and a live control that does nothing
+    // promises an effect it cannot deliver.
+    const rendered = render();
+    toggle(rendered, 'Creases');
+    const mountain = () => rendered.querySelector<HTMLInputElement>('[aria-label="Mountain"]');
+    expect(mountain()?.disabled).toBe(false);
+
+    act(() => {
+      useWorkspaceStore.getState().setSimulatorSetting('creaseStyle', 'mono');
+    });
+    expect(mountain()?.disabled).toBe(true);
+    // The edge ink is what mono paints with, so it stays editable.
+    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
+  });
+
+  it('labels each swatch to its own input', () => {
+    const rendered = render();
+    toggle(rendered, 'Paper');
+    const field = rendered.querySelector('.color-field--row');
+    const label = field?.querySelector('label');
+    const input = field?.querySelector('input');
+    expect(label?.htmlFor).toBeTruthy();
+    expect(label?.htmlFor).toBe(input?.id);
   });
 });

@@ -104,6 +104,7 @@ import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { freshEditableCpState } from '../freshCreasePattern';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
+import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
   blockingExportLoss,
@@ -433,12 +434,6 @@ function isOrieditaOriFilename(filename: string): boolean {
 
 function isOrieditaOrhFilename(filename: string): boolean {
   return /\.orh$/i.test(filename);
-}
-
-function defaultFilename(title: string, extension: string): string {
-  const base = title.trim() || 'Untitled';
-  const safe = base.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'Untitled';
-  return ensureExtension(safe, extension);
 }
 
 function defaultNativeFilename(title: string): string {

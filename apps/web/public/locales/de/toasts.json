@@ -7,5 +7,10 @@
   "global": {
     "error": "Ori Studio-Fehler",
     "folding": "Wird gefaltet…"
+  },
+  "simulatorExport": {
+    "empty": "Diese Simulation hat noch nichts zu exportieren",
+    "failed": "Diese Ansicht konnte nicht exportiert werden",
+    "saved": "{{name}} exportiert"
   }
 }

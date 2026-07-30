@@ -35,6 +35,8 @@ import {
   type SimulatorViewportHandle,
 } from "../../simulator/SimulatorViewport";
 import { useSimulatorShortcuts } from "../../simulator/useSimulatorShortcuts";
+import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
+import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
 import {
   foldNeedsTriangulation,
   type SimulatorHighlights,
@@ -238,6 +240,8 @@ export function SimulatorPanel() {
     setRenderSettings: pushRenderSettings,
     setMaterial: pushMaterial,
   } = runtime;
+
+  const exportView = useSimulatorViewExport(runtime.exportSvg);
 
   // Apply material/stability edits to the live solver. The load effect ignores
   // solverOptions on purpose -- reloading the model would throw away the current
@@ -512,6 +516,12 @@ export function SimulatorPanel() {
             <span className="panel-title">
               {t("panels:simulator.title", "Simulator")}
             </span>
+          </div>
+          <div className="panel-toolbar__group">
+            <SimulatorExportMenu
+              onExport={exportView}
+              disabled={loadState !== "ready"}
+            />
           </div>
           {/* Scope controls hidden while the Sequence panel is hidden (always "whole"). */}
           <div
