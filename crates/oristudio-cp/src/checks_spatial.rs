@@ -632,55 +632,105 @@ fn report_for(
     }
 }
 
-fn cell_of(point: Point) -> (i64, i64) {
-    (
-        (point.x / CELL).floor() as i64,
-        (point.y / CELL).floor() as i64,
-    )
-}
-
-/// Spatial hash of segments, for asking "does anything pass *through* here".
+/// Spatial index for asking "does anything pass *through* here".
 ///
 /// `checks::check2` answers the same question exactly, but pairwise over every
 /// segment — `O(E^2)`, which is fine for an on-demand diagnostic and far too slow
 /// to run inside a live check on a 52k-segment document.
+///
+/// # Bucket size is not the same thing as the distance tolerance
+///
+/// The first version conflated them, and the index barely worked as a result. It
+/// bucketed at [`CELL`] (1e-6) while stamping each segment's **bounding box** on
+/// a lattice of `extent / 64` — so a 400-unit segment landed in ~65 buckets
+/// spaced six million buckets apart, and a query, which looks at one bucket and
+/// its eight neighbours, missed it unless the point happened to fall on that
+/// lattice.
+///
+/// Measured: a T-junction part-way along a segment went undetected at every
+/// length from 0.01 upward, so the vertex was evaluated with two rays missing
+/// and reported a 216-degree closure failure on sound geometry. That is exactly
+/// the false positive [`Indeterminate::UnsplitJunction`] exists to prevent.
+///
+/// So the two roles are now separate:
+///
+/// - **buckets** are coarse, sized from the model so a segment crosses a bounded
+///   number of them;
+/// - **the tolerance** stays [`CELL`], applied by `point_on_segment` once a
+///   candidate has been found.
+///
+/// And the segment is rasterised *along its length* rather than over its
+/// bounding box, which for a diagonal is the difference between `O(k)` and
+/// `O(k^2)` stamps.
 struct ThroughLineIndex {
+    bucket: f64,
     cells: HashMap<(i64, i64), Vec<LineSegment>>,
 }
 
+/// How many buckets the model's longer side is divided into.
+///
+/// Sets the trade: a segment spanning the whole sheet is stamped into about
+/// twice this many buckets, and a query scans the segments in nine of them.
+const BUCKETS_ACROSS: f64 = 256.0;
+
 impl ThroughLineIndex {
     fn build(model: &CreasePatternModel) -> Self {
+        let bucket = Self::bucket_size(model);
         let mut cells: HashMap<(i64, i64), Vec<LineSegment>> = HashMap::new();
         for segment in &model.line_segments {
             if segment.color == LineColor::Cyan3 {
                 continue;
             }
-            // Stamp the segment into every cell its bounding box touches, so a
-            // point-in-segment query only has to look at its own cell. Long
-            // segments are the common case in a CP, so the box is coarsened to a
-            // stride that keeps the stamp count bounded.
-            let (min_x, max_x) = minmax(segment.a.x, segment.b.x);
-            let (min_y, max_y) = minmax(segment.a.y, segment.b.y);
-            let stride = ((max_x - min_x).max(max_y - min_y) / 64.0).max(CELL);
-            let mut x = min_x;
-            while x <= max_x + stride {
-                let mut y = min_y;
-                while y <= max_y + stride {
-                    cells
-                        .entry(((x / CELL).floor() as i64, (y / CELL).floor() as i64))
-                        .or_default()
-                        .push(segment.clone());
-                    y += stride;
+            // Walk the segment, not its bounding box, in steps of half a bucket
+            // so no bucket it crosses can be skipped.
+            let (dx, dy) = (segment.b.x - segment.a.x, segment.b.y - segment.a.y);
+            let length = (dx * dx + dy * dy).sqrt();
+            let steps = ((2.0 * length / bucket).ceil() as usize).max(1);
+            let mut last = None;
+            for step in 0..=steps {
+                let t = step as f64 / steps as f64;
+                let key = Self::key(
+                    bucket,
+                    Point::new(segment.a.x + t * dx, segment.a.y + t * dy),
+                );
+                if last == Some(key) {
+                    continue;
                 }
-                x += stride;
+                last = Some(key);
+                cells.entry(key).or_default().push(segment.clone());
             }
         }
-        Self { cells }
+        Self { bucket, cells }
+    }
+
+    /// Longer side of the model's bounding box, divided into buckets, and never
+    /// finer than the tolerance the query applies.
+    fn bucket_size(model: &CreasePatternModel) -> f64 {
+        let mut min = Point::new(f64::MAX, f64::MAX);
+        let mut max = Point::new(f64::MIN, f64::MIN);
+        for segment in &model.line_segments {
+            for point in [segment.a, segment.b] {
+                min = Point::new(min.x.min(point.x), min.y.min(point.y));
+                max = Point::new(max.x.max(point.x), max.y.max(point.y));
+            }
+        }
+        let extent = (max.x - min.x).max(max.y - min.y);
+        if !extent.is_finite() || extent <= 0.0 {
+            return CELL;
+        }
+        (extent / BUCKETS_ACROSS).max(CELL)
+    }
+
+    fn key(bucket: f64, point: Point) -> (i64, i64) {
+        (
+            (point.x / bucket).floor() as i64,
+            (point.y / bucket).floor() as i64,
+        )
     }
 
     /// True when a segment contains `point` strictly between its endpoints.
     fn passes_through(&self, point: Point) -> bool {
-        let cell = cell_of(point);
+        let cell = Self::key(self.bucket, point);
         for dx in -1..=1 {
             for dy in -1..=1 {
                 let Some(segments) = self.cells.get(&(cell.0 + dx, cell.1 + dy)) else {
@@ -698,10 +748,6 @@ impl ThroughLineIndex {
         }
         false
     }
-}
-
-fn minmax(a: f64, b: f64) -> (f64, f64) {
-    if a <= b { (a, b) } else { (b, a) }
 }
 
 fn point_on_segment(point: Point, segment: &LineSegment) -> bool {
