@@ -27,6 +27,11 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { InlineSimulation } from '../../cp-workspace/inlineSimulation/inlineSimulation';
+import {
+  inlineSimulationSourceCount,
+  setInlineSimulationSource,
+} from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
+import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
@@ -1624,6 +1629,73 @@ describe('workspace store slices', () => {
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
     // A bare CP establishes no design, so the Design workspace keeps the chooser.
     expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+  });
+
+  // The compiler catches a per-document field whose *discard value* nobody
+  // supplied. It cannot catch a `set` that hand-rolls its own field list instead
+  // of spreading the discard, which is what every bug of this shape has actually
+  // been. This asserts the whole scoped set at once, and takes its field list
+  // from the same constant the type is built from — so a field added later is
+  // covered here without anyone remembering to come back.
+  it('leaves nothing of a document behind when it is closed', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+      oristudioCpAnnotations: [
+        createCpImage({
+          src: 'data:image/png;base64,AAAA',
+          naturalWidth: 10,
+          naturalHeight: 10,
+          center: { x: 0, y: 0 },
+          width: 1,
+          height: 1,
+        }),
+      ],
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1, 2] },
+      oristudioCpRevision: 7,
+      oristudioCpDocumentExtensions: { leftover: true },
+    });
+    setInlineSimulationSource('inline-sim-1', { fold: {} as never, modelKey: 'k' });
+
+    await useWorkspaceStore.getState().clearOristudioCpDocument();
+
+    const state = useWorkspaceStore.getState();
+    const discarded = discardCpDocumentState();
+    for (const key of CP_DOCUMENT_SCOPED_KEYS) {
+      expect(state[key], key).toEqual(discarded[key]);
+    }
+    // And the half of a window that is not in the store at all.
+    expect(inlineSimulationSourceCount()).toBe(0);
+  });
+
+  // Opening a `.cp` kept the previous document's windows, which then reported
+  // themselves merely "out of date" over a crease pattern they had never been
+  // built from. The path cleared the folded figures two lines above and simply
+  // did not know about windows — the same miss as undo, in a different place.
+  it('drops inline simulation windows when a crease pattern is opened over them', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+    });
+    setInlineSimulationSource('inline-sim-1', { fold: {} as never, modelKey: 'k' });
+
+    const fileService = createFileService({
+      text: '{"@version":"v1.1","title":"native ori","lineSegments":[]}',
+      name: 'native.ori',
+      path: '/tmp/native.ori',
+    });
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
+    // The descriptor is only half of a window. Its captured fold lives outside
+    // the store and is hundreds of KB to megabytes; window ids are never reused,
+    // so a fold left behind is unreachable for the rest of the session.
+    expect(inlineSimulationSourceCount()).toBe(0);
   });
 
   it('drops inline simulation windows when the document is replaced', async () => {
