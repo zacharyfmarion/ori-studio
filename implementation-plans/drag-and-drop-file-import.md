@@ -339,50 +339,52 @@ working), and `CreasePatternPanel.tsx`.
 
 **Phase 1 — Classification (pure, no UI)**
 
-- [ ] `lib/fileDrop.ts`: `classifyDroppedFile`, `resolveDropDecision`,
+- [x] `lib/fileDrop.ts`: `classifyDroppedFile`, `resolveDropDecision`,
       `DropTargetPolicy`.
-- [ ] `fileDrop.test.ts`: the full matrix above, plus the pin test asserting the
+- [x] `fileDrop.test.ts`: the full matrix above, plus the pin test asserting the
       extension table agrees with `isCreasePatternFilename`,
       `isNativeProjectFilename`, `isBpProjectFilename`, and `openProject`'s list.
 
 **Phase 2 — Choice dialog**
 
-- [ ] `choice` dialog type + `requestChoice` in `commandDialogStore`.
-- [ ] Render it in `CommandDialogModal` with the existing `simple-modal` styles.
-- [ ] Test: resolves the chosen id, `null` on cancel/Escape, `null` with no host.
+- [x] `choice` dialog type + `requestChoice` in `commandDialogStore`.
+- [x] Render it in `CommandDialogModal` with the existing `simple-modal` styles.
+- [x] Test: resolves the chosen id, `null` on cancel/Escape, `null` with no host.
 
 **Phase 3 — Store and platform seams**
 
-- [ ] `openProject(fileService?, options?: { confirmDiscard?: boolean })`.
-- [ ] `createDroppedFileService(file)`.
-- [ ] Tests: `store.test.ts` (the option skips the prompt and still opens; the
+- [x] `openProject(fileService?, options?: { confirmDiscard?: boolean })`.
+- [x] `createDroppedFileService(file)`.
+- [x] Tests: `store.test.ts` (the option skips the prompt and still opens; the
       default still prompts), `fileService.test.ts` (dropped service yields
       text/bytes and a null path).
 
 **Phase 4 — Controller**
 
-- [ ] `commands/fileDropController.ts`: pick the document, resolve the decision,
+- [x] `commands/fileDropController.ts`: pick the document, resolve the decision,
       prompt, dispatch, navigate.
-- [ ] Test with a mocked store and `requestChoice`: choice offered only when
+- [x] Test with a mocked store and `requestChoice`: choice offered only when
       `file.importAdd` is enabled; `confirmDiscard: false` on the open path;
       navigation target per outcome; refusal while another dialog is open;
       unsupported, folder, and multi-file messaging.
 
 **Phase 5 — Transport, targets, affordance**
 
-- [ ] `useFileDropTarget` with dragenter/dragleave counting, files-only guard,
+- [x] `useFileDropTarget` with dragenter/dragleave counting, files-only guard,
       and image-only suppression.
-- [ ] `FileDropOverlay` + `App.css`.
-- [ ] Mount on `WelcomeRoute` (`open-only`) and `WorkspaceShell`
+- [x] `FileDropOverlay` + `App.css`.
+- [x] Mount on `WelcomeRoute` (`open-only`) and `WorkspaceShell`
       (`open-or-import`).
-- [ ] `stopPropagation()` on the consumed-image path in `useCpAnnotations`.
-- [ ] Extend `StartScreen.test.tsx` for the drop zone.
+- [x] `stopPropagation()` on the consumed-image path in `useCpAnnotations`.
+- [ ] ~~Extend `StartScreen.test.tsx` for the drop zone.~~ Not done: the target
+      landed on the `WelcomeRoute` wrapper, not inside `StartScreen`, so
+      `useFileDropTarget.test.tsx` covers the behaviour where it actually lives.
 
 **Phase 6 — i18n and validation**
 
-- [ ] `npm run i18n:extract`, translate the new keys in all 8 locales,
+- [x] `npm run i18n:extract`, translate the new keys in all 8 locales,
       `npm run i18n:stamp`, `npm run i18n:check`.
-- [ ] `npm run lint:web`, `npx tsc --noEmit`,
+- [x] `npm run lint:web`, `npx tsc --noEmit`,
       `npm --workspace @treemaker/web exec -- vitest run`.
 - [ ] Manual web verification (drag-drop cannot be driven from the automated
       browser pane): drop each file kind on welcome and on Edit, with and without
