@@ -876,16 +876,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
-name = "earcutr"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afc28d89ac6cb489f679fcf51aaa62b4667bb0fb73a30f1d4d23949069707c07"
-dependencies = [
- "itertools 0.14.0",
- "num-traits",
-]
-
-[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1820,7 +1810,7 @@ dependencies = [
  "approx",
  "getrandom 0.2.17",
  "image",
- "itertools 0.12.1",
+ "itertools",
  "nalgebra 0.32.6",
  "num",
  "rand 0.8.6",
@@ -1876,15 +1866,6 @@ name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -4644,7 +4625,6 @@ dependencies = [
 name = "treemaker-fold"
 version = "0.1.2"
 dependencies = [
- "earcutr",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

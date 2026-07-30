@@ -69,25 +69,26 @@ export interface FoldedBaseSnapshot {
   facets: FoldedBaseFacet[];
 }
 
-export interface FoldCreaseParameter {
-  face1: number;
-  vertex1: number;
-  face2: number;
-  vertex2: number;
-  edge: number;
-  target_angle: number;
-}
-
-export interface RustPreparedFoldModel {
+/**
+ * The triangulated, consistently-wound mesh the simulator folds, built from a
+ * `FoldDocument` by `foldArtifactsFromFold`. Crease parameters are deliberately
+ * not carried: `simulatorSession` derives them when it prepares the model for a
+ * run, and no other consumer needs them.
+ */
+export interface SimulationModel {
   fold: FoldDocument;
-  crease_params: FoldCreaseParameter[];
 }
 
 export interface FoldArtifacts {
   fold: FoldDocument;
   folded_base?: FoldedBaseSnapshot | null;
   folded_base_error?: string | null;
-  simulation_model?: RustPreparedFoldModel | null;
+  simulation_model?: SimulationModel | null;
+  /**
+   * Why there is no simulation model. Either the engine declined to offer one
+   * (a TreeMaker design without a complete crease pattern) or preparation
+   * failed.
+   */
   simulation_model_error?: string | null;
   /**
    * Crease-pattern segments computed from `simulationFoldOf(this)`. Populated in

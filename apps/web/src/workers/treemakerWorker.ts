@@ -28,6 +28,7 @@ import type {
   TreeSnapshot,
   WasmErrorEnvelope,
 } from '../engine/types';
+import { foldArtifactsFromFold } from '../lib/creasePatternImport';
 import {
   segmentFoldDocument,
   simulationFoldOf,
@@ -63,6 +64,31 @@ async function call<T>(fn: () => T): Promise<T> {
   } catch (error) {
     throw normalizeError(error);
   }
+}
+
+/**
+ * Attach the triangulated simulation mesh to a TreeMaker design's fold
+ * artifacts. The engine hands over the crease pattern only; the mesh is built
+ * here by the same TypeScript preparation an editable crease pattern goes
+ * through, which is also the one the solver itself re-runs on entry.
+ *
+ * In the worker rather than in `computeFoldArtifacts` for two reasons: it covers
+ * both callers of `foldArtifacts` (loading artifacts and Build CP), and
+ * triangulating a large pattern takes seconds that the main thread should not
+ * spend.
+ *
+ * An engine-level `simulation_model_error` — a design whose crease pattern is
+ * not complete — is left to stand: there is nothing worth meshing behind it.
+ */
+function withSimulationModel(artifacts: FoldArtifacts): FoldArtifacts {
+  if (artifacts.simulation_model_error) return artifacts;
+  const prepared = foldArtifactsFromFold(artifacts.fold);
+  return {
+    ...artifacts,
+    fold: prepared.fold,
+    simulation_model: prepared.simulation_model,
+    simulation_model_error: prepared.simulation_model_error,
+  };
 }
 
 /**
@@ -109,7 +135,7 @@ const api = {
     });
   },
   async foldArtifacts(handle: number): Promise<FoldArtifacts> {
-    return call(() => withSegments(fold_artifacts(handle) as FoldArtifacts));
+    return call(() => withSegments(withSimulationModel(fold_artifacts(handle) as FoldArtifacts)));
   },
   async sequenceAnalyzeFold(
     foldJson: string,

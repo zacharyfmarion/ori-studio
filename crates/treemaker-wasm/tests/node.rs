@@ -155,7 +155,7 @@ fn flat_folder_artifacts_returns_imported_folded_base() {
         2
     );
     assert!(artifacts["fold"]["face_orders"].is_array());
-    assert!(artifacts["simulation_model"].is_object());
+    assert!(artifacts["simulation_fold"].is_object());
 }
 
 #[wasm_bindgen_test]
@@ -277,10 +277,10 @@ fn flat_folder_artifacts_infers_simulator_only_assignments() {
     let canonical_assignment = artifacts["fold"]["edges_assignment"][4]
         .as_str()
         .expect("canonical assignment");
-    let simulation_assignment = artifacts["simulation_model"]["fold"]["edges_assignment"][4]
+    let simulation_assignment = artifacts["simulation_fold"]["edges_assignment"][4]
         .as_str()
         .expect("simulation assignment");
-    let simulation_angle = artifacts["simulation_model"]["fold"]["edges_foldAngle"][4]
+    let simulation_angle = artifacts["simulation_fold"]["edges_foldAngle"][4]
         .as_f64()
         .expect("simulation fold angle");
 
@@ -293,12 +293,6 @@ fn flat_folder_artifacts_infers_simulator_only_assignments() {
         } else {
             180.0
         }
-    );
-    assert!(
-        !artifacts["simulation_model"]["crease_params"]
-            .as_array()
-            .expect("crease params")
-            .is_empty()
     );
 }
 
