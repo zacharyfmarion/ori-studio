@@ -138,8 +138,9 @@ export const CONSTRUCT_LESSONS: readonly Lesson[] = [
         kind: 'draw',
         title: 'Reflect across the centre',
         body: [
-          'Mirror the two existing creases across the vertical centre line of the paper, so the pattern becomes symmetric. Select what you want to reflect, then use the reflect tool with the centre line as the axis.',
-          'Keep the reflected creases as mountains, matching their originals. A reflection flips the geometry but not the fold direction — a mountain reflected is still a mountain.',
+          'Mirror the two existing creases across the vertical centre line, so the pattern becomes symmetric.',
+          'Some tools act on a selection, and this is one: select the creases first, then pick the tool. That is why it is not already active.',
+          'A reflection flips the geometry but not the fold direction — a mountain reflected is still a mountain.',
         ],
         targetId: 'mirror-done',
         teaches: 'cp.action.draw-crease-symmetric',

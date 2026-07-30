@@ -17,6 +17,7 @@ import {
   type LessonStep,
 } from '../../tutorial/types';
 import { cpActionById } from '../../lib/oristudioCpActions';
+import { cpCommandByOperation } from '../../lib/oristudioCpCommands';
 import { LEARN_PATH, lessonPath } from '../../routing/paths';
 import { TargetCpPreview } from '../tutorial/TargetCpPreview';
 import { LessonIndexPanel } from './LessonIndexPanel';
@@ -310,6 +311,12 @@ function useLessonPracticeDocument(lesson: Lesson | undefined): void {
 /**
  * Arm the tool a draw step is teaching, so the user starts in the right mode
  * rather than hunting the rail. They remain free to pick anything else.
+ *
+ * Tools that work on a selection are deliberately *not* armed. Their order is
+ * select first, then pick the tool — so arming one up front drops the user into
+ * a tool that cannot do anything yet, which teaches the wrong sequence. The
+ * command definitions already say which those are (`selectionRequirement`), so
+ * this reads that rather than making each lesson opt out.
  */
 function useArmedTool(step: LessonStep | undefined): void {
   const requestOristudioCpAction = useWorkspaceStore((state) => state.requestOristudioCpAction);
@@ -319,6 +326,7 @@ function useArmedTool(step: LessonStep | undefined): void {
 
   useEffect(() => {
     if (!armed || armed.kind === 'line-type') return;
+    if (cpCommandByOperation(armed.operationId)?.selectionRequirement) return;
     requestOristudioCpAction(armed.operationId);
   }, [armed, requestOristudioCpAction]);
 }
