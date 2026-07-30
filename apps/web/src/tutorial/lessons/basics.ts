@@ -37,7 +37,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         title: 'The grid',
         body: [
           'Behind the paper is a grid. It is not part of the design — nothing in the grid gets folded — but it is what makes accurate drawing possible, because the editor snaps your creases to its intersections.',
-          'The default grid divides the paper into eighths. Many classic designs are built on divisions like this, and box-pleated designs in particular are drawn almost entirely on a grid. The division is adjustable from the View panel, which the Edit workspace shows beside the canvas — it is hidden here so the lesson has room, but you will find it there once you leave the tutorial.',
+          'The default grid divides the paper into eighths. Many classic designs are built on divisions like this, and box-pleated designs in particular are drawn almost entirely on a grid. You can change the division from the View panel on the right.',
         ],
       },
       {
@@ -72,13 +72,13 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         kind: 'draw',
         title: 'Draw the diagonal',
         body: [
-          'The line type buttons sit along the bottom of the canvas: M for mountain, V for valley, E for the paper edge. Make sure M is selected, then drag with the segment tool from one corner of the paper to the opposite corner.',
+          'The line type buttons are at the top of the tool rail, under Type: M for mountain, V for valley, E for the paper edge. Make sure M is selected, then drag with the segment tool from one corner of the paper to the opposite corner.',
           'You do not have to be precise. The editor snaps to the grid and to points that already exist, so releasing near a corner is enough — the crease will land exactly on it.',
         ],
         targetId: 'first-crease',
         teaches: 'cp.action.draw-crease',
         check: { mode: 'exact', allowSymmetry: true },
-        hint: 'Drag from one corner to the opposite corner. If the crease comes out blue, click M at the bottom of the canvas and draw it again — or select the crease and change its type.',
+        hint: 'Drag from one corner to the opposite corner. If the crease comes out blue, click M at the top of the tool rail and draw it again — or select the crease and change its type.',
       },
       {
         id: 'why-it-matters',
@@ -189,7 +189,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         title: 'A square inside the square',
         body: [
           'Draw a valley-folded square joining the midpoints of the four edges of the paper. Each corner of your new square sits halfway along one edge of the old one.',
-          'You should not need to aim carefully: the midpoints are grid intersections, so each drag will snap to them. This is the moment snapping earns its keep — in the Edit workspace you can switch it off from the View panel and try the same shape freehand, and the difference is obvious.',
+          'You should not need to aim carefully: the midpoints are grid intersections, so each drag will snap to them. This is the moment snapping earns its keep — switch it off in the View panel and try the same shape freehand, and the difference is obvious.',
         ],
         targetId: 'inscribed-square',
         teaches: 'cp.action.draw-crease',

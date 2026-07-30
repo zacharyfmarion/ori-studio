@@ -179,3 +179,11 @@ export const useTutorialStore = create<TutorialState>()(
     { name: 'TutorialStore' }
   )
 );
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  // Mirrors the workspace store's dev handle. Lesson progress is otherwise only
+  // observable through rendered text, which makes walking the lessons to check
+  // they are all completable far more awkward than it needs to be.
+  const debugWindow = window as Window & { __oristudioTutorialStore?: typeof useTutorialStore };
+  debugWindow.__oristudioTutorialStore = useTutorialStore;
+}

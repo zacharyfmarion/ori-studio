@@ -664,6 +664,44 @@ rather than reason from the theory.
 - Translated lesson prose beyond the English source.
 - Any in-app lesson authoring UI.
 
+## What driving every lesson found
+
+The lessons were walked end to end in a browser after merging main — every draw
+step reproduced with the real tool, every action step taken, every navigation
+path exercised. Seven things only that could have found:
+
+1. **The `camv-clean` predicate could never be satisfied.** A clean pattern still
+   reports `diagnostics: ["Check CAMV found 0 issue(s)"]` — a summary line, not a
+   violation — and the predicate required that array to be empty. The unit test
+   missed it by inventing a clean result with no summary at all. Violations come
+   from `diagnostic_entries`; the test now uses the strings the engine really
+   returns.
+2. **"Dividing a length" taught a tool that cannot produce its target.**
+   `LineSegmentDivision` is "divide line by count": it splits *one* line into N
+   pieces, where the lesson asked for N parallel creases. Worse, its whole output
+   is vertices, which canonicalization deliberately erases — so the check could
+   never see the work. Replaced with **Parallel creases** (`ParallelDraw`), whose
+   target was derived by running the tool and recording what it produced.
+3. **The learn layout hid the View panel**, which is where tool options *and* each
+   tool's own step-by-step instructions live. A tutorial about tools that hides
+   their instructions teaches half a tool, and three lessons pointed at a panel
+   the user could not see. The learn workspace now mounts the same View pane as
+   Edit.
+4. **The perpendicular lesson had the click order backwards** and sent the crease
+   the wrong way. The tool works *from a point towards a line*, and `+y` is down,
+   so the crease runs to the bottom edge, not the top.
+5. **Main moved the line-type buttons** from the bottom toolbar to the top of the
+   tool rail, and replaced the "No fold" button with a Fold icon plus a `G`
+   shortcut. Chapter 1 and the folding lesson both pointed at the old places.
+6. **Two targets had become orphans** when lessons were rewritten. A test now
+   fails on any target no lesson reaches.
+7. Confirmed working under a real user's sloppiness: box-selecting "the two
+   creases" also catches the paper edge, and the reflection still passes, because
+   boundary edges are filtered before comparison.
+
+`lessonFlow.test.ts` locks in what the walk verified: every step reachable, every
+self-advancing step gated, skip always a way forward, last step completes.
+
 ## Browser verification checklist (author)
 
 1. **Slot isolation.** Open a real document in `/edit`, make edits, leave it

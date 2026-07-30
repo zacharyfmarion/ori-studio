@@ -45,7 +45,7 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
         body: [
           'Violations are drawn on the canvas rather than listed in a panel, because their location is the useful part — knowing which vertex is wrong matters far more than knowing that something is.',
           'On the canvas now, four creases run through the middle of the paper. Two of them are flagged where they meet the edge: a crease that runs into the paper\'s boundary partway along creates a vertex whose fold counts cannot balance. Something has to give there, and the checker is saying so.',
-          'The overlay can be switched off while drawing — the toggle lives in the View panel, which the Edit workspace shows beside the canvas and the tutorial hides for space. It is worth leaving on, though: catching a foldability mistake as you make it is much easier than finding it in a finished pattern.',
+          'The overlay can be switched off while drawing — the toggle is in the View panel on the right, under CAMV issues. It is worth leaving on, though: catching a foldability mistake as you make it is much easier than finding it in a finished pattern.',
         ],
       },
       {
@@ -92,12 +92,12 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
         kind: 'action',
         title: 'Fold it',
         body: [
-          'Select the creases you want folded — dragging a selection box around the whole pattern is easiest — and then run the fold estimate from the bottom toolbar. The editor works out how the layers stack and draws the resulting folded form beside your pattern.',
+          'Select the creases you want folded — dragging a selection box around the whole pattern is easiest — and then press G, or use the Fold button near the right-hand end of the bottom toolbar. The editor works out how the layers stack and draws the resulting folded form beside your pattern.',
           'Because of those flagged vertices you will be asked whether to continue; say yes. Then look at the result: a smaller square, four layers thick.',
           'This is the payoff of drawing accurately. The folded form is computed from your creases, so it is only ever as correct as they are — patterns placed by eye tend to fail here in ways that are hard to diagnose from the drawing alone.',
         ],
         expect: 'folded-figure-exists',
-        hint: 'Drag a selection box around the whole pattern first — folding needs to know which creases to fold. The fold button is at the right-hand end of the bottom toolbar, currently reading "No fold".',
+        hint: 'Drag a selection box around the whole pattern first — folding needs to know which creases to fold. Then press G, or use the Fold button near the right-hand end of the bottom toolbar.',
       },
       {
         id: 'where-next',

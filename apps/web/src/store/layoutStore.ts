@@ -212,9 +212,9 @@ function applyEditLayout(api: DockviewApi): void {
  * document slot, which the route asserts.
  */
 function applyLearnLayout(api: DockviewApi): void {
-  // The canvas is added first, as the area the lesson pane splits off. Dockview
-  // honours `initialWidth` on the panel being *added*, so the pane has to be the
-  // second one or it just takes half the workspace.
+  // The canvas is added first, as the area the side panes split off. Dockview
+  // honours `initialWidth` on the panel being *added*, so each pane has to come
+  // after the canvas or it just takes half the workspace.
   addHeaderlessPanel(api, {
     id: 'crease-pattern',
     component: 'crease-pattern',
@@ -225,7 +225,22 @@ function applyLearnLayout(api: DockviewApi): void {
     component: 'lesson',
     title: 'Lesson',
     position: { referencePanel: 'crease-pattern', direction: 'left' },
-    initialWidth: 400,
+    initialWidth: 380,
+  });
+  // The same View pane the Edit workspace has, and for the same reason: it hosts
+  // the tool options and the active tool's own step-by-step instructions. A
+  // tutorial that teaches tools while hiding their options teaches half a tool —
+  // and every lesson that mentions grid size, snapping, or the foldability
+  // overlay was pointing at a panel the user could not see.
+  //
+  // Added last so it keeps its width: Dockview honours `initialWidth` on the
+  // panel being added and then squeezes it again if a later sibling claims room.
+  api.addPanel({
+    id: 'cp-view-controls',
+    component: 'cp-view-controls',
+    title: 'View',
+    position: { referencePanel: 'crease-pattern', direction: 'right' },
+    initialWidth: 260,
   });
   lesson.api.setActive();
 }

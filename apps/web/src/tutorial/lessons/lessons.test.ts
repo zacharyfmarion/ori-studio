@@ -108,6 +108,26 @@ describe('lesson targets', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  /**
+   * A target no lesson reaches is dead content: it still has to be reviewed and
+   * kept correct, and nothing tells you it stopped mattering. Two of these
+   * accumulated when lessons were rewritten, so the rule is now enforced.
+   */
+  it('is reached by a lesson', () => {
+    const referenced = new Set<string>();
+    for (const lesson of LESSONS) {
+      if (lesson.startTargetId) referenced.add(lesson.startTargetId);
+      for (const step of lesson.steps) {
+        if (step.kind === 'draw') referenced.add(step.targetId);
+      }
+    }
+    // The blank sheet is the fallback for lessons with no starting pattern, so
+    // it is referenced from the panel rather than from lesson data.
+    referenced.add('blank-sheet');
+    const orphans = LESSON_TARGETS.map((t) => t.id).filter((id) => !referenced.has(id));
+    expect(orphans).toEqual([]);
+  });
+
   it('parses as .cp text with at least one segment', () => {
     for (const target of LESSON_TARGETS) {
       const lines = target.cp

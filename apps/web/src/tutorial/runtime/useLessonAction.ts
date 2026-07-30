@@ -27,8 +27,11 @@ export function evaluateLessonPredicate(
       // No result yet means the check has not run — "not yet known" rather than
       // "clean", so an unchecked pattern never satisfies the step by default.
       if (!result) return false;
-      const entries = result.diagnostic_entries ?? [];
-      return entries.length === 0 && result.diagnostics.length === 0;
+      // Only `diagnostic_entries` are violations. `diagnostics` is a summary
+      // that is populated either way — a clean pattern still reports
+      // "Check CAMV found 0 issue(s)" — so requiring it to be empty made this
+      // predicate impossible to satisfy and the lesson impossible to finish.
+      return (result.diagnostic_entries ?? []).length === 0;
     }
   }
 }

@@ -9,7 +9,6 @@
  */
 import blankSheet from './blank-sheet.cp?raw';
 import bothDiagonals from './both-diagonals.cp?raw';
-import diagonalWithGuide from './diagonal-with-guide.cp?raw';
 import diagonalsAfterDelete from './diagonals-after-delete.cp?raw';
 import firstCrease from './first-crease.cp?raw';
 import fourCreases from './four-creases.cp?raw';
@@ -18,7 +17,8 @@ import perpendicularStart from './perpendicular-start.cp?raw';
 import perpendicularDone from './perpendicular-done.cp?raw';
 import bisectorStart from './bisector-start.cp?raw';
 import bisectorDone from './bisector-done.cp?raw';
-import quarters from './quarters.cp?raw';
+import parallelStart from './parallel-start.cp?raw';
+import parallelDone from './parallel-done.cp?raw';
 import mirrorStart from './mirror-start.cp?raw';
 import mirrorDone from './mirror-done.cp?raw';
 import maekawaBroken from './maekawa-broken.cp?raw';
@@ -29,7 +29,6 @@ export const LESSON_TARGETS: readonly LessonTarget[] = [
   { id: 'blank-sheet', cp: blankSheet },
   { id: 'first-crease', cp: firstCrease },
   { id: 'both-diagonals', cp: bothDiagonals },
-  { id: 'diagonal-with-guide', cp: diagonalWithGuide },
   { id: 'four-creases', cp: fourCreases },
   { id: 'diagonals-after-delete', cp: diagonalsAfterDelete },
   { id: 'inscribed-square', cp: inscribedSquare },
@@ -37,7 +36,8 @@ export const LESSON_TARGETS: readonly LessonTarget[] = [
   { id: 'perpendicular-done', cp: perpendicularDone },
   { id: 'bisector-start', cp: bisectorStart },
   { id: 'bisector-done', cp: bisectorDone },
-  { id: 'quarters', cp: quarters },
+  { id: 'parallel-start', cp: parallelStart },
+  { id: 'parallel-done', cp: parallelDone },
   { id: 'mirror-start', cp: mirrorStart },
   { id: 'mirror-done', cp: mirrorDone },
   { id: 'maekawa-broken', cp: maekawaBroken },

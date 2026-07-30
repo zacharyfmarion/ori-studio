@@ -39,13 +39,23 @@ describe('evaluateLessonPredicate', () => {
     ).toBe(false);
   });
 
-  it('is clean only when there are no entries and no diagnostics', () => {
+  /**
+   * The summary line is what the engine actually returns, and it is present
+   * whether or not anything is wrong — a clean pattern reports
+   * "Check CAMV found 0 issue(s)". Treating a non-empty `diagnostics` as a
+   * failure made the foldability lesson impossible to finish, and this test
+   * missed it by inventing a clean result with no summary at all.
+   */
+  it('reads violations from the entries, not from the summary line', () => {
     const state = (result: OristudioCpCommandResult) => ({
       oristudioCpFoldedFigures: [],
       oristudioCpCamvResult: result,
     });
-    expect(evaluateLessonPredicate('camv-clean', state(camv(4, ['found 4 issue(s)'])))).toBe(false);
-    expect(evaluateLessonPredicate('camv-clean', state(camv(0, ['found 1 issue'])))).toBe(false);
-    expect(evaluateLessonPredicate('camv-clean', state(camv(0)))).toBe(true);
+    expect(
+      evaluateLessonPredicate('camv-clean', state(camv(4, ['Check CAMV found 4 issue(s)'])))
+    ).toBe(false);
+    expect(
+      evaluateLessonPredicate('camv-clean', state(camv(0, ['Check CAMV found 0 issue(s)'])))
+    ).toBe(true);
   });
 });
