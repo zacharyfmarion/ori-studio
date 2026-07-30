@@ -594,6 +594,25 @@ describe('redundant vertex removal', () => {
     expect(prepared.diagnostics.warnings.some((w) => w.includes('redundant'))).toBe(false);
   });
 
+  it('still drives a split crease whose halves disagree, which no merge can fix', () => {
+    // Upstream's `mergeEdge` refuses a collinear M/V pair, so canonicalising alone
+    // leaves this broken. `triangulateQuad` covers it from the other side: it will
+    // not cut a diagonal through the vertex, so neither half is ever stranded on a
+    // zero-area triangle and both keep their two faces.
+    const prepared = prepareFoldModel({
+      ...collinearSplitCrease(),
+      edges_assignment: ['B', 'B', 'B', 'B', 'M', 'M', 'V', 'M', 'V'],
+      edges_foldAngle: [0, 0, 0, 0, -180, -180, 180, -180, 180],
+    });
+
+    const orphans = prepared.edgesVertices.filter((_edge, index) => {
+      const assignment = prepared.edgesAssignment[index];
+      return (assignment === 'M' || assignment === 'V') && prepared.edgesFaces[index]?.length !== 2;
+    });
+    expect(orphans).toEqual([]);
+    expect(prepared.diagnostics.warnings.some((w) => w.includes('degenerate'))).toBe(false);
+  });
+
   it('refuses to merge halves whose assignments disagree, as upstream does', () => {
     const prepared = prepareFoldModel({
       ...collinearSplitCrease(),

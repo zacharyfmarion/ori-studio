@@ -113,10 +113,11 @@ function normalizeFold(
     return options.foldUseAngles === false ? assignmentFoldAngle(assignment) : assignmentFoldAngle(assignment);
   });
 
-  // Before triangulation, which is what turns a crease split across two collinear
-  // segments into a zero-area sliver: see `removeRedundantVertices`. Upstream runs
-  // it earlier still, before faces exist at all (pattern.js:551); ours arrive with
-  // the document, so this is the last point that can still prevent the sliver.
+  // Canonicalise before triangulating. A crease drawn in two collinear strokes is
+  // the same crease as one drawn in a single stroke, so the mesh it produces has
+  // to be the same too -- otherwise how a pattern was *drawn* changes how it
+  // simulates, in either direction. Upstream does this at pattern.js:551, before
+  // faces exist; ours arrive with the document, so here is the closest point.
   removeRedundantVertices(fold, REDUNDANT_VERTEX_EPSILON, diagnostics);
 
   if (options.triangulate ?? true) {
@@ -367,6 +368,35 @@ function remapEdgeExtensionArrays(
   }
 }
 
+function boundingDiagonal(fold: FoldDocument): number {
+  const min: [number, number, number] = [Infinity, Infinity, Infinity];
+  const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+  for (const coord of fold.vertices_coords) {
+    const point = normalizePoint(coord);
+    for (let k = 0; k < 3; k += 1) {
+      if (point[k]! < min[k]!) min[k] = point[k]!;
+      if (point[k]! > max[k]!) max[k] = point[k]!;
+    }
+  }
+  return Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) || 1;
+}
+
+/**
+ * The cross-magnitude (twice the area) below which a triangle counts as
+ * degenerate. Relative to the bounding-box diagonal, so it means the same thing
+ * at any coordinate scale: a real crease triangle sits far above it, a collinear
+ * or coincident one at ~0.
+ *
+ * One definition, two callers -- `removeDegenerateGeometry`, which deletes them,
+ * and `triangulateQuad`, which avoids creating them. If those two ever disagreed,
+ * a quad would emit a triangle the filter then deleted, which is exactly the
+ * split-crease bug.
+ */
+function degenerateCrossThreshold(fold: FoldDocument): number {
+  const diagonal = boundingDiagonal(fold);
+  return diagonal * diagonal * 1e-9;
+}
+
 /**
  * Drop degenerate primitives the solver cannot handle: zero-area triangles
  * (whose face normal is `normalize(0)` -> NaN) and zero-length edges (whose
@@ -377,18 +407,8 @@ function remapEdgeExtensionArrays(
  */
 function removeDegenerateGeometry(fold: FoldDocument, diagnostics: SimulatorDiagnostics): void {
   const coords = fold.vertices_coords.map((coord) => normalizePoint(coord));
-  const min: [number, number, number] = [Infinity, Infinity, Infinity];
-  const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-  for (const c of coords) {
-    for (let k = 0; k < 3; k += 1) {
-      if (c[k]! < min[k]!) min[k] = c[k]!;
-      if (c[k]! > max[k]!) max[k] = c[k]!;
-    }
-  }
-  const diagonal = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) || 1;
-  // A crease triangle in a normalized sheet has cross-magnitude (2*area) far
-  // above diagonal^2 * 1e-9; a collinear/coincident one sits at ~0.
-  const minCrossMag = diagonal * diagonal * 1e-9;
+  const diagonal = boundingDiagonal(fold);
+  const minCrossMag = degenerateCrossThreshold(fold);
   const minEdgeLenSq = (diagonal * 1e-6) ** 2;
 
   let droppedFaces = 0;
@@ -668,17 +688,49 @@ function triangulateQuad(
   nextFaces: number[][],
   edgeIndex: Map<number, number>
 ): void {
-  const d1 = pointDistanceSq(fold, face[0] ?? 0, face[2] ?? 0);
-  const d2 = pointDistanceSq(fold, face[1] ?? 0, face[3] ?? 0);
-  if (d2 < d1) {
-    appendEdgeIfMissing(fold, edgeIndex, face[1] ?? 0, face[3] ?? 0);
-    nextFaces.push([face[0] ?? 0, face[1] ?? 0, face[3] ?? 0]);
-    nextFaces.push([face[1] ?? 0, face[2] ?? 0, face[3] ?? 0]);
-  } else {
-    appendEdgeIfMissing(fold, edgeIndex, face[0] ?? 0, face[2] ?? 0);
-    nextFaces.push([face[0] ?? 0, face[1] ?? 0, face[2] ?? 0]);
-    nextFaces.push([face[0] ?? 0, face[2] ?? 0, face[3] ?? 0]);
-  }
+  const [v0, v1, v2, v3] = [face[0] ?? 0, face[1] ?? 0, face[2] ?? 0, face[3] ?? 0];
+  const across02: [number[], number[]] = [
+    [v0, v1, v2],
+    [v0, v2, v3],
+  ];
+  const across13: [number[], number[]] = [
+    [v0, v1, v3],
+    [v1, v2, v3],
+  ];
+  // Shorter diagonal first, as before -- but never one that cuts through a vertex
+  // collinear with its two neighbours, because the triangle on that side has zero
+  // area. `removeDegenerateGeometry` would then delete it, and the two edges that
+  // met at the vertex would be left incident to no face at all: invisible to
+  // `buildCreaseParams`, invisible to the renderer. That is the whole of the
+  // split-crease bug, and choosing the other diagonal avoids it without touching
+  // a single vertex.
+  const shorterIsO2 =
+    pointDistanceSq(fold, v0, v2) <= pointDistanceSq(fold, v1, v3);
+  const preferred = shorterIsO2 ? across02 : across13;
+  const fallback = shorterIsO2 ? across13 : across02;
+  const chosen =
+    !hasDegenerateTriangle(fold, preferred) || hasDegenerateTriangle(fold, fallback)
+      ? preferred
+      : fallback;
+
+  const [a, b] = chosen === across02 ? [v0, v2] : [v1, v3];
+  appendEdgeIfMissing(fold, edgeIndex, a, b);
+  nextFaces.push(chosen[0], chosen[1]);
+}
+
+/** True when either triangle is degenerate by the same measure the filter uses. */
+function hasDegenerateTriangle(fold: FoldDocument, triangles: [number[], number[]]): boolean {
+  const threshold = degenerateCrossThreshold(fold);
+  return triangles.some((triangle) => crossMagnitude(fold, triangle) < threshold);
+}
+
+function crossMagnitude(fold: FoldDocument, triangle: number[]): number {
+  const a = normalizePoint(fold.vertices_coords[triangle[0] ?? 0] ?? []);
+  const b = normalizePoint(fold.vertices_coords[triangle[1] ?? 0] ?? []);
+  const c = normalizePoint(fold.vertices_coords[triangle[2] ?? 0] ?? []);
+  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+  const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  return Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
 }
 
 // Append an edge only if it isn't already present, keeping `edgeIndex` in sync so
