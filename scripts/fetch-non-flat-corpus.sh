@@ -41,10 +41,21 @@ while read -r path; do
   # Keep only patterns with a partial opacity somewhere: opacity is the fold
   # angle (1.0 = 180 degrees), so a file using only 0 and 1 is flat and adds
   # nothing this branch cannot already test.
-  if printf '%s' "$content" \
-    | grep -oE '(stroke-)?opacity[:=]"?[0-9.eE+-]+' \
-    | grep -oE '[0-9.eE+-]+$' \
-    | awk '{ if ($1+0 > 0.001 && $1+0 < 0.999) found=1 } END { exit !found }'; then
+  #
+  # Parsed rather than grepped. A regex expecting a digit straight after the
+  # quote misses `opacity=" 0.17"`, which is how one exporter writes it -- and
+  # that silently dropped Mooser's Train, a model whose whole point is that it
+  # folds to right angles.
+  if printf '%s' "$content" | node -e '
+    let raw = "";
+    process.stdin.on("data", (d) => { raw += d; });
+    process.stdin.on("end", () => {
+      const values = [...raw.matchAll(/(?:stroke-)?opacity\s*[:=]\s*"?\s*([0-9.eE+-]+)/gi)]
+        .map((m) => Number.parseFloat(m[1]))
+        .filter(Number.isFinite);
+      process.exit(values.some((v) => v > 0.001 && v < 0.999) ? 0 : 1);
+    });
+  '; then
     printf '%s' "$content" > "$SVG_DIR/$name"
     kept=$((kept + 1))
   fi
