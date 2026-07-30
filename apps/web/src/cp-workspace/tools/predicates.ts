@@ -1,5 +1,6 @@
 import type { OristudioCpCustomLineType } from '../../engine/oristudioCpTypes';
 import type { OristudioCpCommandDefinition } from '../../lib/oristudioCpCommands';
+import { cpToolSettingGroupsForCommand } from '../../lib/oristudioCpToolSettings';
 
 /**
  * Pure operation predicates — small `(operationId) => boolean` classifiers that decide
@@ -106,6 +107,44 @@ export function isSelectionCircleApplyOperation(operationId: OpId): boolean {
 
 export function isCircleTangentPointOperation(operationId: OpId): boolean {
   return operationId === 'CircleDrawTangentLine';
+}
+
+/**
+ * Does this command need the context panel's Apply button — settings or a
+ * selection the user confirms — rather than running the moment it is picked?
+ *
+ * Lived in `CpContextToolPanel` until the rail needed it too. A pure predicate
+ * over a command definition has no business in a panel component.
+ */
+export function cpCommandRequiresContextApply(command: OristudioCpCommandDefinition): boolean {
+  if (command.operationId === 'VoronoiCreate') return true;
+  if (isSelectionCircleApplyOperation(command.operationId)) return true;
+  if ((command.toolSteps?.length ?? 0) > 0) return false;
+  return cpToolSettingGroupsForCommand(command).some(
+    (group) => group !== 'line-color' && group !== 'line-select-help'
+  );
+}
+
+/**
+ * A verb over the whole document: nothing to pick on the canvas, nothing to
+ * select first, nothing to configure. Check1-4, CheckCamv, Fix1/Fix2, the
+ * delete-extra-vertices sweeps, OrganizeCircles.
+ *
+ * These are the actions that must *run* when chosen rather than arm the canvas.
+ * The distinction matters because the rail persists whatever it activates: a
+ * one-shot that took the active-tool slot would sit lit up afterwards while the
+ * canvas had nothing armed, and clicks would go nowhere. Every other rail entry
+ * is a mouse tool, so this is the first time the two came apart.
+ *
+ * Deliberately structural rather than an operation-id list — an id list would
+ * drift the moment another whole-document repair lands.
+ */
+export function isWholeDocumentCpCommand(command: OristudioCpCommandDefinition): boolean {
+  return (
+    (command.toolSteps?.length ?? 0) === 0 &&
+    command.selectionRequirement === undefined &&
+    cpToolSettingGroupsForCommand(command).length === 0
+  );
 }
 
 // Mirrors the kernel `CustomLineType::matches`: does a crease's line color pass the

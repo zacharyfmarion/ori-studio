@@ -148,6 +148,12 @@ describe('oristudio CP action registry', () => {
         upstreamMouseMode: 'DELETE_POINT_15',
       },
       {
+        // Not a mouse tool — a whole-document sweep, hence no mouse mode.
+        label: 'Delete Extra Vertices (Ignore Type)',
+        upstreamAction: 'v_del_all_ccAction',
+        upstreamMouseMode: undefined,
+      },
+      {
         label: 'Delete any Vertex',
         upstreamAction: 'v_del_ccAction',
         upstreamMouseMode: 'VERTEX_DELETE_ON_CREASE_41',

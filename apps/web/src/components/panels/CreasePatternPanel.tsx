@@ -144,11 +144,7 @@ import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
-import {
-  CpContextToolPanel,
-  cpCommandRequiresContextApply,
-  cpLineTypeStatusLabel,
-} from './CpContextToolPanel';
+import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
   buildCpDiagnosticMarkerHits,
   buildCpDiagnosticMarkers,
@@ -170,6 +166,7 @@ import {
 } from '../../cp-workspace/renderer/types';
 import {
   allowsDirectEntitySelection,
+  cpCommandRequiresContextApply,
   creaseTransformTool,
   isCreaseToggleMvClickTool,
   isDefaultSelectionMode,
@@ -181,6 +178,7 @@ import {
   isSelectionCircleApplyOperation,
   isSquareBisectorOperation,
   isVariablePointSequenceOperation,
+  isWholeDocumentCpCommand,
   toolClickAction,
 } from '../../cp-workspace/tools/predicates';
 import {
@@ -1634,15 +1632,23 @@ export function CreasePatternPanel() {
       setCpToolPath([]);
       setPendingSquareBisectorLineIds([]);
       cpToolDragRef.current = null;
-      setCpToolState((state) =>
-        transitionOristudioCpToolState(state, {
-          type: 'selectAction',
-          action,
-          editable: !!editableCp,
-        })
-      );
-      // Persist the selection so the tool survives panel remounts (workspace switches).
-      useWorkspaceStore.getState().setOristudioCpActiveToolId(action.id);
+
+      // A whole-document verb (a repair sweep, a check) runs on the spot and
+      // arms nothing, so it must not take the active-tool slot: the rail would
+      // leave its button lit while the canvas had no tool, and clicks would go
+      // nowhere. Decide before the state writes, not after them.
+      const runsImmediately = !!editableCp && isWholeDocumentCpCommand(command);
+      if (!runsImmediately) {
+        setCpToolState((state) =>
+          transitionOristudioCpToolState(state, {
+            type: 'selectAction',
+            action,
+            editable: !!editableCp,
+          })
+        );
+        // Persist the selection so the tool survives panel remounts (workspace switches).
+        useWorkspaceStore.getState().setOristudioCpActiveToolId(action.id);
+      }
 
       if (!editableCp || command.uiStatus !== 'ready' || (command.toolSteps?.length ?? 0) > 0) {
         return;
