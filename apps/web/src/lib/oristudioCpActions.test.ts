@@ -153,16 +153,11 @@ describe('oristudio CP action registry', () => {
         upstreamAction: 'v_del_all_ccAction',
         upstreamMouseMode: undefined,
       },
-      {
-        label: 'Delete any Vertex',
-        upstreamAction: 'v_del_ccAction',
-        upstreamMouseMode: 'VERTEX_DELETE_ON_CREASE_41',
-      },
-      {
-        label: 'Delete Coincident Lines',
-        upstreamAction: 'del_lAction',
-        upstreamMouseMode: 'CREASE_DELETE_OVERLAPPING_64',
-      },
+      // `VertexDeleteOnCrease` (Delete any Vertex) and `CreaseDeleteOverlapping`
+      // (Delete Coincident Lines) are deliberately absent: both are hidden from
+      // the rail, the first because it reads the same as Delete Point at a
+      // glance, the second because Delete Overlapping Lines below is its
+      // superset. Both kernel operations still exist.
       {
         label: 'Delete Overlapping Lines',
         upstreamAction: 'del_l_XAction',

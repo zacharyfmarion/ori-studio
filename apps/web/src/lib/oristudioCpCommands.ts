@@ -413,6 +413,10 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick target point', 'Pick parallel source crease', 'Pick destination crease'],
   }),
   ready('VertexDeleteOnCrease', 'Delete vertex on crease', 'select-edit', 'scan-x', 'MouseHandlerVertexDeleteOnCrease', {
+    // Hidden from the rail: too close to Delete point to tell apart at a glance,
+    // and the whole-document sweeps now cover the same intent. The kernel
+    // operation stays, so unhiding is a placement change.
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick vertex'],
     tooltip: 'Merge adjacent creases at a vertex with Oriedita color-change rules',
   }),
@@ -532,6 +536,10 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     }
   ),
   ready('CreaseDeleteOverlapping', 'Delete overlapping creases', 'select-edit', 'combine', 'MouseHandlerCreaseDeleteOverlapping', {
+    // Hidden from the rail: Delete intersecting creases is the superset (it
+    // takes overlapping *and* intersecting segments along the same drag), so
+    // two adjacent buttons differed by a distinction the icons cannot carry.
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick drag start point', 'Pick drag end point'],
     tooltip: 'Delete crease segments overlapping a dragged line',
   }),
