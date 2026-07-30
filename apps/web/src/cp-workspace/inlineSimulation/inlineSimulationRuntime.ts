@@ -4,7 +4,7 @@ import type { FoldDocument } from '../../engine/types';
  * The heavy, unserializable half of an inline simulation window.
  *
  * Deliberately outside the store. The descriptor in the store is plain JSON and
- * is exactly what would be written to disk if these ever persist; a captured
+ * is exactly what is written to disk when a window persists; a captured
  * `FoldDocument` is neither small nor something we would want to write, and
  * mixing it in is the change that would make persistence a rewrite rather than
  * an addition. Keeping the two apart costs one module.
@@ -57,9 +57,21 @@ export function getInlineSimulationSource(id: string): InlineSimulationSource | 
   return sources.get(id) ?? null;
 }
 
+/**
+ * Drop a window's fold. Its *position* in that fold deliberately survives.
+ *
+ * Deleting a window is undoable, and the fold is rebuilt on restore rather than
+ * held (see `restoreOristudioCpInlineSimulationSources` — a segment fold is
+ * hundreds of KB to a few MB, too much to keep for a window the user threw
+ * away). A fold percentage is one number, so keeping it is free and is what
+ * makes undo bring the window back where it was rather than snapped to flat —
+ * the same guarantee losing focus already gives.
+ *
+ * Ids are never reused, and a document replace clears the map wholesale, so the
+ * only thing that can ever read a kept percentage is the same window returning.
+ */
 export function clearInlineSimulationSource(id: string): void {
   sources.delete(id);
-  foldPercents.delete(id);
   notifySources();
 }
 

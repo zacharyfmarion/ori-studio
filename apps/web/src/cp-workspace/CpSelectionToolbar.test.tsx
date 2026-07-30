@@ -182,6 +182,86 @@ describe('CpSelectionToolbar', () => {
     expect(vi.mocked(ensureCpSegmentationArtifacts)).not.toHaveBeenCalled();
   });
 
+  // Simulating a region deselects it, from the button *and* from Shift+S. The
+  // hook exists so the two entry points cannot disagree about what counts as a
+  // simulatable region, but the deselect used to live only in the toolbar's
+  // dismiss-on-action wrapper, so the keyboard skipped it and left the creases
+  // selected under the new window.
+  describe('simulating a region deselects it', () => {
+    // Stubbing a store action mutates the shared store, and nothing in this file
+    // resets it between tests — so put the real one back, or a later test gets
+    // the previous test's stub and passes on it.
+    const realAdd = useWorkspaceStore.getState().addOristudioCpInlineSimulation;
+    beforeEach(() => {
+      useWorkspaceStore.setState({
+        addOristudioCpInlineSimulation: realAdd,
+        oristudioCpInlineSimulations: [],
+        oristudioCpFocusedInlineSimulationId: null,
+      } as unknown as Partial<ReturnType<typeof useWorkspaceStore.getState>>);
+    });
+
+    /** What the store's add resolves to; the real one needs the fold engine. */
+    function stubAdd() {
+      const add = vi.fn(async () => {
+        // Stands in for `takeCanvasSelection('inline-simulation', …)`.
+        useWorkspaceStore.setState({ oristudioCpSelection: emptyOristudioCpSelection() });
+        return 'added' as const;
+      });
+      useWorkspaceStore.setState({
+        addOristudioCpInlineSimulation: add,
+      } as unknown as Partial<ReturnType<typeof useWorkspaceStore.getState>>);
+      return add;
+    }
+
+    it('leaves nothing selected when the button runs it', async () => {
+      const add = stubAdd();
+      seedStore([1, 3, 5, 7, 8]);
+      await act(async () => renderToolbar(root, container));
+      const button = document.querySelector<HTMLButtonElement>(
+        'button[aria-label="Simulate inline"]'
+      );
+      await act(async () => button!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+
+      // The segment resolved from the selection as it was, despite the toolbar
+      // clearing it in the same tick — the hook snapshots state before awaiting.
+      expect(add).toHaveBeenCalledTimes(1);
+      expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
+    });
+
+    it('is the store that deselects, so no caller has to remember to', async () => {
+      // The real action, not the stub: `foldArtifacts` is already seeded, which
+      // is the only thing on its success path that needs the engine.
+      seedStore([1, 3, 5, 7, 8]);
+      const segmentId = 0;
+      expect(
+        await useWorkspaceStore.getState().addOristudioCpInlineSimulation(segmentId)
+      ).toBe('added');
+      expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
+      expect(
+        useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId
+      ).not.toBeNull();
+    });
+
+    it('leaves nothing selected when the shortcut runs it', async () => {
+      // Shift+S dispatches straight to the shared hook, with no toolbar in the
+      // loop to dismiss anything.
+      const add = stubAdd();
+      seedStore([1, 3, 5, 7, 8]);
+      const { useSimulateSelection } = await import('./inlineSimulation/useSimulateSelection');
+      let simulate: (() => Promise<void>) | null = null;
+      function Probe() {
+        simulate = useSimulateSelection();
+        return null;
+      }
+      await act(async () => root.render(<Probe />));
+      await act(async () => simulate!());
+
+      expect(add).toHaveBeenCalledTimes(1);
+      expect(add).toHaveBeenCalledWith(expect.any(Number));
+      expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
+    });
+  });
+
   it('hides again when the selection is cleared', async () => {
     seedStore([1, 3, 5, 7, 8]);
     await act(async () => renderToolbar(root, container));
