@@ -765,6 +765,29 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     placement: 'menu',
     tooltip: 'Split near T-intersections using Oriedita tolerances',
   }),
+  ready(
+    'DeleteExtraVertices',
+    'Delete Extra Vertices',
+    'check-fix',
+    'wrench',
+    'v_del_allAction',
+    {
+      placement: 'menu',
+      tooltip: 'Merge collinear crease pairs that meet at a vertex, when both are the same type',
+    }
+  ),
+  ready(
+    'DeleteExtraVerticesIgnoreColor',
+    'Delete Extra Vertices (Ignore Type)',
+    'check-fix',
+    'wrench',
+    'v_del_all_ccAction',
+    {
+      placement: 'left-rail',
+      tooltip:
+        'Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge',
+    }
+  ),
   ready('OrganizeCircles', 'Organize circles', 'annotations', 'circle-ellipsis', 'OrganizeCircles', {
     placement: 'menu',
     tooltip: 'Prune invalid zero-radius circles using Oriedita cleanup rules',
@@ -895,6 +918,8 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'Check4',
   'Fix1',
   'Fix2',
+  'DeleteExtraVertices',
+  'DeleteExtraVerticesIgnoreColor',
   'OrganizeCircles',
 ] as const;
 

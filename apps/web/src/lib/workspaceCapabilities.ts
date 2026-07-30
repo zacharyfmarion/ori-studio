@@ -87,6 +87,8 @@ export type WorkspaceCapabilityId =
   | 'cp.check4'
   | 'cp.fix1'
   | 'cp.fix2'
+  | 'cp.deleteExtraVertices'
+  | 'cp.deleteExtraVerticesIgnoreColor'
   | 'cp.fixInaccurate'
   | 'cp.changeCircleColor'
   | 'cp.organizeCircles'
@@ -749,6 +751,20 @@ export function getWorkspaceCapabilities(
       t('common:capability.splitTJunctions', 'Split T-junctions'),
       canEditCp
         ? t('common:capability.splitNearTIntersections', 'Split near T-intersections using Oriedita tolerances')
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+    ),
+    'cp.deleteExtraVertices': capability(
+      canEditCp,
+      t('common:capability.deleteExtraVertices', 'Delete Extra Vertices'),
+      canEditCp
+        ? t('common:capability.mergeCollinearSameType', 'Merge collinear crease pairs that meet at a vertex, when both are the same type')
+        : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
+    ),
+    'cp.deleteExtraVerticesIgnoreColor': capability(
+      canEditCp,
+      t('common:capability.deleteExtraVerticesIgnoreType', 'Delete Extra Vertices (Ignore Type)'),
+      canEditCp
+        ? t('common:capability.mergeCollinearAnyType', 'Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge')
         : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'cp.fixInaccurate': capability(

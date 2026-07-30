@@ -1921,7 +1921,19 @@
     "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
     "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
     "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
-    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a",
+    "common:capability.deleteExtraVertices": "16e4d2771fa2",
+    "common:capability.deleteExtraVerticesIgnoreType": "423047c7c25e",
+    "common:capability.mergeCollinearAnyType": "1d12b28cad34",
+    "common:capability.mergeCollinearSameType": "bada9f1b4cc4",
+    "menu:cp.deleteExtraVertices": "16e4d2771fa2",
+    "menu:cp.deleteExtraVerticesIgnoreColor": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices.label": "16e4d2771fa2",
+    "cpVocab:action.cp_action_delete_extra_vertices.tooltip": "bada9f1b4cc4",
+    "cpVocab:action.cp_action_delete_extra_vertices.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.label": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.tooltip": "1d12b28cad34",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.disabledReason": "5fa7aac5375c"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3845,7 +3857,19 @@
     "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
     "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
     "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
-    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a",
+    "common:capability.deleteExtraVertices": "16e4d2771fa2",
+    "common:capability.deleteExtraVerticesIgnoreType": "423047c7c25e",
+    "common:capability.mergeCollinearAnyType": "1d12b28cad34",
+    "common:capability.mergeCollinearSameType": "bada9f1b4cc4",
+    "menu:cp.deleteExtraVertices": "16e4d2771fa2",
+    "menu:cp.deleteExtraVerticesIgnoreColor": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices.label": "16e4d2771fa2",
+    "cpVocab:action.cp_action_delete_extra_vertices.tooltip": "bada9f1b4cc4",
+    "cpVocab:action.cp_action_delete_extra_vertices.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.label": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.tooltip": "1d12b28cad34",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.disabledReason": "5fa7aac5375c"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5795,7 +5819,19 @@
     "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
     "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
     "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
-    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a",
+    "common:capability.deleteExtraVertices": "16e4d2771fa2",
+    "common:capability.deleteExtraVerticesIgnoreType": "423047c7c25e",
+    "common:capability.mergeCollinearAnyType": "1d12b28cad34",
+    "common:capability.mergeCollinearSameType": "bada9f1b4cc4",
+    "menu:cp.deleteExtraVertices": "16e4d2771fa2",
+    "menu:cp.deleteExtraVerticesIgnoreColor": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices.label": "16e4d2771fa2",
+    "cpVocab:action.cp_action_delete_extra_vertices.tooltip": "bada9f1b4cc4",
+    "cpVocab:action.cp_action_delete_extra_vertices.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.label": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.tooltip": "1d12b28cad34",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.disabledReason": "5fa7aac5375c"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7745,7 +7781,19 @@
     "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
     "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
     "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
-    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a",
+    "common:capability.deleteExtraVertices": "16e4d2771fa2",
+    "common:capability.deleteExtraVerticesIgnoreType": "423047c7c25e",
+    "common:capability.mergeCollinearAnyType": "1d12b28cad34",
+    "common:capability.mergeCollinearSameType": "bada9f1b4cc4",
+    "menu:cp.deleteExtraVertices": "16e4d2771fa2",
+    "menu:cp.deleteExtraVerticesIgnoreColor": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices.label": "16e4d2771fa2",
+    "cpVocab:action.cp_action_delete_extra_vertices.tooltip": "bada9f1b4cc4",
+    "cpVocab:action.cp_action_delete_extra_vertices.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.label": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.tooltip": "1d12b28cad34",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.disabledReason": "5fa7aac5375c"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9695,7 +9743,19 @@
     "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
     "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
     "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
-    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a",
+    "common:capability.deleteExtraVertices": "16e4d2771fa2",
+    "common:capability.deleteExtraVerticesIgnoreType": "423047c7c25e",
+    "common:capability.mergeCollinearAnyType": "1d12b28cad34",
+    "common:capability.mergeCollinearSameType": "bada9f1b4cc4",
+    "menu:cp.deleteExtraVertices": "16e4d2771fa2",
+    "menu:cp.deleteExtraVerticesIgnoreColor": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices.label": "16e4d2771fa2",
+    "cpVocab:action.cp_action_delete_extra_vertices.tooltip": "bada9f1b4cc4",
+    "cpVocab:action.cp_action_delete_extra_vertices.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.label": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.tooltip": "1d12b28cad34",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.disabledReason": "5fa7aac5375c"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11645,7 +11705,19 @@
     "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
     "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
     "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
-    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a",
+    "common:capability.deleteExtraVertices": "16e4d2771fa2",
+    "common:capability.deleteExtraVerticesIgnoreType": "423047c7c25e",
+    "common:capability.mergeCollinearAnyType": "1d12b28cad34",
+    "common:capability.mergeCollinearSameType": "bada9f1b4cc4",
+    "menu:cp.deleteExtraVertices": "16e4d2771fa2",
+    "menu:cp.deleteExtraVerticesIgnoreColor": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices.label": "16e4d2771fa2",
+    "cpVocab:action.cp_action_delete_extra_vertices.tooltip": "bada9f1b4cc4",
+    "cpVocab:action.cp_action_delete_extra_vertices.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.label": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.tooltip": "1d12b28cad34",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.disabledReason": "5fa7aac5375c"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13595,7 +13667,19 @@
     "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
     "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
     "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
-    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a",
+    "common:capability.deleteExtraVertices": "16e4d2771fa2",
+    "common:capability.deleteExtraVerticesIgnoreType": "423047c7c25e",
+    "common:capability.mergeCollinearAnyType": "1d12b28cad34",
+    "common:capability.mergeCollinearSameType": "bada9f1b4cc4",
+    "menu:cp.deleteExtraVertices": "16e4d2771fa2",
+    "menu:cp.deleteExtraVerticesIgnoreColor": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices.label": "16e4d2771fa2",
+    "cpVocab:action.cp_action_delete_extra_vertices.tooltip": "bada9f1b4cc4",
+    "cpVocab:action.cp_action_delete_extra_vertices.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.label": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.tooltip": "1d12b28cad34",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.disabledReason": "5fa7aac5375c"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15519,6 +15603,18 @@
     "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
     "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
     "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
-    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a",
+    "common:capability.deleteExtraVertices": "16e4d2771fa2",
+    "common:capability.deleteExtraVerticesIgnoreType": "423047c7c25e",
+    "common:capability.mergeCollinearAnyType": "1d12b28cad34",
+    "common:capability.mergeCollinearSameType": "bada9f1b4cc4",
+    "menu:cp.deleteExtraVertices": "16e4d2771fa2",
+    "menu:cp.deleteExtraVerticesIgnoreColor": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices.label": "16e4d2771fa2",
+    "cpVocab:action.cp_action_delete_extra_vertices.tooltip": "bada9f1b4cc4",
+    "cpVocab:action.cp_action_delete_extra_vertices.disabledReason": "5fa7aac5375c",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.label": "423047c7c25e",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.tooltip": "1d12b28cad34",
+    "cpVocab:action.cp_action_delete_extra_vertices_ignore_color.disabledReason": "5fa7aac5375c"
   }
 }
