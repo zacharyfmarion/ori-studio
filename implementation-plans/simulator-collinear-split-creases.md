@@ -289,26 +289,33 @@ the merge's own tolerance: `0.01` admits an 8.11 degree kink and merges cascade
 along a chain, so a polyline approximating a curve can collapse. That is one
 constant, `REDUNDANT_VERTEX_EPSILON`, in both engines.
 
-### Accepted behaviour: crease subdivisions coarsen the mesh
+### Where this landed, after measuring a real corpus
 
-Measured against `main` after phase 5, so the trade-off is on the record rather
-than rediscovered as a bug:
+Checked all 43 crease patterns in a private box-pleating corpus (the iguana
+series and friends), main against this branch, through the app's own pipeline:
 
-- Prepared output is **identical**, triangle for triangle, on all 12 bench
-  fixtures and `lamprey-segment.fold`. The triangulation code itself is untouched
-  — the diff against `main` is 248 insertions and 0 deletions.
-- Wherever a collinear crease pair merges, the ring loses those points and the
-  triangulation changes with it. A 20x1 band whose long sides are creases
-  subdivided at every unit goes from 42 vertices / 40 faces / 45 degrees to 4 / 2
-  / 2.86 degrees.
+- **34 of 43 differ.** The claim earlier in this plan that collinear degree-2
+  vertices are rare came from the repo's own fixtures and is wrong for real
+  hand-drawn CPs, which are full of them.
+- The branch **fixes real stranded creases**: 4 per file in eight iguana
+  generations, and 29 to 23 in another. Those creases neither folded nor drew.
+- It also **coarsens**: -14% vertices and -16.5% faces across the differing
+  files, with the worst triangle angle falling from 2.04 to 0.82 degrees on the
+  largest patterns.
 
-The border carve-out does not cover this: a crease can be subdivided along a
-straight line exactly as a border can. A narrower rule is available — guard
-`triangulateQuad`'s diagonal choice and merge only vertices that still produced a
-degenerate triangle, which would fix the reported file while removing no vertices
-at all — and was **declined** in favour of upstream's unconditional merge. The
-coarsening is the accepted cost of the fix.
+The coarsening looked like a regression and is not. Merging collinear segments is
+a no-op to the origami, so the merged mesh is the *canonical* one; main only
+scored better because those CPs happened to contain split creases whose extra
+vertices acted as accidental resolution. Simulation quality was tracking drawing
+style -- in both directions -- which is the actual defect.
 
-If a pattern is later found to simulate badly because of this, that repair-based
-rule is the lever, and `REDUNDANT_VERTEX_EPSILON` (upstream's `0.01`, an 8.11
-degree kink) is the orthogonal one.
+So the merge stays as the canonicalisation step, `triangulateQuad` gained a guard
+covering the collinear M/V pair that no merge can fix (upstream's `mergeEdge`
+refuses those), and making the canonical mesh good is its own piece of work:
+[simulator-mesh-refinement.md](simulator-mesh-refinement.md).
+
+Coverage came with it, since no fixture in the repo contained a collinear
+degree-2 vertex at all: a 47-vertex neighbourhood distilled from the iguana CP
+(`packages/origami-simulator/tests/fixtures/iguana-split-crease.fold`, two
+stranded mountains on main, none here) and an env-var harness for private files
+(`ORIGAMI_SIMULATOR_CORPUS_DIR`).
