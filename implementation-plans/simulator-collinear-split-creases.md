@@ -288,3 +288,27 @@ If a pattern still simulates worse than before this branch, the next suspect is
 the merge's own tolerance: `0.01` admits an 8.11 degree kink and merges cascade
 along a chain, so a polyline approximating a curve can collapse. That is one
 constant, `REDUNDANT_VERTEX_EPSILON`, in both engines.
+
+### Accepted behaviour: crease subdivisions coarsen the mesh
+
+Measured against `main` after phase 5, so the trade-off is on the record rather
+than rediscovered as a bug:
+
+- Prepared output is **identical**, triangle for triangle, on all 12 bench
+  fixtures and `lamprey-segment.fold`. The triangulation code itself is untouched
+  — the diff against `main` is 248 insertions and 0 deletions.
+- Wherever a collinear crease pair merges, the ring loses those points and the
+  triangulation changes with it. A 20x1 band whose long sides are creases
+  subdivided at every unit goes from 42 vertices / 40 faces / 45 degrees to 4 / 2
+  / 2.86 degrees.
+
+The border carve-out does not cover this: a crease can be subdivided along a
+straight line exactly as a border can. A narrower rule is available — guard
+`triangulateQuad`'s diagonal choice and merge only vertices that still produced a
+degenerate triangle, which would fix the reported file while removing no vertices
+at all — and was **declined** in favour of upstream's unconditional merge. The
+coarsening is the accepted cost of the fix.
+
+If a pattern is later found to simulate badly because of this, that repair-based
+rule is the lever, and `REDUNDANT_VERTEX_EPSILON` (upstream's `0.01`, an 8.11
+degree kink) is the orthogonal one.
