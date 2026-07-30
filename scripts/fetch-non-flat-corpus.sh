@@ -72,5 +72,12 @@ echo
 echo "Snapping lattice-based patterns back onto their grid..."
 node "$(dirname "$0")/snap-to-lattice.mjs" "$FOLD_DIR" --in-place
 
+# Lattice snapping only reaches designs that have a point lattice. A 22.5-degree
+# design does not -- tan(22.5) is sqrt(2) - 1 -- so those are corrected by
+# constraining edge *directions* instead, which is what the checks read anyway.
+echo
+echo "Snapping 22.5-degree designs onto their angle system..."
+node "$(dirname "$0")/snap-to-angles.mjs" "$FOLD_DIR" --in-place
+
 echo
 echo "Open any of $FOLD_DIR/*.fold via File > Import Into Crease Pattern."
