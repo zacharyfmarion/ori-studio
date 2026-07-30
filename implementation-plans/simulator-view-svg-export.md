@@ -371,3 +371,36 @@ produced it rather than from reasoning about the code.
       cluster, only seven pixels in a page differing by 15 or more, and every one
       of those moves *toward* the saturated colour: they are interior seams
       disappearing, which is the artifact the face seam stroke exists to mask
+
+### Why merging stops where it does
+
+One polygon per crease-bounded region would be ~126 on that model, against the
+369 we emit. Going further was built and measured, and then reverted; this is
+what it found, so that it is not investigated twice.
+
+Of the 430 remaining adjacencies, 144 have a crease drawn along them and 31 are
+occlusion boundaries between clearly different colours — 175 that *should* stay
+separate. The other 255 are the opportunity, and split in two:
+
+- **135 have identical fill and no crease.** Blocked only by draw order. Merging
+  regardless of order gives 243 polygons, so this is the whole prize.
+- **98 have no crease and fills within 6/255** — two faces at very slightly
+  different angles, which flat shading gives near-identical but unequal shades.
+  Merging them means choosing one shade and diverging from the GPU view.
+
+Reordering to capture the first group was implemented, with a separating-axis
+test for whether anything drawn between two pieces would be painted over. It
+reached 360 of a possible 243. Isolating the blockers: creases account for
+360 -> 269 and faces for 269 -> 243, so creases are three quarters of it.
+
+That is structural rather than a missing optimisation. A crease lies *on* the
+face it separates and must draw over it, while the BSP scatters that face's
+pieces to either side of it in the order. Merging the pieces forward paints over
+the crease; merging them backward puts the face under creases belonging to
+nearer layers. Neither is sound without knowing which crease belongs to which
+region, which the draw list does not carry.
+
+So ~150 lines and a SAT test bought 369 -> 360, and were reverted. Getting to one
+polygon per region needs a different shape of solution — a real planar
+arrangement of the drawing, or per-crease visibility so faces and creases can be
+separated into two passes — not a better merge rule.
