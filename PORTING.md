@@ -87,3 +87,53 @@ Release caveats:
 - Real-world corpus files are not committed; use the external corpus harness in
   `treemaker-cli` before making claims about a private archive of historical
   user files.
+
+## Origami Simulator (`packages/origami-simulator`)
+
+The vendored reference is `third_party/origami-simulator` at commit
+`7855983a613c879c171b2b1557f8cd102d2640cf` (recorded in `src/provenance.ts`,
+which also names the solver files the port follows). The dynamic solver is a
+faithful port: same relative-position state model, same pass order
+(`normalCalc` → `thetaCalc` → `updateCreaseGeo` → `velocityCalc`/`positionCalc`),
+same equations. `bench/upstreamParity.bench.ts` drives the vendored page in
+Chromium, so solver divergence is measured rather than assumed.
+
+Deliberate divergences, all in fold preparation and all because our inputs are
+crease graphs from a CP editor rather than upstream's hand-clean SVGs:
+
+- **`removeDegenerateGeometry` has no upstream counterpart.** Upstream never
+  needs one: a zero-area triangle NaNs its `normalize(cross(...))` face-normal
+  pass and a zero-length edge divides by a zero rest length, and its inputs
+  contain neither. It avoids them through an input-cleanup chain we have not
+  ported (`collapseNearbyVertices` → `removeLoopEdges` → `removeDuplicateEdges`,
+  `pattern.js:538-547`). Porting that chain is what would let this pass retire.
+- **`delaunayFlipRing`.** Upstream's FOLD path calls earcut and keeps whatever it
+  returns; only its curved-folding path triangulates for quality (`cdt2d` plus an
+  orthogonality-driven swap loop). Deleting this for parity was tried and
+  reverted — it made real simulations measurably worse.
+- **`triangulateQuad` picks the diagonal by max-min-angle**, where upstream uses
+  the shorter diagonal. Identical output on 42 real patterns; kept because it
+  also rejects a diagonal falling outside a non-convex quad.
+- **`removeRedundantVertices` stops at driven creases (M/V/F).** Upstream merges
+  any collinear degree-2 pair with matching assignments, borders included. A
+  crease-free border subdivision has no crease to lose, and it is the only mesh
+  resolution `delaunayFlipRing` has to work with.
+- **`projectFaceTo2D`** picks the projection plane from the face's Newell normal;
+  upstream retries earcut on each of the three axis rotations until one returns
+  enough triangles. Same intent, fewer earcut calls.
+- **Winding restoration after earcut** uses per-triangle signed area; upstream
+  finds its first ring edge among the triangles and flips all of them.
+- **`edgeKey`/`buildEdgeIndex`** replace upstream's linear `findEdge` scans.
+  Performance only: O(E²) → O(E), seconds on a large pattern.
+- **Additions with no upstream counterpart:** `ReferenceSolver`, a CPU port that
+  runs headlessly in Node and is what golden traces and CI use (upstream is
+  GPU-only); `SimulationClock`, a time-budgeted scheduler in place of a fixed
+  step count; and a WebGL2 mesh renderer drawing from the position texture rather
+  than through three.js.
+
+Not ported at all: cut edges (`C` is accepted by `normalizeAssignment` and
+otherwise ignored; upstream runs `splitCuts` plus a second redundant-vertex
+pass), the curved-folding path, the SVG import path, `removeBorderFaces`, and
+`foldUseAngles` (upstream infers target angles from an imported folded form when
+the FOLD carries no `edges_foldAngle`; our option of that name is dead and reads
+the assignment either way).

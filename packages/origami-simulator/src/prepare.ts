@@ -5,6 +5,7 @@ import {
   cloneFold,
   edgeKey,
   facePairs,
+  findEdge,
   normalizeAssignment,
   normalizePoint,
 } from './geometry.js';
@@ -112,11 +113,288 @@ function normalizeFold(
     return options.foldUseAngles === false ? assignmentFoldAngle(assignment) : assignmentFoldAngle(assignment);
   });
 
+  // Canonicalise before triangulating. A crease drawn in two collinear strokes is
+  // the same crease as one drawn in a single stroke, so the mesh it produces has
+  // to be the same too -- otherwise how a pattern was *drawn* changes how it
+  // simulates, in either direction. Upstream does this at pattern.js:551, before
+  // faces exist; ours arrive with the document, so here is the closest point.
+  removeRedundantVertices(fold, REDUNDANT_VERTEX_EPSILON, diagnostics);
+
   if (options.triangulate ?? true) {
     triangulateFold(fold, diagnostics);
   }
 
   return fold;
+}
+
+/**
+ * Upstream's collinearity tolerance, from both of its call sites (pattern.js:551
+ * and :586): the dot product of the two neighbour directions must be within this
+ * of -1.
+ *
+ * Kept at upstream's value rather than tuned, with two consequences worth knowing.
+ * It admits a kink up to 8.11 degrees off straight, and because merges cascade
+ * along a chain, a polyline approximating a curved crease can collapse toward a
+ * single segment in the simulation mesh. Upstream appears to have hit that too:
+ * the same call is commented out in its curved-folding path (curvedFolding.js:1405).
+ * This constant is the knob if it ever bites us.
+ */
+const REDUNDANT_VERTEX_EPSILON = 0.01;
+
+/**
+ * Assignments the solver actually folds, and so the only ones a merge can rescue.
+ * See `mergeEdge` for why the merge stops at these rather than taking every
+ * matching pair as upstream does.
+ */
+const DRIVEN_ASSIGNMENTS = new Set<FoldAssignment>(['M', 'V', 'F']);
+
+/**
+ * Merge a crease split across two collinear segments back into one crease.
+ *
+ * Port of upstream `removeRedundantVertices` (pattern.js:865) with its `mergeEdge`
+ * (pattern.js:918). A vertex with exactly two neighbours, collinear with both and
+ * with the same assignment on both sides, carries no information the solver can
+ * use -- and if triangulation runs a diagonal through it, the resulting triangle
+ * has zero area. `removeDegenerateGeometry` then deletes that triangle, which
+ * leaves the two halves incident to no face at all: `buildCreaseParams` skips
+ * them, the paper renderer never draws them, and the flat diagonal invented in
+ * their place is held at 0 degrees. The crease silently disappears and the model
+ * folds wrongly.
+ *
+ * Sequential and mutating, like upstream: each merge rewrites the neighbour map,
+ * so a chain of collinear vertices collapses progressively into one edge. A batch
+ * pass resolved against the original neighbours would stop after the first.
+ */
+function removeRedundantVertices(
+  fold: FoldDocument,
+  epsilon: number,
+  diagnostics: SimulatorDiagnostics
+): void {
+  const coords = fold.vertices_coords;
+  const sourceEdgeCount = fold.edges_vertices.length;
+  // Upstream's `edges_vertices_to_vertices_vertices_unsorted`.
+  const verticesVertices: number[][] = coords.map(() => []);
+  for (const edge of fold.edges_vertices) {
+    verticesVertices[edge[0]]?.push(edge[1]);
+    verticesVertices[edge[1]]?.push(edge[0]);
+  }
+  // Which source edge each surviving edge came from, so the per-edge extension
+  // arrays can follow. See `foldEdgeArrays.ts` in apps/web for why provenance is
+  // tracked rather than inferred from lengths.
+  const edgeSources = fold.edges_vertices.map((_, index) => index);
+
+  const merged = new Set<number>();
+  for (let vertex = 0; vertex < coords.length; vertex += 1) {
+    const around = verticesVertices[vertex];
+    if (around?.length !== 2) continue;
+    const [first, second] = around as [number, number];
+    if (!isStraightThrough(coords, vertex, first, second, epsilon)) continue;
+    if (mergeEdge(fold, verticesVertices, edgeSources, first, vertex, second, diagnostics)) {
+      merged.add(vertex);
+    }
+  }
+  if (merged.size === 0) return;
+
+  const droppedFaces = dropMergedVertices(fold, merged);
+  remapEdgeExtensionArrays(fold, sourceEdgeCount, edgeSources);
+  diagnostics.warnings.push(
+    `merged ${merged.size} redundant vertex/vertices` +
+      (droppedFaces ? `, dropping ${droppedFaces} degenerate face(s)` : '')
+  );
+}
+
+/** Upstream's test: the two neighbour directions point opposite, within `epsilon`. */
+function isStraightThrough(
+  coords: number[][],
+  vertex: number,
+  first: number,
+  second: number,
+  epsilon: number
+): boolean {
+  const point = coords[vertex];
+  const a = coords[first];
+  const b = coords[second];
+  if (!point || !a || !b) return false;
+  const toA = [a[0]! - point[0]!, a[1]! - point[1]!, (a[2] ?? 0) - (point[2] ?? 0)];
+  const toB = [b[0]! - point[0]!, b[1]! - point[1]!, (b[2] ?? 0) - (point[2] ?? 0)];
+  const magA = Math.hypot(toA[0]!, toA[1]!, toA[2]!);
+  const magB = Math.hypot(toB[0]!, toB[1]!, toB[2]!);
+  if (magA === 0 || magB === 0) return false;
+  const dot = (toA[0]! * toB[0]! + toA[1]! * toB[1]! + toA[2]! * toB[2]!) / (magA * magB);
+  return Math.abs(dot + 1) < epsilon;
+}
+
+/**
+ * Replace the two edges meeting at `centre` with one edge spanning them, per
+ * upstream `mergeEdge`: the assignment must match on both sides (upstream refuses
+ * the merge otherwise, leaving a collinear M/V pair alone), and the merged fold
+ * angle is the mean of the non-zero angles, or null when neither is set.
+ */
+function mergeEdge(
+  fold: FoldDocument,
+  verticesVertices: number[][],
+  edgeSources: number[],
+  first: number,
+  centre: number,
+  second: number,
+  diagnostics: SimulatorDiagnostics
+): boolean {
+  const edges = fold.edges_vertices;
+  const assignments = fold.edges_assignment;
+  const foldAngles = fold.edges_foldAngle;
+  if (!assignments || !foldAngles) return false;
+
+  // Descending, so the splices below cannot disturb an index still to be removed.
+  const halves: number[] = [];
+  for (let index = edges.length - 1; index >= 0; index -= 1) {
+    const edge = edges[index]!;
+    if (edge[0] !== centre && edge[1] !== centre) continue;
+    const other = edge[0] === centre ? edge[1] : edge[0];
+    if (other !== first && other !== second) continue;
+    halves.push(index);
+  }
+  if (halves.length !== 2) return false;
+
+  const assignment = assignments[halves[0]!];
+  if (assignment !== assignments[halves[1]!]) {
+    diagnostics.warnings.push(
+      `not merging ${first}-${centre}-${second}: different edge assignments`
+    );
+    return false;
+  }
+  // NARROWER THAN UPSTREAM, and deliberately. Upstream merges any matching pair,
+  // borders included, because nothing downstream of it cares about triangle
+  // quality. `delaunayFlipRing` does: it can only choose diagonals among vertices
+  // that already exist, so a face's ring points are the only mesh resolution it
+  // has. Merging a crease-free border subdivision throws that resolution away for
+  // no gain -- there is no crease on it to lose, and a zero-area sliver spanning
+  // it is covered by the straight edge that replaces it. On a 20x1 strip whose
+  // long sides carried 21 such points, merging them cost 40 triangles at 45
+  // degrees for 2 at 2.86 degrees, and slivers that size stop the solver settling.
+  if (!DRIVEN_ASSIGNMENTS.has(assignment ?? 'U')) return false;
+  // Upstream never meets this case, because it removes redundant vertices before
+  // faces exist and so cannot be re-run on its own output. Merging into an edge
+  // that already exists would produce a duplicate, i.e. an edge with no face --
+  // the very shape of the bug this pass removes.
+  if (findEdge(edges, first, second) !== -1) return false;
+
+  const angles = [foldAngles[halves[0]!], foldAngles[halves[1]!]];
+  if (angles[0] !== angles[1]) {
+    diagnostics.warnings.push(`incompatible fold angles merged: ${JSON.stringify(angles)}`);
+  }
+  const set = angles.filter((angle): angle is number => Boolean(angle));
+  const mergedAngle = set.length
+    ? set.reduce((sum, angle) => sum + angle, 0) / set.length
+    : null;
+  // The earlier half, so the inherited extension data is deterministic.
+  const source = edgeSources[Math.min(halves[0]!, halves[1]!)]!;
+
+  for (const index of halves) {
+    edges.splice(index, 1);
+    assignments.splice(index, 1);
+    foldAngles.splice(index, 1);
+    edgeSources.splice(index, 1);
+  }
+  edges.push([first, second]);
+  assignments.push(assignment ?? 'U');
+  foldAngles.push(mergedAngle);
+  edgeSources.push(source);
+
+  replaceNeighbor(verticesVertices[first], centre, second);
+  replaceNeighbor(verticesVertices[second], centre, first);
+  return true;
+}
+
+function replaceNeighbor(neighbors: number[] | undefined, from: number, to: number): void {
+  if (!neighbors) return;
+  const index = neighbors.indexOf(from);
+  if (index >= 0) neighbors[index] = to;
+}
+
+/**
+ * Compact the merged vertices away and re-index. Returns the number of faces
+ * dropped for falling below three vertices -- a face ring that walked through a
+ * merged vertex and had no more than three to begin with was already zero-area,
+ * and upstream cannot meet it because its faces are built after this pass.
+ */
+function dropMergedVertices(fold: FoldDocument, merged: Set<number>): number {
+  const remap = new Int32Array(fold.vertices_coords.length).fill(-1);
+  const coords: number[][] = [];
+  fold.vertices_coords.forEach((coord, index) => {
+    if (merged.has(index)) return;
+    remap[index] = coords.length;
+    coords.push(coord);
+  });
+  fold.vertices_coords = coords;
+  fold.edges_vertices = fold.edges_vertices.map((edge): [number, number] => [
+    remap[edge[0]] ?? 0,
+    remap[edge[1]] ?? 0,
+  ]);
+
+  let dropped = 0;
+  fold.faces_vertices = fold.faces_vertices.reduce<number[][]>((kept, face) => {
+    const next = face.filter((vertex) => !merged.has(vertex)).map((vertex) => remap[vertex] ?? 0);
+    if (next.length < 3) dropped += 1;
+    else kept.push(next);
+    return kept;
+  }, []);
+  // Both are rebuilt from the new edge list before anything reads them.
+  delete fold.faces_edges;
+  delete fold.edges_faces;
+  return dropped;
+}
+
+/**
+ * Re-index the namespaced per-edge arrays onto the merged edge list. Matched
+ * structurally, so an extension added later is covered without editing this file;
+ * an array whose length disagrees with the source edge count was already stale and
+ * is dropped rather than guessed at. Mirrors `remapEdgeExtensionArrays` in
+ * apps/web, which this package cannot import.
+ */
+function remapEdgeExtensionArrays(
+  fold: FoldDocument,
+  sourceEdgeCount: number,
+  edgeSources: number[]
+): void {
+  for (const key of Object.keys(fold)) {
+    if (!key.includes(':edges_')) continue;
+    const value = fold[key];
+    if (!Array.isArray(value)) continue;
+    if (value.length !== sourceEdgeCount) {
+      delete fold[key];
+      continue;
+    }
+    fold[key] = edgeSources.map((source) => value[source]);
+  }
+}
+
+function boundingDiagonal(fold: FoldDocument): number {
+  const min: [number, number, number] = [Infinity, Infinity, Infinity];
+  const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+  for (const coord of fold.vertices_coords) {
+    const point = normalizePoint(coord);
+    for (let k = 0; k < 3; k += 1) {
+      if (point[k]! < min[k]!) min[k] = point[k]!;
+      if (point[k]! > max[k]!) max[k] = point[k]!;
+    }
+  }
+  return Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) || 1;
+}
+
+/**
+ * The cross-magnitude (twice the area) below which a triangle counts as
+ * degenerate. Relative to the bounding-box diagonal, so it means the same thing
+ * at any coordinate scale: a real crease triangle sits far above it, a collinear
+ * or coincident one at ~0.
+ *
+ * One definition, two callers -- `removeDegenerateGeometry`, which deletes them,
+ * and `triangulateQuad`, which avoids creating them. If those two ever disagreed,
+ * a quad would emit a triangle the filter then deleted, which is exactly the
+ * split-crease bug.
+ */
+function degenerateCrossThreshold(fold: FoldDocument): number {
+  const diagonal = boundingDiagonal(fold);
+  return diagonal * diagonal * 1e-9;
 }
 
 /**
@@ -129,18 +407,8 @@ function normalizeFold(
  */
 function removeDegenerateGeometry(fold: FoldDocument, diagnostics: SimulatorDiagnostics): void {
   const coords = fold.vertices_coords.map((coord) => normalizePoint(coord));
-  const min: [number, number, number] = [Infinity, Infinity, Infinity];
-  const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-  for (const c of coords) {
-    for (let k = 0; k < 3; k += 1) {
-      if (c[k]! < min[k]!) min[k] = c[k]!;
-      if (c[k]! > max[k]!) max[k] = c[k]!;
-    }
-  }
-  const diagonal = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) || 1;
-  // A crease triangle in a normalized sheet has cross-magnitude (2*area) far
-  // above diagonal^2 * 1e-9; a collinear/coincident one sits at ~0.
-  const minCrossMag = diagonal * diagonal * 1e-9;
+  const diagonal = boundingDiagonal(fold);
+  const minCrossMag = degenerateCrossThreshold(fold);
   const minEdgeLenSq = (diagonal * 1e-6) ** 2;
 
   let droppedFaces = 0;
@@ -420,17 +688,81 @@ function triangulateQuad(
   nextFaces: number[][],
   edgeIndex: Map<number, number>
 ): void {
-  const d1 = pointDistanceSq(fold, face[0] ?? 0, face[2] ?? 0);
-  const d2 = pointDistanceSq(fold, face[1] ?? 0, face[3] ?? 0);
-  if (d2 < d1) {
-    appendEdgeIfMissing(fold, edgeIndex, face[1] ?? 0, face[3] ?? 0);
-    nextFaces.push([face[0] ?? 0, face[1] ?? 0, face[3] ?? 0]);
-    nextFaces.push([face[1] ?? 0, face[2] ?? 0, face[3] ?? 0]);
-  } else {
-    appendEdgeIfMissing(fold, edgeIndex, face[0] ?? 0, face[2] ?? 0);
-    nextFaces.push([face[0] ?? 0, face[1] ?? 0, face[2] ?? 0]);
-    nextFaces.push([face[0] ?? 0, face[2] ?? 0, face[3] ?? 0]);
+  const [v0, v1, v2, v3] = [face[0] ?? 0, face[1] ?? 0, face[2] ?? 0, face[3] ?? 0];
+  const across02: [number[], number[]] = [
+    [v0, v1, v2],
+    [v0, v2, v3],
+  ];
+  const across13: [number[], number[]] = [
+    [v0, v1, v3],
+    [v1, v2, v3],
+  ];
+  // Take the diagonal that maximises the smallest angle, which is the Delaunay
+  // choice for a quad and the same criterion `delaunayFlipRing` applies to larger
+  // rings. The previous rule -- shorter diagonal, unconditionally -- optimised for
+  // nothing the solver cares about: the crease force divides by the adjacent
+  // triangle's height, so a quad split into a sliver is a stiff crease whatever
+  // its diagonal measures. Quads are most of a box-pleated pattern (2219 of 3375
+  // faces in the iguana fixture) and this costs no vertices to fix.
+  //
+  // It subsumes the degeneracy guard, too. A triangle cut through a vertex
+  // collinear with its neighbours has zero area and therefore a zero smallest
+  // angle, so it loses to any alternative -- and a zero-area triangle is what
+  // `removeDegenerateGeometry` deletes, stranding the edges that met there on no
+  // face at all, which is the whole of the split-crease bug.
+  const chosen = smallestAngleOf(fold, across02) >= smallestAngleOf(fold, across13)
+    ? across02
+    : across13;
+
+  const [a, b] = chosen === across02 ? [v0, v2] : [v1, v3];
+  appendEdgeIfMissing(fold, edgeIndex, a, b);
+  nextFaces.push(chosen[0], chosen[1]);
+}
+
+/**
+ * The smallest angle either triangle has, in radians, or 0 when a split is not
+ * usable at all: degenerate, or -- for a non-convex quad -- folded outside the
+ * face, which the two triangles' opposing winding gives away.
+ */
+function smallestAngleOf(fold: FoldDocument, triangles: [number[], number[]]): number {
+  const threshold = degenerateCrossThreshold(fold);
+  let smallest = Infinity;
+  let winding = 0;
+  for (const triangle of triangles) {
+    const points = triangle.map((vertex) => normalizePoint(fold.vertices_coords[vertex] ?? []));
+    const [a, b, c] = points;
+    if (!a || !b || !c) return 0;
+    const cross = crossMagnitude(fold, triangle);
+    if (cross < threshold) return 0;
+    const sides = [distance(b, c), distance(a, c), distance(a, b)].sort((x, y) => x - y);
+    const [shortest, mid, longest] = sides as [number, number, number];
+    // Opposite the shortest side, via the law of cosines.
+    const cosine = (mid ** 2 + longest ** 2 - shortest ** 2) / (2 * mid * longest);
+    smallest = Math.min(smallest, Math.acos(Math.max(-1, Math.min(1, cosine))));
+
+    const sign = Math.sign(signedAreaXZ(a, b, c));
+    if (winding === 0) winding = sign;
+    else if (sign !== 0 && sign !== winding) return 0;
   }
+  return smallest === Infinity ? 0 : smallest;
+}
+
+function distance(a: number[], b: number[]): number {
+  return Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!);
+}
+
+/** Winding in the plane the sheet is flattened into; sign is all that is used. */
+function signedAreaXZ(a: number[], b: number[], c: number[]): number {
+  return (b[0]! - a[0]!) * (c[2]! - a[2]!) - (c[0]! - a[0]!) * (b[2]! - a[2]!);
+}
+
+function crossMagnitude(fold: FoldDocument, triangle: number[]): number {
+  const a = normalizePoint(fold.vertices_coords[triangle[0] ?? 0] ?? []);
+  const b = normalizePoint(fold.vertices_coords[triangle[1] ?? 0] ?? []);
+  const c = normalizePoint(fold.vertices_coords[triangle[2] ?? 0] ?? []);
+  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+  const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  return Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
 }
 
 // Append an edge only if it isn't already present, keeping `edgeIndex` in sync so
