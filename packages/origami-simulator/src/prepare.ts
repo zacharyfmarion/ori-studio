@@ -697,31 +697,63 @@ function triangulateQuad(
     [v0, v1, v3],
     [v1, v2, v3],
   ];
-  // Shorter diagonal first, as before -- but never one that cuts through a vertex
-  // collinear with its two neighbours, because the triangle on that side has zero
-  // area. `removeDegenerateGeometry` would then delete it, and the two edges that
-  // met at the vertex would be left incident to no face at all: invisible to
-  // `buildCreaseParams`, invisible to the renderer. That is the whole of the
-  // split-crease bug, and choosing the other diagonal avoids it without touching
-  // a single vertex.
-  const shorterIsO2 =
-    pointDistanceSq(fold, v0, v2) <= pointDistanceSq(fold, v1, v3);
-  const preferred = shorterIsO2 ? across02 : across13;
-  const fallback = shorterIsO2 ? across13 : across02;
-  const chosen =
-    !hasDegenerateTriangle(fold, preferred) || hasDegenerateTriangle(fold, fallback)
-      ? preferred
-      : fallback;
+  // Take the diagonal that maximises the smallest angle, which is the Delaunay
+  // choice for a quad and the same criterion `delaunayFlipRing` applies to larger
+  // rings. The previous rule -- shorter diagonal, unconditionally -- optimised for
+  // nothing the solver cares about: the crease force divides by the adjacent
+  // triangle's height, so a quad split into a sliver is a stiff crease whatever
+  // its diagonal measures. Quads are most of a box-pleated pattern (2219 of 3375
+  // faces in the iguana fixture) and this costs no vertices to fix.
+  //
+  // It subsumes the degeneracy guard, too. A triangle cut through a vertex
+  // collinear with its neighbours has zero area and therefore a zero smallest
+  // angle, so it loses to any alternative -- and a zero-area triangle is what
+  // `removeDegenerateGeometry` deletes, stranding the edges that met there on no
+  // face at all, which is the whole of the split-crease bug.
+  const chosen = smallestAngleOf(fold, across02) >= smallestAngleOf(fold, across13)
+    ? across02
+    : across13;
 
   const [a, b] = chosen === across02 ? [v0, v2] : [v1, v3];
   appendEdgeIfMissing(fold, edgeIndex, a, b);
   nextFaces.push(chosen[0], chosen[1]);
 }
 
-/** True when either triangle is degenerate by the same measure the filter uses. */
-function hasDegenerateTriangle(fold: FoldDocument, triangles: [number[], number[]]): boolean {
+/**
+ * The smallest angle either triangle has, in radians, or 0 when a split is not
+ * usable at all: degenerate, or -- for a non-convex quad -- folded outside the
+ * face, which the two triangles' opposing winding gives away.
+ */
+function smallestAngleOf(fold: FoldDocument, triangles: [number[], number[]]): number {
   const threshold = degenerateCrossThreshold(fold);
-  return triangles.some((triangle) => crossMagnitude(fold, triangle) < threshold);
+  let smallest = Infinity;
+  let winding = 0;
+  for (const triangle of triangles) {
+    const points = triangle.map((vertex) => normalizePoint(fold.vertices_coords[vertex] ?? []));
+    const [a, b, c] = points;
+    if (!a || !b || !c) return 0;
+    const cross = crossMagnitude(fold, triangle);
+    if (cross < threshold) return 0;
+    const sides = [distance(b, c), distance(a, c), distance(a, b)].sort((x, y) => x - y);
+    const [shortest, mid, longest] = sides as [number, number, number];
+    // Opposite the shortest side, via the law of cosines.
+    const cosine = (mid ** 2 + longest ** 2 - shortest ** 2) / (2 * mid * longest);
+    smallest = Math.min(smallest, Math.acos(Math.max(-1, Math.min(1, cosine))));
+
+    const sign = Math.sign(signedAreaXZ(a, b, c));
+    if (winding === 0) winding = sign;
+    else if (sign !== 0 && sign !== winding) return 0;
+  }
+  return smallest === Infinity ? 0 : smallest;
+}
+
+function distance(a: number[], b: number[]): number {
+  return Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!);
+}
+
+/** Winding in the plane the sheet is flattened into; sign is all that is used. */
+function signedAreaXZ(a: number[], b: number[], c: number[]): number {
+  return (b[0]! - a[0]!) * (c[2]! - a[2]!) - (c[0]! - a[0]!) * (b[2]! - a[2]!);
 }
 
 function crossMagnitude(fold: FoldDocument, triangle: number[]): number {
