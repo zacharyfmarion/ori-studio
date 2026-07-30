@@ -6594,3 +6594,15 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-secondary);
   font-size: 0.76rem;
 }
+
+.lesson-panel__bullets {
+  margin: 0 0 var(--space-3);
+  padding-left: 1.15em;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+.lesson-panel__bullets li + li {
+  margin-top: var(--space-2);
+}

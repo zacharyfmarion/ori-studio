@@ -185,15 +185,17 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         kind: 'draw',
         title: 'Remove the extra crease',
         body: [
-          'Delete the diagonal that runs from the top-left corner to the bottom-right one, leaving the preliminary base behind: two creases through the middle, and one diagonal the other way.',
-          'It changes colour halfway along — red from the corner to the centre, blue from the centre onward. That is not a mistake in the drawing. Everything meeting at the middle is split there, so what looks like one line across the paper is really two separate creases that happen to be in line, and nothing says they have to be the same type. Both halves have to go.',
-          'The quickest way to remove a crease is to right-click and drag a small box over it: anything the box touches is erased. Do the two halves one at a time. A box big enough to hold both would have to reach the centre, and every other crease passes through there — it would take the whole pattern with it.',
-          'Press Q for box select, drag a box, and press Delete if you would rather select first and look before committing.',
-          'If you remove the wrong one, undo with Cmd+Z (Ctrl+Z elsewhere) — the tutorial watches the result, not how you got there, so there is no penalty for changing your mind.',
+          'Delete the diagonal running from the top-left corner to the bottom-right one.',
+          'It is red on one half and blue on the other. The centre splits it into two separate creases, so both have to go.',
+        ],
+        bullets: [
+          'Right-click and drag a box over a crease — anything it touches is erased. Take the halves one at a time and stay clear of the centre, or you will take the whole pattern with them.',
+          'Or press Q, drag a selection box, and press Delete.',
+          'Cmd+Z undoes anything you did not mean.',
         ],
         targetId: 'preliminary-base',
         check: { mode: 'exact' },
-        hint: 'Right-click and drag a small box over the top-left half, then another over the bottom-right half. Keep the boxes away from the centre, where everything crosses. Cmd+Z undoes anything you did not mean.',
+        hint: 'One small box over the top-left half, another over the bottom-right half.',
       },
       {
         id: 'undo-is-cheap',

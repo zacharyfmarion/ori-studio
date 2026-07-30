@@ -68,6 +68,12 @@ interface LessonStepBase {
   title: string;
   /** Paragraphs. Rich prose is intentional — lessons teach concepts, not just clicks. */
   body: readonly string[];
+  /**
+   * A short list rendered under the prose. For alternatives and options — the
+   * two or three ways to delete a crease, say — which read badly as sentences
+   * and turn a step into a wall of text.
+   */
+  bullets?: readonly string[];
   image?: LessonImage;
 }
 

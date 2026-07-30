@@ -118,6 +118,14 @@ export function LessonPanel() {
           </p>
         ))}
 
+        {step.bullets ? (
+          <ul className="lesson-panel__bullets">
+            {step.bullets.map((bullet) => (
+              <li key={bullet.slice(0, 48)}>{bullet}</li>
+            ))}
+          </ul>
+        ) : null}
+
         {step.image ? (
           <img className="lesson-panel__image" src={step.image.src} alt={step.image.alt} />
         ) : null}
