@@ -193,3 +193,43 @@ test('splitting can be turned off', () => {
   `;
   assert.equal(svgToFold(wrap(body), { planar: false }).fold.edges_vertices.length, 2);
 });
+
+test('endpoints either side of a grid cell boundary still weld', () => {
+  // The bug this pins: quantising to a grid of side `tolerance` and treating a
+  // shared cell as a match makes welding depend on where the grid falls rather
+  // than on distance. These two endpoints are far closer than the tolerance but
+  // straddle a boundary, and the grid version left them as separate vertices --
+  // which is how `frogBase` ended up with seven creases dead-ending at degree
+  // one in the middle of the paper.
+  //
+  // The span is 1000 and TOLERANCE_FRACTION is 1e-6, so the cell is 1e-3 wide
+  // and cell edges fall on exact multiples of it. 500.0000001 and 499.9999999
+  // sit 2e-7 apart across the boundary at 500.
+  const { fold } = svgToFold(
+    `<svg xmlns="http://www.w3.org/2000/svg">
+       <line stroke="#FF0000" x1="0" y1="0" x2="500.0000001" y2="0"/>
+       <line stroke="#0000FF" x1="499.9999999" y1="0" x2="1000" y2="0"/>
+       <line stroke="#000000" x1="500" y1="0" x2="500" y2="1000"/>
+     </svg>`,
+    { planar: false }
+  );
+  const at500 = fold.vertices_coords.filter(([x, y]) => Math.abs(x - 500) < 1e-3 && Math.abs(y) < 1e-3);
+  assert.equal(at500.length, 1, `expected one vertex near (500, 0), found ${at500.length}`);
+});
+
+test('a genuinely distinct nearby vertex is not swallowed', () => {
+  // The other direction: welding must stay a tolerance test, not a "close
+  // enough" one. Across the corpus, vertex separations run in a smooth
+  // continuum from 2e-8 of span upward with no empty band, so there is no
+  // slack here to spend -- `langHoneycomb` has 2,074 real vertices closer than
+  // 1e-5 of its span, and a looser rule would start deleting geometry.
+  const { fold } = svgToFold(
+    `<svg xmlns="http://www.w3.org/2000/svg">
+       <line stroke="#FF0000" x1="0" y1="0" x2="500" y2="0"/>
+       <line stroke="#0000FF" x1="500.01" y1="0" x2="1000" y2="0"/>
+     </svg>`,
+    { planar: false }
+  );
+  const near500 = fold.vertices_coords.filter(([x, y]) => Math.abs(x - 500) < 1 && Math.abs(y) < 1e-3);
+  assert.equal(near500.length, 2, 'two vertices 0.01 apart must stay distinct');
+});

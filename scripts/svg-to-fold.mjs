@@ -472,18 +472,47 @@ export function svgToFold(svg, { title = 'Converted', flipY = false, planar = tr
   for (const { a, b } of segments) maxY = Math.max(maxY, a[1], b[1]);
   const place = ([x, y]) => [x, flipY ? maxY - y : y];
 
-  const key = ([x, y]) => `${Math.round(x / tolerance)},${Math.round(y / tolerance)}`;
-  const indexOf = new Map();
+  // Welding endpoints into shared vertices.
+  //
+  // The obvious implementation -- quantise to a grid of side `tolerance` and
+  // treat a shared cell as a match -- is wrong in a way that is easy to miss,
+  // because it mostly works. Two points either side of a cell boundary never
+  // match however close they are, so whether a pair welds depends on where the
+  // grid happens to fall rather than on how far apart they are. `frogBase` came
+  // out with eleven duplicate vertex pairs 3.5e-7 to 2.8e-6 of its span apart,
+  // and seven creases dead-ending in mid-paper at degree one, which the checker
+  // then correctly reported as an odd fold count.
+  //
+  // So the cell is a lookup structure, not the test. Any point within
+  // `tolerance` of another is in that point's cell or one of the eight around
+  // it, so searching the 3x3 neighbourhood and comparing real distances finds
+  // every match. Nearest wins, so a cluster collapses to one vertex rather than
+  // chaining outward.
+  const buckets = new Map();
   const vertices = [];
   const vertexIndex = (point) => {
     const placed = place(point);
-    const k = key(placed);
-    let index = indexOf.get(k);
-    if (index === undefined) {
-      index = vertices.length;
-      vertices.push(placed);
-      indexOf.set(k, index);
+    const bx = Math.floor(placed[0] / tolerance);
+    const by = Math.floor(placed[1] / tolerance);
+    let best = -1;
+    let bestDistance = Infinity;
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (const i of buckets.get(`${bx + dx},${by + dy}`) ?? []) {
+          const d = Math.hypot(vertices[i][0] - placed[0], vertices[i][1] - placed[1]);
+          if (d <= tolerance && d < bestDistance) {
+            bestDistance = d;
+            best = i;
+          }
+        }
+      }
     }
+    if (best >= 0) return best;
+    const index = vertices.length;
+    vertices.push(placed);
+    const k = `${bx},${by}`;
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(index);
     return index;
   };
 

@@ -163,6 +163,12 @@ fn main() {
     );
     let mut totals = Tally::default();
     let mut regressed = Vec::new();
+    // Tracked apart from `regressed` on purpose. Welding duplicate vertices
+    // drops the duplicate edges with them, so a falling segment count is the
+    // intended effect of a fix rather than a symptom -- but it is also exactly
+    // what silently losing geometry looks like, so it still has to be said out
+    // loud rather than folded into the pass/fail line.
+    let mut reshaped = Vec::new();
     for (name, result) in &after {
         let tally = match result {
             Ok(tally) => *tally,
@@ -182,11 +188,11 @@ fn main() {
             .and_then(|b| b.get(name))
             .and_then(|r| r.as_ref().ok())
             .map(|was| {
-                if was.flat < tally.flat
-                    || was.closure < tally.closure
-                    || was.segments != tally.segments
-                {
+                if was.flat < tally.flat || was.closure < tally.closure {
                     regressed.push(name.clone());
+                }
+                if was.segments != tally.segments {
+                    reshaped.push(format!("{name} {}->{}", was.segments, tally.segments));
                 }
                 format!(
                     "   was flat {} closure {}{}",
@@ -195,7 +201,7 @@ fn main() {
                     if was.segments == tally.segments {
                         String::new()
                     } else {
-                        format!(" SEGMENTS {} -> {}", was.segments, tally.segments)
+                        format!(" [segments {} -> {}]", was.segments, tally.segments)
                     }
                 )
             })
@@ -222,9 +228,16 @@ fn main() {
     );
     if before.is_some() {
         if regressed.is_empty() {
-            println!("no model got worse on any measure");
+            println!("no model got worse on flat or closure");
         } else {
             println!("REGRESSED: {}", regressed.join(", "));
+        }
+        if !reshaped.is_empty() {
+            println!(
+                "segment count changed in {}: {}",
+                reshaped.len(),
+                reshaped.join(", ")
+            );
         }
     }
 }
