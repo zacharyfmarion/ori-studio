@@ -9,7 +9,7 @@
     "check2": "Vérifier les jonctions en T",
     "check3": "Vérifier la pliabilité des sommets",
     "check4": "Vérifier Maekawa/LBL",
-    "checkCamv": "Vérifier CAMV",
+    "checkCamv": "Vérifier la pliabilité",
     "deleteLineType": "Supprimer le type de ligne sélectionné...",
     "deleteSelectedLines": "Supprimer les lignes sélectionnées",
     "diagnostics": "Diagnostics",

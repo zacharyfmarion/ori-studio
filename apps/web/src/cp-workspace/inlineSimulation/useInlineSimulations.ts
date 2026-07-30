@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
 import { inlineSimulationAsTransformable, isInlineSimulationStale } from './inlineSimulation';
+import type { InlineSimulation } from './inlineSimulation';
 import { requestInlineSimulationFold } from './inlineSimulationRuntime';
 
 export interface UseInlineSimulationsOptions {
@@ -22,6 +24,7 @@ export interface UseInlineSimulationsOptions {
  * are transport, not document state, and both live here as plain React state.
  */
 export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions) {
+  const { t } = useTranslation();
   // Windows share the app-wide simulator settings rather than each carrying
   // their own: they are views of the same paper, and per-window material would
   // be a settings surface nobody asked for.
@@ -38,6 +41,9 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
   const focusSimulation = useWorkspaceStore((state) => state.focusOristudioCpInlineSimulation);
   const refreshSimulation = useWorkspaceStore(
     (state) => state.refreshOristudioCpInlineSimulation
+  );
+  const recordHistory = useWorkspaceStore(
+    (state) => state.recordInlineSimulationHistory
   );
 
   const transformableObjects = useMemo(
@@ -90,6 +96,41 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     [focusedId]
   );
 
+  /**
+   * The gesture protocol the other two canvas-object kinds already use: snapshot
+   * the list on press, record one entry on release. `applyBoxUpdate` runs on
+   * every pointermove, so the checkpoint cannot live there.
+   */
+  const preGestureRef = useRef<readonly InlineSimulation[] | null>(null);
+
+  const beginGesture = useCallback(() => {
+    preGestureRef.current = useWorkspaceStore.getState().oristudioCpInlineSimulations;
+  }, []);
+
+  const commitGesture = useCallback(
+    (label: string) => {
+      const previous = preGestureRef.current;
+      preGestureRef.current = null;
+      if (previous) recordHistory([...previous], label);
+    },
+    [recordHistory]
+  );
+
+  const gestureLabel = useCallback(
+    (kind: 'move' | 'resize' | 'rotate' | 'crop') => {
+      switch (kind) {
+        case 'move':
+          return t('panels:creasePattern.moveSimulationWindow', 'Move simulation window');
+        case 'rotate':
+          return t('panels:creasePattern.rotateSimulationWindow', 'Rotate simulation window');
+        default:
+          // A window has no crop affordance, so any handle drag resizes.
+          return t('panels:creasePattern.resizeSimulationWindow', 'Resize simulation window');
+      }
+    },
+    [t]
+  );
+
   const applyBoxUpdate = useCallback(
     (id: string, patch: CanvasObjectBoxUpdate) => {
       const simulation = useWorkspaceStore
@@ -119,9 +160,19 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
 
   /** Hand the solver back, so at most one window is ever live. */
   const blur = useCallback(() => {
-    setPlaying(false);
     focusSimulation(null);
   }, [focusSimulation]);
+
+  /**
+   * Playback is transport state out here, not in the descriptor, so it has to
+   * follow focus wherever focus is lost — and the store takes it too, whenever
+   * a crease or another canvas object claims the canvas. Watching `focusedId`
+   * covers those paths as well as `blur`, which is why `blur` no longer stops
+   * playback itself.
+   */
+  useEffect(() => {
+    if (focusedId === null) setPlaying(false);
+  }, [focusedId]);
 
   /**
    * Scrubbing is a manual override, so it stops playback.
@@ -153,6 +204,9 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
     setSetting,
     isInlineSimulationId,
     inertBodyIds,
+    beginGesture,
+    commitGesture,
+    gestureLabel,
     playing,
     setPlaying,
     togglePlay,

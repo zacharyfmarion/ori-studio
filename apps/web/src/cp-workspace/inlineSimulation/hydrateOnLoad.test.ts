@@ -6,7 +6,9 @@ import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes'
 import { foldedSourceBounds, foldedSourceFingerprint, cpLinesByIds, reselectFoldableLineIds }
   from '../folded/foldedFigureStaleness';
 import {
+  getInlineSimulationFoldPercent,
   getInlineSimulationSource,
+  publishInlineSimulationFold,
   setInlineSimulationSource,
   subscribeInlineSimulationSources,
 } from './inlineSimulationRuntime';
@@ -62,6 +64,19 @@ function seedArtifacts(state: Record<string, unknown>) {
   return {
     ...state,
     foldArtifacts: artifactsForSquare(1 / 400),
+    refreshFoldArtifacts: async () => artifactsForSquare(),
+  } as never;
+}
+
+/**
+ * Artifacts as they sit mid-session: computed from the kernel document, so in
+ * its own 400-space. This is the state a delete-then-undo normally happens in,
+ * and the reason the restore path can trust the cache.
+ */
+function midSessionArtifacts(state: Record<string, unknown>) {
+  return {
+    ...state,
+    foldArtifacts: artifactsForSquare(),
     refreshFoldArtifacts: async () => artifactsForSquare(),
   } as never;
 }
@@ -175,6 +190,138 @@ describe('provenance across a load', () => {
 
     expect(await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations()).toBe(0);
     expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+  });
+});
+
+/**
+ * Undo restores a deleted window's descriptor; its fold has to come back too, or
+ * the window returns as an empty frame.
+ *
+ * Rebuilt rather than retained: a triangulated segment fold measures 240KB at
+ * 500 vertices and 2.9MB at 8,000, so holding one per undoable deletion would
+ * keep tens to hundreds of MB alive for windows the user threw away.
+ */
+describe('restoring the fold of a window undo brought back', () => {
+  /** Delete `id` the way the store does, so its fold is genuinely gone. */
+  function deleteWindow(id: string) {
+    useWorkspaceStore.getState().removeOristudioCpInlineSimulation(id);
+    expect(getInlineSimulationSource(id)).toBeNull();
+  }
+
+  it('rebuilds a fold that was dropped on delete', async () => {
+    const document = doc(SQUARE);
+    const saved = savedWindow(document);
+    useWorkspaceStore.setState(midSessionArtifacts({
+      oristudioCpInlineSimulations: [saved],
+      oristudioCpDocument: { document },
+    }));
+    await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations();
+
+    deleteWindow(saved.id);
+    // What undo does: put the descriptor back, then ask for the fold.
+    useWorkspaceStore.setState({ oristudioCpInlineSimulations: [saved] });
+
+    expect(
+      await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()
+    ).toBe(1);
+    expect(getInlineSimulationSource(saved.id)).not.toBeNull();
+  });
+
+  it('brings the window back where its fold was, not snapped to flat', async () => {
+    const document = doc(SQUARE);
+    const saved = savedWindow(document);
+    useWorkspaceStore.setState(midSessionArtifacts({
+      oristudioCpInlineSimulations: [saved],
+      oristudioCpDocument: { document },
+    }));
+    publishInlineSimulationFold(saved.id, 62);
+
+    deleteWindow(saved.id);
+    useWorkspaceStore.setState({ oristudioCpInlineSimulations: [saved] });
+    await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources();
+
+    expect(getInlineSimulationFoldPercent(saved.id)).toBe(62);
+  });
+
+  it('leaves saved provenance alone, so a stale window is still stale', async () => {
+    // The same trap hydration has: rebuilding the fold is one line away from
+    // also re-baselining the fingerprint, which would quietly mark a window the
+    // user deleted-and-undid as up to date.
+    const atSaveTime = doc(SQUARE);
+    const saved = savedWindow(atSaveTime);
+    const nowOpened = doc([...SQUARE.slice(0, 3), line(-200, 200, -200, -199)]);
+    useWorkspaceStore.setState(midSessionArtifacts({
+      oristudioCpInlineSimulations: [saved],
+      oristudioCpDocument: { document: nowOpened },
+    }));
+
+    deleteWindow(saved.id);
+    useWorkspaceStore.setState({ oristudioCpInlineSimulations: [saved] });
+    await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources();
+
+    const restored = useWorkspaceStore.getState().oristudioCpInlineSimulations[0]!;
+    expect(restored.sourceFingerprint).toBe(saved.sourceFingerprint);
+    expect(isInlineSimulationStale(nowOpened, restored)).toBe(true);
+  });
+
+  it('does no work when every window already has its fold', async () => {
+    const document = doc(SQUARE);
+    const saved = savedWindow(document);
+    useWorkspaceStore.setState(midSessionArtifacts({
+      oristudioCpInlineSimulations: [saved],
+      oristudioCpDocument: { document },
+    }));
+    await useWorkspaceStore.getState().hydrateOristudioCpInlineSimulations();
+
+    expect(
+      await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()
+    ).toBe(0);
+  });
+
+  it('reuses cached artifacts rather than recomputing them', async () => {
+    // Deleting a window does not invalidate fold artifacts, so the common
+    // delete-then-undo path must not pay for a recompute.
+    const document = doc(SQUARE);
+    const saved = savedWindow(document);
+    let refreshes = 0;
+    useWorkspaceStore.setState({
+      oristudioCpInlineSimulations: [saved],
+      oristudioCpDocument: { document },
+      foldArtifacts: artifactsForSquare(),
+      refreshFoldArtifacts: async () => {
+        refreshes += 1;
+        return artifactsForSquare();
+      },
+    } as never);
+
+    deleteWindow(saved.id);
+    useWorkspaceStore.setState({ oristudioCpInlineSimulations: [saved] });
+    expect(
+      await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()
+    ).toBe(1);
+    expect(refreshes).toBe(0);
+  });
+
+  it('recomputes when the cache is left over from a file load', async () => {
+    // Reachable, and this test is why the fallback exists: a load leaves
+    // artifacts normalised to a unit square, so a delete-then-undo straight
+    // afterwards resolves nothing against the cache and would restore a window
+    // that could never draw. Resolving nothing is the signal to recompute — the
+    // same detection `addOristudioCpInlineSimulation` uses for the same hazard.
+    const document = doc(SQUARE);
+    const saved = savedWindow(document);
+    useWorkspaceStore.setState(seedArtifacts({
+      oristudioCpInlineSimulations: [saved],
+      oristudioCpDocument: { document },
+    }));
+
+    deleteWindow(saved.id);
+    useWorkspaceStore.setState({ oristudioCpInlineSimulations: [saved] });
+
+    expect(
+      await useWorkspaceStore.getState().restoreOristudioCpInlineSimulationSources()
+    ).toBe(1);
+    expect(getInlineSimulationSource(saved.id)).not.toBeNull();
   });
 });
 

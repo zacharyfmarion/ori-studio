@@ -123,9 +123,10 @@
   },
   "cpViewControls": {
     "angle": "角度",
-    "camvIssues": "CAMV の問題",
+    "camvIssues": "折り可能性の問題",
     "diagonalGridlines": "対角グリッド線",
     "emptyNote": "表示オプションを調整するには編集可能な展開図を開いてください。",
+    "foldAngleLabels": "折り角度ラベル",
     "grid": "グリッド",
     "gridConfiguration": "グリッド設定",
     "gridConstantTerm": "{{label}} 定数項",
@@ -171,7 +172,7 @@
     "deleteImage": "画像を削除",
     "diagnostic": {
       "boundary": "境界",
-      "camv": "CAMV",
+      "camv": "折り可能性",
       "errorOne_other": "{{label}} エラー {{count}} 件",
       "errorOther_other": "{{label}} エラー {{count}} 件",
       "maekawaLbl": "Maekawa/LBL",
@@ -187,6 +188,26 @@
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
+    "foldability": {
+      "compose": "{{lead}}：{{tail}}",
+      "edgeLineConfiguration": "外周線の構成が不正です",
+      "edgeLineCount": "外周線が多すぎるか足りません",
+      "equalMountainValley": "山折りと谷折りの数が同じ",
+      "incorrectAngles": "角度が正しくありません",
+      "incorrectFoldTypes": "折り線の種類が正しくありません",
+      "littleBigLittle": "角度を入れ子にできません（小-大-小）",
+      "notEnoughMountain": "山折りが足りません",
+      "notEnoughValley": "谷折りが足りません",
+      "oddFolds": "折り線の数が奇数です",
+      "selfIntersection": "紙がここで自身を貫通します",
+      "shape": {
+        "circle": "角度が正しくありません（川崎の定理）",
+        "littleBigLittle": "小-大-小",
+        "selfIntersection": "折り角度は整合していますが、紙が自身を貫通せずにその状態になれません",
+        "square": "折り線の種類が正しくありません",
+        "triangle": "折り線の数が正しくありません（奇数）"
+      }
+    },
     "foldCase": "折りケース",
     "foldedColor": {
       "back": "裏",
@@ -220,9 +241,11 @@
     },
     "foldModelAction": "モデルを折る",
     "inlineSimulation": {
+      "addAction": "シミュレーションウィンドウを追加",
       "canvasAriaLabel": "インラインシミュレーション。ドラッグで回転します。",
       "controls": "インラインシミュレーションの操作",
       "delete": "削除",
+      "deleteAction": "シミュレーションウィンドウを削除",
       "failed": "シミュレーションに失敗しました",
       "fold": "折り",
       "gpuUnavailable": "WebGL2 が必要です — シミュレートワークスペースで開いてください",
@@ -230,6 +253,7 @@
       "pause": "一時停止",
       "play": "再生",
       "refresh": "現在の折り線から作り直す",
+      "refreshAction": "シミュレーション領域を再構築",
       "replay": "平らに戻す"
     },
     "insertImage": "画像を挿入...",
@@ -245,6 +269,7 @@
     "measureSnapVertex": "頂点",
     "moveAnnotation": "注釈を移動",
     "moveFoldedForm": "折り上がり図を移動",
+    "moveSimulationWindow": "シミュレーションウィンドウを移動",
     "noCreasePattern": "展開図がありません",
     "noImportedCreasePattern": "インポートした展開図がありません",
     "none": "なし",
@@ -253,8 +278,10 @@
     "refoldFoldedModelAction": "折り上がり図を折り直す",
     "resizeAnnotation": "注釈をサイズ変更",
     "resizeFoldedForm": "折り上がり図をサイズ変更",
+    "resizeSimulationWindow": "シミュレーションウィンドウをサイズ変更",
     "rotateAnnotation": "注釈を回転",
     "rotateFoldedForm": "折り上がり図を回転",
+    "rotateSimulationWindow": "シミュレーションウィンドウを回転",
     "selectedCount_other": "{{count}} 件選択",
     "selectionToolbar": {
       "export": "エクスポート…",

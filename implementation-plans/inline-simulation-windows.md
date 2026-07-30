@@ -398,8 +398,12 @@ and live are the same code path.
       edit, or a genuine match
 - [x] Empty / error / "GPU unavailable — open in Simulate" states
 - [x] i18n: extract → translate 8 locales → stamp → `i18n:check`
-- [~] Undo/redo **not applicable**: windows are session-only, so a move or
-      resize is not a document edit and takes no history checkpoint
+- [x] Undo/redo — **this said "not applicable: windows are session-only, so a
+      move or resize is not a document edit"**, which stopped being true when
+      Phase 7 made windows persist. Nothing revisited it, so add/move/delete were
+      absent from history *and* from the dirty flag for as long as they were
+      saved to `.osf`. Closed by
+      `implementation-plans/inline-simulations-in-undo.md`.
 
 ### Phase 7 — Persistence (deferred; only if wanted)
 

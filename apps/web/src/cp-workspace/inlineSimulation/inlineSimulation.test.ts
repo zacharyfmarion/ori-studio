@@ -258,6 +258,34 @@ describe('inline simulation staleness', () => {
     expect(isInlineSimulationStale(document, created)).toBe(false);
   });
 
+  it('notices a changed fold angle', () => {
+    // The symptom that surfaced this: dialling a crease from a full fold to 90
+    // degrees changes what the simulation would show, but every field the
+    // fingerprint covered stayed put, so the window went on claiming to match.
+    // Colour was a crease's whole fold identity when this hash was written; it
+    // is half of it now.
+    const angled = documentOf([
+      ...SQUARE_LINES.slice(0, 4),
+      { ...line(0, 0, 10, 10), fold_magnitude: 90 * 1e7 },
+    ]);
+    expect(isInlineSimulationStale(angled, created)).toBe(true);
+  });
+
+  it('notices an angle changing again, not just leaving flat', () => {
+    const ninety = documentOf([
+      ...SQUARE_LINES.slice(0, 4),
+      { ...line(0, 0, 10, 10), fold_magnitude: 90 * 1e7 },
+    ]);
+    const created90 = simulationOver(ninety, segment(0, [UNIT_SQUARE]));
+    expect(isInlineSimulationStale(ninety, created90)).toBe(false);
+
+    const fortyFive = documentOf([
+      ...SQUARE_LINES.slice(0, 4),
+      { ...line(0, 0, 10, 10), fold_magnitude: 45 * 1e7 },
+    ]);
+    expect(isInlineSimulationStale(fortyFive, created90)).toBe(true);
+  });
+
   it('notices a moved crease', () => {
     const moved = documentOf([...SQUARE_LINES.slice(0, 4), line(0, 0, 10, 9)]);
     expect(isInlineSimulationStale(moved, created)).toBe(true);

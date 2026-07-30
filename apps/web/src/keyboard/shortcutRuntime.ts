@@ -14,7 +14,8 @@ import type {
 } from './shortcuts';
 
 type CpActionExecutor = (id: OristudioCpActionId) => unknown;
-type ViewportExecutor = (id: ViewportShortcutId) => unknown;
+/** Returning `false` declines the chord; see `ShortcutExecutors.viewport`. */
+type ViewportExecutor = (id: ViewportShortcutId) => boolean | void;
 type SimulatorExecutor = (id: SimulatorShortcutId) => unknown;
 
 /**

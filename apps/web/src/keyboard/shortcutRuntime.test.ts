@@ -112,6 +112,39 @@ describe('shortcut runtime', () => {
     expect(menu).not.toHaveBeenCalled();
   });
 
+  // The bug this replaced: the canvas-object delete was a raw `window` keydown
+  // listener on the panel, so it ran *in addition to* `edit.delete` rather than
+  // instead of it, and one press deleted both the object and the creases.
+  describe('Delete has one owner', () => {
+    function pressDelete() {
+      return new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+    }
+
+    function dispatch(menu: () => void) {
+      return handleShortcutRuntimeKeyDown(pressDelete(), {
+        context: { activeEditingContext: 'crease-pattern' },
+        menu,
+      });
+    }
+
+    it('deletes the canvas object and not the creases when the viewport claims it', () => {
+      const menu = vi.fn();
+      cleanupWith(registerViewportShortcutExecutor('crease-pattern', () => true));
+
+      expect(dispatch(menu)).toBe(true);
+      expect(menu).not.toHaveBeenCalled();
+    });
+
+    it('deletes the creases when the viewport has nothing selected to delete', () => {
+      const menu = vi.fn();
+      cleanupWith(registerViewportShortcutExecutor('crease-pattern', () => false));
+
+      expect(dispatch(menu)).toBe(true);
+      expect(menu).toHaveBeenCalledWith('edit.delete');
+      expect(menu).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('keeps global aliases available through the central runtime', () => {
     const menu = vi.fn();
     const event = new KeyboardEvent('keydown', {

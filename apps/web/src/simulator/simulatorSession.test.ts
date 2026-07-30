@@ -302,6 +302,47 @@ describe('session tokens', () => {
     session.dispose();
   });
 
+  it('has room for every window plus a reload', async () => {
+    // A runtime replacing its model loads the new session before releasing the
+    // old, so its window is never briefly backed by nothing. A full house
+    // therefore needs one slot more than there are windows; without the spare,
+    // every reload at the cap evicted somebody still on screen.
+    const session = createSimulatorSession();
+    const windows = Array.from({ length: MAX_CONCURRENT_SIMULATIONS }, () =>
+      session.load(miura(4, 4), {}).token
+    );
+    // The overlap: one window reloads while all the others hold their models.
+    const reloaded = session.load(miura(4, 4), {}).token;
+
+    for (const token of windows) {
+      expect(await session.tick({ token })).not.toBeNull();
+    }
+    expect(await session.tick({ token: reloaded })).not.toBeNull();
+    session.dispose();
+  });
+
+  it('evicts by use, not by age, so the window in hand is the last to go', async () => {
+    // The map is insertion-ordered, so the first entry is whichever window was
+    // opened first — no more likely to be idle than any other, and quite likely
+    // the one being looked at.
+    const session = createSimulatorSession();
+    const first = session.load(miura(4, 4), {}).token;
+    const rest = Array.from({ length: MAX_CONCURRENT_SIMULATIONS - 1 }, () =>
+      session.load(miura(4, 4), {}).token
+    );
+
+    // The oldest session is the one in use; the second-oldest has gone quiet.
+    await session.tick({ token: first });
+
+    // Two past the cap, so exactly two must go.
+    session.load(miura(4, 4), {});
+    session.load(miura(4, 4), {});
+
+    expect(await session.tick({ token: first })).not.toBeNull();
+    expect(await session.tick({ token: rest[0]! })).toBeNull();
+    session.dispose();
+  });
+
   it('counts what is resident, so a leak is visible', async () => {
     const session = createSimulatorSession();
     const first = session.load(miura(4, 4), {});

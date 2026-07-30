@@ -24,6 +24,7 @@ export type ViewportShortcutId =
   | 'viewport.rotateCw'
   | 'viewport.resetRotation'
   | 'viewport.cancel'
+  | 'viewport.delete'
   | 'viewport.simulateSelectionInline';
 export type SimulatorShortcutId =
   | 'simulator.playPause'
@@ -107,6 +108,11 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   colBlueAction: 'S', // Valley
   colBlackAction: 'D', // Edge
   colCyanAction: 'F', // Auxiliary
+  // Ori Studio addition: no Oriedita equivalent, because Oriedita creases are
+  // always a full +/-180. Shift+F sits in the same left-hand family as the line
+  // types it complements and leaves A/S/D/F untouched. (Shift+A was the first
+  // choice but belongs to a1Action, the three-point angle readout.)
+  OriStudioSetFoldAngle: 'shift F',
 
   // -- Draw / construct --------------------------------------------------
   drawCreaseFreeAction: 'Z', // free line
@@ -191,7 +197,7 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
   menuShortcut('edit.selectAll', 'Select All', 'Edit', { primary: true, key: 'a' }, 'selectAllAction'),
   menuShortcut('optimize.scale', 'Optimize Scale', 'Design', { primary: true, key: 'r' }),
   menuShortcut('cp.build', 'Build Crease Pattern', 'Design', { primary: true, key: 'b' }),
-  menuShortcut('cp.checkCamv', 'Check CAMV', 'Crease Pattern', {
+  menuShortcut('cp.checkCamv', 'Check foldability', 'Crease Pattern', {
     primary: true,
     shift: true,
     key: 'm',
@@ -256,12 +262,22 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   // focus-independently. A viewport that scopes it to its own container instead
   // loses it to whatever floating editor, toolbar, or portalled menu took focus
   // last — see AGENTS.md > "Panel components".
-  //
-  // Delete deliberately has no viewport shortcut: `edit.delete` already owns
-  // that chord at global scope, and viewport scope is resolved first, so one
-  // here would shadow crease deletion entirely. Delete stays one verb, and the
-  // per-context branching lives in the menu action.
   viewportShortcut('viewport.cancel', 'Cancel / Deselect', { key: 'escape' }),
+  // Delete is shared with `edit.delete` at global scope, which deletes creases.
+  // Viewport scope resolves first, so this one is asked whether the *viewport*
+  // owns the press — a selected canvas object, or a measurement to drop — and
+  // declines when it does not, letting the chord fall through. That decline is
+  // what makes one binding safe here; both of these verbs used to be raw
+  // `keydown` listeners on the panel precisely because it did not exist, and
+  // both then fired *alongside* crease deletion rather than instead of it.
+  //
+  // One definition rather than one per verb: the dispatcher takes the first
+  // match in a scope, so a second Delete binding here would be unreachable. The
+  // ladder lives in the executor, as it already does for `viewport.cancel`.
+  viewportShortcut('viewport.delete', 'Delete Selected Object', [
+    { key: 'delete' },
+    { key: 'backspace' },
+  ]),
   // Shift+<letter> is where the crease-pattern surface's own verbs live —
   // Shift+A and Shift+M are the measure tools. Plain S is free; Mod+Shift+S is
   // Save As, which is a different chord.

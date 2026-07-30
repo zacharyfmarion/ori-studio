@@ -281,6 +281,11 @@
       "tooltip": "Apply the active line color to selected lines",
       "disabledReason": "Ready"
     },
+    "cp_action_crease_set_fold_angle": {
+      "label": "Set fold angle",
+      "tooltip": "Set how far the selected creases fold",
+      "disabledReason": "Ready"
+    },
     "cp_action_background_change_position": {
       "label": "Move background",
       "tooltip": "Background image manipulation is UI-only and not part of the CP kernel",
@@ -854,8 +859,8 @@
       "disabledReason": "Not implemented in the CP editor yet"
     },
     "cp_action_check_camv": {
-      "label": "Check CAMV",
-      "tooltip": "Run Oriedita CAMV flat-foldability diagnostics without changing the CP",
+      "label": "Check foldability",
+      "tooltip": "Check every vertex for problems that would stop the pattern folding, without changing it",
       "disabledReason": "Ready"
     },
     "cp_action_folding_estimate": {

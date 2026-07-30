@@ -29,7 +29,6 @@ import {
 } from '../../keyboard/shortcuts';
 import type {
   OristudioCpCommandPayload,
-  OristudioCpCommandResult,
   OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
@@ -41,10 +40,12 @@ import type {
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
+import { CpDiagnosticGlyph } from '../../cp-workspace/diagnostics/CpDiagnosticGlyph';
+import { cpDiagnosticEntryMessage } from '../../cp-workspace/diagnostics/foldabilityMessages';
 import {
-  cpDiagnosticEntryMessage,
-  semanticCpDiagnosticKind,
-} from '../../lib/oristudioCpDiagnostics';
+  diagnosticHudStatus,
+  isDiagnosticResultOperation,
+} from '../../cp-workspace/diagnostics/hudStatus';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
   cpActionByOperation,
@@ -121,6 +122,7 @@ import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
 import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverlay';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
+import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
@@ -131,6 +133,7 @@ import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer'
 import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
 import { useInlineSimulations } from '../../cp-workspace/inlineSimulation/useInlineSimulations';
 import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSimulateSelection';
+import { useBlurOnPressOutside } from '../../cp-workspace/inlineSimulation/useBlurOnPressOutside';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
@@ -343,90 +346,6 @@ function measureSnapLabel(t: TFunction, kind: CpSnapTarget['kind'] | null): stri
   }
 }
 
-interface CpDiagnosticHudStatus {
-  label: string;
-  detail: string | null;
-  tone: 'ok' | 'warn' | 'error';
-}
-
-function diagnosticOperationLabel(t: TFunction, operation: string): string {
-  switch (operation) {
-    case 'CheckCamv':
-      return t('panels:creasePattern.diagnostic.camv', 'CAMV');
-    case 'Check1':
-      return t('panels:creasePattern.diagnostic.overlap', 'Overlap');
-    case 'Check2':
-      return t('panels:creasePattern.diagnostic.tJunction', 'T-junction');
-    case 'Check3':
-      return t('panels:creasePattern.diagnostic.vertexFoldability', 'Vertex foldability');
-    case 'Check4':
-      return t('panels:creasePattern.diagnostic.maekawaLbl', 'Maekawa/LBL');
-    case 'FlatFoldableCheck':
-      return t('panels:creasePattern.diagnostic.boundary', 'Boundary');
-    default:
-      return operation;
-  }
-}
-
-function diagnosticHudStatus(
-  t: TFunction,
-  result: OristudioCpCommandResult | null | undefined,
-  options: { issueOnly?: boolean } = {}
-): CpDiagnosticHudStatus | null {
-  if (!result || !isDiagnosticResultOperation(result.operation)) return null;
-  if (!result?.diagnostics.length) return null;
-  const entries = result.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  const label = diagnosticOperationLabel(t, result.operation);
-  const errorCount = entries.filter((entry) => entry.severity === 'error').length;
-  const warningCount = entries.filter((entry) => entry.severity === 'warning').length;
-  const detail =
-    entries.length === 1
-      ? entries[0]
-        ? cpDiagnosticEntryMessage(entries[0])
-        : result.diagnostics[0]
-      : result.diagnostics[0];
-
-  if (errorCount > 0) {
-    return {
-      label:
-        errorCount === 1
-          ? t('panels:creasePattern.diagnostic.errorOne', '{{count}} {{label}} Error', { count: errorCount, label })
-          : t('panels:creasePattern.diagnostic.errorOther', '{{count}} {{label}} Errors', { count: errorCount, label }),
-      detail,
-      tone: 'error',
-    };
-  }
-
-  if (warningCount > 0) {
-    return {
-      label:
-        warningCount === 1
-          ? t('panels:creasePattern.diagnostic.warningOne', '{{count}} {{label}} Warning', { count: warningCount, label })
-          : t('panels:creasePattern.diagnostic.warningOther', '{{count}} {{label}} Warnings', { count: warningCount, label }),
-      detail,
-      tone: 'warn',
-    };
-  }
-
-  if (options.issueOnly) return null;
-
-  return {
-    label: t('panels:creasePattern.diagnostic.ok', '{{label}} OK', { label }),
-    detail,
-    tone: 'ok',
-  };
-}
-
-function isDiagnosticResultOperation(operation: string): boolean {
-  return (
-    operation === 'Check1' ||
-    operation === 'Check2' ||
-    operation === 'Check3' ||
-    operation === 'Check4' ||
-    operation === 'CheckCamv' ||
-    operation === 'FlatFoldableCheck'
-  );
-}
 
 function modelSelectionDistance(
   bounds: CpModelBounds,
@@ -1235,6 +1154,13 @@ export function CreasePatternPanel() {
   // whose contents keep running after you place them.
   const inlineSimulations = useInlineSimulations({ cpDocument: oristudioCpDocument });
   const focusedInlineSimulation = inlineSimulations.selected;
+  // Leaving the surface gives the window up, which also hands the `simulator`
+  // shortcut scope back. Presses *on* the surface are the canvas's business.
+  useBlurOnPressOutside({
+    active: inlineSimulations.focusedId !== null,
+    panelRef: containerRef,
+    onBlur: inlineSimulations.blur,
+  });
   /**
    * Everything placed on the canvas that the WebGL renderer does not draw
    * itself, for framing. Both kinds live on their own DOM layers, so without
@@ -1288,24 +1214,17 @@ export function CreasePatternPanel() {
   });
   const selectCanvasObject = useCallback(
     (id: string | null) => {
+      // Deselecting is per-kind: the store treats releasing a claim as nobody's
+      // business but the releaser's, so say it for all three. Selecting is not —
+      // whichever kind is named takes the canvas from the rest, in the store.
       if (id === null) {
         setSelectedAnnotation(null);
         setOristudioCpActiveFoldedFigure(null);
         inlineSimulations.blur();
         return;
       }
-      if (inlineSimulations.isInlineSimulationId(id)) {
-        // Both, or a still-selected annotation would win the `??` above and the
-        // window would take focus without ever showing handles.
-        setSelectedAnnotation(null);
-        setOristudioCpActiveFoldedFigure(null);
-        inlineSimulations.focus(id);
-        return;
-      }
-      // Selecting anything else hands the solver back, so at most one window is
-      // ever live.
-      inlineSimulations.blur();
-      if (isFoldedFigureId(id)) setOristudioCpActiveFoldedFigure(id);
+      if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.focus(id);
+      else if (isFoldedFigureId(id)) setOristudioCpActiveFoldedFigure(id);
       else setSelectedAnnotation(id);
     },
     [isFoldedFigureId, inlineSimulations, setSelectedAnnotation, setOristudioCpActiveFoldedFigure]
@@ -1321,20 +1240,20 @@ export function CreasePatternPanel() {
     },
     [isFoldedFigureId, folded, annotations, inlineSimulations]
   );
+  // All three kinds take one checkpoint per gesture, not per pointermove.
   const beginCanvasObjectGesture = useCallback(
     (id: string) => {
-      // Windows are session-only, so a move/resize is not a document edit and
-      // takes no history checkpoint.
-      if (inlineSimulations.isInlineSimulationId(id)) return;
-      if (isFoldedFigureId(id)) folded.beginGesture();
+      if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.beginGesture();
+      else if (isFoldedFigureId(id)) folded.beginGesture();
       else annotations.beginGesture();
     },
     [isFoldedFigureId, annotations, folded, inlineSimulations]
   );
   const commitCanvasObjectGesture = useCallback(
     (id: string, kind: 'move' | 'resize' | 'rotate' | 'crop') => {
-      if (inlineSimulations.isInlineSimulationId(id)) return;
-      if (isFoldedFigureId(id)) folded.commitGesture(folded.gestureLabel(kind));
+      if (inlineSimulations.isInlineSimulationId(id)) {
+        inlineSimulations.commitGesture(inlineSimulations.gestureLabel(kind));
+      } else if (isFoldedFigureId(id)) folded.commitGesture(folded.gestureLabel(kind));
       else annotations.commitGesture(annotations.gestureLabel(kind));
     },
     [
@@ -1462,25 +1381,18 @@ export function CreasePatternPanel() {
   const annotationsInteractive =
     cpToolState.phase !== 'active' || allowsDirectEntitySelection(activeCpCommand?.operationId);
 
-  // Delete/Backspace removes the selected canvas object, whichever kind holds the
-  // selection. Only while objects are interactive, and ignored when typing in a
-  // field so it never eats text edits.
-  useEffect(() => {
-    if (!annotationsInteractive || !selectedCanvasObjectId) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-      const target = event.target as HTMLElement | null;
-      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) {
-        return;
-      }
-      event.preventDefault();
-      if (oristudioCpSelectedAnnotationId) deleteSelectedImage();
-      else if (inlineSimulations.isInlineSimulationId(selectedCanvasObjectId)) {
-        inlineSimulations.remove(selectedCanvasObjectId);
-      } else folded.remove(selectedCanvasObjectId);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+  /**
+   * Delete the selected canvas object, whichever kind holds the selection.
+   * Reports whether there was one, since that is what decides if Delete belongs
+   * to the viewport at all — see `viewport.delete` in the shortcut registry.
+   */
+  const deleteSelectedCanvasObject = useCallback((): boolean => {
+    if (!annotationsInteractive || !selectedCanvasObjectId) return false;
+    if (oristudioCpSelectedAnnotationId) deleteSelectedImage();
+    else if (inlineSimulations.isInlineSimulationId(selectedCanvasObjectId)) {
+      inlineSimulations.remove(selectedCanvasObjectId);
+    } else folded.remove(selectedCanvasObjectId);
+    return true;
   }, [
     annotationsInteractive,
     selectedCanvasObjectId,
@@ -2747,12 +2659,37 @@ export function CreasePatternPanel() {
     pendingSquareBisectorLineIds.length,
   ]);
 
+  /**
+   * Drop the most recent measurement, while the measure tool is active and
+   * nothing is selected. With a selection, Delete belongs to the crease delete —
+   * quietly stealing it would risk the geometry instead of a readout.
+   */
+  const dropLastMeasurement = useCallback((): boolean => {
+    if (!editableCp || editableSelectionSize > 0) return false;
+    if (cpMeasurements.length === 0) return false;
+    if (!isCpMeasurementOperation(cpToolState.activeOperationId)) return false;
+    setCpMeasurements((current) => current.slice(0, -1));
+    setCpHoveredMeasureIndex(null);
+    return true;
+  }, [
+    editableCp,
+    editableSelectionSize,
+    cpMeasurements.length,
+    cpToolState.activeOperationId,
+  ]);
+
   const handleViewportShortcut = useCallback(
-    (id: ViewportShortcutId) => {
+    (id: ViewportShortcutId): boolean | void => {
       switch (id) {
         case 'viewport.cancel':
           cancelActiveCpInput();
           break;
+        // Two viewport verbs share Delete, and both decline when they do not
+        // apply so the chord falls through to `edit.delete` and deletes creases.
+        // A selected canvas object outranks a measurement: it is the thing
+        // currently showing handles.
+        case 'viewport.delete':
+          return deleteSelectedCanvasObject() || dropLastMeasurement();
         case 'viewport.simulateSelectionInline':
           void simulateSelectionInline();
           break;
@@ -2782,7 +2719,13 @@ export function CreasePatternPanel() {
           break;
       }
     },
-    [cancelActiveCpInput, sendWebglCameraCommand, simulateSelectionInline]
+    [
+      cancelActiveCpInput,
+      sendWebglCameraCommand,
+      simulateSelectionInline,
+      deleteSelectedCanvasObject,
+      dropLastMeasurement,
+    ]
   );
 
   useEffect(
@@ -2794,48 +2737,6 @@ export function CreasePatternPanel() {
     if (!diagnosticStatus) setDiagnosticHudExpanded(false);
   }, [diagnosticStatus]);
 
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !hasCreasePattern) return undefined;
-
-    // Backspace drops the most recent measurement while the measure tool is active.
-    // Only with nothing selected: with a selection, Delete/Backspace is the crease
-    // delete shortcut, and quietly stealing it would risk the geometry instead of a
-    // readout. preventDefault keeps the global shortcut from also firing.
-    //
-    // Still a container listener rather than a registered shortcut, unlike Escape
-    // above it: `edit.delete` owns this chord at global scope and viewport scope
-    // resolves first, so a viewport binding would shadow crease deletion outright.
-    // Giving the dispatcher a way for an executor to decline is what would let this
-    // move; until then it carries the same focus caveat as the canvas-object delete
-    // beside it (see AGENTS.md > "Panel components").
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        (event.key === 'Backspace' || event.key === 'Delete') &&
-        editableCp &&
-        !isViewportInteractiveTarget(event.target) &&
-        editableSelectionSize === 0 &&
-        cpMeasurements.length > 0 &&
-        isCpMeasurementOperation(cpToolState.activeOperationId)
-      ) {
-        event.preventDefault();
-        setCpMeasurements((current) => current.slice(0, -1));
-        setCpHoveredMeasureIndex(null);
-      }
-    };
-
-    container.addEventListener('keydown', onKeyDown);
-    return () => {
-      container.removeEventListener('keydown', onKeyDown);
-    };
-  }, [
-    cpMeasurements.length,
-    cpToolState.activeOperationId,
-    editableCp,
-    editableSelectionSize,
-    hasCreasePattern,
-  ]);
 
   useEffect(() => {
     if (!editableCp) {
@@ -2936,8 +2837,8 @@ export function CreasePatternPanel() {
                           key={entry.id}
                           onClick={() => handleSelectCpDiagnostic(entry.id)}
                         >
-                          <span>{semanticCpDiagnosticKind(entry.kind)}</span>
-                          <span>{cpDiagnosticEntryMessage(entry)}</span>
+                          <CpDiagnosticGlyph t={t} entry={entry} />
+                          <span>{cpDiagnosticEntryMessage(t, entry)}</span>
                         </button>
                       ))}
                     </div>
@@ -2959,13 +2860,15 @@ export function CreasePatternPanel() {
                   selectedPointIds={oristudioCpSelection.points}
                   selectedCircleIds={oristudioCpSelection.circles}
                   onSelect={(hit, additive) => {
+                    // Any click on the canvas is a click outside every canvas
+                    // object — the overlay captures presses that land on one and
+                    // they never reach here. So deselect first, whether or not
+                    // the click found a crease. Taking a crease selection would
+                    // clear an object anyway, but a click that *deselects* the
+                    // last crease leaves no claim behind to do it.
+                    selectCanvasObject(null);
                     if (!hit) {
                       if (!additive) clearOristudioCpSelection();
-                      // A click on empty canvas also deselects the active canvas
-                      // object — annotation or folded figure (mirrors how creases
-                      // clear on a background click). A click on an object is
-                      // captured by the overlay and never reaches here.
-                      selectCanvasObject(null);
                       return;
                     }
                     if (hit.kind === 'line') handleEditableLineClick(hit.id, additive);
@@ -3085,6 +2988,7 @@ export function CreasePatternPanel() {
                       scale={cpMeasureScale}
                     />
                   )}
+                {webglOverlayView && <CpFoldAngleLayer lineSegments={editableCp?.crease_pattern.line_segments} />}
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}

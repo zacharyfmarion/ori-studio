@@ -334,6 +334,11 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     selectionRequirement: 'selected lines',
     tooltip: 'Apply the active line color to selected lines',
   }),
+  ready('CreaseSetFoldAngle', 'Set fold angle', 'color', 'palette', 'OriStudioSetFoldAngle', {
+    placement: 'palette',
+    selectionRequirement: 'selected lines',
+    tooltip: 'Set how far the selected creases fold',
+  }),
   outOfScopeUi(
     'BackgroundChangePosition',
     'Move background',
@@ -649,9 +654,9 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   notImplemented('SaveVersionDetect', 'Detect save version', 'file', 'file-search', 'FileVersionTester', {
     placement: 'palette',
   }),
-  ready('CheckCamv', 'Check CAMV', 'check-fix', 'shield-alert', 'CheckCAMVTask', {
+  ready('CheckCamv', 'Check foldability', 'check-fix', 'shield-alert', 'CheckCAMVTask', {
     placement: 'menu',
-    tooltip: 'Run Oriedita CAMV flat-foldability diagnostics without changing the CP',
+    tooltip: 'Check every vertex for problems that would stop the pattern folding, without changing it',
   }),
   porting('FoldingEstimate', 'Fold estimate', 'folding', 'origami', 'FoldingEstimateTask', {
     placement: 'hidden-ui-only',
@@ -791,6 +796,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'CreaseMakeValley',
   'CreaseMakeEdge',
   'CreaseSetLineColor',
+  'CreaseSetFoldAngle',
   'BackgroundChangePosition',
   'LineSegmentDivision',
   'LineSegmentRatioSet',

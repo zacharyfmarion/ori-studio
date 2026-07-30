@@ -123,9 +123,10 @@
   },
   "cpViewControls": {
     "angle": "각도",
-    "camvIssues": "CAMV 문제",
+    "camvIssues": "접힘 가능성 문제",
     "diagonalGridlines": "대각선 격자선",
     "emptyNote": "보기 옵션을 조정하려면 편집 가능한 전개도를 여세요.",
+    "foldAngleLabels": "접기 각도 라벨",
     "grid": "격자",
     "gridConfiguration": "격자 구성",
     "gridConstantTerm": "{{label}} 상수항",
@@ -171,7 +172,7 @@
     "deleteImage": "이미지 삭제",
     "diagnostic": {
       "boundary": "경계",
-      "camv": "CAMV",
+      "camv": "접힘 가능성",
       "errorOne_other": "{{label}} 오류 {{count}}개",
       "errorOther_other": "{{label}} 오류 {{count}}개",
       "maekawaLbl": "Maekawa/LBL",
@@ -187,6 +188,26 @@
     "duplicateFoldedModelAction": "접힌 모델 복제",
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
+    "foldability": {
+      "compose": "{{lead}} — {{tail}}",
+      "edgeLineConfiguration": "가장자리 선 구성이 올바르지 않음",
+      "edgeLineCount": "가장자리 선이 너무 많거나 부족함",
+      "equalMountainValley": "산접기와 골접기 수가 같음",
+      "incorrectAngles": "각도가 올바르지 않음",
+      "incorrectFoldTypes": "접기 종류가 올바르지 않음",
+      "littleBigLittle": "각도를 중첩할 수 없음(작게-크게-작게)",
+      "notEnoughMountain": "산접기가 부족함",
+      "notEnoughValley": "골접기가 부족함",
+      "oddFolds": "접는 선의 개수가 홀수",
+      "selfIntersection": "종이가 여기서 자기 자신을 통과합니다",
+      "shape": {
+        "circle": "각도가 올바르지 않음(가와사키 정리)",
+        "littleBigLittle": "작게-크게-작게",
+        "selfIntersection": "접기 각도는 맞지만, 종이가 자신을 통과하지 않고는 그 상태에 도달할 수 없습니다",
+        "square": "접기 종류가 올바르지 않음",
+        "triangle": "접는 선의 개수가 올바르지 않음(홀수)"
+      }
+    },
     "foldCase": "접기 케이스",
     "foldedColor": {
       "back": "뒷면",
@@ -220,9 +241,11 @@
     },
     "foldModelAction": "모델 접기",
     "inlineSimulation": {
+      "addAction": "시뮬레이션 창 추가",
       "canvasAriaLabel": "인라인 시뮬레이션. 드래그하여 회전합니다.",
       "controls": "인라인 시뮬레이션 컨트롤",
       "delete": "삭제",
+      "deleteAction": "시뮬레이션 창 삭제",
       "failed": "시뮬레이션 실패",
       "fold": "접기",
       "gpuUnavailable": "WebGL2가 필요합니다 — 시뮬레이션 작업 공간에서 열어 주세요",
@@ -230,6 +253,7 @@
       "pause": "일시정지",
       "play": "재생",
       "refresh": "현재 주름선으로 다시 만들기",
+      "refreshAction": "시뮬레이션 영역 재구성",
       "replay": "평평하게 되돌리기"
     },
     "insertImage": "이미지 삽입...",
@@ -245,6 +269,7 @@
     "measureSnapVertex": "꼭짓점",
     "moveAnnotation": "주석 이동",
     "moveFoldedForm": "접힌 형태 이동",
+    "moveSimulationWindow": "시뮬레이션 창 이동",
     "noCreasePattern": "전개도 없음",
     "noImportedCreasePattern": "가져온 전개도 없음",
     "none": "없음",
@@ -253,8 +278,10 @@
     "refoldFoldedModelAction": "접힌 모델 다시 접기",
     "resizeAnnotation": "주석 크기 조정",
     "resizeFoldedForm": "접힌 형태 크기 조정",
+    "resizeSimulationWindow": "시뮬레이션 창 크기 조정",
     "rotateAnnotation": "주석 회전",
     "rotateFoldedForm": "접힌 형태 회전",
+    "rotateSimulationWindow": "시뮬레이션 창 회전",
     "selectedCount_other": "{{count}}개 선택됨",
     "selectionToolbar": {
       "export": "내보내기…",

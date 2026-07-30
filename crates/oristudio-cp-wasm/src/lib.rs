@@ -6,7 +6,7 @@
 //! `CpSession` behind managed state, so the two stay in lockstep by construction.
 //! See `implementation-plans/desktop-native-cp-engine-migration.md`.
 
-use js_sys::{Float64Array, Int32Array, Object, Reflect, Uint8Array};
+use js_sys::{Float64Array, Int32Array, Object, Reflect, Uint8Array, Uint32Array};
 use oristudio_cp::folding::{
     DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
 };
@@ -368,11 +368,17 @@ fn set_u8_array(target: &Object, key: &str, data: &[u8]) -> Result<(), JsValue> 
     Reflect::set(target, &JsValue::from_str(key), array.as_ref()).map(|_| ())
 }
 
+fn set_u32_array(target: &Object, key: &str, data: &[u32]) -> Result<(), JsValue> {
+    let array = Uint32Array::from(data);
+    Reflect::set(target, &JsValue::from_str(key), array.as_ref()).map(|_| ())
+}
+
 fn compact_to_js(compact: &CompactGeometry) -> Result<JsValue, JsValue> {
     let object = Object::new();
     set_f64_array(&object, "segEndpoints", &compact.seg_endpoints)?;
     set_i32_array(&object, "segAttr", &compact.seg_attr)?;
     set_u8_array(&object, "segCustomColor", &compact.seg_custom_color)?;
+    set_u32_array(&object, "segFoldMagnitude", &compact.seg_fold_magnitude)?;
     set_f64_array(&object, "auxEndpoints", &compact.aux_endpoints)?;
     set_i32_array(&object, "auxAttr", &compact.aux_attr)?;
     set_u8_array(&object, "auxCustomColor", &compact.aux_custom_color)?;
@@ -409,6 +415,19 @@ fn get_u8_array(value: &JsValue, key: &str) -> Result<Vec<u8>, JsValue> {
         .map_err(|_| js_error("invalid_input", format!("`{key}` must be a Uint8Array")))
 }
 
+/// Absent decodes to empty, which means "every segment is classic". Keeping this
+/// tolerant lets an older frontend bundle talk to a newer kernel without
+/// erroring; it simply sees no fold angles.
+fn get_u32_array(value: &JsValue, key: &str) -> Result<Vec<u32>, JsValue> {
+    let raw = Reflect::get(value, &JsValue::from_str(key))?;
+    if raw.is_undefined() || raw.is_null() {
+        return Ok(Vec::new());
+    }
+    raw.dyn_into::<Uint32Array>()
+        .map(|array| array.to_vec())
+        .map_err(|_| js_error("invalid_input", format!("`{key}` must be a Uint32Array")))
+}
+
 fn compact_from_js(value: &JsValue) -> Result<CompactGeometry, JsValue> {
     let tail = serde_wasm_bindgen::from_value(Reflect::get(value, &JsValue::from_str("tail"))?)
         .map_err(to_js_value_error)?;
@@ -416,6 +435,7 @@ fn compact_from_js(value: &JsValue) -> Result<CompactGeometry, JsValue> {
         seg_endpoints: get_f64_array(value, "segEndpoints")?,
         seg_attr: get_i32_array(value, "segAttr")?,
         seg_custom_color: get_u8_array(value, "segCustomColor")?,
+        seg_fold_magnitude: get_u32_array(value, "segFoldMagnitude")?,
         aux_endpoints: get_f64_array(value, "auxEndpoints")?,
         aux_attr: get_i32_array(value, "auxAttr")?,
         aux_custom_color: get_u8_array(value, "auxCustomColor")?,

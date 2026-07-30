@@ -161,6 +161,13 @@ interface Session {
    * on the main thread from transferred positions (canvas-2D fallback).
    */
   gpuRender: GpuRenderState | null;
+  /**
+   * When this session was last spoken to, on a monotonic counter. Eviction picks
+   * the least recently *used*, not the oldest loaded — with twenty windows open,
+   * the oldest is simply the one placed first, which is as likely as any other to
+   * be the one being looked at.
+   */
+  lastUsed: number;
 }
 
 interface GpuRenderState {
@@ -222,16 +229,24 @@ export type SimulatorSessionToken = number;
  */
 const sessions = new Map<SimulatorSessionToken, Session>();
 let sessionToken: SimulatorSessionToken = 0;
+/** Ticks on every session access, so eviction can order by use. */
+let useCounter = 0;
 
 /**
  * How many models stay resident.
  *
- * The same limit the UI uses to cap open windows, so nothing is ever evicted in
- * practice and a window cannot lose its session while it is still on screen. The
- * eviction path exists so a caller that ignores the cap degrades to a stale
- * frame rather than exhausting memory.
+ * One per open window, plus one. The `+ 1` is the reload overlap: a runtime
+ * replacing its model loads the new session *before* releasing the old, so that
+ * its window is never briefly backed by nothing — which means a full house
+ * momentarily needs one slot more than there are windows. Without the spare,
+ * every reload at the cap evicted somebody, and the victim was a window still on
+ * screen.
+ *
+ * Nothing should be evicted in practice. When something is, the owner reloads on
+ * its next tick (see `useSimulatorRuntime`) rather than freezing — but that is a
+ * recovery path, and a cap that keeps needing it is a cap that is too small.
  */
-const MAX_LIVE_SESSIONS = MAX_CONCURRENT_SIMULATIONS;
+const MAX_LIVE_SESSIONS = MAX_CONCURRENT_SIMULATIONS + 1;
 
 /** The most recently loaded session, for callers with no token to quote. */
 function latestSession(): Session | null {
@@ -298,12 +313,26 @@ export function foldScaledForSolver(fold: FoldDocument): FoldDocument {
   };
 }
 
-/** Drop the oldest sessions until the cap is met. */
+/**
+ * Drop the least recently used sessions until the cap is met.
+ *
+ * By use rather than by age: the map is insertion-ordered, so the first entry is
+ * whichever window was opened first — no more likely to be idle than any other,
+ * and quite likely the one being looked at. Whatever the user is working in has
+ * just ticked, so it sorts last and is the final thing to go.
+ */
 function evictBeyondCap(): void {
   while (sessions.size > MAX_LIVE_SESSIONS) {
-    const oldest = sessions.keys().next().value;
-    if (oldest === undefined) break;
-    disposeSession(oldest);
+    let victim: SimulatorSessionToken | undefined;
+    let oldestUse = Infinity;
+    for (const [token, session] of sessions) {
+      if (session.lastUsed < oldestUse) {
+        oldestUse = session.lastUsed;
+        victim = token;
+      }
+    }
+    if (victim === undefined) break;
+    disposeSession(victim);
   }
 }
 
@@ -414,8 +443,9 @@ function requireSession(): Session {
  */
 function sessionFor(token: SimulatorSessionToken | undefined): Session | null {
   if (sessionFailure) throw new Error(sessionFailure);
-  if (token === undefined) return latestSession();
-  return sessions.get(token) ?? null;
+  const session = token === undefined ? latestSession() : sessions.get(token) ?? null;
+  if (session) session.lastUsed = ++useCounter;
+  return session;
 }
 
 /**
@@ -560,6 +590,9 @@ const api = {
       positionScratch: new Float32Array(prepared.vertexCount * 3),
       colorScratch: new Float32Array(prepared.vertexCount * 3),
       foldPercent: options.solver?.foldPercent ?? 0,
+      // A fresh load counts as the most recent use, so a window that has just
+      // opened is the last thing eviction would reach for rather than the first.
+      lastUsed: ++useCounter,
       gpuRender:
         gpuSolver && renderCanvas
           ? {
@@ -576,6 +609,7 @@ const api = {
     };
     sessions.set(sessionToken, created);
     evictBeyondCap();
+
 
     const indices = prepared.indices.slice();
 

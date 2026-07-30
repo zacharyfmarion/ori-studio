@@ -4,6 +4,7 @@ import {
   DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
   emptyOristudioCpSelection,
   toggleCpSelectionList,
+  type OristudioCpSelection,
 } from '../../../lib/creasePatternViewport';
 import {
   cpSelectionTransformLabel,
@@ -23,15 +24,17 @@ import {
   resolveInlineSimulationSegment,
   sourceFingerprintFor,
   topInlineSimulationZ,
+  type InlineSimulation,
 } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
 import {
   clearInlineSimulationSource,
+  getInlineSimulationSource,
   setInlineSimulationSource,
 } from '../../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
 import { boxAabb } from '../../../cp-workspace/canvasObjects/placeBesideCp';
 import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
-import { cpSvgToModel } from '../../../lib/creasePatternViewport';
+import { cpSelectionSize, cpSvgToModel } from '../../../lib/creasePatternViewport';
 import type { Aabb } from '../../../cp-workspace/picking/lineHitIndex';
 import { foldArtifactsFromFold } from '../../../lib/creasePatternImport';
 import {
@@ -47,6 +50,7 @@ import {
 import i18n from '../../../i18n';
 import { requestConfirmation, requestConfirmationWithOption } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
+import { isClassicCrease, isFoldingCrease } from '../../../lib/foldAngle';
 import { useSettingsStore } from '../../settingsStore';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { freshEditableCpState } from '../freshCreasePattern';
@@ -394,6 +398,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     annotations: CanvasAnnotation[];
     foldedFigures: OristudioCpFoldedFigureEntry[];
     activeFoldedFigureId: string | null;
+    /** Windows before the action. Omit to capture the live list. */
+    inlineSimulations?: InlineSimulation[];
     label: string;
   }): void {
     const document = get().oristudioCpDocument;
@@ -409,6 +415,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         annotations: input.annotations,
         foldedFigures: input.foldedFigures,
         activeFoldedFigureId: input.activeFoldedFigureId,
+        // Captured on every overlay entry, not only the window ones. An
+        // annotation edit that omitted them would produce an entry whose undo
+        // leaves windows alone — which is right — but the field is also how a
+        // *later* undo past that point knows what the windows were, so a hole
+        // here would restore the wrong list.
+        inlineSimulations: input.inlineSimulations ?? get().oristudioCpInlineSimulations,
         overlayOnly: true,
         label: input.label,
         timestamp: new Date().toISOString(),
@@ -429,6 +441,125 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   function foldedFigureIndex(id: string): number {
     const index = get().oristudioCpFoldedFigures.findIndex((candidate) => candidate.id === id);
     return Math.max(index + 1, 1);
+  }
+
+  /**
+   * Give each of `simulations` the fold its solver runs, built from `artifacts`.
+   * Returns how many got one.
+   *
+   * Shared by loading a file and by undoing a delete, which want the same work
+   * from different artifacts — see each caller for why its choice differs.
+   *
+   * Deliberately writes no descriptor state. Recomputing `sourceFingerprint`
+   * from the current document is the one change here that would look harmless
+   * and disable staleness for good: a window can legitimately be out of date,
+   * and both callers can be looking at one.
+   */
+  function buildInlineSimulationSources(
+    simulations: InlineSimulation[],
+    artifacts: FoldArtifacts | null | undefined
+  ): number {
+    if (!artifacts || !get().oristudioCpDocument) return 0;
+    const segments = resolveCpSegments(artifacts);
+
+    let built = 0;
+    for (const simulation of simulations) {
+      const segment = resolveInlineSimulationSegment(simulation, segments);
+      // A region that no longer resolves keeps its window and its provenance.
+      // Dropping it would lose placement the user chose, and re-pointing it at
+      // the nearest region would silently simulate something else — the rule
+      // refresh already follows.
+      if (!segment) continue;
+      setInlineSimulationSource(simulation.id, {
+        fold: buildSegmentSimulationFold(artifacts, segment),
+        modelKey: `${simulation.id}:${inlineSimulationRevision(simulation.id)}`,
+      });
+      built += 1;
+    }
+    return built;
+  }
+
+  /**
+   * Clear the kernel document's own selection flags.
+   *
+   * The frontend mirror is not the whole story: the kernel is authoritative for
+   * select operations, so a mirror cleared on its own leaves stale flags behind
+   * and the next select/deselect re-derives the old set.
+   *
+   * Best-effort and fire-and-forget — a deselect is UI state, and holding a
+   * synchronous selection change on a wasm round-trip would be worse than a
+   * missed one.
+   */
+  function deselectCreasesInKernel(): void {
+    if (!get().oristudioCpDocument) return;
+    void (async () => {
+      try {
+        const refreshed = await deselectAllOristudioCp();
+        // Guard against a selection made while the round-trip was in flight:
+        // the refreshed document is only safe to adopt if nothing has since
+        // taken the canvas selection back for the creases.
+        if (refreshed && cpSelectionSize(get().oristudioCpSelection) === 0) {
+          set({ oristudioCpDocument: refreshed });
+        }
+      } catch {
+        // A deselect is best-effort UI state; ignore kernel errors.
+      }
+    })();
+  }
+
+  /**
+   * Hand the canvas's single selection to `owner`, clearing whatever held it.
+   *
+   * The canvas shows one thing selected at a time: a crease selection, or one
+   * annotation, or one folded figure, or one focused simulation window. Every
+   * write to those four fields goes through here.
+   *
+   * It is a function rather than a patch object because giving up a selection
+   * is not only a field write. Creases have to be deselected in the kernel too,
+   * and a folded figure that loses selection has to redraw without its marker —
+   * side effects that were previously attached to two of the setters and
+   * therefore missing from every other path that changed the same fields.
+   *
+   * `owner` names who is taking it; `patch` carries the new id and anything else
+   * the caller is setting in the same transition, so this stays one `set`.
+   */
+  function takeCanvasSelection(
+    owner: 'creases' | 'annotation' | 'folded-figure' | 'inline-simulation' | 'none',
+    patch: Partial<WorkspaceState> = {}
+  ): void {
+    const previousFoldedId = get().oristudioCpActiveFoldedFigureId;
+    const releasingCreases =
+      owner !== 'creases' && cpSelectionSize(get().oristudioCpSelection) > 0;
+    const releasingFoldedFigure = owner !== 'folded-figure' && previousFoldedId !== null;
+
+    set({
+      ...(owner === 'creases' ? {} : { oristudioCpSelection: emptyOristudioCpSelection() }),
+      ...(owner === 'annotation' ? {} : { oristudioCpSelectedAnnotationId: null }),
+      ...(owner === 'folded-figure' ? {} : { oristudioCpActiveFoldedFigureId: null }),
+      ...(owner === 'inline-simulation'
+        ? {}
+        : { oristudioCpFocusedInlineSimulationId: null }),
+      ...patch,
+    });
+
+    if (releasingCreases) deselectCreasesInKernel();
+    if (releasingFoldedFigure) refreshFoldedFigureSelectionMarkers(previousFoldedId);
+  }
+
+  /**
+   * Apply a crease selection under the canvas invariant.
+   *
+   * A selection that names nothing is a release rather than a claim, so it
+   * leaves a selected canvas object where it is — otherwise every tool that
+   * clears the selection as it starts would also drop the reference image or
+   * folded figure the user was working next to.
+   */
+  function applyCreaseSelection(oristudioCpSelection: OristudioCpSelection): void {
+    if (cpSelectionSize(oristudioCpSelection) === 0) {
+      set({ oristudioCpSelection });
+      return;
+    }
+    takeCanvasSelection('creases', { oristudioCpSelection });
   }
 
   function nextGeneratedFoldedFigureId(): string {
@@ -1022,52 +1153,76 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
       setInlineSimulationSource(id, { fold, modelKey: `${id}:0` });
 
-      set({
+      // Undoable, so record the list before the window existed. Pushed here
+      // rather than at the call sites because there are several — the selection
+      // toolbar, Shift+S — and one that forgot would be an action that silently
+      // is not undoable.
+      get().recordInlineSimulationHistory(
+        simulations,
+        i18n.t('panels:creasePattern.inlineSimulation.addAction', 'Add simulation window')
+      );
+
+      // A new window takes the solver *and* the canvas selection: opening one
+      // and watching nothing happen would be the wrong first impression, and
+      // the region it was built from stays selected under it otherwise.
+      //
+      // `dirty` because windows are written to `.osf`: without it you could
+      // arrange a workspace of them and be let back to the start screen with no
+      // prompt (see useWelcomeDiscardGuard).
+      takeCanvasSelection('inline-simulation', {
         oristudioCpInlineSimulations: [...simulations, simulation],
-        // A new window takes the solver: opening one and watching nothing happen
-        // would be the wrong first impression.
         oristudioCpFocusedInlineSimulationId: id,
-        oristudioCpSelectedAnnotationId: null,
+        dirty: true,
       });
       return 'added';
     },
 
     updateOristudioCpInlineSimulation: (id, patch) => {
+      // Deliberately no history push: this runs on every pointermove of a
+      // move/resize gesture. The checkpoint is taken once per gesture by the
+      // panel's begin/commit protocol, the same as the other canvas objects.
       set({
         oristudioCpInlineSimulations: get().oristudioCpInlineSimulations.map((simulation) =>
           simulation.id === id ? { ...simulation, ...patch } : simulation
         ),
+        dirty: true,
       });
     },
 
     removeOristudioCpInlineSimulation: (id) => {
-      clearInlineSimulationSource(id);
-      const remaining = get().oristudioCpInlineSimulations.filter(
-        (simulation) => simulation.id !== id
+      const previous = get().oristudioCpInlineSimulations;
+      if (!previous.some((simulation) => simulation.id === id)) return;
+      get().recordInlineSimulationHistory(
+        previous,
+        i18n.t('panels:creasePattern.inlineSimulation.deleteAction', 'Delete simulation window')
       );
+      // The fold goes; undo rebuilds it rather than history holding it alive.
+      clearInlineSimulationSource(id);
+      const remaining = previous.filter((simulation) => simulation.id !== id);
       set({
         oristudioCpInlineSimulations: remaining,
         oristudioCpFocusedInlineSimulationId:
           get().oristudioCpFocusedInlineSimulationId === id
             ? null
             : get().oristudioCpFocusedInlineSimulationId,
+        dirty: true,
       });
     },
 
     focusOristudioCpInlineSimulation: (id) => {
       if (get().oristudioCpFocusedInlineSimulationId === id) return;
-      set({
+      if (id === null) {
+        set({ oristudioCpFocusedInlineSimulationId: null });
+        return;
+      }
+      takeCanvasSelection('inline-simulation', {
         oristudioCpFocusedInlineSimulationId: id,
-        // The canvas allows one selected object at a time; focusing a window
-        // drops an annotation selection, as selecting an annotation drops this.
-        ...(id !== null ? { oristudioCpSelectedAnnotationId: null } : {}),
       });
     },
 
     hydrateOristudioCpInlineSimulations: async () => {
       const simulations = get().oristudioCpInlineSimulations;
-      const document = get().oristudioCpDocument?.document ?? null;
-      if (!document || simulations.length === 0) return 0;
+      if (simulations.length === 0) return 0;
 
       // Recomputed once for the whole document rather than once per window.
       //
@@ -1077,29 +1232,29 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // are in the same space either way. Refreshing still earns its keep --
       // the file may have been opened over an edited document -- but it must
       // not happen per window.
-      const artifacts = await get().refreshFoldArtifacts();
-      if (!artifacts) return 0;
-      const segments = resolveCpSegments(artifacts);
+      return buildInlineSimulationSources(simulations, await get().refreshFoldArtifacts());
+    },
 
-      let hydrated = 0;
-      for (const simulation of simulations) {
-        const segment = resolveInlineSimulationSegment(simulation, segments);
-        // A region that no longer resolves keeps its window and its provenance.
-        // Dropping it would lose placement the user chose, and re-pointing it at
-        // the nearest region would silently simulate something else — the rule
-        // refresh already follows.
-        if (!segment) continue;
-        setInlineSimulationSource(simulation.id, {
-          fold: buildSegmentSimulationFold(artifacts, segment),
-          modelKey: `${simulation.id}:${inlineSimulationRevision(simulation.id)}`,
-        });
-        hydrated += 1;
-      }
-      // Deliberately no `set` here. The descriptors are exactly as loaded, and
-      // recomputing `sourceFingerprint` from the document we just opened is the
-      // one change that would look harmless and disable staleness for good: a
-      // file can legitimately hold a window that is out of date.
-      return hydrated;
+    restoreOristudioCpInlineSimulationSources: async () => {
+      // Undo can bring back a window whose fold was dropped when it was deleted.
+      // Rebuild rather than having history hold folds alive: a triangulated
+      // segment fold is 240KB-2.9MB, and a hundred undoable deletions of them is
+      // tens to hundreds of MB retained for windows the user threw away.
+      const missing = get().oristudioCpInlineSimulations.filter(
+        (simulation) => getInlineSimulationSource(simulation.id) === null
+      );
+      if (missing.length === 0) return 0;
+
+      // Warm artifacts first, unlike hydrate: deleting a window does not
+      // invalidate them, so the common delete-then-undo path recomputes nothing.
+      const cached = get().foldArtifacts ?? (await get().ensureFoldArtifacts());
+      const built = buildInlineSimulationSources(missing, cached);
+      if (built > 0) return built;
+
+      // Nothing resolved. The cache can predate edits that moved or merged the
+      // regions these windows were cut from, and resolving nothing is the only
+      // signal of it we get. One recompute before giving up, never per window.
+      return buildInlineSimulationSources(missing, await get().refreshFoldArtifacts());
     },
 
     refreshOristudioCpInlineSimulation: async (id) => {
@@ -1126,11 +1281,21 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         cpLinesByIds(document, segmentContainedLineIds(document, artifacts, segment))
       );
       const revision = inlineSimulationRevision(id);
+      // Recorded before the rewrite, and after the failure paths above so a
+      // refresh that could not resolve its region leaves no entry behind.
+      get().recordInlineSimulationHistory(
+        get().oristudioCpInlineSimulations,
+        i18n.t(
+          'panels:creasePattern.inlineSimulation.refreshAction',
+          'Rebuild simulation region'
+        )
+      );
       setInlineSimulationSource(id, {
         fold: buildSegmentSimulationFold(artifacts, segment),
         modelKey: `${id}:${revision}`,
       });
-      set({
+      // Rewrites persisted provenance, so it dirties like the others.
+      takeCanvasSelection('inline-simulation', {
         oristudioCpInlineSimulations: get().oristudioCpInlineSimulations.map((candidate) =>
           candidate.id === id
             ? {
@@ -1143,6 +1308,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             : candidate
         ),
         oristudioCpFocusedInlineSimulationId: id,
+        dirty: true,
       });
       return true;
     },
@@ -1152,7 +1318,28 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     setOristudioCpViewportOption: (key, value) =>
       set({ oristudioCpViewport: { ...get().oristudioCpViewport, [key]: value } }),
 
-    setOristudioCpSelection: (oristudioCpSelection) => set({ oristudioCpSelection }),
+    setOristudioCpSelection: (oristudioCpSelection) =>
+      applyCreaseSelection(oristudioCpSelection),
+
+    claimCanvasForCreaseSelection: () => {
+      // For selections that arrive from the *kernel* rather than from a click:
+      // executing a CP operation writes `oristudioCpSelection` straight from the
+      // returned document, so it cannot go through `applyCreaseSelection` without
+      // a second store write on the hot edit path. Called after that write
+      // instead, and guarded so the ordinary case — nothing else selected — costs
+      // a few reads and no `set` at all.
+      if (cpSelectionSize(get().oristudioCpSelection) === 0) return;
+      if (
+        get().oristudioCpSelectedAnnotationId === null &&
+        get().oristudioCpActiveFoldedFigureId === null &&
+        get().oristudioCpFocusedInlineSimulationId === null
+      ) {
+        return;
+      }
+      // No patch: the creases are already selected, this only takes the canvas
+      // from whatever else was holding it.
+      takeCanvasSelection('creases');
+    },
 
     requestOristudioCpAction: (operationId) => {
       const previousId = get().oristudioCpActionRequest?.id ?? 0;
@@ -1172,14 +1359,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) => {
       const previousActiveId = get().oristudioCpActiveFoldedFigureId;
-      set({
-        oristudioCpActiveFoldedFigureId,
-        // The other half of the canvas's single-selection rule: selecting a
-        // folded figure drops the annotation selection. See setSelectedAnnotation.
-        ...(oristudioCpActiveFoldedFigureId !== null
-          ? { oristudioCpSelectedAnnotationId: null }
-          : {}),
-      });
+      if (oristudioCpActiveFoldedFigureId === null) {
+        set({ oristudioCpActiveFoldedFigureId: null });
+      } else {
+        takeCanvasSelection('folded-figure', { oristudioCpActiveFoldedFigureId });
+      }
+      // Both ids, not just the one takeCanvasSelection released: the newly
+      // active figure has to gain its marker as well as the old one losing it.
       refreshFoldedFigureSelectionMarkers(previousActiveId, oristudioCpActiveFoldedFigureId);
     },
 
@@ -1220,6 +1406,27 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             message,
           },
         });
+        return false;
+      }
+
+      // A non-flat crease has no flat folded image at all, so the 2D folder
+      // cannot answer this. Offer the simulator, which can.
+      //
+      // The trigger is purely syntactic -- "does any selected crease carry a
+      // non-180 angle" -- so it needs no solver and no topology, and it fires
+      // before the flat-foldability check rather than as one of its results.
+      const nonClassic = selectedLineIds.filter((lineId) => {
+        const segment = oristudioCpDocument.document.crease_pattern.line_segments[lineId - 1];
+        return segment !== undefined && isFoldingCrease(segment.color) && !isClassicCrease(segment);
+      });
+      if (nonClassic.length > 0) {
+        const simulate = await requestConfirmation({
+          title: 'This pattern isn’t flat-folded',
+          message: `${nonClassic.length} of the selected creases fold to something other than a full mountain or valley, so there is no flat folded form to compute. The simulator can fold it in 3D.`,
+          confirmLabel: 'Simulate',
+          cancelLabel: 'Cancel',
+        });
+        if (simulate) useLayoutStore.getState().activatePanel('simulator');
         return false;
       }
 
@@ -1274,7 +1481,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         error: null,
       };
 
-      set({
+      takeCanvasSelection('folded-figure', {
         oristudioCpFoldedFigures: [...get().oristudioCpFoldedFigures, loadingEntry],
         oristudioCpActiveFoldedFigureId: figureId,
         oristudioCpError: null,
@@ -1414,7 +1621,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           foldedFigureIndex(figure.id),
           true
         );
-        set({
+        takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, status: 'ready', snapshot, renderSnapshot, error: null }
@@ -1475,7 +1682,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           foldedFigureIndex(figure.id),
           true
         );
-        set({
+        takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? {
@@ -1526,7 +1733,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           foldedFigureIndex(figure.id),
           true
         );
-        set({
+        takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id ? { ...candidate, displayStyle, renderSnapshot } : candidate
           ),
@@ -1581,7 +1788,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           true
         );
         if (modelRequestSequence.get(id) !== requestId) return true;
-        set({
+        takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? { ...candidate, snapshot, renderSnapshot, error: null }
@@ -1681,7 +1888,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           );
         }
         retainFoldedFigureHandle(result.handle);
-        set({
+        takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
             candidate.id === figure.id
               ? {
@@ -1754,7 +1961,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         error: null,
       };
 
-      set({
+      takeCanvasSelection('folded-figure', {
         oristudioCpFoldedFigures: [...get().oristudioCpFoldedFigures, loadingEntry],
         oristudioCpActiveFoldedFigureId: figureId,
         oristudioCpError: null,
@@ -1769,7 +1976,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           true
         );
         retainFoldedFigureHandle(result.handle);
-        set({
+        takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
             figure.id === figureId
               ? {
@@ -1841,24 +2048,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     },
 
     clearOristudioCpSelection: () => {
-      // Clear the frontend mirror immediately (the surface deselects at once)...
+      // Clear the frontend mirror immediately (the surface deselects at once),
+      // then the kernel's own flags. Deliberately not routed through
+      // `takeCanvasSelection`: this releases the creases and nothing else, so a
+      // reference image or folded figure keeps its selection.
       set({ oristudioCpSelection: emptyOristudioCpSelection() });
-      // ...and the kernel document's selection flags, else a later select/deselect
-      // re-derives the stale set (the kernel is authoritative for select ops).
-      if (!get().oristudioCpDocument) return;
-      void (async () => {
-        try {
-          const refreshed = await deselectAllOristudioCp();
-          if (refreshed) {
-            set({
-              oristudioCpDocument: refreshed,
-              oristudioCpSelection: emptyOristudioCpSelection(),
-            });
-          }
-        } catch {
-          // A deselect is best-effort UI state; ignore kernel errors.
-        }
-      })();
+      deselectCreasesInKernel();
     },
 
     transformOristudioCpSelection: async (transform) => {
@@ -1883,51 +2078,54 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       );
     },
 
+    // Each toggle routes through `applyCreaseSelection`, so clicking a crease
+    // takes the canvas from whatever object held it — a focused simulation
+    // window included.
     toggleOristudioCpLineSelection: (id, additive = false) =>
-      set({
-        oristudioCpSelection: additive
+      applyCreaseSelection(
+        additive
           ? {
               ...get().oristudioCpSelection,
               lines: toggleCpSelectionList(get().oristudioCpSelection.lines, id),
             }
-          : { ...emptyOristudioCpSelection(), lines: [id] },
-      }),
+          : { ...emptyOristudioCpSelection(), lines: [id] }
+      ),
 
     toggleOristudioCpPointSelection: (id, additive = false) =>
-      set({
-        oristudioCpSelection: additive
+      applyCreaseSelection(
+        additive
           ? {
               ...get().oristudioCpSelection,
               points: toggleCpSelectionList(get().oristudioCpSelection.points, id),
             }
-          : { ...emptyOristudioCpSelection(), points: [id] },
-      }),
+          : { ...emptyOristudioCpSelection(), points: [id] }
+      ),
 
     toggleOristudioCpCircleSelection: (id, additive = false) =>
-      set({
-        oristudioCpSelection: additive
+      applyCreaseSelection(
+        additive
           ? {
               ...get().oristudioCpSelection,
               circles: toggleCpSelectionList(get().oristudioCpSelection.circles, id),
             }
-          : { ...emptyOristudioCpSelection(), circles: [id] },
-      }),
+          : { ...emptyOristudioCpSelection(), circles: [id] }
+      ),
 
     toggleOristudioCpTextSelection: (id, additive = false) =>
-      set({
-        oristudioCpSelection: additive
+      applyCreaseSelection(
+        additive
           ? {
               ...get().oristudioCpSelection,
               texts: toggleCpSelectionList(get().oristudioCpSelection.texts, id),
             }
-          : { ...emptyOristudioCpSelection(), texts: [id] },
-      }),
+          : { ...emptyOristudioCpSelection(), texts: [id] }
+      ),
 
     // --- Annotations: images + text boxes (superset feature; see
     // docs/superset-features.md). Web-side layer only; a fresh document resets
     // the layer via the load/create paths.
     addAnnotation: (annotation) =>
-      set({
+      takeCanvasSelection('annotation', {
         oristudioCpAnnotations: [...get().oristudioCpAnnotations, annotation],
         oristudioCpSelectedAnnotationId: annotation.id,
         dirty: true,
@@ -1958,17 +2156,15 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         id !== null && get().oristudioCpAnnotations.some((annotation) => annotation.id === id)
           ? id
           : null;
-      const previousFoldedId = get().oristudioCpActiveFoldedFigureId;
-      set({
-        oristudioCpSelectedAnnotationId: resolved,
-        // The canvas has one selection. Selecting an annotation drops the folded
-        // figure's selection so two objects never show handles at once; enforced
-        // here rather than at the call sites so the invariant cannot drift.
-        ...(resolved !== null ? { oristudioCpActiveFoldedFigureId: null } : {}),
-      });
-      if (resolved !== null && previousFoldedId) {
-        refreshFoldedFigureSelectionMarkers(previousFoldedId);
+      // Only *taking* the selection is an invariant-bearing move. Releasing your
+      // own claim leaves whatever else holds one alone — picking a crease tool
+      // deselects the reference image without deselecting the creases the tool
+      // is about to act on.
+      if (resolved === null) {
+        set({ oristudioCpSelectedAnnotationId: null });
+        return;
       }
+      takeCanvasSelection('annotation', { oristudioCpSelectedAnnotationId: resolved });
     },
 
     syncAnnotationHeight: (id, height) =>
@@ -2029,6 +2225,15 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         foldedFigures: previous,
         activeFoldedFigureId:
           previousActiveId === undefined ? get().oristudioCpActiveFoldedFigureId : previousActiveId,
+        label,
+      }),
+
+    recordInlineSimulationHistory: (previous, label) =>
+      pushOverlayHistoryEntry({
+        annotations: get().oristudioCpAnnotations,
+        foldedFigures: get().oristudioCpFoldedFigures,
+        activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
+        inlineSimulations: previous,
         label,
       }),
   };

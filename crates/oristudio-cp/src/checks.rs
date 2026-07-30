@@ -1162,7 +1162,7 @@ fn orient_little_big_little_segment(point: Point, segment: &LineSegment) -> Line
     }
 }
 
-fn point_line_map(model: &CreasePatternModel) -> Vec<(Point, Vec<LineSegment>)> {
+pub(crate) fn point_line_map(model: &CreasePatternModel) -> Vec<(Point, Vec<LineSegment>)> {
     let eps = Epsilon::UNKNOWN_1EN4;
     let eps_squared = eps * eps;
     let mut map = Vec::<(Point, Vec<LineSegment>)>::new();
