@@ -206,8 +206,12 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   const handleViewportDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
       const file = Array.from(event.dataTransfer.files).find(isSupportedImageFile);
+      // Anything that is not an image bubbles up to the workspace drop target,
+      // which opens or imports it.
       if (!file) return;
       event.preventDefault();
+      // Consumed here, so it must not also reach the workspace target.
+      event.stopPropagation();
       void addImageFromFile(file, { x: event.clientX, y: event.clientY });
     },
     [addImageFromFile]

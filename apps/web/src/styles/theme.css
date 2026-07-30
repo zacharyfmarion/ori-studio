@@ -1255,6 +1255,38 @@
   line-height: 1.45;
 }
 
+/* Containing block for the drop overlay. Establishes one without touching the
+   host's own layout, so it composes onto an existing grid container. */
+.file-drop-region {
+  position: relative;
+}
+
+.file-drop-overlay {
+  position: absolute;
+  inset: var(--space-2);
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  border: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  pointer-events: none;
+}
+
+.file-drop-overlay__badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--bg-canvas) 55%, transparent);
+}
+
 .choice-dialog__options {
   display: grid;
   gap: var(--space-2);

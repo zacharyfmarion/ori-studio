@@ -20,10 +20,13 @@ import {
 import { MenuBar } from './MenuBar';
 import { DesignAttributionFooter } from './DesignAttributionFooter';
 import { ErrorBoundary } from './errors/ErrorBoundary';
+import { FileDropOverlay } from './FileDropOverlay';
 import { panelComponents } from './panels/PanelComponents';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { handleMenuAction } from '../commands/menuActions';
+import { useFileDropTarget } from '../hooks/useFileDropTarget';
+import type { DropTargetPolicy } from '../lib/fileDrop';
 import { useMacDownloadUrl } from '../hooks/useMacDownloadUrl';
 import { isFeatureVisible } from '../platform/features';
 import { getRuntimeSurface } from '../platform/runtime';
@@ -40,6 +43,14 @@ const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
   edit: PenTool,
   simulate: Box,
 };
+
+/**
+ * Dropping a document anywhere on the workspace canvas opens it, and a crease
+ * pattern additionally offers to merge into the Edit canvas. Mounted on the
+ * shell rather than the Edit panel because "can I merge this?" is a question
+ * about store state, not about which workspace happens to be visible.
+ */
+const WORKSPACE_DROP_POLICY: DropTargetPolicy = 'open-or-import';
 
 /**
  * Path a rail button navigates to. Design targets its active variant sub-route
@@ -248,6 +259,7 @@ export function WorkspaceShell() {
   const setDockviewApi = useLayoutStore((state) => state.setDockviewApi);
   const loadLayout = useLayoutStore((state) => state.loadLayout);
   const saveLayout = useLayoutStore((state) => state.saveLayout);
+  const { dropTargetProps, isDragActive } = useFileDropTarget({ policy: WORKSPACE_DROP_POLICY });
 
   // The workspace/variant the URL targets at mount, captured in a ref so onReady
   // (fired once by Dockview, possibly before the route effect runs) builds the
@@ -323,7 +335,7 @@ export function WorkspaceShell() {
         <ErrorBoundary surface="shell:rail" variant="mini">
           <WorkspaceRail />
         </ErrorBoundary>
-        <div className="workspace-shell__canvas">
+        <div className="workspace-shell__canvas file-drop-region" {...dropTargetProps}>
           <ErrorBoundary surface="shell:dockview" variant="pane">
             <DockviewReact
               components={panelComponents}
@@ -334,6 +346,7 @@ export function WorkspaceShell() {
             />
           </ErrorBoundary>
           <DesignWorkspaceFooter />
+          <FileDropOverlay visible={isDragActive} policy={WORKSPACE_DROP_POLICY} />
         </div>
       </div>
       <Outlet />
