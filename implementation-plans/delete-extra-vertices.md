@@ -423,7 +423,11 @@ Browser checklist for Zach (not tool-verifiable):
       re-appends, which reorders the pair the next vertex sees and flips the merged
       endpoints. Fixed.
 - [x] Phase 5 — dense-grid timing guard
-- [ ] Phase 6 — `fold_magnitude` decision confirmed with Zach, then implemented + tested
+- [x] Phase 6 — `fold_magnitude`: Zach chose same-angle-merges / different-angles-refuse.
+      Applied to `del_v_at_point` as well, not just the sweep — `DeletePoint` is the
+      same merge at one vertex, and the two disagreeing would be a defect. A pair
+      that resolves to an edge drops the angle, since an edge has none. Invisible
+      to all-classic documents, so the oracle is unaffected.
 - [x] i18n: extract, 8 locales, stamp, check
 - [x] `cargo fmt` / `clippy` / `cargo test -p oristudio-cp` / oracle / `tsc --noEmit` / `lint:web` / `vitest`
 - [ ] Browser checklist confirmed

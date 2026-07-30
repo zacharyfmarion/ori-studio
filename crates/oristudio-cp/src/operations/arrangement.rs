@@ -1,8 +1,9 @@
 //! Arrangement and cleanup helpers ported from Oriedita `FoldLineSet` workers.
 
 use crate::geometry::{
-    Epsilon, Intersection, LineColor, LineSegment, Point, StraightLine, StraightLineIntersection,
-    determine_line_segment_intersection, determine_line_segment_intersection_sweet,
+    Epsilon, FoldMagnitude, Intersection, LineColor, LineSegment, Point, StraightLine,
+    StraightLineIntersection, determine_line_segment_intersection,
+    determine_line_segment_intersection_sweet,
     determine_line_segment_intersection_sweet_with_tolerances,
     determine_line_segment_intersection_with_precision,
     determine_line_segment_intersection_with_tolerances, find_intersection_segments,
@@ -764,11 +765,15 @@ pub fn del_v_pair(
         determine_line_segment_intersection_with_precision(first, second, Epsilon::UNKNOWN_1EN5);
     let (a, b) = del_v_merge_endpoints(first, second, intersection)?;
     let color = del_v_pair_color(first.color, second.color)?;
+    let fold_magnitude = del_v_merged_fold_magnitude(first, second, color)?;
 
     remove_line_by_value(model, first)?;
     remove_line_by_value(model, second)?;
 
-    let new_line = LineSegment::with_color(a, b, color);
+    let new_line = LineSegment {
+        fold_magnitude,
+        ..LineSegment::with_color(a, b, color)
+    };
     model.add_line_segment(new_line.clone());
     Some(new_line)
 }
@@ -909,10 +914,21 @@ fn del_v_at_point_impl(
         return false;
     }
 
+    // Same rule as the whole-document sweep: merging two creases at different
+    // fold angles would have to invent one, so the vertex stays instead. Kept
+    // in step deliberately — this is the sweep applied to a single vertex, and
+    // the two disagreeing would be a defect, not a distinction.
+    let Some(fold_magnitude) = del_v_merged_fold_magnitude(&lix, &liy, lix.color) else {
+        return false;
+    };
+
     let (first_delete, second_delete) = if ix > iy { (ix, iy) } else { (iy, ix) };
     model.line_segments.remove(first_delete);
     model.line_segments.remove(second_delete);
-    model.add_line_segment(LineSegment::with_color(a, b, lix.color));
+    model.add_line_segment(LineSegment {
+        fold_magnitude,
+        ..LineSegment::with_color(a, b, lix.color)
+    });
 
     false
 }
@@ -998,11 +1014,17 @@ fn del_v_all_impl(model: &mut CreasePatternModel, allow_color_change: bool) {
         let Some(color) = del_v_pair_color(first.color, second.color) else {
             continue;
         };
+        let Some(fold_magnitude) = del_v_merged_fold_magnitude(&first, &second, color) else {
+            continue;
+        };
 
         alive[i] = false;
         alive[j] = false;
         let merged = model.line_segments.len();
-        model.add_line_segment(LineSegment::with_color(a, b, color));
+        model.add_line_segment(LineSegment {
+            fold_magnitude,
+            ..LineSegment::with_color(a, b, color)
+        });
         alive.push(true);
 
         replace_line_in_vertex_groups(&mut groups, &exact_vertex, &first, i, merged);
@@ -1143,6 +1165,35 @@ fn remove_line_by_value(model: &mut CreasePatternModel, line: &LineSegment) -> O
         .iter()
         .position(|candidate| candidate == line)?;
     Some(model.line_segments.remove(index))
+}
+
+/// Fold angle for a merged crease. Outer `None` refuses the merge.
+///
+/// Ori Studio's addition to a ported operation: Oriedita has no fold angles, so
+/// upstream is silent here rather than opposed. Two collinear creases at the
+/// same magnitude are one crease and merging is lossless. At different
+/// magnitudes they are genuinely two creases, and every way of picking a single
+/// answer invents geometry the user did not draw — so the vertex stays.
+///
+/// `None` is the canonical spelling of a classic +/-180 crease, so a document
+/// that has never carried a fold angle — every Oriedita import, and everything
+/// the parity oracle sees — takes the both-`None` branch and behaves exactly as
+/// it did before fold angles existed.
+fn del_v_merged_fold_magnitude(
+    first: &LineSegment,
+    second: &LineSegment,
+    merged_color: LineColor,
+) -> Option<Option<FoldMagnitude>> {
+    // A magnitude is meaningful only on a fold line. A mountain merged with a
+    // valley resolves to an edge by the colour matrix above, and an edge has no
+    // angle to carry — dropping it is the invariant, not a loss.
+    if !matches!(merged_color, LineColor::Red1 | LineColor::Blue2) {
+        return Some(None);
+    }
+    if first.fold_magnitude == second.fold_magnitude {
+        return Some(first.fold_magnitude);
+    }
+    None
 }
 
 fn del_v_pair_color(first: LineColor, second: LineColor) -> Option<LineColor> {

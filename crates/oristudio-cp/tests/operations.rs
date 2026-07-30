@@ -1,4 +1,4 @@
-use oristudio_cp::geometry::{LineColor, LineSegment, Point};
+use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
 use oristudio_cp::operations::arrangement::{
     branch_trim, del_v_all, del_v_all_color_change, del_v_at_point, del_v_at_point_color_change,
@@ -684,6 +684,144 @@ fn overlapping_line_removal_uses_requested_precision() {
     remove_overlapping_lines_with_precision(&mut model, 0.001);
 
     assert_eq!(model.line_segments.len(), 1);
+}
+
+/// Fold angles are an Ori Studio addition to a ported operation, so this
+/// behaviour has no upstream to check against — Oriedita creases are always
+/// +/-180. The rule: merge losslessly when both sides agree, leave the vertex
+/// alone when they do not, because two creases at different fold angles are
+/// genuinely two creases.
+#[test]
+fn del_v_all_preserves_a_shared_fold_angle_and_refuses_a_mixed_one() {
+    let sixty = FoldMagnitude::from_degrees(60.0).expect("60 is a valid magnitude");
+    let ninety = FoldMagnitude::from_degrees(90.0).expect("90 is a valid magnitude");
+
+    let mountain = |a: Point, b: Point, magnitude: Option<FoldMagnitude>| LineSegment {
+        fold_magnitude: magnitude,
+        ..LineSegment::with_color(a, b, LineColor::Red1)
+    };
+
+    // Same angle: one crease, drawn as two. Merges, and keeps the angle.
+    let mut same = CreasePatternModel::default();
+    same.add_line_segment(mountain(
+        Point::new(0.0, 0.0),
+        Point::new(10.0, 0.0),
+        Some(sixty),
+    ));
+    same.add_line_segment(mountain(
+        Point::new(10.0, 0.0),
+        Point::new(20.0, 0.0),
+        Some(sixty),
+    ));
+    del_v_all(&mut same);
+    assert_eq!(same.line_segments.len(), 1);
+    assert_eq!(same.line_segments[0].fold_magnitude, Some(sixty));
+
+    // Different angles: genuinely a vertex. Left alone rather than flattened
+    // to one angle or to a classic 180.
+    let mut mixed = CreasePatternModel::default();
+    mixed.add_line_segment(mountain(
+        Point::new(0.0, 0.0),
+        Point::new(10.0, 0.0),
+        Some(sixty),
+    ));
+    mixed.add_line_segment(mountain(
+        Point::new(10.0, 0.0),
+        Point::new(20.0, 0.0),
+        Some(ninety),
+    ));
+    del_v_all(&mut mixed);
+    assert_eq!(mixed.line_segments.len(), 2);
+
+    // A fold angle against a classic crease is the same disagreement: 60 is not
+    // 180, so the vertex stays.
+    let mut against_classic = CreasePatternModel::default();
+    against_classic.add_line_segment(mountain(
+        Point::new(0.0, 0.0),
+        Point::new(10.0, 0.0),
+        Some(sixty),
+    ));
+    against_classic.add_line_segment(mountain(Point::new(10.0, 0.0), Point::new(20.0, 0.0), None));
+    del_v_all(&mut against_classic);
+    assert_eq!(against_classic.line_segments.len(), 2);
+}
+
+/// `DeletePoint` is this same merge applied to one vertex, so it follows the
+/// same rule. The two disagreeing would be a defect rather than a distinction.
+#[test]
+fn del_v_at_point_follows_the_same_fold_angle_rule() {
+    let sixty = FoldMagnitude::from_degrees(60.0).expect("60 is a valid magnitude");
+    let ninety = FoldMagnitude::from_degrees(90.0).expect("90 is a valid magnitude");
+    let mountain = |a: Point, b: Point, magnitude: Option<FoldMagnitude>| LineSegment {
+        fold_magnitude: magnitude,
+        ..LineSegment::with_color(a, b, LineColor::Red1)
+    };
+    let vertex = Point::new(10.0, 0.0);
+
+    let mut same = CreasePatternModel::default();
+    same.add_line_segment(mountain(Point::new(0.0, 0.0), vertex, Some(sixty)));
+    same.add_line_segment(mountain(vertex, Point::new(20.0, 0.0), Some(sixty)));
+    del_v_at_point(&mut same, vertex, 1.0, 1e-6);
+    assert_eq!(same.line_segments.len(), 1);
+    assert_eq!(same.line_segments[0].fold_magnitude, Some(sixty));
+
+    let mut mixed = CreasePatternModel::default();
+    mixed.add_line_segment(mountain(Point::new(0.0, 0.0), vertex, Some(sixty)));
+    mixed.add_line_segment(mountain(vertex, Point::new(20.0, 0.0), Some(ninety)));
+    del_v_at_point(&mut mixed, vertex, 1.0, 1e-6);
+    assert_eq!(mixed.line_segments.len(), 2);
+}
+
+/// Every Oriedita document is all-classic, so the whole fold-angle rule has to
+/// be invisible to it — this is the case the parity oracle exercises.
+#[test]
+fn del_v_all_is_unchanged_for_documents_without_fold_angles() {
+    let mut model = CreasePatternModel::default();
+    model.add_line_segment(LineSegment::with_color(
+        Point::new(0.0, 0.0),
+        Point::new(10.0, 0.0),
+        LineColor::Red1,
+    ));
+    model.add_line_segment(LineSegment::with_color(
+        Point::new(10.0, 0.0),
+        Point::new(20.0, 0.0),
+        LineColor::Red1,
+    ));
+
+    del_v_all(&mut model);
+
+    assert_eq!(model.line_segments.len(), 1);
+    assert_eq!(model.line_segments[0].fold_magnitude, None);
+}
+
+/// A mountain merged with a valley resolves to an edge by Oriedita's colour
+/// matrix, and an edge carries no fold angle — so a shared magnitude is dropped
+/// rather than carried onto a line where it would mean nothing.
+#[test]
+fn del_v_all_color_change_drops_the_angle_when_the_pair_resolves_to_an_edge() {
+    let sixty = FoldMagnitude::from_degrees(60.0).expect("60 is a valid magnitude");
+    let with_angle = |a: Point, b: Point, color: LineColor| LineSegment {
+        fold_magnitude: Some(sixty),
+        ..LineSegment::with_color(a, b, color)
+    };
+
+    let mut model = CreasePatternModel::default();
+    model.add_line_segment(with_angle(
+        Point::new(0.0, 0.0),
+        Point::new(10.0, 0.0),
+        LineColor::Red1,
+    ));
+    model.add_line_segment(with_angle(
+        Point::new(10.0, 0.0),
+        Point::new(20.0, 0.0),
+        LineColor::Blue2,
+    ));
+
+    del_v_all_color_change(&mut model);
+
+    assert_eq!(model.line_segments.len(), 1);
+    assert_eq!(model.line_segments[0].color, LineColor::Black0);
+    assert_eq!(model.line_segments[0].fold_magnitude, None);
 }
 
 /// The sweep's worst case: every interior vertex is degree two, so every one of
