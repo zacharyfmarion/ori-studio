@@ -63,5 +63,14 @@ done <<< "$paths"
 
 echo "Kept $kept of $total SVGs with partial fold angles."
 node "$(dirname "$0")/svg-to-fold.mjs" "$SVG_DIR" --out "$FOLD_DIR"
+
+# The SVGs store coordinates to three decimals, which is enough to make a design
+# whose sector angles are exactly 60/120/150 degrees read as 60.000131 and fail
+# an exact geometric check. Patterns drawn on a regular grid can be put back onto
+# it; free-form ones are left alone.
+echo
+echo "Snapping lattice-based patterns back onto their grid..."
+node "$(dirname "$0")/snap-to-lattice.mjs" "$FOLD_DIR" --in-place
+
 echo
 echo "Open any of $FOLD_DIR/*.fold via File > Import Into Crease Pattern."
