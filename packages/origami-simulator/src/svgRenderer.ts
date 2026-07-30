@@ -32,6 +32,12 @@ const MIN_SCREEN_AREA = 1e-6;
 const PADDING_RATIO = 0.02;
 
 /**
+ * How far toward the eye a crease is nudged, in the NDC depth units the edge
+ * shader biases by, so the two agree about when a crease clears its own faces.
+ */
+const CREASE_DEPTH_BIAS_NDC = 0.0008;
+
+/**
  * Hairline stroke on each opaque face, in its own fill colour.
  *
  * SVG renderers antialias adjacent polygon edges independently, which leaves a
@@ -111,7 +117,18 @@ export function renderMeshToSvg(
     });
   }
   creases.forEach((crease, index) => {
-    items.push({ kind: 1, ref: index, points: screenPoints(projected, [crease.from, crease.to]) });
+    // Nudged toward the eye by the same amount the edge shader biases by, and
+    // for the same reason: a crease lies exactly on the boundary between two
+    // faces, and the nearer of those two is drawn after it. Without the bias
+    // that face's edge clips the crease down the middle, so it renders at a
+    // fraction of its width — measured at 0.1px of a declared 1.1px on the
+    // valley creases of a real model, while the mountains kept 0.9px, purely
+    // because of which side each one's nearer face fell on.
+    items.push({
+      kind: 1,
+      ref: index,
+      points: screenPoints(projected, [crease.from, crease.to], CREASE_DEPTH_BIAS_NDC * camera.depthRange),
+    });
   });
   // Depth is a plain comparison in this space, so the view is orthographic and
   // the eye sits infinitely far along +depth (nearer = larger depth).
@@ -144,11 +161,12 @@ export function renderMeshToSvg(
   for (const { item, screen } of drawnPieces) {
     // A piece is coplanar with the triangle it was cut from, so it takes that
     // triangle's colour and shading rather than recomputing from a sliver.
-    elements.push(
+    const element =
       item.kind === 0
         ? faceElement(faces.triangles[item.ref]!, screen, projected, settings, options.strain ?? null)
-        : creaseElement(creases[item.ref]!, screen, settings)
-    );
+        : creaseElement(creases[item.ref]!, screen, settings);
+    // A dropped sub-pixel piece yields nothing rather than a blank line.
+    if (element) elements.push(element);
   }
 
   const svg = [
@@ -186,11 +204,15 @@ interface Crease {
  * Screen position with view depth as the third axis — the space the BSP cuts in.
  * See the note in {@link renderMeshToSvg}.
  */
-function screenPoints(projected: ProjectedVertices, indices: readonly number[]): Vec3[] {
+function screenPoints(
+  projected: ProjectedVertices,
+  indices: readonly number[],
+  depthBias = 0
+): Vec3[] {
   return indices.map((v) => [
     projected.screen[v * 2]!,
     projected.screen[v * 2 + 1]!,
-    projected.view[v * 3 + 2]!,
+    projected.view[v * 3 + 2]! + depthBias,
   ]);
 }
 
@@ -461,6 +483,10 @@ function creaseElement(
     : '';
   const [from, to] = screen;
   if (!from || !to) return '';
+  // Round caps turn a sub-pixel piece into a dot the width of the stroke, which
+  // reads as a blob on the line. Below half the stroke width the neighbouring
+  // pieces' own caps already cover the whole span, so the piece is pure artifact.
+  if (Math.hypot(to[0] - from[0], to[1] - from[1]) < settings.creaseWidthPx * 0.5) return '';
   return (
     `  <line x1="${num(from[0])}" y1="${num(from[1])}" ` +
     `x2="${num(to[0])}" y2="${num(to[1])}" ` +
