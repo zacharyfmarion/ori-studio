@@ -24,6 +24,7 @@ const CLAIMED_SHORTCUTS: ReadonlyArray<{ label: string; key: string; why: string
   { label: 'Flip Mountain/Valley', key: 'c', why: 'line-types fixes the vertex with C' },
   { label: 'Perpendicular Line', key: 'y', why: 'the perpendiculars lesson presses Y' },
   { label: 'Angle Bisector', key: 'b', why: 'the angle-bisectors lesson presses B' },
+  { label: 'Make alternating M/V', key: 'x', why: 'the big-little-big step presses X' },
   { label: 'Fold estimate', key: 'g', why: 'both folding steps press G' },
   { label: 'Pan (hand tool)', key: '1', why: 'the-canvas offers 1 as an alternative to Cmd-drag' },
 ];

@@ -50,13 +50,16 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
       },
       {
         id: 'big-little-big',
-        kind: 'prose',
+        kind: 'action',
         title: 'Big-little-big',
         loadsTargetId: 'violation-big-little-big',
         body: [
           'The big-little-big theorem is the third rule. Where a small angle sits between larger ones, the two creases on either side of it have to fold in opposite directions \u2014 one mountain, one valley. If they match, the narrow flap between them has nowhere to go.',
-          'Seven vertices are flagged along this diagonal. At each one the small angles are bounded by two creases of the same type.',
+          'Seven vertices along this diagonal break it: at each one the small angles are bounded by two creases of the same type. Fix all seven at once with Make alternating M/V, which assigns alternating mountains and valleys along a guide line you draw.',
+          'Press X, then drag a guide line down the diagonal \u2014 from the bottom-right corner to the top-left one. Direction matters: the tool alternates as it travels, so dragging the other way hands out the opposite assignment and leaves every vertex exactly as broken as it was.',
         ],
+        expect: 'camv-clean',
+        hint: 'Press X and drag from the bottom-right corner to the top-left. If the warnings do not clear, you dragged the wrong way \u2014 undo with Cmd+Z and drag the other direction.',
       },
       {
         id: 'necessary-not-sufficient',
