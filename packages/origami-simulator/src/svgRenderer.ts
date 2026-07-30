@@ -10,7 +10,13 @@
 // resolved on `RenderSettings`, the caller having read them from CSS once. That
 // is what makes this a pure function of the render state and testable without a
 // browser.
-import { projectVertices, type CameraUniforms, type ProjectedVertices } from './webgl/camera.js';
+import {
+  projectVertices,
+  projectViewPoint,
+  type CameraUniforms,
+  type ProjectedVertices,
+} from './webgl/camera.js';
+import { buildBsp, traverseBsp, type BspItem, type Vec3 } from './bsp.js';
 import type { MeshTopology, RenderSettings } from './webgl/meshRenderer.js';
 
 /** Edge assignment codes, matching `EDGE_ASSIGNMENT_CODES` and the edge shader. */
@@ -70,14 +76,6 @@ export interface SvgRenderResult {
   height: number;
 }
 
-/** One thing to paint, at the depth it is painted at. */
-interface DrawItem {
-  depth: number;
-  /** Faces sort ahead of creases at equal depth -- see {@link depthOrder}. */
-  kind: 0 | 1;
-  index: number;
-}
-
 /**
  * Serialize the current view to a standalone SVG document, cropped to the
  * artwork. Null when nothing would be drawn: an empty model, or faces and
@@ -90,20 +88,31 @@ export function renderMeshToSvg(
   settings: RenderSettings,
   options: RenderMeshToSvgOptions = {}
 ): SvgRenderResult | null {
-  const projected = projectVertices(positions, camera, { perspective: options.perspective });
+  const perspective = options.perspective ?? true;
+  const projected = projectVertices(positions, camera, { perspective });
   const faces = collectFaces(topology, projected);
-  const creases = settings.showEdges ? collectCreases(topology, projected, faces.depthByEdgeKey) : [];
-  const drawn = [
-    ...(settings.showFaces ? faces.items : []),
-    ...creases.map((crease, index): DrawItem => ({ depth: crease.depth, kind: 1, index })),
-  ];
-  if (drawn.length === 0) return null;
+  const creases = settings.showEdges ? collectCreases(topology, projected) : [];
+  if ((settings.showFaces ? faces.triangles.length : 0) + creases.length === 0) return null;
 
-  const bounds = artworkBounds(
-    projected,
-    settings.showFaces ? faces.triangles : [],
-    creases
-  );
+  // Cut the mesh until a correct back-to-front order exists, then read it off the
+  // tree. See `bsp.ts` for why sorting cannot do this.
+  const items: BspItem[] = [];
+  if (settings.showFaces) {
+    faces.triangles.forEach((triangle, index) => {
+      items.push({ kind: 0, ref: index, points: viewPoints(projected, [triangle.a, triangle.b, triangle.c]) });
+    });
+  }
+  creases.forEach((crease, index) => {
+    items.push({ kind: 1, ref: index, points: viewPoints(projected, [crease.from, crease.to]) });
+  });
+  const ordered = traverseBsp(buildBsp(items), [0, 0, camera.camDist]);
+
+  // Bounds come from the emitted pieces, which are what the page actually shows.
+  const drawnPieces = ordered.map((item) => ({
+    item,
+    screen: item.points.map((point) => projectViewPoint(point, camera, perspective)),
+  }));
+  const bounds = pieceBounds(drawnPieces);
   if (!bounds) return null;
 
   const padding = Math.max(
@@ -115,8 +124,6 @@ export function renderMeshToSvg(
   const width = bounds.maxX - bounds.minX + padding * 2;
   const height = bounds.maxY - bounds.minY + padding * 2;
 
-  drawn.sort(depthOrder);
-
   const elements: string[] = [];
   if (options.background !== false) {
     elements.push(
@@ -124,11 +131,13 @@ export function renderMeshToSvg(
         `fill="${hex(settings.background)}"${opacityAttr('fill', settings.backgroundAlpha ?? 1)}/>`
     );
   }
-  for (const item of drawn) {
+  for (const { item, screen } of drawnPieces) {
+    // A piece is coplanar with the triangle it was cut from, so it takes that
+    // triangle's colour and shading rather than recomputing from a sliver.
     elements.push(
       item.kind === 0
-        ? faceElement(faces.triangles[item.index]!, projected, settings, options.strain ?? null)
-        : creaseElement(creases[item.index]!, projected, settings)
+        ? faceElement(faces.triangles[item.ref]!, screen, projected, settings, options.strain ?? null)
+        : creaseElement(creases[item.ref]!, screen, settings)
     );
   }
 
@@ -143,23 +152,6 @@ export function renderMeshToSvg(
   ].join('\n');
 
   return { svg, width, height };
-}
-
-/**
- * Painter's order: farthest first.
- *
- * `depth` grows toward the eye (see {@link ProjectedVertices}), so ascending
- * depth paints back to front. Faces precede creases at equal depth, which is
- * what puts a crease on top of the face it lies on -- a crease takes the depth
- * of the *nearer* of its two adjacent faces, so the tie is with that face.
- *
- * A mean-depth sort cannot order interpenetrating or mutually overlapping
- * triangles, and a folded model is mostly stacked near-coplanar layers, so some
- * views will place a layer differently from the GPU's per-pixel depth test.
- * That is inherent to flattening to vector polygons.
- */
-function depthOrder(left: DrawItem, right: DrawItem): number {
-  return left.depth - right.depth || left.kind - right.kind;
 }
 
 interface Triangle {
@@ -178,21 +170,51 @@ interface Crease {
   from: number;
   to: number;
   assignment: number;
-  depth: number;
 }
 
-/**
- * Triangles worth drawing, plus the depth of the nearest triangle on each
- * vertex pair — which is what gives a crease its depth without needing a
- * face-to-edge table.
- */
+/** The view-space points behind a set of vertex indices, for the BSP. */
+function viewPoints(projected: ProjectedVertices, indices: readonly number[]): Vec3[] {
+  return indices.map((v) => [
+    projected.view[v * 3]!,
+    projected.view[v * 3 + 1]!,
+    projected.view[v * 3 + 2]!,
+  ]);
+}
+
+interface Bounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/** Bounding box of the pieces actually emitted. Null when nothing is drawn. */
+function pieceBounds(
+  pieces: ReadonlyArray<{ screen: [number, number][] }>
+): Bounds | null {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const { screen } of pieces) {
+    for (const [x, y] of screen) {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null;
+  return { minX, minY, maxX, maxY };
+}
+
+/** Triangles worth drawing, with the side of the paper each one shows. */
 function collectFaces(
   topology: SvgMeshTopology,
   projected: ProjectedVertices
-): { triangles: Triangle[]; items: DrawItem[]; depthByEdgeKey: Map<number, number> } {
+): { triangles: Triangle[] } {
   const triangles: Triangle[] = [];
-  const items: DrawItem[] = [];
-  const depthByEdgeKey = new Map<number, number>();
   const faceCount = Math.floor(topology.faceIndices.length / 3);
 
   for (let face = 0; face < faceCount; face += 1) {
@@ -216,37 +238,17 @@ function collectFaces(
     // warp, not a projective map, so it can reorder a triangle's vertices —
     // measured at 1-7% of faces on a folded Miura, which showed up as patches of
     // the paper's back side in an export that the GPU drew as front.
-    items.push({ depth, kind: 0, index: triangles.length });
     triangles.push({ a, b, c, depth, winding: -screenArea(projected, a, b, c) });
-
-    // Creases sit on the nearest face they belong to, so a crease under another
-    // layer is painted before that layer covers it.
-    for (const [from, to] of [
-      [a, b],
-      [b, c],
-      [c, a],
-    ] as ReadonlyArray<readonly [number, number]>) {
-      const key = edgeKey(from, to, projected.count);
-      const existing = depthByEdgeKey.get(key);
-      if (existing === undefined || depth > existing) depthByEdgeKey.set(key, depth);
-    }
   }
 
-  // The walk runs even with faces hidden: it is what gives creases their depths,
-  // and a crease-only view still has to occlude correctly. The caller decides
-  // whether the faces themselves get painted.
-  return { triangles, items, depthByEdgeKey };
+  return { triangles };
 }
 
 /**
  * Creases worth drawing. Border, mountain and valley only — facet edges from
  * triangulation and unassigned edges are skipped, matching `buildEdgeQuads`.
  */
-function collectCreases(
-  topology: SvgMeshTopology,
-  projected: ProjectedVertices,
-  depthByEdgeKey: Map<number, number>
-): Crease[] {
+function collectCreases(topology: SvgMeshTopology, projected: ProjectedVertices): Crease[] {
   const creases: Crease[] = [];
   for (let edge = 0; edge < topology.edgeAssignments.length; edge += 1) {
     const assignment = topology.edgeAssignments[edge]!;
@@ -254,19 +256,9 @@ function collectCreases(
     const from = topology.edgeIndices[edge * 2]!;
     const to = topology.edgeIndices[edge * 2 + 1]!;
     if (!screenFinite(projected, from) || !screenFinite(projected, to)) continue;
-    // Falls back to the edge's own nearer end when no triangle claimed it, which
-    // a well-formed mesh never hits but a partial one would.
-    const depth =
-      depthByEdgeKey.get(edgeKey(from, to, projected.count)) ??
-      Math.max(projected.view[from * 3 + 2]!, projected.view[to * 3 + 2]!);
-    creases.push({ from, to, assignment, depth });
+    creases.push({ from, to, assignment });
   }
   return creases;
-}
-
-/** Order-independent key for a vertex pair. */
-function edgeKey(from: number, to: number, count: number): number {
-  return from < to ? from * count + to : to * count + from;
 }
 
 function screenFinite(projected: ProjectedVertices, vertex: number): boolean {
@@ -331,15 +323,12 @@ function artworkBounds(
  */
 function faceElement(
   triangle: Triangle,
+  screen: readonly [number, number][],
   projected: ProjectedVertices,
   settings: RenderSettings,
   strain: Float32Array | null
 ): string {
-  const points = [triangle.a, triangle.b, triangle.c]
-    .map(
-      (vertex) => `${num(projected.screen[vertex * 2]!)},${num(projected.screen[vertex * 2 + 1]!)}`
-    )
-    .join(' ');
+  const points = screen.map(([x, y]) => `${num(x)},${num(y)}`).join(' ');
   const fill = hex(faceColor(triangle, projected, settings, strain));
   // Opaque faces close their own antialiasing seams; translucent ones must not,
   // or every shared edge doubles up and reads as a wireframe.
@@ -438,7 +427,7 @@ function shade(
 
 function creaseElement(
   crease: Crease,
-  projected: ProjectedVertices,
+  screen: readonly [number, number][],
   settings: RenderSettings
 ): string {
   const color =
@@ -457,9 +446,11 @@ function creaseElement(
   const dashAttr = dash
     ? ` stroke-dasharray="${dash.map(num).join(' ')}" stroke-linecap="butt"`
     : '';
+  const [from, to] = screen;
+  if (!from || !to) return '';
   return (
-    `  <line x1="${num(projected.screen[crease.from * 2]!)}" y1="${num(projected.screen[crease.from * 2 + 1]!)}" ` +
-    `x2="${num(projected.screen[crease.to * 2]!)}" y2="${num(projected.screen[crease.to * 2 + 1]!)}" ` +
+    `  <line x1="${num(from[0])}" y1="${num(from[1])}" ` +
+    `x2="${num(to[0])}" y2="${num(to[1])}" ` +
     `stroke="${hex(color)}" stroke-width="${num(settings.creaseWidthPx)}"${dashAttr}/>`
   );
 }

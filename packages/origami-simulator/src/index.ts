@@ -16,6 +16,12 @@ export {
   type RenderSettings,
 } from './webgl/meshRenderer.js';
 export {
+  buildBsp,
+  traverseBsp,
+  type BspItem,
+  type Vec3,
+} from './bsp.js';
+export {
   renderMeshToSvg,
   type RenderMeshToSvgOptions,
   type SvgRenderResult,
