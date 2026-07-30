@@ -211,6 +211,10 @@
     "undoLastTreeEdit": "Отменить последнюю правку дерева"
   },
   "close": "Закрыть",
+  "fileDrop": {
+    "open": "Отпустите, чтобы открыть",
+    "openOrImport": "Отпустите, чтобы открыть или импортировать"
+  },
   "toolbar": {
     "downloadMac": "Скачать Ori Studio для Mac",
     "new": "Создать",

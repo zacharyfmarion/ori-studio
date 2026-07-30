@@ -211,6 +211,10 @@
     "undoLastTreeEdit": "Desfazer a última edição da árvore"
   },
   "close": "Fechar",
+  "fileDrop": {
+    "open": "Solte para abrir",
+    "openOrImport": "Solte para abrir ou importar"
+  },
   "toolbar": {
     "downloadMac": "Baixar o Ori Studio para Mac",
     "new": "Novo",

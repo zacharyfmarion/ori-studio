@@ -211,6 +211,10 @@
     "undoLastTreeEdit": "撤销上一步树编辑"
   },
   "close": "关闭",
+  "fileDrop": {
+    "open": "拖放以打开",
+    "openOrImport": "拖放以打开或导入"
+  },
   "toolbar": {
     "downloadMac": "下载 Mac 版 Ori Studio",
     "new": "新建",

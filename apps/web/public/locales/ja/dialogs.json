@@ -86,6 +86,15 @@
     "title": "タイトル",
     "titlePlaceholder": "任意"
   },
+  "fileDrop": {
+    "choiceMessage": "{{name}} は展開図です。編集中の展開図に結合することも、単独で開くこともできます。",
+    "choiceTitle": "{{name}} を開きますか、インポートしますか？",
+    "importDescription": "現在の展開図の右側に配置され、1 回の操作として元に戻せます。",
+    "importLabel": "現在の展開図の隣にインポート",
+    "openDescription": "作業中の内容を置き換えます。",
+    "openDescriptionDirty": "作業中の内容を置き換え、保存していない変更を破棄します。",
+    "openLabel": "新しいファイルとして開く"
+  },
   "foldWarning": {
     "dontShowAgain": "今後表示しない",
     "message": "平坦折りのエラーが検出されました。折りを続行しますか？",

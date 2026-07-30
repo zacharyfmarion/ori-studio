@@ -211,6 +211,10 @@
     "undoLastTreeEdit": "最後のツリーの編集を元に戻す"
   },
   "close": "閉じる",
+  "fileDrop": {
+    "open": "ドロップして開く",
+    "openOrImport": "ドロップして開く／インポート"
+  },
   "toolbar": {
     "downloadMac": "Mac 版 Ori Studio をダウンロード",
     "new": "新規",

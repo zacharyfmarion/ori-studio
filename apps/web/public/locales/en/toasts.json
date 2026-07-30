@@ -4,6 +4,10 @@
     "simulateFailed": "That region could not be simulated.",
     "simulateNoRegion": "Select a closed region to simulate."
   },
+  "fileDrop": {
+    "ignoredFile": "Used {{name}}; ignored 1 other dropped file.",
+    "ignoredFiles": "Used {{name}}; ignored {{others}} other dropped files."
+  },
   "global": {
     "error": "Ori Studio error",
     "folding": "Folding…"

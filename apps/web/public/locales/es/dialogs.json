@@ -96,6 +96,15 @@
     "title": "Título",
     "titlePlaceholder": "Opcional"
   },
+  "fileDrop": {
+    "choiceMessage": "{{name}} es un patrón de pliegues, así que puede fusionarse con el que estás editando o abrirse por separado.",
+    "choiceTitle": "¿Abrir o importar {{name}}?",
+    "importDescription": "Se coloca a la derecha de tu patrón de pliegues, como una sola edición que puedes deshacer.",
+    "importLabel": "Importar junto al patrón actual",
+    "openDescription": "Reemplaza aquello en lo que estás trabajando.",
+    "openDescriptionDirty": "Reemplaza aquello en lo que estás trabajando y descarta los cambios sin guardar.",
+    "openLabel": "Abrir como archivo nuevo"
+  },
   "foldWarning": {
     "dontShowAgain": "No volver a mostrar",
     "message": "Se detectaron errores de plegabilidad plana. ¿Continuar con el plegado?",

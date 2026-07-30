@@ -211,6 +211,10 @@
     "undoLastTreeEdit": "마지막 트리 편집 실행 취소"
   },
   "close": "닫기",
+  "fileDrop": {
+    "open": "놓아서 열기",
+    "openOrImport": "놓아서 열거나 가져오기"
+  },
   "toolbar": {
     "downloadMac": "Mac용 Ori Studio 다운로드",
     "new": "새로 만들기",

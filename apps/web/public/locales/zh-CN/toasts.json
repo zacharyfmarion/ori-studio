@@ -4,6 +4,10 @@
     "simulateFailed": "无法模拟该区域。",
     "simulateNoRegion": "请选择一个闭合区域进行模拟。"
   },
+  "fileDrop": {
+    "ignoredFile": "已使用 {{name}}；忽略了另外 1 个拖放的文件。",
+    "ignoredFiles": "已使用 {{name}}；忽略了另外 {{others}} 个拖放的文件。"
+  },
   "global": {
     "error": "Ori Studio 错误",
     "folding": "正在折叠…"

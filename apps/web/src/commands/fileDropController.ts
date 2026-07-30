@@ -106,22 +106,26 @@ function requestOpenOrImportChoice(
 }
 
 /**
- * Note any files the drop carried that this one action does not touch. Two keys
- * rather than an i18next plural, matching how the rest of the app counts.
+ * Note any files the drop carried that this one action does not touch.
+ *
+ * Two keys picked by hand rather than one i18next plural. The plural form would
+ * generate a `_one` variant that can never render — this branch only reaches the
+ * many-key at two or more — and the interpolation is deliberately not named
+ * `count`, which i18next treats as a plural trigger.
  */
 function reportIgnoredFiles(selection: DroppedSelection): void {
-  const count = selection.ignoredCount;
-  if (count === 0) return;
+  const others = selection.ignoredCount;
+  if (others === 0) return;
   useWorkspaceStore.setState({
     projectMessage:
-      count === 1
+      others === 1
         ? i18n.t('toasts:fileDrop.ignoredFile', 'Used {{name}}; ignored 1 other dropped file.', {
             name: selection.file.name,
           })
         : i18n.t(
             'toasts:fileDrop.ignoredFiles',
-            'Used {{name}}; ignored {{count}} other dropped files.',
-            { name: selection.file.name, count }
+            'Used {{name}}; ignored {{others}} other dropped files.',
+            { name: selection.file.name, others }
           ),
   });
 }

@@ -211,6 +211,10 @@
     "undoLastTreeEdit": "Letzte Baumbearbeitung rückgängig machen"
   },
   "close": "Schließen",
+  "fileDrop": {
+    "open": "Zum Öffnen ablegen",
+    "openOrImport": "Zum Öffnen oder Importieren ablegen"
+  },
   "toolbar": {
     "downloadMac": "Ori Studio für Mac herunterladen",
     "new": "Neu",

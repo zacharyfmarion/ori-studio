@@ -91,6 +91,15 @@
     "title": "Title",
     "titlePlaceholder": "Optional"
   },
+  "fileDrop": {
+    "choiceMessage": "{{name}} is a crease pattern, so it can be merged into the one you are editing or opened on its own.",
+    "choiceTitle": "Open or import {{name}}?",
+    "importDescription": "Placed to the right of your crease pattern, as one undoable edit.",
+    "importLabel": "Import beside the current pattern",
+    "openDescription": "Replaces what you are working on.",
+    "openDescriptionDirty": "Replaces what you are working on and discards your unsaved changes.",
+    "openLabel": "Open as a new file"
+  },
   "foldWarning": {
     "dontShowAgain": "Don't show this again",
     "message": "Detected errors in flat foldability. Continue to fold?",

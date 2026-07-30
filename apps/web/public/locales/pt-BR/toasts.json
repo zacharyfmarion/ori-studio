@@ -4,6 +4,10 @@
     "simulateFailed": "Não foi possível simular essa região.",
     "simulateNoRegion": "Selecione uma região fechada para simular."
   },
+  "fileDrop": {
+    "ignoredFile": "{{name}} usado; 1 outro arquivo solto foi ignorado.",
+    "ignoredFiles": "{{name}} usado; {{others}} outros arquivos soltos foram ignorados."
+  },
   "global": {
     "error": "Erro do Ori Studio",
     "folding": "Dobrando…"
