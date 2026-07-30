@@ -33,6 +33,13 @@ export {
   type VisibilityOptions,
 } from './hiddenPieces.js';
 export {
+  coplanarRuns,
+  outlineOf,
+  sourceFaceGroups,
+  type Point,
+  type RunPiece,
+} from './coplanarRuns.js';
+export {
   cameraUniforms,
   centroid,
   boundingRadius,

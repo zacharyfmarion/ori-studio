@@ -13,6 +13,7 @@
 import { projectVertices, type CameraUniforms, type ProjectedVertices } from './webgl/camera.js';
 import { buildBsp, traverseBsp, type BspItem, type Vec3 } from './bsp.js';
 import { findVisiblePieces, type DrawnPiece } from './hiddenPieces.js';
+import { coplanarRuns, outlineOf, sourceFaceGroups, type RunPiece } from './coplanarRuns.js';
 import type { MeshTopology, RenderSettings } from './webgl/meshRenderer.js';
 
 /** Edge assignment codes, matching `EDGE_ASSIGNMENT_CODES` and the edge shader. */
@@ -69,6 +70,12 @@ export interface RenderMeshToSvgOptions {
    * test comparing the two wants.
    */
   cullHidden?: boolean;
+  /**
+   * Draw the pieces of one face as one shape where they are adjacent in the
+   * order. On by default. Off gives a polygon per piece, which is what a test
+   * comparing the two wants.
+   */
+  mergeCoplanar?: boolean;
 }
 
 /**
@@ -169,17 +176,28 @@ export function renderMeshToSvg(
         `fill="${hex(settings.background)}"${opacityAttr('fill', settings.backgroundAlpha ?? 1)}/>`
     );
   }
-  const drawn: (DrawnPiece & { element: string })[] = [];
+  const groups = sourceFaceGroups(topology);
+  const drawn: (DrawnPiece & RunPiece & { element: string })[] = [];
   for (const { item, screen } of drawnPieces) {
     // A piece is coplanar with the triangle it was cut from, so it takes that
     // triangle's colour and shading rather than recomputing from a sliver.
-    const element =
-      item.kind === 0
-        ? faceElement(faces.triangles[item.ref]!, screen, projected, settings, options.strain ?? null)
-        : creaseElement(creases[item.ref]!, screen, settings);
+    const triangle = item.kind === 0 ? faces.triangles[item.ref]! : null;
+    const fill = triangle
+      ? hex(faceColor(triangle, projected, settings, options.strain ?? null))
+      : '';
+    const element = triangle
+      ? facePolygon(screen, fill, settings)
+      : creaseElement(creases[item.ref]!, screen, settings);
     // A dropped sub-pixel piece yields nothing rather than a blank line.
     if (element) {
-      drawn.push({ element, points: screen, strokeWidth: item.kind === 0 ? 0 : settings.creaseWidthPx });
+      drawn.push({
+        element,
+        points: screen,
+        strokeWidth: triangle ? 0 : settings.creaseWidthPx,
+        // A crease never merges, and neither does a face whose group is missing.
+        group: triangle ? groups[triangle.source] ?? -1 : -1,
+        fill,
+      });
     }
   }
 
@@ -196,8 +214,25 @@ export function renderMeshToSvg(
     options.cullHidden !== false && opaque
       ? findVisiblePieces(drawn, { minX, minY, width, height })
       : null;
-  for (let i = 0; i < drawn.length; i += 1) {
-    if (!visible || visible[i]) elements.push(drawn[i]!.element);
+  // Merging after culling rather than before, for two reasons: culling reads
+  // better on small pieces than on one big outline, and dropping a buried piece
+  // can leave two survivors adjacent that were not.
+  const survivors = drawn.filter((_, index) => !visible || visible[index]);
+  const merged = new Set<number>();
+  const mergedElements = new Map<number, string>();
+  for (const [start, end] of options.mergeCoplanar === false ? [] : coplanarRuns(survivors)) {
+    const run = survivors.slice(start, end);
+    const outline = outlineOf(run.map((piece) => piece.points));
+    // Null means the run does not resolve to one simple loop, so it goes out as
+    // the pieces it already is.
+    if (!outline) continue;
+    for (let i = start; i < end; i += 1) merged.add(i);
+    mergedElements.set(start, facePolygon(outline, run[0]!.fill, settings));
+  }
+  for (let i = 0; i < survivors.length; i += 1) {
+    const replacement = mergedElements.get(i);
+    if (replacement) elements.push(replacement);
+    else if (!merged.has(i)) elements.push(survivors[i]!.element);
   }
 
   const svg = [
@@ -217,6 +252,8 @@ interface Triangle {
   a: number;
   b: number;
   c: number;
+  /** Index into `faceIndices`, for looking up which source face this came from. */
+  source: number;
   depth: number;
   /**
    * Signed screen area, negated so positive means front. Which side of the paper
@@ -304,7 +341,7 @@ function collectFaces(
     // warp, not a projective map, so it can reorder a triangle's vertices —
     // measured at 1-7% of faces on a folded Miura, which showed up as patches of
     // the paper's back side in an export that the GPU drew as front.
-    triangles.push({ a, b, c, depth, winding: -screenArea(projected, a, b, c) });
+    triangles.push({ a, b, c, source: face, depth, winding: -screenArea(projected, a, b, c) });
   }
 
   return { triangles };
@@ -387,15 +424,16 @@ function artworkBounds(
  * canvas-2D renderer's `PAPER_FRONT_WINDING`, so the two agree about which side
  * is which.
  */
-function faceElement(
-  triangle: Triangle,
-  screen: readonly [number, number][],
-  projected: ProjectedVertices,
-  settings: RenderSettings,
-  strain: Float32Array | null
+/**
+ * One filled polygon of paper. Takes the fill already resolved, so a merged run
+ * and the pieces it replaces are written by the same code.
+ */
+function facePolygon(
+  screen: ReadonlyArray<readonly [number, number]>,
+  fill: string,
+  settings: RenderSettings
 ): string {
   const points = screen.map(([x, y]) => `${num(x)},${num(y)}`).join(' ');
-  const fill = hex(faceColor(triangle, projected, settings, strain));
   // Opaque faces close their own antialiasing seams; translucent ones must not,
   // or every shared edge doubles up and reads as a wireframe.
   const seam =

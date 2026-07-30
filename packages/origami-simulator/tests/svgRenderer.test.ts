@@ -361,6 +361,56 @@ describe('rendering the folded mesh to SVG', () => {
     });
   });
 
+  describe('a face the pipeline took apart', () => {
+    /** A flat square, as the two triangles `prepareFoldModel` would make of it. */
+    const SQUARE = new Float32Array([-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1]);
+    const SQUARE_TOPOLOGY: MeshTopology = {
+      faceIndices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+      // Four sides, then the triangulation diagonal, which is a facet edge.
+      edgeIndices: new Uint32Array([0, 1, 1, 2, 2, 3, 3, 0, 0, 2]),
+      edgeAssignments: new Uint8Array([1, 1, 1, 1, 3]),
+      textureDim: 4,
+    };
+
+    function square(options: Parameters<typeof renderMeshToSvg>[4]) {
+      const page = renderMeshToSvg(
+        SQUARE,
+        SQUARE_TOPOLOGY,
+        CAMERA,
+        { ...SETTINGS, showEdges: false },
+        options
+      );
+      return drawOrder(page!.svg);
+    }
+
+    it('draws it as one polygon, not as its triangles', () => {
+      // The diagonal is a triangulation artifact, which is already why no crease
+      // is drawn along it. A vector editor should not see two shapes either.
+      expect(square({ mergeCoplanar: false })).toHaveLength(2);
+      expect(square({})).toHaveLength(1);
+    });
+
+    it('gives the merged shape the square’s four corners', () => {
+      const [polygon] = square({});
+      const points = polygon!.match(/points="([^"]+)"/u)![1]!.split(' ');
+      expect(points).toHaveLength(4);
+      // Same paint as the pieces it replaced.
+      const [first] = square({ mergeCoplanar: false });
+      expect(polygon).toContain(first!.match(/fill="[^"]+"/u)![0]);
+    });
+
+    it('keeps them apart when the shared edge is a real fold', () => {
+      const folded = renderMeshToSvg(
+        SQUARE,
+        { ...SQUARE_TOPOLOGY, edgeAssignments: new Uint8Array([1, 1, 1, 1, 1]) },
+        CAMERA,
+        { ...SETTINGS, showEdges: false },
+        {}
+      );
+      expect(drawOrder(folded!.svg)).toHaveLength(2);
+    });
+  });
+
   it('emits no NaN coordinate when the solve has blown up', () => {
     const blown = positions();
     blown[0] = Number.NaN;

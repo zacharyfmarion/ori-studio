@@ -359,3 +359,15 @@ produced it rather than from reasoning about the code.
       745/779/734 fell to 596/622/547, documents 18-23% smaller, with a pixel
       diff against the uncut drawing of 0.09% at a median delta of 2/255 and no
       differing cluster larger than edge speckle
+- [x] A face drawn as one shape rather than as the pieces the pipeline made of
+      it. 126 source faces reached the exporter as 254 triangles (only 28 were
+      triangles to begin with) and left as 535 polygons, so an editor saw four
+      shapes per face. Triangulation records its diagonals as facet edges, which
+      is already how the renderer knows not to draw a crease there, so the
+      grouping is a fact about the mesh rather than a coplanarity tolerance.
+      Merging runs that are adjacent in the order — the only ones where nothing
+      is drawn between — took 535/552/498 to 369/376/342, documents ~20% smaller.
+      Pixel diff 0.27-0.49% at a median delta of 1/255, no solid differing
+      cluster, only seven pixels in a page differing by 15 or more, and every one
+      of those moves *toward* the saturated colour: they are interior seams
+      disappearing, which is the artifact the face seam stroke exists to mask
