@@ -28,6 +28,11 @@ export {
   type SvgRenderResult,
 } from './svgRenderer.js';
 export {
+  findVisiblePieces,
+  type DrawnPiece,
+  type VisibilityOptions,
+} from './hiddenPieces.js';
+export {
   cameraUniforms,
   centroid,
   boundingRadius,

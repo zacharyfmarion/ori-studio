@@ -12,6 +12,7 @@
 // browser.
 import { projectVertices, type CameraUniforms, type ProjectedVertices } from './webgl/camera.js';
 import { buildBsp, traverseBsp, type BspItem, type Vec3 } from './bsp.js';
+import { findVisiblePieces, type DrawnPiece } from './hiddenPieces.js';
 import type { MeshTopology, RenderSettings } from './webgl/meshRenderer.js';
 
 /** Edge assignment codes, matching `EDGE_ASSIGNMENT_CODES` and the edge shader. */
@@ -61,6 +62,13 @@ export interface RenderMeshToSvgOptions {
   strain?: Float32Array | null;
   /** Paint {@link RenderSettings.background}. Off leaves the page transparent. */
   background?: boolean;
+  /**
+   * Leave out pieces that no pixel of the page shows. On by default, and ignored
+   * for translucent paper, which has no hidden geometry to speak of. Off gives
+   * the drawing the tree produced, every buried piece included — which is what a
+   * test comparing the two wants.
+   */
+  cullHidden?: boolean;
 }
 
 /**
@@ -161,6 +169,7 @@ export function renderMeshToSvg(
         `fill="${hex(settings.background)}"${opacityAttr('fill', settings.backgroundAlpha ?? 1)}/>`
     );
   }
+  const drawn: (DrawnPiece & { element: string })[] = [];
   for (const { item, screen } of drawnPieces) {
     // A piece is coplanar with the triangle it was cut from, so it takes that
     // triangle's colour and shading rather than recomputing from a sliver.
@@ -169,7 +178,26 @@ export function renderMeshToSvg(
         ? faceElement(faces.triangles[item.ref]!, screen, projected, settings, options.strain ?? null)
         : creaseElement(creases[item.ref]!, screen, settings);
     // A dropped sub-pixel piece yields nothing rather than a blank line.
-    if (element) elements.push(element);
+    if (element) {
+      drawn.push({ element, points: screen, strokeWidth: item.kind === 0 ? 0 : settings.creaseWidthPx });
+    }
+  }
+
+  // The order says what covers what; it does not say what survives. Pieces buried
+  // under later geometry are emitted with the rest unless they are looked for.
+  //
+  // Only sound while every piece is opaque. Translucent paper shows what is under
+  // it, which is the whole point of it, so the pass is skipped there rather than
+  // deleting geometry that contributes colour. The face seam hairline is left out
+  // of the reckoning too: counting it would let a face occlude a quarter-pixel
+  // further than it is drawn, and the error should fall on the side of keeping.
+  const opaque = (settings.faceAlpha ?? 1) >= 1;
+  const visible =
+    options.cullHidden !== false && opaque
+      ? findVisiblePieces(drawn, { minX, minY, width, height })
+      : null;
+  for (let i = 0; i < drawn.length; i += 1) {
+    if (!visible || visible[i]) elements.push(drawn[i]!.element);
   }
 
   const svg = [

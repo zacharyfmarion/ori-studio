@@ -282,6 +282,85 @@ describe('rendering the folded mesh to SVG', () => {
     expect(drawOrder(page!.svg).filter((line) => line.includes('<polygon'))).toHaveLength(1);
   });
 
+  describe('pieces nothing shows', () => {
+    /**
+     * A small triangle squarely inside a large one, at different depths. Looking
+     * straight down the vertical axis puts world y on the depth axis alone, so
+     * the two overlap exactly on screen and one of them is wholly buried.
+     */
+    const STACKED = new Float32Array([
+      -1, 1, -1, 1, 1, -1, 0, 1, 1,
+      -0.2, -1, -0.5, 0.2, -1, -0.5, 0, -1, 0,
+    ]);
+    const OVERHEAD = cameraUniforms({ yaw: 0, pitch: 0, zoom: 1 }, [0, 0, 0], 2, 400, 300);
+
+    function stacked(options: Parameters<typeof renderMeshToSvg>[4]) {
+      const page = renderMeshToSvg(
+        STACKED,
+        {
+          faceIndices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+          edgeIndices: new Uint32Array(),
+          edgeAssignments: new Uint8Array(),
+          textureDim: 4,
+        },
+        OVERHEAD,
+        { ...SETTINGS, showEdges: false },
+        options
+      );
+      return drawOrder(page!.svg);
+    }
+
+    it('leaves out the buried one', () => {
+      // The tree emits both, correctly ordered — an order says what covers what,
+      // not what survives. The far one here is covered along its whole extent.
+      const uncut = stacked({ cullHidden: false });
+      expect(uncut).toHaveLength(2);
+
+      const culled = stacked({});
+      expect(culled).toHaveLength(1);
+      // Far is drawn first, so the survivor is the nearer of the pair, unchanged.
+      expect(culled[0]).toBe(uncut[1]);
+    });
+
+    it('keeps both when the near one does not cover the far one', () => {
+      const apart = new Float32Array([
+        -1, 1, -1, 1, 1, -1, 0, 1, 1,
+        -1, -1, 3, 1, -1, 3, 0, -1, 5,
+      ]);
+      const page = renderMeshToSvg(
+        apart,
+        {
+          faceIndices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+          edgeIndices: new Uint32Array(),
+          edgeAssignments: new Uint8Array(),
+          textureDim: 4,
+        },
+        OVERHEAD,
+        { ...SETTINGS, showEdges: false },
+        {}
+      );
+      expect(drawOrder(page!.svg)).toHaveLength(2);
+    });
+
+    it('keeps everything when the paper is translucent', () => {
+      // Translucent paper shows what is under it, so a buried piece contributes
+      // colour and deleting it would change the drawing.
+      const page = renderMeshToSvg(
+        STACKED,
+        {
+          faceIndices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+          edgeIndices: new Uint32Array(),
+          edgeAssignments: new Uint8Array(),
+          textureDim: 4,
+        },
+        OVERHEAD,
+        { ...SETTINGS, showEdges: false, faceAlpha: 0.5 },
+        {}
+      );
+      expect(drawOrder(page!.svg)).toHaveLength(2);
+    });
+  });
+
   it('emits no NaN coordinate when the solve has blown up', () => {
     const blown = positions();
     blown[0] = Number.NaN;
