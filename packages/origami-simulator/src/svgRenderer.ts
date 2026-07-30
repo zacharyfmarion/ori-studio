@@ -10,12 +10,7 @@
 // resolved on `RenderSettings`, the caller having read them from CSS once. That
 // is what makes this a pure function of the render state and testable without a
 // browser.
-import {
-  projectVertices,
-  projectViewPoint,
-  type CameraUniforms,
-  type ProjectedVertices,
-} from './webgl/camera.js';
+import { projectVertices, type CameraUniforms, type ProjectedVertices } from './webgl/camera.js';
 import { buildBsp, traverseBsp, type BspItem, type Vec3 } from './bsp.js';
 import type { MeshTopology, RenderSettings } from './webgl/meshRenderer.js';
 
@@ -96,21 +91,36 @@ export function renderMeshToSvg(
 
   // Cut the mesh until a correct back-to-front order exists, then read it off the
   // tree. See `bsp.ts` for why sorting cannot do this.
+  //
+  // Cut in *screen* space carrying view depth as the third axis, not in view
+  // space. Two reasons, and they are the same reason: the vertex shader's
+  // perspective is a per-vertex warp of x and y rather than a real projective
+  // divide, so a straight segment in view space does not project to a straight
+  // line — splitting there and projecting the pieces separately bends a crease
+  // visibly at every cut. And this space is exactly what the GPU depth-tests in:
+  // `gl_Position.w` stays 1, so the rasterizer interpolates depth linearly across
+  // *screen* coordinates, which makes every triangle planar here by construction.
   const items: BspItem[] = [];
   if (settings.showFaces) {
     faces.triangles.forEach((triangle, index) => {
-      items.push({ kind: 0, ref: index, points: viewPoints(projected, [triangle.a, triangle.b, triangle.c]) });
+      items.push({
+        kind: 0,
+        ref: index,
+        points: screenPoints(projected, [triangle.a, triangle.b, triangle.c]),
+      });
     });
   }
   creases.forEach((crease, index) => {
-    items.push({ kind: 1, ref: index, points: viewPoints(projected, [crease.from, crease.to]) });
+    items.push({ kind: 1, ref: index, points: screenPoints(projected, [crease.from, crease.to]) });
   });
-  const ordered = traverseBsp(buildBsp(items), [0, 0, camera.camDist]);
+  // Depth is a plain comparison in this space, so the view is orthographic and
+  // the eye sits infinitely far along +depth (nearer = larger depth).
+  const ordered = traverseBsp(buildBsp(items), [0, 0, Number.MAX_SAFE_INTEGER]);
 
-  // Bounds come from the emitted pieces, which are what the page actually shows.
+  // The pieces already carry screen coordinates; nothing needs re-projecting.
   const drawnPieces = ordered.map((item) => ({
     item,
-    screen: item.points.map((point) => projectViewPoint(point, camera, perspective)),
+    screen: item.points.map(([x, y]) => [x, y] as [number, number]),
   }));
   const bounds = pieceBounds(drawnPieces);
   if (!bounds) return null;
@@ -172,11 +182,14 @@ interface Crease {
   assignment: number;
 }
 
-/** The view-space points behind a set of vertex indices, for the BSP. */
-function viewPoints(projected: ProjectedVertices, indices: readonly number[]): Vec3[] {
+/**
+ * Screen position with view depth as the third axis — the space the BSP cuts in.
+ * See the note in {@link renderMeshToSvg}.
+ */
+function screenPoints(projected: ProjectedVertices, indices: readonly number[]): Vec3[] {
   return indices.map((v) => [
-    projected.view[v * 3]!,
-    projected.view[v * 3 + 1]!,
+    projected.screen[v * 2]!,
+    projected.screen[v * 2 + 1]!,
     projected.view[v * 3 + 2]!,
   ]);
 }

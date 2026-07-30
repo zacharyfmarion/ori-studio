@@ -96,6 +96,53 @@ describe('ordering interpenetrating geometry', () => {
     expect((page.svg.match(/<polygon/gu) ?? []).length).toBe(2);
   });
 
+  it('keeps a split crease straight', () => {
+    // The regression this pins. Cutting in view space and projecting each piece
+    // separately bends a crease at every cut, because the vertex shader's
+    // perspective is a per-vertex warp of x and y rather than a projective
+    // divide — a straight segment in view space is not a straight line on
+    // screen. Cutting in screen space makes the projection an identity, so
+    // pieces stay collinear and match what the GPU rasterizes.
+    const positions = new Float32Array([
+      // Two faces crossing in an X.
+      -1, -1, 0, 1, -1, 0, 0, 1, 0,
+      0, -1, -1, 0, -1, 1, 0, 1, 0,
+      // A crease that lies in neither, so whichever plane is chosen cuts it.
+      -1, 0.2, -1, 1, 0.2, 1,
+    ]);
+    const page = renderMeshToSvg(
+      positions,
+      {
+        faceIndices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+        edgeIndices: new Uint32Array([6, 7]),
+        edgeAssignments: new Uint8Array([1]),
+      },
+      CAMERA,
+      { ...SETTINGS, showEdges: true, creaseWidthPx: 1 }
+    )!;
+
+    const lines = [...page.svg.matchAll(/<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)"/gu)]
+      .map((m) => [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])] as const);
+    expect(lines.length).toBeGreaterThan(1); // the crease really was cut
+
+    // Every piece must lie on the line through the two extreme endpoints.
+    const points = lines.flatMap(([x1, y1, x2, y2]) => [[x1, y1], [x2, y2]] as [number, number][]);
+    let a = points[0]!;
+    let b = points[0]!;
+    for (const q of points) {
+      if (q[0] < a[0]) a = q;
+      if (q[0] > b[0]) b = q;
+    }
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const length = Math.hypot(dx, dy);
+    expect(length).toBeGreaterThan(1);
+    for (const [px, py] of points) {
+      const deviation = Math.abs((px - a[0]) * dy - (py - a[1]) * dx) / length;
+      expect(deviation).toBeLessThan(0.05);
+    }
+  });
+
   it('handles an empty tree and a tree of edges alone', () => {
     expect(traverseBsp(buildBsp([]), [0, 0, 1])).toEqual([]);
     const edges: BspItem[] = [
