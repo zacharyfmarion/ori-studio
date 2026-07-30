@@ -333,3 +333,29 @@ from `RenderSettings`), and `exportGeometry` (STL/OBJ wants geometry, not a view
       web vitest (1409 pass), `npm run lint:web`, `npm run i18n:check`.
       Note `i18n:stamp` is only a workspace script — `npm --workspace
       @treemaker/web run i18n:stamp`, not `npm run i18n:stamp`
+
+### Fidelity, after testing against real models
+
+The first export was a depth sort, which the plan above assumed would do. It did
+not, and each of these came out of comparing an export against the GPU view that
+produced it rather than from reasoning about the code.
+
+- [x] Winding read where `gl_FrontFacing` reads it — after the perspective warp,
+      not in view space. Accounted for 1-7% of faces showing the wrong side
+- [x] BSP in place of the sort. Interpenetrating faces and cyclic overlaps have
+      no correct order at any precision, so cut the geometry until one exists:
+      wrongly-ordered area fell from 0.97% to 0.002-0.034%
+- [x] Cut in screen space carrying view depth, not in view space. The vertex
+      shader's perspective is a per-vertex warp rather than a projective divide,
+      so a straight segment in view space is not straight on screen and every
+      cut visibly bent a crease
+- [x] Creases biased toward the eye by the edge shader's own bias, so the nearer
+      of the two faces a crease separates stops clipping it down the middle
+- [x] Ink is not split by a plane it only grazes, and pieces shorter than a
+      stroke width are dropped. Sub-2px crease pieces, which round caps drew as
+      blobs beside the line, went from 48/41/42 across three views to none
+- [x] Hidden pieces left out. A painter's order says what covers what, not what
+      survives, so a fifth of the polygons were buried under other geometry:
+      745/779/734 fell to 596/622/547, documents 18-23% smaller, with a pixel
+      diff against the uncut drawing of 0.09% at a median delta of 2/255 and no
+      differing cluster larger than edge speckle
