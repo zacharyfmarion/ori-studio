@@ -38,6 +38,7 @@ import {
   type ImportedCreasePatternResult,
   type ImportedCreasePatternSource,
 } from '../../../lib/creasePatternImport';
+import { OPENABLE_FILE_EXTENSIONS } from '../../../lib/fileDrop';
 import {
   clampOrieditaGridAngle,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
@@ -2014,17 +2015,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       try {
         const file = await fileService.openTextFile({
           title: 'Open Ori Studio Project or Crease Pattern',
-          extensions: [
-            NATIVE_PROJECT_EXTENSION,
-            'tmd',
-            'tmd4',
-            'tmd5',
-            'fold',
-            'cp',
-            'ori',
-            'orh',
-            'bps',
-          ],
+          extensions: [...OPENABLE_FILE_EXTENSIONS],
         });
         if (!file) return false;
         openedSourceLength = file.text.length;
