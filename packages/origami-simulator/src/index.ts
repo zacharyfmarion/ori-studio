@@ -19,6 +19,7 @@ export {
   buildBsp,
   traverseBsp,
   type BspItem,
+  type BuildBspOptions,
   type Vec3,
 } from './bsp.js';
 export {

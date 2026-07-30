@@ -143,6 +143,41 @@ describe('ordering interpenetrating geometry', () => {
     }
   });
 
+  describe('ink narrower than the tolerance', () => {
+    // A plane tilted enough to have both a screen and a depth component, so the
+    // near side is decided rather than degenerate. The crease straddles it, but
+    // by less than the ink it is drawn with.
+    const face: BspItem = { kind: 0, ref: 0, points: [[0, 0, 0], [0, 10, 0], [1, 0, 10]] };
+    const grazing: BspItem = { kind: 1, ref: 0, points: [[-0.5, 2, 1], [0.5, 5, 3]] };
+
+    it('is not split by a plane it only grazes', () => {
+      // Splitting here is what chopped creases into sub-pixel confetti: 48 pieces
+      // under 2px on a real model, each drawn as a blob the width of the stroke.
+      const split = traverseBsp(buildBsp([face, grazing]), [0, 0, 10]);
+      expect(split.filter((item) => item.kind === 1)).toHaveLength(2);
+
+      const whole = traverseBsp(buildBsp([face, grazing], { edgeInk: 1.1 }), [0, 0, 10]);
+      expect(whole.filter((item) => item.kind === 1)).toHaveLength(1);
+    });
+
+    it('is drawn after the surface it lies on', () => {
+      // The other half of the same rule. A crease lies on the edge two faces
+      // share, so it lies in both planes; left to a strict classification it
+      // lands before the nearer one, which then paints over half its width.
+      const eye: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
+      const ordered = traverseBsp(buildBsp([face, grazing], { edgeInk: 1.1, eye }), eye);
+      expect(ordered.map((item) => item.kind)).toEqual([0, 1]);
+    });
+
+    it('leaves faces alone, however thin the ink', () => {
+      // The tolerance is a property of the ink, not of the tree. A face has area
+      // and must still be cut, or stacked layers stop ordering against it.
+      const crossing: BspItem = { kind: 0, ref: 1, points: [[-2, 2, 1], [2, 5, 3], [0, 8, 2]] };
+      const ordered = traverseBsp(buildBsp([face, crossing], { edgeInk: 1.1 }), [0, 0, 10]);
+      expect(ordered.filter((item) => item.kind === 0 && item.ref === 1).length).toBeGreaterThan(1);
+    });
+  });
+
   it('handles an empty tree and a tree of edges alone', () => {
     expect(traverseBsp(buildBsp([]), [0, 0, 1])).toEqual([]);
     const edges: BspItem[] = [

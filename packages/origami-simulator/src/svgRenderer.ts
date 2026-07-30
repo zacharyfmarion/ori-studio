@@ -131,8 +131,11 @@ export function renderMeshToSvg(
     });
   });
   // Depth is a plain comparison in this space, so the view is orthographic and
-  // the eye sits infinitely far along +depth (nearer = larger depth).
-  const ordered = traverseBsp(buildBsp(items), [0, 0, Number.MAX_SAFE_INTEGER]);
+  // the eye sits infinitely far along +depth (nearer = larger depth). A crease's
+  // ink is measured in page units here, which is what lets the tree leave it
+  // whole against a plane it only grazes — see `BuildBspOptions.edgeInk`.
+  const eye: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
+  const ordered = traverseBsp(buildBsp(items, { edgeInk: settings.creaseWidthPx / 2, eye }), eye);
 
   // The pieces already carry screen coordinates; nothing needs re-projecting.
   const drawnPieces = ordered.map((item) => ({
@@ -483,10 +486,14 @@ function creaseElement(
     : '';
   const [from, to] = screen;
   if (!from || !to) return '';
-  // Round caps turn a sub-pixel piece into a dot the width of the stroke, which
-  // reads as a blob on the line. Below half the stroke width the neighbouring
-  // pieces' own caps already cover the whole span, so the piece is pure artifact.
-  if (Math.hypot(to[0] - from[0], to[1] - from[1]) < settings.creaseWidthPx * 0.5) return '';
+  // Round caps turn a short piece into a dot the width of the stroke, which reads
+  // as a blob beside the line rather than part of it. The two pieces either side
+  // of a dropped one each reach half a stroke width into the gap it leaves, so a
+  // piece shorter than a whole stroke width draws nothing their caps do not
+  // already cover. Dashes use butt caps and have no such reach, so they keep the
+  // narrower bound.
+  const capReach = dash ? settings.creaseWidthPx * 0.5 : settings.creaseWidthPx;
+  if (Math.hypot(to[0] - from[0], to[1] - from[1]) < capReach) return '';
   return (
     `  <line x1="${num(from[0])}" y1="${num(from[1])}" ` +
     `x2="${num(to[0])}" y2="${num(to[1])}" ` +

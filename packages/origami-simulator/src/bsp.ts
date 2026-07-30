@@ -66,6 +66,46 @@ const MAX_DEPTH = 400;
 /** Distance below which a point counts as lying in the plane. */
 const EPS = 1e-7;
 
+export interface BuildBspOptions {
+  /**
+   * Half the width of the ink an edge is drawn with, in the units of the items'
+   * first two axes. Zero, the default, orders edges as strictly as faces.
+   *
+   * An edge closer to a plane than the ink it is drawn with is not split by it,
+   * and is kept on the eye's side of it: ink that thin cannot show which side of
+   * the plane it is on, so cutting it there buys no correctness and costs a
+   * piece. A crease grazes a great many planes at that distance — it lies *in*
+   * the planes of both faces it separates, and near-parallel layers abound in a
+   * folded model — and each graze used to cut it again. Measured on a real
+   * model: 48 pieces under 2px shrank to none, pieces under 5px fell by three
+   * quarters, and the document by a tenth, with the same crease length drawn.
+   *
+   * Keeping the piece on the near side is the smaller half of the rule, and it
+   * only sometimes helps: a face drawn after a crease it merely touches paints
+   * over part of the stroke, and the crease then reads as a thin line. Across
+   * three views that stayed where it was, so treat this as the tie-break it is
+   * rather than a fix for that.
+   */
+  edgeInk?: number;
+  /** Which side of a plane is the near one. Defaults to the far side of `+depth`. */
+  eye?: Vec3;
+}
+
+const DEFAULT_EYE: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
+
+/**
+ * How close an item must be to a plane to count as lying in it.
+ *
+ * For a face, exactly on it. For an edge, within its own ink — measured on
+ * screen, which is why the plane's depth component is left out: dividing by the
+ * normal's screen length converts a plane distance into the screen distance to
+ * the plane's trace, and it is the trace that the ink can straddle.
+ */
+function toleranceFor(item: BspItem, plane: Plane, edgeInk: number): number {
+  if (item.kind !== 1 || edgeInk <= 0) return EPS;
+  return Math.max(EPS, edgeInk * Math.hypot(plane.n[0], plane.n[1]));
+}
+
 function planeOf(points: readonly Vec3[]): Plane | null {
   const [a, b, c] = points;
   if (!a || !b || !c) return null;
@@ -114,11 +154,22 @@ interface Partition {
 }
 
 /** Cut one item by a plane. Faces split into polygons, edges into segments. */
-function partition(item: BspItem, plane: Plane): Partition {
+function partition(item: BspItem, plane: Plane, eps: number, nearIsFront: boolean): Partition {
   const dist = item.points.map((p) => distance(plane, p));
-  const anyFront = dist.some((d) => d > EPS);
-  const anyBack = dist.some((d) => d < -EPS);
-  if (!anyFront && !anyBack) return { front: [], back: [], coplanar: [item] };
+  const anyFront = dist.some((d) => d > eps);
+  const anyBack = dist.some((d) => d < -eps);
+  if (!anyFront && !anyBack) {
+    // Within the tolerance the whole way, so there is nothing to cut. A face
+    // there is genuinely in the plane and shares the node with it; an edge
+    // there is ink straddling the plane, and belongs on the near side so the
+    // surface it lies on is drawn under it rather than over it.
+    if (eps > EPS) {
+      return nearIsFront
+        ? { front: [item], back: [], coplanar: [] }
+        : { front: [], back: [item], coplanar: [] };
+    }
+    return { front: [], back: [], coplanar: [item] };
+  }
   if (!anyBack) return { front: [item], back: [], coplanar: [] };
   if (!anyFront) return { front: [], back: [item], coplanar: [] };
 
@@ -131,12 +182,12 @@ function partition(item: BspItem, plane: Plane): Partition {
   for (let i = 0; i < count; i += 1) {
     const current = item.points[i]!;
     const dCurrent = dist[i]!;
-    if (dCurrent >= -EPS) front.push(current);
-    if (dCurrent <= EPS) back.push(current);
+    if (dCurrent >= -eps) front.push(current);
+    if (dCurrent <= eps) back.push(current);
     if (i >= steps) continue;
     const next = item.points[(i + 1) % count]!;
     const dNext = dist[(i + 1) % count]!;
-    if ((dCurrent > EPS && dNext < -EPS) || (dCurrent < -EPS && dNext > EPS)) {
+    if ((dCurrent > eps && dNext < -eps) || (dCurrent < -eps && dNext > eps)) {
       const cut = crossing(current, next, dCurrent, dNext);
       front.push(cut);
       back.push(cut);
@@ -150,7 +201,10 @@ function partition(item: BspItem, plane: Plane): Partition {
 }
 
 /** The candidate plane that cuts the fewest of the others. */
-function chooseSplitter(items: readonly BspItem[]): { plane: Plane; index: number } | null {
+function chooseSplitter(
+  items: readonly BspItem[],
+  edgeInk: number
+): { plane: Plane; index: number } | null {
   let best: { plane: Plane; index: number; cuts: number } | null = null;
   const faces: number[] = [];
   for (let i = 0; i < items.length; i += 1) if (items[i]!.kind === 0) faces.push(i);
@@ -164,12 +218,13 @@ function chooseSplitter(items: readonly BspItem[]): { plane: Plane; index: numbe
     let cuts = 0;
     for (let j = 0; j < items.length; j += 1) {
       if (j === index) continue;
+      const eps = toleranceFor(items[j]!, plane, edgeInk);
       let anyFront = false;
       let anyBack = false;
       for (const point of items[j]!.points) {
         const d = distance(plane, point);
-        if (d > EPS) anyFront = true;
-        else if (d < -EPS) anyBack = true;
+        if (d > eps) anyFront = true;
+        else if (d < -eps) anyBack = true;
         if (anyFront && anyBack) break;
       }
       if (anyFront && anyBack) cuts += 1;
@@ -180,20 +235,28 @@ function chooseSplitter(items: readonly BspItem[]): { plane: Plane; index: numbe
   return best ? { plane: best.plane, index: best.index } : null;
 }
 
-export function buildBsp(items: BspItem[], depth = 0): BspNode | null {
+export function buildBsp(items: BspItem[], options: BuildBspOptions = {}): BspNode | null {
+  const edgeInk = options.edgeInk ?? 0;
+  const eye = options.eye ?? DEFAULT_EYE;
+  return subdivide(items, edgeInk, eye, 0);
+}
+
+function subdivide(items: BspItem[], edgeInk: number, eye: Vec3, depth: number): BspNode | null {
   if (items.length === 0) return null;
-  const splitter = depth < MAX_DEPTH ? chooseSplitter(items) : null;
+  const splitter = depth < MAX_DEPTH ? chooseSplitter(items, edgeInk) : null;
   if (!splitter) {
     // No usable plane (all edges, all degenerate, or the depth guard tripped).
     return { plane: null, coplanar: sortCoplanar(items), front: null, back: null };
   }
 
+  const nearIsFront = distance(splitter.plane, eye) >= 0;
   const coplanar: BspItem[] = [items[splitter.index]!];
   const front: BspItem[] = [];
   const back: BspItem[] = [];
   for (let i = 0; i < items.length; i += 1) {
     if (i === splitter.index) continue;
-    const parts = partition(items[i]!, splitter.plane);
+    const item = items[i]!;
+    const parts = partition(item, splitter.plane, toleranceFor(item, splitter.plane, edgeInk), nearIsFront);
     coplanar.push(...parts.coplanar);
     front.push(...parts.front);
     back.push(...parts.back);
@@ -202,8 +265,8 @@ export function buildBsp(items: BspItem[], depth = 0): BspNode | null {
   return {
     plane: splitter.plane,
     coplanar: sortCoplanar(coplanar),
-    front: buildBsp(front, depth + 1),
-    back: buildBsp(back, depth + 1),
+    front: subdivide(front, edgeInk, eye, depth + 1),
+    back: subdivide(back, edgeInk, eye, depth + 1),
   };
 }
 
