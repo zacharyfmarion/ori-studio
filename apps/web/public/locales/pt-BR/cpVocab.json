@@ -93,7 +93,8 @@
       "tooltip": "Arraste um vinco usando o tipo de linha atual",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste a extremidade do vinco"
+        "0": "Clique ou arraste para definir o início do vinco",
+        "1": "Clique para definir o fim do vinco"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "Desenhar vinco restrito",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste entre pontos existentes"
+        "0": "Clique ou arraste a partir de um ponto existente",
+        "1": "Clique em outro ponto existente"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "Dividir a linha por quantidade",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste para desenhar uma linha a dividir"
+        "0": "Clique ou arraste para iniciar a linha a dividir",
+        "1": "Clique para terminar a linha"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "Dividir a linha por proporção",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste para desenhar uma linha a dividir"
+        "0": "Clique ou arraste para iniciar a linha a dividir",
+        "1": "Clique para terminar a linha"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "Atribuir dobras alternadas de montanha e vale ao longo de uma linha-guia",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste uma linha-guia ao longo dos vincos"
+        "0": "Clique ou arraste para iniciar a linha-guia",
+        "1": "Clique para terminar a linha-guia"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "Atribuir dobras alternadas de montanha e vale aos cruzamentos ao longo de uma linha-guia",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Arraste uma linha-guia através dos cruzamentos"
+        "0": "Clique ou arraste para iniciar a linha-guia",
+        "1": "Clique para terminar a linha-guia"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -502,8 +508,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Medir comprimento 1",
-      "tooltip": "Medir comprimento 1",
+      "label": "Medir comprimento",
+      "tooltip": "Mede a distância entre dois pontos, ou clique em um vinco",
       "disabledReason": "Pronto",
       "steps": {
         "0": "Escolha o primeiro ponto",
@@ -520,8 +526,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Medir ângulo 1",
-      "tooltip": "Medir ângulo 1",
+      "label": "Medir ângulo",
+      "tooltip": "Mede o ângulo em um vértice entre dois pontos",
       "disabledReason": "Pronto",
       "steps": {
         "0": "Escolha o primeiro ponto",
@@ -972,7 +978,8 @@
       "tooltip": "Desenhar uma linha auxiliar do Oriedita",
       "disabledReason": "O modo de inserção de linha auxiliar ainda não foi implementado no núcleo de CP",
       "steps": {
-        "0": "Arraste a extremidade do vinco"
+        "0": "Clique ou arraste para definir o início do vinco",
+        "1": "Clique para definir o fim do vinco"
       }
     }
   },
@@ -1019,11 +1026,6 @@
       },
       "notes": {
         "0": "O ponto não deve estar sobre a extensão da linha A e a linha B não deve ser paralela à linha A."
-      }
-    },
-    "a1Action": {
-      "intro": {
-        "0": "Meça o ângulo selecionando os pontos ABC."
       }
     },
     "a2Action": {
@@ -1125,6 +1127,46 @@
       },
       "notes": {
         "0": "As diferenças de raios entre os círculos concêntricos e os selecionados são iguais."
+      }
+    },
+    "colBlackAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como linhas de borda."
+      },
+      "notes": {
+        "0": "Define o tipo de linha ativo; ele permanece até outro ser escolhido."
+      }
+    },
+    "colBlueAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como vale."
+      },
+      "notes": {
+        "0": "Define o tipo de linha ativo; ele permanece até outro ser escolhido."
+      }
+    },
+    "colCyanAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como linhas auxiliares."
+      },
+      "notes": {
+        "0": "Linhas auxiliares são guias — elas não são dobradas."
+      }
+    },
+    "colRedAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como montanha."
+      },
+      "notes": {
+        "0": "Define o tipo de linha ativo; ele permanece até outro ser escolhido."
+      }
+    },
+    "lineColorAction": {
+      "intro": {
+        "0": "Desenha os novos vincos como linhas não atribuídas."
+      },
+      "notes": {
+        "0": "Vincos não atribuídos ainda não têm direção de dobra, então as verificações de dobrabilidade os ignoram."
       }
     },
     "continuousSymmetricDrawAction": {
@@ -1326,22 +1368,9 @@
         "0": "A forma dobrada é calculada em relação à face inicial."
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "Meça o comprimento selecionando 2 pontos."
-      },
-      "notes": {
-        "0": "O comprimento é medido em unidades de grade.",
-        "1": "O comprimento é relativo ao tamanho do padrão de vincos com tamanho de grade de 1."
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "Meça o comprimento selecionando 2 pontos."
-      },
-      "notes": {
-        "0": "O comprimento é medido em unidades de grade.",
-        "1": "O comprimento é relativo ao tamanho do padrão de vincos com tamanho de grade de 1."
       }
     },
     "makeFlatFoldableAction": {

@@ -19,12 +19,19 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpDocumentState,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
 } from '../../engine/oristudioCpTypes';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
+import type { InlineSimulation } from '../../cp-workspace/inlineSimulation/inlineSimulation';
+import {
+  inlineSimulationSourceCount,
+  setInlineSimulationSource,
+} from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
+import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
@@ -47,10 +54,11 @@ import {
   cpUserAnchorForLineIds,
   foldedFigureUserBounds,
 } from '../../cp-workspace/adapters/cpFoldedToScene';
+import { isFoldedFigureStale } from '../../cp-workspace/folded/foldedFigureStaleness';
 import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
-} from '../../cp-workspace/foldedFigureHandles';
+} from '../../cp-workspace/folded/foldedFigureHandles';
 import { useLayoutStore } from '../layoutStore';
 import {
   registerCommandDialogHost,
@@ -97,6 +105,19 @@ const oristudioCpMocks = vi.hoisted(() => ({
 const exportMocks = vi.hoisted(() => ({
   renderCreasePatternPng: vi.fn(async () => new Uint8Array([1, 2, 3])),
   serializeCreasePatternSvg: vi.fn(() => '<svg role="img"></svg>'),
+  EMPTY_CREASE_EXPORT_CAPTION: { title: '', subtitle: '', description: '' },
+  EMPTY_CREASE_EXPORT_CONTENT: { foldedFigure: null },
+  DEFAULT_CREASE_EXPORT_OPTIONS: {
+    segmentId: null,
+    lineStyle: 'color',
+    lineWidth: 1,
+    pointSize: 0,
+    includeUnassigned: true,
+    showBackgroundColor: true,
+    theme: 'light',
+    includeFoldedFigure: false,
+    caption: { title: '', subtitle: '', description: '' },
+  },
 }));
 
 const bpMocks = vi.hoisted(() => ({
@@ -976,9 +997,10 @@ function sampleBpDocument(): import('../../engine/oristudioBpTypes').OristudioBp
     source: { format: 'generated', filename: 'Untitled.bps', path: null },
     activeSurface: 'tree',
     dirty: true,
-    // The slice centres the default symmetry axis on the tree sheet on load, so
-    // the fixture needs sheet dimensions.
-    snapshot: { tree: { sheet: { width: 20, height: 20 } } },
+    // The slice centres the default symmetry axis on the tree sheet on load and
+    // titles the replaced project from the summary, so the fixture needs sheet
+    // dimensions and a title.
+    snapshot: { summary: { title: 'Sample BP' }, tree: { sheet: { width: 20, height: 20 } } },
   } as import('../../engine/oristudioBpTypes').OristudioBpDocumentState;
 }
 
@@ -1042,6 +1064,42 @@ function editableCpState(lines: OristudioCpLineSegment[]): OristudioCpDocumentSt
       line_segments: lines.length,
       is_empty: lines.length === 0,
     },
+  };
+}
+
+/**
+ * Make the next `insertOristudioCpLineSegments` append to the live document
+ * rather than returning the blank one the default mock hands back. Needed by
+ * any test that reads the document *after* an edit — folded-figure staleness
+ * reselects creases from it, so a blank document would look like "every crease
+ * deleted".
+ */
+function insertAppendsToDocument(): void {
+  oristudioCpMocks.insertOristudioCpLineSegments.mockImplementationOnce(
+    async (segments: OristudioCpLineSegment[]) =>
+      editableCpState([
+        ...(useWorkspaceStore.getState().oristudioCpDocument?.document.crease_pattern
+          .line_segments ?? []),
+        ...segments,
+      ])
+  );
+}
+
+/** Let the fire-and-forget reconcile chain drain. */
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 8; i += 1) await Promise.resolve();
+}
+
+function inlineSimulationFixture(): InlineSimulation {
+  return {
+    id: 'inline-sim-1',
+    box: { center: { x: 0, y: 0 }, width: 100, height: 100, rotation: 0 },
+    z: 1,
+    view: { yaw: 0, pitch: 0, zoom: 1 },
+    sourceBoundary: null,
+    sourceBounds: null,
+    sourceFingerprint: null,
+    segmentIdHint: null,
   };
 }
 
@@ -1517,14 +1575,16 @@ describe('workspace store slices', () => {
     expect(exportMocks.serializeCreasePatternSvg).toHaveBeenCalledWith(
       expect.objectContaining({ edges_vertices: expect.any(Array) }),
       expect.any(Array),
-      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true })
+      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true }),
+      { foldedFigure: null }
     );
 
     await expect(useWorkspaceStore.getState().exportPng(fileService)).resolves.toBe(true);
     expect(exportMocks.renderCreasePatternPng).toHaveBeenCalledWith(
       expect.objectContaining({ edges_vertices: expect.any(Array) }),
       expect.any(Array),
-      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true })
+      expect.objectContaining({ segmentId: null, includeUnassigned: true, showBackgroundColor: true }),
+      { foldedFigure: null }
     );
     expect(fileService.saveBinaryFile).toHaveBeenCalledWith(
       expect.objectContaining({ extensions: ['png'], mimeType: 'image/png' })
@@ -1569,6 +1629,92 @@ describe('workspace store slices', () => {
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
     // A bare CP establishes no design, so the Design workspace keeps the chooser.
     expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+  });
+
+  // The compiler catches a per-document field whose *discard value* nobody
+  // supplied. It cannot catch a `set` that hand-rolls its own field list instead
+  // of spreading the discard, which is what every bug of this shape has actually
+  // been. This asserts the whole scoped set at once, and takes its field list
+  // from the same constant the type is built from — so a field added later is
+  // covered here without anyone remembering to come back.
+  it('leaves nothing of a document behind when it is closed', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+      oristudioCpAnnotations: [
+        createCpImage({
+          src: 'data:image/png;base64,AAAA',
+          naturalWidth: 10,
+          naturalHeight: 10,
+          center: { x: 0, y: 0 },
+          width: 1,
+          height: 1,
+        }),
+      ],
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1, 2] },
+      oristudioCpRevision: 7,
+      oristudioCpDocumentExtensions: { leftover: true },
+    });
+    setInlineSimulationSource('inline-sim-1', { fold: {} as never, modelKey: 'k' });
+
+    await useWorkspaceStore.getState().clearOristudioCpDocument();
+
+    const state = useWorkspaceStore.getState();
+    const discarded = discardCpDocumentState();
+    for (const key of CP_DOCUMENT_SCOPED_KEYS) {
+      expect(state[key], key).toEqual(discarded[key]);
+    }
+    // And the half of a window that is not in the store at all.
+    expect(inlineSimulationSourceCount()).toBe(0);
+  });
+
+  // Opening a `.cp` kept the previous document's windows, which then reported
+  // themselves merely "out of date" over a crease pattern they had never been
+  // built from. The path cleared the folded figures two lines above and simply
+  // did not know about windows — the same miss as undo, in a different place.
+  it('drops inline simulation windows when a crease pattern is opened over them', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+    });
+    setInlineSimulationSource('inline-sim-1', { fold: {} as never, modelKey: 'k' });
+
+    const fileService = createFileService({
+      text: '{"@version":"v1.1","title":"native ori","lineSegments":[]}',
+      name: 'native.ori',
+      path: '/tmp/native.ori',
+    });
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+    expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
+    // The descriptor is only half of a window. Its captured fold lives outside
+    // the store and is hundreds of KB to megabytes; window ids are never reused,
+    // so a fold left behind is unreachable for the rest of the session.
+    expect(inlineSimulationSourceCount()).toBe(0);
+  });
+
+  it('drops inline simulation windows when the document is replaced', async () => {
+    // Windows name a region of the document they were opened over. Leaving them
+    // behind parks a live simulation of the old paper on top of the new one —
+    // the same reason folded figures and annotations are cleared here.
+    resetStores(seedSnapshot());
+    useLayoutStore.setState({ activateWorkspace: vi.fn() });
+    useWorkspaceStore.setState({
+      engineReady: true,
+      status: 'ready',
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+    });
+
+    await useWorkspaceStore.getState().createNewCreasePattern();
+
+    expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
   });
 
   it('ensureEditCreasePattern offers the Design chooser only for a design-less bare CP', async () => {
@@ -2295,7 +2441,7 @@ describe('workspace store slices', () => {
     ).toHaveLength(2);
   });
 
-  it('tracks generated folded figures and marks them stale after CP geometry edits', async () => {
+  it('tracks generated folded figures and records the region they were folded from', async () => {
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0', {
       filename: 'line.cp',
@@ -2353,22 +2499,179 @@ describe('workspace store slices', () => {
     // after folding doesn't take them with it.
     expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
 
+    // The fold records where its creases were, so it can later be compared
+    // against a fresh reselect of that region (Oriedita's refold check, ported
+    // per figure — see lib/foldedFigureStaleness.ts).
+    expect(foldedFigure.sourceBounds).toEqual({ minX: 0, minY: 0, maxX: 1, maxY: 0 });
+    expect(foldedFigure.sourceLineIds).toEqual([1]);
+    expect(foldedFigure.sourceFingerprint).toEqual(expect.any(String));
+
+    // An edit clear of that region leaves the figure alone. The flag this
+    // replaced marked *every* figure stale on *any* edit, which is both wrong
+    // and useless for deciding whether a refold is warranted.
+    insertAppendsToDocument();
+    await expect(
+      useWorkspaceStore.getState().insertOristudioCpLineSegments([
+        cpLine({ x: 5, y: 5 }, { x: 6, y: 6 }),
+      ])
+    ).resolves.toBe(true);
+    expect(
+      isFoldedFigureStale(
+        useWorkspaceStore.getState().oristudioCpDocument!.document,
+        useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!
+      )
+    ).toBe(false);
+
+    // An edit touching the region does mark it out of date.
+    insertAppendsToDocument();
     await expect(
       useWorkspaceStore.getState().insertOristudioCpLineSegments([
         cpLine({ x: 0, y: 0 }, { x: 1, y: 1 }),
       ])
     ).resolves.toBe(true);
 
-    expect(useWorkspaceStore.getState().oristudioCpRevision).toBe(1);
+    expect(useWorkspaceStore.getState().oristudioCpRevision).toBe(2);
+    expect(
+      isFoldedFigureStale(
+        useWorkspaceStore.getState().oristudioCpDocument!.document,
+        useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!
+      )
+    ).toBe(true);
+    // Status stays `ready`: the kernel handle is still valid, it was just folded
+    // from creases that have since moved. Upstream likewise keeps folding the
+    // handle it has (FoldingServiceImpl holds its own lineSegmentsForFolding).
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toMatchObject({
       id: foldedFigure.id,
       handle: 7,
-      status: 'stale',
+      status: 'ready',
+    });
+    await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(true);
+  });
+
+  it('refolds a stale figure in place, keeping its placement and identity', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    // Move the figure, then edit one of its creases.
+    useWorkspaceStore.getState().setOristudioCpFoldedFigurePlacement(before.id, {
+      offset: { x: 12, y: 34 },
+    });
+    insertAppendsToDocument();
+    await expect(
+      useWorkspaceStore.getState().insertOristudioCpLineSegments([
+        cpLine({ x: 0, y: 0 }, { x: 1, y: 1 }),
+      ])
+    ).resolves.toBe(true);
+
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+    ).resolves.toBe(true);
+
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    // Same figure, where the user left it — upstream discards on a changed CP,
+    // but here a folded figure is a placed canvas object, not a transient view.
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(1);
+    expect(after.id).toBe(before.id);
+    expect(after.placement.offset).toEqual({ x: 12, y: 34 });
+    expect(after.displayStyle).toBe(before.displayStyle);
+    expect(after.status).toBe('ready');
+    // Re-baselined, so it reads as up to date until the creases move again.
+    expect(
+      isFoldedFigureStale(
+        useWorkspaceStore.getState().oristudioCpDocument!.document,
+        after
+      )
+    ).toBe(false);
+  });
+
+  // A refold that fails is a no-op: the figure on the canvas is still valid, it
+  // is the crease pattern that cannot be folded. Destroying it would lose the
+  // user's placement and styling over a problem elsewhere.
+  it('keeps the figure when a refold throws', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    oristudioCpMocks.foldOristudioCpDocument.mockRejectedValueOnce({
+      code: 'invalid_operation',
+      message: 'two faces meet with the same orientation across a crease',
+    });
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+    ).resolves.toBe(false);
+
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(after).toEqual(before);
+    expect(after.status).toBe('ready');
+    expect(after.renderSnapshot).not.toBeNull();
+    // The old kernel handle is untouched: it is released only after a success.
+    expect(after.handle).toBe(before.handle);
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).not.toHaveBeenCalledWith(before.handle);
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('same orientation');
+  });
+
+  // The subtler half: a fold can *return* having found nothing. A global
+  // flat-foldability contradiction concludes at the transparent development with
+  // no layer ordering, so swapping the result in would blank the figure.
+  it('keeps the figure when a refold returns nothing drawable', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    oristudioCpMocks.foldOristudioCpDocument.mockResolvedValueOnce({
+      handle: 21,
+      snapshot: { ...foldedFigureSnapshot(), wireframe: null, discovered_fold_cases: 0 },
+    });
+    oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockResolvedValueOnce({
+      ...foldedRenderSnapshot(),
+      primitives: [],
     });
 
-    await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(false);
-    expect(oristudioCpMocks.foldOristudioCpFigureAnother).not.toHaveBeenCalled();
-    expect(useWorkspaceStore.getState().oristudioCpError).toContain('Refold');
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(before.id)
+    ).resolves.toBe(false);
+
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(after).toEqual(before);
+    expect(after.handle).toBe(before.handle);
+    // The handle the failed fold allocated is freed rather than leaked.
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(21);
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('folded flat');
+  });
+
+  it('refuses to refold a figure whose source creases are gone', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const figure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+    // Empty the crease pattern out from under it.
+    useWorkspaceStore.setState({ oristudioCpDocument: editableCpState([]) });
+
+    await expect(
+      useWorkspaceStore.getState().refoldOristudioCpFoldedFigure(figure.id)
+    ).resolves.toBe(false);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]).toMatchObject({
+      id: figure.id,
+      status: 'ready',
+    });
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('gone');
   });
 
   it('passes active editable CP line selection into folded figure folding', async () => {
@@ -2595,6 +2898,245 @@ describe('workspace store slices', () => {
     });
   });
 
+  // --- Kernel/cache reconciliation on overlay undo -------------------------
+  //
+  // A figure's appearance lives in the kernel behind its handle, and every
+  // history entry for that figure points at the same mutable handle. Overlay
+  // undo swaps only the web entries, so without a reconcile the kernel keeps the
+  // undone model and the next kernel re-render (a reselect is the cheapest one)
+  // brings it back.
+
+  // A fresh handle per test. The kernel hands out a new slot for every fold, and
+  // the slice remembers what it last wrote per *handle* — so reusing one across
+  // tests would let one test's belief silently satisfy the next test's reconcile.
+  let nextTestHandle = 100;
+
+  function seedFoldedFigureForModelTests(model?: Partial<OristudioCpFoldedFigureModel>) {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const snapshot = foldedFigureSnapshot();
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: (nextTestHandle += 1),
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: { ...snapshot, model: { ...snapshot.model, ...model } },
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+    });
+    return figure;
+  }
+
+  /** The model each `setOristudioCpFoldedFigureModel` call pushed, in order. */
+  function kernelModelWrites(): OristudioCpFoldedFigureModel[] {
+    return oristudioCpMocks.setOristudioCpFoldedFigureModel.mock.calls.map(
+      (call) => call[1] as OristudioCpFoldedFigureModel
+    );
+  }
+
+  const RED = { red: 255, green: 0, blue: 0 };
+  const BLUE = { red: 0, green: 0, blue: 255 };
+
+  it('pushes the restored model back into the kernel after an overlay undo', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    const original = figure.snapshot!.model;
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
+        ...foldedFigureSnapshot(),
+        model,
+      })
+    );
+
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    await useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: RED });
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
+
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+
+    // The web state reverted, and the kernel was told about it.
+    expect(
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.model.front_color
+    ).toEqual(original.front_color);
+    expect(kernelModelWrites().at(-1)?.front_color).toEqual(original.front_color);
+  });
+
+  it('leaves undo synchronous, so a burst is never dropped by historyBusy', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    let resolveWrite: null | (() => void) = null;
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      (_handle: number, model: OristudioCpFoldedFigureModel) =>
+        new Promise<OristudioCpFoldedFigureSnapshot>((resolve) => {
+          resolveWrite = () => resolve({ ...foldedFigureSnapshot(), model });
+        })
+    );
+
+    // Three recorded model steps.
+    for (const color of [RED, BLUE, { red: 0, green: 255, blue: 0 }]) {
+      const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: [
+          {
+            ...useWorkspaceStore.getState().oristudioCpFoldedFigures[0],
+            snapshot: {
+              ...figure.snapshot!,
+              model: { ...figure.snapshot!.model, front_color: color },
+            },
+          },
+        ],
+      });
+      useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
+    }
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(3);
+
+    // Undo three times without yielding — the kernel write is still pending, so
+    // if the branch had become async, historyBusy would swallow calls 2 and 3.
+    const results = [
+      useWorkspaceStore.getState().undo(),
+      useWorkspaceStore.getState().undo(),
+      useWorkspaceStore.getState().undo(),
+    ];
+    await Promise.all(results);
+    // Each call consumed an entry. If the overlay branch awaited the kernel,
+    // historyBusy would still be set for calls 2 and 3 and they would no-op.
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(0);
+    expect(useWorkspaceStore.getState().historyBusy).toBe(false);
+    (resolveWrite as (() => void) | null)?.();
+  });
+
+  it('settles the kernel on the final state after a burst of undos', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    const original = figure.snapshot!.model;
+    // Resolve out of order: each write takes longer than the one after it, so a
+    // design that let writes race would leave the kernel on an intermediate.
+    let delay = 30;
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      (_handle: number, model: OristudioCpFoldedFigureModel) => {
+        const wait = (delay -= 10);
+        return new Promise((resolve) =>
+          setTimeout(() => resolve({ ...foldedFigureSnapshot(), model }), Math.max(wait, 0))
+        );
+      }
+    );
+
+    for (const color of [RED, BLUE]) {
+      const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: [
+          {
+            ...useWorkspaceStore.getState().oristudioCpFoldedFigures[0],
+            snapshot: {
+              ...figure.snapshot!,
+              model: { ...figure.snapshot!.model, front_color: color },
+            },
+          },
+        ],
+      });
+      useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
+    }
+
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
+    await Promise.all([
+      useWorkspaceStore.getState().undo(),
+      useWorkspaceStore.getState().undo(),
+    ]);
+    // Whatever order the round-trips completed in, the kernel ends on the state
+    // the burst settled on — never on the intermediate it passed through.
+    await vi.waitFor(() =>
+      expect(kernelModelWrites().at(-1)?.front_color).toEqual(original.front_color)
+    );
+    expect(kernelModelWrites().some((m) => m.front_color.blue === 255)).toBe(false);
+  });
+
+  it('skips a reconcile that would not change the kernel', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
+        ...foldedFigureSnapshot(),
+        model,
+      })
+    );
+    // Colour first, so the kernel holds RED...
+    await useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: RED });
+    // ...then a placement-only step on top of it. Undoing that step restores a
+    // model identical to what the kernel already has.
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    useWorkspaceStore
+      .getState()
+      .setOristudioCpFoldedFigurePlacement(figure.id, { offset: { x: 4, y: 0 } });
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Move folded form');
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
+
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].placement).toEqual(
+      IDENTITY_FOLDED_PLACEMENT
+    );
+    // Nothing kernel-held changed, so the reconcile cost a comparison and no
+    // round-trip. This is what keeps a held-down undo cheap.
+    expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a failed reconcile instead of drifting silently', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
+        ...foldedFigureSnapshot(),
+        model,
+      })
+    );
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    await useWorkspaceStore
+      .getState()
+      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: RED });
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
+
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockRejectedValue(new Error('kernel gone'));
+    await useWorkspaceStore.getState().undo();
+    await vi.waitFor(() =>
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].status).toBe('error')
+    );
+    expect(useWorkspaceStore.getState().oristudioCpError).toContain('kernel gone');
+  });
+
+  it('does not reconcile a figure the undo removed', async () => {
+    const figure = seedFoldedFigureForModelTests();
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockImplementation(
+      async (_handle: number, model: OristudioCpFoldedFigureModel) => ({
+        ...foldedFigureSnapshot(),
+        model,
+      })
+    );
+    // Undoing "add figure": the previous state had no figures at all.
+    useWorkspaceStore.getState().recordFoldedFigureHistory([], 'Fold model');
+    oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
+
+    await useWorkspaceStore.getState().undo();
+    await flushMicrotasks();
+
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toHaveLength(0);
+    expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).not.toHaveBeenCalled();
+    expect(figure.id).toBe('generated-1');
+  });
+
   it('shares renderSnapshot objects across history entries so undo memory stays bounded', () => {
     resetStores(seedSnapshot());
     const untouched: OristudioCpFoldedFigureEntry = {
@@ -2675,6 +3217,108 @@ describe('workspace store slices', () => {
       useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(figure.id, { state: 'Back1' })
     ).resolves.toBe(true);
     expect(oristudioCpMocks.setOristudioCpFoldedFigureModel).toHaveBeenCalled();
+  });
+
+  // Windows were saved to `.osf` but left out of history entirely, so deleting
+  // one and pressing undo did nothing at all.
+  describe('simulation windows in undo', () => {
+    function seedWindow() {
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+        oristudioCpInlineSimulations: [inlineSimulationFixture()],
+        oristudioCpHistoryPast: [],
+        oristudioCpHistoryFuture: [],
+      });
+      return useWorkspaceStore.getState().oristudioCpInlineSimulations;
+    }
+
+    it('restores a deleted window', async () => {
+      // The reported bug: delete, undo, nothing happened. Deleting records its
+      // own entry, so no test-side bookkeeping — this is the real path.
+      seedWindow();
+      useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(0);
+
+      await useWorkspaceStore.getState().undo();
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations[0].id).toBe(
+        'inline-sim-1'
+      );
+    });
+
+    it('takes the window away again on redo', async () => {
+      seedWindow();
+      useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
+      await useWorkspaceStore.getState().undo();
+      await useWorkspaceStore.getState().redo();
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(0);
+    });
+
+    it('undoes a move as one step, not one per pointermove', async () => {
+      seedWindow();
+      const moved = { center: { x: 40, y: 40 }, width: 100, height: 100, rotation: 0 };
+      // What a drag looks like: one checkpoint, many updates, one commit.
+      useWorkspaceStore.getState().recordInlineSimulationHistory(
+        useWorkspaceStore.getState().oristudioCpInlineSimulations,
+        'Move simulation window'
+      );
+      for (let x = 10; x <= 40; x += 10) {
+        useWorkspaceStore.getState().updateOristudioCpInlineSimulation('inline-sim-1', {
+          box: { ...moved, center: { x, y: x } },
+        });
+      }
+      expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
+
+      await useWorkspaceStore.getState().undo();
+      expect(
+        useWorkspaceStore.getState().oristudioCpInlineSimulations[0].box.center
+      ).toEqual({ x: 0, y: 0 });
+    });
+
+    it('leaves focus, scrubbing and playback out of history', () => {
+      // Transport, not content. A fold percentage moves ~15 times a second, so an
+      // entry per change would bury every real edit under it.
+      seedWindow();
+      useWorkspaceStore.getState().focusOristudioCpInlineSimulation('inline-sim-1');
+      useWorkspaceStore.getState().focusOristudioCpInlineSimulation(null);
+      expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(0);
+    });
+
+    it('brings a restored window back unfocused', async () => {
+      // History restores content, not what was selected — the same reason undo
+      // drops the annotation selection. An unfocused window is also one whose
+      // solver is not running, which is right for one just reappearing.
+      seedWindow();
+      useWorkspaceStore.getState().focusOristudioCpInlineSimulation('inline-sim-1');
+      useWorkspaceStore.getState().removeOristudioCpInlineSimulation('inline-sim-1');
+
+      await useWorkspaceStore.getState().undo();
+      expect(
+        useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId
+      ).toBeNull();
+    });
+
+    it('leaves live windows alone for an entry that never captured them', async () => {
+      // Entries written before windows joined the stack have no
+      // `inlineSimulations`; restoring `undefined` over the live list would wipe
+      // the user's windows. Same rule, same reason, as folded figures.
+      seedWindow();
+      const legacyEntry = {
+        document: useWorkspaceStore.getState().oristudioCpDocument!.document,
+        selection: emptyOristudioCpSelection(),
+        annotations: [],
+        foldedFigures: [],
+        activeFoldedFigureId: null,
+        overlayOnly: true,
+        label: 'Move image',
+        timestamp: '2026-01-01T00:00:00.000Z',
+      };
+      useWorkspaceStore.setState({ oristudioCpHistoryPast: [legacyEntry as never] });
+
+      await useWorkspaceStore.getState().undo();
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+    });
   });
 
   it('marks the project dirty for folded figure edits so they cannot be lost silently', async () => {
@@ -2800,6 +3444,124 @@ describe('workspace store slices', () => {
     // Clearing one leaves the other alone rather than forcing a deselect.
     useWorkspaceStore.getState().setSelectedAnnotation(null);
     expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+  });
+
+  // The crease selection is the fourth holder of the same single selection, and
+  // used to be outside the rule entirely. That is what let a focused simulation
+  // window and a selected crease both be live, so one Delete deleted both.
+  it('keeps the canvas selection exclusive between creases and every object kind', () => {
+    resetStores(seedSnapshot());
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: 7,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    const annotation = createCpImage({
+      src: 'data:image/png;base64,AAAA',
+      naturalWidth: 10,
+      naturalHeight: 10,
+      center: { x: 0, y: 0 },
+      width: 1,
+      height: 1,
+    });
+    const selectCreases = () =>
+      useWorkspaceStore.getState().toggleOristudioCpLineSelection(3);
+    const state = () => useWorkspaceStore.getState();
+
+    for (const [name, select] of [
+      ['annotation', () => state().setSelectedAnnotation(annotation.id)],
+      ['folded figure', () => state().setOristudioCpActiveFoldedFigure(figure.id)],
+      [
+        'inline simulation',
+        () => state().focusOristudioCpInlineSimulation('inline-sim-1'),
+      ],
+    ] as const) {
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: [figure],
+        oristudioCpAnnotations: [annotation],
+        oristudioCpInlineSimulations: [inlineSimulationFixture()],
+        oristudioCpSelectedAnnotationId: null,
+        oristudioCpActiveFoldedFigureId: null,
+        oristudioCpFocusedInlineSimulationId: null,
+        oristudioCpSelection: emptyOristudioCpSelection(),
+      });
+
+      // Selecting a crease first, then the object: the creases go.
+      selectCreases();
+      expect(state().oristudioCpSelection.lines, name).toEqual([3]);
+      select();
+      expect(state().oristudioCpSelection.lines, name).toEqual([]);
+
+      // And the other way round: clicking a crease gives up the object.
+      select();
+      selectCreases();
+      expect(state().oristudioCpSelectedAnnotationId, name).toBeNull();
+      expect(state().oristudioCpActiveFoldedFigureId, name).toBeNull();
+      expect(state().oristudioCpFocusedInlineSimulationId, name).toBeNull();
+      expect(state().oristudioCpSelection.lines, name).toEqual([3]);
+    }
+  });
+
+  // The setters are not the only way creases get selected: executing a CP
+  // operation writes the selection straight from the document it returns. That
+  // path bypassed the invariant, so a select tool left a focused simulation
+  // window highlighted *and* creases selected — the two-selections state the
+  // invariant exists to prevent, reachable by the most ordinary route there is.
+  it('applies the canvas rule to a selection that came from the kernel', () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [2, 4] },
+    });
+
+    useWorkspaceStore.getState().claimCanvasForCreaseSelection();
+
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
+    // The creases the command selected are untouched — this only moves the claim.
+    expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([2, 4]);
+  });
+
+  it('costs nothing when the creases already hold the canvas', () => {
+    // It runs after every CP operation, so the ordinary case must not write.
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    const before = useWorkspaceStore.getState();
+
+    useWorkspaceStore.getState().claimCanvasForCreaseSelection();
+
+    expect(useWorkspaceStore.getState()).toBe(before);
+  });
+
+  it('lets an empty crease selection release the canvas rather than claim it', () => {
+    // Tools clear the selection as they start; that must not also drop the
+    // reference image or folded figure the user is working next to.
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpFocusedInlineSimulationId: 'inline-sim-1',
+    });
+
+    useWorkspaceStore.getState().setOristudioCpSelection(emptyOristudioCpSelection());
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe(
+      'inline-sim-1'
+    );
+
+    useWorkspaceStore.getState().clearOristudioCpSelection();
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe(
+      'inline-sim-1'
+    );
   });
 
   it('rerenders folded figure selected markers when the active figure changes', async () => {
@@ -4123,6 +4885,44 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().foldArtifactError).toBeNull();
   });
 
+  it('ignores a fold artifact response for a document that has since been replaced', async () => {
+    // Same guarantee as above, but for a *document load* rather than an edit.
+    // A load resets the whole fold-artifact resource, so the request bookkeeping
+    // cannot live in it: restarted at zero, the in-flight request for the file
+    // being closed matched the one for the file being opened and won the race.
+    const api = resetStores(seedSnapshot());
+    const builtSnapshot = await api.buildCreasePattern();
+    loadSnapshotIntoStore(builtSnapshot);
+    const currentArtifacts = foldArtifactsFromSnapshot(builtSnapshot);
+    const closedFileArtifacts: FoldArtifacts = {
+      ...currentArtifacts,
+      folded_base_error: 'artifacts for the file that was closed',
+    };
+    let resolveClosedFile: (artifacts: FoldArtifacts) => void = () => undefined;
+    const closedFilePromise = new Promise<FoldArtifacts>((resolve) => {
+      resolveClosedFile = resolve;
+    });
+    api.foldArtifacts
+      .mockImplementationOnce(async () => closedFilePromise)
+      .mockResolvedValueOnce(currentArtifacts);
+
+    const closedFileRequest = useWorkspaceStore.getState().ensureFoldArtifacts();
+    expect(useWorkspaceStore.getState().foldArtifactStatus).toBe('loading');
+
+    await useWorkspaceStore.getState().loadProjectText('another tree', {
+      filename: 'another.tmd5',
+      path: '/tmp/another.tmd5',
+    });
+    await expect(useWorkspaceStore.getState().ensureFoldArtifacts()).resolves.toBe(
+      currentArtifacts
+    );
+
+    resolveClosedFile(closedFileArtifacts);
+    await expect(closedFileRequest).resolves.toBe(closedFileArtifacts);
+
+    expect(useWorkspaceStore.getState().foldArtifacts).toBe(currentArtifacts);
+  });
+
   it('plans a folding sequence from loaded fold artifacts', async () => {
     const api = resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
@@ -4207,6 +5007,54 @@ describe('workspace store slices', () => {
       expect(state.oristudioBpDocument).not.toBeNull();
       expect(state.workflowTarget).toBe('box-pleat');
       expect(state.activeEditingContext).toBe('bp-tree');
+    });
+
+    it('discards the previously open document when a .bps replaces it', async () => {
+      // Regression: opening a box-pleat project replaced only the BP document
+      // and left the previous file's project and fold artifacts in the store.
+      // The Simulate workspace simulates `foldArtifacts` verbatim and only
+      // re-derives them when they are null, so the file the user had just
+      // closed kept folding under the new project's name.
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
+        filename: 'crease.cp',
+        path: '/tmp/crease.cp',
+      });
+      expect(useWorkspaceStore.getState().foldArtifacts).not.toBeNull();
+
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: '/tmp/crane.bps',
+      });
+
+      const state = useWorkspaceStore.getState();
+      expect(state.foldArtifacts).toBeNull();
+      expect(state.foldArtifactStatus).toBe('stale');
+      expect(state.oristudioCpDocument).toBeNull();
+      expect(state.project.creases).toHaveLength(0);
+      expect(state.project.title).toBe('Sample BP');
+    });
+
+    it('keeps the live Edit canvas when the design chooser seeds a box-pleat project', async () => {
+      // The counterpart to the test above: the chooser layers a design onto the
+      // project already being authored rather than replacing it, so its crease
+      // pattern — and the artifacts derived from it — must survive.
+      resetStores(seedSnapshot());
+      await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
+        filename: 'crease.cp',
+        path: '/tmp/crease.cp',
+      });
+      const artifacts = useWorkspaceStore.getState().foldArtifacts;
+      expect(artifacts).not.toBeNull();
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .createOristudioBpProject({ preserveEditCanvas: true, confirmDiscard: false })
+      ).resolves.toBe(true);
+
+      expect(useWorkspaceStore.getState().foldArtifacts).toBe(artifacts);
+      expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
     });
 
     it('saves a box-pleat design as a native .osf bundling the bps payload', async () => {

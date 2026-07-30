@@ -363,12 +363,276 @@ pub fn triangulate_faces(fold: &FoldDocument) -> Result<FoldDocument> {
 
 /// Prepare triangulated FOLD geometry and crease parameters for a simulator.
 pub fn prepare_simulation_model(fold: &FoldDocument) -> Result<PreparedFoldModel> {
-    let triangulated = triangulate_faces(fold)?;
+    validate_basic(fold)?;
+    let mut merged = fold.clone();
+    remove_redundant_vertices(&mut merged, REDUNDANT_VERTEX_EPSILON);
+    let triangulated = triangulate_faces(&merged)?;
     let crease_params = build_crease_params(&triangulated)?;
     Ok(PreparedFoldModel {
         fold: triangulated,
         crease_params,
     })
+}
+
+/// Upstream Origami Simulator's collinearity tolerance, from both of its call
+/// sites (`pattern.js:551` and `:586`): the dot product of the two neighbour
+/// directions must be within this of -1.
+///
+/// Kept at upstream's value rather than tuned, matching the TypeScript port in
+/// `packages/origami-simulator`. It admits a kink up to 8.11 degrees off straight,
+/// and merges cascade along a chain, so a polyline approximating a curved crease
+/// can collapse toward a single segment.
+const REDUNDANT_VERTEX_EPSILON: f64 = 0.01;
+
+/// Merge a crease split across two collinear segments back into one crease, and
+/// return how many vertices went away.
+///
+/// Port of upstream `removeRedundantVertices` (pattern.js:865) with its
+/// `mergeEdge` (pattern.js:918), mirroring `removeRedundantVertices` in
+/// `packages/origami-simulator/src/prepare.ts` so the two engines agree.
+///
+/// A vertex with exactly two neighbours, collinear with both and carrying the
+/// same assignment on either side, holds nothing the simulator can use. Left in
+/// place it breaks the model: `triangulate_quad` picks the shorter diagonal, which
+/// may run straight through the vertex, and the zero-area triangle that results
+/// leaves each half incident to one face instead of two. `build_crease_params`
+/// then rejects the whole document with `BadCreaseTopology`, where the TypeScript
+/// path silently dropped the crease.
+///
+/// Sequential and mutating, like upstream: each merge rewrites the neighbour map,
+/// so a chain of collinear vertices collapses progressively into one edge.
+fn remove_redundant_vertices(fold: &mut FoldDocument, epsilon: f64) -> usize {
+    let source_edge_count = fold.edges_vertices.len();
+    // Upstream's same-assignment rule cannot be honoured without a full
+    // assignment array, and a document without one has no crease to lose.
+    if fold.edges_assignment.len() != source_edge_count {
+        return 0;
+    }
+    let vertex_count = fold.vertices_coords.len();
+    let mut neighbors: Vec<Vec<usize>> = vec![Vec::new(); vertex_count];
+    for edge in &fold.edges_vertices {
+        neighbors[edge[0]].push(edge[1]);
+        neighbors[edge[1]].push(edge[0]);
+    }
+    let mut edge_sources: Vec<usize> = (0..source_edge_count).collect();
+    let mut merged = vec![false; vertex_count];
+    let mut count = 0;
+
+    for vertex in 0..vertex_count {
+        if neighbors[vertex].len() != 2 {
+            continue;
+        }
+        let (first, second) = (neighbors[vertex][0], neighbors[vertex][1]);
+        if !is_straight_through(fold, vertex, first, second, epsilon) {
+            continue;
+        }
+        if merge_edge(
+            fold,
+            &mut neighbors,
+            &mut edge_sources,
+            first,
+            vertex,
+            second,
+        ) {
+            merged[vertex] = true;
+            count += 1;
+        }
+    }
+    if count == 0 {
+        return 0;
+    }
+    drop_merged_vertices(fold, &merged);
+    remap_edge_extension_arrays(fold, source_edge_count, &edge_sources);
+    count
+}
+
+/// Upstream's test: the two neighbour directions point opposite, within `epsilon`.
+fn is_straight_through(
+    fold: &FoldDocument,
+    vertex: usize,
+    first: usize,
+    second: usize,
+    epsilon: f64,
+) -> bool {
+    let component = |index: usize, axis: usize| {
+        fold.vertices_coords[index]
+            .get(axis)
+            .copied()
+            .unwrap_or(0.0)
+    };
+    let mut to_first = [0.0; 3];
+    let mut to_second = [0.0; 3];
+    for axis in 0..3 {
+        let origin = component(vertex, axis);
+        to_first[axis] = component(first, axis) - origin;
+        to_second[axis] = component(second, axis) - origin;
+    }
+    let magnitude = |v: [f64; 3]| (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+    let (mag_first, mag_second) = (magnitude(to_first), magnitude(to_second));
+    if mag_first == 0.0 || mag_second == 0.0 {
+        return false;
+    }
+    let dot =
+        (to_first[0] * to_second[0] + to_first[1] * to_second[1] + to_first[2] * to_second[2])
+            / (mag_first * mag_second);
+    (dot + 1.0).abs() < epsilon
+}
+
+/// Replace the two edges meeting at `centre` with one spanning them, per upstream
+/// `mergeEdge`: the assignment must match on both sides, and the merged fold angle
+/// is the mean of the non-zero angles, or none when neither is set.
+fn merge_edge(
+    fold: &mut FoldDocument,
+    neighbors: &mut [Vec<usize>],
+    edge_sources: &mut Vec<usize>,
+    first: usize,
+    centre: usize,
+    second: usize,
+) -> bool {
+    // Descending, so a splice cannot disturb an index still to be removed.
+    let mut halves = Vec::with_capacity(2);
+    for (index, edge) in fold.edges_vertices.iter().enumerate().rev() {
+        let other = if edge[0] == centre {
+            edge[1]
+        } else if edge[1] == centre {
+            edge[0]
+        } else {
+            continue;
+        };
+        if other == first || other == second {
+            halves.push(index);
+        }
+    }
+    let [high, low] = match halves[..] {
+        [high, low] => [high, low],
+        _ => return false,
+    };
+    let assignment = fold.edges_assignment[high];
+    if assignment != fold.edges_assignment[low] {
+        return false;
+    }
+    // Narrower than upstream, matching the TypeScript port: a merge can only
+    // rescue a crease the solver folds, and a crease-free border subdivision is
+    // mesh resolution that a quality triangulator needs. See `mergeEdge` in
+    // `packages/origami-simulator/src/prepare.ts` for the measurement behind it.
+    if !assignment.is_driven_crease() {
+        return false;
+    }
+    // Upstream never meets this case, because it removes these vertices before
+    // faces exist and so cannot re-run on its own output. Merging into an edge
+    // that already exists would leave a duplicate with no face -- the very shape
+    // of the bug this pass removes.
+    if find_edge(&fold.edges_vertices, first, second).is_some() {
+        return false;
+    }
+
+    let has_angles = fold.edges_fold_angle.len() == fold.edges_vertices.len();
+    let merged_angle = if has_angles {
+        let set: Vec<f64> = [fold.edges_fold_angle[high], fold.edges_fold_angle[low]]
+            .into_iter()
+            .flatten()
+            .filter(|angle| *angle != 0.0)
+            .collect();
+        if set.is_empty() {
+            None
+        } else {
+            Some(set.iter().sum::<f64>() / set.len() as f64)
+        }
+    } else {
+        None
+    };
+    let source = edge_sources[low];
+
+    for index in [high, low] {
+        fold.edges_vertices.remove(index);
+        fold.edges_assignment.remove(index);
+        if has_angles {
+            fold.edges_fold_angle.remove(index);
+        }
+        edge_sources.remove(index);
+    }
+    fold.edges_vertices.push([first, second]);
+    fold.edges_assignment.push(assignment);
+    if has_angles {
+        fold.edges_fold_angle.push(merged_angle);
+    }
+    edge_sources.push(source);
+
+    replace_neighbor(&mut neighbors[first], centre, second);
+    replace_neighbor(&mut neighbors[second], centre, first);
+    true
+}
+
+fn replace_neighbor(neighbors: &mut [usize], from: usize, to: usize) {
+    if let Some(slot) = neighbors.iter_mut().find(|vertex| **vertex == from) {
+        *slot = to;
+    }
+}
+
+/// Compact the merged vertices away and re-index. A face ring that falls below
+/// three vertices was already zero-area; upstream cannot meet the case because it
+/// builds faces after this pass.
+fn drop_merged_vertices(fold: &mut FoldDocument, merged: &[bool]) {
+    let mut remap = vec![usize::MAX; fold.vertices_coords.len()];
+    let mut coords = Vec::with_capacity(fold.vertices_coords.len());
+    for (index, coord) in fold.vertices_coords.drain(..).enumerate() {
+        if merged[index] {
+            continue;
+        }
+        remap[index] = coords.len();
+        coords.push(coord);
+    }
+    fold.vertices_coords = coords;
+    for edge in &mut fold.edges_vertices {
+        edge[0] = remap[edge[0]];
+        edge[1] = remap[edge[1]];
+    }
+    fold.faces_vertices = fold
+        .faces_vertices
+        .drain(..)
+        .filter_map(|face| {
+            let next: Vec<usize> = face
+                .into_iter()
+                .filter(|vertex| !merged[*vertex])
+                .map(|vertex| remap[vertex])
+                .collect();
+            (next.len() >= 3).then_some(next)
+        })
+        .collect();
+    // Both are rebuilt from the new edge list before anything reads them.
+    fold.faces_edges.clear();
+    fold.edges_faces.clear();
+}
+
+/// Re-index the namespaced per-edge arrays onto the merged edge list. Matched
+/// structurally, so an extension added later is covered without editing this
+/// function; an array whose length disagrees with the source edge count was
+/// already stale and is dropped rather than guessed at.
+fn remap_edge_extension_arrays(
+    fold: &mut FoldDocument,
+    source_edge_count: usize,
+    edge_sources: &[usize],
+) {
+    let keys: Vec<String> = fold
+        .extra
+        .keys()
+        .filter(|key| key.contains(":edges_"))
+        .cloned()
+        .collect();
+    for key in keys {
+        let Some(Value::Array(values)) = fold.extra.get(&key) else {
+            continue;
+        };
+        if values.len() != source_edge_count {
+            fold.extra.remove(&key);
+            continue;
+        }
+        let remapped: Vec<Value> = edge_sources
+            .iter()
+            .map(|source| values[*source].clone())
+            .collect();
+        fold.extra.insert(key, Value::Array(remapped));
+    }
 }
 
 fn build_crease_params(fold: &FoldDocument) -> Result<Vec<CreaseParameter>> {
@@ -766,5 +1030,201 @@ mod tests {
         let error = prepare_simulation_model(&doc).unwrap_err();
 
         assert_eq!(error, FoldError::BadCreaseTopology { edge: 0 });
+    }
+
+    /// The reported case, from `test_files/simulation/inline_simulate_issue.osf`:
+    /// a square with four creases to the centre, where the crease to the top-right
+    /// corner was drawn as two collinear mountains (1-5 and 5-4) and the faces
+    /// beside it are quads whose rings walk through vertex 5.
+    fn collinear_split_crease_doc() -> FoldDocument {
+        let mut doc = FoldDocument::new(
+            vec![
+                vec![-200.0, 200.0],
+                vec![200.0, 200.0],
+                vec![200.0, -200.0],
+                vec![-200.0, -200.0],
+                vec![0.0, 0.0],
+                vec![150.0, 150.0],
+            ],
+            vec![
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 0],
+                [0, 4],
+                [1, 5],
+                [4, 5],
+                [3, 4],
+                [2, 4],
+            ],
+        );
+        doc.edges_assignment = vec![
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Boundary,
+            Assignment::Mountain,
+            Assignment::Mountain,
+            Assignment::Mountain,
+            Assignment::Mountain,
+            Assignment::Valley,
+        ];
+        doc.edges_fold_angle = vec![
+            Some(0.0),
+            Some(0.0),
+            Some(0.0),
+            Some(0.0),
+            Some(-180.0),
+            Some(-180.0),
+            Some(-180.0),
+            Some(-180.0),
+            Some(180.0),
+        ];
+        doc.faces_vertices = vec![
+            vec![0, 1, 5, 4],
+            vec![1, 2, 4, 5],
+            vec![2, 3, 4],
+            vec![0, 4, 3],
+        ];
+        doc
+    }
+
+    #[test]
+    fn merges_a_crease_split_across_two_collinear_segments() {
+        // Before the merge this document failed outright: triangulation ran the
+        // shorter diagonal through vertex 5, and the zero-area triangle left each
+        // half with one incident face, so `build_crease_params` rejected it.
+        let prepared = prepare_simulation_model(&collinear_split_crease_doc()).unwrap();
+
+        assert_eq!(prepared.fold.vertices_coords.len(), 5);
+        let diagonal = find_edge(&prepared.fold.edges_vertices, 1, 4).unwrap();
+        assert_eq!(
+            prepared.fold.edges_assignment[diagonal],
+            Assignment::Mountain
+        );
+        assert_eq!(prepared.fold.edges_fold_angle[diagonal], Some(-180.0));
+        assert_eq!(prepared.fold.edges_faces[diagonal].len(), 2);
+
+        // Four triangles around the centre, each crease driven: 3 mountains, 1 valley.
+        assert_eq!(prepared.fold.faces_vertices.len(), 4);
+        assert_eq!(prepared.crease_params.len(), 4);
+    }
+
+    #[test]
+    fn refuses_to_merge_halves_whose_assignments_disagree() {
+        // Upstream's `mergeEdge` refuses this, so the collinear pair stays and the
+        // document still fails -- the same answer upstream gives.
+        let mut doc = collinear_split_crease_doc();
+        doc.edges_assignment[6] = Assignment::Valley;
+        doc.edges_fold_angle[6] = Some(180.0);
+
+        let mut merged = doc.clone();
+        assert_eq!(remove_redundant_vertices(&mut merged, 0.01), 0);
+        assert_eq!(merged.vertices_coords.len(), 6);
+    }
+
+    #[test]
+    fn collapses_a_chain_of_collinear_crease_segments() {
+        // One diagonal crease drawn in four strokes, split at (1,1), (2,2), (3,3).
+        let mut doc = FoldDocument::new(
+            vec![
+                vec![0.0, 0.0],
+                vec![4.0, 0.0],
+                vec![4.0, 4.0],
+                vec![0.0, 4.0],
+                vec![1.0, 1.0],
+                vec![2.0, 2.0],
+                vec![3.0, 3.0],
+            ],
+            vec![
+                [0, 1],
+                [1, 2],
+                [2, 3],
+                [3, 0],
+                [0, 4],
+                [4, 5],
+                [5, 6],
+                [6, 2],
+            ],
+        );
+        doc.edges_assignment = vec![Assignment::Boundary; 4];
+        doc.edges_assignment.extend([Assignment::Mountain; 4]);
+        doc.edges_fold_angle = vec![Some(0.0); 4];
+        doc.edges_fold_angle.extend([Some(-180.0); 4]);
+        doc.faces_vertices = vec![vec![0, 1, 2, 6, 5, 4], vec![0, 4, 5, 6, 2, 3]];
+
+        assert_eq!(remove_redundant_vertices(&mut doc, 0.01), 3);
+        assert_eq!(doc.vertices_coords.len(), 4);
+        assert!(find_edge(&doc.edges_vertices, 0, 2).is_some());
+    }
+
+    #[test]
+    fn leaves_crease_free_border_subdivisions_alone() {
+        // Narrower than upstream on purpose: no crease to lose, and these points
+        // are the mesh resolution a quality triangulator works with.
+        let mut doc = FoldDocument::new(
+            vec![
+                vec![0.0, 0.0],
+                vec![1.0, 0.0],
+                vec![2.0, 0.0],
+                vec![2.0, 2.0],
+                vec![0.0, 2.0],
+            ],
+            vec![[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]],
+        );
+        doc.edges_assignment = vec![Assignment::Boundary; 5];
+        doc.edges_fold_angle = vec![None; 5];
+        doc.faces_vertices = vec![vec![0, 1, 2, 3, 4]];
+
+        // Vertex 1 is degree-2 and collinear with 0 and 2; upstream would merge it.
+        assert_eq!(remove_redundant_vertices(&mut doc, 0.01), 0);
+        assert_eq!(doc.vertices_coords.len(), 5);
+    }
+
+    #[test]
+    fn keeps_namespaced_per_edge_arrays_aligned_with_the_merged_edge_list() {
+        // The CP kernel reads `oristudio:edges_line_colors` as the crease type, so
+        // an array left in the pre-merge order comes back as scrambled creases.
+        let mut doc = collinear_split_crease_doc();
+        doc.extra.insert(
+            "oristudio:edges_line_colors".to_string(),
+            serde_json::json!([0, 0, 0, 0, 1, 1, 1, 1, 2]),
+        );
+        doc.extra.insert(
+            "oriedita:edges_colors".to_string(),
+            serde_json::json!(["", ""]),
+        );
+
+        remove_redundant_vertices(&mut doc, 0.01);
+
+        let colors = doc.extra["oristudio:edges_line_colors"]
+            .as_array()
+            .unwrap()
+            .clone();
+        assert_eq!(colors.len(), doc.edges_vertices.len());
+        for (index, assignment) in doc.edges_assignment.iter().enumerate() {
+            let expected = match assignment {
+                Assignment::Boundary => 0,
+                Assignment::Mountain => 1,
+                Assignment::Valley => 2,
+                other => panic!("unexpected assignment {other:?}"),
+            };
+            assert_eq!(colors[index], serde_json::json!(expected));
+        }
+        // Stale beyond repair, so dropped rather than misaligned.
+        assert!(!doc.extra.contains_key("oriedita:edges_colors"));
+    }
+
+    #[test]
+    fn leaves_a_document_without_redundant_vertices_untouched() {
+        let mut doc = square_doc();
+        doc.edges_vertices.push([0, 2]);
+        doc.edges_assignment.push(Assignment::Mountain);
+        doc.edges_fold_angle.push(Some(-180.0));
+        doc.faces_vertices = vec![vec![0, 1, 2], vec![0, 2, 3]];
+        let before = doc.clone();
+
+        assert_eq!(remove_redundant_vertices(&mut doc, 0.01), 0);
+        assert_eq!(doc, before);
     }
 }

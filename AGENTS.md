@@ -4,10 +4,31 @@ Guidance for AI coding agents working in this repository.
 
 ## Project overview
 
-`treemaker-rs` is a Rust, WebAssembly, web, and Tauri port of the engine inside
-Robert J. Lang's TreeMaker 5.0.1. TreeMaker turns a tree structure into an
-origami crease pattern. The repository currently owns both the engine port and
-the shared GUI that exercises it.
+**Ori Studio** is a workspace for origami design and analysis: a React/Tauri
+frontend over a family of Rust and WebAssembly engines. The GitHub repository is
+`zacharyfmarion/ori-studio`; some local clones and internal package names still
+carry the older `treemaker-rs` / `@treemaker/*` naming, which is historical and
+does **not** mean the product is TreeMaker.
+
+The product is built largely from ports of existing community origami tools,
+each of which is a distinct upstream with its own parity obligations:
+
+- **Oriedita** — the crease-pattern editing kernel, and the bulk of the app's
+  functionality (`crates/oristudio-cp*`).
+- **TreeMaker 5.0.1** (Robert J. Lang) — turns a tree structure into a crease
+  pattern (`crates/treemaker-*`). One tool within the app, not the app.
+- **Box Pleating Studio** — box-pleating design kernel (`crates/oristudio-bp*`).
+- **Flat-Folder** (Jason S. Ku) — flat-foldability and layer ordering
+  (`crates/treemaker-flatfold`).
+
+Original functionality is built on top of the ports — reference images beside
+crease patterns, crease-pattern detection from images, the origami simulator,
+folding-sequence research — but compatibility with the upstream tools and their
+file formats is a priority.
+
+When naming things in new code and docs, use **Ori Studio** for the product, and
+an upstream's name only when referring to that specific tool, port, or vendored
+source.
 
 The top-level `README.md` is user-facing. Keep architecture notes, porting
 discipline, implementation plans, and agent workflow details in developer docs
@@ -17,36 +38,86 @@ instead of turning the README into an engineering index.
 
 ```text
 crates/
-  treemaker-core/   # Rust engine, file I/O, optimizers, geometry, CP generation
-  treemaker-cli/    # Headless command-line interface
-  treemaker-wasm/   # wasm-bindgen bridge for browser and Node workflows
-  oracle-tests/     # C++ oracle parity and fixture tests
+  # Oriedita-derived crease-pattern editing (the core of the app)
+  oristudio-cp/                   # Oriedita-compatible CP editing kernel
+  oristudio-cp-wasm/              # wasm-bindgen bridge for the CP kernel
+  oristudio-cp-compiler/          # Constraint-aware CP compiler core
+  # Crease-pattern detection from images
+  oristudio-cp-detect/            # Detection core types + oracle fixture plumbing
+  oristudio-cp-detect-wasm/       # wasm-bindgen bridge for browser detection
+  oristudio-cp-detect-inspector/  # Local API server for inspecting detect stages
+  oristudio-cp-eval/              # Evaluation metrics for detection + compiler benchmarks
+  # Box Pleating Studio port
+  oristudio-bp/                   # BP-compatible headless kernel
+  oristudio-bp-wasm/              # wasm-bindgen bridge for the BP kernel
+  # TreeMaker 5.0.1 port
+  treemaker-core/                 # Engine, file I/O, optimizers, geometry, CP generation
+  treemaker-cli/                  # Headless command-line interface
+  treemaker-wasm/                 # wasm-bindgen bridge for browser and Node
+  # Shared / research
+  treemaker-fold/                 # Generic FOLD data structures and geometry helpers
+  treemaker-flatfold/             # Flat-foldability and layer-order solver (Flat-Folder port)
+  treemaker-sequence/             # Folding-sequence planner primitives (research)
+  oracle-tests/                   # Parity + fixture tests against every vendored oracle
 apps/
-  web/              # React + Vite shared web frontend
-  tauri/            # Tauri v2 desktop shell wrapping apps/web
+  web/                            # React + Vite shared web frontend
+  tauri/                          # Tauri v2 desktop shell wrapping apps/web
+  cp-detect-architecture-inspector/  # Dev tool for CP-detection model architecture
+packages/
+  origami-simulator/              # TS origami simulator (port of Ghassaei's Origami Simulator)
 tests/
-  fixtures/         # Shared TreeMaker model fixtures
-  corpus/           # External corpus harness notes; no private corpus files
+  fixtures/                       # Shared model fixtures
+  corpus/                         # External corpus harness notes; no private corpus files
 tools/
-  oracle/           # C++ TreeMaker oracle build support
+  oracle/                         # C++ TreeMaker oracle build support
+  oriedita-oracle/                # Oriedita (Java) parity oracle
+  bp-studio-oracle/               # Box Pleating Studio parity oracle
+  flat-folder-oracle/             # Flat-Folder parity oracle
 third_party/
-  treemaker-5.0.1/  # Vendored upstream TreeMaker reference source
+  oriedita/                       # Vendored Oriedita reference source
+  treemaker-5.0.1/                # Vendored TreeMaker reference source
+  box-pleating-studio/            # Vendored Box Pleating Studio reference source
+  flat-folder/                    # Vendored Flat-Folder reference source
+scripts/                          # Release, worktree setup, CP-detect tooling
+research/                         # Investigation write-ups
+implementation-plans/             # Per-feature plans (see "Implementation plans")
 ```
+
+Note the `oristudio-*` / `treemaker-*` crate split is by **upstream lineage**,
+not by importance: `treemaker-*` crates are the TreeMaker port plus some shared
+FOLD/geometry code that predates the rename.
 
 ## Key architectural rules
 
 ### Porting discipline
 
-- The canonical behavioral reference is `third_party/treemaker-5.0.1`.
-- Do not substitute simpler or approximate algorithms for TreeMaker behavior.
-  If a TreeMaker operation has not been ported, return
-  `TreeError::UnsupportedOperation` instead of inventing a nearby result.
-- Preserve documented C++ quirks when they are required for parity.
-- Public parity targets TreeMaker 5.0.1's distributable ALM optimizer. CFSQP
-  and RFSQP remain out of scope unless compatible redistributable sources and
-  license terms are available.
+Each ported subsystem has its own upstream, and that upstream — not our own
+prior behavior — is the canonical behavioral reference:
+
+| Subsystem | Vendored reference | Oracle |
+| --- | --- | --- |
+| CP editing (`oristudio-cp*`) | `third_party/oriedita` | `tools/oriedita-oracle` |
+| TreeMaker (`treemaker-*`) | `third_party/treemaker-5.0.1` | `tools/oracle` (C++) |
+| Box pleating (`oristudio-bp*`) | `third_party/box-pleating-studio` | `tools/bp-studio-oracle` |
+| Flat folding (`treemaker-flatfold`) | `third_party/flat-folder` | `tools/flat-folder-oracle` |
+
+General rules, which apply to every port:
+
+- Read the upstream implementation before changing ported behavior. If a vendored
+  reference is missing for something you are porting, vendor it first.
+- Do not substitute simpler or approximate algorithms for upstream behavior. If
+  an operation has not been ported, return an explicit unsupported-operation
+  error (e.g. `TreeError::UnsupportedOperation`) instead of inventing a nearby
+  result.
+- Preserve documented upstream quirks when they are required for parity.
+- Do not edit vendored upstream source except for clearly scoped oracle build
+  maintenance.
 - Real-world user corpus files are not committed. Use the external corpus
   harness before making broad compatibility claims.
+
+TreeMaker-specific: public parity targets TreeMaker 5.0.1's distributable ALM
+optimizer. CFSQP and RFSQP remain out of scope unless compatible redistributable
+sources and license terms are available.
 
 Read `PORTING.md` before changing parser, serializer, optimizer, feasibility,
 or crease-pattern behavior.
@@ -56,13 +127,13 @@ or crease-pattern behavior.
 - The workspace uses Rust 2024 and `rustfmt` defaults.
 - Library code should propagate typed errors. Avoid `unwrap()`, `expect()`, and
   `panic!()` outside tests or deliberately unreachable internal invariants.
-- Keep public APIs centered on the `Tree` engine surface unless a lower-level
-  abstraction is clearly required by the GUI, CLI, or wasm bridge.
+- Keep public APIs centered on each crate's primary engine surface (the `Tree`
+  surface in `treemaker-core`, the document/kernel surface in `oristudio-cp` and
+  `oristudio-bp`) unless a lower-level abstraction is clearly required by the
+  GUI, CLI, or wasm bridge.
 - Add tests near the changed behavior: inline unit tests for small engine logic,
   crate integration tests for public flows, oracle tests for parity-sensitive
   behavior, and fixtures when new file-format cases are needed.
-- Do not edit vendored upstream source except for clearly scoped oracle build
-  maintenance.
 
 ### Web and Tauri
 
@@ -77,6 +148,74 @@ or crease-pattern behavior.
   Cascade and OpenSCAD Studio.
 - Use existing UI primitives, theme tokens, Zustand store slices, and command
   patterns before adding new ones.
+
+### Panel components
+
+Panels under `apps/web/src/components/panels/` are **composition sites**: they
+choose which surfaces mount and wire them together. They are not where behavior
+accumulates. `max-lines` is enforced on them — see below for what that does and
+does not mean.
+
+Before adding state, a ref, an effect, a memo, or an event listener to a panel,
+place it:
+
+| What you are adding | Where it goes |
+| --- | --- |
+| A keyboard shortcut, of any kind | `apps/web/src/keyboard/` — register it in the shortcut registry, implement it in the surface's executor. Never a `keydown` listener on the panel container. |
+| The set of verbs a thing offers (toolbar + context menu + menu bar) | A React-free, store-free action catalog returning plain descriptors, next to that thing's modules. `cp-workspace/folded/foldedFigureActions.ts` is the reference implementation. |
+| Store bindings for those verbs, or state and derived data for one concern | A `use*` hook beside that concern's modules — `cp-workspace/<concern>/use*.ts`. `hooks/useViewportSurface.ts` is the shape to copy. A `useMemo` whose body is a bag of store callbacks belongs here, not in the panel. |
+| Pure geometry or model logic | That concern's module, with unit tests. |
+| Presentation | A child component. |
+
+CP-specific modules live under `cp-workspace/<concern>/`. `src/lib/` is for code
+with no CP-workspace dependency, reusable by another surface.
+
+Three rules follow from this, and past bugs came from breaking the first two:
+
+- **No panel behavior may depend on where DOM focus is.** A container-scoped
+  `keydown` listener goes dead the moment a text editor, floating toolbar, or
+  portalled menu takes focus, and portalled content it never sees at all. The fix
+  is never to hand focus back manually — route the key through the shortcut
+  runtime, which is focus-independent.
+- **One predicate per question.** `isShortcutEditingTarget` in
+  `keyboard/shortcutDispatcher.ts` is the canonical "does this target own its
+  keystrokes" test. Do not write a near-copy in a component.
+- **Extracting logic is not enough.** If the extraction leaves a deps-memo and a
+  descriptor-to-UI adapter behind in the panel, the panel did not get smaller.
+  Take the binding with it.
+
+If a change genuinely fits no row above, the panel is missing an abstraction. Say
+so in the PR rather than adding another effect. See
+`implementation-plans/crease-pattern-panel-decomposition.md`.
+
+#### The line cap is a prompt, not a ceiling
+
+`max-lines` exists because this panel went from 7.6k lines to 2.8k and back to
+3.8k within a week, and nothing made that visible while it happened. The number
+is a proxy — it is there to force a decision at the moment of growth, not to be
+optimized.
+
+So when it fires, **two answers are legitimate**, and it is the author's call
+which applies:
+
+- Move the behavior to where the table above says it belongs.
+- Raise the cap in `apps/web/eslint.config.js` and say why in the PR. A feature
+  that genuinely belongs in a panel is a real thing.
+
+What is **not** legitimate is making the count go down without making the code
+better. Each of these is worse than a raised cap, and reviewers should say so:
+
+- Splitting a file along no conceptual seam (`FooPanelParts.tsx`).
+- Extracting a hook that needs a dozen arguments and returns twenty fields. If
+  the interface is worse than the inlining, leave it inlined and explain — see
+  the Phase 4 note in the decomposition plan, which was stopped for exactly this.
+- Deleting comments to fit. Comments and blank lines are not counted, so this
+  never helps anyway.
+- Moving code out of `components/panels/` only to escape the rule.
+
+The signal worth acting on is a panel growing *because behavior keeps landing
+there*, which is what the table above is for. A panel that is long because it
+composes a genuinely large surface is fine.
 
 ## Build commands
 
@@ -138,10 +277,11 @@ Match local validation to the affected CI surface before opening a pull request.
 
 ### Engine parity work
 
-1. Read the corresponding upstream TreeMaker C++ implementation.
+1. Identify which upstream owns the behavior (see the porting-discipline table)
+   and read that implementation in `third_party/`.
 2. Add or update focused fixtures when file I/O is involved.
 3. Add Rust tests that describe the expected behavior.
-4. Run oracle parity when the change affects model semantics.
+4. Run that subsystem's oracle when the change affects model semantics.
 5. Update `PORTING.md` if the supported parity surface changes.
 
 ### GUI work
@@ -207,8 +347,9 @@ agent's work unless the user explicitly asks you to work in that area.
 
 Agents often run inside a git worktree whose working directory is nested under
 `.claude/worktrees/<name>/`. That worktree is the checkout you must edit. The
-main checkout sits at the parent path (`.../tree-maker-rust/`) and is a separate,
-writable checkout on its own branch — so an absolute path anchored to the main
+main checkout sits at the parent path (the repo root, whatever the local clone
+directory is named) and is a separate, writable checkout on its own branch — so
+an absolute path anchored to the main
 root points at a real file and edits there succeed silently, landing your work
 on the wrong branch instead of failing loudly.
 

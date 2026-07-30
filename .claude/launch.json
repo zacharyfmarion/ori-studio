@@ -4,27 +4,21 @@
     {
       "name": "web",
       "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "vite",
-        "apps/web",
-        "--port",
-        "5174",
-        "--strictPort"
-      ],
-      "port": 5174,
-      "autoPort": false
+      "runtimeArgs": ["vite", "apps/web", "--port", "5191"],
+      "port": 5191,
+      "autoPort": true
     },
     {
-      "name": "web-tutorial",
+      "name": "upstream-oracle",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "vite",
-        "apps/web",
+        "third_party/origami-simulator",
         "--port",
-        "5178",
+        "5193",
         "--strictPort"
       ],
-      "port": 5178,
+      "port": 5193,
       "autoPort": false
     }
   ]

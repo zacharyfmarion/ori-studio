@@ -1,6 +1,7 @@
 import { wrap, type Remote } from 'comlink';
 import type { WasmErrorEnvelope } from '../../engine/types';
 import type { CpDetectWorkerApi } from '../../workers/cpDetectWorker';
+import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
 export type CpDetectClient = Remote<CpDetectWorkerApi>;
 
@@ -28,6 +29,7 @@ export async function getCpDetectClient(): Promise<CpDetectClient> {
   worker = new Worker(new URL('../../workers/cpDetectWorker.ts', import.meta.url), {
     type: 'module',
   });
+  attachWorkerDiagnostics(worker, 'cp-detect');
   client = wrap<CpDetectWorkerApi>(worker);
   return client;
 }

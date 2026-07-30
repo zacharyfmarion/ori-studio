@@ -19,8 +19,11 @@
   --bg-canvas: #0c0f12;
   --bg-canvas-grid: #1d2a31;
   --bg-paper: #f2f0e7;
-  /* Two-tone origami paper in the simulator: colored front, light back. */
-  --sim-paper-front: #4f83d6;
+  /* Two-tone origami paper in the simulator: yellow front, light back. The
+     yellow matches a generated folded figure in the edit pane (the CP engine's
+     default front colour, RgbColor(255,255,50)); the blue valley and red
+     mountain crease lines read clearly against it. */
+  --sim-paper-front: #ffff32;
   --sim-paper-back: #f2f0e7;
 
   --text-primary: #e8edf0;
@@ -71,6 +74,9 @@
   --cp-color-yellow: #eab308;
   --cp-color-purple: #8b5cf6;
   --cp-color-other: #14b8a6;
+  /* Oriedita GREY_10 — the black-and-white line style's valley. Themes derive
+     this from their own ink and canvas (see themes/applyTheme). */
+  --fold-monochrome-valley: #a2a2a2;
   --fold-ridge: #d2545f;
   --fold-hinge: #4d88e8;
   --fold-pseudohinge: #3fbec4;
@@ -367,6 +373,18 @@
   height: 1px;
   margin: 4px 6px;
   background: var(--border-default);
+}
+
+/* Trailing chevron on a submenu trigger; the leading slot stays the icon's. */
+.context-menu__subtrigger-arrow {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: var(--text-secondary);
+}
+
+.context-menu__item[data-highlighted] .context-menu__subtrigger-arrow {
+  color: currentcolor;
 }
 
 .panel-shell {
@@ -1173,7 +1191,10 @@
 }
 
 .simple-modal__document--export {
-  width: min(720px, calc(100vw - var(--space-6)));
+  display: flex;
+  flex-direction: column;
+  width: min(980px, calc(100vw - var(--space-6)));
+  max-height: calc(100vh - var(--space-6));
 }
 
 .simple-modal__header,
@@ -1231,31 +1252,207 @@
 }
 
 .export-modal {
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 280px);
-  align-items: start;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(240px, 300px);
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: stretch;
+  /* A fixed working height: without it a document with twenty patterns makes
+     the thumbnail column — and the whole modal — as tall as the viewport. */
+  block-size: min(600px, calc(100vh - 160px));
+  min-height: 0;
+  overflow: hidden;
+}
+
+.export-modal--with-patterns {
+  grid-template-columns: 132px minmax(220px, 1fr) minmax(240px, 300px);
+}
+
+.export-modal__patterns {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-height: 0;
+  padding-right: 2px;
+  overflow-y: auto;
+}
+
+.export-modal__pattern-card {
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.export-modal__pattern-card:hover {
+  border-color: var(--border-strong, var(--border-subtle));
+}
+
+.export-modal__pattern-card--selected {
+  border-color: var(--accent-primary);
+  background: var(--accent-soft, var(--bg-secondary));
+  color: var(--text-primary);
+}
+
+.export-modal__pattern-thumb {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.export-modal__pattern-thumb svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.export-modal__pattern-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-align: center;
 }
 
 .export-modal__preview {
-  display: grid;
+  position: relative;
   min-height: 280px;
   overflow: hidden;
-  place-items: center;
   border: 1px solid var(--border-muted);
   border-radius: var(--radius-md);
   background: var(--bg-primary);
 }
 
+/* Absolute + auto margins: the preview page can be any aspect ratio, and a
+   percentage max-height only resolves against a definite containing block. */
 .export-modal__preview img {
+  position: absolute;
+  inset: var(--space-2);
   display: block;
-  width: min(100%, 360px);
-  aspect-ratio: 1;
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 2 * var(--space-2));
+  max-height: calc(100% - 2 * var(--space-2));
+  margin: auto;
   object-fit: contain;
 }
 
 .export-modal__controls {
   display: grid;
+  align-content: start;
   gap: var(--space-4);
   min-width: 0;
+  min-height: 0;
+  padding-right: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.export-modal__section {
+  display: grid;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.export-modal__section:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.export-modal__section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.export-modal__section-toggle .export-modal__section-chevron {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.export-modal__section-toggle:hover {
+  color: var(--text-secondary);
+}
+
+.export-modal__section-chevron {
+  transition: transform 120ms ease;
+}
+
+.export-modal__section-chevron--open {
+  transform: rotate(90deg);
+}
+
+.export-modal__section-body {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.export-modal__colors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.export-modal__color {
+  display: grid;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.export-modal__color input[type='color'] {
+  width: 100%;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-primary);
+  cursor: pointer;
+}
+
+.export-modal__hint {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  /* Kernel fold errors are long unbroken tokens; without this they set the
+     column's min-content width and push the toggles out of view. */
+  overflow-wrap: anywhere;
+}
+
+.export-modal__hint--error {
+  color: var(--status-danger);
+}
+
+.export-modal__input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+
+.export-modal__input:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.export-modal__textarea {
+  resize: vertical;
+  line-height: 1.45;
 }
 
 .export-modal__control-group {
@@ -1268,32 +1465,6 @@
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0;
-}
-
-.export-modal__pattern-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
-.export-modal__pattern {
-  padding: 4px 10px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-  cursor: pointer;
-}
-
-.export-modal__pattern:hover {
-  border-color: var(--border-strong, var(--border-subtle));
-}
-
-.export-modal__pattern--selected {
-  border-color: var(--accent-primary);
-  background: var(--accent-soft, var(--bg-secondary));
-  color: var(--text-primary);
 }
 
 .export-modal__select {
@@ -1690,8 +1861,19 @@
     width: min(100%, calc(100vw - var(--space-4)));
   }
 
-  .export-modal {
+  .export-modal,
+  .export-modal--with-patterns {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+  }
+
+  /* Narrow screens have no room for a column of thumbnails: lay them out as a
+     horizontal strip above the preview. */
+  .export-modal__patterns {
+    grid-auto-flow: column;
+    grid-auto-columns: 104px;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
   .export-modal__preview {
@@ -2022,12 +2204,15 @@
 }
 
 /* Transient marquee (box-select) rectangle over the WebGL surface. */
+/* The marquee outlines a box that is axis-aligned in *model* space, so under a
+   rotated view it is drawn rotated about its origin corner to match. */
 .cp-webgl-marquee {
   position: absolute;
   z-index: 6;
   pointer-events: none;
   border: 1px solid var(--accent-primary);
   background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  transform-origin: 0 0;
 }
 
 /* Text-tool drag: dashed outline (a box being drawn), no fill tint. */
@@ -2753,6 +2938,82 @@
 
 .cp-generated-folded-figure--stale {
   opacity: 0.42;
+}
+
+/* Inline simulation windows: a live fold placed on the crease pattern. */
+/* No backdrop: a window is a view onto the fold sitting on the crease pattern,
+   not a panel laid over it, so the creases and grid stay visible around the
+   paper. The border stays — it is the only thing left marking the window's
+   extent, and it carries the focus state. The drop shadow goes with the
+   background; a shadow cast by nothing reads as a rendering error. */
+/* The border is the whole of the window's edge now, so it carries a weight it
+   did not have to when a filled panel sat behind it. Two paired hairlines, light
+   inside and dark outside: a single line is legible against one of the things
+   this edge crosses and not the other -- the dark grid it sits on, and the
+   bright paper that reaches the frame whenever the fold fills it. */
+/* Neither border token works here. `--border-default` resolves within a shade of
+   `--bg-canvas-grid` — it is meant to divide two panels, and the grid is exactly
+   what this edge has to be told apart from. `--border-strong` is the theme's
+   *active* border, a saturated blue that would read as focus. So it is derived
+   from the foreground, the one token guaranteed to contrast with the canvas
+   whatever the theme. */
+.cp-inline-simulation {
+  border: 1px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
+}
+
+.cp-inline-simulation[data-focused] {
+  border-color: var(--accent-primary);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 55%),
+    0 0 0 4px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+/* Same fade folded figures use, so "out of date" reads identically for both. */
+.cp-inline-simulation[data-stale] {
+  opacity: 0.42;
+}
+
+.cp-inline-simulation__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The window itself owns the drag; a browser image-drag would cancel it. */
+  touch-action: none;
+  user-select: none;
+}
+
+.cp-inline-simulation__badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  pointer-events: none;
+}
+
+.cp-inline-simulation__badge--error {
+  color: var(--status-danger);
+  border-color: var(--status-danger);
+}
+
+.cp-inline-simulation-inspector__scrub {
+  width: 96px;
+}
+
+.cp-inline-simulation-inspector__readout {
+  min-width: 34px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: right;
 }
 
 .cp-folded-form-face {
@@ -4137,45 +4398,44 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cp-context-panel__measurement-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+.cp-context-panel__measure-kinds {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.cp-context-panel__measurement-row {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-  padding: 5px 4px;
+/* The measured value is the answer the tool exists to give: largest type in the
+   panel, tabular so digits don't jitter as the live value updates. It is a button
+   because clicking it copies the full-precision value. */
+.cp-context-panel__measure-value {
+  width: 100%;
+  padding: 6px 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 0.62rem;
+  font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
-  line-height: 1.15;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
 }
 
-.cp-context-panel__measurement-row span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.cp-context-panel__measure-value:hover:not([data-empty]),
+.cp-context-panel__measure-value:focus-visible:not([data-empty]) {
+  border-color: var(--border-default);
+  background: var(--bg-tertiary);
+  outline: none;
 }
 
-.cp-context-panel__measurement-row span:first-child {
+.cp-context-panel__measure-value[data-empty] {
   color: var(--text-muted);
   font-family: var(--font-sans);
-  font-size: 0.56rem;
-  font-weight: 800;
+  font-size: 0.66rem;
+  cursor: default;
 }
 
-.cp-context-panel__measurement-row[data-active] {
-  border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-tertiary));
-  color: var(--text-primary);
+.cp-context-panel__measure-exact {
+  text-align: center;
 }
 
 .cp-context-panel__color-swatch {
@@ -4263,23 +4523,10 @@
   margin-inline: 1px;
 }
 
-.cp-line-type-toolbar {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
 .cp-folded-figure-actions {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-}
-
-/* The Oriedita fold icon is ~2:1, so this button opts out of the square size. */
-.cp-fold-button.ui-button--icon {
-  width: auto;
-  min-width: 44px;
-  padding-inline: 5px;
 }
 
 .cp-line-type-toolbar__button {
@@ -4288,65 +4535,12 @@
   font-weight: 800;
 }
 
-.cp-folded-model-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 58px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: 0.72rem;
-  font-weight: 760;
-}
-
-.cp-folded-model-status[data-folded-model-status='stale'] {
+/* A figure that no longer matches its creases, in the folded-models list. Reads
+   as a state rather than another case number. `.cp-folded-model-status` used to
+   carry this warning colour; that readout is gone, so the colour moved here. */
+.folded-figure-menu__figure small[data-stale] {
   color: var(--status-warning);
-}
-
-.cp-folded-model-status[data-folded-model-status='error'] {
-  color: var(--status-danger);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Black0'] {
-  color: var(--fold-border);
-}
-
-.cp-line-type-toolbar__button[data-line-color='Cyan3'] {
-  color: var(--fold-flat);
-}
-
-.cp-line-type-toolbar__button[data-line-color='None'] {
-  color: var(--fold-unassigned);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Black0'] {
-  color: var(--fold-border);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='Cyan3'] {
-  color: var(--fold-flat);
-}
-
-.cp-line-type-toolbar__button[data-active][data-line-color='None'] {
-  color: var(--fold-unassigned);
+  font-weight: 700;
 }
 
 .cp-view-controls-panel__empty {
@@ -4400,6 +4594,92 @@
 .control-row__suffix {
   color: var(--text-tertiary);
   font-size: 0.72rem;
+}
+
+/* Simulate workspace options pane, alongside the Edit workspace's view pane. */
+.simulator-view-controls-panel__body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.simulator-view-controls-panel__section {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.simulator-view-controls-panel__section:last-child {
+  border-bottom: 0;
+}
+
+.simulator-view-controls-panel__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px var(--space-3) 4px;
+}
+
+.simulator-view-controls-panel__section-title {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.simulator-view-controls-panel__section-hint {
+  margin: 0;
+  padding: 0 var(--space-3) 6px;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.simulator-view-controls-panel__reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.simulator-view-controls-panel__reset:hover {
+  background: var(--surface-hover, rgb(255 255 255 / 8%));
+  color: var(--text-primary);
+}
+
+.simulator-view-controls-panel__select {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+}
+
+/* Slider plus its readout: the number column is fixed so the sliders align. */
+.simulator-view-controls-panel__slider-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.simulator-view-controls-panel__slider-value .ui-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.simulator-view-controls-panel__number {
+  flex: 0 0 auto;
+  min-width: 28px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.control-row[data-disabled] .control-row__label {
+  opacity: 0.5;
 }
 
 .grid-settings {
@@ -4523,6 +4803,37 @@
   color: var(--text-primary);
 }
 
+/* Editable view-rotation readout. Sits quietly like the zoom percent until
+   focused, so it reads as a value rather than a form field. */
+.viewport-toolbar__rotation-input {
+  height: 28px;
+  /* Sized to the widest reachable value, -168.75 degrees, which needs 48px of
+     text; the rest is the 1px border and padding either side. */
+  width: 52px;
+  padding: 0 1px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  /* `font` shorthand for the family (inputs default to the system UI font),
+     then the toolbar's control size — inheriting alone would take the
+     container's 1rem and render larger than the zoom readout beside it. */
+  font: inherit;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.viewport-toolbar__rotation-input:hover {
+  border-color: var(--border-default);
+}
+
+.viewport-toolbar__rotation-input:focus,
+.viewport-toolbar__rotation-input:focus-visible {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
 .viewport-toolbar__zoom-button:hover,
 .viewport-toolbar__dropdown-item:hover {
   background: var(--bg-surface);
@@ -4547,102 +4858,26 @@
   transform: translateX(-50%);
 }
 
-.cp-line-color-menu__trigger {
-  min-width: 28px;
-  width: 28px;
+
+/* Line-type chips share a single row: they are glyphs, not icons, so they do
+   not need the tool button's footprint. Flex rather than a fixed column count
+   so the row stays correct as chips are shown or hidden. */
+.cp-tool-rail__buttons[data-group='line-type'] {
+  display: flex;
+  gap: 4px;
 }
 
-.cp-line-color-menu__trigger-swatch,
-.cp-line-color-menu__swatch {
-  display: block;
-  flex: 0 0 auto;
-  aspect-ratio: 1 / 1;
-  box-sizing: border-box;
-  border-radius: var(--radius-sm);
-  background: currentColor;
-  box-shadow:
-    0 0 0 1px rgba(16, 20, 23, 0.38),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-}
-
-.cp-line-color-menu__trigger-swatch {
-  inline-size: 14px;
-  block-size: 14px;
-  min-inline-size: 14px;
-  max-inline-size: 14px;
-  background: conic-gradient(
-    from 90deg,
-    var(--cp-color-orange),
-    var(--cp-color-magenta),
-    var(--cp-color-green),
-    var(--cp-color-yellow),
-    var(--cp-color-purple),
-    var(--cp-color-other),
-    var(--cp-color-orange)
-  );
-}
-
-.cp-line-color-menu__trigger[data-line-color] .cp-line-color-menu__trigger-swatch {
-  background: currentColor;
-}
-
-.cp-line-color-menu [data-line-color='Orange4'] {
-  color: var(--cp-color-orange);
-}
-
-.cp-line-color-menu [data-line-color='Magenta5'] {
-  color: var(--cp-color-magenta);
-}
-
-.cp-line-color-menu [data-line-color='Green6'] {
-  color: var(--cp-color-green);
-}
-
-.cp-line-color-menu [data-line-color='Yellow7'] {
-  color: var(--cp-color-yellow);
-}
-
-.cp-line-color-menu [data-line-color='Purple8'] {
-  color: var(--cp-color-purple);
-}
-
-.cp-line-color-menu [data-line-color='Other9'] {
-  color: var(--cp-color-other);
-}
-
-.cp-line-color-menu__panel {
-  grid-template-columns: repeat(3, 28px);
+.cp-tool-rail__buttons[data-group='line-type'] > * {
+  flex: 1 1 0;
   min-width: 0;
-  padding: 6px;
-  gap: 5px;
 }
 
-.cp-line-color-menu__swatch-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  cursor: pointer;
+.cp-tool-rail__button[data-line-color='None'] {
+  color: var(--fold-unassigned);
 }
 
-.cp-line-color-menu__swatch-button:hover {
-  background: var(--bg-surface);
-}
-
-.cp-line-color-menu__swatch-button[data-active] {
-  border-color: color-mix(in srgb, currentColor 48%, transparent);
-  background: color-mix(in srgb, currentColor 16%, transparent);
-}
-
-.cp-line-color-menu__swatch {
-  inline-size: 16px;
-  block-size: 16px;
-  min-inline-size: 16px;
-  max-inline-size: 16px;
+.cp-tool-rail__button[data-active][data-line-color='None'] {
+  color: var(--fold-unassigned);
 }
 
 .viewport-toolbar__dropdown-item {
@@ -5918,6 +6153,144 @@ button.bp-packing-alert:focus-visible {
 .bp-tree-panel,
 .bp-tree-panel .design-panel__body {
   height: 100%;
+}
+
+/* Measure tool: the on-canvas dimension figure and its value label. Everything is
+   screen-space (see CpMeasureLayer), so nothing here scales with zoom. */
+.cp-measure-layer__figure {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cp-measure-layer__figure[data-state='live'] {
+  opacity: 0.75;
+}
+
+.cp-measure-layer__arrow {
+  stroke-width: 1.5;
+}
+
+.cp-measure-layer__arc {
+  stroke-dasharray: none;
+}
+
+.cp-measure-layer__label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, var(--border-default));
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.cp-measure-layer__label[data-state='live'] {
+  color: var(--text-secondary);
+}
+
+/* What the cursor is snapped to, beside the cursor while a pick is in progress. */
+.cp-measure-layer__snap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cp-context-panel__measure-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-context-panel__measure-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cp-context-panel__measure-row:hover,
+.cp-context-panel__measure-row:focus-visible {
+  border-color: var(--border-subtle);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.cp-context-panel__measure-row span:first-child {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+}
+
+/* A hovered session row lifts its figure out of the quiet default. */
+.cp-measure-layer__figure[data-hovered],
+.cp-measure-layer__label[data-hovered] {
+  stroke-width: 2;
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+/* "Copied" confirmation over the measure value — a copy with no feedback reads as
+   a dead click. Overlays rather than reflows so the value doesn't jump. */
+.cp-context-panel__measure-value {
+  position: relative;
+}
+
+.cp-context-panel__measure-value[data-copy-status] {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, var(--border-default));
+}
+
+.cp-context-panel__measure-copied[data-copy-status='failed'] {
+  background: color-mix(in srgb, var(--text-muted) 22%, var(--bg-secondary));
+  color: var(--text-secondary);
+}
+
+.cp-context-panel__measure-copied {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-secondary));
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 /* ---------------------------------------------------------------------------

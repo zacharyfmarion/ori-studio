@@ -2,7 +2,7 @@ use oristudio_cp::folding::{
     DisplayStyle, FoldedFigureModel, FoldedFigureRenderGeometry, FoldedFigureRenderOptions,
     FoldedFigureRenderPaint, FoldedFigureRenderPrimitive, FoldedFigureRenderPrimitiveKind,
     FoldedFigureRenderSnapshot, FoldedFigureRenderStroke, FoldedFigureRenderStyle,
-    FoldedFigureState, FoldedSubfaceFigure, OrieditaCustomConstraint,
+    FoldedFigureState, FoldedShadowGeometry, FoldedSubfaceFigure, OrieditaCustomConstraint,
     OrieditaCustomConstraintFaceOrder, OrieditaCustomConstraintType, OrieditaFoldedFigureCamera,
     OrieditaFoldedFigureCameraSet, OrieditaFoldedFigureCameraTarget, RenderPathCommand,
     folded_figure_camera_set_display_position_moved, folded_figure_camera_set_from_segments,
@@ -450,6 +450,9 @@ fn kabuto_folded_overlay_primitives_match_oriedita_oracle() {
                 selected_flat_point_indices: vec![0, 2],
                 selected_folded_point_indices: vec![1, 3],
                 custom_constraints: constraints.clone(),
+                // Diffed against Oriedita's own output, so shadow bands have to
+                // carry upstream's width quirk rather than the product default.
+                shadow_geometry: FoldedShadowGeometry::OrieditaExact,
             },
         ),
         (
@@ -478,6 +481,7 @@ fn kabuto_folded_overlay_primitives_match_oriedita_oracle() {
             ],
             FoldedFigureRenderOptions {
                 custom_constraints: constraints.clone(),
+                shadow_geometry: FoldedShadowGeometry::OrieditaExact,
                 ..FoldedFigureRenderOptions::default()
             },
         ),

@@ -41,6 +41,8 @@ import {
   type SymmetryAxis,
 } from '../../../lib/symmetryGeometry';
 import { normalizeOrieditaGridSize } from '../../../lib/creasePatternViewport';
+import { createEmptyProject } from '../../../lib/sampleProject';
+import { staleFoldArtifactResourceState } from '../foldArtifactResource';
 import type { SnapshotEntry } from '../snapshotHistory';
 import type { Point } from '../../../lib/geometry';
 import {
@@ -136,12 +138,17 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     set({
       workflowTarget: 'box-pleat',
       pendingDesignChoice: false,
-      // Every entry point but the design-method chooser clears the Edit canvas.
-      // The chooser preserves it (its CP wasm handle is never released), so it
-      // omits the CP resets and leaves the live document untouched.
+      // Every entry point but the design-method chooser replaces the open
+      // document: the Edit canvas, the tree, and everything derived from them.
+      // The chooser instead layers a BP design onto the project already being
+      // authored (its CP wasm handle is never released), so it keeps them.
       ...(options.preserveEditCanvas
         ? {}
         : {
+            project: {
+              ...createEmptyProject(),
+              title: document.snapshot.summary.title || document.source.filename,
+            },
             importedCreasePattern: null,
             oristudioCpDocument: null,
             oristudioCpLineage: null,
@@ -149,6 +156,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             oristudioCpCamvResult: null,
             oristudioCpHistoryPast: [],
             oristudioCpHistoryFuture: [],
+            // A BP project has no crease pattern until one is generated, so the
+            // Simulate workspace must have nothing to fall back on. Left in
+            // place, the previous file's crease pattern kept simulating under
+            // the new project's name.
+            ...staleFoldArtifactResourceState(get().foldArtifactRevision),
           }),
       oristudioBpDocument: document,
       // A tree opens with nothing selected: the add-anchor is always a vertex

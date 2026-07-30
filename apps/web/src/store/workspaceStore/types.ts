@@ -27,11 +27,14 @@ import type {
   OristudioCpViewportOptions,
 } from '../../lib/creasePatternViewport';
 import type { SelectablePartKind } from '../../lib/selection';
+import type { SimulatorSettings, SimulatorSettingKey } from '../../lib/simulatorSettings';
 import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
 import type { BpTreeSymmetryPair } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type { CreaseExportOptions } from '../../lib/creaseExport';
+import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
+import type { FoldedFigureExportFormat } from '../../cp-workspace/folded/foldedFigureExport';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
   OristudioCpCommandPayload,
@@ -53,6 +56,10 @@ import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
+import type {
+  AddInlineSimulationResult,
+  InlineSimulation,
+} from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import type {
   OristudioBpDocumentState,
   OristudioBpEditingSurface,
@@ -82,6 +89,17 @@ export interface OristudioCpHistoryEntry {
   foldedFigures: OristudioCpFoldedFigureEntry[];
   activeFoldedFigureId: string | null;
   /**
+   * Inline simulation windows at the captured moment.
+   *
+   * Only the descriptors — plain JSON, and the same objects across entries that
+   * did not change one, so the structural sharing that bounds folded-figure
+   * memory applies here too. The fold each window's solver runs is *not* here and
+   * must not be: it is 240KB-2.9MB, and history would keep one alive per
+   * undoable deletion. It is rebuilt on restore instead — see
+   * `restoreOristudioCpInlineSimulationSources`.
+   */
+  inlineSimulations?: InlineSimulation[];
+  /**
    * True when the entry captures an *overlay-layer-only* change: annotations
    * (add/move/resize/rotate/crop/edit/delete) and/or folded figures (place,
    * recolour, refold, duplicate, delete). Folding never mutates the CP document,
@@ -98,7 +116,7 @@ export interface OristudioCpActionRequest {
   operationId: OristudioCpOperationId;
 }
 
-export interface ProjectSliceState extends CpDocumentOwnedByProjectSlice {
+export interface ProjectSliceState extends CpSlotFieldsOwnedByProjectSlice {
   project: TreeProject;
   workflowTarget: WorkflowTarget;
   /**
@@ -204,6 +222,29 @@ export interface ProjectSliceActions {
   exportOrh: (fileService?: FileService) => Promise<boolean>;
   exportSvg: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
   exportPng: (fileService?: FileService, options?: CreaseExportOptions) => Promise<boolean>;
+  /** Export the simulator's current folded geometry. */
+  exportFoldedFold: (fileService?: FileService) => Promise<boolean>;
+  exportObj: (fileService?: FileService) => Promise<boolean>;
+  exportStl: (fileService?: FileService) => Promise<boolean>;
+  /**
+   * Export a single crease-pattern segment. File formats (cp/fold/ori/orh)
+   * download directly; image formats (svg/png) open the export-image modal
+   * pre-scoped to the segment.
+   */
+  exportOristudioCpSegment: (
+    format: SegmentExportFormat,
+    segmentId: number,
+    fileService?: FileService
+  ) => Promise<boolean>;
+  /**
+   * Save one folded figure as a standalone image, serialized from the snapshot
+   * already on screen rather than re-folded. See `lib/foldedFigureExport.ts`.
+   */
+  exportOristudioCpFoldedFigure: (
+    format: FoldedFigureExportFormat,
+    figureId: string,
+    fileService?: FileService
+  ) => Promise<boolean>;
   loadExampleProject: (id: string) => Promise<void>;
   clearProjectMessage: () => void;
   setActivePanelId: (id: string | null) => void;
@@ -358,6 +399,11 @@ export interface CreasePatternSliceState {
   oristudioCpActiveDiagnosticId: string | null;
   oristudioCpRevision: number;
   oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
+  /**
+   * How many fold operations are in flight. A count, not a flag, so overlapping
+   * folds cannot clear each other's indicator. Drives the delayed progress toast.
+   */
+  oristudioCpFoldsInFlight: number;
   oristudioCpActiveFoldedFigureId: string | null;
   oristudioCpViewport: OristudioCpViewportOptions;
   /**
@@ -368,12 +414,24 @@ export interface CreasePatternSliceState {
    */
   oristudioCpAnnotations: CanvasAnnotation[];
   oristudioCpSelectedAnnotationId: string | null;
+  /**
+   * Superset feature: live simulations of individual crease-pattern regions,
+   * placed on the Edit canvas. Session-only — deliberately not persisted, since
+   * a window is a scratch tool rather than document content. The heavy half (the
+   * captured fold) lives outside the store, in `inlineSimulationRuntime`.
+   */
+  oristudioCpInlineSimulations: InlineSimulation[];
+  /**
+   * The window that currently owns the solver. At most one runs at a time: the
+   * rest hold their last rendered frame, which costs nothing, and keeps the
+   * worker to a single live session.
+   */
+  oristudioCpFocusedInlineSimulationId: string | null;
   foldArtifacts: FoldArtifacts | null;
   foldArtifactError: string | null;
   foldArtifactStatus: FoldArtifactStatus;
   foldArtifactRevision: number;
   foldArtifactResolvedRevision: number | null;
-  foldArtifactRequestId: number;
   selectedSegmentId: number | null;
   sequenceTarget: SequenceTargetState | null;
   sequencePlan: SequencePlan | null;
@@ -413,12 +471,75 @@ export interface CreasePatternSliceActions {
   planFoldingSequence: () => Promise<SequencePlan | null>;
   setCreaseColorMode: (mode: CreaseColorMode) => void;
   setSelectedSegment: (id: number | null) => void;
+  /**
+   * Scope the simulator to one crease-pattern segment and switch to the Simulate
+   * workspace. Ensures the full fold artifacts first (the simulator needs the
+   * simulation mesh). Resolves false when the id no longer resolves to a segment.
+   */
+  simulateOristudioCpSegment: (segmentId: number) => Promise<boolean>;
+  /**
+   * Open a simulation of one crease-pattern region as a window on the Edit
+   * canvas.
+   *
+   * Reports why rather than resolving a boolean: hitting the window cap is a
+   * normal outcome worth telling the user about, and the caller is where a
+   * translated message can be produced.
+   */
+  addOristudioCpInlineSimulation: (segmentId: number) => Promise<AddInlineSimulationResult>;
+  updateOristudioCpInlineSimulation: (
+    id: string,
+    // No fold percentage: that is per-frame transport and lives in
+    // `inlineSimulationRuntime`, not in document-shaped store state.
+    patch: Partial<Pick<InlineSimulation, 'box' | 'view' | 'z'>>
+  ) => void;
+  removeOristudioCpInlineSimulation: (id: string) => void;
+  /** Hand the solver to a window, or to none. */
+  focusOristudioCpInlineSimulation: (id: string | null) => void;
+  /** Rebuild a stale window's fold from the current creases, keeping its placement. */
+  refreshOristudioCpInlineSimulation: (id: string) => Promise<boolean>;
+  /**
+   * Give every window restored from a file the fold it draws.
+   *
+   * Distinct from calling refresh per window, in the two ways that matter: fold
+   * artifacts are computed once for the document rather than per window, and the
+   * *saved* provenance is left alone. Recomputing it would make every loaded
+   * window read as up to date forever, however far the creases had moved since.
+   *
+   * Resolves the number of windows that found their region.
+   */
+  hydrateOristudioCpInlineSimulations: () => Promise<number>;
+  /**
+   * Give back the fold of any window that has none — the shape undo needs after
+   * restoring a window whose fold was dropped when it was deleted.
+   *
+   * Rebuilds rather than having the history stacks hold folds alive: a
+   * triangulated segment fold measures 240KB at 500 vertices and 2.9MB at 8,000,
+   * so a hundred undoable deletions would retain tens to hundreds of MB for
+   * windows the user threw away. Uses cached fold artifacts, which deleting a
+   * window does not invalidate, so the common delete-then-undo path recomputes
+   * nothing.
+   *
+   * Like hydrate and unlike refresh, it leaves saved provenance alone: a
+   * restored window that was out of date is still out of date.
+   *
+   * Resolves the number of windows that got a fold back.
+   */
+  restoreOristudioCpInlineSimulationSources: () => Promise<number>;
   setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
   setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
     key: K,
     value: OristudioCpViewportOptions[K]
   ) => void;
   setOristudioCpSelection: (selection: OristudioCpSelection) => void;
+  /**
+   * Hand the canvas to the creases after a selection made by the kernel.
+   *
+   * Executing a CP operation writes `oristudioCpSelection` straight from the
+   * document it returns, so that path cannot go through the usual setter. Call
+   * this immediately after; it is a no-op unless a canvas object is holding the
+   * selection the creases have just taken.
+   */
+  claimCanvasForCreaseSelection: () => void;
   requestOristudioCpAction: (operationId: OristudioCpOperationId) => void;
   setOristudioCpActiveToolId: (id: OristudioCpActionId | null) => void;
   clearOristudioCpActionRequest: (id: number) => void;
@@ -440,6 +561,13 @@ export interface CreasePatternSliceActions {
     update: Partial<OristudioCpFoldedFigureModel>
   ) => Promise<boolean>;
   duplicateOristudioCpFoldedFigure: (id?: string) => Promise<boolean>;
+  /**
+   * Re-fold a figure from its recorded source region, in place — same id,
+   * placement, style and model, fresh geometry. See
+   * `lib/foldedFigureStaleness.ts` for how that region is recorded and how a
+   * figure is judged out of date.
+   */
+  refoldOristudioCpFoldedFigure: (id: string) => Promise<boolean>;
   deleteOristudioCpFoldedFigure: (id: string) => Promise<void>;
   setOristudioCpActiveFoldedFigure: (id: string | null) => void;
   /**
@@ -487,11 +615,26 @@ export interface CreasePatternSliceActions {
    * Pushes an `overlayOnly` entry and clears the redo stack — the counterpart of
    * {@link recordAnnotationHistory} for the other overlay layer.
    */
+  /**
+   * Re-push each figure's stored model into its kernel handle. Fire-and-forget;
+   * safe to call repeatedly, since redundant reconciles are skipped.
+   */
+  reconcileFoldedFigureModels: (ids: readonly string[]) => void;
   recordFoldedFigureHistory: (
     previous: OristudioCpFoldedFigureEntry[],
     label: string,
     previousActiveId?: string | null
   ) => void;
+  /**
+   * Record a simulation-window change into the CP undo history. `previous` is the
+   * window list *before* the action; the store already holds the result. The
+   * third overlay layer's counterpart to {@link recordAnnotationHistory}.
+   *
+   * Windows never mutate the wasm document — the fold runs entirely web-side — so
+   * like the other two this is always an `overlayOnly` entry, which is the branch
+   * of undo that swaps state without reloading the kernel.
+   */
+  recordInlineSimulationHistory: (previous: InlineSimulation[], label: string) => void;
 }
 
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;
@@ -502,7 +645,7 @@ export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceAct
 
 /**
  * Which crease-pattern document is in the foreground. Each slot owns a live
- * kernel document and its own copy of {@link CpDocumentScopedState}, so the
+ * kernel document and its own copy of {@link CpSlotScopedState}, so the
  * tutorial can hand the user a practice canvas without disturbing whatever they
  * have open in the Edit workspace.
  *
@@ -514,11 +657,11 @@ export type CpDocumentSlotId = 'edit' | 'learn';
 
 /**
  * The CP-document-scoped fields that `ProjectSliceState` happens to own today.
- * Declared here (and `Pick`ed back into that slice) so `CpDocumentScopedState`
+ * Declared here (and `Pick`ed back into that slice) so `CpSlotScopedState`
  * below is the single declaration site for every per-document field, without
  * having to move initial values between slice creators.
  */
-export interface CpDocumentOwnedByProjectSlice {
+export interface CpSlotFieldsOwnedByProjectSlice {
   importedCreasePattern: ImportedCreasePatternDocument | null;
   oristudioCpDocument: OristudioCpDocumentState | null;
   oristudioCpLineage: OristudioCpLineage | null;
@@ -539,23 +682,30 @@ export interface CpDocumentOwnedByProjectSlice {
 }
 
 /**
- * Every piece of store state that belongs to *one* crease-pattern document
- * rather than to the app. This is the type of a document slot's bundle: whatever
- * is in here is captured and restored when the active document changes.
+ * Every piece of store state that travels with a crease-pattern **slot**:
+ * captured when a slot leaves the foreground, restored when it comes back.
  *
- * `CreasePatternSliceState` is wholly document-scoped, so it is included whole.
+ * `CreasePatternSliceState` is wholly per-document, so it is included whole.
+ *
+ * Not to be confused with `CP_DOCUMENT_SCOPED_KEYS` in `cpDocumentState.ts`,
+ * which names the fields that must be *discarded* when a document is replaced.
+ * The two sets answer different questions and are deliberately different sizes:
+ * the viewport, the active tool, the crease colour mode and `dirty` all travel
+ * with a slot but must survive an open, so they are here and not there. Every
+ * discard-on-replace field is necessarily also slot-scoped, though, and
+ * `cpDocumentSlots.ts` asserts that containment at compile time.
  */
-export interface CpDocumentScopedState
+export interface CpSlotScopedState
   extends CreasePatternSliceState,
-    CpDocumentOwnedByProjectSlice {}
+    CpSlotFieldsOwnedByProjectSlice {}
 
 /**
- * Total key map over {@link CpDocumentScopedState}. `Record<K, true>` is
+ * Total key map over {@link CpSlotScopedState}. `Record<K, true>` is
  * exhaustive in both directions: omitting a key is a missing-property error and
  * adding an unknown one is an excess-property error. Adding a field to
- * `CpDocumentScopedState` therefore fails to compile until it is wired here.
+ * `CpSlotScopedState` therefore fails to compile until it is wired here.
  */
-export const CP_DOCUMENT_SCOPED_KEYS: Record<keyof CpDocumentScopedState, true> = {
+export const CP_SLOT_SCOPED_KEYS: Record<keyof CpSlotScopedState, true> = {
   creaseColorMode: true,
   oristudioCpSelection: true,
   oristudioCpActionRequest: true,
@@ -563,16 +713,21 @@ export const CP_DOCUMENT_SCOPED_KEYS: Record<keyof CpDocumentScopedState, true> 
   oristudioCpActiveDiagnosticId: true,
   oristudioCpRevision: true,
   oristudioCpFoldedFigures: true,
+  // A count of folds in flight for *this* document. Slot-scoped so a fold
+  // started in one slot cannot leave the other showing a progress toast for
+  // work that is not happening to it.
+  oristudioCpFoldsInFlight: true,
   oristudioCpActiveFoldedFigureId: true,
   oristudioCpViewport: true,
   oristudioCpAnnotations: true,
   oristudioCpSelectedAnnotationId: true,
+  oristudioCpInlineSimulations: true,
+  oristudioCpFocusedInlineSimulationId: true,
   foldArtifacts: true,
   foldArtifactError: true,
   foldArtifactStatus: true,
   foldArtifactRevision: true,
   foldArtifactResolvedRevision: true,
-  foldArtifactRequestId: true,
   selectedSegmentId: true,
   sequenceTarget: true,
   sequencePlan: true,
@@ -598,12 +753,12 @@ export const CP_DOCUMENT_SCOPED_KEYS: Record<keyof CpDocumentScopedState, true> 
  */
 type UnscopedCpField = Exclude<
   Extract<keyof WorkspaceState, `oristudioCp${string}`>,
-  keyof CpDocumentScopedState
+  keyof CpSlotScopedState
 >;
-export type CpFieldScopingIsExhaustive = [UnscopedCpField] extends [never]
+export type CpSlotScopingIsExhaustive = [UnscopedCpField] extends [never]
   ? true
-  : ['CP field declared outside CpDocumentScopedState:', UnscopedCpField];
-const _cpFieldScopingHolds: CpFieldScopingIsExhaustive = true;
+  : ['CP field declared outside CpSlotScopedState:', UnscopedCpField];
+const _cpFieldScopingHolds: CpSlotScopingIsExhaustive = true;
 void _cpFieldScopingHolds;
 
 /**
@@ -768,6 +923,24 @@ export interface OristudioBpSliceActions {
 
 export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;
 
+export interface SimulatorSliceState {
+  /**
+   * Render, material, and solver settings for the Simulate workspace. Shared
+   * store state rather than panel-local because the simulator canvas and its
+   * options pane are sibling panels; persisted so choices survive a reload.
+   */
+  simulatorSettings: SimulatorSettings;
+}
+
+export interface SimulatorSliceActions {
+  /** Set one setting, clamped to its range for numeric keys. */
+  setSimulatorSetting: <K extends SimulatorSettingKey>(key: K, value: SimulatorSettings[K]) => void;
+  /** Restore the paper's material properties (stiffness, damping) to defaults. */
+  resetSimulatorMaterial: () => void;
+}
+
+export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;
+
 export type WorkspaceState =
   ProjectSlice &
   HistorySlice &
@@ -775,7 +948,8 @@ export type WorkspaceState =
   ClipboardSlice &
   ConditionSlice &
   CreasePatternSlice &
-  OristudioBpSlice;
+  OristudioBpSlice &
+  SimulatorSlice;
 
 export type WorkspaceSliceCreator<T> = StateCreator<
   WorkspaceState,

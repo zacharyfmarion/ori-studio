@@ -367,6 +367,11 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         case 'exportPng':
           return deps.workspace.exportPng(deps.fileService);
       }
+      // Every FileCommand must dispatch. Without this the switch silently falls
+      // through for an unhandled one and the menu entry does nothing -- which is
+      // how the folded-form exports shipped dead.
+      const unhandled: never = fileCommand;
+      return unhandled;
     }
 
     const cpOperation = CP_OPERATION_ACTIONS[id];
@@ -457,15 +462,20 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           deps.workspace.oristudioCpDocument
         ) {
           const lineIds = deps.workspace.oristudioCpSelection.lines;
+          const circleIds = deps.workspace.oristudioCpSelection.circles;
           const points = selectedCpDeletePoints(
             deps.workspace.oristudioCpSelection,
             deps.workspace.oristudioCpDocument
           );
-          if (lineIds.length === 0 && points.length === 0) return false;
+          if (lineIds.length === 0 && circleIds.length === 0 && points.length === 0) return false;
           let succeeded = false;
-          if (lineIds.length > 0) {
+          // Lines and circles go in one command so a mixed selection produces a
+          // single history entry. Oriedita has no circle selection at all, so this
+          // is an Ori Studio addition rather than ported behavior.
+          if (lineIds.length > 0 || circleIds.length > 0) {
             succeeded = await deps.workspace.executeOristudioCpCommand('LineSegmentDelete', {
               line_ids: lineIds,
+              circle_ids: circleIds,
             });
           }
           for (const point of points) {

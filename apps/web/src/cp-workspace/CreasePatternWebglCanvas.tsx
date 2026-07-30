@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
+import { isPrimaryModifier } from '../lib/platform';
 import {
   fitUserCamera,
   modelViewFromCamera,
+  normalizeCameraRotation,
   panUserCamera,
+  projectModelPoint,
   unprojectDevicePoint,
   userCameraToView,
   viewTransformScale,
@@ -18,16 +21,17 @@ import {
   circleRingIntersectsAabb,
   segmentIntersectsAabb,
 } from './picking/lineHitIndex';
-import type {
-  FoldedGeometry,
-  MarkerGeometry,
-  ModelPoint,
-  PointGeometry,
-  Rgba,
-  StrokeGeometry,
-  ViewTransform,
-  Viewport,
-  WedgeGeometry,
+import {
+  OVERLAY_DASH_PATTERN,
+  type FoldedGeometry,
+  type MarkerGeometry,
+  type ModelPoint,
+  type PointGeometry,
+  type Rgba,
+  type StrokeGeometry,
+  type ViewTransform,
+  type Viewport,
+  type WedgeGeometry,
 } from './renderer/types';
 import type { CpOverlayViews } from './cpOverlayViewStore';
 import {
@@ -40,6 +44,12 @@ import {
 } from './adapters/cpSnapshotToScene';
 import { cpGeometryStrokesToScene } from './adapters/cpGeometryToScene';
 import { matrixFromPointPairs } from './tools/creaseTransform';
+import type { CpStepSnap } from './tools/inputModelRegistry';
+import {
+  isCreaseStep,
+  loneCandidateAutoPick,
+  requiresCreaseInRange,
+} from './tools/sequenceSteps';
 import {
   createTransformGhost,
   ghostBaseFromGeometry,
@@ -48,10 +58,10 @@ import {
 } from './tools/transformGhost';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type { CpImage } from './images/cpImage';
-import { imageCornersModel } from './images/cpImagePlacement';
-import { boxCornersModel } from './annotations/annotationTransform';
-import { cpPointsToScene } from './adapters/cpPointsToScene';
-import { resolveCpLineColor } from './adapters/cpLineColor';
+import { cpContentBounds } from './cpContentBounds';
+import { cpPointsToScene, VERTEX_RADIUS_FACTOR } from './adapters/cpPointsToScene';
+import { createCpLineAppearanceResolver } from './adapters/cpLineStyle';
+import { cpLineStyleDashPatterns } from '../lib/oristudioCpLineStyle';
 import { resolveCpPointStyle } from './adapters/cpPointStyle';
 import {
   cpContradictionFaceFills,
@@ -66,8 +76,14 @@ import {
   gridBoundsKey,
   visibleGridBounds,
 } from './adapters/cpGridToScene';
-import { cpVertexId, orieditaGridLinesForModelBounds } from '../lib/creasePatternViewport';
-import { toolEngineFor, type ToolInputMode } from './tools/registry';
+import {
+  cpVertexId,
+  orieditaGridLinesForModelBounds,
+  type OristudioCpLineStyle,
+  getOrieditaGridBasis,
+} from '../lib/creasePatternViewport';
+import { toolEngineFor } from './tools/registry';
+import { cpPointerReleaseRoute, type ActiveToolMode } from './tools/pointerRelease';
 import { createToolRuntime, type ToolRuntime } from './tools/runtime';
 import { createStepSequenceTool } from './tools/stepSequenceTool';
 import { createLinePickTool } from './tools/linePickTool';
@@ -75,38 +91,26 @@ import type { ToolCommit, ToolPreviewSegment } from './tools/types';
 import type { ToolClickAction } from './tools/predicates';
 
 /**
- * Draw modes the canvas routes: the drag engines, the click-based persistent
- * `sequence` mode (every step collects a point; its {@link StepKind} sets how the
- * surface snaps + gives feedback), `line-entity` (each click picks an existing
- * crease by id and commits line ids), and `lengthen` (drag a selection line to pick
- * the crease(s) to extend, then click the target — commits 3 points).
+ * Per-step snap/feedback mode — the input registry's {@link CpStepSnap}, which is
+ * where each tool's steps are declared. Aliased (not redeclared) so the surface and
+ * the registry cannot drift apart.
  */
-type ActiveToolMode =
-  | ToolInputMode
-  | 'sequence'
-  | 'line-entity'
-  | 'lengthen'
-  // Angle Restricted Line (DrawCreaseAngleRestricted5): press-drag-release like the
-  // Line tool, but the endpoint is angle-system-snapped (kernel-previewed live).
-  | 'angle-drag'
-  // Text annotation tool: existing texts are selected/dragged via the DOM overlay
-  // (it owns the real glyph bounds); the canvas only reports an empty-space click's
-  // model point so the panel can start an inline-edit draft there.
-  | 'text';
-/**
- * Per-step snap/feedback mode: snap to grid/vertices (`point`), onto an existing
- * crease (`crease`), or onto the nearest kernel-computed candidate ray (`candidate`,
- * used by the flat-foldable/candidate tools whose middle step picks one of the
- * previewed option lines rather than free geometry).
- */
-export type StepKind = 'point' | 'crease' | 'candidate';
+export type StepKind = CpStepSnap;
 /**
  * A viewport-toolbar command for the WebGL camera. `nonce` re-fires the same command
  * (e.g. repeated zoom-in presses); `percent` is only used by `set-percent`.
  */
+/**
+ * How far a stale folded figure fades. Shallow enough to read as a state rather
+ * than as the Transparent display style, which is a deliberate look a user picks.
+ */
+const STALE_FOLDED_FIGURE_OPACITY = 0.45;
+
 export interface CameraCommand {
-  kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent';
+  kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent' | 'rotate-by' | 'rotate-to' | 'rotate-reset';
   percent?: number;
+  /** Rotation payload: a signed step for `rotate-by`, an absolute angle for `rotate-to`. */
+  radians?: number;
   nonce: number;
 }
 
@@ -129,15 +133,6 @@ const MAX_DPR = 2;
 
 /** Stable empty image list so the upload effect doesn't re-run on every render. */
 const EMPTY_IMAGES: readonly CpImage[] = [];
-/** Stable empty text-box list so the bounds memo doesn't re-run each render. */
-const EMPTY_TEXT_BOXES: readonly {
-  center: ModelPoint;
-  width: number;
-  height: number;
-  rotation: number;
-  hidden: boolean;
-}[] = [];
-
 /**
  * The editable SVG canvas is transparent, so the colour behind it is the panel
  * body background (`--bg-primary`). Clearing the WebGL surface to the same
@@ -161,16 +156,66 @@ const CREASE_WIDTH_FACTOR = 1.5;
 const WIDTH_ZOOM_EXPONENT = 0.15;
 
 /**
- * How fast point/vertex markers shrink when zoomed *out* past the fit view, so a
- * dense CP's vertices don't dominate the zoomed-out picture. 0 = constant screen
- * size (they'd swamp the view), 1 = shrink in lockstep with the content. ~0.7
- * declutters while keeping them visible. Only markers shrink — crease lines keep
- * their constant screen width so structure stays legible.
+ * How fast diagnostic markers and cursor decorations shrink when zoomed *out*
+ * past the fit view. 0 = constant screen size, 1 = lockstep with the content.
+ * These are affordances rather than content — a snap ring that shrank with the
+ * paper would stop reading as a target — so they keep a partial shrink.
  */
 const MARKER_SHRINK_EXPONENT = 0.7;
 
+/**
+ * How fast crease points and vertices shrink when zoomed *out* past the fit view.
+ * 1 = lockstep with the content, so a vertex stays the same fraction of the
+ * pattern at every zoom and the picture reads identically at any scale. Anything
+ * below 1 makes vertices grow relative to the creases as you zoom out, which on a
+ * dense CP turns the pattern into a field of dots. Sub-pixel dots then fade
+ * rather than clamp (see the point program), which is what "shrink with the
+ * pattern" means once a dot is asking for less than a pixel of ink.
+ *
+ * Note this rides `zoomRatio`, which is normalised against the whole document's
+ * bounding box and so is meaningless on a sheet holding several patterns — there
+ * it pins at 1 and dots keep their full size. Visibility is handled separately
+ * by the crowding ramp below, which does not have that flaw.
+ */
+const VERTEX_SHRINK_EXPONENT = 1;
+
 /** Point/vertex outline width in CSS px (SVG non-scaling stroke ~1.4). */
 const POINT_OUTLINE_CSS = 1.4;
+
+/**
+ * Crease point/vertex visibility, in units of *crowding*: a dot's diameter as a
+ * fraction of the on-screen distance between neighbouring vertices. 0.1 means
+ * dots take up a tenth of the gap between them; 1.0 means they touch and the
+ * pattern reads as a field of dots rather than as creases.
+ *
+ * Vertices are an up-close editing affordance (snap and hit targets). Surveying
+ * a dense pattern, they are noise over the creases they annotate, so they fade
+ * out entirely rather than shrinking forever.
+ *
+ * Crowding is a ratio of two CSS-px lengths, which is what makes it behave the
+ * same everywhere: on any display density, at any `Point size`, at any document
+ * coordinate scale. An earlier version keyed this to `cam.zoom / fitZoom`, which
+ * measures zoom against the bounding box of the *whole document* — on a sheet
+ * holding several patterns spread over thousands of units that reads as "zoomed
+ * way in" while you look at one small pattern, and every fade stayed off.
+ */
+const VERTEX_CROWD_FULL_AT = 0.15;
+const VERTEX_CROWD_GONE_AT = 0.45;
+/**
+ * Where the outline ring collapses into the fill, same units. It goes first: a
+ * ring reads as a target, and a plain dot is quieter at the same size.
+ */
+const VERTEX_RING_FULL_AT = 0.12;
+const VERTEX_RING_GONE_AT = 0.3;
+
+/** Creases sampled when estimating vertex spacing. See `vertexSpacingModel`. */
+const VERTEX_SPACING_SAMPLE_CAP = 2048;
+
+/** Hermite ramp between two edges, clamped — the GLSL `smoothstep`. */
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
 
 /** Selection highlight: accent colour + a wider stroke. */
 const SELECTION_COLOR_VAR = '--accent-primary';
@@ -227,19 +272,7 @@ function previewSegmentsToStrokes(
     col[i * 4 + 2] = color[2];
     col[i * 4 + 3] = color[3];
   }
-  return { a, b, color: col, widthMul, count, dashed };
-}
-
-/** A single ring marker (transparent fill + coloured outline) at a snap point. */
-function snapIndicatorPoints(point: ModelPoint, color: Rgba): PointGeometry {
-  return {
-    center: new Float32Array([point.x, point.y]),
-    radius: new Float32Array([SNAP_INDICATOR_RADIUS]),
-    screenSpace: new Float32Array([1]),
-    fill: new Float32Array([TRANSPARENT[0], TRANSPARENT[1], TRANSPARENT[2], TRANSPARENT[3]]),
-    stroke: new Float32Array([color[0], color[1], color[2], color[3]]),
-    count: 1,
-  };
+  return { a, b, color: col, widthMul, count, dashPatterns: dashed ? [OVERLAY_DASH_PATTERN] : [] };
 }
 
 /** Clamped projection of `p` onto the segment a→b. */
@@ -386,10 +419,15 @@ export interface CreasePatternWebglCanvasProps {
    */
   images?: readonly CpImage[];
   /**
-   * Text-annotation boxes (rendered on their own DOM layer, not here) folded into
-   * the framing bounds so open + fit-to-view include them. Model coords.
+   * Boxes that live on their own DOM layer rather than being drawn here — text
+   * annotations and inline simulation windows — folded into the framing bounds
+   * so opening a document and fitting to view include them. Model coords.
+   *
+   * Anything placed on the canvas belongs here. A kind that is missing is
+   * invisible to framing, so fitting to view can leave it off screen entirely,
+   * with nothing to suggest why.
    */
-  textBoxes?: readonly {
+  overlayBoxes?: readonly {
     center: ModelPoint;
     width: number;
     height: number;
@@ -433,8 +471,26 @@ export interface CreasePatternWebglCanvasProps {
    * a plain drag; `point-sequence` places a point per click and previews on hover.
    */
   activeToolInputMode: ActiveToolMode | null;
+  /**
+   * The active operation, or null when no tool is active. Not used for routing —
+   * that is what {@link activeToolInputMode} and the input-model registry are for —
+   * only so per-tool interaction state is abandoned when the tool changes, including
+   * between two tools that share an input mode (Draw crease → Make alternating M/V).
+   */
+  activeToolOperationId: string | null;
+  /**
+   * Hand-tool mode: a plain left drag pans instead of running the active tool.
+   * The accel-drag pan (Cmd on Apple, Ctrl elsewhere) works regardless.
+   */
+  panToolActive: boolean;
   /** Per-step input kinds for a `sequence` tool (free point vs picked crease). */
   activeToolStepKinds: readonly StepKind[];
+  /**
+   * The selection distance (model units) the panel sends with the active command, so
+   * a `crease-required` step can gate its pick on exactly the radius the kernel will
+   * search — a click the kernel would reject is ignored instead of erroring.
+   */
+  activeToolSelectionDistance: number;
   /** Number of crease picks a `line-entity` tool collects before committing. */
   activeToolLineCount: number;
   /**
@@ -454,7 +510,8 @@ export interface CreasePatternWebglCanvasProps {
    * - `'crease'` — CreaseToggleMv: only a crease hit routes to {@link onSelect} (the
    *   panel dispatches the flip); a click on empty space leaves the selection alone.
    * - `'erase'` — LineSegmentDelete: deletes the crease under the cursor via
-   *   {@link onEraseLine}. Mirrors Oriedita's LINE_SEGMENT_DELETE_3.
+   *   {@link onEraseLine}, or the circle ring under it via {@link onEraseCircle}.
+   *   Mirrors Oriedita's LINE_SEGMENT_DELETE_3.
    */
   activeToolClickAction: ToolClickAction | null;
   /**
@@ -465,6 +522,13 @@ export interface CreasePatternWebglCanvasProps {
    * the static `activeToolStepKinds`.
    */
   activeToolDualMirror: boolean;
+  /**
+   * True for the Measure tool in its distance kind: a first pick that lands on a
+   * bare crease measures *that crease* in one click (committed as its line id), so
+   * a designer never has to click both endpoints of a line already on the canvas.
+   * A pick on a vertex/point falls through to the normal 2-point sequence.
+   */
+  activeToolMeasureCreasePick: boolean;
   /**
    * True for Converging Lines (DrawCreaseAngleRestricted): a bespoke handler drives
    * its dual first click (a crease → its two endpoints are the base, or two points)
@@ -528,7 +592,12 @@ export interface CreasePatternWebglCanvasProps {
   resolveDrawPoint: (
     rawPoint: ModelPoint,
     toleranceModel: number
-  ) => { point: ModelPoint; snapped: boolean };
+  ) => {
+    point: ModelPoint;
+    snapped: boolean;
+    /** What the point locked onto when it snapped; reported via {@link onToolSnapKind}. */
+    kind?: 'grid' | 'vertex' | 'point' | 'line';
+  };
   /**
    * Snap a raw model draw point onto nearby geometry incl. creases (for crease
    * steps), reporting whether the result landed on a crease *junction* (a vertex
@@ -553,6 +622,13 @@ export interface CreasePatternWebglCanvasProps {
    * can advance the step prompt in lock-step with them. Cumulative, not a delta.
    */
   onToolPickProgress: (picked: number) => void;
+  /**
+   * What the live point of a `sequence` tool has snapped onto, or null when it is
+   * free. Taken from the resolve the step already does, so naming the snap costs no
+   * extra geometry scan. The measure tool uses it to say whether an endpoint is a
+   * real vertex or a point that merely looks like one.
+   */
+  onToolSnapKind: (kind: 'grid' | 'vertex' | 'point' | 'line' | null) => void;
   /** Kernel-computed preview + pick-highlight segments for the active sequence tool. */
   toolCommandPreviewSegments: readonly ToolPreviewSegment[];
   /** Kernel-computed candidate *points* (Converging Lines ray intersections). */
@@ -586,6 +662,8 @@ export interface CreasePatternWebglCanvasProps {
   cameraCommand: CameraCommand | null;
   /** Report the camera's current zoom percent (100% = fit) so the toolbar reflects it. */
   onZoomPercentChange: (percent: number) => void;
+  /** Current view rotation in radians, so the toolbar can show and clear it. */
+  onRotationChange: (radians: number) => void;
   /** Report the camera's model→CSS and user→CSS affines so DOM overlays can position to them. */
   onViewChange: (views: CpOverlayViews) => void;
   /**
@@ -596,6 +674,12 @@ export interface CreasePatternWebglCanvasProps {
   /** Right-click erase: delete the 1-based crease id under the cursor. */
   onEraseLine: (id: number) => void;
   /**
+   * Right-click erase on a circle ring: delete the 1-based circle id under the
+   * cursor. Oriedita's right-click eraser runs in `BOTH_4`, the additional-input
+   * mode that erases circles as well as creases.
+   */
+  onEraseCircle: (id: number) => void;
+  /**
    * Open a context menu for what a right-*click* (press + release without a drag)
    * landed on. Right-*drag* remains the erase gesture and never calls this. The
    * canvas resolves the target; the panel decides what menu to show.
@@ -603,6 +687,8 @@ export interface CreasePatternWebglCanvasProps {
   onRequestContextMenu: (request: CpContextMenuRequest) => void;
   /** Assignment colour mode. */
   mode: 'mvf' | 'agrh';
+  /** Oriedita line style: how each crease colour is inked and dashed. */
+  lineStyle: OristudioCpLineStyle;
   /** `--cp-line-width` value driving stroke thickness. */
   lineWidth: number;
   /** Explicit crease points in model coordinates. */
@@ -617,6 +703,12 @@ export interface CreasePatternWebglCanvasProps {
   circleRadiusToSvg: (radius: number) => number;
   /** Generated folded figures (render-snapshot primitives). */
   foldedFigures: readonly OristudioCpFoldedFigureEntry[];
+  /**
+   * Figures that no longer match the creases they were folded from. Drawn faded,
+   * so an out-of-date figure looks out of date on the canvas rather than only in
+   * the folded-models list.
+   */
+  staleFoldedFigureIds?: ReadonlySet<string>;
   /** Imported `.fold` folded-form frames as fills + strokes (user coords), or null. */
   importedForms: FoldedGeometry | null;
   /** Grid parameters, or null when there is no grid. */
@@ -644,7 +736,7 @@ export function CreasePatternWebglCanvas({
   lineSegments,
   geometry,
   images,
-  textBoxes,
+  overlayBoxes,
   framingKey,
   modelToSvg,
   svgToModel,
@@ -656,11 +748,15 @@ export function CreasePatternWebglCanvas({
   onTranslateSelection,
   resolveMoveSnap,
   activeToolInputMode,
+  activeToolOperationId,
+  panToolActive,
   activeToolStepKinds,
+  activeToolSelectionDistance,
   activeToolLineCount,
   activeToolRequireSnap,
   activeToolClickAction,
   activeToolDualMirror,
+  activeToolMeasureCreasePick,
   activeToolConverging,
   activeToolSquareBisector,
   activeToolVoronoi,
@@ -676,6 +772,7 @@ export function CreasePatternWebglCanvas({
   onToolCommit,
   onToolPreviewInput,
   onToolPickProgress,
+  onToolSnapKind,
   toolCommandPreviewSegments,
   toolCommandPreviewPoints,
   toolPreviewColor,
@@ -688,11 +785,14 @@ export function CreasePatternWebglCanvas({
   focusModelBounds,
   cameraCommand,
   onZoomPercentChange,
+  onRotationChange,
   onViewChange,
   onEraseBox,
   onEraseLine,
+  onEraseCircle,
   onRequestContextMenu,
   mode,
+  lineStyle,
   lineWidth,
   points,
   vertices,
@@ -700,11 +800,15 @@ export function CreasePatternWebglCanvas({
   circles,
   circleRadiusToSvg,
   foldedFigures,
+  staleFoldedFigureIds,
   importedForms,
   grid,
   gridVisible,
 }: CreasePatternWebglCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Drives the hand tool's grab/grabbing cursor. State rather than a direct
+  // style write, so a re-render mid-drag cannot clobber it.
+  const [panDragging, setPanDragging] = useState(false);
   const rendererRef = useRef<CpRenderer | null>(null);
   const renderNowRef = useRef<() => void>(() => {});
   // Late-bound `buildStrokes` so effects declared before it (the tool-reset
@@ -746,6 +850,11 @@ export function CreasePatternWebglCanvas({
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
   const cameraRef = useRef<UserCamera | null>(null);
+  // Bumped when the GL context is lost, to rebuild the renderer. The camera is
+  // stashed across that rebuild so recovery does not also throw away wherever the
+  // user had panned and zoomed to.
+  const [rendererGeneration, setRendererGeneration] = useState(0);
+  const preservedCameraRef = useRef<UserCamera | null>(null);
   // Persistent runtime for the click-based `sequence` tool: points accumulate
   // across pointer gestures. Reset when the active tool changes (below).
   const persistentToolRuntimeRef = useRef<ToolRuntime | null>(null);
@@ -762,6 +871,12 @@ export function CreasePatternWebglCanvas({
   // Angle Restricted Line's anchor (the press point), held while dragging the
   // angle-snapped endpoint; null when no drag is in progress.
   const angleDragAnchorRef = useRef<ModelPoint | null>(null);
+  // True once a click in place has parked that anchor between gestures, so the next
+  // click is its endpoint rather than a new anchor — the same arming the shared
+  // drag-line engine does for the other crease-draw tools.
+  const angleDragArmedRef = useRef(false);
+  // Last view rotation reported to the panel (dedupes the per-frame report).
+  const lastReportedRotationRef = useRef(0);
   // Last zoom percent reported to the panel (dedupes the per-frame report).
   const lastReportedZoomRef = useRef<number | null>(null);
   // Last model→CSS affine reported to the panel (for the text overlay), to dedupe.
@@ -786,68 +901,87 @@ export function CreasePatternWebglCanvas({
     a: ModelPoint | null;
     b: ModelPoint | null;
   }>({ phase: 'select', a: null, b: null });
+  // Persistent runtime for a `drag-line` tool. Unlike the box/path engines — whose
+  // whole gesture lives between one press and its release — this one has to survive
+  // between gestures, because a click-to-place draw parks its start endpoint there
+  // while the user moves to the second click. Cleared on a tool change below.
+  const dragLineRuntimeRef = useRef<ToolRuntime | null>(null);
+  // Mirror of that runtime's armed start (from its `livePoints`), so the surface can
+  // mark it, gate presses on it, and drive the step prompt without re-deriving the
+  // engine's arming rule. Null whenever no start is parked.
+  const dragLineArmedRef = useRef<ModelPoint | null>(null);
   const currentTheme = useThemeStore((state) => state.currentTheme);
 
   // A tool change abandons any in-progress click sequence and its overlay.
   useEffect(() => {
     persistentToolRuntimeRef.current = null;
     sequenceStepRef.current = 0;
+    dragLineRuntimeRef.current = null;
+    dragLineArmedRef.current = null;
     dynamicStepKindsRef.current = null;
     convergingBaseRef.current = [];
     angleDragAnchorRef.current = null;
+    angleDragArmedRef.current = false;
     squareBisectorRef.current = { mode: null, points: [], lineIds: [] };
     linePickHighlightRef.current = [];
     lengthenRef.current = { phase: 'select', a: null, b: null };
     rendererRef.current?.setOverlayPoints(null);
+    // Drops a drag-line's armed rubber band along with its parked start.
+    rendererRef.current?.setPreview(null);
     clearTransformPreview();
     const rebuild = buildStrokesRef.current;
     if (rebuild) rendererRef.current?.setStrokes(rebuild());
     renderNowRef.current();
   }, [
     activeToolInputMode,
+    activeToolOperationId,
     activeToolStepKinds,
     activeToolLineCount,
     activeToolDualMirror,
+    activeToolMeasureCreasePick,
     activeToolConverging,
     activeToolSquareBisector,
     activeToolTransform,
     clearTransformPreview,
   ]);
 
+  // The distance between neighbouring vertices, in model units — vertices are
+  // crease endpoints, so the median crease length measures it directly. This is
+  // the reference for sizing vertex dots: it is what "the dots are crowding the
+  // pattern" actually means, and it is unaffected by how far apart several
+  // patterns sit on one sheet.
+  //
+  // Oriedita's grid pitch (`ORIEDITA_PAPER_SIZE / grid_size`) is the tempting
+  // choice here, being declared by the document rather than measured. It does
+  // not survive contact with real files: a crease pattern drawn at a scale where
+  // one pattern spans thousands of units has creases several grid cells long
+  // (iguana_19.osf: 25-unit grid, 71-unit median crease), so the grid says
+  // "crowded" while the vertices have ample room. It is kept only as the
+  // fallback for a document with no creases to measure.
+  // Sampled rather than exhaustive: this runs again whenever the geometry
+  // changes, and sorting every length costs ~17ms on a 52k-edge document —
+  // a dropped frame per edit. A strided sample bounds it to a fixed ~0.1ms and
+  // is not an approximation worth worrying about: on a real 7.4k-edge pattern
+  // even a 512-sample stride reproduces the exhaustive median exactly.
+  const vertexSpacingModel = useMemo(() => {
+    const stride = Math.max(1, Math.ceil(lineSegments.length / VERTEX_SPACING_SAMPLE_CAP));
+    const lengths: number[] = [];
+    for (let i = 0; i < lineSegments.length; i += stride) {
+      const seg = lineSegments[i];
+      const length = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
+      if (length > 1e-9) lengths.push(length);
+    }
+    if (lengths.length === 0) return grid ? getOrieditaGridBasis(grid).gridWidth : 0;
+    lengths.sort((a, b) => a - b);
+    return lengths[lengths.length >> 1];
+  }, [lineSegments, grid]);
+
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
-  const contentBounds = useMemo<UserBounds | null>(() => {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    let has = false;
-    const extend = (point: ModelPoint) => {
-      const u = modelToSvg(point);
-      if (u.x < minX) minX = u.x;
-      if (u.y < minY) minY = u.y;
-      if (u.x > maxX) maxX = u.x;
-      if (u.y > maxY) maxY = u.y;
-      has = true;
-    };
-    for (const seg of lineSegments) {
-      extend(seg.a);
-      extend(seg.b);
-    }
-    // Reference images are placed content too, so framing (open + fit-to-view)
-    // must include them. Their model-space quad corners are folded into the
-    // bounds; hidden images are excluded (they aren't drawn).
-    for (const image of images ?? EMPTY_IMAGES) {
-      if (image.hidden) continue;
-      for (const corner of imageCornersModel(image)) extend(corner);
-    }
-    // Text boxes are placed content too; fold their model-space box corners in.
-    for (const box of textBoxes ?? EMPTY_TEXT_BOXES) {
-      if (box.hidden) continue;
-      for (const corner of boxCornersModel(box)) extend(corner);
-    }
-    return has ? { minX, minY, maxX, maxY } : null;
-  }, [lineSegments, images, textBoxes, modelToSvg]);
+  const contentBounds = useMemo<UserBounds | null>(
+    () => cpContentBounds({ lineSegments, images, overlayBoxes, modelToSvg }),
+    [lineSegments, images, overlayBoxes, modelToSvg]
+  );
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
   // segments so the same distance query applies (id = index + 1). Vertices are
@@ -893,7 +1027,12 @@ export function CreasePatternWebglCanvas({
         pickedLineIds && pickedLineIds.length
           ? new Set([...selectedLineSet, ...pickedLineIds])
           : selectedLineSet;
-      const colorFor = (color: string) => resolveCpLineColor(color, mode, document.documentElement);
+      const appearanceFor = createCpLineAppearanceResolver(
+        lineStyle,
+        mode,
+        document.documentElement
+      );
+      const dashPatterns = cpLineStyleDashPatterns(lineStyle);
       const selection = {
         selected,
         color: readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK),
@@ -904,13 +1043,14 @@ export function CreasePatternWebglCanvas({
       // the structured fallback below is only for the rare state that carries no
       // geometry (e.g. a fixture); it never runs on a real edit.
       if (geometry) {
-        return cpGeometryStrokesToScene(geometry, colorFor, selection, move).strokes;
+        return cpGeometryStrokesToScene(geometry, appearanceFor, dashPatterns, selection, move)
+          .strokes;
       }
-      return cpSnapshotToScene(lineSegments, colorFor, selection, move).strokes;
+      return cpSnapshotToScene(lineSegments, appearanceFor, dashPatterns, selection, move).strokes;
     },
     // currentTheme drives DOM-resolved colours; rebuild callers on theme change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lineSegments, geometry, mode, selectedLineSet, currentTheme]
+    [lineSegments, geometry, mode, lineStyle, selectedLineSet, currentTheme]
   );
   useEffect(() => {
     buildStrokesRef.current = buildStrokes;
@@ -958,20 +1098,25 @@ export function CreasePatternWebglCanvas({
   }, [buildPoints]);
 
   // Snapshot the selected creases for a copy gesture's ghost. Each keeps its own
-  // M/V colour (as Oriedita's transform preview draws them) at a reduced alpha, so
-  // the prospective geometry reads as new rather than as more selection.
+  // M/V appearance (as Oriedita's transform preview draws them, through the same
+  // `drawCpLine` the crease pattern uses) at a reduced alpha, so the prospective
+  // geometry reads as new rather than as more selection.
   const createSelectionGhost = useCallback(
     (ids: ReadonlySet<number>): CpTransformGhost | null => {
-      const colorFor = (color: string) => resolveCpLineColor(color, mode, document.documentElement);
+      const appearanceFor = createCpLineAppearanceResolver(
+        lineStyle,
+        mode,
+        document.documentElement
+      );
       const style = { alpha: GHOST_ALPHA, widthMul: SELECTION_WIDTH_MUL };
       const base = geometry
-        ? ghostBaseFromGeometry(geometry, ids, colorFor, style)
-        : ghostBaseFromSegments(lineSegments, ids, colorFor, style);
-      return createTransformGhost(base, style);
+        ? ghostBaseFromGeometry(geometry, ids, appearanceFor, style)
+        : ghostBaseFromSegments(lineSegments, ids, appearanceFor, style);
+      return createTransformGhost(base, style, cpLineStyleDashPatterns(lineStyle));
     },
     // currentTheme drives DOM-resolved colours; rebuild on theme change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [geometry, lineSegments, mode, currentTheme]
+    [geometry, lineSegments, mode, lineStyle, currentTheme]
   );
 
   // Per-frame / per-interaction inputs the effect reads without re-subscribing.
@@ -982,6 +1127,8 @@ export function CreasePatternWebglCanvas({
     grid,
     gridVisible,
     contentBounds,
+    vertexSpacingModel,
+    pointSize,
     hitIndex,
     pointIndex,
     lineSegments,
@@ -999,11 +1146,14 @@ export function CreasePatternWebglCanvas({
       onTranslateSelection,
     resolveMoveSnap,
     activeToolInputMode,
+    panToolActive,
     activeToolStepKinds,
+    activeToolSelectionDistance,
     activeToolLineCount,
     activeToolRequireSnap,
     activeToolClickAction,
     activeToolDualMirror,
+    activeToolMeasureCreasePick,
     activeToolConverging,
     activeToolSquareBisector,
     activeToolVoronoi,
@@ -1020,13 +1170,16 @@ export function CreasePatternWebglCanvas({
     onToolCommit,
     onToolPreviewInput,
     onToolPickProgress,
+    onToolSnapKind,
     toolPreviewColor,
     toolCommandPreviewSegments,
     toolCommandPreviewPoints,
     onZoomPercentChange,
+    onRotationChange,
     onViewChange,
     onEraseBox,
     onEraseLine,
+    onEraseCircle,
     onRequestContextMenu,
     diagnosticHits,
     onSelectDiagnostic,
@@ -1037,6 +1190,27 @@ export function CreasePatternWebglCanvas({
     // Inputs affecting stroke thickness / mapping changed — redraw.
     renderNowRef.current();
   });
+
+  // Resolve a lone candidate the moment the kernel preview reports it, rather than
+  // on the next click. The step prompt is driven by the picks reported here, so
+  // deferring this told the user to "select flat foldable line" while the click that
+  // followed was already being read as the destination — and a click on the one ray
+  // on screen, the thing the prompt named, is exactly what the destination step
+  // cannot accept.
+  useEffect(() => {
+    const runtime = persistentToolRuntimeRef.current;
+    if (!runtime) return;
+    const stepKinds = dynamicStepKindsRef.current ?? activeToolStepKinds;
+    const auto = loneCandidateAutoPick(
+      stepKinds,
+      sequenceStepRef.current,
+      toolCommandPreviewSegments
+    );
+    if (!auto) return;
+    runtime.feed({ kind: 'down', point: auto });
+    sequenceStepRef.current += 1;
+    onToolPickProgress(sequenceStepRef.current);
+  }, [activeToolStepKinds, onToolPickProgress, toolCommandPreviewSegments]);
 
   // A new document: drop the one-shot camera seed so the next frame re-fits
   // against the current bounds (creases + images + text boxes). Declared after
@@ -1060,9 +1234,11 @@ export function CreasePatternWebglCanvas({
     () => ({
       strokes: buildStrokes(),
       points: buildPoints(),
-      folded: cpFoldedToScene(foldedFigures),
+      folded: cpFoldedToScene(foldedFigures, (figure) =>
+        staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1
+      ),
     }),
-    [buildStrokes, buildPoints, foldedFigures]
+    [buildStrokes, buildPoints, foldedFigures, staleFoldedFigureIds]
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global
@@ -1073,7 +1249,8 @@ export function CreasePatternWebglCanvas({
     [foldedFigures]
   );
 
-  // Renderer lifecycle + render loop (once per mount).
+  // Renderer lifecycle + render loop. Re-runs only when the GL context is lost
+  // and a replacement renderer has to be built (see `rendererGeneration`).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1083,6 +1260,14 @@ export function CreasePatternWebglCanvas({
       renderer = createReglRenderer(canvas, {
         // Redraw once an async image texture finishes decoding.
         onAsyncLoad: () => renderNowRef.current(),
+        // The context and every regl resource on it are gone. Nothing here can
+        // repair that, so keep the camera the user was working at and rebuild
+        // the whole renderer from scratch on the next tick.
+        onContextLost: () => {
+          console.warn('[cp-webgl] WebGL context lost; rebuilding the renderer');
+          preservedCameraRef.current = cameraRef.current;
+          setRendererGeneration((generation) => generation + 1);
+        },
       });
     } catch (error) {
       console.error('[cp-webgl] failed to initialise WebGL renderer', error);
@@ -1101,6 +1286,13 @@ export function CreasePatternWebglCanvas({
     // geometry yet) the camera stays unseeded and nothing draws until geometry arrives.
     const ensureCamera = (viewport: Viewport): UserCamera | null => {
       if (cameraRef.current) return cameraRef.current;
+      // Recovering from context loss: adopt the camera the dead renderer had,
+      // so the surface comes back where the user left it instead of re-fitting.
+      if (preservedCameraRef.current) {
+        cameraRef.current = preservedCameraRef.current;
+        preservedCameraRef.current = null;
+        return cameraRef.current;
+      }
       const bounds = liveRef.current.contentBounds;
       if (!bounds) return null;
       cameraRef.current = fitUserCamera(bounds, viewport);
@@ -1143,10 +1335,27 @@ export function CreasePatternWebglCanvas({
       // shrink when zoomed out past fit so dense vertices don't dominate. Both
       // anchored at the fit zoom so they are scale-invariant.
       const bounds = liveRef.current.contentBounds;
+      // Deliberately the *unrotated* fit: this is only a reference scale for
+      // stroke/marker sizing, so passing `cam.rotation` here would make line
+      // weight breathe as the view turns.
       const fitZoom = bounds ? fitUserCamera(bounds, viewport).zoom : cam.zoom;
       const zoomRatio = cam.zoom / fitZoom;
       const widthBoost = Math.pow(Math.max(zoomRatio, 1), WIDTH_ZOOM_EXPONENT);
       const markerShrink = zoomRatio < 1 ? Math.pow(zoomRatio, MARKER_SHRINK_EXPONENT) : 1;
+      const markerScalePx = ratio * widthBoost * markerShrink;
+      const vertexShrink = zoomRatio < 1 ? Math.pow(zoomRatio, VERTEX_SHRINK_EXPONENT) : 1;
+      const pointScalePx = ratio * widthBoost * vertexShrink;
+      // How much of the on-screen gap between neighbouring vertices a dot eats
+      // up. Both terms are CSS px, so this is a pure ratio: independent of
+      // display density, of the document's coordinate scale, and of how far
+      // apart several patterns happen to sit on one sheet. `view.ex` is the
+      // model->device basis, so its length is device px per model unit.
+      const vertexDiameterCss = 2 * VERTEX_RADIUS_FACTOR * liveRef.current.pointSize;
+      const modelPxPerUnit = Math.hypot(view.ex[0], view.ex[1]);
+      const spacingCss = (liveRef.current.vertexSpacingModel * modelPxPerUnit) / ratio;
+      const crowding = spacingCss > 1e-6 ? vertexDiameterCss / spacingCss : 0;
+      const pointOpacity = 1 - smoothstep(VERTEX_CROWD_FULL_AT, VERTEX_CROWD_GONE_AT, crowding);
+      const pointRingScale = 1 - smoothstep(VERTEX_RING_FULL_AT, VERTEX_RING_GONE_AT, crowding);
 
       // Report the zoom percent so the viewport toolbar reflects the owned camera.
       // 100% = actual size (1 user unit == 1 CSS px, i.e. zoom == dpr), matching the
@@ -1155,6 +1364,11 @@ export function CreasePatternWebglCanvas({
       if (zoomPercent !== lastReportedZoomRef.current) {
         lastReportedZoomRef.current = zoomPercent;
         liveRef.current.onZoomPercentChange(zoomPercent);
+      }
+
+      if (cam.rotation !== lastReportedRotationRef.current) {
+        lastReportedRotationRef.current = cam.rotation;
+        liveRef.current.onRotationChange(cam.rotation);
       }
 
       // Report the model→CSS affine (device view / dpr) for DOM overlays to project
@@ -1188,8 +1402,14 @@ export function CreasePatternWebglCanvas({
         // radii still scale fully with zoom via userScalePx — real geometry.
         strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
         userScalePx: cam.zoom,
-        markerScalePx: ratio * widthBoost * markerShrink,
-        pointOutlinePx: POINT_OUTLINE_CSS * ratio,
+        markerScalePx,
+        pointScalePx,
+        // Outlines ride the scale of whatever they outline, so a shrinking dot
+        // does not keep a full-width ring and bottom out at a constant size.
+        constantOutlinePx: POINT_OUTLINE_CSS * ratio,
+        markerOutlinePx: POINT_OUTLINE_CSS * markerScalePx,
+        pointOutlinePx: POINT_OUTLINE_CSS * pointScalePx * pointRingScale,
+        pointOpacity,
       });
     };
     renderNowRef.current = renderNow;
@@ -1294,30 +1514,74 @@ export function CreasePatternWebglCanvas({
       return null;
     };
 
+    // Erase whatever a click landed on. Creases and circles are both erasable;
+    // points are not, matching Oriedita's `deleteSingleLineOrCircle`.
+    const eraseHit = (hit: CpSelectHit | null) => {
+      if (hit?.kind === 'line') liveRef.current.onEraseLine(hit.id);
+      else if (hit?.kind === 'circle') liveRef.current.onEraseCircle(hit.id);
+    };
+
     // Transient marquee rectangle rendered as a plain DOM overlay.
     const marquee = document.createElement('div');
     marquee.className = 'cp-webgl-marquee';
     marquee.style.display = 'none';
     canvas.parentElement?.appendChild(marquee);
-    const updateMarquee = (clientX: number, clientY: number) => {
-      const parent = canvas.parentElement?.getBoundingClientRect();
-      if (!parent) return;
-      marquee.style.display = 'block';
-      marquee.style.left = `${Math.min(pressX, clientX) - parent.left}px`;
-      marquee.style.top = `${Math.min(pressY, clientY) - parent.top}px`;
-      marquee.style.width = `${Math.abs(clientX - pressX)}px`;
-      marquee.style.height = `${Math.abs(clientY - pressY)}px`;
-    };
-    const boxSelect = (clientX: number, clientY: number, additive: boolean) => {
+
+    /**
+     * The drag's box in *model* space, axis-aligned there rather than on screen.
+     *
+     * Model-aligned is the load-bearing choice: the two corners are what every
+     * drag-box tool forwards to the kernel, which reads them as an axis-aligned
+     * box (Oriedita semantics). A screen-aligned box would be a rotated
+     * quadrilateral in model space and simply cannot be expressed in that
+     * contract. {@link updateMarquee} draws this same box, so the outline always
+     * matches what gets selected.
+     */
+    const dragModelBox = (clientX: number, clientY: number) => {
       const p1 = clientToModel(pressX, pressY);
       const p2 = clientToModel(clientX, clientY);
-      if (!p1 || !p2) return;
-      const box = {
+      if (!p1 || !p2) return null;
+      return {
         minX: Math.min(p1.x, p2.x),
         maxX: Math.max(p1.x, p2.x),
         minY: Math.min(p1.y, p2.y),
         maxY: Math.max(p1.y, p2.y),
       };
+    };
+
+    const updateMarquee = (clientX: number, clientY: number) => {
+      const parent = canvas.parentElement?.getBoundingClientRect();
+      const cam = cameraRef.current;
+      const box = dragModelBox(clientX, clientY);
+      if (!parent || !cam || !box) return;
+      // Project the box's origin corner and its two edge vectors, so the outline
+      // follows any rotation in the model->CSS affine (the camera's, and any the
+      // document's own Oriedita camera contributes).
+      const ratio = dpr();
+      const view = modelViewFromCamera(cam, viewportOf(ratio), liveRef.current.modelToSvg);
+      const toCssPoint = (x: number, y: number) => {
+        const d = projectModelPoint(view, x, y);
+        return { x: d.x / ratio, y: d.y / ratio };
+      };
+      const origin = toCssPoint(box.minX, box.minY);
+      const alongX = toCssPoint(box.maxX, box.minY);
+      const alongY = toCssPoint(box.minX, box.maxY);
+      const edgeX = { x: alongX.x - origin.x, y: alongX.y - origin.y };
+      const edgeY = { x: alongY.x - origin.x, y: alongY.y - origin.y };
+      // A `rotate()` about the top-left maps the div's local +x/+y onto exactly
+      // these edges, because the view transform is rigid (uniform, no shear).
+      const angle = Math.atan2(edgeX.y, edgeX.x);
+      const canvasRect = canvas.getBoundingClientRect();
+      marquee.style.display = 'block';
+      marquee.style.left = `${canvasRect.left - parent.left + origin.x}px`;
+      marquee.style.top = `${canvasRect.top - parent.top + origin.y}px`;
+      marquee.style.width = `${Math.hypot(edgeX.x, edgeX.y)}px`;
+      marquee.style.height = `${Math.hypot(edgeY.x, edgeY.y)}px`;
+      marquee.style.transform = angle === 0 ? '' : `rotate(${angle}rad)`;
+    };
+    const boxSelect = (clientX: number, clientY: number, additive: boolean) => {
+      const box = dragModelBox(clientX, clientY);
+      if (!box) return;
       const l = liveRef.current;
       const inBox = (p: ModelPoint) =>
         p.x >= box.minX && p.x <= box.maxX && p.y >= box.minY && p.y <= box.maxY;
@@ -1351,45 +1615,86 @@ export function CreasePatternWebglCanvas({
     // Modifier held when the current drag began, for additive box selection.
     let dragShift = false;
     let toolRuntime: ToolRuntime | null = null;
-    // A ring at the draw point when it snapped to nearby geometry, else null.
-    // `raw` is the un-snapped point.
-    const snapIndicatorForSnap = (point: ModelPoint, raw: ModelPoint) =>
-      point.x !== raw.x || point.y !== raw.y
-        ? snapIndicatorPoints(
-            point,
-            readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
-          )
-        : null;
-    const showSnapIndicator = (point: ModelPoint, raw: ModelPoint) => {
-      renderer.setOverlayPoints(snapIndicatorForSnap(point, raw));
+    /**
+     * Where to ring the draw point: the snapped position when it actually moved off
+     * the cursor, else null (nothing in range, so nothing to indicate).
+     */
+    const snapRingFor = (point: ModelPoint, raw: ModelPoint): ModelPoint | null =>
+      point.x !== raw.x || point.y !== raw.y ? point : null;
+    /**
+     * The runtime driving the current draw. A `drag-line` tool keeps one for its whole
+     * activation — its click-to-place start is parked in the engine between gestures —
+     * created here on first use; box/path tools get a fresh one per press.
+     */
+    const drawRuntime = (): ToolRuntime | null => {
+      if (liveRef.current.activeToolInputMode !== 'drag-line') return toolRuntime;
+      dragLineRuntimeRef.current ??= createToolRuntime(toolEngineFor('drag-line'));
+      return dragLineRuntimeRef.current;
+    };
+    /**
+     * Mark the drag-line's armed start (a dot, like a half-placed point sequence) plus
+     * the usual snap ring, and keep the step prompt on the endpoint the tool is now
+     * waiting for. `livePoints` is the engine's own report of what it has parked, so
+     * the arming rule lives in exactly one place.
+     */
+    const syncDragLineArmed = (
+      livePoints: readonly ModelPoint[] | undefined,
+      snapRing: ModelPoint | null
+    ) => {
+      const armed = livePoints?.[0] ?? null;
+      const was = dragLineArmedRef.current;
+      dragLineArmedRef.current = armed;
+      renderer.setOverlayPoints(
+        sequenceOverlayPoints(
+          armed ? [armed] : [],
+          snapRing,
+          readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
+        )
+      );
+      if (!!armed !== !!was) liveRef.current.onToolPickProgress(armed ? 1 : 0);
     };
     const feedTool = (kind: 'down' | 'move' | 'up' | 'cancel', clientX: number, clientY: number) => {
-      if (!toolRuntime) return;
-      const raw = clientToModel(clientX, clientY);
-      if (!raw) return;
+      const runtime = drawRuntime();
+      if (!runtime) return;
       // Only crease-drawing (drag-line) snaps to grid/vertices; selection/erase
       // boxes (drag-box) and freehand paths (drag-path — lasso/polygon) follow the
       // raw cursor, so a rubber-band select doesn't jump to nearby points.
       const snaps = liveRef.current.activeToolInputMode === 'drag-line';
-      const resolved = snaps
-        ? liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS))
-        : { point: raw, snapped: false };
-      if (snaps) showSnapIndicator(resolved.point, raw);
-      // Grid-restricted draw: the release must land on a snapped grid/vertex point,
-      // else the crease is rejected (the start is gated in onPointerDown). The end
-      // follows freely during the drag; only the commit requires a snap.
-      if (liveRef.current.activeToolRequireSnap && kind === 'up' && !resolved.snapped) {
-        toolRuntime.feed({ kind: 'cancel', point: resolved.point });
+      if (kind === 'cancel') {
+        const out = runtime.feed({ kind, point: { x: 0, y: 0 } });
         renderer.setPreview(null);
+        if (snaps) syncDragLineArmed(out.livePoints, null);
         renderNow();
         return;
       }
-      const out = toolRuntime.feed({ kind, point: resolved.point });
+      const raw = clientToModel(clientX, clientY);
+      if (!raw) return;
+      const resolved = snaps
+        ? liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS))
+        : { point: raw, snapped: false };
+      // Grid-restricted draw: an endpoint must land on a snapped grid/vertex point.
+      // A drag that releases off-target is dropped, as upstream's release does. A
+      // click-to-place draw instead ignores the miss and stays armed — losing the
+      // parked start to a stray click would be the worse failure.
+      if (liveRef.current.activeToolRequireSnap && kind === 'up' && !resolved.snapped) {
+        if (dragLineArmedRef.current) return;
+        const out = runtime.feed({ kind: 'cancel', point: resolved.point });
+        renderer.setPreview(null);
+        if (snaps) syncDragLineArmed(out.livePoints, null);
+        renderNow();
+        return;
+      }
+      const out = runtime.feed({
+        kind,
+        point: resolved.point,
+        tolerance: modelToleranceOf(CLICK_MOVE_THRESHOLD),
+      });
       renderer.setPreview(
         out.preview && out.preview.segments.length > 0
           ? previewSegmentsToStrokes(out.preview.segments, liveRef.current.toolPreviewColor)
           : null
       );
+      if (snaps) syncDragLineArmed(out.livePoints, snapRingFor(resolved.point, raw));
       renderNow();
       if (out.commit) liveRef.current.onToolCommit({ ...out.commit, additive: dragShift });
     };
@@ -1495,28 +1800,41 @@ export function CreasePatternWebglCanvas({
         dynamicStepKindsRef.current =
           firstPickKind === 'line' ? ['crease', 'crease'] : ['point', 'point', 'point'];
       }
+      // Measure (distance): a first pick on a bare crease measures that crease
+      // outright. Same classifier as Mirror Line, so "vertex wins over line" reads
+      // identically in both tools.
+      if (liveRef.current.activeToolMeasureCreasePick && !persistentToolRuntimeRef.current) {
+        const firstPickKind = liveRef.current.resolveFirstPickKind(
+          raw,
+          tol,
+          modelToleranceOf(POINT_HIT_TOLERANCE_CSS)
+        );
+        if (firstPickKind === 'line') {
+          const lineId = liveRef.current.hitIndex.query(raw.x, raw.y, tol);
+          if (lineId > 0) {
+            if (kind !== 'down') {
+              // Hovering: light up the crease this click would measure.
+              liveRef.current.onToolPreviewInput([], [lineId]);
+              renderer.setOverlayPoints(null);
+              renderNow();
+              return;
+            }
+            liveRef.current.onToolCommit({ lineIds: [lineId] });
+            liveRef.current.onToolPreviewInput([], []);
+            renderer.setOverlayPoints(null);
+            renderNow();
+            return;
+          }
+        }
+      }
       const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
       if (!persistentToolRuntimeRef.current) {
         persistentToolRuntimeRef.current = createToolRuntime(createStepSequenceTool(stepKinds.length));
         sequenceStepRef.current = 0;
       }
       const runtime = persistentToolRuntimeRef.current;
-      // Auto-select a lone candidate: when the candidate step has exactly one
-      // previewed option, Oriedita skips the pick. Inject a point on that ray and
-      // advance, so this event lands on the following (destination) step.
-      while (
-        stepKinds[sequenceStepRef.current] === 'candidate' &&
-        liveRef.current.toolCommandPreviewSegments.length === 1
-      ) {
-        const only = liveRef.current.toolCommandPreviewSegments[0];
-        runtime.feed({
-          kind: 'down',
-          point: { x: (only.a.x + only.b.x) / 2, y: (only.a.y + only.b.y) / 2 },
-        });
-        sequenceStepRef.current += 1;
-      }
       const stepKind = stepKinds[sequenceStepRef.current];
-      const creaseStep = stepKind === 'crease';
+      const creaseStep = isCreaseStep(stepKind);
       const candidateStep = stepKind === 'candidate';
       let point: ModelPoint;
       let snappedToVertex = false;
@@ -1524,6 +1842,21 @@ export function CreasePatternWebglCanvas({
         const resolved = liveRef.current.resolveDrawPointOnCrease(raw, tol);
         point = resolved.point;
         snappedToVertex = resolved.snappedToVertex;
+        // A destination step takes the crease the kernel will find from this point,
+        // so a pick with none in its selection distance is ignored — upstream stays
+        // on the step for it, where committing raises a "nearest line is outside
+        // selection distance" error and throws the whole gesture away.
+        if (
+          requiresCreaseInRange(stepKind) &&
+          kind === 'down' &&
+          liveRef.current.hitIndex.query(
+            point.x,
+            point.y,
+            liveRef.current.activeToolSelectionDistance
+          ) <= 0
+        ) {
+          return;
+        }
       } else if (candidateStep) {
         // Snap onto the nearest previewed candidate ray. A pick that lands on no ray
         // is ignored (Oriedita's candidate step gates on selection distance) rather
@@ -1532,7 +1865,9 @@ export function CreasePatternWebglCanvas({
         if (snapped === null && kind === 'down') return;
         point = snapped ?? raw;
       } else {
-        point = liveRef.current.resolveDrawPoint(raw, tol).point;
+        const resolved = liveRef.current.resolveDrawPoint(raw, tol);
+        point = resolved.point;
+        liveRef.current.onToolSnapKind(resolved.snapped ? (resolved.kind ?? null) : null);
       }
       // On a crease step, highlight the single line under the snapped point — so a
       // crease the point lands on lights up even when it snapped to a grid point on
@@ -1677,12 +2012,17 @@ export function CreasePatternWebglCanvas({
       }
       renderNow();
     };
-    // Angle Restricted Line (DrawCreaseAngleRestricted5): press-drag-release like the
-    // Line tool. Press anchors the start (snapped to grid/vertices, as Oriedita's
-    // move_click_drag_point snaps to the closest point); dragging kernel-previews the
-    // angle-system-snapped segment [anchor, cursor]; release commits those two points
-    // (the kernel re-snaps the endpoint on execute). Before a press, hover just shows
-    // the anchor snap indicator.
+    // Angle Restricted Line (DrawCreaseAngleRestricted5). Press anchors the start
+    // (snapped to grid/vertices, as Oriedita's move_click_drag_point snaps to the
+    // closest point); moving kernel-previews the angle-system-snapped segment
+    // [anchor, cursor]; a release away from the anchor commits those two points (the
+    // kernel re-snaps the endpoint on execute). Before an anchor exists, hover just
+    // shows the anchor snap indicator.
+    //
+    // Like the shared drag-line engine, it takes either gesture: press-drag-release,
+    // or click the anchor and click the endpoint. The same predicate splits them — a
+    // release within the click threshold of the anchor parks it for a second click
+    // instead of committing, and clicking the parked anchor again drops it.
     const feedAngleDrag = (
       kind: 'down' | 'move' | 'up' | 'cancel',
       clientX: number,
@@ -1691,9 +2031,12 @@ export function CreasePatternWebglCanvas({
       const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
       const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
       const reset = () => {
+        const wasArmed = angleDragArmedRef.current;
         angleDragAnchorRef.current = null;
+        angleDragArmedRef.current = false;
         liveRef.current.onToolPreviewInput([], []);
         renderer.setOverlayPoints(null);
+        if (wasArmed) liveRef.current.onToolPickProgress(0);
       };
       if (kind === 'cancel') {
         reset();
@@ -1703,9 +2046,12 @@ export function CreasePatternWebglCanvas({
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
       if (kind === 'down') {
-        const anchor = liveRef.current.resolveDrawPoint(raw, tol).point;
+        // A press with the anchor already parked is the endpoint, not a new anchor.
+        const anchor = angleDragArmedRef.current
+          ? angleDragAnchorRef.current
+          : liveRef.current.resolveDrawPoint(raw, tol).point;
         angleDragAnchorRef.current = anchor;
-        renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
+        if (anchor) renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
         renderNow();
         return;
       }
@@ -1725,8 +2071,18 @@ export function CreasePatternWebglCanvas({
         return;
       }
       // up
-      if (anchor && moved) liveRef.current.onToolCommit({ points: [anchor, raw] });
-      reset();
+      if (!anchor) {
+        reset();
+      } else if (Math.hypot(raw.x - anchor.x, raw.y - anchor.y) > modelToleranceOf(CLICK_MOVE_THRESHOLD)) {
+        liveRef.current.onToolCommit({ points: [anchor, raw] });
+        reset();
+      } else if (angleDragArmedRef.current) {
+        reset();
+      } else {
+        // A click on the anchor: park it and move the prompt to the endpoint step.
+        angleDragArmedRef.current = true;
+        liveRef.current.onToolPickProgress(1);
+      }
       renderNow();
     };
     // Square Bisector (modes A + B): the first pick decides the mode. A point starts
@@ -2024,16 +2380,30 @@ export function CreasePatternWebglCanvas({
       moved = false;
       const toolMode = liveRef.current.activeToolInputMode;
       if (e.button === 2) {
-        // Right button: universal erase gesture, overrides any active tool.
+        // Right button: universal erase gesture, overrides any active tool — including
+        // a crease draw waiting on its second click, whose parked start it abandons.
         e.preventDefault();
+        if (toolMode === 'drag-line' && dragLineArmedRef.current) feedTool('cancel', 0, 0);
+        if (toolMode === 'angle-drag' && angleDragArmedRef.current) feedAngleDrag('cancel', 0, 0);
         erasing = true;
         eraseRuntime = createToolRuntime(toolEngineFor('drag-box'));
         feedErase('down', e.clientX, e.clientY);
-      } else if (e.metaKey || e.ctrlKey) {
-        // cmd/ctrl pans. Folded figures are grabbed through the canvas-object
-        // overlay now, which sits above this canvas and takes the press first.
+      } else if (e.button === 1) {
+        // Middle button: pan, whatever tool is active. Oriedita makes this
+        // unclaimable by design — its handler `Feature` enum has no BUTTON_2,
+        // so every tool declines the middle button and the canvas' own pan
+        // always wins (`Canvas.java` mousePressed/Dragged). preventDefault also
+        // suppresses the browser's middle-click autoscroll.
         e.preventDefault();
         panning = true;
+      } else if (isPrimaryModifier(e) || liveRef.current.panToolActive) {
+        // The platform accel (Cmd on Apple, Ctrl elsewhere) pans, as does a
+        // plain drag while the hand tool is on. Folded figures are grabbed
+        // through the canvas-object overlay now, which sits above this canvas
+        // and takes the press first.
+        e.preventDefault();
+        panning = true;
+        if (liveRef.current.panToolActive) setPanDragging(true);
       } else if (toolMode === 'sequence') {
         // Click-based tool: place a point / pick a crease (no drag). Hover previews.
         e.preventDefault();
@@ -2061,17 +2431,21 @@ export function CreasePatternWebglCanvas({
       } else if (toolMode) {
         // A drag draw tool is active: plain drag draws instead of selecting.
         e.preventDefault();
-        // Grid-restricted draw only begins from a point that snaps to grid/vertices.
+        // Grid-restricted draw only accepts endpoints that snap to grid/vertices, so
+        // an unsnapped press starts nothing — and, when a click-to-place start is
+        // already armed, leaves that start parked rather than moving it off-grid.
         const m = clientToModel(e.clientX, e.clientY);
-        const startSnapped =
+        const endpointSnapped =
           !m ||
           toolMode !== 'drag-line' ||
           !liveRef.current.activeToolRequireSnap ||
           liveRef.current.resolveDrawPoint(m, modelToleranceOf(SNAP_TOLERANCE_CSS)).snapped;
-        if (startSnapped) {
+        if (endpointSnapped) {
           drawing = true;
           dragShift = e.shiftKey || e.metaKey || e.ctrlKey;
-          toolRuntime = createToolRuntime(toolEngineFor(toolMode));
+          // drag-line runs on a persistent runtime (see drawRuntime); the others open
+          // a fresh engine per gesture.
+          if (toolMode !== 'drag-line') toolRuntime = createToolRuntime(toolEngineFor(toolMode));
           feedTool('down', e.clientX, e.clientY);
         }
       } else {
@@ -2109,9 +2483,12 @@ export function CreasePatternWebglCanvas({
         feedErase('move', e.clientX, e.clientY);
       } else if (drawing) {
         feedTool('move', e.clientX, e.clientY);
+      } else if (liveRef.current.panToolActive && !panning) {
+        // Hand tool on but not dragging: suppress every tool hover preview, so
+        // no ghost snap indicator trails the grab cursor.
       } else if (
         liveRef.current.activeToolInputMode === 'lengthen' &&
-        !panning 
+        !panning
       ) {
         // Lengthen: draw the selection line while dragging, or (in the extension
         // phase) track the target-point cursor. Fires on hover too.
@@ -2147,17 +2524,12 @@ export function CreasePatternWebglCanvas({
         !movingSelection &&
         !selecting
       ) {
-        // Hover with a crease-draw tool (before pressing): show the snap indicator
-        // at where the endpoint would land. Only drag-line snaps; drag-path
+        // Hover with a crease-draw tool (before pressing): show the snap indicator at
+        // where the endpoint would land, and — once a click-to-place start is armed —
+        // rubber-band the crease from it. The engine ignores a move with nothing
+        // started, so the same feed covers both. Only drag-line snaps; drag-path
         // (lasso/polygon) follows the raw cursor with no snap indicator.
-        const raw = clientToModel(e.clientX, e.clientY);
-        if (raw) {
-          showSnapIndicator(
-            liveRef.current.resolveDrawPoint(raw, modelToleranceOf(SNAP_TOLERANCE_CSS)).point,
-            raw
-          );
-          renderNow();
-        }
+        feedTool('move', e.clientX, e.clientY);
       } else if (movingSelection && moveStart) {
         if (moved) {
           const m = clientToModel(e.clientX, e.clientY);
@@ -2203,38 +2575,40 @@ export function CreasePatternWebglCanvas({
       }
     };
     const onPointerUp = (e: PointerEvent) => {
-      if (
-        liveRef.current.activeToolInputMode === 'sequence' &&
-        liveRef.current.activeToolTransform?.pointCount === 2 &&
-        sequenceStepRef.current === 1 &&
-        moved &&
-        !erasing &&
-        !panning &&
-        e.type !== 'pointercancel'
-      ) {
+      const cancelled = e.type === 'pointercancel';
+      // Which handler owns this release. The precedence rule (erase and pan outrank
+      // the active tool) lives in one pure, unit-tested function rather than in the
+      // guards of each branch below, where a mode that forgot to exclude an
+      // in-flight erase stranded the whole gesture. See tools/pointerRelease.ts.
+      const route = cpPointerReleaseRoute({
+        toolMode: liveRef.current.activeToolInputMode,
+        erasing,
+        panning,
+        drawing,
+        movingSelection,
+        selecting,
+        moved,
+        cancelled,
+        transformPointCount: liveRef.current.activeToolTransform?.pointCount ?? null,
+        sequenceStep: sequenceStepRef.current,
+      });
+      if (route === 'sequence-drag-commit') {
         // Oriedita's two-point move/copy are press-drag-release, not click-click
         // (BaseMouseHandlerLineTransform commits on mouseReleased). Release after a
         // drag places the destination point and commits, so both gestures work: drag
         // it there, or click twice.
         feedSequenceTool('down', e.clientX, e.clientY);
-      } else if (
-        liveRef.current.activeToolInputMode === 'lengthen' &&
-        !erasing &&
-        !panning
-      ) {
-        feedLengthen(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
-      } else if (liveRef.current.activeToolInputMode === 'angle-drag' && !panning) {
+      } else if (route === 'lengthen') {
+        feedLengthen(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
+      } else if (route === 'angle-drag') {
         // Angle Restricted Line: release commits the [anchor, endpoint] segment.
-        feedAngleDrag(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
-      } else if (
-        liveRef.current.activeToolInputMode === 'text' &&
-        !panning 
-      ) {
+        feedAngleDrag(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
+      } else if (route === 'text') {
         // Text tool: a click (no drag) whose press started on the canvas starts an
         // inline-edit draft at that model point; a press-drag creates a text box of
         // the dragged size. A pan, or a release whose press began on the overlay
         // (dismissing an editor), does nothing.
-        if (textPressStarted && e.type !== 'pointercancel') {
+        if (textPressStarted && !cancelled) {
           if (moved) {
             const start = clientToModel(pressX, pressY);
             const end = clientToModel(e.clientX, e.clientY);
@@ -2244,14 +2618,12 @@ export function CreasePatternWebglCanvas({
             if (m) liveRef.current.onTextCreate?.(m);
           }
         }
-        textPressStarted = false;
-        marquee.classList.remove('cp-webgl-marquee--text');
-      } else if (erasing) {
+      } else if (route === 'erase') {
         renderer.setPreview(null);
         const raw = clientToModel(e.clientX, e.clientY);
         if (eraseRuntime && raw) {
           const figureId = !moved ? figureAt(e.clientX, e.clientY) : null;
-          if (e.type === 'pointercancel') {
+          if (cancelled) {
             eraseRuntime.feed({ kind: 'cancel', point: raw });
           } else if (figureId) {
             // Right-*click* (no drag) over a folded figure opens its context menu
@@ -2268,18 +2640,14 @@ export function CreasePatternWebglCanvas({
               // Right-drag: erase every crease inside the box.
               liveRef.current.onEraseBox(out.commit.points ?? []);
             } else {
-              // Right-click (degenerate box): erase the crease under the cursor.
-              const hit = hitTest(e.clientX, e.clientY);
-              if (hit && hit.kind === 'line') liveRef.current.onEraseLine(hit.id);
+              // Right-click (degenerate box): erase the primitive under the cursor.
+              eraseHit(hitTest(e.clientX, e.clientY));
             }
           }
         }
         renderNow();
-        erasing = false;
-        eraseRuntime = null;
-      } else if (drawing) {
-        const clickAction =
-          !moved && e.type !== 'pointercancel' ? liveRef.current.activeToolClickAction : null;
+      } else if (route === 'draw') {
+        const clickAction = !moved && !cancelled ? liveRef.current.activeToolClickAction : null;
         if (clickAction) {
           // A click (no drag) on a tool that defines one: discard the degenerate box
           // and run the click behaviour against the crease under the cursor, matching
@@ -2287,17 +2655,20 @@ export function CreasePatternWebglCanvas({
           feedTool('cancel', e.clientX, e.clientY);
           const hit = hitTest(e.clientX, e.clientY);
           if (clickAction === 'erase') {
-            if (hit && hit.kind === 'line') liveRef.current.onEraseLine(hit.id);
+            eraseHit(hit);
           } else if (clickAction === 'select' || hit?.kind === 'line') {
             liveRef.current.onSelect(hit, e.shiftKey);
           }
         } else {
-          feedTool(e.type === 'pointercancel' ? 'cancel' : 'up', e.clientX, e.clientY);
+          feedTool(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
         }
-        drawing = false;
-        toolRuntime = null;
-        renderer.setOverlayPoints(null);
-      } else if (movingSelection) {
+        if (liveRef.current.activeToolInputMode !== 'drag-line') {
+          toolRuntime = null;
+          renderer.setOverlayPoints(null);
+        }
+        // A drag-line keeps its runtime (a click may have just armed its start) and
+        // its overlay, which feedTool has already set to the armed dot + snap ring.
+      } else if (route === 'move-selection') {
         if (moved && (Math.abs(moveDelta.x) > 1e-9 || Math.abs(moveDelta.y) > 1e-9)) {
           // Commit: the document update re-renders the strokes at their final
           // position, so we leave the shifted strokes in place (no snap-back).
@@ -2310,15 +2681,25 @@ export function CreasePatternWebglCanvas({
           renderNow();
           if (!moved) liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
         }
-      } else if (selecting) {
+      } else if (route === 'select') {
         if (moved) boxSelect(e.clientX, e.clientY, e.shiftKey);
         else liveRef.current.onSelect(hitTest(e.clientX, e.clientY), e.shiftKey);
       }
+      // Every gesture flag is cleared here, not inside the branch that consumed it.
+      // A flag cleared only by its own branch survives any release routed elsewhere,
+      // and `erasing` in particular then makes the *next* press feed a dead erase
+      // runtime — a one-gesture glitch becomes a permanently broken canvas.
       marquee.style.display = 'none';
+      marquee.classList.remove('cp-webgl-marquee--text');
       panning = false;
+      setPanDragging(false);
       selecting = false;
       movingSelection = false;
       moveStart = null;
+      drawing = false;
+      erasing = false;
+      eraseRuntime = null;
+      textPressStarted = false;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     };
     const onWheel = (e: WheelEvent) => {
@@ -2334,12 +2715,31 @@ export function CreasePatternWebglCanvas({
     };
     // Suppress the browser menu so the right button is free for the erase gesture.
     const onContextMenu = (e: Event) => e.preventDefault();
-    // Drop the hover snap indicator when the cursor leaves the canvas.
+    // Drop the hover snap indicator when the cursor leaves the canvas. A parked crease
+    // start stays put — the cursor is coming back — but its rubber band goes, since
+    // there is no cursor left to stretch it to.
     const onPointerLeave = () => {
-      renderer.setOverlayPoints(null);
+      const mode = liveRef.current.activeToolInputMode;
+      const parked =
+        (mode === 'drag-line' && dragLineArmedRef.current) ||
+        (mode === 'angle-drag' && angleDragArmedRef.current && angleDragAnchorRef.current) ||
+        null;
+      if (parked) {
+        renderer.setPreview(null);
+        if (mode === 'angle-drag') liveRef.current.onToolPreviewInput([], []);
+        renderer.setOverlayPoints(
+          sequenceOverlayPoints(
+            [parked],
+            null,
+            readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
+          )
+        );
+      } else {
+        renderer.setOverlayPoints(null);
+      }
       renderNow();
     };
-    // Escape abandons an in-progress point sequence or entity pick.
+    // Escape abandons an in-progress point sequence, entity pick, or armed draw.
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (liveRef.current.activeToolInputMode === 'sequence') {
@@ -2348,6 +2748,10 @@ export function CreasePatternWebglCanvas({
         feedLinePick('cancel', 0, 0);
       } else if (liveRef.current.activeToolInputMode === 'lengthen') {
         feedLengthen('cancel', 0, 0);
+      } else if (liveRef.current.activeToolInputMode === 'drag-line') {
+        feedTool('cancel', 0, 0);
+      } else if (liveRef.current.activeToolInputMode === 'angle-drag') {
+        feedAngleDrag('cancel', 0, 0);
       }
     };
     canvas.addEventListener('pointerdown', onPointerDown);
@@ -2375,8 +2779,11 @@ export function CreasePatternWebglCanvas({
       renderer.dispose();
       rendererRef.current = null;
     };
-    // Set up once on mount; all live inputs are read through liveRef, not deps.
-  }, []);
+    // Live inputs are read through liveRef rather than deps, so this runs once
+    // per mount. `rendererGeneration` is the sole trigger for a re-run: it
+    // changes only on context loss, where the dead renderer must be torn down
+    // and replaced.
+  }, [rendererGeneration]);
 
   // Upload geometry whenever it is rebuilt, then redraw immediately.
   useEffect(() => {
@@ -2392,7 +2799,7 @@ export function CreasePatternWebglCanvas({
       renderer.setPreview(null);
     }
     renderNowRef.current();
-  }, [scene]);
+  }, [scene, rendererGeneration]);
 
   // Point-sequence kernel preview: render the controller-supplied candidate
   // segments on the preview channel (cleared when there are none). Drag tools
@@ -2410,7 +2817,7 @@ export function CreasePatternWebglCanvas({
         : null
     );
     renderNowRef.current();
-  }, [toolCommandPreviewSegments, toolPreviewColor, activeToolDashedPreview]);
+  }, [toolCommandPreviewSegments, toolPreviewColor, activeToolDashedPreview, rendererGeneration]);
 
   // Diagnostic overlays (CAMV / check-fix): shape markers + segment highlights, built
   // model-space by the panel and forwarded straight to the renderer's overlay layer.
@@ -2419,33 +2826,33 @@ export function CreasePatternWebglCanvas({
       diagnosticMarkers.count > 0 ? diagnosticMarkers : null
     );
     renderNowRef.current();
-  }, [diagnosticMarkers]);
+  }, [diagnosticMarkers, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticStrokes(
       diagnosticStrokes.count > 0 ? diagnosticStrokes : null
     );
     renderNowRef.current();
-  }, [diagnosticStrokes]);
+  }, [diagnosticStrokes, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticWedges(
       diagnosticWedges.count > 0 ? diagnosticWedges : null
     );
     renderNowRef.current();
-  }, [diagnosticWedges]);
+  }, [diagnosticWedges, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setDiagnosticFills(
       contradictionFaceFills.count > 0 ? contradictionFaceFills : null
     );
     renderNowRef.current();
-  }, [contradictionFaceFills]);
+  }, [contradictionFaceFills, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setOverlayFrame(operationFrame);
     renderNowRef.current();
-  }, [operationFrame]);
+  }, [operationFrame, rendererGeneration]);
   useEffect(() => {
     rendererRef.current?.setImportedForms(importedForms);
     renderNowRef.current();
-  }, [importedForms]);
+  }, [importedForms, rendererGeneration]);
 
   // Reference-image layer: upload/evict textures when the image list changes,
   // then redraw. Textures are cached by `src` in the renderer, so transform-only
@@ -2453,7 +2860,7 @@ export function CreasePatternWebglCanvas({
   useEffect(() => {
     rendererRef.current?.setImages(images ?? EMPTY_IMAGES);
     renderNowRef.current();
-  }, [images]);
+  }, [images, rendererGeneration]);
 
   // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
   // show the vertex + its creases (capped so it never over-zooms), matching the SVG's
@@ -2479,12 +2886,21 @@ export function CreasePatternWebglCanvas({
       maxY: Math.max(...ys),
     };
     const viewport: Viewport = { width: canvas.width, height: canvas.height, dpr: 1 };
-    const issue = fitUserCamera(userBounds, viewport, 0.5);
+    // Framing happens in the current rotated frame, and preserves it: jumping to
+    // a diagnostic should not also straighten the view the user turned.
+    const issue = fitUserCamera(userBounds, viewport, 0.5, cam.rotation);
     const docBounds = liveRef.current.contentBounds;
-    const docFitZoom = docBounds ? fitUserCamera(docBounds, viewport).zoom : issue.zoom;
+    const docFitZoom = docBounds
+      ? fitUserCamera(docBounds, viewport, undefined, cam.rotation).zoom
+      : issue.zoom;
     // Zoom in enough to frame the issue, but never zoom out or blow past ~4x the fit.
     const zoom = Math.max(cam.zoom, Math.min(issue.zoom, docFitZoom * 4));
-    cameraRef.current = { centerX: issue.centerX, centerY: issue.centerY, zoom };
+    cameraRef.current = {
+      centerX: issue.centerX,
+      centerY: issue.centerY,
+      zoom,
+      rotation: cam.rotation,
+    };
     renderNowRef.current();
   }, [focusModelBounds]);
 
@@ -2502,13 +2918,21 @@ export function CreasePatternWebglCanvas({
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
     if (cmd.kind === 'fit') {
-      if (docBounds) cameraRef.current = fitUserCamera(docBounds, viewport);
+      // Fit reframes; it does not straighten. Rotation is cleared only by the
+      // explicit reset, so an unrelated framing command never discards it.
+      if (docBounds) cameraRef.current = fitUserCamera(docBounds, viewport, undefined, cam.rotation);
     } else if (cmd.kind === 'zoom-in') {
       zoomUserCameraAt(cam, viewport, cx, cy, 1.35);
     } else if (cmd.kind === 'zoom-out') {
       zoomUserCameraAt(cam, viewport, cx, cy, 1 / 1.35);
     } else if (cmd.kind === 'set-percent' && cmd.percent != null) {
       cam.zoom = ratio * (cmd.percent / 100); // 100% == 1 user unit per CSS px
+    } else if (cmd.kind === 'rotate-by' && cmd.radians != null) {
+      cam.rotation = normalizeCameraRotation(cam.rotation + cmd.radians);
+    } else if (cmd.kind === 'rotate-to' && cmd.radians != null) {
+      cam.rotation = normalizeCameraRotation(cmd.radians);
+    } else if (cmd.kind === 'rotate-reset') {
+      cam.rotation = 0;
     }
     renderNowRef.current();
   }, [cameraCommand]);
@@ -2533,5 +2957,12 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [activeToolVoronoi, toolCommandPreviewPoints]);
 
-  return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className={className}
+      style={panToolActive ? { cursor: panDragging ? 'grabbing' : 'grab' } : undefined}
+      aria-hidden="true"
+    />
+  );
 }

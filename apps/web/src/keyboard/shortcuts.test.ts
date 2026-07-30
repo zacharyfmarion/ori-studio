@@ -32,16 +32,18 @@ describe('shortcut registry', () => {
 
   it('keeps hybrid globals while applying Oriedita scoped CP defaults', () => {
     expect(shortcutLabelForAction('file.saveAs')).toMatch(/Shift\+S$/u);
+    // Line types sit on the left-hand home row: A/S/D/F.
     expect(getResolvedShortcut('cp.action.line-type.mountain')).toEqual({
-      key: 'm',
+      key: 'a',
     });
     expect(getResolvedShortcut('cp.action.line-type.valley')).toEqual({
-      key: 'v',
+      key: 's',
     });
-    // L is bound to the default Line tool rather than the edge line type.
-    expect(getResolvedShortcut('cp.action.line-type.edge')).toBeNull();
+    expect(getResolvedShortcut('cp.action.line-type.edge')).toEqual({
+      key: 'd',
+    });
     expect(getResolvedShortcut('cp.action.draw-crease')).toEqual({
-      key: 'l',
+      key: 'z',
     });
     expect(getResolvedShortcuts('edit.delete')).toEqual([
       { key: 'delete' },
@@ -50,11 +52,11 @@ describe('shortcut registry', () => {
     expect(shortcutLabelForAction('edit.delete')).toContain('Delete / Backspace');
   });
 
-  it('binds the F fold chord to a single fold action (deduped)', () => {
-    // Fold and FoldingEstimate both default to `foldAction` (F); the builder keeps
+  it('binds the fold chord to a single fold action (deduped)', () => {
+    // Fold and FoldingEstimate both default to `foldAction` (G); the builder keeps
     // the chord on FoldingEstimate and drops the duplicate on Fold. CreasePatternPanel
     // routes both operationIds to the real fold, so this pins the de-dup it relies on.
-    expect(getResolvedShortcut('cp.action.folding-estimate')).toEqual({ key: 'f' });
+    expect(getResolvedShortcut('cp.action.folding-estimate')).toEqual({ key: 'g' });
     expect(getResolvedShortcut('cp.action.fold')).toBeNull();
   });
 
@@ -96,6 +98,61 @@ describe('shortcut registry', () => {
   it('keeps every shortcut id unique', () => {
     const ids = SHORTCUT_DEFINITIONS.map((definition) => definition.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  // The registry drops a duplicate default chord silently (buildCpShortcutDefinitions
+  // keeps the first in ORISTUDIO_CP_ACTIONS order), so a collision would otherwise
+  // disable a tool with no test failure. Measure on Shift+M is exactly the case that
+  // would have shadowed Mirror Line had it taken the bare key.
+  it('has no duplicate default chords in any scope', () => {
+    expect(getShortcutRegistryDiagnostics().duplicateDefaultChords).toEqual([]);
+  });
+
+  it('lets the viewport share Delete with edit.delete, in its own scope', () => {
+    // Deliberately the same chord as `edit.delete`: viewport scope resolves
+    // first and declines when nothing in the viewport owns the press, so the
+    // key falls through to crease deletion. The two are not a conflict for the
+    // same reason a CP tool chord is not one — different, non-overlapping scopes.
+    expect(getResolvedShortcuts('viewport.delete')).toEqual([
+      { key: 'delete' },
+      { key: 'backspace' },
+    ]);
+    expect(findShortcutConflict('viewport.delete', { key: 'delete' })).toBeNull();
+  });
+
+  it('puts inline simulation on Shift+S, clear of Save As', () => {
+    // Bare Shift+S, joining the surface's other Shift+<letter> verbs. Save As is
+    // Mod+Shift+S — a different chord, but close enough to be worth pinning.
+    expect(getResolvedShortcut('viewport.simulateSelectionInline')).toEqual({
+      shift: true,
+      key: 's',
+    });
+    expect(getResolvedShortcut('file.saveAs')).toEqual({
+      primary: true,
+      shift: true,
+      key: 's',
+    });
+  });
+
+  it('keeps the mirror family on M and puts the measure tools on Shift+M / Shift+A', () => {
+    expect(getResolvedShortcut('cp.action.symmetric-draw')).toEqual({ key: 'm' });
+    expect(getResolvedShortcut('cp.action.draw-crease-symmetric')).toEqual({ primary: true, key: 'm' });
+    expect(getResolvedShortcut('cp.action.display-length-between-points1')).toEqual({
+      key: 'm',
+      shift: true,
+    });
+    expect(getResolvedShortcut('cp.action.display-angle-between-three-points1')).toEqual({
+      key: 'a',
+      shift: true,
+    });
+    // The bare keys they shift stay with their own tools.
+    expect(getResolvedShortcut('cp.action.line-type.mountain')).toEqual({ key: 'a' });
+    expect(shortcutLabelForAction('cp.action.display-length-between-points1')).toMatch(
+      /Shift\+M$/u
+    );
+    expect(shortcutLabelForAction('cp.action.display-angle-between-three-points1')).toMatch(
+      /Shift\+A$/u
+    );
   });
 
   it('reports import diagnostics for follow-up mapping work', () => {

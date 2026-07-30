@@ -23,6 +23,9 @@ export type WorkspaceCapabilityId =
   | 'file.exportOrh'
   | 'file.exportSvg'
   | 'file.exportPng'
+  | 'file.exportFoldedFold'
+  | 'file.exportObj'
+  | 'file.exportStl'
   | 'edit.undo'
   | 'edit.redo'
   | 'edit.cut'
@@ -256,6 +259,38 @@ export function getWorkspaceCapabilities(
           ? t('common:capability.buildCpBeforeExportingFold', 'Build a crease pattern before exporting FOLD')
           : t('common:capability.openCpBeforeExportingFold', 'Open a crease pattern before exporting FOLD')
     ),
+    // Folded-form exports. No menu entry: they belong to the simulator surface,
+    // which will drive the store actions directly, so these gate that surface
+    // rather than a File > Export item.
+    //
+    // Gated on the same "there is a crease pattern" condition as the FOLD export:
+    // the simulator loads from those artifacts, and the handlers fail cleanly if
+    // it has not produced geometry yet.
+    'file.exportFoldedFold': capability(
+      (canExportTreeFold || canExportEditableOrImportedFold) && !isBusy,
+      t('common:capability.exportFoldedFold', 'Export Folded FOLD...'),
+      canExportTreeFold || canExportEditableOrImportedFold
+        ? busyOr(
+            t('common:capability.exportFoldedFoldDocument', 'Export the simulated folded form as FOLD'),
+            input.status,
+            t
+          )
+        : t('common:capability.simulateBeforeExportingFolded', 'Simulate a crease pattern before exporting its folded form')
+    ),
+    'file.exportObj': capability(
+      (canExportTreeFold || canExportEditableOrImportedFold) && !isBusy,
+      t('common:capability.exportObj', 'Export OBJ...'),
+      canExportTreeFold || canExportEditableOrImportedFold
+        ? busyOr(t('common:capability.exportObjMesh', 'Export the simulated folded form as OBJ'), input.status, t)
+        : t('common:capability.simulateBeforeExportingFolded', 'Simulate a crease pattern before exporting its folded form')
+    ),
+    'file.exportStl': capability(
+      (canExportTreeFold || canExportEditableOrImportedFold) && !isBusy,
+      t('common:capability.exportStl', 'Export STL...'),
+      canExportTreeFold || canExportEditableOrImportedFold
+        ? busyOr(t('common:capability.exportStlMesh', 'Export the simulated folded form as STL'), input.status, t)
+        : t('common:capability.simulateBeforeExportingFolded', 'Simulate a crease pattern before exporting its folded form')
+    ),
     'file.exportBps': commandCapability(
       input.hasBoxPleatDocument && !isBusy,
       input.hasBoxPleatDocument,
@@ -341,7 +376,9 @@ export function getWorkspaceCapabilities(
     'edit.delete': capability(
       (isBpContext && input.hasDeletableBpSelection && !isBusy) ||
         (!isBpContext && treeMode && !activeCpSurface && hasSelection && !isBusy) ||
-        (canEditCp && activeCpSurface && (hasSelectedCpLines || hasSelectedCpPoints)),
+        (canEditCp &&
+          activeCpSurface &&
+          (hasSelectedCpLines || hasSelectedCpPoints || hasSelectedCpCircles)),
       t('common:capability.deleteSelected', 'Delete Selected'),
       treeMode && !activeCpSurface
         ? t('common:capability.deleteSelectedTreeParts', 'Delete selected tree parts')
@@ -350,7 +387,9 @@ export function getWorkspaceCapabilities(
             ? t('common:capability.deleteSelectedCpLines', 'Delete selected crease-pattern lines')
             : hasSelectedCpPoints
               ? t('common:capability.deleteSelectedCpPoints', 'Delete selected crease-pattern points')
-              : t('common:capability.selectCpLinesOrPointsFirst', 'Select one or more crease-pattern lines or points first')
+              : hasSelectedCpCircles
+                ? t('common:capability.deleteSelectedCpCircles', 'Delete selected crease-pattern circles')
+                : t('common:capability.selectCpLinesOrPointsFirst', 'Select one or more crease-pattern lines or points first')
           : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
     ),
     'edit.selectAll': capability(
@@ -798,6 +837,9 @@ const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
   'file.exportOrh',
   'file.exportSvg',
   'file.exportPng',
+  'file.exportFoldedFold',
+  'file.exportObj',
+  'file.exportStl',
 ]);
 
 // Undo/redo stay in the Edit menu while simulating (rendered inert — the

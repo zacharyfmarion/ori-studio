@@ -3,15 +3,49 @@ import {
   ORISTUDIO_CP_ACTIONS,
   type OristudioCpActionId,
 } from '../lib/oristudioCpActions';
+import { isApplePlatform } from '../lib/platform';
 
-export type ShortcutScope = 'global' | 'crease-pattern' | 'viewport';
+/**
+ * Scopes are searched front-to-back, so a more specific one wins a chord it
+ * shares with a broader one. `simulator` sits ahead of `crease-pattern` and is
+ * pushed only while a simulation owns the keyboard — a focused inline window on
+ * the Edit canvas, or the Simulate workspace. Without it, the simulator's bare
+ * letters (F, C, R, L) and Space would fight the CP tools bound to the same
+ * keys, and Space is already space-to-pan on the Edit canvas.
+ */
+export type ShortcutScope = 'global' | 'crease-pattern' | 'viewport' | 'simulator';
 export type ViewportShortcutId =
   | 'viewport.zoomIn'
   | 'viewport.zoomOut'
   | 'viewport.fit'
-  | 'viewport.actualSize';
-export type ShortcutActionId = MenuActionId | OristudioCpActionId | ViewportShortcutId;
-export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport';
+  | 'viewport.actualSize'
+  | 'viewport.pan'
+  | 'viewport.rotateCcw'
+  | 'viewport.rotateCw'
+  | 'viewport.resetRotation'
+  | 'viewport.cancel'
+  | 'viewport.delete'
+  | 'viewport.simulateSelectionInline';
+export type SimulatorShortcutId =
+  | 'simulator.playPause'
+  | 'simulator.foldForward'
+  | 'simulator.foldBackward'
+  | 'simulator.foldEnd'
+  | 'simulator.foldStart'
+  | 'simulator.replay'
+  | 'simulator.resetView'
+  | 'simulator.zoomIn'
+  | 'simulator.zoomOut'
+  | 'simulator.toggleFaces'
+  | 'simulator.toggleCreases'
+  | 'simulator.toggleHiddenLines'
+  | 'simulator.toggleLighting';
+export type ShortcutActionId =
+  | MenuActionId
+  | OristudioCpActionId
+  | ViewportShortcutId
+  | SimulatorShortcutId;
+export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport' | 'simulator';
 export type ReservedKeyClassification = 'allowed' | 'soft-reserved' | 'hard-reserved';
 
 export interface KeyChord {
@@ -51,29 +85,77 @@ export interface ShortcutRegistryDiagnostics {
   }>;
 }
 
+/**
+ * Default keystrokes keyed by Oriedita `upstreamAction`.
+ *
+ * Only crease-pattern tool actions are *driven* by this table (see
+ * {@link defaultChordForCpAction}); the menu/global entries below are kept as
+ * upstream reference, since those chords are declared in {@link MENU_SHORTCUTS}.
+ *
+ * The single-key layout follows Robert Brandon Wong's Oriedita-optimized
+ * scheme: the left hand rests on the home row and drives the frequent tool and
+ * line-type switches while the right hand stays on the mouse. Departures from
+ * upstream Oriedita are marked "Ori Studio deviation".
+ */
 const ORIEDITA_DEFAULTS: Record<string, string> = {
-  lengthenCrease2Action: 'E',
+  // -- Tool / mode (left hand, upper row) --------------------------------
+  selectAction: 'Q',
+  moveAction: 'W',
+  copyAction: '2',
+
+  // -- Line types (left-hand home row) -----------------------------------
+  colRedAction: 'A', // Mountain
+  colBlueAction: 'S', // Valley
+  colBlackAction: 'D', // Edge
+  colCyanAction: 'F', // Auxiliary
+
+  // -- Draw / construct --------------------------------------------------
+  drawCreaseFreeAction: 'Z', // free line
+  // Ori Studio addition: upstream Oriedita has no Space handler at all, but the
+  // grid-restricted line is frequent enough to deserve the biggest key, and it
+  // pairs with Z for the free line.
+  drawCreaseRestrictedAction: 'SPACE',
+  perpendicularDrawAction: 'Y',
   angleBisectorAction: 'B',
+  lengthenCrease2Action: 'E',
+  makeFlatFoldableAction: 'T', // flat-foldable line (the rail-visible tool)
+  deg2Action: 'R', // radial / angle-restricted snapping (22.5, 30, 15 deg)
+  fishBoneDrawAction: 'H', // Oriedita labels this button "gridFill"
   rabbitEarAction: 'ctrl B',
-  perpendicularDrawAction: 'P',
-  symmetricDrawAction: 'R',
   continuousSymmetricDrawAction: 'ctrl R',
-  foldableLineDrawAction: 'N',
-  fishBoneDrawAction: 'G',
   doubleSymmetricDrawAction: 'ctrl G',
-  // Ori Studio deviation from Oriedita: bind L to the default Line tool.
-  drawCreaseFreeAction: 'L',
   reflectAction: 'ctrl M',
+  // Brandon's layout claims R for radial snapping, so Mirror Line takes M —
+  // mnemonic, and freed when the line types moved onto the home row.
+  symmetricDrawAction: 'M',
+
+  // -- Measure -----------------------------------------------------------
+  // Ori Studio addition: upstream ships no hotkey for these (hotkey.properties is
+  // empty for both). `l1Action` / `a1Action` are the two visible measure tools'
+  // upstream identities — the other three measure operations are hidden from the
+  // UI. Length takes Shift+M so the mirror family keeps the bare key (M mirror
+  // line, Ctrl+M reflect), and angle takes the matching Shift+A. These are the
+  // app's first bare Shift+letter chords; the dispatcher records `shift` on every
+  // event, so M and Shift+M (and A and Shift+A) stay distinct.
+  l1Action: 'shift M',
+  a1Action: 'shift A',
+
+  // -- Mountain / valley -------------------------------------------------
+  senbun_henkan2Action: 'C', // flip M/V of the selection
+  in_L_col_changeAction: 'X', // alternate M/V along a line (ridges)
+
+  // -- Fold --------------------------------------------------------------
+  foldAction: 'G',
+
+  // -- Upstream reference (chords declared in MENU_SHORTCUTS) -------------
   selectAllAction: 'ctrl A',
   deleteSelectedLineSegmentAction: 'DELETE',
-  senbun_henkan2Action: 'C',
   v_del_allAction: 'ctrl shift V',
-  colRedAction: 'M',
-  colBlueAction: 'V',
+  // Unmapped: no CP action carries this upstream yet, so it yields no chord.
+  // Binding it would need a key other than G, which fold now owns.
   gridConfigureAction: 'G',
   undoAction: 'ctrl Z',
   redoAction: 'ctrl shift Z',
-  foldAction: 'F',
   foldedFigureFlipAction: 'ctrl alt F',
   haltAction: 'ESCAPE',
   foldedFigureTrashAction: 'ctrl F',
@@ -117,16 +199,93 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
   }),
 ];
 
+function simulatorShortcut(
+  id: SimulatorShortcutId,
+  label: string,
+  defaultChord: KeyChord | KeyChord[]
+): ShortcutDefinition {
+  const defaultChords = normalizeDefaultChords(defaultChord);
+  return {
+    id,
+    label,
+    category: 'Simulator',
+    scope: 'simulator',
+    target: 'simulator',
+    defaultChord: defaultChords[0] ?? null,
+    defaultChords,
+  };
+}
+
+/**
+ * Simulator bindings. These used to be a bare `window` keydown listener inside
+ * the Simulate panel, justified by the panel only ever mounting in its own
+ * workspace — which stopped being true when inline simulation windows arrived on
+ * the Edit canvas. Going through the registry also means they finally honour the
+ * user's shortcut overrides, which the ad-hoc listener bypassed entirely.
+ */
+const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
+  simulatorShortcut('simulator.playPause', 'Play / Pause Fold', { key: ' ' }),
+  simulatorShortcut('simulator.foldForward', 'Fold Forward', { key: 'arrowright' }),
+  simulatorShortcut('simulator.foldBackward', 'Fold Backward', { key: 'arrowleft' }),
+  simulatorShortcut('simulator.foldEnd', 'Jump To Folded', { shift: true, key: 'arrowright' }),
+  simulatorShortcut('simulator.foldStart', 'Jump To Flat', { shift: true, key: 'arrowleft' }),
+  simulatorShortcut('simulator.replay', 'Replay From Flat', { key: 'r' }),
+  simulatorShortcut('simulator.resetView', 'Reset Simulator View', [
+    { key: '0' },
+    { key: 'home' },
+  ]),
+  simulatorShortcut('simulator.zoomIn', 'Zoom In Simulator', [{ key: '=' }, { key: '+' }]),
+  simulatorShortcut('simulator.zoomOut', 'Zoom Out Simulator', [{ key: '-' }, { key: '_' }]),
+  simulatorShortcut('simulator.toggleFaces', 'Toggle Faces', { key: 'f' }),
+  simulatorShortcut('simulator.toggleCreases', 'Toggle Crease Lines', { key: 'c' }),
+  simulatorShortcut('simulator.toggleHiddenLines', 'Toggle Hidden Lines', { key: 'h' }),
+  simulatorShortcut('simulator.toggleLighting', 'Toggle Lighting', { key: 'l' }),
+];
+
 const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
-  viewportShortcut('viewport.zoomIn', 'Zoom In', { primary: true, key: '=' }),
-  viewportShortcut('viewport.zoomOut', 'Zoom Out', { primary: true, key: '-' }),
+  // The bare 6/5 chords come from the Oriedita layout, so the left hand can
+  // zoom without reaching for a modifier.
+  viewportShortcut('viewport.zoomIn', 'Zoom In', [{ primary: true, key: '=' }, { key: '6' }]),
+  viewportShortcut('viewport.zoomOut', 'Zoom Out', [{ primary: true, key: '-' }, { key: '5' }]),
   viewportShortcut('viewport.fit', 'Fit To View', { primary: true, key: '0' }),
   viewportShortcut('viewport.actualSize', 'Actual Size', { primary: true, key: '1' }),
+  viewportShortcut('viewport.pan', 'Pan (hand tool)', { key: '1' }),
+  viewportShortcut('viewport.rotateCcw', 'Rotate View Left', { key: '3' }),
+  viewportShortcut('viewport.rotateCw', 'Rotate View Right', { key: '4' }),
+  viewportShortcut('viewport.resetRotation', 'Reset View Rotation', null),
+  // Escape is a viewport shortcut like any other, so it dispatches
+  // focus-independently. A viewport that scopes it to its own container instead
+  // loses it to whatever floating editor, toolbar, or portalled menu took focus
+  // last — see AGENTS.md > "Panel components".
+  viewportShortcut('viewport.cancel', 'Cancel / Deselect', { key: 'escape' }),
+  // Delete is shared with `edit.delete` at global scope, which deletes creases.
+  // Viewport scope resolves first, so this one is asked whether the *viewport*
+  // owns the press — a selected canvas object, or a measurement to drop — and
+  // declines when it does not, letting the chord fall through. That decline is
+  // what makes one binding safe here; both of these verbs used to be raw
+  // `keydown` listeners on the panel precisely because it did not exist, and
+  // both then fired *alongside* crease deletion rather than instead of it.
+  //
+  // One definition rather than one per verb: the dispatcher takes the first
+  // match in a scope, so a second Delete binding here would be unreachable. The
+  // ladder lives in the executor, as it already does for `viewport.cancel`.
+  viewportShortcut('viewport.delete', 'Delete Selected Object', [
+    { key: 'delete' },
+    { key: 'backspace' },
+  ]),
+  // Shift+<letter> is where the crease-pattern surface's own verbs live —
+  // Shift+A and Shift+M are the measure tools. Plain S is free; Mod+Shift+S is
+  // Save As, which is a different chord.
+  viewportShortcut('viewport.simulateSelectionInline', 'Simulate Selection Inline', {
+    shift: true,
+    key: 's',
+  }),
 ];
 
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   ...MENU_SHORTCUTS,
   ...buildCpShortcutDefinitions(),
+  ...SIMULATOR_SHORTCUTS,
   ...VIEWPORT_SHORTCUTS,
 ];
 
@@ -157,7 +316,7 @@ function menuShortcut(
 function viewportShortcut(
   id: ViewportShortcutId,
   label: string,
-  defaultChord: KeyChord
+  defaultChord: KeyChord | KeyChord[] | null
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
@@ -509,9 +668,4 @@ function isModifierKey(key: string): boolean {
     key === 'shift' ||
     key === 'alt'
   );
-}
-
-function isApplePlatform(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /Mac|iPhone|iPad/u.test(navigator.platform);
 }

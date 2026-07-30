@@ -9,11 +9,14 @@ import {
 import type {
   ShortcutOverrides,
   ShortcutScope,
+  SimulatorShortcutId,
   ViewportShortcutId,
 } from './shortcuts';
 
 type CpActionExecutor = (id: OristudioCpActionId) => unknown;
-type ViewportExecutor = (id: ViewportShortcutId) => unknown;
+/** Returning `false` declines the chord; see `ShortcutExecutors.viewport`. */
+type ViewportExecutor = (id: ViewportShortcutId) => boolean | void;
+type SimulatorExecutor = (id: SimulatorShortcutId) => unknown;
 
 /**
  * Which viewport currently owns keyboard shortcuts. This is the document modes
@@ -25,10 +28,19 @@ export type ViewportSurface = DocumentMode | 'bp-editor';
 const viewportExecutors: Partial<Record<ViewportSurface, ViewportExecutor>> = {};
 let cpActionExecutor: CpActionExecutor | null = null;
 let activeViewportSurface: ViewportSurface | null = null;
+/**
+ * Set while a simulation owns the keyboard: the Simulate workspace panel, or a
+ * focused inline simulation window on the Edit canvas. Its presence is what
+ * pushes the `simulator` scope, so the simulator's bare letters and Space only
+ * take precedence over the CP tools when a simulation is actually in hand.
+ */
+let simulatorExecutor: SimulatorExecutor | null = null;
 
 export interface ShortcutRuntimeContext {
   activeEditingContext: EditingContext;
   activeViewportSurface?: ViewportSurface | null;
+  /** Overrides the registered-executor check; for tests. */
+  simulatorFocused?: boolean;
 }
 
 /** The viewport pane that owns shortcuts for a given editing context. */
@@ -52,6 +64,19 @@ export function registerViewportShortcutExecutor(
   return () => {
     if (viewportExecutors[surface] === executor) {
       delete viewportExecutors[surface];
+    }
+  };
+}
+
+/**
+ * Claim the keyboard for a simulation. Returns an unregister; call it on blur or
+ * unmount, or the CP tools stay shadowed after the simulation is gone.
+ */
+export function registerSimulatorShortcutExecutor(executor: SimulatorExecutor): () => void {
+  simulatorExecutor = executor;
+  return () => {
+    if (simulatorExecutor === executor) {
+      simulatorExecutor = null;
     }
   };
 }
@@ -80,7 +105,13 @@ function resolvedViewportSurface(context: ShortcutRuntimeContext): ViewportSurfa
 export function shortcutScopeStackForContext(
   context: ShortcutRuntimeContext
 ): ShortcutScope[] {
-  const scopes: ShortcutScope[] = ['viewport'];
+  const scopes: ShortcutScope[] = [];
+  // Ahead of everything: a simulation in hand should answer Space and the view
+  // toggles, not the crease-pattern tools bound to the same keys.
+  if (context.simulatorFocused ?? simulatorExecutor !== null) {
+    scopes.push('simulator');
+  }
+  scopes.push('viewport');
   if (context.activeEditingContext === 'crease-pattern') {
     scopes.push('crease-pattern');
   }
@@ -100,6 +131,10 @@ export function handleShortcutRuntimeKeyDown(
 
   if (options.context.activeEditingContext === 'crease-pattern' && cpActionExecutor) {
     executors.cpAction = cpActionExecutor;
+  }
+
+  if (simulatorExecutor) {
+    executors.simulator = simulatorExecutor;
   }
 
   return handleShortcutKeyDown(event, {

@@ -1,4 +1,22 @@
 {
+  "boundary": {
+    "appDescription": "작업 내용은 아직 메모리에 있지만 인터페이스가 스스로 복구하지 못했습니다. 새로 고치기 전에 아래 세부 정보를 복사하세요. 개발자에게 무엇이 잘못되었는지 정확히 알려 줍니다.",
+    "appTitle": "Ori Studio에 문제가 발생했습니다",
+    "copied": "복사됨",
+    "copy": "세부 정보 복사",
+    "copyFailed": "복사하지 못했습니다",
+    "description": "Ori Studio의 나머지 부분은 계속 작동합니다. 다시 시도하거나 세부 정보를 복사해 신고하세요.",
+    "detailsSummary": "기술 세부 정보",
+    "dismiss": "닫기",
+    "miniTitle": "이 사이드바가 작동을 멈췄습니다",
+    "overlayTitle": "이 대화 상자가 작동을 멈췄습니다",
+    "paneTitle": "이 패널이 작동을 멈췄습니다",
+    "reload": "새로 고침",
+    "report": "문제 신고",
+    "resetLayout": "레이아웃 초기화 후 새로 고침",
+    "retry": "다시 시도",
+    "stripTitle": "이 도구 모음이 작동을 멈췄습니다"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D를 사용할 수 없습니다",
     "unsupportedImage": "PNG, JPEG 또는 WebP 이미지를 사용하세요."
@@ -7,5 +25,15 @@
     "contradiction": "이 전개도는 평평하게 접을 수 없습니다: 일부 면에 일관된 쌓임 순서가 없습니다.",
     "layerSearch": "이 전개도를 접을 수 없습니다: 층을 겹치지 않게 배치할 수 없습니다.",
     "sameParity": "이 전개도는 평평하게 접을 수 없습니다: 접힘선을 사이에 두고 두 면이 같은 방향으로 만납니다."
+  },
+  "global": {
+    "title": "백그라운드에서 문제가 발생했습니다"
+  },
+  "worker": {
+    "cpDetect": "전개도 감지가 예기치 않게 중지되었습니다. 이미지를 다시 가져와 보세요.",
+    "oristudioBp": "박스 플리팅 엔진이 예기치 않게 중지되었습니다. 이 디자인 작업을 계속하려면 Ori Studio를 새로 고치세요.",
+    "oristudioCp": "전개도 엔진이 예기치 않게 중지되었습니다. Ori Studio를 새로 고치세요. 마지막 저장 이후의 편집 내용은 손실될 수 있습니다.",
+    "simulator": "시뮬레이터가 예기치 않게 중지되었습니다. 다시 시작하려면 시뮬레이션 작업 공간을 다시 여세요.",
+    "treemaker": "디자인 엔진이 예기치 않게 중지되었습니다. 이 트리 작업을 계속하려면 Ori Studio를 새로 고치세요."
   }
 }

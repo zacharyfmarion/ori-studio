@@ -90,6 +90,7 @@ export function CanvasObjectOverlay({
   objects,
   selectedId,
   suppressedId,
+  inertBodyIds,
   interactive,
   onSelect,
   onUpdate,
@@ -104,6 +105,17 @@ export function CanvasObjectOverlay({
   selectedId: string | null;
   /** Id whose chrome is hidden (a text box being inline-edited owns its events). */
   suppressedId: string | null;
+  /**
+   * Ids whose *body* takes no pointer events, while their handles still do.
+   *
+   * For an object whose content is itself interactive — a focused inline
+   * simulation, which orbits on drag — the body polygon sits above that content
+   * and would otherwise swallow every gesture meant for it, moving the object
+   * instead. Distinct from {@link suppressedId}, which removes the chrome
+   * altogether: here the selection outline and the resize/rotate handles remain,
+   * so the object can still be sized and turned.
+   */
+  inertBodyIds?: ReadonlySet<string>;
   interactive: boolean;
   onSelect: (id: string | null) => void;
   onUpdate: (id: string, patch: CanvasObjectBoxUpdate) => void;
@@ -369,6 +381,7 @@ export function CanvasObjectOverlay({
         const points = corners.map((corner) => `${corner.x},${corner.y}`).join(' ');
         const isSelected = object.id === selectedId;
         const cropping = isSelected && cropMode && (canCrop?.(object.id) ?? false);
+        const bodyInert = inertBodyIds?.has(object.id) ?? false;
         return (
           <polygon
             key={object.id}
@@ -384,8 +397,8 @@ export function CanvasObjectOverlay({
             strokeWidth={isSelected ? 1.5 : 0}
             strokeDasharray={cropping ? '4 3' : undefined}
             style={{
-              pointerEvents: interactive && !object.locked ? 'auto' : 'none',
-              cursor: interactive ? 'move' : 'default',
+              pointerEvents: interactive && !object.locked && !bodyInert ? 'auto' : 'none',
+              cursor: interactive && !bodyInert ? 'move' : 'default',
               vectorEffect: 'non-scaling-stroke',
             }}
             onPointerDown={(event) => handleBodyDown(event, object)}

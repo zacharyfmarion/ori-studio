@@ -44,9 +44,6 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
     ],
     notes: ["The point must not be on line A's span and line B must not be parallel with line A."],
   },
-  a1Action: {
-    intro: ['Measure angle by selecting points ABC.'],
-  },
   a2Action: {
     intro: ['Measure angle by selecting points ABC.'],
   },
@@ -103,6 +100,26 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
   circleDrawTwoConcentricAction: {
     intro: ['Draw connecting concentric circles by selecting two circles.'],
     notes: ['Differences of radii between concentric and selected circles are equal.'],
+  },
+  colBlackAction: {
+    intro: ['Draw new creases as edge (border) lines.'],
+    notes: ['Sets the active line type; it stays in effect until another type is picked.'],
+  },
+  colBlueAction: {
+    intro: ['Draw new creases as valley folds.'],
+    notes: ['Sets the active line type; it stays in effect until another type is picked.'],
+  },
+  colCyanAction: {
+    intro: ['Draw new creases as auxiliary (construction) lines.'],
+    notes: ['Auxiliary lines are guides — they are not folded.'],
+  },
+  colRedAction: {
+    intro: ['Draw new creases as mountain folds.'],
+    notes: ['Sets the active line type; it stays in effect until another type is picked.'],
+  },
+  lineColorAction: {
+    intro: ['Draw new creases as unassigned lines.'],
+    notes: ['Unassigned creases have no fold direction yet, so foldability checks skip them.'],
   },
   continuousSymmetricDrawAction: {
     intro: ['Draw a line reflecting through crease lines.'],
@@ -220,19 +237,8 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
     intro: ['Set starting face by selecting a face.'],
     notes: ['Folded shape is calculated relative to starting face.'],
   },
-  l1Action: {
-    intro: ['Measure length by selecting 2 points.'],
-    notes: [
-      'Length is measured in grid units.',
-      'Length is relative to crease pattern size with grid size of 1.',
-    ],
-  },
   l2Action: {
     intro: ['Measure length by selecting 2 points.'],
-    notes: [
-      'Length is measured in grid units.',
-      'Length is relative to crease pattern size with grid size of 1.',
-    ],
   },
   makeFlatFoldableAction: {
     intro: ['Draw flat foldable line.'],

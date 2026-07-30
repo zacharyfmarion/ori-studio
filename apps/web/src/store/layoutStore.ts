@@ -4,12 +4,14 @@ import type { WorkspaceId } from '../workspaces/workspaces';
 import { workspaceForPanelId } from '../workspaces/workspaces';
 import { readJson, readString, removeKey, storageKey, STORAGE_KEYS, writeJson, writeString } from '../lib/storage';
 
+// v17: the Simulate workspace gained its options pane; a layout persisted before
+// it existed restores a lone simulator panel and never picks the pane up.
 // v16: the box-pleat tree pane gained a tab header (draggable/rearrangeable), so
 // invalidate persisted box-pleat layouts that still have it in a headerless group.
 // v15: workspace routing rebuilt the layout lifecycle; invalidate any layouts
 // persisted by the racy pre-routing/interim builds (e.g. a vertically stacked BP
 // split, an Edit layout missing the View pane).
-export const LAYOUT_VERSION = 16;
+export const LAYOUT_VERSION = 17;
 
 /**
  * The Design workspace renders one of three layouts depending on the active
@@ -80,6 +82,25 @@ export function clearPersistedLayout(workspace: WorkspaceId): void {
   const scope = currentLayoutScope(workspace);
   removeKey(layoutStorageKey(scope));
   removeKey(layoutVersionKey(scope));
+}
+
+/** Every scope `layoutScope` can produce. */
+const ALL_LAYOUT_SCOPES = ['design', 'design:box-pleat', 'design:nux', 'edit', 'simulate'];
+
+/**
+ * Drop every persisted layout, for the app-level error recovery path: when the
+ * whole shell has failed to render we cannot know which workspace's stored
+ * layout is at fault, and a corrupt one would survive an ordinary reload.
+ *
+ * Unlike `clearPersistedLayout` this reads no store state (no design variant, no
+ * active workspace) — it is called from an error fallback, where any store may
+ * be the thing that is broken.
+ */
+export function clearAllPersistedLayouts(): void {
+  for (const scope of ALL_LAYOUT_SCOPES) {
+    removeKey(layoutStorageKey(scope));
+    removeKey(layoutVersionKey(scope));
+  }
 }
 
 interface PrimaryPanelOptions {
@@ -214,6 +235,13 @@ function applySimulateLayout(api: DockviewApi): void {
     id: 'simulator',
     component: 'simulator',
     title: 'Simulator',
+  });
+  api.addPanel({
+    id: 'simulator-view-controls',
+    component: 'simulator-view-controls',
+    title: 'View',
+    position: { referencePanel: 'simulator', direction: 'right' },
+    initialWidth: 260,
   });
   simulator.api.setActive();
 }

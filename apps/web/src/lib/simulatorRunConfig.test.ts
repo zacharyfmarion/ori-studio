@@ -7,7 +7,10 @@ describe('simulatorRunConfig', () => {
 
     expect(whole.initialSettleSteps).toBe(300);
     expect(whole.foldStepPercent).toBe(5);
-    expect(whole.solverOptions).toEqual({});
+    // Whole-model runs keep the default work budget but shrink the integration
+    // step: the stability bound ignores crease stiffness, so dense real patterns
+    // diverge at 1.0 (see bench:gpu-stability).
+    expect(whole.solverOptions).toEqual({ timeStepScale: 0.35 });
   });
 
   it('uses more work and a smaller adaptive timestep for accurate step simulation', () => {

@@ -47,6 +47,7 @@ export function resolveEditingContext(input: EditingContextInput): EditingContex
     case 'lesson':
       return 'crease-pattern';
     case 'simulator':
+    case 'simulator-view-controls':
     case 'sequence':
       return 'simulate';
     case 'inspector':

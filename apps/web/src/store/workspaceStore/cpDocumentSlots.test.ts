@@ -11,19 +11,19 @@ import {
   resetCpDocumentSlotsForTest,
 } from './cpDocumentSlots';
 import { activeCpDocumentSlot } from './oristudioCpRuntime';
-import { CP_DOCUMENT_SCOPED_KEYS, type CpDocumentScopedState } from './types';
+import { CP_SLOT_SCOPED_KEYS, type CpSlotScopedState } from './types';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 
 /**
  * A recognisable stand-in for a loaded document. The slot machinery only ever
  * moves these values around, so the shapes need to be distinguishable, not real.
  */
-function markDocumentState(marker: string): Partial<CpDocumentScopedState> {
+function markDocumentState(marker: string): Partial<CpSlotScopedState> {
   return {
-    oristudioCpDocument: { marker } as unknown as CpDocumentScopedState['oristudioCpDocument'],
+    oristudioCpDocument: { marker } as unknown as CpSlotScopedState['oristudioCpDocument'],
     oristudioCpRevision: 7,
     oristudioCpHistoryPast: [
-      { label: `${marker}-edit` } as unknown as CpDocumentScopedState['oristudioCpHistoryPast'][number],
+      { label: `${marker}-edit` } as unknown as CpSlotScopedState['oristudioCpHistoryPast'][number],
     ],
     oristudioCpSelection: emptyOristudioCpSelection(),
     oristudioCpError: `${marker}-error`,
@@ -131,6 +131,6 @@ describe('crease-pattern document slots', () => {
 
   it('captures every document-scoped field and nothing else', () => {
     const bundle = captureCpDocumentState(useWorkspaceStore.getState());
-    expect(Object.keys(bundle).sort()).toEqual(Object.keys(CP_DOCUMENT_SCOPED_KEYS).sort());
+    expect(Object.keys(bundle).sort()).toEqual(Object.keys(CP_SLOT_SCOPED_KEYS).sort());
   });
 });

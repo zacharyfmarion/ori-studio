@@ -82,6 +82,17 @@ export interface SimulatorDiagnostics {
   usedCpuFallback?: boolean;
   maxEdgeStrain?: number;
   averageEdgeStrain?: number;
+  /**
+   * Largest per-node mean axial strain, as a fraction (0.01 = 1%).
+   *
+   * The quantity the interactive readout and the solver clock's blow-up guard
+   * use, because both backends can produce it identically and cheaply -- the GPU
+   * already has it in the velocity texture's alpha channel, which is also what
+   * upstream reads for its strain visualization. `maxEdgeStrain` is a different
+   * measure (max over *edges*, computed from positions) and is not available on
+   * the GPU without an extra readback, so the two must not be conflated.
+   */
+  maxNodalStrain?: number;
 }
 
 export interface SimulationFrame {

@@ -1,5 +1,6 @@
 import { createBrowserRouter, createMemoryRouter, redirect } from 'react-router-dom';
 import App from '../App';
+import { RouteErrorElement } from '../components/errors/RouteErrorElement';
 import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
 import { getRuntimeSurface } from '../platform/runtime';
@@ -59,6 +60,9 @@ export function createAppRouter(): AppRouter {
     {
       path: '/',
       element: <App />,
+      // Router-caught errors (loaders, and render throws inside route elements)
+      // never reach a React error boundary, so the route tree needs its own.
+      errorElement: <RouteErrorElement />,
       children: [
         { index: true, loader: startupRedirect },
         { path: 'welcome', element: <WelcomeRoute /> },

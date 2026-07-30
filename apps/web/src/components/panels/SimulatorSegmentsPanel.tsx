@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Shapes } from 'lucide-react';
 import {
@@ -13,7 +13,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
  * document's crease-pattern segments as flat 2D thumbnails and drives the
  * selected segment.
  */
-export function SimulatorSegmentsSidebar() {
+export const SimulatorSegmentsSidebar = memo(function SimulatorSegmentsSidebar() {
   const { t } = useTranslation();
   const foldArtifacts = useWorkspaceStore((state) => state.foldArtifacts);
   const selectedSegmentId = useWorkspaceStore((state) => state.selectedSegmentId);
@@ -66,7 +66,7 @@ export function SimulatorSegmentsSidebar() {
       </ul>
     </aside>
   );
-}
+});
 
 interface SegmentThumbnailProps {
   segment: CpSegment;

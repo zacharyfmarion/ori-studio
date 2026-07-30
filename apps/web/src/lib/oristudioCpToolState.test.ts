@@ -49,7 +49,10 @@ describe('oristudio CP tool state', () => {
       status: 'not-implemented',
       stepIndex: 0,
     });
-    expect(state.steps).toEqual(['Drag crease endpoint']);
+    expect(state.steps).toEqual([
+      'Click or drag to set the crease start',
+      'Click to set the crease end',
+    ]);
   });
 
   it('starts ready action tools and keeps repeatable draw tools active after commit', () => {
@@ -64,14 +67,14 @@ describe('oristudio CP tool state', () => {
       activeActionId: 'cp.action.draw-crease',
       activeOperationId: 'DrawCreaseFree',
       phase: 'active',
-      prompt: 'Line: Drag crease endpoint',
+      prompt: 'Line: Click or drag to set the crease start',
       stepIndex: 0,
     });
     expect(committed).toMatchObject({
       activeActionId: 'cp.action.draw-crease',
       activeOperationId: 'DrawCreaseFree',
       phase: 'active',
-      prompt: 'Line: Drag crease endpoint',
+      prompt: 'Line: Click or drag to set the crease start',
       stepIndex: 0,
     });
   });

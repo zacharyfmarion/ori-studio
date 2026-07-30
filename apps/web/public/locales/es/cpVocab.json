@@ -93,7 +93,8 @@
       "tooltip": "Arrastra un pliegue con el tipo de línea actual",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra el extremo del pliegue"
+        "0": "Haz clic o arrastra para fijar el inicio del pliegue",
+        "1": "Haz clic para fijar el final del pliegue"
       }
     },
     "cp_action_move_crease_pattern": {
@@ -167,7 +168,8 @@
       "tooltip": "Dibujar pliegue restringido",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra entre puntos existentes"
+        "0": "Haz clic o arrastra desde un punto existente",
+        "1": "Haz clic en otro punto existente"
       }
     },
     "cp_action_draw_crease_symmetric": {
@@ -289,7 +291,8 @@
       "tooltip": "Dividir la línea por cantidad",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra para trazar una línea que dividir"
+        "0": "Haz clic o arrastra para iniciar la línea a dividir",
+        "1": "Haz clic para terminar la línea"
       }
     },
     "cp_action_line_segment_ratio_set": {
@@ -297,7 +300,8 @@
       "tooltip": "Dividir la línea por proporción",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra para trazar una línea que dividir"
+        "0": "Haz clic o arrastra para iniciar la línea a dividir",
+        "1": "Haz clic para terminar la línea"
       }
     },
     "cp_action_polygon_set_no_corners": {
@@ -350,7 +354,8 @@
       "tooltip": "Asignar pliegues de monte y valle alternos a lo largo de una línea guía",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra una línea guía a lo largo de los pliegues"
+        "0": "Haz clic o arrastra para iniciar la línea guía",
+        "1": "Haz clic para terminar la línea guía"
       }
     },
     "cp_action_double_symmetric_draw": {
@@ -367,7 +372,8 @@
       "tooltip": "Asignar pliegues de monte y valle alternos a los cruces a lo largo de una línea guía",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Arrastra una línea guía a través de los cruces"
+        "0": "Haz clic o arrastra para iniciar la línea guía",
+        "1": "Haz clic para terminar la línea guía"
       }
     },
     "cp_action_draw_crease_angle_restricted5": {
@@ -502,8 +508,8 @@
       }
     },
     "cp_action_display_length_between_points1": {
-      "label": "Medir longitud 1",
-      "tooltip": "Medir longitud 1",
+      "label": "Medir longitud",
+      "tooltip": "Mide la distancia entre dos puntos, o haz clic en un pliegue",
       "disabledReason": "Listo",
       "steps": {
         "0": "Elige el primer punto",
@@ -520,8 +526,8 @@
       }
     },
     "cp_action_display_angle_between_three_points1": {
-      "label": "Medir ángulo 1",
-      "tooltip": "Medir ángulo 1",
+      "label": "Medir ángulo",
+      "tooltip": "Mide el ángulo en un vértice entre dos puntos",
       "disabledReason": "Listo",
       "steps": {
         "0": "Elige el primer punto",
@@ -972,7 +978,8 @@
       "tooltip": "Dibujar una línea auxiliar de Oriedita",
       "disabledReason": "El modo de inserción de líneas auxiliares aún no está implementado en el núcleo de CP",
       "steps": {
-        "0": "Arrastra el extremo del pliegue"
+        "0": "Haz clic o arrastra para fijar el inicio del pliegue",
+        "1": "Haz clic para fijar el final del pliegue"
       }
     }
   },
@@ -1019,11 +1026,6 @@
       },
       "notes": {
         "0": "El punto no debe estar sobre el tramo de la línea A y la línea B no debe ser paralela a la línea A."
-      }
-    },
-    "a1Action": {
-      "intro": {
-        "0": "Mide el ángulo seleccionando los puntos ABC."
       }
     },
     "a2Action": {
@@ -1125,6 +1127,46 @@
       },
       "notes": {
         "0": "Las diferencias de radios entre los círculos concéntricos y los seleccionados son iguales."
+      }
+    },
+    "colBlackAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como líneas de borde."
+      },
+      "notes": {
+        "0": "Define el tipo de línea activo; se mantiene hasta elegir otro."
+      }
+    },
+    "colBlueAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como valle."
+      },
+      "notes": {
+        "0": "Define el tipo de línea activo; se mantiene hasta elegir otro."
+      }
+    },
+    "colCyanAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como líneas auxiliares."
+      },
+      "notes": {
+        "0": "Las líneas auxiliares son guías: no se pliegan."
+      }
+    },
+    "colRedAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como monte."
+      },
+      "notes": {
+        "0": "Define el tipo de línea activo; se mantiene hasta elegir otro."
+      }
+    },
+    "lineColorAction": {
+      "intro": {
+        "0": "Dibuja los pliegues nuevos como líneas sin asignar."
+      },
+      "notes": {
+        "0": "Los pliegues sin asignar aún no tienen dirección, así que las comprobaciones de plegado los omiten."
       }
     },
     "continuousSymmetricDrawAction": {
@@ -1326,22 +1368,9 @@
         "0": "La forma plegada se calcula en relación con la cara inicial."
       }
     },
-    "l1Action": {
-      "intro": {
-        "0": "Mide la longitud seleccionando 2 puntos."
-      },
-      "notes": {
-        "0": "La longitud se mide en unidades de cuadrícula.",
-        "1": "La longitud es relativa al tamaño del patrón de pliegues con un tamaño de cuadrícula de 1."
-      }
-    },
     "l2Action": {
       "intro": {
         "0": "Mide la longitud seleccionando 2 puntos."
-      },
-      "notes": {
-        "0": "La longitud se mide en unidades de cuadrícula.",
-        "1": "La longitud es relativa al tamaño del patrón de pliegues con un tamaño de cuadrícula de 1."
       }
     },
     "makeFlatFoldableAction": {

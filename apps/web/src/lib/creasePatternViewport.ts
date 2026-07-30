@@ -71,14 +71,6 @@ export const ORISTUDIO_CP_LINE_STYLES: readonly OristudioCpLineStyle[] = [
   'black-two-dot',
 ];
 
-export const ORISTUDIO_CP_LINE_STYLE_LABELS: Record<OristudioCpLineStyle, string> = {
-  color: 'Color',
-  'black-white': 'Black & white',
-  'color-and-shape': 'Color + shape',
-  'black-one-dot': 'Black one-dot',
-  'black-two-dot': 'Black two-dot',
-};
-
 export const ORISTUDIO_CP_MIN_LINE_WIDTH = 1;
 export const ORISTUDIO_CP_MAX_LINE_WIDTH = 8;
 export const ORISTUDIO_CP_MIN_POINT_SIZE = 0;

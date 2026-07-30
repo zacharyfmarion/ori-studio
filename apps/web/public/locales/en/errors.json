@@ -1,4 +1,22 @@
 {
+  "boundary": {
+    "appDescription": "Your work is still in memory but the interface could not recover on its own. Copy the details below before reloading — they tell a developer exactly what went wrong.",
+    "appTitle": "Ori Studio ran into a problem",
+    "copied": "Copied",
+    "copy": "Copy details",
+    "copyFailed": "Couldn't copy",
+    "description": "The rest of Ori Studio is still running. Try again, or copy the details and report it.",
+    "detailsSummary": "Technical details",
+    "dismiss": "Dismiss",
+    "miniTitle": "This sidebar stopped working",
+    "overlayTitle": "This dialog stopped working",
+    "paneTitle": "This panel stopped working",
+    "reload": "Reload",
+    "report": "Report an issue",
+    "resetLayout": "Reset layout and reload",
+    "retry": "Try again",
+    "stripTitle": "This toolbar stopped working"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D is unavailable",
     "unsupportedImage": "Use a PNG, JPEG, or WebP image."
@@ -7,5 +25,15 @@
     "contradiction": "This crease pattern isn't flat-foldable: some faces have no consistent stacking order.",
     "layerSearch": "This crease pattern couldn't be folded: its layers can't be arranged without overlap.",
     "sameParity": "This crease pattern can't be folded flat: two faces meet with the same orientation across a crease."
+  },
+  "global": {
+    "title": "Something went wrong in the background"
+  },
+  "worker": {
+    "cpDetect": "Crease-pattern detection stopped unexpectedly. Try importing the image again.",
+    "oristudioBp": "The box-pleating engine stopped unexpectedly. Reload Ori Studio to continue working on this design.",
+    "oristudioCp": "The crease-pattern engine stopped unexpectedly. Reload Ori Studio — unsaved edits since the last save may be lost.",
+    "simulator": "The simulator stopped unexpectedly. Reopen the Simulate workspace to restart it.",
+    "treemaker": "The design engine stopped unexpectedly. Reload Ori Studio to continue working on this tree."
   }
 }

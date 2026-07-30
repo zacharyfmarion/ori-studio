@@ -76,6 +76,29 @@ pub fn import_fold_json(input: &str) -> Result<CreasePatternModel> {
     import_fold_document(&fold)
 }
 
+/// Whether an `oristudio:edges_line_colors` entry is consistent with the edge's
+/// `edges_assignment`.
+///
+/// Both encode the crease type, and the extension is the more expressive of the
+/// two: the eight auxiliary colours all map to `Flat`, so `edges_assignment`
+/// alone cannot round-trip them. That is why the extension is preferred — but
+/// preferring it *unconditionally* means a stale array silently outvotes the
+/// standard field, which is exactly how a rebuilt edge list has twice shipped
+/// crease patterns with their borders turned into mountains and valleys. A
+/// colour that contradicts the assignment describes some other edge, so the
+/// caller falls back to the assignment rather than trusting it.
+///
+/// Only meaningful where `edges_assignment` actually covers the edge:
+/// `assignment_for_edge` reports `Unassigned` for a missing or short array, so
+/// checking against it unconditionally would discard every colour in a document
+/// that carries only the extension.
+fn line_color_agrees_with_assignment(fold: &FoldDocument, index: usize, color: LineColor) -> bool {
+    let Some(assignment) = fold.edges_assignment.get(index) else {
+        return true;
+    };
+    fold_assignment_for_line_color(color) == *assignment
+}
+
 pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
     let mut model = CreasePatternModel::default();
     let edge_line_colors = line_color_array_extra(fold, ORISTUDIO_EDGES_LINE_COLORS)?;
@@ -90,6 +113,7 @@ pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
         let line_color = edge_line_colors
             .as_ref()
             .and_then(|colors| colors.get(index).copied().flatten())
+            .filter(|color| line_color_agrees_with_assignment(fold, index, *color))
             .unwrap_or_else(|| line_color_for_fold_assignment(fold.assignment_for_edge(index)));
         let mut segment = LineSegment::with_color(a, b, line_color);
 

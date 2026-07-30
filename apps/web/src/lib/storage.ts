@@ -24,6 +24,8 @@ export const STORAGE_KEYS = {
   showWelcomeOnStartup: 'show-welcome-on-startup',
   foldWarning: 'fold-warning',
   cpToolRailGroups: 'cp-tool-rail-groups',
+  cpMeasure: 'cp-measure',
+  simulatorSettings: 'simulator-settings',
   layout: 'layout',
   layoutVersion: 'layout-version',
   tutorialProgress: 'tutorial-progress',

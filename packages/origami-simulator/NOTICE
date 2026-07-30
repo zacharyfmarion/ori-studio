@@ -6,6 +6,8 @@ Origami Simulator:
   Repository: https://github.com/amandaghassaei/OrigamiSimulator
   Source commit used for this port: 7855983a613c879c171b2b1557f8cd102d2640cf
   Upstream license: MIT
+  Vendored in-tree at: third_party/origami-simulator
+    (see third_party/origami-simulator/README.treemaker.md)
 
 Primary upstream source files:
   js/dynamic/dynamicSolver.js

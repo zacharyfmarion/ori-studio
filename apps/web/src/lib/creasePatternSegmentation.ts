@@ -1,4 +1,5 @@
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
+import { remapEdgeExtensionArrays } from './foldEdgeArrays';
 import type { Point } from './geometry';
 
 /**
@@ -172,13 +173,36 @@ export function segmentFoldDocument(fold: FoldDocument): CpSegment[] {
   return segments;
 }
 
-function buildAssignmentByKey(fold: FoldDocument): Map<string, string> {
+/**
+ * Precedence for creases sharing the same endpoints. Authors commonly lay down
+ * reference/auxiliary lines and then draw the real crease over them, so the same
+ * span can carry several assignments; taking whichever happened to be stored
+ * last is arbitrary. Border wins outright — it decides where a region ends, and
+ * a border overdrawn by a valley must still act as a wall — then real creases
+ * (M/V), then flat, then unassigned.
+ */
+const ASSIGNMENT_RANK: Record<string, number> = { B: 4, M: 3, V: 3, F: 2, U: 1 };
+
+function strongerAssignment(current: string | undefined, candidate: string): string {
+  if (!current) return candidate;
+  const currentRank = ASSIGNMENT_RANK[current] ?? 0;
+  const candidateRank = ASSIGNMENT_RANK[candidate] ?? 0;
+  return candidateRank > currentRank ? candidate : current;
+}
+
+/**
+ * Map each undirected edge to its effective assignment, resolving creases that
+ * share endpoints by {@link ASSIGNMENT_RANK}.
+ */
+export function buildAssignmentByKey(fold: FoldDocument): Map<string, string> {
   const map = new Map<string, string>();
   const edges = fold.edges_vertices ?? [];
   const assignments = fold.edges_assignment ?? [];
   edges.forEach((edge, index) => {
     const assignment = assignments[index];
-    if (assignment) map.set(edgeKey(edge[0], edge[1]), assignment);
+    if (!assignment) return;
+    const key = edgeKey(edge[0], edge[1]);
+    map.set(key, strongerAssignment(map.get(key), assignment));
   });
   return map;
 }
@@ -323,6 +347,7 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
   const nextEdges: [number, number][] = [];
   const nextAssignment: string[] = [];
   const nextFoldAngle: Array<number | null> = [];
+  const keptEdges: number[] = [];
   edges.forEach((edge, index) => {
     const key = edgeKey(edge[0], edge[1]);
     if (!wantedEdgeKeys.has(key)) return;
@@ -331,6 +356,7 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
     nextEdges.push([mapVertex(edge[0]), mapVertex(edge[1])]);
     if (assignments) nextAssignment.push(assignments[index] ?? 'U');
     if (foldAngles) nextFoldAngle.push(foldAngles[index] ?? null);
+    keptEdges.push(index);
   });
 
   const next: FoldDocument = {
@@ -339,6 +365,13 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
     edges_vertices: nextEdges,
     faces_vertices: nextFaces,
   };
+
+  // The blanket spread above pairs each kept edge with a different edge's data;
+  // `keptEdges` is the provenance that puts them back in step.
+  remapEdgeExtensionArrays(next, fold, edges.length, keptEdges);
+  // Circles and texts are whole-document entities; keep only those inside this
+  // segment, or every exported region carries the entire sheet's annotations.
+  scopeAnnotationExtrasToSegment(next, fold, segment);
   if (assignments) next.edges_assignment = nextAssignment as FoldDocument['edges_assignment'];
   else delete next.edges_assignment;
   if (foldAngles) next.edges_foldAngle = nextFoldAngle;
@@ -350,9 +383,55 @@ export function buildSegmentFold(fold: FoldDocument, segment: CpSegment): FoldDo
   return next;
 }
 
+/** Parallel arrays describing one annotation kind, keyed by its coordinate array. */
+const ANNOTATION_EXTRA_GROUPS: Array<{ coords: string; parallel: string[] }> = [
+  {
+    coords: 'oriedita:circles_coords',
+    parallel: [
+      'oriedita:circles_radii',
+      'oriedita:circles_colors',
+      'oriedita:circles_custom_colors',
+    ],
+  },
+  { coords: 'oriedita:texts_coords', parallel: ['oriedita:texts_text'] },
+];
+
+function scopeAnnotationExtrasToSegment(
+  next: FoldDocument,
+  source: FoldDocument,
+  segment: CpSegment
+): void {
+  for (const group of ANNOTATION_EXTRA_GROUPS) {
+    const coords = source[group.coords];
+    if (!Array.isArray(coords)) continue;
+    const kept: number[] = [];
+    coords.forEach((coord, index) => {
+      const point = Array.isArray(coord)
+        ? { x: Number(coord[0]) || 0, y: Number(coord[1]) || 0 }
+        : null;
+      if (point && pointInSegment(segment, point)) kept.push(index);
+    });
+    next[group.coords] = kept.map((index) => coords[index]);
+    for (const key of group.parallel) {
+      const value = source[key];
+      if (Array.isArray(value) && value.length === coords.length) {
+        next[key] = kept.map((index) => value[index]);
+      }
+    }
+  }
+}
+
 export interface SegmentThumbnailOptions {
   size?: number;
   padding?: number;
+  /**
+   * Crease colours, keyed by assignment. Defaults to the app-theme CSS
+   * variables used by the simulator sidebar; the export dialog passes its own
+   * palette so thumbnails match the exported image.
+   */
+  strokes?: Record<string, string>;
+  /** Thumbnail background. Transparent when omitted. */
+  background?: string;
 }
 
 const THUMBNAIL_STROKES: Record<string, { color: string; width: number; dash?: string }> = {
@@ -363,12 +442,13 @@ const THUMBNAIL_STROKES: Record<string, { color: string; width: number; dash?: s
 };
 
 /**
- * Flat 2D SVG of a segment's creases, scaled into a square viewBox. Static and
- * cheap — rendered once per segment for the sidebar, no simulator involved.
+ * Flat 2D SVG of one or more segments' creases, scaled into a square viewBox.
+ * Static and cheap — rendered once per segment, no simulator involved. Passing
+ * every segment gives the whole document ("all patterns") at a single scale.
  */
-export function segmentThumbnailSvg(
+export function cpThumbnailSvg(
   fold: FoldDocument,
-  segment: CpSegment,
+  segments: readonly CpSegment[],
   options: SegmentThumbnailOptions = {}
 ): string {
   const size = options.size ?? 96;
@@ -377,7 +457,24 @@ export function segmentThumbnailSvg(
   const faces = fold.faces_vertices ?? [];
   const axes = flatPlaneAxes(fold);
   const assignmentByKey = buildAssignmentByKey(fold);
-  const { minX, minY, maxX, maxY } = segment.bounds;
+  const background = options.background
+    ? `<rect width="${size}" height="${size}" fill="${options.background}"/>`
+    : '';
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const segment of segments) {
+    minX = Math.min(minX, segment.bounds.minX);
+    minY = Math.min(minY, segment.bounds.minY);
+    maxX = Math.max(maxX, segment.bounds.maxX);
+    maxY = Math.max(maxY, segment.bounds.maxY);
+  }
+  if (!Number.isFinite(minX)) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img">${background}</svg>`;
+  }
+
   const span = Math.max(maxX - minX, maxY - minY, 1e-6);
   const scale = (size - padding * 2) / span;
   const offsetX = padding + ((size - padding * 2) - (maxX - minX) * scale) / 2;
@@ -385,33 +482,79 @@ export function segmentThumbnailSvg(
   const project = (vertex: number): [number, number] => {
     const p = planePoint(coords[vertex], axes);
     const x = offsetX + (p.x - minX) * scale;
-    // Flip Y so paper-up maps to screen-up.
-    const y = size - (offsetY + (p.y - minY) * scale);
+    // No y flip: FOLD coordinates are already y-down, matching SVG (see
+    // `foldProjector`). Flipping here turned every thumbnail upside down
+    // relative to the editor — and relative to the export preview beside it.
+    const y = offsetY + (p.y - minY) * scale;
     return [x, y];
   };
 
   const drawn = new Set<string>();
   const lines: string[] = [];
-  for (const faceIndex of segment.faceIndices) {
-    const face = faces[faceIndex] ?? [];
-    for (let i = 0; i < face.length; i += 1) {
-      const a = face[i] ?? 0;
-      const b = face[(i + 1) % face.length] ?? 0;
-      if (a === b) continue;
-      const key = edgeKey(a, b);
-      if (drawn.has(key)) continue;
-      drawn.add(key);
-      const style = THUMBNAIL_STROKES[assignmentByKey.get(key) ?? 'F'] ?? THUMBNAIL_STROKES.F!;
-      const [x1, y1] = project(a);
-      const [x2, y2] = project(b);
-      const dash = style.dash ? ` stroke-dasharray="${style.dash}"` : '';
-      lines.push(
-        `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${style.color}" stroke-width="${style.width}"${dash} stroke-linecap="round"/>`
-      );
+  for (const segment of segments) {
+    for (const faceIndex of segment.faceIndices) {
+      const face = faces[faceIndex] ?? [];
+      for (let i = 0; i < face.length; i += 1) {
+        const a = face[i] ?? 0;
+        const b = face[(i + 1) % face.length] ?? 0;
+        if (a === b) continue;
+        const key = edgeKey(a, b);
+        if (drawn.has(key)) continue;
+        drawn.add(key);
+        const assignment = assignmentByKey.get(key) ?? 'F';
+        const style = THUMBNAIL_STROKES[assignment] ?? THUMBNAIL_STROKES.F!;
+        const color = options.strokes?.[assignment] ?? options.strokes?.F ?? style.color;
+        const [x1, y1] = project(a);
+        const [x2, y2] = project(b);
+        const dash = style.dash ? ` stroke-dasharray="${style.dash}"` : '';
+        lines.push(
+          `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="${style.width}"${dash} stroke-linecap="round"/>`
+        );
+      }
     }
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img">${lines.join('')}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img">${background}${lines.join('')}</svg>`;
+}
+
+/** Single-segment thumbnail. See {@link cpThumbnailSvg}. */
+export function segmentThumbnailSvg(
+  fold: FoldDocument,
+  segment: CpSegment,
+  options: SegmentThumbnailOptions = {}
+): string {
+  return cpThumbnailSvg(fold, [segment], options);
+}
+
+/**
+ * Whether `point` lies on one of the segment's boundary edges, within `epsilon`.
+ *
+ * The even-odd test below is undefined exactly on the boundary, and a crease
+ * that *is* the paper's edge has its midpoint precisely there — which is how a
+ * square loses half its border to a plain inside test.
+ */
+export function pointOnSegmentBoundary(
+  segment: CpSegment,
+  point: Point,
+  epsilon = 1e-6
+): boolean {
+  for (const ring of segment.boundary) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+      const a = ring[i]!;
+      const b = ring[j]!;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const lengthSquared = dx * dx + dy * dy;
+      const t =
+        lengthSquared > 0
+          ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared))
+          : 0;
+      const closestX = a.x + t * dx;
+      const closestY = a.y + t * dy;
+      if (Math.hypot(point.x - closestX, point.y - closestY) <= epsilon) return true;
+    }
+  }
+  return false;
 }
 
 /** Even-odd point-in-segment test across all boundary rings (for export). */

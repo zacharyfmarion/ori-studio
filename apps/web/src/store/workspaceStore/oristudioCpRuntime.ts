@@ -29,6 +29,7 @@ import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDo
 import type { OristudioCpWorkerApi } from '../../workers/oristudioCpWorker';
 import { createOristudioCpNativeClient } from '../../engine/oristudioCpNativeClient';
 import { isDesktopRuntime } from '../../platform/runtime';
+import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
 export type OristudioCpClient = Remote<OristudioCpWorkerApi>;
 
@@ -118,6 +119,7 @@ export async function getOristudioCpClient(): Promise<OristudioCpClient> {
   worker = new Worker(new URL('../../workers/oristudioCpWorker.ts', import.meta.url), {
     type: 'module',
   });
+  attachWorkerDiagnostics(worker, 'oristudio-cp');
   client = wrap<OristudioCpWorkerApi>(worker);
   return client;
 }
@@ -523,6 +525,35 @@ export async function exportOristudioCpDocumentAsOrh(texts: FlatText[] = []): Pr
   }
   const api = await getOristudioCpClient();
   return api.exportOrh(handle, texts);
+}
+
+/**
+ * Serialize a standalone FOLD frame (e.g. one extracted crease-pattern segment)
+ * to a kernel-owned text format, reusing the same serializers as the active
+ * document. The frame is loaded into a scratch kernel handle that is independent
+ * of the active document's handle — so this never disturbs the editor — and freed
+ * in `finally` on every path, including serializer failure.
+ */
+export async function exportFoldFrameAsFormat(
+  foldJson: string,
+  format: 'cp' | 'fold' | 'ori' | 'orh'
+): Promise<string> {
+  const api = await getOristudioCpClient();
+  const scratch = await api.loadFold(foldJson);
+  try {
+    switch (format) {
+      case 'cp':
+        return await api.exportCp(scratch);
+      case 'fold':
+        return await api.exportFoldFile(scratch);
+      case 'ori':
+        return await api.exportOri(scratch);
+      case 'orh':
+        return await api.exportOrh(scratch);
+    }
+  } finally {
+    await api.freeDocument(scratch).catch(() => undefined);
+  }
 }
 
 /**

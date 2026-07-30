@@ -59,9 +59,28 @@ export interface StrokeGeometry {
   widthMul: Float32Array;
   /** Number of segments. */
   count: number;
-  /** Screen-space dashed rendering (measure guide lines). Defaults to solid. */
-  dashed?: boolean;
+  /**
+   * Screen-space dash patterns available to this geometry, as alternating on/off
+   * run lengths in CSS px. Entry `i` occupies slot `i + 1`; slot 0 is always
+   * solid. Omitted (or empty) draws everything solid.
+   */
+  dashPatterns?: readonly (readonly number[])[];
+  /**
+   * Per-segment dash slot: `[slot] * count`. Omitted means every segment uses
+   * slot 1 — the uniform-dash case (measure guides, the operation frame).
+   */
+  dashSlot?: Float32Array;
 }
+
+/** Dash slots a {@link StrokeGeometry} may address beyond solid. */
+export const MAX_DASH_SLOTS = 2;
+/** Alternating on/off runs a single dash pattern may have. */
+export const MAX_DASH_RUNS = 3;
+/**
+ * The dash overlays draw with (CSS px on/off) — measure guides and the Oriedita
+ * operation-frame outline, which dash to read as scaffolding rather than crease.
+ */
+export const OVERLAY_DASH_PATTERN: readonly number[] = [11, 7];
 
 /**
  * Instanced point geometry (crease points + vertices). Radii are in SVG user
