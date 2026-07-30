@@ -67,6 +67,7 @@ import {
   constrainBpPackingFlapGroupTarget,
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
+import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
 import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
 import { unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
@@ -97,11 +98,6 @@ import {
 
 type BpPackingNudgeDirection = 'up' | 'down' | 'left' | 'right';
 
-const BP_MAX_SHEET_SIZE = 8192;
-// Smallest grid the engine allows per kind (crates/oristudio-bp/src/shared.rs);
-// un-subdivide is disabled when halving would drop below these.
-const BP_MIN_RECT_SIZE = 4;
-const BP_MIN_DIAG_SIZE = 6;
 // Pointer travel before an empty-space drag becomes a rubberband selection,
 // matching Box Pleating Studio's SelectionController MOUSE_THRESHOLD.
 const BP_PACKING_DRAG_SELECT_THRESHOLD_PX = 5;
@@ -331,10 +327,8 @@ function BpPackingViewportToolbar({
   zoomPercent,
   layers,
   onLayerChange,
-  canSubdivide,
-  subdivideSheet,
-  canUnsubdivide,
-  unsubdivideSheet,
+  canGrowSheet,
+  canShrinkSheet,
   sheet,
   setSheet,
   zoomIn,
@@ -345,10 +339,8 @@ function BpPackingViewportToolbar({
   zoomPercent: number;
   layers: BpPackingViewLayers;
   onLayerChange: (layer: BpPackingViewLayerKey, visible: boolean) => void;
-  canSubdivide: boolean;
-  subdivideSheet: () => void;
-  canUnsubdivide: boolean;
-  unsubdivideSheet: () => void;
+  canGrowSheet: boolean;
+  canShrinkSheet: boolean;
   sheet: OristudioBpSheet;
   setSheet: (gridType: OristudioBpSheetKind, width: number, height: number) => void;
   zoomIn: () => void;
@@ -384,18 +376,18 @@ function BpPackingViewportToolbar({
       <IconButton
         size="sm"
         variant="toolbar"
-        title={t('panels:bpPacking.subdivideSheet', 'Subdivide Sheet')}
-        onClick={subdivideSheet}
-        disabled={!canSubdivide}
+        title={t('panels:bpPacking.growSheet', 'Increase Grid Size')}
+        onClick={() => setSheet(sheet.kind, sheet.width + 1, sheet.height + 1)}
+        disabled={!canGrowSheet}
       >
         <Plus size={14} />
       </IconButton>
       <IconButton
         size="sm"
         variant="toolbar"
-        title={t('panels:bpPacking.unsubdivideSheet', 'Un-subdivide Sheet')}
-        onClick={unsubdivideSheet}
-        disabled={!canUnsubdivide}
+        title={t('panels:bpPacking.shrinkSheet', 'Decrease Grid Size')}
+        onClick={() => setSheet(sheet.kind, sheet.width - 1, sheet.height - 1)}
+        disabled={!canShrinkSheet}
       >
         <Minus size={14} />
       </IconButton>
@@ -721,12 +713,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const completeOristudioBpStretch = useWorkspaceStore(
     (state) => state.completeOristudioBpStretch
   );
-  const subdivideOristudioBpLayoutSheet = useWorkspaceStore(
-    (state) => state.subdivideOristudioBpLayoutSheet
-  );
-  const unsubdivideOristudioBpLayoutSheet = useWorkspaceStore(
-    (state) => state.unsubdivideOristudioBpLayoutSheet
-  );
   const setOristudioBpLayoutSheet = useWorkspaceStore(
     (state) => state.setOristudioBpLayoutSheet
   );
@@ -811,21 +797,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   // shadow, and hit-area as polygons rather than the axis-aligned rects used for a
   // rectangular grid.
   const isDiagonalSheet = packing.sheet.kind === 'diagonal';
-  // Un-subdivide is possible only when the grid can halve cleanly: even
-  // dimensions, staying at or above the minimum, and every flap sitting on even
-  // grid lines (position and size). Mirrors the engine's unsubdivide_sheet guard
-  // so the button is disabled exactly when the engine would no-op.
-  const canUnsubdivide = useMemo(() => {
-    const { sheet, flaps } = packing;
-    const even = (value: number) => Number.isInteger(value) && value % 2 === 0;
-    if (!even(sheet.width) || !even(sheet.height)) return false;
-    const minCells = sheet.kind === 'diagonal' ? BP_MIN_DIAG_SIZE : BP_MIN_RECT_SIZE;
-    if (sheet.width / 2 < minCells || sheet.height / 2 < minCells) return false;
-    return flaps.every(
-      (flap) =>
-        even(flap.anchor.x) && even(flap.anchor.y) && even(flap.width) && even(flap.height)
-    );
-  }, [packing]);
+  const canGrowSheet = useMemo(
+    () => bpSteppedSheetSize(packing.sheet, packing.flaps, true) !== null,
+    [packing]
+  );
+  const canShrinkSheet = useMemo(
+    () => bpSteppedSheetSize(packing.sheet, packing.flaps, false) !== null,
+    [packing]
+  );
   const sheetPolygonPoints = useMemo(
     () =>
       bpPackingSheetBorderPoints(packing.sheet, paperRect)
@@ -1846,13 +1825,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         zoomPercent={zoomPercent}
         layers={layers}
         onLayerChange={setLayer}
-        canSubdivide={
-          packing.sheet.width * 2 <= BP_MAX_SHEET_SIZE &&
-          packing.sheet.height * 2 <= BP_MAX_SHEET_SIZE
-        }
-        subdivideSheet={() => void subdivideOristudioBpLayoutSheet()}
-        canUnsubdivide={canUnsubdivide}
-        unsubdivideSheet={() => void unsubdivideOristudioBpLayoutSheet()}
+        canGrowSheet={canGrowSheet}
+        canShrinkSheet={canShrinkSheet}
         sheet={packing.sheet}
         setSheet={(gridType, width, height) =>
           void setOristudioBpLayoutSheet(gridType, width, height)
