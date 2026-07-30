@@ -43,8 +43,10 @@ export interface InlineSimulation {
    *
    * Live orbit is held by the viewport component, which stays mounted across
    * focus changes, so this is the starting value rather than a running mirror of
-   * it. Persisting a window (see the plan's Phase 7) is what would need the
-   * write-back.
+   * it. Windows do persist now, so a saved file remembers the camera a window
+   * *opened* at and not where the user last orbited it — the write-back that
+   * would fix that is still missing. Which is also why orbiting takes no undo
+   * checkpoint: there is nothing in the descriptor for it to change.
    */
   view: SimulatorOrbitView;
   /*

@@ -247,9 +247,11 @@
     },
     "foldModelAction": "Modell falten",
     "inlineSimulation": {
+      "addAction": "Simulationsfenster hinzufügen",
       "canvasAriaLabel": "Eingebettete Simulation. Zum Drehen ziehen.",
       "controls": "Steuerung der eingebetteten Simulation",
       "delete": "Löschen",
+      "deleteAction": "Simulationsfenster löschen",
       "failed": "Simulation fehlgeschlagen",
       "fold": "Faltung",
       "gpuUnavailable": "Benötigt WebGL2 – im Simulieren-Arbeitsbereich öffnen",
@@ -257,6 +259,7 @@
       "pause": "Pause",
       "play": "Abspielen",
       "refresh": "Aus den aktuellen Falzlinien neu aufbauen",
+      "refreshAction": "Simulationsbereich neu aufbauen",
       "replay": "Auf flach zurücksetzen"
     },
     "insertImage": "Bild einfügen...",
@@ -273,6 +276,7 @@
     "measureSnapVertex": "Scheitelpunkt",
     "moveAnnotation": "Anmerkung verschieben",
     "moveFoldedForm": "Gefaltete Form verschieben",
+    "moveSimulationWindow": "Simulationsfenster verschieben",
     "noCreasePattern": "Kein Faltmuster",
     "noImportedCreasePattern": "Kein importiertes Faltmuster",
     "none": "Ohne",
@@ -281,8 +285,10 @@
     "refoldFoldedModelAction": "Gefaltetes Modell neu falten",
     "resizeAnnotation": "Anmerkungsgröße ändern",
     "resizeFoldedForm": "Größe der gefalteten Form ändern",
+    "resizeSimulationWindow": "Größe des Simulationsfensters ändern",
     "rotateAnnotation": "Anmerkung drehen",
     "rotateFoldedForm": "Gefaltete Form drehen",
+    "rotateSimulationWindow": "Simulationsfenster drehen",
     "selectedCount_one": "{{count}} ausgewählt",
     "selectedCount_other": "{{count}} ausgewählt",
     "selectionToolbar": {

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   OrigamiModel,
@@ -7,6 +8,7 @@ import {
   prepareFoldModel,
 } from '../src/index.js';
 import { makeBookFoldFixture, maxPositionDelta } from '../src/testing.js';
+import type { FoldDocument, PreparedOrigamiModel } from '../src/types.js';
 
 describe('prepareFoldModel', () => {
   it('normalizes FOLD data and extracts crease parameters', () => {
@@ -246,9 +248,13 @@ describe('n-gon triangulation', () => {
     // the adjacent triangle's height, so those never settle. The Delaunay
     // criterion zig-zags across the strip instead: every triangle is a unit
     // right triangle, so 45 degrees is the exact optimum here.
+    //
+    // This is also what keeps the redundant-vertex merge off crease-free border
+    // points: merge them and the ring has nothing left to zig-zag between.
     const prepared = prepareFoldModel(makeStrip((x, y) => [x, y]));
     const angles = prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f));
 
+    expect(prepared.vertexCount).toBe(42);
     expect(Math.min(...angles)).toBeGreaterThan(44);
   });
 
@@ -426,5 +432,245 @@ describe('createOrigamiSimulator', () => {
 
   it('reports WebGL availability without throwing in node', () => {
     expect(detectWebGlSupport()).toBe(false);
+  });
+});
+
+describe('redundant vertex removal', () => {
+  /**
+   * The reported case, from test_files/simulation/inline_simulate_issue.osf: a
+   * square with four creases to the centre, where the crease to the top-right
+   * corner was drawn as two collinear mountains (1-5 and 5-4) and the two faces
+   * beside it are quads whose rings walk through vertex 5.
+   */
+  function collinearSplitCrease(): FoldDocument {
+    return {
+      vertices_coords: [
+        [-200, 200],
+        [200, 200],
+        [200, -200],
+        [-200, -200],
+        [0, 0],
+        [150, 150],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 4],
+        [1, 5],
+        [4, 5],
+        [3, 4],
+        [2, 4],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'M', 'M', 'M', 'M', 'V'],
+      edges_foldAngle: [0, 0, 0, 0, -180, -180, -180, -180, 180],
+      faces_vertices: [
+        [0, 1, 5, 4],
+        [1, 2, 4, 5],
+        [2, 3, 4],
+        [0, 4, 3],
+      ],
+    };
+  }
+
+  function edgeOf(prepared: PreparedOrigamiModel, a: number, b: number): number {
+    return prepared.edgesVertices.findIndex(
+      ([from, to]) => (from === a && to === b) || (from === b && to === a)
+    );
+  }
+
+  it('merges a crease split across two collinear segments into one crease', () => {
+    const prepared = prepareFoldModel(collinearSplitCrease());
+
+    // Vertex 5 is gone, and with it the two halves. Without the merge the shorter
+    // diagonal 1-4 was invented as a flat facet edge and the two mountain halves
+    // survived incident to no face, so the crease neither folded nor drew.
+    expect(prepared.vertexCount).toBe(5);
+    const diagonal = edgeOf(prepared, 1, 4);
+    expect(diagonal).toBeGreaterThanOrEqual(0);
+    expect(prepared.edgesAssignment[diagonal]).toBe('M');
+    expect(prepared.edgesFoldAngle[diagonal]).toBe(-180);
+    expect(prepared.edgesFaces[diagonal]).toHaveLength(2);
+
+    // Four triangles around the centre, each crease driven: 3 mountains, 1 valley.
+    expect(prepared.faceCount).toBe(4);
+    expect(prepared.creaseParams).toHaveLength(4);
+    expect(prepared.creaseParams.map((param) => param.targetAngle).sort()).toEqual([
+      -180, -180, -180, 180,
+    ]);
+    expect(prepared.diagnostics.warnings.some((w) => w.includes('degenerate'))).toBe(false);
+  });
+
+  it('leaves no driven crease without the two faces it needs', () => {
+    const prepared = prepareFoldModel(collinearSplitCrease());
+    const orphans = prepared.edgesVertices.filter((_, index) => {
+      const assignment = prepared.edgesAssignment[index];
+      return (assignment === 'M' || assignment === 'V') && prepared.edgesFaces[index]?.length !== 2;
+    });
+    expect(orphans).toEqual([]);
+  });
+
+  it('is idempotent, so re-preparing keeps the vertex count', () => {
+    // Load-bearing beyond tidiness: the app prepares twice (around a winding and
+    // fold-angle pass), the whole-sheet simulator prepares the result again, and
+    // `foldedFoldDocument` silently drops every edge and assignment from the
+    // Folded FOLD export when the source's vertex count stops matching the mesh.
+    const once = prepareFoldModel(collinearSplitCrease());
+    const twice = prepareFoldModel(once.fold);
+
+    expect(twice.vertexCount).toBe(once.vertexCount);
+    expect(twice.edgeCount).toBe(once.edgeCount);
+    expect(twice.faceCount).toBe(once.faceCount);
+    expect(twice.diagnostics.warnings.some((w) => w.includes('redundant'))).toBe(false);
+  });
+
+  it('collapses a chain of collinear crease segments, as upstream does', () => {
+    // One diagonal crease drawn in four strokes, split at (1,1), (2,2) and (3,3).
+    // Upstream rewrites its neighbour map inside each merge, so the chain collapses
+    // progressively; a batch pass over the original neighbours stops after one.
+    const prepared = prepareFoldModel({
+      vertices_coords: [
+        [0, 0],
+        [4, 0],
+        [4, 4],
+        [0, 4],
+        [1, 1],
+        [2, 2],
+        [3, 3],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 4],
+        [4, 5],
+        [5, 6],
+        [6, 2],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'M', 'M', 'M', 'M'],
+      edges_foldAngle: [null, null, null, null, -180, -180, -180, -180],
+      faces_vertices: [
+        [0, 1, 2, 6, 5, 4],
+        [0, 4, 5, 6, 2, 3],
+      ],
+    });
+
+    expect(prepared.vertexCount).toBe(4);
+    const diagonal = edgeOf(prepared, 0, 2);
+    expect(diagonal).toBeGreaterThanOrEqual(0);
+    expect(prepared.edgesAssignment[diagonal]).toBe('M');
+    expect(prepared.edgesFaces[diagonal]).toHaveLength(2);
+    expect(prepared.faceCount).toBe(2);
+    expect(prepared.creaseParams).toHaveLength(1);
+  });
+
+  it('leaves crease-free border subdivisions alone, unlike upstream', () => {
+    // Narrower than upstream on purpose: these points carry no crease to lose, and
+    // they are the only mesh resolution `delaunayFlipRing` has to work with. See
+    // the long-strip test in n-gon triangulation for what merging them costs.
+    const prepared = prepareFoldModel({
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [2, 0],
+        [2, 2],
+        [0, 2],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [4, 0],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'B'],
+      edges_foldAngle: [null, null, null, null, null],
+      faces_vertices: [[0, 1, 2, 3, 4]],
+    });
+
+    // Vertex 1 is degree-2 and collinear with 0 and 2, and upstream would merge it.
+    expect(prepared.vertexCount).toBe(5);
+    expect(prepared.diagnostics.warnings.some((w) => w.includes('redundant'))).toBe(false);
+  });
+
+  it('still drives a split crease whose halves disagree, which no merge can fix', () => {
+    // Upstream's `mergeEdge` refuses a collinear M/V pair, so canonicalising alone
+    // leaves this broken. `triangulateQuad` covers it from the other side: it will
+    // not cut a diagonal through the vertex, so neither half is ever stranded on a
+    // zero-area triangle and both keep their two faces.
+    const prepared = prepareFoldModel({
+      ...collinearSplitCrease(),
+      edges_assignment: ['B', 'B', 'B', 'B', 'M', 'M', 'V', 'M', 'V'],
+      edges_foldAngle: [0, 0, 0, 0, -180, -180, 180, -180, 180],
+    });
+
+    const orphans = prepared.edgesVertices.filter((_edge, index) => {
+      const assignment = prepared.edgesAssignment[index];
+      return (assignment === 'M' || assignment === 'V') && prepared.edgesFaces[index]?.length !== 2;
+    });
+    expect(orphans).toEqual([]);
+    expect(prepared.diagnostics.warnings.some((w) => w.includes('degenerate'))).toBe(false);
+  });
+
+  it('refuses to merge halves whose assignments disagree, as upstream does', () => {
+    const prepared = prepareFoldModel({
+      ...collinearSplitCrease(),
+      edges_assignment: ['B', 'B', 'B', 'B', 'M', 'M', 'V', 'M', 'V'],
+      edges_foldAngle: [0, 0, 0, 0, -180, -180, 180, -180, 180],
+    });
+
+    expect(prepared.vertexCount).toBe(6);
+    expect(
+      prepared.diagnostics.warnings.some((w) => w.includes('different edge assignments'))
+    ).toBe(true);
+  });
+
+  it('drives every crease in a patch taken from a real box-pleated pattern', () => {
+    // Distilled from a 24-generation iguana CP (a 47-vertex neighbourhood, closed
+    // at its cut edges so an excerpt boundary does not read as a stranded crease).
+    // Before this branch it left two mountains incident to a single face each:
+    // they neither folded nor drew. The hand-built fixtures above are the same
+    // defect in miniature; this one is the shape it actually takes in the wild.
+    const fold = JSON.parse(
+      readFileSync(new URL('./fixtures/iguana-split-crease.fold', import.meta.url), 'utf8')
+    ) as FoldDocument;
+    const prepared = prepareFoldModel(fold);
+
+    const orphans = prepared.edgesVertices.filter((_edge, index) => {
+      const assignment = prepared.edgesAssignment[index];
+      return (assignment === 'M' || assignment === 'V') && prepared.edgesFaces[index]?.length !== 2;
+    });
+    expect(orphans).toEqual([]);
+    expect(prepared.faceCount).toBeGreaterThan(0);
+    expect([...prepared.originalPositions].every((value) => Number.isFinite(value))).toBe(true);
+  });
+
+  it('keeps the namespaced per-edge arrays aligned with the merged edge list', () => {
+    // The CP kernel reads `oristudio:edges_line_colors` as the crease type, so an
+    // array left in the pre-merge order comes back as scrambled creases.
+    const source = collinearSplitCrease();
+    const prepared = prepareFoldModel({
+      ...source,
+      'oristudio:edges_line_colors': [0, 0, 0, 0, 1, 1, 1, 1, 2],
+    });
+    const colors = prepared.fold['oristudio:edges_line_colors'] as number[];
+
+    expect(colors).toHaveLength(prepared.edgeCount);
+    prepared.edgesVertices.forEach((_, index) => {
+      const assignment = prepared.edgesAssignment[index];
+      if (assignment === 'B') expect(colors[index]).toBe(0);
+      if (assignment === 'M') expect(colors[index]).toBe(1);
+      if (assignment === 'V') expect(colors[index]).toBe(2);
+    });
+  });
+
+  it('drops a stale per-edge array rather than misaligning it', () => {
+    const prepared = prepareFoldModel({
+      ...collinearSplitCrease(),
+      'oriedita:edges_colors': ['', ''],
+    });
+    expect(prepared.fold['oriedita:edges_colors']).toBeUndefined();
   });
 });

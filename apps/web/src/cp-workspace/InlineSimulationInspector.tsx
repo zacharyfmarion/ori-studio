@@ -50,8 +50,11 @@ function ColorModeMenu({
         </IconButton>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
+        {/* Portaled out of the toolbar by Radix, so it needs to say for itself
+            that it belongs to the window — see useBlurOnPressOutside. */}
         <DropdownMenu.Content
           className="context-menu"
+          data-inline-simulation-menu=""
           side="bottom"
           align="start"
           sideOffset={6}

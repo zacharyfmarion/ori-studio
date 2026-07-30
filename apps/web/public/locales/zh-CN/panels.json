@@ -241,9 +241,11 @@
     },
     "foldModelAction": "折叠模型",
     "inlineSimulation": {
+      "addAction": "添加模拟窗口",
       "canvasAriaLabel": "内嵌模拟。拖动可旋转。",
       "controls": "内嵌模拟控件",
       "delete": "删除",
+      "deleteAction": "删除模拟窗口",
       "failed": "模拟失败",
       "fold": "折叠",
       "gpuUnavailable": "需要 WebGL2 — 请在模拟工作区中打开",
@@ -251,6 +253,7 @@
       "pause": "暂停",
       "play": "播放",
       "refresh": "根据当前折痕重新生成",
+      "refreshAction": "重建模拟区域",
       "replay": "恢复为平面"
     },
     "insertImage": "插入图像...",
@@ -266,6 +269,7 @@
     "measureSnapVertex": "顶点",
     "moveAnnotation": "移动批注",
     "moveFoldedForm": "移动折叠图",
+    "moveSimulationWindow": "移动模拟窗口",
     "noCreasePattern": "无折痕图",
     "noImportedCreasePattern": "无导入的折痕图",
     "none": "无",
@@ -274,8 +278,10 @@
     "refoldFoldedModelAction": "重新折叠模型",
     "resizeAnnotation": "调整批注大小",
     "resizeFoldedForm": "调整折叠图大小",
+    "resizeSimulationWindow": "调整模拟窗口大小",
     "rotateAnnotation": "旋转批注",
     "rotateFoldedForm": "旋转折叠图",
+    "rotateSimulationWindow": "旋转模拟窗口",
     "selectedCount_other": "已选择 {{count}} 项",
     "selectionToolbar": {
       "export": "导出…",

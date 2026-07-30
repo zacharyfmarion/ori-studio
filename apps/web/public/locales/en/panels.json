@@ -247,9 +247,11 @@
     },
     "foldModelAction": "Fold model",
     "inlineSimulation": {
+      "addAction": "Add simulation window",
       "canvasAriaLabel": "Inline simulation. Drag to rotate.",
       "controls": "Inline simulation controls",
       "delete": "Delete",
+      "deleteAction": "Delete simulation window",
       "failed": "Simulation failed",
       "fold": "Fold",
       "gpuUnavailable": "Needs WebGL2 — open in the Simulate workspace",
@@ -257,6 +259,7 @@
       "pause": "Pause",
       "play": "Play",
       "refresh": "Rebuild from the current creases",
+      "refreshAction": "Rebuild simulation region",
       "replay": "Reset to flat"
     },
     "insertImage": "Insert image...",
@@ -273,6 +276,7 @@
     "measureSnapVertex": "vertex",
     "moveAnnotation": "Move annotation",
     "moveFoldedForm": "Move folded form",
+    "moveSimulationWindow": "Move simulation window",
     "noCreasePattern": "No crease pattern",
     "noImportedCreasePattern": "No imported crease pattern",
     "none": "None",
@@ -281,8 +285,10 @@
     "refoldFoldedModelAction": "Refold folded model",
     "resizeAnnotation": "Resize annotation",
     "resizeFoldedForm": "Resize folded form",
+    "resizeSimulationWindow": "Resize simulation window",
     "rotateAnnotation": "Rotate annotation",
     "rotateFoldedForm": "Rotate folded form",
+    "rotateSimulationWindow": "Rotate simulation window",
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
     "selectionToolbar": {

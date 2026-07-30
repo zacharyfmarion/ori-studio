@@ -232,6 +232,78 @@ describe('crease pattern import', () => {
       expect(colors[index]).toBe(colorForAssignment[inferred.edges_assignment![index]!]);
     });
   });
+
+  it('simulates a crease drawn as two collinear segments as one crease', () => {
+    // From test_files/simulation/inline_simulate_issue.osf. The crease to the
+    // top-right corner is two collinear mountains (1-5, 5-4) and the faces beside
+    // it are quads whose rings walk through vertex 5. Triangulating through that
+    // vertex made a zero-area sliver, the degenerate filter deleted it, and both
+    // halves were left incident to no face -- so the crease neither folded nor
+    // drew, while the flat diagonal invented in its place was pinned at 0.
+    //
+    // This is the app's own path rather than the simulator package's: it prepares
+    // twice, around a face-winding pass and a fold-angle sign flip.
+    const fold = {
+      vertices_coords: [
+        [-200, 200],
+        [200, 200],
+        [200, -200],
+        [-200, -200],
+        [0, 0],
+        [150, 150],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 4],
+        [1, 5],
+        [4, 5],
+        [3, 4],
+        [2, 4],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'M', 'M', 'M', 'M', 'V'],
+      edges_foldAngle: [0, 0, 0, 0, -180, -180, -180, -180, 180],
+      faces_vertices: [
+        [0, 1, 5, 4],
+        [1, 2, 4, 5],
+        [2, 3, 4],
+        [0, 4, 3],
+      ],
+    } as unknown as Parameters<typeof foldArtifactsFromFold>[0];
+
+    const artifacts = foldArtifactsFromFold(fold);
+    const simulation = artifacts.simulation_model?.fold;
+    expect(artifacts.simulation_model_error).toBeNull();
+    expect(simulation).toBeDefined();
+    if (!simulation) return;
+
+    // Vertex 5 and its two halves are gone, replaced by one mountain diagonal.
+    expect(simulation.vertices_coords).toHaveLength(5);
+    const centre = simulation.vertices_coords.findIndex(([x, , z]) => x === 0 && z === 0);
+    const corner = simulation.vertices_coords.findIndex(([x, , z]) => x === 200 && z === 200);
+    const diagonal = simulation.edges_vertices.findIndex(
+      ([a, b]) => (a === centre && b === corner) || (a === corner && b === centre)
+    );
+    expect(diagonal).toBeGreaterThanOrEqual(0);
+    expect(simulation.edges_assignment?.[diagonal]).toBe('M');
+
+    // Every mountain and valley drives a crease: four faces around the centre,
+    // each edge between two of them. An M or V edge with any other count is one
+    // the solver ignores and the renderer never draws.
+    const facesPerEdge = simulation.edges_vertices.map(() => 0);
+    (simulation.faces_edges ?? []).forEach((faceEdges) => {
+      faceEdges.forEach((edge) => {
+        if (edge >= 0) facesPerEdge[edge] = (facesPerEdge[edge] ?? 0) + 1;
+      });
+    });
+    const orphans = simulation.edges_vertices.filter((_edge, index) => {
+      const assignment = simulation.edges_assignment?.[index];
+      return (assignment === 'M' || assignment === 'V') && facesPerEdge[index] !== 2;
+    });
+    expect(orphans).toEqual([]);
+  });
 });
 
 describe('non-180 fold angles survive import', () => {

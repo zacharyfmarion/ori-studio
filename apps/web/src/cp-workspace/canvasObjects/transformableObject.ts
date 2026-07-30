@@ -66,7 +66,10 @@ export function annotationAsTransformable(
  * box updates back, and unresizable because the panel never named them here.
  *
  * The three are mutually exclusive by construction — selecting any one clears
- * the others — so the order only settles a transient overlap.
+ * the others — so the order only settles a transient overlap. The crease
+ * selection is in that same rule and does not appear here: it holds the canvas
+ * *instead of* an object, so when it is non-empty all three of these are null.
+ * `takeCanvasSelection` in the crease-pattern slice is where all four meet.
  */
 export function selectedCanvasObjectId(selection: {
   annotationId: string | null;

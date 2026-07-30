@@ -73,6 +73,8 @@ import {
   textDocFromPlainText,
 } from '../../../cp-workspace/annotations/textAnnotation';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
+import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
+import { discardCpDocumentState } from '../cpDocumentState';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   activeNativeDocument,
@@ -197,7 +199,8 @@ function cpHistoryEntry(
   selection: OristudioCpSelection,
   annotations: CanvasAnnotation[],
   foldedFigures: OristudioCpFoldedFigureEntry[],
-  activeFoldedFigureId: string | null
+  activeFoldedFigureId: string | null,
+  inlineSimulations: InlineSimulation[]
 ): OristudioCpHistoryEntry {
   // The entry keeps these figures' wasm handles alive for as long as undo can
   // reach it — see cp-workspace/foldedFigureHandles.
@@ -211,6 +214,10 @@ function cpHistoryEntry(
     // read as out of date (see lib/foldedFigureStaleness.ts).
     foldedFigures,
     activeFoldedFigureId,
+    // Same reason as the figures above: undo restores the simulation windows the
+    // crease edit was made alongside, with the provenance that decides whether
+    // they read as out of date.
+    inlineSimulations,
     label,
     timestamp: nowIso(),
   };
@@ -682,7 +689,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                 previousSelection,
                 get().oristudioCpAnnotations,
                 get().oristudioCpFoldedFigures,
-                get().oristudioCpActiveFoldedFigureId
+                get().oristudioCpActiveFoldedFigureId,
+                get().oristudioCpInlineSimulations
               ),
             ]
           : get().oristudioCpHistoryPast,
@@ -692,6 +700,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         dirty: true,
         projectMessage: label,
       });
+      // The selection above came from the document, not from the setter, so the
+      // canvas's one-selection rule has to be applied after the fact.
+      get().claimCanvasForCreaseSelection();
       get().scheduleOristudioCamvRefresh();
       return true;
     } catch (error) {
@@ -720,6 +731,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const filename = source.filename ?? defaultNativeFilename('Untitled');
     const title = source.title ?? basenameWithoutProjectExtension(filename);
     set({
+      ...discardCpDocumentState(),
       ...projectStateFromSnapshot(snapshot, title),
       importedCreasePattern: null,
       oristudioCpDocument: null,
@@ -736,8 +748,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpSelection: emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
       oristudioCpRevision: 0,
-      oristudioCpFoldedFigures: [],
-      oristudioCpActiveFoldedFigureId: null,
       toolMode: 'select',
       symmetryAuthoringPairs: [],
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -858,6 +868,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const artifactRevision = get().foldArtifactRevision + 1;
     const artifactState = readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
     set({
+      ...discardCpDocumentState(),
       // Loading a document makes its editor the active view, so the derived
       // editing context matches the document without waiting for Dockview to
       // report the activated panel (which never fires in headless tests).
@@ -879,7 +890,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // A non-.osf crease pattern carries no images; its Oriedita text elements
       // are inflated into rich-text annotations above.
       oristudioCpAnnotations: importedTextAnnotations,
-      oristudioCpSelectedAnnotationId: null,
       oristudioCpDocumentExtensions: {},
       nativeProjectExtensions: {},
       projectLoadId: get().projectLoadId + 1,
@@ -890,8 +900,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpSelection: emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
       oristudioCpRevision: 0,
-      oristudioCpFoldedFigures: [],
-      oristudioCpActiveFoldedFigureId: null,
       toolMode: 'select',
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
       ...artifactState,
@@ -986,6 +994,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       ? { ...result.document, source: originalSource }
       : result.document;
     set({
+      // Overridden field-by-field below; spread for the fold side table,
+      // which hydration only refills for the incoming windows.
+      ...discardCpDocumentState(),
       // Opening a crease pattern makes the CP editor the active view.
       activePanelId: 'crease-pattern',
       // A CP-only project establishes no design; keep the Design chooser.
@@ -1059,6 +1070,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
     set({
+      // Overridden field-by-field below; spread for the fold side table,
+      // which hydration only refills for the incoming windows.
+      ...discardCpDocumentState(),
       oristudioCpDocument: checked.documentState,
       oristudioCpLineage: nativeDocument.creasePattern.lineage,
       oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
@@ -1508,6 +1522,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         }
         await releaseEditableCreasePattern();
         set({
+          ...discardCpDocumentState(),
           ...projectStateFromSnapshot(snapshot, get().project.title),
           importedCreasePattern: null,
           oristudioCpDocument: null,
@@ -1522,8 +1537,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
           oristudioCpRevision: 0,
-          oristudioCpFoldedFigures: [],
-          oristudioCpActiveFoldedFigureId: null,
           symmetryAuthoringPairs: [],
           dirty: false,
           lastOptimization: null,
@@ -1557,6 +1570,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const editCanvasState = preserveEditCanvas
           ? pickFoldArtifactResourceState(get())
           : {
+              ...discardCpDocumentState(),
               importedCreasePattern: null,
               oristudioCpDocument: null,
               oristudioCpLineage: null,
@@ -1567,12 +1581,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpSelection: emptyOristudioCpSelection(),
               oristudioCpActiveDiagnosticId: null,
               oristudioCpRevision: 0,
-              oristudioCpFoldedFigures: [],
-              oristudioCpActiveFoldedFigureId: null,
-              oristudioCpAnnotations: [],
-              oristudioCpSelectedAnnotationId: null,
-              oristudioCpInlineSimulations: [],
-              oristudioCpFocusedInlineSimulationId: null,
               oristudioCpDocumentExtensions: {},
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
               ...emptyFoldArtifactResourceState(),
@@ -1618,6 +1626,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const api = await getEngine();
         const snapshot = await createStarterTree(api);
         set({
+          ...discardCpDocumentState(),
           ...projectStateFromSnapshot(snapshot, 'Three terminal flaps'),
           importedCreasePattern: null,
           oristudioCpDocument: null,
@@ -1634,8 +1643,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
           oristudioCpRevision: 0,
-          oristudioCpFoldedFigures: [],
-          oristudioCpActiveFoldedFigureId: null,
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -1783,7 +1790,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                     previousSelection,
                     get().oristudioCpAnnotations,
                     get().oristudioCpFoldedFigures,
-                    get().oristudioCpActiveFoldedFigureId
+                    get().oristudioCpActiveFoldedFigureId,
+                    get().oristudioCpInlineSimulations
                   ),
                 ]
               : get().oristudioCpHistoryPast
@@ -1806,6 +1814,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           error: null,
           dirty: mutatesDocument ? true : get().dirty,
         });
+        // The selection above came from the document, not from the setter, so the
+        // canvas's one-selection rule has to be applied after the fact. This is
+        // the path a select tool takes, which is how a focused simulation window
+        // and a crease selection could both be live after the invariant landed.
+        get().claimCanvasForCreaseSelection();
         // Recompute the passive CAMV overlay off the critical path (debounced),
         // now that the edit has already rendered.
         if (mutatesDocument) get().scheduleOristudioCamvRefresh();
@@ -1924,7 +1937,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                 previousSelection,
                 get().oristudioCpAnnotations,
                 get().oristudioCpFoldedFigures,
-                get().oristudioCpActiveFoldedFigureId
+                get().oristudioCpActiveFoldedFigureId,
+                get().oristudioCpInlineSimulations
               ),
           ],
           oristudioCpHistoryFuture: [],
@@ -1964,16 +1978,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     clearOristudioCpDocument: async () => {
       await releaseEditableCreasePattern();
       set({
-        oristudioCpDocument: null,
-        oristudioCpLineage: null,
-        oristudioCpError: null,
-        oristudioCpHistoryPast: [],
-        oristudioCpHistoryFuture: [],
-        oristudioCpActiveDiagnosticId: null,
-        oristudioCpRevision: 0,
-        oristudioCpFoldedFigures: [],
-        oristudioCpActiveFoldedFigureId: null,
-        oristudioCpCamvResult: null,
+        // Nothing to override: closing the document keeps none of its state.
+        ...discardCpDocumentState(),
         // The document the artifacts were derived from is gone with it.
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),
       });

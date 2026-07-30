@@ -241,9 +241,11 @@
     },
     "foldModelAction": "모델 접기",
     "inlineSimulation": {
+      "addAction": "시뮬레이션 창 추가",
       "canvasAriaLabel": "인라인 시뮬레이션. 드래그하여 회전합니다.",
       "controls": "인라인 시뮬레이션 컨트롤",
       "delete": "삭제",
+      "deleteAction": "시뮬레이션 창 삭제",
       "failed": "시뮬레이션 실패",
       "fold": "접기",
       "gpuUnavailable": "WebGL2가 필요합니다 — 시뮬레이션 작업 공간에서 열어 주세요",
@@ -251,6 +253,7 @@
       "pause": "일시정지",
       "play": "재생",
       "refresh": "현재 주름선으로 다시 만들기",
+      "refreshAction": "시뮬레이션 영역 재구성",
       "replay": "평평하게 되돌리기"
     },
     "insertImage": "이미지 삽입...",
@@ -266,6 +269,7 @@
     "measureSnapVertex": "꼭짓점",
     "moveAnnotation": "주석 이동",
     "moveFoldedForm": "접힌 형태 이동",
+    "moveSimulationWindow": "시뮬레이션 창 이동",
     "noCreasePattern": "전개도 없음",
     "noImportedCreasePattern": "가져온 전개도 없음",
     "none": "없음",
@@ -274,8 +278,10 @@
     "refoldFoldedModelAction": "접힌 모델 다시 접기",
     "resizeAnnotation": "주석 크기 조정",
     "resizeFoldedForm": "접힌 형태 크기 조정",
+    "resizeSimulationWindow": "시뮬레이션 창 크기 조정",
     "rotateAnnotation": "주석 회전",
     "rotateFoldedForm": "접힌 형태 회전",
+    "rotateSimulationWindow": "시뮬레이션 창 회전",
     "selectedCount_other": "{{count}}개 선택됨",
     "selectionToolbar": {
       "export": "내보내기…",

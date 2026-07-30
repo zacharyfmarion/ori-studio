@@ -1915,7 +1915,13 @@
     "panels:creasePattern.foldability.shape.square": "cd73a45640db",
     "panels:creasePattern.foldability.shape.triangle": "7b0dff8bb8bd",
     "panels:creasePattern.foldability.selfIntersection": "8a2fd56f67e5",
-    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541"
+    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541",
+    "panels:creasePattern.inlineSimulation.addAction": "7febe82a9265",
+    "panels:creasePattern.inlineSimulation.deleteAction": "14c8b0f79893",
+    "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
+    "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
+    "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3833,7 +3839,13 @@
     "panels:creasePattern.foldability.shape.square": "cd73a45640db",
     "panels:creasePattern.foldability.shape.triangle": "7b0dff8bb8bd",
     "panels:creasePattern.foldability.selfIntersection": "8a2fd56f67e5",
-    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541"
+    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541",
+    "panels:creasePattern.inlineSimulation.addAction": "7febe82a9265",
+    "panels:creasePattern.inlineSimulation.deleteAction": "14c8b0f79893",
+    "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
+    "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
+    "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5777,7 +5789,13 @@
     "panels:creasePattern.foldability.shape.square": "cd73a45640db",
     "panels:creasePattern.foldability.shape.triangle": "7b0dff8bb8bd",
     "panels:creasePattern.foldability.selfIntersection": "8a2fd56f67e5",
-    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541"
+    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541",
+    "panels:creasePattern.inlineSimulation.addAction": "7febe82a9265",
+    "panels:creasePattern.inlineSimulation.deleteAction": "14c8b0f79893",
+    "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
+    "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
+    "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7721,7 +7739,13 @@
     "panels:creasePattern.foldability.shape.square": "cd73a45640db",
     "panels:creasePattern.foldability.shape.triangle": "7b0dff8bb8bd",
     "panels:creasePattern.foldability.selfIntersection": "8a2fd56f67e5",
-    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541"
+    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541",
+    "panels:creasePattern.inlineSimulation.addAction": "7febe82a9265",
+    "panels:creasePattern.inlineSimulation.deleteAction": "14c8b0f79893",
+    "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
+    "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
+    "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9665,7 +9689,13 @@
     "panels:creasePattern.foldability.shape.square": "cd73a45640db",
     "panels:creasePattern.foldability.shape.triangle": "7b0dff8bb8bd",
     "panels:creasePattern.foldability.selfIntersection": "8a2fd56f67e5",
-    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541"
+    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541",
+    "panels:creasePattern.inlineSimulation.addAction": "7febe82a9265",
+    "panels:creasePattern.inlineSimulation.deleteAction": "14c8b0f79893",
+    "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
+    "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
+    "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11609,7 +11639,13 @@
     "panels:creasePattern.foldability.shape.square": "cd73a45640db",
     "panels:creasePattern.foldability.shape.triangle": "7b0dff8bb8bd",
     "panels:creasePattern.foldability.selfIntersection": "8a2fd56f67e5",
-    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541"
+    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541",
+    "panels:creasePattern.inlineSimulation.addAction": "7febe82a9265",
+    "panels:creasePattern.inlineSimulation.deleteAction": "14c8b0f79893",
+    "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
+    "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
+    "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13553,7 +13589,13 @@
     "panels:creasePattern.foldability.shape.square": "cd73a45640db",
     "panels:creasePattern.foldability.shape.triangle": "7b0dff8bb8bd",
     "panels:creasePattern.foldability.selfIntersection": "8a2fd56f67e5",
-    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541"
+    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541",
+    "panels:creasePattern.inlineSimulation.addAction": "7febe82a9265",
+    "panels:creasePattern.inlineSimulation.deleteAction": "14c8b0f79893",
+    "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
+    "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
+    "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15471,6 +15513,12 @@
     "panels:creasePattern.foldability.shape.square": "cd73a45640db",
     "panels:creasePattern.foldability.shape.triangle": "7b0dff8bb8bd",
     "panels:creasePattern.foldability.selfIntersection": "8a2fd56f67e5",
-    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541"
+    "panels:creasePattern.foldability.shape.selfIntersection": "0411e733f541",
+    "panels:creasePattern.inlineSimulation.addAction": "7febe82a9265",
+    "panels:creasePattern.inlineSimulation.deleteAction": "14c8b0f79893",
+    "panels:creasePattern.inlineSimulation.refreshAction": "dca85ae6e4fb",
+    "panels:creasePattern.moveSimulationWindow": "5e5da664b743",
+    "panels:creasePattern.resizeSimulationWindow": "8668c93dfee3",
+    "panels:creasePattern.rotateSimulationWindow": "a29628f28c3a"
   }
 }
