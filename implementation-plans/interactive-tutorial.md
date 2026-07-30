@@ -615,12 +615,16 @@ for whether a pattern folds.
       nothing used it and it could not be observed honestly.)
 - [x] `loadPracticeCreasePattern` seeds the CAMV diagnostics, without which the
       `camv-clean` step could never be satisfied.
-- [x] Diagnostics lesson: a walkthrough of the three rules the checker applies,
-      one worked example each — Maekawa, Kawasaki (reported as *Angles*), and the
-      small-angle rule (*LittleBigLittle*). Steps can now name a pattern to load,
-      so a lesson can show several examples rather than one.
+- [x] Diagnostics lesson: a walkthrough of the three rules, one worked example
+      each — Maekawa, Kawasaki, big-little-big. Steps can now name a pattern to
+      load, so a lesson can show several examples rather than one.
       **Each verified in the browser to raise exactly its own rule and nothing
-      else** — 1 Maekawa, 1 Angles, 7 LittleBigLittle.
+      else.**
+
+      The prose uses theorem names only. The checker's own labels differ
+      (`Angles` for Kawasaki, `LittleBigLittle` for big-little-big) and are an
+      internal naming, not something to teach — worth aligning the overlay to the
+      theorem names rather than the lessons to the overlay.
 - [x] Fold lesson: `action` step satisfied when a folded figure exists.
       **Verified end to end** — select, fold, dismiss the foldability warning,
       figure appears, step reports satisfied.

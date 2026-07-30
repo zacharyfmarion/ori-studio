@@ -25,7 +25,7 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
     id: 'reading-diagnostics',
     chapterId: 'foldability',
     title: 'Reading the diagnostics',
-    blurb: 'The three rules the checker applies, one example each.',
+    blurb: 'Maekawa, Kawasaki, and big-little-big \u2014 one example each.',
     steps: [
       {
         id: 'maekawa',
@@ -45,17 +45,17 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
         loadsTargetId: 'violation-kawasaki',
         body: [
           'Kawasaki\u2019s theorem is about the gaps between creases rather than their directions. Going around a vertex, take every other angle: those must add up to 180 degrees, and so must the ones you skipped.',
-          'This vertex passes Maekawa \u2014 three mountains and a valley. But its angles are 90, 90, 121 and 59, which alternate to 211 and 149 instead of 180 and 180. The checker calls this one Angles.',
+          'This vertex passes Maekawa \u2014 three mountains and a valley. But its angles are 90, 90, 121 and 59, which alternate to 211 and 149 instead of 180 and 180.',
         ],
       },
       {
-        id: 'little-big-little',
+        id: 'big-little-big',
         kind: 'prose',
-        title: 'The small angle rule',
+        title: 'Big-little-big',
         loadsTargetId: 'violation-big-little-big',
         body: [
-          'The third rule is local. Where a small angle sits between larger ones, the two creases on either side of it have to fold in opposite directions \u2014 one mountain, one valley. If they match, the narrow flap between them has nowhere to go.',
-          'Seven vertices are flagged along this diagonal. At each one the small angles are bounded by two creases of the same type. It is often called the big-little-big theorem; the checker calls it LittleBigLittle.',
+          'The big-little-big theorem is the third rule. Where a small angle sits between larger ones, the two creases on either side of it have to fold in opposite directions \u2014 one mountain, one valley. If they match, the narrow flap between them has nowhere to go.',
+          'Seven vertices are flagged along this diagonal. At each one the small angles are bounded by two creases of the same type.',
         ],
       },
       {
