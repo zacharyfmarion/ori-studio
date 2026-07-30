@@ -2007,9 +2007,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }, CAMV_REFRESH_DEBOUNCE_MS);
     },
 
-    openProject: async (fileService = getFileService()) => {
+    openProject: async (fileService = getFileService(), options = {}) => {
       if (rejectDisabled('file.open')) return false;
-      if (!(await confirmDiscardDirty(get().dirty))) return false;
+      // Same opt-out `createOristudioBpProject` carries: skipped only by a caller
+      // whose own prompt already covered the discard.
+      if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
+        return false;
+      }
       set({ pendingDesignChoice: false });
       let openedSourceLength = 0;
       try {

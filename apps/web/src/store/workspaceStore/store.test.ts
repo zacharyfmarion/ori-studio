@@ -2084,6 +2084,57 @@ describe('workspace store slices', () => {
     );
   });
 
+  it('prompts before opening over unsaved changes, and aborts when refused', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({ dirty: true });
+    const fileService = createFileService({
+      text: 'opened text',
+      name: 'opened.tmd5',
+      path: '/tmp/opened.tmd5',
+    });
+
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      const opening = useWorkspaceStore.getState().openProject(fileService);
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({ type: 'confirm', title: 'Discard unsaved changes?' });
+      if (!dialog) throw new Error('expected a discard confirmation');
+      resolveCommandDialog(dialog.id, false);
+      await expect(opening).resolves.toBe(false);
+    } finally {
+      unregisterDialogHost();
+    }
+
+    expect(fileService.openTextFile).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+  });
+
+  // The drop flow states the discard consequence in its own choice dialog, so a
+  // second prompt here would be the user answering the same question twice.
+  it('skips the discard prompt when the caller has already asked', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({ dirty: true });
+    const fileService = createFileService({
+      text: 'opened text',
+      name: 'opened.tmd5',
+      path: '/tmp/opened.tmd5',
+    });
+
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      await expect(
+        useWorkspaceStore.getState().openProject(fileService, { confirmDiscard: false })
+      ).resolves.toBe(true);
+      expect(useCommandDialogStore.getState().dialog).toBeNull();
+    } finally {
+      unregisterDialogHost();
+    }
+
+    expect(fileService.openTextFile).toHaveBeenCalledOnce();
+  });
+
   it('opens native Oriedita ORI documents and saves back as ORI', async () => {
     resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());

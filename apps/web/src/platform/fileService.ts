@@ -265,6 +265,38 @@ export function createFileService(surface: RuntimeSurface): FileService {
   return surface === 'desktop' ? new TauriFileService() : new BrowserFileService();
 }
 
+/**
+ * A {@link FileService} that resolves to one already-in-hand `File` instead of
+ * opening a picker — how a dropped file reaches `openProject` and
+ * `importAddCreasePattern` without either needing a drag-and-drop code path.
+ *
+ * The path is always null: a webview drop hands over the bytes but not the
+ * file's location, on desktop as much as on web. So a document opened this way
+ * has no overwrite target, and its first save falls through to a save dialog
+ * pre-filled with the dropped filename. Saves themselves are ordinary — they
+ * delegate to the surface's real service.
+ */
+export function createDroppedFileService(file: File): FileService {
+  const base = getFileService();
+  return {
+    surface: base.surface,
+    supportsNativeDialogs: base.supportsNativeDialogs,
+    async openTextFile(): Promise<OpenTextFileResult | null> {
+      return { text: await file.text(), name: file.name, path: null };
+    },
+    async openBinaryFile(): Promise<OpenBinaryFileResult | null> {
+      return {
+        bytes: new Uint8Array(await file.arrayBuffer()),
+        name: file.name,
+        path: null,
+        mimeType: file.type || mimeTypeFromFilename(file.name),
+      };
+    },
+    saveTextFile: (options) => base.saveTextFile(options),
+    saveBinaryFile: (options) => base.saveBinaryFile(options),
+  };
+}
+
 export function createOpenedPathFileService(path: string): FileService {
   const desktopService = createFileService('desktop');
   return {
