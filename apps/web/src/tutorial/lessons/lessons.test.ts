@@ -60,6 +60,9 @@ describe('lesson content', () => {
         expect(lessonTarget(lesson.startTargetId), `${lesson.id} start`).toBeDefined();
       }
       for (const step of lesson.steps) {
+        if (step.loadsTargetId) {
+          expect(lessonTarget(step.loadsTargetId), `${lesson.id}/${step.id} loads`).toBeDefined();
+        }
         if (step.kind !== 'draw') continue;
         expect(lessonTarget(step.targetId), `${lesson.id}/${step.id}`).toBeDefined();
       }
@@ -137,6 +140,7 @@ describe('lesson targets', () => {
       if (lesson.startTargetId) referenced.add(lesson.startTargetId);
       for (const step of lesson.steps) {
         if (step.kind === 'draw') referenced.add(step.targetId);
+        if (step.loadsTargetId) referenced.add(step.loadsTargetId);
       }
     }
     // The blank sheet is the fallback for lessons with no starting pattern, so

@@ -28,9 +28,11 @@ import parallelStart from './parallel-start.cp?raw';
 import parallelDone from './parallel-done.cp?raw';
 import mirrorStart from './mirror-start.cp?raw';
 import mirrorDone from './mirror-done.cp?raw';
-import maekawaBroken from './maekawa-broken.cp?raw';
 import preliminaryBase from './preliminary-base.fold?raw';
 import preliminaryBaseExtraCrease from './preliminary-base-extra-crease.fold?raw';
+import violationMaekawa from './violation-maekawa.fold?raw';
+import violationKawasaki from './violation-kawasaki.fold?raw';
+import violationBigLittleBig from './violation-big-little-big.fold?raw';
 import type { LessonTarget } from '../types';
 
 export const LESSON_TARGETS: readonly LessonTarget[] = [
@@ -46,9 +48,11 @@ export const LESSON_TARGETS: readonly LessonTarget[] = [
   { id: 'parallel-done', text: parallelDone, format: 'cp' },
   { id: 'mirror-start', text: mirrorStart, format: 'cp' },
   { id: 'mirror-done', text: mirrorDone, format: 'cp' },
-  { id: 'maekawa-broken', text: maekawaBroken, format: 'cp' },
   { id: 'preliminary-base', text: preliminaryBase, format: 'fold' },
   { id: 'preliminary-base-extra-crease', text: preliminaryBaseExtraCrease, format: 'fold' },
+  { id: 'violation-maekawa', text: violationMaekawa, format: 'fold' },
+  { id: 'violation-kawasaki', text: violationKawasaki, format: 'fold' },
+  { id: 'violation-big-little-big', text: violationBigLittleBig, format: 'fold' },
 ];
 
 const TARGET_BY_ID = new Map(LESSON_TARGETS.map((target) => [target.id, target]));

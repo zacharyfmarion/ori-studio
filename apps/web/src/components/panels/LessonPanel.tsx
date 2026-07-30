@@ -48,7 +48,7 @@ export function LessonPanel() {
   const lesson = activeLessonId ? lessonById(activeLessonId) : undefined;
   const step: LessonStep | undefined = lesson?.steps[stepIndex];
 
-  useLessonPracticeDocument(lesson);
+  useLessonPracticeDocument(lesson, step);
   useArmedTool(step);
 
   const drawStep = step?.kind === 'draw' ? step : null;
@@ -285,27 +285,46 @@ function CheckFeedback({
  * the lesson also means leaving a lesson and coming back preserves work in
  * progress, because the id still matches.
  */
-function useLessonPracticeDocument(lesson: Lesson | undefined): void {
+function useLessonPracticeDocument(lesson: Lesson | undefined, step: LessonStep | undefined): void {
   const document = useWorkspaceStore((state) => state.oristudioCpDocument);
   const practiceLessonId = useTutorialStore((state) => state.practiceLessonId);
+  const practiceSourceId = useTutorialStore((state) => state.practiceSourceId);
   const markPracticeDocumentFor = useTutorialStore((state) => state.markPracticeDocumentFor);
 
   const lessonId = lesson?.id;
   const startTargetId = lesson?.startTargetId;
+  const stepTargetId = step?.loadsTargetId;
 
   useEffect(() => {
     if (!lessonId) return;
-    if (document && practiceLessonId === lessonId) return;
 
-    const store = useWorkspaceStore.getState();
-    const start = startTargetId ? lessonTarget(startTargetId) : undefined;
-    markPracticeDocumentFor(lessonId);
-    void store.loadPracticeCreasePattern(
-      start?.text ?? BLANK_PRACTICE_CP,
-      startTargetId ?? lessonId,
-      start?.format ?? 'cp'
-    );
-  }, [document, lessonId, markPracticeDocumentFor, practiceLessonId, startTargetId]);
+    // A step that names its own pattern replaces whatever is on the canvas —
+    // that is the point of it, walking the user through one example per idea.
+    // A step that names none leaves the canvas alone, so work in progress
+    // survives moving between steps.
+    const wantsStepPattern = Boolean(stepTargetId) && practiceSourceId !== stepTargetId;
+    const wantsLessonPattern = !document || practiceLessonId !== lessonId;
+    if (!wantsStepPattern && !wantsLessonPattern) return;
+
+    const targetId = wantsStepPattern ? stepTargetId : startTargetId;
+    const target = targetId ? lessonTarget(targetId) : undefined;
+    markPracticeDocumentFor(lessonId, wantsStepPattern ? (stepTargetId ?? null) : null);
+    void useWorkspaceStore
+      .getState()
+      .loadPracticeCreasePattern(
+        target?.text ?? BLANK_PRACTICE_CP,
+        targetId ?? lessonId,
+        target?.format ?? 'cp'
+      );
+  }, [
+    document,
+    lessonId,
+    markPracticeDocumentFor,
+    practiceLessonId,
+    practiceSourceId,
+    startTargetId,
+    stepTargetId,
+  ]);
 }
 
 /**

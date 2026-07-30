@@ -95,7 +95,6 @@ const PENDING_REDRAW = new Set([
   'parallel-done', // 2
   'mirror-start', // 1
   'mirror-done', // 2
-  'maekawa-broken', // 4 — deliberate, this one is the diagnostics lesson
 ]);
 
 describe('target topology', () => {

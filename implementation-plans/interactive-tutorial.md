@@ -615,8 +615,12 @@ for whether a pattern folds.
       nothing used it and it could not be observed honestly.)
 - [x] `loadPracticeCreasePattern` seeds the CAMV diagnostics, without which the
       `camv-clean` step could never be satisfied.
-- [x] Diagnostics lesson: broken pattern → clear the violations → clean.
-      **Verified reachable in the browser** (4 issues → 0).
+- [x] Diagnostics lesson: a walkthrough of the three rules the checker applies,
+      one worked example each — Maekawa, Kawasaki (reported as *Angles*), and the
+      small-angle rule (*LittleBigLittle*). Steps can now name a pattern to load,
+      so a lesson can show several examples rather than one.
+      **Each verified in the browser to raise exactly its own rule and nothing
+      else** — 1 Maekawa, 1 Angles, 7 LittleBigLittle.
 - [x] Fold lesson: `action` step satisfied when a folded figure exists.
       **Verified end to end** — select, fold, dismiss the foldability warning,
       figure appears, step reports satisfied.

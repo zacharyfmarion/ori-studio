@@ -59,6 +59,8 @@ interface TutorialState {
    * new one's starting pattern.
    */
   practiceLessonId: string | null;
+  /** Which target the practice canvas currently holds, when a step chose one. */
+  practiceSourceId: string | null;
   stepIndex: number;
   stepStatus: StepStatus;
   feedback: StepFeedback | null;
@@ -73,7 +75,7 @@ interface TutorialState {
   /** Report a check result for the active step. */
   reportStepResult: (satisfied: boolean, feedback: StepFeedback | null) => void;
   /** Record that the practice canvas now holds `lessonId`'s starting pattern. */
-  markPracticeDocumentFor: (lessonId: string) => void;
+  markPracticeDocumentFor: (lessonId: string, sourceId?: string | null) => void;
   /** Escape hatch so a stuck user is never trapped on a step. */
   skipStep: () => void;
   markLessonComplete: (lessonId: string) => void;
@@ -97,6 +99,7 @@ export const useTutorialStore = create<TutorialState>()(
     (set, get) => ({
       activeLessonId: null,
       practiceLessonId: null,
+      practiceSourceId: null,
       stepIndex: 0,
       stepStatus: 'not-applicable',
       feedback: null,
@@ -119,7 +122,8 @@ export const useTutorialStore = create<TutorialState>()(
       closeLesson: () =>
         set({ activeLessonId: null, stepIndex: 0, stepStatus: 'not-applicable', feedback: null }),
 
-      markPracticeDocumentFor: (lessonId) => set({ practiceLessonId: lessonId }),
+      markPracticeDocumentFor: (lessonId, sourceId = null) =>
+        set({ practiceLessonId: lessonId, practiceSourceId: sourceId }),
 
       goToStep: (index) => {
         const lesson = lessonById(get().activeLessonId ?? '');

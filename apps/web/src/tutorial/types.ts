@@ -74,6 +74,13 @@ interface LessonStepBase {
    * and turn a step into a wall of text.
    */
   bullets?: readonly string[];
+  /**
+   * Load this pattern onto the practice canvas when the step opens. For steps
+   * that show the user something — one example per rule, say — rather than
+   * having them build it. Steps without it leave whatever is on the canvas
+   * alone, so a lesson can load once and be edited across several steps.
+   */
+  loadsTargetId?: string;
   image?: LessonImage;
 }
 
