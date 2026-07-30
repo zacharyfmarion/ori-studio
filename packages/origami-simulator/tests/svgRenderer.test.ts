@@ -172,6 +172,43 @@ describe('rendering the folded mesh to SVG', () => {
     ).not.toContain('stroke-dasharray');
   });
 
+  it('picks the paper side where gl_FrontFacing does, after the perspective warp', () => {
+    // The vertex shader leaves `gl_Position.w` at 1 and instead scales x and y by
+    // a per-vertex `camDist/(camDist - depth)`. That is a nonlinear warp rather
+    // than a projective map, so it can reorder a triangle's vertices — this one
+    // winds one way in view space and the other way on screen. Deciding in view
+    // space put patches of the paper's back into an export the GPU drew as front
+    // (1-7% of faces on a folded Miura).
+    const camera = cameraUniforms({ yaw: 0, pitch: -1, zoom: 1 }, [0, 0, 0], 1, 400, 300);
+    const flipping = new Float32Array([
+      0.6178846, 0.24418533, -0.01926319, 0.34378998, 0.71988648, -0.64118776, -0.75720953,
+      0.8038861, 0.29766905,
+    ]);
+    const projected = projectVertices(flipping, camera);
+    const viewArea =
+      (projected.view[3]! - projected.view[0]!) * (projected.view[7]! - projected.view[1]!) -
+      (projected.view[4]! - projected.view[1]!) * (projected.view[6]! - projected.view[0]!);
+    const screenArea =
+      (projected.screen[2]! - projected.screen[0]!) * (projected.screen[5]! - projected.screen[1]!) -
+      (projected.screen[3]! - projected.screen[1]!) * (projected.screen[4]! - projected.screen[0]!);
+    // The fixture is only meaningful while the two spaces disagree about it.
+    expect(viewArea >= 0).not.toBe(screenArea <= 0);
+
+    const page = renderMeshToSvg(
+      flipping,
+      {
+        faceIndices: new Uint32Array([0, 1, 2]),
+        edgeIndices: new Uint32Array(),
+        edgeAssignments: new Uint8Array(),
+      },
+      camera,
+      { ...SETTINGS, showEdges: false, lighting: false }
+    )!;
+    // Screen winding says front, so the front colour is the correct answer.
+    expect(page.svg).toContain(hexOf(SETTINGS.frontColor));
+    expect(page.svg).not.toContain(hexOf(SETTINGS.backColor));
+  });
+
   it('colours creases by assignment', () => {
     const svg = render().svg;
     expect(svg).toContain(hexOf(SETTINGS.mountainColor));

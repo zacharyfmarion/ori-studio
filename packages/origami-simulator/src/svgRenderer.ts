@@ -167,7 +167,10 @@ interface Triangle {
   b: number;
   c: number;
   depth: number;
-  /** Signed area in view space, whose sign is which side of the paper faces us. */
+  /**
+   * Signed screen area, negated so positive means front. Which side of the paper
+   * faces the viewer — see the note where it is computed.
+   */
   winding: number;
 }
 
@@ -203,11 +206,18 @@ function collectFaces(
 
     const depth =
       (projected.view[a * 3 + 2]! + projected.view[b * 3 + 2]! + projected.view[c * 3 + 2]!) / 3;
-    // Winding from view space rather than screen space: it is the same quantity
-    // the canvas-2D renderer tests, and pixel y points the other way, so mixing
-    // the two would silently swap the paper's two sides.
+    // Winding from *screen* space — after the perspective scale — because that is
+    // where `gl_FrontFacing` decides it, and negated because pixel y points down
+    // while view y points up.
+    //
+    // View space is not equivalent here. The vertex shader does not do a real
+    // perspective divide (it leaves `gl_Position.w` at 1) and instead scales x
+    // and y by a per-vertex `camDist/(camDist - depth)`. That is a nonlinear
+    // warp, not a projective map, so it can reorder a triangle's vertices —
+    // measured at 1-7% of faces on a folded Miura, which showed up as patches of
+    // the paper's back side in an export that the GPU drew as front.
     items.push({ depth, kind: 0, index: triangles.length });
-    triangles.push({ a, b, c, depth, winding: viewArea(projected, a, b, c) });
+    triangles.push({ a, b, c, depth, winding: -screenArea(projected, a, b, c) });
 
     // Creases sit on the nearest face they belong to, so a crease under another
     // layer is painted before that layer covers it.
@@ -273,15 +283,6 @@ function screenArea(projected: ProjectedVertices, a: number, b: number, c: numbe
     ((projected.screen[b * 2]! - ax) * (projected.screen[c * 2 + 1]! - ay) -
       (projected.screen[b * 2 + 1]! - ay) * (projected.screen[c * 2]! - ax)) /
     2
-  );
-}
-
-function viewArea(projected: ProjectedVertices, a: number, b: number, c: number): number {
-  const ax = projected.view[a * 3]!;
-  const ay = projected.view[a * 3 + 1]!;
-  return (
-    (projected.view[b * 3]! - ax) * (projected.view[c * 3 + 1]! - ay) -
-    (projected.view[b * 3 + 1]! - ay) * (projected.view[c * 3]! - ax)
   );
 }
 
