@@ -1,7 +1,7 @@
 /**
  * Loading a lesson's target pattern.
  *
- * A target is `.cp` text. Rather than parse it here — the engine is the only
+ * A target is `.cp` or `.fold` text. Rather than parse it here — the engine is the only
  * thing that reads the format — it is loaded into a *transient* kernel handle,
  * read as geometry, and freed. Documents behind distinct handles are
  * independent (asserted by `concurrent_handles_are_isolated` in the engine), so
@@ -14,12 +14,16 @@ import { decodeCpGeometryToSnapshot } from '../../engine/oristudioCpGeometry';
 import type { OristudioCpModel } from '../../engine/oristudioCpTypes';
 import { getOristudioCpClient } from '../../store/workspaceStore/oristudioCpRuntime';
 import { lessonTarget } from '../targets';
+import type { LessonTarget } from '../types';
 
 const cache = new Map<string, Promise<OristudioCpModel>>();
 
-async function loadTargetGeometry(cp: string): Promise<OristudioCpModel> {
+async function loadTargetGeometry(target: LessonTarget): Promise<OristudioCpModel> {
   const api = await getOristudioCpClient();
-  const handle = await api.loadCp(cp, 'lesson-target');
+  const handle =
+    target.format === 'fold'
+      ? await api.loadFoldFile(target.text)
+      : await api.loadCp(target.text, 'lesson-target');
   try {
     const transport = await api.documentGeometry(handle);
     return decodeCpGeometryToSnapshot(transport).crease_pattern;
@@ -42,7 +46,7 @@ export function targetGeometry(targetId: string): Promise<OristudioCpModel> {
     return Promise.reject(new Error(`Unknown lesson target: ${targetId}`));
   }
 
-  const pending = loadTargetGeometry(target.cp).catch((error: unknown) => {
+  const pending = loadTargetGeometry(target).catch((error: unknown) => {
     // Don't cache a failure; a transient worker hiccup should be retryable.
     cache.delete(targetId);
     throw error;

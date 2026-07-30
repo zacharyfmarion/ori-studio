@@ -103,6 +103,24 @@ describe('lesson content', () => {
 });
 
 describe('lesson targets', () => {
+  it('parses as FOLD with vertices and matching assignments', () => {
+    for (const target of LESSON_TARGETS) {
+      if (target.format !== 'fold') continue;
+      const doc = JSON.parse(target.text) as {
+        vertices_coords: [number, number][];
+        edges_vertices: [number, number][];
+        edges_assignment: string[];
+      };
+      expect(doc.vertices_coords.length, target.id).toBeGreaterThan(0);
+      expect(doc.edges_vertices.length, target.id).toBeGreaterThan(0);
+      expect(doc.edges_assignment.length, target.id).toBe(doc.edges_vertices.length);
+      for (const [from, to] of doc.edges_vertices) {
+        expect(doc.vertices_coords[from], `${target.id}: edge endpoint`).toBeDefined();
+        expect(doc.vertices_coords[to], `${target.id}: edge endpoint`).toBeDefined();
+      }
+    }
+  });
+
   it('gives every target a unique id', () => {
     const ids = LESSON_TARGETS.map((target) => target.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -130,7 +148,8 @@ describe('lesson targets', () => {
 
   it('parses as .cp text with at least one segment', () => {
     for (const target of LESSON_TARGETS) {
-      const lines = target.cp
+      if (target.format !== 'cp') continue;
+      const lines = target.text
         .split('\n')
         .map((line) => line.trim())
         .filter((line) => line.length > 0);

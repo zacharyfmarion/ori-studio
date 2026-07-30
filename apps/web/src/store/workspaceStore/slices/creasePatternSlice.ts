@@ -880,12 +880,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
      * of those things; it is a scratch document that must leave the user's
      * project completely alone.
      */
-    loadPracticeCreasePattern: async (text, label) => {
+    loadPracticeCreasePattern: async (text, label, format = 'cp') => {
       const generation = cpSlotGeneration();
       try {
         const document = await loadOristudioCpDocumentFromText(text, {
-          format: 'cp',
-          filename: `${label}.cp`,
+          format,
+          filename: `${label}.${format}`,
           title: label,
         });
         if (!cpSlotGenerationIsCurrent(generation)) return;

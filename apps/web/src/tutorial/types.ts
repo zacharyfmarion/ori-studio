@@ -128,11 +128,21 @@ export interface LessonChapter {
   blurb: string;
 }
 
-/** A `.cp` document referenced by a lesson, as raw text. */
+/**
+ * A crease-pattern document referenced by a lesson, as raw text.
+ *
+ * `.fold` is the format to author in. It carries the *topology* — the vertices
+ * where creases meet, and the boundary split at those points — which `.cp` does
+ * not: a `.cp` is only a list of segments, so two creases written as whole lines
+ * cross without meeting, and the foldability checker rightly objects to the
+ * result. Export a pattern you drew in the editor rather than writing coordinates
+ * by hand, and that problem cannot arise.
+ */
 export interface LessonTarget {
   id: string;
-  /** Raw `.cp` text, imported `?raw`. Parsed by the engine, never by hand. */
-  cp: string;
+  /** Raw document text, imported `?raw`. Parsed by the engine, never by hand. */
+  text: string;
+  format: 'cp' | 'fold';
 }
 
 /** Whether a step advances on a button or on a satisfied check. */

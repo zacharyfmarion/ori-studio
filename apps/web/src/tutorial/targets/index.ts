@@ -1,17 +1,24 @@
 /**
  * Target crease patterns referenced by lessons.
  *
- * Each is a `.cp` file — one segment per line, `<type> <x1> <y1> <x2> <y2>`,
- * where type 1 is the paper edge, 2 valley, 3 mountain, 4 auxiliary. The paper
- * is the editor's own 400×400 sheet spanning (-200,-200) to (200,200) with an
- * 8×8 grid, so a grid cell is 50 units. Authoring by hand keeps them reviewable
- * as diffs; the engine remains the only thing that *parses* them.
+ * **Author these by drawing them in the editor and exporting `.fold`.** A `.cp`
+ * is only a list of segments: two creases written as whole lines cross without
+ * meeting, the boundary is never split where a crease reaches it, and the
+ * resulting document is topologically degenerate — the foldability checker
+ * reports violations that have nothing to do with the pattern being taught.
+ * `.fold` carries the vertices, so a drawn-and-exported target behaves the way
+ * the same pattern behaves when a user draws it.
+ *
+ * The `.cp` entries below predate that and are simple enough to be sound (single
+ * creases, or creases that do not cross). Anything with an interior crossing
+ * should be `.fold`.
+ *
+ * The paper is the editor's own 400×400 sheet spanning (-200,-200) to (200,200)
+ * with an 8×8 grid, so a grid cell is 50 units. Note `+y` points *down*.
  */
 import blankSheet from './blank-sheet.cp?raw';
 import bothDiagonals from './both-diagonals.cp?raw';
-import diagonalsAfterDelete from './diagonals-after-delete.cp?raw';
 import firstCrease from './first-crease.cp?raw';
-import fourCreases from './four-creases.cp?raw';
 import inscribedSquare from './inscribed-square.cp?raw';
 import perpendicularStart from './perpendicular-start.cp?raw';
 import perpendicularDone from './perpendicular-done.cp?raw';
@@ -22,26 +29,26 @@ import parallelDone from './parallel-done.cp?raw';
 import mirrorStart from './mirror-start.cp?raw';
 import mirrorDone from './mirror-done.cp?raw';
 import maekawaBroken from './maekawa-broken.cp?raw';
-import preliminaryBase from './preliminary-base.cp?raw';
+import preliminaryBase from './preliminary-base.fold?raw';
+import preliminaryBaseExtraCrease from './preliminary-base-extra-crease.fold?raw';
 import type { LessonTarget } from '../types';
 
 export const LESSON_TARGETS: readonly LessonTarget[] = [
-  { id: 'blank-sheet', cp: blankSheet },
-  { id: 'first-crease', cp: firstCrease },
-  { id: 'both-diagonals', cp: bothDiagonals },
-  { id: 'four-creases', cp: fourCreases },
-  { id: 'diagonals-after-delete', cp: diagonalsAfterDelete },
-  { id: 'inscribed-square', cp: inscribedSquare },
-  { id: 'perpendicular-start', cp: perpendicularStart },
-  { id: 'perpendicular-done', cp: perpendicularDone },
-  { id: 'bisector-start', cp: bisectorStart },
-  { id: 'bisector-done', cp: bisectorDone },
-  { id: 'parallel-start', cp: parallelStart },
-  { id: 'parallel-done', cp: parallelDone },
-  { id: 'mirror-start', cp: mirrorStart },
-  { id: 'mirror-done', cp: mirrorDone },
-  { id: 'maekawa-broken', cp: maekawaBroken },
-  { id: 'preliminary-base', cp: preliminaryBase },
+  { id: 'blank-sheet', text: blankSheet, format: 'cp' },
+  { id: 'first-crease', text: firstCrease, format: 'cp' },
+  { id: 'both-diagonals', text: bothDiagonals, format: 'cp' },
+  { id: 'inscribed-square', text: inscribedSquare, format: 'cp' },
+  { id: 'perpendicular-start', text: perpendicularStart, format: 'cp' },
+  { id: 'perpendicular-done', text: perpendicularDone, format: 'cp' },
+  { id: 'bisector-start', text: bisectorStart, format: 'cp' },
+  { id: 'bisector-done', text: bisectorDone, format: 'cp' },
+  { id: 'parallel-start', text: parallelStart, format: 'cp' },
+  { id: 'parallel-done', text: parallelDone, format: 'cp' },
+  { id: 'mirror-start', text: mirrorStart, format: 'cp' },
+  { id: 'mirror-done', text: mirrorDone, format: 'cp' },
+  { id: 'maekawa-broken', text: maekawaBroken, format: 'cp' },
+  { id: 'preliminary-base', text: preliminaryBase, format: 'fold' },
+  { id: 'preliminary-base-extra-crease', text: preliminaryBaseExtraCrease, format: 'fold' },
 ];
 
 const TARGET_BY_ID = new Map(LESSON_TARGETS.map((target) => [target.id, target]));

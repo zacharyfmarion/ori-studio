@@ -738,6 +738,37 @@ Chapter 3 now opens by referring back to this rather than re-teaching it, and
 makes its own point sharper: the flags there are *not* at a crossing, they are
 where creases meet the paper's edge.
 
+## Author targets as `.fold`, not `.cp`
+
+`.cp` cannot express a vertex. It is a flat list of segments, so two creases
+written as whole lines cross *without meeting*, and the boundary is never split
+where a crease reaches it. The engine loads that exactly as written and the
+foldability checker then reports violations at those points — red errors on the
+canvas that have nothing to do with the lesson.
+
+That is a defect in the hand-authored targets, not in the checker, and it is why
+the select/delete lesson opened on four unexplained warnings. Drawing the same
+pattern in the editor never has the problem, because drawing splits as it goes.
+
+**So targets are authored by drawing them in the editor and exporting `.fold`.**
+The loader takes a format, and `.fold` carries the topology. The two files for
+the select/delete lesson were produced that way and load with zero violations.
+
+`targetTopology.test.ts` enforces it geometrically — no engine needed — and
+carries the list of pre-existing `.cp` targets that still cross without a vertex,
+annotated with the error count each currently shows. **That list must only
+shrink**; every entry is a lesson that shows the user errors it never explains:
+
+| target | errors |
+|---|---|
+| `inscribed-square`, `perpendicular-done`, `maekawa-broken` | 4 |
+| `bisector-start`, `bisector-done` | 3 |
+| `perpendicular-start`, `parallel-done`, `mirror-done` | 2 |
+| `mirror-start` | 1 |
+| `both-diagonals` | 0 — degenerate but unchecked, no vertex exists to check |
+
+(`maekawa-broken` is deliberate: that lesson is *about* the violations.)
+
 ## Browser verification checklist (author)
 
 1. **Slot isolation.** Open a real document in `/edit`, make edits, leave it

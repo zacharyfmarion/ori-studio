@@ -158,7 +158,6 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         body: [
           'The pattern is legal now, so it will fold. Select everything with Cmd+A, then press G.',
           'The two diagonals cut the square into four triangles, and what comes back is one of them: the four have collapsed onto each other into a single flat stack. That is what "flat-foldable" means in the most literal way — the finished thing has no thickness beyond its layers.',
-          'It is worth appreciating how little had to change. One crease of four, flipped, is the difference between a pattern that cannot exist and one that folds.',
         ],
         expect: 'folded-figure-exists',
         hint: 'Cmd+A selects everything, then G runs the fold estimate. The Fold button near the right-hand end of the bottom toolbar does the same thing.',
@@ -170,28 +169,31 @@ export const BASICS_LESSONS: readonly Lesson[] = [
     chapterId: 'basics',
     title: 'Select, undo, delete',
     blurb: 'Fixing what you have already drawn.',
-    startTargetId: 'four-creases',
+    startTargetId: 'preliminary-base-extra-crease',
     steps: [
       {
         id: 'starting-point',
         kind: 'prose',
         title: 'A pattern to edit',
         body: [
-          'The canvas already has four creases on it: both diagonals, and the horizontal and vertical lines through the middle. This is the start of a very common base, but for now it is just something to practise on.',
+          'On the canvas is the preliminary base — one of the foundational shapes in origami, the starting point for the crane and a great many other traditional models — with one crease too many. Someone has added a second diagonal that does not belong.',
           'Drawing is only half of editing. Being quick at selecting, undoing, and deleting is what makes designing feel fluid rather than fussy.',
         ],
       },
       {
-        id: 'delete-the-midlines',
+        id: 'delete-the-extra-crease',
         kind: 'draw',
-        title: 'Remove the midlines',
+        title: 'Remove the extra crease',
         body: [
-          'Delete the horizontal and vertical creases, leaving only the two diagonals. Press Q for box select, drag a box around a crease, and press Delete. The eraser tool works too, if you would rather click creases directly.',
+          'Delete the diagonal that runs from the top-left corner to the bottom-right one, leaving the preliminary base behind: two creases through the middle, and one diagonal the other way.',
+          'It changes colour halfway along — red from the corner to the centre, blue from the centre onward. That is not a mistake in the drawing. Everything meeting at the middle is split there, so what looks like one line across the paper is really two separate creases that happen to be in line, and nothing says they have to be the same type. Both halves have to go.',
+          'The quickest way to remove a crease is to right-click and drag a small box over it: anything the box touches is erased. Do the two halves one at a time. A box big enough to hold both would have to reach the centre, and every other crease passes through there — it would take the whole pattern with it.',
+          'Press Q for box select, drag a box, and press Delete if you would rather select first and look before committing.',
           'If you remove the wrong one, undo with Cmd+Z (Ctrl+Z elsewhere) — the tutorial watches the result, not how you got there, so there is no penalty for changing your mind.',
         ],
-        targetId: 'diagonals-after-delete',
+        targetId: 'preliminary-base',
         check: { mode: 'exact' },
-        hint: 'Press Q, drag a box that touches only the crease you want, then press Delete. The eraser is in the Delete group on the left if you prefer clicking.',
+        hint: 'Right-click and drag a small box over the top-left half, then another over the bottom-right half. Keep the boxes away from the centre, where everything crosses. Cmd+Z undoes anything you did not mean.',
       },
       {
         id: 'undo-is-cheap',

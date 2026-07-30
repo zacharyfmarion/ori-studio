@@ -450,7 +450,11 @@ export interface CreasePatternSliceActions {
    * patterns). Scoped to the crease-pattern editor: it does not touch the
    * project's filename, status, tree, or workspace.
    */
-  loadPracticeCreasePattern: (text: string, label: string) => Promise<void>;
+  loadPracticeCreasePattern: (
+    text: string,
+    label: string,
+    format?: ImportedCreasePatternFormat
+  ) => Promise<void>;
   optimizeScale: () => Promise<void>;
   optimizeEdges: () => Promise<void>;
   optimizeStrain: () => Promise<void>;

@@ -9,8 +9,8 @@ import type { OristudioCpLineSegment, OristudioCpModel } from '../../engine/oris
  * lesson's own check. A step whose target cannot pass its check is unfinishable,
  * and no amount of UI testing would surface it — the user would simply be stuck.
  *
- * The `.cp` text is parsed here rather than through the engine so these stay fast
- * and dependency-free. That is safe because this is a *test-only* reader used to
+ * Target text is parsed here rather than through the engine so these stay fast
+ * and dependency-free. That is safe because these are *test-only* readers used to
  * cross-check content, never a second production parser: the app still loads
  * every target through the kernel.
  */
@@ -55,10 +55,52 @@ function parseCpForTest(text: string): OristudioCpModel {
   };
 }
 
+/** Minimal FOLD reader: enough to recover the segments and their assignments. */
+function parseFoldForTest(text: string): OristudioCpModel {
+  const doc = JSON.parse(text) as {
+    vertices_coords: [number, number][];
+    edges_vertices: [number, number][];
+    edges_assignment: string[];
+  };
+  const COLOR_BY_ASSIGNMENT: Record<string, string> = {
+    B: 'Black0',
+    M: 'Red1',
+    V: 'Blue2',
+    F: 'Cyan3',
+    U: 'None',
+  };
+  const lineSegments: OristudioCpLineSegment[] = [];
+  const auxSegments: OristudioCpLineSegment[] = [];
+  doc.edges_vertices.forEach(([from, to], index) => {
+    const assignment = doc.edges_assignment[index] ?? 'U';
+    const [ax, ay] = doc.vertices_coords[from];
+    const [bx, by] = doc.vertices_coords[to];
+    const segment: OristudioCpLineSegment = {
+      a: { x: ax, y: ay },
+      b: { x: bx, y: by },
+      active: 'Unselected',
+      color: COLOR_BY_ASSIGNMENT[assignment] ?? 'None',
+      selected: 0,
+      customized: 0,
+      customized_color: { red: 0, green: 0, blue: 0 },
+    };
+    if (assignment === 'F') auxSegments.push(segment);
+    else lineSegments.push(segment);
+  });
+  return {
+    line_segments: lineSegments,
+    circles: [],
+    points: [],
+    aux_line_segments: auxSegments,
+    texts: [],
+    grid: {} as OristudioCpModel['grid'],
+  };
+}
+
 function modelForTarget(targetId: string): OristudioCpModel {
   const target = lessonTarget(targetId);
   if (!target) throw new Error(`Unknown target: ${targetId}`);
-  return parseCpForTest(target.cp);
+  return target.format === 'fold' ? parseFoldForTest(target.text) : parseCpForTest(target.text);
 }
 
 const drawSteps = LESSONS.flatMap((lesson) =>

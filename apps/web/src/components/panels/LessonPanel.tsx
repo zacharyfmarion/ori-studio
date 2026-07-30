@@ -291,7 +291,11 @@ function useLessonPracticeDocument(lesson: Lesson | undefined): void {
     const store = useWorkspaceStore.getState();
     const start = startTargetId ? lessonTarget(startTargetId) : undefined;
     markPracticeDocumentFor(lessonId);
-    void store.loadPracticeCreasePattern(start?.cp ?? BLANK_PRACTICE_CP, startTargetId ?? lessonId);
+    void store.loadPracticeCreasePattern(
+      start?.text ?? BLANK_PRACTICE_CP,
+      startTargetId ?? lessonId,
+      start?.format ?? 'cp'
+    );
   }, [document, lessonId, markPracticeDocumentFor, practiceLessonId, startTargetId]);
 }
 
