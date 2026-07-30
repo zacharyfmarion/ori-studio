@@ -1255,6 +1255,51 @@
   line-height: 1.45;
 }
 
+.choice-dialog__options {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.choice-dialog__option {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.choice-dialog__option:hover,
+.choice-dialog__option:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
+}
+
+.choice-dialog__option[data-tone='danger']:hover,
+.choice-dialog__option[data-tone='danger']:focus-visible {
+  border-color: color-mix(in srgb, var(--status-danger) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--status-danger) 6%, var(--bg-elevated));
+}
+
+.choice-dialog__option-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.choice-dialog__option[data-tone='danger'] .choice-dialog__option-label {
+  color: var(--status-danger);
+}
+
+.choice-dialog__option-description {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
 .simple-modal__footer {
   justify-content: flex-end;
   padding: 0;

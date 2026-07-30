@@ -144,6 +144,54 @@ export function CommandDialogModal() {
     );
   }
 
+  if (dialog.type === 'choice') {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={dialog.title}
+        className="simple-modal"
+        onMouseDown={() => cancelCommandDialog(dialog.id)}
+      >
+        <div role="document" className="simple-modal__document" onMouseDown={(event) => event.stopPropagation()}>
+          <header className="simple-modal__header">
+            <span>
+              <CircleAlert size={15} aria-hidden="true" />
+              {dialog.title}
+            </span>
+            <IconButton size="sm" aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })} onClick={() => cancelCommandDialog(dialog.id)}>
+              <X size={15} />
+            </IconButton>
+          </header>
+          <div className="simple-modal__body">
+            <p className="simple-modal__message">{dialog.message}</p>
+            <div className="choice-dialog__options">
+              {dialog.options.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className="choice-dialog__option"
+                  data-tone={option.tone === 'danger' ? 'danger' : undefined}
+                  onClick={() => resolveCommandDialog(dialog.id, option.id)}
+                >
+                  <span className="choice-dialog__option-label">{option.label}</span>
+                  {option.description && (
+                    <span className="choice-dialog__option-description">{option.description}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <footer className="simple-modal__footer">
+              <Button size="sm" variant="ghost" onClick={() => cancelCommandDialog(dialog.id)}>
+                {cancelLabel}
+              </Button>
+            </footer>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const minimum = dialog.minExclusive ?? 0;
   const value = Number.parseFloat(draft);
   const isValid = Number.isFinite(value) && value > minimum;

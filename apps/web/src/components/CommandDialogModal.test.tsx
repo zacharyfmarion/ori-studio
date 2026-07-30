@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  requestChoice,
   requestConfirmation,
   requestCreasePatternExportOptions,
   requestPositiveNumber,
@@ -147,6 +148,15 @@ function findButton(label: string): HTMLButtonElement {
   );
   expect(button).toBeDefined();
   return button as HTMLButtonElement;
+}
+
+/** Choice options carry a label and a description, so match on the label span. */
+function findOption(label: string): HTMLButtonElement {
+  const option = Array.from(
+    container?.querySelectorAll<HTMLButtonElement>('.choice-dialog__option') ?? []
+  ).find((element) => element.querySelector('.choice-dialog__option-label')?.textContent === label);
+  expect(option).toBeDefined();
+  return option as HTMLButtonElement;
 }
 
 beforeEach(() => {
@@ -475,5 +485,73 @@ describe('CommandDialogModal', () => {
     });
 
     await expect(result).resolves.toBe(false);
+  });
+
+  describe('choice dialog', () => {
+    const dropChoice = {
+      title: 'Open or import design.cp?',
+      message: 'design.cp is a crease pattern.',
+      options: [
+        {
+          id: 'import',
+          label: 'Import beside the current pattern',
+          description: 'Merged as one undoable edit.',
+        },
+        {
+          id: 'open',
+          label: 'Open as a new file',
+          description: 'Discards unsaved changes.',
+          tone: 'danger' as const,
+        },
+      ],
+    };
+
+    it('resolves the id of the option that was picked', async () => {
+      const rendered = renderModalHost();
+      let result = Promise.resolve<string | null>(null);
+
+      act(() => {
+        result = requestChoice(dropChoice);
+      });
+
+      expect(rendered.textContent).toContain('design.cp is a crease pattern.');
+      expect(rendered.textContent).toContain('Merged as one undoable edit.');
+
+      await act(async () => {
+        findOption('Import beside the current pattern').click();
+        await result;
+      });
+
+      await expect(result).resolves.toBe('import');
+    });
+
+    it('marks a destructive option so it reads as the risky one', () => {
+      renderModalHost();
+      act(() => {
+        void requestChoice(dropChoice);
+      });
+
+      expect(findOption('Open as a new file').dataset.tone).toBe('danger');
+      expect(findOption('Import beside the current pattern').dataset.tone).toBeUndefined();
+    });
+
+    it('resolves null when dismissed', async () => {
+      renderModalHost();
+      let result = Promise.resolve<string | null>('import');
+
+      act(() => {
+        result = requestChoice(dropChoice);
+      });
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await result;
+      });
+
+      await expect(result).resolves.toBeNull();
+    });
+
+    it('resolves null with no modal host mounted', async () => {
+      await expect(requestChoice(dropChoice)).resolves.toBeNull();
+    });
   });
 });
