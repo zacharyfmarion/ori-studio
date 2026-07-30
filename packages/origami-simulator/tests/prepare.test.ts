@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   OrigamiModel,
@@ -624,6 +625,26 @@ describe('redundant vertex removal', () => {
     expect(
       prepared.diagnostics.warnings.some((w) => w.includes('different edge assignments'))
     ).toBe(true);
+  });
+
+  it('drives every crease in a patch taken from a real box-pleated pattern', () => {
+    // Distilled from a 24-generation iguana CP (a 47-vertex neighbourhood, closed
+    // at its cut edges so an excerpt boundary does not read as a stranded crease).
+    // Before this branch it left two mountains incident to a single face each:
+    // they neither folded nor drew. The hand-built fixtures above are the same
+    // defect in miniature; this one is the shape it actually takes in the wild.
+    const fold = JSON.parse(
+      readFileSync(new URL('./fixtures/iguana-split-crease.fold', import.meta.url), 'utf8')
+    ) as FoldDocument;
+    const prepared = prepareFoldModel(fold);
+
+    const orphans = prepared.edgesVertices.filter((_edge, index) => {
+      const assignment = prepared.edgesAssignment[index];
+      return (assignment === 'M' || assignment === 'V') && prepared.edgesFaces[index]?.length !== 2;
+    });
+    expect(orphans).toEqual([]);
+    expect(prepared.faceCount).toBeGreaterThan(0);
+    expect([...prepared.originalPositions].every((value) => Number.isFinite(value))).toBe(true);
   });
 
   it('keeps the namespaced per-edge arrays aligned with the merged edge list', () => {
