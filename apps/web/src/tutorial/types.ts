@@ -59,6 +59,8 @@ export interface LessonCheckSpec {
 export type LessonStatePredicate =
   /** At least one folded figure exists. */
   | 'folded-figure-exists'
+  /** At least one inline simulation window is open on the canvas. */
+  | 'inline-simulation-exists'
   /** The always-on CAMV diagnostics report no violations. */
   | 'camv-clean';
 

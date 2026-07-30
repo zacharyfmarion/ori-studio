@@ -16,27 +16,51 @@ function camv(entries: number, diagnostics: string[] = []): OristudioCpCommandRe
   } as OristudioCpCommandResult;
 }
 
+type PredicateState = Parameters<typeof evaluateLessonPredicate>[1];
+
+/** Nothing has happened yet; each test overrides only the field it is about. */
+const EMPTY: PredicateState = {
+  oristudioCpFoldedFigures: [],
+  oristudioCpInlineSimulations: [],
+  oristudioCpCamvResult: null,
+};
+
 describe('evaluateLessonPredicate', () => {
   it('sees a folded figure once one exists', () => {
-    const none = { oristudioCpFoldedFigures: [], oristudioCpCamvResult: null };
-    expect(evaluateLessonPredicate('folded-figure-exists', none)).toBe(false);
+    expect(evaluateLessonPredicate('folded-figure-exists', EMPTY)).toBe(false);
+    expect(
+      evaluateLessonPredicate('folded-figure-exists', {
+        ...EMPTY,
+        oristudioCpFoldedFigures: [{}] as never,
+      })
+    ).toBe(true);
+  });
 
-    const folded = {
-      oristudioCpFoldedFigures: [{}] as never,
-      oristudioCpCamvResult: null,
-    };
-    expect(evaluateLessonPredicate('folded-figure-exists', folded)).toBe(true);
+  /**
+   * A folded figure and a simulation window are different things — one is the
+   * static result, the other the animation — and the folding lesson asks for
+   * both in a row, so the two steps must not satisfy each other.
+   */
+  it('sees an inline simulation only once one is open', () => {
+    expect(evaluateLessonPredicate('inline-simulation-exists', EMPTY)).toBe(false);
+    expect(
+      evaluateLessonPredicate('inline-simulation-exists', {
+        ...EMPTY,
+        oristudioCpFoldedFigures: [{}] as never,
+      })
+    ).toBe(false);
+    expect(
+      evaluateLessonPredicate('inline-simulation-exists', {
+        ...EMPTY,
+        oristudioCpInlineSimulations: [{}] as never,
+      })
+    ).toBe(true);
   });
 
   it('treats an un-run check as not-yet-clean rather than clean', () => {
     // Otherwise a lesson step would complete itself before the checker had said
     // anything at all.
-    expect(
-      evaluateLessonPredicate('camv-clean', {
-        oristudioCpFoldedFigures: [],
-        oristudioCpCamvResult: null,
-      })
-    ).toBe(false);
+    expect(evaluateLessonPredicate('camv-clean', EMPTY)).toBe(false);
   });
 
   /**
@@ -48,7 +72,7 @@ describe('evaluateLessonPredicate', () => {
    */
   it('reads violations from the entries, not from the summary line', () => {
     const state = (result: OristudioCpCommandResult) => ({
-      oristudioCpFoldedFigures: [],
+      ...EMPTY,
       oristudioCpCamvResult: result,
     });
     expect(

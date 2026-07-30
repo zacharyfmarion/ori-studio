@@ -17,11 +17,16 @@ import type { LessonActionStep, LessonStatePredicate } from '../types';
 /** Whether the app state satisfies a predicate. Pure, so it is unit-testable. */
 export function evaluateLessonPredicate(
   predicate: LessonStatePredicate,
-  state: Pick<WorkspaceState, 'oristudioCpFoldedFigures' | 'oristudioCpCamvResult'>
+  state: Pick<
+    WorkspaceState,
+    'oristudioCpFoldedFigures' | 'oristudioCpInlineSimulations' | 'oristudioCpCamvResult'
+  >
 ): boolean {
   switch (predicate) {
     case 'folded-figure-exists':
       return state.oristudioCpFoldedFigures.length > 0;
+    case 'inline-simulation-exists':
+      return state.oristudioCpInlineSimulations.length > 0;
     case 'camv-clean': {
       const result = state.oristudioCpCamvResult;
       // No result yet means the check has not run — "not yet known" rather than
@@ -39,6 +44,7 @@ export function evaluateLessonPredicate(
 /** Report whether `step`'s predicate currently holds. */
 export function useLessonAction(step: LessonActionStep | null): boolean {
   const foldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
+  const inlineSimulations = useWorkspaceStore((state) => state.oristudioCpInlineSimulations);
   const camvResult = useWorkspaceStore((state) => state.oristudioCpCamvResult);
   const reportStepResult = useTutorialStore((state) => state.reportStepResult);
 
@@ -46,6 +52,7 @@ export function useLessonAction(step: LessonActionStep | null): boolean {
   const satisfied = expect
     ? evaluateLessonPredicate(expect, {
         oristudioCpFoldedFigures: foldedFigures,
+        oristudioCpInlineSimulations: inlineSimulations,
         oristudioCpCamvResult: camvResult,
       })
     : false;

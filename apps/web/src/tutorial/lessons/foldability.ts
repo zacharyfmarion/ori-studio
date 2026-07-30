@@ -80,33 +80,35 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
     startTargetId: 'preliminary-base',
     steps: [
       {
-        id: 'a-real-base',
-        kind: 'prose',
-        title: 'A real base',
-        body: [
-          'On the canvas is the preliminary base: both diagonals as mountains, both midlines as valleys. It is one of the foundational shapes in origami — the starting point for the crane, the lily, and a great many other traditional models.',
-          'Folded, the square collapses down into a smaller square of four layers, with four free corners at one end. Almost every classic model you can name begins from this or its close relative, the waterbomb base.',
-          'You will notice the foldability checker flagging the four points where the midlines meet the edge of the paper — the same warning you cleared in the last lesson. That is worth sitting with: this is a base that has been folded by hand for centuries, and the checker still objects. The rules it applies are local and strict, and a real pattern is often drawn in a way that trips them without being wrong. Treat the overlay as something to understand, not something to obey.',
-        ],
-      },
-      {
         id: 'fold-it',
         kind: 'action',
         title: 'Fold it',
         body: [
-          'Select the creases you want folded — Cmd+A takes everything — and then press G, or use the Fold button near the right-hand end of the bottom toolbar. The editor works out how the layers stack and draws the resulting folded form beside your pattern.',
-          'Because of those flagged vertices you will be asked whether to continue; say yes. Then look at the result: a smaller square, four layers thick.',
+          'On the canvas is the preliminary base, the pattern you repaired in the first chapter. Select the creases you want folded — Cmd+A takes everything — and then press G, or use the Fold button near the right-hand end of the bottom toolbar. The editor works out how the layers stack and draws the folded form beside your pattern.',
+          'What comes back is a square half the width of the paper, four layers thick.',
           'This is the payoff of drawing accurately. The folded form is computed from your creases, so it is only ever as correct as they are — patterns placed by eye tend to fail here in ways that are hard to diagnose from the drawing alone.',
         ],
         expect: 'folded-figure-exists',
         hint: 'Press Cmd+A to select everything — folding needs to know which creases to fold — then press G.',
       },
       {
+        id: 'simulate-it',
+        kind: 'action',
+        title: 'Watch it fold',
+        body: [
+          'The folded form is the destination. To watch the paper get there, keep everything selected and press Shift+S. A simulation window opens on the canvas and runs a physical model of the sheet, bending it along your creases.',
+          'Space plays and pauses. The left and right arrow keys step the fold a little at a time, which is the useful way to see how a collapse actually happens; hold Shift with them to jump straight to flat or fully folded, and R rewinds to a flat sheet.',
+          'Drag inside the window to turn the model over and look at it from underneath. The keys only reach the window you last clicked, so click one first if you open several.',
+        ],
+        expect: 'inline-simulation-exists',
+        hint: 'Cmd+A, then Shift+S. The simulation needs a closed region to fold — if it says so, your selection did not enclose one.',
+      },
+      {
         id: 'where-next',
         kind: 'prose',
         title: 'Where to go next',
         body: [
-          'You can now draw creases accurately, construct them from existing geometry, read the foldability checks, and fold what you have made. That is the whole core loop of crease-pattern design.',
+          'You can now draw creases accurately, construct them from existing geometry, read the foldability checks, and both fold and simulate what you have made. That is the whole core loop of crease-pattern design.',
           'From here the Design workspace is worth exploring. Instead of drawing creases directly, you describe the shape you want as a tree of flaps and let the optimizer produce a pattern for you — a completely different way of working, and the patterns it generates are ones you now know how to read and edit.',
         ],
       },

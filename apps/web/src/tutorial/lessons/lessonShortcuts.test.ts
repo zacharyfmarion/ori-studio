@@ -14,7 +14,16 @@ import { SHORTCUT_DEFINITIONS } from '../../keyboard/shortcuts';
  * tutorial's prose will be stale for them. That is a deliberate trade — stating
  * the default plainly reads far better than hedging every mention.
  */
-const CLAIMED_SHORTCUTS: ReadonlyArray<{ label: string; key: string; why: string }> = [
+interface ShortcutClaim {
+  label: string;
+  key: string;
+  why: string;
+  /** Modifiers the prose spells out. Absent means the prose quotes a bare key. */
+  shift?: boolean;
+  primary?: boolean;
+}
+
+const CLAIMED_SHORTCUTS: ReadonlyArray<ShortcutClaim> = [
   { label: 'Mountain', key: 'a', why: 'line-types and first-crease tell the user to press A' },
   { label: 'Valley', key: 's', why: 'line-types, snapping-and-grid and the construct chapter press S' },
   { label: 'Edge', key: 'd', why: 'auxiliary-lines lists D for the paper edge' },
@@ -27,6 +36,28 @@ const CLAIMED_SHORTCUTS: ReadonlyArray<{ label: string; key: string; why: string
   { label: 'Make alternating M/V', key: 'x', why: 'the big-little-big step presses X' },
   { label: 'Fold estimate', key: 'g', why: 'both folding steps press G' },
   { label: 'Pan (hand tool)', key: '1', why: 'the-canvas offers 1 as an alternative to Cmd-drag' },
+  {
+    label: 'Simulate Selection Inline',
+    key: 's',
+    shift: true,
+    why: 'the simulate-it step opens the window with Shift+S',
+  },
+  { label: 'Play / Pause Fold', key: 'space', why: 'simulate-it says Space plays and pauses' },
+  { label: 'Fold Forward', key: 'arrowright', why: 'simulate-it steps the fold with the arrows' },
+  { label: 'Fold Backward', key: 'arrowleft', why: 'simulate-it steps the fold with the arrows' },
+  {
+    label: 'Jump To Folded',
+    key: 'arrowright',
+    shift: true,
+    why: 'simulate-it says Shift with an arrow jumps to fully folded',
+  },
+  {
+    label: 'Jump To Flat',
+    key: 'arrowleft',
+    shift: true,
+    why: 'simulate-it says Shift with an arrow jumps to flat',
+  },
+  { label: 'Replay From Flat', key: 'r', why: 'simulate-it says R rewinds to a flat sheet' },
 ];
 
 function chordFor(label: string) {
@@ -41,9 +72,15 @@ describe('shortcuts the lessons teach', () => {
       const chord = chordFor(claim.label);
       expect(chord, `no shortcut named "${claim.label}" — ${claim.why}`).toBeTruthy();
       expect(chord?.key, `${claim.why}`).toBe(claim.key);
-      // A bare letter: the prose says "press A", so a modifier would make it wrong.
-      expect(chord?.primary ?? false, `${claim.label} gained a modifier`).toBe(false);
-      expect(chord?.shift ?? false, `${claim.label} gained shift`).toBe(false);
+      // Modifiers are part of the claim: prose that says "press A" is wrong the
+      // moment the chord grows a Shift, and prose that says "Shift+S" is wrong
+      // the moment it loses one.
+      expect(chord?.primary ?? false, `${claim.label}: wrong Cmd/Ctrl — ${claim.why}`).toBe(
+        claim.primary ?? false
+      );
+      expect(chord?.shift ?? false, `${claim.label}: wrong Shift — ${claim.why}`).toBe(
+        claim.shift ?? false
+      );
     }
   );
 
@@ -66,13 +103,23 @@ describe('shortcuts the lessons teach', () => {
    * claims table.
    */
   it('checks every key the prose tells the user to press', () => {
-    const claimed = new Set(CLAIMED_SHORTCUTS.map((c) => c.key.toUpperCase()));
+    const claimed = new Set(
+      CLAIMED_SHORTCUTS.map((c) => `${c.shift ? 'shift+' : ''}${c.key.toUpperCase()}`)
+    );
+    // Bare "press A", and the "Shift+S" form the simulator steps use. Cmd
+    // chords are deliberately left out: they are menu commands, checked
+    // against the registry by the viewport test below and by menuShortcuts.
+    const patterns = [/\bPress ([A-Z])\b/g, /\bShift\+([A-Z])\b/gi] as const;
     const unchecked = new Set<string>();
     for (const lesson of LESSONS) {
       for (const step of lesson.steps) {
         const text = [...step.body, 'hint' in step ? (step.hint ?? '') : ''].join(' ');
-        for (const [, key] of text.matchAll(/\bPress ([A-Z])\b/g)) {
-          if (!claimed.has(key)) unchecked.add(`${lesson.id}/${step.id}: ${key}`);
+        for (const [index, pattern] of patterns.entries()) {
+          const prefix = index === 0 ? '' : 'shift+';
+          for (const [, key] of text.matchAll(pattern)) {
+            const chord = `${prefix}${key.toUpperCase()}`;
+            if (!claimed.has(chord)) unchecked.add(`${lesson.id}/${step.id}: ${chord}`);
+          }
         }
       }
     }
