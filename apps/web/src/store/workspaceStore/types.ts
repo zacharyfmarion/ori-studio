@@ -59,6 +59,7 @@ import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/anno
 import type {
   AddInlineSimulationResult,
   InlineSimulation,
+  InlineSimulationRegion,
 } from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import type {
   OristudioBpDocumentState,
@@ -489,7 +490,9 @@ export interface CreasePatternSliceActions {
    * normal outcome worth telling the user about, and the caller is where a
    * translated message can be produced.
    */
-  addOristudioCpInlineSimulation: (segmentId: number) => Promise<AddInlineSimulationResult>;
+  addOristudioCpInlineSimulation: (
+    region: InlineSimulationRegion
+  ) => Promise<AddInlineSimulationResult>;
   updateOristudioCpInlineSimulation: (
     id: string,
     // No fold percentage: that is per-frame transport and lives in

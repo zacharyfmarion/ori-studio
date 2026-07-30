@@ -263,6 +263,57 @@ function disposeSession(token: SimulatorSessionToken): void {
 }
 
 /**
+ * Uniformly scale a fold into a unit box before it reaches the solver.
+ *
+ * The GPU solver is float32 end to end — positions, velocities, and the
+ * `readPixels` convergence readback — while `SimulationClock` tests convergence
+ * as an **absolute** `maxVelocity < 1e-5`. Those two only coexist near unit
+ * scale. At an Oriedita document's own coordinates a sheet runs to ~3900 units,
+ * where the float32 step is ~2.4e-4: a velocity of 1e-5 is smaller than the
+ * gap between representable positions, so the model can never be *observed* to
+ * settle however still it is. Every settle then runs to its 20,000-step cap with
+ * a pipeline-stalling readback every 20 steps — about half a second per region
+ * switch, paid again on every visit because nothing converges to cache.
+ *
+ * This is why the crease pattern used to be normalized on import. It no longer
+ * is: segmentation, region containment and canvas placement all have to agree
+ * with the document's own coordinates, so the scaling belongs here, at the one
+ * boundary that actually needs it. The solver only ever needs the shape —
+ * `timeStepFor` derives its step from rest lengths, and the renderer fits its
+ * own camera — so nothing downstream reads these numbers as document units.
+ *
+ * Aspect-preserving and translation-only otherwise, so folded geometry is
+ * similar to the input rather than distorted.
+ */
+export function foldScaledForSolver(fold: FoldDocument): FoldDocument {
+  const coords = fold.vertices_coords ?? [];
+  if (coords.length === 0) return fold;
+
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const coord of coords) {
+    for (let axis = 0; axis < 3; axis += 1) {
+      const value = coord[axis] ?? 0;
+      if (value < min[axis]!) min[axis] = value;
+      if (value > max[axis]!) max[axis] = value;
+    }
+  }
+  const span = Math.max(max[0]! - min[0]!, max[1]! - min[1]!, max[2]! - min[2]!);
+  // Already unit-ish, or degenerate: leave it exactly alone rather than
+  // introduce rounding for nothing.
+  if (!Number.isFinite(span) || span <= 0 || (span > 0.5 && span <= 2)) return fold;
+
+  return {
+    ...fold,
+    vertices_coords: coords.map((coord) => [
+      ((coord[0] ?? 0) - min[0]!) / span,
+      ((coord[1] ?? 0) - min[1]!) / span,
+      ((coord[2] ?? 0) - min[2]!) / span,
+    ]),
+  };
+}
+
+/**
  * Drop the least recently used sessions until the cap is met.
  *
  * By use rather than by age: the map is insertion-ordered, so the first entry is
@@ -495,6 +546,8 @@ const api = {
     sessionFailure = null;
     sessionToken += 1;
 
+    // Scaled first — see `foldScaledForSolver`.
+    //
     // prepareFoldModel runs here rather than on the main thread: it is O(n)
     // heavy (earcut triangulation, edge indexing) and used to block the UI
     // before a single solver step had run. Prepared models are immutable, so a
@@ -502,8 +555,10 @@ const api = {
     // fresh backend is always built, so no fold state leaks across a switch.
     const prepareOptions = options.prepare ?? { triangulate: true };
     const prepared = options.modelKey
-      ? preparedModels.get(options.modelKey, () => prepareFoldModel(fold, prepareOptions))
-      : prepareFoldModel(fold, prepareOptions);
+      ? preparedModels.get(options.modelKey, () =>
+          prepareFoldModel(foldScaledForSolver(fold), prepareOptions)
+        )
+      : prepareFoldModel(foldScaledForSolver(fold), prepareOptions);
     const model = new OrigamiModel(prepared);
     const { backend, backendId, gpuSolver } = createBackend(model, options, renderCanvas);
     // The GPU tick is bounded by a fixed step COUNT, not a CPU-time budget. GPU

@@ -6,6 +6,7 @@ import type { OristudioCpLineSegment } from '../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
 import { cpOverlayViewStore } from './cpOverlayViewStore';
 import { emptyOristudioCpSelection } from '../lib/creasePatternViewport';
+import { resolveSelectedSegment } from '../lib/creasePatternSelectionSegment';
 import { TooltipProvider } from '../components/ui/Tooltip';
 import { CpSelectionToolbar } from './CpSelectionToolbar';
 
@@ -232,9 +233,20 @@ describe('CpSelectionToolbar', () => {
       // The real action, not the stub: `foldArtifacts` is already seeded, which
       // is the only thing on its success path that needs the engine.
       seedStore([1, 3, 5, 7, 8]);
-      const segmentId = 0;
+      // The region itself, resolved the way the toolbar and the shortcut resolve
+      // it — an id would name a different region in the store's own segmentation.
+      const state = useWorkspaceStore.getState();
+      const match = resolveSelectedSegment(
+        state.oristudioCpDocument?.document,
+        state.oristudioCpSelection,
+        state.foldArtifacts
+      );
+      expect(match).not.toBeNull();
       expect(
-        await useWorkspaceStore.getState().addOristudioCpInlineSimulation(segmentId)
+        await state.addOristudioCpInlineSimulation({
+          segment: match!.segment,
+          cpLineIds: match!.cpLineIds,
+        })
       ).toBe('added');
       expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
       expect(
@@ -257,7 +269,12 @@ describe('CpSelectionToolbar', () => {
       await act(async () => simulate!());
 
       expect(add).toHaveBeenCalledTimes(1);
-      expect(add).toHaveBeenCalledWith(expect.any(Number));
+      // The region, not an id — the shortcut hands over the same descriptor the
+      // toolbar does, so neither can resolve against a second segmentation.
+      expect(add).toHaveBeenCalledWith({
+        segment: expect.objectContaining({ id: expect.any(Number) }),
+        cpLineIds: expect.any(Array),
+      });
       expect(useWorkspaceStore.getState().oristudioCpSelection.lines).toEqual([]);
     });
   });

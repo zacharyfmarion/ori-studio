@@ -8,6 +8,7 @@ import {
   foldedFigureLocalGeometry,
   foldedFigureUserBounds,
 } from './cpFoldedToScene';
+import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type {
   FoldedFigurePlacement,
@@ -524,6 +525,29 @@ function polygonFigureNamed(id: string): OristudioCpFoldedFigureEntry {
 describe('cpUserAnchorForLineIds', () => {
   const doc = (segments: { a: { x: number; y: number }; b: { x: number; y: number } }[]) => ({
     crease_pattern: { line_segments: segments },
+  });
+  /** Mirrors CANVAS_OBJECT_GAP; kept local so the tests state their own setup. */
+  const FIGURE_GAP = 48;
+
+  // Regression: an `.ori` worksheet holds several 400-unit patterns tiled across
+  // a canvas thousands of units from the nominal paper square, so "near the
+  // paper" is not an assumption the placement path may make. The figure has to
+  // land beside the creases it came from wherever those creases are, measured
+  // through the one canvas mapping (`cpModelToSvg`) that draws them.
+  it('parks the figure beside creases that sit far from the paper square', () => {
+    // A real region from lamprey-draft-v0.6.ori.
+    const document = doc([{ a: { x: 259.7, y: 1744.2 }, b: { x: 659.7, y: 2144.2 } }]);
+    const anchor = cpUserAnchorForLineIds(document, [1]);
+    const placed = {
+      ...polygonFigureNamed('a'),
+      placement: placeFoldedFigureBesideCp(polygonFigureNamed('a'), [], anchor),
+    };
+    const bounds = foldedFigureUserBounds([placed])[0].bounds;
+
+    // Adjacent to where those creases actually draw, one gap to their right and
+    // aligned to their top -- not to the paper square, and not off in space.
+    expect(bounds.minX).toBeCloseTo(cpModelToSvg({ x: 659.7, y: 0 }).x + FIGURE_GAP);
+    expect(bounds.minY).toBeCloseTo(cpModelToSvg({ x: 0, y: 1744.2 }).y);
   });
 
   it('anchors to the folded creases, not the whole sheet', () => {

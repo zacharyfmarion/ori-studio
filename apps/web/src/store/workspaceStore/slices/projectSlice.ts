@@ -866,7 +866,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       await clearOristudioCpKernelTexts();
     }
     const artifactRevision = get().foldArtifactRevision + 1;
-    const artifactState = readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
+    // A kernel-backed document derives its own fold artifacts from the kernel
+    // export, lazily via `ensureFoldArtifacts`. The importer's are in the
+    // importer's space -- `normalizePoints` squashes every geometry into the
+    // unit square -- so installing them here left the store believing the paper
+    // was 1x1 while the document said Oriedita's 400-space. Everything keyed on
+    // both then disagreed: region containment found nothing, and the recovery
+    // that papered over it re-segmented into a *third* region list. Marking the
+    // resource stale is what makes the first real request rebuild from the
+    // kernel.
+    const artifactState = oristudioCpDocument
+      ? staleFoldArtifactResourceState(get().foldArtifactRevision)
+      : readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
     set({
       ...discardCpDocumentState(),
       // Loading a document makes its editor the active view, so the derived
@@ -987,8 +998,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // Simulation faces are inferred in JS (no flat-folding), so multi-pattern
     // documents work.
     const result = parsed;
-    const artifactRevision = get().foldArtifactRevision + 1;
-    const artifactState = readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
+    // See the note on the other install site: a kernel-backed document's
+    // artifacts come from the kernel, never from the importer.
+    const artifactState = staleFoldArtifactResourceState(get().foldArtifactRevision);
     const originalSource = importedSourceFromNativeSource(nativeDocument.creasePattern.source);
     const importedDocument = originalSource
       ? { ...result.document, source: originalSource }

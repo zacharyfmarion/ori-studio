@@ -21,7 +21,7 @@ import {
 } from "../../simulator/useSimulatorRuntime";
 import { buildSequenceStepSimulation } from "../../lib/sequenceSimulation";
 import {
-  buildSegmentFold,
+  buildSegmentSimulationFold,
   resolveCpSegments,
 } from "../../lib/creasePatternSegmentation";
 import { SimulatorSegmentsSidebar } from "./SimulatorSegmentsPanel";
@@ -165,7 +165,7 @@ export function SimulatorPanel() {
       const segment = resolveCpSegments(foldArtifacts).find(
         (c) => c.id === activeSegmentId,
       );
-      if (segment) return buildSegmentFold(wholeFold, segment);
+      if (segment && foldArtifacts) return buildSegmentSimulationFold(foldArtifacts, segment);
     }
     return wholeFold;
   }, [activeStepSimulation, foldArtifacts, activeSegmentId]);
