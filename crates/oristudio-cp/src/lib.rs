@@ -440,6 +440,8 @@ pub enum OperationId {
     Check4,
     Fix1,
     Fix2,
+    DeleteExtraVertices,
+    DeleteExtraVerticesIgnoreColor,
     OrganizeCircles,
 }
 
@@ -1412,6 +1414,22 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         Fix2,
         "Fix2",
         "operations::arrangement::fix2",
+        Kernel,
+        9,
+        OracleTested
+    ),
+    descriptor!(
+        DeleteExtraVertices,
+        "v_del_allAction",
+        "operations::arrangement::del_v_all",
+        Kernel,
+        9,
+        OracleTested
+    ),
+    descriptor!(
+        DeleteExtraVerticesIgnoreColor,
+        "v_del_all_ccAction",
+        "operations::arrangement::del_v_all_color_change",
         Kernel,
         9,
         OracleTested
@@ -2494,6 +2512,16 @@ pub fn execute_command(
             let before = document.crease_pattern.line_segments.clone();
             operations::arrangement::fix2(&mut document.crease_pattern);
             usize::from(document.crease_pattern.line_segments != before)
+        }
+        OperationId::DeleteExtraVertices => {
+            let before = document.crease_pattern.line_segments.len();
+            operations::arrangement::del_v_all(&mut document.crease_pattern);
+            before.abs_diff(document.crease_pattern.line_segments.len())
+        }
+        OperationId::DeleteExtraVerticesIgnoreColor => {
+            let before = document.crease_pattern.line_segments.len();
+            operations::arrangement::del_v_all_color_change(&mut document.crease_pattern);
+            before.abs_diff(document.crease_pattern.line_segments.len())
         }
         OperationId::FixInaccurate => {
             let line_indices = required_line_indices(&command)?;
@@ -5337,6 +5365,81 @@ mod tests {
             vec!["Flat-foldable boundary check needs a closed loop"]
         );
         assert_eq!(open_check.diagnostic_entries[0].severity, "warning");
+    }
+
+    #[test]
+    fn command_dispatch_routes_delete_extra_vertices() {
+        // Two collinear mountains sharing a vertex, plus one valley continuing
+        // the same line. The same-colour sweep may only merge the mountain pair;
+        // the ignore-colour sweep goes on to fold the valley in as well.
+        let mut document = CreasePatternDocument::default();
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(10.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(10.0, 0.0),
+            Point::new(20.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(20.0, 0.0),
+            Point::new(30.0, 0.0),
+            LineColor::Blue2,
+        );
+
+        let same_colour = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::DeleteExtraVertices),
+        )
+        .expect("DeleteExtraVertices should execute");
+        assert_eq!(same_colour.diagnostics, vec!["Changed 1 line(s)"]);
+        assert_eq!(document.crease_pattern.line_segments.len(), 2);
+
+        let ignore_colour = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::DeleteExtraVerticesIgnoreColor),
+        )
+        .expect("DeleteExtraVerticesIgnoreColor should execute");
+        assert_eq!(ignore_colour.diagnostics, vec!["Changed 1 line(s)"]);
+        assert_eq!(document.crease_pattern.line_segments.len(), 1);
+        // Oriedita's colour matrix: mountain + valley resolves to an edge.
+        assert_eq!(
+            document.crease_pattern.line_segments[0].color,
+            LineColor::Black0
+        );
+
+        // A no-op run reports zero rather than a phantom change.
+        let repeat = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::DeleteExtraVerticesIgnoreColor),
+        )
+        .expect("a second sweep should execute");
+        assert_eq!(repeat.diagnostics, vec!["Changed 0 line(s)"]);
+    }
+
+    #[test]
+    fn delete_extra_vertices_leaves_genuine_corners_alone() {
+        let mut document = CreasePatternDocument::default();
+        document.crease_pattern.add_line(
+            Point::new(0.0, 0.0),
+            Point::new(10.0, 0.0),
+            LineColor::Red1,
+        );
+        document.crease_pattern.add_line(
+            Point::new(10.0, 0.0),
+            Point::new(10.0, 10.0),
+            LineColor::Red1,
+        );
+
+        let result = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::DeleteExtraVerticesIgnoreColor),
+        )
+        .expect("DeleteExtraVerticesIgnoreColor should execute");
+        assert_eq!(result.diagnostics, vec!["Changed 0 line(s)"]);
+        assert_eq!(document.crease_pattern.line_segments.len(), 2);
     }
 
     #[test]
