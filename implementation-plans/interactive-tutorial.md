@@ -702,6 +702,42 @@ path exercised. Seven things only that could have found:
 `lessonFlow.test.ts` locks in what the walk verified: every step reachable, every
 self-advancing step gated, skip always a way forward, last step completes.
 
+## Shortcuts, and the foldability moment in chapter 1
+
+Two later additions, both verified by driving them with the real keys.
+
+**Shortcuts are quoted in the prose.** Telling someone the key is most of what
+makes a tool stick, so the lessons name them: `A`/`S`/`D`/`F` for the four line
+types, `Z` segment, `Q` box select, `C` flip mountain/valley, `Y` perpendicular,
+`B` bisector, `G` fold, `Cmd+A` select all, `Cmd+Z` undo, and the viewport chords.
+They are quoted rather than generated because the keys are woven into sentences —
+so `lessonShortcuts.test.ts` asserts the other direction instead: every shortcut
+the tutorial claims is still the registry's default, and any single-letter
+"press X" in lesson prose must appear in its claims table. Rebinding a default
+now fails the build naming the lesson to update.
+
+**The line-types lesson now ends in a foldability arc.** Drawing the two
+diagonals produces a real Maekawa violation, and this is by far the best moment
+to explain the checker — the user made the error themselves, thirty seconds ago,
+and can see the marker sitting on it.
+
+Worth recording *why* it appears, because it is not obvious: the crossing splits
+each diagonal into two creases, so the centre is four creases (two mountains, two
+valleys) and the difference is zero. Loading the same pattern from a `.cp` does
+**not** flag it, because nothing is split and no vertex exists — which is why an
+earlier probe of this exact geometry came back clean and the opportunity was
+missed the first time round.
+
+The fix is one flip (`C`, click one half): three mountains and one valley, a
+difference of two, clean. Then it folds — with no warning dialog, unlike the
+chapter 3 fold — into a single triangle, the four quarters stacked. An earlier
+draft of this step claimed the result was a cone; it is not, and 3M+1V satisfies
+both theorems. Checked against the running app.
+
+Chapter 3 now opens by referring back to this rather than re-teaching it, and
+makes its own point sharper: the flags there are *not* at a crossing, they are
+where creases meet the paper's edge.
+
 ## Browser verification checklist (author)
 
 1. **Slot isolation.** Open a real document in `/edit`, make edits, leave it

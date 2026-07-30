@@ -33,9 +33,10 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
         kind: 'prose',
         title: 'Flat-foldability',
         body: [
+          'You have already met the checker once, in the first chapter: two crossing diagonals broke Maekawa\'s rule at the centre, and flipping one crease fixed it. This chapter is about the rest of what it tells you.',
           'A pattern is flat-foldable if the paper can be collapsed along its creases and end up flat, with no part of it forced to bend or tear. Most classic origami bases are flat-foldable, and it is the property most crease-pattern design is built around.',
-          'Two theorems govern it at each vertex where creases meet. Maekawa\'s says the numbers of mountain and valley folds must differ by exactly two. Kawasaki\'s says the alternating angles around the vertex must each sum to 180 degrees. Neither is a convention — both are forced by the geometry of flat paper.',
-          'Ori Studio checks these continuously as you draw, and marks the vertices that fail.',
+          'Two theorems govern it at each vertex where creases meet. Maekawa\'s — the one you have seen — says the numbers of mountain and valley folds must differ by exactly two. Kawasaki\'s says the alternating angles around the vertex must each sum to 180 degrees. Neither is a convention; both are forced by the geometry of flat paper.',
+          'A vertex is not only where creases you drew cross, though, and that is what trips people up.',
         ],
       },
       {
@@ -44,7 +45,7 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
         title: 'Where the problems are',
         body: [
           'Violations are drawn on the canvas rather than listed in a panel, because their location is the useful part — knowing which vertex is wrong matters far more than knowing that something is.',
-          'On the canvas now, four creases run through the middle of the paper. Two of them are flagged where they meet the edge: a crease that runs into the paper\'s boundary partway along creates a vertex whose fold counts cannot balance. Something has to give there, and the checker is saying so.',
+          'On the canvas now, four creases run through the middle of the paper — and the flags are not at the crossing this time. They are around the outside, where the horizontal and vertical creases run into the edge of the paper. A crease that meets the boundary partway along makes a vertex there too, and its fold counts cannot balance any more than a bad crossing can.',
           'The overlay can be switched off while drawing — the toggle is in the View panel on the right, under CAMV issues. It is worth leaving on, though: catching a foldability mistake as you make it is much easier than finding it in a finished pattern.',
         ],
       },
@@ -57,7 +58,7 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
           'The check below clears as soon as the pattern is clean. Watch the overlay disappear as you delete each one.',
         ],
         expect: 'camv-clean',
-        hint: 'Box-select the horizontal crease and press Delete, then the vertical one. The eraser tool works too. The diagonals should stay.',
+        hint: 'Press Q, box-select the horizontal crease, and press Delete; then the vertical one. The diagonals should stay.',
       },
       {
         id: 'necessary-not-sufficient',
@@ -92,12 +93,12 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
         kind: 'action',
         title: 'Fold it',
         body: [
-          'Select the creases you want folded — dragging a selection box around the whole pattern is easiest — and then press G, or use the Fold button near the right-hand end of the bottom toolbar. The editor works out how the layers stack and draws the resulting folded form beside your pattern.',
+          'Select the creases you want folded — Cmd+A takes everything — and then press G, or use the Fold button near the right-hand end of the bottom toolbar. The editor works out how the layers stack and draws the resulting folded form beside your pattern.',
           'Because of those flagged vertices you will be asked whether to continue; say yes. Then look at the result: a smaller square, four layers thick.',
           'This is the payoff of drawing accurately. The folded form is computed from your creases, so it is only ever as correct as they are — patterns placed by eye tend to fail here in ways that are hard to diagnose from the drawing alone.',
         ],
         expect: 'folded-figure-exists',
-        hint: 'Drag a selection box around the whole pattern first — folding needs to know which creases to fold. Then press G, or use the Fold button near the right-hand end of the bottom toolbar.',
+        hint: 'Press Cmd+A to select everything — folding needs to know which creases to fold — then press G.',
       },
       {
         id: 'where-next',

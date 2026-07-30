@@ -45,7 +45,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         kind: 'explore',
         title: 'Move around',
         body: [
-          'Scroll to zoom. To pan, hold Cmd (Ctrl on Windows and Linux) and drag the canvas.',
+          'Scroll to zoom. To pan, hold Cmd (Ctrl on Windows and Linux) and drag the canvas — or press 1 for the hand tool and drag normally.',
           'The same things are on the keyboard: Cmd + and Cmd − zoom in and out, Cmd 0 fits the whole paper back into view, and Cmd 1 returns to actual size. The percentage in the bottom-left corner tells you where you are, and the button beside it fits the view too.',
           'Try it now. You cannot damage anything, and Cmd 0 will always bring you home. When you are comfortable, move on.',
         ],
@@ -72,13 +72,13 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         kind: 'draw',
         title: 'Draw the diagonal',
         body: [
-          'The line type buttons are at the top of the tool rail, under Type: M for mountain, V for valley, E for the paper edge. Make sure M is selected, then drag with the segment tool from one corner of the paper to the opposite corner.',
+          'The line type buttons are at the top of the tool rail, under Type: M for mountain, V for valley, E for the paper edge. Make sure M is selected — the A key selects it — then drag with the segment tool from one corner of the paper to the opposite corner. Z is its key.',
           'You do not have to be precise. The editor snaps to the grid and to points that already exist, so releasing near a corner is enough — the crease will land exactly on it.',
         ],
         targetId: 'first-crease',
         teaches: 'cp.action.draw-crease',
         check: { mode: 'exact', allowSymmetry: true },
-        hint: 'Drag from one corner to the opposite corner. If the crease comes out blue, click M at the top of the tool rail and draw it again — or select the crease and change its type.',
+        hint: 'Press Z for the segment tool and A for mountain, then drag from one corner to the opposite corner. If the crease comes out blue, press C and click it to flip its type.',
       },
       {
         id: 'why-it-matters',
@@ -95,7 +95,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
     id: 'line-types',
     chapterId: 'basics',
     title: 'Mountain, valley, auxiliary',
-    blurb: 'The three line types you will use constantly.',
+    blurb: 'The three line types, and what they decide about folding.',
     steps: [
       {
         id: 'why-types-matter',
@@ -107,26 +107,61 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         ],
       },
       {
-        id: 'draw-both-diagonals',
-        kind: 'draw',
-        title: 'One of each',
-        body: [
-          'Draw both diagonals: one as a mountain, the other as a valley. Switch the active type with the M and V buttons under the canvas before drawing each one.',
-          'Watch the check below as you go. If a crease lands in the right place with the wrong type, the lesson will say so specifically rather than just telling you it is wrong.',
-        ],
-        targetId: 'both-diagonals',
-        teaches: 'cp.action.draw-crease',
-        check: { mode: 'exact', allowSymmetry: true },
-        hint: 'Click M, draw one diagonal. Click V, draw the other. To fix a crease you have already drawn, select it and use Flip Mountain/Valley.',
-      },
-      {
         id: 'auxiliary-lines',
         kind: 'prose',
         title: 'Auxiliary lines',
         body: [
           'There is a third type that is not a fold at all. Auxiliary lines — drawn in cyan — are construction guides: reference lines you use to place real creases and then ignore.',
           'They are ignored when the pattern is folded and when it is checked for flat-foldability, so you can leave as many as you like in a working file. Most designers use them heavily while working out a shape.',
+          'All four types have a key: A for mountain, S for valley, D for the paper edge, F for auxiliary. They sit next to each other under your left hand, which is the point — you switch type far more often than you switch tool.',
         ],
+      },
+      {
+        id: 'draw-both-diagonals',
+        kind: 'draw',
+        title: 'One of each',
+        body: [
+          'Draw both diagonals: one as a mountain, the other as a valley. Press A for mountain and S for valley to switch the active type before drawing each one, or use the M and V buttons at the top of the tool rail.',
+          'Watch the check below as you go. If a crease lands in the right place with the wrong type, the lesson will say so specifically rather than just telling you it is wrong.',
+        ],
+        targetId: 'both-diagonals',
+        teaches: 'cp.action.draw-crease',
+        check: { mode: 'exact', allowSymmetry: true },
+        hint: 'Press Z for the segment tool. Press A, draw one diagonal. Press S, draw the other. To fix a crease you have already drawn, press C and click it to flip its type.',
+      },
+      {
+        id: 'notice-the-error',
+        kind: 'prose',
+        title: 'Look — it is already complaining',
+        body: [
+          'Your two creases cross in the middle of the paper, and the editor has flagged that crossing. Zoom in and you will find a marker sitting exactly on it.',
+          'The reason is a piece of origami mathematics called Maekawa\'s theorem. At any point where creases meet inside a flat-foldable pattern, the number of mountains and the number of valleys must differ by exactly two. Four creases meet at your centre — the two halves of each diagonal — and they are two mountains and two valleys. A difference of zero, so the paper cannot lie flat there.',
+          'This is not the editor being fussy. Take a real sheet, fold both diagonals the way you have drawn them, and the middle will fight you: something has to pop the wrong way.',
+        ],
+      },
+      {
+        id: 'fix-the-vertex',
+        kind: 'action',
+        title: 'Fix it with one flip',
+        body: [
+          'Change one of the two valley halves into a mountain. That gives you three mountains and one valley — a difference of two — and the vertex becomes foldable.',
+          'Press C for the flip tool, then click one half of the valley diagonal. Only that half, not the whole line: the crossing split each diagonal into two creases when you drew the second one, which is exactly why the centre counts as four creases and not two.',
+          'The warning clears the moment the count works out.',
+        ],
+        expect: 'camv-clean',
+        hint: 'Press C, then click the valley diagonal on one side of the centre only. If you flip the wrong half, press C and click again to put it back.',
+      },
+      {
+        id: 'fold-the-result',
+        kind: 'action',
+        title: 'Now fold it',
+        body: [
+          'The pattern is legal now, so it will fold. Select everything with Cmd+A, then press G.',
+          'The two diagonals cut the square into four triangles, and what comes back is one of them: the four have collapsed onto each other into a single flat stack. That is what "flat-foldable" means in the most literal way — the finished thing has no thickness beyond its layers.',
+          'It is worth appreciating how little had to change. One crease of four, flipped, is the difference between a pattern that cannot exist and one that folds.',
+        ],
+        expect: 'folded-figure-exists',
+        hint: 'Cmd+A selects everything, then G runs the fold estimate. The Fold button near the right-hand end of the bottom toolbar does the same thing.',
       },
     ],
   },
@@ -151,12 +186,12 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         kind: 'draw',
         title: 'Remove the midlines',
         body: [
-          'Delete the horizontal and vertical creases, leaving only the two diagonals. Either drag a selection box around a crease and press Delete, or pick the eraser tool and click directly on it.',
-          'If you remove the wrong one, undo with Cmd+Z — the tutorial watches the result, not how you got there, so there is no penalty for changing your mind.',
+          'Delete the horizontal and vertical creases, leaving only the two diagonals. Press Q for box select, drag a box around a crease, and press Delete. The eraser tool works too, if you would rather click creases directly.',
+          'If you remove the wrong one, undo with Cmd+Z (Ctrl+Z elsewhere) — the tutorial watches the result, not how you got there, so there is no penalty for changing your mind.',
         ],
         targetId: 'diagonals-after-delete',
         check: { mode: 'exact' },
-        hint: 'The eraser is in the Delete group on the left. Box-select also works: drag a box that touches only the crease you want, then press Delete.',
+        hint: 'Press Q, drag a box that touches only the crease you want, then press Delete. The eraser is in the Delete group on the left if you prefer clicking.',
       },
       {
         id: 'undo-is-cheap',
@@ -194,7 +229,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         targetId: 'inscribed-square',
         teaches: 'cp.action.draw-crease',
         check: { mode: 'exact' },
-        hint: 'Four creases, corner to corner around the middle: top-middle to right-middle, right-middle to bottom-middle, and so on. Make sure V is the active line type.',
+        hint: 'Press S for valley and Z for the segment tool. Four creases around the middle: top-middle to right-middle, right-middle to bottom-middle, and so on.',
       },
       {
         id: 'end-of-chapter',
