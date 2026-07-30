@@ -281,6 +281,7 @@ export function SimulatorViewControlsPanel() {
 
         <Section
           title={t('panels:simulatorViewControls.material', 'Material')}
+          collapsible
           description={t(
             'panels:simulatorViewControls.materialHint',
             'How the paper resists stretching and folding.'
@@ -331,6 +332,7 @@ export function SimulatorViewControlsPanel() {
 
         <Section
           title={t('panels:simulatorViewControls.solver', 'Solver')}
+          collapsible
           description={t(
             'panels:simulatorViewControls.solverHint',
             'Lower stability if a fold jitters or blows up.'
@@ -363,9 +365,9 @@ export function SimulatorViewControlsPanel() {
  *
  * `collapsible` sections start closed, following `GridSettingsSection` in the
  * Edit workspace's view pane — same chevron, same `data-open` hook, same
- * component-local state rather than a persisted preference. Styling is a set of
- * secondary controls that most sessions never touch, so they should not push the
- * ones that matter below the fold.
+ * component-local state rather than a persisted preference. Everything but
+ * Render is a set of controls most sessions never touch, and they should not
+ * push the ones that matter below the fold.
  */
 function Section({
   title,
