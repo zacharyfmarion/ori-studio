@@ -56,4 +56,4 @@ rather than a new message channel in a slice.
 - [x] Store-test that confirming the dialog adds an inline simulation and does not
       activate the simulator panel
 - [x] Lint, typecheck, and web unit tests
-- [ ] Draft PR against `main`
+- [x] Draft PR against `main` — https://github.com/zacharyfmarion/ori-studio/pull/171
