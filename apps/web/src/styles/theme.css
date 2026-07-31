@@ -5728,10 +5728,15 @@
   opacity: 0.72;
 }
 
-.bp-tree-edge--river {
-  stroke: var(--border-strong);
-}
-
+/*
+ * Every tree edge is the same line, as in Box Pleating Studio itself — which has
+ * one `edge` style and no river/flap distinction. Rivers used to be drawn in
+ * `--border-strong`, the theme's *active* colour and a near-match for the accent
+ * a selected edge wears, so a tree of rivers read as a tree of selected edges.
+ * Which edge is which stays legible from the length label, carried by flap edges
+ * only.
+ */
+.bp-tree-edge--river,
 .bp-tree-edge--leaf {
   stroke: var(--tree-edge);
 }
