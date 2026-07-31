@@ -146,17 +146,52 @@ export function selectDroppedFile(files: readonly File[]): DroppedSelection | nu
 }
 
 /**
- * True when a drag carries only images. Read from `DataTransfer.items`, which is
- * the only thing readable during `dragover` — `files` is withheld until drop, so
- * this is all the affordance can know about an in-flight drag.
+ * What a drag looks like while it is still in flight. `DataTransfer.files` is
+ * withheld until drop, so `types` and the item *kinds* are all there is to go on
+ * — enough to tell a file drag from an in-page one, and an image drag from a
+ * document drag, but never enough to know the filename.
  */
+export interface DragPayloadView {
+  types: readonly string[];
+  items: DataTransferItemList | null;
+}
+
+function fileItems(items: DataTransferItemList | null): DataTransferItem[] {
+  if (!items) return [];
+  return Array.from(items).filter((item) => item.kind === 'file');
+}
+
+/** True when a drag carries only images. */
 export function isImageOnlyDrag(items: DataTransferItemList | null): boolean {
-  if (!items) return false;
-  const entries = Array.from(items).filter((item) => item.kind === 'file');
+  const entries = fileItems(items);
   return entries.length > 0 && entries.every((item) => item.type.startsWith('image/'));
 }
 
-/** True when a drag carries files at all — anything else is an in-page drag. */
-export function dragCarriesFiles(types: readonly string[]): boolean {
-  return types.includes('Files');
+/**
+ * True when a drag carries files at all — anything else is an in-page drag
+ * (Dockview's panel drags, a text selection) and must be left alone.
+ *
+ * Deliberately not a bare `types.includes('Files')`. That is what the spec says
+ * a file drag reports, but it is one exact string from one engine's
+ * implementation, and getting it wrong fails *silently*: the `dragover` handler
+ * skips `preventDefault()`, the browser then refuses the drop, and no `drop`
+ * event is ever dispatched — no error, no handler, nothing. Item kinds are the
+ * second, independent signal, and an in-page drag has no `kind: 'file'` entry.
+ */
+export function dragCarriesFiles({ types, items }: DragPayloadView): boolean {
+  if (types.includes('Files')) return true;
+  return fileItems(items).length > 0;
+}
+
+/**
+ * A one-line, loggable summary of an in-flight drag. Exists because a drag that
+ * the guard above declines produces no other trace anywhere.
+ */
+export function describeDragPayload({ types, items }: DragPayloadView): Record<string, unknown> {
+  return {
+    types: [...types],
+    itemKinds: items ? Array.from(items).map((item) => `${item.kind}:${item.type || '?'}`) : null,
+    carriesFiles: dragCarriesFiles({ types, items }),
+    imageOnly: isImageOnlyDrag(items),
+  };
 }

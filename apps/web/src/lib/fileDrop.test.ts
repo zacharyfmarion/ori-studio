@@ -3,6 +3,7 @@ import {
   OPENABLE_FILE_EXTENSIONS,
   classifyDroppedFile,
   dragCarriesFiles,
+  describeDragPayload,
   droppedFileExtension,
   isImageOnlyDrag,
   isOpenableKind,
@@ -186,11 +187,11 @@ describe('selectDroppedFile', () => {
   });
 });
 
-describe('drag-in-flight predicates', () => {
-  function items(entries: { kind: string; type: string }[]): DataTransferItemList {
-    return entries as unknown as DataTransferItemList;
-  }
+function items(entries: { kind: string; type: string }[]): DataTransferItemList {
+  return entries as unknown as DataTransferItemList;
+}
 
+describe('drag-in-flight predicates', () => {
   it('detects an image-only drag', () => {
     expect(isImageOnlyDrag(items([{ kind: 'file', type: 'image/png' }]))).toBe(true);
     expect(
@@ -216,10 +217,51 @@ describe('drag-in-flight predicates', () => {
     expect(isImageOnlyDrag(null)).toBe(false);
   });
 
-  it('only treats a drag as ours when it carries files', () => {
-    expect(dragCarriesFiles(['Files'])).toBe(true);
-    expect(dragCarriesFiles(['text/plain'])).toBe(false);
-    // Dockview's panel drags carry their own payload type, never 'Files'.
-    expect(dragCarriesFiles(['application/vnd.dockview.tab'])).toBe(false);
+  it('treats the standard "Files" type as a file drag', () => {
+    expect(dragCarriesFiles({ types: ['Files'], items: null })).toBe(true);
+    expect(dragCarriesFiles({ types: ['text/plain'], items: items([]) })).toBe(false);
+  });
+
+  // The bug this guards: relying on the exact string 'Files' fails silently on
+  // an engine that reports a drag differently — dragover skips preventDefault,
+  // the browser refuses the drop, and no drop event is ever dispatched.
+  it('falls back to item kinds when the platform does not report "Files"', () => {
+    expect(
+      dragCarriesFiles({
+        types: ['public.file-url'],
+        items: items([{ kind: 'file', type: '' }]),
+      })
+    ).toBe(true);
+    expect(dragCarriesFiles({ types: [], items: items([{ kind: 'file', type: '' }]) })).toBe(true);
+  });
+
+  // Dockview's panel drags carry their own payload type and no file items, so
+  // broadening the test above must not start claiming them.
+  it('still ignores in-page drags', () => {
+    expect(
+      dragCarriesFiles({
+        types: ['application/vnd.dockview.tab'],
+        items: items([{ kind: 'string', type: 'application/vnd.dockview.tab' }]),
+      })
+    ).toBe(false);
+    expect(dragCarriesFiles({ types: [], items: items([]) })).toBe(false);
+    expect(dragCarriesFiles({ types: [], items: null })).toBe(false);
+  });
+
+  it('describes a drag for the console, including why it was declined', () => {
+    const declined = describeDragPayload({
+      types: ['application/vnd.dockview.tab'],
+      items: items([{ kind: 'string', type: 'application/vnd.dockview.tab' }]),
+    });
+    expect(declined).toMatchObject({
+      types: ['application/vnd.dockview.tab'],
+      itemKinds: ['string:application/vnd.dockview.tab'],
+      carriesFiles: false,
+      imageOnly: false,
+    });
+
+    expect(
+      describeDragPayload({ types: ['Files'], items: items([{ kind: 'file', type: 'image/png' }]) })
+    ).toMatchObject({ carriesFiles: true, imageOnly: true, itemKinds: ['file:image/png'] });
   });
 });

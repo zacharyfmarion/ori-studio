@@ -1,6 +1,11 @@
 import { useCallback, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
 import { handleFileDrop } from '../commands/fileDropController';
-import { dragCarriesFiles, isImageOnlyDrag, type DropTargetPolicy } from '../lib/fileDrop';
+import {
+  describeDragPayload,
+  dragCarriesFiles,
+  isImageOnlyDrag,
+  type DropTargetPolicy,
+} from '../lib/fileDrop';
 
 export interface UseFileDropTargetOptions {
   policy: DropTargetPolicy;
@@ -45,11 +50,29 @@ export function useFileDropTarget({ policy }: UseFileDropTargetOptions): FileDro
    */
   const dragDepth = useRef(0);
 
+  /**
+   * Whether this drag has been described to the console yet. `dragover` fires
+   * continuously, so the diagnostic is once per drag, not once per event.
+   */
+  const describedDrag = useRef(false);
+
   const claimsDrag = useCallback((event: ReactDragEvent<HTMLElement>) => {
     const transfer = event.dataTransfer;
-    if (!dragCarriesFiles(Array.from(transfer.types))) return false;
+    const view = { types: Array.from(transfer.types), items: transfer.items };
+    const carriesFiles = dragCarriesFiles(view);
+
+    if (!describedDrag.current) {
+      describedDrag.current = true;
+      // A declined drag leaves no other trace: no preventDefault, so no drop
+      // event, so no handler and no error. This line is the only way to tell
+      // "the platform reported something we did not recognize" apart from
+      // "drag-and-drop is not wired up".
+      console.info('[file-drop] drag seen', { policy, ...describeDragPayload(view) });
+    }
+
+    if (!carriesFiles) return false;
     return !isImageOnlyDrag(transfer.items);
-  }, []);
+  }, [policy]);
 
   const onDragEnter = useCallback(
     (event: ReactDragEvent<HTMLElement>) => {
@@ -83,8 +106,13 @@ export function useFileDropTarget({ policy }: UseFileDropTargetOptions): FileDro
   const onDrop = useCallback(
     (event: ReactDragEvent<HTMLElement>) => {
       dragDepth.current = 0;
+      describedDrag.current = false;
       setDragActive(false);
       const files = Array.from(event.dataTransfer.files);
+      console.info('[file-drop] drop', {
+        policy,
+        files: files.map((file) => `${file.name} (${file.type || 'no type'}, ${file.size}B)`),
+      });
       if (files.length === 0) return;
       event.preventDefault();
       void handleFileDrop({ files, policy });
