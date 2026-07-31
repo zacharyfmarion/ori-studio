@@ -1,4 +1,7 @@
 {
+  "bp": {
+    "optimizeLayout": "Otimizar o layout…"
+  },
   "cp": {
     "advanceCreaseType": "Avançar tipo de vinco",
     "annotations": "Anotações",

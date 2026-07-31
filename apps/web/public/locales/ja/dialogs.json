@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "アボート",
+    "close": "レイアウトの最適化を閉じる",
+    "closeAction": "閉じる",
+    "failed": "オプティマイザーはレイアウトを見つけられませんでした。",
+    "layout": {
+      "random": "ランダムなレイアウトを試して",
+      "view": "現在のレイアウトを参考として使用して"
+    },
+    "layoutMethod": "レイアウト方法",
+    "options": "オプション",
+    "run": "実行して！",
+    "running": "実行中...",
+    "stage": {
+      "candidates": "候補レイアウトを生成中...",
+      "fitting": "グリッドに合わせています...",
+      "initializing": "初期化中...",
+      "preSolving": "事前解決中...",
+      "running": "実行中...",
+      "start": "問題を処理中..."
+    },
+    "title": "レイアウトの最適化",
+    "toTry": "試行するレイアウトの数:",
+    "useBasinHopping": "現在のレイアウトのバリエーションを試して",
+    "useDimension": "カドの幅と高さを維持する"
+  },
   "closeGuard": {
     "discard": "破棄",
     "message": "現在のプロジェクトに未保存の変更があります。Ori Studio を閉じてこれらを破棄しますか？",

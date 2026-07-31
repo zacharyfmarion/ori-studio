@@ -16,7 +16,7 @@ export function useWorkspaceCapabilities() {
   const hasImportedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern !== null);
   const hasBoxPleatDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
   const boxPleatTreeEdgeCount = useWorkspaceStore(
-    (state) => state.oristudioBpDocument?.snapshot.tree.edges.length ?? 0
+    (state) => state.oristudioBpDocument?.snapshot?.tree?.edges?.length ?? 0
   );
   const boxPleatBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
   const hasSimulationModel = useWorkspaceStore((state) => state.foldArtifacts?.simulation_model != null);

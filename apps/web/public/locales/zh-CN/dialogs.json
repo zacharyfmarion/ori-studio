@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "中止",
+    "close": "关闭优化布局",
+    "closeAction": "关闭",
+    "failed": "优化器无法找到布局。",
+    "layout": {
+      "random": "尝试随机布局",
+      "view": "使用当前布局作为参考"
+    },
+    "layoutMethod": "布局方法",
+    "options": "选项",
+    "run": "运行！",
+    "running": "运行中...",
+    "stage": {
+      "candidates": "正在生成候选布局...",
+      "fitting": "正在适配网格...",
+      "initializing": "正在初始化...",
+      "preSolving": "正在预求解...",
+      "running": "运行中...",
+      "start": "正在处理问题..."
+    },
+    "title": "优化布局",
+    "toTry": "要尝试的布局数量：",
+    "useBasinHopping": "尝试当前布局的变化",
+    "useDimension": "保持角片的宽度和高度"
+  },
   "closeGuard": {
     "discard": "放弃",
     "message": "您当前的项目有未保存的更改。关闭 Ori Studio 并放弃这些更改吗？",

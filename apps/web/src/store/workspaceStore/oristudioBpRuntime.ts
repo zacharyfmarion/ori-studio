@@ -71,6 +71,52 @@ export async function getOristudioBpPortDescriptors(): Promise<OristudioBpPortDe
   return descriptorsPromise;
 }
 
+/**
+ * Coalesce progress to at most one delivery per frame, latest-wins.
+ *
+ * The kernel emits one `cont` event per basin-hopping iteration per candidate,
+ * so a random-mode run with a high candidate count produces thousands. Each one
+ * would otherwise be a store write and a React render, on the same thread that
+ * has to keep the Abort button responsive. Nothing is lost: progress is a
+ * snapshot, not a stream, so only the most recent value ever matters.
+ */
+function coalesceProgress(
+  onProgress: (progress: OristudioBpOptimizerProgress) => void
+): { deliver: (progress: OristudioBpOptimizerProgress) => void; stop: () => void } {
+  let pending: OristudioBpOptimizerProgress | null = null;
+  let frame: number | null = null;
+  const schedule =
+    typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (callback: FrameRequestCallback) => setTimeout(() => callback(0), 16) as unknown as number;
+  const cancel =
+    typeof cancelAnimationFrame === 'function'
+      ? cancelAnimationFrame
+      : (handle: number) => clearTimeout(handle);
+
+  return {
+    deliver: (progress) => {
+      pending = progress;
+      frame ??= schedule(() => {
+        frame = null;
+        const next = pending;
+        pending = null;
+        if (next) onProgress(next);
+      });
+    },
+    /**
+     * Drop anything still queued. Called when the run ends: the caller resets
+     * its own progress state, and a frame firing after that would paint a stale
+     * stage back over the finished (or cancelled) dialog.
+     */
+    stop: () => {
+      if (frame !== null) cancel(frame);
+      frame = null;
+      pending = null;
+    },
+  };
+}
+
 async function solveOptimizerRequestWithProgress(
   request: unknown,
   seed: number | null,
@@ -84,12 +130,13 @@ async function solveOptimizerRequestWithProgress(
   attachWorkerDiagnostics(optimizerWorker, 'oristudio-bp-optimizer');
   optimizerClient = wrap<OristudioBpOptimizerWorkerApi>(optimizerWorker);
   const activeWorker = optimizerWorker;
+  const progress = onProgress ? coalesceProgress(onProgress) : null;
   try {
     return await optimizerClient.solveReportWithProgress(
       request,
       seed,
       proxy((event: OristudioBpOptimizerEvent) => {
-        onProgress?.(optimizerProgressFromEvent(event));
+        progress?.deliver(optimizerProgressFromEvent(event));
       })
     );
   } catch (error) {
@@ -101,6 +148,7 @@ async function solveOptimizerRequestWithProgress(
     }
     throw error;
   } finally {
+    progress?.stop();
     if (optimizerWorker === activeWorker) {
       optimizerWorker.terminate();
       optimizerWorker = null;
