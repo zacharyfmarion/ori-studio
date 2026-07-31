@@ -160,6 +160,7 @@ describe('BpOptimizerModal', () => {
       // No BP document in this test, so symmetry cannot resolve and the run
       // does not ask the solver to mirror.
       respectSymmetry: false,
+      symmetryFold: 'book',
     });
     expect(useBpOptimizerUiStore.getState().isOpen).toBe(false);
   });
@@ -286,19 +287,30 @@ describe('symmetry row', () => {
     expect(text()).toContain('Symmetry is off');
   });
 
-  it('names the fold by what it does to the paper', () => {
+  it('names the fold, which belongs here rather than in the tree view', () => {
+    // A tree is not drawn on the paper, so it has no book or diagonal fold of
+    // its own; naming one only makes sense once there is paper.
     withTree();
     renderModal();
-    // A vertical fold line on a rectangular sheet folds the paper edge to edge.
-    expect(text()).toContain('Book fold, vertical');
+    expect(text()).toContain('Book fold');
   });
 
-  it('calls the same fold diagonal on a diamond sheet', () => {
-    // A diagonal-grid sheet is the paper turned 45 degrees, so a vertical fold
-    // line now joins two paper corners.
+  it('names the fold the same way whatever the sheet', () => {
+    // The name is paper-relative. Which grid axis it lands on does depend on the
+    // sheet, but that is the optimizer's problem, not a label.
     withTree({}, 'diagonal');
     renderModal();
-    expect(text()).toContain('Diagonal fold, vertical');
+    expect(text()).toContain('Book fold');
+  });
+
+  it('does not touch the tree mirror line when the fold changes', () => {
+    withTree();
+    renderModal();
+    const before = useWorkspaceStore.getState().oristudioBpSymmetry.angle;
+    act(() => {
+      useBpOptimizerUiStore.getState().setOptions({ symmetryFold: 'diagonal' });
+    });
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.angle).toBe(before);
   });
 
   it('explains why it cannot mirror instead of blocking the run', () => {

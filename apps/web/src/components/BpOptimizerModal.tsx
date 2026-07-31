@@ -9,8 +9,8 @@ import {
 } from '../store/bpOptimizerUiStore';
 import { cancelActiveOristudioBpOptimizer } from '../store/workspaceStore/oristudioBpRuntime';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { resolveOptimizerSymmetry } from '../lib/bpOptimizerSymmetry';
-import { symmetryAxisLabelForAngle } from '../lib/bpSymmetryLabels';
+import { resolveOptimizerSymmetry, type SymmetryFold } from '../lib/bpOptimizerSymmetry';
+import { SYMMETRY_FOLDS, symmetryFoldLabel } from '../lib/bpSymmetryLabels';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
@@ -98,6 +98,13 @@ export function BpOptimizerModal() {
   const optimize = useWorkspaceStore((state) => state.optimizeOristudioBpLayout);
   const symmetryState = useWorkspaceStore((state) => state.oristudioBpSymmetry);
   const tree = useWorkspaceStore((state) => state.oristudioBpDocument?.snapshot.tree ?? null);
+  // The fold lives here rather than in the tree view: a tree is not drawn on the
+  // paper, so it has no book or diagonal fold of its own. The tree's mirror line
+  // stays vertical whatever is chosen here.
+  const foldOptions = useMemo(
+    () => SYMMETRY_FOLDS.map((fold) => ({ fold, label: symmetryFoldLabel(t, fold) })),
+    [t]
+  );
 
   /**
    * What the dialog can say about symmetry right now.
@@ -107,20 +114,16 @@ export function BpOptimizerModal() {
    * mode is about to throw those positions away.
    */
   const symmetry = useMemo(() => {
-    if (!symmetryState.enabled || !tree) return { mode: 'off' as const, axisLabel: null };
+    if (!symmetryState.enabled || !tree) return { mode: 'off' as const };
     const resolved = resolveOptimizerSymmetry(tree, symmetryState, {
       allowInference: options.layoutMode === 'view',
+      fold: options.symmetryFold,
     });
-    const axisLabel = symmetryAxisLabelForAngle(t, tree.sheet.kind, symmetryState.angle);
     if (!resolved.ok) {
-      return { mode: 'unusable' as const, reason: resolved.reason, axisLabel };
+      return { mode: 'unusable' as const, reason: resolved.reason };
     }
-    return {
-      mode: 'ready' as const,
-      axisLabel,
-      inconsistent: resolved.inconsistentPairs.length,
-    };
-  }, [options.layoutMode, symmetryState, t, tree]);
+    return { mode: 'ready' as const, inconsistent: resolved.inconsistentPairs.length };
+  }, [options.layoutMode, options.symmetryFold, symmetryState, tree]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -289,14 +292,27 @@ export function BpOptimizerModal() {
                           disabled={symmetry.mode !== 'ready'}
                           onChange={(checked) => setOptions({ respectSymmetry: checked })}
                         />
-                        <span>
-                          {symmetry.axisLabel
-                            ? t('dialogs:bpOptimizer.mirrorNamed', 'Mirror the layout ({{fold}})', {
-                                fold: symmetry.axisLabel,
-                              })
-                            : t('dialogs:bpOptimizer.mirror', 'Mirror the layout')}
-                        </span>
+                        <span>{t('dialogs:bpOptimizer.mirror', 'Mirror the layout')}</span>
                       </label>
+                      <Select
+                        value={options.symmetryFold}
+                        onValueChange={(value) =>
+                          setOptions({ symmetryFold: value as SymmetryFold })
+                        }
+                      >
+                        <SelectTrigger
+                          aria-label={t('dialogs:bpOptimizer.mirrorAxis', 'Fold to mirror about')}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {foldOptions.map((option) => (
+                            <SelectItem key={option.fold} value={option.fold}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {symmetry.mode === 'unusable' && (
                         <p className="bp-optimizer__hint bp-optimizer__hint--warn">
                           {symmetry.reason}

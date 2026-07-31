@@ -1,25 +1,22 @@
 import { useCallback, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { bpTreeSymmetryDefaultLoc } from '../lib/bpTreeSymmetry';
-import { SYMMETRY_AXIS_ANGLES, symmetryAxisLabel } from '../lib/bpSymmetryLabels';
+import { BP_TREE_SYMMETRY_ANGLE, bpTreeSymmetryDefaultLoc } from '../lib/bpTreeSymmetry';
 import { bpTreePointToSvg, bpTreePaperRect } from '../lib/bpTreeViewport';
 import type { OristudioBpTreeView } from '../engine/oristudioBpTypes';
 import type { Point } from '../lib/geometry';
 
 /**
- * The mirror axis, as the tree view needs it: which axes are on offer, how to
- * switch between them, and where the line falls on screen.
+ * Mirror draw, as the tree view needs it: whether it is on, and where the mirror
+ * line falls on screen.
+ *
+ * Which fold the axis *is* belongs to the optimizer dialog, not here — a tree is
+ * not drawn on the paper, so there is nothing in this view to call a book or a
+ * diagonal fold. The tree only needs a line to reflect across.
  *
  * Lives beside the panel rather than inside it because it is one concern with a
  * small interface — the tree and its paper rect in, a view-model out — and the
  * panel is a composition site.
  */
-
-export interface BpTreeSymmetryAxisOption {
-  value: number;
-  label: string;
-}
 
 export interface BpTreeSymmetryLine {
   x1: number;
@@ -30,10 +27,7 @@ export interface BpTreeSymmetryLine {
 
 export interface BpTreeSymmetryView {
   enabled: boolean;
-  angle: number;
-  axisOptions: BpTreeSymmetryAxisOption[];
   toggle: () => void;
-  setAxis: (angle: number) => void;
   /** The mirror line clipped to the sheet, in SVG coords. */
   axisLine: BpTreeSymmetryLine | null;
 }
@@ -42,12 +36,9 @@ export function useBpTreeSymmetry(
   tree: OristudioBpTreeView,
   paperRect: ReturnType<typeof bpTreePaperRect>
 ): BpTreeSymmetryView {
-  const { t } = useTranslation();
   const symmetry = useWorkspaceStore((state) => state.oristudioBpSymmetry);
   const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
 
-  // Turning symmetry on starts from the vertical axis centred on the sheet,
-  // which is the fold most designs want; the axis picker changes it from there.
   const toggle = useCallback(() => {
     if (symmetry.enabled) {
       setOristudioBpSymmetry({ enabled: false });
@@ -56,29 +47,10 @@ export function useBpTreeSymmetry(
     setOristudioBpSymmetry({
       enabled: true,
       loc: bpTreeSymmetryDefaultLoc(tree.sheet),
-      angle: 90,
+      angle: BP_TREE_SYMMETRY_ANGLE,
     });
   }, [setOristudioBpSymmetry, tree.sheet, symmetry.enabled]);
 
-  // All four axes pass through the sheet centre, so switching between them only
-  // changes the angle. The labels name the fold by what it does to the paper,
-  // which depends on the grid: a vertical fold line is a book fold on a
-  // rectangular sheet and a diagonal fold on a diamond.
-  const axisOptions = useMemo(
-    () =>
-      SYMMETRY_AXIS_ANGLES.map(({ axis, angle }) => ({
-        value: angle,
-        label: symmetryAxisLabel(t, tree.sheet.kind, axis),
-      })),
-    [t, tree.sheet.kind]
-  );
-
-  const setAxis = useCallback(
-    (angle: number) => {
-      setOristudioBpSymmetry({ angle, loc: bpTreeSymmetryDefaultLoc(tree.sheet) });
-    },
-    [setOristudioBpSymmetry, tree.sheet]
-  );
 
   const axisLine = useMemo(() => {
     if (!symmetry.enabled) return null;
@@ -122,12 +94,5 @@ export function useBpTreeSymmetry(
     return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
   }, [symmetry.enabled, symmetry.angle, symmetry.loc, tree.sheet, paperRect]);
 
-  return {
-    enabled: symmetry.enabled,
-    angle: symmetry.angle,
-    axisOptions,
-    toggle,
-    setAxis,
-    axisLine,
-  };
+  return { enabled: symmetry.enabled, toggle, axisLine };
 }

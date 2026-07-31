@@ -10,7 +10,7 @@
     },
     "layoutMethod": "布局方法",
     "mirror": "镜像布局",
-    "mirrorNamed": "镜像布局（{{fold}}）",
+    "mirrorAxis": "镜像所用的折线",
     "options": "选项",
     "run": "运行！",
     "running": "运行中...",
@@ -234,8 +234,8 @@
     },
     "title": "设置",
     "workspace": {
-      "foldWarning": "折叠存在平折错误的折痕图之前发出警告",
       "folding": "折叠",
+      "foldWarning": "折叠存在平折错误的折痕图之前发出警告",
       "layout": "布局",
       "resetButton": "重置工作区布局",
       "resetMessage": "为当前工作区恢复默认布局吗？",

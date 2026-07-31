@@ -36,6 +36,7 @@ import {
   bpTreeSymmetryDefaultLoc,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
+  BP_TREE_SYMMETRY_ANGLE,
   BP_TREE_SYMMETRY_TOLERANCE,
 } from '../../../lib/bpTreeSymmetry';
 import {
@@ -179,11 +180,12 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       oristudioBpHistoryPast: [],
       oristudioBpHistoryFuture: [],
       // Ephemeral mirror-draw state is project-specific — reset it on every load.
-      // Symmetry defaults ON with the axis centred on the sheet (angle 90 =
-      // vertical book axis), so box-pleat authoring is symmetric out of the box.
+      // Symmetry defaults ON with the line centred on the sheet, so box-pleat
+      // authoring is symmetric out of the box. The line is always vertical: a
+      // tree has no paper to orient a fold against.
       oristudioBpSymmetry: {
         enabled: true,
-        angle: 90,
+        angle: BP_TREE_SYMMETRY_ANGLE,
         loc: bpTreeSymmetryDefaultLoc(document.snapshot.tree.sheet),
         pairs: [],
       },
@@ -833,6 +835,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       if (options.respectSymmetry && symmetryState.enabled) {
         const resolved = resolveOptimizerSymmetry(document.snapshot.tree, symmetryState, {
           allowInference: options.layoutMode === 'view',
+          fold: options.symmetryFold,
         });
         if (!resolved.ok) {
           // Falling back to an unconstrained solve would hand back a layout the

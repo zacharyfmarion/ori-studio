@@ -672,6 +672,11 @@ export interface BpHistorySnapshot {
  * Ephemeral BP-tree symmetry authoring state. Not persisted to the document/.bps —
  * it lives only in the store for the current editing session (mirror-draw axis +
  * paired vertices). `angle`/`loc` describe the mirror axis in tree coordinates.
+ *
+ * The angle is always {@link BP_TREE_SYMMETRY_ANGLE}: a tree is not drawn on the
+ * paper, so there is nothing here to orient a mirror against, and one vertical
+ * line is all mirror-draw needs. Which fold of the *paper* that mirror becomes is
+ * a separate, per-run choice on the optimizer — see `symmetryFold`.
  */
 export interface OristudioBpSymmetryState {
   enabled: boolean;

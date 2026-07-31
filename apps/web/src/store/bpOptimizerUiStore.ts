@@ -26,6 +26,7 @@ export const DEFAULT_BP_OPTIMIZER_OPTIONS: BpOptimizerDialogOptions = {
   // drawn. It only takes effect when the symmetry mode is on and the pairing
   // actually resolves; the dialog says so when it does not.
   respectSymmetry: true,
+  symmetryFold: 'book',
 };
 
 /** Upstream's range for "Number of layouts to try". */
@@ -42,6 +43,7 @@ function sanitize(options: Partial<BpOptimizerDialogOptions>): BpOptimizerDialog
     layoutMode: merged.layoutMode === 'random' ? 'random' : 'view',
     useBasinHopping: Boolean(merged.useBasinHopping),
     respectSymmetry: Boolean(merged.respectSymmetry),
+    symmetryFold: merged.symmetryFold === 'diagonal' ? 'diagonal' : 'book',
     randomCandidateCount: Number.isFinite(count)
       ? Math.min(MAX_BP_RANDOM_CANDIDATES, Math.max(MIN_BP_RANDOM_CANDIDATES, count))
       : DEFAULT_BP_OPTIMIZER_OPTIONS.randomCandidateCount,

@@ -10,7 +10,7 @@
     },
     "layoutMethod": "Layout method",
     "mirror": "Mirror the layout",
-    "mirrorNamed": "Mirror the layout ({{fold}})",
+    "mirrorAxis": "Fold to mirror about",
     "options": "Options",
     "run": "Run!",
     "running": "Running...",

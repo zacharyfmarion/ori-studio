@@ -21,6 +21,15 @@ import { paperCenter } from './symmetryPresets';
 export const BP_TREE_SYMMETRY_TOLERANCE = 0.02;
 
 /**
+ * The tree's mirror line is always vertical.
+ *
+ * A tree is not drawn on the paper, so there is no book or diagonal fold to
+ * orient it against — mirror-draw only needs one line to reflect across. How
+ * that mirror maps onto the paper is the optimizer's concern, chosen per run.
+ */
+export const BP_TREE_SYMMETRY_ANGLE = 90;
+
+/**
  * An ephemeral mirror pairing between two tree vertices (stored min-first).
  *
  * A pair whose two members are the same vertex declares it as sitting *on* the

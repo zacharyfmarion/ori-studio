@@ -10,7 +10,7 @@
     },
     "layoutMethod": "Layout-Methode",
     "mirror": "Layout spiegeln",
-    "mirrorNamed": "Layout spiegeln ({{fold}})",
+    "mirrorAxis": "Falte, an der gespiegelt wird",
     "options": "Optionen",
     "run": "Ausführen!",
     "running": "Läuft...",
@@ -239,8 +239,8 @@
     },
     "title": "Einstellungen",
     "workspace": {
-      "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
       "folding": "Falten",
+      "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
       "layout": "Layout",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",

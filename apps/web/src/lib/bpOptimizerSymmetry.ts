@@ -1,4 +1,4 @@
-import type { OristudioBpTreeView } from '../engine/oristudioBpTypes';
+import type { OristudioBpSheetKind, OristudioBpTreeView } from '../engine/oristudioBpTypes';
 import { mirrorBpTreeVertexId, type BpTreeSymmetryPair } from './bpTreeSymmetry';
 import { isPaperCenter } from './symmetryPresets';
 import type { SymmetryAxis } from './symmetryGeometry';
@@ -51,30 +51,28 @@ export interface OptimizerSymmetryRejected {
 
 export type OptimizerSymmetryResolution = OptimizerSymmetryResolved | OptimizerSymmetryRejected;
 
-const ANGLE_EPSILON = 1e-6;
 const DISTANCE_EPSILON = 1e-6;
 
-function normalizeAngle(angle: number): number {
-  return ((angle % 180) + 180) % 180;
-}
+/** How the paper is folded onto itself. */
+export type SymmetryFold = 'book' | 'diagonal';
 
 /**
- * The axis an authoring angle denotes, in the optimizer's normalized frame.
+ * Where a fold falls in the optimizer's normalized frame.
  *
- * The angle is the direction of the mirror *line* in layout coordinates, and the
- * layout frame is the grid frame for both sheet types, so this mapping does not
- * depend on the sheet. What *does* depend on the sheet is whether a given axis
- * reads as a book fold or a diagonal fold of the paper — a diagonal-grid sheet is
- * the paper rotated 45 degrees against the grid, so the two swap.
+ * This is the only place the sheet matters. A diagonal-grid sheet is the paper
+ * turned 45 degrees against the grid, so its corners point along the grid axes:
+ * a corner-to-corner fold runs *along* a grid line there, while on a rectangular
+ * sheet it cuts across at 45 degrees. The two therefore swap.
+ *
+ * Each fold has a second variant — the other book fold, the other diagonal — but
+ * they are the same problem rotated a quarter turn, so only one is offered.
  */
-export function optimizerSymmetryAxisForAngle(angle: number): OptimizerSymmetryAxis | null {
-  const normalized = normalizeAngle(angle);
-  const matches = (target: number) => Math.abs(normalized - target) <= ANGLE_EPSILON;
-  if (matches(90)) return 'verticalHalf';
-  if (matches(0)) return 'horizontalHalf';
-  if (matches(45)) return 'mainDiagonal';
-  if (matches(135)) return 'antiDiagonal';
-  return null;
+export function optimizerSymmetryAxisForFold(
+  sheetKind: OristudioBpSheetKind,
+  fold: SymmetryFold
+): OptimizerSymmetryAxis {
+  const alongGrid = sheetKind === 'diagonal' ? fold === 'diagonal' : fold === 'book';
+  return alongGrid ? 'verticalHalf' : 'mainDiagonal';
 }
 
 /** Tree distance between every pair of leaves, keyed `min,max`. */
@@ -115,6 +113,8 @@ function distanceKey(a: number, b: number): string {
 }
 
 export interface ResolveOptimizerSymmetryOptions {
+  /** Which fold of the paper the layout should be mirrored about. */
+  fold: SymmetryFold;
   /**
    * Whether a flap with no explicitly declared partner may have one inferred from
    * where it currently sits.
@@ -135,16 +135,10 @@ export function resolveOptimizerSymmetry(
     return { ok: false, reason: 'Symmetry is not turned on.' };
   }
 
-  const axis = optimizerSymmetryAxisForAngle(symmetry.angle);
-  if (!axis) {
-    return {
-      ok: false,
-      reason:
-        'The optimizer can only mirror about the four symmetry axes of the sheet, ' +
-        'because the sheet has to share the layout’s symmetry. Choose a book or ' +
-        'diagonal axis.',
-    };
-  }
+  // The tree's own mirror line is an authoring aid and is always vertical — a
+  // tree is not drawn on the paper. Which fold of the paper that mirror becomes
+  // is a separate choice, made per run.
+  const axis = optimizerSymmetryAxisForFold(tree.sheet.kind, options.fold);
   if (!isPaperCenter(symmetry.loc, tree.sheet.width, tree.sheet.height)) {
     return {
       ok: false,

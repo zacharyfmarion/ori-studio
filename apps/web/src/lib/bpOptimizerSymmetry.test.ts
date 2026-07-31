@@ -4,7 +4,7 @@ import type {
   OristudioBpTreeVertex,
   OristudioBpTreeView,
 } from '../engine/oristudioBpTypes';
-import { optimizerSymmetryAxisForAngle, resolveOptimizerSymmetry } from './bpOptimizerSymmetry';
+import { optimizerSymmetryAxisForFold, resolveOptimizerSymmetry } from './bpOptimizerSymmetry';
 
 const SHEET = 8;
 const CENTRE = { x: SHEET / 2, y: SHEET / 2 };
@@ -77,21 +77,17 @@ function symmetryState(overrides: Partial<Parameters<typeof resolveOptimizerSymm
   };
 }
 
-describe('optimizerSymmetryAxisForAngle', () => {
-  it('maps the four sheet axes', () => {
-    expect(optimizerSymmetryAxisForAngle(90)).toBe('verticalHalf');
-    expect(optimizerSymmetryAxisForAngle(0)).toBe('horizontalHalf');
-    expect(optimizerSymmetryAxisForAngle(45)).toBe('mainDiagonal');
-    expect(optimizerSymmetryAxisForAngle(135)).toBe('antiDiagonal');
+describe('optimizerSymmetryAxisForFold', () => {
+  it('puts a book fold along the grid on a rectangular sheet', () => {
+    expect(optimizerSymmetryAxisForFold('rectangular', 'book')).toBe('verticalHalf');
+    expect(optimizerSymmetryAxisForFold('rectangular', 'diagonal')).toBe('mainDiagonal');
   });
 
-  it('normalizes angles modulo a half turn', () => {
-    expect(optimizerSymmetryAxisForAngle(270)).toBe('verticalHalf');
-    expect(optimizerSymmetryAxisForAngle(-45)).toBe('antiDiagonal');
-  });
-
-  it('rejects an angle the optimizer cannot honour', () => {
-    expect(optimizerSymmetryAxisForAngle(30)).toBeNull();
+  it('swaps them on a diamond, where the paper is turned 45 degrees', () => {
+    // The paper's corners point along the grid axes there, so a corner-to-corner
+    // fold runs along a grid line and a book fold cuts across at 45 degrees.
+    expect(optimizerSymmetryAxisForFold('diagonal', 'diagonal')).toBe('verticalHalf');
+    expect(optimizerSymmetryAxisForFold('diagonal', 'book')).toBe('mainDiagonal');
   });
 });
 
@@ -100,7 +96,7 @@ describe('resolveOptimizerSymmetry', () => {
     const result = resolveOptimizerSymmetry(
       bugTree(),
       symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { allowInference: true }
+      { allowInference: true, fold: 'book' }
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -118,6 +114,7 @@ describe('resolveOptimizerSymmetry', () => {
   it('infers a partner from the current layout in view mode', () => {
     const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), {
       allowInference: true,
+      fold: 'book',
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -129,6 +126,7 @@ describe('resolveOptimizerSymmetry', () => {
     // pairing from them would be meaningless.
     const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), {
       allowInference: false,
+      fold: 'book',
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -145,7 +143,7 @@ describe('resolveOptimizerSymmetry', () => {
     const result = resolveOptimizerSymmetry(
       lopsided,
       symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { allowInference: false }
+      { allowInference: false, fold: 'book' }
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -155,13 +153,14 @@ describe('resolveOptimizerSymmetry', () => {
   it('rejects an axis the optimizer cannot honour', () => {
     const offAngle = resolveOptimizerSymmetry(bugTree(), symmetryState({ angle: 30 }), {
       allowInference: true,
+      fold: 'book',
     });
     expect(offAngle.ok).toBe(false);
 
     const offCentre = resolveOptimizerSymmetry(
       bugTree(),
       symmetryState({ loc: { x: 3, y: 4 }, pairs: [{ v1: 1, v2: 2 }] }),
-      { allowInference: true }
+      { allowInference: true, fold: 'book' }
     );
     expect(offCentre.ok).toBe(false);
     if (offCentre.ok) return;
@@ -171,6 +170,7 @@ describe('resolveOptimizerSymmetry', () => {
   it('is inactive when symmetry is turned off', () => {
     const result = resolveOptimizerSymmetry(bugTree(), symmetryState({ enabled: false }), {
       allowInference: true,
+      fold: 'book',
     });
     expect(result.ok).toBe(false);
   });
@@ -196,7 +196,7 @@ describe('resolveOptimizerSymmetry', () => {
           { v1: 3, v2: 3 },
         ],
       }),
-      { allowInference: false }
+      { allowInference: false, fold: 'book' }
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -216,7 +216,7 @@ describe('on-axis declaration', () => {
           { v1: 3, v2: 3 },
         ],
       }),
-      { allowInference: false }
+      { allowInference: false, fold: 'book' }
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;

@@ -10,7 +10,7 @@ import {
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { Axis3d, FlipHorizontal2, Minus, Plus, Tag } from 'lucide-react';
+import { FlipHorizontal2, Minus, Plus, Tag } from 'lucide-react';
 import type {
   OristudioBpDocumentState,
   OristudioBpTreeEdge,
@@ -64,7 +64,6 @@ import { IconButton } from '../ui/IconButton';
 import { BpNameEditor } from './BpNameEditor';
 import {
   isViewportInteractiveTarget,
-  ViewportChoiceMenu,
   ViewportLayerMenu,
   ViewportToolbar,
   ViewportToolbarSeparator,
@@ -119,9 +118,6 @@ function BpTreeViewportToolbar({
   onLayerChange,
   symmetryEnabled,
   onSymmetryToggle,
-  symmetryAxisOptions,
-  symmetryAngle,
-  onSymmetryAxisChange,
   zoomIn,
   zoomOut,
   fitToView,
@@ -132,9 +128,6 @@ function BpTreeViewportToolbar({
   onLayerChange: (layer: BpTreeViewLayerKey, visible: boolean) => void;
   symmetryEnabled: boolean;
   onSymmetryToggle: () => void;
-  symmetryAxisOptions: readonly { value: number; label: string }[];
-  symmetryAngle: number;
-  onSymmetryAxisChange: (angle: number) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
@@ -165,15 +158,6 @@ function BpTreeViewportToolbar({
       >
         <FlipHorizontal2 size={14} />
       </IconButton>
-      {symmetryEnabled && (
-        <ViewportChoiceMenu
-          title={t('panels:bpTree.mirrorAxis', 'Mirror axis')}
-          icon={<Axis3d size={14} />}
-          options={symmetryAxisOptions}
-          value={symmetryAngle}
-          onChange={onSymmetryAxisChange}
-        />
-      )}
       <ViewportToolbarSeparator />
       <ViewportLayerMenu
         title={t('panels:bpTree.layers', 'Layers')}
@@ -953,9 +937,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         onLayerChange={setLayer}
         symmetryEnabled={symmetryView.enabled}
         onSymmetryToggle={symmetryView.toggle}
-        symmetryAxisOptions={symmetryView.axisOptions}
-        symmetryAngle={symmetryView.angle}
-        onSymmetryAxisChange={symmetryView.setAxis}
         zoomIn={zoomIn}
         zoomOut={zoomOut}
         fitToView={() => fitToView()}

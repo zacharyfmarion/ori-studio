@@ -62,7 +62,6 @@
     "width": "Width"
   },
   "bpSymmetry": {
-    "axisLabel": "{{fold}}, {{orientation}}",
     "clear": "Clear",
     "fold": {
       "book": "Book fold",
@@ -71,12 +70,6 @@
     "isOnAxis": "On the mirror axis",
     "isPaired": "Mirrored with another flap",
     "onAxis": "Place on the axis",
-    "orientation": {
-      "falling": "falling",
-      "horizontal": "horizontal",
-      "rising": "rising",
-      "vertical": "vertical"
-    },
     "pair": "Mirror these two",
     "title": "Mirror pairing"
   },
@@ -92,7 +85,6 @@
     "layers": "Layers",
     "length": "Length",
     "max": "max {{value}}",
-    "mirrorAxis": "Mirror axis",
     "mirrorDraw": "Mirror draw",
     "mirrorDrawOn": "Mirror draw (on)",
     "selectEdge": "Select BP edge {{id}}, length {{length}}",
