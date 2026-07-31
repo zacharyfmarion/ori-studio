@@ -377,18 +377,18 @@ not optional and is not a follow-up PR.
 
 ## Checklist
 
-- [ ] Phase 1: `bp.optimize.layout` capability, BP tree edge count input, context masking
-- [ ] Phase 1: header-toolbar button in the BP branch of `WorkspaceShell.Toolbar`
-- [ ] Phase 1: Design menu entry + `menuActions` dispatch; confirm the Design menu reappears in BP and stays hidden elsewhere
-- [ ] Phase 2: `bpOptimizerUiStore` with persisted options via `lib/storage.ts`
-- [ ] Phase 2: `BpOptimizerModal` with upstream's labels, defaults, and 1–100 range, mounted in `App.tsx`
-- [ ] Phase 3: run action via `runBpTreeMutation`, one history entry, cancel is a no-op
-- [ ] Phase 3: `oristudioBpBusy` blocks BP edits for the whole run (R4)
-- [ ] Phase 4: determinate progress bar, stage labels, coalesced progress (R3)
-- [ ] R7: port upstream's `$fixDimension` minimum-size clamp into the store action
-- [ ] Phase 5: i18n extract / translate / stamp / check
-- [ ] Phase 5: capability, menu-visibility, modal, and undo-contract tests
-- [ ] Validation: `npx tsc --noEmit`, `npm --workspace @treemaker/web exec -- vitest run`, `npm run lint:web`, `npm run i18n:check`
+- [x] Phase 1: `bp.optimize.layout` capability, BP tree edge count input, context masking
+- [x] Phase 1: header-toolbar button in the BP branch of `WorkspaceShell.Toolbar`
+- [x] Phase 1: Design menu entry + `menuActions` dispatch; confirm the Design menu reappears in BP and stays hidden elsewhere
+- [x] Phase 2: `bpOptimizerUiStore` with persisted options via `lib/storage.ts`
+- [x] Phase 2: `BpOptimizerModal` with upstream's labels, defaults, and 1–100 range, mounted in `App.tsx`
+- [x] Phase 3: run action via `runBpTreeMutation`, one history entry, cancel is a no-op
+- [x] Phase 3: `oristudioBpBusy` blocks BP edits for the whole run (R4)
+- [x] Phase 4: determinate progress bar, stage labels, coalesced progress (R3)
+- [x] R7: port upstream's `$fixDimension` minimum-size clamp into the store action
+- [x] Phase 5: i18n extract / translate / stamp / check
+- [x] Phase 5: capability, menu-visibility, modal, and undo-contract tests
+- [x] Validation: `npx tsc --noEmit`, `npm --workspace @treemaker/web exec -- vitest run`, `npm run lint:web`, `npm run i18n:check`
 - [ ] Browser check: optimize end to end in `view` and `random` modes, rect and diagonal sheets, then undo and confirm the original layout returns
 - [ ] Browser check: measure a real WASM run at counts 1 and 20 so we know the shipped cost (R1)
 
