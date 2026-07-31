@@ -195,19 +195,40 @@ draw on.
 
 ## Checklist
 
-- [ ] `LessonCourse` type and `courses.ts` registry; `courseId` on each chapter
-- [ ] Course-scoped `nextLesson`, `lessonsInCourse`, `firstLessonInCourse`
-- [ ] Content tests: every chapter names a real course, every course is non-empty
-- [ ] `paths.ts`: `coursePath`, three-segment `lessonPath`
-- [ ] Router: catalog, course, lesson; legacy `/learn/:lessonId` → redirect
-- [ ] Router test for the redirect
-- [ ] `CourseCatalogPanel` with per-course progress
-- [ ] `LessonIndexPanel` scoped to a course, with a back link to the catalog
-- [ ] Lesson panel: back and finish target the course page
-- [ ] `lastCourseId` + `resumeByCourse` replace `lastLessonId`; resume returns to
+- [x] `LessonCourse` type and `courses.ts` registry; `courseId` on each chapter
+- [x] Course-scoped `nextLesson`, `lessonsInCourse`, `firstLessonInCourse`
+- [x] Content tests: every chapter names a real course, every course is non-empty
+- [x] `paths.ts`: `coursePath`, three-segment `lessonPath`
+- [x] Router: catalog, course, lesson; legacy `/learn/:lessonId` → redirect
+- [x] Router test for the redirect
+- [x] `CourseCatalogPanel` with per-course progress
+- [x] `LessonIndexPanel` scoped to a course, with a back link to the catalog
+- [x] Lesson panel: back and finish target the course page
+- [x] `lastCourseId` + `resumeByCourse` replace `lastLessonId`; resume returns to
       the right lesson *of the right course*
-- [ ] Course progress derived from the registry, not from `completedLessonIds.length`
-- [ ] Test: a stale id in `completedLessonIds` cannot inflate a course's count
-- [ ] Layout: only `/learn/:courseId/:lessonId` mounts the editing workspace
-- [ ] Catalog styles
-- [ ] Walk it in the browser: catalog → course → lesson → finish → course
+- [x] Course progress derived from the registry, not from `completedLessonIds.length`
+- [x] Test: a stale id in `completedLessonIds` cannot inflate a course's count
+- [x] Layout: only `/learn/:courseId/:lessonId` mounts the editing workspace
+- [x] Catalog styles
+- [x] Walk it in the browser: catalog → course → lesson → finish → course
+
+## Outcome
+
+Shipped. Three defects surfaced only by walking the flow in a browser, all of
+them redirect races, and one predating this change:
+
+- `startWorkspaceUrlSync` replaced any deep link with its workspace root on a
+  workspace transition, so cold-loading a lesson landed on the catalog. It now
+  skips when the current path already resolves to the workspace being activated.
+  This was live before courses — `/learn/:lessonId` was clobbered the same way —
+  and the catalog only made it visible.
+- `LessonPanel` redirected when it had no active lesson, racing the route's
+  open-from-effect and bouncing every lesson back on its first render.
+- The practice-document effect looped forever when a load failed or had not yet
+  resolved, because one of its conditions was `!document` and its own
+  bookkeeping re-triggered it. Reached by cold-loading a lesson before the CP
+  engine is up.
+
+Worth keeping in mind for the next surface: every one of these is a redirect
+that fires before the state it reads has settled, and none of them is visible to
+a unit test of the thing being redirected.
