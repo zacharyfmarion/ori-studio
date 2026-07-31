@@ -5711,6 +5711,46 @@
   cursor: default;
 }
 
+/* Axis fields: label left, value right, on the preset buttons' border ramp. */
+.symmetry-menu__field {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.symmetry-menu__field input {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  appearance: none;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.symmetry-menu__field input:hover {
+  border-color: var(--border-strong);
+}
+
+.symmetry-menu__field input:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+/* The popover is narrow, so the native spinners would eat most of the field. */
+.symmetry-menu__field input::-webkit-outer-spin-button,
+.symmetry-menu__field input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
 .design-layer-option__icon {
   display: inline-flex;
   color: var(--text-tertiary);
