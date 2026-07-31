@@ -2,18 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { LESSON_TARGETS } from '../targets';
 
 /**
- * `.cp` cannot express a vertex.
+ * In `.cp`, creases that cross must be written as segments that meet.
  *
- * It is a flat list of segments, so two creases written as whole lines *cross*
- * without meeting: no vertex is created where they intersect, and the paper's
- * boundary is not split where a crease reaches it. The engine loads that exactly
- * as written, and the foldability checker then reports violations at those
- * points — errors that have nothing to do with the pattern the lesson is
- * teaching, sitting in red on the canvas while the user tries to follow along.
+ * A vertex in this format is not a record of its own — it is coincident segment
+ * endpoints. So two creases that cross are four segments sharing a point, and a
+ * crease landing on the paper's boundary splits that boundary edge in two. The
+ * engine's own exporter writes them exactly that way, and such a file loads back
+ * with no foldability violations.
  *
- * A pattern drawn in the editor never has this problem, because drawing splits
- * as it goes. So the rule is: any target with an interior crossing must be
- * authored as `.fold`, by drawing it and exporting.
+ * What the format does *not* do is split anything for you. Write two crossing
+ * creases as two whole lines and they are loaded as two whole lines: no vertex
+ * where they meet, so the checker reports violations that have nothing to do
+ * with the pattern the lesson is teaching, sitting in red on the canvas while
+ * the user tries to follow along. Drawing in the editor splits as it goes, which
+ * is why targets authored by hand are the only ones that hit this.
+ *
+ * So a hand-written target must split its own crossings, and the reliable way to
+ * get that right is not to hand-write it: draw it in the editor and export.
  *
  * This checks the geometry directly rather than through the engine, so it runs
  * without wasm and fails at the point the bad file is added.

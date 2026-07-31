@@ -748,19 +748,26 @@ where creases meet the paper's edge.
 
 ## Author targets as `.fold`, not `.cp`
 
-`.cp` cannot express a vertex. It is a flat list of segments, so two creases
-written as whole lines cross *without meeting*, and the boundary is never split
-where a crease reaches it. The engine loads that exactly as written and the
-foldability checker then reports violations at those points — red errors on the
-canvas that have nothing to do with the lesson.
+A vertex in `.cp` is not a record of its own — it is coincident segment
+endpoints. Creases that cross are written as four segments meeting at a point,
+and a crease landing on the boundary splits that boundary edge in two. The
+engine's exporter does exactly this, and such a file loads back with zero
+violations, so the format expresses vertices perfectly well.
 
-That is a defect in the hand-authored targets, not in the checker, and it is why
-the select/delete lesson opened on four unexplained warnings. Drawing the same
+What it does not do is split anything for you. The hand-authored targets wrote
+crossing creases as whole lines, so they were loaded as whole lines: no vertex
+where they meet, and the foldability checker then reported violations at those
+points — red errors on the canvas that have nothing to do with the lesson. That
+is why the select/delete lesson opened on four unexplained warnings.
+
+The defect is in those files, not in the checker or the format. Drawing the same
 pattern in the editor never has the problem, because drawing splits as it goes.
 
-**So targets are authored by drawing them in the editor and exporting `.fold`.**
-The loader takes a format, and `.fold` carries the topology. The two files for
-the select/delete lesson were produced that way and load with zero violations.
+**So targets are authored by drawing them in the editor and exporting.** A
+correctly split `.cp` would be just as valid — the point is not to hand-write
+one. `.fold` is the export used here because it states the topology outright
+rather than leaving it to coincident coordinates. The two files for the
+select/delete lesson were produced that way and load with zero violations.
 
 `targetTopology.test.ts` enforces it geometrically — no engine needed — and
 carries the list of pre-existing `.cp` targets that still cross without a vertex,
