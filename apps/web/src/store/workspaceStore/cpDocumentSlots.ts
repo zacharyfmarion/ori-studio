@@ -140,11 +140,18 @@ export function enterCpDocumentSlot(slot: CpDocumentSlotId): void {
 
 /**
  * Whether edits in the foreground document should mark the user's project
- * unsaved. `dirty` is project-wide (it covers the tree as well as the crease
- * pattern), so it is deliberately *not* slot-scoped; instead, an ephemeral slot
- * simply never sets it. A tutorial practice pattern is not part of the user's
- * project and can never be saved, so it has no business claiming there is
- * unsaved work.
+ * unsaved.
+ *
+ * `dirty` needs two things at once, and they are handled by two mechanisms:
+ *
+ *  - The editor's flag must *survive* a round trip through a lesson. That is
+ *    why `dirty` is slot-scoped (see `CpSlotFieldsOwnedByProjectSlice`) — when
+ *    it was global, visiting the tutorial silently told the user their unsaved
+ *    work was saved.
+ *  - A lesson must never *set* one. A practice pattern is not part of the
+ *    user's project and can never be saved, so it has no business claiming
+ *    there is unsaved work. That is this predicate, which `store.ts` uses to
+ *    clear the flag as an invariant rather than at the ~30 places that set it.
  */
 export function activeSlotTracksProjectDirty(): boolean {
   return activeCpDocumentSlot() === 'edit';
