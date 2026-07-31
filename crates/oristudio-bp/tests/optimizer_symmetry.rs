@@ -9,8 +9,9 @@
 
 use oristudio_bp::model::GridType;
 use oristudio_bp::optimizer::kernel::{
-    KernelFlap, KernelHierarchy, KernelSymmetry, OptimizerSheet, get_scale, pack_rssl,
-    pack_rssl_symmetric, setup_initial_scale, symmetrize,
+    KernelFlap, KernelHierarchy, KernelSymmetry, OptimizerSheet, get_scale,
+    greedy_solve_integer_symmetric, pack_rssl, pack_rssl_symmetric, setup_initial_scale,
+    symmetrize,
 };
 use oristudio_bp::optimizer::{OptimizerSymmetry, SymmetryAxis, SymmetryPreset};
 
@@ -287,4 +288,192 @@ fn paired_flaps_must_be_mirror_images_as_boxes() {
     let hierarchy = star(&[(1, 4, 2), (2, 4, 2)], 10);
     let message = rejection(&[(1, 2), (2, 1)], SymmetryAxis::MainDiagonal, &hierarchy);
     assert!(message.contains("not mirror images"), "{message}");
+}
+
+// ------------------------------------------------------------ grid fitting
+
+/// Check that a fitted integer layout is *exactly* symmetric on the grid: every
+/// flap's mirror partner sits at the reflected grid point, with no tolerance.
+fn assert_fitted_layout_is_symmetric(
+    label: &str,
+    hierarchy: &KernelHierarchy,
+    resolved: &KernelSymmetry,
+    output: &[i32],
+) {
+    let count = hierarchy.flaps.len();
+    let size = output[output.len() - 1];
+    let (center_x, center_y) = match hierarchy.sheet {
+        OptimizerSheet::Diag => (true, true),
+        OptimizerSheet::Rect => resolved.axis.centered(),
+    };
+    if center_x || center_y {
+        assert_eq!(
+            size % 2,
+            0,
+            "{label}: a centred axis needs the sheet centre on a grid point"
+        );
+    }
+    let half = size / 2;
+    for i in 0..count {
+        let j = resolved.partner[i];
+        // back to the coordinate frame the mirror map is expressed in
+        let to_axis_frame = |index: usize| {
+            (
+                f64::from(output[index * 2] - if center_x { half } else { 0 }),
+                f64::from(output[index * 2 + 1] - if center_y { half } else { 0 }),
+            )
+        };
+        let (x, y) = to_axis_frame(i);
+        let (px, py) = to_axis_frame(j);
+        let (mx, my) = resolved.axis.mirror_grid(
+            x,
+            y,
+            f64::from(hierarchy.flaps[i].width),
+            f64::from(hierarchy.flaps[i].height),
+        );
+        assert_eq!(
+            (px, py),
+            (mx, my),
+            "{label}: flap {} at ({x},{y}) should mirror to ({mx},{my}) but partner {} is at ({px},{py})",
+            hierarchy.flaps[i].id,
+            hierarchy.flaps[j].id
+        );
+    }
+    // Every flap must fit inside the sheet it reports.
+    for i in 0..count {
+        let (x, y) = (output[i * 2], output[i * 2 + 1]);
+        assert!(
+            x >= 0
+                && y >= 0
+                && x + hierarchy.flaps[i].width <= size
+                && y + hierarchy.flaps[i].height <= size,
+            "{label}: flap {} at ({x},{y}) escapes its {size}x{size} sheet",
+            hierarchy.flaps[i].id
+        );
+    }
+}
+
+fn fit(hierarchy: &KernelHierarchy, resolved: &KernelSymmetry) -> Vec<i32> {
+    let mut x = spread_start(hierarchy);
+    symmetrize(&mut x, hierarchy, resolved);
+    let packed = pack_rssl_symmetric(x, hierarchy, None, None, Some(resolved)).expect("pack runs");
+    assert!(packed.success, "pack failed: {:?}", packed.status);
+    greedy_solve_integer_symmetric(&packed.x, hierarchy, resolved, &mut || false, &mut |_| {})
+        .expect("symmetric fit succeeds")
+}
+
+#[test]
+fn fitted_layouts_are_exactly_symmetric_on_every_axis() {
+    let hierarchy = star(&[(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0, 0)], 8);
+    for axis in AXES {
+        let resolved = KernelSymmetry::from_request(
+            &symmetry(axis, &[(1, 2), (2, 1), (3, 4), (4, 3)]),
+            &hierarchy,
+        )
+        .unwrap();
+        let output = fit(&hierarchy, &resolved);
+        assert_fitted_layout_is_symmetric(&format!("{axis:?}"), &hierarchy, &resolved, &output);
+    }
+}
+
+#[test]
+fn fitted_layouts_keep_on_axis_flaps_on_the_axis() {
+    let hierarchy = star(&[(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0, 0), (5, 0, 0)], 8);
+    for axis in AXES {
+        let resolved = KernelSymmetry::from_request(
+            &symmetry(axis, &[(1, 2), (2, 1), (3, 4), (4, 3), (5, 5)]),
+            &hierarchy,
+        )
+        .unwrap();
+        let output = fit(&hierarchy, &resolved);
+        assert_fitted_layout_is_symmetric(&format!("{axis:?}"), &hierarchy, &resolved, &output);
+    }
+}
+
+#[test]
+fn fitted_layouts_are_symmetric_with_flap_dimensions() {
+    let book = star(&[(1, 4, 2), (2, 4, 2), (3, 0, 0), (4, 0, 0)], 10);
+    let resolved = KernelSymmetry::from_request(
+        &symmetry(
+            SymmetryAxis::VerticalHalf,
+            &[(1, 2), (2, 1), (3, 4), (4, 3)],
+        ),
+        &book,
+    )
+    .unwrap();
+    let output = fit(&book, &resolved);
+    assert_fitted_layout_is_symmetric("book+dims", &book, &resolved, &output);
+
+    let diagonal = star(&[(1, 4, 2), (2, 2, 4), (3, 0, 0), (4, 0, 0)], 10);
+    let resolved = KernelSymmetry::from_request(
+        &symmetry(
+            SymmetryAxis::MainDiagonal,
+            &[(1, 2), (2, 1), (3, 4), (4, 3)],
+        ),
+        &diagonal,
+    )
+    .unwrap();
+    let output = fit(&diagonal, &resolved);
+    assert_fitted_layout_is_symmetric("diagonal+dims", &diagonal, &resolved, &output);
+}
+
+#[test]
+fn fitted_layouts_respect_the_tree_distances() {
+    let hierarchy = star(&[(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0, 0), (5, 0, 0)], 8);
+    for axis in AXES {
+        let resolved = KernelSymmetry::from_request(
+            &symmetry(axis, &[(1, 2), (2, 1), (3, 4), (4, 3), (5, 5)]),
+            &hierarchy,
+        )
+        .unwrap();
+        let output = fit(&hierarchy, &resolved);
+        for &(i, j, dist) in &hierarchy.dist_map {
+            let dx = f64::from(output[i * 2] - output[j * 2]);
+            let dy = f64::from(output[i * 2 + 1] - output[j * 2 + 1]);
+            let separation = (dx * dx + dy * dy).sqrt();
+            assert!(
+                separation >= f64::from(dist) - 1e-9,
+                "{axis:?}: flaps {} and {} are {separation} apart but need {dist}",
+                hierarchy.flaps[i].id,
+                hierarchy.flaps[j].id
+            );
+        }
+    }
+}
+
+#[test]
+fn diagonal_sheets_fit_symmetrically_too() {
+    let mut hierarchy = star(&[(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0, 0)], 8);
+    hierarchy.sheet = OptimizerSheet::Diag;
+    for axis in AXES {
+        let resolved = KernelSymmetry::from_request(
+            &symmetry(axis, &[(1, 2), (2, 1), (3, 4), (4, 3)]),
+            &hierarchy,
+        )
+        .unwrap();
+        let mut x = spread_start(&hierarchy);
+        symmetrize(&mut x, &hierarchy, &resolved);
+        let packed = pack_rssl_symmetric(x, &hierarchy, None, None, Some(&resolved)).unwrap();
+        assert!(packed.success, "{axis:?}: {:?}", packed.status);
+        let output = greedy_solve_integer_symmetric(
+            &packed.x,
+            &hierarchy,
+            &resolved,
+            &mut || false,
+            &mut |_| {},
+        )
+        .unwrap();
+        let size = output[output.len() - 1];
+        assert_eq!(size % 2, 0, "{axis:?}: diagonal sheets are even-sized");
+        // The diamond is the L1 ball of radius size/2 about the sheet centre.
+        let half = size / 2;
+        for i in 0..hierarchy.flaps.len() {
+            let radius = (output[i * 2] - half).abs() + (output[i * 2 + 1] - half).abs();
+            assert!(
+                radius <= half,
+                "{axis:?}: flap {} is outside the diamond",
+                hierarchy.flaps[i].id
+            );
+        }
+    }
 }
