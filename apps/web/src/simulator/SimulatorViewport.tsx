@@ -108,6 +108,15 @@ export interface SimulatorViewportProps {
    * makes it read as a hole punched in the drawing rather than a view onto it.
    */
   transparentBackground?: boolean;
+  /**
+   * Treat this surface as an object sized by someone else's camera rather than
+   * as a viewport: below this frame edge (device px) the crease width shrinks
+   * with the frame, so the fold reads the same at every size. Omitted, creases
+   * keep a constant on-screen weight, which is what a resizable pane wants.
+   */
+  creaseWidthReferenceEdge?: number;
+  /** Companion to the reference edge; see `RenderSettings.creaseWidthShrinkExponent`. */
+  creaseWidthShrinkExponent?: number;
   viewSettings: SimulatorViewSettings;
   /** Creases/faces a sequence step is emphasising. CPU path only. */
   highlights?: SimulatorHighlights;
@@ -129,6 +138,8 @@ export function SimulatorViewport({
   bitmapPresent = false,
   minDeviceSize = 360,
   transparentBackground = false,
+  creaseWidthReferenceEdge,
+  creaseWidthShrinkExponent,
   viewSettings,
   highlights = EMPTY_HIGHLIGHTS,
   pushCamera,
@@ -154,7 +165,11 @@ export function SimulatorViewport({
   const viewSettingsRef = useRef(viewSettings);
   const highlightsRef = useRef(highlights);
   const interactiveRef = useRef(interactive);
-  const surfaceOptionsRef = useRef<SimulatorSurfaceOptions>({ transparentBackground });
+  const surfaceOptionsRef = useRef<SimulatorSurfaceOptions>({
+    transparentBackground,
+    creaseWidthReferenceEdge,
+    creaseWidthShrinkExponent,
+  });
   // Resolved colours, held rather than recomputed per frame: reading them means a
   // getComputedStyle, and they only change when settings or the theme do. Both
   // render paths draw from this one object, which is what stops them disagreeing.
@@ -260,9 +275,19 @@ export function SimulatorViewport({
   // either has to be pushed the same way.
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
-    surfaceOptionsRef.current = { transparentBackground };
+    surfaceOptionsRef.current = {
+      transparentBackground,
+      creaseWidthReferenceEdge,
+      creaseWidthShrinkExponent,
+    };
     refreshPaint();
-  }, [refreshPaint, viewSettings, transparentBackground]);
+  }, [
+    refreshPaint,
+    viewSettings,
+    transparentBackground,
+    creaseWidthReferenceEdge,
+    creaseWidthShrinkExponent,
+  ]);
 
   useEffect(() => {
     highlightsRef.current = highlights;

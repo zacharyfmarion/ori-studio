@@ -97,6 +97,34 @@ export interface RenderSettings {
   /** Crease line width in device pixels. */
   creaseWidthPx: number;
   /**
+   * Frame edge, in device pixels, that {@link creaseWidthPx} is calibrated for.
+   *
+   * Left unset, a crease keeps a constant on-screen weight however large the
+   * frame is. That is what a *viewport* wants: a Simulate-workspace pane is a
+   * window onto the fold, and its linework should stay crisp when the pane is
+   * resized.
+   *
+   * Set, the crease shrinks with the frame below this edge, so the fold reads
+   * identically at every size. That is what an *object* wants: an inline
+   * simulation window is a picture on the crease pattern, sized by the CP
+   * camera, and the model is fitted to the frame (see `fitExtent`) while a
+   * constant-weight crease is not — so at thumbnail size the creases bury the
+   * paper they annotate. The crease-pattern canvas reached the same rule for
+   * vertices, for the same reason and in the same words; see
+   * `VERTEX_SHRINK_EXPONENT` in `CreasePatternWebglCanvas`.
+   *
+   * Above the reference nothing changes, so a window large enough to read as a
+   * viewport is left alone.
+   */
+  creaseWidthReferenceEdge?: number;
+  /**
+   * How fast the crease shrinks below {@link creaseWidthReferenceEdge}. 0 =
+   * constant screen weight (the same as leaving the reference unset), 1 =
+   * lockstep with the frame, so a crease stays the same fraction of the paper at
+   * every size. Defaults to 1.
+   */
+  creaseWidthShrinkExponent?: number;
+  /**
    * Dash pattern per crease kind, as alternating on/off run lengths in device
    * pixels, or null for solid.
    *
@@ -119,6 +147,60 @@ export interface RenderSettings {
    * `strainClip`, default 5%.
    */
   strainClip?: number;
+}
+
+/** Full lockstep with the frame — see {@link RenderSettings.creaseWidthShrinkExponent}. */
+const DEFAULT_CREASE_SHRINK_EXPONENT = 1;
+
+/**
+ * How much a crease's declared width is scaled by, given the frame it is drawn
+ * in. 1 whenever the settings ask for constant screen weight, and whenever the
+ * frame is at or above the reference edge.
+ *
+ * Keyed on the frame's short edge because that is what the model is fitted to
+ * (see `fitExtent` in camera.ts), so the crease and the paper it lies on shrink
+ * together.
+ * Shared with the SVG renderer, which is what keeps an exported view the view
+ * that was on screen.
+ */
+export function creaseFrameScale(
+  settings: RenderSettings,
+  width: number,
+  height: number
+): number {
+  const reference = settings.creaseWidthReferenceEdge ?? 0;
+  const edge = Math.min(width, height);
+  if (!(reference > 0) || !(edge > 0) || edge >= reference) return 1;
+  return Math.pow(edge / reference, settings.creaseWidthShrinkExponent ?? DEFAULT_CREASE_SHRINK_EXPONENT);
+}
+
+/**
+ * Narrowest ribbon a rasterizer can carry, in device pixels.
+ *
+ * Below this the crease is drawn *at* this width and the weight it lost comes
+ * out of its alpha instead, so the ink keeps thinning the whole way down rather
+ * than pinning at a floor. Clamping the width alone would make a zoomed-out
+ * window fatten again at the bottom of its range; shrinking the geometry alone
+ * would flicker, because a sub-pixel ribbon lands on a sample or misses
+ * depending on where it falls. The crease-pattern canvas's point program fades
+ * sub-pixel dots for the same reason.
+ */
+const MIN_RASTER_CREASE_WIDTH_PX = 1;
+
+/**
+ * The width and opacity a rasterizing renderer should draw creases at.
+ *
+ * Vector output does not go through this: SVG has no sample grid, so it draws
+ * the true scaled width and needs no alpha.
+ */
+export function rasterCreaseInk(
+  settings: RenderSettings,
+  width: number,
+  height: number
+): { widthPx: number; alpha: number } {
+  const wanted = settings.creaseWidthPx * creaseFrameScale(settings, width, height);
+  const widthPx = Math.max(wanted, MIN_RASTER_CREASE_WIDTH_PX);
+  return { widthPx, alpha: Math.max(0, Math.min(1, wanted / widthPx)) };
 }
 
 /**
@@ -538,24 +620,44 @@ export class MeshRenderer {
     }
 
     if (settings.showEdges && this.edgeVertexCount > 0) {
-      gl.disable(gl.BLEND);
-      gl.depthMask(true);
+      // Crease width in device pixels; scaled up a touch on hi-dpi so it reads
+      // at the same on-screen weight, then by the frame if these settings ask
+      // for it. camera.width is device px.
+      const ink = rasterCreaseInk(settings, camera.width, camera.height);
+      if (ink.alpha < 1) {
+        gl.enable(gl.BLEND);
+        // Colour blends against what is behind, but coverage must not: scaling
+        // the frame's own alpha by a faded crease's would punch a hole through
+        // the paper on a transparent-backed window.
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        // A crease this faint has nothing to occlude, and writing depth would
+        // order the translucent ribbons against each other.
+        gl.depthMask(false);
+      } else {
+        gl.disable(gl.BLEND);
+        gl.depthMask(true);
+      }
       gl.bindVertexArray(this.edgeVao);
       gl.useProgram(this.edgeProgram);
       this.bindCommon(this.edgeProgram, this.edgeUniforms, camera);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
-      // Crease width in device pixels; scaled up a touch on hi-dpi so it reads
-      // at the same on-screen weight. camera.width is device px.
-      const halfWidth = settings.creaseWidthPx * 0.5;
-      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx', halfWidth);
-      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_alpha', 1);
-      this.setDash(settings.creaseDash);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx', ink.widthPx * 0.5);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_alpha', ink.alpha);
+      // Dash runs are lengths along the crease in the same device pixels, so a
+      // shrinking crease has to take its pattern with it or a thumbnail reads as
+      // two long dashes rather than as a dashed line.
+      this.setDash(settings.creaseDash, creaseFrameScale(settings, camera.width, camera.height));
       gl.drawArrays(gl.TRIANGLES, 0, this.edgeVertexCount);
     }
 
     gl.depthMask(true);
+    // Back to the state GlCore established at context creation. The solver's
+    // compute passes share this context and never set blending themselves, so a
+    // pass left enabled here would silently blend the next solve step into the
+    // last one instead of replacing it.
+    gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
   }
 
@@ -598,8 +700,11 @@ export class MeshRenderer {
     this.setFloat(program, cache, 'u_camDist', camera.camDist);
   }
 
-  private setDash(dash: CreaseDash | undefined): void {
+  private setDash(dash: CreaseDash | undefined, scale: number): void {
     const { runs, counts } = packCreaseDash(dash);
+    if (scale !== 1) {
+      for (let i = 0; i < runs.length; i += 1) runs[i] = (runs[i] ?? 0) * scale;
+    }
     const gl = this.gl;
     gl.uniform1fv(this.location(this.edgeProgram, this.edgeUniforms, 'u_dashRuns'), runs);
     gl.uniform1iv(this.location(this.edgeProgram, this.edgeUniforms, 'u_dashCount'), counts);

@@ -67,6 +67,33 @@ const FOLD_STEP_PERCENT = 5;
 const INITIAL_RENDER_EDGE = 512;
 
 /**
+ * Frame edge, in device pixels, the crease width is calibrated for.
+ *
+ * A window is not a viewport — it is a picture on the crease pattern, sized by
+ * the CP camera — and the model is fitted to its frame while a crease of fixed
+ * screen weight is not. At full size that gap is invisible; on a thumbnail the
+ * creases were 25x their proper share of the paper and buried it. Above this
+ * edge nothing changes, so the sizes that already read correctly are untouched;
+ * below it the crease shrinks with the frame and the fold reads identically at
+ * every size.
+ *
+ * ~256 CSS px on a 2x display, which is around where a window stops being
+ * something you are looking *at* and becomes something you are looking *past*.
+ * Both of these are calibration, not physics — turn them up to thin the
+ * linework sooner, down to keep it heavy for longer.
+ */
+const CREASE_REFERENCE_EDGE = 512;
+
+/**
+ * How fast the crease thins below {@link CREASE_REFERENCE_EDGE}. 1 = lockstep
+ * with the frame, so a crease keeps the same share of the paper at any size.
+ * Below 1 it grows relative to the paper as the window shrinks, which is the
+ * failure this exists to fix; the crease-pattern canvas landed on 1 for its
+ * vertices after the same argument (`VERTEX_SHRINK_EXPONENT`).
+ */
+const CREASE_SHRINK_EXPONENT = 1;
+
+/**
  * How long the camera must hold still before the windows are laid out — and so
  * re-rendered — at its new scale.
  *
@@ -201,6 +228,9 @@ export function InlineSimulationLayer({
           height: placement.height,
           transform: placement.transform,
           transformOrigin: '0 0',
+          // Camera-dependent, so it cannot live in the stylesheet — see
+          // `inlineSimulationPlacement`. Clips the canvas too, via `overflow`.
+          borderRadius: placement.cornerRadius,
           // The focused window takes its own gestures (its interior orbits the
           // fold). An unfocused one normally defers to the selection overlay, so
           // a drag there moves it like any other canvas object — except while
@@ -219,6 +249,7 @@ export function InlineSimulationLayer({
             overlayInteractive={overlayInteractive}
             replayRequest={replayRequest}
             style={style}
+            badgeStyle={placement.badge}
             viewSettings={viewSettings}
             onFocus={onFocus}
             onPlayingChange={onPlayingChange}
@@ -241,6 +272,7 @@ function InlineSimulationWindow({
   overlayInteractive,
   replayRequest,
   style,
+  badgeStyle,
   viewSettings,
   onFocus,
   onPlayingChange,
@@ -252,6 +284,11 @@ function InlineSimulationWindow({
   overlayInteractive: boolean;
   replayRequest: number;
   style: CSSProperties;
+  /**
+   * How the badges sit under the current camera, or null once the window is too
+   * small to hold one. See `inlineSimulationPlacement`.
+   */
+  badgeStyle: CSSProperties | null;
   viewSettings: SimulatorSettings;
   onFocus: (id: string) => void;
   onPlayingChange: (playing: boolean) => void;
@@ -533,6 +570,8 @@ function InlineSimulationWindow({
         bitmapPresent
         minDeviceSize={64}
         transparentBackground
+        creaseWidthReferenceEdge={CREASE_REFERENCE_EDGE}
+        creaseWidthShrinkExponent={CREASE_SHRINK_EXPONENT}
         viewSettings={viewSettings}
         pushCamera={pushCamera}
         pushRenderSettings={runtime.setRenderSettings}
@@ -542,21 +581,24 @@ function InlineSimulationWindow({
           'Inline simulation. Drag to rotate.'
         )}
       />
-      {!gpuAvailable && (
-        <span className="cp-inline-simulation__badge">
+      {badgeStyle && !gpuAvailable && (
+        <span className="cp-inline-simulation__badge" style={badgeStyle}>
           {t(
             'panels:creasePattern.inlineSimulation.gpuUnavailable',
             'Needs WebGL2 — open in the Simulate workspace'
           )}
         </span>
       )}
-      {gpuAvailable && stale && (
-        <span className="cp-inline-simulation__badge">
+      {badgeStyle && gpuAvailable && stale && (
+        <span className="cp-inline-simulation__badge" style={badgeStyle}>
           {t('panels:creasePattern.inlineSimulation.outOfDate', 'Out of date')}
         </span>
       )}
-      {runtime.status === 'error' && (
-        <span className="cp-inline-simulation__badge cp-inline-simulation__badge--error">
+      {badgeStyle && runtime.status === 'error' && (
+        <span
+          className="cp-inline-simulation__badge cp-inline-simulation__badge--error"
+          style={badgeStyle}
+        >
           {runtime.error ??
             t('panels:creasePattern.inlineSimulation.failed', 'Simulation failed')}
         </span>
