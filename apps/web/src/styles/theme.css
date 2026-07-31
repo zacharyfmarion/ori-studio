@@ -6597,6 +6597,27 @@ button.bp-packing-alert:focus-visible {
   padding-left: 1.1em;
 }
 
+/* A step's way out of the tutorial — the closing step's link to the editor. */
+.lesson-panel__link {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  align-self: flex-start;
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-elevated));
+  color: var(--text-primary);
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.lesson-panel__link:hover,
+.lesson-panel__link:focus-visible {
+  background: color-mix(in srgb, var(--accent-primary) 24%, var(--bg-elevated));
+}
+
 .lesson-panel__hint {
   margin: var(--space-3) 0 0;
   padding: var(--space-2) var(--space-3);

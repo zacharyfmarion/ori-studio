@@ -164,6 +164,17 @@ export function LessonPanel() {
           <img className="lesson-panel__image" src={step.image.src} alt={step.image.alt} />
         ) : null}
 
+        {step.link ? (
+          <button
+            type="button"
+            className="lesson-panel__link"
+            onClick={() => navigate(step.link?.to ?? LEARN_PATH)}
+          >
+            {step.link.label}
+            <ArrowRight size={14} aria-hidden />
+          </button>
+        ) : null}
+
         {actionStep ? (
           <section className="lesson-panel__target">
             <p

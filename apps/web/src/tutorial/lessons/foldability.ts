@@ -13,6 +13,7 @@
  * than reasoned from the theory.
  */
 import { BASICS_COURSE_ID } from '../courses';
+import { EDIT_PATH } from '../../routing/paths';
 import type { Lesson, LessonChapter } from '../types';
 
 export const FOLDABILITY_CHAPTER: LessonChapter = {
@@ -123,11 +124,12 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
       {
         id: 'where-next',
         kind: 'prose',
-        title: 'Where to go next',
+        title: 'That should be enough to get started',
         body: [
-          'That is the core loop: draw accurately, construct what you cannot place by eye, read the checks, fold and simulate.',
-          'The Design workspace is worth a look next. Instead of drawing creases, you describe the shape you want as a tree of flaps and let the optimizer produce a pattern — which you now know how to read and edit.',
+          'You have the core loop: draw accurately, construct what you cannot place by eye, read the checks, fold and simulate. Everything else in the editor is a variation on it.',
+          'The Edit workspace is where you do it for real — your own document, none of this scaffolding. The Design workspace is worth a look after that: instead of drawing creases, you describe the shape you want as a tree of flaps and let the optimizer produce a pattern, which you now know how to read and edit.',
         ],
+        link: { label: 'Start drawing', to: EDIT_PATH },
       },
     ],
   },

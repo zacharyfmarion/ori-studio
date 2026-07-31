@@ -84,6 +84,13 @@ interface LessonStepBase {
   loadsTargetId?: string;
   image?: LessonImage;
   /**
+   * An optional way out of the tutorial, rendered under the prose. Used by the
+   * closing step to hand the reader the editor.
+   *
+   * A route, not a URL: this navigates inside the app rather than reloading it.
+   */
+  link?: { label: string; to: string };
+  /**
    * The tool this step is about; armed for the user when the step opens, unless
    * the command needs a selection first (see `useArmedTool`).
    *
