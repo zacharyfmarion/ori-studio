@@ -388,6 +388,19 @@ Two gaps in the existing symmetry mode block real use:
 So: a way to select two flaps and pair them, select one and place it on the axis,
 and see which flaps are already spoken for.
 
+### One decision taken during implementation
+
+The symmetry-authoring mode **defaults on** for every BP design, because it
+drives mirror-draw. Keying the optimizer off that alone would have silently made
+every run symmetric, and would have failed every random-mode run outright, since
+inference is disabled there and nothing is declared by default.
+
+So a run carries an explicit `respectSymmetry`. It defaults on, and the dialog
+shows what it will do; when symmetry cannot be resolved the row says why and the
+run proceeds unmirrored rather than being blocked. The stored preference is left
+alone — rewriting the user's choice because it does not apply right now would
+lose their intent the moment it applies again.
+
 ### Phasing
 
 1. Un-persist `symmetry`, resolve in the slice action, fail loudly with the
@@ -409,15 +422,15 @@ and it gets more awkward the more authoring we add.
 
 ## Checklist: UI
 
-- [ ] Drop `symmetry` from `BpOptimizerDialogOptions`; resolve it in the slice action
-- [ ] Fail the run with the resolver's reason when symmetry is on but unusable
-- [ ] Dialog symmetry row: state, *Respect symmetry* toggle, reason, inconsistency hint
-- [ ] Sheet-aware fold labels (book/diagonal swap by grid type)
-- [ ] Four-axis picker in the BP tree panel's symmetry mode
-- [ ] Pair two selected flaps; place one flap on the axis (self-pair), including
+- [x] Drop `symmetry` from `BpOptimizerDialogOptions`; resolve it in the slice action
+- [x] Fail the run with the resolver's reason when symmetry is on but unusable
+- [x] Dialog symmetry row: state, *Respect symmetry* toggle, reason, inconsistency hint
+- [x] Sheet-aware fold labels (book/diagonal swap by grid type)
+- [x] Four-axis picker in the BP tree panel's symmetry mode
+- [x] Pair two selected flaps; place one flap on the axis (self-pair), including
       relaxing `addBpTreeSymmetryPair`
-- [ ] Show which flaps are paired and which sit on the axis
-- [ ] i18n extract / translate / stamp / check
-- [ ] Tests: resolver-to-slice wiring, dialog states, axis labelling per grid type
+- [x] Show which flaps are paired and which sit on the axis
+- [x] i18n extract / translate / stamp / check
+- [x] Tests: resolver-to-slice wiring, dialog states, axis labelling per grid type
 - [ ] Browser check: view mode on a rect sheet, view mode on a diamond, random
       mode once on-axis flaps can be declared
