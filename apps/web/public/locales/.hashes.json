@@ -579,7 +579,6 @@
     "panels:bpPacking.size": "1af851907331",
     "panels:bpPacking.stretch": "4e3ae00377b1",
     "panels:bpPacking.stretchNav": "74897827be82",
-    "panels:bpPacking.subdivideSheet": "cc66b61790e9",
     "panels:bpPacking.unsupportedOperation": "af06b18872a7",
     "panels:bpPacking.upstreamGap": "3ac43d4e132a",
     "panels:bpPacking.viewportControls": "03701264adfd",
@@ -1652,7 +1651,6 @@
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "panels:design.attributionBoxPleating": "7d91064a2c05",
     "panels:design.attributionTreemaker": "199324574746",
-    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327",
     "dialogs:common.no": "1ea442a134b2",
     "dialogs:common.yes": "85a39ab345d6",
     "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
@@ -1957,7 +1955,9 @@
     "panels:simulatorViewControls.valley": "63e8dda8d7cc",
     "toasts:simulatorExport.empty": "457128ee0558",
     "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1"
+    "toasts:simulatorExport.saved": "b22cd4e87ce1",
+    "panels:bpPacking.growSheet": "0850fc2b1a1d",
+    "panels:bpPacking.shrinkSheet": "1269e30718f5"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2539,7 +2539,6 @@
     "panels:bpPacking.size": "1af851907331",
     "panels:bpPacking.stretch": "4e3ae00377b1",
     "panels:bpPacking.stretchNav": "74897827be82",
-    "panels:bpPacking.subdivideSheet": "cc66b61790e9",
     "panels:bpPacking.unsupportedOperation": "af06b18872a7",
     "panels:bpPacking.upstreamGap": "3ac43d4e132a",
     "panels:bpPacking.viewportControls": "03701264adfd",
@@ -3612,7 +3611,6 @@
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "panels:design.attributionBoxPleating": "7d91064a2c05",
     "panels:design.attributionTreemaker": "199324574746",
-    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327",
     "dialogs:common.no": "1ea442a134b2",
     "dialogs:common.yes": "85a39ab345d6",
     "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
@@ -3917,7 +3915,9 @@
     "panels:simulatorViewControls.valley": "63e8dda8d7cc",
     "toasts:simulatorExport.empty": "457128ee0558",
     "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1"
+    "toasts:simulatorExport.saved": "b22cd4e87ce1",
+    "panels:bpPacking.growSheet": "0850fc2b1a1d",
+    "panels:bpPacking.shrinkSheet": "1269e30718f5"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4511,7 +4511,6 @@
     "panels:bpPacking.size": "1af851907331",
     "panels:bpPacking.stretch": "4e3ae00377b1",
     "panels:bpPacking.stretchNav": "74897827be82",
-    "panels:bpPacking.subdivideSheet": "cc66b61790e9",
     "panels:bpPacking.unsupportedOperation": "af06b18872a7",
     "panels:bpPacking.upstreamGap": "3ac43d4e132a",
     "panels:bpPacking.viewportControls": "03701264adfd",
@@ -5597,7 +5596,6 @@
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "panels:design.attributionBoxPleating": "7d91064a2c05",
     "panels:design.attributionTreemaker": "199324574746",
-    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327",
     "dialogs:common.no": "1ea442a134b2",
     "dialogs:common.yes": "85a39ab345d6",
     "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
@@ -5903,7 +5901,9 @@
     "panels:simulatorViewControls.valley": "63e8dda8d7cc",
     "toasts:simulatorExport.empty": "457128ee0558",
     "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1"
+    "toasts:simulatorExport.saved": "b22cd4e87ce1",
+    "panels:bpPacking.growSheet": "0850fc2b1a1d",
+    "panels:bpPacking.shrinkSheet": "1269e30718f5"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6497,7 +6497,6 @@
     "panels:bpPacking.size": "1af851907331",
     "panels:bpPacking.stretch": "4e3ae00377b1",
     "panels:bpPacking.stretchNav": "74897827be82",
-    "panels:bpPacking.subdivideSheet": "cc66b61790e9",
     "panels:bpPacking.unsupportedOperation": "af06b18872a7",
     "panels:bpPacking.upstreamGap": "3ac43d4e132a",
     "panels:bpPacking.viewportControls": "03701264adfd",
@@ -7583,7 +7582,6 @@
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "panels:design.attributionBoxPleating": "7d91064a2c05",
     "panels:design.attributionTreemaker": "199324574746",
-    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327",
     "dialogs:common.no": "1ea442a134b2",
     "dialogs:common.yes": "85a39ab345d6",
     "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
@@ -7889,7 +7887,9 @@
     "panels:simulatorViewControls.valley": "63e8dda8d7cc",
     "toasts:simulatorExport.empty": "457128ee0558",
     "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1"
+    "toasts:simulatorExport.saved": "b22cd4e87ce1",
+    "panels:bpPacking.growSheet": "0850fc2b1a1d",
+    "panels:bpPacking.shrinkSheet": "1269e30718f5"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8483,7 +8483,6 @@
     "panels:bpPacking.size": "1af851907331",
     "panels:bpPacking.stretch": "4e3ae00377b1",
     "panels:bpPacking.stretchNav": "74897827be82",
-    "panels:bpPacking.subdivideSheet": "cc66b61790e9",
     "panels:bpPacking.unsupportedOperation": "af06b18872a7",
     "panels:bpPacking.upstreamGap": "3ac43d4e132a",
     "panels:bpPacking.viewportControls": "03701264adfd",
@@ -9569,7 +9568,6 @@
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "panels:design.attributionBoxPleating": "7d91064a2c05",
     "panels:design.attributionTreemaker": "199324574746",
-    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327",
     "dialogs:common.no": "1ea442a134b2",
     "dialogs:common.yes": "85a39ab345d6",
     "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
@@ -9875,7 +9873,9 @@
     "panels:simulatorViewControls.valley": "63e8dda8d7cc",
     "toasts:simulatorExport.empty": "457128ee0558",
     "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1"
+    "toasts:simulatorExport.saved": "b22cd4e87ce1",
+    "panels:bpPacking.growSheet": "0850fc2b1a1d",
+    "panels:bpPacking.shrinkSheet": "1269e30718f5"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10469,7 +10469,6 @@
     "panels:bpPacking.size": "1af851907331",
     "panels:bpPacking.stretch": "4e3ae00377b1",
     "panels:bpPacking.stretchNav": "74897827be82",
-    "panels:bpPacking.subdivideSheet": "cc66b61790e9",
     "panels:bpPacking.unsupportedOperation": "af06b18872a7",
     "panels:bpPacking.upstreamGap": "3ac43d4e132a",
     "panels:bpPacking.viewportControls": "03701264adfd",
@@ -11555,7 +11554,6 @@
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "panels:design.attributionBoxPleating": "7d91064a2c05",
     "panels:design.attributionTreemaker": "199324574746",
-    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327",
     "dialogs:common.no": "1ea442a134b2",
     "dialogs:common.yes": "85a39ab345d6",
     "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
@@ -11861,7 +11859,9 @@
     "panels:simulatorViewControls.valley": "63e8dda8d7cc",
     "toasts:simulatorExport.empty": "457128ee0558",
     "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1"
+    "toasts:simulatorExport.saved": "b22cd4e87ce1",
+    "panels:bpPacking.growSheet": "0850fc2b1a1d",
+    "panels:bpPacking.shrinkSheet": "1269e30718f5"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12455,7 +12455,6 @@
     "panels:bpPacking.size": "1af851907331",
     "panels:bpPacking.stretch": "4e3ae00377b1",
     "panels:bpPacking.stretchNav": "74897827be82",
-    "panels:bpPacking.subdivideSheet": "cc66b61790e9",
     "panels:bpPacking.unsupportedOperation": "af06b18872a7",
     "panels:bpPacking.upstreamGap": "3ac43d4e132a",
     "panels:bpPacking.viewportControls": "03701264adfd",
@@ -13541,7 +13540,6 @@
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "panels:design.attributionBoxPleating": "7d91064a2c05",
     "panels:design.attributionTreemaker": "199324574746",
-    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327",
     "dialogs:common.no": "1ea442a134b2",
     "dialogs:common.yes": "85a39ab345d6",
     "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
@@ -13847,7 +13845,9 @@
     "panels:simulatorViewControls.valley": "63e8dda8d7cc",
     "toasts:simulatorExport.empty": "457128ee0558",
     "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1"
+    "toasts:simulatorExport.saved": "b22cd4e87ce1",
+    "panels:bpPacking.growSheet": "0850fc2b1a1d",
+    "panels:bpPacking.shrinkSheet": "1269e30718f5"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14429,7 +14429,6 @@
     "panels:bpPacking.size": "1af851907331",
     "panels:bpPacking.stretch": "4e3ae00377b1",
     "panels:bpPacking.stretchNav": "74897827be82",
-    "panels:bpPacking.subdivideSheet": "cc66b61790e9",
     "panels:bpPacking.unsupportedOperation": "af06b18872a7",
     "panels:bpPacking.upstreamGap": "3ac43d4e132a",
     "panels:bpPacking.viewportControls": "03701264adfd",
@@ -15502,7 +15501,6 @@
     "dialogs:startScreen.showWelcomeOnStartup": "d614d1df8ac9",
     "panels:design.attributionBoxPleating": "7d91064a2c05",
     "panels:design.attributionTreemaker": "199324574746",
-    "panels:bpPacking.unsubdivideSheet": "0c07c8e24327",
     "dialogs:common.no": "1ea442a134b2",
     "dialogs:common.yes": "85a39ab345d6",
     "dialogs:foldWarning.dontShowAgain": "497a0f940e31",
@@ -15807,6 +15805,8 @@
     "panels:simulatorViewControls.valley": "63e8dda8d7cc",
     "toasts:simulatorExport.empty": "457128ee0558",
     "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1"
+    "toasts:simulatorExport.saved": "b22cd4e87ce1",
+    "panels:bpPacking.growSheet": "0850fc2b1a1d",
+    "panels:bpPacking.shrinkSheet": "1269e30718f5"
   }
 }
