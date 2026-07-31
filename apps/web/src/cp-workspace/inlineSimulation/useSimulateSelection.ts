@@ -48,7 +48,12 @@ export function useSimulateSelection(): () => Promise<void> {
       return;
     }
 
-    const result = await addInlineSimulation(match.segmentId);
+    // The region itself, not its id: ids are positional per segmentation, and
+    // the store segments separately. See `InlineSimulationRegion`.
+    const result = await addInlineSimulation({
+      segment: match.segment,
+      cpLineIds: match.cpLineIds,
+    });
     if (result === 'at-capacity') {
       // `max`, not `count`: i18next reads `count` as a plural selector and would
       // fan this out into every locale's plural categories, for a constant.

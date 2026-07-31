@@ -215,6 +215,10 @@
     "undoLastTreeEdit": "最後のツリーの編集を元に戻す"
   },
   "close": "閉じる",
+  "colorField": {
+    "reset": "既定に戻す",
+    "resetNamed": "{{label}} を既定に戻す"
+  },
   "toolbar": {
     "downloadMac": "Mac 版 Ori Studio をダウンロード",
     "new": "新規",

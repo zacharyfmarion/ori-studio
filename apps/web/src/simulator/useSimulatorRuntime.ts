@@ -7,6 +7,7 @@ import type {
   RenderSettings,
   SimulatorDiagnostics,
   SimulatorOptions,
+  SvgRenderResult,
 } from '@treemaker/origami-simulator';
 import {
   releaseSimulatorClient,
@@ -15,6 +16,7 @@ import {
 } from '../store/workspaceStore/simulatorRuntime';
 import { inflateRenderModel, type SimulatorRenderModel } from './renderModel';
 import { readString, storageKey } from '../lib/storage';
+import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
@@ -148,6 +150,16 @@ export interface SimulatorRuntime {
   setCamera: (view: OrbitView, width: number, height: number) => void;
   /** Push render settings to the worker (GPU mode); no-op in CPU mode. */
   setRenderSettings: (settings: RenderSettings) => void;
+  /**
+   * The current view as a standalone SVG document, or null when there is nothing
+   * to draw or this runtime holds no model.
+   *
+   * The worker builds it: that is where the complete render state lives, so this
+   * is one message rather than an exporter reaching for positions, a camera and a
+   * palette from three different owners. Keeps the session token private, like
+   * every other call here.
+   */
+  exportSvg: (background?: SimulatorExportBackground) => Promise<SvgRenderResult | null>;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {
@@ -558,6 +570,12 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       .catch(() => undefined);
   }, []);
 
+  const exportSvg = useCallback(async (background?: SimulatorExportBackground) => {
+    const client = clientRef.current;
+    if (!client || tokenRef.current === undefined) return null;
+    return client.exportSvg({ token: tokenRef.current, background });
+  }, []);
+
   // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then
   // reload. Once a second it prints the worker's solve/render/camera timings
   // plus the main thread's own camera-dispatch cost, so it is clear whether lag
@@ -604,5 +622,6 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     gpuActive,
     setCamera,
     setRenderSettings,
+    exportSvg,
   };
 }

@@ -126,6 +126,12 @@ describe('surviving a loss of focus', () => {
   });
 });
 
+/** A region descriptor; neither test gets far enough to read its geometry. */
+const anyRegion = {
+  segment: { id: 0, faceIndices: [], boundary: [], bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 } },
+  cpLineIds: [],
+};
+
 /**
  * Windows are written to `.osf`, so changing one is an unsaved change.
  *
@@ -169,7 +175,7 @@ describe('the window cap', () => {
       ),
     });
 
-    const result = await useWorkspaceStore.getState().addOristudioCpInlineSimulation(0);
+    const result = await useWorkspaceStore.getState().addOristudioCpInlineSimulation(anyRegion);
     expect(result).toBe('at-capacity');
   });
 
@@ -179,7 +185,7 @@ describe('the window cap', () => {
       oristudioCpDocument: null,
       oristudioCpInlineSimulations: [],
     });
-    expect(await useWorkspaceStore.getState().addOristudioCpInlineSimulation(0)).toBe(
+    expect(await useWorkspaceStore.getState().addOristudioCpInlineSimulation(anyRegion)).toBe(
       'unavailable'
     );
   });

@@ -215,6 +215,10 @@
     "undoLastTreeEdit": "撤销上一步树编辑"
   },
   "close": "关闭",
+  "colorField": {
+    "reset": "重置为默认",
+    "resetNamed": "将 {{label}} 重置为默认"
+  },
   "toolbar": {
     "downloadMac": "下载 Mac 版 Ori Studio",
     "new": "新建",

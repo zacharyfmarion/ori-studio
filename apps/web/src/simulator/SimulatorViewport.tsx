@@ -11,11 +11,14 @@ import type { RenderSettings } from "@treemaker/origami-simulator";
 import {
   drawFrame,
   invalidateSimulatorSurface,
-  toRenderSettings,
   type SimulatorHighlights,
-  type SimulatorSurfaceOptions,
   EMPTY_HIGHLIGHTS,
 } from "./canvas2dFrame";
+import {
+  resolveSimulatorPaint,
+  type SimulatorPaint,
+  type SimulatorSurfaceOptions,
+} from "./simulatorPalette";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
 import {
@@ -152,6 +155,10 @@ export function SimulatorViewport({
   const highlightsRef = useRef(highlights);
   const interactiveRef = useRef(interactive);
   const surfaceOptionsRef = useRef<SimulatorSurfaceOptions>({ transparentBackground });
+  // Resolved colours, held rather than recomputed per frame: reading them means a
+  // getComputedStyle, and they only change when settings or the theme do. Both
+  // render paths draw from this one object, which is what stops them disagreeing.
+  const paintRef = useRef<SimulatorPaint | null>(null);
 
   // The bitmaprenderer context, acquired once per canvas element. Acquiring it
   // is exclusive — a canvas that has one can never take a 2D or WebGL context —
@@ -188,17 +195,30 @@ export function SimulatorViewport({
     const canvas = canvasRef.current;
     const model = modelRef.current;
     const frame = frameRef.current;
-    if (!canvas || !model || !frame || !frame.positions) return;
-    drawFrame(
-      canvas,
-      model,
-      frame,
-      viewRef.current,
+    const paint = paintRef.current;
+    if (!canvas || !model || !frame || !frame.positions || !paint) return;
+    drawFrame(canvas, model, frame, viewRef.current, paint, highlightsRef.current);
+  }, []);
+
+  /**
+   * Re-resolve the palette and push it wherever it is needed.
+   *
+   * Called on a settings change and on a theme change — the two things that can
+   * move a colour. The GPU path forwards `paint.render` to the worker; the
+   * canvas-2D path redraws from the same bundle.
+   */
+  const refreshPaint = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const paint = resolveSimulatorPaint(
+      getComputedStyle(canvas),
       viewSettingsRef.current,
-      highlightsRef.current,
       surfaceOptionsRef.current
     );
-  }, []);
+    paintRef.current = paint;
+    if (gpuActiveRef.current) pushRenderSettings(paint.render);
+    else drawCurrentFrame();
+  }, [drawCurrentFrame, pushRenderSettings]);
 
   /**
    * Device-pixel drawing-buffer size. Read from the element's box, which still
@@ -241,17 +261,8 @@ export function SimulatorViewport({
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
     surfaceOptionsRef.current = { transparentBackground };
-    if (gpuActiveRef.current) {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        pushRenderSettings(
-          toRenderSettings(canvas, viewSettings, surfaceOptionsRef.current)
-        );
-      }
-    } else {
-      drawCurrentFrame();
-    }
-  }, [drawCurrentFrame, pushRenderSettings, viewSettings, transparentBackground]);
+    refreshPaint();
+  }, [refreshPaint, viewSettings, transparentBackground]);
 
   useEffect(() => {
     highlightsRef.current = highlights;
@@ -281,29 +292,23 @@ export function SimulatorViewport({
     if (typeof MutationObserver === "undefined") return;
     const observer = new MutationObserver(() => {
       invalidateSimulatorSurface(canvasRef.current);
-      const canvas = canvasRef.current;
-      if (gpuActiveRef.current) {
-        if (canvas) pushRenderSettings(toRenderSettings(canvas, viewSettingsRef.current, surfaceOptionsRef.current));
-      } else {
-        drawCurrentFrame();
-      }
+      refreshPaint();
     });
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class", "data-theme"],
     });
     return () => observer.disconnect();
-  }, [drawCurrentFrame, pushRenderSettings]);
+  }, [refreshPaint]);
 
   // When the GPU path becomes active (first load, or after a path switch), send
   // the worker the current camera and settings so it does not draw with defaults.
   useEffect(() => {
     if (!gpuActive) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    pushRenderSettings(toRenderSettings(canvas, viewSettingsRef.current, surfaceOptionsRef.current));
+    if (!canvasRef.current) return;
+    refreshPaint();
     pushView();
-  }, [gpuActive, pushRenderSettings, pushView]);
+  }, [gpuActive, refreshPaint, pushView]);
 
   const resetView = useCallback(() => {
     viewRef.current = { ...DEFAULT_SIMULATOR_VIEW };

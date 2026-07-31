@@ -215,6 +215,10 @@
     "undoLastTreeEdit": "Letzte Baumbearbeitung rückgängig machen"
   },
   "close": "Schließen",
+  "colorField": {
+    "reset": "Zurücksetzen",
+    "resetNamed": "{{label}} zurücksetzen"
+  },
   "toolbar": {
     "downloadMac": "Ori Studio für Mac herunterladen",
     "new": "Neu",

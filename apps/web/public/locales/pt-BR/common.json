@@ -215,6 +215,10 @@
     "undoLastTreeEdit": "Desfazer a última edição da árvore"
   },
   "close": "Fechar",
+  "colorField": {
+    "reset": "Redefinir",
+    "resetNamed": "Redefinir {{label}}"
+  },
   "toolbar": {
     "downloadMac": "Baixar o Ori Studio para Mac",
     "new": "Novo",

@@ -21,7 +21,7 @@ import {
 } from "../../simulator/useSimulatorRuntime";
 import { buildSequenceStepSimulation } from "../../lib/sequenceSimulation";
 import {
-  buildSegmentFold,
+  buildSegmentSimulationFold,
   resolveCpSegments,
 } from "../../lib/creasePatternSegmentation";
 import { SimulatorSegmentsSidebar } from "./SimulatorSegmentsPanel";
@@ -35,6 +35,8 @@ import {
   type SimulatorViewportHandle,
 } from "../../simulator/SimulatorViewport";
 import { useSimulatorShortcuts } from "../../simulator/useSimulatorShortcuts";
+import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
+import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
 import {
   foldNeedsTriangulation,
   type SimulatorHighlights,
@@ -165,7 +167,7 @@ export function SimulatorPanel() {
       const segment = resolveCpSegments(foldArtifacts).find(
         (c) => c.id === activeSegmentId,
       );
-      if (segment) return buildSegmentFold(wholeFold, segment);
+      if (segment && foldArtifacts) return buildSegmentSimulationFold(foldArtifacts, segment);
     }
     return wholeFold;
   }, [activeStepSimulation, foldArtifacts, activeSegmentId]);
@@ -238,6 +240,8 @@ export function SimulatorPanel() {
     setRenderSettings: pushRenderSettings,
     setMaterial: pushMaterial,
   } = runtime;
+
+  const exportView = useSimulatorViewExport(runtime.exportSvg);
 
   // Apply material/stability edits to the live solver. The load effect ignores
   // solverOptions on purpose -- reloading the model would throw away the current
@@ -512,6 +516,12 @@ export function SimulatorPanel() {
             <span className="panel-title">
               {t("panels:simulator.title", "Simulator")}
             </span>
+          </div>
+          <div className="panel-toolbar__group">
+            <SimulatorExportMenu
+              onExport={exportView}
+              disabled={loadState !== "ready"}
+            />
           </div>
           {/* Scope controls hidden while the Sequence panel is hidden (always "whole"). */}
           <div

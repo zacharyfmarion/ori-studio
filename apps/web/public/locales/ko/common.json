@@ -215,6 +215,10 @@
     "undoLastTreeEdit": "마지막 트리 편집 실행 취소"
   },
   "close": "닫기",
+  "colorField": {
+    "reset": "기본값으로 재설정",
+    "resetNamed": "{{label}}을(를) 기본값으로 재설정"
+  },
   "toolbar": {
     "downloadMac": "Mac용 Ori Studio 다운로드",
     "new": "새로 만들기",

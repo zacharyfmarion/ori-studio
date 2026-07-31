@@ -6,7 +6,6 @@ import type {
   OristudioCpRgbColor,
 } from '../engine/oristudioCpTypes';
 import { cpActionByUpstreamMouseMode } from './oristudioCpActions';
-import { orieditaCameraFromMetadata } from './orieditaCamera';
 
 const DEFAULT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
   front_color: { red: 255, green: 255, blue: 50 },
@@ -24,6 +23,7 @@ const DEFAULT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
 
 const ORI_FOLDED_MODEL_KEY = 'oriedita:ori:foldedFigureModel';
 const ORI_CANVAS_MODEL_KEY = 'oriedita:ori:canvasModel';
+const ORI_CAMERA_KEY = 'oriedita:ori:creasePatternCamera';
 const ORH_FRONT_COLOR_KEY = 'oriedita:orh:oriagarizu_front_color';
 const ORH_BACK_COLOR_KEY = 'oriedita:orh:oriagarizu_back_color';
 const ORH_LINE_COLOR_KEY = 'oriedita:orh:oriagarizu_line_color';
@@ -64,12 +64,14 @@ export function foldedFigureModelFromOrieditaMetadata(
 
   if (!oriModel && !orhFront && !orhBack && !orhLine) return null;
 
+  const view = savedCreasePatternView(metadata);
+
   return {
     front_color: argbHexColor(oriModel?.frontColor) ?? orhFront ?? DEFAULT_FOLDED_MODEL.front_color,
     back_color: argbHexColor(oriModel?.backColor) ?? orhBack ?? DEFAULT_FOLDED_MODEL.back_color,
     line_color: argbHexColor(oriModel?.lineColor) ?? orhLine ?? DEFAULT_FOLDED_MODEL.line_color,
-    scale: numberValue(oriModel?.scale) ?? DEFAULT_FOLDED_MODEL.scale,
-    rotation: numberValue(oriModel?.rotation) ?? DEFAULT_FOLDED_MODEL.rotation,
+    scale: (numberValue(oriModel?.scale) ?? DEFAULT_FOLDED_MODEL.scale) / view.zoom,
+    rotation: (numberValue(oriModel?.rotation) ?? DEFAULT_FOLDED_MODEL.rotation) - view.angle,
     anti_alias: booleanValue(oriModel?.antiAlias) ?? DEFAULT_FOLDED_MODEL.anti_alias,
     display_shadows:
       booleanValue(oriModel?.displayShadows) ?? DEFAULT_FOLDED_MODEL.display_shadows,
@@ -131,9 +133,6 @@ export function orieditaNativeMetadataStatus(
       const restoredLabel = RESTORED_ORI_FIELDS.get(field);
       if (restoredLabel) {
         restored.add(restoredLabel);
-      } else if (field === 'creasePatternCamera') {
-        if (orieditaCameraFromMetadata(metadata)) restored.add('Camera');
-        preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
       } else if (field === 'canvasModel') {
         if (activeLineColorFromOrieditaMetadata(metadata)) restored.add('Canvas line color');
         const mouseMode = activeMouseModeFromOrieditaMetadata(metadata);
@@ -161,6 +160,40 @@ export function orieditaNativeMetadataStatus(
   return {
     restored: [...restored].sort(),
     preserved: [...preserved].sort(),
+  };
+}
+
+/**
+ * The zoom and angle a saved folded-figure `scale` / `rotation` are expressed
+ * relative to.
+ *
+ * Oriedita seeds both from the *crease-pattern camera* every time you fold
+ * (`FoldedFigure_Drawer.createTwoColorCreasePattern`:
+ * `d_foldedFigure_scale_factor = camera_of_foldLine_diagram.getCameraZoomX()`),
+ * and later zoom/rotate steps multiply that seed. So they are screen-space
+ * quantities in the CP camera's units, not multiples of the paper: a saved
+ * `scale` of 3.29 against a camera zoom of 1.64 means "twice the size of the
+ * crease pattern", which is what its author saw.
+ *
+ * Ori Studio draws the crease pattern at 1x model scale — a saved camera is a
+ * view, not geometry (see `cpModelToSvg`) — so the camera has to be divided back
+ * out here or the figure lands 1.64x too big beside a pattern that did not grow
+ * with it. Reading two scalars is not the same as restoring the camera as a
+ * transform; do not grow this into one.
+ *
+ * A default or absent camera (zoom 1, angle 0) leaves both values untouched.
+ */
+function savedCreasePatternView(metadata: Record<string, unknown>): {
+  zoom: number;
+  angle: number;
+} {
+  const camera = recordValue(metadata[ORI_CAMERA_KEY]);
+  const zoom = numberValue(camera?.cameraZoomX);
+  const angle = numberValue(camera?.cameraAngle);
+  return {
+    // A zero or missing zoom would scale the figure to nothing or NaN it.
+    zoom: zoom !== null && Math.abs(zoom) > 1e-12 ? Math.abs(zoom) : 1,
+    angle: angle ?? 0,
   };
 }
 

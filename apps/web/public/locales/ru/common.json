@@ -215,6 +215,10 @@
     "undoLastTreeEdit": "Отменить последнюю правку дерева"
   },
   "close": "Закрыть",
+  "colorField": {
+    "reset": "Сбросить",
+    "resetNamed": "Сбросить {{label}}"
+  },
   "toolbar": {
     "downloadMac": "Скачать Ori Studio для Mac",
     "new": "Создать",

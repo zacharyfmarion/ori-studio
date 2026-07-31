@@ -164,36 +164,58 @@ export class ReferenceSolver implements SolverBackend {
     return length;
   }
 
+  readStrain(into: Float32Array): number {
+    const count = Math.min(into.length, this.nodeBeams.length);
+    for (let vertex = 0; vertex < count; vertex += 1) {
+      into[vertex] = this.nodalStrain(vertex);
+    }
+    return count;
+  }
+
   readDiagnostics(): SimulatorDiagnostics {
     return { ...this.model.diagnostics(), maxNodalStrain: this.maxNodalStrain() };
   }
 
   /**
-   * Largest per-node mean axial strain, defined exactly as velocityCalc's
-   * `nodeError` on the GPU (sum of |current/rest - 1| over the node's beams,
-   * divided by their count). Computed here so the interactive readout and the
-   * clock's blow-up guard mean the same thing on both backends.
+   * One node's mean axial strain, defined exactly as velocityCalc's `nodeError`
+   * on the GPU (sum of |current/rest - 1| over the node's beams, divided by
+   * their count). Zero for a node with no beams.
+   *
+   * The single definition behind both the diagnostics readout and
+   * {@link readStrain}, so the number the UI shows and the number an export
+   * colours by cannot diverge — and so it means the same thing on both backends
+   * as the GPU's velocity-alpha channel.
+   */
+  private nodalStrain(vertex: number): number {
+    const beams = this.nodeBeams[vertex] ?? [];
+    if (beams.length === 0) return 0;
+    const position = this.relativePointAt(vertex);
+    const originalPosition = pointAt(this.model.originalPositions, vertex);
+    let total = 0;
+    for (const beam of beams) {
+      const neighborPosition = this.relativePointAt(beam.otherVertex);
+      const neighborOriginal = pointAt(this.model.originalPositions, beam.otherVertex);
+      const nominal = subtract(neighborOriginal, originalPosition);
+      const nominalLength = magnitude(nominal);
+      if (nominalLength < EPSILON) continue;
+      const current = magnitude(add(subtract(neighborPosition, position), nominal));
+      total += Math.abs(current / nominalLength - 1);
+    }
+    return total / beams.length;
+  }
+
+  /**
+   * Largest per-node mean axial strain. Computed here so the interactive readout
+   * and the clock's blow-up guard mean the same thing on both backends.
    */
   private maxNodalStrain(): number {
     let max = 0;
     for (let vertex = 0; vertex < this.nodeBeams.length; vertex += 1) {
-      const beams = this.nodeBeams[vertex] ?? [];
-      if (beams.length === 0) continue;
-      const position = this.relativePointAt(vertex);
-      const originalPosition = pointAt(this.model.originalPositions, vertex);
-      let total = 0;
-      for (const beam of beams) {
-        const neighborPosition = this.relativePointAt(beam.otherVertex);
-        const neighborOriginal = pointAt(this.model.originalPositions, beam.otherVertex);
-        const nominal = subtract(neighborOriginal, originalPosition);
-        const nominalLength = magnitude(nominal);
-        if (nominalLength < EPSILON) continue;
-        const current = magnitude(add(subtract(neighborPosition, position), nominal));
-        total += Math.abs(current / nominalLength - 1);
-      }
-      const mean = total / beams.length;
-      if (mean > max) max = mean;
+      const mean = this.nodalStrain(vertex);
+      // A NaN never satisfies `>`, so comparing naively would swallow it and
+      // report a blown-up model as strain 0.
       if (!Number.isFinite(mean)) return Number.NaN;
+      if (mean > max) max = mean;
     }
     return max;
   }
