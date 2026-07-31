@@ -57,6 +57,7 @@ import {
 } from '../../lib/oristudioCpActions';
 import {
   cpCommandByOperation,
+  cpCommandUsesActiveLineColor,
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
 import {
@@ -362,46 +363,7 @@ function cpCommandPayloadDefaults(
     payload.selection_distance = modelSelectionDistance(bounds, zoomScale);
   }
 
-  if (
-    operationId === 'CreaseMakeMv' ||
-    operationId === 'CreasesAlternateMv' ||
-    operationId === 'LengthenCrease' ||
-    operationId === 'DrawCreaseFree' ||
-    operationId === 'DrawCreaseRestricted' ||
-    operationId === 'LineSegmentDivision' ||
-    operationId === 'LineSegmentRatioSet' ||
-    operationId === 'DrawCreaseSymmetric' ||
-    operationId === 'DrawCreaseAngleRestricted' ||
-    operationId === 'DrawCreaseAngleRestricted3' ||
-    operationId === 'DrawCreaseAngleRestricted5' ||
-    // Upstream commits this one in the active colour too --
-    // `MouseHandlerAngleSystem` builds its segment with `d.getLineColor()`; the
-    // orange/green/purple in that handler are the guide fan, not the crease.
-    // Without this the kernel falls back to its `Red1` default.
-    operationId === 'AngleSystem' ||
-    operationId === 'SquareBisector' ||
-    operationId === 'Inward' ||
-    operationId === 'PerpendicularDraw' ||
-    operationId === 'SymmetricDraw' ||
-    operationId === 'FishBoneDraw' ||
-    operationId === 'DoubleSymmetricDraw' ||
-    operationId === 'VertexMakeAngularlyFlatFoldable' ||
-    operationId === 'FoldableLineInput' ||
-    operationId === 'ParallelDraw' ||
-    operationId === 'ParallelDrawWidth' ||
-    operationId === 'ContinuousSymmetricDraw' ||
-    operationId === 'FoldableLineDraw' ||
-    operationId === 'Axiom5' ||
-    operationId === 'Axiom7' ||
-    operationId === 'PolygonSetNoCorners' ||
-    operationId === 'DrawBlintz' ||
-    operationId === 'DrawFishBase' ||
-    operationId === 'DrawDoveBase' ||
-    operationId === 'DrawBirdBase' ||
-    operationId === 'DrawFrogBase' ||
-    operationId === 'VoronoiCreate' ||
-    operationId === 'CircleDrawTangentLine'
-  ) {
+  if (cpCommandUsesActiveLineColor(operationId)) {
     payload.line_color = lineColor;
   }
 
@@ -2062,12 +2024,19 @@ export function CreasePatternPanel() {
   // Only crease-drawing tools preview in the active line colour; select / toggle /
   // transform box + lasso tools preview in the neutral selection accent so a
   // "select crease" box doesn't look like a red crease.
+  //
+  // Keyed on the same predicate that decides the command's `line_color` payload,
+  // so what you see while dragging is what gets committed. Keying on
+  // `command.group === 'draw'` instead looked equivalent but is a UI taxonomy:
+  // only 4 of the 34 crease-drawing operations carry that group, so the other 30
+  // (Angle Restricted Line among them) previewed accent-blue and then committed
+  // in the crease colour.
   const toolPreviewColor = useMemo(
     () =>
-      activeCpCommand?.group === 'draw'
+      cpCommandUsesActiveLineColor(activeCpCommand?.operationId)
         ? resolveCpLineColor(effectiveCpLineColor, mode, document.documentElement)
         : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const),
-    [activeCpCommand?.group, effectiveCpLineColor, mode]
+    [activeCpCommand?.operationId, effectiveCpLineColor, mode]
   );
 
   // The active tool's WebGL routing from its declarative steps: a drag mode; a

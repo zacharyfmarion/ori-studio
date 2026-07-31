@@ -945,6 +945,68 @@ export function cpCommandByOperation(
   return ORISTUDIO_CP_COMMANDS.find((command) => command.operationId === operationId);
 }
 
+/**
+ * Operations that create creases in the *active* line colour.
+ *
+ * This is the authoritative answer to "does this tool draw in the crease
+ * colour", and it drives two things that must agree: the `line_color` the
+ * command payload carries, and the colour its live preview is stroked in. They
+ * used to be decided separately -- the payload from this list, the preview from
+ * `command.group === 'draw'` -- and the group is a UI taxonomy, not a statement
+ * about colour. Only 4 of these 34 operations are grouped `draw`; the other 30
+ * (every `construct` and `generators` tool, among them Angle Restricted Line)
+ * previewed in the neutral selection accent and then committed in the crease
+ * colour, so the line changed colour on release.
+ *
+ * Absent by design: selection and box/lasso tools, which preview in the accent
+ * precisely so a "select creases" box does not read as a red crease; and
+ * `LengthenCreaseSameColor`, which by definition keeps the colour of the crease
+ * it extends.
+ */
+const CP_ACTIVE_LINE_COLOR_OPERATIONS = new Set<OristudioCpOperationId>([
+  'CreaseMakeMv',
+  'CreasesAlternateMv',
+  'LengthenCrease',
+  'DrawCreaseFree',
+  'DrawCreaseRestricted',
+  'LineSegmentDivision',
+  'LineSegmentRatioSet',
+  'DrawCreaseSymmetric',
+  'DrawCreaseAngleRestricted',
+  'DrawCreaseAngleRestricted3',
+  'DrawCreaseAngleRestricted5',
+  'AngleSystem',
+  'SquareBisector',
+  'Inward',
+  'PerpendicularDraw',
+  'SymmetricDraw',
+  'FishBoneDraw',
+  'DoubleSymmetricDraw',
+  'VertexMakeAngularlyFlatFoldable',
+  'FoldableLineInput',
+  'ParallelDraw',
+  'ParallelDrawWidth',
+  'ContinuousSymmetricDraw',
+  'FoldableLineDraw',
+  'Axiom5',
+  'Axiom7',
+  'PolygonSetNoCorners',
+  'DrawBlintz',
+  'DrawFishBase',
+  'DrawDoveBase',
+  'DrawBirdBase',
+  'DrawFrogBase',
+  'VoronoiCreate',
+  'CircleDrawTangentLine',
+]);
+
+/** Whether `operationId` draws creases in the active line colour. */
+export function cpCommandUsesActiveLineColor(
+  operationId: OristudioCpOperationId | undefined
+): boolean {
+  return operationId ? CP_ACTIVE_LINE_COLOR_OPERATIONS.has(operationId) : false;
+}
+
 export function cpRailCommands(): OristudioCpCommandDefinition[] {
   return ORISTUDIO_CP_COMMANDS.filter(
     (command) => command.placement === 'left-rail' || command.placement === 'left-rail-overflow'

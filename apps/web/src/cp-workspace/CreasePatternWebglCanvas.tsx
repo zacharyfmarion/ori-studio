@@ -2383,7 +2383,18 @@ export function CreasePatternWebglCanvas({
           state.b = raw;
           // Draw only the selection line while dragging; the creases it picks light up
           // on release (like a box select), not live under the cursor.
-          setToolPreview([{ a: state.a, b: state.b }]);
+          //
+          // Explicitly the accent, not the tool colour: Lengthen *commits* in the
+          // active crease colour, but what this strokes is a selection gesture, not
+          // a crease, so it should read like a box select rather than like the line
+          // being drawn.
+          takePreviewChannel();
+          renderer.setPreview(
+            previewSegmentsToStrokes(
+              [{ a: state.a, b: state.b }],
+              readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
+            )
+          );
         } else if (kind === 'up') {
           if (!state.a) return;
           state.b = raw;
