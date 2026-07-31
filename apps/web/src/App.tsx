@@ -13,6 +13,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
+import { installHeldModifierTracker } from './keyboard/heldModifiers';
 import { installAppKeyboardListener } from './lib/appKeyboard';
 import { registerWorkerFailureSink, workerErrorCode } from './lib/workerDiagnostics';
 import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
@@ -128,6 +129,11 @@ export default function App() {
       document
     );
   }, [selectNone]);
+
+  // Held modifiers are a separate input kind from chords -- a state surfaces
+  // sample, not an event they handle -- so they track alongside the shortcut
+  // dispatcher rather than through it.
+  useEffect(() => installHeldModifierTracker(), []);
 
   const handleOpenedFilePath = useCallback(
     async (path: string) => {
