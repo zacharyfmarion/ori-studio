@@ -3084,9 +3084,12 @@
    *active* border, a saturated blue that would read as focus. So it is derived
    from the foreground, the one token guaranteed to contrast with the canvas
    whatever the theme. */
+/* No `border-radius` here on purpose: a window is sized by the crease-pattern
+   camera, and a fixed radius that reads as a rounded rectangle at full size
+   reads as a lozenge on a zoomed-out thumbnail. The layer sets it per frame —
+   see `inlineSimulationPlacement`. */
 .cp-inline-simulation {
   border: 1px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
-  border-radius: 6px;
   overflow: hidden;
   background: transparent;
   box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
@@ -3113,8 +3116,13 @@
   user-select: none;
 }
 
+/* The layer counter-scales this so it holds one size while the camera resizes
+   the window around it — see `inlineSimulationPlacement`. That transform is
+   about the corner the badge is anchored to, so the anchor stays put. Keep
+   `left`/`bottom` in step with `BADGE_INSET_CSS` there. */
 .cp-inline-simulation__badge {
   position: absolute;
+  transform-origin: left bottom;
   left: 6px;
   bottom: 6px;
   padding: 2px 6px;
