@@ -56,6 +56,74 @@ pub struct FlapResult {
     pub y: f64,
 }
 
+/// A mirror axis, named by where it sits in the optimizer's **normalized** unit
+/// sheet rather than by what it means on paper.
+///
+/// These are the four symmetry axes of the square, and they are constants: the
+/// optimizer always works in a unit sheet, so none of them depends on the
+/// sheet-size variable. What they *mean* on paper depends on the sheet type,
+/// because a diagonal-grid sheet is the paper rotated 45° against the grid — see
+/// [`SymmetryAxis::for_preset`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SymmetryAxis {
+    /// `x = 1/2`
+    VerticalHalf,
+    /// `y = 1/2`
+    HorizontalHalf,
+    /// `y = x`
+    MainDiagonal,
+    /// `y = 1 - x`
+    AntiDiagonal,
+}
+
+/// How the user names a symmetry: relative to the paper, not the grid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SymmetryPreset {
+    /// Fold the paper in half edge to edge.
+    Book,
+    /// Fold the paper corner to corner.
+    Diagonal,
+}
+
+impl SymmetryAxis {
+    /// The two normalized axes a paper-relative preset maps to on a given sheet.
+    ///
+    /// On a rectangular sheet the paper axes are the grid axes, so book folds are
+    /// axis-aligned. On a diagonal sheet the paper is rotated 45°, so the roles
+    /// swap: a book fold of the paper runs diagonally in grid coordinates.
+    pub fn for_preset(preset: SymmetryPreset, grid_type: GridType) -> [Self; 2] {
+        let axis_aligned = [Self::VerticalHalf, Self::HorizontalHalf];
+        let diagonal = [Self::MainDiagonal, Self::AntiDiagonal];
+        match (preset, grid_type) {
+            (SymmetryPreset::Book, GridType::Rectangular) => axis_aligned,
+            (SymmetryPreset::Book, GridType::Diagonal) => diagonal,
+            (SymmetryPreset::Diagonal, GridType::Rectangular) => diagonal,
+            (SymmetryPreset::Diagonal, GridType::Diagonal) => axis_aligned,
+        }
+    }
+
+    /// Whether the mirrored flap's width and height are exchanged.
+    pub fn swaps_dimensions(self) -> bool {
+        matches!(self, Self::MainDiagonal | Self::AntiDiagonal)
+    }
+}
+
+/// A mirror-symmetry requirement for the optimizer.
+///
+/// `partners` must be a **total involution** over the request's flaps: every flap
+/// id appears exactly once as a key, and `partners[partners[i]] == i`. A flap
+/// mapped to itself sits on the axis. Totality is deliberate — inferring that an
+/// unmentioned flap belongs on the axis would silently produce a layout the user
+/// did not ask for.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OptimizerSymmetry {
+    pub axis: SymmetryAxis,
+    /// `(flap id, mirror partner id)` for every flap.
+    pub partners: Vec<(u32, u32)>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OptimizerProblem {
     #[serde(rename = "type")]
@@ -73,6 +141,10 @@ pub struct OptimizerRequest {
     pub random: usize,
     pub problem: OptimizerProblem,
     pub vec: Option<Vec<Point>>,
+    /// Mirror symmetry to enforce. `None` runs the upstream Box Pleating Studio
+    /// algorithm unchanged, which is what the oracle parity test relies on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symmetry: Option<OptimizerSymmetry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -154,6 +226,7 @@ pub fn create_optimizer_request(
             hierarchies,
         },
         vec,
+        symmetry: None,
     })
 }
 
@@ -192,6 +265,11 @@ pub fn solve_with_progress(
         ));
     };
     let seed = seed.unwrap_or(0) as u32;
+    let symmetry = request
+        .symmetry
+        .as_ref()
+        .map(|symmetry| kernel::KernelSymmetry::from_request(symmetry, main))
+        .transpose()?;
     let packed = if request.layout == LayoutMode::Random {
         kernel::solve_global_rssl_with_progress(
             &problem,
@@ -201,7 +279,10 @@ pub fn solve_with_progress(
             &mut on_event,
         )?
     } else {
-        let x0 = kernel::read_initial_vector(request, main)?;
+        let mut x0 = kernel::read_initial_vector(request, main)?;
+        if let Some(symmetry) = &symmetry {
+            kernel::symmetrize(&mut x0, main, symmetry);
+        }
         if request.use_bh {
             kernel::basin_hopping_rssl_with_progress(
                 x0,
@@ -213,7 +294,7 @@ pub fn solve_with_progress(
         } else {
             on_event(OptimizerEvent::Pack(0));
             check_cancelled(&mut should_cancel)?;
-            kernel::pack_rssl(x0, main, None, None)?
+            kernel::pack_rssl_symmetric(x0, main, None, None, symmetry.as_ref())?
         }
     };
     if !packed.success {
@@ -541,7 +622,7 @@ fn optimizer_result_from_vector(
 }
 
 pub mod kernel {
-    use super::{OptimizerEvent, OptimizerRequest};
+    use super::{OptimizerEvent, OptimizerRequest, OptimizerSymmetry, SymmetryAxis};
     use crate::error::{BpError, BpResult};
     use crate::model::GridType;
     use std::collections::BTreeMap;
@@ -731,6 +812,261 @@ pub mod kernel {
                     result.push(2 * grid);
                     result
                 }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- symmetry
+
+    impl SymmetryAxis {
+        /// Which grid axes must be measured from the sheet centre so the mirror
+        /// map does not depend on the (still floating) sheet size.
+        ///
+        /// In absolute grid coordinates a book mirror is `x -> s - x - w`, which
+        /// moves as the greedy grows `s`, silently breaking every already-pinned
+        /// pair. Measured from the centre it becomes `x -> -x - w`, which does
+        /// not. `y = x` needs no centring at all: on a rectangular sheet that
+        /// axis passes through the origin corner.
+        pub fn centered(self) -> (bool, bool) {
+            match self {
+                Self::VerticalHalf => (true, false),
+                Self::HorizontalHalf => (false, true),
+                Self::MainDiagonal => (false, false),
+                Self::AntiDiagonal => (true, true),
+            }
+        }
+
+        /// Mirror of a flap anchor in normalized (unit sheet) coordinates.
+        ///
+        /// A flap's anchor is its lower-left corner and its box is `w*m` by
+        /// `h*m`, so mirroring the flap is not the same as mirroring the anchor —
+        /// the reflected box's lower-left corner picks up the size term.
+        pub fn mirror_norm(self, x: f64, y: f64, width: f64, height: f64, m: f64) -> (f64, f64) {
+            match self {
+                Self::VerticalHalf => (1.0 - x - width * m, y),
+                Self::HorizontalHalf => (x, 1.0 - y - height * m),
+                Self::MainDiagonal => (y, x),
+                Self::AntiDiagonal => (1.0 - y - height * m, 1.0 - x - width * m),
+            }
+        }
+
+        /// Mirror of a flap anchor in grid coordinates, using this axis's
+        /// offsets. Independent of the sheet size by construction.
+        pub fn mirror_grid(self, x: f64, y: f64, width: f64, height: f64) -> (f64, f64) {
+            match self {
+                Self::VerticalHalf => (-x - width, y),
+                Self::HorizontalHalf => (x, -y - height),
+                Self::MainDiagonal => (y, x),
+                Self::AntiDiagonal => (-y - height, -x - width),
+            }
+        }
+
+        /// The grid origin offsets in normalized coordinates: 0.5 means "measure
+        /// this axis from the sheet centre".
+        pub fn offsets(self) -> (f64, f64) {
+            let (cx, cy) = self.centered();
+            (if cx { 0.5 } else { 0.0 }, if cy { 0.5 } else { 0.0 })
+        }
+
+        /// The point on the axis at parameter `t`, for a flap of this size.
+        pub fn axis_point(self, t: f64, width: f64, height: f64) -> (f64, f64) {
+            match self {
+                Self::VerticalHalf => (-width / 2.0, t),
+                Self::HorizontalHalf => (t, -height / 2.0),
+                Self::MainDiagonal => (t, t),
+                Self::AntiDiagonal => (-t - height, t),
+            }
+        }
+
+        /// The free parameter of an on-axis placement, given a grid position.
+        pub fn axis_parameter(self, x: f64, y: f64) -> f64 {
+            match self {
+                Self::VerticalHalf | Self::AntiDiagonal => y,
+                Self::HorizontalHalf => x,
+                Self::MainDiagonal => (x + y) / 2.0,
+            }
+        }
+    }
+
+    /// Symmetry resolved against a hierarchy: an involution on flap *indices*.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct KernelSymmetry {
+        pub axis: SymmetryAxis,
+        /// `partner[i] == i` means flap `i` sits on the axis.
+        pub partner: Vec<usize>,
+    }
+
+    impl KernelSymmetry {
+        pub fn on_axis(&self, i: usize) -> bool {
+            self.partner[i] == i
+        }
+
+        /// One index per orbit: on-axis flaps, plus the lower index of each pair.
+        pub fn representatives(&self) -> Vec<usize> {
+            (0..self.partner.len())
+                .filter(|&i| self.partner[i] >= i)
+                .collect()
+        }
+
+        /// Resolve a request's symmetry against a hierarchy, validating that it is
+        /// a total involution whose flap dimensions can actually be mirrored.
+        pub fn from_request(
+            symmetry: &OptimizerSymmetry,
+            hierarchy: &KernelHierarchy,
+        ) -> BpResult<Self> {
+            let index_of = hierarchy
+                .flaps
+                .iter()
+                .enumerate()
+                .map(|(index, flap)| (flap.id, index))
+                .collect::<BTreeMap<_, _>>();
+
+            let mut partner = vec![usize::MAX; hierarchy.flaps.len()];
+            for &(id, mate) in &symmetry.partners {
+                let Some(&i) = index_of.get(&id) else {
+                    return Err(BpError::InvalidInput(format!(
+                        "optimizer symmetry references unknown flap {id}"
+                    )));
+                };
+                let Some(&j) = index_of.get(&mate) else {
+                    return Err(BpError::InvalidInput(format!(
+                        "optimizer symmetry pairs flap {id} with unknown flap {mate}"
+                    )));
+                };
+                if partner[i] != usize::MAX && partner[i] != j {
+                    return Err(BpError::InvalidInput(format!(
+                        "optimizer symmetry gives flap {id} more than one partner"
+                    )));
+                }
+                partner[i] = j;
+            }
+
+            let unpaired = hierarchy
+                .flaps
+                .iter()
+                .zip(&partner)
+                .filter(|(_, mate)| **mate == usize::MAX)
+                .map(|(flap, _)| flap.id.to_string())
+                .collect::<Vec<_>>();
+            if !unpaired.is_empty() {
+                return Err(BpError::InvalidInput(format!(
+                    "optimizer symmetry does not say what mirrors flap(s) {}; \
+                     pair them or place them on the axis",
+                    unpaired.join(", ")
+                )));
+            }
+            for (i, &j) in partner.iter().enumerate() {
+                if partner[j] != i {
+                    return Err(BpError::InvalidInput(format!(
+                        "optimizer symmetry is not a mirror: flap {} pairs with {} \
+                         but {} does not pair back",
+                        hierarchy.flaps[i].id, hierarchy.flaps[j].id, hierarchy.flaps[j].id
+                    )));
+                }
+            }
+
+            let resolved = Self {
+                axis: symmetry.axis,
+                partner,
+            };
+            resolved.validate_dimensions(hierarchy)?;
+            Ok(resolved)
+        }
+
+        /// A mirrored flap must be the mirror image of its partner as a *box*, not
+        /// just as a point, and an on-axis flap must be its own mirror image.
+        fn validate_dimensions(&self, hierarchy: &KernelHierarchy) -> BpResult<()> {
+            for (i, &j) in self.partner.iter().enumerate() {
+                let a = hierarchy.flaps[i];
+                let b = hierarchy.flaps[j];
+                if i == j {
+                    let ok = match self.axis {
+                        SymmetryAxis::VerticalHalf => a.width % 2 == 0,
+                        SymmetryAxis::HorizontalHalf => a.height % 2 == 0,
+                        SymmetryAxis::MainDiagonal | SymmetryAxis::AntiDiagonal => {
+                            a.width == a.height
+                        }
+                    };
+                    if !ok {
+                        return Err(BpError::InvalidInput(format!(
+                            "flap {} sits on the symmetry axis, so it must be its own \
+                             mirror image; a {}x{} flap cannot be",
+                            a.id, a.width, a.height
+                        )));
+                    }
+                    continue;
+                }
+                let (want_width, want_height) = if self.axis.swaps_dimensions() {
+                    (a.height, a.width)
+                } else {
+                    (a.width, a.height)
+                };
+                if b.width != want_width || b.height != want_height {
+                    return Err(BpError::InvalidInput(format!(
+                        "flaps {} ({}x{}) and {} ({}x{}) are paired across the symmetry \
+                         axis but are not mirror images of each other",
+                        a.id, a.width, a.height, b.id, b.width, b.height
+                    )));
+                }
+            }
+            Ok(())
+        }
+    }
+
+    /// Which `(flap, component)` pairs contribute a symmetry equality, where
+    /// component 0 is x and 1 is y.
+    ///
+    /// A pair contributes two equations; a flap on the axis contributes one, on
+    /// whichever component the axis actually constrains. Orbits whose members are
+    /// all pinned contribute none — their pins already imply the symmetry.
+    pub fn symmetry_residuals(
+        hierarchy: &KernelHierarchy,
+        symmetry: &KernelSymmetry,
+        fixed: Option<&[bool]>,
+    ) -> Vec<(usize, usize)> {
+        let is_fixed = |k: usize| fixed.map(|f| f[k]).unwrap_or(false);
+        let mut out = Vec::new();
+        for i in 0..hierarchy.flaps.len() {
+            let j = symmetry.partner[i];
+            if j < i || (is_fixed(i) && is_fixed(j)) {
+                continue;
+            }
+            if i == j {
+                out.push(match symmetry.axis {
+                    SymmetryAxis::HorizontalHalf => (i, 1),
+                    _ => (i, 0),
+                });
+            } else {
+                out.push((i, 0));
+                out.push((i, 1));
+            }
+        }
+        out
+    }
+
+    /// Fold a starting vector onto the symmetry manifold, so SLSQP starts feasible.
+    ///
+    /// Each partner is overwritten with the mirror of its representative; an
+    /// on-axis flap is moved to the midpoint of itself and its own mirror, which
+    /// is the nearest point of the axis.
+    pub fn symmetrize(x: &mut [f64], hierarchy: &KernelHierarchy, symmetry: &KernelSymmetry) {
+        let m = x[x.len() - 1];
+        for i in 0..hierarchy.flaps.len() {
+            let j = symmetry.partner[i];
+            if j < i {
+                continue;
+            }
+            let width = f64::from(hierarchy.flaps[i].width);
+            let height = f64::from(hierarchy.flaps[i].height);
+            let (mx, my) = symmetry
+                .axis
+                .mirror_norm(x[i * 2], x[i * 2 + 1], width, height, m);
+            if i == j {
+                x[i * 2] = (x[i * 2] + mx) / 2.0;
+                x[i * 2 + 1] = (x[i * 2 + 1] + my) / 2.0;
+            } else {
+                x[j * 2] = mx;
+                x[j * 2 + 1] = my;
             }
         }
     }
@@ -1057,10 +1393,22 @@ pub mod kernel {
     }
 
     pub fn pack_rssl(
+        x: Vec<f64>,
+        hierarchy: &KernelHierarchy,
+        fixed: Option<&[bool]>,
+        fixed_solution: Option<&[f64]>,
+    ) -> BpResult<PackResult> {
+        pack_rssl_symmetric(x, hierarchy, fixed, fixed_solution, None)
+    }
+
+    /// `pack_rssl` with optional mirror-symmetry equalities. Passing `None` for
+    /// `symmetry` is byte-identical to the upstream algorithm.
+    pub fn pack_rssl_symmetric(
         mut x: Vec<f64>,
         hierarchy: &KernelHierarchy,
         fixed: Option<&[bool]>,
         fixed_solution: Option<&[f64]>,
+        symmetry: Option<&KernelSymmetry>,
     ) -> BpResult<PackResult> {
         let dim = hierarchy.flaps.len() * 2 + 1;
         if x.len() != dim {
@@ -1081,7 +1429,10 @@ pub mod kernel {
         clip_to_bounds(&mut x, &bounds);
 
         let objective = |x: &[f64]| -x[x.len() - 1];
-        let constraints = make_rssl_constraints(hierarchy, fixed, fixed_solution);
+        let mut constraints = make_rssl_constraints(hierarchy, fixed, fixed_solution);
+        if let Some(symmetry) = symmetry {
+            constraints.extend(make_rssl_symmetry_constraints(hierarchy, symmetry, fixed));
+        }
         let result = slsqp_rssl::fmin_slsqp(
             objective,
             &x,
@@ -1901,6 +2252,34 @@ pub mod kernel {
         constraints
     }
 
+    /// One linear equality per symmetry residual.
+    ///
+    /// Each closure evaluates only its own orbit. Recomputing the whole residual
+    /// vector per residual would be O(n^2) per evaluation, which dominates
+    /// runtime under finite-difference gradients.
+    fn make_rssl_symmetry_constraints<'a>(
+        hierarchy: &'a KernelHierarchy,
+        symmetry: &'a KernelSymmetry,
+        fixed: Option<&'a [bool]>,
+    ) -> Vec<slsqp_rssl::Constraint<'a>> {
+        symmetry_residuals(hierarchy, symmetry, fixed)
+            .into_iter()
+            .map(|(i, component)| {
+                let axis = symmetry.axis;
+                let partner = symmetry.partner[i];
+                let width = f64::from(hierarchy.flaps[i].width);
+                let height = f64::from(hierarchy.flaps[i].height);
+                slsqp_rssl::Constraint::Eq(Box::new(move |x: &[f64]| {
+                    let m = x[x.len() - 1];
+                    let (mx, my) = axis.mirror_norm(x[i * 2], x[i * 2 + 1], width, height, m);
+                    let target = if component == 0 { mx } else { my };
+                    let source = x[partner * 2 + component];
+                    source - target
+                }))
+            })
+            .collect()
+    }
+
     #[derive(Debug, Clone)]
     struct AdaptiveStepSize {
         stepsize: f64,
@@ -2280,6 +2659,7 @@ mod tests {
                 }],
             },
             vec: None,
+            symmetry: None,
         };
 
         let problem = KernelProblem::from_request(&request).unwrap();
@@ -2322,6 +2702,7 @@ mod tests {
                 }],
             },
             vec: Some(vec![Point { x: 0.0, y: 0.0 }, Point { x: 0.3, y: 0.4 }]),
+            symmetry: None,
         };
         let problem = KernelProblem::from_request(&request).unwrap();
 

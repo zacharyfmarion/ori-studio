@@ -125,6 +125,7 @@ fn optimizer_result_validation_and_template_write_match_bp_boundary() {
             hierarchies: vec![hierarchy(vec![1])],
         },
         vec: None,
+        symmetry: None,
     };
     let result = OptimizerResult {
         width: 16.0,
@@ -159,6 +160,7 @@ fn optimizer_packing_validation_accepts_valid_different_layouts() {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: None,
+        symmetry: None,
     };
     let result = OptimizerResult {
         width: 10.0,
@@ -193,6 +195,7 @@ fn optimizer_packing_validation_rejects_invalid_distance() {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: None,
+        symmetry: None,
     };
     let result = OptimizerResult {
         width: 10.0,
@@ -233,6 +236,7 @@ fn optimizer_packing_validation_rejects_out_of_bounds_anchor() {
             }],
         },
         vec: None,
+        symmetry: None,
     };
     let result = OptimizerResult {
         width: 10.0,
@@ -284,6 +288,7 @@ fn optimizer_solver_matches_simple_bp_oracle_for_view_layout() {
             }],
         },
         vec: Some(vec![Point { x: 0.0, y: 0.0 }, Point { x: 0.3, y: 0.4 }]),
+        symmetry: None,
     };
 
     let result = solve(&request, Some(0)).unwrap();
@@ -372,6 +377,7 @@ fn optimizer_solver_matches_simple_bp_oracle_for_random_layout() {
             }],
         },
         vec: None,
+        symmetry: None,
     };
 
     let result = solve(&request, Some(0)).unwrap();
@@ -407,6 +413,7 @@ fn simple_view_optimizer_request() -> OptimizerRequest {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: Some(vec![Point { x: 0.0, y: 0.0 }, Point { x: 0.3, y: 0.4 }]),
+        symmetry: None,
     }
 }
 
@@ -443,6 +450,7 @@ fn optimizer_solver_matches_dimensioned_rectangular_view_oracle() {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: Some(vec![Point { x: 0.0, y: 0.0 }, Point { x: 0.3, y: 0.4 }]),
+        symmetry: None,
     };
 
     let result = solve(&request, Some(0)).unwrap();
@@ -467,6 +475,7 @@ fn optimizer_solver_matches_diagonal_view_oracle() {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: Some(vec![Point { x: 0.5, y: 0.5 }, Point { x: 0.7, y: 0.5 }]),
+        symmetry: None,
     };
 
     let result = solve(&request, Some(0)).unwrap();

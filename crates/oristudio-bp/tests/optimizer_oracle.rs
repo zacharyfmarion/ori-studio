@@ -249,6 +249,7 @@ fn random_tree_request(seed: u64, leaf_count: usize) -> OptimizerRequest {
             }],
         },
         vec: None,
+        symmetry: None,
     }
 }
 
@@ -313,6 +314,7 @@ fn two_flap_request(
             }],
         },
         vec,
+        symmetry: None,
     }
 }
 
@@ -336,6 +338,7 @@ fn one_flap_random_request() -> OptimizerRequest {
             }],
         },
         vec: None,
+        symmetry: None,
     }
 }
 
