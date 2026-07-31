@@ -1,3 +1,4 @@
+import type { OptimizerSymmetryPayload } from '../lib/bpOptimizerSymmetry';
 import type { Point } from '../lib/geometry';
 import type {
   OristudioBpCapabilityId,
@@ -353,6 +354,12 @@ export interface OristudioBpOptimizerOptions {
   useBasinHopping: boolean;
   randomCandidateCount: number;
   seed: number | null;
+  /**
+   * Mirror symmetry to enforce, already resolved against the tree by
+   * {@link ../lib/bpOptimizerSymmetry.resolveOptimizerSymmetry}. Omitted or null
+   * runs the unmodified upstream algorithm.
+   */
+  symmetry?: OptimizerSymmetryPayload | null;
 }
 
 export interface OristudioBpOptimizerProgress {
