@@ -86,6 +86,7 @@
     "selectLeafVertexWithLabel": "BP 리프 정점 {{id}} 선택, {{label}}",
     "selectVertex": "BP 정점 {{id}} 선택",
     "selectVertexWithLabel": "BP 정점 {{id}} 선택, {{label}}",
+    "unpair": "미러 페어 해제",
     "viewportControls": "박스 플리츠 트리 뷰포트 컨트롤"
   },
   "conditions": {

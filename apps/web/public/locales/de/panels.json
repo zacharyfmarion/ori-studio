@@ -86,6 +86,7 @@
     "selectLeafVertexWithLabel": "BP-Blattknoten {{id}} auswählen, {{label}}",
     "selectVertex": "BP-Knoten {{id}} auswählen",
     "selectVertexWithLabel": "BP-Knoten {{id}} auswählen, {{label}}",
+    "unpair": "Spiegelpaar aufheben",
     "viewportControls": "Ansichtssteuerung des Box-Pleating-Baums"
   },
   "conditions": {

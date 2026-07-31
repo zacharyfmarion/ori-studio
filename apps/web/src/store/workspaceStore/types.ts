@@ -829,6 +829,12 @@ export interface OristudioBpSliceActions {
     height: number
   ) => Promise<boolean>;
   /**
+   * Forget that this vertex mirrors another. The two stay where they are; they
+   * simply stop being each other's mirror, and the optimizer will fall back to
+   * whatever their positions imply.
+   */
+  unpairOristudioBpTreeSymmetry: (vertexId: number) => void;
+  /**
    * Run the BP layout optimizer and apply its result as one undoable step.
    * Cancelling leaves the document and history untouched.
    */

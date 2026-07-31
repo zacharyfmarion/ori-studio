@@ -86,6 +86,7 @@
     "selectLeafVertexWithLabel": "BP 葉頂点 {{id}}、{{label}} を選択",
     "selectVertex": "BP 頂点 {{id}} を選択",
     "selectVertexWithLabel": "BP 頂点 {{id}}、{{label}} を選択",
+    "unpair": "ミラーとのペアを解除",
     "viewportControls": "ボックスプリーツツリーのビューポート操作"
   },
   "conditions": {

@@ -10,7 +10,7 @@ import {
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { FlipHorizontal2, Minus, Plus, Tag } from 'lucide-react';
+import { FlipHorizontal2, Minus, Plus, Tag, Unlink } from 'lucide-react';
 import type {
   OristudioBpDocumentState,
   OristudioBpTreeEdge,
@@ -107,6 +107,7 @@ const SYMMETRY_LINE_PX = 2;
 const SYMMETRY_LANE_PX = 18;
 const LABEL_STROKE_PX = 3;
 const SYMMETRY_GHOST_PX = 3;
+const SYMMETRY_PAIR_PX = 1.5;
 const DOT_SIZES: TreeDotSizes = { leafPx: 6, branchPx: 7 };
 const NODE_LABEL_PX = 12;
 const NODE_SELECTED_STROKE_PX = 3;
@@ -117,6 +118,8 @@ function BpTreeViewportToolbar({
   onLayerChange,
   symmetryEnabled,
   onSymmetryToggle,
+  canUnpair,
+  onUnpair,
   zoomIn,
   zoomOut,
   fitToView,
@@ -127,6 +130,8 @@ function BpTreeViewportToolbar({
   onLayerChange: (layer: BpTreeViewLayerKey, visible: boolean) => void;
   symmetryEnabled: boolean;
   onSymmetryToggle: () => void;
+  canUnpair: boolean;
+  onUnpair: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
@@ -157,6 +162,16 @@ function BpTreeViewportToolbar({
       >
         <FlipHorizontal2 size={14} />
       </IconButton>
+      {canUnpair && (
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          title={t('panels:bpTree.unpair', 'Unpair from mirror')}
+          onClick={onUnpair}
+        >
+          <Unlink size={14} />
+        </IconButton>
+      )}
       <ViewportToolbarSeparator />
       <ViewportLayerMenu
         title={t('panels:bpTree.layers', 'Layers')}
@@ -425,7 +440,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [vertexLocations]
   );
 
-  const symmetryView = useBpTreeSymmetry(tree, paperRect);
+  const symmetryView = useBpTreeSymmetry(tree, paperRect, displayLoc);
 
   // Ghost preview of the leaf a click would add (and its mirror), mirroring what
   // addOristudioBpTreeLeafWithSymmetry will do: an on-axis tip is a single centred
@@ -602,6 +617,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     scheduleLongPressInspector(event);
     const vertex = findVertex(vertexId);
     if (!vertex) return;
+    // A vertex on the mirror line is its own mirror. Dragging it off would break
+    // that silently, so while mirror draw is on it stays put.
+    if (symmetryView.isOnAxis(vertexId)) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragging({
       id: vertexId,
@@ -739,6 +757,17 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                 />
               </>
             )}
+            {symmetryView.pairLines.map((line, index) => (
+              <line
+                key={index}
+                className="symmetry-pair-line"
+                style={{ strokeWidth: chromePx(SYMMETRY_PAIR_PX) }}
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+              />
+            ))}
             {symmetryHoverPreview && (
               <g className="symmetry-ghost">
                 {(() => {
@@ -918,6 +947,8 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         onLayerChange={setLayer}
         symmetryEnabled={symmetryView.enabled}
         onSymmetryToggle={symmetryView.toggle}
+        canUnpair={selectedVertexId !== null && symmetryView.partnerOf(selectedVertexId) !== null}
+        onUnpair={() => selectedVertexId !== null && symmetryView.unpair(selectedVertexId)}
         zoomIn={zoomIn}
         zoomOut={zoomOut}
         fitToView={() => fitToView()}

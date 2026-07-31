@@ -86,6 +86,7 @@
     "selectLeafVertexWithLabel": "Select BP leaf vertex {{id}}, {{label}}",
     "selectVertex": "Select BP vertex {{id}}",
     "selectVertexWithLabel": "Select BP vertex {{id}}, {{label}}",
+    "unpair": "Unpair from mirror",
     "viewportControls": "Box Pleat tree viewport controls"
   },
   "conditions": {

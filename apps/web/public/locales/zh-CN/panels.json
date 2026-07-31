@@ -86,6 +86,7 @@
     "selectLeafVertexWithLabel": "选择 BP 叶顶点 {{id}}，{{label}}",
     "selectVertex": "选择 BP 顶点 {{id}}",
     "selectVertexWithLabel": "选择 BP 顶点 {{id}}，{{label}}",
+    "unpair": "解除镜像配对",
     "viewportControls": "箱形褶皱树视口控件"
   },
   "conditions": {

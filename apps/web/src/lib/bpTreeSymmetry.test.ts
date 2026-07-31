@@ -7,6 +7,7 @@ import {
   buildMirroredBpTreeUpdates,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
+  removeBpTreeSymmetryPair,
 } from './bpTreeSymmetry';
 
 // A vertical axis through x = 4 (centre of an 8×8 sheet), mirroring left/right.
@@ -103,6 +104,13 @@ describe('pair bookkeeping', () => {
     let pairs = addBpTreeSymmetryPair([], 3, 1);
     pairs = addBpTreeSymmetryPair(pairs, 1, 3);
     expect(pairs).toEqual([{ v1: 1, v2: 3 }]);
+  });
+
+  it('unpairs from either side of the pair', () => {
+    const pairs = addBpTreeSymmetryPair(addBpTreeSymmetryPair([], 1, 2), 3, 4);
+    expect(removeBpTreeSymmetryPair(pairs, 2)).toEqual([{ v1: 3, v2: 4 }]);
+    expect(removeBpTreeSymmetryPair(pairs, 3)).toEqual([{ v1: 1, v2: 2 }]);
+    expect(removeBpTreeSymmetryPair(pairs, 9)).toEqual(pairs);
   });
 
   it('drops pairs that reference a removed vertex', () => {

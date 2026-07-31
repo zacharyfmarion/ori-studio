@@ -86,6 +86,7 @@
     "selectLeafVertexWithLabel": "Sélectionner le sommet feuille BP {{id}}, {{label}}",
     "selectVertex": "Sélectionner le sommet BP {{id}}",
     "selectVertexWithLabel": "Sélectionner le sommet BP {{id}}, {{label}}",
+    "unpair": "Dissocier du miroir",
     "viewportControls": "Commandes d'affichage de l'arbre du pliage en boîte"
   },
   "conditions": {

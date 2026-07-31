@@ -31,6 +31,7 @@ import {
 import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
+  removeBpTreeSymmetryPair,
   buildMirroredBpTreeUpdates,
   bpTreeSymmetryDefaultLoc,
   filterBpTreeSymmetryPairs,
@@ -868,6 +869,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         return 'applied';
       }
       return cancelled ? 'cancelled' : 'failed';
+    },
+
+    unpairOristudioBpTreeSymmetry: (vertexId) => {
+      const symmetry = get().oristudioBpSymmetry;
+      const pairs = removeBpTreeSymmetryPair(symmetry.pairs, vertexId);
+      if (pairs.length === symmetry.pairs.length) return;
+      set({ oristudioBpSymmetry: { ...symmetry, pairs } });
     },
 
     setOristudioBpLayoutSheet: async (gridType, width, height) =>

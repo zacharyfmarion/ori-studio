@@ -86,6 +86,7 @@
     "selectLeafVertexWithLabel": "Selecionar vértice folha BP {{id}}, {{label}}",
     "selectVertex": "Selecionar vértice BP {{id}}",
     "selectVertexWithLabel": "Selecionar vértice BP {{id}}, {{label}}",
+    "unpair": "Desemparelhar do espelho",
     "viewportControls": "Controles da viewport da árvore de dobra em caixa"
   },
   "conditions": {

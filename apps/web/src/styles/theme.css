@@ -4024,6 +4024,14 @@
   pointer-events: none;
 }
 
+.symmetry-pair-line {
+  stroke: var(--accent-tertiary);
+  stroke-dasharray: 2 6;
+  stroke-linecap: round;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .symmetry-snap-lane {
   stroke: color-mix(in srgb, var(--accent-tertiary) 28%, transparent);
   stroke-width: 18;

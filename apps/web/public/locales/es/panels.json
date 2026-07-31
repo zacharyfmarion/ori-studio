@@ -86,6 +86,7 @@
     "selectLeafVertexWithLabel": "Seleccionar vértice hoja BP {{id}}, {{label}}",
     "selectVertex": "Seleccionar vértice BP {{id}}",
     "selectVertexWithLabel": "Seleccionar vértice BP {{id}}, {{label}}",
+    "unpair": "Desemparejar del espejo",
     "viewportControls": "Controles de la vista del árbol de plegado en caja"
   },
   "conditions": {

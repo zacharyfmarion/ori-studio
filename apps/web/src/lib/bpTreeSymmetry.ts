@@ -69,6 +69,14 @@ export function addBpTreeSymmetryPair(
   return [...rest, next];
 }
 
+/** Drop whatever pairing mentions this vertex. */
+export function removeBpTreeSymmetryPair(
+  pairs: BpTreeSymmetryPair[],
+  vertexId: number
+): BpTreeSymmetryPair[] {
+  return pairs.filter((pair) => pair.v1 !== vertexId && pair.v2 !== vertexId);
+}
+
 /** Drop pairs that reference a removed vertex (or degenerated to a self-pair). */
 export function filterBpTreeSymmetryPairs(
   tree: OristudioBpTreeView,
