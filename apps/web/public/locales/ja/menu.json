@@ -1,4 +1,7 @@
 {
+  "bp": {
+    "optimizeLayout": "レイアウトの最適化…"
+  },
   "cp": {
     "advanceCreaseType": "折り線の種類を進める",
     "annotations": "注釈",

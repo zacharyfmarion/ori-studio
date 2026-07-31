@@ -1236,6 +1236,115 @@
   padding: var(--space-3);
 }
 
+/* Box-Pleat layout optimizer dialog. Wider than the default modal because its
+   option labels are full sentences ("Keep widths and heights of flaps"), which
+   the shared 72px `.field-row` label column cannot hold. */
+.simple-modal__document--bp-optimizer {
+  width: min(460px, calc(100vw - var(--space-6)));
+}
+
+.bp-optimizer__row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.bp-optimizer__row-label {
+  padding-top: 5px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.bp-optimizer__control {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.bp-optimizer__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.bp-optimizer__count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.bp-optimizer__count input {
+  width: 84px;
+  height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0 var(--space-2);
+}
+
+.bp-optimizer__error {
+  color: var(--text-danger, #f87171);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.bp-optimizer__progress {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.bp-optimizer__progress-label {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.bp-optimizer__progress-track {
+  overflow: hidden;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-primary);
+}
+
+.bp-optimizer__progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-primary, #3b82f6);
+  transition: width 120ms linear;
+}
+
+.bp-optimizer__progress-fill--indeterminate {
+  width: 40%;
+  animation: bp-optimizer-progress-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes bp-optimizer-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-optimizer__progress-fill--indeterminate {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
 .simple-modal__meta {
   color: var(--text-tertiary);
   font-size: 0.72rem;

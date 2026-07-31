@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "Abort",
+    "close": "Close optimize layout",
+    "closeAction": "Close",
+    "failed": "The optimizer could not find a layout.",
+    "layout": {
+      "random": "Try random layouts",
+      "view": "Use current layout as reference"
+    },
+    "layoutMethod": "Layout method",
+    "options": "Options",
+    "run": "Run!",
+    "running": "Running...",
+    "stage": {
+      "candidates": "Generating candidate layouts...",
+      "fitting": "Fitting to the grid...",
+      "initializing": "Initializing...",
+      "preSolving": "Pre-solving...",
+      "running": "Running...",
+      "start": "Processing problem..."
+    },
+    "title": "Optimize layout",
+    "toTry": "Number of layouts to try:",
+    "useBasinHopping": "Try variations of the current layouts",
+    "useDimension": "Keep widths and heights of flaps"
+  },
   "closeGuard": {
     "discard": "Discard",
     "message": "Your current project has unsaved changes. Close Ori Studio and discard them?",

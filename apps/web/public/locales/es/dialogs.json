@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "Abortar",
+    "close": "Cerrar optimizar el diseño",
+    "closeAction": "Cerrar",
+    "failed": "El optimizador no pudo encontrar un diseño.",
+    "layout": {
+      "random": "Pruebe diseños aleatorios",
+      "view": "Utilice el diseño actual como referencia"
+    },
+    "layoutMethod": "Método de diseño",
+    "options": "Opciones",
+    "run": "¡Ejecuta!",
+    "running": "Ejecutando...",
+    "stage": {
+      "candidates": "Generando diseños candidatos...",
+      "fitting": "Ajustando a la cuadrícula...",
+      "initializing": "Inicializando...",
+      "preSolving": "Resolviendo previamente...",
+      "running": "Ejecutando...",
+      "start": "Procesando el problema..."
+    },
+    "title": "Optimizar el diseño",
+    "toTry": "Número de diseños para probar:",
+    "useBasinHopping": "Pruebe variaciones de los diseños actuales",
+    "useDimension": "Mantenga los anchos y altos de las solapas"
+  },
   "closeGuard": {
     "discard": "Descartar",
     "message": "El proyecto actual tiene cambios sin guardar. ¿Cerrar Ori Studio y descartarlos?",

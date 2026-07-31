@@ -516,8 +516,9 @@ fn tree_authoring_commands_mutate_project_through_wasm_handle() {
 fn optimizer_boundary_is_available_through_wasm_handle() {
     let handle =
         oristudio_bp_wasm::bp_load_project(sample_optimizer_project_text()).expect("sample handle");
-    let request_value = oristudio_bp_wasm::bp_optimizer_request(handle, "random", false, 3, true)
-        .expect("optimizer request");
+    let request_value =
+        oristudio_bp_wasm::bp_optimizer_request(handle, "random", false, 3, true, 0)
+            .expect("optimizer request");
     let request: oristudio_bp::optimizer::OptimizerRequest =
         serde_wasm_bindgen::from_value(request_value.clone()).expect("request decodes");
 

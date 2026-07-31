@@ -65,6 +65,7 @@ export type WorkspaceCapabilityId =
   | 'optimize.scale'
   | 'optimize.edges'
   | 'optimize.strain'
+  | 'bp.optimize.layout'
   | 'cp.build'
   | 'cp.deleteSelectedLines'
   | 'cp.changeCreaseType'
@@ -113,6 +114,10 @@ export interface WorkspaceCapabilityInput {
   hasEditableCreasePattern: boolean;
   hasImportedCreasePattern: boolean;
   hasBoxPleatDocument: boolean;
+  /** Tree edges in the active BP design — the optimizer needs something to pack. */
+  boxPleatTreeEdgeCount: number;
+  /** BP engine mutation in flight, including an optimizer run. */
+  boxPleatBusy: boolean;
   hasSimulationModel: boolean;
   oristudioCpSelectedLineCount: number;
   oristudioCpSelectedPointCount: number;
@@ -147,6 +152,11 @@ export function getWorkspaceCapabilities(
     input.facetCount > 0;
   const canOptimize =
     treeMode && input.engineReady && hasTreeEdges && !isBusy && input.status !== 'error';
+  // The BP layout optimizer packs the design's flaps, so it needs a BP document
+  // whose tree has edges. Its own busy flag is separate from the TreeMaker
+  // `status` machine.
+  const canOptimizeBpLayout =
+    isBpContext && input.hasBoxPleatDocument && input.boxPleatTreeEdgeCount > 0 && !input.boxPleatBusy;
   const canBuild =
     treeMode &&
     input.engineReady &&
@@ -598,6 +608,14 @@ export function getWorkspaceCapabilities(
       t('common:capability.optimizeStrain', 'Optimize Strain'),
       canOptimize ? t('common:capability.optimizeStrain', 'Optimize Strain') : disabledOptimizeReason(input, isBusy, hasTreeEdges, t)
     ),
+    'bp.optimize.layout': commandCapability(
+      canOptimizeBpLayout,
+      isBpContext,
+      t('common:capability.bpOptimizeLayout', 'Optimize Layout'),
+      canOptimizeBpLayout
+        ? t('common:capability.bpOptimizeLayoutReason', 'Pack the box-pleat flaps into the smallest sheet')
+        : disabledBpOptimizeReason(input, t)
+    ),
     'cp.build': commandCapability(
       canBuild,
       treeMode,
@@ -973,6 +991,16 @@ function busyReason(status: AppStatus, t: TFunction): string {
   if (status === 'optimizing') return t('common:capability.optimizationRunning', 'Optimization is running');
   if (status === 'building_crease_pattern') return t('common:capability.creasePatternBuildRunning', 'Crease pattern build is running');
   return t('common:capability.oriStudioBusy', 'Ori Studio is busy');
+}
+
+function disabledBpOptimizeReason(input: WorkspaceCapabilityInput, t: TFunction): string {
+  if (!input.hasBoxPleatDocument)
+    return t('common:capability.bpOptimizeNeedsDocument', 'Open a box-pleat design before optimizing');
+  if (input.boxPleatBusy)
+    return t('common:capability.bpOptimizeBusy', 'The box-pleat engine is busy');
+  if (input.boxPleatTreeEdgeCount === 0)
+    return t('common:capability.bpOptimizeNeedsEdges', 'Add box-pleat tree edges before optimizing');
+  return t('common:capability.bpOptimizeUnavailable', 'Layout optimization is unavailable');
 }
 
 function disabledOptimizeReason(

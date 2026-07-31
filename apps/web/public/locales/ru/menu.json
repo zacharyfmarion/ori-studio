@@ -1,4 +1,7 @@
 {
+  "bp": {
+    "optimizeLayout": "Оптимизировать раскладку…"
+  },
   "cp": {
     "advanceCreaseType": "Следующий тип складки",
     "annotations": "Аннотации",

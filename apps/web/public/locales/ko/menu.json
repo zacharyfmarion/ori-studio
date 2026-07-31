@@ -1,4 +1,7 @@
 {
+  "bp": {
+    "optimizeLayout": "레이아웃 최적화…"
+  },
   "cp": {
     "advanceCreaseType": "접힘선 종류 다음으로",
     "annotations": "주석",

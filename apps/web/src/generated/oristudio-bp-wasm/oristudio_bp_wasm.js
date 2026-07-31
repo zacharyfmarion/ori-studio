@@ -343,12 +343,13 @@ export function bp_open_optimizer_template(handle, request, result) {
  * @param {boolean} use_bh
  * @param {number} random
  * @param {boolean} use_dimension
+ * @param {number} jitter_seed
  * @returns {any}
  */
-export function bp_optimizer_request(handle, layout, use_bh, random, use_dimension) {
+export function bp_optimizer_request(handle, layout, use_bh, random, use_dimension, jitter_seed) {
     const ptr0 = passStringToWasm0(layout, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.bp_optimizer_request(handle, ptr0, len0, use_bh, random, use_dimension);
+    const ret = wasm.bp_optimizer_request(handle, ptr0, len0, use_bh, random, use_dimension, jitter_seed);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

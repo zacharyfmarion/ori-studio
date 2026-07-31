@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "Abbrechen",
+    "close": "Layout-Optimierung schließen",
+    "closeAction": "Schließen",
+    "failed": "Der Optimierer konnte kein Layout finden.",
+    "layout": {
+      "random": "Zufällige Layouts ausprobieren",
+      "view": "Aktuelles Layout als Referenz verwenden"
+    },
+    "layoutMethod": "Layout-Methode",
+    "options": "Optionen",
+    "run": "Ausführen!",
+    "running": "Läuft...",
+    "stage": {
+      "candidates": "Kandidaten-Layouts werden erzeugt...",
+      "fitting": "Am Raster ausrichten...",
+      "initializing": "Initialisierung...",
+      "preSolving": "Vorlösung läuft...",
+      "running": "Läuft...",
+      "start": "Problem wird verarbeitet..."
+    },
+    "title": "Layout optimieren",
+    "toTry": "Anzahl der zu testenden Layouts:",
+    "useBasinHopping": "Variationen des aktuellen Layouts ausprobieren",
+    "useDimension": "Breiten und Höhen der Zipfel beibehalten"
+  },
   "closeGuard": {
     "discard": "Verwerfen",
     "message": "Ihr aktuelles Projekt enthält nicht gespeicherte Änderungen. Ori Studio schließen und verwerfen?",

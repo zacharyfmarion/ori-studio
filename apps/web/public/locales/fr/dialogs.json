@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "Interrompre",
+    "close": "Fermer l'optimisation de la disposition",
+    "closeAction": "Fermer",
+    "failed": "L'optimiseur n'a pas trouvé de disposition.",
+    "layout": {
+      "random": "Essayer des dispositions aléatoires",
+      "view": "Utiliser la disposition actuelle comme référence"
+    },
+    "layoutMethod": "Méthode de disposition",
+    "options": "Options",
+    "run": "Lancer !",
+    "running": "En cours...",
+    "stage": {
+      "candidates": "Génération des dispositions candidates...",
+      "fitting": "Ajustement à la grille...",
+      "initializing": "Initialisation...",
+      "preSolving": "Pré-résolution...",
+      "running": "En cours...",
+      "start": "Traitement du problème..."
+    },
+    "title": "Optimiser la disposition",
+    "toTry": "Nombre de dispositions à essayer :",
+    "useBasinHopping": "Essayer des variantes de la disposition actuelle",
+    "useDimension": "Conserver les largeurs et hauteurs des rabats"
+  },
   "closeGuard": {
     "discard": "Abandonner",
     "message": "Votre projet actuel comporte des modifications non enregistrées. Fermer Ori Studio et les abandonner ?",
@@ -107,7 +133,7 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {

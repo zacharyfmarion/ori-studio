@@ -45,7 +45,7 @@ export function bp_notify_project_saved(handle: number): void;
 
 export function bp_open_optimizer_template(handle: number, request: any, result: any): any;
 
-export function bp_optimizer_request(handle: number, layout: string, use_bh: boolean, random: number, use_dimension: boolean): any;
+export function bp_optimizer_request(handle: number, layout: string, use_bh: boolean, random: number, use_dimension: boolean, jitter_seed: number): any;
 
 export function bp_optimizer_solve(request: any, seed?: number | null): any;
 
@@ -123,7 +123,7 @@ export interface InitOutput {
     readonly bp_new_sample_project: () => [number, number, number];
     readonly bp_notify_project_saved: (a: number) => [number, number];
     readonly bp_open_optimizer_template: (a: number, b: any, c: any) => [number, number, number];
-    readonly bp_optimizer_request: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+    readonly bp_optimizer_request: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
     readonly bp_optimizer_solve: (a: any, b: number, c: number) => [number, number, number];
     readonly bp_optimizer_solve_report: (a: any, b: number, c: number) => [number, number, number];
     readonly bp_optimizer_solve_report_with_progress: (a: any, b: number, c: number, d: any) => [number, number, number];
