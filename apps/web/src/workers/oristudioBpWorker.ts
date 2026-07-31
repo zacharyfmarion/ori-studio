@@ -286,7 +286,12 @@ const api = {
     layout: 'view' | 'random',
     useBasinHopping: boolean,
     randomCandidateCount: number,
-    useDimension: boolean
+    useDimension: boolean,
+    // Entropy for the coincident-flap jitter, which upstream takes from
+    // `Math.random()` inline. Supplying it here keeps that same source while
+    // leaving the kernel a pure function of its inputs. Only used in view mode,
+    // and only when two flaps share a coordinate.
+    jitterSeed = Math.floor(Math.random() * 0x1_0000_0000)
   ): Promise<unknown> {
     return call(() =>
       bp_optimizer_request(
@@ -294,7 +299,8 @@ const api = {
         layout,
         useBasinHopping,
         randomCandidateCount,
-        useDimension
+        useDimension,
+        jitterSeed
       )
     );
   },

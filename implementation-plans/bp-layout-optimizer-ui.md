@@ -23,6 +23,7 @@ The complete list of divergences is:
 | No "Show result in a new tab" (`openNew`) | Explicit product decision. We have no BP project tabs, so upstream's behavior has nowhere to land. Always replaces in place; undo is the recovery path. |
 | No "Skip" button | Not a choice — our kernel has no cooperative interrupt, only worker termination. Recorded as `status: 'planned'` on `bp.optimize.skip`. |
 | No "⚡ Multiple-processing activated" line | Our Rust `solve` is single-threaded; upstream's `dist_mp` build is not. Nothing true to display. |
+| Coincident-flap jitter takes its entropy from a caller-supplied seed rather than calling `Math.random()` inline | Behavior is upstream's; only the entropy *source* moved, so the kernel stays a pure function of its inputs and a run reproduces from its seed. The wasm bridge feeds it `Math.random()`, so the browser behaves exactly as upstream. |
 
 Everything else — labels, defaults, control ranges, which stages show progress,
 what the run destroys — follows upstream.
@@ -389,8 +390,10 @@ not optional and is not a follow-up PR.
 - [x] Phase 5: i18n extract / translate / stamp / check
 - [x] Phase 5: capability, menu-visibility, modal, and undo-contract tests
 - [x] Validation: `npx tsc --noEmit`, `npm --workspace @treemaker/web exec -- vitest run`, `npm run lint:web`, `npm run i18n:check`
-- [ ] Browser check: optimize end to end in `view` and `random` modes, rect and diagonal sheets, then undo and confirm the original layout returns
-- [ ] Browser check: measure a real WASM run at counts 1 and 20 so we know the shipped cost (R1)
+- [x] Port upstream's `makeInitialVector` coincident-flap jitter (without it, view mode fails on any freshly authored tree)
+- [x] Browser check: optimize end to end in `view` and `random` modes, then undo and confirm the original layout returns
+- [x] Browser check: measure a real WASM run (10 flaps: view 103 ms, view+variations 111 ms, random ×20 418 ms)
+- [ ] Browser check: a diagonal-sheet design (rect covered; diagonal exercised only through the kernel probes)
 
 ## Open questions
 

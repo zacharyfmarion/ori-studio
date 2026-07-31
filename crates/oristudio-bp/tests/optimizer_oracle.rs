@@ -416,6 +416,7 @@ fn project_optimizer_request(project: &Project) -> oristudio_bp::BpResult<Optimi
             random: 8,
         },
         true,
+        0,
     )
 }
 
