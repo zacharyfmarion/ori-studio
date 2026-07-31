@@ -92,7 +92,8 @@
     "settings": "Configurações"
   },
   "help": {
-    "about": "Sobre o Ori Studio"
+    "about": "Sobre o Ori Studio",
+    "tutorial": "Tutorial"
   },
   "menubar": {
     "creasePattern": "Padrão de vincos",

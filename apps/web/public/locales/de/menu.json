@@ -92,7 +92,8 @@
     "settings": "Einstellungen"
   },
   "help": {
-    "about": "Über Ori Studio"
+    "about": "Über Ori Studio",
+    "tutorial": "Tutorial"
   },
   "menubar": {
     "creasePattern": "Faltmuster",

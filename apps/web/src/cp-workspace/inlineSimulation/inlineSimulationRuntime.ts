@@ -76,10 +76,58 @@ export function clearInlineSimulationSource(id: string): void {
   notifySources();
 }
 
-/** Drop every source — used when the document is replaced. */
+/**
+ * Drop every source — used when the document is replaced.
+ *
+ * "Every" is correct only because these tables hold just the *foreground*
+ * document's windows: a slot that is parked has had its folds lifted out by
+ * {@link takeInlineSimulationRuntime}. Before slots existed there was one live
+ * document and this was unambiguous; with two, clearing globally meant loading a
+ * tutorial pattern silently emptied the editor's windows, which came back as
+ * frames with nothing in them.
+ */
 export function clearAllInlineSimulationSources(): void {
   sources.clear();
   foldPercents.clear();
+  notifySources();
+}
+
+/**
+ * Everything the side tables hold for the foreground document.
+ *
+ * These are per-document state that lives outside the store, so no amount of
+ * type-level scoping over `WorkspaceState` can make them travel with a slot —
+ * `CP_SLOT_SCOPED_KEYS` cannot see them. They have to be parked and restored
+ * explicitly, which is what `cpDocumentSlots` does with these two functions.
+ */
+export interface InlineSimulationRuntimeBundle {
+  sources: Array<[string, InlineSimulationSource]>;
+  foldPercents: Array<[string, number]>;
+}
+
+/** Lift the foreground document's folds out, for parking a slot. */
+export function takeInlineSimulationRuntime(): InlineSimulationRuntimeBundle {
+  const bundle: InlineSimulationRuntimeBundle = {
+    sources: [...sources.entries()],
+    foldPercents: [...foldPercents.entries()],
+  };
+  sources.clear();
+  foldPercents.clear();
+  notifySources();
+  return bundle;
+}
+
+/**
+ * Put a parked slot's folds back. Notifies either way: coming back to a slot
+ * that had none still has to tell the layer to stop showing the outgoing one's.
+ */
+export function restoreInlineSimulationRuntime(
+  bundle: InlineSimulationRuntimeBundle | undefined
+): void {
+  sources.clear();
+  foldPercents.clear();
+  for (const [id, source] of bundle?.sources ?? []) sources.set(id, source);
+  for (const [id, percent] of bundle?.foldPercents ?? []) foldPercents.set(id, percent);
   notifySources();
 }
 

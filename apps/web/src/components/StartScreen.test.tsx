@@ -60,6 +60,18 @@ describe('StartScreen', () => {
     expect(rendered.textContent).toContain('Create a design');
   });
 
+  /**
+   * The tutorial is reachable at /learn, but deliberately not advertised here
+   * until there is a NUX designed around it. Re-adding the tile should be a
+   * decision, not a merge artifact.
+   */
+  it('does not offer the tutorial', () => {
+    const rendered = renderStartScreen().container;
+
+    expect(rendered.textContent).not.toContain('tutorial');
+    expect(rendered.querySelectorAll('.start-action')).toHaveLength(3);
+  });
+
   it('uses the authored crease-pattern image for the preview', () => {
     const rendered = renderStartScreen().container;
     const image = rendered.querySelector<HTMLImageElement>('.start-screen__preview-image');

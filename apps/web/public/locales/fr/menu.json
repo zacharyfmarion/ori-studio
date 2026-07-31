@@ -92,7 +92,8 @@
     "settings": "Paramètres"
   },
   "help": {
-    "about": "À propos d'Ori Studio"
+    "about": "À propos d'Ori Studio",
+    "tutorial": "Tutoriel"
   },
   "menubar": {
     "creasePattern": "Patron de plis",

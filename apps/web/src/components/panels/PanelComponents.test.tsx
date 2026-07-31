@@ -19,6 +19,7 @@ describe('panelComponents', () => {
       'design',
       'diagnostics',
       'inspector',
+      'lesson',
       'sequence',
       'simulator',
       'simulator-view-controls',

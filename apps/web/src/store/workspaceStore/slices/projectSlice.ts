@@ -171,6 +171,7 @@ import type {
   OristudioCpGridMetadata,
 } from '../../../engine/oristudioCpTypes';
 import type { EditingContext } from '../../../workspaces/editingContext';
+import { cpSlotGeneration, cpSlotGenerationIsCurrent } from '../cpDocumentSlots';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -2027,14 +2028,20 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     scheduleOristudioCamvRefresh: () => {
       if (camvRefreshTimer !== null) clearTimeout(camvRefreshTimer);
+      const generation = cpSlotGeneration();
       camvRefreshTimer = setTimeout(() => {
         camvRefreshTimer = null;
+        // A pending refresh belongs to the document that scheduled it; if the
+        // foreground document has changed, the check would run against the wrong
+        // kernel handle entirely.
+        if (!cpSlotGenerationIsCurrent(generation)) return;
         // Snapshot the document we're checking; the result is discarded if any edit,
         // undo/redo, or load replaces it (reference change) before the check lands.
         const pending = get().oristudioCpDocument;
         if (!pending) return;
         void runOristudioCpCheckCommand('CheckCamv')
           .then((result) => {
+            if (!cpSlotGenerationIsCurrent(generation)) return;
             if (get().oristudioCpDocument !== pending) return;
             set({
               oristudioCpCamvResult: result.operation === 'CheckCamv' ? result : null,

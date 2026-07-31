@@ -39,8 +39,12 @@ export function resolveEditingContext(input: EditingContextInput): EditingContex
   switch (input.activePanelId) {
     case 'bp-editor':
       return 'bp-packing';
+    // `lesson` is the tutorial's pane; it sits beside the real crease-pattern
+    // editor and drives it, so focusing it must not change what the shell thinks
+    // is being edited — CP tools, menus, and shortcuts stay live throughout.
     case 'crease-pattern':
     case 'cp-view-controls':
+    case 'lesson':
       return 'crease-pattern';
     case 'simulator':
     case 'simulator-view-controls':

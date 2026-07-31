@@ -124,6 +124,9 @@ export function applyDefaultLayout(
     case 'simulate':
       applySimulateLayout(api);
       return;
+    case 'learn':
+      applyLearnLayout(api);
+      return;
   }
 }
 
@@ -202,6 +205,46 @@ function applyEditLayout(api: DockviewApi): void {
   });
 }
 
+/**
+ * The tutorial: a lesson pane beside the real crease-pattern editor. The canvas
+ * is the genuine `crease-pattern` panel — same tools, same rail — so what the
+ * user learns transfers directly to the Edit workspace. It draws into the learn
+ * document slot, which the route asserts.
+ */
+function applyLearnLayout(api: DockviewApi): void {
+  // The canvas is added first, as the area the side panes split off. Dockview
+  // honours `initialWidth` on the panel being *added*, so each pane has to come
+  // after the canvas or it just takes half the workspace.
+  addHeaderlessPanel(api, {
+    id: 'crease-pattern',
+    component: 'crease-pattern',
+    title: 'Crease Pattern',
+  });
+  const lesson = api.addPanel({
+    id: 'lesson',
+    component: 'lesson',
+    title: 'Lesson',
+    position: { referencePanel: 'crease-pattern', direction: 'left' },
+    initialWidth: 380,
+  });
+  // The same View pane the Edit workspace has, and for the same reason: it hosts
+  // the tool options and the active tool's own step-by-step instructions. A
+  // tutorial that teaches tools while hiding their options teaches half a tool —
+  // and every lesson that mentions grid size, snapping, or the foldability
+  // overlay was pointing at a panel the user could not see.
+  //
+  // Added last so it keeps its width: Dockview honours `initialWidth` on the
+  // panel being added and then squeezes it again if a later sibling claims room.
+  api.addPanel({
+    id: 'cp-view-controls',
+    component: 'cp-view-controls',
+    title: 'View',
+    position: { referencePanel: 'crease-pattern', direction: 'right' },
+    initialWidth: 260,
+  });
+  lesson.api.setActive();
+}
+
 function applySimulateLayout(api: DockviewApi): void {
   const simulator = addHeaderlessPanel(api, {
     id: 'simulator',
@@ -270,10 +313,16 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     applyDefaultLayout(dockviewApi, workspace);
   },
   activatePanel: (id) => {
-    const targetWorkspace = workspaceForPanelId(id);
-    if (targetWorkspace) get().activateWorkspace(targetWorkspace);
-    const panel = get().dockviewApi?.getPanel(id);
-    panel?.api.setActive();
+    // A panel can belong to more than one workspace — the crease-pattern canvas
+    // is mounted in both Edit and the tutorial. When it is already present in the
+    // current layout, activating it must *not* jump to the workspace that owns it
+    // by default, or focusing the canvas mid-lesson would eject the user to Edit.
+    const mounted = get().dockviewApi?.getPanel(id);
+    if (!mounted) {
+      const targetWorkspace = workspaceForPanelId(id);
+      if (targetWorkspace) get().activateWorkspace(targetWorkspace);
+    }
+    get().dockviewApi?.getPanel(id)?.api.setActive();
   },
   ensureDesignLayout: () => {
     const { dockviewApi, activeWorkspace } = get();

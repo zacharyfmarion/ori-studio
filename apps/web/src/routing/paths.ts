@@ -12,6 +12,17 @@ export const DESIGN_TREEMAKER_PATH = '/design/treemaker';
 export const DESIGN_BP_PATH = '/design/bp';
 export const EDIT_PATH = '/edit';
 export const SIMULATE_PATH = '/simulate';
+export const LEARN_PATH = '/learn';
+
+/** Route for a course's own page: its chapters and lessons. */
+export function coursePath(courseId: string): string {
+  return `${LEARN_PATH}/${courseId}`;
+}
+
+/** Route for a single lesson, within its course. */
+export function lessonPath(courseId: string, lessonId: string): string {
+  return `${LEARN_PATH}/${courseId}/${lessonId}`;
+}
 
 /** Path for a Design workspace layout variant. */
 export function designVariantPath(variant: DesignLayoutVariant): string {
@@ -37,6 +48,8 @@ export function workspacePath(workspace: WorkspaceId, variant?: DesignLayoutVari
       return EDIT_PATH;
     case 'simulate':
       return SIMULATE_PATH;
+    case 'learn':
+      return LEARN_PATH;
   }
 }
 
@@ -53,6 +66,8 @@ export function parseWorkspacePath(
       return { workspace: 'edit' };
     case SIMULATE_PATH:
       return { workspace: 'simulate' };
+    case LEARN_PATH:
+      return { workspace: 'learn' };
     case DESIGN_PATH:
       return { workspace: 'design', variant: 'nux' };
     case DESIGN_TREEMAKER_PATH:
@@ -60,6 +75,11 @@ export function parseWorkspacePath(
     case DESIGN_BP_PATH:
       return { workspace: 'design', variant: 'box-pleat' };
     default:
-      return null;
+      // Every `/learn` path is the tutorial workspace — catalog, a course, or a
+      // lesson. They differ in what the lesson pane shows, not in which
+      // workspace is active, and treating a course page as "no workspace" left
+      // the rail unhighlighted and let the URL sync replace a deep link with
+      // `/learn`.
+      return pathname.startsWith(`${LEARN_PATH}/`) ? { workspace: 'learn' } : null;
   }
 }

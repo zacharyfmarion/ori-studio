@@ -1,0 +1,270 @@
+import { describe, expect, it } from 'vitest';
+import {
+  LESSON_CHAPTERS,
+  LESSONS,
+  courseIdForLesson,
+  courseProgress,
+  firstLessonInCourse,
+  lessonById,
+  lessonsInCourse,
+  nextLesson,
+} from './index';
+import { LESSON_COURSES, courseById } from '../courses';
+import { LESSON_TARGETS, lessonTarget } from '../targets';
+import { stepIsSelfAdvancing } from '../types';
+import { cpActionById } from '../../lib/oristudioCpActions';
+
+/**
+ * Content integrity. These are the checks that stop a broken lesson from
+ * reaching a user: a target that doesn't exist, a step that can never be
+ * satisfied, a duplicate id that makes progress ambiguous.
+ *
+ * They run against the data, not the UI, so they stay fast and keep failing for
+ * the right reason.
+ */
+describe('lesson content', () => {
+  it('has at least one chapter and one lesson', () => {
+    expect(LESSON_CHAPTERS.length).toBeGreaterThan(0);
+    expect(LESSONS.length).toBeGreaterThan(0);
+  });
+
+  it('gives every lesson a unique id', () => {
+    const ids = LESSONS.map((lesson) => lesson.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('gives every step a unique id within its lesson', () => {
+    for (const lesson of LESSONS) {
+      const ids = lesson.steps.map((step) => step.id);
+      expect(new Set(ids).size, `duplicate step id in ${lesson.id}`).toBe(ids.length);
+    }
+  });
+
+  it('puts every lesson in a chapter that exists', () => {
+    const chapterIds = new Set(LESSON_CHAPTERS.map((chapter) => chapter.id));
+    for (const lesson of LESSONS) {
+      expect(chapterIds.has(lesson.chapterId), `${lesson.id} → ${lesson.chapterId}`).toBe(true);
+    }
+  });
+
+  it('gives every lesson at least one step', () => {
+    for (const lesson of LESSONS) {
+      expect(lesson.steps.length, lesson.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('writes body text for every step', () => {
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        expect(step.body.length, `${lesson.id}/${step.id}`).toBeGreaterThan(0);
+        for (const paragraph of step.body) {
+          expect(paragraph.trim().length, `${lesson.id}/${step.id}`).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it('references only targets that exist', () => {
+    for (const lesson of LESSONS) {
+      if (lesson.startTargetId) {
+        expect(lessonTarget(lesson.startTargetId), `${lesson.id} start`).toBeDefined();
+      }
+      for (const step of lesson.steps) {
+        if (step.loadsTargetId) {
+          expect(lessonTarget(step.loadsTargetId), `${lesson.id}/${step.id} loads`).toBeDefined();
+        }
+        if (step.kind !== 'draw') continue;
+        expect(lessonTarget(step.targetId), `${lesson.id}/${step.id}`).toBeDefined();
+      }
+    }
+  });
+
+  /**
+   * `OristudioCpActionId` is a template-literal type (`cp.action.${string}`), so
+   * *any* string typechecks. A mistyped tool id would compile happily and then
+   * silently fail to arm anything — every id in the first draft of chapter 2 was
+   * wrong in exactly that way. This is the only thing that catches it.
+   */
+  it('names tools that actually exist', () => {
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        if (!step.teaches) continue;
+        expect(cpActionById(step.teaches), `${lesson.id}/${step.id}: ${step.teaches}`).toBeDefined();
+      }
+    }
+  });
+
+  /**
+   * Every step that tells the user to press a tool's key should also arm that
+   * tool, so the prose and the canvas agree. `teaches` was on draw steps only
+   * and action steps had a separate `runs` field in a different id space, which
+   * nothing read — so the big-little-big step named a tool it never selected.
+   */
+  it('arms the tool on steps whose prose names one', () => {
+    const NAMES_A_TOOL = /\b(?:press|with) (?:C|X|Y|B|Z|Q)\b/;
+    const missing: string[] = [];
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        if (step.kind === 'prose' || step.kind === 'explore') continue;
+        const text = [...step.body, 'hint' in step ? (step.hint ?? '') : ''].join(' ');
+        // Draw steps default to the segment tool via their own `teaches`; this
+        // is about steps that name a *specific* tool and then leave it unarmed.
+        if (NAMES_A_TOOL.test(text) && !step.teaches) missing.push(`${lesson.id}/${step.id}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('gives every self-advancing step a way to be satisfied', () => {
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        if (!stepIsSelfAdvancing(step)) continue;
+        if (step.kind === 'draw') {
+          expect(step.check.mode, `${lesson.id}/${step.id}`).toBeTruthy();
+        } else if (step.kind === 'action') {
+          expect(step.expect, `${lesson.id}/${step.id}`).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('resolves lessons by id and walks them in order', () => {
+    const first = LESSONS[0];
+    expect(lessonById(first.id)).toBe(first);
+    expect(lessonById('does-not-exist')).toBeUndefined();
+    expect(nextLesson(LESSONS[LESSONS.length - 1].id)).toBeUndefined();
+  });
+});
+
+describe('courses', () => {
+  it('gives every course a unique id', () => {
+    const ids = LESSON_COURSES.map((course) => course.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('puts every chapter in a course that exists', () => {
+    for (const chapter of LESSON_CHAPTERS) {
+      expect(courseById(chapter.courseId), `${chapter.id} → ${chapter.courseId}`).toBeDefined();
+    }
+  });
+
+  it('gives every course at least one lesson', () => {
+    for (const course of LESSON_COURSES) {
+      expect(lessonsInCourse(course.id).length, course.id).toBeGreaterThan(0);
+      expect(firstLessonInCourse(course.id), course.id).toBeDefined();
+    }
+  });
+
+  it('accounts for every lesson exactly once across courses', () => {
+    const viaCourses = LESSON_COURSES.flatMap((course) => lessonsInCourse(course.id));
+    expect(viaCourses).toHaveLength(LESSONS.length);
+    expect(new Set(viaCourses.map((lesson) => lesson.id)).size).toBe(LESSONS.length);
+  });
+
+  /**
+   * The bug this whole change exists to fix: walking off the end of a course
+   * used to hand the user the first lesson of an unrelated one.
+   */
+  it('ends a course rather than running on into the next', () => {
+    for (const course of LESSON_COURSES) {
+      const lessons = lessonsInCourse(course.id);
+      for (let index = 0; index < lessons.length - 1; index += 1) {
+        expect(nextLesson(lessons[index].id)?.id).toBe(lessons[index + 1].id);
+      }
+      expect(nextLesson(lessons[lessons.length - 1].id), `${course.id} runs on`).toBeUndefined();
+    }
+  });
+
+  it('finds the course for any lesson', () => {
+    for (const lesson of LESSONS) {
+      expect(courseIdForLesson(lesson.id), lesson.id).toBeDefined();
+    }
+    expect(courseIdForLesson('does-not-exist')).toBeUndefined();
+  });
+
+  /**
+   * Stored progress can name lessons that were later renamed or deleted.
+   * Counting the stored list would then report more completions than the course
+   * has lessons, so progress is derived from the registry instead.
+   */
+  it('does not let a stale completion inflate a course count', () => {
+    const course = LESSON_COURSES[0];
+    const real = lessonsInCourse(course.id).map((lesson) => lesson.id);
+    const progress = courseProgress(course.id, [...real, 'lesson-that-no-longer-exists']);
+    expect(progress.completed).toBe(real.length);
+    expect(progress.total).toBe(real.length);
+  });
+
+  it('counts only the completions belonging to the course asked about', () => {
+    const course = LESSON_COURSES[0];
+    const lessons = lessonsInCourse(course.id);
+    expect(courseProgress(course.id, []).completed).toBe(0);
+    expect(courseProgress(course.id, [lessons[0].id]).completed).toBe(1);
+  });
+});
+
+describe('lesson targets', () => {
+  it('parses as FOLD with vertices and matching assignments', () => {
+    for (const target of LESSON_TARGETS) {
+      if (target.format !== 'fold') continue;
+      const doc = JSON.parse(target.text) as {
+        vertices_coords: [number, number][];
+        edges_vertices: [number, number][];
+        edges_assignment: string[];
+      };
+      expect(doc.vertices_coords.length, target.id).toBeGreaterThan(0);
+      expect(doc.edges_vertices.length, target.id).toBeGreaterThan(0);
+      expect(doc.edges_assignment.length, target.id).toBe(doc.edges_vertices.length);
+      for (const [from, to] of doc.edges_vertices) {
+        expect(doc.vertices_coords[from], `${target.id}: edge endpoint`).toBeDefined();
+        expect(doc.vertices_coords[to], `${target.id}: edge endpoint`).toBeDefined();
+      }
+    }
+  });
+
+  it('gives every target a unique id', () => {
+    const ids = LESSON_TARGETS.map((target) => target.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  /**
+   * A target no lesson reaches is dead content: it still has to be reviewed and
+   * kept correct, and nothing tells you it stopped mattering. Two of these
+   * accumulated when lessons were rewritten, so the rule is now enforced.
+   */
+  it('is reached by a lesson', () => {
+    const referenced = new Set<string>();
+    for (const lesson of LESSONS) {
+      if (lesson.startTargetId) referenced.add(lesson.startTargetId);
+      for (const step of lesson.steps) {
+        if (step.kind === 'draw') referenced.add(step.targetId);
+        if (step.loadsTargetId) referenced.add(step.loadsTargetId);
+      }
+    }
+    // The blank sheet is the fallback for lessons with no starting pattern, so
+    // it is referenced from the panel rather than from lesson data.
+    referenced.add('blank-sheet');
+    const orphans = LESSON_TARGETS.map((t) => t.id).filter((id) => !referenced.has(id));
+    expect(orphans).toEqual([]);
+  });
+
+  it('parses as .cp text with at least one segment', () => {
+    for (const target of LESSON_TARGETS) {
+      if (target.format !== 'cp') continue;
+      const lines = target.text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      expect(lines.length, target.id).toBeGreaterThan(0);
+      for (const line of lines) {
+        const parts = line.split(/\s+/);
+        expect(parts, `${target.id}: "${line}"`).toHaveLength(5);
+        // Type 1 edge, 2 valley, 3 mountain, 4 auxiliary.
+        expect([1, 2, 3, 4], `${target.id}: "${line}"`).toContain(Number(parts[0]));
+        for (const coordinate of parts.slice(1)) {
+          expect(Number.isFinite(Number(coordinate)), `${target.id}: "${line}"`).toBe(true);
+        }
+      }
+    }
+  });
+});

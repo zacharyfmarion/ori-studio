@@ -6,16 +6,23 @@ import {
 } from './workspaces';
 
 describe('workspace definitions', () => {
-  it('defines the three primary workspaces in rail order', () => {
+  /**
+   * The rail is the definition list, in order — the tutorial used to be filtered
+   * out of a separate `SWITCHER_WORKSPACE_DEFINITIONS`, which left an
+   * abstraction with no members once it joined the rail.
+   */
+  it('defines every workspace in rail order', () => {
     expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.id)).toEqual([
       'edit',
       'design',
       'simulate',
+      'learn',
     ]);
     expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.label)).toEqual([
       'Edit',
       'Design',
       'Simulate',
+      'Learn',
     ]);
   });
 

@@ -637,5 +637,35 @@
     "textControls": "Textsteuerung",
     "textStyle": "Textstil",
     "underline": "Unterstrichen"
+  },
+  "tutorial": {
+    "actionDone": "Fertig — das hat geklappt.",
+    "actionPending": "Warten auf Ihren Versuch…",
+    "allCourses": "Alle Kurse",
+    "allLessons": "Alle Lektionen",
+    "back": "Zurück",
+    "catalogBlurb": "Kurze Kurse, die den Editor vermitteln, indem Sie darin zeichnen. Ihre eigene Arbeit im Bearbeiten-Arbeitsbereich bleibt unberührt.",
+    "catalogTitle": "Ori Studio lernen",
+    "checking": "Warten auf Ihre Zeichnung…",
+    "courseProgress": "{{completed}} / {{total}} Lektionen",
+    "extra_one": "{{count}} Falte, die nicht zur Vorlage gehört",
+    "extra_other": "{{count}} Falten, die nicht zur Vorlage gehören",
+    "finish": "Lektion abschließen",
+    "matched": "Das stimmt überein. Sehr gut.",
+    "matchProgress": "{{matched}} von {{expected}} Falten stimmen überein",
+    "missing_one": "Noch {{count}} Falte zu zeichnen",
+    "missing_other": "Noch {{count}} Falten zu zeichnen",
+    "next": "Weiter",
+    "resume": "Dort fortfahren, wo Sie aufgehört haben",
+    "resumeLesson": "Fortsetzen: {{lesson}}",
+    "skip": "Überspringen",
+    "stepCounter": "Schritt {{current}} von {{total}}",
+    "targetHeading": "Zeichnen Sie dies",
+    "targetPreview": {
+      "label": "Ziel-Faltmuster",
+      "loading": "Ziel wird geladen…"
+    },
+    "wrongAssignment_one": "{{count}} Falte ist an der richtigen Stelle, aber vom falschen Typ",
+    "wrongAssignment_other": "{{count}} Falten sind an der richtigen Stelle, aber vom falschen Typ"
   }
 }

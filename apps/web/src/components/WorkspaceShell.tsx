@@ -11,6 +11,7 @@ import {
   Download,
   FilePlus,
   FolderOpen,
+  GraduationCap,
   PenTool,
   Save,
   ScanLine,
@@ -36,12 +37,14 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import { parseWorkspacePath, workspacePath } from '../routing/paths';
+import { learnReturnPath, useRememberLearnPath } from '../routing/learnReturnPath';
 import { WORKSPACE_DEFINITIONS, type WorkspaceId } from '../workspaces/workspaces';
 
 const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
   design: DraftingCompass,
   edit: PenTool,
   simulate: Box,
+  learn: GraduationCap,
 };
 
 /**
@@ -54,13 +57,15 @@ const WORKSPACE_DROP_POLICY: DropTargetPolicy = 'open-or-import';
 
 /**
  * Path a rail button navigates to. Design targets its active variant sub-route
- * (so an in-progress design isn't bounced back to the method chooser); other
- * workspaces have a single path.
+ * (so an in-progress design isn't bounced back to the method chooser) and Learn
+ * the lesson or course last open (so leaving the tutorial and coming back does
+ * not throw away where the reader was); the rest have a single path.
  */
 function railPath(workspace: WorkspaceId): string {
   if (workspace === 'design') {
     return workspacePath('design', deriveDesignVariant(useWorkspaceStore.getState()));
   }
+  if (workspace === 'learn') return learnReturnPath();
   return workspacePath(workspace);
 }
 
@@ -73,6 +78,8 @@ function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
       return t('common:workspaceRail.edit', 'Edit workspace');
     case 'simulate':
       return t('common:workspaceRail.simulate', 'Simulate workspace');
+    case 'learn':
+      return t('common:workspaceRail.learn', 'Tutorial');
   }
 }
 
@@ -282,6 +289,9 @@ export function WorkspaceShell() {
   // the mount-time value is what it needs; later route changes rebuild via
   // WorkspaceRoute without a fresh onReady.
   const location = useLocation();
+  // One place records where the tutorial was, so the Learn rail button can
+  // return there rather than to the catalog.
+  useRememberLearnPath();
   const targetRef = useRef(
     parseWorkspacePath(location.pathname) ?? { workspace: 'design' as WorkspaceId }
   );
@@ -361,10 +371,18 @@ export function WorkspaceShell() {
             />
           </ErrorBoundary>
           <DesignWorkspaceFooter />
+          {/*
+            Inside the canvas, not below it. Workspace routes render nothing
+            here (they are invisible URL→store sync elements), while the
+            tutorial catalog and course pages render a real page that covers the
+            panes — which keeps Dockview mounted, so visiting the tutorial does
+            not tear down and rebuild the layout the user was editing in.
+          */}
+          <Outlet />
+          {/* Last, so a drag stays visible over a tutorial page too. */}
           <FileDropOverlay visible={isDragActive} policy={WORKSPACE_DROP_POLICY} />
         </div>
       </div>
-      <Outlet />
     </div>
   );
 }

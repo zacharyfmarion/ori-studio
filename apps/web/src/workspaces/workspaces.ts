@@ -1,11 +1,11 @@
-export type WorkspaceId = 'design' | 'edit' | 'simulate';
+export type WorkspaceId = 'design' | 'edit' | 'simulate' | 'learn';
 
 export interface WorkspaceDefinition {
   id: WorkspaceId;
   label: string;
   tooltip: string;
-  commandId: 'view.design' | 'view.edit' | 'view.simulate';
-  primaryPanelId: 'design' | 'crease-pattern' | 'simulator';
+  commandId: 'view.design' | 'view.edit' | 'view.simulate' | 'view.learn';
+  primaryPanelId: 'design' | 'crease-pattern' | 'simulator' | 'lesson';
 }
 
 export const WORKSPACE_DEFINITIONS: WorkspaceDefinition[] = [
@@ -30,6 +30,13 @@ export const WORKSPACE_DEFINITIONS: WorkspaceDefinition[] = [
     commandId: 'view.simulate',
     primaryPanelId: 'simulator',
   },
+  {
+    id: 'learn',
+    label: 'Learn',
+    tooltip: 'Tutorial',
+    commandId: 'view.learn',
+    primaryPanelId: 'lesson',
+  },
 ];
 
 export const WORKSPACE_IDS = WORKSPACE_DEFINITIONS.map(
@@ -47,6 +54,7 @@ const WORKSPACE_BY_PANEL_ID: Record<string, WorkspaceId> = {
   'simulator-view-controls': 'simulate',
   simulator: 'simulate',
   sequence: 'simulate',
+  lesson: 'learn',
 };
 
 export function workspaceForPanelId(panelId: string): WorkspaceId | null {
@@ -65,6 +73,8 @@ export function workspaceForCommandId(commandId: string): WorkspaceId | null {
       return 'simulate';
     case 'view.conditions':
       return 'design';
+    case 'view.learn':
+      return 'learn';
     default:
       return null;
   }

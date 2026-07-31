@@ -5,6 +5,9 @@ import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
 import { getRuntimeSurface } from '../platform/runtime';
 import { EDIT_PATH, WELCOME_PATH } from './paths';
+import { LearnIndexRoute } from './LearnIndexRoute';
+import { LessonRoute } from './LessonRoute';
+import { CourseRoute } from './CourseRoute';
 import { WelcomeRoute } from './WelcomeRoute';
 import { WorkspaceRoute } from './WorkspaceRoute';
 
@@ -67,14 +70,31 @@ export function createAppRouter(): AppRouter {
         {
           element: <WorkspaceShell />,
           children: [
-            { path: 'design', element: <WorkspaceRoute workspace="design" variant="nux" /> },
+            {
+              path: 'design',
+              element: <WorkspaceRoute workspace="design" variant="nux" slot="edit" />,
+            },
             {
               path: 'design/treemaker',
-              element: <WorkspaceRoute workspace="design" variant="treemaker" />,
+              element: <WorkspaceRoute workspace="design" variant="treemaker" slot="edit" />,
             },
-            { path: 'design/bp', element: <WorkspaceRoute workspace="design" variant="box-pleat" /> },
-            { path: 'edit', element: <WorkspaceRoute workspace="edit" /> },
+            {
+              path: 'design/bp',
+              element: <WorkspaceRoute workspace="design" variant="box-pleat" slot="edit" />,
+            },
+            { path: 'edit', element: <WorkspaceRoute workspace="edit" slot="edit" /> },
+            // No slot: Simulate folds whichever document is in the foreground,
+            // so a lesson can send its own pattern to the simulator.
             { path: 'simulate', element: <WorkspaceRoute workspace="simulate" /> },
+            // The catalog and a course page keep the app chrome but have no
+            // panes of their own: they cover the canvas rather than replacing
+            // it, so Dockview keeps its layout across a visit. Only a lesson is
+            // a real workspace route.
+            { path: 'learn', element: <LearnIndexRoute /> },
+            // Two segments is a course page, or an old `/learn/:lessonId` link
+            // that CourseRoute redirects to its canonical three-segment path.
+            { path: 'learn/:courseId', element: <CourseRoute /> },
+            { path: 'learn/:courseId/:lessonId', element: <LessonRoute /> },
           ],
         },
         { path: '*', loader: startupRedirect },

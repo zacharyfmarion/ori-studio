@@ -650,5 +650,38 @@
     "textControls": "Controles de texto",
     "textStyle": "Estilo de texto",
     "underline": "Subrayado"
+  },
+  "tutorial": {
+    "actionDone": "Hecho: ha funcionado.",
+    "actionPending": "Esperando a que lo pruebes…",
+    "allCourses": "Todos los cursos",
+    "allLessons": "Todas las lecciones",
+    "back": "Atrás",
+    "catalogBlurb": "Cursos breves que enseñan el editor haciéndote dibujar en él. Tu propio trabajo en el espacio Editar no se toca.",
+    "catalogTitle": "Aprende Ori Studio",
+    "checking": "Esperando tu dibujo…",
+    "courseProgress": "{{completed}} / {{total}} lecciones",
+    "extra_one": "{{count}} pliegue que no está en el objetivo",
+    "extra_many": "{{count}} pliegues que no están en el objetivo",
+    "extra_other": "{{count}} pliegues que no están en el objetivo",
+    "finish": "Terminar la lección",
+    "matched": "Coincide. Bien hecho.",
+    "matchProgress": "{{matched}} de {{expected}} pliegues coinciden",
+    "missing_one": "Falta {{count}} pliegue por dibujar",
+    "missing_many": "Faltan {{count}} pliegues por dibujar",
+    "missing_other": "Faltan {{count}} pliegues por dibujar",
+    "next": "Siguiente",
+    "resume": "Continuar donde lo dejaste",
+    "resumeLesson": "Reanudar: {{lesson}}",
+    "skip": "Omitir",
+    "stepCounter": "Paso {{current}} de {{total}}",
+    "targetHeading": "Dibuja esto",
+    "targetPreview": {
+      "label": "Patrón de pliegues objetivo",
+      "loading": "Cargando el objetivo…"
+    },
+    "wrongAssignment_one": "{{count}} pliegue está en el lugar correcto pero con el tipo equivocado",
+    "wrongAssignment_many": "{{count}} pliegues están en el lugar correcto pero con el tipo equivocado",
+    "wrongAssignment_other": "{{count}} pliegues están en el lugar correcto pero con el tipo equivocado"
   }
 }

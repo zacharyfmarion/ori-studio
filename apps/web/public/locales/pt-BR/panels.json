@@ -650,5 +650,38 @@
     "textControls": "Controles de texto",
     "textStyle": "Estilo do texto",
     "underline": "Sublinhado"
+  },
+  "tutorial": {
+    "actionDone": "Pronto — funcionou.",
+    "actionPending": "Aguardando você tentar…",
+    "allCourses": "Todos os cursos",
+    "allLessons": "Todas as lições",
+    "back": "Voltar",
+    "catalogBlurb": "Cursos curtos que ensinam o editor fazendo você desenhar nele. Seu próprio trabalho no espaço Editar permanece intacto.",
+    "catalogTitle": "Aprender o Ori Studio",
+    "checking": "Aguardando seu desenho…",
+    "courseProgress": "{{completed}} / {{total}} lições",
+    "extra_one": "{{count}} vinco que não está no alvo",
+    "extra_many": "{{count}} vincos que não estão no alvo",
+    "extra_other": "{{count}} vincos que não estão no alvo",
+    "finish": "Concluir a lição",
+    "matched": "Isso confere. Muito bem.",
+    "matchProgress": "{{matched}} de {{expected}} vincos conferem",
+    "missing_one": "Falta {{count}} vinco a desenhar",
+    "missing_many": "Faltam {{count}} vincos a desenhar",
+    "missing_other": "Faltam {{count}} vincos a desenhar",
+    "next": "Avançar",
+    "resume": "Retomar de onde você parou",
+    "resumeLesson": "Retomar: {{lesson}}",
+    "skip": "Pular",
+    "stepCounter": "Passo {{current}} de {{total}}",
+    "targetHeading": "Desenhe isto",
+    "targetPreview": {
+      "label": "Padrão de vincos alvo",
+      "loading": "Carregando o alvo…"
+    },
+    "wrongAssignment_one": "{{count}} vinco está no lugar certo, mas com o tipo de dobra errado",
+    "wrongAssignment_many": "{{count}} vincos estão no lugar certo, mas com o tipo de dobra errado",
+    "wrongAssignment_other": "{{count}} vincos estão no lugar certo, mas com o tipo de dobra errado"
   }
 }

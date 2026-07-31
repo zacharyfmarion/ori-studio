@@ -650,5 +650,38 @@
     "textControls": "Contrôles de texte",
     "textStyle": "Style de texte",
     "underline": "Souligné"
+  },
+  "tutorial": {
+    "actionDone": "Terminé — ça a marché.",
+    "actionPending": "En attente de votre essai…",
+    "allCourses": "Tous les cours",
+    "allLessons": "Toutes les leçons",
+    "back": "Retour",
+    "catalogBlurb": "De courts cours qui enseignent l’éditeur en vous faisant dessiner dedans. Votre propre travail dans l’espace Édition reste intact.",
+    "catalogTitle": "Apprendre Ori Studio",
+    "checking": "En attente de votre dessin…",
+    "courseProgress": "{{completed}} / {{total}} leçons",
+    "extra_one": "{{count}} pli qui n'est pas dans le modèle",
+    "extra_many": "{{count}} plis qui ne sont pas dans le modèle",
+    "extra_other": "{{count}} plis qui ne sont pas dans le modèle",
+    "finish": "Terminer la leçon",
+    "matched": "Cela correspond. Bravo.",
+    "matchProgress": "{{matched}} plis sur {{expected}} correspondent",
+    "missing_one": "{{count}} pli reste à tracer",
+    "missing_many": "{{count}} plis restent à tracer",
+    "missing_other": "{{count}} plis restent à tracer",
+    "next": "Suivant",
+    "resume": "Reprendre où vous en étiez",
+    "resumeLesson": "Reprendre : {{lesson}}",
+    "skip": "Passer",
+    "stepCounter": "Étape {{current}} sur {{total}}",
+    "targetHeading": "Tracez ceci",
+    "targetPreview": {
+      "label": "Patron de plis à reproduire",
+      "loading": "Chargement du modèle…"
+    },
+    "wrongAssignment_one": "{{count}} pli est au bon endroit mais du mauvais type",
+    "wrongAssignment_many": "{{count}} plis sont au bon endroit mais du mauvais type",
+    "wrongAssignment_other": "{{count}} plis sont au bon endroit mais du mauvais type"
   }
 }

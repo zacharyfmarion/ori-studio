@@ -6702,6 +6702,352 @@ button.bp-packing-alert:focus-visible {
   text-transform: uppercase;
 }
 
+/* ---------------------------------------------------------------------------
+   Tutorial — lesson pane and lesson index
+   --------------------------------------------------------------------------- */
+
+.lesson-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  /* Dockview draws no rule between horizontally split groups, and the pane sits
+     directly against the tool rail, so the edge is drawn here — matching how
+     `.workspace-rail` closes its own side of the shell. */
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.lesson-panel__header {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lesson-panel__back {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.lesson-panel__back:hover,
+.lesson-panel__back:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  color: var(--text-primary);
+}
+
+.lesson-panel__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 720;
+}
+
+.lesson-panel__progress {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.lesson-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.lesson-panel__step-title {
+  margin: 0 0 var(--space-3);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.lesson-panel__paragraph {
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.6;
+}
+
+.lesson-panel__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 0 var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.lesson-panel__target {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lesson-panel__target-heading {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tutorial-target-preview {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  margin: 0 auto var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+}
+
+.tutorial-target-preview--empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.tutorial-target-preview__paper {
+  fill: var(--bg-primary);
+  stroke: none;
+}
+
+.tutorial-target-preview__line {
+  stroke-width: 6;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.tutorial-target-preview__line--missing {
+  stroke-dasharray: 18 14;
+  opacity: 0.9;
+}
+
+.lesson-panel__feedback {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.lesson-panel__feedback--ok {
+  color: var(--accent-primary);
+  font-weight: 640;
+}
+
+.lesson-panel__feedback-notes {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.1em;
+}
+
+/* A step's way out of the tutorial — the closing step's link to the editor. */
+.lesson-panel__link {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  align-self: flex-start;
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-elevated));
+  color: var(--text-primary);
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.lesson-panel__link:hover,
+.lesson-panel__link:focus-visible {
+  background: color-mix(in srgb, var(--accent-primary) 24%, var(--bg-elevated));
+}
+
+.lesson-panel__hint {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid color-mix(in srgb, var(--accent-primary) 50%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.lesson-panel__footer {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lesson-panel__nav,
+.lesson-panel__skip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.lesson-panel__nav--primary {
+  margin-left: auto;
+  border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-elevated));
+}
+
+.lesson-panel__nav:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/*
+   Skip is secondary, not unavailable. It was `--text-tertiary` against Back's
+   `--text-secondary`, which next to a genuinely disabled "Finish lesson" read as
+   a third disabled control. Same text colour as Back now; the quieter border and
+   flat background are what mark it as the lesser action.
+*/
+.lesson-panel__skip {
+  color: var(--text-secondary);
+  background: none;
+}
+
+.lesson-panel__skip:hover,
+.lesson-panel__skip:focus-visible {
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.lesson-index__header {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  color: var(--accent-primary);
+}
+
+.lesson-index__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 760;
+}
+
+.lesson-index__blurb {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.lesson-index__resume {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-elevated));
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.lesson-index__chapter-title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 720;
+}
+
+.lesson-index__chapter-blurb {
+  margin: 2px 0 var(--space-3);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.lesson-index__lessons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lesson-index__lesson {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lesson-index__lesson:hover,
+.lesson-index__lesson:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
+}
+
+.lesson-index__lesson-check {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 1px;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  color: var(--accent-primary);
+}
+
+.lesson-index__lesson[data-complete] .lesson-index__lesson-check {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+}
+
+.lesson-index__lesson-title {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 660;
+}
+
+.lesson-index__lesson-blurb {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.lesson-panel__bullets {
+  margin: 0 0 var(--space-3);
+  padding-left: 1.15em;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+.lesson-panel__bullets li + li {
+  margin-top: var(--space-2);
+}
+
 /* Shared colour swatch (components/ui/ColorField), used by the simulator options
    pane, the folded-figure menu and the crease export dialog. The three used to
    carry three near-identical copies of this block. */
@@ -6788,4 +7134,204 @@ button.bp-packing-alert:focus-visible {
 
 .simulator-view-controls-panel__colors > .control-row:last-child {
   border-bottom: 0;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Tutorial — course catalog and course page
+
+   Both render full width, outside the workspace shell (see `LearnIndexRoute`),
+   so they own their own scroll and centre a readable column the way the start
+   screen does rather than filling the viewport.
+   --------------------------------------------------------------------------- */
+
+/*
+   The catalog is the one page of its own. It keeps the app chrome (toolbar,
+   workspace rail) but has no panes, so it is positioned *over* the workspace
+   canvas rather than replacing it — which leaves Dockview mounted and the
+   user's editing layout intact underneath. Opaque, so nothing shows through.
+*/
+.course-catalog {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-5);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.course-catalog__content {
+  width: 100%;
+  max-width: 720px;
+}
+
+/*
+   A course's lesson list is *not* a page: it renders in the lesson pane with the
+   editor beside it, so picking a lesson changes only this column. Same chrome as
+   `.lesson-panel`, including the rule closing its right edge.
+*/
+.course-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-5);
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* The gap is what separates the header, the resume button and each chapter
+   section — the chapters carry no margins of their own. Without it the section
+   headings sit flush against the lesson card above them. */
+.course-page__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.course-page__title {
+  font-size: 1.05rem;
+}
+
+.course-page__blurb {
+  font-size: 0.83rem;
+}
+
+.course-catalog__header {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-bottom: var(--space-5);
+}
+
+.course-catalog__title,
+.course-page__title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.35rem;
+  font-weight: 650;
+}
+
+.course-catalog__blurb,
+.course-page__blurb {
+  margin: 0;
+  max-width: 56ch;
+  color: var(--text-secondary);
+  font-size: 0.87rem;
+  line-height: 1.55;
+}
+
+.course-catalog__courses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.course-card {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.course-card:hover,
+.course-card:focus-visible {
+  border-color: var(--accent-primary);
+  background: var(--bg-elevated);
+}
+
+.course-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.course-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.course-card__blurb {
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.course-card__progress {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.course-card[data-complete] .course-card__progress {
+  color: var(--accent-primary);
+}
+
+.course-page__back {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.course-page__back:hover,
+.course-page__back:focus-visible {
+  color: var(--text-primary);
+}
+
+
+
+.course-page__progress {
+  margin: var(--space-3) 0 0;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.course-catalog__resume,
+.course-page__resume {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  margin-bottom: var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--text-primary);
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.course-page__resume {
+  margin-bottom: 0;
+}
+
+.course-catalog__resume:hover,
+.course-page__resume:hover {
+  background: color-mix(in srgb, var(--accent-primary) 24%, transparent);
 }

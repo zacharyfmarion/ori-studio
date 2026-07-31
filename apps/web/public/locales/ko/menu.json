@@ -92,7 +92,8 @@
     "settings": "설정"
   },
   "help": {
-    "about": "Ori Studio 정보"
+    "about": "Ori Studio 정보",
+    "tutorial": "튜토리얼"
   },
   "menubar": {
     "creasePattern": "전개도",

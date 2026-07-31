@@ -663,5 +663,41 @@
     "textControls": "Элементы управления текстом",
     "textStyle": "Стиль текста",
     "underline": "Подчёркнутый"
+  },
+  "tutorial": {
+    "actionDone": "Готово — получилось.",
+    "actionPending": "Ожидание вашего действия…",
+    "allCourses": "Все курсы",
+    "allLessons": "Все уроки",
+    "back": "Назад",
+    "catalogBlurb": "Короткие курсы, которые обучают редактору, предлагая рисовать в нём. Ваша собственная работа в рабочей области «Правка» остаётся нетронутой.",
+    "catalogTitle": "Изучение Ori Studio",
+    "checking": "Ожидание вашего рисунка…",
+    "courseProgress": "{{completed}} / {{total}} уроков",
+    "extra_one": "{{count}} сгиб, которого нет в образце",
+    "extra_few": "{{count}} сгиба, которых нет в образце",
+    "extra_many": "{{count}} сгибов, которых нет в образце",
+    "extra_other": "{{count}} сгиба, которых нет в образце",
+    "finish": "Завершить урок",
+    "matched": "Совпадает. Отлично.",
+    "matchProgress": "Совпало {{matched}} из {{expected}} сгибов",
+    "missing_one": "Осталось нарисовать {{count}} сгиб",
+    "missing_few": "Осталось нарисовать {{count}} сгиба",
+    "missing_many": "Осталось нарисовать {{count}} сгибов",
+    "missing_other": "Осталось нарисовать {{count}} сгиба",
+    "next": "Далее",
+    "resume": "Продолжить с места остановки",
+    "resumeLesson": "Продолжить: {{lesson}}",
+    "skip": "Пропустить",
+    "stepCounter": "Шаг {{current}} из {{total}}",
+    "targetHeading": "Нарисуйте это",
+    "targetPreview": {
+      "label": "Целевой паттерн сгибов",
+      "loading": "Загрузка образца…"
+    },
+    "wrongAssignment_one": "{{count}} сгиб на правильном месте, но не того типа",
+    "wrongAssignment_few": "{{count}} сгиба на правильном месте, но не того типа",
+    "wrongAssignment_many": "{{count}} сгибов на правильном месте, но не того типа",
+    "wrongAssignment_other": "{{count}} сгиба на правильном месте, но не того типа"
   }
 }

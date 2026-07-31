@@ -108,6 +108,7 @@ import {
   reselectFoldableLineIds,
 } from '../../../cp-workspace/folded/foldedFigureStaleness';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
+import { cpSlotGeneration, cpSlotGenerationIsCurrent } from '../cpDocumentSlots';
 
 /** Cap on the CP undo stack (matches historySlice's MAX_HISTORY). */
 const MAX_CP_HISTORY = 100;
@@ -182,7 +183,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
   const wholeSimulationFocus = { kind: 'whole' as const };
   let foldArtifactPromise: Promise<FoldArtifacts | null> | null = null;
-  let foldArtifactPromiseRevision: number | null = null;
+  /** `${slotGeneration}:${revision}` — see the note where it is assigned. */
+  let foldArtifactPromiseKey: string | null = null;
   // Newest artifact request. Loader-private rather than store state: a document
   // load resets the whole fold-artifact resource, so a counter kept there would
   // restart at zero and let a request still in flight for the previous document
@@ -691,11 +693,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     ) {
       return null;
     }
+    // Revisions and request ids restart at 0 for each crease-pattern document,
+    // so they collide across slots; the slot generation is what makes this key
+    // identify *which* document's fold is in flight.
+    const generation = cpSlotGeneration();
+    const promiseKey = `${generation}:${currentRevision}`;
     if (
       !force &&
       current.foldArtifactStatus === 'loading' &&
       foldArtifactPromise &&
-      foldArtifactPromiseRevision === currentRevision
+      foldArtifactPromiseKey === promiseKey
     ) {
       return foldArtifactPromise;
     }
@@ -714,12 +721,19 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       sequenceError: null,
     });
 
-    foldArtifactPromiseRevision = currentRevision;
+    foldArtifactPromiseKey = promiseKey;
     foldArtifactPromise = (async () => {
       try {
         const foldArtifacts = await computeFoldArtifacts();
         if (
           foldArtifacts &&
+          // Three different ways this response can be stale, and the request
+          // id alone catches only the first: superseded within this document,
+          // superseded by a reload (the id is monotonic, so it never rewinds),
+          // or landed while a *different* document is in the foreground — which
+          // the id cannot see, because the other slot may never have folded at
+          // all and so never advanced it.
+          cpSlotGenerationIsCurrent(generation) &&
           get().foldArtifactRevision === currentRevision &&
           foldArtifactRequestId === requestId
         ) {
@@ -735,6 +749,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return foldArtifacts;
       } catch (error) {
         if (
+          cpSlotGenerationIsCurrent(generation) &&
           get().foldArtifactRevision === currentRevision &&
           foldArtifactRequestId === requestId
         ) {
@@ -753,9 +768,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         }
         return null;
       } finally {
-        if (foldArtifactPromiseRevision === currentRevision) {
+        if (foldArtifactPromiseKey === promiseKey) {
           foldArtifactPromise = null;
-          foldArtifactPromiseRevision = null;
+          foldArtifactPromiseKey = null;
         }
       }
     })();
@@ -852,14 +867,48 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       );
     },
 
+    /**
+     * Seed a practice canvas from `.cp` text, for the tutorial.
+     *
+     * Deliberately *not* `loadCreasePatternText`: that is a project-level open —
+     * it renames the current file, rebuilds the tree projection, sets project
+     * status, and activates the Edit canvas. A lesson's starting pattern is none
+     * of those things; it is a scratch document that must leave the user's
+     * project completely alone.
+     */
+    loadPracticeCreasePattern: async (text, label, format = 'cp') => {
+      const generation = cpSlotGeneration();
+      try {
+        const document = await loadOristudioCpDocumentFromText(text, {
+          format,
+          filename: `${label}.${format}`,
+          title: label,
+        });
+        if (!cpSlotGenerationIsCurrent(generation)) return;
+        set(freshEditableCpState(document, get()));
+        // Seed the always-on diagnostics for the pattern just loaded. Without
+        // this the overlay is blank until the first edit, which matters here:
+        // the foldability lesson opens on a deliberately broken pattern and its
+        // prose says the editor is already flagging it.
+        get().scheduleOristudioCamvRefresh();
+      } catch (error) {
+        set({ oristudioCpError: engineError(error).message });
+      }
+    },
+
     // The Edit workspace's always-live canvas: seed a blank editable CP when the
     // workspace is entered with no crease pattern loaded, so it is never empty.
     ensureEditCreasePattern: async () => {
       if (get().oristudioCpDocument) return;
       if (ensureEditInFlight) return ensureEditInFlight;
+      const generation = cpSlotGeneration();
       ensureEditInFlight = (async () => {
         try {
           const document = await createBlankOristudioCpDocument();
+          // The foreground document changed while the blank one was being built
+          // (the user moved between the editor and a tutorial lesson). Seeding
+          // now would install this canvas over whatever they moved to.
+          if (!cpSlotGenerationIsCurrent(generation)) return;
           const priorState = get();
           // A bare, auto-seeded CP establishes no design. If nothing has been
           // authored yet (no tree, no BP project), keep the Design workspace on
@@ -1781,6 +1830,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // is allowed to write.
       const requestId = (modelRequestSequence.get(id) ?? 0) + 1;
       modelRequestSequence.set(id, requestId);
+      // Figure ids restart per document, so the sequence alone cannot tell a
+      // stale response apart from one belonging to a different document.
+      const generation = cpSlotGeneration();
       pendingLiveModelWrites.add(id);
       try {
         const snapshot = await writeFoldedFigureModel(figure.handle, model);
@@ -1790,6 +1842,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           foldedFigureIndex(figure.id),
           true
         );
+        if (!cpSlotGenerationIsCurrent(generation)) return true;
         if (modelRequestSequence.get(id) !== requestId) return true;
         takeCanvasSelection('folded-figure', {
           oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>

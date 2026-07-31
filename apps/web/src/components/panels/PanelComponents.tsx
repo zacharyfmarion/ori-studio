@@ -10,6 +10,7 @@ import { SimulatorViewControlsPanel } from './SimulatorViewControlsPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { SequencePanel } from './SequencePanel';
+import { LessonPanel } from './LessonPanel';
 import { withPanelErrorBoundary } from '../errors/withPanelErrorBoundary';
 
 const panels: Record<string, FC<IDockviewPanelProps>> = {
@@ -23,6 +24,7 @@ const panels: Record<string, FC<IDockviewPanelProps>> = {
   diagnostics: DiagnosticsPanel,
   sequence: SequencePanel,
   conditions: ConditionsPanel,
+  lesson: LessonPanel,
 };
 
 /**

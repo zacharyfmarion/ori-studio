@@ -624,5 +624,32 @@
     "textControls": "텍스트 컨트롤",
     "textStyle": "텍스트 스타일",
     "underline": "밑줄"
+  },
+  "tutorial": {
+    "actionDone": "완료 — 잘 되었습니다.",
+    "actionPending": "시도를 기다리는 중…",
+    "allCourses": "모든 코스",
+    "allLessons": "모든 강의",
+    "back": "이전",
+    "catalogBlurb": "직접 그려 보며 편집기를 익히는 짧은 코스입니다. 편집 작업 공간의 내 작업은 그대로 유지됩니다.",
+    "catalogTitle": "Ori Studio 배우기",
+    "checking": "그림을 기다리는 중…",
+    "courseProgress": "{{total}}개 중 {{completed}}개 레슨",
+    "extra_other": "목표에 없는 접는 선이 {{count}}개 있습니다",
+    "finish": "강의 마치기",
+    "matched": "일치합니다. 훌륭합니다.",
+    "matchProgress": "접는 선 {{expected}}개 중 {{matched}}개 일치",
+    "missing_other": "아직 그려야 할 접는 선이 {{count}}개 있습니다",
+    "next": "다음",
+    "resume": "이어서 계속하기",
+    "resumeLesson": "이어하기: {{lesson}}",
+    "skip": "건너뛰기",
+    "stepCounter": "{{total}}단계 중 {{current}}단계",
+    "targetHeading": "이것을 그려 보세요",
+    "targetPreview": {
+      "label": "목표 전개도",
+      "loading": "목표를 불러오는 중…"
+    },
+    "wrongAssignment_other": "위치는 맞지만 접는 방향이 다른 선이 {{count}}개 있습니다"
   }
 }
