@@ -31,6 +31,7 @@ import {
   getInlineSimulationSource,
   setInlineSimulationSource,
 } from '../../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
+import { resolveInlineSimulationRegion } from '../../../cp-workspace/inlineSimulation/resolveSimulationRegion';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
 import { boxAabb } from '../../../cp-workspace/canvasObjects/placeBesideCp';
 import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
@@ -569,6 +570,38 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       figureId = `generated-${++foldedFigureRequestSequence}`;
     } while (get().oristudioCpFoldedFigures.some((figure) => figure.id === figureId));
     return figureId;
+  }
+
+  /**
+   * Answer "simulate it instead" for a fold that has no flat folded form.
+   *
+   * An inline window, so the 3D answer lands beside the crease pattern the
+   * question was asked about rather than in another workspace — the same result
+   * as the selection toolbar's simulate-inline action, which is where this fold
+   * was invoked from.
+   *
+   * Resolved from the ids the fold was scoped to rather than the live selection:
+   * the toolbar clears the selection the moment it dispatches an action, so by
+   * the time the dialog is answered there is nothing selected to resolve.
+   *
+   * Falls back to the Simulate panel when those ids are not one whole region —
+   * the folded-figure inspector folds an arbitrary crease selection — and when
+   * the window cap is reached. A simulation the store cannot open inline is
+   * still one the panel can run, and this slice has no channel to say otherwise
+   * (see `addOristudioCpInlineSimulation` on why it does not toast).
+   */
+  async function simulateNonFlatRegion(
+    document: OristudioCpDocumentSnapshot,
+    lineIds: readonly number[]
+  ): Promise<void> {
+    const region = await resolveInlineSimulationRegion(document, lineIds);
+    const opened = region
+      ? await get().addOristudioCpInlineSimulation({
+          segment: region.segment,
+          cpLineIds: region.cpLineIds,
+        })
+      : 'unavailable';
+    if (opened !== 'added') useLayoutStore.getState().activatePanel('simulator');
   }
 
   /**
@@ -1396,9 +1429,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return false;
       }
 
+      // What the fold is scoped to, before the foldable-colour filter: the
+      // non-flat dialog resolves a region from these, and a region is matched by
+      // *every* crease inside it, aux lines and borders included.
+      const scopedLineIds = options.lineIds ?? get().oristudioCpSelection.lines;
       const selectedLineIds = selectedFoldableCpLineIds(oristudioCpDocument.document, {
         ...emptyOristudioCpSelection(),
-        lines: options.lineIds ?? get().oristudioCpSelection.lines,
+        lines: scopedLineIds,
       });
       if (selectedLineIds.length === 0) {
         const message = 'Select one or more foldable crease-pattern lines first';
@@ -1429,7 +1466,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           confirmLabel: 'Simulate',
           cancelLabel: 'Cancel',
         });
-        if (simulate) useLayoutStore.getState().activatePanel('simulator');
+        if (simulate) await simulateNonFlatRegion(oristudioCpDocument.document, scopedLineIds);
         return false;
       }
 

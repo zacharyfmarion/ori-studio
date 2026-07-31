@@ -60,6 +60,7 @@ import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
 } from '../../cp-workspace/folded/foldedFigureHandles';
+import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../../lib/foldAngle';
 import { useLayoutStore } from '../layoutStore';
 import {
   registerCommandDialogHost,
@@ -2612,6 +2613,95 @@ describe('workspace store slices', () => {
       status: 'ready',
     });
     await expect(useWorkspaceStore.getState().foldAnotherOristudioCpFigure()).resolves.toBe(true);
+  });
+
+  // A crease with a non-180 angle has no flat folded form at all, so the 2D
+  // folder cannot answer. The dialog offers the simulator, which can — and that
+  // answer belongs beside the crease pattern, not in another workspace.
+  describe('folding a pattern that is not flat-folded', () => {
+    /** The unit square of `editableCpFoldText`, with its diagonal folded to 90°. */
+    function nonFlatSquare() {
+      return editableCpState([
+        cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Black0' }),
+        cpLine({ x: 1, y: 0 }, { x: 1, y: 1 }, { color: 'Black0' }),
+        cpLine({ x: 1, y: 1 }, { x: 0, y: 1 }, { color: 'Black0' }),
+        cpLine({ x: 0, y: 1 }, { x: 0, y: 0 }, { color: 'Black0' }),
+        cpLine(
+          { x: 0, y: 0 },
+          { x: 1, y: 1 },
+          { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+        ),
+      ]);
+    }
+
+    const WHOLE_REGION = [1, 2, 3, 4, 5];
+
+    /** Fold `lines`, answer the non-flat dialog, and report what the panel saw. */
+    async function foldAndAnswer(lines: number[], simulate: boolean) {
+      const activatePanel = vi.fn();
+      useLayoutStore.setState({ activatePanel });
+      useWorkspaceStore.setState({
+        oristudioCpDocument: nonFlatSquare(),
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines },
+      });
+
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+        const dialog = useCommandDialogStore.getState().dialog;
+        expect(dialog).toMatchObject({
+          type: 'confirm',
+          title: 'This pattern isn’t flat-folded',
+          confirmLabel: 'Simulate',
+        });
+        if (!dialog) throw new Error('expected the non-flat fold confirmation');
+        resolveCommandDialog(dialog.id, simulate);
+        // False either way: there is no flat folded form to have produced.
+        await expect(folding).resolves.toBe(false);
+      } finally {
+        unregisterDialogHost();
+      }
+      return { activatePanel };
+    }
+
+    it('simulates inline instead of sending the user to the Simulate panel', async () => {
+      resetStores(seedSnapshot());
+      const { activatePanel } = await foldAndAnswer(WHOLE_REGION, true);
+
+      const simulations = useWorkspaceStore.getState().oristudioCpInlineSimulations;
+      expect(simulations).toHaveLength(1);
+      // Built from the region that was being folded — the whole square, not just
+      // the creases the fold would have consumed.
+      expect(simulations[0]?.sourceBounds).toEqual({ minX: 0, minY: 0, maxX: 1, maxY: 1 });
+      expect(simulations[0]?.sourceBoundary?.length).toBeGreaterThan(0);
+      // The new window takes the canvas selection, as it does from the toolbar.
+      expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBe(
+        simulations[0]?.id
+      );
+      expect(activatePanel).not.toHaveBeenCalled();
+      // The fold itself never ran, so no figure was produced.
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
+    });
+
+    it('does nothing when the dialog is dismissed', async () => {
+      resetStores(seedSnapshot());
+      const { activatePanel } = await foldAndAnswer(WHOLE_REGION, false);
+
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toEqual([]);
+      expect(activatePanel).not.toHaveBeenCalled();
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
+    });
+
+    it('falls back to the Simulate panel when the fold is not scoped to one region', async () => {
+      // The folded-figure inspector folds whatever creases are selected, which
+      // need not be a closed piece of paper — and only a closed one can be
+      // simulated inline. The button still has to do something.
+      resetStores(seedSnapshot());
+      const { activatePanel } = await foldAndAnswer([5], true);
+
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toEqual([]);
+      expect(activatePanel).toHaveBeenCalledWith('simulator');
+    });
   });
 
   it('refolds a stale figure in place, keeping its placement and identity', async () => {

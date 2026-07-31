@@ -2,11 +2,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { resolveSelectedSegment } from '../../lib/creasePatternSelectionSegment';
-import {
-  ensureCpSegmentationArtifacts,
-  peekCpSegmentationArtifacts,
-} from '../cpSegmentationArtifacts';
+import { resolveInlineSimulationRegion } from './resolveSimulationRegion';
 import { MAX_CONCURRENT_SIMULATIONS } from '../../simulator/simulatorLimits';
 
 /**
@@ -34,13 +30,10 @@ export function useSimulateSelection(): () => Promise<void> {
       return;
     }
 
-    // Segmenting a large pattern takes about a second, so the toolbar keeps a
-    // cache and only ever peeks. From the keyboard there may be nothing cached
-    // yet — the toolbar is not necessarily mounted — so wait for it rather than
-    // reporting "no region" for work that has not happened.
-    const artifacts =
-      peekCpSegmentationArtifacts(document) ?? (await ensureCpSegmentationArtifacts(document));
-    const match = resolveSelectedSegment(document, state.oristudioCpSelection, artifacts);
+    const match = await resolveInlineSimulationRegion(
+      document,
+      state.oristudioCpSelection.lines
+    );
     if (!match) {
       toast.error(
         t('toasts:creasePattern.simulateNoRegion', 'Select a closed region to simulate.')
