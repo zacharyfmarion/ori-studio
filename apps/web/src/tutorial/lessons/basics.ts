@@ -8,12 +8,14 @@
  * getting the reader to do something, or by explaining a thing they are about to
  * see on the canvas. Background that does neither belongs in docs instead.
  */
+import { BASICS_COURSE_ID } from '../courses';
 import type { Lesson, LessonChapter } from '../types';
 
 export const BASICS_CHAPTER: LessonChapter = {
   id: 'basics',
   title: 'Basics',
   blurb: 'The paper, the grid, and your first creases.',
+  courseId: BASICS_COURSE_ID,
 };
 
 export const BASICS_LESSONS: readonly Lesson[] = [

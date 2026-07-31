@@ -147,6 +147,23 @@ export interface LessonChapter {
   id: string;
   title: string;
   blurb: string;
+  /** The course this chapter belongs to; a parent pointer, as `Lesson` uses. */
+  courseId: string;
+}
+
+/**
+ * A self-contained arc of chapters: a titled thing a user chooses between, with
+ * its own ordering, its own progress, and its own ending.
+ *
+ * Deliberately carries no lesson or chapter list. Chapters point up at their
+ * course the way lessons point up at their chapter, so membership is stated once
+ * and cannot drift; counts and completion are derived from the registry.
+ */
+export interface LessonCourse {
+  id: string;
+  title: string;
+  /** One line on the catalog card: what the reader ends up able to do. */
+  blurb: string;
 }
 
 /**

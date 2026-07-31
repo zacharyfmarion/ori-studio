@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { LESSON_CHAPTERS, LESSONS, lessonById, nextLesson } from './index';
+import {
+  LESSON_CHAPTERS,
+  LESSONS,
+  courseIdForLesson,
+  courseProgress,
+  firstLessonInCourse,
+  lessonById,
+  lessonsInCourse,
+  nextLesson,
+} from './index';
+import { LESSON_COURSES, courseById } from '../courses';
 import { LESSON_TARGETS, lessonTarget } from '../targets';
 import { stepIsSelfAdvancing } from '../types';
 import { cpActionById } from '../../lib/oristudioCpActions';
@@ -123,6 +133,73 @@ describe('lesson content', () => {
     expect(lessonById(first.id)).toBe(first);
     expect(lessonById('does-not-exist')).toBeUndefined();
     expect(nextLesson(LESSONS[LESSONS.length - 1].id)).toBeUndefined();
+  });
+});
+
+describe('courses', () => {
+  it('gives every course a unique id', () => {
+    const ids = LESSON_COURSES.map((course) => course.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('puts every chapter in a course that exists', () => {
+    for (const chapter of LESSON_CHAPTERS) {
+      expect(courseById(chapter.courseId), `${chapter.id} → ${chapter.courseId}`).toBeDefined();
+    }
+  });
+
+  it('gives every course at least one lesson', () => {
+    for (const course of LESSON_COURSES) {
+      expect(lessonsInCourse(course.id).length, course.id).toBeGreaterThan(0);
+      expect(firstLessonInCourse(course.id), course.id).toBeDefined();
+    }
+  });
+
+  it('accounts for every lesson exactly once across courses', () => {
+    const viaCourses = LESSON_COURSES.flatMap((course) => lessonsInCourse(course.id));
+    expect(viaCourses).toHaveLength(LESSONS.length);
+    expect(new Set(viaCourses.map((lesson) => lesson.id)).size).toBe(LESSONS.length);
+  });
+
+  /**
+   * The bug this whole change exists to fix: walking off the end of a course
+   * used to hand the user the first lesson of an unrelated one.
+   */
+  it('ends a course rather than running on into the next', () => {
+    for (const course of LESSON_COURSES) {
+      const lessons = lessonsInCourse(course.id);
+      for (let index = 0; index < lessons.length - 1; index += 1) {
+        expect(nextLesson(lessons[index].id)?.id).toBe(lessons[index + 1].id);
+      }
+      expect(nextLesson(lessons[lessons.length - 1].id), `${course.id} runs on`).toBeUndefined();
+    }
+  });
+
+  it('finds the course for any lesson', () => {
+    for (const lesson of LESSONS) {
+      expect(courseIdForLesson(lesson.id), lesson.id).toBeDefined();
+    }
+    expect(courseIdForLesson('does-not-exist')).toBeUndefined();
+  });
+
+  /**
+   * Stored progress can name lessons that were later renamed or deleted.
+   * Counting the stored list would then report more completions than the course
+   * has lessons, so progress is derived from the registry instead.
+   */
+  it('does not let a stale completion inflate a course count', () => {
+    const course = LESSON_COURSES[0];
+    const real = lessonsInCourse(course.id).map((lesson) => lesson.id);
+    const progress = courseProgress(course.id, [...real, 'lesson-that-no-longer-exists']);
+    expect(progress.completed).toBe(real.length);
+    expect(progress.total).toBe(real.length);
+  });
+
+  it('counts only the completions belonging to the course asked about', () => {
+    const course = LESSON_COURSES[0];
+    const lessons = lessonsInCourse(course.id);
+    expect(courseProgress(course.id, []).completed).toBe(0);
+    expect(courseProgress(course.id, [lessons[0].id]).completed).toBe(1);
   });
 });
 

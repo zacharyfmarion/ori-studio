@@ -12,12 +12,14 @@
  * what the checker will flag should be verified against the running app rather
  * than reasoned from the theory.
  */
+import { BASICS_COURSE_ID } from '../courses';
 import type { Lesson, LessonChapter } from '../types';
 
 export const FOLDABILITY_CHAPTER: LessonChapter = {
   id: 'foldability',
   title: 'Foldability',
   blurb: 'Whether your pattern can actually be folded — and seeing it folded.',
+  courseId: BASICS_COURSE_ID,
 };
 
 export const FOLDABILITY_LESSONS: readonly Lesson[] = [

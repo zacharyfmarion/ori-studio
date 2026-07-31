@@ -10,12 +10,14 @@
  * method — a user who reaches the same geometry another way has still done the
  * exercise, and the tutorial should not pretend otherwise.
  */
+import { BASICS_COURSE_ID } from '../courses';
 import type { Lesson, LessonChapter } from '../types';
 
 export const CONSTRUCT_CHAPTER: LessonChapter = {
   id: 'construct',
   title: 'Constructing creases',
   blurb: 'Building exact creases from the geometry already on the paper.',
+  courseId: BASICS_COURSE_ID,
 };
 
 export const CONSTRUCT_LESSONS: readonly Lesson[] = [
