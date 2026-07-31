@@ -172,11 +172,17 @@ pub enum OptimizerEvent {
     Fit((usize, usize)),
 }
 
+/// Build the optimizer request for a project.
+///
+/// `jitter_seed` only matters in view mode, and only when two flaps share a
+/// coordinate — see [`make_initial_vector`]. Callers with distinct flaps get the
+/// same request for any seed.
 pub fn create_optimizer_request(
     project: &Project,
     hierarchies: Vec<Hierarchy>,
     options: OptimizerOptionsBase,
     use_dimension: bool,
+    jitter_seed: u32,
 ) -> BpResult<OptimizerRequest> {
     let Some(last_hierarchy) = hierarchies.last() else {
         return Err(BpError::InvalidInput(
@@ -204,8 +210,14 @@ pub fn create_optimizer_request(
         }
         ordered.push(flap);
     }
+    // Upstream mutates the flap objects in place while jittering, so the
+    // coordinates the vector is built from are the jittered ones.
     let vec = match options.layout {
-        LayoutMode::View => Some(make_initial_vector(&ordered, &project.design.layout.sheet)?),
+        LayoutMode::View => Some(make_initial_vector(
+            &mut ordered,
+            &project.design.layout.sheet,
+            jitter_seed,
+        )?),
         LayoutMode::Random => None,
     };
     Ok(OptimizerRequest {
@@ -440,29 +452,56 @@ pub fn write_to_template(
     Ok(next)
 }
 
-fn make_initial_vector(flaps: &[Flap], sheet: &Sheet) -> BpResult<Vec<Point>> {
+/// Upstream's `OFFSET`, which centres the jitter on the flap's own position.
+const JITTER_OFFSET: f64 = 0.5;
+
+/// Port of upstream's `makeInitialVector`
+/// (`src/client/plugins/optimizer/index.ts`).
+///
+/// Coincident flaps make a degenerate starting point — SLSQP has no direction to
+/// push them apart, and `infer_scale` bails to `MAX_INIT_SCALE` on a zero
+/// separation — so upstream nudges every *duplicate* into a random spot within
+/// half a grid unit of where it sat. This matters far more than it sounds: every
+/// leaf added to a design gets its flap at the same default position, so without
+/// the jitter view mode fails on essentially any freshly authored tree.
+///
+/// Faithful to upstream in the parts that are observable: only duplicates move,
+/// the first occupant of a coordinate keeps its exact position, each retry
+/// re-jitters from the *original* position rather than compounding, and the
+/// offset is uniform over `[-0.5, 0.5)` per axis.
+///
+/// The one deliberate difference is where the entropy comes from. Upstream calls
+/// `Math.random()` directly; here the caller passes a seed, and the wasm bridge
+/// feeds it `Math.random()` so the browser behaves exactly as upstream does. That
+/// keeps this crate a pure function of its inputs, which is what lets the oracle
+/// harness and capture-replay reproduce a run from its seed.
+fn make_initial_vector(
+    flaps: &mut [Flap],
+    sheet: &Sheet,
+    jitter_seed: u32,
+) -> BpResult<Vec<Point>> {
     if sheet.width == 0.0 || sheet.height == 0.0 {
         return Err(BpError::InvalidInput(
             "optimizer view vector requires non-zero sheet dimensions".to_string(),
         ));
     }
+    let mut rng = kernel::BpRandom::new(jitter_seed);
     let mut seen = BTreeSet::new();
-    flaps
-        .iter()
-        .map(|flap| {
-            let key = format!("{},{}", flap.x, flap.y);
-            if !seen.insert(key) {
-                return Err(BpError::UnsupportedOperation {
-                    upstream: "src/client/plugins/optimizer/index.ts#makeInitialVector",
-                    reason: "duplicate view-mode flap coordinates require BP Studio's Math.random jitter quirk",
-                });
-            }
-            Ok(Point {
-                x: flap.x / sheet.width,
-                y: flap.y / sheet.height,
-            })
-        })
-        .collect()
+    let mut vector = Vec::with_capacity(flaps.len());
+    for flap in flaps.iter_mut() {
+        let (x, y) = (flap.x, flap.y);
+        let mut key = format!("{},{}", flap.x, flap.y);
+        while !seen.insert(key) {
+            flap.x = x + rng.random01() - JITTER_OFFSET;
+            flap.y = y + rng.random01() - JITTER_OFFSET;
+            key = format!("{},{}", flap.x, flap.y);
+        }
+        vector.push(Point {
+            x: flap.x / sheet.width,
+            y: flap.y / sheet.height,
+        });
+    }
+    Ok(vector)
 }
 
 fn is_integer(value: f64) -> bool {

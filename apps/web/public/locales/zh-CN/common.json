@@ -15,6 +15,12 @@
     "addTreeEdgesThenOptimize": "先添加树的边，然后优化，再生成折痕图",
     "advanceCreaseType": "递进折痕类型",
     "advanceSelectedCpLineTypes": "递进所选折痕图线型",
+    "bpOptimizeBusy": "箱形褶引擎正忙",
+    "bpOptimizeLayout": "优化布局",
+    "bpOptimizeLayoutReason": "将角片打包到最小的纸张中",
+    "bpOptimizeNeedsDocument": "请先打开一个箱形褶设计再进行优化",
+    "bpOptimizeNeedsEdges": "请先添加箱形褶树边再进行优化",
+    "bpOptimizeUnavailable": "布局优化不可用",
     "buildCp": "生成折痕图",
     "buildCpBeforeExportingFold": "导出 FOLD 前请先生成折痕图",
     "buildCpBeforeSelectingCorridorFacets": "选择走廊面前请先生成折痕图",
@@ -219,10 +225,15 @@
     "reset": "重置为默认",
     "resetNamed": "将 {{label}} 重置为默认"
   },
+  "fileDrop": {
+    "open": "拖放以打开",
+    "openOrImport": "拖放以打开或导入"
+  },
   "toolbar": {
     "downloadMac": "下载 Mac 版 Ori Studio",
     "new": "新建",
     "open": "打开",
+    "optimizeLayout": "优化",
     "optimizeScale": "优化比例",
     "save": "保存",
     "sendToEdit": "发送到编辑",

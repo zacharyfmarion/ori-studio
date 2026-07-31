@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { BpOptimizerModal } from './components/BpOptimizerModal';
 import { CommandDialogModal } from './components/CommandDialogModal';
 import { CpDetectImportModal } from './components/CpDetectImportModal';
 import { GlobalErrorReporter } from './components/errors/GlobalErrorReporter';
@@ -151,6 +152,9 @@ export default function App() {
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="cp-detect-import">
         <CpDetectImportModal />
+      </OverlayErrorBoundary>
+      <OverlayErrorBoundary id="bp-optimizer">
+        <BpOptimizerModal />
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="settings">
         <SettingsModal />

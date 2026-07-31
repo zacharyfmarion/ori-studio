@@ -127,7 +127,10 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   deg2Action: 'R', // radial / angle-restricted snapping (22.5, 30, 15 deg)
   fishBoneDrawAction: 'H', // Oriedita labels this button "gridFill"
   rabbitEarAction: 'ctrl B',
-  continuousSymmetricDrawAction: 'ctrl R',
+  // Ori Studio deviation: upstream binds `continuousSymmetricDrawAction` to
+  // Ctrl+R, but Reflect Through Lines is hidden from the UI here, and a hidden
+  // tool must not keep a chord — see `cpHiddenActions` in
+  // oristudioCpActions.ts. Restore this line if the tool returns to the rail.
   doubleSymmetricDrawAction: 'ctrl G',
   reflectAction: 'ctrl M',
   // Brandon's layout claims R for radial snapping, so Mirror Line takes M —

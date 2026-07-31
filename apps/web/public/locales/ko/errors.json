@@ -21,6 +21,11 @@
     "canvasUnavailable": "Canvas 2D를 사용할 수 없습니다",
     "unsupportedImage": "PNG, JPEG 또는 WebP 이미지를 사용하세요."
   },
+  "fileDrop": {
+    "dialogOpen": "파일을 놓기 전에 열려 있는 대화 상자를 완료하세요.",
+    "imageNotHere": "{{name}}을(를) 참조 이미지로 추가하려면 전개도 위에 놓으세요.",
+    "unsupportedFile": "Ori Studio에서 {{name}}을(를) 열 수 없습니다. 지원 파일: {{extensions}}."
+  },
   "fold": {
     "contradiction": "이 전개도는 평평하게 접을 수 없습니다: 일부 면에 일관된 쌓임 순서가 없습니다.",
     "layerSearch": "이 전개도를 접을 수 없습니다: 층을 겹치지 않게 배치할 수 없습니다.",

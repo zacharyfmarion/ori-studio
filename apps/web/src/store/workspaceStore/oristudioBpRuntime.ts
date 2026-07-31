@@ -72,6 +72,52 @@ export async function getOristudioBpPortDescriptors(): Promise<OristudioBpPortDe
   return descriptorsPromise;
 }
 
+/**
+ * Coalesce progress to at most one delivery per frame, latest-wins.
+ *
+ * The kernel emits one `cont` event per basin-hopping iteration per candidate,
+ * so a random-mode run with a high candidate count produces thousands. Each one
+ * would otherwise be a store write and a React render, on the same thread that
+ * has to keep the Abort button responsive. Nothing is lost: progress is a
+ * snapshot, not a stream, so only the most recent value ever matters.
+ */
+function coalesceProgress(
+  onProgress: (progress: OristudioBpOptimizerProgress) => void
+): { deliver: (progress: OristudioBpOptimizerProgress) => void; stop: () => void } {
+  let pending: OristudioBpOptimizerProgress | null = null;
+  let frame: number | null = null;
+  const schedule =
+    typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (callback: FrameRequestCallback) => setTimeout(() => callback(0), 16) as unknown as number;
+  const cancel =
+    typeof cancelAnimationFrame === 'function'
+      ? cancelAnimationFrame
+      : (handle: number) => clearTimeout(handle);
+
+  return {
+    deliver: (progress) => {
+      pending = progress;
+      frame ??= schedule(() => {
+        frame = null;
+        const next = pending;
+        pending = null;
+        if (next) onProgress(next);
+      });
+    },
+    /**
+     * Drop anything still queued. Called when the run ends: the caller resets
+     * its own progress state, and a frame firing after that would paint a stale
+     * stage back over the finished (or cancelled) dialog.
+     */
+    stop: () => {
+      if (frame !== null) cancel(frame);
+      frame = null;
+      pending = null;
+    },
+  };
+}
+
 async function solveOptimizerRequestWithProgress(
   request: unknown,
   seed: number | null,
@@ -85,23 +131,25 @@ async function solveOptimizerRequestWithProgress(
   attachWorkerDiagnostics(optimizerWorker, 'oristudio-bp-optimizer');
   optimizerClient = wrap<OristudioBpOptimizerWorkerApi>(optimizerWorker);
   const activeWorker = optimizerWorker;
+  const progress = onProgress ? coalesceProgress(onProgress) : null;
   try {
     return await optimizerClient.solveReportWithProgress(
       request,
       seed,
       proxy((event: OristudioBpOptimizerEvent) => {
-        onProgress?.(optimizerProgressFromEvent(event));
+        progress?.deliver(optimizerProgressFromEvent(event));
       })
     );
   } catch (error) {
     if (optimizerCancelRequested) {
       throw {
-        code: 'optimization_cancelled',
+        code: OPTIMIZER_CANCELLED,
         message: 'Box Pleat optimization cancelled',
       } satisfies WasmErrorEnvelope;
     }
     throw error;
   } finally {
+    progress?.stop();
     if (optimizerWorker === activeWorker) {
       optimizerWorker.terminate();
       optimizerWorker = null;
@@ -109,6 +157,22 @@ async function solveOptimizerRequestWithProgress(
       optimizerCancelRequested = false;
     }
   }
+}
+
+/** The error {@link solveOptimizerRequestWithProgress} throws when the user aborts. */
+const OPTIMIZER_CANCELLED = 'optimization_cancelled';
+
+/**
+ * Whether an error is the user aborting the optimizer rather than a real
+ * failure. Callers use this to skip the error toast and leave history alone.
+ */
+export function isOptimizerCancellation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === OPTIMIZER_CANCELLED
+  );
 }
 
 export function cancelActiveOristudioBpOptimizer(): void {
@@ -514,9 +578,14 @@ export async function optimizeOristudioBpLayout(
     (request as { symmetry?: OptimizerSymmetryPayload }).symmetry = options.symmetry;
   }
   const report = await solveOptimizerRequestWithProgress(request, options.seed, onProgress);
-  const { result, events } = optimizerSolveReportParts(report);
-  await api.checkOptimizerResult(result);
-  await api.validateOptimizerPacking(request, result);
+  const { result: solved, events } = optimizerSolveReportParts(report);
+  await api.checkOptimizerResult(solved);
+  // Validate the kernel's own result, before the minimum-size clamp below. The
+  // packing validator is ours, not upstream's, and the kernel's output is
+  // self-consistent at the size it reports; running it after the clamp would
+  // let our extra check reject a packing upstream accepts.
+  await api.validateOptimizerPacking(request, solved);
+  const result = clampOptimizerResultToMinimumSheet(solved, request);
   if (options.openNew) {
     const opened = await api.openOptimizerTemplate(activeHandle, request, result);
     const source = optimizedProjectSource(currentSource);
@@ -865,6 +934,37 @@ async function mutateActiveOristudioBpProject(
     dirty: true,
     activeSurface: options.activeSurface ?? 'tree',
   });
+}
+
+/**
+ * Box Pleating Studio's minimum sheet sizes (`shared/types/constants.ts`). The
+ * kernel's own floor is 4 regardless of grid type, and for diagonal sheets the
+ * reported size is derived from the flap coordinates rather than that floor, so
+ * results below these do occur on small designs.
+ */
+const MIN_RECT_SHEET = 4;
+const MIN_DIAG_SHEET = 6;
+
+/**
+ * Port of upstream's `grid.$fixDimension`, which
+ * `client/plugins/optimizer/index.ts` applies to every result before writing it
+ * back. Like upstream this only raises the dimensions; it does not re-centre the
+ * flaps, so a bumped diagonal sheet can leave a flap outside the diamond exactly
+ * as it does in BP Studio.
+ */
+function clampOptimizerResultToMinimumSheet(result: unknown, request: unknown): unknown {
+  if (!result || typeof result !== 'object') return result;
+  const typed = result as { width?: unknown; height?: unknown };
+  if (typeof typed.width !== 'number' || typeof typed.height !== 'number') return result;
+  // `GridType` serializes as "rect" / "diag" (see `oristudio-bp`'s model).
+  const gridType = (request as { problem?: { type?: unknown } } | null)?.problem?.type;
+  const minimum = gridType === 'diag' ? MIN_DIAG_SHEET : MIN_RECT_SHEET;
+  if (typed.width >= minimum && typed.height >= minimum) return result;
+  return {
+    ...result,
+    width: Math.max(typed.width, minimum),
+    height: Math.max(typed.height, minimum),
+  };
 }
 
 function optimizerSolveReportParts(report: unknown): { result: unknown; events: unknown[] } {

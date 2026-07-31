@@ -10,6 +10,7 @@ import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import { createCpImage } from '../images/cpImage';
 import { importImageFile, isSupportedImageFile } from '../images/cpImageImport';
 import { cropImage, fitImageModelSize } from '../images/cpImagePlacement';
+import { dragCarriesFiles } from '../../lib/fileDrop';
 import { overlayCssPerModel, overlayCssToModel } from './annotationTransform';
 import type { AnnotationResizeHandle } from './annotationTransform';
 import {
@@ -197,17 +198,26 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   );
 
   const handleViewportDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
-    if (Array.from(event.dataTransfer.types).includes('Files')) {
+    // Shares the file-drag test with the workspace drop target rather than
+    // re-checking `types` for the exact string 'Files': that check fails
+    // silently (no preventDefault → no drop event at all), so the two must not
+    // disagree about what counts as a file drag.
+    const transfer = event.dataTransfer;
+    if (dragCarriesFiles({ types: Array.from(transfer.types), items: transfer.items })) {
       event.preventDefault();
-      event.dataTransfer.dropEffect = 'copy';
+      transfer.dropEffect = 'copy';
     }
   }, []);
 
   const handleViewportDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
       const file = Array.from(event.dataTransfer.files).find(isSupportedImageFile);
+      // Anything that is not an image bubbles up to the workspace drop target,
+      // which opens or imports it.
       if (!file) return;
       event.preventDefault();
+      // Consumed here, so it must not also reach the workspace target.
+      event.stopPropagation();
       void addImageFromFile(file, { x: event.clientX, y: event.clientY });
     },
     [addImageFromFile]

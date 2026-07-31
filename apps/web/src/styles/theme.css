@@ -1236,6 +1236,115 @@
   padding: var(--space-3);
 }
 
+/* Box-Pleat layout optimizer dialog. Wider than the default modal because its
+   option labels are full sentences ("Keep widths and heights of flaps"), which
+   the shared 72px `.field-row` label column cannot hold. */
+.simple-modal__document--bp-optimizer {
+  width: min(460px, calc(100vw - var(--space-6)));
+}
+
+.bp-optimizer__row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.bp-optimizer__row-label {
+  padding-top: 5px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.bp-optimizer__control {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.bp-optimizer__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.bp-optimizer__count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.bp-optimizer__count input {
+  width: 84px;
+  height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0 var(--space-2);
+}
+
+.bp-optimizer__error {
+  color: var(--text-danger, #f87171);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.bp-optimizer__progress {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.bp-optimizer__progress-label {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.bp-optimizer__progress-track {
+  overflow: hidden;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-primary);
+}
+
+.bp-optimizer__progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-primary, #3b82f6);
+  transition: width 120ms linear;
+}
+
+.bp-optimizer__progress-fill--indeterminate {
+  width: 40%;
+  animation: bp-optimizer-progress-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes bp-optimizer-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-optimizer__progress-fill--indeterminate {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
 .simple-modal__meta {
   color: var(--text-tertiary);
   font-size: 0.72rem;
@@ -1251,6 +1360,83 @@
 
 .simple-modal__error {
   color: var(--status-danger);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+/* Containing block for the drop overlay. Establishes one without touching the
+   host's own layout, so it composes onto an existing grid container. */
+.file-drop-region {
+  position: relative;
+}
+
+.file-drop-overlay {
+  position: absolute;
+  inset: var(--space-2);
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  border: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  pointer-events: none;
+}
+
+.file-drop-overlay__badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--bg-canvas) 55%, transparent);
+}
+
+.choice-dialog__options {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.choice-dialog__option {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.choice-dialog__option:hover,
+.choice-dialog__option:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
+}
+
+.choice-dialog__option[data-tone='danger']:hover,
+.choice-dialog__option[data-tone='danger']:focus-visible {
+  border-color: color-mix(in srgb, var(--status-danger) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--status-danger) 6%, var(--bg-elevated));
+}
+
+.choice-dialog__option-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.choice-dialog__option[data-tone='danger'] .choice-dialog__option-label {
+  color: var(--status-danger);
+}
+
+.choice-dialog__option-description {
+  color: var(--text-tertiary);
   font-size: 0.72rem;
   line-height: 1.45;
 }
@@ -3593,6 +3779,51 @@
   text-align: center;
 }
 
+/* The read-only state, shown in place of the editing surface when a crease
+   pattern loads but the editable kernel refuses it. Same overlay treatment as
+   `.cp-panel__empty` — without it this was an unstyled div sitting in the
+   viewport's centred grid, overlapping the canvas and toolbars with no
+   background of its own. */
+.cp-panel__unopened {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background: var(--domain-overlay-bg);
+  text-align: center;
+}
+
+.cp-panel__unopened-title {
+  max-width: 46ch;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.cp-panel__unopened-detail {
+  max-width: 46ch;
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.cp-panel__unopened-reason {
+  max-width: 52ch;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--status-danger) 8%, transparent);
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
 .cp-panel__preparing {
   display: inline-flex;
   align-items: center;
@@ -3833,21 +4064,38 @@
   stroke: var(--accent-secondary);
 }
 
+/*
+ * Tree dots, quietest to loudest. What a dot *is* — leaf, root — is a tint of its
+ * accent mixed into the canvas; the full-strength accent and the bright ink ring
+ * belong to the dot the user picked, so the selection is the loudest thing on the
+ * canvas rather than one more saturated dot among many.
+ *
+ * The identity rules opt out of the interactive states instead of leaving it to
+ * the cascade. A selector list's specificity is per-selector, so
+ * `.tree-node--selected` (0-1-0) lost to `.tree-node[data-leaf]` (0-2-0) and
+ * selecting a flap tip changed nothing but the ring — from bright to canvas-dark,
+ * which made the picked dot the one that receded.
+ */
 .tree-node {
   fill: var(--tree-node);
-  stroke: var(--tree-node-stroke);
+  stroke: color-mix(in srgb, var(--tree-node-stroke) 55%, var(--bg-canvas));
   stroke-width: 2;
   cursor: pointer;
 }
 
-.tree-node[data-leaf] {
-  fill: var(--accent-tertiary);
+.tree-node[data-leaf]:not(:hover, .tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-tertiary) 45%, var(--bg-canvas));
 }
 
-.tree-node:hover,
+.tree-node:hover:not(.tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-primary) 70%, var(--bg-canvas));
+  stroke: var(--tree-node-stroke);
+  stroke-width: 3;
+}
+
 .tree-node--selected {
   fill: var(--accent-primary);
-  stroke: var(--bg-canvas);
+  stroke: var(--tree-node-stroke);
   stroke-width: 3;
 }
 
@@ -5711,10 +5959,15 @@
   opacity: 0.72;
 }
 
-.bp-tree-edge--river {
-  stroke: var(--border-strong);
-}
-
+/*
+ * Every tree edge is the same line, as in Box Pleating Studio itself — which has
+ * one `edge` style and no river/flap distinction. Rivers used to be drawn in
+ * `--border-strong`, the theme's *active* colour and a near-match for the accent
+ * a selected edge wears, so a tree of rivers read as a tree of selected edges.
+ * Which edge is which stays legible from the length label, carried by flap edges
+ * only.
+ */
+.bp-tree-edge--river,
 .bp-tree-edge--leaf {
   stroke: var(--tree-edge);
 }
@@ -5729,8 +5982,10 @@
   stroke-width: 7;
 }
 
-.bp-tree-node--root {
-  fill: var(--accent-secondary);
+/* The root marker is identity, not state — same opt-out as `[data-leaf]` above, so
+ * selecting the root still reads as selected. */
+.bp-tree-node--root:not(:hover, .tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-secondary) 45%, var(--bg-canvas));
 }
 
 .bp-packing-sheet {

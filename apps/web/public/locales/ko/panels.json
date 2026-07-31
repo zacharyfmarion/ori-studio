@@ -165,6 +165,7 @@
     "changeFoldedModel": "접힌 모델 변경",
     "commandFailed": "명령 실패",
     "couldNotOpenForEditing": "이 전개도를 편집용으로 열 수 없습니다.",
+    "couldNotOpenForEditingHint": "읽기 전용으로 표시됩니다. 계속 보기, 접기, 내보내기를 할 수 있습니다.",
     "cropImage": "이미지 자르기",
     "current_other": "현재 {{count}}",
     "deleteFoldedModel": "접힌 모델 삭제",

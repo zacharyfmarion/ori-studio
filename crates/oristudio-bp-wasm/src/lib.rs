@@ -493,6 +493,10 @@ pub fn bp_optimizer_request(
     use_bh: bool,
     random: usize,
     use_dimension: bool,
+    // Entropy for the coincident-flap jitter. Upstream reads `Math.random()`
+    // inline; the caller passes it in so this crate stays deterministic given
+    // its inputs.
+    jitter_seed: u32,
 ) -> Result<JsValue, JsValue> {
     with_project(handle, |project| {
         let layout = parse_layout_mode(layout)?;
@@ -509,6 +513,7 @@ pub fn bp_optimizer_request(
                 random,
             },
             use_dimension,
+            jitter_seed,
         )
         .map_err(to_js_bp_error)?;
         to_js_value(&request)
@@ -780,6 +785,8 @@ fn validate_project_packing(project: &Project) -> oristudio_bp::BpResult<()> {
             random: 0,
         },
         true,
+        // Random mode builds no initial vector, so the jitter never runs here.
+        0,
     )?;
     let result = OptimizerResult {
         width: project.design.layout.sheet.width,

@@ -15,6 +15,12 @@
     "addTreeEdgesThenOptimize": "Add tree edges, then optimize before building the crease pattern",
     "advanceCreaseType": "Advance Crease Type",
     "advanceSelectedCpLineTypes": "Advance selected crease-pattern line types",
+    "bpOptimizeBusy": "The box-pleat engine is busy",
+    "bpOptimizeLayout": "Optimize Layout",
+    "bpOptimizeLayoutReason": "Pack the box-pleat flaps into the smallest sheet",
+    "bpOptimizeNeedsDocument": "Open a box-pleat design before optimizing",
+    "bpOptimizeNeedsEdges": "Add box-pleat tree edges before optimizing",
+    "bpOptimizeUnavailable": "Layout optimization is unavailable",
     "buildCp": "Build CP",
     "buildCpBeforeExportingFold": "Build a crease pattern before exporting FOLD",
     "buildCpBeforeSelectingCorridorFacets": "Build a crease pattern before selecting corridor facets",
@@ -219,10 +225,15 @@
     "reset": "Reset to default",
     "resetNamed": "Reset {{label}} to default"
   },
+  "fileDrop": {
+    "open": "Drop to open",
+    "openOrImport": "Drop to open or import"
+  },
   "toolbar": {
     "downloadMac": "Download Ori Studio for Mac",
     "new": "New",
     "open": "Open",
+    "optimizeLayout": "Optimize",
     "optimizeScale": "Optimize Scale",
     "save": "Save",
     "sendToEdit": "Send to Edit",

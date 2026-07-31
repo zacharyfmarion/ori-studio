@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "Abortar",
+    "close": "Cerrar optimizar el diseño",
+    "closeAction": "Cerrar",
+    "failed": "El optimizador no pudo encontrar un diseño.",
+    "layout": {
+      "random": "Pruebe diseños aleatorios",
+      "view": "Utilice el diseño actual como referencia"
+    },
+    "layoutMethod": "Método de diseño",
+    "options": "Opciones",
+    "run": "¡Ejecuta!",
+    "running": "Ejecutando...",
+    "stage": {
+      "candidates": "Generando diseños candidatos...",
+      "fitting": "Ajustando a la cuadrícula...",
+      "initializing": "Inicializando...",
+      "preSolving": "Resolviendo previamente...",
+      "running": "Ejecutando...",
+      "start": "Procesando el problema..."
+    },
+    "title": "Optimizar el diseño",
+    "toTry": "Número de diseños para probar:",
+    "useBasinHopping": "Pruebe variaciones de los diseños actuales",
+    "useDimension": "Mantenga los anchos y altos de las solapas"
+  },
   "closeGuard": {
     "discard": "Descartar",
     "message": "El proyecto actual tiene cambios sin guardar. ¿Cerrar Ori Studio y descartarlos?",
@@ -95,6 +121,15 @@
     "themeLight": "Claro",
     "title": "Título",
     "titlePlaceholder": "Opcional"
+  },
+  "fileDrop": {
+    "choiceMessage": "{{name}} es un patrón de pliegues, así que puede fusionarse con el que estás editando o abrirse por separado.",
+    "choiceTitle": "¿Abrir o importar {{name}}?",
+    "importDescription": "Se coloca a la derecha de tu patrón de pliegues, como una sola edición que puedes deshacer.",
+    "importLabel": "Importar junto al patrón actual",
+    "openDescription": "Reemplaza aquello en lo que estás trabajando.",
+    "openDescriptionDirty": "Reemplaza aquello en lo que estás trabajando y descarta los cambios sin guardar.",
+    "openLabel": "Abrir como archivo nuevo"
   },
   "foldWarning": {
     "dontShowAgain": "No volver a mostrar",

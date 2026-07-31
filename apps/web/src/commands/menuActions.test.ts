@@ -644,6 +644,8 @@ describe('menu actions', () => {
         hasEditableCreasePattern: false,
         hasImportedCreasePattern: true,
         hasBoxPleatDocument: false,
+        boxPleatTreeEdgeCount: 0,
+        boxPleatBusy: false,
         hasSimulationModel: true,
         oristudioCpSelectedLineCount: 0,
         oristudioCpSelectedPointCount: 0,

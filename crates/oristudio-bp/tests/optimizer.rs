@@ -23,6 +23,7 @@ fn optimizer_request_orders_flaps_by_last_hierarchy_and_normalizes_view_vector()
             random: 7,
         },
         false,
+        0,
     )
     .unwrap();
 
@@ -51,6 +52,7 @@ fn optimizer_request_random_mode_omits_initial_vector_and_keeps_dimensions() {
             random: 3,
         },
         true,
+        0,
     )
     .unwrap();
 
@@ -76,6 +78,7 @@ fn optimizer_request_serializes_with_bp_studio_wire_names() {
             random: 3,
         },
         true,
+        0,
     )
     .unwrap();
 
@@ -86,24 +89,76 @@ fn optimizer_request_serializes_with_bp_studio_wire_names() {
     assert!(value["problem"]["hierarchies"][0].get("dist_map").is_none());
 }
 
-#[test]
-fn optimizer_request_rejects_duplicate_view_coordinates_until_jitter_is_ported() {
-    let mut project = Project::sample();
-    project.design.layout.flaps = vec![flap(1, 2.0, 3.0, 0.0, 0.0), flap(2, 2.0, 3.0, 0.0, 0.0)];
-
-    let err = create_optimizer_request(
-        &project,
-        vec![hierarchy(vec![1, 2])],
+fn view_request_with_seed(project: &Project, ids: Vec<u32>, seed: u32) -> OptimizerRequest {
+    create_optimizer_request(
+        project,
+        vec![hierarchy(ids)],
         OptimizerOptionsBase {
             layout: LayoutMode::View,
             use_bh: false,
             random: 0,
         },
         true,
+        seed,
     )
-    .expect_err("duplicate view coordinates need upstream random jitter");
+    .expect("view request")
+}
 
-    assert!(err.to_string().contains("Math.random jitter"));
+/// Port of upstream's `makeInitialVector` jitter. Every leaf added to a design
+/// gets its flap at the same default spot, so without this view mode fails on
+/// essentially any freshly authored tree.
+#[test]
+fn optimizer_request_jitters_duplicate_view_coordinates_like_bp_studio() {
+    let mut project = Project::sample();
+    project.design.layout.sheet.width = 10.0;
+    project.design.layout.sheet.height = 10.0;
+    project.design.layout.flaps = vec![
+        flap(1, 2.0, 3.0, 0.0, 0.0),
+        flap(2, 2.0, 3.0, 0.0, 0.0),
+        flap(3, 2.0, 3.0, 0.0, 0.0),
+        flap(4, 7.0, 8.0, 0.0, 0.0),
+    ];
+
+    let vec = view_request_with_seed(&project, vec![1, 2, 3, 4], 12345)
+        .vec
+        .expect("view mode supplies an initial vector");
+
+    // The first occupant of a coordinate keeps its exact position, and so does a
+    // flap that never collided; only the duplicates move.
+    assert_eq!(vec[0], Point { x: 0.2, y: 0.3 });
+    assert_eq!(vec[3], Point { x: 0.7, y: 0.8 });
+
+    // Duplicates land within half a grid unit of where they sat, in normalized
+    // sheet coordinates (upstream's `Math.random() - OFFSET`, sheet 10 wide).
+    for index in [1, 2] {
+        assert!(
+            (vec[index].x - 0.2).abs() <= 0.05 && (vec[index].y - 0.3).abs() <= 0.05,
+            "jittered flap {index} strayed too far: {:?}",
+            vec[index]
+        );
+    }
+
+    // ...and they are separated, which is the whole point: coincident flaps give
+    // SLSQP no direction to push apart.
+    assert_ne!(vec[1], vec[0]);
+    assert_ne!(vec[2], vec[0]);
+    assert_ne!(vec[2], vec[1]);
+}
+
+#[test]
+fn optimizer_request_jitter_is_reproducible_from_its_seed() {
+    let mut project = Project::sample();
+    project.design.layout.flaps = vec![flap(1, 2.0, 3.0, 0.0, 0.0), flap(2, 2.0, 3.0, 0.0, 0.0)];
+
+    let a = view_request_with_seed(&project, vec![1, 2], 999);
+    let b = view_request_with_seed(&project, vec![1, 2], 999);
+    let c = view_request_with_seed(&project, vec![1, 2], 1000);
+
+    assert_eq!(a.vec, b.vec, "same seed must reproduce the same layout");
+    assert_ne!(
+        a.vec, c.vec,
+        "a different seed must explore a different spot"
+    );
 }
 
 #[test]

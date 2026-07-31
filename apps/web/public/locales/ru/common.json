@@ -15,6 +15,12 @@
     "addTreeEdgesThenOptimize": "Добавьте рёбра дерева, затем выполните оптимизацию перед построением паттерна складок",
     "advanceCreaseType": "Следующий тип складки",
     "advanceSelectedCpLineTypes": "Перейти к следующему типу для выбранных линий паттерна складок",
+    "bpOptimizeBusy": "Движок box-pleating занят",
+    "bpOptimizeLayout": "Оптимизировать раскладку",
+    "bpOptimizeLayoutReason": "Упаковать клапаны в наименьший лист",
+    "bpOptimizeNeedsDocument": "Откройте box-pleating проект перед оптимизацией",
+    "bpOptimizeNeedsEdges": "Добавьте рёбра дерева перед оптимизацией",
+    "bpOptimizeUnavailable": "Оптимизация раскладки недоступна",
     "buildCp": "Построить CP",
     "buildCpBeforeExportingFold": "Постройте паттерн складок перед экспортом FOLD",
     "buildCpBeforeSelectingCorridorFacets": "Постройте паттерн складок перед выбором граней коридора",
@@ -219,10 +225,15 @@
     "reset": "Сбросить",
     "resetNamed": "Сбросить {{label}}"
   },
+  "fileDrop": {
+    "open": "Отпустите, чтобы открыть",
+    "openOrImport": "Отпустите, чтобы открыть или импортировать"
+  },
   "toolbar": {
     "downloadMac": "Скачать Ori Studio для Mac",
     "new": "Создать",
     "open": "Открыть",
+    "optimizeLayout": "Оптимизировать",
     "optimizeScale": "Оптимизировать масштаб",
     "save": "Сохранить",
     "sendToEdit": "Отправить в Правку",

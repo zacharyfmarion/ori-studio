@@ -21,6 +21,11 @@
     "canvasUnavailable": "Canvas 2D を利用できません",
     "unsupportedImage": "PNG、JPEG、または WebP 画像を使用してください。"
   },
+  "fileDrop": {
+    "dialogOpen": "ファイルをドロップする前に、開いているダイアログを閉じてください。",
+    "imageNotHere": "{{name}} を参照画像として追加するには、展開図の上にドロップしてください。",
+    "unsupportedFile": "Ori Studio は {{name}} を開けません。対応ファイル: {{extensions}}。"
+  },
   "fold": {
     "contradiction": "この展開図は平坦に折れません。一部の面に一貫した重なり順序がありません。",
     "layerSearch": "この展開図は折れませんでした。層を重なりなく並べることができません。",

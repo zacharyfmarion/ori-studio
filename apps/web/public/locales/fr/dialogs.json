@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "Interrompre",
+    "close": "Fermer l'optimisation de la disposition",
+    "closeAction": "Fermer",
+    "failed": "L'optimiseur n'a pas trouvé de disposition.",
+    "layout": {
+      "random": "Essayer des dispositions aléatoires",
+      "view": "Utiliser la disposition actuelle comme référence"
+    },
+    "layoutMethod": "Méthode de disposition",
+    "options": "Options",
+    "run": "Lancer !",
+    "running": "En cours...",
+    "stage": {
+      "candidates": "Génération des dispositions candidates...",
+      "fitting": "Ajustement à la grille...",
+      "initializing": "Initialisation...",
+      "preSolving": "Pré-résolution...",
+      "running": "En cours...",
+      "start": "Traitement du problème..."
+    },
+    "title": "Optimiser la disposition",
+    "toTry": "Nombre de dispositions à essayer :",
+    "useBasinHopping": "Essayer des variantes de la disposition actuelle",
+    "useDimension": "Conserver les largeurs et hauteurs des rabats"
+  },
   "closeGuard": {
     "discard": "Abandonner",
     "message": "Votre projet actuel comporte des modifications non enregistrées. Fermer Ori Studio et les abandonner ?",
@@ -96,9 +122,18 @@
     "title": "Titre",
     "titlePlaceholder": "Facultatif"
   },
+  "fileDrop": {
+    "choiceMessage": "{{name}} est un patron de plis : il peut être fusionné avec celui que vous modifiez ou ouvert séparément.",
+    "choiceTitle": "Ouvrir ou importer {{name}} ?",
+    "importDescription": "Placé à droite de votre patron de plis, en une seule modification annulable.",
+    "importLabel": "Importer à côté du patron actuel",
+    "openDescription": "Remplace ce sur quoi vous travaillez.",
+    "openDescriptionDirty": "Remplace ce sur quoi vous travaillez et abandonne vos modifications non enregistrées.",
+    "openLabel": "Ouvrir comme nouveau fichier"
+  },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {

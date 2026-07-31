@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "Abortar",
+    "close": "Fechar otimizar o layout",
+    "closeAction": "Fechar",
+    "failed": "O otimizador não encontrou um layout.",
+    "layout": {
+      "random": "Tentar layouts aleatórios",
+      "view": "Usar o layout atual como referência"
+    },
+    "layoutMethod": "Método de layout",
+    "options": "Opções",
+    "run": "Executar!",
+    "running": "Executando...",
+    "stage": {
+      "candidates": "Gerando layouts candidatos...",
+      "fitting": "Ajustando à grade...",
+      "initializing": "Inicializando...",
+      "preSolving": "Pré-resolvendo...",
+      "running": "Executando...",
+      "start": "Processando o problema..."
+    },
+    "title": "Otimizar o layout",
+    "toTry": "Número de layouts a tentar:",
+    "useBasinHopping": "Tentar variações do layout atual",
+    "useDimension": "Manter as larguras e alturas das abas"
+  },
   "closeGuard": {
     "discard": "Descartar",
     "message": "Seu projeto atual tem alterações não salvas. Fechar o Ori Studio e descartá-las?",
@@ -95,6 +121,15 @@
     "themeLight": "Claro",
     "title": "Título",
     "titlePlaceholder": "Opcional"
+  },
+  "fileDrop": {
+    "choiceMessage": "{{name}} é um padrão de vincos, então pode ser mesclado ao que você está editando ou aberto separadamente.",
+    "choiceTitle": "Abrir ou importar {{name}}?",
+    "importDescription": "Colocado à direita do seu padrão de vincos, como uma única edição que pode ser desfeita.",
+    "importLabel": "Importar ao lado do padrão atual",
+    "openDescription": "Substitui aquilo em que você está trabalhando.",
+    "openDescriptionDirty": "Substitui aquilo em que você está trabalhando e descarta as alterações não salvas.",
+    "openLabel": "Abrir como novo arquivo"
   },
   "foldWarning": {
     "dontShowAgain": "Não mostrar novamente",

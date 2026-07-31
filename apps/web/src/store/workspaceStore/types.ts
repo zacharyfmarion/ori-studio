@@ -66,6 +66,9 @@ import type {
   OristudioBpEditingSurface,
   OristudioBpPortDescriptor,
   OristudioBpSelection,
+  OristudioBpOptimizerOutcome,
+  OristudioBpOptimizerProgress,
+  OristudioBpOptimizerRunOptions,
   OristudioBpSheetKind,
   OristudioBpWorkspaceState,
 } from '../../engine/oristudioBpTypes';
@@ -116,6 +119,7 @@ export interface OristudioCpActionRequest {
   id: number;
   operationId: OristudioCpOperationId;
 }
+
 
 export interface ProjectSliceState {
   project: TreeProject;
@@ -213,7 +217,15 @@ export interface ProjectSliceActions {
    * `oristudioCpCamvResult` when it lands — dropped if the document changed meanwhile.
    */
   scheduleOristudioCamvRefresh: () => void;
-  openProject: (fileService?: FileService) => Promise<boolean>;
+  /**
+   * Open a document, replacing the current one. Prompts before discarding
+   * unsaved changes unless `confirmDiscard` is false — which only a caller that
+   * has already asked in its own prompt may pass.
+   */
+  openProject: (
+    fileService?: FileService,
+    options?: { confirmDiscard?: boolean }
+  ) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
   /** Merge crease-pattern text into the Edit canvas (in-memory Import(Add)). */
   importAddOristudioCpText: (
@@ -683,6 +695,13 @@ export interface OristudioBpSliceState {
   oristudioBpBusy: boolean;
   oristudioBpHistoryPast: SnapshotEntry<BpHistorySnapshot>[];
   oristudioBpHistoryFuture: SnapshotEntry<BpHistorySnapshot>[];
+  /**
+   * Bumped when something reframes the packing worth re-fitting the camera for.
+   * The packing pane folds this into its `fitKey`, which fits once per distinct
+   * key — so ordinary edits still leave the camera alone, but an optimize (new
+   * sheet size, every flap moved) frames the result.
+   */
+  oristudioBpViewportFitRequestId: number;
   oristudioBpSymmetry: OristudioBpSymmetryState;
 }
 
@@ -804,6 +823,14 @@ export interface OristudioBpSliceActions {
     width: number,
     height: number
   ) => Promise<boolean>;
+  /**
+   * Run the BP layout optimizer and apply its result as one undoable step.
+   * Cancelling leaves the document and history untouched.
+   */
+  optimizeOristudioBpLayout: (
+    options: OristudioBpOptimizerRunOptions,
+    onProgress?: (progress: OristudioBpOptimizerProgress) => void
+  ) => Promise<OristudioBpOptimizerOutcome>;
 }
 
 export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;

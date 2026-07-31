@@ -15,6 +15,12 @@
     "addTreeEdgesThenOptimize": "Adicione arestas à árvore e otimize antes de gerar o padrão de vincos",
     "advanceCreaseType": "Avançar tipo de vinco",
     "advanceSelectedCpLineTypes": "Avançar os tipos das linhas selecionadas do padrão de vincos",
+    "bpOptimizeBusy": "O motor de box pleating está ocupado",
+    "bpOptimizeLayout": "Otimizar o layout",
+    "bpOptimizeLayoutReason": "Compactar as abas na menor folha",
+    "bpOptimizeNeedsDocument": "Abra um design de box pleating antes de otimizar",
+    "bpOptimizeNeedsEdges": "Adicione arestas à árvore de box pleating antes de otimizar",
+    "bpOptimizeUnavailable": "A otimização de layout está indisponível",
     "buildCp": "Gerar padrão de vincos",
     "buildCpBeforeExportingFold": "Gere um padrão de vincos antes de exportar FOLD",
     "buildCpBeforeSelectingCorridorFacets": "Gere um padrão de vincos antes de selecionar facetas de corredor",
@@ -219,10 +225,15 @@
     "reset": "Redefinir",
     "resetNamed": "Redefinir {{label}}"
   },
+  "fileDrop": {
+    "open": "Solte para abrir",
+    "openOrImport": "Solte para abrir ou importar"
+  },
   "toolbar": {
     "downloadMac": "Baixar o Ori Studio para Mac",
     "new": "Novo",
     "open": "Abrir",
+    "optimizeLayout": "Otimizar",
     "optimizeScale": "Otimizar escala",
     "save": "Salvar",
     "sendToEdit": "Enviar para Edição",

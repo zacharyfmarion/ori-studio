@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cameraZoomForPercent,
   fitUserCamera,
+  frameUserCameraOnBounds,
   modelViewFromCamera,
   normalizeCameraRotation,
   panUserCamera,
@@ -246,5 +248,63 @@ describe('UserCamera under rotation', () => {
     const east = projectModelPoint(view, 1, 0);
     expect(east.x).toBeCloseTo(400);
     expect(east.y).toBeCloseTo(320);
+  });
+});
+
+describe('frameUserCameraOnBounds', () => {
+  const vp: Viewport = { width: 800, height: 600, dpr: 1 };
+  const documentBounds = { minX: 0, minY: 0, maxX: 400, maxY: 400 };
+  const issue = { minX: 200, minY: 200, maxX: 210, maxY: 210 };
+  const camera = (over: Partial<UserCamera> = {}): UserCamera => ({
+    centerX: 0,
+    centerY: 0,
+    zoom: 1,
+    rotation: 0,
+    ...over,
+  });
+
+  it('centres on the target', () => {
+    const framed = frameUserCameraOnBounds(issue, vp, camera(), documentBounds);
+    expect(framed.centerX).toBeCloseTo(205);
+    expect(framed.centerY).toBeCloseTo(205);
+  });
+
+  it('never zooms out from where the user already is', () => {
+    // A wide target would fit at a *lower* zoom than the user's current one.
+    // Arriving at it must not undo a magnification they chose.
+    const wide = { minX: 0, minY: 0, maxX: 4000, maxY: 4000 };
+    const framed = frameUserCameraOnBounds(wide, vp, camera({ zoom: 12 }), documentBounds);
+    expect(framed.zoom).toBe(12);
+  });
+
+  it('caps the jump at 4x the document fit', () => {
+    // A zero-span target fits at an unbounded zoom; the cap is what stops it.
+    const point = { minX: 100, minY: 100, maxX: 100, maxY: 100 };
+    const documentFit = fitUserCamera(documentBounds, vp).zoom;
+    const framed = frameUserCameraOnBounds(point, vp, camera(), documentBounds);
+    expect(framed.zoom).toBeCloseTo(documentFit * 4);
+  });
+
+  it('falls back to the target fit when the document has no bounds', () => {
+    const framed = frameUserCameraOnBounds(issue, vp, camera(), null);
+    expect(framed.zoom).toBeCloseTo(fitUserCamera(issue, vp, 0.5).zoom);
+  });
+
+  it('preserves a rotated view instead of straightening it', () => {
+    const turned = camera({ rotation: Math.PI / 3 });
+    const framed = frameUserCameraOnBounds(issue, vp, turned, documentBounds);
+    expect(framed.rotation).toBe(turned.rotation);
+  });
+});
+
+describe('cameraZoomForPercent', () => {
+  it('reads 100% as one user unit per CSS pixel', () => {
+    expect(cameraZoomForPercent(100, 1)).toBe(1);
+    expect(cameraZoomForPercent(100, 2)).toBe(2);
+  });
+
+  it('scales linearly with the percentage', () => {
+    expect(cameraZoomForPercent(50, 2)).toBe(1);
+    expect(cameraZoomForPercent(400, 1)).toBe(4);
   });
 });

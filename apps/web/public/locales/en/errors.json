@@ -21,6 +21,11 @@
     "canvasUnavailable": "Canvas 2D is unavailable",
     "unsupportedImage": "Use a PNG, JPEG, or WebP image."
   },
+  "fileDrop": {
+    "dialogOpen": "Finish the open dialog before dropping a file.",
+    "imageNotHere": "Drop {{name}} onto the crease pattern to add it as a reference image.",
+    "unsupportedFile": "Ori Studio cannot open {{name}}. Supported files: {{extensions}}."
+  },
   "fold": {
     "contradiction": "This crease pattern isn't flat-foldable: some faces have no consistent stacking order.",
     "layerSearch": "This crease pattern couldn't be folded: its layers can't be arranged without overlap.",

@@ -38,6 +38,7 @@ import {
   type ImportedCreasePatternResult,
   type ImportedCreasePatternSource,
 } from '../../../lib/creasePatternImport';
+import { OPENABLE_FILE_EXTENSIONS } from '../../../lib/fileDrop';
 import {
   clampOrieditaGridAngle,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
@@ -102,9 +103,11 @@ import type { OristudioCpOperationId } from '../../../lib/oristudioCpCommands';
 import { createEmptyProject, DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
+import { frameActiveCpDiagnostic } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
+import { getRuntimeSurface } from '../../../platform/runtime';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
   blockingExportLoss,
@@ -830,6 +833,30 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         oristudioCpCamvResult = checked.camvResult;
       } catch (error) {
         oristudioCpRuntimeError = oristudioCpError(error).message;
+        // The file still loads read-only, so nothing throws and nothing else
+        // records why the editable kernel refused it. Without this the user gets
+        // "could not be opened for editing" and no way to find out more.
+        console.error(
+          `[cp-load] ${filename} loaded read-only: the editable kernel refused it`,
+          {
+            filename,
+            format,
+            // Desktop runs the native Rust CP engine over Tauri commands, web
+            // runs the wasm worker (see `getOristudioCpClient`). They are
+            // separate implementations of the same surface, so a file that
+            // opens on one can fail on the other — always record which refused.
+            engine: getRuntimeSurface() === 'desktop' ? 'native (tauri)' : 'wasm (worker)',
+            characters: text.length,
+            vertices: parsed.document.stats.vertices,
+            edges: parsed.document.stats.edges,
+            faces: parsed.document.stats.faces,
+            unassigned: parsed.document.stats.unassigned,
+            parseWarnings: parsed.document.diagnostics.warnings,
+            parseErrors: parsed.document.diagnostics.errors,
+            reason: oristudioCpRuntimeError,
+          },
+          error
+        );
       }
     }
     // Simulation faces are inferred in JS by parseImportedCreasePattern (no
@@ -1778,6 +1805,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpCamvResult: nextCamvResult,
           oristudioCpOperationDescriptors: nextDocument.operationDescriptors,
           oristudioCpError: null,
+          // A check adopts its first issue; an edit has no issue to be looking at.
           oristudioCpActiveDiagnosticId: mutatesDocument
             ? null
             : (diagnosticEntries[0]?.id ?? null),
@@ -1821,6 +1849,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           error: null,
           dirty: mutatesDocument ? true : get().dirty,
         });
+        // A check that adopted an issue above jumps the canvas to it. After the
+        // `set`, so it reads the result that just landed rather than the previous
+        // one — and here rather than at any caller, because the menu and the
+        // CP-detect import run checks without going through the CP panel at all.
+        frameActiveCpDiagnostic(get());
         // The selection above came from the document, not from the setter, so the
         // canvas's one-selection rule has to be applied after the fact. This is
         // the path a select tool takes, which is how a focused simulation window
@@ -2013,25 +2046,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }, CAMV_REFRESH_DEBOUNCE_MS);
     },
 
-    openProject: async (fileService = getFileService()) => {
+    openProject: async (fileService = getFileService(), options = {}) => {
       if (rejectDisabled('file.open')) return false;
-      if (!(await confirmDiscardDirty(get().dirty))) return false;
+      // Same opt-out `createOristudioBpProject` carries: skipped only by a caller
+      // whose own prompt already covered the discard.
+      if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
+        return false;
+      }
       set({ pendingDesignChoice: false });
       let openedSourceLength = 0;
       try {
         const file = await fileService.openTextFile({
           title: 'Open Ori Studio Project or Crease Pattern',
-          extensions: [
-            NATIVE_PROJECT_EXTENSION,
-            'tmd',
-            'tmd4',
-            'tmd5',
-            'fold',
-            'cp',
-            'ori',
-            'orh',
-            'bps',
-          ],
+          extensions: [...OPENABLE_FILE_EXTENSIONS],
         });
         if (!file) return false;
         openedSourceLength = file.text.length;

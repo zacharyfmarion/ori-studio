@@ -10,11 +10,13 @@ import {
   exportOristudioBpProjectAsCp,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   getOristudioBpPortDescriptors,
+  isOptimizerCancellation,
   loadOristudioBpProjectFromText,
   moveOristudioBpDevice as moveRuntimeOristudioBpDevice,
   moveOristudioBpLayoutFlap as moveRuntimeOristudioBpLayoutFlap,
   moveOristudioBpLayoutFlaps as moveRuntimeOristudioBpLayoutFlaps,
   moveOristudioBpTreeVertex as moveRuntimeOristudioBpTreeVertex,
+  optimizeOristudioBpLayout as optimizeRuntimeOristudioBpLayout,
   renameOristudioBpTreeVertex as renameRuntimeOristudioBpTreeVertex,
   resizeOristudioBpLayoutFlap as resizeRuntimeOristudioBpLayoutFlap,
   oristudioBpError,
@@ -272,6 +274,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       return true;
     } catch (error) {
       pendingHistory = null;
+      if (isOptimizerCancellation(error)) {
+        // Aborting the optimizer is a user action, not a failure. Drop the
+        // pending snapshot and clear busy without recording history or
+        // surfacing an error — the document is exactly as it was.
+        set({ oristudioBpBusy: false });
+        return false;
+      }
       const normalized = oristudioBpError(error);
       set({ oristudioBpError: normalized.message, oristudioBpBusy: false, error: normalized });
       return false;
@@ -287,6 +296,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     oristudioBpBusy: false,
     oristudioBpHistoryPast: [],
     oristudioBpHistoryFuture: [],
+    oristudioBpViewportFitRequestId: 0,
     // Ephemeral mirror-draw state (never persisted). Defaults ON; `loc` is
     // re-centred on the sheet on every document load (see createOristudioBpProject),
     // so this pre-load {0,0} is a placeholder. `angle` 90 is a vertical (book) axis.
@@ -804,6 +814,36 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             activeSurface: 'packing',
             })
       ),
+
+    optimizeOristudioBpLayout: async (options, onProgress) => {
+      if (!get().oristudioBpDocument) return 'failed';
+      // `runBpTreeMutation` captures the pre-run .bps snapshot before the
+      // operation and commits exactly one history entry on success, so the whole
+      // optimize — new sheet size, every flap, and the stretches it clears — is
+      // one undo. It also holds `oristudioBpBusy` for the duration, which is what
+      // keeps a mid-run tree edit from being clobbered by the result.
+      let cancelled = false;
+      const applied = await runBpTreeMutation('Optimized BP layout', async () => {
+        try {
+          const summary = await optimizeRuntimeOristudioBpLayout(
+            { ...options, openNew: false, seed: null },
+            { activeSurface: 'packing' },
+            onProgress
+          );
+          return summary.document;
+        } catch (error) {
+          cancelled = isOptimizerCancellation(error);
+          throw error;
+        }
+      });
+      if (applied) {
+        // The sheet resized and every flap moved, so the old camera is framing
+        // nothing useful. Ask the packing pane to re-fit.
+        set({ oristudioBpViewportFitRequestId: get().oristudioBpViewportFitRequestId + 1 });
+        return 'applied';
+      }
+      return cancelled ? 'cancelled' : 'failed';
+    },
 
     setOristudioBpLayoutSheet: async (gridType, width, height) =>
       runBpTreeMutation('Resized BP sheet', () =>

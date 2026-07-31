@@ -15,6 +15,12 @@
     "addTreeEdgesThenOptimize": "Fügen Sie Baumkanten hinzu und optimieren Sie, bevor Sie das Faltmuster erstellen",
     "advanceCreaseType": "Faltentyp weiterschalten",
     "advanceSelectedCpLineTypes": "Ausgewählte Faltmuster-Linientypen weiterschalten",
+    "bpOptimizeBusy": "Die Box-Pleating-Engine ist beschäftigt",
+    "bpOptimizeLayout": "Layout optimieren",
+    "bpOptimizeLayoutReason": "Die Zipfel auf dem kleinsten Blatt packen",
+    "bpOptimizeNeedsDocument": "Öffnen Sie vor dem Optimieren einen Box-Pleating-Entwurf",
+    "bpOptimizeNeedsEdges": "Fügen Sie vor dem Optimieren Box-Pleating-Baumkanten hinzu",
+    "bpOptimizeUnavailable": "Layout-Optimierung ist nicht verfügbar",
     "buildCp": "CP erstellen",
     "buildCpBeforeExportingFold": "Erstellen Sie ein Faltmuster, bevor Sie FOLD exportieren",
     "buildCpBeforeSelectingCorridorFacets": "Erstellen Sie ein Faltmuster, bevor Sie Korridorfacetten auswählen",
@@ -219,10 +225,15 @@
     "reset": "Zurücksetzen",
     "resetNamed": "{{label}} zurücksetzen"
   },
+  "fileDrop": {
+    "open": "Zum Öffnen ablegen",
+    "openOrImport": "Zum Öffnen oder Importieren ablegen"
+  },
   "toolbar": {
     "downloadMac": "Ori Studio für Mac herunterladen",
     "new": "Neu",
     "open": "Öffnen",
+    "optimizeLayout": "Optimieren",
     "optimizeScale": "Skalierung optimieren",
     "save": "Speichern",
     "sendToEdit": "An Bearbeiten senden",

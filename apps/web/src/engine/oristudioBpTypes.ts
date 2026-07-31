@@ -362,6 +362,23 @@ export interface OristudioBpOptimizerOptions {
   symmetry?: OptimizerSymmetryPayload | null;
 }
 
+/**
+ * The subset of {@link OristudioBpOptimizerOptions} the dialog exposes. `openNew`
+ * is always false (we have no BP project tabs, so the optimizer replaces the
+ * layout in place and undo is the recovery path) and `seed` is randomized per
+ * run, so neither is a user choice.
+ */
+export type OristudioBpOptimizerRunOptions = Omit<
+  OristudioBpOptimizerOptions,
+  'openNew' | 'seed'
+>;
+
+/**
+ * How an optimizer run ended. `cancelled` is a user action rather than a
+ * failure: nothing is applied, nothing is recorded, and no error is surfaced.
+ */
+export type OristudioBpOptimizerOutcome = 'applied' | 'cancelled' | 'failed';
+
 export interface OristudioBpOptimizerProgress {
   stage: OristudioBpOptimizerStage;
   label: string;
