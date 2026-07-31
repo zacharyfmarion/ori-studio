@@ -222,10 +222,6 @@
     "preparing": "편집기를 준비하는 중...",
     "showWelcomeOnStartup": "시작 시 환영 화면 표시",
     "startOptions": "시작 옵션",
-    "title": "새 종이접기 작업 공간 시작",
-    "tutorial": {
-      "description": "직접 그려 보면서 편집기를 익히는 짧은 강의입니다. 기존 작업은 그대로 유지됩니다.",
-      "title": "튜토리얼 시작"
-    }
+    "title": "새 종이접기 작업 공간 시작"
   }
 }

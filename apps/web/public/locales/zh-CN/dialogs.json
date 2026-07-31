@@ -222,10 +222,6 @@
     "preparing": "正在准备编辑器...",
     "showWelcomeOnStartup": "启动时显示欢迎界面",
     "startOptions": "开始选项",
-    "title": "开始新的折纸工作区",
-    "tutorial": {
-      "description": "通过动手绘制来学习编辑器的简短课程。你自己的作品不会受到影响。",
-      "title": "开始教程"
-    }
+    "title": "开始新的折纸工作区"
   }
 }

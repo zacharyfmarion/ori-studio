@@ -232,10 +232,6 @@
     "preparing": "Préparation de l'éditeur...",
     "showWelcomeOnStartup": "Afficher l'accueil au démarrage",
     "startOptions": "Options de démarrage",
-    "title": "Démarrer un nouvel espace de travail d'origami",
-    "tutorial": {
-      "description": "De courtes leçons qui enseignent l'éditeur en vous faisant dessiner dedans. Votre propre travail reste intact.",
-      "title": "Suivre le tutoriel"
-    }
+    "title": "Démarrer un nouvel espace de travail d'origami"
   }
 }

@@ -4,7 +4,7 @@ import { StartScreen } from '../components/StartScreen';
 import { useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { DESIGN_PATH, EDIT_PATH, LEARN_PATH } from './paths';
+import { DESIGN_PATH, EDIT_PATH } from './paths';
 import { openedProjectPath } from './landing';
 
 /**
@@ -58,7 +58,6 @@ export function WelcomeRoute() {
   return (
     <div className="app-layout app-layout--start">
       <StartScreen
-        onStartTutorial={() => navigate(LEARN_PATH)}
         status={status}
         errorMessage={error?.message ?? null}
         onCreateCreasePattern={() => void handleCreateCreasePattern()}

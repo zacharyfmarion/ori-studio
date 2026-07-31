@@ -19,7 +19,6 @@ function renderStartScreen(overrides: Partial<ComponentProps<typeof StartScreen>
     onCreateCreasePattern: vi.fn(),
     onCreateDesign: vi.fn(),
     onOpenFile: vi.fn(),
-    onStartTutorial: vi.fn(),
     showWelcomeOnStartup: true,
     onToggleShowWelcomeOnStartup: vi.fn(),
     ...overrides,
@@ -59,6 +58,18 @@ describe('StartScreen', () => {
     expect(rendered.textContent).toContain('.osf projects');
     expect(rendered.textContent).toContain('.cp, .fold, .ori, .orh, .tmd, .tmd4, and .tmd5');
     expect(rendered.textContent).toContain('Create a design');
+  });
+
+  /**
+   * The tutorial is reachable at /learn, but deliberately not advertised here
+   * until there is a NUX designed around it. Re-adding the tile should be a
+   * decision, not a merge artifact.
+   */
+  it('does not offer the tutorial', () => {
+    const rendered = renderStartScreen().container;
+
+    expect(rendered.textContent).not.toContain('tutorial');
+    expect(rendered.querySelectorAll('.start-action')).toHaveLength(3);
   });
 
   it('uses the authored crease-pattern image for the preview', () => {

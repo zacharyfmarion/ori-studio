@@ -1920,9 +1920,7 @@
     "panels:tutorial.targetHeading": "ac695c59147f",
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
-    "dialogs:startScreen.tutorial.description": "dae792512c2d",
-    "dialogs:startScreen.tutorial.title": "1ccf8464f3ba"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3845,9 +3843,7 @@
     "panels:tutorial.targetHeading": "ac695c59147f",
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
-    "dialogs:startScreen.tutorial.description": "dae792512c2d",
-    "dialogs:startScreen.tutorial.title": "1ccf8464f3ba"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5799,9 +5795,7 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
-    "dialogs:startScreen.tutorial.description": "dae792512c2d",
-    "dialogs:startScreen.tutorial.title": "1ccf8464f3ba"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7753,9 +7747,7 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
-    "dialogs:startScreen.tutorial.description": "dae792512c2d",
-    "dialogs:startScreen.tutorial.title": "1ccf8464f3ba"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9707,9 +9699,7 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
-    "dialogs:startScreen.tutorial.description": "dae792512c2d",
-    "dialogs:startScreen.tutorial.title": "1ccf8464f3ba"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11661,9 +11651,7 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
-    "dialogs:startScreen.tutorial.description": "dae792512c2d",
-    "dialogs:startScreen.tutorial.title": "1ccf8464f3ba"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13615,9 +13603,7 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
-    "dialogs:startScreen.tutorial.description": "dae792512c2d",
-    "dialogs:startScreen.tutorial.title": "1ccf8464f3ba"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15540,8 +15526,6 @@
     "panels:tutorial.targetHeading": "ac695c59147f",
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
-    "dialogs:startScreen.tutorial.description": "dae792512c2d",
-    "dialogs:startScreen.tutorial.title": "1ccf8464f3ba"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
   }
 }
