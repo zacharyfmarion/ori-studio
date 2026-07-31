@@ -374,6 +374,11 @@ function cpCommandPayloadDefaults(
     operationId === 'DrawCreaseAngleRestricted' ||
     operationId === 'DrawCreaseAngleRestricted3' ||
     operationId === 'DrawCreaseAngleRestricted5' ||
+    // Upstream commits this one in the active colour too --
+    // `MouseHandlerAngleSystem` builds its segment with `d.getLineColor()`; the
+    // orange/green/purple in that handler are the guide fan, not the crease.
+    // Without this the kernel falls back to its `Red1` default.
+    operationId === 'AngleSystem' ||
     operationId === 'SquareBisector' ||
     operationId === 'Inward' ||
     operationId === 'PerpendicularDraw' ||
