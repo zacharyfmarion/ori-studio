@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
-import { isPrimaryModifier } from '../lib/platform';
+import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
 import {
   cameraZoomForPercent,
   fitUserCamera,
@@ -24,8 +24,8 @@ import {
   circleRingIntersectsAabb,
   segmentIntersectsAabb,
 } from './picking/lineHitIndex';
+import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
 import {
-  OVERLAY_DASH_PATTERN,
   type FoldedGeometry,
   type MarkerGeometry,
   type ModelPoint,
@@ -249,31 +249,6 @@ const PLACED_POINT_RADIUS = 3;
 const TRANSPARENT: Rgba = [0, 0, 0, 0];
 
 const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
-
-/** Pack a tool preview's candidate segments (model coords) into stroke geometry. */
-function previewSegmentsToStrokes(
-  segments: readonly ToolPreviewSegment[],
-  color: Rgba,
-  dashed = false
-): StrokeGeometry {
-  const count = segments.length;
-  const a = new Float32Array(count * 2);
-  const b = new Float32Array(count * 2);
-  const col = new Float32Array(count * 4);
-  const widthMul = new Float32Array(count).fill(1);
-  for (let i = 0; i < count; i++) {
-    const s = segments[i];
-    a[i * 2] = s.a.x;
-    a[i * 2 + 1] = s.a.y;
-    b[i * 2] = s.b.x;
-    b[i * 2 + 1] = s.b.y;
-    col[i * 4] = color[0];
-    col[i * 4 + 1] = color[1];
-    col[i * 4 + 2] = color[2];
-    col[i * 4 + 3] = color[3];
-  }
-  return { a, b, color: col, widthMul, count, dashPatterns: dashed ? [OVERLAY_DASH_PATTERN] : [] };
-}
 
 /** Clamped projection of `p` onto the segment a→b. */
 function projectPointOnSegment(
@@ -629,8 +604,20 @@ export interface CreasePatternWebglCanvasProps {
    * real vertex or a point that merely looks like one.
    */
   onToolSnapKind: (kind: 'grid' | 'vertex' | 'point' | 'line' | null) => void;
-  /** Kernel-computed preview + pick-highlight segments for the active sequence tool. */
+  /**
+   * Kernel-computed candidate geometry for the active sequence tool -- what the
+   * tool *would create*. Stroked in {@link toolPreviewColor}.
+   */
   toolCommandPreviewSegments: readonly ToolPreviewSegment[];
+  /**
+   * *Existing* creases the active sequence tool is snapping to or picking.
+   * Stroked in the selection accent, not the crease colour: these are already in
+   * the document and are being pointed at, not drawn. Kept apart from
+   * {@link toolCommandPreviewSegments} because the two used to share one array
+   * and therefore one colour, which meant whichever of the two was right made the
+   * other wrong.
+   */
+  toolCommandHighlightSegments: readonly ToolPreviewSegment[];
   /** Kernel-computed candidate *points* (Converging Lines ray intersections). */
   toolCommandPreviewPoints: readonly ModelPoint[];
   /** Colour of the in-progress candidate crease (the resolved active line colour). */
@@ -763,6 +750,7 @@ export function CreasePatternWebglCanvas({
   onToolPickProgress,
   onToolSnapKind,
   toolCommandPreviewSegments,
+  toolCommandHighlightSegments,
   toolCommandPreviewPoints,
   toolPreviewColor,
   diagnosticMarkers,
@@ -814,6 +802,32 @@ export function CreasePatternWebglCanvas({
   // so the new creases never blink out during the async command round trip.
   const pendingGhostClearRef = useRef(false);
 
+  // The preview channel has two writers. Drag tools push to it imperatively from
+  // their feed handlers; the point-sequence effect below publishes the
+  // controller's candidate segments declaratively. These two refs keep them from
+  // treading on each other:
+  //
+  // - `toolPreviewSegmentsRef` remembers what a drag tool last drew *in the tool
+  //   colour*, so holding Control mid-drag repaints it in the inverted colour
+  //   immediately rather than waiting for the next pointer move. Null whenever
+  //   the channel holds something with a colour of its own (an erase box, a
+  //   transform ghost), which must never be repainted.
+  // - `sequencePreviewOwnedRef` records whether the declarative effect is what
+  //   put the current content there, so it only ever clears its own.
+  const toolPreviewSegmentsRef = useRef<readonly ToolPreviewSegment[] | null>(null);
+  const sequencePreviewOwnedRef = useRef(false);
+
+  /**
+   * Take the preview channel down and forget who owned it. Every clear goes
+   * through here, so a later repaint can never resurrect content that has
+   * already been taken down.
+   */
+  const clearPreview = useCallback(() => {
+    toolPreviewSegmentsRef.current = null;
+    sequencePreviewOwnedRef.current = false;
+    rendererRef.current?.setPreview(null);
+  }, []);
+
   // Drop an in-progress transform preview and put the surface back as it was.
   // Only the channel the gesture actually touched is restored: a move rebuilt the
   // real strokes and points, a copy only wrote to the preview channel.
@@ -830,9 +844,9 @@ export function CreasePatternWebglCanvas({
       if (strokes) renderer.setStrokes(strokes());
       if (pts) renderer.setPoints(pts());
     } else {
-      renderer.setPreview(null);
+      clearPreview();
     }
-  }, []);
+  }, [clearPreview]);
 
   const gridKeyRef = useRef<string | null>(null);
   // Owned camera (Phase 2). Null until seeded from the SVG's current fit.
@@ -914,7 +928,7 @@ export function CreasePatternWebglCanvas({
     lengthenRef.current = { phase: 'select', a: null, b: null };
     rendererRef.current?.setOverlayPoints(null);
     // Drops a drag-line's armed rubber band along with its parked start.
-    rendererRef.current?.setPreview(null);
+    clearPreview();
     clearTransformPreview();
     const rebuild = buildStrokesRef.current;
     if (rebuild) rendererRef.current?.setStrokes(rebuild());
@@ -930,6 +944,7 @@ export function CreasePatternWebglCanvas({
     activeToolSquareBisector,
     activeToolTransform,
     clearTransformPreview,
+    clearPreview,
   ]);
 
   // The distance between neighbouring vertices, in model units — vertices are
@@ -1181,6 +1196,7 @@ export function CreasePatternWebglCanvas({
     onToolSnapKind,
     toolPreviewColor,
     toolCommandPreviewSegments,
+    toolCommandHighlightSegments,
     toolCommandPreviewPoints,
     onZoomPercentChange,
     onRotationChange,
@@ -1620,7 +1636,9 @@ export function CreasePatternWebglCanvas({
     // Active draw-tool drag: a runtime wrapping the active input mode's pure
     // engine, created on pointer-down and driven by feedTool.
     let drawing = false;
-    // Modifier held when the current drag began, for additive box selection.
+    // Shift held when the current drag began, for additive box selection. Shift
+    // alone, matching the click and box select paths below — and leaving Ctrl
+    // free to mean crease-colour inversion, its meaning upstream.
     let dragShift = false;
     let toolRuntime: ToolRuntime | null = null;
     /**
@@ -1661,6 +1679,23 @@ export function CreasePatternWebglCanvas({
       );
       if (!!armed !== !!was) liveRef.current.onToolPickProgress(armed ? 1 : 0);
     };
+    // Publish tool-coloured segments to the preview channel and remember them, so
+    // a colour change mid-gesture can repaint without a pointer event. Every
+    // writer that draws in `toolPreviewColor` goes through here; writers with a
+    // colour of their own (erase, transform ghost) call `takePreviewChannel`.
+    const setToolPreview = (segments: readonly ToolPreviewSegment[] | null | undefined) => {
+      const live = segments && segments.length > 0 ? segments : null;
+      toolPreviewSegmentsRef.current = live;
+      sequencePreviewOwnedRef.current = false;
+      renderer.setPreview(
+        live ? previewSegmentsToStrokes(live, liveRef.current.toolPreviewColor) : null
+      );
+    };
+    // Claim the preview channel for content that owns its colours.
+    const takePreviewChannel = () => {
+      toolPreviewSegmentsRef.current = null;
+      sequencePreviewOwnedRef.current = false;
+    };
     const feedTool = (kind: 'down' | 'move' | 'up' | 'cancel', clientX: number, clientY: number) => {
       const runtime = drawRuntime();
       if (!runtime) return;
@@ -1670,7 +1705,7 @@ export function CreasePatternWebglCanvas({
       const snaps = liveRef.current.activeToolInputMode === 'drag-line';
       if (kind === 'cancel') {
         const out = runtime.feed({ kind, point: { x: 0, y: 0 } });
-        renderer.setPreview(null);
+        setToolPreview(null);
         if (snaps) syncDragLineArmed(out.livePoints, null);
         renderNow();
         return;
@@ -1687,7 +1722,7 @@ export function CreasePatternWebglCanvas({
       if (liveRef.current.activeToolRequireSnap && kind === 'up' && !resolved.snapped) {
         if (dragLineArmedRef.current) return;
         const out = runtime.feed({ kind: 'cancel', point: resolved.point });
-        renderer.setPreview(null);
+        setToolPreview(null);
         if (snaps) syncDragLineArmed(out.livePoints, null);
         renderNow();
         return;
@@ -1697,11 +1732,7 @@ export function CreasePatternWebglCanvas({
         point: resolved.point,
         tolerance: modelToleranceOf(CLICK_MOVE_THRESHOLD),
       });
-      renderer.setPreview(
-        out.preview && out.preview.segments.length > 0
-          ? previewSegmentsToStrokes(out.preview.segments, liveRef.current.toolPreviewColor)
-          : null
-      );
+      setToolPreview(out.preview?.segments);
       if (snaps) syncDragLineArmed(out.livePoints, snapRingFor(resolved.point, raw));
       renderNow();
       if (out.commit) liveRef.current.onToolCommit({ ...out.commit, additive: dragShift });
@@ -1753,6 +1784,9 @@ export function CreasePatternWebglCanvas({
         transformGhostRef.current = liveRef.current.createSelectionGhost(ids);
         transformGhostIdsRef.current = ids;
       }
+      // The ghost carries the copied strokes' own colours, so it is not a tool
+      // preview and must not be repainted as one.
+      takePreviewChannel();
       renderer.setPreview(transformGhostRef.current?.update(matrix) ?? null);
     };
     // Persistent click-based `sequence` tool: every step collects a point. A
@@ -2300,7 +2334,7 @@ export function CreasePatternWebglCanvas({
       const reset = () => {
         lengthenRef.current = { phase: 'select', a: null, b: null };
         setLinePickHighlight([]);
-        renderer.setPreview(null);
+        clearPreview();
         renderer.setOverlayPoints(null);
         liveRef.current.onToolPickProgress(0);
       };
@@ -2316,14 +2350,23 @@ export function CreasePatternWebglCanvas({
           state.a = raw;
           state.b = raw;
           setLinePickHighlight([]);
-          renderer.setPreview(null);
+          setToolPreview(null);
         } else if (kind === 'move') {
           if (!state.a) return; // hover before pressing: nothing to draw yet
           state.b = raw;
           // Draw only the selection line while dragging; the creases it picks light up
           // on release (like a box select), not live under the cursor.
+          //
+          // Explicitly the accent, not the tool colour: Lengthen *commits* in the
+          // active crease colour, but what this strokes is a selection gesture, not
+          // a crease, so it should read like a box select rather than like the line
+          // being drawn.
+          takePreviewChannel();
           renderer.setPreview(
-            previewSegmentsToStrokes([{ a: state.a, b: state.b }], liveRef.current.toolPreviewColor)
+            previewSegmentsToStrokes(
+              [{ a: state.a, b: state.b }],
+              readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
+            )
           );
         } else if (kind === 'up') {
           if (!state.a) return;
@@ -2364,6 +2407,9 @@ export function CreasePatternWebglCanvas({
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
       const out = eraseRuntime.feed({ kind, point: raw });
+      // The erase box draws in its own colour, so it must not be repainted as a
+      // tool preview when the crease colour changes.
+      takePreviewChannel();
       renderer.setPreview(
         out.preview && out.preview.segments.length > 0
           ? previewSegmentsToStrokes(
@@ -2404,11 +2450,19 @@ export function CreasePatternWebglCanvas({
         // suppresses the browser's middle-click autoscroll.
         e.preventDefault();
         panning = true;
-      } else if (isPrimaryModifier(e) || liveRef.current.panToolActive) {
-        // The platform accel (Cmd on Apple, Ctrl elsewhere) pans, as does a
-        // plain drag while the hand tool is on. Folded figures are grabbed
-        // through the canvas-object overlay now, which sits above this canvas
-        // and takes the press first.
+      } else if (e.metaKey || liveRef.current.panToolActive) {
+        // Meta+drag pans, as does a plain drag while the hand tool is on. Folded
+        // figures are grabbed through the canvas-object overlay now, which sits
+        // above this canvas and takes the press first.
+        //
+        // `metaKey`, not the platform accel. This is upstream's rule verbatim --
+        // `Canvas.java:267` maps `isMetaDown()` to BUTTON2, whose handler pans --
+        // and it means the same thing in practice: Cmd on macOS, and off-Apple
+        // the Windows/Super key, which nobody drags with. Using the accel here
+        // instead would claim Ctrl+drag on Windows, and Ctrl belongs to crease
+        // colour inversion (see `useCpLineColorInversion`), which upstream also
+        // binds on every platform. Middle-button drag and the hand tool remain
+        // the pan affordances that work identically everywhere.
         e.preventDefault();
         panning = true;
         if (liveRef.current.panToolActive) setPanDragging(true);
@@ -2450,7 +2504,7 @@ export function CreasePatternWebglCanvas({
           liveRef.current.resolveDrawPoint(m, modelToleranceOf(SNAP_TOLERANCE_CSS)).snapped;
         if (endpointSnapped) {
           drawing = true;
-          dragShift = e.shiftKey || e.metaKey || e.ctrlKey;
+          dragShift = e.shiftKey;
           // drag-line runs on a persistent runtime (see drawRuntime); the others open
           // a fresh engine per gesture.
           if (toolMode !== 'drag-line') toolRuntime = createToolRuntime(toolEngineFor(toolMode));
@@ -2481,6 +2535,11 @@ export function CreasePatternWebglCanvas({
       canvas.setPointerCapture(e.pointerId);
     };
     const onPointerMove = (e: PointerEvent) => {
+      // Adopt the modifier state the pointer reports, as upstream does on every
+      // canvas mouseMoved (`Canvas.java:245`). Focus loss clears held modifiers
+      // because no keyup will arrive, which is right — except when the key is
+      // still down on return. Moving over the canvas is what corrects that.
+      syncHeldModifiersFromEvent(e);
       if (
         Math.abs(e.clientX - pressX) > CLICK_MOVE_THRESHOLD ||
         Math.abs(e.clientY - pressY) > CLICK_MOVE_THRESHOLD
@@ -2627,7 +2686,7 @@ export function CreasePatternWebglCanvas({
           }
         }
       } else if (route === 'erase') {
-        renderer.setPreview(null);
+        clearPreview();
         const raw = clientToModel(e.clientX, e.clientY);
         if (eraseRuntime && raw) {
           const figureId = !moved ? figureAt(e.clientX, e.clientY) : null;
@@ -2733,7 +2792,7 @@ export function CreasePatternWebglCanvas({
         (mode === 'angle-drag' && angleDragArmedRef.current && angleDragAnchorRef.current) ||
         null;
       if (parked) {
-        renderer.setPreview(null);
+        clearPreview();
         if (mode === 'angle-drag') liveRef.current.onToolPreviewInput([], []);
         renderer.setOverlayPoints(
           sequenceOverlayPoints(
@@ -2788,10 +2847,11 @@ export function CreasePatternWebglCanvas({
       rendererRef.current = null;
     };
     // Live inputs are read through liveRef rather than deps, so this runs once
-    // per mount. `rendererGeneration` is the sole trigger for a re-run: it
-    // changes only on context loss, where the dead renderer must be torn down
-    // and replaced.
-  }, [rendererGeneration]);
+    // per mount. `rendererGeneration` is the only dep that ever changes -- it
+    // does so on context loss, where the dead renderer must be torn down and
+    // replaced. (`clearPreview` is a stable callback, listed to satisfy the
+    // exhaustive-deps rule.)
+  }, [rendererGeneration, clearPreview]);
 
   // Upload geometry whenever it is rebuilt, then redraw immediately.
   useEffect(() => {
@@ -2804,28 +2864,69 @@ export function CreasePatternWebglCanvas({
     if (pendingGhostClearRef.current) {
       pendingGhostClearRef.current = false;
       transformGhostRef.current = null;
-      renderer.setPreview(null);
+      clearPreview();
     }
     renderNowRef.current();
-  }, [scene, rendererGeneration]);
+  }, [scene, rendererGeneration, clearPreview]);
 
   // Point-sequence kernel preview: render the controller-supplied candidate
-  // segments on the preview channel (cleared when there are none). Drag tools
-  // drive the preview channel imperatively instead; the two tools are exclusive.
+  // segments on the preview channel. Drag tools drive the same channel
+  // imperatively, so this must only ever clear content it published itself --
+  // it used to clear unconditionally, which wiped a live drag preview whenever
+  // this effect re-ran for an unrelated reason (a colour change from holding
+  // Control being the way to see it, since the preview then only came back on
+  // the next pointer move).
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    renderer.setPreview(
-      toolCommandPreviewSegments.length > 0
-        ? previewSegmentsToStrokes(
-            toolCommandPreviewSegments,
-            toolPreviewColor,
-            activeToolDashedPreview
-          )
-        : null
-    );
+    if (toolCommandPreviewSegments.length > 0 || toolCommandHighlightSegments.length > 0) {
+      sequencePreviewOwnedRef.current = true;
+      toolPreviewSegmentsRef.current = null;
+      renderer.setPreview(
+        previewGroupsToStrokes(
+          [
+            // What the tool would create, in the crease colour it would create it in.
+            { segments: toolCommandPreviewSegments, color: toolPreviewColor },
+            // Creases that already exist and are merely being pointed at, in the
+            // selection accent — they are not being drawn, so they must not take
+            // the crease colour and read as though the tool had recoloured them.
+            {
+              segments: toolCommandHighlightSegments,
+              color: readCssVarColor(
+                document.documentElement,
+                SELECTION_COLOR_VAR,
+                SELECTION_FALLBACK
+              ),
+            },
+          ],
+          activeToolDashedPreview
+        )
+      );
+      renderNowRef.current();
+      return;
+    }
+    if (!sequencePreviewOwnedRef.current) return;
+    clearPreview();
     renderNowRef.current();
-  }, [toolCommandPreviewSegments, toolPreviewColor, activeToolDashedPreview, rendererGeneration]);
+  }, [
+    toolCommandPreviewSegments,
+    toolCommandHighlightSegments,
+    toolPreviewColor,
+    activeToolDashedPreview,
+    rendererGeneration,
+    clearPreview,
+  ]);
+
+  // Repaint a live drag preview when the crease colour changes under it --
+  // holding Control mid-drag inverts the colour, and the stroke should follow at
+  // once rather than on the next pointer move.
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const segments = toolPreviewSegmentsRef.current;
+    if (!renderer || !segments) return;
+    renderer.setPreview(previewSegmentsToStrokes(segments, toolPreviewColor));
+    renderNowRef.current();
+  }, [toolPreviewColor, rendererGeneration]);
 
   // Diagnostic overlays (CAMV / check-fix): shape markers + segment highlights, built
   // model-space by the panel and forwarded straight to the renderer's overlay layer.

@@ -57,6 +57,7 @@ import {
 } from '../../lib/oristudioCpActions';
 import {
   cpCommandByOperation,
+  cpCommandUsesActiveLineColor,
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
 import {
@@ -147,6 +148,7 @@ import { visibleCpDiagnosticEntries } from '../../cp-workspace/diagnostics/visib
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
+import { useCpLineColorInversion } from '../../cp-workspace/lineColor/useCpLineColorInversion';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { useThemeStore } from '../../store/themeStore';
 import {
@@ -358,41 +360,7 @@ function cpCommandPayloadDefaults(
     payload.selection_distance = modelSelectionDistance(bounds, zoomScale);
   }
 
-  if (
-    operationId === 'CreaseMakeMv' ||
-    operationId === 'CreasesAlternateMv' ||
-    operationId === 'LengthenCrease' ||
-    operationId === 'DrawCreaseFree' ||
-    operationId === 'DrawCreaseRestricted' ||
-    operationId === 'LineSegmentDivision' ||
-    operationId === 'LineSegmentRatioSet' ||
-    operationId === 'DrawCreaseSymmetric' ||
-    operationId === 'DrawCreaseAngleRestricted' ||
-    operationId === 'DrawCreaseAngleRestricted3' ||
-    operationId === 'DrawCreaseAngleRestricted5' ||
-    operationId === 'SquareBisector' ||
-    operationId === 'Inward' ||
-    operationId === 'PerpendicularDraw' ||
-    operationId === 'SymmetricDraw' ||
-    operationId === 'FishBoneDraw' ||
-    operationId === 'DoubleSymmetricDraw' ||
-    operationId === 'VertexMakeAngularlyFlatFoldable' ||
-    operationId === 'FoldableLineInput' ||
-    operationId === 'ParallelDraw' ||
-    operationId === 'ParallelDrawWidth' ||
-    operationId === 'ContinuousSymmetricDraw' ||
-    operationId === 'FoldableLineDraw' ||
-    operationId === 'Axiom5' ||
-    operationId === 'Axiom7' ||
-    operationId === 'PolygonSetNoCorners' ||
-    operationId === 'DrawBlintz' ||
-    operationId === 'DrawFishBase' ||
-    operationId === 'DrawDoveBase' ||
-    operationId === 'DrawBirdBase' ||
-    operationId === 'DrawFrogBase' ||
-    operationId === 'VoronoiCreate' ||
-    operationId === 'CircleDrawTangentLine'
-  ) {
+  if (cpCommandUsesActiveLineColor(operationId)) {
     payload.line_color = lineColor;
   }
 
@@ -1041,6 +1009,15 @@ export function CreasePatternPanel() {
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
+  // Upstream's `calculateLineColor()`: while the modifier is held the crease
+  // colour reads inverted everywhere -- rail, preview, committed line -- while
+  // `activeCpLineColor` keeps the colour the user actually chose. Every read
+  // below goes through the effective colour; only the two writes (metadata
+  // restore, rail click) touch the base.
+  const { effectiveLineColor: effectiveCpLineColor } = useCpLineColorInversion(
+    activeCpLineColor,
+    activeEditingContext === 'crease-pattern'
+  );
   const editableCpBounds = ORIEDITA_PAPER_BOUNDS;
   // `cpModelToSvg` / `cpSvgToModel`, not a document-derived affine: a file's
   // saved Oriedita camera is a view, and baking it in here gave the canvas two
@@ -1494,13 +1471,13 @@ export function CreasePatternPanel() {
         command,
         editableCpBounds,
         editableCpGridWidth,
-        activeCpLineColor,
+        effectiveCpLineColor,
         zoomPercent / 100,
         cpToolOptions
       ),
       ...payload,
     }),
-    [activeCpLineColor, cpToolOptions, editableCpBounds, editableCpGridWidth, zoomPercent]
+    [effectiveCpLineColor, cpToolOptions, editableCpBounds, editableCpGridWidth, zoomPercent]
   );
 
   useEffect(() => {
@@ -2011,12 +1988,19 @@ export function CreasePatternPanel() {
   // Only crease-drawing tools preview in the active line colour; select / toggle /
   // transform box + lasso tools preview in the neutral selection accent so a
   // "select crease" box doesn't look like a red crease.
+  //
+  // Keyed on the same predicate that decides the command's `line_color` payload,
+  // so what you see while dragging is what gets committed. Keying on
+  // `command.group === 'draw'` instead looked equivalent but is a UI taxonomy:
+  // only 4 of the 34 crease-drawing operations carry that group, so the other 30
+  // (Angle Restricted Line among them) previewed accent-blue and then committed
+  // in the crease colour.
   const toolPreviewColor = useMemo(
     () =>
-      activeCpCommand?.group === 'draw'
-        ? resolveCpLineColor(activeCpLineColor, mode, document.documentElement)
+      cpCommandUsesActiveLineColor(activeCpCommand?.operationId)
+        ? resolveCpLineColor(effectiveCpLineColor, mode, document.documentElement)
         : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const),
-    [activeCpCommand?.group, activeCpLineColor, mode]
+    [activeCpCommand?.operationId, effectiveCpLineColor, mode]
   );
 
   // The active tool's WebGL routing from its declarative steps: a drag mode; a
@@ -2134,6 +2118,14 @@ export function CreasePatternPanel() {
   const [webglToolPreviewSegments, setWebglToolPreviewSegments] = useState<
     readonly { a: Point; b: Point }[]
   >([]);
+  // Existing creases the tool is snapping to or has picked, kept apart from the
+  // candidate segments above because they are stroked in the selection accent
+  // rather than the crease colour. They shared one array until the preview colour
+  // started tracking the crease colour, at which point a hovered crease read as
+  // though the tool had recoloured it.
+  const [webglToolHighlightSegments, setWebglToolHighlightSegments] = useState<
+    readonly { a: Point; b: Point }[]
+  >([]);
   // Kernel-computed candidate *points* (e.g. Converging Lines ray intersections)
   // rendered as pickable dots on the canvas, separate from candidate segments.
   const [webglToolPreviewPoints, setWebglToolPreviewPoints] = useState<readonly Point[]>([]);
@@ -2160,7 +2152,8 @@ export function CreasePatternPanel() {
       }
       if (!command || points.length === 0) {
         webglPreviewRequestRef.current += 1;
-        setWebglToolPreviewSegments(highlight);
+        setWebglToolPreviewSegments([]);
+        setWebglToolHighlightSegments(highlight);
         setWebglToolPreviewPoints([]);
         return;
       }
@@ -2169,7 +2162,7 @@ export function CreasePatternPanel() {
       // clear-then-repopulate on every mouse move is what makes continuous guide lines
       // (e.g. Converging Lines' rays) flicker. Leaving the last preview in place until
       // the new one arrives keeps them steady; the async result replaces it below.
-      if (highlight.length > 0) setWebglToolPreviewSegments(highlight);
+      if (highlight.length > 0) setWebglToolHighlightSegments(highlight);
       const requestId = ++webglPreviewRequestRef.current;
       void previewOristudioCpCommand(
         command.operationId,
@@ -2199,7 +2192,11 @@ export function CreasePatternPanel() {
               onCreaseEps
             )
           : [];
-        setWebglToolPreviewSegments([...kernel, ...rings, ...highlight, ...snapped]);
+        // Candidate geometry and existing-crease highlights go to separate
+        // channels: the first is stroked in the crease colour the tool would
+        // commit, the second in the selection accent.
+        setWebglToolPreviewSegments([...kernel, ...rings]);
+        setWebglToolHighlightSegments([...highlight, ...snapped]);
         setWebglToolPreviewPoints(preview?.points ?? []);
         // Measure: surface the kernel-computed length/angle live as points are placed
         // (Oriedita-parity math, never recomputed in JS). Only once the kernel returns
@@ -2239,6 +2236,7 @@ export function CreasePatternPanel() {
     if (webglActiveTool.mode !== 'sequence' || webglActiveToolTransform) {
       webglPreviewRequestRef.current += 1;
       setWebglToolPreviewSegments([]);
+      setWebglToolHighlightSegments([]);
       setWebglToolPreviewPoints([]);
     }
   }, [webglActiveTool.mode, webglActiveToolTransform]);
@@ -2740,7 +2738,7 @@ export function CreasePatternPanel() {
             {editableCp && (
               <CpToolRail
                 activeActionId={cpToolState.activeActionId}
-                activeLineColor={activeCpLineColor}
+                activeLineColor={effectiveCpLineColor}
                 editable={!!editableCp}
                 onSelectAction={handleCpToolAction}
               />
@@ -2869,6 +2867,7 @@ export function CreasePatternPanel() {
                   onToolPickProgress={handleWebglToolPickProgress}
                   onToolSnapKind={setCpMeasureSnapKind}
                   toolCommandPreviewSegments={webglToolPreviewSegments}
+                  toolCommandHighlightSegments={webglToolHighlightSegments}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
@@ -3130,7 +3129,7 @@ export function CreasePatternPanel() {
                     command={activeCpCommand}
                     options={cpToolOptions}
                     setOptions={setCpToolOptions}
-                    activeLineColor={activeCpLineColor}
+                    activeLineColor={effectiveCpLineColor}
                     measurements={cpMeasurements}
                     onHoverMeasurement={setCpHoveredMeasureIndex}
                     measureUnit={cpMeasurePreferences.unit}
@@ -3157,7 +3156,7 @@ export function CreasePatternPanel() {
               <div className="viewport-status-readout">
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}
-                {editableCp && <span>{cpLineTypeStatusLabel(activeCpLineColor, t)}</span>}
+                {editableCp && <span>{cpLineTypeStatusLabel(effectiveCpLineColor, t)}</span>}
                 {editableCp && editableCpSummary && (
                   <span>{t('panels:creasePattern.linesCount', '{{count}} lines', { count: editableCpSummary.line_segments })}</span>
                 )}
