@@ -695,6 +695,13 @@ export interface OristudioBpSliceState {
   oristudioBpBusy: boolean;
   oristudioBpHistoryPast: SnapshotEntry<BpHistorySnapshot>[];
   oristudioBpHistoryFuture: SnapshotEntry<BpHistorySnapshot>[];
+  /**
+   * Bumped when something reframes the packing worth re-fitting the camera for.
+   * The packing pane folds this into its `fitKey`, which fits once per distinct
+   * key — so ordinary edits still leave the camera alone, but an optimize (new
+   * sheet size, every flap moved) frames the result.
+   */
+  oristudioBpViewportFitRequestId: number;
   oristudioBpSymmetry: OristudioBpSymmetryState;
 }
 

@@ -5447,6 +5447,9 @@ describe('workspace store slices', () => {
       expect(state.oristudioBpHistoryPast).toHaveLength(1);
       expect(state.oristudioBpHistoryPast[0].snapshot.bps).toBe('{"before":"optimize"}');
       expect(state.oristudioBpBusy).toBe(false);
+      // The sheet resized and every flap moved, so the packing pane is asked to
+      // re-fit its camera around the result.
+      expect(state.oristudioBpViewportFitRequestId).toBe(1);
       // `openNew` is never a user choice: the optimizer always replaces in place.
       expect(bpMocks.optimizeOristudioBpLayout).toHaveBeenCalledWith(
         expect.objectContaining({ openNew: false, seed: null }),
@@ -5480,6 +5483,8 @@ describe('workspace store slices', () => {
       // Aborting is a user action, so nothing is surfaced as a failure.
       expect(state.oristudioBpError).toBeNull();
       expect(state.oristudioBpBusy).toBe(false);
+      // Nothing changed on screen, so the camera must stay where the user left it.
+      expect(state.oristudioBpViewportFitRequestId).toBe(0);
     });
 
     it('reports a failed optimizer run without recording history', async () => {

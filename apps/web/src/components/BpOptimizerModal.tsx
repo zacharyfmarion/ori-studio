@@ -242,34 +242,32 @@ export function BpOptimizerModal() {
               {error && <div className="bp-optimizer__error">{error}</div>}
             </>
           )}
-        </div>
 
-        <footer className="simple-modal__footer">
-          {running ? (
-            <>
-              <Button size="sm" variant="ghost" disabled>
-                {t('dialogs:bpOptimizer.running', 'Running...')}
-              </Button>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => cancelActiveOristudioBpOptimizer()}
-              >
-                {t('dialogs:bpOptimizer.abort', 'Abort')}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button size="sm" variant="ghost" onClick={close}>
-                {t('dialogs:bpOptimizer.closeAction', 'Close')}
-              </Button>
-              <Button size="sm" variant="primary" onClick={() => void run()}>
-                {t('dialogs:bpOptimizer.run', 'Run!')}
-                <Play size={14} />
-              </Button>
-            </>
-          )}
-        </footer>
+          {/* Inside the body, as every other modal does it: `.simple-modal__footer`
+              carries no padding of its own and relies on the body's. */}
+          <footer className="simple-modal__footer">
+            {running ? (
+              <>
+                <Button size="sm" variant="ghost" disabled>
+                  {t('dialogs:bpOptimizer.running', 'Running...')}
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => cancelActiveOristudioBpOptimizer()}>
+                  {t('dialogs:bpOptimizer.abort', 'Abort')}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button size="sm" variant="ghost" onClick={close}>
+                  {t('dialogs:bpOptimizer.closeAction', 'Close')}
+                </Button>
+                <Button size="sm" variant="primary" onClick={() => void run()}>
+                  {t('dialogs:bpOptimizer.run', 'Run!')}
+                  <Play size={14} />
+                </Button>
+              </>
+            )}
+          </footer>
+        </div>
       </div>
     </div>
   );

@@ -296,6 +296,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     oristudioBpBusy: false,
     oristudioBpHistoryPast: [],
     oristudioBpHistoryFuture: [],
+    oristudioBpViewportFitRequestId: 0,
     // Ephemeral mirror-draw state (never persisted). Defaults ON; `loc` is
     // re-centred on the sheet on every document load (see createOristudioBpProject),
     // so this pre-load {0,0} is a placeholder. `angle` 90 is a vertical (book) axis.
@@ -835,7 +836,12 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           throw error;
         }
       });
-      if (applied) return 'applied';
+      if (applied) {
+        // The sheet resized and every flap moved, so the old camera is framing
+        // nothing useful. Ask the packing pane to re-fit.
+        set({ oristudioBpViewportFitRequestId: get().oristudioBpViewportFitRequestId + 1 });
+        return 'applied';
+      }
       return cancelled ? 'cancelled' : 'failed';
     },
 
