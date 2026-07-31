@@ -2154,6 +2154,14 @@ export function CreasePatternPanel() {
   const [webglToolPreviewSegments, setWebglToolPreviewSegments] = useState<
     readonly { a: Point; b: Point }[]
   >([]);
+  // Existing creases the tool is snapping to or has picked, kept apart from the
+  // candidate segments above because they are stroked in the selection accent
+  // rather than the crease colour. They shared one array until the preview colour
+  // started tracking the crease colour, at which point a hovered crease read as
+  // though the tool had recoloured it.
+  const [webglToolHighlightSegments, setWebglToolHighlightSegments] = useState<
+    readonly { a: Point; b: Point }[]
+  >([]);
   // Kernel-computed candidate *points* (e.g. Converging Lines ray intersections)
   // rendered as pickable dots on the canvas, separate from candidate segments.
   const [webglToolPreviewPoints, setWebglToolPreviewPoints] = useState<readonly Point[]>([]);
@@ -2180,7 +2188,8 @@ export function CreasePatternPanel() {
       }
       if (!command || points.length === 0) {
         webglPreviewRequestRef.current += 1;
-        setWebglToolPreviewSegments(highlight);
+        setWebglToolPreviewSegments([]);
+        setWebglToolHighlightSegments(highlight);
         setWebglToolPreviewPoints([]);
         return;
       }
@@ -2189,7 +2198,7 @@ export function CreasePatternPanel() {
       // clear-then-repopulate on every mouse move is what makes continuous guide lines
       // (e.g. Converging Lines' rays) flicker. Leaving the last preview in place until
       // the new one arrives keeps them steady; the async result replaces it below.
-      if (highlight.length > 0) setWebglToolPreviewSegments(highlight);
+      if (highlight.length > 0) setWebglToolHighlightSegments(highlight);
       const requestId = ++webglPreviewRequestRef.current;
       void previewOristudioCpCommand(
         command.operationId,
@@ -2219,7 +2228,11 @@ export function CreasePatternPanel() {
               onCreaseEps
             )
           : [];
-        setWebglToolPreviewSegments([...kernel, ...rings, ...highlight, ...snapped]);
+        // Candidate geometry and existing-crease highlights go to separate
+        // channels: the first is stroked in the crease colour the tool would
+        // commit, the second in the selection accent.
+        setWebglToolPreviewSegments([...kernel, ...rings]);
+        setWebglToolHighlightSegments([...highlight, ...snapped]);
         setWebglToolPreviewPoints(preview?.points ?? []);
         // Measure: surface the kernel-computed length/angle live as points are placed
         // (Oriedita-parity math, never recomputed in JS). Only once the kernel returns
@@ -2259,6 +2272,7 @@ export function CreasePatternPanel() {
     if (webglActiveTool.mode !== 'sequence' || webglActiveToolTransform) {
       webglPreviewRequestRef.current += 1;
       setWebglToolPreviewSegments([]);
+      setWebglToolHighlightSegments([]);
       setWebglToolPreviewPoints([]);
     }
   }, [webglActiveTool.mode, webglActiveToolTransform]);
@@ -2890,6 +2904,7 @@ export function CreasePatternPanel() {
                   onToolPickProgress={handleWebglToolPickProgress}
                   onToolSnapKind={setCpMeasureSnapKind}
                   toolCommandPreviewSegments={webglToolPreviewSegments}
+                  toolCommandHighlightSegments={webglToolHighlightSegments}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}

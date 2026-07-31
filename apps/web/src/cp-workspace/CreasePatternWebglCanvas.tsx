@@ -21,8 +21,8 @@ import {
   circleRingIntersectsAabb,
   segmentIntersectsAabb,
 } from './picking/lineHitIndex';
+import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
 import {
-  OVERLAY_DASH_PATTERN,
   type FoldedGeometry,
   type MarkerGeometry,
   type ModelPoint,
@@ -252,31 +252,6 @@ const PLACED_POINT_RADIUS = 3;
 const TRANSPARENT: Rgba = [0, 0, 0, 0];
 
 const dpr = () => Math.min(window.devicePixelRatio || 1, MAX_DPR);
-
-/** Pack a tool preview's candidate segments (model coords) into stroke geometry. */
-function previewSegmentsToStrokes(
-  segments: readonly ToolPreviewSegment[],
-  color: Rgba,
-  dashed = false
-): StrokeGeometry {
-  const count = segments.length;
-  const a = new Float32Array(count * 2);
-  const b = new Float32Array(count * 2);
-  const col = new Float32Array(count * 4);
-  const widthMul = new Float32Array(count).fill(1);
-  for (let i = 0; i < count; i++) {
-    const s = segments[i];
-    a[i * 2] = s.a.x;
-    a[i * 2 + 1] = s.a.y;
-    b[i * 2] = s.b.x;
-    b[i * 2 + 1] = s.b.y;
-    col[i * 4] = color[0];
-    col[i * 4 + 1] = color[1];
-    col[i * 4 + 2] = color[2];
-    col[i * 4 + 3] = color[3];
-  }
-  return { a, b, color: col, widthMul, count, dashPatterns: dashed ? [OVERLAY_DASH_PATTERN] : [] };
-}
 
 /** Clamped projection of `p` onto the segment a→b. */
 function projectPointOnSegment(
@@ -632,8 +607,20 @@ export interface CreasePatternWebglCanvasProps {
    * real vertex or a point that merely looks like one.
    */
   onToolSnapKind: (kind: 'grid' | 'vertex' | 'point' | 'line' | null) => void;
-  /** Kernel-computed preview + pick-highlight segments for the active sequence tool. */
+  /**
+   * Kernel-computed candidate geometry for the active sequence tool -- what the
+   * tool *would create*. Stroked in {@link toolPreviewColor}.
+   */
   toolCommandPreviewSegments: readonly ToolPreviewSegment[];
+  /**
+   * *Existing* creases the active sequence tool is snapping to or picking.
+   * Stroked in the selection accent, not the crease colour: these are already in
+   * the document and are being pointed at, not drawn. Kept apart from
+   * {@link toolCommandPreviewSegments} because the two used to share one array
+   * and therefore one colour, which meant whichever of the two was right made the
+   * other wrong.
+   */
+  toolCommandHighlightSegments: readonly ToolPreviewSegment[];
   /** Kernel-computed candidate *points* (Converging Lines ray intersections). */
   toolCommandPreviewPoints: readonly ModelPoint[];
   /** Colour of the in-progress candidate crease (the resolved active line colour). */
@@ -777,6 +764,7 @@ export function CreasePatternWebglCanvas({
   onToolPickProgress,
   onToolSnapKind,
   toolCommandPreviewSegments,
+  toolCommandHighlightSegments,
   toolCommandPreviewPoints,
   toolPreviewColor,
   diagnosticMarkers,
@@ -1224,6 +1212,7 @@ export function CreasePatternWebglCanvas({
     onToolSnapKind,
     toolPreviewColor,
     toolCommandPreviewSegments,
+    toolCommandHighlightSegments,
     toolCommandPreviewPoints,
     onZoomPercentChange,
     onRotationChange,
@@ -2906,13 +2895,26 @@ export function CreasePatternWebglCanvas({
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    if (toolCommandPreviewSegments.length > 0) {
+    if (toolCommandPreviewSegments.length > 0 || toolCommandHighlightSegments.length > 0) {
       sequencePreviewOwnedRef.current = true;
       toolPreviewSegmentsRef.current = null;
       renderer.setPreview(
-        previewSegmentsToStrokes(
-          toolCommandPreviewSegments,
-          toolPreviewColor,
+        previewGroupsToStrokes(
+          [
+            // What the tool would create, in the crease colour it would create it in.
+            { segments: toolCommandPreviewSegments, color: toolPreviewColor },
+            // Creases that already exist and are merely being pointed at, in the
+            // selection accent — they are not being drawn, so they must not take
+            // the crease colour and read as though the tool had recoloured them.
+            {
+              segments: toolCommandHighlightSegments,
+              color: readCssVarColor(
+                document.documentElement,
+                SELECTION_COLOR_VAR,
+                SELECTION_FALLBACK
+              ),
+            },
+          ],
           activeToolDashedPreview
         )
       );
@@ -2924,6 +2926,7 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [
     toolCommandPreviewSegments,
+    toolCommandHighlightSegments,
     toolPreviewColor,
     activeToolDashedPreview,
     rendererGeneration,
