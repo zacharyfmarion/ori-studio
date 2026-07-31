@@ -669,6 +669,9 @@
   grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
+  /* Anchors the route pages that cover the panes — see the `<Outlet />` note in
+     `WorkspaceShell`. */
+  position: relative;
 }
 
 .workspace-shell__dockview {

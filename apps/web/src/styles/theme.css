@@ -6862,12 +6862,19 @@ button.bp-packing-alert:focus-visible {
    screen does rather than filling the viewport.
    --------------------------------------------------------------------------- */
 
+/*
+   Positioned over the workspace canvas rather than in the layout flow: these
+   pages keep the app chrome (toolbar, workspace rail) but have no panes of
+   their own, and covering Dockview leaves the user's editing layout mounted
+   underneath. Opaque background, so nothing shows through.
+*/
 .course-catalog,
 .course-page {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   display: flex;
   justify-content: center;
-  width: 100%;
-  height: 100%;
   overflow-y: auto;
   padding: var(--space-6) var(--space-5);
   background: var(--bg-primary);

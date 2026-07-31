@@ -67,13 +67,6 @@ export function createAppRouter(): AppRouter {
       children: [
         { index: true, loader: startupRedirect },
         { path: 'welcome', element: <WelcomeRoute /> },
-        // The catalog and a course page sit outside the workspace shell, like
-        // `/welcome`: full width, and with no crease-pattern canvas beside a
-        // page that has no practice document. Only a lesson is a workspace.
-        { path: 'learn', element: <LearnIndexRoute /> },
-        // Two segments is a course page, or an old `/learn/:lessonId` link that
-        // CourseRoute redirects to its canonical three-segment path.
-        { path: 'learn/:courseId', element: <CourseRoute /> },
         {
           element: <WorkspaceShell />,
           children: [
@@ -93,6 +86,14 @@ export function createAppRouter(): AppRouter {
             // No slot: Simulate folds whichever document is in the foreground,
             // so a lesson can send its own pattern to the simulator.
             { path: 'simulate', element: <WorkspaceRoute workspace="simulate" /> },
+            // The catalog and a course page keep the app chrome but have no
+            // panes of their own: they cover the canvas rather than replacing
+            // it, so Dockview keeps its layout across a visit. Only a lesson is
+            // a real workspace route.
+            { path: 'learn', element: <LearnIndexRoute /> },
+            // Two segments is a course page, or an old `/learn/:lessonId` link
+            // that CourseRoute redirects to its canonical three-segment path.
+            { path: 'learn/:courseId', element: <CourseRoute /> },
             { path: 'learn/:courseId/:lessonId', element: <LessonRoute /> },
           ],
         },

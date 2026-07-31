@@ -338,9 +338,16 @@ export function WorkspaceShell() {
             />
           </ErrorBoundary>
           <DesignWorkspaceFooter />
+          {/*
+            Inside the canvas, not below it. Workspace routes render nothing
+            here (they are invisible URL→store sync elements), while the
+            tutorial catalog and course pages render a real page that covers the
+            panes — which keeps Dockview mounted, so visiting the tutorial does
+            not tear down and rebuild the layout the user was editing in.
+          */}
+          <Outlet />
         </div>
       </div>
-      <Outlet />
     </div>
   );
 }
