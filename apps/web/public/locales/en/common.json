@@ -48,6 +48,8 @@
     "creasePatternBuildRunning": "Crease pattern build is running",
     "cut": "Cut",
     "cutSelectedTreeParts": "Cut selected tree parts",
+    "deleteExtraVertices": "Delete Extra Vertices",
+    "deleteExtraVerticesIgnoreType": "Delete Extra Vertices (Ignore Type)",
     "deleteSelected": "Delete Selected",
     "deleteSelectedCpCircles": "Delete selected crease-pattern circles",
     "deleteSelectedCpLines": "Delete selected crease-pattern lines",
@@ -104,6 +106,8 @@
     "makeSelectedLinesValley": "Make selected lines valley folds",
     "makeSelectedNodeRoot": "Make selected node the root",
     "makeValley": "Make Valley",
+    "mergeCollinearAnyType": "Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge",
+    "mergeCollinearSameType": "Merge collinear crease pairs that meet at a vertex, when both are the same type",
     "mergeDuplicatesSelectOverlaps": "Merge exact duplicates and select remaining overlapping creases",
     "movablePartsRequireTree": "Movable parts require a tree document",
     "new": "New",
@@ -211,6 +215,10 @@
     "undoLastTreeEdit": "Undo the last tree edit"
   },
   "close": "Close",
+  "colorField": {
+    "reset": "Reset to default",
+    "resetNamed": "Reset {{label}} to default"
+  },
   "fileDrop": {
     "open": "Drop to open",
     "openOrImport": "Drop to open or import"

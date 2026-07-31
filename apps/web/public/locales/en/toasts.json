@@ -11,5 +11,10 @@
   "global": {
     "error": "Ori Studio error",
     "folding": "Folding…"
+  },
+  "simulatorExport": {
+    "empty": "This simulation has nothing to export yet",
+    "failed": "Could not export this view",
+    "saved": "Exported {{name}}"
   }
 }

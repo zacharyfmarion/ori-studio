@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { OristudioCpCommandDefinition } from '../../lib/oristudioCpCommands';
+import {
+  cpCommandByOperation,
+  type OristudioCpCommandDefinition,
+} from '../../lib/oristudioCpCommands';
 import {
   allowsDirectEntitySelection,
+  cpCommandRequiresContextApply,
   creaseTransformTool,
   isCircleTangentPointOperation,
   isCreaseToggleMvClickTool,
@@ -16,6 +20,7 @@ import {
   isSquareBisectorOperation,
   isTextAnnotationOperation,
   isVariablePointSequenceOperation,
+  isWholeDocumentCpCommand,
   lineColorMatchesCustomType,
   shouldPreferPointSnapForStep,
 } from './predicates';
@@ -145,5 +150,47 @@ describe('creaseTransformTool', () => {
     expect(creaseTransformTool('CreaseSelect')).toBeNull();
     expect(creaseTransformTool(null)).toBeNull();
     expect(creaseTransformTool(undefined)).toBeNull();
+  });
+});
+
+describe('cpCommandRequiresContextApply', () => {
+  it('requires an explicit Apply for selection-driven commands', () => {
+    // Voronoi applies against the accumulated seed list, not per drag.
+    expect(cpCommandRequiresContextApply(cpCommandByOperation('VoronoiCreate')!)).toBe(true);
+  });
+
+  it('does not require Apply for step-driven draw tools', () => {
+    // Tools that commit through their own tool-step gestures need no Apply button.
+    expect(cpCommandRequiresContextApply(cpCommandByOperation('DrawCreaseFree')!)).toBe(false);
+    expect(cpCommandRequiresContextApply(cpCommandByOperation('PerpendicularDraw')!)).toBe(false);
+  });
+
+  it('does not require Apply for the Text tool (authored inline on the canvas)', () => {
+    expect(cpCommandRequiresContextApply(cpCommandByOperation('Text')!)).toBe(false);
+  });
+});
+
+describe('isWholeDocumentCpCommand', () => {
+  it('holds for repairs and checks that take no input at all', () => {
+    for (const op of ['Fix1', 'Fix2', 'Check1', 'CheckCamv', 'OrganizeCircles'] as const) {
+      expect(isWholeDocumentCpCommand(cpCommandByOperation(op)!)).toBe(true);
+    }
+  });
+
+  it('holds for both delete-extra-vertices sweeps', () => {
+    expect(isWholeDocumentCpCommand(cpCommandByOperation('DeleteExtraVertices')!)).toBe(true);
+    expect(
+      isWholeDocumentCpCommand(cpCommandByOperation('DeleteExtraVerticesIgnoreColor')!)
+    ).toBe(true);
+  });
+
+  it('is false for tools the canvas has to stay armed with', () => {
+    // Steps to walk through.
+    expect(isWholeDocumentCpCommand(cpCommandByOperation('DrawCreaseFree')!)).toBe(false);
+    // A selection to act on — these run immediately too, but the rail keeps
+    // them active because the context panel still renders their settings.
+    expect(isWholeDocumentCpCommand(cpCommandByOperation('CreaseMakeMountain')!)).toBe(false);
+    // Settings to configure before applying.
+    expect(isWholeDocumentCpCommand(cpCommandByOperation('VoronoiCreate')!)).toBe(false);
   });
 });

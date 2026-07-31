@@ -141,6 +141,43 @@ describe('oriedita native metadata', () => {
     });
   });
 
+  // Oriedita seeds the folded figure's scale/rotation from the crease-pattern
+  // camera on every fold, so they are in that camera's units. Ori Studio draws
+  // the pattern at 1x, so the camera has to come back out or the figure lands
+  // oversized beside a pattern that did not grow with it.
+  it('reads folded scale and rotation relative to the saved crease-pattern camera', () => {
+    const model = foldedFigureModelFromOrieditaMetadata({
+      'oriedita:ori:foldedFigureModel': { scale: 3.291611450853266, rotation: 180 },
+      'oriedita:ori:creasePatternCamera': { cameraZoomX: 1.641504066038247, cameraAngle: 30 },
+    });
+    // The author zoomed the folded view to twice the crease pattern.
+    expect(model!.scale).toBeCloseTo(2.005, 3);
+    expect(model!.rotation).toBeCloseTo(150);
+  });
+
+  it('leaves folded scale and rotation alone for a default or absent camera', () => {
+    const saved = { 'oriedita:ori:foldedFigureModel': { scale: 2.5, rotation: 90 } };
+    expect(foldedFigureModelFromOrieditaMetadata(saved)).toMatchObject({
+      scale: 2.5,
+      rotation: 90,
+    });
+    expect(
+      foldedFigureModelFromOrieditaMetadata({
+        ...saved,
+        'oriedita:ori:creasePatternCamera': { cameraZoomX: 1, cameraAngle: 0 },
+      })
+    ).toMatchObject({ scale: 2.5, rotation: 90 });
+  });
+
+  it('ignores a zero camera zoom rather than scaling the figure to nothing', () => {
+    expect(
+      foldedFigureModelFromOrieditaMetadata({
+        'oriedita:ori:foldedFigureModel': { scale: 2 },
+        'oriedita:ori:creasePatternCamera': { cameraZoomX: 0 },
+      })!.scale
+    ).toBe(2);
+  });
+
   it('summarizes restored and preserved native metadata fields', () => {
     expect(
       orieditaNativeMetadataStatus({
@@ -151,7 +188,10 @@ describe('oriedita native metadata', () => {
         'oriedita:orh:oriagarizu_front_color': [1, 2, 3],
       })
     ).toEqual({
-      restored: ['Camera', 'Canvas line color', 'Canvas tool', 'Folded colors', 'Folded model'],
+      // The camera is preserved for round-tripping but no longer *restored*: it
+      // describes the view its author last had, not the document, and applying
+      // it to the canvas transform is what misplaced folded figures.
+      restored: ['Canvas line color', 'Canvas tool', 'Folded colors', 'Folded model'],
       preserved: ['Camera', 'Canvas', 'unknownFutureField'],
     });
   });

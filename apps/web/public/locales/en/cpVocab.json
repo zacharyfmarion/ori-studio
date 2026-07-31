@@ -973,6 +973,16 @@
       "tooltip": "Split near T-intersections using Oriedita tolerances",
       "disabledReason": "Ready"
     },
+    "cp_action_delete_extra_vertices": {
+      "label": "Delete Extra Vertices",
+      "tooltip": "Merge collinear crease pairs that meet at a vertex, when both are the same type",
+      "disabledReason": "Ready"
+    },
+    "cp_action_delete_extra_vertices_ignore_color": {
+      "label": "Delete Extra Vertices (Ignore Type)",
+      "tooltip": "Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge",
+      "disabledReason": "Ready"
+    },
     "cp_action_organize_circles": {
       "label": "Organize circles",
       "tooltip": "Prune invalid zero-radius circles using Oriedita cleanup rules",

@@ -1,4 +1,5 @@
 import type { FoldDocument } from '../../engine/types';
+import type { SimulatorViewExportFormat } from '../../simulator/simulatorViewExport';
 
 /**
  * The heavy, unserializable half of an inline simulation window.
@@ -145,4 +146,45 @@ export function subscribeInlineSimulationFoldTarget(
 /** Live source count, for tests and diagnostics. */
 export function inlineSimulationSourceCount(): number {
   return sources.size;
+}
+
+/**
+ * How to export a window's current view.
+ *
+ * A window's simulator runtime lives inside its component, so the floating
+ * toolbar — a sibling, not a parent — cannot reach it. The window registers its
+ * exporter here while it is mounted and the toolbar asks by id, which keeps the
+ * call out of the crease-pattern panel: per AGENTS.md the panel is a composition
+ * site, and threading a store-bound export callback through it is exactly the
+ * kind of behaviour that belongs beside this concern's own modules.
+ *
+ * The same reason the fold percentages above are here: this is the
+ * unserializable half of a window, and none of it belongs in the store.
+ */
+type InlineSimulationExporter = (format: SimulatorViewExportFormat) => Promise<boolean>;
+
+const exporters = new Map<string, InlineSimulationExporter>();
+
+/** Register while mounted. Returns the matching unregister, for an effect. */
+export function registerInlineSimulationExporter(
+  id: string,
+  exporter: InlineSimulationExporter
+): () => void {
+  exporters.set(id, exporter);
+  return () => {
+    // Guarded so a late cleanup cannot remove a successor's registration.
+    if (exporters.get(id) === exporter) exporters.delete(id);
+  };
+}
+
+/**
+ * Export a window's view. False when no window with that id is mounted, which is
+ * the honest answer for a toolbar that outlived its window rather than a fault.
+ */
+export function exportInlineSimulation(
+  id: string,
+  format: SimulatorViewExportFormat
+): Promise<boolean> {
+  const exporter = exporters.get(id);
+  return exporter ? exporter(format) : Promise.resolve(false);
 }

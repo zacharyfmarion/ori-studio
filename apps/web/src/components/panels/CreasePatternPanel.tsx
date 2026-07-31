@@ -76,20 +76,14 @@ import {
   canvasToolOptionsFromOrieditaMetadata,
 } from '../../lib/orieditaNativeMetadata';
 import {
-  orieditaCameraFromMetadata,
-  orieditaCameraSvgScale,
-  orieditaObjectToSvg,
-  orieditaSvgToObject,
-} from '../../lib/orieditaCamera';
-import {
   CP_PAPER_RECT,
+  cpModelToSvg,
   cpSelectionSize,
-  cpSvgPointToModel,
+  cpSvgToModel,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   emptyOristudioCpSelection,
   getCpVertexPoints,
   getOrieditaGridBasis,
-  modelPointToCpSvg,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
   ORIEDITA_PAPER_BOUNDS,
@@ -144,11 +138,7 @@ import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
-import {
-  CpContextToolPanel,
-  cpCommandRequiresContextApply,
-  cpLineTypeStatusLabel,
-} from './CpContextToolPanel';
+import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
   buildCpDiagnosticMarkerHits,
   buildCpDiagnosticMarkers,
@@ -170,6 +160,7 @@ import {
 } from '../../cp-workspace/renderer/types';
 import {
   allowsDirectEntitySelection,
+  cpCommandRequiresContextApply,
   creaseTransformTool,
   isCreaseToggleMvClickTool,
   isDefaultSelectionMode,
@@ -181,6 +172,7 @@ import {
   isSelectionCircleApplyOperation,
   isSquareBisectorOperation,
   isVariablePointSequenceOperation,
+  isWholeDocumentCpCommand,
   toolClickAction,
 } from '../../cp-workspace/tools/predicates';
 import {
@@ -197,6 +189,7 @@ import {
   readCpMeasurePreferences,
   writeCpMeasurePreferences,
 } from '../../cp-workspace/measurePreferences';
+import { ColorField } from '../ui/ColorField';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -303,19 +296,6 @@ function foldedColorLabel(t: TFunction, key: FoldedColorKey): string {
       return t('panels:creasePattern.foldedColor.back', 'Back');
     case 'line_color':
       return t('panels:creasePattern.foldedColor.line', 'Line');
-    default:
-      return key;
-  }
-}
-
-function foldedColorAria(t: TFunction, key: FoldedColorKey): string {
-  switch (key) {
-    case 'front_color':
-      return t('panels:creasePattern.foldedColor.frontAria', 'Folded front color');
-    case 'back_color':
-      return t('panels:creasePattern.foldedColor.backAria', 'Folded back color');
-    case 'line_color':
-      return t('panels:creasePattern.foldedColor.lineAria', 'Folded line color');
     default:
       return key;
   }
@@ -724,27 +704,21 @@ function FoldedFigureMenuButton({
           </div>
           <div className="folded-figure-menu__colors">
             {FOLDED_COLOR_FIELDS.map((field) => (
-              <label key={field.key} className="folded-figure-menu__color">
-                <span>{foldedColorLabel(t, field.key)}</span>
-                <input
-                  aria-label={foldedColorAria(t, field.key)}
-                  type="color"
-                  value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
-                  disabled={!activeReady}
-                  onChange={(event) =>
-                    onModelUpdate(
-                      { [field.key]: hexToRgbColor(event.currentTarget.value) },
-                      `color:${field.key}`
-                    )
-                  }
-                  onBlur={() =>
-                    onModelGestureEnd(
-                      `color:${field.key}`,
-                      t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
-                    )
-                  }
-                />
-              </label>
+              <ColorField
+                key={field.key}
+                label={foldedColorLabel(t, field.key)}
+                value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
+                disabled={!activeReady}
+                onChange={(value) =>
+                  onModelUpdate({ [field.key]: hexToRgbColor(value) }, `color:${field.key}`)
+                }
+                onCommit={() =>
+                  onModelGestureEnd(
+                    `color:${field.key}`,
+                    t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
+                  )
+                }
+              />
             ))}
           </div>
           <label className="folded-figure-menu__field">
@@ -1081,37 +1055,20 @@ export function CreasePatternPanel() {
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
-  const nativeCreasePatternCamera = useMemo(
-    () => orieditaCameraFromMetadata(editableCp?.metadata),
-    [editableCp?.metadata]
-  );
   const editableCpBounds = ORIEDITA_PAPER_BOUNDS;
-  const editableModelToSvg = useCallback(
-    (point: Point) =>
-      nativeCreasePatternCamera
-        ? orieditaObjectToSvg(point, nativeCreasePatternCamera)
-        : modelPointToCpSvg(point, editableCpBounds),
-    [editableCpBounds, nativeCreasePatternCamera]
-  );
-  const editableSvgToModel = useCallback(
-    (point: Point) =>
-      nativeCreasePatternCamera
-        ? orieditaSvgToObject(point, nativeCreasePatternCamera)
-        : cpSvgPointToModel(point, editableCpBounds),
-    [editableCpBounds, nativeCreasePatternCamera]
-  );
+  // `cpModelToSvg` / `cpSvgToModel`, not a document-derived affine: a file's
+  // saved Oriedita camera is a view, and baking it in here gave the canvas two
+  // disagreeing user spaces. See the note on `cpModelToSvg`.
+  const editableModelToSvg = cpModelToSvg;
+  const editableSvgToModel = cpSvgToModel;
   const editableCircleRadiusToSvg = useCallback(
-    (radius: number) => {
-      if (nativeCreasePatternCamera) {
-        return Math.max(1, radius * orieditaCameraSvgScale(nativeCreasePatternCamera).x);
-      }
-      return Math.max(
+    (radius: number) =>
+      Math.max(
         1,
         (radius / Math.max(editableCpBounds.spanX, editableCpBounds.spanY)) *
           Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height)
-      );
-    },
-    [editableCpBounds, nativeCreasePatternCamera]
+      ),
+    [editableCpBounds]
   );
   const editableCpVisibleGrid = useMemo(
     () =>
@@ -1637,15 +1594,23 @@ export function CreasePatternPanel() {
       setCpToolPath([]);
       setPendingSquareBisectorLineIds([]);
       cpToolDragRef.current = null;
-      setCpToolState((state) =>
-        transitionOristudioCpToolState(state, {
-          type: 'selectAction',
-          action,
-          editable: !!editableCp,
-        })
-      );
-      // Persist the selection so the tool survives panel remounts (workspace switches).
-      useWorkspaceStore.getState().setOristudioCpActiveToolId(action.id);
+
+      // A whole-document verb (a repair sweep, a check) runs on the spot and
+      // arms nothing, so it must not take the active-tool slot: the rail would
+      // leave its button lit while the canvas had no tool, and clicks would go
+      // nowhere. Decide before the state writes, not after them.
+      const runsImmediately = !!editableCp && isWholeDocumentCpCommand(command);
+      if (!runsImmediately) {
+        setCpToolState((state) =>
+          transitionOristudioCpToolState(state, {
+            type: 'selectAction',
+            action,
+            editable: !!editableCp,
+          })
+        );
+        // Persist the selection so the tool survives panel remounts (workspace switches).
+        useWorkspaceStore.getState().setOristudioCpActiveToolId(action.id);
+      }
 
       if (!editableCp || command.uiStatus !== 'ready' || (command.toolSteps?.length ?? 0) > 0) {
         return;
@@ -3069,6 +3034,7 @@ export function CreasePatternPanel() {
                       inlineSimulations.scrub(focusedInlineSimulation.id, percent)
                     }
                     onReplay={inlineSimulations.replay}
+                    onExport={inlineSimulations.exportView}
                     onRefresh={() => inlineSimulations.refresh(focusedInlineSimulation.id)}
                     onDelete={() => inlineSimulations.remove(focusedInlineSimulation.id)}
                   />

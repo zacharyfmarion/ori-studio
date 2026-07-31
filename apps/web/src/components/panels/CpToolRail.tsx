@@ -281,6 +281,7 @@ const ORIEDITA_OPERATION_GLYPHS: Partial<Record<OristudioCpOperationId, string>>
   CreaseMove4p: '\uE062',
   CreaseSelect: '\uE05D',
   CreaseUnselect: '\uE05F',
+  DeleteExtraVertices: '\uE022',
   DeletePoint: '\uE020',
   DoubleSymmetricDraw: '\uE010',
   DrawBlintz: '\uE090',

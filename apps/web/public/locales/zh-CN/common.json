@@ -48,6 +48,8 @@
     "creasePatternBuildRunning": "折痕图正在生成中",
     "cut": "剪切",
     "cutSelectedTreeParts": "剪切所选树部件",
+    "deleteExtraVertices": "删除多余顶点",
+    "deleteExtraVerticesIgnoreType": "删除多余顶点（忽略类型）",
     "deleteSelected": "删除所选",
     "deleteSelectedCpCircles": "删除所选折痕图圆",
     "deleteSelectedCpLines": "删除所选折痕图线",
@@ -104,6 +106,8 @@
     "makeSelectedLinesValley": "将所选线设为谷折",
     "makeSelectedNodeRoot": "将所选节点设为根",
     "makeValley": "设为谷折",
+    "mergeCollinearAnyType": "忽略类型合并共线折痕——山折与谷折合并为边界线",
+    "mergeCollinearSameType": "合并在顶点相交且类型相同的共线折痕",
     "mergeDuplicatesSelectOverlaps": "合并完全重复项并选择剩余的重叠折痕",
     "movablePartsRequireTree": "可移动部件需要树文档",
     "new": "新建",
@@ -211,6 +215,10 @@
     "undoLastTreeEdit": "撤销上一步树编辑"
   },
   "close": "关闭",
+  "colorField": {
+    "reset": "重置为默认",
+    "resetNamed": "将 {{label}} 重置为默认"
+  },
   "fileDrop": {
     "open": "拖放以打开",
     "openOrImport": "拖放以打开或导入"

@@ -10,6 +10,8 @@
     "check3": "정점 접힘 가능성 확인",
     "check4": "Maekawa/LBL 확인",
     "checkCamv": "접힘 가능성 검사",
+    "deleteExtraVertices": "불필요한 정점 삭제",
+    "deleteExtraVerticesIgnoreColor": "불필요한 정점 삭제(유형 무시)",
     "deleteLineType": "선택한 선 종류 삭제...",
     "deleteSelectedLines": "선택한 선 삭제",
     "diagnostics": "진단",

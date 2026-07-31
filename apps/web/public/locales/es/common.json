@@ -48,6 +48,8 @@
     "creasePatternBuildRunning": "La generación del patrón de pliegues está en curso",
     "cut": "Cortar",
     "cutSelectedTreeParts": "Cortar las partes del árbol seleccionadas",
+    "deleteExtraVertices": "Eliminar vértices sobrantes",
+    "deleteExtraVerticesIgnoreType": "Eliminar vértices sobrantes (ignorar tipo)",
     "deleteSelected": "Eliminar selección",
     "deleteSelectedCpCircles": "Eliminar los círculos del patrón de pliegues seleccionados",
     "deleteSelectedCpLines": "Eliminar las líneas del patrón de pliegues seleccionadas",
@@ -104,6 +106,8 @@
     "makeSelectedLinesValley": "Convertir las líneas seleccionadas en pliegues de valle",
     "makeSelectedNodeRoot": "Establecer el nodo seleccionado como raíz",
     "makeValley": "Marcar como valle",
+    "mergeCollinearAnyType": "Fusionar pares de pliegues colineales sin importar el tipo: un monte y un valle se fusionan en un borde",
+    "mergeCollinearSameType": "Fusionar pares de pliegues colineales que se encuentran en un vértice, cuando ambos son del mismo tipo",
     "mergeDuplicatesSelectOverlaps": "Fusionar duplicados exactos y seleccionar los pliegues solapados restantes",
     "movablePartsRequireTree": "Las partes móviles requieren un documento de árbol",
     "new": "Nuevo",
@@ -211,6 +215,10 @@
     "undoLastTreeEdit": "Deshacer la última edición del árbol"
   },
   "close": "Cerrar",
+  "colorField": {
+    "reset": "Restablecer",
+    "resetNamed": "Restablecer {{label}}"
+  },
   "fileDrop": {
     "open": "Suelta para abrir",
     "openOrImport": "Suelta para abrir o importar"

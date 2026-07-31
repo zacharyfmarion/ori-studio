@@ -464,6 +464,7 @@ describe('workspace capabilities', () => {
       'cp.transformFlipHorizontal',
       'cp.checkCamv',
       'cp.fix1',
+      'cp.deleteExtraVerticesIgnoreColor',
       'cp.organizeCircles',
     ] as const;
 

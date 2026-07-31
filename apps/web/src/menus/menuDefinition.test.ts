@@ -97,6 +97,8 @@ describe('web menu definition', () => {
       'cp.check4',
       'cp.fix1',
       'cp.fix2',
+      'cp.deleteExtraVertices',
+      'cp.deleteExtraVerticesIgnoreColor',
       'cp.fixInaccurate',
       'cp.changeCircleColor',
       'cp.organizeCircles',

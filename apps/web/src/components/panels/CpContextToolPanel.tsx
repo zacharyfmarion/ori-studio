@@ -97,15 +97,6 @@ export function cpLineTypeStatusLabel(
   return entry ? cpPaletteStatusLabel(t, entry) : `Line ${cpLineAssignmentLabel(lineColor)}`;
 }
 
-export function cpCommandRequiresContextApply(command: OristudioCpCommandDefinition): boolean {
-  if (command.operationId === 'VoronoiCreate') return true;
-  if (isSelectionCircleApplyOperation(command.operationId)) return true;
-  if ((command.toolSteps?.length ?? 0) > 0) return false;
-  return cpToolSettingGroupsForCommand(command).some(
-    (group) => group !== 'line-color' && group !== 'line-select-help'
-  );
-}
-
 function contextApplyDisabledForCommand(
   command: OristudioCpCommandDefinition,
   selection: OristudioCpSelection,

@@ -48,6 +48,8 @@
     "creasePatternBuildRunning": "전개도 생성이 실행 중입니다",
     "cut": "잘라내기",
     "cutSelectedTreeParts": "선택한 트리 부분 잘라내기",
+    "deleteExtraVertices": "불필요한 정점 삭제",
+    "deleteExtraVerticesIgnoreType": "불필요한 정점 삭제(유형 무시)",
     "deleteSelected": "선택 항목 삭제",
     "deleteSelectedCpCircles": "선택한 전개도 원 삭제",
     "deleteSelectedCpLines": "선택한 전개도 선 삭제",
@@ -104,6 +106,8 @@
     "makeSelectedLinesValley": "선택한 선을 골로 지정",
     "makeSelectedNodeRoot": "선택한 노드를 루트로 지정",
     "makeValley": "골로 지정",
+    "mergeCollinearAnyType": "유형과 관계없이 일직선 접힘선 쌍 병합 — 산과 골은 경계로 병합됨",
+    "mergeCollinearSameType": "정점에서 만나는 같은 유형의 일직선 접힘선 쌍 병합",
     "mergeDuplicatesSelectOverlaps": "정확한 중복을 병합하고 남은 겹치는 접힘선 선택",
     "movablePartsRequireTree": "이동 가능한 부분에는 트리 문서가 필요합니다",
     "new": "새로 만들기",
@@ -211,6 +215,10 @@
     "undoLastTreeEdit": "마지막 트리 편집 실행 취소"
   },
   "close": "닫기",
+  "colorField": {
+    "reset": "기본값으로 재설정",
+    "resetNamed": "{{label}}을(를) 기본값으로 재설정"
+  },
   "fileDrop": {
     "open": "놓아서 열기",
     "openOrImport": "놓아서 열거나 가져오기"

@@ -973,6 +973,16 @@
       "tooltip": "Nahezu-T-Schnittpunkte mit Oriedita-Toleranzen aufteilen",
       "disabledReason": "Bereit"
     },
+    "cp_action_delete_extra_vertices": {
+      "label": "Überflüssige Knoten löschen",
+      "tooltip": "Kollineare Faltenpaare zusammenführen, die sich an einem Knoten treffen, wenn beide vom selben Typ sind",
+      "disabledReason": "Bereit"
+    },
+    "cp_action_delete_extra_vertices_ignore_color": {
+      "label": "Überflüssige Knoten löschen (Typ ignorieren)",
+      "tooltip": "Kollineare Faltenpaare unabhängig vom Typ zusammenführen – Berg und Tal werden zu einem Rand",
+      "disabledReason": "Bereit"
+    },
     "cp_action_organize_circles": {
       "label": "Kreise organisieren",
       "tooltip": "Ungültige Kreise mit Radius null mit Oriedita-Bereinigungsregeln entfernen",

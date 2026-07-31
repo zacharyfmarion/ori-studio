@@ -1,8 +1,7 @@
 import earcut from 'earcut';
 import {
   CP_PAPER_RECT,
-  modelPointToCpSvg,
-  ORIEDITA_PAPER_BOUNDS,
+  cpModelToSvg,
 } from '../../lib/creasePatternViewport';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
@@ -283,7 +282,7 @@ class FoldedBuilder {
 
 /**
  * One folded figure's geometry in its *local* user space — mapped through
- * {@link modelPointToCpSvg} but before any {@link FoldedFigurePlacement}.
+ * {@link cpModelToSvg} but before any {@link FoldedFigurePlacement}.
  *
  * Curve flattening and earcut triangulation happen once per render snapshot and
  * are cached ({@link foldedFigureLocalGeometry}); a drag then only has to run a
@@ -329,7 +328,7 @@ export function foldedFigureLocalGeometry(
   if (cached) return cached;
 
   const builder = new FoldedBuilder();
-  const toUser = (p: Point): Point => modelPointToCpSvg(p, ORIEDITA_PAPER_BOUNDS);
+  const toUser = cpModelToSvg;
   const primitives: OristudioCpFoldedRenderPrimitive[] = [...snapshot.primitives].sort(
     (l, r) => l.sequence - r.sequence
   );
@@ -577,7 +576,7 @@ export function cpUserAnchorForLineIds(
     const line = segments[id - 1];
     if (!line) continue;
     for (const point of [line.a, line.b]) {
-      const user = modelPointToCpSvg(point, ORIEDITA_PAPER_BOUNDS);
+      const user = cpModelToSvg(point);
       if (user.y < minY) minY = user.y;
       if (user.x > maxX) maxX = user.x;
     }

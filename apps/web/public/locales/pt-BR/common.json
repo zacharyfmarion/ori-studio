@@ -48,6 +48,8 @@
     "creasePatternBuildRunning": "A geração do padrão de vincos está em andamento",
     "cut": "Recortar",
     "cutSelectedTreeParts": "Recortar partes selecionadas da árvore",
+    "deleteExtraVertices": "Excluir vértices extras",
+    "deleteExtraVerticesIgnoreType": "Excluir vértices extras (ignorar tipo)",
     "deleteSelected": "Excluir selecionados",
     "deleteSelectedCpCircles": "Excluir círculos selecionados do padrão de vincos",
     "deleteSelectedCpLines": "Excluir linhas selecionadas do padrão de vincos",
@@ -104,6 +106,8 @@
     "makeSelectedLinesValley": "Definir as linhas selecionadas como dobras de vale",
     "makeSelectedNodeRoot": "Definir o nó selecionado como raiz",
     "makeValley": "Definir como vale",
+    "mergeCollinearAnyType": "Mesclar pares de vincos colineares independentemente do tipo — uma montanha e um vale se mesclam em uma borda",
+    "mergeCollinearSameType": "Mesclar pares de vincos colineares que se encontram em um vértice, quando ambos são do mesmo tipo",
     "mergeDuplicatesSelectOverlaps": "Mesclar duplicatas exatas e selecionar os vincos sobrepostos restantes",
     "movablePartsRequireTree": "As partes móveis requerem um documento de árvore",
     "new": "Novo",
@@ -211,6 +215,10 @@
     "undoLastTreeEdit": "Desfazer a última edição da árvore"
   },
   "close": "Fechar",
+  "colorField": {
+    "reset": "Redefinir",
+    "resetNamed": "Redefinir {{label}}"
+  },
   "fileDrop": {
     "open": "Solte para abrir",
     "openOrImport": "Solte para abrir ou importar"

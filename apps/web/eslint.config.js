@@ -62,7 +62,13 @@ const OVERSIZED_PANELS = {
   // beside the existing measure and text overlay layers. The layer, its badge
   // planning, and its tests all live in `cp-workspace/foldAngle/`; what is here
   // is composition, which is what a panel is for.
-  'CreasePatternPanel.tsx': 2938,
+  //
+  // 2938 -> 2939: one prop, wiring the inline simulation toolbar's export
+  // dropdown to `useInlineSimulations.exportView`. The verb itself is in
+  // `inlineSimulation/inlineSimulationRuntime` (the exporter registry) and its
+  // store binding is in the hook, scoped to the focused window like `replay` —
+  // so what landed here is composition too.
+  'CreasePatternPanel.tsx': 2939,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

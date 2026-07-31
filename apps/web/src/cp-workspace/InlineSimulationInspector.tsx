@@ -11,6 +11,8 @@ import {
   getInlineSimulationFoldPercent,
   subscribeInlineSimulationFold,
 } from './inlineSimulation/inlineSimulationRuntime';
+import { SimulatorExportMenu } from '../simulator/SimulatorExportMenu';
+import type { SimulatorViewExportFormat } from '../simulator/simulatorViewExport';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
 import type { SimulatorSettings } from '../lib/simulatorSettings';
 
@@ -100,6 +102,7 @@ export function InlineSimulationInspector({
   onScrub,
   onColorMode,
   onReplay,
+  onExport,
   onRefresh,
   onDelete,
 }: {
@@ -119,6 +122,8 @@ export function InlineSimulationInspector({
   onColorMode: (mode: ColorMode) => void;
   /** Return the fold to flat, as the Simulate workspace's Reset does. */
   onReplay: () => void;
+  /** Save the window's current camera view as an image. */
+  onExport: (format: SimulatorViewExportFormat) => void;
   onRefresh: () => void;
   onDelete: () => void;
 }) {
@@ -166,6 +171,7 @@ export function InlineSimulationInspector({
         {Math.round(foldPercent)}%
       </span>
       <ColorModeMenu colorMode={colorMode} onColorMode={onColorMode} />
+      <SimulatorExportMenu onExport={onExport} />
       <IconButton
         size="sm"
         variant="toolbar"

@@ -1,5 +1,6 @@
 import { transfer } from 'comlink';
 import { PreparedModelCache } from '../lib/preparedModelCache';
+import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
 import {
   OrigamiModel,
@@ -9,7 +10,9 @@ import {
   cameraUniforms,
   centroid,
   boundingRadius,
+  meshTopologyFor,
   prepareFoldModel,
+  renderMeshToSvg,
   type FoldDocument,
   type FoldProfile,
   type OrbitView,
@@ -18,6 +21,7 @@ import {
   type SimulatorDiagnostics,
   type SimulatorOptions,
   type SolverBackend,
+  type SvgRenderResult,
 } from '@treemaker/origami-simulator';
 
 // The simulator's solver, off the main thread.
@@ -154,13 +158,15 @@ interface Session {
   positionScratch: Float32Array;
   colorScratch: Float32Array;
   foldPercent: number;
+  /** How this model is being looked at — see {@link SessionView}. */
+  view: SessionView;
   /**
    * Present only when the panel transferred its canvas and the GPU solver was
    * selected: the solver renders straight to that canvas in the worker, so no
    * positions are transferred to the main thread. Absent means the panel draws
    * on the main thread from transferred positions (canvas-2D fallback).
    */
-  gpuRender: GpuRenderState | null;
+  gpuRender: WebglSolver | null;
   /**
    * When this session was last spoken to, on a monotonic counter. Eviction picks
    * the least recently *used*, not the oldest loaded — with twenty windows open,
@@ -170,9 +176,21 @@ interface Session {
   lastUsed: number;
 }
 
-interface GpuRenderState {
-  solver: WebglSolver;
+/**
+ * How a session is being looked at: the orbit camera, the frame it is drawn
+ * into, the appearance the viewport asked for, and the model's own framing.
+ *
+ * Deliberately on {@link Session} rather than on the GPU renderer, even though
+ * only the GPU path draws from it here. It is a property of the *view*, not of
+ * whichever renderer happens to be attached — and a session that does not know
+ * how it is being looked at cannot answer a question like "export this view",
+ * which is exactly what happened on the canvas-2D path: `setCamera` and
+ * `setRenderSettings` used to bail out early there, so the worker never learned
+ * the camera at all. A fold profile forces that path even on a GPU machine.
+ */
+interface SessionView {
   view: OrbitView;
+  /** Drawing-buffer size in device pixels. */
   width: number;
   height: number;
   settings: RenderSettings;
@@ -260,6 +278,57 @@ function disposeSession(token: SimulatorSessionToken): void {
   if (!existing) return;
   existing.backend.dispose();
   sessions.delete(token);
+}
+
+/**
+ * Uniformly scale a fold into a unit box before it reaches the solver.
+ *
+ * The GPU solver is float32 end to end — positions, velocities, and the
+ * `readPixels` convergence readback — while `SimulationClock` tests convergence
+ * as an **absolute** `maxVelocity < 1e-5`. Those two only coexist near unit
+ * scale. At an Oriedita document's own coordinates a sheet runs to ~3900 units,
+ * where the float32 step is ~2.4e-4: a velocity of 1e-5 is smaller than the
+ * gap between representable positions, so the model can never be *observed* to
+ * settle however still it is. Every settle then runs to its 20,000-step cap with
+ * a pipeline-stalling readback every 20 steps — about half a second per region
+ * switch, paid again on every visit because nothing converges to cache.
+ *
+ * This is why the crease pattern used to be normalized on import. It no longer
+ * is: segmentation, region containment and canvas placement all have to agree
+ * with the document's own coordinates, so the scaling belongs here, at the one
+ * boundary that actually needs it. The solver only ever needs the shape —
+ * `timeStepFor` derives its step from rest lengths, and the renderer fits its
+ * own camera — so nothing downstream reads these numbers as document units.
+ *
+ * Aspect-preserving and translation-only otherwise, so folded geometry is
+ * similar to the input rather than distorted.
+ */
+export function foldScaledForSolver(fold: FoldDocument): FoldDocument {
+  const coords = fold.vertices_coords ?? [];
+  if (coords.length === 0) return fold;
+
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const coord of coords) {
+    for (let axis = 0; axis < 3; axis += 1) {
+      const value = coord[axis] ?? 0;
+      if (value < min[axis]!) min[axis] = value;
+      if (value > max[axis]!) max[axis] = value;
+    }
+  }
+  const span = Math.max(max[0]! - min[0]!, max[1]! - min[1]!, max[2]! - min[2]!);
+  // Already unit-ish, or degenerate: leave it exactly alone rather than
+  // introduce rounding for nothing.
+  if (!Number.isFinite(span) || span <= 0 || (span > 0.5 && span <= 2)) return fold;
+
+  return {
+    ...fold,
+    vertices_coords: coords.map((coord) => [
+      ((coord[0] ?? 0) - min[0]!) / span,
+      ((coord[1] ?? 0) - min[1]!) / span,
+      ((coord[2] ?? 0) - min[2]!) / span,
+    ]),
+  };
 }
 
 /**
@@ -489,12 +558,14 @@ const api = {
     // Carried from the most recent session, not from one being replaced: a load
     // no longer displaces anything, so this is only about a new model opening
     // with the camera and palette already in use rather than the defaults.
-    const previous = latestSession()?.gpuRender;
+    const previous = latestSession()?.view;
     // A fresh load gets a fresh context, so a previous loss is no longer the
     // truth about this session.
     sessionFailure = null;
     sessionToken += 1;
 
+    // Scaled first — see `foldScaledForSolver`.
+    //
     // prepareFoldModel runs here rather than on the main thread: it is O(n)
     // heavy (earcut triangulation, edge indexing) and used to block the UI
     // before a single solver step had run. Prepared models are immutable, so a
@@ -502,8 +573,10 @@ const api = {
     // fresh backend is always built, so no fold state leaks across a switch.
     const prepareOptions = options.prepare ?? { triangulate: true };
     const prepared = options.modelKey
-      ? preparedModels.get(options.modelKey, () => prepareFoldModel(fold, prepareOptions))
-      : prepareFoldModel(fold, prepareOptions);
+      ? preparedModels.get(options.modelKey, () =>
+          prepareFoldModel(foldScaledForSolver(fold), prepareOptions)
+        )
+      : prepareFoldModel(foldScaledForSolver(fold), prepareOptions);
     const model = new OrigamiModel(prepared);
     const { backend, backendId, gpuSolver } = createBackend(model, options, renderCanvas);
     // The GPU tick is bounded by a fixed step COUNT, not a CPU-time budget. GPU
@@ -535,22 +608,20 @@ const api = {
       positionScratch: new Float32Array(prepared.vertexCount * 3),
       colorScratch: new Float32Array(prepared.vertexCount * 3),
       foldPercent: options.solver?.foldPercent ?? 0,
+      view: {
+        view: previous?.view ?? { yaw: 0, pitch: 0.38, zoom: 1 },
+        width: previous?.width ?? renderCanvas?.width ?? 512,
+        height: previous?.height ?? renderCanvas?.height ?? 512,
+        settings: previous?.settings ?? DEFAULT_RENDER_SETTINGS,
+        center: [0, 0, 0],
+        radius: 1,
+        fitted: false,
+      },
       // A fresh load counts as the most recent use, so a window that has just
       // opened is the last thing eviction would reach for rather than the first.
       lastUsed: ++useCounter,
-      gpuRender:
-        gpuSolver && renderCanvas
-          ? {
-              solver: gpuSolver,
-              view: previous?.view ?? { yaw: 0, pitch: 0.38, zoom: 1 },
-              width: previous?.width ?? renderCanvas.width,
-              height: previous?.height ?? renderCanvas.height,
-              settings: previous?.settings ?? DEFAULT_RENDER_SETTINGS,
-              center: [0, 0, 0],
-              radius: 1,
-              fitted: false,
-            }
-          : null,
+      gpuRender: gpuSolver && renderCanvas ? gpuSolver : null,
+
     };
     sessions.set(sessionToken, created);
     evictBeyondCap();
@@ -704,26 +775,97 @@ const api = {
     );
   },
 
+  /**
+   * The current view as a standalone SVG document, or null when there is
+   * nothing to draw.
+   *
+   * Here rather than on the main thread because this is where the complete
+   * render state already lives: positions in the solver, the camera and
+   * appearance on {@link SessionView}. It is the vector sibling of
+   * {@link renderGpu} — same positions, same topology, same camera, same
+   * settings — which is what makes the file the view the user is looking at
+   * rather than a second interpretation of it.
+   *
+   * Distinct from {@link exportGeometry}, which serves STL/OBJ and wants raw
+   * geometry with no camera at all.
+   */
+  exportSvg(
+    options: {
+      token?: SimulatorSessionToken;
+      /**
+       * Page background. Defaults to transparent, which is not what is on
+       * screen: the panel's backdrop is the app's canvas colour, and a file
+       * carrying that would arrive in a document with the app's dark chrome
+       * baked in. Transparent composites into anything.
+       */
+      background?: SimulatorExportBackground;
+    } = {}
+  ): SvgRenderResult | null {
+    const active = sessionFor(options.token);
+    if (!active) return null;
+    const prepared = active.model.prepared;
+    const positions = new Float32Array(prepared.vertexCount * 3);
+    active.backend.readPositions(positions);
+    // The GPU path fits on its first settled frame; the canvas-2D path has never
+    // had reason to, so fit here from the same positions being exported.
+    if (!active.view.fitted) fitTo(positions, active.view);
+
+    let strain: Float32Array | null = null;
+    if (active.view.settings.colorMode === 'strain') {
+      strain = new Float32Array(prepared.vertexCount);
+      active.backend.readStrain(strain);
+    }
+
+    const camera = cameraUniforms(
+      active.view.view,
+      active.view.center,
+      active.view.radius,
+      active.view.width,
+      active.view.height
+    );
+    const mode = options.background ?? 'transparent';
+    const settings: RenderSettings =
+      mode === 'white'
+        ? { ...active.view.settings, background: [1, 1, 1], backgroundAlpha: 1 }
+        : { ...active.view.settings, backgroundAlpha: 1 };
+
+    // The page size comes back with the document because a rasterizer needs it,
+    // and re-deriving it from a string we just produced would be worse.
+    return renderMeshToSvg(positions, meshTopologyFor(prepared), camera, settings, {
+      // The canvas-2D fallback is orthographic, so a machine drawing through it
+      // must export the way its own screen looks.
+      perspective: Boolean(active.gpuRender),
+      strain,
+      background: mode !== 'transparent',
+    });
+  },
+
   diagnostics(): SimulatorDiagnostics {
     return requireSession().backend.readDiagnostics();
   },
 
   /**
-   * Update the orbit camera (GPU-render mode only) and redraw. Called on every
-   * orbit/zoom: it runs no solver work and no readback — just a re-draw with a
-   * new view — which is what makes camera manipulation cheap at any model size.
+   * Update the orbit camera and redraw. Called on every orbit/zoom: it runs no
+   * solver work and no readback — just a re-draw with a new view — which is what
+   * makes camera manipulation cheap at any model size.
+   *
+   * The camera is recorded whether or not a GPU renderer is attached; only the
+   * redraw is skipped. On the canvas-2D path the main thread draws and there is
+   * nothing to return, but the session still has to know how it is being looked
+   * at — see {@link SessionView}.
    */
   async setCamera(
     camera: SimulatorCamera,
     token?: SimulatorSessionToken
   ): Promise<ImageBitmap | null> {
     const active = sessionFor(token);
-    if (!active?.gpuRender) return null;
+    if (!active) return null;
     perf.cameraCalls += 1;
-    active.gpuRender.view = camera.view;
-    active.gpuRender.width = camera.width;
-    active.gpuRender.height = camera.height;
-    const bitmap = await renderGpu(active.gpuRender);
+    active.view.view = camera.view;
+    active.view.width = camera.width;
+    active.view.height = camera.height;
+    if (!active.gpuRender) return null;
+    const bitmap = await renderGpu(active.gpuRender, active.view);
     return bitmap ? transfer(bitmap, [bitmap]) : null;
   },
 
@@ -733,9 +875,10 @@ const api = {
     token?: SimulatorSessionToken
   ): Promise<ImageBitmap | null> {
     const active = sessionFor(token);
-    if (!active?.gpuRender) return null;
-    active.gpuRender.settings = settings;
-    const bitmap = await renderGpu(active.gpuRender);
+    if (!active) return null;
+    active.view.settings = settings;
+    if (!active.gpuRender) return null;
+    const bitmap = await renderGpu(active.gpuRender, active.view);
     return bitmap ? transfer(bitmap, [bitmap]) : null;
   },
 
@@ -802,8 +945,8 @@ async function readFrame(
   // GPU-render mode: the worker draws straight to the transferred canvas. No
   // positions cross to the main thread at all -- the whole point of this path.
   if (active.gpuRender) {
-    refitOnce(active.gpuRender);
-    const bitmap = await renderGpu(active.gpuRender);
+    refitOnce(active.gpuRender, active.view);
+    const bitmap = await renderGpu(active.gpuRender, active.view);
     const payload = {
       positions: null,
       colors: null,
@@ -954,7 +1097,10 @@ function sizeRenderCanvas(width: number, height: number): void {
   renderCanvas.height = next.height;
 }
 
-async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
+async function renderGpu(
+  solver: WebglSolver,
+  state: SessionView
+): Promise<ImageBitmap | null> {
   // Timed as a whole. It used to start after the resize, which is exactly the
   // work that turned out to dominate — the instrumentation meant to catch this
   // could not see it.
@@ -967,10 +1113,10 @@ async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
   // What GL actually gave us, which is not always what the canvas was set to —
   // see {@link WebglSolver.drawingBufferSize}. Rendering or cropping past this
   // reads nothing back and shows an empty window with no error anywhere.
-  const buffer = state.solver.drawingBufferSize;
+  const buffer = solver.drawingBufferSize;
   const { width, height } = fitRenderWithin(state, buffer);
   const camera = cameraUniforms(state.view, state.center, state.radius, width, height);
-  state.solver.render(camera, state.settings);
+  solver.render(camera, state.settings);
   // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
   // is top-left, so the crop is measured down from the top of the buffer.
   const bitmap =
@@ -993,10 +1139,15 @@ async function renderGpu(state: GpuRenderState): Promise<ImageBitmap | null> {
  * frame makes it visibly "breathe"). A readback of positions here is a one-off
  * on load, not a per-frame cost.
  */
-function refitOnce(state: GpuRenderState): void {
+function refitOnce(solver: WebglSolver, state: SessionView): void {
   if (state.fitted) return;
-  const positions = new Float32Array(state.solver.vertexCount * 3);
-  state.solver.readPositions(positions);
+  const positions = new Float32Array(solver.vertexCount * 3);
+  solver.readPositions(positions);
+  fitTo(positions, state);
+}
+
+/** Frame a set of positions, which is what makes the camera's scale meaningful. */
+function fitTo(positions: Float32Array, state: SessionView): void {
   const center = centroid(positions);
   state.center = center;
   state.radius = boundingRadius(positions, center);

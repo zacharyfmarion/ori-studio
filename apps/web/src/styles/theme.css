@@ -3955,21 +3955,38 @@
   stroke: var(--accent-secondary);
 }
 
+/*
+ * Tree dots, quietest to loudest. What a dot *is* — leaf, root — is a tint of its
+ * accent mixed into the canvas; the full-strength accent and the bright ink ring
+ * belong to the dot the user picked, so the selection is the loudest thing on the
+ * canvas rather than one more saturated dot among many.
+ *
+ * The identity rules opt out of the interactive states instead of leaving it to
+ * the cascade. A selector list's specificity is per-selector, so
+ * `.tree-node--selected` (0-1-0) lost to `.tree-node[data-leaf]` (0-2-0) and
+ * selecting a flap tip changed nothing but the ring — from bright to canvas-dark,
+ * which made the picked dot the one that receded.
+ */
 .tree-node {
   fill: var(--tree-node);
-  stroke: var(--tree-node-stroke);
+  stroke: color-mix(in srgb, var(--tree-node-stroke) 55%, var(--bg-canvas));
   stroke-width: 2;
   cursor: pointer;
 }
 
-.tree-node[data-leaf] {
-  fill: var(--accent-tertiary);
+.tree-node[data-leaf]:not(:hover, .tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-tertiary) 45%, var(--bg-canvas));
 }
 
-.tree-node:hover,
+.tree-node:hover:not(.tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-primary) 70%, var(--bg-canvas));
+  stroke: var(--tree-node-stroke);
+  stroke-width: 3;
+}
+
 .tree-node--selected {
   fill: var(--accent-primary);
-  stroke: var(--bg-canvas);
+  stroke: var(--tree-node-stroke);
   stroke-width: 3;
 }
 
@@ -4861,6 +4878,45 @@
   color: var(--text-secondary);
   font-size: 0.74rem;
   font-weight: 600;
+}
+
+/* Collapsible section header, following `.grid-settings__toggle` in the Edit
+   workspace's view pane so the two panes disclose the same way. */
+.simulator-view-controls-panel__section-toggle {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.simulator-view-controls-panel__section-toggle:hover
+  .simulator-view-controls-panel__section-title {
+  color: var(--text-primary);
+}
+
+.simulator-view-controls-panel__section-chevron {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  transition: transform 0.12s ease;
+}
+
+.simulator-view-controls-panel__section[data-open]
+  .simulator-view-controls-panel__section-chevron {
+  transform: rotate(90deg);
+}
+
+/* A closed section is just its header, so the extra bottom padding that spaces a
+   header from its controls would read as a gap. */
+.simulator-view-controls-panel__section:not([data-open])
+  .simulator-view-controls-panel__section-header {
+  padding-bottom: 8px;
 }
 
 .simulator-view-controls-panel__section-hint {
@@ -5794,10 +5850,15 @@
   opacity: 0.72;
 }
 
-.bp-tree-edge--river {
-  stroke: var(--border-strong);
-}
-
+/*
+ * Every tree edge is the same line, as in Box Pleating Studio itself — which has
+ * one `edge` style and no river/flap distinction. Rivers used to be drawn in
+ * `--border-strong`, the theme's *active* colour and a near-match for the accent
+ * a selected edge wears, so a tree of rivers read as a tree of selected edges.
+ * Which edge is which stays legible from the length label, carried by flap edges
+ * only.
+ */
+.bp-tree-edge--river,
 .bp-tree-edge--leaf {
   stroke: var(--tree-edge);
 }
@@ -5812,8 +5873,10 @@
   stroke-width: 7;
 }
 
-.bp-tree-node--root {
-  fill: var(--accent-secondary);
+/* The root marker is identity, not state — same opt-out as `[data-leaf]` above, so
+ * selecting the root still reads as selected. */
+.bp-tree-node--root:not(:hover, .tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-secondary) 45%, var(--bg-canvas));
 }
 
 .bp-packing-sheet {
@@ -6528,4 +6591,92 @@ button.bp-packing-alert:focus-visible {
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+/* Shared colour swatch (components/ui/ColorField), used by the simulator options
+   pane, the folded-figure menu and the crease export dialog. The three used to
+   carry three near-identical copies of this block. */
+.color-field__value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.color-field__input {
+  padding: 2px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  cursor: pointer;
+}
+
+.color-field__input:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.color-field__input:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Stacked: label over a full-width swatch, for the narrow grid columns in the
+   folded-figure menu and the export dialog. */
+.color-field--stacked {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.color-field--stacked .color-field__name {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.color-field--stacked .color-field__input {
+  width: 100%;
+  height: 24px;
+}
+
+/* Row: a square swatch on the right, so a colour reads as one control in a
+   column of sliders and selects rather than as a full-width band. */
+.color-field--row .color-field__value {
+  justify-content: flex-end;
+}
+
+.color-field--row .color-field__input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+/* Only rendered while the colour is overridden, so its absence is the signal
+   that the value is still following the theme. */
+.color-field__clear {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.color-field__clear:hover:not(:disabled) {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.simulator-view-controls-panel__colors > .control-row:last-child {
+  border-bottom: 0;
 }

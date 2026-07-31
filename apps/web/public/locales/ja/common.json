@@ -48,6 +48,8 @@
     "creasePatternBuildRunning": "展開図の作成を実行中です",
     "cut": "切り取り",
     "cutSelectedTreeParts": "選択したツリー部分を切り取り",
+    "deleteExtraVertices": "余分な頂点を削除",
+    "deleteExtraVerticesIgnoreType": "余分な頂点を削除（種類を無視）",
     "deleteSelected": "選択項目を削除",
     "deleteSelectedCpCircles": "選択した展開図の円を削除",
     "deleteSelectedCpLines": "選択した展開図の線を削除",
@@ -104,6 +106,8 @@
     "makeSelectedLinesValley": "選択した線を谷折りにする",
     "makeSelectedNodeRoot": "選択したノードをルートにする",
     "makeValley": "谷折りにする",
+    "mergeCollinearAnyType": "種類に関係なく一直線上の折り線を統合します。山折りと谷折りは境界線になります",
+    "mergeCollinearSameType": "頂点で交わる同じ種類の一直線上の折り線を統合します",
     "mergeDuplicatesSelectOverlaps": "完全な重複を統合し、残りの重なった折り線を選択",
     "movablePartsRequireTree": "可動部分にはツリードキュメントが必要です",
     "new": "新規",
@@ -211,6 +215,10 @@
     "undoLastTreeEdit": "最後のツリーの編集を元に戻す"
   },
   "close": "閉じる",
+  "colorField": {
+    "reset": "既定に戻す",
+    "resetNamed": "{{label}} を既定に戻す"
+  },
   "fileDrop": {
     "open": "ドロップして開く",
     "openOrImport": "ドロップして開く／インポート"

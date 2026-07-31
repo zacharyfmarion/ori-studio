@@ -4,6 +4,7 @@ import {
   isSimulatorNumericSetting,
   normalizeSimulatorSettings,
   SIMULATOR_MATERIAL_KEYS,
+  SIMULATOR_STYLE_KEYS,
   type SimulatorSettingKey,
   type SimulatorSettings,
 } from '../../../lib/simulatorSettings';
@@ -46,6 +47,18 @@ export const createSimulatorSlice: WorkspaceSliceCreator<SimulatorSlice> = (set,
     const next = { ...get().simulatorSettings };
     for (const key of SIMULATOR_MATERIAL_KEYS) {
       next[key] = DEFAULT_SIMULATOR_SETTINGS[key];
+    }
+    set({ simulatorSettings: next });
+    persist(next);
+  },
+
+  resetSimulatorStyle: () => {
+    // Back to the theme's paper and the origami-convention creases: every style
+    // default is either null (follow the theme) or the shared constant, so this
+    // is the same loop the material reset uses.
+    const next = { ...get().simulatorSettings };
+    for (const key of SIMULATOR_STYLE_KEYS) {
+      next[key] = DEFAULT_SIMULATOR_SETTINGS[key] as never;
     }
     set({ simulatorSettings: next });
     persist(next);

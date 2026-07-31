@@ -341,7 +341,7 @@ describe('export layout', () => {
   });
   it('keeps exported images the same way up as the editor', () => {
     // FOLD coordinates are y-down: the CP editor's model space is y-down
-    // (modelPointToCpSvg / orieditaTvToSvg never flip) and the TreeMaker engine
+    // (cpModelToSvg never flips) and the TreeMaker engine
     // converts its internal y-up vertices on the way out (to_fold_document emits
     // `paper_height - loc.y`). Projecting with a flip mirrored every export
     // relative to what the user drew.

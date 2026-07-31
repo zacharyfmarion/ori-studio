@@ -11,5 +11,10 @@
   "global": {
     "error": "Ori Studio 错误",
     "folding": "正在折叠…"
+  },
+  "simulatorExport": {
+    "empty": "此模拟暂无可导出的内容",
+    "failed": "无法导出此视图",
+    "saved": "已导出 {{name}}"
   }
 }

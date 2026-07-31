@@ -11,5 +11,10 @@
   "global": {
     "error": "Ori Studio エラー",
     "folding": "折り上げ中…"
+  },
+  "simulatorExport": {
+    "empty": "このシミュレーションには書き出せるものがまだありません",
+    "failed": "このビューを書き出せませんでした",
+    "saved": "{{name}} を書き出しました"
   }
 }

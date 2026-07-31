@@ -10,6 +10,8 @@
     "check3": "Comprobar plegabilidad de vértices",
     "check4": "Comprobar Maekawa/LBL",
     "checkCamv": "Comprobar plegabilidad",
+    "deleteExtraVertices": "Eliminar vértices sobrantes",
+    "deleteExtraVerticesIgnoreColor": "Eliminar vértices sobrantes (ignorar tipo)",
     "deleteLineType": "Eliminar tipo de línea seleccionado...",
     "deleteSelectedLines": "Eliminar líneas seleccionadas",
     "diagnostics": "Diagnósticos",
