@@ -3849,6 +3849,11 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpHistoryFuture).toHaveLength(0);
     expect(useWorkspaceStore.getState().dirty).toBe(false);
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('Check1-1');
+    // Adopting the issue also asks the canvas to frame it, once.
+    expect(useWorkspaceStore.getState().oristudioCpDiagnosticFocusRequest).toEqual({
+      id: 1,
+      diagnosticId: 'Check1-1',
+    });
     expect(
       useWorkspaceStore.getState().oristudioCpDocument?.lastCommandResult?.diagnostic_entries
     ).toHaveLength(1);
@@ -3883,6 +3888,10 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe(
       'FlatFoldableCheck-1'
     );
+    expect(useWorkspaceStore.getState().oristudioCpDiagnosticFocusRequest).toEqual({
+      id: 2,
+      diagnosticId: 'FlatFoldableCheck-1',
+    });
 
     const flatCheckedDocument = useWorkspaceStore.getState().oristudioCpDocument;
     if (!flatCheckedDocument) throw new Error('expected flat-checked CP document');
@@ -3900,6 +3909,8 @@ describe('workspace store slices', () => {
     );
 
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBeNull();
+    // An edit has no issue to look at, so it asks for no framing either.
+    expect(useWorkspaceStore.getState().oristudioCpDiagnosticFocusRequest).toBeNull();
   });
 
   it('clears editable CP selection after destructive kernel commands', async () => {

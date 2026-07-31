@@ -102,6 +102,7 @@ import type { OristudioCpOperationId } from '../../../lib/oristudioCpCommands';
 import { createEmptyProject, DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
+import { activateCpDiagnostic } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
@@ -1778,9 +1779,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpCamvResult: nextCamvResult,
           oristudioCpOperationDescriptors: nextDocument.operationDescriptors,
           oristudioCpError: null,
-          oristudioCpActiveDiagnosticId: mutatesDocument
-            ? null
-            : (diagnosticEntries[0]?.id ?? null),
+          // A check adopts its first issue, which also frames it; an edit has no
+          // issue to be looking at.
+          ...activateCpDiagnostic(
+            mutatesDocument ? null : (diagnosticEntries[0]?.id ?? null),
+            get().oristudioCpDiagnosticFocusRequest
+          ),
           oristudioCpSelection: oristudioCpSelectionAfterCommand(
             operationId,
             previousSelection,

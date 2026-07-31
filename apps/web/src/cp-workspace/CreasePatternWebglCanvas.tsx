@@ -107,10 +107,20 @@ export type StepKind = CpStepSnap;
 const STALE_FOLDED_FIGURE_OPACITY = 0.45;
 
 export interface CameraCommand {
-  kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent' | 'rotate-by' | 'rotate-to' | 'rotate-reset';
+  kind:
+    | 'zoom-in'
+    | 'zoom-out'
+    | 'fit'
+    | 'set-percent'
+    | 'rotate-by'
+    | 'rotate-to'
+    | 'rotate-reset'
+    | 'focus-bounds';
   percent?: number;
   /** Rotation payload: a signed step for `rotate-by`, an absolute angle for `rotate-to`. */
   radians?: number;
+  /** Model-space region for `focus-bounds` to frame (e.g. the selected diagnostic). */
+  modelBounds?: { minX: number; minY: number; maxX: number; maxY: number };
   nonce: number;
 }
 
@@ -653,14 +663,8 @@ export interface CreasePatternWebglCanvasProps {
   diagnosticHits: readonly { id: string; point: ModelPoint }[];
   onSelectDiagnostic: (id: string) => void;
   /**
-   * Model-space bounds of the selected diagnostic to frame in the camera (pan + zoom
-   * to it), or null. Changing this re-frames; the WebGL camera owns pan/zoom so the
-   * SVG-era focus can't drive it.
-   */
-  focusModelBounds: { minX: number; minY: number; maxX: number; maxY: number } | null;
-  /**
-   * A viewport-toolbar command for the owned camera (zoom in/out, fit, set percent).
-   * Applied when `nonce` changes so repeated presses re-fire.
+   * A viewport-toolbar command for the owned camera (zoom in/out, fit, set percent,
+   * frame a region). Applied when `nonce` changes so repeated presses re-fire.
    */
   cameraCommand: CameraCommand | null;
   /** Report the camera's current zoom percent (100% = fit) so the toolbar reflects it. */
@@ -785,7 +789,6 @@ export function CreasePatternWebglCanvas({
   operationFrame,
   diagnosticHits,
   onSelectDiagnostic,
-  focusModelBounds,
   cameraCommand,
   onZoomPercentChange,
   onRotationChange,
@@ -2886,48 +2889,6 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [images, rendererGeneration]);
 
-  // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
-  // show the vertex + its creases (capped so it never over-zooms), matching the SVG's
-  // click-to-focus. Model bounds → user coords via the current modelToSvg.
-  useEffect(() => {
-    const b = focusModelBounds;
-    const canvas = canvasRef.current;
-    const cam = cameraRef.current;
-    if (!b || !canvas || !cam || canvas.width === 0) return;
-    const m2s = liveRef.current.modelToSvg;
-    const corners = [
-      m2s({ x: b.minX, y: b.minY }),
-      m2s({ x: b.maxX, y: b.maxY }),
-      m2s({ x: b.minX, y: b.maxY }),
-      m2s({ x: b.maxX, y: b.minY }),
-    ];
-    const xs = corners.map((c) => c.x);
-    const ys = corners.map((c) => c.y);
-    const userBounds = {
-      minX: Math.min(...xs),
-      minY: Math.min(...ys),
-      maxX: Math.max(...xs),
-      maxY: Math.max(...ys),
-    };
-    const viewport: Viewport = { width: canvas.width, height: canvas.height, dpr: 1 };
-    // Framing happens in the current rotated frame, and preserves it: jumping to
-    // a diagnostic should not also straighten the view the user turned.
-    const issue = fitUserCamera(userBounds, viewport, 0.5, cam.rotation);
-    const docBounds = liveRef.current.contentBounds;
-    const docFitZoom = docBounds
-      ? fitUserCamera(docBounds, viewport, undefined, cam.rotation).zoom
-      : issue.zoom;
-    // Zoom in enough to frame the issue, but never zoom out or blow past ~4x the fit.
-    const zoom = Math.max(cam.zoom, Math.min(issue.zoom, docFitZoom * 4));
-    cameraRef.current = {
-      centerX: issue.centerX,
-      centerY: issue.centerY,
-      zoom,
-      rotation: cam.rotation,
-    };
-    renderNowRef.current();
-  }, [focusModelBounds]);
-
   // Viewport-toolbar camera commands (zoom in/out, fit, set percent) for the owned
   // camera — the SVG-era controls drove react-zoom-pan-pinch, which the GL camera
   // ignores. Applied on each new command (nonce).
@@ -2957,6 +2918,39 @@ export function CreasePatternWebglCanvas({
       cam.rotation = normalizeCameraRotation(cmd.radians);
     } else if (cmd.kind === 'rotate-reset') {
       cam.rotation = 0;
+    } else if (cmd.kind === 'focus-bounds' && cmd.modelBounds) {
+      // Frame a region of the model — the selected diagnostic: pan to its centre and
+      // zoom in to show the vertex + its creases, capped so it never over-zooms.
+      // Model bounds → user coords via the current modelToSvg.
+      const b = cmd.modelBounds;
+      const m2s = liveRef.current.modelToSvg;
+      const corners = [
+        m2s({ x: b.minX, y: b.minY }),
+        m2s({ x: b.maxX, y: b.maxY }),
+        m2s({ x: b.minX, y: b.maxY }),
+        m2s({ x: b.maxX, y: b.minY }),
+      ];
+      const xs = corners.map((c) => c.x);
+      const ys = corners.map((c) => c.y);
+      const userBounds = {
+        minX: Math.min(...xs),
+        minY: Math.min(...ys),
+        maxX: Math.max(...xs),
+        maxY: Math.max(...ys),
+      };
+      // Framing happens in the current rotated frame, and preserves it: jumping to
+      // a diagnostic should not also straighten the view the user turned.
+      const issue = fitUserCamera(userBounds, viewport, 0.5, cam.rotation);
+      const docFitZoom = docBounds
+        ? fitUserCamera(docBounds, viewport, undefined, cam.rotation).zoom
+        : issue.zoom;
+      // Zoom in enough to frame the issue, but never zoom out or blow past ~4x the fit.
+      cameraRef.current = {
+        centerX: issue.centerX,
+        centerY: issue.centerY,
+        zoom: Math.max(cam.zoom, Math.min(issue.zoom, docFitZoom * 4)),
+        rotation: cam.rotation,
+      };
     }
     renderNowRef.current();
   }, [cameraCommand]);

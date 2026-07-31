@@ -144,9 +144,9 @@ import {
   buildCpDiagnosticMarkers,
   buildCpDiagnosticStrokes,
   buildCpDiagnosticWedges,
-  diagnosticEntryBounds,
   resolveCpDiagnosticToneColors,
 } from '../../cp-workspace/diagnostics/geometry';
+import { useCpDiagnosticFocus } from '../../cp-workspace/diagnostics/useCpDiagnosticFocus';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
@@ -806,6 +806,16 @@ export function CreasePatternPanel() {
   const sendWebglCameraCommand = useCallback(
     (kind: CameraCommand['kind'], percent?: number, radians?: number) => {
       setWebglCameraCommand({ kind, percent, radians, nonce: ++cameraCommandNonceRef.current });
+    },
+    []
+  );
+  const focusWebglCameraOnModelBounds = useCallback(
+    (modelBounds: { minX: number; minY: number; maxX: number; maxY: number }) => {
+      setWebglCameraCommand({
+        kind: 'focus-bounds',
+        modelBounds,
+        nonce: ++cameraCommandNonceRef.current,
+      });
     },
     []
   );
@@ -1501,20 +1511,11 @@ export function CreasePatternPanel() {
     }
     return hudResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
   }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]);
-  const activeDiagnosticEntry = useMemo(
-    () =>
-      latestDiagnosticEntries.find((entry) => entry.id === oristudioCpActiveDiagnosticId) ?? null,
-    [latestDiagnosticEntries, oristudioCpActiveDiagnosticId]
-  );
-  // Model bounds of the selected diagnostic, for the WebGL surface to frame in its
-  // owned camera (the SVG focus effect drives the SVG transform, not the GL camera).
-  const cpDiagnosticFocusBounds = useMemo(() => {
-    if (!activeDiagnosticEntry) return null;
-    const bounds = diagnosticEntryBounds(activeDiagnosticEntry);
-    return bounds
-      ? { minX: bounds.minX, minY: bounds.minY, maxX: bounds.maxX, maxY: bounds.maxY }
-      : null;
-  }, [activeDiagnosticEntry]);
+  // Frame a diagnostic when one is activated — a HUD row click, or a check command
+  // adopting its first issue. Framing rides the camera-command rail with every other
+  // camera move; it is deliberately not derived from the active id, so re-deriving
+  // the entry list (hiding and showing the CAMV overlay) leaves the camera alone.
+  useCpDiagnosticFocus(latestDiagnosticEntries, focusWebglCameraOnModelBounds);
   // The `selection_distance` every tool command carries, exposed to the canvas so a
   // destination pick is gated on the same radius the kernel searches.
   const cpToolSelectionDistance = useMemo(
@@ -2914,7 +2915,6 @@ export function CreasePatternPanel() {
                   diagnosticHits={cpDiagnosticGeometry.hits}
                   onSelectDiagnostic={handleSelectCpDiagnostic}
                   operationFrame={cpOperationFrameStrokes}
-                  focusModelBounds={cpDiagnosticFocusBounds}
                   cameraCommand={webglCameraCommand}
                   panToolActive={panToolActive}
                   onRotationChange={setViewRotation}

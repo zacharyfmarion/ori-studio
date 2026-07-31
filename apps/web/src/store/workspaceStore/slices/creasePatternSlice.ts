@@ -53,6 +53,7 @@ import { useLayoutStore } from '../../layoutStore';
 import { isClassicCrease, isFoldingCrease } from '../../../lib/foldAngle';
 import { useSettingsStore } from '../../settingsStore';
 import { selectWorkspaceCapabilities } from '../capabilities';
+import { activateCpDiagnostic } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
 import {
   emptyFoldArtifactResourceState,
@@ -816,6 +817,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpActionRequest: null,
     oristudioCpActiveToolId: null,
     oristudioCpActiveDiagnosticId: null,
+    oristudioCpDiagnosticFocusRequest: null,
     oristudioCpRevision: 0,
     oristudioCpFoldedFigures: [],
     oristudioCpActiveFoldedFigureId: null,
@@ -1354,8 +1356,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           get().oristudioCpActionRequest?.id === id ? null : get().oristudioCpActionRequest,
       }),
 
-    setOristudioCpActiveDiagnostic: (oristudioCpActiveDiagnosticId) =>
-      set({ oristudioCpActiveDiagnosticId }),
+    setOristudioCpActiveDiagnostic: (id) =>
+      set(activateCpDiagnostic(id, get().oristudioCpDiagnosticFocusRequest)),
+
+    clearOristudioCpDiagnosticFocusRequest: (id) =>
+      set({
+        oristudioCpDiagnosticFocusRequest:
+          get().oristudioCpDiagnosticFocusRequest?.id === id
+            ? null
+            : get().oristudioCpDiagnosticFocusRequest,
+      }),
 
     setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) => {
       const previousActiveId = get().oristudioCpActiveFoldedFigureId;
