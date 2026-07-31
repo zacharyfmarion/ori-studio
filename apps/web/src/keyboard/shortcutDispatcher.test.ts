@@ -61,7 +61,14 @@ describe('shortcut dispatcher', () => {
       expect(menu).not.toHaveBeenCalled();
     });
 
-    it('treats a void return as a claim, so existing executors are unaffected', () => {
+    // This used to assert the opposite -- a void return was read as a claim, so
+    // that executors predating the decline protocol "were unaffected". They were
+    // not: the BP and design viewports implement only the camera verbs, so
+    // `viewport.delete` fell out of their switch, returned `undefined`, and ate
+    // the press. Delete did nothing at all on those canvases. Only an explicit
+    // claim counts now, and the executor type is a required boolean so the gap
+    // is a compile error rather than a dead key.
+    it('treats a void return as a decline, not a silent claim', () => {
       const viewport = vi.fn().mockReturnValue(undefined);
       const menu = vi.fn();
 
@@ -70,7 +77,7 @@ describe('shortcut dispatcher', () => {
         executors: { viewport, menu },
       });
 
-      expect(menu).not.toHaveBeenCalled();
+      expect(menu).toHaveBeenCalledWith('edit.delete');
     });
   });
 

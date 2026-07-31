@@ -14,8 +14,11 @@ import type {
 } from './shortcuts';
 
 type CpActionExecutor = (id: OristudioCpActionId) => unknown;
-/** Returning `false` declines the chord; see `ShortcutExecutors.viewport`. */
-type ViewportExecutor = (id: ViewportShortcutId) => boolean | void;
+/**
+ * `true` claims the chord, `false` declines it and lets the next scope have it.
+ * Every id must answer one or the other; see `ShortcutExecutors.viewport`.
+ */
+type ViewportExecutor = (id: ViewportShortcutId) => boolean;
 type SimulatorExecutor = (id: SimulatorShortcutId) => unknown;
 
 /**

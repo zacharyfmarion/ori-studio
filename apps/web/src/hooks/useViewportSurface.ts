@@ -143,21 +143,26 @@ export function useViewportSurface({
     transformRef.current?.zoomOut(ZOOM_STEP, ZOOM_ANIMATION_MS);
   }, []);
 
+  // Camera only. Every other viewport verb is declined so the chord reaches the
+  // scope that owns it -- Delete belongs to `edit.delete`, which deletes the
+  // selected tree node.
   const handleViewportShortcut = useCallback(
-    (id: ViewportShortcutId) => {
+    (id: ViewportShortcutId): boolean => {
       switch (id) {
         case 'viewport.zoomIn':
           zoomIn();
-          break;
+          return true;
         case 'viewport.zoomOut':
           zoomOut();
-          break;
+          return true;
         case 'viewport.fit':
           fitToView();
-          break;
+          return true;
         case 'viewport.actualSize':
           setActualSize();
-          break;
+          return true;
+        default:
+          return false;
       }
     },
     [zoomIn, zoomOut, fitToView, setActualSize]

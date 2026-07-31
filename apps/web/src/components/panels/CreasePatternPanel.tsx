@@ -2628,12 +2628,15 @@ export function CreasePatternPanel() {
     cpToolState.activeOperationId,
   ]);
 
+  // No `default`: the switch is exhaustive over `ViewportShortcutId`, so a new
+  // viewport verb fails to compile here until this surface says whether it
+  // claims the chord or hands it on.
   const handleViewportShortcut = useCallback(
-    (id: ViewportShortcutId): boolean | void => {
+    (id: ViewportShortcutId): boolean => {
       switch (id) {
         case 'viewport.cancel':
           cancelActiveCpInput();
-          break;
+          return true;
         // Two viewport verbs share Delete, and both decline when they do not
         // apply so the chord falls through to `edit.delete` and deletes creases.
         // A selected canvas object outranks a measurement: it is the thing
@@ -2642,31 +2645,31 @@ export function CreasePatternPanel() {
           return deleteSelectedCanvasObject() || dropLastMeasurement();
         case 'viewport.simulateSelectionInline':
           void simulateSelectionInline();
-          break;
+          return true;
         case 'viewport.zoomIn':
           cpCamera()?.zoomIn();
-          break;
+          return true;
         case 'viewport.zoomOut':
           cpCamera()?.zoomOut();
-          break;
+          return true;
         case 'viewport.fit':
           cpCamera()?.fit();
-          break;
+          return true;
         case 'viewport.pan':
           setPanToolActive((active) => !active);
-          break;
+          return true;
         case 'viewport.rotateCcw':
           cpCamera()?.rotateBy(-VIEW_ROTATION_STEP_RADIANS);
-          break;
+          return true;
         case 'viewport.rotateCw':
           cpCamera()?.rotateBy(VIEW_ROTATION_STEP_RADIANS);
-          break;
+          return true;
         case 'viewport.resetRotation':
           cpCamera()?.rotateReset();
-          break;
+          return true;
         case 'viewport.actualSize':
           cpCamera()?.setZoomPercent(100);
-          break;
+          return true;
       }
     },
     [

@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioBpDocumentState } from '../../engine/oristudioBpTypes';
+import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { BpPackingPanel } from './BpPackingPanel';
@@ -446,5 +447,28 @@ describe('BP packing pane — nothing in the canvas takes focus', () => {
     expect(canvas).not.toBeNull();
     expect(canvas?.querySelectorAll('[tabindex]')).toHaveLength(0);
     expect(canvas?.querySelectorAll('[role="button"]')).toHaveLength(0);
+  });
+});
+
+/**
+ * Delete, through the real dispatcher and the executor this pane registers.
+ *
+ * This pane owns the camera and nothing else, but `viewport.delete` is bound in
+ * viewport scope, so its executor is asked about every Delete press. Answering
+ * with a bare `undefined` counted as a claim, and `edit.delete` — which deletes
+ * the selected node from either BP pane — never ran.
+ */
+describe('BP packing pane — Delete reaches the node delete', () => {
+  it('hands Delete to edit.delete', () => {
+    renderPacking();
+    useWorkspaceStore.setState({ oristudioBpSelection: { kind: 'bp-vertex', id: 1 } });
+    const menu = vi.fn();
+    act(() => {
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }),
+        { context: { activeEditingContext: 'bp-packing' }, menu }
+      );
+    });
+    expect(menu).toHaveBeenCalledWith('edit.delete');
   });
 });
