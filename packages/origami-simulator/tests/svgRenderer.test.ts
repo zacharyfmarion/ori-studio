@@ -480,6 +480,58 @@ describe('rendering the folded mesh to SVG', () => {
   });
 });
 
+/**
+ * The same view drawn into two differently-sized frames, which is what an inline
+ * simulation window does as the crease-pattern camera zooms.
+ */
+describe('crease weight against the size of the frame', () => {
+  const at = (edge: number, settings: Partial<RenderSettings> = {}) => {
+    const camera = cameraUniforms({ yaw: 0, pitch: -1, zoom: 1 }, [0, 0, 0], 2, edge, edge);
+    return renderMeshToSvg(positions(), topology(), camera, { ...SETTINGS, ...settings })!;
+  };
+  const strokeWidthOf = (svg: string) =>
+    Number(/<line[^>]*stroke-width="([\d.]+)"/u.exec(svg)?.[1]);
+
+  it('holds the crease at a constant weight for a viewport', () => {
+    // No reference edge: a Simulate-workspace pane resized narrower keeps the
+    // linework it had, because it is a window onto the fold and not a picture
+    // of it.
+    expect(strokeWidthOf(at(512).svg)).toBe(SETTINGS.creaseWidthPx);
+    expect(strokeWidthOf(at(128).svg)).toBe(SETTINGS.creaseWidthPx);
+  });
+
+  it('holds the crease at a constant share of the paper for an object', () => {
+    // The property that matters, stated as the eye reads it: the picture is the
+    // same picture at either size. Page width tracks the drawn artwork, so the
+    // crease's share of it is the crease's share of the paper.
+    const scaled = { creaseWidthReferenceEdge: 512, creaseWidthShrinkExponent: 1 };
+    const big = at(256, scaled);
+    const small = at(128, scaled);
+    expect(strokeWidthOf(small.svg) / strokeWidthOf(big.svg)).toBeCloseTo(0.5, 6);
+    expect(strokeWidthOf(small.svg) / small.width).toBeCloseTo(
+      strokeWidthOf(big.svg) / big.width,
+      6
+    );
+  });
+
+  it('leaves a frame above the reference edge alone', () => {
+    // So the sizes that already read correctly do not change at all.
+    const scaled = { creaseWidthReferenceEdge: 512 };
+    expect(strokeWidthOf(at(1024, scaled).svg)).toBe(SETTINGS.creaseWidthPx);
+    expect(strokeWidthOf(at(512, scaled).svg)).toBe(SETTINGS.creaseWidthPx);
+  });
+
+  it('carries the dash pattern with the crease it is measured along', () => {
+    // Runs are lengths in the same device pixels, so a pattern left at full size
+    // turns a shrunken crease into two long dashes.
+    const dash = { border: [8, 4], mountain: [8, 4], valley: [8, 4] };
+    const full = at(512, { creaseDash: dash }).svg;
+    const half = at(256, { creaseDash: dash, creaseWidthReferenceEdge: 512 }).svg;
+    expect(full).toContain('stroke-dasharray="8.00 4.00"');
+    expect(half).toContain('stroke-dasharray="4.00 2.00"');
+  });
+});
+
 /** A 0..1 colour triple as the renderer writes it. */
 function hexOf(color: readonly [number, number, number]): string {
   const channel = (value: number) =>

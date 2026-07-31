@@ -31,6 +31,14 @@ import type {
 export interface SimulatorSurfaceOptions {
   /** Leave the frame unpainted so whatever is behind the canvas shows through. */
   transparentBackground?: boolean;
+  /**
+   * Frame edge, in device px, the crease width is calibrated for. Set by a
+   * surface that is an object on someone else's canvas rather than a viewport,
+   * so its linework shrinks with it — see `RenderSettings.creaseWidthReferenceEdge`.
+   */
+  creaseWidthReferenceEdge?: number;
+  /** Companion to the reference edge; see `RenderSettings.creaseWidthShrinkExponent`. */
+  creaseWidthShrinkExponent?: number;
 }
 
 /**
@@ -197,6 +205,8 @@ export function resolveRenderSettings(
     // Scaled to device pixels so a crease reads at the same on-screen weight on
     // a hi-dpi display as on a standard one.
     creaseWidthPx: Math.max(0.5, settings.creaseWidth * dpr),
+    creaseWidthReferenceEdge: surface.creaseWidthReferenceEdge,
+    creaseWidthShrinkExponent: surface.creaseWidthShrinkExponent,
     faceAlpha: settings.renderMode === 'xray' ? 0.48 : 1,
     colorMode: settings.colorMode,
     strainClip: settings.strainClip,

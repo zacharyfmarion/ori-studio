@@ -14,7 +14,7 @@ import { projectVertices, type CameraUniforms, type ProjectedVertices } from './
 import { buildBsp, traverseBsp, type BspItem, type Vec3 } from './bsp.js';
 import { findVisiblePieces, type DrawnPiece } from './hiddenPieces.js';
 import { coplanarRuns, outlineOf, sourceFaceGroups, type RunPiece } from './coplanarRuns.js';
-import type { MeshTopology, RenderSettings } from './webgl/meshRenderer.js';
+import { creaseFrameScale, type MeshTopology, type RenderSettings } from './webgl/meshRenderer.js';
 
 /** Edge assignment codes, matching `EDGE_ASSIGNMENT_CODES` and the edge shader. */
 const BORDER = 0;
@@ -93,6 +93,34 @@ export interface SvgRenderResult {
 }
 
 /**
+ * Settings with the crease width — and the dash runs measured along it — scaled
+ * to the frame being drawn, so the rest of this module can work in one unit.
+ *
+ * No minimum width, unlike the GPU renderer: that floor exists because a
+ * sub-pixel ribbon samples erratically, and SVG has no sample grid. A hairline
+ * here is simply a hairline, and stays one at whatever size the document is
+ * later rasterized to.
+ */
+function creaseInkForFrame(settings: RenderSettings, camera: CameraUniforms): RenderSettings {
+  const scale = creaseFrameScale(settings, camera.width, camera.height);
+  if (scale === 1) return settings;
+  const runs = (pattern: readonly number[] | null) =>
+    pattern ? pattern.map((run) => run * scale) : null;
+  return {
+    ...settings,
+    creaseWidthPx: settings.creaseWidthPx * scale,
+    creaseDash: settings.creaseDash && {
+      border: runs(settings.creaseDash.border),
+      mountain: runs(settings.creaseDash.mountain),
+      valley: runs(settings.creaseDash.valley),
+    },
+    // Already applied; leaving it set would scale a second time if these
+    // settings reached another frame-aware renderer.
+    creaseWidthReferenceEdge: undefined,
+  };
+}
+
+/**
  * Serialize the current view to a standalone SVG document, cropped to the
  * artwork. Null when nothing would be drawn: an empty model, or faces and
  * creases both switched off.
@@ -101,9 +129,15 @@ export function renderMeshToSvg(
   positions: Float32Array,
   topology: SvgMeshTopology,
   camera: CameraUniforms,
-  settings: RenderSettings,
+  frameSettings: RenderSettings,
   options: RenderMeshToSvgOptions = {}
 ): SvgRenderResult | null {
+  // Resolved once, up front, so every crease measurement below — the BSP's ink
+  // allowance, the crop padding, the cap-reach test, the stroke itself — reads
+  // the width this frame actually draws at rather than the width a full-size
+  // one would. That is what keeps an inline window's export the picture its
+  // window shows.
+  const settings = creaseInkForFrame(frameSettings, camera);
   const perspective = options.perspective ?? true;
   const projected = projectVertices(positions, camera, { perspective });
   const faces = collectFaces(topology, projected);
