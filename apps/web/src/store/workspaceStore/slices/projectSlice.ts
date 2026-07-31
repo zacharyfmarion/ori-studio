@@ -102,6 +102,7 @@ import type { OristudioCpOperationId } from '../../../lib/oristudioCpCommands';
 import { createEmptyProject, DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
+import { frameActiveCpDiagnostic } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
@@ -1778,6 +1779,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpCamvResult: nextCamvResult,
           oristudioCpOperationDescriptors: nextDocument.operationDescriptors,
           oristudioCpError: null,
+          // A check adopts its first issue; an edit has no issue to be looking at.
           oristudioCpActiveDiagnosticId: mutatesDocument
             ? null
             : (diagnosticEntries[0]?.id ?? null),
@@ -1821,6 +1823,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           error: null,
           dirty: mutatesDocument ? true : get().dirty,
         });
+        // A check that adopted an issue above jumps the canvas to it. After the
+        // `set`, so it reads the result that just landed rather than the previous
+        // one — and here rather than at any caller, because the menu and the
+        // CP-detect import run checks without going through the CP panel at all.
+        frameActiveCpDiagnostic(get());
         // The selection above came from the document, not from the setter, so the
         // canvas's one-selection rule has to be applied after the fact. This is
         // the path a select tool takes, which is how a focused simulation window

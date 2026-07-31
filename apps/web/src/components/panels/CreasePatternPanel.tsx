@@ -100,11 +100,8 @@ import {
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useShortcutStore } from '../../store/shortcutStore';
 import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglCanvas';
-import type {
-  CameraCommand,
-  CpOverlayView,
-  StepKind,
-} from '../../cp-workspace/CreasePatternWebglCanvas';
+import type { CpOverlayView, StepKind } from '../../cp-workspace/CreasePatternWebglCanvas';
+import { cpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
 import {
 } from '../../cp-workspace/folded/foldedFigureActions';
@@ -144,9 +141,9 @@ import {
   buildCpDiagnosticMarkers,
   buildCpDiagnosticStrokes,
   buildCpDiagnosticWedges,
-  diagnosticEntryBounds,
   resolveCpDiagnosticToneColors,
 } from '../../cp-workspace/diagnostics/geometry';
+import { visibleCpDiagnosticEntries } from '../../cp-workspace/diagnostics/visibleEntries';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
@@ -792,23 +789,12 @@ export function CreasePatternPanel() {
   const [toolOptionsPortalTarget, setToolOptionsPortalTarget] = useState<HTMLElement | null>(null);
   const zoomPercentRef = useRef(100);
   const [zoomPercent, setZoomPercent] = useState(100);
-  // Viewport-toolbar commands routed to the WebGL surface's owned camera (the SVG
-  // controls drive react-zoom-pan-pinch, which the GL camera ignores). A bumped nonce
-  // re-fires the same command.
-  const [webglCameraCommand, setWebglCameraCommand] = useState<CameraCommand | null>(null);
   // Hand tool: a plain drag pans the canvas instead of running the active
   // tool. Accel-drag pan stays available whether or not this is on.
   const [panToolActive, setPanToolActive] = useState(false);
   // Mirrors the canvas camera's rotation so the toolbar can show the angle and
   // offer a reset; the camera itself remains the source of truth.
   const [viewRotation, setViewRotation] = useState(0);
-  const cameraCommandNonceRef = useRef(0);
-  const sendWebglCameraCommand = useCallback(
-    (kind: CameraCommand['kind'], percent?: number, radians?: number) => {
-      setWebglCameraCommand({ kind, percent, radians, nonce: ++cameraCommandNonceRef.current });
-    },
-    []
-  );
   const handleWebglZoomPercent = useCallback((percent: number) => {
     zoomPercentRef.current = percent;
     setZoomPercent(percent);
@@ -1419,23 +1405,12 @@ export function CreasePatternPanel() {
       : squareBisectorToolPrompt;
   const activeCpToolPrompt = measureToolPrompt;
   const lastCommandResult = oristudioCpDocument?.lastCommandResult ?? null;
-  const camvDiagnosticEntries = camvIssuesVisible
-    ? (oristudioCpCamvResult?.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES)
-    : EMPTY_DIAGNOSTIC_ENTRIES;
-  const latestCommandDiagnosticEntries =
-    lastCommandResult && isDiagnosticResultOperation(lastCommandResult.operation)
-      ? (lastCommandResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES)
-      : EMPTY_DIAGNOSTIC_ENTRIES;
-  const visibleLatestCommandDiagnosticEntries =
-    !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
-      ? EMPTY_DIAGNOSTIC_ENTRIES
-      : latestCommandDiagnosticEntries;
-  const latestDiagnosticEntries = useMemo(() => {
-    if (lastCommandResult?.operation === 'CheckCamv') return visibleLatestCommandDiagnosticEntries;
-    if (camvDiagnosticEntries.length === 0) return visibleLatestCommandDiagnosticEntries;
-    if (visibleLatestCommandDiagnosticEntries.length === 0) return camvDiagnosticEntries;
-    return [...camvDiagnosticEntries, ...visibleLatestCommandDiagnosticEntries];
-  }, [camvDiagnosticEntries, lastCommandResult?.operation, visibleLatestCommandDiagnosticEntries]);
+  // What the canvas is showing — the same rule the store applies when it decides
+  // whether a newly activated diagnostic is one the user can actually see.
+  const latestDiagnosticEntries = useMemo(
+    () => visibleCpDiagnosticEntries(oristudioCpCamvResult, lastCommandResult, camvIssuesVisible),
+    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]
+  );
   // WebGL diagnostic overlay geometry (markers + segment highlights). Rebuilt when
   // the entries or theme change; the tone colours read the current theme's CSS vars.
   const cpDiagnosticGeometry = useMemo(() => {
@@ -1501,20 +1476,6 @@ export function CreasePatternPanel() {
     }
     return hudResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
   }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]);
-  const activeDiagnosticEntry = useMemo(
-    () =>
-      latestDiagnosticEntries.find((entry) => entry.id === oristudioCpActiveDiagnosticId) ?? null,
-    [latestDiagnosticEntries, oristudioCpActiveDiagnosticId]
-  );
-  // Model bounds of the selected diagnostic, for the WebGL surface to frame in its
-  // owned camera (the SVG focus effect drives the SVG transform, not the GL camera).
-  const cpDiagnosticFocusBounds = useMemo(() => {
-    if (!activeDiagnosticEntry) return null;
-    const bounds = diagnosticEntryBounds(activeDiagnosticEntry);
-    return bounds
-      ? { minX: bounds.minX, minY: bounds.minY, maxX: bounds.maxX, maxY: bounds.maxY }
-      : null;
-  }, [activeDiagnosticEntry]);
   // The `selection_distance` every tool command carries, exposed to the canvas so a
   // destination pick is gated on the same radius the kernel searches.
   const cpToolSelectionDistance = useMemo(
@@ -2584,8 +2545,8 @@ export function CreasePatternPanel() {
     status !== 'optimizing';
   // The zoom-preset dropdown passes a scale (preset/100); the owned camera takes a percent.
   const setZoomLevel = useCallback(
-    (scale: number) => sendWebglCameraCommand('set-percent', scale * 100),
-    [sendWebglCameraCommand]
+    (scale: number) => cpCamera()?.setZoomPercent(scale * 100),
+    []
   );
 
   /**
@@ -2682,34 +2643,33 @@ export function CreasePatternPanel() {
           void simulateSelectionInline();
           break;
         case 'viewport.zoomIn':
-          sendWebglCameraCommand('zoom-in');
+          cpCamera()?.zoomIn();
           break;
         case 'viewport.zoomOut':
-          sendWebglCameraCommand('zoom-out');
+          cpCamera()?.zoomOut();
           break;
         case 'viewport.fit':
-          sendWebglCameraCommand('fit');
+          cpCamera()?.fit();
           break;
         case 'viewport.pan':
           setPanToolActive((active) => !active);
           break;
         case 'viewport.rotateCcw':
-          sendWebglCameraCommand('rotate-by', undefined, -VIEW_ROTATION_STEP_RADIANS);
+          cpCamera()?.rotateBy(-VIEW_ROTATION_STEP_RADIANS);
           break;
         case 'viewport.rotateCw':
-          sendWebglCameraCommand('rotate-by', undefined, VIEW_ROTATION_STEP_RADIANS);
+          cpCamera()?.rotateBy(VIEW_ROTATION_STEP_RADIANS);
           break;
         case 'viewport.resetRotation':
-          sendWebglCameraCommand('rotate-reset');
+          cpCamera()?.rotateReset();
           break;
         case 'viewport.actualSize':
-          sendWebglCameraCommand('set-percent', 100);
+          cpCamera()?.setZoomPercent(100);
           break;
       }
     },
     [
       cancelActiveCpInput,
-      sendWebglCameraCommand,
       simulateSelectionInline,
       deleteSelectedCanvasObject,
       dropLastMeasurement,
@@ -2914,8 +2874,6 @@ export function CreasePatternPanel() {
                   diagnosticHits={cpDiagnosticGeometry.hits}
                   onSelectDiagnostic={handleSelectCpDiagnostic}
                   operationFrame={cpOperationFrameStrokes}
-                  focusModelBounds={cpDiagnosticFocusBounds}
-                  cameraCommand={webglCameraCommand}
                   panToolActive={panToolActive}
                   onRotationChange={setViewRotation}
                   onZoomPercentChange={handleWebglZoomPercent}
@@ -3073,23 +3031,19 @@ export function CreasePatternPanel() {
               <ViewportToolbar
                 ariaLabel={t('panels:creasePattern.viewportControls', 'Crease pattern viewport controls')}
                 zoomPercent={zoomPercent}
-                zoomIn={() => sendWebglCameraCommand('zoom-in')}
-                zoomOut={() => sendWebglCameraCommand('zoom-out')}
-                fitToView={() => sendWebglCameraCommand('fit')}
+                zoomIn={() => cpCamera()?.zoomIn()}
+                zoomOut={() => cpCamera()?.zoomOut()}
+                fitToView={() => cpCamera()?.fit()}
                 setZoomLevel={setZoomLevel}
                 panToolActive={panToolActive}
                 togglePanTool={() => setPanToolActive((active) => !active)}
                 panShortcutLabel={shortcutLabelForAction('viewport.pan', shortcutOverrides)}
                 viewRotation={viewRotation}
                 rotateView={(direction) =>
-                  sendWebglCameraCommand(
-                    'rotate-by',
-                    undefined,
-                    direction * VIEW_ROTATION_STEP_RADIANS
-                  )
+                  cpCamera()?.rotateBy(direction * VIEW_ROTATION_STEP_RADIANS)
                 }
                 setViewRotation={(degrees) =>
-                  sendWebglCameraCommand('rotate-to', undefined, (degrees * Math.PI) / 180)
+                  cpCamera()?.rotateTo((degrees * Math.PI) / 180)
                 }
                 rotateCcwShortcutLabel={shortcutLabelForAction('viewport.rotateCcw', shortcutOverrides)}
                 rotateCwShortcutLabel={shortcutLabelForAction('viewport.rotateCw', shortcutOverrides)}

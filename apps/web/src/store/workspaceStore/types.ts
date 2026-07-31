@@ -117,6 +117,7 @@ export interface OristudioCpActionRequest {
   operationId: OristudioCpOperationId;
 }
 
+
 export interface ProjectSliceState {
   project: TreeProject;
   workflowTarget: WorkflowTarget;

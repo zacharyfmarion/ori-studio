@@ -32,6 +32,7 @@ import {
   setInlineSimulationSource,
 } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
+import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
@@ -1427,12 +1428,17 @@ async function flushAsyncWork() {
 }
 
 describe('workspace store slices', () => {
+  // Set by the tests that stand a fake camera in front of the store.
+  let unregisterCamera: (() => void) | null = null;
+
   beforeEach(() => {
     vi.restoreAllMocks();
     resetStores();
   });
 
   afterEach(async () => {
+    unregisterCamera?.();
+    unregisterCamera = null;
     vi.useRealTimers();
     await flushAsyncWork();
   });
@@ -3815,6 +3821,17 @@ describe('workspace store slices', () => {
 
   it('keeps editable CP diagnostic checks out of undo history', async () => {
     resetStores(seedSnapshot());
+    const frameModelBounds = vi.fn();
+    unregisterCamera = registerCpCamera({
+      zoomIn: vi.fn(),
+      zoomOut: vi.fn(),
+      fit: vi.fn(),
+      setZoomPercent: vi.fn(),
+      rotateBy: vi.fn(),
+      rotateTo: vi.fn(),
+      rotateReset: vi.fn(),
+      frameModelBounds,
+    });
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
       filename: 'lines.cp',
       path: '/tmp/lines.cp',
@@ -3834,6 +3851,7 @@ describe('workspace store slices', () => {
             kind: 'Check1',
             severity: 'error',
             message: 'Overlapping or contained non-auxiliary creases',
+            point: { x: 120, y: 240 },
             segments: currentDocument.document.crease_pattern.line_segments,
             rule: 'Check1',
           },
@@ -3849,6 +3867,12 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpHistoryFuture).toHaveLength(0);
     expect(useWorkspaceStore.getState().dirty).toBe(false);
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('Check1-1');
+    // Adopting the issue also frames it. Asserted here, at the store action, because
+    // that is the only point every way of running a check goes through — the tool
+    // rail, the menu (which never touches the CP panel), and the CP-detect import
+    // loop all land on this action.
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
+    expect(frameModelBounds.mock.calls[0][0]).toMatchObject({ minX: 120, minY: 240 });
     expect(
       useWorkspaceStore.getState().oristudioCpDocument?.lastCommandResult?.diagnostic_entries
     ).toHaveLength(1);
@@ -3883,6 +3907,9 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe(
       'FlatFoldableCheck-1'
     );
+    // Adopted, but it reports no geometry, so there is nothing to frame and the
+    // count stays where the Check1 jump left it.
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
 
     const flatCheckedDocument = useWorkspaceStore.getState().oristudioCpDocument;
     if (!flatCheckedDocument) throw new Error('expected flat-checked CP document');
@@ -3900,6 +3927,67 @@ describe('workspace store slices', () => {
     );
 
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBeNull();
+    // An edit has no issue to look at, so it frames nothing.
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
+  });
+
+  it('frames a diagnostic when it is activated, and at no other time', async () => {
+    resetStores(seedSnapshot());
+    const frameModelBounds = vi.fn();
+    unregisterCamera = registerCpCamera({
+      zoomIn: vi.fn(),
+      zoomOut: vi.fn(),
+      fit: vi.fn(),
+      setZoomPercent: vi.fn(),
+      rotateBy: vi.fn(),
+      rotateTo: vi.fn(),
+      rotateReset: vi.fn(),
+      frameModelBounds,
+    });
+    useWorkspaceStore.setState({
+      oristudioCpCamvResult: {
+        operation: 'CheckCamv',
+        status: 'OracleTested',
+        diagnostics: [],
+        diagnostic_entries: [
+          {
+            id: 'CheckCamv-1',
+            kind: 'CheckCamv',
+            severity: 'error',
+            message: 'Maekawa violated',
+            point: { x: 40, y: 60 },
+          },
+        ],
+      },
+    });
+    const { setOristudioCpActiveDiagnostic, setOristudioCpViewportOption } =
+      useWorkspaceStore.getState();
+
+    setOristudioCpActiveDiagnostic('CheckCamv-1');
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
+
+    // The reported bug: hiding and re-showing the overlay re-derives the entry
+    // list, which must not read as a fresh instruction to jump. The diagnostic
+    // stays selected throughout — only the framing is one-shot.
+    setOristudioCpViewportOption('camvIssuesVisible', false);
+    setOristudioCpViewportOption('camvIssuesVisible', true);
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
+    expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('CheckCamv-1');
+
+    // Activating it again is a new instruction, so it frames again — clicking the
+    // same row after panning away should bring you back.
+    setOristudioCpActiveDiagnostic('CheckCamv-1');
+    expect(frameModelBounds).toHaveBeenCalledTimes(2);
+
+    // Hidden issues are not jumped to.
+    setOristudioCpViewportOption('camvIssuesVisible', false);
+    setOristudioCpActiveDiagnostic('CheckCamv-1');
+    expect(frameModelBounds).toHaveBeenCalledTimes(2);
+
+    // Deselecting frames nothing.
+    setOristudioCpViewportOption('camvIssuesVisible', true);
+    setOristudioCpActiveDiagnostic(null);
+    expect(frameModelBounds).toHaveBeenCalledTimes(2);
   });
 
   it('clears editable CP selection after destructive kernel commands', async () => {
