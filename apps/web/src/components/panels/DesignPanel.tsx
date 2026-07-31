@@ -22,6 +22,7 @@ import {
   Layers,
   Plus,
   ScanLine,
+  SlidersHorizontal,
   Tag,
   Waypoints,
 } from 'lucide-react';
@@ -77,7 +78,6 @@ import { BpTreePanel } from './BpTreePanel';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
-import { Toggle } from '../ui/Toggle';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
@@ -117,16 +117,7 @@ function viewBox(rect: { x: number; y: number; width: number; height: number }):
   return `${rect.x} ${rect.y} ${rect.width} ${rect.height}`;
 }
 
-function designSymmetryToolbarLabel(t: TFunction, mode: SymmetrySelectValue, mirrorMode: boolean) {
-  if (mirrorMode) return t('panels:design.symmetryToolbarMirror', 'Mirror');
-  if (mode === 'none') return t('panels:design.symmetryToolbarOff', 'Sym');
-  if (mode === 'book') return t('panels:design.symmetryToolbarBook', 'Book');
-  if (mode === 'diagonal') return t('panels:design.symmetryToolbarDiag', 'Diag');
-  return t('panels:design.symmetryToolbarCustom', 'Custom');
-}
-
-function designSymmetryStatusLabel(t: TFunction, mode: SymmetrySelectValue, mirrorMode: boolean) {
-  if (mirrorMode) return t('panels:design.symmetryStatusMirroring', 'Mirroring');
+function designSymmetryStatusLabel(t: TFunction, mode: SymmetrySelectValue) {
   if (mode === 'none') return t('panels:design.symmetryStatusOff', 'Off');
   if (mode === 'book') return t('panels:design.symmetryStatusBook', 'Book');
   if (mode === 'diagonal') return t('panels:design.symmetryStatusDiagonal', 'Diagonal');
@@ -201,12 +192,10 @@ interface DesignViewportToolbarProps {
   paperWidth: number;
   paperHeight: number;
   nextSymmetryPresetLabel: string | null;
-  mirrorMode: boolean;
   onLayerChange: (layer: DesignViewLayerKey, visible: boolean) => void;
   onSymmetryEnabledChange: (enabled: boolean) => void;
   onSymmetryPreset: (preset: SymmetryPreset) => void;
   onFlipSymmetryPreset: () => void;
-  onMirrorModeChange: (enabled: boolean) => void;
   onCustomSymmetryChange: (update: { symAngle?: number; symLoc?: Point }) => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -214,20 +203,44 @@ interface DesignViewportToolbarProps {
   setZoomLevel: (scale: number) => void;
 }
 
-function DesignSymmetryMenuButton({
+/**
+ * Symmetry on/off — one button for one decision. Symmetry on means the project
+ * carries a mirror line, the axis is drawn, and node edits reflect across it;
+ * off clears all three. Where the line sits lives behind the options button.
+ */
+function DesignSymmetryToggle({
+  enabled,
+  onChange,
+}: {
+  enabled: boolean;
+  onChange: (enabled: boolean) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <button
+      type="button"
+      className="viewport-toolbar__symmetry-button"
+      data-active={enabled ? true : undefined}
+      aria-label={t('panels:design.symmetryButton', 'Design symmetry')}
+      aria-pressed={enabled}
+      onClick={() => onChange(!enabled)}
+    >
+      <FlipHorizontal2 size={14} />
+      <span>{t('panels:design.symmetryToolbar', 'Sym')}</span>
+    </button>
+  );
+}
+
+function DesignSymmetryOptionsButton({
   symmetryMode,
   symmetryAngle,
   symmetryLoc,
   paperWidth,
   paperHeight,
-  showAxis,
-  mirrorMode,
   nextSymmetryPresetLabel,
-  onSymmetryEnabledChange,
-  onShowAxisChange,
   onSymmetryPreset,
   onFlipSymmetryPreset,
-  onMirrorModeChange,
   onCustomSymmetryChange,
 }: {
   symmetryMode: SymmetrySelectValue;
@@ -235,21 +248,15 @@ function DesignSymmetryMenuButton({
   symmetryLoc: Point;
   paperWidth: number;
   paperHeight: number;
-  showAxis: boolean;
-  mirrorMode: boolean;
   nextSymmetryPresetLabel: string | null;
-  onSymmetryEnabledChange: (enabled: boolean) => void;
-  onShowAxisChange: (visible: boolean) => void;
   onSymmetryPreset: (preset: SymmetryPreset) => void;
   onFlipSymmetryPreset: () => void;
-  onMirrorModeChange: (enabled: boolean) => void;
   onCustomSymmetryChange: (update: { symAngle?: number; symLoc?: Point }) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const toolbarLabel = designSymmetryToolbarLabel(t, symmetryMode, mirrorMode);
-  const statusLabel = designSymmetryStatusLabel(t, symmetryMode, mirrorMode);
+  const statusLabel = designSymmetryStatusLabel(t, symmetryMode);
   const canFlipPreset = symmetryMode === 'book' || symmetryMode === 'diagonal';
 
   useEffect(() => {
@@ -265,18 +272,17 @@ function DesignSymmetryMenuButton({
 
   return (
     <div className="viewport-toolbar__menu-anchor design-symmetry-menu" ref={menuRef}>
-      <button
-        type="button"
-        className="viewport-toolbar__symmetry-button"
-        data-active={symmetryMode !== 'none' || mirrorMode ? true : undefined}
-        aria-label={t('panels:design.symmetryButton', 'Design symmetry')}
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t('panels:design.symmetryOptions', 'Symmetry options')}
+        isActive={open}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <FlipHorizontal2 size={14} />
-        <span>{toolbarLabel}</span>
-      </button>
+        <SlidersHorizontal size={14} />
+      </IconButton>
       {open && (
         <div
           className="viewport-toolbar__dropdown symmetry-menu__panel"
@@ -286,39 +292,6 @@ function DesignSymmetryMenuButton({
           <div className="symmetry-menu__header">
             <span>{t('panels:design.symmetry', 'Symmetry')}</span>
             <span>{statusLabel}</span>
-          </div>
-          <div className="symmetry-menu__toggle-row">
-            <div className="symmetry-menu__toggle-copy">
-              <span>{t('panels:design.enableSymmetry', 'Enable symmetry')}</span>
-              <small>{t('panels:design.enableSymmetryHint', 'Define the tree mirror line')}</small>
-            </div>
-            <Toggle
-              checked={symmetryMode !== 'none'}
-              onChange={onSymmetryEnabledChange}
-              aria-label={t('panels:design.enableSymmetryAria', 'Enable design symmetry')}
-            />
-          </div>
-          <div className="symmetry-menu__toggle-row">
-            <div className="symmetry-menu__toggle-copy">
-              <span>{t('panels:design.showAxis', 'Show axis')}</span>
-              <small>{t('panels:design.showAxisHint', 'Display the mirror line')}</small>
-            </div>
-            <Toggle
-              checked={showAxis}
-              onChange={onShowAxisChange}
-              aria-label={t('panels:design.showAxisAria', 'Show design symmetry axis')}
-            />
-          </div>
-          <div className="symmetry-menu__toggle-row">
-            <div className="symmetry-menu__toggle-copy">
-              <span>{t('panels:design.mirrorNodes', 'Mirror nodes')}</span>
-              <small>{t('panels:design.mirrorNodesHint', 'Reflect new node edits')}</small>
-            </div>
-            <Toggle
-              checked={mirrorMode}
-              onChange={onMirrorModeChange}
-              aria-label={t('panels:design.mirrorNodesAria', 'Mirror design node edits')}
-            />
           </div>
           <div className="symmetry-menu__section-label">{t('panels:design.preset', 'Preset')}</div>
           <div className="symmetry-menu__preset-grid">
@@ -392,12 +365,10 @@ function DesignViewportToolbar({
   paperWidth,
   paperHeight,
   nextSymmetryPresetLabel,
-  mirrorMode,
   onLayerChange,
   onSymmetryEnabledChange,
   onSymmetryPreset,
   onFlipSymmetryPreset,
-  onMirrorModeChange,
   onCustomSymmetryChange,
   zoomIn,
   zoomOut,
@@ -429,20 +400,19 @@ function DesignViewportToolbar({
       setZoomLevel={setZoomLevel}
     >
       <ViewportToolbarSeparator />
-      <DesignSymmetryMenuButton
+      <DesignSymmetryToggle
+        enabled={symmetryMode !== 'none'}
+        onChange={onSymmetryEnabledChange}
+      />
+      <DesignSymmetryOptionsButton
         symmetryMode={symmetryMode}
         symmetryAngle={symmetryAngle}
         symmetryLoc={symmetryLoc}
         paperWidth={paperWidth}
         paperHeight={paperHeight}
-        showAxis={layers.symmetry}
-        mirrorMode={mirrorMode}
         nextSymmetryPresetLabel={nextSymmetryPresetLabel}
-        onSymmetryEnabledChange={onSymmetryEnabledChange}
-        onShowAxisChange={(visible) => onLayerChange('symmetry', visible)}
         onSymmetryPreset={onSymmetryPreset}
         onFlipSymmetryPreset={onFlipSymmetryPreset}
-        onMirrorModeChange={onMirrorModeChange}
         onCustomSymmetryChange={onCustomSymmetryChange}
       />
       <ViewportToolbarSeparator />
@@ -545,20 +515,20 @@ function TreeMakerDesignPanel() {
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const selection = useWorkspaceStore((state) => state.selection);
-  const toolMode = useWorkspaceStore((state) => state.toolMode);
   const symmetryAuthoringPairs = useWorkspaceStore((state) => state.symmetryAuthoringPairs);
   const select = useWorkspaceStore((state) => state.select);
   const addNodeAt = useWorkspaceStore((state) => state.addNodeAt);
   const addNodeWithSymmetry = useWorkspaceStore((state) => state.addNodeWithSymmetry);
   const moveNode = useWorkspaceStore((state) => state.moveNode);
   const moveNodeWithSymmetry = useWorkspaceStore((state) => state.moveNodeWithSymmetry);
-  const setToolMode = useWorkspaceStore((state) => state.setToolMode);
   const setSymmetry = useWorkspaceStore((state) => state.setSymmetry);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
   const designViewportFitRequestId = useWorkspaceStore(
     (state) => state.designViewportFitRequestId
   );
-  const mirrorMode = toolMode === 'symmetry';
+  // Symmetry is one decision, so `project.hasSymmetry` is the only thing that
+  // says whether node edits mirror. There is no separate mirror-editing mode to
+  // fall out of step with the document.
   const inferredSymmetryMode = symmetrySelectValueForState({
     hasSymmetry: project.hasSymmetry,
     symAngle: project.paper.symAngle,
@@ -582,14 +552,14 @@ function TreeMakerDesignPanel() {
   const nodeLocations = useMemo(() => {
     if (!dragging) return undefined;
     const locations = new Map([[dragging.id, dragging.loc]]);
-    if (mirrorMode && project.hasSymmetry) {
+    if (project.hasSymmetry) {
       const pairedNode = findMirrorNodeId(project, symmetryAuthoringPairs, dragging.id);
       if (pairedNode) {
         locations.set(pairedNode, reflectPointAcrossSymmetryAxis(dragging.loc, symmetryAxis));
       }
     }
     return locations;
-  }, [dragging, mirrorMode, project, symmetryAuthoringPairs, symmetryAxis]);
+  }, [dragging, project, symmetryAuthoringPairs, symmetryAxis]);
   const worldRect = useMemo(
     () => getDesignWorldRect(project, layers, { nodeLocations }),
     [layers, nodeLocations, project]
@@ -611,7 +581,7 @@ function TreeMakerDesignPanel() {
   }, [project.paper.symAngle, project.paper.symLoc, worldRect]);
 
   const symmetryHoverPreview = useMemo(() => {
-    if (!mirrorMode || !project.hasSymmetry || selection.kind !== 'node' || !hoverPoint) return null;
+    if (!project.hasSymmetry || selection.kind !== 'node' || !hoverPoint) return null;
     const parent = project.nodes.find((node) => node.id === selection.id);
     if (!parent) return null;
     const snapped = snapPointToSymmetryAxis(hoverPoint, symmetryAxis);
@@ -633,7 +603,7 @@ function TreeMakerDesignPanel() {
       snapped: snapped.snapped,
       unresolved: !snapped.snapped && parentSide !== 0 && !pairedParent,
     };
-  }, [hoverPoint, mirrorMode, project, selection, symmetryAuthoringPairs, symmetryAxis]);
+  }, [hoverPoint, project, selection, symmetryAuthoringPairs, symmetryAxis]);
 
   const eventToPaper = useCallback(
     (event: PointerEvent): Point => {
@@ -780,7 +750,6 @@ function TreeMakerDesignPanel() {
     (enabled: boolean) => {
       if (!enabled) {
         setSymmetryModeOverride(null);
-        if (mirrorMode) setToolMode('select');
         void setSymmetry({ hasSymmetry: false });
         return;
       }
@@ -795,14 +764,12 @@ function TreeMakerDesignPanel() {
       });
     },
     [
-      mirrorMode,
       project.hasSymmetry,
       project.paper.height,
       project.paper.symAngle,
       project.paper.symLoc,
       project.paper.width,
       setSymmetry,
-      setToolMode,
     ]
   );
 
@@ -841,32 +808,6 @@ function TreeMakerDesignPanel() {
     project.paper.width,
     setSymmetry,
   ]);
-
-  const setDesignMirrorMode = useCallback(
-    (enabled: boolean) => {
-      if (!enabled) {
-        setToolMode('select');
-        return;
-      }
-      if (!project.hasSymmetry) {
-        setSymmetryModeOverride(null);
-        void setSymmetry({
-          hasSymmetry: true,
-          symAngle: 90,
-          symLoc: paperCenter(project.paper.width, project.paper.height),
-        });
-      }
-      setLayers((current) => setDesignLayerVisibility(current, 'symmetry', true));
-      setToolMode('symmetry');
-    },
-    [
-      project.hasSymmetry,
-      project.paper.height,
-      project.paper.width,
-      setSymmetry,
-      setToolMode,
-    ]
-  );
 
   const updateDesignCustomSymmetry = useCallback(
     (update: { symAngle?: number; symLoc?: Point }) => {
@@ -916,7 +857,7 @@ function TreeMakerDesignPanel() {
     }
     const connectTo = selection.kind === 'node' ? selection.id : undefined;
     const loc = eventToPaper(event);
-    if (mirrorMode) void addNodeWithSymmetry(loc, connectTo);
+    if (project.hasSymmetry) void addNodeWithSymmetry(loc, connectTo);
     else void addNodeAt(loc, connectTo);
   };
 
@@ -964,7 +905,7 @@ function TreeMakerDesignPanel() {
     const moved = dragging.moved;
     setDragging(null);
     if (moved) {
-      if (mirrorMode) void moveNodeWithSymmetry(nodeId, loc);
+      if (project.hasSymmetry) void moveNodeWithSymmetry(nodeId, loc);
       else void moveNode(nodeId, loc);
     }
   };
@@ -1102,15 +1043,15 @@ function TreeMakerDesignPanel() {
               />
               {project.hasSymmetry && layers.symmetry && (
                 <>
-                  {mirrorMode && (
-                    <line
-                      className="symmetry-snap-lane"
-                      x1={symmetryLine.x1}
-                      y1={symmetryLine.y1}
-                      x2={symmetryLine.x2}
-                      y2={symmetryLine.y2}
-                    />
-                  )}
+                  {/* Symmetry on means node edits snap to the line, so the
+                      tolerance lane is drawn whenever the axis is. */}
+                  <line
+                    className="symmetry-snap-lane"
+                    x1={symmetryLine.x1}
+                    y1={symmetryLine.y1}
+                    x2={symmetryLine.x2}
+                    y2={symmetryLine.y2}
+                  />
                   <line
                     className="symmetry-line"
                     x1={symmetryLine.x1}
@@ -1303,12 +1244,10 @@ function TreeMakerDesignPanel() {
           paperWidth={project.paper.width}
           paperHeight={project.paper.height}
           nextSymmetryPresetLabel={nextSymmetryPresetOption?.label ?? null}
-          mirrorMode={mirrorMode}
           onLayerChange={setLayer}
           onSymmetryEnabledChange={setDesignSymmetryEnabled}
           onSymmetryPreset={applyDesignSymmetryPreset}
           onFlipSymmetryPreset={flipDesignSymmetryPreset}
-          onMirrorModeChange={setDesignMirrorMode}
           onCustomSymmetryChange={updateDesignCustomSymmetry}
           zoomIn={() => transformRef.current?.zoomIn(0.35, 120)}
           zoomOut={() => transformRef.current?.zoomOut(0.35, 120)}
