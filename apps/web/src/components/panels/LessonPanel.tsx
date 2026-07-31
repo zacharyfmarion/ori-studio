@@ -5,6 +5,8 @@ import { ArrowLeft, ArrowRight, Check, CircleDashed, ListChecks, SkipForward } f
 import { useTutorialStore } from '../../store/tutorialStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { courseIdForLesson, lessonById, nextLesson } from '../../tutorial/lessons';
+import { courseById } from '../../tutorial/courses';
+import { CoursePanel } from './CoursePanel';
 import { lessonTarget } from '../../tutorial/targets';
 import blankPracticeCp from '../../tutorial/targets/blank-sheet.cp?raw';
 import { targetGeometry } from '../../tutorial/runtime/targetGeometry';
@@ -36,6 +38,7 @@ export function LessonPanel() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const activeCourseId = useTutorialStore((state) => state.activeCourseId);
   const activeLessonId = useTutorialStore((state) => state.activeLessonId);
   const stepIndex = useTutorialStore((state) => state.stepIndex);
   const stepStatus = useTutorialStore((state) => state.stepStatus);
@@ -89,12 +92,18 @@ export function LessonPanel() {
     else navigate(courseId ? coursePath(courseId) : LEARN_PATH);
   }, [goToNextStep, isLastStep, lesson, markLessonComplete, navigate]);
 
-  // `LessonRoute` opens the lesson from an effect, so the first render after
-  // navigation has no active lesson yet. Render nothing for that frame — an
-  // earlier version redirected here instead, which raced the effect and bounced
-  // every lesson straight back to the catalog. Validating the URL is the route's
-  // job; this panel only waits for the store to catch up.
-  if (!lesson || !step) return null;
+  // One pane, two states. With no lesson open it shows the course that lesson
+  // belongs to, so choosing one changes only this column and the editor stays
+  // put beside it — only the catalog at `/learn` is a page of its own.
+  //
+  // Null rather than a redirect when neither is set: `LessonRoute` opens the
+  // lesson from an effect, so the first render after navigating has no active
+  // lesson, and redirecting here raced that effect and bounced every lesson
+  // back to the catalog. Validating the URL is the route's job.
+  if (!lesson || !step) {
+    const course = activeCourseId ? courseById(activeCourseId) : undefined;
+    return course ? <CoursePanel course={course} /> : null;
+  }
 
   return (
     <div className="lesson-panel">

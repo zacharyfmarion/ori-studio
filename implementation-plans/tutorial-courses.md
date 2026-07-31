@@ -155,15 +155,22 @@ smaller sibling.
 pages have no practice document, so they should not sit beside a live CP canvas
 pretending to.
 
-**Decided (revised in review):** catalog and course pages keep the app chrome —
-toolbar and workspace rail — and render as the main content, *covering* the
-Dockview canvas rather than replacing the shell. Dropping the shell entirely
-read as a blank full-screen page, disconnected from the app.
+**Decided (revised twice in review):** only the **catalog** is a page. It keeps
+the app chrome — toolbar and workspace rail — and covers the Dockview canvas
+rather than replacing the shell; rendering it outside the shell entirely read as
+a blank full-screen page, disconnected from the app. Covering rather than
+unmounting keeps Dockview mounted, so the layout the user was editing in is not
+torn down and rebuilt on every visit.
 
-Covering rather than unmounting is deliberate: Dockview stays mounted, so
-visiting the tutorial does not tear down and rebuild whatever layout the user
-was editing in, and coming back is instant. Only
-`/learn/:courseId/:lessonId` renders panes of its own.
+A **course's lesson list stays in the lesson pane**, with the editor beside it,
+which is how the flat index worked. Making it a page too meant the workspace
+appeared and disappeared as you moved between a course and its lessons; keeping
+it in the pane means choosing a lesson changes only that one column.
+
+`LessonPanel` therefore has two states — a lesson, or the course it belongs to —
+selected by `activeCourseId` / `activeLessonId` in the tutorial store. The pane
+is inside Dockview, not under the route carrying the `:courseId` param, so the
+store is how it learns which course to show.
 
 ## Affected Areas
 
@@ -193,9 +200,11 @@ was editing in, and coming back is instant. Only
    shape; a card reading `0 / 11` is a better entry point than a wall of lessons,
    and redirecting past the catalog would hide the concept exactly while it is
    being built.
-2. **Catalog and course pages keep the app chrome** and cover the canvas. (The
-   plan first said "outside the workspace shell entirely"; that rendered as a
-   bare full-screen page and was revised.)
+2. **Only the catalog is a page**, and it keeps the app chrome and covers the
+   canvas. A course's lesson list stays in the lesson pane beside the editor.
+   (The plan first made both full-width pages outside the shell; that read as a
+   bare screen, and making the course a page churned the workspace on every
+   move between a course and its lessons.)
 3. **No prerequisites yet.** Catalog order is signal enough, and gating wants a
    second course to exist before it is designed.
 

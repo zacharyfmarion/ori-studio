@@ -10,8 +10,9 @@ import { LEARN_PATH, lessonPath } from '../../routing/paths';
  * `/learn/:courseId` — one course: its chapters in teaching order, each with its
  * lessons, and what has already been finished marked.
  *
- * Full width, outside the workspace shell — there is no practice document until
- * a lesson is opened.
+ * Rendered in the lesson pane rather than as a page, so the editor stays beside
+ * it and opening a lesson changes only this column. `LessonPanel` swaps between
+ * the two.
  */
 export function CoursePanel({ course }: { course: LessonCourse }) {
   const { t } = useTranslation();

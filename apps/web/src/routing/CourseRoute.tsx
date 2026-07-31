@@ -3,37 +3,39 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useTutorialStore } from '../store/tutorialStore';
 import { courseById } from '../tutorial/courses';
 import { courseIdForLesson, lessonById } from '../tutorial/lessons';
-import { CoursePanel } from '../components/panels/CoursePanel';
 import { LEARN_PATH, lessonPath } from './paths';
+import { WorkspaceRoute } from './WorkspaceRoute';
 
 /**
- * `/learn/:courseOrLessonId` — a course page, or a redirect for an old link.
+ * `/learn/:courseOrLessonId` — a course's lesson list, or a redirect for an old
+ * link.
  *
- * The second segment used to be a lesson id, and links in the wild (bookmarks,
- * anything written before courses existed) still say so. Resolving against
- * courses first and lessons second keeps one route rather than two overlapping
- * ones, and a lesson match redirects to its canonical three-segment path.
+ * The course overview lives in the lesson pane, beside the editor, so choosing a
+ * lesson does not change the layout around it. Only the catalog at `/learn` is a
+ * page of its own. `LessonPanel` renders the overview when the store has a
+ * course but no lesson, which is what `openCourse` establishes.
  *
- * The redirect replaces rather than pushes, so Back does not bounce off it.
+ * The second segment used to be a lesson id, and links in the wild still say so.
+ * Resolving against courses first and lessons second keeps one route rather than
+ * two overlapping ones, and a lesson match redirects to its canonical
+ * three-segment path — `replace`, so Back does not bounce off it.
  */
 export function CourseRoute() {
   const { courseId } = useParams<{ courseId: string }>();
-  const closeLesson = useTutorialStore((state) => state.closeLesson);
+  const openCourse = useTutorialStore((state) => state.openCourse);
 
   const course = courseId ? courseById(courseId) : undefined;
   const legacyLesson = !course && courseId ? lessonById(courseId) : undefined;
   const legacyCourseId = legacyLesson ? courseIdForLesson(legacyLesson.id) : undefined;
 
-  // Leaving the lesson is what makes a later visit to this course page show the
-  // course rather than resuming whatever pane state the last lesson left behind.
   useEffect(() => {
-    if (course) closeLesson();
-  }, [course, closeLesson]);
+    if (course) openCourse(course.id);
+  }, [course, openCourse]);
 
   if (legacyLesson && legacyCourseId) {
     return <Navigate to={lessonPath(legacyCourseId, legacyLesson.id)} replace />;
   }
   if (!course) return <Navigate to={LEARN_PATH} replace />;
 
-  return <CoursePanel course={course} />;
+  return <WorkspaceRoute workspace="learn" slot="learn" />;
 }

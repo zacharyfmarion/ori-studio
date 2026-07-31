@@ -6863,13 +6863,12 @@ button.bp-packing-alert:focus-visible {
    --------------------------------------------------------------------------- */
 
 /*
-   Positioned over the workspace canvas rather than in the layout flow: these
-   pages keep the app chrome (toolbar, workspace rail) but have no panes of
-   their own, and covering Dockview leaves the user's editing layout mounted
-   underneath. Opaque background, so nothing shows through.
+   The catalog is the one page of its own. It keeps the app chrome (toolbar,
+   workspace rail) but has no panes, so it is positioned *over* the workspace
+   canvas rather than replacing it — which leaves Dockview mounted and the
+   user's editing layout intact underneath. Opaque, so nothing shows through.
 */
-.course-catalog,
-.course-page {
+.course-catalog {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -6881,10 +6880,37 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-primary);
 }
 
-.course-catalog__content,
-.course-page__content {
+.course-catalog__content {
   width: 100%;
   max-width: 720px;
+}
+
+/*
+   A course's lesson list is *not* a page: it renders in the lesson pane with the
+   editor beside it, so picking a lesson changes only this column. Same chrome as
+   `.lesson-panel`, including the rule closing its right edge.
+*/
+.course-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-4);
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.course-page__content {
+  width: 100%;
+}
+
+.course-page__title {
+  font-size: 1.05rem;
+}
+
+.course-page__blurb {
+  font-size: 0.83rem;
 }
 
 .course-catalog__header {

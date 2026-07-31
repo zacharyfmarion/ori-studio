@@ -89,6 +89,13 @@ export interface StepFeedback {
 }
 
 interface TutorialState {
+  /**
+   * The course whose page the lesson pane shows when no lesson is open. Set by
+   * both the course route and the lesson route, so the pane can render a course
+   * overview without knowing the URL — it is inside Dockview, not under the
+   * route that carries the param.
+   */
+  activeCourseId: string | null;
   activeLessonId: string | null;
   /**
    * The lesson whose starting pattern the practice canvas currently holds.
@@ -107,6 +114,8 @@ interface TutorialState {
   resumeByCourse: Record<string, string>;
 
   openLesson: (lessonId: string, courseId: string) => void;
+  /** Show a course's overview: no lesson open, but the pane knows the course. */
+  openCourse: (courseId: string) => void;
   closeLesson: () => void;
   goToStep: (index: number) => void;
   nextStep: () => void;
@@ -139,6 +148,7 @@ function persist(
 export const useTutorialStore = create<TutorialState>()(
   devtools(
     (set, get) => ({
+      activeCourseId: null,
       activeLessonId: null,
       practiceLessonId: null,
       practiceSourceId: null,
@@ -152,6 +162,7 @@ export const useTutorialStore = create<TutorialState>()(
         if (!lesson) return;
         const resumeByCourse = { ...get().resumeByCourse, [courseId]: lessonId };
         set({
+          activeCourseId: courseId,
           activeLessonId: lessonId,
           stepIndex: 0,
           stepStatus: initialStatusFor(lesson.steps[0]),
@@ -166,6 +177,17 @@ export const useTutorialStore = create<TutorialState>()(
         });
       },
 
+      openCourse: (courseId) =>
+        set({
+          activeCourseId: courseId,
+          activeLessonId: null,
+          stepIndex: 0,
+          stepStatus: 'not-applicable',
+          feedback: null,
+        }),
+
+      // Leaves `activeCourseId` alone: closing a lesson goes *up* to its course
+      // overview, which the pane still has to render.
       closeLesson: () =>
         set({ activeLessonId: null, stepIndex: 0, stepStatus: 'not-applicable', feedback: null }),
 
