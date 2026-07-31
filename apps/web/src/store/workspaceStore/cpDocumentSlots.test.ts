@@ -12,6 +12,12 @@ import {
 } from './cpDocumentSlots';
 import { activeCpDocumentSlot } from './oristudioCpRuntime';
 import { CP_SLOT_SCOPED_KEYS, type CpSlotScopedState } from './types';
+import {
+  clearAllInlineSimulationSources,
+  getInlineSimulationSource,
+  inlineSimulationSourceCount,
+  setInlineSimulationSource,
+} from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 
 /**
@@ -127,6 +133,38 @@ describe('crease-pattern document slots', () => {
 
     enterCpDocumentSlot('edit');
     expect(useWorkspaceStore.getState().dirty).toBe(true);
+  });
+
+  /**
+   * An inline simulation is half store descriptor, half captured fold in a
+   * module side table. The descriptor travels because it is a store field; the
+   * fold cannot, because `CP_SLOT_SCOPED_KEYS` is a map over `WorkspaceState`
+   * and cannot see it.
+   *
+   * Leaving it behind is not a silent loss — replacing a document clears that
+   * table globally, so entering the tutorial took the parked editor's folds with
+   * it and its windows came back as empty frames.
+   */
+  it('parks and restores the simulation folds that live outside the store', () => {
+    const fold = { id: 'edit-fold' } as unknown as Parameters<
+      typeof setInlineSimulationSource
+    >[1];
+    setInlineSimulationSource('sim-edit', fold);
+    expect(inlineSimulationSourceCount()).toBe(1);
+
+    enterCpDocumentSlot('learn');
+    expect(
+      inlineSimulationSourceCount(),
+      'the lesson must not see the editor’s folds'
+    ).toBe(0);
+
+    // What the tutorial does on arrival: replace the document, which clears the
+    // table wholesale. The editor's fold is parked, so it must survive this.
+    clearAllInlineSimulationSources();
+
+    enterCpDocumentSlot('edit');
+    expect(inlineSimulationSourceCount(), 'the editor’s fold did not come back').toBe(1);
+    expect(getInlineSimulationSource('sim-edit')).toBe(fold);
   });
 
   it('captures every document-scoped field and nothing else', () => {

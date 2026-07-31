@@ -25,6 +25,11 @@ import {
 } from './types';
 import { activeCpDocumentSlot, switchCpDocumentSlot } from './oristudioCpRuntime';
 import { CP_DOCUMENT_SCOPED_KEYS } from './cpDocumentState';
+import {
+  restoreInlineSimulationRuntime,
+  takeInlineSimulationRuntime,
+  type InlineSimulationRuntimeBundle,
+} from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 
 const CP_SLOT_SCOPED_FIELDS = Object.keys(CP_SLOT_SCOPED_KEYS) as Array<
   keyof CpSlotScopedState
@@ -64,6 +69,21 @@ void _everyDiscardedFieldTravels;
  * document's state at any moment and no question of which is authoritative.
  */
 const parkedBundles: Partial<Record<CpDocumentSlotId, CpSlotScopedState>> = {};
+
+/**
+ * The half of a slot's document state that is not in the store.
+ *
+ * An inline simulation is a descriptor in `oristudioCpInlineSimulations` plus a
+ * captured fold in a module side table — megabytes apiece, so deliberately not
+ * store state. `CP_SLOT_SCOPED_KEYS` is a total map over `WorkspaceState` and
+ * therefore cannot see the second half, so no compile-time check can force it to
+ * travel; it has to be parked here alongside the bundle.
+ *
+ * Leaving it behind is what made a window come back as an empty frame: entering
+ * the tutorial replaces a document, and replacing a document cleared the side
+ * table globally, taking the parked editor's folds with it.
+ */
+const parkedRuntimes: Partial<Record<CpDocumentSlotId, InlineSimulationRuntimeBundle>> = {};
 
 /**
  * The store's own initial values for every document-scoped field, captured once
@@ -130,12 +150,17 @@ export function enterCpDocumentSlot(slot: CpDocumentSlotId): void {
   if (current === slot) return;
 
   parkedBundles[current] = captureCpDocumentState(useWorkspaceStore.getState());
+  parkedRuntimes[current] = takeInlineSimulationRuntime();
   switchCpDocumentSlot(slot);
   slotGeneration += 1;
 
   const incoming = parkedBundles[slot] ?? pristineBundle;
   if (incoming) installCpDocumentState(incoming);
+  // Unconditional: a slot with no parked folds still has to clear the outgoing
+  // slot's, which `takeInlineSimulationRuntime` has already lifted out.
+  restoreInlineSimulationRuntime(parkedRuntimes[slot]);
   delete parkedBundles[slot];
+  delete parkedRuntimes[slot];
 }
 
 /**
@@ -161,6 +186,9 @@ export function activeSlotTracksProjectDirty(): boolean {
 export function resetCpDocumentSlotsForTest(): void {
   for (const key of Object.keys(parkedBundles) as CpDocumentSlotId[]) {
     delete parkedBundles[key];
+  }
+  for (const key of Object.keys(parkedRuntimes) as CpDocumentSlotId[]) {
+    delete parkedRuntimes[key];
   }
   switchCpDocumentSlot('edit');
   slotGeneration = 0;
