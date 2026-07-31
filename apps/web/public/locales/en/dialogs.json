@@ -3,13 +3,13 @@
     "abort": "Abort",
     "close": "Close optimize layout",
     "closeAction": "Close",
+    "enable": "Enable symmetry",
     "failed": "The optimizer could not find a layout.",
     "layout": {
       "random": "Try random layouts",
       "view": "Use current layout as reference"
     },
     "layoutMethod": "Layout method",
-    "mirror": "Mirror the layout",
     "mirrorAxis": "Fold to mirror about",
     "options": "Options",
     "run": "Run!",

@@ -3,13 +3,13 @@
     "abort": "アボート",
     "close": "レイアウトの最適化を閉じる",
     "closeAction": "閉じる",
+    "enable": "対称を有効にする",
     "failed": "オプティマイザーはレイアウトを見つけられませんでした。",
     "layout": {
       "random": "ランダムなレイアウトを試して",
       "view": "現在のレイアウトを参考として使用して"
     },
     "layoutMethod": "レイアウト方法",
-    "mirror": "レイアウトを鏡映する",
     "mirrorAxis": "鏡映する折り方",
     "options": "オプション",
     "run": "実行して！",
@@ -234,8 +234,8 @@
     },
     "title": "設定",
     "workspace": {
-      "folding": "折り",
       "foldWarning": "平坦折りエラーのある展開図を折る前に警告する",
+      "folding": "折り",
       "layout": "レイアウト",
       "resetButton": "ワークスペースレイアウトをリセット",
       "resetMessage": "現在のワークスペースの既定のレイアウトに戻しますか？",

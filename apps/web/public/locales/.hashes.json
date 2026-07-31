@@ -2003,11 +2003,11 @@
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:bpSymmetry.fold.book": "6b9575afa023",
     "panels:bpSymmetry.fold.diagonal": "ec9396d39fe5",
-    "dialogs:bpOptimizer.mirror": "1fbdc004f64a",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
     "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
-    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff"
+    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
+    "dialogs:bpOptimizer.enable": "53d10bf7ea36"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4013,11 +4013,11 @@
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:bpSymmetry.fold.book": "6b9575afa023",
     "panels:bpSymmetry.fold.diagonal": "ec9396d39fe5",
-    "dialogs:bpOptimizer.mirror": "1fbdc004f64a",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
     "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
-    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff"
+    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
+    "dialogs:bpOptimizer.enable": "53d10bf7ea36"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6049,11 +6049,11 @@
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:bpSymmetry.fold.book": "6b9575afa023",
     "panels:bpSymmetry.fold.diagonal": "ec9396d39fe5",
-    "dialogs:bpOptimizer.mirror": "1fbdc004f64a",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
     "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
-    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff"
+    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
+    "dialogs:bpOptimizer.enable": "53d10bf7ea36"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8085,11 +8085,11 @@
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:bpSymmetry.fold.book": "6b9575afa023",
     "panels:bpSymmetry.fold.diagonal": "ec9396d39fe5",
-    "dialogs:bpOptimizer.mirror": "1fbdc004f64a",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
     "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
-    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff"
+    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
+    "dialogs:bpOptimizer.enable": "53d10bf7ea36"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10121,11 +10121,11 @@
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:bpSymmetry.fold.book": "6b9575afa023",
     "panels:bpSymmetry.fold.diagonal": "ec9396d39fe5",
-    "dialogs:bpOptimizer.mirror": "1fbdc004f64a",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
     "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
-    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff"
+    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
+    "dialogs:bpOptimizer.enable": "53d10bf7ea36"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12157,11 +12157,11 @@
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:bpSymmetry.fold.book": "6b9575afa023",
     "panels:bpSymmetry.fold.diagonal": "ec9396d39fe5",
-    "dialogs:bpOptimizer.mirror": "1fbdc004f64a",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
     "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
-    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff"
+    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
+    "dialogs:bpOptimizer.enable": "53d10bf7ea36"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14193,11 +14193,11 @@
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:bpSymmetry.fold.book": "6b9575afa023",
     "panels:bpSymmetry.fold.diagonal": "ec9396d39fe5",
-    "dialogs:bpOptimizer.mirror": "1fbdc004f64a",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
     "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
-    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff"
+    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
+    "dialogs:bpOptimizer.enable": "53d10bf7ea36"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16203,10 +16203,10 @@
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:bpSymmetry.fold.book": "6b9575afa023",
     "panels:bpSymmetry.fold.diagonal": "ec9396d39fe5",
-    "dialogs:bpOptimizer.mirror": "1fbdc004f64a",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
     "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
-    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff"
+    "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
+    "dialogs:bpOptimizer.enable": "53d10bf7ea36"
   }
 }

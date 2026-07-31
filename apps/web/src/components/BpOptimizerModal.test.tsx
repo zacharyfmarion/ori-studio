@@ -290,6 +290,14 @@ describe('symmetry row', () => {
     expect(text()).toContain('Symmetry is off');
   });
 
+  it('says plainly that the toggle turns symmetry on', () => {
+    // "Mirror the layout" read as a description of what the run does rather
+    // than as the switch that enables it.
+    withTree();
+    renderModal();
+    expect(text()).toContain('Enable symmetry');
+  });
+
   it('names the fold, which belongs here rather than in the tree view', () => {
     // A tree is not drawn on the paper, so it has no book or diagonal fold of
     // its own; naming one only makes sense once there is paper.

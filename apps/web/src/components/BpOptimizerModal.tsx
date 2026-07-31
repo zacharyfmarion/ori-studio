@@ -285,7 +285,7 @@ export function BpOptimizerModal() {
                           disabled={symmetry.mode !== 'ready'}
                           onChange={(checked) => setOptions({ respectSymmetry: checked })}
                         />
-                        <span>{t('dialogs:bpOptimizer.mirror', 'Mirror the layout')}</span>
+                        <span>{t('dialogs:bpOptimizer.enable', 'Enable symmetry')}</span>
                       </label>
                       <Select
                         value={options.symmetryFold}

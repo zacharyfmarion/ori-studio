@@ -3,13 +3,13 @@
     "abort": "Interrompre",
     "close": "Fermer l'optimisation de la disposition",
     "closeAction": "Fermer",
+    "enable": "Activer la symétrie",
     "failed": "L'optimiseur n'a pas trouvé de disposition.",
     "layout": {
       "random": "Essayer des dispositions aléatoires",
       "view": "Utiliser la disposition actuelle comme référence"
     },
     "layoutMethod": "Méthode de disposition",
-    "mirror": "Refléter la disposition",
     "mirrorAxis": "Pli servant d’axe",
     "options": "Options",
     "run": "Lancer !",
@@ -65,19 +65,19 @@
     "rectified": "Redressé",
     "report": {
       "ambiguous": "ambigu",
-      "assignmentChange_one": "{{count}} changement d'assignation",
       "assignmentChange_many": "{{count}} changement d'assignation",
+      "assignmentChange_one": "{{count}} changement d'assignation",
       "assignmentChange_other": "{{count}} changement d'assignation",
-      "assignmentChanges_one": "{{count}} changements d'assignation",
       "assignmentChanges_many": "{{count}} changements d'assignation",
+      "assignmentChanges_one": "{{count}} changements d'assignation",
       "assignmentChanges_other": "{{count}} changements d'assignation",
       "compilerFallback": "solution de repli du compilateur",
       "counts": "{{vertices}} sommets, {{edges}} arêtes",
-      "topologyMove_one": "{{count}} déplacement topologique",
       "topologyMove_many": "{{count}} déplacement topologique",
+      "topologyMove_one": "{{count}} déplacement topologique",
       "topologyMove_other": "{{count}} déplacement topologique",
-      "topologyMoves_one": "{{count}} déplacements topologiques",
       "topologyMoves_many": "{{count}} déplacements topologiques",
+      "topologyMoves_one": "{{count}} déplacements topologiques",
       "topologyMoves_other": "{{count}} déplacements topologiques"
     },
     "runningModel": "Exécution du modèle",
@@ -93,8 +93,8 @@
     "descriptionPlaceholder": "Facultatif",
     "foldedBackColor": "Verso",
     "foldedCase": "Cas de pliage",
-    "foldedCasesFound_one": "{{count}} trouvé(s) jusqu’ici",
     "foldedCasesFound_many": "{{count}} trouvé(s) jusqu’ici",
+    "foldedCasesFound_one": "{{count}} trouvé(s) jusqu’ici",
     "foldedCasesFound_other": "{{count}} trouvé(s) jusqu’ici",
     "foldedFigureNeedsCp": "Ouvrez un patron de plis modifiable pour le plier",
     "foldedFigureNeedsOnePattern": "Sélectionnez un seul patron à plier",
@@ -138,7 +138,7 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {
@@ -244,8 +244,8 @@
     },
     "title": "Paramètres",
     "workspace": {
-      "folding": "Pliage",
       "foldWarning": "Avertir avant de plier un patron de plis comportant des erreurs de pliabilité à plat",
+      "folding": "Pliage",
       "layout": "Disposition",
       "resetButton": "Réinitialiser la disposition de l'espace de travail",
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
