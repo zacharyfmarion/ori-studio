@@ -15,19 +15,57 @@ import { stepIsSelfAdvancing, type LessonStep } from '../tutorial/types';
 
 const PROGRESS_KEY = storageKey(STORAGE_KEYS.tutorialProgress);
 
+/**
+ * What survives a reload.
+ *
+ * `completedLessonIds` is flat: lesson ids are globally unique, so a lesson that
+ * moves between courses keeps its completion, and no stored id ever needs
+ * rewriting. Progress is *derived* from this against the registry
+ * (`courseProgress`) rather than counted, so a completion left behind by a
+ * renamed lesson cannot inflate a course.
+ *
+ * Resume is per course, not global — each course card has to answer "where was I
+ * in *this* course", which a single last-lesson field cannot.
+ *
+ * No step index, on purpose. The practice document is not persisted, so resuming
+ * mid-lesson would put the reader on a step whose check refers to work that is
+ * no longer on the canvas — and a `camv-clean` step passes on a blank sheet,
+ * handing out a completion for something never done. Resume means the top of the
+ * lesson. Do not "fix" this without persisting the canvas too.
+ */
 interface PersistedProgress {
   completedLessonIds: string[];
-  lastLessonId: string | null;
+  /** Which course the catalog's resume button points at. */
+  lastCourseId: string | null;
+  /** courseId → the lesson to resume in it. */
+  resumeByCourse: Record<string, string>;
 }
 
-const EMPTY_PROGRESS: PersistedProgress = { completedLessonIds: [], lastLessonId: null };
+const EMPTY_PROGRESS: PersistedProgress = {
+  completedLessonIds: [],
+  lastCourseId: null,
+  resumeByCourse: {},
+};
 
+/**
+ * Field-by-field, with a fallback each. That tolerance is what let courses land
+ * without a migration: an older payload keeps its completions and simply has no
+ * resume until the next lesson is opened.
+ */
 function readProgress(): PersistedProgress {
   const stored = readJson<PersistedProgress>(PROGRESS_KEY, EMPTY_PROGRESS);
-  // Tolerate a hand-edited or older payload rather than throwing on load.
+  const resume = stored.resumeByCourse;
   return {
-    completedLessonIds: Array.isArray(stored.completedLessonIds) ? stored.completedLessonIds : [],
-    lastLessonId: typeof stored.lastLessonId === 'string' ? stored.lastLessonId : null,
+    completedLessonIds: Array.isArray(stored.completedLessonIds)
+      ? stored.completedLessonIds.filter((id): id is string => typeof id === 'string')
+      : [],
+    lastCourseId: typeof stored.lastCourseId === 'string' ? stored.lastCourseId : null,
+    resumeByCourse:
+      resume && typeof resume === 'object' && !Array.isArray(resume)
+        ? Object.fromEntries(
+            Object.entries(resume).filter(([, lessonId]) => typeof lessonId === 'string')
+          )
+        : {},
   };
 }
 
@@ -65,9 +103,10 @@ interface TutorialState {
   stepStatus: StepStatus;
   feedback: StepFeedback | null;
   completedLessonIds: string[];
-  lastLessonId: string | null;
+  lastCourseId: string | null;
+  resumeByCourse: Record<string, string>;
 
-  openLesson: (lessonId: string) => void;
+  openLesson: (lessonId: string, courseId: string) => void;
   closeLesson: () => void;
   goToStep: (index: number) => void;
   nextStep: () => void;
@@ -87,10 +126,13 @@ function initialStatusFor(step: LessonStep | undefined): StepStatus {
   return stepIsSelfAdvancing(step) ? 'pending' : 'not-applicable';
 }
 
-function persist(state: Pick<TutorialState, 'completedLessonIds' | 'lastLessonId'>): void {
+function persist(
+  state: Pick<TutorialState, 'completedLessonIds' | 'lastCourseId' | 'resumeByCourse'>
+): void {
   writeJson(PROGRESS_KEY, {
     completedLessonIds: state.completedLessonIds,
-    lastLessonId: state.lastLessonId,
+    lastCourseId: state.lastCourseId,
+    resumeByCourse: state.resumeByCourse,
   } satisfies PersistedProgress);
 }
 
@@ -105,18 +147,23 @@ export const useTutorialStore = create<TutorialState>()(
       feedback: null,
       ...readProgress(),
 
-      openLesson: (lessonId) => {
+      openLesson: (lessonId, courseId) => {
         const lesson = lessonById(lessonId);
         if (!lesson) return;
-        const next = {
+        const resumeByCourse = { ...get().resumeByCourse, [courseId]: lessonId };
+        set({
           activeLessonId: lessonId,
           stepIndex: 0,
           stepStatus: initialStatusFor(lesson.steps[0]),
           feedback: null,
-          lastLessonId: lessonId,
-        };
-        set(next);
-        persist({ completedLessonIds: get().completedLessonIds, lastLessonId: lessonId });
+          lastCourseId: courseId,
+          resumeByCourse,
+        });
+        persist({
+          completedLessonIds: get().completedLessonIds,
+          lastCourseId: courseId,
+          resumeByCourse,
+        });
       },
 
       closeLesson: () =>
@@ -172,11 +219,15 @@ export const useTutorialStore = create<TutorialState>()(
         if (completedLessonIds.includes(lessonId)) return;
         const next = [...completedLessonIds, lessonId];
         set({ completedLessonIds: next });
-        persist({ completedLessonIds: next, lastLessonId: get().lastLessonId });
+        persist({
+          completedLessonIds: next,
+          lastCourseId: get().lastCourseId,
+          resumeByCourse: get().resumeByCourse,
+        });
       },
 
       resetProgress: () => {
-        set({ completedLessonIds: [], lastLessonId: null });
+        set({ completedLessonIds: [], lastCourseId: null, resumeByCourse: {} });
         persist(EMPTY_PROGRESS);
       },
     }),

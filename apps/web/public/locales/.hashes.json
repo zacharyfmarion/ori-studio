@@ -1967,8 +1967,6 @@
     "panels:tutorial.checking": "ab3ab0dc3bbe",
     "panels:tutorial.extra_other": "46c34820702e",
     "panels:tutorial.finish": "905172cf73f4",
-    "panels:tutorial.indexBlurb": "4179e5317e18",
-    "panels:tutorial.indexTitle": "91e248b0153d",
     "panels:tutorial.matched": "ea5070785877",
     "panels:tutorial.matchProgress": "9f9e09409338",
     "panels:tutorial.missing_other": "8e82f8b15dae",
@@ -1979,7 +1977,12 @@
     "panels:tutorial.targetHeading": "ac695c59147f",
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
+    "panels:tutorial.allCourses": "dc28d0d30d15",
+    "panels:tutorial.catalogBlurb": "73b16724a33b",
+    "panels:tutorial.catalogTitle": "91e248b0153d",
+    "panels:tutorial.courseProgress": "5fb2c85fcf00",
+    "panels:tutorial.resumeLesson": "94e51dd1f46b"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3949,8 +3952,6 @@
     "panels:tutorial.checking": "ab3ab0dc3bbe",
     "panels:tutorial.extra_other": "46c34820702e",
     "panels:tutorial.finish": "905172cf73f4",
-    "panels:tutorial.indexBlurb": "4179e5317e18",
-    "panels:tutorial.indexTitle": "91e248b0153d",
     "panels:tutorial.matched": "ea5070785877",
     "panels:tutorial.matchProgress": "9f9e09409338",
     "panels:tutorial.missing_other": "8e82f8b15dae",
@@ -3961,7 +3962,12 @@
     "panels:tutorial.targetHeading": "ac695c59147f",
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
+    "panels:tutorial.allCourses": "dc28d0d30d15",
+    "panels:tutorial.catalogBlurb": "73b16724a33b",
+    "panels:tutorial.catalogTitle": "91e248b0153d",
+    "panels:tutorial.courseProgress": "5fb2c85fcf00",
+    "panels:tutorial.resumeLesson": "94e51dd1f46b"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5958,8 +5964,6 @@
     "panels:tutorial.extra_one": "027fb8246624",
     "panels:tutorial.extra_other": "46c34820702e",
     "panels:tutorial.finish": "905172cf73f4",
-    "panels:tutorial.indexBlurb": "4179e5317e18",
-    "panels:tutorial.indexTitle": "91e248b0153d",
     "panels:tutorial.matched": "ea5070785877",
     "panels:tutorial.matchProgress": "9f9e09409338",
     "panels:tutorial.missing_one": "13572ca26f40",
@@ -5972,7 +5976,12 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
+    "panels:tutorial.allCourses": "dc28d0d30d15",
+    "panels:tutorial.catalogBlurb": "73b16724a33b",
+    "panels:tutorial.catalogTitle": "91e248b0153d",
+    "panels:tutorial.courseProgress": "5fb2c85fcf00",
+    "panels:tutorial.resumeLesson": "94e51dd1f46b"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -7969,8 +7978,6 @@
     "panels:tutorial.extra_one": "027fb8246624",
     "panels:tutorial.extra_other": "46c34820702e",
     "panels:tutorial.finish": "905172cf73f4",
-    "panels:tutorial.indexBlurb": "4179e5317e18",
-    "panels:tutorial.indexTitle": "91e248b0153d",
     "panels:tutorial.matched": "ea5070785877",
     "panels:tutorial.matchProgress": "9f9e09409338",
     "panels:tutorial.missing_one": "13572ca26f40",
@@ -7983,7 +7990,12 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
+    "panels:tutorial.allCourses": "dc28d0d30d15",
+    "panels:tutorial.catalogBlurb": "73b16724a33b",
+    "panels:tutorial.catalogTitle": "91e248b0153d",
+    "panels:tutorial.courseProgress": "5fb2c85fcf00",
+    "panels:tutorial.resumeLesson": "94e51dd1f46b"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -9980,8 +9992,6 @@
     "panels:tutorial.extra_one": "027fb8246624",
     "panels:tutorial.extra_other": "46c34820702e",
     "panels:tutorial.finish": "905172cf73f4",
-    "panels:tutorial.indexBlurb": "4179e5317e18",
-    "panels:tutorial.indexTitle": "91e248b0153d",
     "panels:tutorial.matched": "ea5070785877",
     "panels:tutorial.matchProgress": "9f9e09409338",
     "panels:tutorial.missing_one": "13572ca26f40",
@@ -9994,7 +10004,12 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
+    "panels:tutorial.allCourses": "dc28d0d30d15",
+    "panels:tutorial.catalogBlurb": "73b16724a33b",
+    "panels:tutorial.catalogTitle": "91e248b0153d",
+    "panels:tutorial.courseProgress": "5fb2c85fcf00",
+    "panels:tutorial.resumeLesson": "94e51dd1f46b"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -11991,8 +12006,6 @@
     "panels:tutorial.extra_one": "027fb8246624",
     "panels:tutorial.extra_other": "46c34820702e",
     "panels:tutorial.finish": "905172cf73f4",
-    "panels:tutorial.indexBlurb": "4179e5317e18",
-    "panels:tutorial.indexTitle": "91e248b0153d",
     "panels:tutorial.matched": "ea5070785877",
     "panels:tutorial.matchProgress": "9f9e09409338",
     "panels:tutorial.missing_one": "13572ca26f40",
@@ -12005,7 +12018,12 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
+    "panels:tutorial.allCourses": "dc28d0d30d15",
+    "panels:tutorial.catalogBlurb": "73b16724a33b",
+    "panels:tutorial.catalogTitle": "91e248b0153d",
+    "panels:tutorial.courseProgress": "5fb2c85fcf00",
+    "panels:tutorial.resumeLesson": "94e51dd1f46b"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14002,8 +14020,6 @@
     "panels:tutorial.extra_one": "027fb8246624",
     "panels:tutorial.extra_other": "46c34820702e",
     "panels:tutorial.finish": "905172cf73f4",
-    "panels:tutorial.indexBlurb": "4179e5317e18",
-    "panels:tutorial.indexTitle": "91e248b0153d",
     "panels:tutorial.matched": "ea5070785877",
     "panels:tutorial.matchProgress": "9f9e09409338",
     "panels:tutorial.missing_one": "13572ca26f40",
@@ -14016,7 +14032,12 @@
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
     "panels:tutorial.wrongAssignment_one": "5f8ddd7234a0",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
+    "panels:tutorial.allCourses": "dc28d0d30d15",
+    "panels:tutorial.catalogBlurb": "73b16724a33b",
+    "panels:tutorial.catalogTitle": "91e248b0153d",
+    "panels:tutorial.courseProgress": "5fb2c85fcf00",
+    "panels:tutorial.resumeLesson": "94e51dd1f46b"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15986,8 +16007,6 @@
     "panels:tutorial.checking": "ab3ab0dc3bbe",
     "panels:tutorial.extra_other": "46c34820702e",
     "panels:tutorial.finish": "905172cf73f4",
-    "panels:tutorial.indexBlurb": "4179e5317e18",
-    "panels:tutorial.indexTitle": "91e248b0153d",
     "panels:tutorial.matched": "ea5070785877",
     "panels:tutorial.matchProgress": "9f9e09409338",
     "panels:tutorial.missing_other": "8e82f8b15dae",
@@ -15998,6 +16017,11 @@
     "panels:tutorial.targetHeading": "ac695c59147f",
     "panels:tutorial.targetPreview.label": "b8ff484b1181",
     "panels:tutorial.targetPreview.loading": "b77c2865113f",
-    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046"
+    "panels:tutorial.wrongAssignment_other": "dcb80a0c9046",
+    "panels:tutorial.allCourses": "dc28d0d30d15",
+    "panels:tutorial.catalogBlurb": "73b16724a33b",
+    "panels:tutorial.catalogTitle": "91e248b0153d",
+    "panels:tutorial.courseProgress": "5fb2c85fcf00",
+    "panels:tutorial.resumeLesson": "94e51dd1f46b"
   }
 }

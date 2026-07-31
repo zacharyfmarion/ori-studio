@@ -14,9 +14,24 @@ export const EDIT_PATH = '/edit';
 export const SIMULATE_PATH = '/simulate';
 export const LEARN_PATH = '/learn';
 
-/** Route for a single lesson. */
-export function lessonPath(lessonId: string): string {
-  return `${LEARN_PATH}/${lessonId}`;
+/**
+ * True for `/learn/:courseId/:lessonId` — a lesson, as opposed to the catalog
+ * (`/learn`) or a course page (`/learn/:courseId`). Segment count is the whole
+ * test; whether the ids resolve is the router's business, not this module's.
+ */
+export function isLessonPath(pathname: string): boolean {
+  if (!pathname.startsWith(`${LEARN_PATH}/`)) return false;
+  return pathname.slice(LEARN_PATH.length + 1).replace(/\/+$/u, '').split('/').length === 2;
+}
+
+/** Route for a course's own page: its chapters and lessons. */
+export function coursePath(courseId: string): string {
+  return `${LEARN_PATH}/${courseId}`;
+}
+
+/** Route for a single lesson, within its course. */
+export function lessonPath(courseId: string, lessonId: string): string {
+  return `${LEARN_PATH}/${courseId}/${lessonId}`;
 }
 
 /** Path for a Design workspace layout variant. */
@@ -70,7 +85,9 @@ export function parseWorkspacePath(
     case DESIGN_BP_PATH:
       return { workspace: 'design', variant: 'box-pleat' };
     default:
-      // `/learn/:lessonId` — any lesson route builds the learn layout.
-      return pathname.startsWith(`${LEARN_PATH}/`) ? { workspace: 'learn' } : null;
+      // Only a lesson (`/learn/:courseId/:lessonId`) builds the learn layout.
+      // The catalog and a course page render full width with no canvas, so they
+      // must not provision a practice document nobody is about to draw on.
+      return isLessonPath(pathname) ? { workspace: 'learn' } : null;
   }
 }

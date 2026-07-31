@@ -6451,8 +6451,7 @@ button.bp-packing-alert:focus-visible {
    Tutorial — lesson pane and lesson index
    --------------------------------------------------------------------------- */
 
-.lesson-panel,
-.lesson-index {
+.lesson-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -6644,7 +6643,8 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-secondary);
 }
 
-.lesson-index {
+.course-page__content,
+.course-catalog__content {
   overflow-y: auto;
   padding: var(--space-5);
   gap: var(--space-4);
@@ -6851,4 +6851,162 @@ button.bp-packing-alert:focus-visible {
 
 .simulator-view-controls-panel__colors > .control-row:last-child {
   border-bottom: 0;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Tutorial — course catalog and course page
+
+   Both render full width, outside the workspace shell (see `LearnIndexRoute`),
+   so they own their own scroll and centre a readable column the way the start
+   screen does rather than filling the viewport.
+   --------------------------------------------------------------------------- */
+
+.course-catalog,
+.course-page {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-5);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.course-catalog__content,
+.course-page__content {
+  width: 100%;
+  max-width: 720px;
+}
+
+.course-catalog__header {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-bottom: var(--space-5);
+}
+
+.course-catalog__title,
+.course-page__title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.35rem;
+  font-weight: 650;
+}
+
+.course-catalog__blurb,
+.course-page__blurb {
+  margin: 0;
+  max-width: 56ch;
+  color: var(--text-secondary);
+  font-size: 0.87rem;
+  line-height: 1.55;
+}
+
+.course-catalog__courses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.course-card {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.course-card:hover,
+.course-card:focus-visible {
+  border-color: var(--accent-primary);
+  background: var(--bg-elevated);
+}
+
+.course-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.course-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.course-card__blurb {
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.course-card__progress {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.course-card[data-complete] .course-card__progress {
+  color: var(--accent-primary);
+}
+
+.course-page__back {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-4);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.course-page__back:hover,
+.course-page__back:focus-visible {
+  color: var(--text-primary);
+}
+
+.course-page__header {
+  margin-bottom: var(--space-5);
+}
+
+.course-page__progress {
+  margin: var(--space-3) 0 0;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.course-catalog__resume,
+.course-page__resume {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--text-primary);
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.course-catalog__resume:hover,
+.course-page__resume:hover {
+  background: color-mix(in srgb, var(--accent-primary) 24%, transparent);
 }

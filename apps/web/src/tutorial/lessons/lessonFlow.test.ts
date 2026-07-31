@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LESSONS, nextLesson } from './index';
+import { LESSONS, courseIdForLesson, nextLesson } from './index';
 import { useTutorialStore } from '../../store/tutorialStore';
 import { stepIsSelfAdvancing } from '../types';
 
@@ -14,6 +14,11 @@ import { stepIsSelfAdvancing } from '../types';
  * test could: a step whose predicate could never be satisfied, and a target no
  * tool could produce.
  */
+/** Open a lesson the way the route does: with the course that owns it. */
+function open(lessonId: string): void {
+  useTutorialStore.getState().openLesson(lessonId, courseIdForLesson(lessonId) ?? '');
+}
+
 describe('walking a lesson', () => {
   beforeEach(() => {
     useTutorialStore.getState().resetProgress();
@@ -22,7 +27,7 @@ describe('walking a lesson', () => {
 
   it('opens every lesson at its first step', () => {
     for (const lesson of LESSONS) {
-      useTutorialStore.getState().openLesson(lesson.id);
+      open(lesson.id);
       const state = useTutorialStore.getState();
       expect(state.activeLessonId, lesson.id).toBe(lesson.id);
       expect(state.stepIndex, lesson.id).toBe(0);
@@ -31,7 +36,7 @@ describe('walking a lesson', () => {
 
   it('gates self-advancing steps and never gates prose', () => {
     for (const lesson of LESSONS) {
-      useTutorialStore.getState().openLesson(lesson.id);
+      open(lesson.id);
       for (let index = 0; index < lesson.steps.length; index += 1) {
         const step = lesson.steps[index];
         useTutorialStore.getState().goToStep(index);
@@ -48,7 +53,7 @@ describe('walking a lesson', () => {
 
   it('lets skip move forward from every step, and finish the lesson from the last', () => {
     for (const lesson of LESSONS) {
-      useTutorialStore.getState().openLesson(lesson.id);
+      open(lesson.id);
       for (let index = 0; index < lesson.steps.length - 1; index += 1) {
         useTutorialStore.getState().goToStep(index);
         useTutorialStore.getState().skipStep();
@@ -67,7 +72,7 @@ describe('walking a lesson', () => {
 
   it('clamps step navigation instead of running off either end', () => {
     const lesson = LESSONS[0];
-    useTutorialStore.getState().openLesson(lesson.id);
+    open(lesson.id);
     useTutorialStore.getState().previousStep();
     expect(useTutorialStore.getState().stepIndex).toBe(0);
     useTutorialStore.getState().goToStep(999);
@@ -77,19 +82,22 @@ describe('walking a lesson', () => {
   });
 
   it('ignores an unknown lesson id rather than half-opening one', () => {
-    useTutorialStore.getState().openLesson(LESSONS[0].id);
-    useTutorialStore.getState().openLesson('does-not-exist');
+    open(LESSONS[0].id);
+    open('does-not-exist');
     expect(useTutorialStore.getState().activeLessonId).toBe(LESSONS[0].id);
   });
 
   it('records completion once, and remembers where the user was', () => {
     const lesson = LESSONS[0];
-    useTutorialStore.getState().openLesson(lesson.id);
+    open(lesson.id);
     useTutorialStore.getState().markLessonComplete(lesson.id);
     useTutorialStore.getState().markLessonComplete(lesson.id);
     const state = useTutorialStore.getState();
     expect(state.completedLessonIds.filter((id) => id === lesson.id)).toHaveLength(1);
-    expect(state.lastLessonId).toBe(lesson.id);
+    // Resume is per course, so the lesson is remembered against the one it is in.
+    const courseId = courseIdForLesson(lesson.id) ?? '';
+    expect(state.lastCourseId).toBe(courseId);
+    expect(state.resumeByCourse[courseId]).toBe(lesson.id);
   });
 
   it('walks the lessons in order and stops at the end', () => {
@@ -99,12 +107,12 @@ describe('walking a lesson', () => {
 
   it('reseeds the practice canvas only when the lesson changes', () => {
     const [first, second] = LESSONS;
-    useTutorialStore.getState().openLesson(first.id);
+    open(first.id);
     useTutorialStore.getState().markPracticeDocumentFor(first.id);
     expect(useTutorialStore.getState().practiceLessonId).toBe(first.id);
     // Re-opening the same lesson must not look like a different document, or
     // returning to a lesson would wipe work in progress.
-    useTutorialStore.getState().openLesson(first.id);
+    open(first.id);
     expect(useTutorialStore.getState().practiceLessonId).toBe(first.id);
     useTutorialStore.getState().markPracticeDocumentFor(second.id);
     expect(useTutorialStore.getState().practiceLessonId).toBe(second.id);

@@ -7,6 +7,7 @@ import { getRuntimeSurface } from '../platform/runtime';
 import { EDIT_PATH, WELCOME_PATH } from './paths';
 import { LearnIndexRoute } from './LearnIndexRoute';
 import { LessonRoute } from './LessonRoute';
+import { CourseRoute } from './CourseRoute';
 import { WelcomeRoute } from './WelcomeRoute';
 import { WorkspaceRoute } from './WorkspaceRoute';
 
@@ -86,7 +87,10 @@ export function createAppRouter(): AppRouter {
             // so a lesson can send its own pattern to the simulator.
             { path: 'simulate', element: <WorkspaceRoute workspace="simulate" /> },
             { path: 'learn', element: <LearnIndexRoute /> },
-            { path: 'learn/:lessonId', element: <LessonRoute /> },
+            // Two segments is a course page, or an old `/learn/:lessonId` link
+            // that CourseRoute redirects to its canonical three-segment path.
+            { path: 'learn/:courseId', element: <CourseRoute /> },
+            { path: 'learn/:courseId/:lessonId', element: <LessonRoute /> },
           ],
         },
         { path: '*', loader: startupRedirect },

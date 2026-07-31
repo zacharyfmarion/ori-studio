@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, CircleDashed, ListChecks, SkipForward } from 'lucide-react';
 import { useTutorialStore } from '../../store/tutorialStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { lessonById, nextLesson } from '../../tutorial/lessons';
+import { courseIdForLesson, lessonById, nextLesson } from '../../tutorial/lessons';
 import { lessonTarget } from '../../tutorial/targets';
 import blankPracticeCp from '../../tutorial/targets/blank-sheet.cp?raw';
 import { targetGeometry } from '../../tutorial/runtime/targetGeometry';
@@ -18,9 +18,8 @@ import {
 } from '../../tutorial/types';
 import { cpActionById } from '../../lib/oristudioCpActions';
 import { cpCommandByOperation } from '../../lib/oristudioCpCommands';
-import { LEARN_PATH, lessonPath } from '../../routing/paths';
+import { LEARN_PATH, coursePath, lessonPath } from '../../routing/paths';
 import { TargetCpPreview } from '../tutorial/TargetCpPreview';
-import { LessonIndexPanel } from './LessonIndexPanel';
 import type { OristudioCpModel } from '../../engine/oristudioCpTypes';
 
 /** A lesson with no starting pattern practises on a plain sheet of paper. */
@@ -47,6 +46,7 @@ export function LessonPanel() {
 
   const lesson = activeLessonId ? lessonById(activeLessonId) : undefined;
   const step: LessonStep | undefined = lesson?.steps[stepIndex];
+  const lessonCourseId = lesson ? courseIdForLesson(lesson.id) : undefined;
 
   useLessonPracticeDocument(lesson, step);
   useArmedTool(step);
@@ -81,13 +81,18 @@ export function LessonPanel() {
       return;
     }
     markLessonComplete(lesson.id);
+    // `nextLesson` is course-scoped, so the end of a course lands on its own
+    // page rather than silently starting an unrelated one.
     const following = nextLesson(lesson.id);
-    navigate(following ? lessonPath(following.id) : LEARN_PATH);
+    const courseId = courseIdForLesson(lesson.id);
+    if (following && courseId) navigate(lessonPath(courseId, following.id));
+    else navigate(courseId ? coursePath(courseId) : LEARN_PATH);
   }, [goToNextStep, isLastStep, lesson, markLessonComplete, navigate]);
 
-  // `/learn` itself has no lesson open, so the pane is the index. One pane, two
-  // states — simpler than a second layout that differs only in its left column.
-  if (!lesson || !step) return <LessonIndexPanel />;
+  // The route only renders this panel for a real lesson; a missing one means the
+  // store and the URL have diverged, so send the reader up to the catalog rather
+  // than rendering an empty shell.
+  if (!lesson || !step) return <Navigate to={LEARN_PATH} replace />;
 
   return (
     <div className="lesson-panel">
@@ -95,7 +100,7 @@ export function LessonPanel() {
         <button
           type="button"
           className="lesson-panel__back"
-          onClick={() => navigate(LEARN_PATH)}
+          onClick={() => navigate(lessonCourseId ? coursePath(lessonCourseId) : LEARN_PATH)}
           aria-label={t('panels:tutorial.allLessons', 'All lessons')}
         >
           <ListChecks size={14} aria-hidden />
