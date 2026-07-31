@@ -394,7 +394,7 @@ not optional and is not a follow-up PR.
 - [x] Re-fit the packing camera after a run (the sheet resizes and every flap moves, so the old framing shows nothing)
 - [x] Browser check: optimize end to end in `view` and `random` modes, then undo and confirm the original layout returns
 - [x] Browser check: measure a real WASM run (10 flaps: view 103 ms, view+variations 111 ms, random ×20 418 ms)
-- [ ] Browser check: a diagonal-sheet design (rect covered; diagonal exercised only through the kernel probes)
+- [x] Browser check: a diagonal-sheet design — 8 flaps onto a diagonal 8×8 in both modes, size even and ≥ `MIN_DIAG_SIZE`, no flap outside the diamond (checked against the L1 metric), packing valid, grid kind preserved through optimize/undo/redo
 
 ## Open questions
 
