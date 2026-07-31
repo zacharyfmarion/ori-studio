@@ -271,12 +271,13 @@ pub fn solve_with_progress(
         .map(|symmetry| kernel::KernelSymmetry::from_request(symmetry, main))
         .transpose()?;
     let packed = if request.layout == LayoutMode::Random {
-        kernel::solve_global_rssl_with_progress(
+        kernel::solve_global_symmetric_with_progress(
             &problem,
             request.random,
             seed,
             &mut should_cancel,
             &mut on_event,
+            symmetry.as_ref(),
         )?
     } else {
         let mut x0 = kernel::read_initial_vector(request, main)?;
@@ -284,12 +285,13 @@ pub fn solve_with_progress(
             kernel::symmetrize(&mut x0, main, symmetry);
         }
         if request.use_bh {
-            kernel::basin_hopping_rssl_with_progress(
+            kernel::basin_hopping_symmetric_with_progress(
                 x0,
                 main,
                 seed,
                 &mut should_cancel,
                 &mut on_event,
+                symmetry.as_ref(),
             )?
         } else {
             on_event(OptimizerEvent::Pack(0));
@@ -1973,8 +1975,28 @@ pub mod kernel {
         should_cancel: &mut dyn FnMut() -> bool,
         on_event: &mut dyn FnMut(OptimizerEvent),
     ) -> BpResult<PackResult> {
+        basin_hopping_symmetric_with_progress(x0, hierarchy, seed, should_cancel, on_event, None)
+    }
+
+    /// `basin_hopping_rssl_with_progress` with optional mirror symmetry.
+    pub fn basin_hopping_symmetric_with_progress(
+        x0: Vec<f64>,
+        hierarchy: &KernelHierarchy,
+        seed: u32,
+        should_cancel: &mut dyn FnMut() -> bool,
+        on_event: &mut dyn FnMut(OptimizerEvent),
+        symmetry: Option<&KernelSymmetry>,
+    ) -> BpResult<PackResult> {
         let mut rng = BpRandom::new(seed);
-        basin_hopping_with_rng(x0, hierarchy, &mut rng, should_cancel, on_event, 0)
+        basin_hopping_with_rng(
+            x0,
+            hierarchy,
+            &mut rng,
+            should_cancel,
+            on_event,
+            0,
+            symmetry,
+        )
     }
 
     pub fn solve_global_rssl(
@@ -1991,6 +2013,22 @@ pub mod kernel {
         seed: u32,
         should_cancel: &mut dyn FnMut() -> bool,
         on_event: &mut dyn FnMut(OptimizerEvent),
+    ) -> BpResult<PackResult> {
+        solve_global_symmetric_with_progress(problem, target, seed, should_cancel, on_event, None)
+    }
+
+    /// `solve_global_rssl_with_progress` with optional mirror symmetry.
+    ///
+    /// The coarse hierarchy levels stay unconstrained: they only produce starting
+    /// points, and a simplified tree need not admit the same mirror. Each
+    /// candidate is folded onto the manifold before its final-level solve.
+    pub fn solve_global_symmetric_with_progress(
+        problem: &KernelProblem,
+        target: usize,
+        seed: u32,
+        should_cancel: &mut dyn FnMut() -> bool,
+        on_event: &mut dyn FnMut(OptimizerEvent),
+        symmetry: Option<&KernelSymmetry>,
     ) -> BpResult<PackResult> {
         let Some(main) = problem.hierarchies.last() else {
             return Err(BpError::InvalidInput(
@@ -2009,8 +2047,15 @@ pub mod kernel {
         let mut best_result = None;
         for (index, vector) in initial_vectors.into_iter().enumerate() {
             check_cancelled(should_cancel)?;
-            let result =
-                basin_hopping_with_rng(vector, main, &mut rng, should_cancel, on_event, index)?;
+            let result = basin_hopping_with_rng(
+                vector,
+                main,
+                &mut rng,
+                should_cancel,
+                on_event,
+                index,
+                symmetry,
+            )?;
             if result.success {
                 let scale = get_scale(&result.x);
                 if scale < best_scale {
@@ -2103,8 +2148,9 @@ pub mod kernel {
         should_cancel: &mut dyn FnMut() -> bool,
         on_event: &mut dyn FnMut(OptimizerEvent),
         range: usize,
+        symmetry: Option<&KernelSymmetry>,
     ) -> BpResult<PackResult> {
-        let mut runner = BasinHoppingRunner::new(x0, hierarchy)?;
+        let mut runner = BasinHoppingRunner::new(x0, hierarchy, symmetry)?;
         let mut stale_count = 0;
         for minor in 0..BH_NITER {
             check_cancelled(should_cancel)?;
@@ -2788,15 +2834,31 @@ pub mod kernel {
             }
         }
 
-        fn take_step(&mut self, mut x: Vec<f64>, rng: &mut BpRandom) -> Vec<f64> {
+        fn take_step(
+            &mut self,
+            mut x: Vec<f64>,
+            rng: &mut BpRandom,
+            symmetry: Option<(&KernelHierarchy, &KernelSymmetry)>,
+        ) -> Vec<f64> {
             self.nstep += 1;
             if self.nstep.is_multiple_of(BH_INTERVAL) {
                 self.adjust_step_size();
             }
             let last = x.len() - 1;
-            for coordinate in x.iter_mut().take(last) {
-                *coordinate += rng.random01() * 2.0 * self.stepsize - self.stepsize;
+            let Some((hierarchy, symmetry)) = symmetry else {
+                for coordinate in x.iter_mut().take(last) {
+                    *coordinate += rng.random01() * 2.0 * self.stepsize - self.stepsize;
+                }
+                return x;
+            };
+            // Displace one member of each orbit and mirror the displacement, so
+            // the jiggle stays on the symmetry manifold instead of spending half
+            // of every step being pulled back onto it.
+            for i in symmetry.representatives() {
+                x[i * 2] += rng.random01() * 2.0 * self.stepsize - self.stepsize;
+                x[i * 2 + 1] += rng.random01() * 2.0 * self.stepsize - self.stepsize;
             }
+            symmetrize(&mut x, hierarchy, symmetry);
             x
         }
 
@@ -2819,6 +2881,7 @@ pub mod kernel {
     #[derive(Debug, Clone)]
     struct BasinHoppingRunner<'a> {
         hierarchy: &'a KernelHierarchy,
+        symmetry: Option<&'a KernelSymmetry>,
         step_taking: AdaptiveStepSize,
         incumbent: PackResult,
         lowest: PackResult,
@@ -2826,10 +2889,18 @@ pub mod kernel {
     }
 
     impl<'a> BasinHoppingRunner<'a> {
-        fn new(x0: Vec<f64>, hierarchy: &'a KernelHierarchy) -> BpResult<Self> {
-            let minres = pack_rssl(x0, hierarchy, None, None)?;
+        fn new(
+            mut x0: Vec<f64>,
+            hierarchy: &'a KernelHierarchy,
+            symmetry: Option<&'a KernelSymmetry>,
+        ) -> BpResult<Self> {
+            if let Some(symmetry) = symmetry {
+                symmetrize(&mut x0, hierarchy, symmetry);
+            }
+            let minres = pack_rssl_symmetric(x0, hierarchy, None, None, symmetry)?;
             Ok(Self {
                 hierarchy,
+                symmetry,
                 step_taking: AdaptiveStepSize::new(),
                 x: minres.x.clone(),
                 incumbent: minres.clone(),
@@ -2838,8 +2909,13 @@ pub mod kernel {
         }
 
         fn one_cycle(&mut self, rng: &mut BpRandom) -> BpResult<bool> {
-            let x_after_step = self.step_taking.take_step(self.x.clone(), rng);
-            let minres = pack_rssl(x_after_step, self.hierarchy, None, None)?;
+            let x_after_step = self.step_taking.take_step(
+                self.x.clone(),
+                rng,
+                self.symmetry.map(|symmetry| (self.hierarchy, symmetry)),
+            );
+            let minres =
+                pack_rssl_symmetric(x_after_step, self.hierarchy, None, None, self.symmetry)?;
             let accept = metropolis_accept(&minres, &self.incumbent, rng);
             self.step_taking.report(accept);
             let mut new_global_min = false;

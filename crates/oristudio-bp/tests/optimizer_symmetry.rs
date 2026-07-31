@@ -9,9 +9,9 @@
 
 use oristudio_bp::model::GridType;
 use oristudio_bp::optimizer::kernel::{
-    KernelFlap, KernelHierarchy, KernelSymmetry, OptimizerSheet, get_scale,
-    greedy_solve_integer_symmetric, pack_rssl, pack_rssl_symmetric, setup_initial_scale,
-    symmetrize,
+    KernelFlap, KernelHierarchy, KernelSymmetry, OptimizerSheet, basin_hopping_rssl_with_progress,
+    basin_hopping_symmetric_with_progress, get_scale, greedy_solve_integer_symmetric, pack_rssl,
+    pack_rssl_symmetric, setup_initial_scale, symmetrize,
 };
 use oristudio_bp::optimizer::{OptimizerSymmetry, SymmetryAxis, SymmetryPreset};
 
@@ -476,4 +476,81 @@ fn diagonal_sheets_fit_symmetrically_too() {
             );
         }
     }
+}
+
+// ------------------------------------------------------- basin hopping / random
+
+#[test]
+fn basin_hopping_stays_on_the_symmetry_manifold() {
+    let hierarchy = star(&[(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0, 0), (5, 0, 0)], 8);
+    for axis in AXES {
+        let resolved = KernelSymmetry::from_request(
+            &symmetry(axis, &[(1, 2), (2, 1), (3, 4), (4, 3), (5, 5)]),
+            &hierarchy,
+        )
+        .unwrap();
+        let x = spread_start(&hierarchy);
+        let packed = basin_hopping_symmetric_with_progress(
+            x,
+            &hierarchy,
+            7,
+            &mut || false,
+            &mut |_| {},
+            Some(&resolved),
+        )
+        .expect("basin hopping runs");
+        assert!(packed.success, "{axis:?}: {:?}", packed.status);
+        let error = symmetry_error(&packed.x, &hierarchy, &resolved);
+        assert!(
+            error < 1e-6,
+            "{axis:?}: basin hopping drifted off the manifold (error {error:e})"
+        );
+    }
+}
+
+#[test]
+fn basin_hopping_without_symmetry_is_unchanged() {
+    let hierarchy = star(&[(1, 0, 0), (2, 0, 0), (3, 0, 0)], 8);
+    let x = spread_start(&hierarchy);
+    let plain =
+        basin_hopping_rssl_with_progress(x.clone(), &hierarchy, 11, &mut || false, &mut |_| {})
+            .unwrap();
+    let none =
+        basin_hopping_symmetric_with_progress(x, &hierarchy, 11, &mut || false, &mut |_| {}, None)
+            .unwrap();
+    assert_eq!(plain, none);
+}
+
+#[test]
+fn basin_hopping_does_not_lose_to_a_single_solve() {
+    // Symmetry should not make the search worse: with the same start, a
+    // basin-hopping run must be at least as good as one plain solve.
+    let hierarchy = star(&[(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0, 0)], 8);
+    let resolved = KernelSymmetry::from_request(
+        &symmetry(
+            SymmetryAxis::VerticalHalf,
+            &[(1, 2), (2, 1), (3, 4), (4, 3)],
+        ),
+        &hierarchy,
+    )
+    .unwrap();
+    let mut x = spread_start(&hierarchy);
+    symmetrize(&mut x, &hierarchy, &resolved);
+    let single = pack_rssl_symmetric(x.clone(), &hierarchy, None, None, Some(&resolved)).unwrap();
+    let hopped = basin_hopping_symmetric_with_progress(
+        x,
+        &hierarchy,
+        3,
+        &mut || false,
+        &mut |_| {},
+        Some(&resolved),
+    )
+    .unwrap();
+    assert!(hopped.success && single.success);
+    assert!(
+        get_scale(&hopped.x) <= get_scale(&single.x) + 1e-9,
+        "basin hopping returned a worse sheet: {} vs {}",
+        get_scale(&hopped.x),
+        get_scale(&single.x)
+    );
 }
