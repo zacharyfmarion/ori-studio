@@ -10,6 +10,8 @@
     "check3": "頂点の折り可能性をチェック",
     "check4": "Maekawa/LBL をチェック",
     "checkCamv": "折り可能性をチェック",
+    "deleteExtraVertices": "余分な頂点を削除",
+    "deleteExtraVerticesIgnoreColor": "余分な頂点を削除（種類を無視）",
     "deleteLineType": "選択した線種を削除...",
     "deleteSelectedLines": "選択した線を削除",
     "diagnostics": "診断",

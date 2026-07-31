@@ -95,6 +95,19 @@ describe('shortcut registry', () => {
     expect(keyChordEquals({ key: 'DELETE' }, { key: 'delete' })).toBe(true);
   });
 
+  it('binds the same-type vertex sweep to the upstream chord, platform-aware', () => {
+    expect(getResolvedShortcut('cp.deleteExtraVertices')).toEqual({
+      primary: true,
+      shift: true,
+      key: 'v',
+    });
+    // `primary` is Cmd on macOS and Ctrl elsewhere; Oriedita's own
+    // hotkey.properties says `ctrl shift V` because it is a Java desktop app.
+    expect(
+      formatKeyChord({ primary: true, shift: true, key: 'v' }, { platform: 'mac' })
+    ).toBe('Cmd+Shift+V');
+  });
+
   it('keeps every shortcut id unique', () => {
     const ids = SHORTCUT_DEFINITIONS.map((definition) => definition.id);
     expect(new Set(ids).size).toBe(ids.length);

@@ -413,6 +413,10 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick target point', 'Pick parallel source crease', 'Pick destination crease'],
   }),
   ready('VertexDeleteOnCrease', 'Delete vertex on crease', 'select-edit', 'scan-x', 'MouseHandlerVertexDeleteOnCrease', {
+    // Hidden from the rail: too close to Delete point to tell apart at a glance,
+    // and the whole-document sweeps now cover the same intent. The kernel
+    // operation stays, so unhiding is a placement change.
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick vertex'],
     tooltip: 'Merge adjacent creases at a vertex with Oriedita color-change rules',
   }),
@@ -532,6 +536,10 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     }
   ),
   ready('CreaseDeleteOverlapping', 'Delete overlapping creases', 'select-edit', 'combine', 'MouseHandlerCreaseDeleteOverlapping', {
+    // Hidden from the rail: Delete intersecting creases is the superset (it
+    // takes overlapping *and* intersecting segments along the same drag), so
+    // two adjacent buttons differed by a distinction the icons cannot carry.
+    placement: 'hidden-ui-only',
     toolSteps: ['Pick drag start point', 'Pick drag end point'],
     tooltip: 'Delete crease segments overlapping a dragged line',
   }),
@@ -765,6 +773,29 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     placement: 'menu',
     tooltip: 'Split near T-intersections using Oriedita tolerances',
   }),
+  ready(
+    'DeleteExtraVertices',
+    'Delete Extra Vertices',
+    'check-fix',
+    'wrench',
+    'v_del_allAction',
+    {
+      placement: 'left-rail',
+      tooltip: 'Merge collinear crease pairs that meet at a vertex, when both are the same type',
+    }
+  ),
+  ready(
+    'DeleteExtraVerticesIgnoreColor',
+    'Delete Extra Vertices (Ignore Type)',
+    'check-fix',
+    'wrench',
+    'v_del_all_ccAction',
+    {
+      placement: 'menu',
+      tooltip:
+        'Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge',
+    }
+  ),
   ready('OrganizeCircles', 'Organize circles', 'annotations', 'circle-ellipsis', 'OrganizeCircles', {
     placement: 'menu',
     tooltip: 'Prune invalid zero-radius circles using Oriedita cleanup rules',
@@ -895,6 +926,8 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'Check4',
   'Fix1',
   'Fix2',
+  'DeleteExtraVertices',
+  'DeleteExtraVerticesIgnoreColor',
   'OrganizeCircles',
 ] as const;
 

@@ -238,6 +238,8 @@ export function getMenuBarDef(
           items: [
             { type: 'action', id: 'cp.fix1', label: t('menu:cp.fix1', 'Repair Overlaps') },
             { type: 'action', id: 'cp.fix2', label: t('menu:cp.fix2', 'Split T-junctions') },
+            { type: 'action', id: 'cp.deleteExtraVertices', label: t('menu:cp.deleteExtraVertices', 'Delete Extra Vertices'), shortcut: shortcut('cp.deleteExtraVertices', overrides) },
+            { type: 'action', id: 'cp.deleteExtraVerticesIgnoreColor', label: t('menu:cp.deleteExtraVerticesIgnoreColor', 'Delete Extra Vertices (Ignore Type)') },
             { type: 'action', id: 'cp.fixInaccurate', label: t('menu:cp.fixInaccurate', 'Fix Inaccurate Creases...') },
           ],
         },
