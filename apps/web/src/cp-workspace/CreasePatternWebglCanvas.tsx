@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createReglRenderer } from './renderer/reglRenderer';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
+import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
 import { isPrimaryModifier } from '../lib/platform';
 import {
   fitUserCamera,
@@ -2497,6 +2498,11 @@ export function CreasePatternWebglCanvas({
       canvas.setPointerCapture(e.pointerId);
     };
     const onPointerMove = (e: PointerEvent) => {
+      // Adopt the modifier state the pointer reports, as upstream does on every
+      // canvas mouseMoved (`Canvas.java:245`). Focus loss clears held modifiers
+      // because no keyup will arrive, which is right — except when the key is
+      // still down on return. Moving over the canvas is what corrects that.
+      syncHeldModifiersFromEvent(e);
       if (
         Math.abs(e.clientX - pressX) > CLICK_MOVE_THRESHOLD ||
         Math.abs(e.clientY - pressY) > CLICK_MOVE_THRESHOLD
