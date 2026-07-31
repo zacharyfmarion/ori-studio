@@ -618,8 +618,14 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     const vertex = findVertex(vertexId);
     if (!vertex) return;
     // A vertex on the mirror line is its own mirror. Dragging it off would break
-    // that silently, so while mirror draw is on it stays put.
-    if (symmetryView.isOnAxis(vertexId)) return;
+    // that silently, so while mirror draw is on it stays put. Cancel the pending
+    // canvas "add leaf" gesture the capture-phase handler armed: declining the
+    // drag means no pointer capture, so pointerup would otherwise reach the
+    // canvas and read this click as "add a leaf here".
+    if (symmetryView.isOnAxis(vertexId)) {
+      paperDownRef.current = null;
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragging({
       id: vertexId,
