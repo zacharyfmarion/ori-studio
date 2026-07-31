@@ -11,7 +11,7 @@ use oristudio_bp::model::GridType;
 use oristudio_bp::optimizer::kernel::{
     KernelFlap, KernelHierarchy, KernelSymmetry, OptimizerSheet, basin_hopping_rssl_with_progress,
     basin_hopping_symmetric_with_progress, get_scale, greedy_solve_integer_symmetric, pack_rssl,
-    pack_rssl_symmetric, setup_initial_scale, symmetrize,
+    pack_rssl_symmetric, rounded_exact, setup_initial_scale, symmetrize,
 };
 use oristudio_bp::optimizer::{OptimizerSymmetry, SymmetryAxis, SymmetryPreset};
 
@@ -553,4 +553,52 @@ fn basin_hopping_does_not_lose_to_a_single_solve() {
         get_scale(&hopped.x),
         get_scale(&single.x)
     );
+}
+
+#[test]
+fn fitted_layouts_with_dimensions_respect_the_rounded_distances() {
+    // A flap with width or height is not a disc: it is its rectangle inflated by
+    // the leaf radius, so separation is the per-axis interval distance rather
+    // than the distance between anchors. Checking anchors here would pass
+    // layouts whose flap boxes overlap.
+    let cases = [
+        (
+            SymmetryAxis::VerticalHalf,
+            star(&[(1, 6, 3), (2, 6, 3), (3, 0, 0), (4, 0, 0)], 10),
+        ),
+        (
+            SymmetryAxis::HorizontalHalf,
+            star(&[(1, 6, 3), (2, 6, 3), (3, 0, 0), (4, 0, 0)], 10),
+        ),
+        (
+            SymmetryAxis::MainDiagonal,
+            star(&[(1, 6, 3), (2, 3, 6), (3, 0, 0), (4, 0, 0)], 10),
+        ),
+        (
+            SymmetryAxis::AntiDiagonal,
+            star(&[(1, 6, 3), (2, 3, 6), (3, 0, 0), (4, 0, 0)], 10),
+        ),
+    ];
+    for (axis, hierarchy) in cases {
+        let resolved = KernelSymmetry::from_request(
+            &symmetry(axis, &[(1, 2), (2, 1), (3, 4), (4, 3)]),
+            &hierarchy,
+        )
+        .unwrap();
+        let output = fit(&hierarchy, &resolved);
+        let positions = output
+            .iter()
+            .map(|&value| f64::from(value))
+            .collect::<Vec<_>>();
+        for &(i, j, dist) in &hierarchy.dist_map {
+            let violation = rounded_exact(&positions, i, j, dist, &hierarchy.flaps);
+            assert!(
+                violation <= 1e-9,
+                "{axis:?}: flaps {} and {} are too close under the rounded metric \
+                 (dist^2 shortfall {violation})",
+                hierarchy.flaps[i].id,
+                hierarchy.flaps[j].id
+            );
+        }
+    }
 }
