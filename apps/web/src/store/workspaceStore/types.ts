@@ -117,21 +117,6 @@ export interface OristudioCpActionRequest {
   operationId: OristudioCpOperationId;
 }
 
-/**
- * A one-shot "frame this diagnostic" request, raised the moment a diagnostic is
- * *activated* — a HUD row click, or a check command selecting its first issue.
- *
- * Separate from {@link CreasePatternSliceState.oristudioCpActiveDiagnosticId},
- * which is durable highlight state, because framing is an event: the camera must
- * move when the user asks for it and at no other time. Deriving the move from the
- * active id instead meant anything that re-derived the entry list — toggling
- * "Foldability issues" off and back on — replayed the zoom the user had panned
- * away from. The consumer clears it by `id` once handled.
- */
-export interface OristudioCpDiagnosticFocusRequest {
-  id: number;
-  diagnosticId: string;
-}
 
 export interface ProjectSliceState {
   project: TreeProject;
@@ -424,7 +409,6 @@ export interface CreasePatternSliceState {
    */
   oristudioCpActiveToolId: OristudioCpActionId | null;
   oristudioCpActiveDiagnosticId: string | null;
-  oristudioCpDiagnosticFocusRequest: OristudioCpDiagnosticFocusRequest | null;
   oristudioCpRevision: number;
   oristudioCpFoldedFigures: OristudioCpFoldedFigureEntry[];
   /**
@@ -568,7 +552,6 @@ export interface CreasePatternSliceActions {
   setOristudioCpActiveToolId: (id: OristudioCpActionId | null) => void;
   clearOristudioCpActionRequest: (id: number) => void;
   setOristudioCpActiveDiagnostic: (id: string | null) => void;
-  clearOristudioCpDiagnosticFocusRequest: (id: number) => void;
   foldOristudioCpDocument: (options?: {
     startingFaceId?: number;
     order?: OristudioCpEstimationOrder;

@@ -143,7 +143,7 @@ import {
   buildCpDiagnosticWedges,
   resolveCpDiagnosticToneColors,
 } from '../../cp-workspace/diagnostics/geometry';
-import { useCpDiagnosticFocus } from '../../cp-workspace/diagnostics/useCpDiagnosticFocus';
+import { visibleCpDiagnosticEntries } from '../../cp-workspace/diagnostics/visibleEntries';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
@@ -1405,23 +1405,12 @@ export function CreasePatternPanel() {
       : squareBisectorToolPrompt;
   const activeCpToolPrompt = measureToolPrompt;
   const lastCommandResult = oristudioCpDocument?.lastCommandResult ?? null;
-  const camvDiagnosticEntries = camvIssuesVisible
-    ? (oristudioCpCamvResult?.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES)
-    : EMPTY_DIAGNOSTIC_ENTRIES;
-  const latestCommandDiagnosticEntries =
-    lastCommandResult && isDiagnosticResultOperation(lastCommandResult.operation)
-      ? (lastCommandResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES)
-      : EMPTY_DIAGNOSTIC_ENTRIES;
-  const visibleLatestCommandDiagnosticEntries =
-    !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
-      ? EMPTY_DIAGNOSTIC_ENTRIES
-      : latestCommandDiagnosticEntries;
-  const latestDiagnosticEntries = useMemo(() => {
-    if (lastCommandResult?.operation === 'CheckCamv') return visibleLatestCommandDiagnosticEntries;
-    if (camvDiagnosticEntries.length === 0) return visibleLatestCommandDiagnosticEntries;
-    if (visibleLatestCommandDiagnosticEntries.length === 0) return camvDiagnosticEntries;
-    return [...camvDiagnosticEntries, ...visibleLatestCommandDiagnosticEntries];
-  }, [camvDiagnosticEntries, lastCommandResult?.operation, visibleLatestCommandDiagnosticEntries]);
+  // What the canvas is showing — the same rule the store applies when it decides
+  // whether a newly activated diagnostic is one the user can actually see.
+  const latestDiagnosticEntries = useMemo(
+    () => visibleCpDiagnosticEntries(oristudioCpCamvResult, lastCommandResult, camvIssuesVisible),
+    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult]
+  );
   // WebGL diagnostic overlay geometry (markers + segment highlights). Rebuilt when
   // the entries or theme change; the tone colours read the current theme's CSS vars.
   const cpDiagnosticGeometry = useMemo(() => {
@@ -1487,13 +1476,6 @@ export function CreasePatternPanel() {
     }
     return hudResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
   }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]);
-  // Frame a diagnostic when one is activated — a HUD row click, or a check command
-  // adopting its first issue. Deliberately not derived from the active id, so
-  // re-deriving the entry list (hiding and showing the CAMV overlay) leaves the
-  // camera alone.
-  useCpDiagnosticFocus(latestDiagnosticEntries, (bounds) =>
-    cpCamera()?.frameModelBounds(bounds)
-  );
   // The `selection_distance` every tool command carries, exposed to the canvas so a
   // destination pick is gated on the same radius the kernel searches.
   const cpToolSelectionDistance = useMemo(
