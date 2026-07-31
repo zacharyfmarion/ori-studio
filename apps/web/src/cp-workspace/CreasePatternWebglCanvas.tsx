@@ -3,7 +3,6 @@ import { createReglRenderer } from './renderer/reglRenderer';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
 import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
-import { isPrimaryModifier } from '../lib/platform';
 import {
   fitUserCamera,
   modelViewFromCamera,
@@ -2423,11 +2422,19 @@ export function CreasePatternWebglCanvas({
         // suppresses the browser's middle-click autoscroll.
         e.preventDefault();
         panning = true;
-      } else if (isPrimaryModifier(e) || liveRef.current.panToolActive) {
-        // The platform accel (Cmd on Apple, Ctrl elsewhere) pans, as does a
-        // plain drag while the hand tool is on. Folded figures are grabbed
-        // through the canvas-object overlay now, which sits above this canvas
-        // and takes the press first.
+      } else if (e.metaKey || liveRef.current.panToolActive) {
+        // Meta+drag pans, as does a plain drag while the hand tool is on. Folded
+        // figures are grabbed through the canvas-object overlay now, which sits
+        // above this canvas and takes the press first.
+        //
+        // `metaKey`, not the platform accel. This is upstream's rule verbatim --
+        // `Canvas.java:267` maps `isMetaDown()` to BUTTON2, whose handler pans --
+        // and it means the same thing in practice: Cmd on macOS, and off-Apple
+        // the Windows/Super key, which nobody drags with. Using the accel here
+        // instead would claim Ctrl+drag on Windows, and Ctrl belongs to crease
+        // colour inversion (see `useCpLineColorInversion`), which upstream also
+        // binds on every platform. Middle-button drag and the hand tool remain
+        // the pan affordances that work identically everywhere.
         e.preventDefault();
         panning = true;
         if (liveRef.current.panToolActive) setPanDragging(true);
