@@ -29,21 +29,11 @@ export const BP_TREE_SYMMETRY_TOLERANCE = 0.02;
  */
 export const BP_TREE_SYMMETRY_ANGLE = 90;
 
-/**
- * An ephemeral mirror pairing between two tree vertices (stored min-first).
- *
- * A pair whose two members are the same vertex declares it as sitting *on* the
- * axis, where it is its own mirror image. Without that there would be no way to
- * say so: a flap on the axis has no partner to pair with, and the optimizer
- * needs every flap accounted for before it will mirror a layout.
- */
+/** An ephemeral mirror pairing between two tree vertices (stored min-first). */
 export interface BpTreeSymmetryPair {
   v1: number;
   v2: number;
 }
-
-/** How a vertex participates in the mirror, if at all. */
-export type BpTreeSymmetryRole = 'paired' | 'on-axis';
 
 /** A vertex move, as the panel/store already model them. */
 export interface BpTreeVertexUpdate {
@@ -65,50 +55,28 @@ function vertexLoc(tree: OristudioBpTreeView, id: number): Point | null {
 }
 
 /**
- * Pair two vertices, or declare one on the axis by passing it as both.
- *
- * Either vertex may already be spoken for, so any pairing that mentions them is
- * dropped first — a vertex has exactly one mirror.
+ * Pair two vertices. Either may already be spoken for, so any pairing that
+ * mentions them is dropped first — a vertex has exactly one mirror.
  */
 export function addBpTreeSymmetryPair(
   pairs: BpTreeSymmetryPair[],
   a: number,
   b: number
 ): BpTreeSymmetryPair[] {
+  if (a === b) return pairs;
   const next = { v1: Math.min(a, b), v2: Math.max(a, b) };
-  const rest = pairs.filter(
-    (pair) => ![pair.v1, pair.v2].some((id) => id === a || id === b)
-  );
+  const rest = pairs.filter((pair) => ![pair.v1, pair.v2].some((id) => id === a || id === b));
   return [...rest, next];
 }
 
-/** Drop whatever pairing mentions this vertex. */
-export function removeBpTreeSymmetryPair(
-  pairs: BpTreeSymmetryPair[],
-  vertexId: number
-): BpTreeSymmetryPair[] {
-  return pairs.filter((pair) => pair.v1 !== vertexId && pair.v2 !== vertexId);
-}
-
-/** Whether a vertex is explicitly paired, on the axis, or neither. */
-export function bpTreeSymmetryRole(
-  pairs: BpTreeSymmetryPair[],
-  vertexId: number
-): BpTreeSymmetryRole | null {
-  const pair = pairs.find((entry) => entry.v1 === vertexId || entry.v2 === vertexId);
-  if (!pair) return null;
-  return pair.v1 === pair.v2 ? 'on-axis' : 'paired';
-}
-
-/**
- * Drop pairs that reference a removed vertex. Self-pairs are kept: they are how
- * a vertex is declared to sit on the axis.
- */
+/** Drop pairs that reference a removed vertex (or degenerated to a self-pair). */
 export function filterBpTreeSymmetryPairs(
   tree: OristudioBpTreeView,
   pairs: BpTreeSymmetryPair[]
 ): BpTreeSymmetryPair[] {
-  return pairs.filter((pair) => vertexExists(tree, pair.v1) && vertexExists(tree, pair.v2));
+  return pairs.filter(
+    (pair) => pair.v1 !== pair.v2 && vertexExists(tree, pair.v1) && vertexExists(tree, pair.v2)
+  );
 }
 
 /** The explicitly-paired counterpart of a vertex, if any. */

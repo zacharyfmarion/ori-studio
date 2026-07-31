@@ -96,7 +96,7 @@ describe('resolveOptimizerSymmetry', () => {
     const result = resolveOptimizerSymmetry(
       bugTree(),
       symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { allowInference: true, fold: 'book' }
+      { fold: 'book' }
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -111,26 +111,21 @@ describe('resolveOptimizerSymmetry', () => {
     expect(result.inconsistentPairs).toEqual([]);
   });
 
-  it('infers a partner from the current layout in view mode', () => {
-    const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), {
-      allowInference: true,
-      fold: 'book',
-    });
+  it('infers a partner from where the flap is drawn', () => {
+    // Read from the tree drawing, which random-layout mode leaves alone — it
+    // discards the packing, not the tree.
+    const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), { fold: 'book' });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(new Map(result.payload.partners).get(1)).toBe(2);
   });
 
-  it('refuses to infer when the current layout is about to be discarded', () => {
-    // Random-layout mode throws the current positions away, so inferring a
-    // pairing from them would be meaningless.
-    const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), {
-      allowInference: false,
-      fold: 'book',
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason).toContain('v1');
+  it('reads a flap drawn on the mirror line as its own mirror', () => {
+    // Drawing snaps a flap onto the line, so this needs no separate declaring.
+    const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), { fold: 'book' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(new Map(result.payload.partners).get(3)).toBe(3);
   });
 
   it('names the flaps it cannot resolve rather than assuming the axis', () => {
@@ -143,7 +138,7 @@ describe('resolveOptimizerSymmetry', () => {
     const result = resolveOptimizerSymmetry(
       lopsided,
       symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
-      { allowInference: false, fold: 'book' }
+      { fold: 'book' }
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -152,7 +147,6 @@ describe('resolveOptimizerSymmetry', () => {
 
   it('rejects an axis the optimizer cannot honour', () => {
     const offAngle = resolveOptimizerSymmetry(bugTree(), symmetryState({ angle: 30 }), {
-      allowInference: true,
       fold: 'book',
     });
     expect(offAngle.ok).toBe(false);
@@ -160,7 +154,7 @@ describe('resolveOptimizerSymmetry', () => {
     const offCentre = resolveOptimizerSymmetry(
       bugTree(),
       symmetryState({ loc: { x: 3, y: 4 }, pairs: [{ v1: 1, v2: 2 }] }),
-      { allowInference: true, fold: 'book' }
+      { fold: 'book' }
     );
     expect(offCentre.ok).toBe(false);
     if (offCentre.ok) return;
@@ -169,7 +163,6 @@ describe('resolveOptimizerSymmetry', () => {
 
   it('is inactive when symmetry is turned off', () => {
     const result = resolveOptimizerSymmetry(bugTree(), symmetryState({ enabled: false }), {
-      allowInference: true,
       fold: 'book',
     });
     expect(result.ok).toBe(false);
@@ -190,13 +183,8 @@ describe('resolveOptimizerSymmetry', () => {
     );
     const result = resolveOptimizerSymmetry(
       lopsided,
-      symmetryState({
-        pairs: [
-          { v1: 1, v2: 2 },
-          { v1: 3, v2: 3 },
-        ],
-      }),
-      { allowInference: false, fold: 'book' }
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
+      { fold: 'book' }
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -216,7 +204,7 @@ describe('on-axis declaration', () => {
           { v1: 3, v2: 3 },
         ],
       }),
-      { allowInference: false, fold: 'book' }
+      { fold: 'book' }
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;

@@ -31,7 +31,6 @@ import {
 import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
-  removeBpTreeSymmetryPair,
   buildMirroredBpTreeUpdates,
   bpTreeSymmetryDefaultLoc,
   filterBpTreeSymmetryPairs,
@@ -827,14 +826,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       if (!document) return 'failed';
 
       // Symmetry is resolved here rather than carried in the dialog options,
-      // because it depends on the tree as it stands right now. Inference from
-      // the current flap positions is only meaningful in view mode; random mode
-      // is about to discard them, so it needs pairs declared explicitly.
+      // because it is read from the tree as it stands right now.
       const symmetryState = get().oristudioBpSymmetry;
       let symmetry: OptimizerSymmetryPayload | null = null;
       if (options.respectSymmetry && symmetryState.enabled) {
         const resolved = resolveOptimizerSymmetry(document.snapshot.tree, symmetryState, {
-          allowInference: options.layoutMode === 'view',
           fold: options.symmetryFold,
         });
         if (!resolved.ok) {
@@ -872,30 +868,6 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         return 'applied';
       }
       return cancelled ? 'cancelled' : 'failed';
-    },
-
-    setOristudioBpTreeSymmetryPairing: (vertexIds) => {
-      const symmetry = get().oristudioBpSymmetry;
-      // One vertex declares itself on the axis, two declare each other mirrors,
-      // and an empty list clears whatever those vertices had.
-      let pairs = symmetry.pairs;
-      if (vertexIds.length === 1) {
-        pairs = addBpTreeSymmetryPair(pairs, vertexIds[0], vertexIds[0]);
-      } else if (vertexIds.length === 2) {
-        pairs = addBpTreeSymmetryPair(pairs, vertexIds[0], vertexIds[1]);
-      } else {
-        return;
-      }
-      set({ oristudioBpSymmetry: { ...symmetry, pairs } });
-    },
-
-    clearOristudioBpTreeSymmetryPairing: (vertexIds) => {
-      const symmetry = get().oristudioBpSymmetry;
-      const pairs = vertexIds.reduce(
-        (acc, id) => removeBpTreeSymmetryPair(acc, id),
-        symmetry.pairs
-      );
-      set({ oristudioBpSymmetry: { ...symmetry, pairs } });
     },
 
     setOristudioBpLayoutSheet: async (gridType, width, height) =>

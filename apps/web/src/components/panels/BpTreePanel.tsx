@@ -47,7 +47,6 @@ import {
   snapPointToSymmetryAxis,
 } from '../../lib/symmetryGeometry';
 import { useBpTreeSymmetry } from '../../hooks/useBpTreeSymmetry';
-import { BpSymmetryPairing } from './BpSymmetryPairing';
 import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristudioBpViewportSettings';
 import { clientPointToDesignWorld } from '../../lib/designViewport';
 import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
@@ -295,13 +294,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
-  const symmetryPairs = useWorkspaceStore((state) => state.oristudioBpSymmetry.pairs);
-  const setOristudioBpTreeSymmetryPairing = useWorkspaceStore(
-    (state) => state.setOristudioBpTreeSymmetryPairing
-  );
-  const clearOristudioBpTreeSymmetryPairing = useWorkspaceStore(
-    (state) => state.clearOristudioBpTreeSymmetryPairing
-  );
   const symmetry = useWorkspaceStore((state) => state.oristudioBpSymmetry);
   const addOristudioBpTreeLeafWithSymmetry = useWorkspaceStore(
     (state) => state.addOristudioBpTreeLeafWithSymmetry
@@ -311,17 +303,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   );
   const tree = document.snapshot.tree;
   const selectedVertexId = selection.kind === 'bp-vertex' ? selection.id : null;
-  // Mirror pairing works on flaps, so only leaf vertices count towards it.
-  const selectedLeafIds = useMemo(() => {
-    const ids =
-      selection.kind === 'bp-vertex'
-        ? [selection.id]
-        : selection.kind === 'bp-multi'
-          ? selection.vertices
-          : [];
-    const leaves = new Set(tree.vertices.filter((vertex) => vertex.isLeaf).map((v) => v.id));
-    return ids.filter((id) => leaves.has(id));
-  }, [selection, tree.vertices]);
   // The edge selected by clicking a tree segment — drives the length editor.
   const selectedEdge = useMemo(() => {
     const id = selection.kind === 'bp-edge' ? selection.id : null;
@@ -947,14 +928,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
           edge={selectedEdge}
           onSetLength={(length) => void setEdgeLength(selectedEdge, length)}
           onEscape={dismissSelection}
-        />
-      )}
-      {symmetryView.enabled && (
-        <BpSymmetryPairing
-          selectedVertexIds={selectedLeafIds}
-          pairs={symmetryPairs}
-          onPair={setOristudioBpTreeSymmetryPairing}
-          onClear={clearOristudioBpTreeSymmetryPairing}
         />
       )}
       {selectedFlapVertex && (

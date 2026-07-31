@@ -6813,27 +6813,3 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-warning, var(--text-secondary));
 }
 
-.bp-symmetry-pairing {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-popover);
-  z-index: 4;
-}
-
-.bp-symmetry-pairing__label {
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-}
-
-.bp-symmetry-pairing__actions {
-  display: flex;
-  gap: 4px;
-}

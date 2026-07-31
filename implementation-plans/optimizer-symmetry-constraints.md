@@ -185,10 +185,12 @@ This deletes the auto-detection work entirely. What remains is the adapter:
   leaf pairing to be a **total involution** before running. If some flaps are
   unpaired and not on the axis, name them and stop rather than silently
   optimizing a partial symmetry.
-- **Geometric inference is only trustworthy in view mode.** It reads the *current*
-  positions, so it is right when the layout is already roughly symmetric and
-  meaningless when it is not. In random-layout mode the current positions are
-  about to be discarded, so require explicit pairs there.
+- **Inference reads the tree drawing, and is valid in both layout modes.** An
+  earlier version of this plan gated it on view mode, reasoning that random mode
+  discards the current positions. That was wrong: random mode discards the
+  *packing*, not the tree, and the pairing is read from where flaps are drawn in
+  the tree. Gating it made random mode refuse to mirror anything and invented a
+  need for manual pairing UI that drawing already covers.
 - **Axis.** The optimizer can only honour the four axes of the square through the
   paper centre, because the sheet must share the layout's symmetry and the sheet
   size is a free variable. `symmetryPresets.ts` already distinguishes exactly
@@ -427,9 +429,13 @@ and it gets more awkward the more authoring we add.
 - [x] Dialog symmetry row: state, *Respect symmetry* toggle, reason, inconsistency hint
 - [x] Sheet-aware fold labels (book/diagonal swap by grid type)
 - [x] Four-axis picker in the BP tree panel's symmetry mode
-- [x] Pair two selected flaps; place one flap on the axis (self-pair), including
-      relaxing `addBpTreeSymmetryPair`
-- [x] Show which flaps are paired and which sit on the axis
+- [x] ~~Pair two selected flaps; place one flap on the axis~~ — dropped as
+      redundant. Drawing already says both things: mirror-draw records the pair,
+      and drawing on the mirror line snaps the flap onto it, which reads as its
+      own mirror. A properties panel for it was a second way to say the same
+      thing.
+- [x] ~~Show which flaps are paired and which sit on the axis~~ — dropped with
+      the above.
 - [x] i18n extract / translate / stamp / check
 - [x] Tests: resolver-to-slice wiring, dialog states, axis labelling per grid type
 - [ ] Browser check: view mode on a rect sheet, view mode on a diamond, random

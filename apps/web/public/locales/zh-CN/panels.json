@@ -62,16 +62,10 @@
     "width": "宽度"
   },
   "bpSymmetry": {
-    "clear": "清除",
     "fold": {
       "book": "对折",
       "diagonal": "对角折"
-    },
-    "isOnAxis": "位于对称轴上",
-    "isPaired": "与另一个角片镜像",
-    "onAxis": "放在对称轴上",
-    "pair": "将这两个设为镜像",
-    "title": "镜像配对"
+    }
   },
   "bpTree": {
     "canvas": "箱形褶皱树画布",
@@ -169,8 +163,8 @@
     "bringImageToFront": "将图像置于顶层",
     "buildingCreasePattern": "正在生成折痕图",
     "canvasDiagnostics": "画布诊断",
-    "case_other": "情形 {{count}}",
     "caseLabel": "情形",
+    "case_other": "情形 {{count}}",
     "changeFoldCase": "更改折叠情形",
     "changeFoldedColor": "更改折叠模型颜色",
     "changeFoldedDisplayStyle": "更改折叠显示样式",
@@ -201,6 +195,8 @@
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
+    "foldCase": "折叠情形",
+    "foldModelAction": "折叠模型",
     "foldability": {
       "compose": "{{lead}}：{{tail}}",
       "edgeLineConfiguration": "边界线配置无效",
@@ -221,7 +217,6 @@
         "triangle": "折痕数量不正确（奇数）"
       }
     },
-    "foldCase": "折叠情形",
     "foldedColor": {
       "back": "背面",
       "front": "正面",
@@ -229,8 +224,8 @@
     },
     "foldedDisplayStyle": "折叠显示样式",
     "foldedModelControls": "折叠模型控件",
-    "foldedModels": "折叠模型",
     "foldedModelSide": "折叠模型侧面",
+    "foldedModels": "折叠模型",
     "foldedState": {
       "back": "背面",
       "backShort": "B",
@@ -249,7 +244,6 @@
       "transparent": "透明",
       "wire": "线框"
     },
-    "foldModelAction": "折叠模型",
     "inlineSimulation": {
       "addAction": "添加模拟窗口",
       "canvasAriaLabel": "内嵌模拟。拖动可旋转。",
@@ -339,8 +333,8 @@
     "layerCircles": "圆",
     "layerLabels": "标签",
     "layerPaths": "路径",
-    "layers": "图层",
     "layerSymmetry": "对称",
+    "layers": "图层",
     "legendActivePath": "当前路径",
     "legendScale": "比例 {{value}}",
     "legendTerminal": "端点",
@@ -570,8 +564,8 @@
   "simulatorSegments": {
     "creasePatterns": "折痕图",
     "patternLabel": "折痕图 {{n}}",
-    "patterns": "折痕图",
-    "patternTitle_other": "折痕图 {{n}} — {{count}} 个面"
+    "patternTitle_other": "折痕图 {{n}} — {{count}} 个面",
+    "patterns": "折痕图"
   },
   "simulatorViewControls": {
     "axialStiffness": "拉伸",
@@ -584,18 +578,18 @@
     "colorPaper": "纸张",
     "colorStrain": "应变",
     "creaseLines": "折痕线",
-    "creases": "折痕",
     "creaseStiffness": "折痕",
     "creaseStyle": "样式",
     "creaseStyleColor": "山折 / 谷折",
     "creaseStyleMono": "单色",
     "creaseStyleMonoDashed": "单色虚线",
     "creaseWidth": "粗细",
+    "creases": "折痕",
     "damping": "阻尼",
     "export": "导出",
     "exportHint": "导出图像的页面背景。",
-    "faces": "面",
     "faceStiffness": "面",
+    "faces": "面",
     "hiddenLines": "隐藏线",
     "lighting": "光照",
     "material": "材质",
@@ -622,8 +616,8 @@
     "addText": "添加文本",
     "alignCenter": "居中对齐",
     "alignLeft": "左对齐",
-    "alignment": "对齐",
     "alignRight": "右对齐",
+    "alignment": "对齐",
     "blockBody": "正文",
     "blockHeading": "标题",
     "blockSubheading": "副标题",

@@ -115,15 +115,6 @@ function distanceKey(a: number, b: number): string {
 export interface ResolveOptimizerSymmetryOptions {
   /** Which fold of the paper the layout should be mirrored about. */
   fold: SymmetryFold;
-  /**
-   * Whether a flap with no explicitly declared partner may have one inferred from
-   * where it currently sits.
-   *
-   * Only safe in view mode. Inference reads the *current* positions, so it is
-   * right when the layout is already roughly symmetric and meaningless when the
-   * optimizer is about to discard those positions anyway.
-   */
-  allowInference: boolean;
 }
 
 export function resolveOptimizerSymmetry(
@@ -155,16 +146,13 @@ export function resolveOptimizerSymmetry(
   const partner = new Map<number, number>();
   const unresolved: number[] = [];
   for (const leaf of leaves) {
-    // A pair whose two members are the same flap declares it as sitting on the
-    // axis. Without that there would be no way to say so when inference is off,
-    // because a flap on the axis has no partner to pair with.
-    const explicit = symmetry.pairs.find((pair) => pair.v1 === leaf.id || pair.v2 === leaf.id);
-    let mirror: number | null = null;
-    if (explicit) {
-      mirror = explicit.v1 === leaf.id ? explicit.v2 : explicit.v1;
-    } else if (options.allowInference) {
-      mirror = mirrorBpTreeVertexId(tree, symmetry.pairs, axisSpec, leaf.id);
-    }
+    // Read from the tree drawing: a flap drawn with mirror-draw carries an
+    // explicit pair, and one drawn on the mirror line is its own mirror.
+    //
+    // This holds whichever layout method the run uses. Random mode discards the
+    // *packing*, not the tree, so the drawing is just as good a statement of
+    // intent there as it is in view mode.
+    const mirror = mirrorBpTreeVertexId(tree, symmetry.pairs, axisSpec, leaf.id);
     if (mirror == null || !leafIds.has(mirror)) {
       unresolved.push(leaf.id);
       continue;
@@ -179,8 +167,8 @@ export function resolveOptimizerSymmetry(
     return {
       ok: false,
       reason:
-        `Symmetry does not say what mirrors ${names}. Pair each flap with its ` +
-        'mirror, or place it on the axis.',
+        `Nothing mirrors ${names}. Draw each flap with mirror draw on so it gets ` +
+        'a partner, or move it onto the mirror line.',
     };
   }
 

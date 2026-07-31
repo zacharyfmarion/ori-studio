@@ -251,7 +251,9 @@ describe('symmetry row', () => {
       loc: { x: number; y: number };
       pairs: { v1: number; v2: number }[];
     }> = {},
-    sheetKind: 'rectangular' | 'diagonal' = 'rectangular'
+    sheetKind: 'rectangular' | 'diagonal' = 'rectangular',
+    // A leaf that is neither on the mirror line nor opposite another one.
+    stray = false
   ) {
     const sheet = { kind: sheetKind, width: 20, height: 20, grid: {} };
     useWorkspaceStore.setState({
@@ -270,6 +272,7 @@ describe('symmetry row', () => {
               { id: 0, name: 'root', loc: { x: 10, y: 10 }, isLeaf: false },
               { id: 1, name: 'a', loc: { x: 6, y: 12 }, isLeaf: true },
               { id: 2, name: 'b', loc: { x: 14, y: 12 }, isLeaf: true },
+              ...(stray ? [{ id: 3, name: 'c', loc: { x: 3, y: 4 }, isLeaf: true }] : []),
             ],
             edges: [
               { id: 0, vertices: [0, 1], length: 4 },
@@ -314,10 +317,9 @@ describe('symmetry row', () => {
   });
 
   it('explains why it cannot mirror instead of blocking the run', () => {
-    // Random mode discards the current positions, so with nothing declared the
-    // pairing cannot be resolved.
-    withTree();
-    openWith({ layoutMode: 'random' });
+    // A flap with no mirror drawn and not on the line cannot be accounted for.
+    withTree({}, 'rectangular', true);
+    openWith({ layoutMode: 'view' });
     renderModal();
     expect(text()).toMatch(/mirrors/i);
     const run = findButton('Run!');
@@ -325,8 +327,8 @@ describe('symmetry row', () => {
   });
 
   it('does not ask the solver to mirror when it cannot be resolved', async () => {
-    withTree();
-    openWith({ layoutMode: 'random', respectSymmetry: true });
+    withTree({}, 'rectangular', true);
+    openWith({ layoutMode: 'view', respectSymmetry: true });
     const spy = optimizeSpy();
     renderModal();
     await act(async () => {

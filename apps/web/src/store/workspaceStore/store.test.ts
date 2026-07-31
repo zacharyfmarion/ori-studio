@@ -5546,17 +5546,31 @@ describe('workspace store slices', () => {
     it('refuses to run rather than silently dropping an unusable symmetry', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      const tree = useWorkspaceStore.getState().oristudioBpDocument!.snapshot.tree;
-      // Random mode discards the current positions, so it cannot infer a pairing
-      // from them; with nothing declared the run must fail loudly.
+      const document = useWorkspaceStore.getState().oristudioBpDocument!;
+      const tree = document.snapshot.tree;
+      // A leaf that is neither on the mirror line nor opposite another one has
+      // no mirror to give, so the run must say so rather than quietly drop it.
       useWorkspaceStore.setState({
+        oristudioBpDocument: {
+          ...document,
+          snapshot: {
+            ...document.snapshot,
+            tree: {
+              ...tree,
+              vertices: [
+                ...tree.vertices,
+                { ...tree.vertices[1], id: 99, name: 'stray', loc: { x: 3, y: 4 } },
+              ],
+            },
+          },
+        },
         oristudioBpSymmetry: {
           enabled: true,
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [],
         },
-      });
+      } as never);
 
       await expect(
         useWorkspaceStore.getState().optimizeOristudioBpLayout({
@@ -5573,7 +5587,7 @@ describe('workspace store slices', () => {
       expect(useWorkspaceStore.getState().oristudioBpError).toMatch(/mirrors/i);
     });
 
-    it('lets declared pairs unblock random mode, which cannot infer them', async () => {
+    it('mirrors in random mode too, since that discards the packing not the tree', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
       const tree = useWorkspaceStore.getState().oristudioBpDocument!.snapshot.tree;
@@ -5583,12 +5597,10 @@ describe('workspace store slices', () => {
           enabled: true,
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
-          pairs: [],
+          pairs: [{ v1: leaves[0], v2: leaves[1] }],
         },
       });
 
-      // Declaring the pairing is what makes random mode possible at all.
-      useWorkspaceStore.getState().setOristudioBpTreeSymmetryPairing(leaves);
       bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
         document: sampleBpDocument(),
         eventCount: 0,
@@ -5610,16 +5622,6 @@ describe('workspace store slices', () => {
       expect((call[0] as { symmetry: unknown }).symmetry).not.toBeNull();
     });
 
-    it('records a single flap as sitting on the axis', () => {
-      useWorkspaceStore.setState({
-        oristudioBpSymmetry: { enabled: true, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
-      });
-      useWorkspaceStore.getState().setOristudioBpTreeSymmetryPairing([7]);
-      expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([{ v1: 7, v2: 7 }]);
-
-      useWorkspaceStore.getState().clearOristudioBpTreeSymmetryPairing([7]);
-      expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([]);
-    });
 
     it('leaves the document and history untouched when the optimizer is cancelled', async () => {
       useWorkspaceStore.getState().startNewDesign();

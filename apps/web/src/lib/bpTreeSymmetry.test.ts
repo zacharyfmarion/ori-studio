@@ -4,11 +4,9 @@ import type { Point } from './geometry';
 import type { SymmetryAxis } from './symmetryGeometry';
 import {
   addBpTreeSymmetryPair,
-  bpTreeSymmetryRole,
   buildMirroredBpTreeUpdates,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
-  removeBpTreeSymmetryPair,
 } from './bpTreeSymmetry';
 
 // A vertical axis through x = 4 (centre of an 8×8 sheet), mirroring left/right.
@@ -115,39 +113,15 @@ describe('pair bookkeeping', () => {
 });
 
 describe('mirror pairing', () => {
-  it('records a flap on the axis as a pair with itself', () => {
-    // A flap on the axis has no partner to pair with, so this is the only way to
-    // say it is its own mirror image.
-    const pairs = addBpTreeSymmetryPair([], 5, 5);
-    expect(pairs).toEqual([{ v1: 5, v2: 5 }]);
-    expect(bpTreeSymmetryRole(pairs, 5)).toBe('on-axis');
-  });
-
   it('gives a vertex exactly one mirror', () => {
     let pairs = addBpTreeSymmetryPair([], 1, 2);
     pairs = addBpTreeSymmetryPair(pairs, 2, 3);
     expect(pairs).toEqual([{ v1: 2, v2: 3 }]);
-    expect(bpTreeSymmetryRole(pairs, 1)).toBeNull();
-    expect(bpTreeSymmetryRole(pairs, 2)).toBe('paired');
   });
 
-  it('replaces an on-axis declaration when the flap is paired instead', () => {
-    let pairs = addBpTreeSymmetryPair([], 4, 4);
-    pairs = addBpTreeSymmetryPair(pairs, 4, 7);
-    expect(pairs).toEqual([{ v1: 4, v2: 7 }]);
-  });
-
-  it('clears whatever pairing a vertex had', () => {
-    const pairs = removeBpTreeSymmetryPair(addBpTreeSymmetryPair([], 1, 2), 1);
-    expect(pairs).toEqual([]);
-  });
-
-  it('keeps on-axis declarations when pruning to existing vertices', () => {
-    const t = tree([vertex(0, 4, 4), vertex(1, 2, 6)]);
-    const pairs = [
-      { v1: 1, v2: 1 },
-      { v1: 1, v2: 9 },
-    ];
-    expect(filterBpTreeSymmetryPairs(t, pairs)).toEqual([{ v1: 1, v2: 1 }]);
+  it('ignores a vertex paired with itself', () => {
+    // On-axis is read from the drawing, not declared: a flap drawn on the mirror
+    // line snaps onto it and is inferred as its own mirror.
+    expect(addBpTreeSymmetryPair([], 5, 5)).toEqual([]);
   });
 });

@@ -106,24 +106,17 @@ export function BpOptimizerModal() {
     [t]
   );
 
-  /**
-   * What the dialog can say about symmetry right now.
-   *
-   * Resolution depends on the layout method, because inferring a flap's mirror
-   * from where it currently sits only means something in view mode — random
-   * mode is about to throw those positions away.
-   */
+  /** What the dialog can say about symmetry right now. */
   const symmetry = useMemo(() => {
     if (!symmetryState.enabled || !tree) return { mode: 'off' as const };
     const resolved = resolveOptimizerSymmetry(tree, symmetryState, {
-      allowInference: options.layoutMode === 'view',
       fold: options.symmetryFold,
     });
     if (!resolved.ok) {
       return { mode: 'unusable' as const, reason: resolved.reason };
     }
     return { mode: 'ready' as const, inconsistent: resolved.inconsistentPairs.length };
-  }, [options.layoutMode, options.symmetryFold, symmetryState, tree]);
+  }, [options.symmetryFold, symmetryState, tree]);
 
   useEffect(() => {
     if (!isOpen) return;
