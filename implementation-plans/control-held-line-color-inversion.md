@@ -342,11 +342,13 @@ command, so inversion is entirely a frontend derivation.
 
 ## Checklist
 
-- [ ] Phase 1 — `heldModifiers.ts` + tests; installed from `App.tsx`
-- [ ] Phase 2 — `toggledCpLineColor` promoted to `oristudioCpPalette.ts`, caller re-pointed, palette-wide test
-- [ ] Phase 3 — `useCpLineColorInversion` + `isLineColorInversionModifier` + tests
-- [ ] Phase 4 — five panel read sites switched to the derived colour
-- [ ] Phase 5 — `pointermove` resync on the CP canvas
-- [ ] Phase 6a — `dragShift` reduced to `e.shiftKey` (own commit)
+- [x] Phase 1 — `heldModifiers.ts` + tests; installed from `App.tsx`
+- [x] Phase 2 — `toggledCpLineColor` promoted to `oristudioCpPalette.ts`, caller re-pointed, palette-wide test
+- [x] Phase 3 — `useCpLineColorInversion` + `isLineColorInversionModifierHeld` + tests
+- [x] Phase 4 — five panel read sites switched to the derived colour
+- [x] Phase 5 — `pointermove` resync on the CP canvas
+- [x] Phase 6a — `dragShift` reduced to `e.shiftKey` (own commit)
 - [ ] Phase 6b — non-Apple pan modifier resolved per the decision above (own commit)
-- [ ] Phase 7 — tsc / vitest / lint green; browser checklist walked, including the WKWebView Ctrl+click probe
+- [x] Phase 7 — tsc / vitest / lint green (1659 web tests); rail swap, Edge/Auxiliary no-op,
+      blur reset and text-field suppression all verified in-browser
+- [ ] Phase 7 (remaining) — the WKWebView Ctrl+click probe, on the Tauri desktop build
