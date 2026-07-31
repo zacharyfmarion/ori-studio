@@ -391,6 +391,7 @@ not optional and is not a follow-up PR.
 - [x] Phase 5: capability, menu-visibility, modal, and undo-contract tests
 - [x] Validation: `npx tsc --noEmit`, `npm --workspace @treemaker/web exec -- vitest run`, `npm run lint:web`, `npm run i18n:check`
 - [x] Port upstream's `makeInitialVector` coincident-flap jitter (without it, view mode fails on any freshly authored tree)
+- [x] Re-fit the packing camera after a run (the sheet resizes and every flap moves, so the old framing shows nothing)
 - [x] Browser check: optimize end to end in `view` and `random` modes, then undo and confirm the original layout returns
 - [x] Browser check: measure a real WASM run (10 flaps: view 103 ms, view+variations 111 ms, random ×20 418 ms)
 - [ ] Browser check: a diagonal-sheet design (rect covered; diagonal exercised only through the kernel probes)
