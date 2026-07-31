@@ -1637,7 +1637,9 @@ export function CreasePatternWebglCanvas({
     // Active draw-tool drag: a runtime wrapping the active input mode's pure
     // engine, created on pointer-down and driven by feedTool.
     let drawing = false;
-    // Modifier held when the current drag began, for additive box selection.
+    // Shift held when the current drag began, for additive box selection. Shift
+    // alone, matching the click and box select paths below — and leaving Ctrl
+    // free to mean crease-colour inversion, its meaning upstream.
     let dragShift = false;
     let toolRuntime: ToolRuntime | null = null;
     /**
@@ -2467,7 +2469,7 @@ export function CreasePatternWebglCanvas({
           liveRef.current.resolveDrawPoint(m, modelToleranceOf(SNAP_TOLERANCE_CSS)).snapped;
         if (endpointSnapped) {
           drawing = true;
-          dragShift = e.shiftKey || e.metaKey || e.ctrlKey;
+          dragShift = e.shiftKey;
           // drag-line runs on a persistent runtime (see drawRuntime); the others open
           // a fresh engine per gesture.
           if (toolMode !== 'drag-line') toolRuntime = createToolRuntime(toolEngineFor(toolMode));
