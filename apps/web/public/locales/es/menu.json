@@ -9,7 +9,7 @@
     "check2": "Comprobar uniones en T",
     "check3": "Comprobar plegabilidad de vértices",
     "check4": "Comprobar Maekawa/LBL",
-    "checkCamv": "Comprobar CAMV",
+    "checkCamv": "Comprobar plegabilidad",
     "deleteLineType": "Eliminar tipo de línea seleccionado...",
     "deleteSelectedLines": "Eliminar líneas seleccionadas",
     "diagnostics": "Diagnósticos",

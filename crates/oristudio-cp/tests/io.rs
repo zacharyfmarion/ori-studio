@@ -931,3 +931,94 @@ fn orh_import_export_preserves_folded_figure_color_metadata() {
     let imported = orh::import_orh_str(&output).expect("reimports exported orh");
     assert_eq!(imported.metadata, document.metadata);
 }
+
+/// Non-180 fold angles survive a FOLD round trip, in both directions.
+///
+/// This is the interchange gate for the feature: `.fold` is the only format that
+/// can carry a fold angle, so if this regresses there is nowhere for a non-flat
+/// design to go.
+#[test]
+fn fold_round_trips_non_180_angles() {
+    use oristudio_cp::geometry::FoldMagnitude;
+
+    let mut model = CreasePatternModel::default();
+    let cases: [(LineColor, Option<f64>, f64); 5] = [
+        // (colour, magnitude to set, expected signed edges_foldAngle)
+        (LineColor::Red1, Some(90.0), -90.0),
+        (LineColor::Blue2, Some(90.0), 90.0),
+        (LineColor::Red1, None, -180.0),
+        (LineColor::Blue2, Some(45.5), 45.5),
+        (LineColor::Red1, Some(0.0), 0.0),
+    ];
+    for (index, (color, degrees, _)) in cases.iter().enumerate() {
+        let offset = index as f64;
+        let magnitude = degrees.and_then(FoldMagnitude::from_degrees);
+        model.add_line_segment(
+            LineSegment::from_coordinates(0.0, offset, 100.0, offset)
+                .with_line_color(*color)
+                .with_fold_magnitude(magnitude),
+        );
+    }
+
+    let exported = fold::export_fold_document(&model, None);
+    let angles: Vec<f64> = exported
+        .edges_fold_angle
+        .iter()
+        .map(|value| value.expect("every crease exports an angle"))
+        .collect();
+    let expected: Vec<f64> = cases.iter().map(|(_, _, angle)| *angle).collect();
+    assert_eq!(angles, expected, "exported edges_foldAngle");
+
+    let reimported = fold::import_fold_document(&exported).expect("reimport");
+    for (index, (color, degrees, _)) in cases.iter().enumerate() {
+        let segment = &reimported.line_segments[index];
+        assert_eq!(segment.color, *color, "colour for case {index}");
+        let expected_magnitude = degrees
+            .and_then(FoldMagnitude::from_degrees)
+            .filter(|value| !value.is_full());
+        assert_eq!(
+            segment.fold_magnitude, expected_magnitude,
+            "magnitude for case {index}"
+        );
+    }
+}
+
+/// A FOLD stating an explicit +/-180 must import as a *classic* crease, so it
+/// stays byte-identical on the way back out and keeps taking the Oriedita path.
+#[test]
+fn fold_import_normalises_explicit_180_to_classic() {
+    let input = r#"{
+        "vertices_coords": [[0,0],[100,0],[0,100]],
+        "edges_vertices": [[0,1],[0,2]],
+        "edges_assignment": ["M","V"],
+        "edges_foldAngle": [-180.0, 180.0]
+    }"#;
+    let model = fold::import_fold_json(input).expect("valid fold");
+    for segment in &model.line_segments {
+        assert_eq!(
+            segment.fold_magnitude, None,
+            "explicit 180 must normalise to classic"
+        );
+    }
+}
+
+/// A crease whose angle contradicts its assignment keeps the Oriedita-derived
+/// colour and takes only the magnitude. Colour derivation is oracle-tested, so a
+/// malformed file must not be able to flip it.
+#[test]
+fn fold_import_takes_magnitude_only_when_the_sign_contradicts_the_assignment() {
+    let input = r#"{
+        "vertices_coords": [[0,0],[100,0]],
+        "edges_vertices": [[0,1]],
+        "edges_assignment": ["M"],
+        "edges_foldAngle": [90.0]
+    }"#;
+    let model = fold::import_fold_json(input).expect("valid fold");
+    let segment = &model.line_segments[0];
+    assert_eq!(segment.color, LineColor::Red1, "assignment wins the colour");
+    assert_eq!(
+        segment.fold_magnitude.map(|m| m.degrees()),
+        Some(90.0),
+        "magnitude is taken from |angle|"
+    );
+}

@@ -104,8 +104,10 @@ import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { freshEditableCpState } from '../freshCreasePattern';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
+import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
+  blockingExportLoss,
   collectExportLossWarnings,
   describeExportLoss,
   exportFormatLabel,
@@ -433,12 +435,6 @@ function isOrieditaOriFilename(filename: string): boolean {
 
 function isOrieditaOrhFilename(filename: string): boolean {
   return /\.orh$/i.test(filename);
-}
-
-function defaultFilename(title: string, extension: string): string {
-  const base = title.trim() || 'Untitled';
-  const safe = base.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'Untitled';
-  return ensureExtension(safe, extension);
 }
 
 function defaultNativeFilename(title: string): string {
@@ -866,7 +862,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       await clearOristudioCpKernelTexts();
     }
     const artifactRevision = get().foldArtifactRevision + 1;
-    const artifactState = readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
+    // A kernel-backed document derives its own fold artifacts from the kernel
+    // export, lazily via `ensureFoldArtifacts`. The importer's are in the
+    // importer's space -- `normalizePoints` squashes every geometry into the
+    // unit square -- so installing them here left the store believing the paper
+    // was 1x1 while the document said Oriedita's 400-space. Everything keyed on
+    // both then disagreed: region containment found nothing, and the recovery
+    // that papered over it re-segmented into a *third* region list. Marking the
+    // resource stale is what makes the first real request rebuild from the
+    // kernel.
+    const artifactState = oristudioCpDocument
+      ? staleFoldArtifactResourceState(get().foldArtifactRevision)
+      : readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
     set({
       ...discardCpDocumentState(),
       // Loading a document makes its editor the active view, so the derived
@@ -987,8 +994,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // Simulation faces are inferred in JS (no flat-folding), so multi-pattern
     // documents work.
     const result = parsed;
-    const artifactRevision = get().foldArtifactRevision + 1;
-    const artifactState = readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
+    // See the note on the other install site: a kernel-backed document's
+    // artifacts come from the kernel, never from the importer.
+    const artifactState = staleFoldArtifactResourceState(get().foldArtifactRevision);
     const originalSource = importedSourceFromNativeSource(nativeDocument.creasePattern.source);
     const importedDocument = originalSource
       ? { ...result.document, source: originalSource }
@@ -1278,8 +1286,35 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
+      lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
     });
     if (warnings.length === 0) return true;
+
+    // Some losses are refused rather than confirmed. Dropping an image still
+    // leaves a crease pattern that means what it meant; dropping a fold angle
+    // changes what the pattern *is*, and the re-imported file gives no hint that
+    // anything was lost. So there is no "export anyway" for those.
+    const blocking = blockingExportLoss(warnings);
+    if (blocking.length > 0) {
+      // A dead-end "OK" would leave the user where they started, so the
+      // affirmative button does the thing the message recommends: FOLD is the
+      // one interchange format that carries a fold angle. Re-entering the guard
+      // for `fold` is safe -- it is not in the blocking list, so this cannot
+      // recurse.
+      return requestConfirmation({
+        title: `Can’t export to ${exportFormatLabel(format)}`,
+        message: `The ${exportFormatLabel(
+          format
+        )} format can’t store ${describeExportLoss(blocking)}, and re-importing would silently read every crease as a full fold. FOLD stores them, and .osf keeps everything.`,
+        confirmLabel: 'Export FOLD instead',
+        cancelLabel: 'Cancel',
+      }).then(async (useFold) => {
+        if (useFold) await get().exportFold();
+        // Either way the requested format is not written.
+        return false;
+      });
+    }
+
     return requestConfirmation({
       title: 'Some features can’t be exported',
       message: `This project uses features the ${exportFormatLabel(

@@ -5,7 +5,6 @@ import {
   buildAssignmentByKey,
   pointInSegment,
   resolveCpSegments,
-  simulationFoldOf,
 } from './creasePatternSegmentation';
 import type { Point } from './geometry';
 import type { OristudioCpSelection } from './creasePatternViewport';
@@ -148,7 +147,8 @@ function segmentContainment(
       ? 'document-snapshot-changed'
       : 'segment-count-changed';
 
-  const fold = simulationFoldOf(artifacts);
+  // `segment.faceIndices` indexes the base fold (see `resolveCpSegments`).
+  const fold = artifacts.fold;
   const lineIds: number[][] = segments.map(() => []);
   const rim = segments.map((segment) => rimAssignmentCounts(fold, segment));
   const eligible = rim.map((counts) => counts.nonBorder === 0);
@@ -265,7 +265,7 @@ export function explainSelectedSegment(
     reason: 'matched',
     documentLines: document?.crease_pattern.line_segments.length ?? 0,
     selectedLines: selection.lines.length,
-    foldFaces: artifacts ? (simulationFoldOf(artifacts).faces_vertices?.length ?? 0) : 0,
+    foldFaces: artifacts ? (artifacts.fold.faces_vertices?.length ?? 0) : 0,
     segments: 0,
     regions: [],
   };

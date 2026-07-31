@@ -21,6 +21,7 @@
  * must stay in lockstep with the Rust enums.
  */
 import type { Point } from '../lib/geometry';
+import { FOLD_MAGNITUDE_CLASSIC } from '../lib/foldAngle';
 import type {
   OristudioCpCircle,
   OristudioCpDocumentSnapshot,
@@ -55,6 +56,15 @@ export interface CpGeometryTransport {
   segAttr: Int32Array;
   /** `[r, g, b]` per line segment (meaningful only when `customized`). */
   segCustomColor: Uint8Array;
+  /**
+   * Fold magnitude per line segment in kernel storage units, with
+   * `FOLD_MAGNITUDE_CLASSIC` for a classic ±180 crease.
+   *
+   * **Empty when no segment carries one** — the case for every
+   * Oriedita-compatible document. Empty means all-classic, not all-zero.
+   * May be absent entirely when talking to an older kernel.
+   */
+  segFoldMagnitude?: Uint32Array;
   auxEndpoints: Float64Array;
   auxAttr: Int32Array;
   auxCustomColor: Uint8Array;
@@ -147,7 +157,8 @@ export class CpGeometry {
       index,
       this.transport.segEndpoints,
       this.transport.segAttr,
-      this.transport.segCustomColor
+      this.transport.segCustomColor,
+      this.transport.segFoldMagnitude
     );
   }
 
@@ -214,12 +225,13 @@ function readSegment(
   index: number,
   endpoints: Float64Array,
   attr: Int32Array,
-  custom: Uint8Array
+  custom: Uint8Array,
+  foldMagnitude?: Uint32Array
 ): OristudioCpLineSegment {
   const e = index * 4;
   const a = index * SEG_ATTR_STRIDE;
   const c = index * 3;
-  return {
+  const segment: OristudioCpLineSegment = {
     a: { x: endpoints[e], y: endpoints[e + 1] },
     b: { x: endpoints[e + 2], y: endpoints[e + 3] },
     color: lineColorName(attr[a]),
@@ -228,6 +240,14 @@ function readSegment(
     customized: attr[a + 3],
     customized_color: rgb(custom, c),
   };
+  // Absent array, or the classic sentinel, both mean "full ±180 by colour" —
+  // and the field is left off entirely so a classic segment is structurally
+  // identical to what it was before fold angles existed.
+  const raw = foldMagnitude?.[index];
+  if (raw !== undefined && raw !== FOLD_MAGNITUDE_CLASSIC) {
+    segment.fold_magnitude = raw;
+  }
+  return segment;
 }
 
 /**

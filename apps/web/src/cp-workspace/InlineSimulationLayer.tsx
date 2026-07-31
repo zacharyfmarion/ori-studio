@@ -18,9 +18,11 @@ import {
   getInlineSimulationFoldPercent,
   getInlineSimulationSource,
   publishInlineSimulationFold,
+  registerInlineSimulationExporter,
   subscribeInlineSimulationSources,
   subscribeInlineSimulationFoldTarget,
 } from './inlineSimulation/inlineSimulationRuntime';
+import { useSimulatorViewExport } from '../simulator/useSimulatorViewExport';
 import {
   SimulatorViewport,
   type SimulatorViewportHandle,
@@ -478,6 +480,19 @@ function InlineSimulationWindow({
     if (!focused) return;
     replayRef.current();
   }, [replayRequest, focused]);
+
+  /**
+   * Offer this window's view to its floating toolbar, which is a sibling and
+   * cannot reach the runtime directly.
+   *
+   * Registered while mounted rather than only while focused: an unfocused window
+   * keeps its model loaded, so its view is still exportable.
+   */
+  const exportView = useSimulatorViewExport(runtime.exportSvg);
+  useEffect(
+    () => registerInlineSimulationExporter(simulation.id, exportView),
+    [exportView, simulation.id]
+  );
 
   // Keep the window's stored camera in step, so a refresh comes back where the
   // user was looking rather than at the default view.

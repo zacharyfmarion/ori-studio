@@ -7,5 +7,10 @@
   "global": {
     "error": "Ori Studio 오류",
     "folding": "접는 중…"
+  },
+  "simulatorExport": {
+    "empty": "이 시뮬레이션에는 아직 내보낼 것이 없습니다",
+    "failed": "이 보기를 내보낼 수 없습니다",
+    "saved": "{{name}} 내보냄"
   }
 }

@@ -281,6 +281,11 @@
       "tooltip": "활성 선 색상을 선택한 선에 적용",
       "disabledReason": "준비됨"
     },
+    "cp_action_crease_set_fold_angle": {
+      "label": "접기 각도 설정",
+      "tooltip": "선택한 접는 선이 얼마나 접힐지 설정합니다",
+      "disabledReason": "준비됨"
+    },
     "cp_action_background_change_position": {
       "label": "배경 이동",
       "tooltip": "배경 이미지 조작은 UI 전용이며 전개도 커널의 일부가 아닙니다",
@@ -854,8 +859,8 @@
       "disabledReason": "아직 전개도 편집기에 구현되지 않음"
     },
     "cp_action_check_camv": {
-      "label": "CAMV 확인",
-      "tooltip": "전개도를 변경하지 않고 Oriedita CAMV 평면 접힘 가능성 진단 실행",
+      "label": "접힘 가능성 검사",
+      "tooltip": "각 꼭짓점에서 접기를 방해하는 문제를 검사합니다(패턴은 변경하지 않음)",
       "disabledReason": "준비됨"
     },
     "cp_action_folding_estimate": {

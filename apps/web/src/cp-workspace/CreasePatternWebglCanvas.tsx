@@ -139,6 +139,9 @@ const EMPTY_IMAGES: readonly CpImage[] = [];
  * variable keeps the two renderers visually identical when toggling.
  */
 const CANVAS_BG_VAR = '--bg-primary';
+/** Hue a shallower fold shifts toward; see `foldAngle/foldAngleRamp.ts`. */
+const FOLD_ANGLE_ANCHOR_VAR = '--fold-angle-anchor';
+const FOLD_ANGLE_ANCHOR_FALLBACK: Rgba = [0.851, 0.275, 0.937, 1];
 
 /** Fallback if the CSS variable is missing (roughly a neutral dark panel). */
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
@@ -1042,11 +1045,32 @@ export function CreasePatternWebglCanvas({
       // path. The two builders are byte-identical (guarded by the parity gate), so
       // the structured fallback below is only for the rare state that carries no
       // geometry (e.g. a fixture); it never runs on a real edit.
+      // Hue a shallower crease shifts toward. Deliberately not the canvas
+      // colour: washing toward the background is what made lines read as
+      // thinner. See foldAngle/foldAngleRamp.ts.
+      const foldAngleAnchor = readCssVarColor(
+        document.documentElement,
+        FOLD_ANGLE_ANCHOR_VAR,
+        FOLD_ANGLE_ANCHOR_FALLBACK
+      );
       if (geometry) {
-        return cpGeometryStrokesToScene(geometry, appearanceFor, dashPatterns, selection, move)
-          .strokes;
+        return cpGeometryStrokesToScene(
+          geometry,
+          appearanceFor,
+          dashPatterns,
+          selection,
+          move,
+          foldAngleAnchor
+        ).strokes;
       }
-      return cpSnapshotToScene(lineSegments, appearanceFor, dashPatterns, selection, move).strokes;
+      return cpSnapshotToScene(
+        lineSegments,
+        appearanceFor,
+        dashPatterns,
+        selection,
+        move,
+        foldAngleAnchor
+      ).strokes;
     },
     // currentTheme drives DOM-resolved colours; rebuild callers on theme change.
     // eslint-disable-next-line react-hooks/exhaustive-deps

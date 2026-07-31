@@ -29,7 +29,6 @@ import {
 } from '../../keyboard/shortcuts';
 import type {
   OristudioCpCommandPayload,
-  OristudioCpCommandResult,
   OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
@@ -41,10 +40,12 @@ import type {
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
+import { CpDiagnosticGlyph } from '../../cp-workspace/diagnostics/CpDiagnosticGlyph';
+import { cpDiagnosticEntryMessage } from '../../cp-workspace/diagnostics/foldabilityMessages';
 import {
-  cpDiagnosticEntryMessage,
-  semanticCpDiagnosticKind,
-} from '../../lib/oristudioCpDiagnostics';
+  diagnosticHudStatus,
+  isDiagnosticResultOperation,
+} from '../../cp-workspace/diagnostics/hudStatus';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
   cpActionByOperation,
@@ -75,20 +76,14 @@ import {
   canvasToolOptionsFromOrieditaMetadata,
 } from '../../lib/orieditaNativeMetadata';
 import {
-  orieditaCameraFromMetadata,
-  orieditaCameraSvgScale,
-  orieditaObjectToSvg,
-  orieditaSvgToObject,
-} from '../../lib/orieditaCamera';
-import {
   CP_PAPER_RECT,
+  cpModelToSvg,
   cpSelectionSize,
-  cpSvgPointToModel,
+  cpSvgToModel,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   emptyOristudioCpSelection,
   getCpVertexPoints,
   getOrieditaGridBasis,
-  modelPointToCpSvg,
   nearestCpSnapTarget,
   nearestOrieditaDrawPointTarget,
   ORIEDITA_PAPER_BOUNDS,
@@ -127,6 +122,7 @@ import { CanvasObjectOverlay } from '../../cp-workspace/CanvasObjectOverlay';
 import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverlay';
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
+import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
@@ -195,6 +191,7 @@ import {
   readCpMeasurePreferences,
   writeCpMeasurePreferences,
 } from '../../cp-workspace/measurePreferences';
+import { ColorField } from '../ui/ColorField';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
@@ -306,19 +303,6 @@ function foldedColorLabel(t: TFunction, key: FoldedColorKey): string {
   }
 }
 
-function foldedColorAria(t: TFunction, key: FoldedColorKey): string {
-  switch (key) {
-    case 'front_color':
-      return t('panels:creasePattern.foldedColor.frontAria', 'Folded front color');
-    case 'back_color':
-      return t('panels:creasePattern.foldedColor.backAria', 'Folded back color');
-    case 'line_color':
-      return t('panels:creasePattern.foldedColor.lineAria', 'Folded line color');
-    default:
-      return key;
-  }
-}
-
 /**
  * The measure tool's per-step prompt. Literal `t()` keys so the i18n extractor
  * sees every prompt; the step list follows the kind (2 points / 3 with a vertex).
@@ -350,90 +334,6 @@ function measureSnapLabel(t: TFunction, kind: CpSnapTarget['kind'] | null): stri
   }
 }
 
-interface CpDiagnosticHudStatus {
-  label: string;
-  detail: string | null;
-  tone: 'ok' | 'warn' | 'error';
-}
-
-function diagnosticOperationLabel(t: TFunction, operation: string): string {
-  switch (operation) {
-    case 'CheckCamv':
-      return t('panels:creasePattern.diagnostic.camv', 'CAMV');
-    case 'Check1':
-      return t('panels:creasePattern.diagnostic.overlap', 'Overlap');
-    case 'Check2':
-      return t('panels:creasePattern.diagnostic.tJunction', 'T-junction');
-    case 'Check3':
-      return t('panels:creasePattern.diagnostic.vertexFoldability', 'Vertex foldability');
-    case 'Check4':
-      return t('panels:creasePattern.diagnostic.maekawaLbl', 'Maekawa/LBL');
-    case 'FlatFoldableCheck':
-      return t('panels:creasePattern.diagnostic.boundary', 'Boundary');
-    default:
-      return operation;
-  }
-}
-
-function diagnosticHudStatus(
-  t: TFunction,
-  result: OristudioCpCommandResult | null | undefined,
-  options: { issueOnly?: boolean } = {}
-): CpDiagnosticHudStatus | null {
-  if (!result || !isDiagnosticResultOperation(result.operation)) return null;
-  if (!result?.diagnostics.length) return null;
-  const entries = result.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  const label = diagnosticOperationLabel(t, result.operation);
-  const errorCount = entries.filter((entry) => entry.severity === 'error').length;
-  const warningCount = entries.filter((entry) => entry.severity === 'warning').length;
-  const detail =
-    entries.length === 1
-      ? entries[0]
-        ? cpDiagnosticEntryMessage(entries[0])
-        : result.diagnostics[0]
-      : result.diagnostics[0];
-
-  if (errorCount > 0) {
-    return {
-      label:
-        errorCount === 1
-          ? t('panels:creasePattern.diagnostic.errorOne', '{{count}} {{label}} Error', { count: errorCount, label })
-          : t('panels:creasePattern.diagnostic.errorOther', '{{count}} {{label}} Errors', { count: errorCount, label }),
-      detail,
-      tone: 'error',
-    };
-  }
-
-  if (warningCount > 0) {
-    return {
-      label:
-        warningCount === 1
-          ? t('panels:creasePattern.diagnostic.warningOne', '{{count}} {{label}} Warning', { count: warningCount, label })
-          : t('panels:creasePattern.diagnostic.warningOther', '{{count}} {{label}} Warnings', { count: warningCount, label }),
-      detail,
-      tone: 'warn',
-    };
-  }
-
-  if (options.issueOnly) return null;
-
-  return {
-    label: t('panels:creasePattern.diagnostic.ok', '{{label}} OK', { label }),
-    detail,
-    tone: 'ok',
-  };
-}
-
-function isDiagnosticResultOperation(operation: string): boolean {
-  return (
-    operation === 'Check1' ||
-    operation === 'Check2' ||
-    operation === 'Check3' ||
-    operation === 'Check4' ||
-    operation === 'CheckCamv' ||
-    operation === 'FlatFoldableCheck'
-  );
-}
 
 function modelSelectionDistance(
   bounds: CpModelBounds,
@@ -806,27 +706,21 @@ function FoldedFigureMenuButton({
           </div>
           <div className="folded-figure-menu__colors">
             {FOLDED_COLOR_FIELDS.map((field) => (
-              <label key={field.key} className="folded-figure-menu__color">
-                <span>{foldedColorLabel(t, field.key)}</span>
-                <input
-                  aria-label={foldedColorAria(t, field.key)}
-                  type="color"
-                  value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
-                  disabled={!activeReady}
-                  onChange={(event) =>
-                    onModelUpdate(
-                      { [field.key]: hexToRgbColor(event.currentTarget.value) },
-                      `color:${field.key}`
-                    )
-                  }
-                  onBlur={() =>
-                    onModelGestureEnd(
-                      `color:${field.key}`,
-                      t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
-                    )
-                  }
-                />
-              </label>
+              <ColorField
+                key={field.key}
+                label={foldedColorLabel(t, field.key)}
+                value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
+                disabled={!activeReady}
+                onChange={(value) =>
+                  onModelUpdate({ [field.key]: hexToRgbColor(value) }, `color:${field.key}`)
+                }
+                onCommit={() =>
+                  onModelGestureEnd(
+                    `color:${field.key}`,
+                    t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
+                  )
+                }
+              />
             ))}
           </div>
           <label className="folded-figure-menu__field">
@@ -1160,37 +1054,20 @@ export function CreasePatternPanel() {
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
-  const nativeCreasePatternCamera = useMemo(
-    () => orieditaCameraFromMetadata(editableCp?.metadata),
-    [editableCp?.metadata]
-  );
   const editableCpBounds = ORIEDITA_PAPER_BOUNDS;
-  const editableModelToSvg = useCallback(
-    (point: Point) =>
-      nativeCreasePatternCamera
-        ? orieditaObjectToSvg(point, nativeCreasePatternCamera)
-        : modelPointToCpSvg(point, editableCpBounds),
-    [editableCpBounds, nativeCreasePatternCamera]
-  );
-  const editableSvgToModel = useCallback(
-    (point: Point) =>
-      nativeCreasePatternCamera
-        ? orieditaSvgToObject(point, nativeCreasePatternCamera)
-        : cpSvgPointToModel(point, editableCpBounds),
-    [editableCpBounds, nativeCreasePatternCamera]
-  );
+  // `cpModelToSvg` / `cpSvgToModel`, not a document-derived affine: a file's
+  // saved Oriedita camera is a view, and baking it in here gave the canvas two
+  // disagreeing user spaces. See the note on `cpModelToSvg`.
+  const editableModelToSvg = cpModelToSvg;
+  const editableSvgToModel = cpSvgToModel;
   const editableCircleRadiusToSvg = useCallback(
-    (radius: number) => {
-      if (nativeCreasePatternCamera) {
-        return Math.max(1, radius * orieditaCameraSvgScale(nativeCreasePatternCamera).x);
-      }
-      return Math.max(
+    (radius: number) =>
+      Math.max(
         1,
         (radius / Math.max(editableCpBounds.spanX, editableCpBounds.spanY)) *
           Math.min(CP_PAPER_RECT.width, CP_PAPER_RECT.height)
-      );
-    },
-    [editableCpBounds, nativeCreasePatternCamera]
+      ),
+    [editableCpBounds]
   );
   const editableCpVisibleGrid = useMemo(
     () =>
@@ -2942,8 +2819,8 @@ export function CreasePatternPanel() {
                           key={entry.id}
                           onClick={() => handleSelectCpDiagnostic(entry.id)}
                         >
-                          <span>{semanticCpDiagnosticKind(entry.kind)}</span>
-                          <span>{cpDiagnosticEntryMessage(entry)}</span>
+                          <CpDiagnosticGlyph t={t} entry={entry} />
+                          <span>{cpDiagnosticEntryMessage(t, entry)}</span>
                         </button>
                       ))}
                     </div>
@@ -3093,6 +2970,7 @@ export function CreasePatternPanel() {
                       scale={cpMeasureScale}
                     />
                   )}
+                {webglOverlayView && <CpFoldAngleLayer lineSegments={editableCp?.crease_pattern.line_segments} />}
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}
@@ -3147,6 +3025,7 @@ export function CreasePatternPanel() {
                       inlineSimulations.scrub(focusedInlineSimulation.id, percent)
                     }
                     onReplay={inlineSimulations.replay}
+                    onExport={inlineSimulations.exportView}
                     onRefresh={() => inlineSimulations.refresh(focusedInlineSimulation.id)}
                     onDelete={() => inlineSimulations.remove(focusedInlineSimulation.id)}
                   />

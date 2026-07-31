@@ -1,14 +1,46 @@
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RotateCcw } from 'lucide-react';
+import type { TFunction } from 'i18next';
+import { ChevronRight, RotateCcw } from 'lucide-react';
 import {
+  SIMULATOR_CREASE_STYLES,
   SIMULATOR_SETTING_RANGES,
+  type SimulatorColorSettingKey,
+  type SimulatorCreaseStyle,
+  type SimulatorExportBackground,
   type SimulatorNumericSettingKey,
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
+import { simulatorStyleDefaults } from '../../simulator/simulatorPalette';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useThemeStore } from '../../store/themeStore';
+import { ColorField } from '../ui/ColorField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Slider } from '../ui/Slider';
 import { Toggle } from '../ui/Toggle';
+
+// Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
+function creaseStyleLabel(value: SimulatorCreaseStyle, t: TFunction): string {
+  switch (value) {
+    case 'color':
+      return t('panels:simulatorViewControls.creaseStyleColor', 'Mountain / valley');
+    case 'mono':
+      return t('panels:simulatorViewControls.creaseStyleMono', 'One ink');
+    case 'mono-dashed':
+      return t('panels:simulatorViewControls.creaseStyleMonoDashed', 'One ink, dashed');
+  }
+}
+
+function exportBackgroundLabel(value: SimulatorExportBackground, t: TFunction): string {
+  switch (value) {
+    case 'transparent':
+      return t('panels:simulatorViewControls.backgroundTransparent', 'Transparent');
+    case 'white':
+      return t('panels:simulatorViewControls.backgroundWhite', 'White');
+    case 'theme':
+      return t('panels:simulatorViewControls.backgroundTheme', 'Match theme');
+  }
+}
 
 /**
  * Options pane for the Simulate workspace, mirroring the Edit workspace's view
@@ -21,6 +53,33 @@ export function SimulatorViewControlsPanel() {
   const settings = useWorkspaceStore((state) => state.simulatorSettings);
   const setSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const resetMaterial = useWorkspaceStore((state) => state.resetSimulatorMaterial);
+  const resetStyle = useWorkspaceStore((state) => state.resetSimulatorStyle);
+  // What an unset colour actually resolves to, so a swatch shows the paper the
+  // user is looking at rather than a hardcoded guess. Keyed on the theme because
+  // that is what moves them.
+  const theme = useThemeStore((state) => state.currentTheme);
+  const styleDefaults = useMemo(
+    () =>
+      simulatorStyleDefaults(
+        typeof document === 'undefined' ? null : getComputedStyle(document.documentElement)
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [theme]
+  );
+  // A mono style paints every crease in the edge ink, so the per-kind swatches
+  // stop doing anything; showing them live would promise an effect they no
+  // longer have.
+  const monoCreases = settings.creaseStyle !== 'color';
+  const colorRow = (key: SimulatorColorSettingKey, label: string, disabled = false) => (
+    <ColorField
+      label={label}
+      layout="row"
+      value={settings[key] ?? styleDefaults[key]}
+      disabled={disabled}
+      onChange={(value) => setSetting(key, value)}
+      onClear={settings[key] === null ? undefined : () => setSetting(key, null)}
+    />
+  );
 
   return (
     <section className="panel-shell simulator-view-controls-panel">
@@ -114,7 +173,115 @@ export function SimulatorViewControlsPanel() {
         </Section>
 
         <Section
+          title={t('panels:simulatorViewControls.paper', 'Paper')}
+          collapsible
+          action={
+            <button
+              type="button"
+              className="simulator-view-controls-panel__reset"
+              title={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
+              aria-label={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
+              onClick={resetStyle}
+            >
+              <RotateCcw size={12} />
+            </button>
+          }
+        >
+          <div className="simulator-view-controls-panel__colors">
+            {colorRow('paperFront', t('panels:simulatorViewControls.paperFront', 'Front'))}
+            {colorRow('paperBack', t('panels:simulatorViewControls.paperBack', 'Back'))}
+          </div>
+        </Section>
+
+        <Section title={t('panels:simulatorViewControls.creases', 'Creases')} collapsible>
+          <div className="control-row">
+            <span className="control-row__label">
+              {t('panels:simulatorViewControls.creaseStyle', 'Style')}
+            </span>
+            <div className="control-row__value">
+              <Select
+                value={settings.creaseStyle}
+                onValueChange={(value) =>
+                  setSetting('creaseStyle', value as SimulatorCreaseStyle)
+                }
+              >
+                <SelectTrigger
+                  aria-label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
+                  className="simulator-view-controls-panel__select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SIMULATOR_CREASE_STYLES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {creaseStyleLabel(value, t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="simulator-view-controls-panel__colors">
+            {colorRow(
+              'mountainColor',
+              t('panels:simulatorViewControls.mountain', 'Mountain'),
+              monoCreases
+            )}
+            {colorRow(
+              'valleyColor',
+              t('panels:simulatorViewControls.valley', 'Valley'),
+              monoCreases
+            )}
+            {colorRow('borderColor', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
+          </div>
+          <SliderRow
+            settingKey="creaseWidth"
+            label={t('panels:simulatorViewControls.creaseWidth', 'Weight')}
+            settings={settings}
+            setSetting={setSetting}
+          />
+        </Section>
+
+        <Section
+          title={t('panels:simulatorViewControls.export', 'Export')}
+          collapsible
+          description={t(
+            'panels:simulatorViewControls.exportHint',
+            'Page background of an exported image.'
+          )}
+        >
+          <div className="control-row">
+            <span className="control-row__label">
+              {t('panels:simulatorViewControls.background', 'Background')}
+            </span>
+            <div className="control-row__value">
+              <Select
+                value={settings.exportBackground}
+                onValueChange={(value) =>
+                  setSetting('exportBackground', value as SimulatorExportBackground)
+                }
+              >
+                <SelectTrigger
+                  aria-label={t('panels:simulatorViewControls.background', 'Background')}
+                  className="simulator-view-controls-panel__select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(['transparent', 'white', 'theme'] as const).map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {exportBackgroundLabel(value, t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </Section>
+
+        <Section
           title={t('panels:simulatorViewControls.material', 'Material')}
+          collapsible
           description={t(
             'panels:simulatorViewControls.materialHint',
             'How the paper resists stretching and folding.'
@@ -165,6 +332,7 @@ export function SimulatorViewControlsPanel() {
 
         <Section
           title={t('panels:simulatorViewControls.solver', 'Solver')}
+          collapsible
           description={t(
             'panels:simulatorViewControls.solverHint',
             'Lower stability if a fold jitters or blows up.'
@@ -192,27 +360,70 @@ export function SimulatorViewControlsPanel() {
   );
 }
 
+/**
+ * One group of options.
+ *
+ * `collapsible` sections start closed, following `GridSettingsSection` in the
+ * Edit workspace's view pane — same chevron, same `data-open` hook, same
+ * component-local state rather than a persisted preference. Everything but
+ * Render is a set of controls most sessions never touch, and they should not
+ * push the ones that matter below the fold.
+ */
 function Section({
   title,
   description,
   action,
+  collapsible = false,
   children,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  collapsible?: boolean;
   children: React.ReactNode;
 }) {
-  return (
-    <div className="simulator-view-controls-panel__section">
-      <div className="simulator-view-controls-panel__section-header">
-        <span className="simulator-view-controls-panel__section-title">{title}</span>
-        {action}
-      </div>
+  const [open, setOpen] = useState(false);
+  const body = (
+    <>
       {description && (
         <p className="simulator-view-controls-panel__section-hint">{description}</p>
       )}
       {children}
+    </>
+  );
+
+  if (!collapsible) {
+    return (
+      <div className="simulator-view-controls-panel__section">
+        <div className="simulator-view-controls-panel__section-header">
+          <span className="simulator-view-controls-panel__section-title">{title}</span>
+          {action}
+        </div>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <div className="simulator-view-controls-panel__section" data-open={open || undefined}>
+      <div className="simulator-view-controls-panel__section-header">
+        <button
+          type="button"
+          className="simulator-view-controls-panel__section-toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <ChevronRight
+            size={13}
+            className="simulator-view-controls-panel__section-chevron"
+            aria-hidden="true"
+          />
+          <span className="simulator-view-controls-panel__section-title">{title}</span>
+        </button>
+        {/* The action only makes sense against controls you can see. */}
+        {open && action}
+      </div>
+      {open && body}
     </div>
   );
 }

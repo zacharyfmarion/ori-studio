@@ -38,6 +38,7 @@ import { cpPaletteEntryForColor } from '../../lib/oristudioCpPalette';
 import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
 import { copyTextToClipboard } from '../../lib/clipboardText';
+import { FoldAngleControl } from '../../cp-workspace/foldAngle/FoldAngleControl';
 import {
   CP_ANGLE_UNITS,
   CP_MEASURE_UNITS,
@@ -221,6 +222,9 @@ export function CpContextToolPanel({
               selection={selection}
             />
           ))}
+          {/* Selection-scoped, so it renders outside `groups` -- the active
+              tool does not decide whether you can set a fold angle. */}
+          <FoldAngleControl />
           {onApply && (
             <button
               className="cp-context-panel__apply"

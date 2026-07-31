@@ -225,7 +225,7 @@ export function getMenuBarDef(
           type: 'submenu',
           label: t('menu:cp.diagnostics', 'Diagnostics'),
           items: [
-            { type: 'action', id: 'cp.checkCamv', label: t('menu:cp.checkCamv', 'Check CAMV'), shortcut: shortcut('cp.checkCamv', overrides) },
+            { type: 'action', id: 'cp.checkCamv', label: t('menu:cp.checkCamv', 'Check foldability'), shortcut: shortcut('cp.checkCamv', overrides) },
             { type: 'action', id: 'cp.check1', label: t('menu:cp.check1', 'Check Overlaps') },
             { type: 'action', id: 'cp.check2', label: t('menu:cp.check2', 'Check T-junctions') },
             { type: 'action', id: 'cp.check3', label: t('menu:cp.check3', 'Check Vertex Foldability') },

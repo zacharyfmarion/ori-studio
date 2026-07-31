@@ -83,6 +83,117 @@ export function cameraUniforms(
   };
 }
 
+/**
+ * Vertices carried through the projection, in the two spaces the renderer uses.
+ *
+ * Flat typed arrays rather than an array of points: a dense model has tens of
+ * thousands of vertices, and this is indexed by triangle, so the objects would
+ * be pure allocation.
+ */
+export interface ProjectedVertices {
+  /**
+   * View-space `x, y, depth` per vertex, 3 floats each — the fragment shader's
+   * `v_view`, *before* the perspective divide. Face normals and lighting are
+   * computed from this, and `depth` is the painter's-order key: larger is nearer
+   * the eye, because the vertex shader writes `z = -depth/depthRange` under a
+   * `LEQUAL` depth test.
+   */
+  view: Float32Array;
+  /** Pixel-space `x, y` per vertex, 2 floats each, origin top-left. */
+  screen: Float32Array;
+  count: number;
+}
+
+export interface ProjectVerticesOptions {
+  /**
+   * Apply the one-point perspective divide. True (the default) matches the
+   * WebGL renderer, which is what a user with WebGL2 sees; false matches the
+   * canvas-2D fallback, which is orthographic — so a machine drawing through
+   * that path projects the way its own screen does.
+   */
+  perspective?: boolean;
+}
+
+/**
+ * The CPU mirror of `meshRenderer`'s vertex shader.
+ *
+ * Anything that has to reproduce the on-screen view without a GL context — the
+ * SVG exporter — must project exactly as the shader does or it is not the view
+ * the user composed. Keeping the one JS statement of that math here, beside the
+ * uniforms it consumes, is what makes the two testable against each other.
+ */
+export function projectVertices(
+  positions: Float32Array,
+  camera: CameraUniforms,
+  options: ProjectVerticesOptions = {}
+): ProjectedVertices {
+  const perspective = options.perspective ?? true;
+  const count = Math.floor(positions.length / 3);
+  const view = new Float32Array(count * 3);
+  const screen = new Float32Array(count * 2);
+
+  for (let vertex = 0; vertex < count; vertex += 1) {
+    const [x, y, depth] = toViewSpace(
+      positions[vertex * 3] ?? 0,
+      positions[vertex * 3 + 1] ?? 0,
+      positions[vertex * 3 + 2] ?? 0,
+      camera
+    );
+    view[vertex * 3] = x;
+    view[vertex * 3 + 1] = y;
+    view[vertex * 3 + 2] = depth;
+    const [sx, sy] = projectViewPoint([x, y, depth], camera, perspective);
+    screen[vertex * 2] = sx;
+    screen[vertex * 2 + 1] = sy;
+  }
+
+  return { view, screen, count };
+}
+
+/**
+ * World position to the shader's view space: centred, yawed about Y, then
+ * pitched. `depth` grows toward the eye.
+ */
+export function toViewSpace(
+  x: number,
+  y: number,
+  z: number,
+  camera: CameraUniforms
+): [number, number, number] {
+  const dx = x - camera.center[0];
+  const dy = y - camera.center[1];
+  const dz = z - camera.center[2];
+  const yawX = camera.cosYaw * dx + camera.sinYaw * dz;
+  const yawZ = -camera.sinYaw * dx + camera.cosYaw * dz;
+  return [
+    yawX,
+    camera.cosPitch * yawZ - camera.sinPitch * dy,
+    camera.sinPitch * yawZ + camera.cosPitch * dy,
+  ];
+}
+
+/**
+ * View space to pixels — the second half of the vertex shader.
+ *
+ * Exported because hidden-surface removal creates *new* view-space points by
+ * cutting triangles, and those have to reach the page through the same
+ * projection as the original vertices rather than a second copy of it.
+ */
+export function projectViewPoint(
+  view: readonly [number, number, number],
+  camera: CameraUniforms,
+  perspective = true
+): [number, number] {
+  // Eye at +camDist along the view axis: nearer points (larger depth) magnify
+  // and farther ones shrink, so receding parallels converge.
+  const persp = perspective ? camera.camDist / Math.max(camera.camDist - view[2], 0.001) : 1;
+  // NDC -> pixels. NDC y is up and pixel y is down, hence the subtraction.
+  return [
+    camera.width / 2 + view[0] * persp * camera.scale,
+    camera.height / 2 - view[1] * persp * camera.scale,
+  ];
+}
+
 /** Centroid (mean of vertex positions), matching SimulatorPanel's boundsCenter. */
 export function centroid(positions: Float32Array): [number, number, number] {
   let sx = 0;

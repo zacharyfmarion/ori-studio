@@ -9,7 +9,7 @@
     "check2": "T-Verbindungen prüfen",
     "check3": "Faltbarkeit der Ecken prüfen",
     "check4": "Maekawa/LBL prüfen",
-    "checkCamv": "CAMV prüfen",
+    "checkCamv": "Faltbarkeit prüfen",
     "deleteLineType": "Ausgewählten Linientyp löschen...",
     "deleteSelectedLines": "Ausgewählte Linien löschen",
     "diagnostics": "Diagnose",

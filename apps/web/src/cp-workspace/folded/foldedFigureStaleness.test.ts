@@ -339,3 +339,53 @@ describe('digest correctness', () => {
     expect(seen.size).toBe(2000);
   });
 });
+
+describe('fold angle is part of a crease\'s identity', () => {
+  // Colour used to be a crease's whole fold identity; it is now half of it, and
+  // this fingerprint was written when that was still true. Leaving the magnitude
+  // out made changing an angle invisible to the staleness check — a folded figure
+  // and an inline simulation both kept claiming to match creases they no longer
+  // did, because both derive from `foldedSourceFingerprint`.
+  const at = (degrees?: number) =>
+    line(0, 0, 100, 0, 'Red1', degrees === undefined ? {} : { fold_magnitude: degrees * 1e7 });
+
+  it('separates a classic crease from a folded one', () => {
+    expect(foldedSourceFingerprint([at()])).not.toBe(foldedSourceFingerprint([at(90)]));
+  });
+
+  it('separates two different angles', () => {
+    expect(foldedSourceFingerprint([at(90)])).not.toBe(foldedSourceFingerprint([at(45)]));
+  });
+
+  it('separates angles that differ by one storage unit', () => {
+    const a = line(0, 0, 100, 0, 'Red1', { fold_magnitude: 900000000 });
+    const b = line(0, 0, 100, 0, 'Red1', { fold_magnitude: 900000001 });
+    expect(foldedSourceFingerprint([a])).not.toBe(foldedSourceFingerprint([b]));
+  });
+
+  it('leaves a classic crease fingerprinting exactly as it did before the field existed', () => {
+    // **The property the whole fix rests on.** An absent magnitude appends
+    // nothing — not an empty field, which would leave a trailing separator — so
+    // a pattern of classic creases hashes to the same value this produced
+    // before `fold_magnitude` was added. That is what lets every fingerprint
+    // already written to a `.osf` keep matching, with no migration and no bump
+    // of the `cs1:` prefix.
+    //
+    // Pinned against a literal on purpose. Comparing against a freshly computed
+    // value would pass however the key changed, which is no test at all; this
+    // value was taken from the commit before `fold_magnitude` was added.
+    expect(foldedSourceFingerprint([at()])).toBe('cs1:43bb54e33dc24da6');
+  });
+
+  it('reports a figure stale when only a fold angle changed', () => {
+    const before = doc(SQUARE);
+    const figure = figureFrom(before, SQUARE_IDS);
+    expect(isFoldedFigureStale(before, figure)).toBe(false);
+
+    const after = doc([
+      ...SQUARE.slice(0, 4),
+      line(0, 0, 1, 1, 'Red1', { fold_magnitude: 90 * 1e7 }),
+    ]);
+    expect(isFoldedFigureStale(after, figure)).toBe(true);
+  });
+});

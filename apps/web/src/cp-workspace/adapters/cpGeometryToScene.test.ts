@@ -78,7 +78,12 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
   });
 
   const segmentsInput = () =>
-    structured.crease_pattern.line_segments.map((s) => ({ a: s.a, b: s.b, color: s.color }));
+    structured.crease_pattern.line_segments.map((s) => ({
+      a: s.a,
+      b: s.b,
+      color: s.color,
+      fold_magnitude: s.fold_magnitude,
+    }));
 
   it('plain (no selection, no move)', () => {
     expectStrokesEqual(
@@ -97,6 +102,38 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
       cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, selection).strokes,
       cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, selection).strokes
     );
+  });
+
+  it('with the fold-angle ramp applied', () => {
+    // The ramp reads the magnitude from a different place in each builder
+    // (`segFoldMagnitude` vs the segment object), so it needs its own gate.
+    const canvas: Rgba = [0.1, 0.12, 0.15, 1];
+    expectStrokesEqual(
+      cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, undefined, undefined, canvas)
+        .strokes,
+      cpGeometryStrokesToScene(
+        transport,
+        appearanceFor,
+        DASH_PATTERNS,
+        undefined,
+        undefined,
+        canvas
+      ).strokes
+    );
+  });
+
+  it('ramped output actually differs from unramped, so the gate is not vacuous', () => {
+    const canvas: Rgba = [0.1, 0.12, 0.15, 1];
+    const plain = cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS).strokes;
+    const ramped = cpGeometryStrokesToScene(
+      transport,
+      appearanceFor,
+      DASH_PATTERNS,
+      undefined,
+      undefined,
+      canvas
+    ).strokes;
+    expect(Array.from(ramped.color)).not.toEqual(Array.from(plain.color));
   });
 
   it('with an in-progress move-drag delta', () => {

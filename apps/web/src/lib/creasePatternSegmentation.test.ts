@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { FoldDocument } from '../engine/types';
+import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import {
   buildSegmentFold,
+  buildSegmentSimulationFold,
   pointInSegment,
+  resolveCpSegments,
   segmentFoldDocument,
   segmentThumbnailSvg,
+  simulationFacesForSegment,
 } from './creasePatternSegmentation';
 
 function unitSquare(offsetX: number, baseVertex: number): {
@@ -238,5 +241,90 @@ describe('cpThumbnailSvg', () => {
     expect(Math.min(...ys)).toBeLessThan(Math.max(...ys));
     // The first drawn edge starts at fold (0,0), which must be the topmost point.
     expect(Number(topEdge![2])).toBeCloseTo(Math.min(...ys), 5);
+  });
+});
+
+describe('regions are of the crease pattern, not of the simulation mesh', () => {
+  /** Two disjoint unit squares, one per region. */
+  function twoSquares(): FoldDocument {
+    const a = unitSquare(0, 0);
+    const b = unitSquare(2, 4);
+    return {
+      vertices_coords: [...a.coords, ...b.coords],
+      edges_vertices: [...a.edges, ...b.edges],
+      edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'B', 'B'],
+      faces_vertices: [a.face, b.face],
+    } as unknown as FoldDocument;
+  }
+
+  /**
+   * The same paper as a mesh: every quad split into two triangles, and one of
+   * them dropped the way `prepareFoldModel` drops a degenerate face. That drop
+   * is what used to renumber the region list, because segmenting the mesh saw a
+   * different partition from segmenting the crease pattern.
+   */
+  function meshOf(base: FoldDocument): FoldDocument {
+    const [a, b] = base.faces_vertices!;
+    return {
+      ...base,
+      // Paper in X-Z, as the simulator's folds are.
+      vertices_coords: base.vertices_coords!.map(([x, y]) => [x, 0, y]),
+      faces_vertices: [
+        [a![0]!, a![1]!, a![2]!],
+        [a![0]!, a![2]!, a![3]!],
+        [b![0]!, b![1]!, b![2]!],
+      ],
+    } as unknown as FoldDocument;
+  }
+
+  it('segments the crease pattern, so ids do not depend on the mesh', () => {
+    const fold = twoSquares();
+    const artifacts = {
+      fold,
+      simulation_model: { fold: meshOf(fold), crease_params: [] },
+    } as unknown as FoldArtifacts;
+
+    const segments = resolveCpSegments(artifacts);
+    expect(segments.map((segment) => segment.id)).toEqual([0, 1]);
+    // Both regions are still whole squares, not the mesh's three triangles.
+    expect(segments[0]!.bounds).toMatchObject({ minX: 0, maxX: 1 });
+    expect(segments[1]!.bounds).toMatchObject({ minX: 2, maxX: 3 });
+  });
+
+  it('bridges a region to the mesh by geometry, not by shared face index', () => {
+    const fold = twoSquares();
+    const mesh = meshOf(fold);
+    const artifacts = {
+      fold,
+      simulation_model: { fold: mesh, crease_params: [] },
+    } as unknown as FoldArtifacts;
+    const [left, right] = resolveCpSegments(artifacts);
+
+    // Region 0 is mesh triangles 0 and 1; region 1 is triangle 2. Sharing
+    // indices would have handed region 1 the mesh's *second* face, which is the
+    // other half of region 0's square.
+    expect(simulationFacesForSegment(mesh, left!)).toEqual([0, 1]);
+    expect(simulationFacesForSegment(mesh, right!)).toEqual([2]);
+
+    const rightFold = buildSegmentSimulationFold(artifacts, right!);
+    expect(rightFold.faces_vertices).toHaveLength(1);
+    for (const coord of rightFold.vertices_coords!) {
+      expect(coord[0]).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('yields no mesh faces when the region describes different paper', () => {
+    // The signal the store turns into "unavailable": artifacts in another
+    // coordinate space (an importer's unit square against a 400-space document)
+    // rather than a silently empty window.
+    const fold = twoSquares();
+    const mesh = meshOf(fold);
+    const elsewhere = resolveCpSegments({
+      fold: {
+        ...fold,
+        vertices_coords: fold.vertices_coords!.map(([x, y]) => [x! + 1000, y]),
+      },
+    } as unknown as FoldArtifacts)[0]!;
+    expect(simulationFacesForSegment(mesh, elsewhere)).toEqual([]);
   });
 });

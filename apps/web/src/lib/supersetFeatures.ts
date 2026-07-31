@@ -1,6 +1,8 @@
 import type { CpImage } from '../cp-workspace/images/cpImage';
 import type { TextAnnotation } from '../cp-workspace/annotations/textAnnotation';
 import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
+import type { OristudioCpLineSegment } from '../engine/oristudioCpTypes';
+import { isClassicCrease, isFoldingCrease } from './foldAngle';
 
 /**
  * Registry of *superset features* — capabilities Ori Studio's native `.osf`
@@ -30,6 +32,11 @@ export interface SupersetPresence {
    * no Oriedita format has anywhere to put either, so they are dropped whole.
    */
   inlineSimulations: readonly InlineSimulation[];
+  /**
+   * Crease line segments, for counting non-180 fold angles. Unlike the other
+   * entries this is sourced from kernel geometry rather than frontend state.
+   */
+  lineSegments: readonly OristudioCpLineSegment[];
 }
 
 interface SupersetFeature {
@@ -39,6 +46,17 @@ interface SupersetFeature {
   count(presence: SupersetPresence): number;
   /** Formats that cannot store this feature. */
   droppedByFormats: readonly ExportFormat[];
+  /**
+   * When true, a format that cannot store this feature is **refused** rather
+   * than offered with an "export anyway" confirmation.
+   *
+   * The distinction is whether losing the feature is recoverable. Images and
+   * rich text are decoration: the crease pattern still means what it meant, and
+   * the user still has the `.osf`. A dropped fold angle silently changes what
+   * the pattern *is* — re-import it and every crease reads as a full ±180, with
+   * nothing to indicate it was ever otherwise.
+   */
+  blocking?: boolean;
 }
 
 const ALL_LOSSY_FORMATS: readonly ExportFormat[] = [
@@ -51,6 +69,15 @@ const ALL_LOSSY_FORMATS: readonly ExportFormat[] = [
   'svg',
   'png',
 ];
+
+/**
+ * Formats that round-trip crease semantics and would therefore lose a fold
+ * angle silently. `.fold` carries `edges_foldAngle` and is lossless. `.svg` and
+ * `.png` are pictures — nobody re-imports them as a crease pattern, so there is
+ * no data to lose. `.dxf` and `.obj` both carry the crease colour and can be
+ * re-imported, so they belong here.
+ */
+const FOLD_ANGLE_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'ori', 'orh', 'dxf', 'obj'];
 
 const SUPERSET_FEATURES: readonly SupersetFeature[] = [
   {
@@ -71,12 +98,24 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     count: (presence) => presence.inlineSimulations.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
   },
+  {
+    id: 'foldAngles',
+    label: 'Non-flat fold angles',
+    count: (presence) =>
+      presence.lineSegments.filter(
+        (segment) => isFoldingCrease(segment.color) && !isClassicCrease(segment)
+      ).length,
+    droppedByFormats: FOLD_ANGLE_LOSSY_FORMATS,
+    blocking: true,
+  },
 ];
 
 export interface ExportLossWarning {
   id: string;
   label: string;
   count: number;
+  /** See {@link SupersetFeature.blocking}. */
+  blocking: boolean;
 }
 
 /**
@@ -91,7 +130,14 @@ export function collectExportLossWarnings(
   for (const feature of SUPERSET_FEATURES) {
     if (!feature.droppedByFormats.includes(format)) continue;
     const count = feature.count(presence);
-    if (count > 0) warnings.push({ id: feature.id, label: feature.label, count });
+    if (count > 0) {
+      warnings.push({
+        id: feature.id,
+        label: feature.label,
+        count,
+        blocking: feature.blocking === true,
+      });
+    }
   }
   return warnings;
 }
@@ -104,4 +150,11 @@ export function describeExportLoss(warnings: readonly ExportLossWarning[]): stri
 /** Uppercase label for an export format, for the warning copy. */
 export function exportFormatLabel(format: ExportFormat): string {
   return format.toUpperCase();
+}
+
+/** The warnings that make an export impossible rather than merely lossy. */
+export function blockingExportLoss(
+  warnings: readonly ExportLossWarning[]
+): ExportLossWarning[] {
+  return warnings.filter((warning) => warning.blocking);
 }

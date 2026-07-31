@@ -48,6 +48,19 @@ export interface SolverBackend {
   /** Per-vertex RGB strain colours, same contract as {@link readPositions}. */
   readColors(into: Float32Array): number;
 
+  /**
+   * Per-vertex mean axial strain as a fraction, one float each. Defined
+   * identically on both backends — the sum of `|current/rest - 1|` over the
+   * node's beams divided by their count, which is `velocityCalc`'s `nodeError`
+   * on the GPU. Returns the number of floats written.
+   *
+   * Separate from {@link readColors} because the colour ramp needs a clip
+   * threshold that belongs to the renderer, not the solver: the mesh renderer's
+   * `strainClip` is a render setting the user can change, so a backend that
+   * baked one in could not answer for the current view.
+   */
+  readStrain(into: Float32Array): number;
+
   readDiagnostics(): SimulatorDiagnostics;
 
   /**

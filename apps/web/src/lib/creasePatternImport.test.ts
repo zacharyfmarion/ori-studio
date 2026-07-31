@@ -305,3 +305,69 @@ describe('crease pattern import', () => {
     expect(orphans).toEqual([]);
   });
 });
+
+describe('non-180 fold angles survive import', () => {
+  // `.fold` is the only interchange format that can carry a fold angle, so the
+  // import path must not flatten one back to +/-180. `normalizeFoldAngles` falls
+  // back to the assignment default only when a value is missing -- never when a
+  // real angle is present.
+  it('keeps an explicit angle instead of the assignment default', () => {
+    const fold = {
+      vertices_coords: [
+        [0, 0],
+        [100, 0],
+        [0, 100],
+        [100, 100],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [0, 2],
+        [1, 3],
+      ],
+      edges_assignment: ['M', 'V', 'M'],
+      edges_foldAngle: [-90, 45.5, null],
+    };
+
+    const artifacts = foldArtifactsFromFold(fold as never);
+    const angles = artifacts.fold?.edges_foldAngle;
+
+    expect(angles?.[0]).toBe(-90);
+    expect(angles?.[1]).toBe(45.5);
+    // Missing value falls back to the assignment default, as before.
+    expect(angles?.[2]).toBe(-180);
+  });
+
+  it('carries the angle all the way into the simulation model', () => {
+    // End-to-end for Phase 2: kernel FOLD -> topology inference -> triangulation
+    // -> simulation fold. The simulator negates angles into its own space
+    // (SIMULATION_FOLD_ANGLE_SIGN), which is proportional, so magnitudes survive.
+    const fold = {
+      vertices_coords: [
+        [0, 0],
+        [100, 0],
+        [100, 100],
+        [0, 100],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 2],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'M'],
+      edges_foldAngle: [null, null, null, null, -90],
+    };
+
+    const artifacts = foldArtifactsFromFold(fold as never);
+    const simulated = artifacts.simulation_model?.fold.edges_foldAngle ?? [];
+    const magnitudes = simulated
+      .filter((angle): angle is number => typeof angle === 'number' && angle !== 0)
+      .map(Math.abs);
+
+    expect(magnitudes.length).toBeGreaterThan(0);
+    for (const magnitude of magnitudes) {
+      expect(magnitude).toBeCloseTo(90, 6);
+    }
+  });
+});

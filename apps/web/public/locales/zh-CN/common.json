@@ -24,7 +24,7 @@
     "changeCircleColor": "更改圆的颜色...",
     "changeCreaseType": "更改折痕类型",
     "changeSelectedCpLineTypes": "更改所选折痕图线型",
-    "checkCamv": "检查 CAMV",
+    "checkCamv": "检查可折叠性",
     "checkMaekawaAngleLblViolations": "检查 Maekawa、角度以及小大小（LBL）违规",
     "checkMaekawaLbl": "检查 Maekawa/LBL",
     "checkMaekawaVertexFoldability": "检查 Maekawa 及相关顶点平折性问题",
@@ -211,6 +211,10 @@
     "undoLastTreeEdit": "撤销上一步树编辑"
   },
   "close": "关闭",
+  "colorField": {
+    "reset": "重置为默认",
+    "resetNamed": "将 {{label}} 重置为默认"
+  },
   "toolbar": {
     "downloadMac": "下载 Mac 版 Ori Studio",
     "new": "新建",

@@ -24,7 +24,7 @@
     "changeCircleColor": "Changer la couleur du cercle...",
     "changeCreaseType": "Changer le type de pli",
     "changeSelectedCpLineTypes": "Changer les types de ligne du patron de plis sélectionnés",
-    "checkCamv": "Vérifier CAMV",
+    "checkCamv": "Vérifier la pliabilité",
     "checkMaekawaAngleLblViolations": "Vérifier les violations de Maekawa, d'angle et petit-grand-petit",
     "checkMaekawaLbl": "Vérifier Maekawa/LBL",
     "checkMaekawaVertexFoldability": "Vérifier Maekawa et les problèmes de pliabilité à plat des sommets associés",
@@ -211,6 +211,10 @@
     "undoLastTreeEdit": "Annuler la dernière modification de l'arbre"
   },
   "close": "Fermer",
+  "colorField": {
+    "reset": "Réinitialiser",
+    "resetNamed": "Réinitialiser {{label}}"
+  },
   "toolbar": {
     "downloadMac": "Télécharger Ori Studio pour Mac",
     "new": "Nouveau",

@@ -71,6 +71,20 @@ const resolvedSegmentCache = new WeakMap<FoldArtifacts, CpSegment[]>();
  * memoizes by artifacts identity so it runs at most once per fold. This keeps
  * the simulator and sidebar correct regardless of which import path produced
  * the artifacts (some paths do not carry worker-attached segments).
+ *
+ * Always segments {@link FoldArtifacts.fold}, never the simulation mesh. A
+ * region is a property of the crease pattern — an area walled off by border
+ * creases — and the mesh is a different partition of the same paper:
+ * triangulation splits faces and `prepareFoldModel` drops degenerate ones, which
+ * can break one region into several. Segmenting the mesh gave a *different
+ * region list with different ids* from the one the selection toolbar resolves
+ * against (23 vs 20 on a real worksheet), so the same integer meant one region
+ * to the caller and another to the store, and "simulate this pattern" opened a
+ * 14-unit sliver somewhere else. Ids are positional, so two segmentations of the
+ * same document must never coexist.
+ *
+ * Faces for the simulator come from {@link buildSegmentSimulationFold}, which
+ * bridges to the mesh by geometry instead of by index.
  */
 export function resolveCpSegments(artifacts: FoldArtifacts | null | undefined): CpSegment[] {
   if (!artifacts) return [];
@@ -79,12 +93,72 @@ export function resolveCpSegments(artifacts: FoldArtifacts | null | undefined): 
   if (cached) return cached;
   let segments: CpSegment[];
   try {
-    segments = segmentFoldDocument(simulationFoldOf(artifacts));
+    segments = segmentFoldDocument(artifacts.fold);
   } catch {
     segments = [];
   }
   resolvedSegmentCache.set(artifacts, segments);
   return segments;
+}
+
+/**
+ * The simulation-mesh faces belonging to a region, found by geometry.
+ *
+ * {@link CpSegment.faceIndices} indexes the fold the region was segmented from —
+ * the base fold. The mesh is a different partition (see
+ * {@link resolveCpSegments}), so the two cannot share indices and re-segmenting
+ * the mesh would reintroduce the very mismatch that motivated this. Geometry is
+ * the correspondence that survives: a mesh face belongs to the region containing
+ * its centroid, and the mesh is triangulated, so a triangle's centroid is always
+ * inside it.
+ */
+export function simulationFacesForSegment(
+  simulationFold: FoldDocument,
+  segment: CpSegment
+): number[] {
+  const faces = simulationFold.faces_vertices ?? [];
+  const coords = simulationFold.vertices_coords ?? [];
+  const axes = flatPlaneAxes(simulationFold);
+  const { minX, minY, maxX, maxY } = segment.bounds;
+  const kept: number[] = [];
+  for (let faceIndex = 0; faceIndex < faces.length; faceIndex += 1) {
+    const face = faces[faceIndex] ?? [];
+    if (face.length < 3) continue;
+    let sumX = 0;
+    let sumY = 0;
+    for (const vertex of face) {
+      const point = planePoint(coords[vertex], axes);
+      sumX += point.x;
+      sumY += point.y;
+    }
+    const centroid = { x: sumX / face.length, y: sumY / face.length };
+    // Cheap reject before the ring walk; regions are small next to the sheet.
+    if (centroid.x < minX || centroid.x > maxX || centroid.y < minY || centroid.y > maxY) {
+      continue;
+    }
+    if (pointInSegment(segment, centroid)) kept.push(faceIndex);
+  }
+  return kept;
+}
+
+/**
+ * The compact `FoldDocument` for one region, in the space the simulator solves:
+ * {@link buildSegmentFold} over the simulation mesh, with the region's faces
+ * translated into that mesh's indices.
+ *
+ * When the artifacts carry no simulation model the mesh *is* the base fold, so
+ * the region's own indices already apply and the translation is skipped.
+ */
+export function buildSegmentSimulationFold(
+  artifacts: FoldArtifacts,
+  segment: CpSegment
+): FoldDocument {
+  const simulationFold = simulationFoldOf(artifacts);
+  if (simulationFold === artifacts.fold) return buildSegmentFold(simulationFold, segment);
+  return buildSegmentFold(simulationFold, {
+    ...segment,
+    faceIndices: simulationFacesForSegment(simulationFold, segment),
+  });
 }
 
 function edgeKey(a: number, b: number): string {

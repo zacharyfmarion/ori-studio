@@ -30,7 +30,6 @@ import type {
 } from '../engine/types';
 import {
   segmentFoldDocument,
-  simulationFoldOf,
 } from '../lib/creasePatternSegmentation';
 
 let ready: Promise<void> | null = null;
@@ -73,7 +72,7 @@ async function call<T>(fn: () => T): Promise<T> {
  */
 function withSegments(artifacts: FoldArtifacts): FoldArtifacts {
   try {
-    artifacts.segments = segmentFoldDocument(simulationFoldOf(artifacts));
+    artifacts.segments = segmentFoldDocument(artifacts.fold);
   } catch {
     artifacts.segments = [];
   }

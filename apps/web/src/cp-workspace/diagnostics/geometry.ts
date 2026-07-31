@@ -30,6 +30,7 @@ export type CpDiagnosticMarkerShape =
   | 'circle'
   | 'ring'
   | 'little-big-little'
+  | 'self-intersection'
   | 'none';
 
 export type CpDiagnosticMarkerTone =
@@ -54,6 +55,10 @@ const CP_DIAGNOSTIC_MARKER_SHAPE_ID: Record<CpDiagnosticMarkerShape, number | nu
   circle: MARKER_SHAPE.disc,
   ring: MARKER_SHAPE.ring,
   'little-big-little': MARKER_SHAPE.pentagon,
+  // Self-intersection has no Oriedita marker to inherit — it is a check the
+  // upstream does not have. The cross reads as "these cross", which is the
+  // thing being reported.
+  'self-intersection': MARKER_SHAPE.cross,
   generic: MARKER_SHAPE.cross,
   none: null,
 };
@@ -124,6 +129,12 @@ export function cpDiagnosticMarkerTone(entry: OristudioCpDiagnosticEntry): CpDia
 }
 
 export function cpDiagnosticMarkerStyle(entry: OristudioCpDiagnosticEntry): CpDiagnosticMarkerStyle {
+  // The paper passing through itself is its own failure, distinct from the
+  // vertex not closing — the angles agree, the result is just not reachable.
+  if (entry.rule === 'SelfIntersection') {
+    return { shape: 'self-intersection', tone: 'danger' };
+  }
+
   if (!isFlatFoldabilityDiagnostic(entry)) {
     return {
       shape: 'generic',
@@ -158,7 +169,7 @@ export function resolveCpDiagnosticToneColors(root: Element): Record<CpDiagnosti
     mountain: readCssVarColor(root, '--fold-mountain', [1, 0.3, 0.36, 1]),
     valley: readCssVarColor(root, '--fold-valley', [0.38, 0.65, 0.98, 1]),
     neutral: readCssVarColor(root, '--fold-unassigned', [0.6, 0.6, 0.65, 1]),
-    unknown: [1, 0, 0.576, 1],
+    unknown: readCssVarColor(root, '--diagnostic-unknown', [1, 0, 0.576, 1]),
   };
 }
 

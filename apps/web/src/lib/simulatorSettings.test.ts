@@ -4,6 +4,8 @@ import {
   DEFAULT_SIMULATOR_SETTINGS,
   normalizeSimulatorSettings,
   simulatorMaterialOptions,
+  SIMULATOR_COLOR_KEYS,
+  SIMULATOR_SETTING_RANGES,
 } from './simulatorSettings';
 
 describe('simulatorSettings', () => {
@@ -38,5 +40,41 @@ describe('simulatorSettings', () => {
     expect(restored.damping).toBe(DEFAULT_SIMULATOR_SETTINGS.damping);
     expect(restored.lighting).toBe(false);
     expect(restored.creaseStiffness).toBe(2);
+  });
+  it('keeps a valid persisted colour and drops anything else', () => {
+    // These come back from localStorage, so a bad value must not reach a
+    // renderer. Null is meaningful (follow the theme) and has to survive.
+    const restored = normalizeSimulatorSettings({
+      paperFront: '#ff8800',
+      paperBack: 'rebeccapurple',
+      mountainColor: null,
+      valleyColor: '#abc',
+      borderColor: 42,
+    });
+
+    expect(restored.paperFront).toBe('#ff8800');
+    expect(restored.paperBack).toBeNull();
+    expect(restored.mountainColor).toBeNull();
+    // Three-digit hex is rejected too: every consumer here assumes six.
+    expect(restored.valleyColor).toBeNull();
+    expect(restored.borderColor).toBeNull();
+  });
+
+  it('defaults every colour to null, so the theme stays in charge', () => {
+    // A concrete default would freeze the paper the first time settings were
+    // persisted, and switching theme would stop moving it.
+    for (const key of SIMULATOR_COLOR_KEYS) {
+      expect(DEFAULT_SIMULATOR_SETTINGS[key]).toBeNull();
+    }
+  });
+
+  it('validates the export background and clamps the crease weight', () => {
+    expect(normalizeSimulatorSettings({ exportBackground: 'chartreuse' }).exportBackground).toBe(
+      DEFAULT_SIMULATOR_SETTINGS.exportBackground
+    );
+    expect(normalizeSimulatorSettings({ exportBackground: 'white' }).exportBackground).toBe('white');
+    expect(normalizeSimulatorSettings({ creaseWidth: 999 }).creaseWidth).toBe(
+      SIMULATOR_SETTING_RANGES.creaseWidth.max
+    );
   });
 });

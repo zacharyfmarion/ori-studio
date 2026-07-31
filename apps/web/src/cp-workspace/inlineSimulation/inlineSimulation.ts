@@ -83,6 +83,25 @@ export interface InlineSimulation {
   segmentIdHint: number | null;
 }
 
+/**
+ * The region to open a window on, carried across the toolbar -> store boundary.
+ *
+ * The whole region, not its `id`. Segment ids are positional — `segmentFoldDocument`
+ * sorts regions into reading order and reassigns `id = index` on every recompute —
+ * so an integer only means anything to the exact segmentation that produced it.
+ * Passing one to a store that had segmented separately is how "simulate this
+ * pattern" ended up opening a 14-unit sliver from somewhere else on the sheet.
+ *
+ * The caller has already resolved the region and its creases; handing both over
+ * also spares the store recomputing containment it cannot do better.
+ */
+export interface InlineSimulationRegion {
+  /** The region as its caller resolved it; `boundary` is the durable identity. */
+  segment: CpSegment;
+  /** 1-based `line_segments` ids inside or on the region. */
+  cpLineIds: readonly number[];
+}
+
 /** Per-window state that is never serialized and never enters the store. */
 export interface InlineSimulationRuntime {
   /** The captured segment fold the solver runs. */

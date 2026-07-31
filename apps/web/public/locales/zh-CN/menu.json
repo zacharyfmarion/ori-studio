@@ -9,7 +9,7 @@
     "check2": "检查 T 型交点",
     "check3": "检查顶点可折性",
     "check4": "检查 Maekawa/LBL",
-    "checkCamv": "检查 CAMV",
+    "checkCamv": "检查可折叠性",
     "deleteLineType": "删除所选线型...",
     "deleteSelectedLines": "删除所选线",
     "diagnostics": "诊断",
