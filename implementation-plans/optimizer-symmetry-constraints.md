@@ -292,18 +292,44 @@ the wild.
       involution: explicit leaf pairs, geometric inference in view mode only,
       totality check with the offending flaps named, preset axis mapping with
       `'custom'` rejected
-- [ ] (blocked on the UI question) Phase 3 — widen the BP symmetry mode from book-vertical-only to the four
-      presets in `symmetryPresets.ts`; a way to pair/unpair two selected flaps
-      directly rather than only as a side effect of mirrored authoring
-- [ ] (deferred) Phase 3 — cross the two variants of the chosen preset only when
-      `useDimension` is on (otherwise they are the same problem rotated 90°)
 - [x] Phase 3 — warn (do not reject) when the declared pairing is not
       distance-consistent
 - [x] Phase 4 — manifold-preserving basin-hopping; random/hierarchy mode integration
-- [ ] (blocked) Phase 5 — there is no BP "Optimize Layout" UI at all; the
-      runtime API exists but nothing calls it. Symmetry rides on the request as
-      plain JSON so no wasm change is needed, but a dialog has to exist before
-      any of this is reachable by a user.
 - [x] Confirm `optimizer_oracle.rs` still passes with symmetry absent
 - [x] Delete the spike examples
 - [x] Update `PORTING.md`
+
+## Paused here: waiting on the Optimize Layout UI
+
+Everything engine-side is done and tested. The remaining work is all UI, and it
+is parked because a BP "Optimize Layout" dialog is being built separately — this
+plan should resume once that lands.
+
+The state it resumes into:
+
+- `optimizeOristudioBpLayout` (`store/workspaceStore/oristudioBpRuntime.ts`) has
+  no callers yet. It already accepts `options.symmetry` and attaches it to the
+  optimizer request, which travels as plain JSON — **no wasm signature change is
+  needed**.
+- To make symmetry reachable, the dialog needs to call
+  `resolveOptimizerSymmetry(tree, oristudioBpSymmetry, { allowInference })` and
+  pass the resulting payload through as `options.symmetry`. Set
+  `allowInference` to `true` only in view mode; random mode discards the current
+  positions, so inferring a pairing from them would be meaningless.
+- A rejection carries a `reason` written for a person — show it rather than
+  silently running without symmetry. A success may carry `inconsistentPairs`,
+  which is a hint, not an error.
+
+Remaining items, none started:
+
+- [ ] Phase 5 — call the resolver from the Optimize Layout dialog; surface
+      rejections and the inconsistent-pairing hint; i18n the new strings
+- [ ] Widen the BP symmetry mode from book-vertical-only to the four presets in
+      `symmetryPresets.ts`, labelled per sheet type (a vertical grid axis is a
+      book fold on a rectangular sheet and a diagonal fold on a diagonal sheet)
+- [ ] A way to pair/unpair two selected flaps directly, and to mark a flap as
+      on-axis (a self-pair). Random mode cannot use symmetry until this exists,
+      because inference is off there and an on-axis flap has no partner to pair
+      with
+- [ ] Cross the two variants of the chosen preset only when `useDimension` is on
+      — without dimensions they are the same problem rotated 90°
