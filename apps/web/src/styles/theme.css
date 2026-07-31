@@ -6303,6 +6303,10 @@ button.bp-packing-alert:focus-visible {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  /* Dockview draws no rule between horizontally split groups, and the pane sits
+     directly against the tool rail, so the edge is drawn here — matching how
+     `.workspace-rail` closes its own side of the shell. */
+  border-right: 1px solid var(--border-subtle);
   background: var(--bg-primary);
   color: var(--text-primary);
 }
