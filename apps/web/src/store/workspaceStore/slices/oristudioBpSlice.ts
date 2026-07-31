@@ -31,6 +31,7 @@ import {
 import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
+  removeBpTreeSymmetryPair,
   buildMirroredBpTreeUpdates,
   bpTreeSymmetryDefaultLoc,
   filterBpTreeSymmetryPairs,
@@ -868,6 +869,30 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         return 'applied';
       }
       return cancelled ? 'cancelled' : 'failed';
+    },
+
+    setOristudioBpTreeSymmetryPairing: (vertexIds) => {
+      const symmetry = get().oristudioBpSymmetry;
+      // One vertex declares itself on the axis, two declare each other mirrors,
+      // and an empty list clears whatever those vertices had.
+      let pairs = symmetry.pairs;
+      if (vertexIds.length === 1) {
+        pairs = addBpTreeSymmetryPair(pairs, vertexIds[0], vertexIds[0]);
+      } else if (vertexIds.length === 2) {
+        pairs = addBpTreeSymmetryPair(pairs, vertexIds[0], vertexIds[1]);
+      } else {
+        return;
+      }
+      set({ oristudioBpSymmetry: { ...symmetry, pairs } });
+    },
+
+    clearOristudioBpTreeSymmetryPairing: (vertexIds) => {
+      const symmetry = get().oristudioBpSymmetry;
+      const pairs = vertexIds.reduce(
+        (acc, id) => removeBpTreeSymmetryPair(acc, id),
+        symmetry.pairs
+      );
+      set({ oristudioBpSymmetry: { ...symmetry, pairs } });
     },
 
     setOristudioBpLayoutSheet: async (gridType, width, height) =>

@@ -5569,6 +5569,53 @@ describe('workspace store slices', () => {
       expect(useWorkspaceStore.getState().oristudioBpError).toMatch(/mirrors/i);
     });
 
+    it('lets declared pairs unblock random mode, which cannot infer them', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const tree = useWorkspaceStore.getState().oristudioBpDocument!.snapshot.tree;
+      const leaves = tree.vertices.filter((vertex) => vertex.isLeaf).map((vertex) => vertex.id);
+      useWorkspaceStore.setState({
+        oristudioBpSymmetry: {
+          enabled: true,
+          angle: 90,
+          loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
+          pairs: [],
+        },
+      });
+
+      // Declaring the pairing is what makes random mode possible at all.
+      useWorkspaceStore.getState().setOristudioBpTreeSymmetryPairing(leaves);
+      bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
+        document: sampleBpDocument(),
+        eventCount: 0,
+        openedNew: false,
+      });
+
+      await expect(
+        useWorkspaceStore.getState().optimizeOristudioBpLayout({
+          useDimension: true,
+          layoutMode: 'random',
+          useBasinHopping: false,
+          randomCandidateCount: 4,
+          respectSymmetry: true,
+        })
+      ).resolves.toBe('applied');
+
+      const call = bpMocks.optimizeOristudioBpLayout.mock.calls.at(-1)!;
+      expect((call[0] as { symmetry: unknown }).symmetry).not.toBeNull();
+    });
+
+    it('records a single flap as sitting on the axis', () => {
+      useWorkspaceStore.setState({
+        oristudioBpSymmetry: { enabled: true, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+      });
+      useWorkspaceStore.getState().setOristudioBpTreeSymmetryPairing([7]);
+      expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([{ v1: 7, v2: 7 }]);
+
+      useWorkspaceStore.getState().clearOristudioBpTreeSymmetryPairing([7]);
+      expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([]);
+    });
+
     it('leaves the document and history untouched when the optimizer is cancelled', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');

@@ -824,6 +824,14 @@ export interface OristudioBpSliceActions {
     height: number
   ) => Promise<boolean>;
   /**
+   * Declare how the given tree vertices sit in the mirror: one on the axis, two
+   * as mirrors of each other. Ephemeral authoring state, like the rest of
+   * {@link OristudioBpSymmetryState}.
+   */
+  setOristudioBpTreeSymmetryPairing: (vertexIds: readonly number[]) => void;
+  /** Drop whatever mirror pairing these vertices had. */
+  clearOristudioBpTreeSymmetryPairing: (vertexIds: readonly number[]) => void;
+  /**
    * Run the BP layout optimizer and apply its result as one undoable step.
    * Cancelling leaves the document and history untouched.
    */
