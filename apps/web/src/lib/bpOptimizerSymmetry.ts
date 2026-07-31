@@ -80,14 +80,14 @@ export function optimizerSymmetryAxisForAngle(angle: number): OptimizerSymmetryA
 /** Tree distance between every pair of leaves, keyed `min,max`. */
 function leafDistances(tree: OristudioBpTreeView): Map<string, number> {
   const neighbours = new Map<number, { id: number; length: number }[]>();
-  for (const edge of tree.edges) {
+  for (const edge of tree.edges ?? []) {
     const [a, b] = edge.vertices;
     if (!neighbours.has(a)) neighbours.set(a, []);
     if (!neighbours.has(b)) neighbours.set(b, []);
     neighbours.get(a)!.push({ id: b, length: edge.length });
     neighbours.get(b)!.push({ id: a, length: edge.length });
   }
-  const leaves = tree.vertices.filter((vertex) => vertex.isLeaf).map((vertex) => vertex.id);
+  const leaves = (tree.vertices ?? []).filter((vertex) => vertex.isLeaf).map((vertex) => vertex.id);
   const distances = new Map<string, number>();
   for (const source of leaves) {
     // The tree is small and this runs once per optimizer run, so a plain
@@ -154,7 +154,7 @@ export function resolveOptimizerSymmetry(
     };
   }
 
-  const leaves = tree.vertices.filter((vertex) => vertex.isLeaf);
+  const leaves = (tree.vertices ?? []).filter((vertex) => vertex.isLeaf);
   const leafIds = new Set(leaves.map((vertex) => vertex.id));
   const axisSpec: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
 

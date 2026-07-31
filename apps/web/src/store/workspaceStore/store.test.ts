@@ -1000,10 +1000,25 @@ function sampleBpDocument(): import('../../engine/oristudioBpTypes').OristudioBp
     source: { format: 'generated', filename: 'Untitled.bps', path: null },
     activeSurface: 'tree',
     dirty: true,
-    // The slice centres the default symmetry axis on the tree sheet on load and
-    // titles the replaced project from the summary, so the fixture needs sheet
-    // dimensions and a title.
-    snapshot: { summary: { title: 'Sample BP' }, tree: { sheet: { width: 20, height: 20 } } },
+    // The slice centres the default symmetry axis on the tree sheet on load,
+    // titles the replaced project from the summary, and resolves optimizer
+    // symmetry against the tree, so the fixture needs a sheet, a title, and a
+    // small tree. Leaves 1 and 2 are mirror images across the sheet centre.
+    snapshot: {
+      summary: { title: 'Sample BP' },
+      tree: {
+        sheet: { width: 20, height: 20 },
+        vertices: [
+          { id: 0, name: 'root', loc: { x: 10, y: 10 }, isLeaf: false },
+          { id: 1, name: 'a', loc: { x: 6, y: 10 }, isLeaf: true },
+          { id: 2, name: 'b', loc: { x: 14, y: 10 }, isLeaf: true },
+        ],
+        edges: [
+          { id: 0, vertices: [0, 1], length: 4 },
+          { id: 1, vertices: [0, 2], length: 4 },
+        ],
+      },
+    },
   } as import('../../engine/oristudioBpTypes').OristudioBpDocumentState;
 }
 
@@ -5438,6 +5453,7 @@ describe('workspace store slices', () => {
           layoutMode: 'view',
           useBasinHopping: false,
           randomCandidateCount: 1,
+          respectSymmetry: false,
         })
       ).resolves.toBe('applied');
 
@@ -5458,6 +5474,101 @@ describe('workspace store slices', () => {
       );
     });
 
+    it('passes no symmetry when the run does not ask for it', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
+        document: sampleBpDocument(),
+        eventCount: 0,
+        openedNew: false,
+      });
+
+      await useWorkspaceStore.getState().optimizeOristudioBpLayout({
+        useDimension: true,
+        layoutMode: 'view',
+        useBasinHopping: false,
+        randomCandidateCount: 1,
+        respectSymmetry: false,
+      });
+
+      expect(bpMocks.optimizeOristudioBpLayout).toHaveBeenCalledWith(
+        expect.objectContaining({ symmetry: null }),
+        expect.anything(),
+        undefined
+      );
+    });
+
+    it('resolves symmetry from the authoring mode and passes it to the solver', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const tree = useWorkspaceStore.getState().oristudioBpDocument!.snapshot.tree;
+      const leaves = tree.vertices.filter((vertex) => vertex.isLeaf);
+      // The blank design has two leaves; pair them across a vertical axis.
+      useWorkspaceStore.setState({
+        oristudioBpSymmetry: {
+          enabled: true,
+          angle: 90,
+          loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
+          pairs: [{ v1: leaves[0].id, v2: leaves[1].id }],
+        },
+      });
+      bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
+        document: sampleBpDocument(),
+        eventCount: 0,
+        openedNew: false,
+      });
+
+      await expect(
+        useWorkspaceStore.getState().optimizeOristudioBpLayout({
+          useDimension: true,
+          layoutMode: 'view',
+          useBasinHopping: false,
+          randomCandidateCount: 1,
+          respectSymmetry: true,
+        })
+      ).resolves.toBe('applied');
+
+      const call = bpMocks.optimizeOristudioBpLayout.mock.calls.at(-1)!;
+      const symmetry = (call[0] as { symmetry: { axis: string; partners: [number, number][] } })
+        .symmetry;
+      expect(symmetry.axis).toBe('verticalHalf');
+      expect(new Map(symmetry.partners)).toEqual(
+        new Map([
+          [leaves[0].id, leaves[1].id],
+          [leaves[1].id, leaves[0].id],
+        ])
+      );
+    });
+
+    it('refuses to run rather than silently dropping an unusable symmetry', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const tree = useWorkspaceStore.getState().oristudioBpDocument!.snapshot.tree;
+      // Random mode discards the current positions, so it cannot infer a pairing
+      // from them; with nothing declared the run must fail loudly.
+      useWorkspaceStore.setState({
+        oristudioBpSymmetry: {
+          enabled: true,
+          angle: 90,
+          loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
+          pairs: [],
+        },
+      });
+
+      await expect(
+        useWorkspaceStore.getState().optimizeOristudioBpLayout({
+          useDimension: true,
+          layoutMode: 'random',
+          useBasinHopping: false,
+          randomCandidateCount: 4,
+          respectSymmetry: true,
+        })
+      ).resolves.toBe('failed');
+
+      expect(bpMocks.optimizeOristudioBpLayout).not.toHaveBeenCalled();
+      expect(useWorkspaceStore.getState().oristudioBpError).toMatch(/mirrors/i);
+    });
+
     it('leaves the document and history untouched when the optimizer is cancelled', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
@@ -5474,6 +5585,7 @@ describe('workspace store slices', () => {
           layoutMode: 'random',
           useBasinHopping: false,
           randomCandidateCount: 4,
+          respectSymmetry: false,
         })
       ).resolves.toBe('cancelled');
 
@@ -5503,6 +5615,7 @@ describe('workspace store slices', () => {
           layoutMode: 'view',
           useBasinHopping: true,
           randomCandidateCount: 1,
+          respectSymmetry: false,
         })
       ).resolves.toBe('failed');
 

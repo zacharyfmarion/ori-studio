@@ -661,6 +661,7 @@ function defaultOptimizerState(): OristudioBpOptimizerState {
       useDimension: true,
       layoutMode: 'view',
       useBasinHopping: true,
+      respectSymmetry: true,
       randomCandidateCount: 100,
       seed: null,
     },

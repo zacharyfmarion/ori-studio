@@ -1,17 +1,16 @@
 import { create } from 'zustand';
 import { STORAGE_KEYS, readJson, storageKey, writeJson } from '../lib/storage';
 import type {
-  OristudioBpOptimizerOptions,
   OristudioBpOptimizerProgress,
+  OristudioBpOptimizerRunOptions,
 } from '../engine/oristudioBpTypes';
 
 /**
- * The options the user can choose, i.e. everything in
- * {@link OristudioBpOptimizerOptions} except the two fields the dialog does not
- * expose: `openNew` (we have no BP project tabs, so the optimizer always
- * replaces in place) and `seed` (randomized per run).
+ * The options the user can choose. Excludes `openNew` (we have no BP project
+ * tabs, so the optimizer always replaces in place), `seed` (randomized per run),
+ * and `symmetry` (resolved from the tree at run time, not a stored preference).
  */
-export type BpOptimizerDialogOptions = Omit<OristudioBpOptimizerOptions, 'openNew' | 'seed'>;
+export type BpOptimizerDialogOptions = OristudioBpOptimizerRunOptions;
 
 /**
  * Box Pleating Studio's own defaults, from
@@ -23,6 +22,10 @@ export const DEFAULT_BP_OPTIMIZER_OPTIONS: BpOptimizerDialogOptions = {
   layoutMode: 'view',
   useBasinHopping: false,
   randomCandidateCount: 1,
+  // On by default so a design authored with mirror-draw packs the way it was
+  // drawn. It only takes effect when the symmetry mode is on and the pairing
+  // actually resolves; the dialog says so when it does not.
+  respectSymmetry: true,
 };
 
 /** Upstream's range for "Number of layouts to try". */
@@ -38,6 +41,7 @@ function sanitize(options: Partial<BpOptimizerDialogOptions>): BpOptimizerDialog
     useDimension: Boolean(merged.useDimension),
     layoutMode: merged.layoutMode === 'random' ? 'random' : 'view',
     useBasinHopping: Boolean(merged.useBasinHopping),
+    respectSymmetry: Boolean(merged.respectSymmetry),
     randomCandidateCount: Number.isFinite(count)
       ? Math.min(MAX_BP_RANDOM_CANDIDATES, Math.max(MIN_BP_RANDOM_CANDIDATES, count))
       : DEFAULT_BP_OPTIMIZER_OPTIONS.randomCandidateCount,

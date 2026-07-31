@@ -38,6 +38,10 @@ import {
   BP_TREE_SYMMETRY_TOLERANCE,
 } from '../../../lib/bpTreeSymmetry';
 import {
+  resolveOptimizerSymmetry,
+  type OptimizerSymmetryPayload,
+} from '../../../lib/bpOptimizerSymmetry';
+import {
   reflectPointAcrossSymmetryAxis,
   snapPointToSymmetryAxis,
   type SymmetryAxis,
@@ -816,7 +820,28 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       ),
 
     optimizeOristudioBpLayout: async (options, onProgress) => {
-      if (!get().oristudioBpDocument) return 'failed';
+      const document = get().oristudioBpDocument;
+      if (!document) return 'failed';
+
+      // Symmetry is resolved here rather than carried in the dialog options,
+      // because it depends on the tree as it stands right now. Inference from
+      // the current flap positions is only meaningful in view mode; random mode
+      // is about to discard them, so it needs pairs declared explicitly.
+      const symmetryState = get().oristudioBpSymmetry;
+      let symmetry: OptimizerSymmetryPayload | null = null;
+      if (options.respectSymmetry && symmetryState.enabled) {
+        const resolved = resolveOptimizerSymmetry(document.snapshot.tree, symmetryState, {
+          allowInference: options.layoutMode === 'view',
+        });
+        if (!resolved.ok) {
+          // Falling back to an unconstrained solve would hand back a layout the
+          // user did not ask for, so refuse and say why.
+          set({ oristudioBpError: resolved.reason });
+          return 'failed';
+        }
+        symmetry = resolved.payload;
+      }
+
       // `runBpTreeMutation` captures the pre-run .bps snapshot before the
       // operation and commits exactly one history entry on success, so the whole
       // optimize — new sheet size, every flap, and the stretches it clears — is
@@ -826,7 +851,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const applied = await runBpTreeMutation('Optimized BP layout', async () => {
         try {
           const summary = await optimizeRuntimeOristudioBpLayout(
-            { ...options, openNew: false, seed: null },
+            { ...options, openNew: false, seed: null, symmetry },
             { activeSurface: 'packing' },
             onProgress
           );
