@@ -6639,15 +6639,22 @@ button.bp-packing-alert:focus-visible {
   cursor: default;
 }
 
+/*
+   Skip is secondary, not unavailable. It was `--text-tertiary` against Back's
+   `--text-secondary`, which next to a genuinely disabled "Finish lesson" read as
+   a third disabled control. Same text colour as Back now; the quieter border and
+   flat background are what mark it as the lesser action.
+*/
 .lesson-panel__skip {
   color: var(--text-secondary);
+  background: none;
 }
 
-.course-page__content,
-.course-catalog__content {
-  overflow-y: auto;
-  padding: var(--space-5);
-  gap: var(--space-4);
+.lesson-panel__skip:hover,
+.lesson-panel__skip:focus-visible {
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .lesson-index__header {
@@ -6895,13 +6902,19 @@ button.bp-packing-alert:focus-visible {
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
-  padding: var(--space-4);
+  padding: var(--space-5);
   border-right: 1px solid var(--border-subtle);
   background: var(--bg-primary);
   color: var(--text-primary);
 }
 
+/* The gap is what separates the header, the resume button and each chapter
+   section — the chapters carry no margins of their own. Without it the section
+   headings sit flush against the lesson card above them. */
 .course-page__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
   width: 100%;
 }
 
@@ -7000,7 +7013,7 @@ button.bp-packing-alert:focus-visible {
   display: inline-flex;
   gap: var(--space-2);
   align-items: center;
-  margin-bottom: var(--space-4);
+  align-self: flex-start;
   padding: 0;
   border: 0;
   background: none;
@@ -7014,9 +7027,7 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-primary);
 }
 
-.course-page__header {
-  margin-bottom: var(--space-5);
-}
+
 
 .course-page__progress {
   margin: var(--space-3) 0 0;
@@ -7029,6 +7040,7 @@ button.bp-packing-alert:focus-visible {
 .course-page__resume {
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
   margin-bottom: var(--space-5);
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--accent-primary);
@@ -7037,6 +7049,10 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-primary);
   font-size: 0.83rem;
   cursor: pointer;
+}
+
+.course-page__resume {
+  margin-bottom: 0;
 }
 
 .course-catalog__resume:hover,

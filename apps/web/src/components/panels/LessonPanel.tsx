@@ -77,20 +77,37 @@ export function LessonPanel() {
   const isLastStep = lesson ? stepIndex >= lesson.steps.length - 1 : false;
   const canAdvance = !step || !stepIsSelfAdvancing(step) || stepStatus === 'satisfied';
 
-  const handleNext = useCallback(() => {
+  /**
+   * Leaving a finished lesson: record it, then go on.
+   *
+   * Both "Finish lesson" and Skip-from-the-last-step end here. They used not to:
+   * the store's `skipStep` marked the lesson complete and stopped, because
+   * navigation lived only in this component — so skipping the final step
+   * silently completed the lesson and left the reader sitting on it, looking at
+   * a button that appeared to do nothing.
+   *
+   * `nextLesson` is course-scoped, so the end of a course lands on the course
+   * rather than silently starting an unrelated one.
+   */
+  const finishLesson = useCallback(() => {
     if (!lesson) return;
-    if (!isLastStep) {
-      goToNextStep();
-      return;
-    }
     markLessonComplete(lesson.id);
-    // `nextLesson` is course-scoped, so the end of a course lands on its own
-    // page rather than silently starting an unrelated one.
     const following = nextLesson(lesson.id);
     const courseId = courseIdForLesson(lesson.id);
     if (following && courseId) navigate(lessonPath(courseId, following.id));
     else navigate(courseId ? coursePath(courseId) : LEARN_PATH);
-  }, [goToNextStep, isLastStep, lesson, markLessonComplete, navigate]);
+  }, [lesson, markLessonComplete, navigate]);
+
+  const handleNext = useCallback(() => {
+    if (!lesson) return;
+    if (isLastStep) finishLesson();
+    else goToNextStep();
+  }, [finishLesson, goToNextStep, isLastStep, lesson]);
+
+  const handleSkip = useCallback(() => {
+    if (isLastStep) finishLesson();
+    else skipStep();
+  }, [finishLesson, isLastStep, skipStep]);
 
   // One pane, two states. With no lesson open it shows the course that lesson
   // belongs to, so choosing one changes only this column and the editor stays
@@ -195,7 +212,7 @@ export function LessonPanel() {
           <ArrowLeft size={14} aria-hidden /> {t('panels:tutorial.back', 'Back')}
         </button>
         {stepIsSelfAdvancing(step) && stepStatus !== 'satisfied' ? (
-          <button type="button" className="lesson-panel__skip" onClick={skipStep}>
+          <button type="button" className="lesson-panel__skip" onClick={handleSkip}>
             <SkipForward size={14} aria-hidden /> {t('panels:tutorial.skip', 'Skip')}
           </button>
         ) : null}

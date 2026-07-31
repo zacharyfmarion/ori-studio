@@ -70,6 +70,21 @@ describe('walking a lesson', () => {
     }
   });
 
+  /**
+   * Skipping the final step must complete the lesson *and* leave it, the same as
+   * "Finish lesson". The store half of that is asserted here; the navigation
+   * half lives in `LessonPanel.finishLesson`, which both buttons call — they
+   * used to diverge, and skipping the last step silently completed the lesson
+   * while leaving the reader sitting on it.
+   */
+  it('completes the lesson when the last step is skipped', () => {
+    const lesson = LESSONS[0];
+    open(lesson.id);
+    useTutorialStore.getState().goToStep(lesson.steps.length - 1);
+    useTutorialStore.getState().skipStep();
+    expect(useTutorialStore.getState().completedLessonIds).toContain(lesson.id);
+  });
+
   it('clamps step navigation instead of running off either end', () => {
     const lesson = LESSONS[0];
     open(lesson.id);
