@@ -299,37 +299,125 @@ the wild.
 - [x] Delete the spike examples
 - [x] Update `PORTING.md`
 
-## Paused here: waiting on the Optimize Layout UI
+## UI work, now that the Optimize Layout dialog has landed
 
-Everything engine-side is done and tested. The remaining work is all UI, and it
-is parked because a BP "Optimize Layout" dialog is being built separately — this
-plan should resume once that lands.
+The dialog from `implementation-plans/bp-layout-optimizer-ui.md` is in place:
+`BpOptimizerModal` + `bpOptimizerUiStore` (persisted options) + the slice action
+`optimizeOristudioBpLayout`, which already runs as one undoable step and holds
+`oristudioBpBusy` for the duration. `optimizeOristudioBpLayout` in
+`oristudioBpRuntime.ts` accepts `options.symmetry` and attaches it to the request
+as plain JSON, so **no wasm change is needed**. What remains is deciding
+symmetry at run time and letting the user author it.
 
-The state it resumes into:
+### First, a correction to fix
 
-- `optimizeOristudioBpLayout` (`store/workspaceStore/oristudioBpRuntime.ts`) has
-  no callers yet. It already accepts `options.symmetry` and attaches it to the
-  optimizer request, which travels as plain JSON — **no wasm signature change is
-  needed**.
-- To make symmetry reachable, the dialog needs to call
-  `resolveOptimizerSymmetry(tree, oristudioBpSymmetry, { allowInference })` and
-  pass the resulting payload through as `options.symmetry`. Set
-  `allowInference` to `true` only in view mode; random mode discards the current
-  positions, so inferring a pairing from them would be meaningless.
-- A rejection carries a `reason` written for a person — show it rather than
-  silently running without symmetry. A success may carry `inconsistentPairs`,
-  which is a hint, not an error.
+`BpOptimizerDialogOptions` is `Omit<OristudioBpOptimizerOptions, 'openNew' | 'seed'>`,
+so adding `symmetry` to the options type quietly made it part of the *persisted
+dialog options*. It is not a user preference — it is derived from the tree and
+the symmetry-authoring mode at the moment the run starts. Nothing actually
+persists today, because `sanitize()` rebuilds the object from four known fields
+and drops it, but the type is lying and the next person to touch `sanitize` will
+believe it.
 
-Remaining items, none started:
+Add `'symmetry'` to the `Omit` list and resolve it in the slice action instead.
 
-- [ ] Phase 5 — call the resolver from the Optimize Layout dialog; surface
-      rejections and the inconsistent-pairing hint; i18n the new strings
-- [ ] Widen the BP symmetry mode from book-vertical-only to the four presets in
-      `symmetryPresets.ts`, labelled per sheet type (a vertical grid axis is a
-      book fold on a rectangular sheet and a diagonal fold on a diagonal sheet)
-- [ ] A way to pair/unpair two selected flaps directly, and to mark a flap as
-      on-axis (a self-pair). Random mode cannot use symmetry until this exists,
-      because inference is off there and an on-axis flap has no partner to pair
-      with
-- [ ] Cross the two variants of the chosen preset only when `useDimension` is on
-      — without dimensions they are the same problem rotated 90°
+### Resolving symmetry at run time
+
+In `optimizeOristudioBpLayout` (the slice action), before calling the runtime:
+
+```
+const symmetry = get().oristudioBpSymmetry;
+const tree = get().oristudioBpDocument.snapshot.tree;
+const resolved = symmetry.enabled
+  ? resolveOptimizerSymmetry(tree, symmetry, { allowInference: options.layoutMode === 'view' })
+  : null;
+```
+
+`allowInference` must be `true` only in view mode. Inference reads the current
+flap positions, which random mode is about to discard.
+
+**When symmetry is on but unusable, fail the run and show the reason.** Do not
+fall back to an unconstrained solve: the user turned symmetry on, and quietly
+handing back an asymmetric layout is the same mistake as assuming an unpaired
+flap sits on the axis. The rejection messages are already written for a person
+and name the offending flaps.
+
+### Dialog
+
+A symmetry row that reflects the authoring mode rather than duplicating it:
+
+- symmetry off — one line saying so, pointing at the tree panel's symmetry mode;
+- symmetry on — name the fold (see labelling below) and offer a *Respect
+  symmetry* toggle, defaulting on, so a run can opt out without leaving symmetry
+  mode;
+- symmetry on but unusable — show the reason inline and block Run;
+- pairing not distance-consistent — a non-blocking hint that it will cost paper.
+
+That last one exists already: `resolveOptimizerSymmetry` returns
+`inconsistentPairs` on success.
+
+### Labelling: book and diagonal swap between grid types
+
+A diagonal-grid sheet is the paper turned 45° against the grid, so the same fold
+line means opposite things on the two sheets:
+
+| fold line | rectangular sheet | diagonal sheet |
+| --- | --- | --- |
+| vertical / horizontal | book fold | diagonal fold |
+| 45° rising / falling | diagonal fold | book fold |
+
+The UI must name the fold by what it does to the *paper*, or a user on a diamond
+sheet will be told a corner-to-corner fold is a "book" fold. Needs a TS helper
+alongside `optimizerSymmetryAxisForAngle`, mirroring `axis_label` in the
+showcase generator.
+
+### Authoring: four axes, and declaring pairs
+
+Two gaps in the existing symmetry mode block real use:
+
+- **The axis is hardwired.** `BpTreePanel.handleToggleSymmetry` sets
+  `angle: 90` with no variant picker, so diagonal symmetry cannot be chosen at
+  all. The four-preset vocabulary already exists in `symmetryPresets.ts`; this is
+  wiring plus sheet-aware labels.
+- **On-axis flaps cannot be declared.** A flap on the axis has no partner to pair
+  with, and `addBpTreeSymmetryPair` refuses `a === b`. The resolver already reads
+  a self-pair as "on the axis"; the authoring side has to be able to write one.
+  Until then, **random mode cannot use symmetry at all**, because inference is
+  off there and any on-axis flap comes back unresolved.
+
+So: a way to select two flaps and pair them, select one and place it on the axis,
+and see which flaps are already spoken for.
+
+### Phasing
+
+1. Un-persist `symmetry`, resolve in the slice action, fail loudly with the
+   reason. View mode with geometric inference works end to end after this.
+2. Dialog symmetry row: state, respect toggle, rejection reason, inconsistency hint.
+3. Sheet-aware fold labels + the four-axis picker in the tree panel.
+4. Pair / on-axis authoring. Unblocks random mode.
+5. i18n extract / translate / stamp / check; capability and modal tests following
+   the patterns in `BpOptimizerModal.test.tsx`.
+
+### Still open
+
+**Symmetry state is ephemeral.** `OristudioBpSymmetryState` is explicitly not
+persisted to the document or `.bps`. A layout optimized under symmetry therefore
+outlives the constraint that produced it: reload, and the symmetry is only
+accidental. TreeMaker persists its equivalent as conditions. Not a blocker for
+any phase above, but it is a product call rather than an implementation detail,
+and it gets more awkward the more authoring we add.
+
+## Checklist: UI
+
+- [ ] Drop `symmetry` from `BpOptimizerDialogOptions`; resolve it in the slice action
+- [ ] Fail the run with the resolver's reason when symmetry is on but unusable
+- [ ] Dialog symmetry row: state, *Respect symmetry* toggle, reason, inconsistency hint
+- [ ] Sheet-aware fold labels (book/diagonal swap by grid type)
+- [ ] Four-axis picker in the BP tree panel's symmetry mode
+- [ ] Pair two selected flaps; place one flap on the axis (self-pair), including
+      relaxing `addBpTreeSymmetryPair`
+- [ ] Show which flaps are paired and which sit on the axis
+- [ ] i18n extract / translate / stamp / check
+- [ ] Tests: resolver-to-slice wiring, dialog states, axis labelling per grid type
+- [ ] Browser check: view mode on a rect sheet, view mode on a diamond, random
+      mode once on-axis flaps can be declared
