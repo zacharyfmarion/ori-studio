@@ -76,25 +76,54 @@ first, then the lesson registry, and a lesson match redirects to the canonical
 three-segment path. That keeps one route entry rather than two overlapping ones,
 and the redirect is `replace` so Back does not bounce.
 
-### Progress
+### Progress and persistence
 
-`completedLessonIds` stays flat — lesson ids are globally unique, and flattening
-means a lesson that moves between courses keeps its completion.
-
-`lastLessonId` becomes insufficient: "resume" should mean "resume the course I was
-in". Persisted shape gains a course:
+Target shape:
 
 ```ts
 interface PersistedProgress {
+  /** Flat. Lesson ids are globally unique — see the constraint below. */
   completedLessonIds: string[];
-  lastLessonId: string | null;
-  lastCourseId: string | null;   // new
+  /** Which course the catalog's resume button points at. */
+  lastCourseId: string | null;
+  /** Per course, the lesson to resume. Deliberately not a step — see below. */
+  resumeByCourse: Record<string, string>;
 }
 ```
 
-`readProgress` already tolerates missing and malformed fields, so an existing
-payload loads with `lastCourseId: null` and the catalog simply shows no resume
-button until the next lesson is opened. No migration needed.
+This replaces `lastLessonId`, which cannot answer the question each course card
+needs to ask — *where was I in **this** course* — and which, paired with a
+separate `lastCourseId`, would be two fields free to disagree.
+
+**No migration is needed, and this does not have to land before the tutorial
+merges.** `readProgress` validates field by field with a fallback per field, so
+the change is additive in the only field worth keeping: `completedLessonIds`
+survives untouched, unknown fields are ignored, and a missing `resumeByCourse`
+yields `{}`. The cost to a user mid-tutorial is one lost resume click.
+
+Three constraints that make that true, worth stating because breaking any of them
+turns a free change into a migration:
+
+1. **Lesson ids stay globally unique and un-prefixed.** Course-scoping them
+   (`basics/line-types`) would silently invalidate every stored id — no error,
+   just a user whose progress quietly reads zero. Uniqueness is already enforced
+   by `lessons.test.ts`.
+2. **Progress is derived, never counted.** A renamed or deleted lesson leaves a
+   stale id behind, so a course card must show
+   `lessonsInCourse(id).filter(l => completed.has(l.id)).length`, never
+   `completedLessonIds.length`. Getting this wrong ships a card reading `12 / 11`.
+3. **Step index is not persisted, on purpose.** The practice document is not
+   persisted either, so resuming at step 4 would mean a blank canvas under a step
+   whose check refers to work that is no longer there — and for a `camv-clean`
+   step that check *passes on a blank sheet*, handing out a completion for
+   something the user never did. Resume therefore means "the top of that lesson".
+   This is a decision, not an omission; do not "fix" it without persisting the
+   canvas too.
+
+No version field: the tolerant reader covers additive change, which is the only
+kind the constraints above permit. If a future change does break `completedLessonIds`,
+add one then and discard rather than migrate — the value at stake is a few
+minutes of a tutorial.
 
 ### Ordering and endings
 
@@ -123,17 +152,14 @@ smaller sibling.
 ### Layout
 
 `applyLearnLayout` mounts canvas + lesson + view-controls. The catalog and course
-pages have no practice document, so they should not be sitting beside a live CP
-canvas pretending to. Two options, and the second is recommended:
+pages have no practice document, so they should not sit beside a live CP canvas
+pretending to.
 
-1. Keep the workspace layout and render the catalog in the lesson pane. Cheap,
-   but the canvas beside it is meaningless.
-2. Render catalog and course pages as **full-width routes** without the workspace
-   shell, the way `/welcome` already does. Only `/learn/:courseId/:lessonId`
-   mounts the editing layout.
-
-Option 2 also removes the current oddity where `/learn` provisions a practice
-document nobody is about to draw on.
+**Decided:** catalog and course pages render **full width**, without the
+workspace shell, the way `/welcome` already does. Only
+`/learn/:courseId/:lessonId` mounts the editing layout. This also removes the
+current oddity where `/learn` provisions a practice document nobody is about to
+draw on.
 
 ## Affected Areas
 
@@ -157,17 +183,15 @@ document nobody is about to draw on.
   least one lesson), `lessonFlow.test.ts` (a course ends rather than running on),
   `appRouter.test.ts` (legacy `/learn/:lessonId` redirects)
 
-## Decisions to confirm
+## Decisions (settled)
 
-1. **Does `/learn` show a catalog of one?** Recommended: yes — it is honest and
-   sets the shape, and a card showing `0 / 11` is a better entry point than a
-   wall of lessons. The alternative is redirecting to the only course until a
-   second exists, which hides the concept exactly while it is being built.
-2. **Full-width catalog, or inside the workspace shell?** Recommended: full
-   width (option 2 above).
-3. **Do courses have prerequisites?** Recommended: not yet. Ordering them in the
-   catalog is enough signal, and gating content on completion is a product
-   decision that wants a second course to exist first.
+1. **`/learn` shows the catalog even with one course.** It is honest and sets the
+   shape; a card reading `0 / 11` is a better entry point than a wall of lessons,
+   and redirecting past the catalog would hide the concept exactly while it is
+   being built.
+2. **Catalog and course pages are full width**, outside the workspace shell.
+3. **No prerequisites yet.** Catalog order is signal enough, and gating wants a
+   second course to exist before it is designed.
 
 ## Checklist
 
@@ -180,7 +204,10 @@ document nobody is about to draw on.
 - [ ] `CourseCatalogPanel` with per-course progress
 - [ ] `LessonIndexPanel` scoped to a course, with a back link to the catalog
 - [ ] Lesson panel: back and finish target the course page
-- [ ] `lastCourseId` in persisted progress; resume returns to the right course
+- [ ] `lastCourseId` + `resumeByCourse` replace `lastLessonId`; resume returns to
+      the right lesson *of the right course*
+- [ ] Course progress derived from the registry, not from `completedLessonIds.length`
+- [ ] Test: a stale id in `completedLessonIds` cannot inflate a course's count
 - [ ] Layout: only `/learn/:courseId/:lessonId` mounts the editing workspace
 - [ ] Catalog styles
 - [ ] Walk it in the browser: catalog → course → lesson → finish → course
