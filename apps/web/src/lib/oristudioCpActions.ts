@@ -545,6 +545,15 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamMouseMode: 'DELETE_POINT_15',
     railOrder: 10,
   },
+  // The one rail entry that is not a mouse tool: a whole-document sweep that
+  // runs on click. The same-type variant is the one on the rail because it is
+  // the one carrying a keybinding; its ignore-type sibling stays in the Repair
+  // menu, where the fuller label has room to say how it differs.
+  DeleteExtraVertices: {
+    group: 'edit',
+    upstreamAction: 'v_del_allAction',
+    railOrder: 15,
+  },
   VertexDeleteOnCrease: {
     label: 'Delete any Vertex',
     group: 'edit',

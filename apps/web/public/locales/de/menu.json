@@ -10,6 +10,8 @@
     "check3": "Faltbarkeit der Ecken prüfen",
     "check4": "Maekawa/LBL prüfen",
     "checkCamv": "Faltbarkeit prüfen",
+    "deleteExtraVertices": "Überflüssige Knoten löschen",
+    "deleteExtraVerticesIgnoreColor": "Überflüssige Knoten löschen (Typ ignorieren)",
     "deleteLineType": "Ausgewählten Linientyp löschen...",
     "deleteSelectedLines": "Ausgewählte Linien löschen",
     "diagnostics": "Diagnose",

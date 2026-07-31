@@ -973,6 +973,16 @@
       "tooltip": "Oriedita の許容値を使って近接 T 字交差を分割します",
       "disabledReason": "準備完了"
     },
+    "cp_action_delete_extra_vertices": {
+      "label": "余分な頂点を削除",
+      "tooltip": "頂点で交わる同じ種類の一直線上の折り線を統合します",
+      "disabledReason": "準備完了"
+    },
+    "cp_action_delete_extra_vertices_ignore_color": {
+      "label": "余分な頂点を削除（種類を無視）",
+      "tooltip": "種類に関係なく一直線上の折り線を統合します。山折りと谷折りは境界線になります",
+      "disabledReason": "準備完了"
+    },
     "cp_action_organize_circles": {
       "label": "円を整理",
       "tooltip": "Oriedita のクリーンアップ規則を使って無効な半径ゼロの円を除去します",

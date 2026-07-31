@@ -973,6 +973,16 @@
       "tooltip": "Oriedita 허용 오차를 사용하여 근접 T자 교차 분할",
       "disabledReason": "준비됨"
     },
+    "cp_action_delete_extra_vertices": {
+      "label": "불필요한 정점 삭제",
+      "tooltip": "정점에서 만나는 같은 유형의 일직선 접힘선 쌍 병합",
+      "disabledReason": "준비됨"
+    },
+    "cp_action_delete_extra_vertices_ignore_color": {
+      "label": "불필요한 정점 삭제(유형 무시)",
+      "tooltip": "유형과 관계없이 일직선 접힘선 쌍 병합 — 산과 골은 경계로 병합됨",
+      "disabledReason": "준비됨"
+    },
     "cp_action_organize_circles": {
       "label": "원 정리",
       "tooltip": "Oriedita 정리 규칙을 사용하여 반지름이 0인 잘못된 원 정리",

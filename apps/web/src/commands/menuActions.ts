@@ -105,6 +105,8 @@ export const MENU_ACTION_IDS = [
   'cp.check4',
   'cp.fix1',
   'cp.fix2',
+  'cp.deleteExtraVertices',
+  'cp.deleteExtraVerticesIgnoreColor',
   'cp.fixInaccurate',
   'cp.changeCircleColor',
   'cp.organizeCircles',
@@ -242,6 +244,8 @@ const CP_OPERATION_ACTIONS: Partial<Record<MenuActionId, OristudioCpOperationId>
   'cp.check4': 'Check4',
   'cp.fix1': 'Fix1',
   'cp.fix2': 'Fix2',
+  'cp.deleteExtraVertices': 'DeleteExtraVertices',
+  'cp.deleteExtraVerticesIgnoreColor': 'DeleteExtraVerticesIgnoreColor',
 };
 
 const CP_SELECTED_LINE_ACTIONS: Partial<Record<MenuActionId, OristudioCpOperationId>> = {

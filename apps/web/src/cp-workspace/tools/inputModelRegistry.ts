@@ -181,6 +181,8 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   CreaseSetLineColor: { model: 'select-apply' },
   CreaseSetFoldAngle: { model: 'select-apply' },
   DeleteLineTypeSelect: { model: 'select-apply' },
+  DeleteExtraVertices: { model: 'select-apply' },
+  DeleteExtraVerticesIgnoreColor: { model: 'select-apply' },
   Fix1: { model: 'select-apply' },
   Fix2: { model: 'select-apply' },
   FixInaccurate: { model: 'select-apply' },

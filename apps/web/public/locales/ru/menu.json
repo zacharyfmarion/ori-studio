@@ -10,6 +10,8 @@
     "check3": "Проверить складываемость вершин",
     "check4": "Проверить Maekawa/LBL",
     "checkCamv": "Проверить складываемость",
+    "deleteExtraVertices": "Удалить лишние вершины",
+    "deleteExtraVerticesIgnoreColor": "Удалить лишние вершины (без учёта типа)",
     "deleteLineType": "Удалить выбранный тип линии...",
     "deleteSelectedLines": "Удалить выбранные линии",
     "diagnostics": "Диагностика",

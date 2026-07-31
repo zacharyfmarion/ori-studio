@@ -10,6 +10,8 @@
     "check3": "Vérifier la pliabilité des sommets",
     "check4": "Vérifier Maekawa/LBL",
     "checkCamv": "Vérifier la pliabilité",
+    "deleteExtraVertices": "Supprimer les sommets superflus",
+    "deleteExtraVerticesIgnoreColor": "Supprimer les sommets superflus (ignorer le type)",
     "deleteLineType": "Supprimer le type de ligne sélectionné...",
     "deleteSelectedLines": "Supprimer les lignes sélectionnées",
     "diagnostics": "Diagnostics",

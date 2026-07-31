@@ -10,6 +10,8 @@
     "check3": "检查顶点可折性",
     "check4": "检查 Maekawa/LBL",
     "checkCamv": "检查可折叠性",
+    "deleteExtraVertices": "删除多余顶点",
+    "deleteExtraVerticesIgnoreColor": "删除多余顶点（忽略类型）",
     "deleteLineType": "删除所选线型...",
     "deleteSelectedLines": "删除所选线",
     "diagnostics": "诊断",

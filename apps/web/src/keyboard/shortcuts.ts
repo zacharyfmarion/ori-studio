@@ -202,6 +202,18 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
     shift: true,
     key: 'm',
   }),
+  // Upstream binds this chord twice — `v_del_allAction` and
+  // `pasteOffsetClipboardAction` both claim `ctrl shift V` in
+  // hotkey.properties. Neither is bound here yet, so the sweep takes it; if
+  // paste-offset is ever wired it needs a different chord, because duplicate
+  // chords fail silently in the dispatcher.
+  menuShortcut(
+    'cp.deleteExtraVertices',
+    'Delete Extra Vertices',
+    'Crease Pattern',
+    { primary: true, shift: true, key: 'v' },
+    'v_del_allAction'
+  ),
 ];
 
 function simulatorShortcut(

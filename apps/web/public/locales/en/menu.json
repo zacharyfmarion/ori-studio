@@ -10,6 +10,8 @@
     "check3": "Check Vertex Foldability",
     "check4": "Check Maekawa/LBL",
     "checkCamv": "Check foldability",
+    "deleteExtraVertices": "Delete Extra Vertices",
+    "deleteExtraVerticesIgnoreColor": "Delete Extra Vertices (Ignore Type)",
     "deleteLineType": "Delete Selected Line Type...",
     "deleteSelectedLines": "Delete Selected Lines",
     "diagnostics": "Diagnostics",

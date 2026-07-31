@@ -973,6 +973,16 @@
       "tooltip": "Dividir las intersecciones cuasi en T usando las tolerancias de Oriedita",
       "disabledReason": "Listo"
     },
+    "cp_action_delete_extra_vertices": {
+      "label": "Eliminar vértices sobrantes",
+      "tooltip": "Fusionar pares de pliegues colineales que se encuentran en un vértice, cuando ambos son del mismo tipo",
+      "disabledReason": "Listo"
+    },
+    "cp_action_delete_extra_vertices_ignore_color": {
+      "label": "Eliminar vértices sobrantes (ignorar tipo)",
+      "tooltip": "Fusionar pares de pliegues colineales sin importar el tipo: un monte y un valle se fusionan en un borde",
+      "disabledReason": "Listo"
+    },
     "cp_action_organize_circles": {
       "label": "Organizar círculos",
       "tooltip": "Eliminar los círculos inválidos de radio cero usando las reglas de limpieza de Oriedita",

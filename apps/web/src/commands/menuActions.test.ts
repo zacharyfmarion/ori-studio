@@ -205,6 +205,8 @@ describe('menu actions', () => {
     await expect(handle('cp.replaceLineType')).resolves.toBe(true);
     await expect(handle('cp.deleteLineType')).resolves.toBe(true);
     await expect(handle('cp.organizeCircles')).resolves.toBe(true);
+    await expect(handle('cp.deleteExtraVertices')).resolves.toBe(true);
+    await expect(handle('cp.deleteExtraVerticesIgnoreColor')).resolves.toBe(true);
 
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('CheckCamv');
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('Check1');
@@ -226,6 +228,10 @@ describe('menu actions', () => {
       line_ids: [1, 2],
     });
     expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('OrganizeCircles');
+    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith('DeleteExtraVertices');
+    expect(deps.workspace.executeOristudioCpCommand).toHaveBeenCalledWith(
+      'DeleteExtraVerticesIgnoreColor'
+    );
     expect(deps.workspace.requestOristudioCpAction).toHaveBeenCalledWith('FixInaccurate');
     expect(deps.workspace.requestOristudioCpAction).toHaveBeenCalledWith('ReplaceLineTypeSelect');
     expect(deps.workspace.requestOristudioCpAction).toHaveBeenCalledWith('DeleteLineTypeSelect');

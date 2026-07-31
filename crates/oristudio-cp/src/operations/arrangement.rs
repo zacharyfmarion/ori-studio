@@ -1,8 +1,9 @@
 //! Arrangement and cleanup helpers ported from Oriedita `FoldLineSet` workers.
 
 use crate::geometry::{
-    Epsilon, Intersection, LineColor, LineSegment, Point, StraightLine, StraightLineIntersection,
-    determine_line_segment_intersection, determine_line_segment_intersection_sweet,
+    Epsilon, FoldMagnitude, Intersection, LineColor, LineSegment, Point, StraightLine,
+    StraightLineIntersection, determine_line_segment_intersection,
+    determine_line_segment_intersection_sweet,
     determine_line_segment_intersection_sweet_with_tolerances,
     determine_line_segment_intersection_with_precision,
     determine_line_segment_intersection_with_tolerances, find_intersection_segments,
@@ -10,7 +11,7 @@ use crate::geometry::{
     line_segment_to_straight_line, line_segment_x_kousa_decide,
 };
 use crate::model::CreasePatternModel;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 /// Oriedita sentinel used by `FoldLineSet.removeOverlappingLines()`.
 const DEFAULT_PRECISION_SENTINEL: f64 = -9999.9;
@@ -764,11 +765,15 @@ pub fn del_v_pair(
         determine_line_segment_intersection_with_precision(first, second, Epsilon::UNKNOWN_1EN5);
     let (a, b) = del_v_merge_endpoints(first, second, intersection)?;
     let color = del_v_pair_color(first.color, second.color)?;
+    let fold_magnitude = del_v_merged_fold_magnitude(first, second, color)?;
 
     remove_line_by_value(model, first)?;
     remove_line_by_value(model, second)?;
 
-    let new_line = LineSegment::with_color(a, b, color);
+    let new_line = LineSegment {
+        fold_magnitude,
+        ..LineSegment::with_color(a, b, color)
+    };
     model.add_line_segment(new_line.clone());
     Some(new_line)
 }
@@ -909,10 +914,21 @@ fn del_v_at_point_impl(
         return false;
     }
 
+    // Same rule as the whole-document sweep: merging two creases at different
+    // fold angles would have to invent one, so the vertex stays instead. Kept
+    // in step deliberately — this is the sweep applied to a single vertex, and
+    // the two disagreeing would be a defect, not a distinction.
+    let Some(fold_magnitude) = del_v_merged_fold_magnitude(&lix, &liy, lix.color) else {
+        return false;
+    };
+
     let (first_delete, second_delete) = if ix > iy { (ix, iy) } else { (iy, ix) };
     model.line_segments.remove(first_delete);
     model.line_segments.remove(second_delete);
-    model.add_line_segment(LineSegment::with_color(a, b, lix.color));
+    model.add_line_segment(LineSegment {
+        fold_magnitude,
+        ..LineSegment::with_color(a, b, lix.color)
+    });
 
     false
 }
@@ -944,81 +960,203 @@ fn apply_line_segment_divide_for_fix2(model: &mut CreasePatternModel, point: Poi
     ));
 }
 
+/// Oriedita `FoldLineSet.del_V_all` / `del_V_all_cc`.
+///
+/// Walks each vertex in `PointLineMap` insertion order and, where exactly two
+/// non-auxiliary creases meet, merges them if they are collinear (and, for the
+/// same-colour variant, the same colour).
+///
+/// Tracked by segment index rather than by segment value. The value-based
+/// version this replaces re-scanned every segment to delete a merged pair and
+/// re-scanned every vertex group to redirect the references, so a document
+/// where most vertices are degree two — exactly the input this sweep exists
+/// for — cost O(vertices x segments). Deletion is deferred to a single retain
+/// at the end, which preserves the surviving order and the append order of
+/// merged segments, so the resulting `line_segments` is identical to removing
+/// eagerly.
+///
+/// One consequence of indices worth stating: two segments that are exactly
+/// equal by value are now distinguishable, where the old code could delete or
+/// redirect whichever matched first. Documents carrying exact duplicates are
+/// `Fix1`'s business, and upstream is equally ill-defined there.
 fn del_v_all_impl(model: &mut CreasePatternModel, allow_color_change: bool) {
-    let mut groups = point_line_groups(model);
+    let VertexIndex {
+        mut groups,
+        exact_vertex,
+    } = vertex_index(model);
+    let mut alive = vec![true; model.line_segments.len()];
 
     for group_index in 0..groups.len() {
-        let lines = groups[group_index].clone();
-        if lines.len() == 2
-            && (allow_color_change
-                || (lines[0].color == lines[1].color && lines[0].color != LineColor::Cyan3))
-            && let Some(new_line) = del_v_pair(model, &lines[0], &lines[1])
-        {
-            replace_line_in_groups(&mut groups, &lines[0], &new_line);
-            replace_line_in_groups(&mut groups, &lines[1], &new_line);
-        }
-    }
-}
-
-fn point_line_groups(model: &CreasePatternModel) -> Vec<Vec<LineSegment>> {
-    let epsilon_squared = Epsilon::UNKNOWN_1EN4 * Epsilon::UNKNOWN_1EN4;
-    let mut points: Vec<Point> = Vec::new();
-    let mut groups: Vec<Vec<LineSegment>> = Vec::new();
-
-    for segment in &model.line_segments {
-        if segment.color == LineColor::Cyan3 {
+        let [i, j] = match groups[group_index][..] {
+            [i, j] => [i, j],
+            _ => continue,
+        };
+        // Upstream reads both segments straight out of the map and lets
+        // `deleteLine` fail if one is already gone. A dead index is that case.
+        if !alive[i] || !alive[j] {
             continue;
         }
 
-        process_point_line_group(
-            segment.a,
-            segment,
-            epsilon_squared,
-            &mut points,
-            &mut groups,
+        let first = model.line_segments[i].clone();
+        let second = model.line_segments[j].clone();
+        if !allow_color_change && (first.color != second.color || first.color == LineColor::Cyan3) {
+            continue;
+        }
+
+        let intersection = determine_line_segment_intersection_with_precision(
+            &first,
+            &second,
+            Epsilon::UNKNOWN_1EN5,
         );
-        process_point_line_group(
-            segment.b,
-            segment,
-            epsilon_squared,
-            &mut points,
-            &mut groups,
-        );
+        let Some((a, b)) = del_v_merge_endpoints(&first, &second, intersection) else {
+            continue;
+        };
+        let Some(color) = del_v_pair_color(first.color, second.color) else {
+            continue;
+        };
+        let Some(fold_magnitude) = del_v_merged_fold_magnitude(&first, &second, color) else {
+            continue;
+        };
+
+        alive[i] = false;
+        alive[j] = false;
+        let merged = model.line_segments.len();
+        model.add_line_segment(LineSegment {
+            fold_magnitude,
+            ..LineSegment::with_color(a, b, color)
+        });
+        alive.push(true);
+
+        replace_line_in_vertex_groups(&mut groups, &exact_vertex, &first, i, merged);
+        replace_line_in_vertex_groups(&mut groups, &exact_vertex, &second, j, merged);
     }
 
-    groups
+    let mut keep = alive.iter().copied();
+    model.line_segments.retain(|_| keep.next().unwrap_or(true));
 }
 
-fn process_point_line_group(
+/// Port of `PointLineMap.replaceLine`, including the two details that decide
+/// what a chain of three or more collinear segments collapses to.
+///
+/// It removes and re-appends rather than overwriting in place, so the merged
+/// segment lands at the *end* of each vertex list. That reorders the pair the
+/// next vertex sees, and the pair order decides which way round the merged
+/// endpoints come out — an in-place overwrite produced a segment with its two
+/// endpoints swapped relative to Oriedita, which no single-pair fixture could
+/// have caught.
+///
+/// It also looks the vertex up by exact coordinates, where the map's own
+/// bucketing merges endpoints within 1e-4. An endpoint that got folded into a
+/// nearby vertex therefore finds no bucket and is silently skipped. Faithful to
+/// upstream, and the reason this takes an exact-coordinate map rather than the
+/// membership recorded while indexing.
+fn replace_line_in_vertex_groups(
+    groups: &mut [Vec<usize>],
+    exact_vertex: &HashMap<(u64, u64), usize>,
+    old_segment: &LineSegment,
+    old_index: usize,
+    new_index: usize,
+) {
+    for endpoint in [old_segment.a, old_segment.b] {
+        let Some(&group) = exact_vertex.get(&point_key(endpoint)) else {
+            continue;
+        };
+        if let Some(position) = groups[group].iter().position(|&entry| entry == old_index) {
+            groups[group].remove(position);
+            groups[group].push(new_index);
+        }
+    }
+}
+
+/// Segment indices grouped by shared endpoint.
+struct VertexIndex {
+    /// Vertex groups in `PointLineMap` insertion order.
+    groups: Vec<Vec<usize>>,
+    /// Exact vertex coordinates to group, mirroring the `HashMap<Point, ...>`
+    /// lookup in `PointLineMap.replaceLine`. Only the canonical (first-seen)
+    /// coordinates are keys, which is what makes the eps-folded lookup miss.
+    exact_vertex: HashMap<(u64, u64), usize>,
+}
+
+/// Port of Oriedita `PointLineMap`, including its skip of auxiliary (cyan)
+/// creases: an aux line ending at a vertex does not raise that vertex's degree,
+/// so two collinear creases still merge there and the aux endpoint is left
+/// dangling mid-crease.
+///
+/// Endpoints within `UNKNOWN_1EN4` share a vertex. Candidates come from the
+/// eps-sized cell neighbourhood rather than a scan of every vertex seen so far;
+/// taking the lowest-index match reproduces the scan's first-match exactly.
+fn vertex_index(model: &CreasePatternModel) -> VertexIndex {
+    let eps = Epsilon::UNKNOWN_1EN4;
+    let eps_squared = eps * eps;
+    let mut points: Vec<Point> = Vec::new();
+    let mut groups: Vec<Vec<usize>> = Vec::new();
+    let mut exact_vertex: HashMap<(u64, u64), usize> = HashMap::new();
+    let mut cells: HashMap<(i64, i64), Vec<usize>> = HashMap::new();
+
+    for (index, segment) in model.line_segments.iter().enumerate() {
+        if segment.color == LineColor::Cyan3 {
+            continue;
+        }
+        for endpoint in [segment.a, segment.b] {
+            let group = vertex_group_for(
+                endpoint,
+                eps,
+                eps_squared,
+                &mut points,
+                &mut groups,
+                &mut exact_vertex,
+                &mut cells,
+            );
+            groups[group].push(index);
+        }
+    }
+
+    VertexIndex {
+        groups,
+        exact_vertex,
+    }
+}
+
+fn vertex_group_for(
     point: Point,
-    line: &LineSegment,
-    epsilon_squared: f64,
+    eps: f64,
+    eps_squared: f64,
     points: &mut Vec<Point>,
-    groups: &mut Vec<Vec<LineSegment>>,
-) {
-    if let Some(index) = points
-        .iter()
-        .position(|candidate| candidate.distance_squared(point) < epsilon_squared)
-    {
-        groups[index].push(line.clone());
-    } else {
-        points.push(point);
-        groups.push(vec![line.clone()]);
-    }
-}
-
-fn replace_line_in_groups(
-    groups: &mut [Vec<LineSegment>],
-    old_line: &LineSegment,
-    new_line: &LineSegment,
-) {
-    for group in groups {
-        for line in group {
-            if line == old_line {
-                *line = new_line.clone();
+    groups: &mut Vec<Vec<usize>>,
+    exact_vertex: &mut HashMap<(u64, u64), usize>,
+    cells: &mut HashMap<(i64, i64), Vec<usize>>,
+) -> usize {
+    let cx = (point.x / eps).floor() as i64;
+    let cy = (point.y / eps).floor() as i64;
+    let mut best: Option<usize> = None;
+    for dx in -1..=1 {
+        for dy in -1..=1 {
+            if let Some(indices) = cells.get(&(cx + dx, cy + dy)) {
+                for &index in indices {
+                    if points[index].distance_squared(point) < eps_squared {
+                        best = Some(best.map_or(index, |b| b.min(index)));
+                    }
+                }
             }
         }
     }
+
+    best.unwrap_or_else(|| {
+        let index = points.len();
+        points.push(point);
+        groups.push(Vec::new());
+        exact_vertex.insert(point_key(point), index);
+        cells.entry((cx, cy)).or_default().push(index);
+        index
+    })
+}
+
+/// Exact-coordinate key. Java `Point` hashes and compares with
+/// `Double.compare`, which keeps `-0.0` and `0.0` distinct; raw bits do the
+/// same, so the two maps bucket identically.
+fn point_key(point: Point) -> (u64, u64) {
+    (point.x.to_bits(), point.y.to_bits())
 }
 
 fn remove_line_by_value(model: &mut CreasePatternModel, line: &LineSegment) -> Option<LineSegment> {
@@ -1027,6 +1165,35 @@ fn remove_line_by_value(model: &mut CreasePatternModel, line: &LineSegment) -> O
         .iter()
         .position(|candidate| candidate == line)?;
     Some(model.line_segments.remove(index))
+}
+
+/// Fold angle for a merged crease. Outer `None` refuses the merge.
+///
+/// Ori Studio's addition to a ported operation: Oriedita has no fold angles, so
+/// upstream is silent here rather than opposed. Two collinear creases at the
+/// same magnitude are one crease and merging is lossless. At different
+/// magnitudes they are genuinely two creases, and every way of picking a single
+/// answer invents geometry the user did not draw — so the vertex stays.
+///
+/// `None` is the canonical spelling of a classic +/-180 crease, so a document
+/// that has never carried a fold angle — every Oriedita import, and everything
+/// the parity oracle sees — takes the both-`None` branch and behaves exactly as
+/// it did before fold angles existed.
+fn del_v_merged_fold_magnitude(
+    first: &LineSegment,
+    second: &LineSegment,
+    merged_color: LineColor,
+) -> Option<Option<FoldMagnitude>> {
+    // A magnitude is meaningful only on a fold line. A mountain merged with a
+    // valley resolves to an edge by the colour matrix above, and an edge has no
+    // angle to carry — dropping it is the invariant, not a loss.
+    if !matches!(merged_color, LineColor::Red1 | LineColor::Blue2) {
+        return Some(None);
+    }
+    if first.fold_magnitude == second.fold_magnitude {
+        return Some(first.fold_magnitude);
+    }
+    None
 }
 
 fn del_v_pair_color(first: LineColor, second: LineColor) -> Option<LineColor> {
