@@ -116,6 +116,7 @@ function Toolbar() {
   const showDownloadCta = isFeatureVisible('macDownloadCta', runtimeSurface);
   const downloadUrl = useMacDownloadUrl();
   const optimizeScale = capabilities['optimize.scale'];
+  const bpOptimizeLayout = capabilities['bp.optimize.layout'];
   const buildCp = capabilities['cp.build'];
   const activeContext = useWorkspaceStore((state) => state.activeEditingContext);
   const sendBpToEdit = useWorkspaceStore((state) => state.sendOristudioBpToEdit);
@@ -189,10 +190,24 @@ function Toolbar() {
             {t('common:toolbar.sendToEdit', 'Send to Edit')}
           </Button>
         )}
-        {isBpContext && (
+        {bpOptimizeLayout.visible && (
           <Button
             size="sm"
             variant="primary"
+            disabled={!bpOptimizeLayout.enabled}
+            title={bpOptimizeLayout.reason}
+            onClick={() => void handleMenuAction('bp.optimize.layout')}
+          >
+            <Sparkles size={14} />
+            {t('common:toolbar.optimizeLayout', 'Optimize')}
+          </Button>
+        )}
+        {isBpContext && (
+          <Button
+            size="sm"
+            // Optimize is the authoring step and Send to Edit the hand-off, so
+            // Send steps back to secondary while Optimize is offered.
+            variant={bpOptimizeLayout.enabled ? 'secondary' : 'primary'}
             disabled={!hasBpDocument || bpBusy}
             title={t('common:toolbar.sendToEditTooltip', "Send this design's crease pattern to the Edit canvas")}
             onClick={() => void sendBpToEdit()}

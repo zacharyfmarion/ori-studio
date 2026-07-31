@@ -16,6 +16,8 @@ function capabilities({
   hasEditableCreasePattern = false,
   hasImportedCreasePattern = false,
   hasBoxPleatDocument = false,
+  boxPleatTreeEdgeCount = 0,
+  boxPleatBusy = false,
   oristudioCpSelectedLineCount = 0,
   oristudioCpSelectedPointCount = 0,
   oristudioCpSelectedCircleCount = 0,
@@ -35,6 +37,8 @@ function capabilities({
   hasEditableCreasePattern?: boolean;
   hasImportedCreasePattern?: boolean;
   hasBoxPleatDocument?: boolean;
+  boxPleatTreeEdgeCount?: number;
+  boxPleatBusy?: boolean;
   oristudioCpSelectedLineCount?: number;
   oristudioCpSelectedPointCount?: number;
   oristudioCpSelectedCircleCount?: number;
@@ -54,6 +58,8 @@ function capabilities({
     hasEditableCreasePattern,
     hasImportedCreasePattern,
     hasBoxPleatDocument,
+    boxPleatTreeEdgeCount,
+    boxPleatBusy,
     hasSimulationModel: false,
     oristudioCpSelectedLineCount,
     oristudioCpSelectedPointCount,
@@ -412,6 +418,49 @@ describe('workspace capabilities', () => {
     expect(bp['file.open'].visible).toBe(true);
     expect(bp['edit.undo'].visible).toBe(true);
     expect(bp['edit.undo'].enabled).toBe(true);
+  });
+
+  it('shows BP layout optimization only in a Box-Pleat context', () => {
+    for (const context of ['bp-tree', 'bp-packing'] as const) {
+      const bp = capabilities({
+        activeEditingContext: context,
+        hasBoxPleatDocument: true,
+        boxPleatTreeEdgeCount: 3,
+      });
+      expect(bp['bp.optimize.layout'].visible).toBe(true);
+      expect(bp['bp.optimize.layout'].enabled).toBe(true);
+    }
+
+    // Everywhere else the toolbar button and the Design menu entry are absent.
+    for (const context of ['treemaker-tree', 'crease-pattern', 'simulate'] as const) {
+      const other = capabilities({
+        activeEditingContext: context,
+        hasBoxPleatDocument: true,
+        boxPleatTreeEdgeCount: 3,
+      });
+      expect(other['bp.optimize.layout'].visible).toBe(false);
+    }
+  });
+
+  it('disables BP layout optimization without a document, edges, or while busy', () => {
+    const noDocument = capabilities({ activeEditingContext: 'bp-tree' });
+    expect(noDocument['bp.optimize.layout'].visible).toBe(true);
+    expect(noDocument['bp.optimize.layout'].enabled).toBe(false);
+
+    const noEdges = capabilities({
+      activeEditingContext: 'bp-tree',
+      hasBoxPleatDocument: true,
+      boxPleatTreeEdgeCount: 0,
+    });
+    expect(noEdges['bp.optimize.layout'].enabled).toBe(false);
+
+    const busy = capabilities({
+      activeEditingContext: 'bp-tree',
+      hasBoxPleatDocument: true,
+      boxPleatTreeEdgeCount: 3,
+      boxPleatBusy: true,
+    });
+    expect(busy['bp.optimize.layout'].enabled).toBe(false);
   });
 
   it('hides tree-authoring Edit commands in the crease-pattern context', () => {

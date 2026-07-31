@@ -15,6 +15,10 @@ export function useWorkspaceCapabilities() {
   const hasEditableCreasePattern = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
   const hasImportedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern !== null);
   const hasBoxPleatDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
+  const boxPleatTreeEdgeCount = useWorkspaceStore(
+    (state) => state.oristudioBpDocument?.snapshot.tree.edges.length ?? 0
+  );
+  const boxPleatBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
   const hasSimulationModel = useWorkspaceStore((state) => state.foldArtifacts?.simulation_model != null);
   const oristudioCpSelectedLineCount = useWorkspaceStore(
     (state) => state.oristudioCpSelection.lines.length
@@ -67,6 +71,8 @@ export function useWorkspaceCapabilities() {
           hasEditableCreasePattern,
           hasImportedCreasePattern,
           hasBoxPleatDocument,
+          boxPleatTreeEdgeCount,
+          boxPleatBusy,
           hasSimulationModel,
           oristudioCpSelectedLineCount,
           oristudioCpSelectedPointCount,
@@ -89,6 +95,8 @@ export function useWorkspaceCapabilities() {
       hasEditableCreasePattern,
       hasImportedCreasePattern,
       hasBoxPleatDocument,
+      boxPleatTreeEdgeCount,
+      boxPleatBusy,
       hasSimulationModel,
       oristudioCpSelectedCircleCount,
       oristudioCpSelectedLineCount,
