@@ -373,6 +373,58 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
   });
 });
 
+describe('BP tree pane — the selected node is the loudest dot', () => {
+  const dots = (body: HTMLElement) => [
+    ...body.querySelectorAll<SVGCircleElement>('.bp-tree-node'),
+  ];
+  const radius = (dot: SVGCircleElement) => Number(dot.getAttribute('r'));
+  const ring = (dot: SVGCircleElement) => Number(dot.style.strokeWidth);
+
+  /**
+   * Size and weight, not colour. Colour lives in theme.css, where the selection
+   * used to lose outright: `.tree-node[data-leaf]` (0-2-0) outranks
+   * `.tree-node--selected` (0-1-0), so picking a flap tip left its fill exactly
+   * as it was and every unselected leaf went on wearing the accent.
+   */
+  it('draws the selected dot larger and heavier than every other dot', () => {
+    const body = render(1);
+    const selected = dots(body).filter((dot) => dot.classList.contains('tree-node--selected'));
+    const rest = dots(body).filter((dot) => !dot.classList.contains('tree-node--selected'));
+    expect(selected).toHaveLength(1);
+    expect(rest.length).toBeGreaterThan(0);
+    for (const other of rest) {
+      expect(radius(selected[0])).toBeGreaterThan(radius(other));
+      expect(ring(selected[0])).toBeGreaterThan(ring(other));
+    }
+  });
+
+  it('emphasises a selected river vertex the same way as a flap tip', () => {
+    // Vertex 0 is the root, and dots that carried a fill of their own — the root,
+    // and every leaf — are exactly the ones whose selection used to go missing.
+    // Vertices render in tree order, so the root is the first dot.
+    const idle = radius(dots(render(null))[0]);
+    act(() => root?.unmount());
+    container?.remove();
+
+    const picked = dots(render(0))[0];
+    expect(picked.classList.contains('tree-node--selected')).toBe(true);
+    expect(radius(picked)).toBeGreaterThan(idle);
+  });
+
+  it('keeps the selection emphasis proportional as the camera zooms', () => {
+    const body = render(1);
+    const selected = () =>
+      dots(body).find((dot) => dot.classList.contains('tree-node--selected'))!;
+    const atRest = radius(selected());
+    act(() => {
+      transformed.fn?.({}, { scale: 4 });
+    });
+    // Counter-scaled like every other mark, so the picked dot keeps one on-screen
+    // size instead of ballooning with the camera.
+    expect(radius(selected())).toBeCloseTo(atRest / 4, 6);
+  });
+});
+
 describe('BP tree pane — the drawing keeps its proportions when zoomed', () => {
   it('counter-scales stroke widths, as it already does dots and labels', () => {
     const body = render(1);

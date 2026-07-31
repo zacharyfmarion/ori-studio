@@ -3833,21 +3833,38 @@
   stroke: var(--accent-secondary);
 }
 
+/*
+ * Tree dots, quietest to loudest. What a dot *is* — leaf, root — is a tint of its
+ * accent mixed into the canvas; the full-strength accent and the bright ink ring
+ * belong to the dot the user picked, so the selection is the loudest thing on the
+ * canvas rather than one more saturated dot among many.
+ *
+ * The identity rules opt out of the interactive states instead of leaving it to
+ * the cascade. A selector list's specificity is per-selector, so
+ * `.tree-node--selected` (0-1-0) lost to `.tree-node[data-leaf]` (0-2-0) and
+ * selecting a flap tip changed nothing but the ring — from bright to canvas-dark,
+ * which made the picked dot the one that receded.
+ */
 .tree-node {
   fill: var(--tree-node);
-  stroke: var(--tree-node-stroke);
+  stroke: color-mix(in srgb, var(--tree-node-stroke) 55%, var(--bg-canvas));
   stroke-width: 2;
   cursor: pointer;
 }
 
-.tree-node[data-leaf] {
-  fill: var(--accent-tertiary);
+.tree-node[data-leaf]:not(:hover, .tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-tertiary) 45%, var(--bg-canvas));
 }
 
-.tree-node:hover,
+.tree-node:hover:not(.tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-primary) 70%, var(--bg-canvas));
+  stroke: var(--tree-node-stroke);
+  stroke-width: 3;
+}
+
 .tree-node--selected {
   fill: var(--accent-primary);
-  stroke: var(--bg-canvas);
+  stroke: var(--tree-node-stroke);
   stroke-width: 3;
 }
 
@@ -5729,8 +5746,10 @@
   stroke-width: 7;
 }
 
-.bp-tree-node--root {
-  fill: var(--accent-secondary);
+/* The root marker is identity, not state — same opt-out as `[data-leaf]` above, so
+ * selecting the root still reads as selected. */
+.bp-tree-node--root:not(:hover, .tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-secondary) 45%, var(--bg-canvas));
 }
 
 .bp-packing-sheet {

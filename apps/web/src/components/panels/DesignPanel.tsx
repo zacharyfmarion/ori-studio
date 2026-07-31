@@ -32,6 +32,7 @@ import {
 } from '../../keyboard/shortcutRuntime';
 import type { ViewportShortcutId } from '../../keyboard/shortcuts';
 import { formatNumber, paperToSvg, type Point } from '../../lib/geometry';
+import { treeDotPx, type TreeDotSizes } from '../../lib/treeNodeDot';
 import {
   DEFAULT_DESIGN_VIEW_LAYERS,
   DESIGN_PAPER_RECT,
@@ -82,6 +83,8 @@ import {
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
+
+const DOT_SIZES: TreeDotSizes = { leafPx: 7, branchPx: 8 };
 
 const LAYER_OPTIONS: { key: DesignViewLayerKey; icon: ReactNode }[] = [
   { key: 'paths', icon: <Waypoints size={13} /> },
@@ -1259,6 +1262,7 @@ function TreeMakerDesignPanel() {
                 const point = paperToSvg(displayLoc(node.id, node.loc), DESIGN_PAPER_RECT);
                 const active = isNodeSelected(selection, node.id);
                 const radius = node.isLeaf ? leafCircleRadius(project, node.id) : 0;
+                const dotPx = treeDotPx(DOT_SIZES, node.isLeaf, active);
                 return (
                   <g key={node.id}>
                     {node.isLeaf && layers.leafCircles && (
@@ -1273,14 +1277,14 @@ function TreeMakerDesignPanel() {
                       data-leaf={node.isLeaf || undefined}
                       cx={point.x}
                       cy={point.y}
-                      r={node.isLeaf ? 7 : 8}
+                      r={dotPx}
                       onPointerDown={(event) => onNodePointerDown(event, node.id)}
                       onPointerMove={(event) => onNodePointerMove(event, node.id)}
                       onPointerUp={(event) => finishDrag(event, node.id)}
                       onPointerCancel={(event) => finishDrag(event, node.id)}
                     />
                     {layers.labels && (
-                      <text className="node-label" x={point.x + 11} y={point.y + 4}>
+                      <text className="node-label" x={point.x + dotPx + 3} y={point.y + 4}>
                         {node.label}
                       </text>
                     )}
