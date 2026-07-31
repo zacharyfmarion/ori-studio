@@ -1026,6 +1026,9 @@ export function CreasePatternPanel() {
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
   const editableCpSummary = oristudioCpDocument?.summary ?? null;
+  // Why the editable kernel refused this file, recorded by `loadCreasePattern`.
+  // Only meaningful in the read-only state below, where there is no document.
+  const cpLoadError = useWorkspaceStore((state) => state.oristudioCpError);
   const nativeActiveLineColor = useMemo(
     () => activeLineColorFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
@@ -3025,7 +3028,18 @@ export function CreasePatternPanel() {
                 </>
               ) : (
                 <div className="cp-panel__unopened" role="status">
-                  {t('panels:creasePattern.couldNotOpenForEditing', 'This crease pattern could not be opened for editing.')}
+                  <span className="cp-panel__unopened-title">
+                    {t('panels:creasePattern.couldNotOpenForEditing', 'This crease pattern could not be opened for editing.')}
+                  </span>
+                  <span className="cp-panel__unopened-detail">
+                    {t(
+                      'panels:creasePattern.couldNotOpenForEditingHint',
+                      'It is shown read-only. You can still view, fold, and export it.'
+                    )}
+                  </span>
+                  {/* The kernel's own reason. Without it this state is a dead end:
+                      the file is on screen, editing is off, and nothing says why. */}
+                  {cpLoadError && <code className="cp-panel__unopened-reason">{cpLoadError}</code>}
                 </div>
               )}
               <ViewportToolbar

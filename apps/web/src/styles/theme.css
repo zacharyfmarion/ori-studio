@@ -1255,6 +1255,83 @@
   line-height: 1.45;
 }
 
+/* Containing block for the drop overlay. Establishes one without touching the
+   host's own layout, so it composes onto an existing grid container. */
+.file-drop-region {
+  position: relative;
+}
+
+.file-drop-overlay {
+  position: absolute;
+  inset: var(--space-2);
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  border: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  pointer-events: none;
+}
+
+.file-drop-overlay__badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--bg-canvas) 55%, transparent);
+}
+
+.choice-dialog__options {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.choice-dialog__option {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.choice-dialog__option:hover,
+.choice-dialog__option:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
+}
+
+.choice-dialog__option[data-tone='danger']:hover,
+.choice-dialog__option[data-tone='danger']:focus-visible {
+  border-color: color-mix(in srgb, var(--status-danger) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--status-danger) 6%, var(--bg-elevated));
+}
+
+.choice-dialog__option-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.choice-dialog__option[data-tone='danger'] .choice-dialog__option-label {
+  color: var(--status-danger);
+}
+
+.choice-dialog__option-description {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
 .simple-modal__footer {
   justify-content: flex-end;
   padding: 0;
@@ -3591,6 +3668,51 @@
   font-size: 0.78rem;
   font-weight: 650;
   text-align: center;
+}
+
+/* The read-only state, shown in place of the editing surface when a crease
+   pattern loads but the editable kernel refuses it. Same overlay treatment as
+   `.cp-panel__empty` — without it this was an unstyled div sitting in the
+   viewport's centred grid, overlapping the canvas and toolbars with no
+   background of its own. */
+.cp-panel__unopened {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background: var(--domain-overlay-bg);
+  text-align: center;
+}
+
+.cp-panel__unopened-title {
+  max-width: 46ch;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.cp-panel__unopened-detail {
+  max-width: 46ch;
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.cp-panel__unopened-reason {
+  max-width: 52ch;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--status-danger) 8%, transparent);
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .cp-panel__preparing {

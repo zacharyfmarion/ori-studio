@@ -214,7 +214,15 @@ export interface ProjectSliceActions {
    * `oristudioCpCamvResult` when it lands — dropped if the document changed meanwhile.
    */
   scheduleOristudioCamvRefresh: () => void;
-  openProject: (fileService?: FileService) => Promise<boolean>;
+  /**
+   * Open a document, replacing the current one. Prompts before discarding
+   * unsaved changes unless `confirmDiscard` is false — which only a caller that
+   * has already asked in its own prompt may pass.
+   */
+  openProject: (
+    fileService?: FileService,
+    options?: { confirmDiscard?: boolean }
+  ) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
   /** Merge crease-pattern text into the Edit canvas (in-memory Import(Add)). */
   importAddOristudioCpText: (

@@ -59,6 +59,8 @@ type PlainCompactGeometry = {
   segEndpoints: number[];
   segAttr: number[];
   segCustomColor: number[];
+  /** Required by the Rust struct (no serde default), though usually empty. */
+  segFoldMagnitude: number[];
   auxEndpoints: number[];
   auxAttr: number[];
   auxCustomColor: number[];
@@ -73,9 +75,14 @@ type PlainCompactGeometry = {
 // (crates/oristudio-cp/src/geometry_transport.rs). The native `cp_document_geometry`
 // returns one ArrayBuffer; slicing it into typed arrays avoids the JSON
 // serialize/parse that made large-doc selection laggy. Layout (little-endian):
-// magic | 10 element-counts (field order) | tail_byte_len | tail JSON | array data.
-const COMPACT_GEOMETRY_MAGIC = 0x4f_43_47_31; // "OCG1"
-const COMPACT_GEOMETRY_HEADER_U32S = 12;
+// magic | 11 element-counts (field order) | tail_byte_len | tail JSON | array data.
+//
+// Keep the magic, the count, and the field order in step with the Rust encoder:
+// it rejects an unrecognised magic outright, so a decoder left on the previous
+// version fails every payload rather than misparsing one.
+const COMPACT_GEOMETRY_MAGIC = 0x4f_43_47_32; // "OCG2" — adds seg_fold_magnitude
+const COMPACT_GEOMETRY_COUNTS = 11;
+const COMPACT_GEOMETRY_HEADER_U32S = COMPACT_GEOMETRY_COUNTS + 2; // magic + counts + tail_byte_len
 
 /** Decode a native compact-geometry ArrayBuffer into typed arrays. Throws (loudly)
  * on a bad magic or a length that disagrees with the header. Exported for tests. */
@@ -91,15 +98,15 @@ export function decodeCompactGeometryBytes(buffer: ArrayBuffer): CpGeometryTrans
     fail('compact geometry: bad magic/version');
   }
   const counts: number[] = [];
-  for (let i = 0; i < 10; i += 1) counts.push(view.getUint32(4 + i * 4, true));
-  const tailLen = view.getUint32(4 + 10 * 4, true);
-  const [segE, segA, segC, auxE, auxA, auxC, pt, circD, circA, circC] = counts;
+  for (let i = 0; i < COMPACT_GEOMETRY_COUNTS; i += 1) counts.push(view.getUint32(4 + i * 4, true));
+  const tailLen = view.getUint32(4 + COMPACT_GEOMETRY_COUNTS * 4, true);
+  const [segE, segA, segC, segFold, auxE, auxA, auxC, pt, circD, circA, circC] = counts;
 
   const expected =
     COMPACT_GEOMETRY_HEADER_U32S * 4 +
     tailLen +
     (segE + auxE + pt + circD) * 8 +
-    (segA + auxA + circA) * 4 +
+    (segA + auxA + circA + segFold) * 4 +
     segC +
     auxC +
     circC;
@@ -129,11 +136,19 @@ export function decodeCompactGeometryBytes(buffer: ArrayBuffer): CpGeometryTrans
     offset += count;
     return array;
   };
+  const u32 = (count: number): Uint32Array => {
+    const array = new Uint32Array(buffer.slice(offset, offset + count * 4));
+    offset += count * 4;
+    return array;
+  };
 
+  // Property order is the read order: each helper advances the shared offset, so
+  // these must stay in the encoder's field order.
   return {
     segEndpoints: f64(segE),
     segAttr: i32(segA),
     segCustomColor: u8(segC),
+    segFoldMagnitude: u32(segFold),
     auxEndpoints: f64(auxE),
     auxAttr: i32(auxA),
     auxCustomColor: u8(auxC),
@@ -149,6 +164,9 @@ function toPlainGeometry(geometry: CpGeometryTransport): PlainCompactGeometry {
   return {
     segEndpoints: Array.from(geometry.segEndpoints),
     segAttr: Array.from(geometry.segAttr),
+    // Empty means "every segment is classic", which is the common case — not
+    // all-zero. Absent entirely would fail the Rust struct's deserialization.
+    segFoldMagnitude: Array.from(geometry.segFoldMagnitude ?? []),
     segCustomColor: Array.from(geometry.segCustomColor),
     auxEndpoints: Array.from(geometry.auxEndpoints),
     auxAttr: Array.from(geometry.auxAttr),

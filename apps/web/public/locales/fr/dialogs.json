@@ -96,6 +96,15 @@
     "title": "Titre",
     "titlePlaceholder": "Facultatif"
   },
+  "fileDrop": {
+    "choiceMessage": "{{name}} est un patron de plis : il peut être fusionné avec celui que vous modifiez ou ouvert séparément.",
+    "choiceTitle": "Ouvrir ou importer {{name}} ?",
+    "importDescription": "Placé à droite de votre patron de plis, en une seule modification annulable.",
+    "importLabel": "Importer à côté du patron actuel",
+    "openDescription": "Remplace ce sur quoi vous travaillez.",
+    "openDescriptionDirty": "Remplace ce sur quoi vous travaillez et abandonne vos modifications non enregistrées.",
+    "openLabel": "Ouvrir comme nouveau fichier"
+  },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
     "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",

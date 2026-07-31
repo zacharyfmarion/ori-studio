@@ -219,6 +219,10 @@
     "reset": "Réinitialiser",
     "resetNamed": "Réinitialiser {{label}}"
   },
+  "fileDrop": {
+    "open": "Déposez pour ouvrir",
+    "openOrImport": "Déposez pour ouvrir ou importer"
+  },
   "toolbar": {
     "downloadMac": "Télécharger Ori Studio pour Mac",
     "new": "Nouveau",

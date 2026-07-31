@@ -86,6 +86,15 @@
     "title": "标题",
     "titlePlaceholder": "可选"
   },
+  "fileDrop": {
+    "choiceMessage": "{{name}} 是折痕图，可以合并到正在编辑的折痕图中，也可以单独打开。",
+    "choiceTitle": "打开还是导入 {{name}}？",
+    "importDescription": "放置在当前折痕图右侧，作为一次可撤销的编辑。",
+    "importLabel": "导入到当前折痕图旁边",
+    "openDescription": "替换你正在处理的内容。",
+    "openDescriptionDirty": "替换你正在处理的内容，并放弃未保存的更改。",
+    "openLabel": "作为新文件打开"
+  },
   "foldWarning": {
     "dontShowAgain": "不再显示",
     "message": "检测到平折性错误。是否继续折叠？",

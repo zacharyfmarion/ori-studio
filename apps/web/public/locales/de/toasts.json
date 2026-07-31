@@ -4,6 +4,10 @@
     "simulateFailed": "Dieser Bereich konnte nicht simuliert werden.",
     "simulateNoRegion": "Wähle einen geschlossenen Bereich zum Simulieren aus."
   },
+  "fileDrop": {
+    "ignoredFile": "{{name}} verwendet; 1 weitere abgelegte Datei wurde ignoriert.",
+    "ignoredFiles": "{{name}} verwendet; {{others}} weitere abgelegte Dateien wurden ignoriert."
+  },
   "global": {
     "error": "Ori Studio-Fehler",
     "folding": "Wird gefaltet…"

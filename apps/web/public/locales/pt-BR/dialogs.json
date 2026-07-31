@@ -96,6 +96,15 @@
     "title": "Título",
     "titlePlaceholder": "Opcional"
   },
+  "fileDrop": {
+    "choiceMessage": "{{name}} é um padrão de vincos, então pode ser mesclado ao que você está editando ou aberto separadamente.",
+    "choiceTitle": "Abrir ou importar {{name}}?",
+    "importDescription": "Colocado à direita do seu padrão de vincos, como uma única edição que pode ser desfeita.",
+    "importLabel": "Importar ao lado do padrão atual",
+    "openDescription": "Substitui aquilo em que você está trabalhando.",
+    "openDescriptionDirty": "Substitui aquilo em que você está trabalhando e descarta as alterações não salvas.",
+    "openLabel": "Abrir como novo arquivo"
+  },
   "foldWarning": {
     "dontShowAgain": "Não mostrar novamente",
     "message": "Foram detectados erros de dobradura plana. Continuar a dobrar?",

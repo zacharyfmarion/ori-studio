@@ -219,6 +219,10 @@
     "reset": "Redefinir",
     "resetNamed": "Redefinir {{label}}"
   },
+  "fileDrop": {
+    "open": "Solte para abrir",
+    "openOrImport": "Solte para abrir ou importar"
+  },
   "toolbar": {
     "downloadMac": "Baixar o Ori Studio para Mac",
     "new": "Novo",

@@ -219,6 +219,10 @@
     "reset": "Reset to default",
     "resetNamed": "Reset {{label}} to default"
   },
+  "fileDrop": {
+    "open": "Drop to open",
+    "openOrImport": "Drop to open or import"
+  },
   "toolbar": {
     "downloadMac": "Download Ori Studio for Mac",
     "new": "New",

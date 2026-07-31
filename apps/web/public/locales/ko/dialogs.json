@@ -86,6 +86,15 @@
     "title": "제목",
     "titlePlaceholder": "선택 사항"
   },
+  "fileDrop": {
+    "choiceMessage": "{{name}}은(는) 전개도이므로 편집 중인 전개도에 병합하거나 따로 열 수 있습니다.",
+    "choiceTitle": "{{name}}을(를) 열까요, 가져올까요?",
+    "importDescription": "전개도 오른쪽에 배치되며, 한 번의 실행 취소로 되돌릴 수 있습니다.",
+    "importLabel": "현재 전개도 옆에 가져오기",
+    "openDescription": "작업 중인 내용을 대체합니다.",
+    "openDescriptionDirty": "작업 중인 내용을 대체하고 저장하지 않은 변경 사항을 버립니다.",
+    "openLabel": "새 파일로 열기"
+  },
   "foldWarning": {
     "dontShowAgain": "다시 표시하지 않음",
     "message": "평평접기 오류가 감지되었습니다. 계속 접으시겠습니까?",

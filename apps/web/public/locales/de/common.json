@@ -219,6 +219,10 @@
     "reset": "Zurücksetzen",
     "resetNamed": "{{label}} zurücksetzen"
   },
+  "fileDrop": {
+    "open": "Zum Öffnen ablegen",
+    "openOrImport": "Zum Öffnen oder Importieren ablegen"
+  },
   "toolbar": {
     "downloadMac": "Ori Studio für Mac herunterladen",
     "new": "Neu",
