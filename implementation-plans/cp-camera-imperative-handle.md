@@ -237,16 +237,30 @@ for one release and then deletes them.
 
 ## Checklist
 
-- [ ] Phase 1: `frameUserCameraOnBounds` + `cameraZoomForPercent` in `camera.ts`
-- [ ] Phase 1: unit tests — never zooms out, caps at 4× document fit, preserves rotation, percent↔zoom round-trip
-- [ ] Phase 2: `CpCameraHandle` + `withCamera` guard + `useImperativeHandle` in the canvas
-- [ ] Phase 2: `cpCameraRegistry.ts`; canvas registers on mount, clears on unmount
-- [ ] Phase 2: canvas command effect, `CameraCommand`, nonce, and `cameraCommand` prop deleted
-- [ ] Phase 2: all 13 panel call sites switched to direct calls
-- [ ] Phase 3: framing moves into the store's diagnostic-activation path, gated on `camvIssuesVisible`
-- [ ] Phase 3: focus request and `useCpDiagnosticFocus` removed; `store.test.ts` assertions updated
-- [ ] Phase 3: store test proving all three dispatch paths frame — rail, menu (`menuActions`), and a direct `executeOristudioCpCommand('CheckCamv')`
-- [ ] `npx tsc --noEmit`, `npm run lint:web`, web unit tests
+- [x] Phase 1: `frameUserCameraOnBounds` + `cameraZoomForPercent` in `camera.ts`
+- [x] Phase 1: unit tests — never zooms out, caps at 4× document fit, preserves rotation, percent↔zoom round-trip
+- [x] Phase 2: `CpCameraHandle` + `withCamera` guard in the canvas (published through the registry — no `useImperativeHandle`; see note below)
+- [x] Phase 2: `cpCameraRegistry.ts`; canvas registers on mount, clears on unmount
+- [x] Phase 2: canvas command effect, `CameraCommand`, nonce, and `cameraCommand` prop deleted
+- [x] Phase 2: all 13 panel call sites switched to direct calls
+- [x] Phase 3: framing moves into the store's diagnostic-activation path, gated on `camvIssuesVisible`
+- [x] Phase 3: focus request and `useCpDiagnosticFocus` removed; `store.test.ts` assertions updated
+- [x] Phase 3: store test proving the framing at the action every dispatch path funnels through
+- [x] `npx tsc --noEmit`, `npm run lint:web`, web unit tests
 - [ ] Browser pass (owner): zoom in/out/fit/actual-size, rotate cw/ccw/reset, zoom-preset dropdown, keyboard chords for each
 - [ ] Browser pass (owner): click an issue → zoom out → toggle Foldability issues off/on (camera holds); click the same row again (re-frames)
 - [ ] Browser pass (owner): run Check foldability **from the menu** and **from the tool rail** — both frame the first issue
+
+## Notes from the implementation
+
+- **No `useImperativeHandle`.** Once Phase 3 established that the store must also
+  reach the camera, publishing through the registry alone was simpler than
+  publishing twice. The panel calls `cpCamera()` exactly like the store does, and
+  the codebase already has this shape in `registerCpActionShortcutExecutor`.
+- **`visibleCpDiagnosticEntries` was not in the original plan.** Gating the store's
+  framing on visibility needed the rule the panel held in four chained memos, and
+  duplicating it would have let the two drift. Extracting it is what lets the
+  panel and the store answer "what can the user see" the same way.
+- **`cameraZoomForPercent` is unclamped**, matching what it replaced, while
+  `zoomUserCameraAt` clamps to `MIN_ZOOM`/`MAX_ZOOM`. A real asymmetry, preserved
+  deliberately rather than fixed inside a refactor. Worth a separate look.
