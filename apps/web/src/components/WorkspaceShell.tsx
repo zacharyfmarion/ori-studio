@@ -34,6 +34,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import { parseWorkspacePath, workspacePath } from '../routing/paths';
+import { learnReturnPath, useRememberLearnPath } from '../routing/learnReturnPath';
 import { WORKSPACE_DEFINITIONS, type WorkspaceId } from '../workspaces/workspaces';
 
 const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
@@ -45,13 +46,15 @@ const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
 
 /**
  * Path a rail button navigates to. Design targets its active variant sub-route
- * (so an in-progress design isn't bounced back to the method chooser); other
- * workspaces have a single path.
+ * (so an in-progress design isn't bounced back to the method chooser) and Learn
+ * the lesson or course last open (so leaving the tutorial and coming back does
+ * not throw away where the reader was); the rest have a single path.
  */
 function railPath(workspace: WorkspaceId): string {
   if (workspace === 'design') {
     return workspacePath('design', deriveDesignVariant(useWorkspaceStore.getState()));
   }
+  if (workspace === 'learn') return learnReturnPath();
   return workspacePath(workspace);
 }
 
@@ -259,6 +262,9 @@ export function WorkspaceShell() {
   // the mount-time value is what it needs; later route changes rebuild via
   // WorkspaceRoute without a fresh onReady.
   const location = useLocation();
+  // One place records where the tutorial was, so the Learn rail button can
+  // return there rather than to the catalog.
+  useRememberLearnPath();
   const targetRef = useRef(
     parseWorkspacePath(location.pathname) ?? { workspace: 'design' as WorkspaceId }
   );
