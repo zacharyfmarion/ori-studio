@@ -9,6 +9,8 @@
       "view": "使用当前布局作为参考"
     },
     "layoutMethod": "布局方法",
+    "mirror": "镜像布局",
+    "mirrorNamed": "镜像布局（{{fold}}）",
     "options": "选项",
     "run": "运行！",
     "running": "运行中...",
@@ -20,6 +22,9 @@
       "running": "运行中...",
       "start": "正在处理问题..."
     },
+    "symmetry": "对称",
+    "symmetryInconsistent": "部分配对的角片在树中并不可互换，镜像它们会占用更多纸张。",
+    "symmetryOff": "对称已关闭。在树视图中开启后即可镜像布局。",
     "title": "优化布局",
     "toTry": "要尝试的布局数量：",
     "useBasinHopping": "尝试当前布局的变化",
@@ -229,8 +234,8 @@
     },
     "title": "设置",
     "workspace": {
-      "folding": "折叠",
       "foldWarning": "折叠存在平折错误的折痕图之前发出警告",
+      "folding": "折叠",
       "layout": "布局",
       "resetButton": "重置工作区布局",
       "resetMessage": "为当前工作区恢复默认布局吗？",

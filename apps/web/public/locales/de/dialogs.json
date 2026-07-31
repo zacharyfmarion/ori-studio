@@ -9,6 +9,8 @@
       "view": "Aktuelles Layout als Referenz verwenden"
     },
     "layoutMethod": "Layout-Methode",
+    "mirror": "Layout spiegeln",
+    "mirrorNamed": "Layout spiegeln ({{fold}})",
     "options": "Optionen",
     "run": "Ausführen!",
     "running": "Läuft...",
@@ -20,6 +22,9 @@
       "running": "Läuft...",
       "start": "Problem wird verarbeitet..."
     },
+    "symmetry": "Symmetrie",
+    "symmetryInconsistent": "Einige gepaarte Zipfel sind im Baum nicht austauschbar; sie zu spiegeln verbraucht mehr Papier.",
+    "symmetryOff": "Symmetrie ist aus. Schalte sie in der Baumansicht ein, um das Layout zu spiegeln.",
     "title": "Layout optimieren",
     "toTry": "Anzahl der zu testenden Layouts:",
     "useBasinHopping": "Variationen des aktuellen Layouts ausprobieren",
@@ -234,8 +239,8 @@
     },
     "title": "Einstellungen",
     "workspace": {
-      "folding": "Falten",
       "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
+      "folding": "Falten",
       "layout": "Layout",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",

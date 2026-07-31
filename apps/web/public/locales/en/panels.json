@@ -61,6 +61,25 @@
     "warnings": "Box Pleat packing warnings",
     "width": "Width"
   },
+  "bpSymmetry": {
+    "axisLabel": "{{fold}}, {{orientation}}",
+    "clear": "Clear",
+    "fold": {
+      "book": "Book fold",
+      "diagonal": "Diagonal fold"
+    },
+    "isOnAxis": "On the mirror axis",
+    "isPaired": "Mirrored with another flap",
+    "onAxis": "Place on the axis",
+    "orientation": {
+      "falling": "falling",
+      "horizontal": "horizontal",
+      "rising": "rising",
+      "vertical": "vertical"
+    },
+    "pair": "Mirror these two",
+    "title": "Mirror pairing"
+  },
   "bpTree": {
     "canvas": "Box Pleat tree canvas",
     "decreaseLength": "Decrease length",
@@ -73,6 +92,7 @@
     "layers": "Layers",
     "length": "Length",
     "max": "max {{value}}",
+    "mirrorAxis": "Mirror axis",
     "mirrorDraw": "Mirror draw",
     "mirrorDrawOn": "Mirror draw (on)",
     "selectEdge": "Select BP edge {{id}}, length {{length}}",
