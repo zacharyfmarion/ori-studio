@@ -78,10 +78,31 @@ describe('lesson content', () => {
   it('names tools that actually exist', () => {
     for (const lesson of LESSONS) {
       for (const step of lesson.steps) {
-        if (step.kind !== 'draw' || !step.teaches) continue;
+        if (!step.teaches) continue;
         expect(cpActionById(step.teaches), `${lesson.id}/${step.id}: ${step.teaches}`).toBeDefined();
       }
     }
+  });
+
+  /**
+   * Every step that tells the user to press a tool's key should also arm that
+   * tool, so the prose and the canvas agree. `teaches` was on draw steps only
+   * and action steps had a separate `runs` field in a different id space, which
+   * nothing read — so the big-little-big step named a tool it never selected.
+   */
+  it('arms the tool on steps whose prose names one', () => {
+    const NAMES_A_TOOL = /\b(?:press|with) (?:C|X|Y|B|Z|Q)\b/;
+    const missing: string[] = [];
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        if (step.kind === 'prose' || step.kind === 'explore') continue;
+        const text = [...step.body, 'hint' in step ? (step.hint ?? '') : ''].join(' ');
+        // Draw steps default to the segment tool via their own `teaches`; this
+        // is about steps that name a *specific* tool and then leave it unarmed.
+        if (NAMES_A_TOOL.test(text) && !step.teaches) missing.push(`${lesson.id}/${step.id}`);
+      }
+    }
+    expect(missing).toEqual([]);
   });
 
   it('gives every self-advancing step a way to be satisfied', () => {

@@ -340,7 +340,7 @@ function useLessonPracticeDocument(lesson: Lesson | undefined, step: LessonStep 
 function useArmedTool(step: LessonStep | undefined): void {
   const requestOristudioCpAction = useWorkspaceStore((state) => state.requestOristudioCpAction);
 
-  const teaches = step?.kind === 'draw' ? step.teaches : undefined;
+  const teaches = step?.teaches;
   const armed = useMemo(() => (teaches ? cpActionById(teaches) : undefined), [teaches]);
 
   useEffect(() => {

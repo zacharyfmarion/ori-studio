@@ -56,7 +56,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         title: 'Mountains and valleys',
         body: [
           'Every crease folds one of two ways. A mountain points up toward you like the ridge of a roof; a valley points away like a gutter. Turn the paper over and each becomes the other — the distinction is always relative to the side you are looking at.',
-          'Ori Studio draws mountains red and valleys blue, the usual convention. The black outline is the edge of the paper, not a fold.',
+          'Ori Studio draws mountains red and valleys blue, the usual convention. The outline is the edge of the paper, not a fold.',
         ],
       },
       {
@@ -113,6 +113,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
           'Maekawa’s theorem says those counts must differ by exactly two at any vertex. A difference of zero cannot lie flat. This is not the editor being fussy: fold both diagonals this way on real paper and the middle will fight you.',
           'Press C and click one half of the valley diagonal to make it a mountain. Three to one, and the warning clears.',
         ],
+        teaches: 'cp.action.crease-toggle-mv',
         expect: 'camv-clean',
         hint: 'One side of the centre only. If you flip the wrong half, press C and click it again.',
       },

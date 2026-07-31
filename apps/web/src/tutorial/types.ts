@@ -11,7 +11,6 @@
  * `src/i18n/tutorialVocab.ts`). English here is the source of truth.
  */
 import type { OristudioCpActionId } from '../lib/oristudioCpActions';
-import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 
 /** An illustration beside a step's prose. */
 export interface LessonImage {
@@ -84,6 +83,17 @@ interface LessonStepBase {
    */
   loadsTargetId?: string;
   image?: LessonImage;
+  /**
+   * The tool this step is about; armed for the user when the step opens, unless
+   * the command needs a selection first (see `useArmedTool`).
+   *
+   * On the base step rather than on `draw` alone, because an `action` step can
+   * be about a tool just as much as a drawing one is — the big-little-big step
+   * asks for the alternating M/V tool by name. It used to be two fields in two
+   * id spaces (`teaches` here, `runs` on action steps, one an action id and the
+   * other an operation id), and the second was never wired up to anything.
+   */
+  teaches?: OristudioCpActionId;
 }
 
 /** Read and continue. */
@@ -97,8 +107,6 @@ export interface LessonDrawStep extends LessonStepBase {
   /** Key into `LESSON_TARGETS` — the pattern to reproduce. */
   targetId: string;
   check: LessonCheckSpec;
-  /** The tool this step is about; armed for the user when the step opens. */
-  teaches?: OristudioCpActionId;
   /** Extra nudge shown once the user has been on the step a while. */
   hint?: string;
 }
@@ -107,8 +115,6 @@ export interface LessonDrawStep extends LessonStepBase {
 export interface LessonActionStep extends LessonStepBase {
   kind: 'action';
   expect: LessonStatePredicate;
-  /** Command to arm, when the step is about a specific one. */
-  runs?: OristudioCpOperationId;
   hint?: string;
 }
 

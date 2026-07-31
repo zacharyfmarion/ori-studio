@@ -58,6 +58,7 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
           'Seven vertices along this diagonal break that. Fix them all at once with Make alternating M/V: press X, then drag a guide line down the diagonal from the bottom-right corner to the top-left.',
           'Direction matters — the tool alternates as it travels, so dragging the other way hands out the opposite assignment and leaves every vertex as broken as it was.',
         ],
+        teaches: 'cp.action.crease-make-mv',
         expect: 'camv-clean',
         hint: 'If the warnings do not clear, you dragged the wrong way. Cmd+Z and drag the other direction.',
       },
@@ -80,7 +81,7 @@ export const FOLDABILITY_LESSONS: readonly Lesson[] = [
         title: 'Watch it fail',
         body: [
           'The red faces say which ones collide. Simulating shows it happening.',
-          'Select everything again — folding clears the selection — and press Shift+S. Space plays it; the arrow keys step it, which is the better way to watch the red region run out of room.',
+          'Select everything again — folding clears the selection — and press Shift+S. Space plays it, but the arrow keys are better here: step forward and stop around 70 percent, where you can watch the paper pass straight through itself. Real paper cannot do that, which is exactly what the red faces were telling you.',
           'So a clean overlay is not a promise. The checker can prove a vertex is broken, never that a pattern folds.',
         ],
         expect: 'inline-simulation-exists',
