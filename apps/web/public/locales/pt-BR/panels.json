@@ -72,7 +72,6 @@
     "layerLabels": "Rótulos",
     "layers": "Camadas",
     "length": "Comprimento",
-    "max": "máx {{value}}",
     "mirrorDraw": "Desenho espelhado",
     "mirrorDrawOn": "Desenho espelhado (ativado)",
     "selectEdge": "Selecionar aresta BP {{id}}, comprimento {{length}}",

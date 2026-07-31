@@ -72,7 +72,6 @@
     "layerLabels": "Beschriftungen",
     "layers": "Ebenen",
     "length": "Länge",
-    "max": "max. {{value}}",
     "mirrorDraw": "Spiegelzeichnen",
     "mirrorDrawOn": "Spiegelzeichnen (ein)",
     "selectEdge": "BP-Kante {{id}} auswählen, Länge {{length}}",

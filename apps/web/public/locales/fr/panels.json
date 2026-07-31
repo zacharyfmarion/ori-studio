@@ -72,7 +72,6 @@
     "layerLabels": "Étiquettes",
     "layers": "Calques",
     "length": "Longueur",
-    "max": "max {{value}}",
     "mirrorDraw": "Dessin en miroir",
     "mirrorDrawOn": "Dessin en miroir (activé)",
     "selectEdge": "Sélectionner l'arête BP {{id}}, longueur {{length}}",

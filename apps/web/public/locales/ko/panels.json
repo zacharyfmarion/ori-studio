@@ -72,7 +72,6 @@
     "layerLabels": "레이블",
     "layers": "레이어",
     "length": "길이",
-    "max": "최대 {{value}}",
     "mirrorDraw": "대칭 그리기",
     "mirrorDrawOn": "대칭 그리기(켜짐)",
     "selectEdge": "BP 모서리 {{id}} 선택, 길이 {{length}}",

@@ -72,7 +72,6 @@
     "layerLabels": "Etiquetas",
     "layers": "Capas",
     "length": "Longitud",
-    "max": "máx {{value}}",
     "mirrorDraw": "Dibujo simétrico",
     "mirrorDrawOn": "Dibujo simétrico (activado)",
     "selectEdge": "Seleccionar arista BP {{id}}, longitud {{length}}",
