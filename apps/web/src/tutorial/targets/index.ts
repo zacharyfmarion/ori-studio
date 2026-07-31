@@ -33,6 +33,7 @@ import preliminaryBaseExtraCrease from './preliminary-base-extra-crease.fold?raw
 import violationMaekawa from './violation-maekawa.fold?raw';
 import violationKawasaki from './violation-kawasaki.fold?raw';
 import violationBigLittleBig from './violation-big-little-big.fold?raw';
+import notFlatFoldable from './not-flat-foldable.fold?raw';
 import type { LessonTarget } from '../types';
 
 export const LESSON_TARGETS: readonly LessonTarget[] = [
@@ -53,6 +54,7 @@ export const LESSON_TARGETS: readonly LessonTarget[] = [
   { id: 'violation-maekawa', text: violationMaekawa, format: 'fold' },
   { id: 'violation-kawasaki', text: violationKawasaki, format: 'fold' },
   { id: 'violation-big-little-big', text: violationBigLittleBig, format: 'fold' },
+  { id: 'not-flat-foldable', text: notFlatFoldable, format: 'fold' },
 ];
 
 const TARGET_BY_ID = new Map(LESSON_TARGETS.map((target) => [target.id, target]));
