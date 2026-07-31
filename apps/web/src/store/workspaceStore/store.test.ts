@@ -126,6 +126,7 @@ const bpMocks = vi.hoisted(() => ({
   loadOristudioBpProjectFromText: vi.fn(),
   getOristudioBpPortDescriptors: vi.fn(),
   exportOristudioBpProjectAsBps: vi.fn(),
+  optimizeOristudioBpLayout: vi.fn(),
 }));
 
 vi.mock('../../lib/creaseExport', () => exportMocks);
@@ -151,6 +152,7 @@ vi.mock('./oristudioBpRuntime', async (importOriginal) => {
     loadOristudioBpProjectFromText: bpMocks.loadOristudioBpProjectFromText,
     getOristudioBpPortDescriptors: bpMocks.getOristudioBpPortDescriptors,
     exportOristudioBpProjectAsBps: bpMocks.exportOristudioBpProjectAsBps,
+    optimizeOristudioBpLayout: bpMocks.optimizeOristudioBpLayout,
   };
 });
 
@@ -1186,6 +1188,7 @@ function resetStores(snapshot = makeSnapshot()) {
   bpMocks.exportOristudioBpProjectAsBps
     .mockReset()
     .mockResolvedValue('{"title":"Untitled","tree":{}}');
+  bpMocks.optimizeOristudioBpLayout.mockReset();
   oristudioCpMocks.getOristudioCpOperationDescriptors
     .mockReset()
     .mockResolvedValue(cpOperationDescriptors);
@@ -5412,6 +5415,97 @@ describe('workspace store slices', () => {
       expect(useWorkspaceStore.getState().workflowTarget).toBe('treemaker');
       expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
       expect(useWorkspaceStore.getState().oristudioBpDocument).toBeNull();
+    });
+
+    it('applies an optimizer result as exactly one undoable step', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const before = useWorkspaceStore.getState().oristudioBpDocument;
+      useWorkspaceStore.setState({ oristudioBpHistoryPast: [], oristudioBpHistoryFuture: [] });
+      // The snapshot the history entry must capture is the state *before* the
+      // run, so the export mocked here is the pre-optimize project.
+      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"before":"optimize"}');
+      const optimized = { ...sampleBpDocument(), activeSurface: 'packing' as const };
+      bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
+        document: optimized,
+        eventCount: 3,
+        openedNew: false,
+      });
+
+      await expect(
+        useWorkspaceStore.getState().optimizeOristudioBpLayout({
+          useDimension: true,
+          layoutMode: 'view',
+          useBasinHopping: false,
+          randomCandidateCount: 1,
+        })
+      ).resolves.toBe('applied');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).toBe(optimized);
+      expect(state.oristudioBpDocument).not.toBe(before);
+      expect(state.oristudioBpHistoryPast).toHaveLength(1);
+      expect(state.oristudioBpHistoryPast[0].snapshot.bps).toBe('{"before":"optimize"}');
+      expect(state.oristudioBpBusy).toBe(false);
+      // `openNew` is never a user choice: the optimizer always replaces in place.
+      expect(bpMocks.optimizeOristudioBpLayout).toHaveBeenCalledWith(
+        expect.objectContaining({ openNew: false, seed: null }),
+        expect.objectContaining({ activeSurface: 'packing' }),
+        undefined
+      );
+    });
+
+    it('leaves the document and history untouched when the optimizer is cancelled', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const before = useWorkspaceStore.getState().oristudioBpDocument;
+      useWorkspaceStore.setState({ oristudioBpHistoryPast: [], oristudioBpHistoryFuture: [] });
+      bpMocks.optimizeOristudioBpLayout.mockRejectedValueOnce({
+        code: 'optimization_cancelled',
+        message: 'Box Pleat optimization cancelled',
+      });
+
+      await expect(
+        useWorkspaceStore.getState().optimizeOristudioBpLayout({
+          useDimension: true,
+          layoutMode: 'random',
+          useBasinHopping: false,
+          randomCandidateCount: 4,
+        })
+      ).resolves.toBe('cancelled');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).toBe(before);
+      expect(state.oristudioBpHistoryPast).toHaveLength(0);
+      // Aborting is a user action, so nothing is surfaced as a failure.
+      expect(state.oristudioBpError).toBeNull();
+      expect(state.oristudioBpBusy).toBe(false);
+    });
+
+    it('reports a failed optimizer run without recording history', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const before = useWorkspaceStore.getState().oristudioBpDocument;
+      useWorkspaceStore.setState({ oristudioBpHistoryPast: [], oristudioBpHistoryFuture: [] });
+      bpMocks.optimizeOristudioBpLayout.mockRejectedValueOnce({
+        code: 'optimization_failed',
+        message: 'Solution exceeds maximal sheet size.',
+      });
+
+      await expect(
+        useWorkspaceStore.getState().optimizeOristudioBpLayout({
+          useDimension: false,
+          layoutMode: 'view',
+          useBasinHopping: true,
+          randomCandidateCount: 1,
+        })
+      ).resolves.toBe('failed');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).toBe(before);
+      expect(state.oristudioBpHistoryPast).toHaveLength(0);
+      expect(state.oristudioBpError).toBe('Solution exceeds maximal sheet size.');
+      expect(state.oristudioBpBusy).toBe(false);
     });
 
     it('opening a file clears a pending design choice', async () => {

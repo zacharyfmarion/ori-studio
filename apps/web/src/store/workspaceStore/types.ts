@@ -66,6 +66,9 @@ import type {
   OristudioBpEditingSurface,
   OristudioBpPortDescriptor,
   OristudioBpSelection,
+  OristudioBpOptimizerOutcome,
+  OristudioBpOptimizerProgress,
+  OristudioBpOptimizerRunOptions,
   OristudioBpSheetKind,
   OristudioBpWorkspaceState,
 } from '../../engine/oristudioBpTypes';
@@ -813,6 +816,14 @@ export interface OristudioBpSliceActions {
     width: number,
     height: number
   ) => Promise<boolean>;
+  /**
+   * Run the BP layout optimizer and apply its result as one undoable step.
+   * Cancelling leaves the document and history untouched.
+   */
+  optimizeOristudioBpLayout: (
+    options: OristudioBpOptimizerRunOptions,
+    onProgress?: (progress: OristudioBpOptimizerProgress) => void
+  ) => Promise<OristudioBpOptimizerOutcome>;
 }
 
 export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;
