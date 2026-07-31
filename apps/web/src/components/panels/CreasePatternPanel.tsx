@@ -150,6 +150,7 @@ import {
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
+import { useCpLineColorInversion } from '../../cp-workspace/lineColor/useCpLineColorInversion';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { useThemeStore } from '../../store/themeStore';
 import {
@@ -1052,6 +1053,15 @@ export function CreasePatternPanel() {
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
+  // Upstream's `calculateLineColor()`: while the modifier is held the crease
+  // colour reads inverted everywhere -- rail, preview, committed line -- while
+  // `activeCpLineColor` keeps the colour the user actually chose. Every read
+  // below goes through the effective colour; only the two writes (metadata
+  // restore, rail click) touch the base.
+  const { effectiveLineColor: effectiveCpLineColor } = useCpLineColorInversion(
+    activeCpLineColor,
+    activeEditingContext === 'crease-pattern'
+  );
   const editableCpBounds = ORIEDITA_PAPER_BOUNDS;
   // `cpModelToSvg` / `cpSvgToModel`, not a document-derived affine: a file's
   // saved Oriedita camera is a view, and baking it in here gave the canvas two
@@ -1530,13 +1540,13 @@ export function CreasePatternPanel() {
         command,
         editableCpBounds,
         editableCpGridWidth,
-        activeCpLineColor,
+        effectiveCpLineColor,
         zoomPercent / 100,
         cpToolOptions
       ),
       ...payload,
     }),
-    [activeCpLineColor, cpToolOptions, editableCpBounds, editableCpGridWidth, zoomPercent]
+    [effectiveCpLineColor, cpToolOptions, editableCpBounds, editableCpGridWidth, zoomPercent]
   );
 
   useEffect(() => {
@@ -2050,9 +2060,9 @@ export function CreasePatternPanel() {
   const toolPreviewColor = useMemo(
     () =>
       activeCpCommand?.group === 'draw'
-        ? resolveCpLineColor(activeCpLineColor, mode, document.documentElement)
+        ? resolveCpLineColor(effectiveCpLineColor, mode, document.documentElement)
         : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const),
-    [activeCpCommand?.group, activeCpLineColor, mode]
+    [activeCpCommand?.group, effectiveCpLineColor, mode]
   );
 
   // The active tool's WebGL routing from its declarative steps: a drag mode; a
@@ -2777,7 +2787,7 @@ export function CreasePatternPanel() {
             {editableCp && (
               <CpToolRail
                 activeActionId={cpToolState.activeActionId}
-                activeLineColor={activeCpLineColor}
+                activeLineColor={effectiveCpLineColor}
                 editable={!!editableCp}
                 onSelectAction={handleCpToolAction}
               />
@@ -3162,7 +3172,7 @@ export function CreasePatternPanel() {
                     command={activeCpCommand}
                     options={cpToolOptions}
                     setOptions={setCpToolOptions}
-                    activeLineColor={activeCpLineColor}
+                    activeLineColor={effectiveCpLineColor}
                     measurements={cpMeasurements}
                     onHoverMeasurement={setCpHoveredMeasureIndex}
                     measureUnit={cpMeasurePreferences.unit}
@@ -3189,7 +3199,7 @@ export function CreasePatternPanel() {
               <div className="viewport-status-readout">
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}
-                {editableCp && <span>{cpLineTypeStatusLabel(activeCpLineColor, t)}</span>}
+                {editableCp && <span>{cpLineTypeStatusLabel(effectiveCpLineColor, t)}</span>}
                 {editableCp && editableCpSummary && (
                   <span>{t('panels:creasePattern.linesCount', '{{count}} lines', { count: editableCpSummary.line_segments })}</span>
                 )}
