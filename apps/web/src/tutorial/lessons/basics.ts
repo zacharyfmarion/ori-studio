@@ -29,7 +29,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         title: 'What a crease pattern is',
         body: [
           'A crease pattern shows every fold in a finished model at once, on the unfolded sheet. Designers work it out first and figure out how to collapse it afterwards, which is why one often looks nothing like the model it makes.',
-          'The square on the right is your paper, and everything you draw on it is a fold. Behind it is a grid — not part of the design, but what your creases snap to, so you can draw accurately without measuring. It divides the paper into eighths; change that in the View panel.',
+          'The square on the right is your paper, and everything you draw on it is a fold. Behind it is a grid — not part of the design, but what your creases snap to, so you can draw accurately without measuring. It divides the paper into eighths. You can change or hide the grid in the View panel on the right.',
         ],
       },
       {
@@ -37,6 +37,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         kind: 'explore',
         title: 'Move around',
         body: [
+          'The Edit workspace is an infinite canvas with your paper sitting in the middle of it. You move the view around rather than the paper, so nothing you do here changes the design.',
           'Scroll to zoom. Hold Cmd (Ctrl on Windows and Linux) and drag to pan, or press 1 for the hand tool.',
           'Cmd + and Cmd − zoom, Cmd 0 fits the paper back in view, Cmd 1 returns to actual size. Try it — Cmd 0 will always bring you home.',
         ],
@@ -63,6 +64,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         kind: 'draw',
         title: 'Draw the diagonal',
         body: [
+          'The tool rail down the left holds every drawing tool. The one you want is the segment tool, which draws a straight crease between two points, and the buttons above it under Type set what kind of crease that will be.',
           'Press A for mountain and Z for the segment tool, then drag from one corner to the opposite one.',
           'You do not have to be precise. Releasing near a corner is enough — snapping puts the crease exactly on it.',
         ],
@@ -94,6 +96,7 @@ export const BASICS_LESSONS: readonly Lesson[] = [
         kind: 'draw',
         title: 'One of each',
         body: [
+          'The active type applies to the next crease you draw, so you switch between strokes rather than fixing things afterwards.',
           'Draw both diagonals — one mountain, one valley. Press A and draw one, then S and draw the other.',
         ],
         targetId: 'both-diagonals',
