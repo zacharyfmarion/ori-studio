@@ -280,27 +280,30 @@ the wild.
       mirror image. Measure book vs diagonal separately. If diagonal breaks,
       decide whether to canonicalize the transpose in pattern search or ship
       book-only first.
-- [ ] Phase 1 — `Symmetry` / `SymmetryAxis` types, paper-relative to normalized
+- [x] Phase 1 — `Symmetry` / `SymmetryAxis` types, paper-relative to normalized
       axis resolution per sheet type, dimension-compatibility validation
-- [ ] Phase 1 — equality residuals + `symmetrize()` seeding in the continuous solve;
+- [x] Phase 1 — equality residuals + `symmetrize()` seeding in the continuous solve;
       unit tests per axis, including flaps with dimensions
-- [ ] Phase 2 — per-axis grid offsets (generalize `Sheet::offset` to a pair)
-- [ ] Phase 2 — orbit-based greedy branching, symmetry-aware validity (including
+- [x] Phase 2 — per-axis grid offsets (generalize `Sheet::offset` to a pair)
+- [x] Phase 2 — orbit-based greedy branching, symmetry-aware validity (including
       representative-vs-partner), enlargement, annulus fallback, and output sizing
-- [ ] Phase 2 — assert exact symmetry of the fitted integer result in tests
-- [ ] Phase 3 — adapter from `OristudioBpSymmetryState` to the kernel's leaf
+- [x] Phase 2 — assert exact symmetry of the fitted integer result in tests
+- [x] Phase 3 — adapter from `OristudioBpSymmetryState` to the kernel's leaf
       involution: explicit leaf pairs, geometric inference in view mode only,
       totality check with the offending flaps named, preset axis mapping with
       `'custom'` rejected
-- [ ] Phase 3 — widen the BP symmetry mode from book-vertical-only to the four
+- [ ] (blocked on the UI question) Phase 3 — widen the BP symmetry mode from book-vertical-only to the four
       presets in `symmetryPresets.ts`; a way to pair/unpair two selected flaps
       directly rather than only as a side effect of mirrored authoring
-- [ ] Phase 3 — cross the two variants of the chosen preset only when
+- [ ] (deferred) Phase 3 — cross the two variants of the chosen preset only when
       `useDimension` is on (otherwise they are the same problem rotated 90°)
-- [ ] Phase 3 — warn (do not reject) when the declared pairing is not
+- [x] Phase 3 — warn (do not reject) when the declared pairing is not
       distance-consistent
-- [ ] Phase 4 — manifold-preserving basin-hopping; random/hierarchy mode integration
-- [ ] Phase 5 — wasm bridge + optimizer dialog option + i18n
-- [ ] Confirm `optimizer_oracle.rs` still passes with symmetry absent
-- [ ] Delete the spike examples
-- [ ] Update `PORTING.md`
+- [x] Phase 4 — manifold-preserving basin-hopping; random/hierarchy mode integration
+- [ ] (blocked) Phase 5 — there is no BP "Optimize Layout" UI at all; the
+      runtime API exists but nothing calls it. Symmetry rides on the request as
+      plain JSON so no wasm change is needed, but a dialog has to exist before
+      any of this is reachable by a user.
+- [x] Confirm `optimizer_oracle.rs` still passes with symmetry absent
+- [x] Delete the spike examples
+- [x] Update `PORTING.md`

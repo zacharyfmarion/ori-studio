@@ -88,6 +88,32 @@ Release caveats:
   `treemaker-cli` before making claims about a private archive of historical
   user files.
 
+## Box Pleating Studio (`oristudio-bp*`)
+
+Deliberate divergences, each additive — the ported algorithms and their outputs
+are unchanged:
+
+- **Layout symmetry** is an Ori Studio extension with no upstream counterpart.
+  Upstream Box Pleating Studio has no notion of a symmetric layout, so there is
+  nothing to be faithful to; the closest domain precedent is TreeMaker's
+  `tmConditionNodesPaired` / `tmConditionNodeSymmetric`, whose linear-equality
+  formulation this follows.
+
+  The whole feature is gated on `OptimizerRequest::symmetry` being `Some`. With
+  it absent, every code path is the upstream one: `pack_rssl` delegates to
+  `pack_rssl_symmetric` with no symmetry, the basin-hopping and global-solve
+  entry points delegate likewise, and the grid fit uses the upstream greedy. The
+  differential test in `crates/oristudio-bp/tests/optimizer_oracle.rs` compares
+  against the vendored WASM over 400+ cases and must keep passing untouched.
+
+  Symmetric fitting does depart from the upstream greedy in one structural way,
+  because it has to: upstream pins flaps at absolute grid coordinates and grows
+  the sheet lazily, and in absolute coordinates a book mirror is `x -> s - x - w`,
+  so growth would move the axis out from under the already-pinned pairs. The
+  symmetric fit measures the mirrored axes from the sheet centre instead — the
+  same thing the diagonal sheet already does — which makes the mirror map
+  independent of the sheet size at the cost of an even sheet size.
+
 ## Origami Simulator (`packages/origami-simulator`)
 
 The vendored reference is `third_party/origami-simulator` at commit
