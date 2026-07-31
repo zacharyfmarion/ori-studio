@@ -546,13 +546,12 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     railOrder: 10,
   },
   // The one rail entry that is not a mouse tool: a whole-document sweep that
-  // runs on click. Keeps the command's own "(Ignore Type)" label rather than a
-  // shortened one — the Repair menu carries a same-named variant that behaves
-  // differently, and the rail is icon-only anyway, so the label is only ever
-  // read as a tooltip where the qualifier is exactly what disambiguates.
-  DeleteExtraVerticesIgnoreColor: {
+  // runs on click. The same-type variant is the one on the rail because it is
+  // the one carrying a keybinding; its ignore-type sibling stays in the Repair
+  // menu, where the fuller label has room to say how it differs.
+  DeleteExtraVertices: {
     group: 'edit',
-    upstreamAction: 'v_del_all_ccAction',
+    upstreamAction: 'v_del_allAction',
     railOrder: 15,
   },
   VertexDeleteOnCrease: {

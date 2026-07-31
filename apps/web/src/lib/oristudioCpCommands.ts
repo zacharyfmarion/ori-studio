@@ -780,7 +780,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     'wrench',
     'v_del_allAction',
     {
-      placement: 'menu',
+      placement: 'left-rail',
       tooltip: 'Merge collinear crease pairs that meet at a vertex, when both are the same type',
     }
   ),
@@ -791,7 +791,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     'wrench',
     'v_del_all_ccAction',
     {
-      placement: 'left-rail',
+      placement: 'menu',
       tooltip:
         'Merge collinear crease pairs regardless of type — a mountain and a valley merge to an edge',
     }

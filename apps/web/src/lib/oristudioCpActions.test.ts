@@ -148,9 +148,11 @@ describe('oristudio CP action registry', () => {
         upstreamMouseMode: 'DELETE_POINT_15',
       },
       {
-        // Not a mouse tool — a whole-document sweep, hence no mouse mode.
-        label: 'Delete Extra Vertices (Ignore Type)',
-        upstreamAction: 'v_del_all_ccAction',
+        // Not a mouse tool — a whole-document sweep, hence no mouse mode. The
+        // same-type variant is the one on the rail because it is the one with a
+        // keybinding; its ignore-type sibling lives in the Repair menu.
+        label: 'Delete Extra Vertices',
+        upstreamAction: 'v_del_allAction',
         upstreamMouseMode: undefined,
       },
       // `VertexDeleteOnCrease` (Delete any Vertex) and `CreaseDeleteOverlapping`

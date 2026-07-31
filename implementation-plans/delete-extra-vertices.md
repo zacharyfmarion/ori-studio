@@ -408,10 +408,14 @@ Browser checklist for Zach (not tool-verifiable):
 - [x] Phase 1 — `OperationId`s, descriptors, dispatch arms; wasm rebuilt and committed
 - [x] Phase 2 — command catalog, input-model entries, capabilities, menu action map, Repair submenu (both actions)
 - [x] Phase 3 — execute-vs-activate predicate so a one-shot does not latch the rail
-- [x] Phase 3 — rail override + glyph for the ignore-colour variant. No rail label
-      needed after all: command actions never set `railLabel`, so the rail is
-      icon-plus-tooltip and the truncation worry did not apply. Kept the command's
-      own "(Ignore Type)" label, which is what the tooltip shows.
+- [x] Phase 3 — rail override + glyph. No rail label needed after all: command
+      actions never set `railLabel`, so the rail is icon-plus-tooltip and the
+      truncation worry did not apply.
+      **Later revision:** the rail entry is the *same-type* variant, not the
+      ignore-type one this plan assumed. The rail should carry the variant that
+      has a keybinding, so the two ways of reaching it agree; the ignore-type
+      sweep stays in the Repair menu, where its longer label has room to say how
+      it differs.
 - [x] Phase 4 — `primary+shift+V` chord (verified free; upstream double-books it with paste-offset)
 - [x] Phase 5 — sweep rewritten on segment indices + eps-cell spatial hash; 1.35s -> 0.01s
       on a 10k-segment dense grid. `checks::point_line_map` was not reusable as-is —
