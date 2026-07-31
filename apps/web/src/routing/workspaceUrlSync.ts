@@ -2,7 +2,7 @@ import { useLayoutStore } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
 import { currentPath, navigateTo } from './appRouter';
-import { WELCOME_PATH, workspacePath } from './paths';
+import { WELCOME_PATH, parseWorkspacePath, workspacePath } from './paths';
 
 /**
  * The path that matches the current store state: the active workspace, plus the
@@ -39,6 +39,12 @@ export function startWorkspaceUrlSync(): () => void {
     if (state.activeWorkspace === prev.activeWorkspace) return;
     const path = currentPath();
     if (path === null || path === WELCOME_PATH || path === '/') return;
+    // The URL already points inside the workspace being activated, so it got
+    // there first — a deep link, or a redirect that resolved one. It is more
+    // specific than the workspace root this would navigate to, and replacing it
+    // would throw the deep link away: cold-loading a lesson used to land on the
+    // tutorial catalog for exactly this reason.
+    if (parseWorkspacePath(path)?.workspace === state.activeWorkspace) return;
     const desired = targetPath();
     if (desired !== path) navigateTo(desired);
   });

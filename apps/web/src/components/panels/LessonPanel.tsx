@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, CircleDashed, ListChecks, SkipForward } from 'lucide-react';
 import { useTutorialStore } from '../../store/tutorialStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -89,10 +89,12 @@ export function LessonPanel() {
     else navigate(courseId ? coursePath(courseId) : LEARN_PATH);
   }, [goToNextStep, isLastStep, lesson, markLessonComplete, navigate]);
 
-  // The route only renders this panel for a real lesson; a missing one means the
-  // store and the URL have diverged, so send the reader up to the catalog rather
-  // than rendering an empty shell.
-  if (!lesson || !step) return <Navigate to={LEARN_PATH} replace />;
+  // `LessonRoute` opens the lesson from an effect, so the first render after
+  // navigation has no active lesson yet. Render nothing for that frame — an
+  // earlier version redirected here instead, which raced the effect and bounced
+  // every lesson straight back to the catalog. Validating the URL is the route's
+  // job; this panel only waits for the store to catch up.
+  if (!lesson || !step) return null;
 
   return (
     <div className="lesson-panel">
@@ -300,6 +302,19 @@ function useLessonPracticeDocument(lesson: Lesson | undefined, step: LessonStep 
   const startTargetId = lesson?.startTargetId;
   const stepTargetId = step?.loadsTargetId;
 
+  /**
+   * What we last *started* loading, as opposed to what has arrived.
+   *
+   * The effect re-runs whenever the document changes, and one of its conditions
+   * is `!document` — so a load that fails, or has not resolved yet, leaves that
+   * condition true and the effect fires again on the very re-render its own
+   * `markPracticeDocumentFor` caused. That is an infinite loop, and it is
+   * reachable: cold-load a lesson URL before the CP engine is up and the first
+   * load rejects. Keyed by intent rather than outcome, so each intent is
+   * attempted once.
+   */
+  const startedRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!lessonId) return;
 
@@ -312,6 +327,10 @@ function useLessonPracticeDocument(lesson: Lesson | undefined, step: LessonStep 
     if (!wantsStepPattern && !wantsLessonPattern) return;
 
     const targetId = wantsStepPattern ? stepTargetId : startTargetId;
+    const intent = `${lessonId}|${wantsStepPattern ? (stepTargetId ?? '') : ''}`;
+    if (startedRef.current === intent) return;
+    startedRef.current = intent;
+
     const target = targetId ? lessonTarget(targetId) : undefined;
     markPracticeDocumentFor(lessonId, wantsStepPattern ? (stepTargetId ?? null) : null);
     void useWorkspaceStore

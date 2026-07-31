@@ -49,6 +49,17 @@ describe('learn paths', () => {
     }
   });
 
+  /**
+   * `startWorkspaceUrlSync` skips when the current path already resolves to the
+   * workspace being activated. That guard is what keeps a deep-linked lesson
+   * from being replaced by the workspace root: `parseWorkspacePath` must report
+   * `learn` for a lesson path, or cold-loading one lands on the catalog.
+   */
+  it('reports the learn workspace for a lesson, so the url sync leaves it alone', () => {
+    expect(parseWorkspacePath('/learn/basics/mirroring')?.workspace).toBe('learn');
+    expect(parseWorkspacePath('/learn')?.workspace).toBe('learn');
+  });
+
   it('can build a canonical path for every lesson', () => {
     for (const lesson of LESSONS) {
       const courseId = courseIdForLesson(lesson.id);
