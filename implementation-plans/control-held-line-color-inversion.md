@@ -348,7 +348,9 @@ command, so inversion is entirely a frontend derivation.
 - [x] Phase 4 — five panel read sites switched to the derived colour
 - [x] Phase 5 — `pointermove` resync on the CP canvas
 - [x] Phase 6a — `dragShift` reduced to `e.shiftKey` (own commit)
-- [ ] Phase 6b — non-Apple pan modifier resolved per the decision above (own commit)
+- [x] Phase 6b — pan-drag moved to `metaKey`, freeing Ctrl off-Apple (own commit).
+      Resolved as upstream's own rule: `Canvas.java:267` maps `isMetaDown()` to
+      BUTTON2, which pans. Cmd+drag on macOS is unchanged.
 - [x] Phase 7 — tsc / vitest / lint green (1659 web tests); rail swap, Edge/Auxiliary no-op,
       blur reset and text-field suppression all verified in-browser
 - [ ] Phase 7 (remaining) — the WKWebView Ctrl+click probe, on the Tauri desktop build
