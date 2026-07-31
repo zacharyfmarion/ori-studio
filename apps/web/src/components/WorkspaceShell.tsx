@@ -34,7 +34,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import { parseWorkspacePath, workspacePath } from '../routing/paths';
-import { SWITCHER_WORKSPACE_DEFINITIONS, type WorkspaceId } from '../workspaces/workspaces';
+import { WORKSPACE_DEFINITIONS, type WorkspaceId } from '../workspaces/workspaces';
 
 const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
   design: DraftingCompass,
@@ -77,7 +77,7 @@ function WorkspaceRail() {
   return (
     <aside className="workspace-rail" aria-label={t('common:workspaceRail.label', 'Workspaces')}>
       <div className="workspace-rail__items">
-        {SWITCHER_WORKSPACE_DEFINITIONS.map((workspace) => {
+        {WORKSPACE_DEFINITIONS.map((workspace) => {
           const Icon = workspaceIcons[workspace.id];
           return (
             <IconButton

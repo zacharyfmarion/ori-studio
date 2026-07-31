@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { LEARN_PATH, coursePath, isLessonPath, lessonPath, parseWorkspacePath } from './paths';
+import { LEARN_PATH, coursePath, lessonPath, parseWorkspacePath } from './paths';
 import { LESSON_COURSES, courseById } from '../tutorial/courses';
 import { LESSONS, courseIdForLesson, lessonById } from '../tutorial/lessons';
 
 /**
- * The `/learn` URL shape, and the one piece of it that is easy to get wrong:
- * only a *lesson* builds the editing workspace. The catalog and a course page
- * render full width with no canvas, so treating them as workspace routes would
- * provision a practice document nobody is about to draw on.
+ * The `/learn` URL shape: a catalog, a course, and a lesson, all of them the
+ * tutorial workspace.
  *
  * Also guards the legacy two-segment form. `/learn/:lessonId` is what every link
  * written before courses existed says, and `CourseRoute` resolves it by trying
@@ -21,18 +19,17 @@ describe('learn paths', () => {
     expect(lessonPath('basics', 'first-crease')).toBe('/learn/basics/first-crease');
   });
 
-  it('treats only the three-segment form as a lesson', () => {
-    expect(isLessonPath('/learn')).toBe(false);
-    expect(isLessonPath('/learn/basics')).toBe(false);
-    expect(isLessonPath('/learn/basics/')).toBe(false);
-    expect(isLessonPath('/learn/basics/first-crease')).toBe(true);
-    expect(isLessonPath('/edit')).toBe(false);
-  });
-
-  it('builds the learn workspace for a lesson but not for the catalog or a course', () => {
+  /**
+   * All three `/learn` shapes are the tutorial workspace. They differ in what
+   * the lesson pane shows, not in which workspace is active — and the rail
+   * highlights the active one, so a course page reporting "no workspace" would
+   * leave the Learn tab unlit while you are standing on it.
+   */
+  it('reports the learn workspace for the catalog, a course and a lesson', () => {
     expect(parseWorkspacePath('/learn')).toEqual({ workspace: 'learn' });
-    expect(parseWorkspacePath('/learn/basics')).toBeNull();
+    expect(parseWorkspacePath('/learn/basics')).toEqual({ workspace: 'learn' });
     expect(parseWorkspacePath('/learn/basics/first-crease')).toEqual({ workspace: 'learn' });
+    expect(parseWorkspacePath('/edit')).toEqual({ workspace: 'edit' });
   });
 
   /**
@@ -51,20 +48,21 @@ describe('learn paths', () => {
 
   /**
    * `startWorkspaceUrlSync` skips when the current path already resolves to the
-   * workspace being activated. That guard is what keeps a deep-linked lesson
-   * from being replaced by the workspace root: `parseWorkspacePath` must report
-   * `learn` for a lesson path, or cold-loading one lands on the catalog.
+   * workspace being activated. That guard is what keeps a deep-linked lesson or
+   * course from being replaced by `/learn`.
    */
-  it('reports the learn workspace for a lesson, so the url sync leaves it alone', () => {
+  it('resolves deep tutorial links to the workspace, so the url sync leaves them alone', () => {
     expect(parseWorkspacePath('/learn/basics/mirroring')?.workspace).toBe('learn');
-    expect(parseWorkspacePath('/learn')?.workspace).toBe('learn');
+    expect(parseWorkspacePath('/learn/basics')?.workspace).toBe('learn');
   });
 
   it('can build a canonical path for every lesson', () => {
     for (const lesson of LESSONS) {
       const courseId = courseIdForLesson(lesson.id);
       expect(courseId, lesson.id).toBeDefined();
-      expect(isLessonPath(lessonPath(courseId ?? '', lesson.id)), lesson.id).toBe(true);
+      expect(parseWorkspacePath(lessonPath(courseId ?? '', lesson.id))?.workspace, lesson.id).toBe(
+        'learn'
+      );
     }
   });
 });
