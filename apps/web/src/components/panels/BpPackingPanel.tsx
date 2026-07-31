@@ -820,6 +820,9 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     [packing.sheet, paperRect]
   );
   const worldRect = useMemo(() => getBpPackingWorldRect(displayPacking), [displayPacking]);
+  const viewportFitRequestId = useWorkspaceStore(
+    (state) => state.oristudioBpViewportFitRequestId
+  );
 
   const {
     containerRef,
@@ -835,7 +838,9 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   } = useViewportSurface({
     surface: 'bp-editor',
     worldRect,
-    fitKey: `${document.handle}:${document.source.filename}:packing`,
+    // The fit-request id makes an optimize mint a fresh key, so its result gets
+    // framed; ordinary edits keep the same key and leave the camera alone.
+    fitKey: `${document.handle}:${document.source.filename}:packing:${viewportFitRequestId}`,
   });
   const gridLines = useMemo(() => bpPackingGridLines(packing.sheet, paperRect), [paperRect, packing.sheet]);
   const unit = useMemo(() => bpPackingUnitToSvg(packing.sheet, paperRect), [packing.sheet, paperRect]);

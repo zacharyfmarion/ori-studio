@@ -1,6 +1,7 @@
 import { getFileService, type FileCommand, type FileService } from '../platform/fileService';
 import { useHelpStore } from '../store/helpStore';
 import { useLayoutStore } from '../store/layoutStore';
+import { useBpOptimizerUiStore } from '../store/bpOptimizerUiStore';
 import { useSelectionUiStore } from '../store/selectionUiStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -83,6 +84,7 @@ export const MENU_ACTION_IDS = [
   'optimize.scale',
   'optimize.edges',
   'optimize.strain',
+  'bp.optimize.layout',
   'cp.build',
   'cp.deleteSelectedLines',
   'cp.changeCreaseType',
@@ -217,6 +219,7 @@ export interface MenuActionDependencies {
   about?: () => void;
   settings?: () => void;
   selectByIndex?: () => void;
+  openBpOptimizer?: () => void;
   requestPositiveNumber?: (options: NumberDialogOptions) => Promise<number | null>;
 }
 
@@ -642,6 +645,10 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       case 'optimize.strain':
         await deps.workspace.optimizeStrain();
         return true;
+      case 'bp.optimize.layout':
+        // Opens the options dialog; the run itself starts from there.
+        deps.openBpOptimizer?.();
+        return true;
       case 'cp.build':
         await deps.workspace.buildCreasePattern();
         return true;
@@ -683,6 +690,9 @@ export function handleMenuAction(id: string): Promise<boolean> {
     },
     selectByIndex: () => {
       useSelectionUiStore.getState().openSelectByIndex();
+    },
+    openBpOptimizer: () => {
+      useBpOptimizerUiStore.getState().open();
     },
   })(id);
 }

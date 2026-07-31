@@ -23,7 +23,7 @@ export const bp_move_tree_vertex: (a: number, b: number, c: number, d: number, e
 export const bp_new_sample_project: () => [number, number, number];
 export const bp_notify_project_saved: (a: number) => [number, number];
 export const bp_open_optimizer_template: (a: number, b: any, c: any) => [number, number, number];
-export const bp_optimizer_request: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
+export const bp_optimizer_request: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
 export const bp_optimizer_solve: (a: any, b: number, c: number) => [number, number, number];
 export const bp_optimizer_solve_report: (a: any, b: number, c: number) => [number, number, number];
 export const bp_optimizer_solve_report_with_progress: (a: any, b: number, c: number, d: any) => [number, number, number];

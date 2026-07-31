@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "Abbrechen",
+    "close": "Layout-Optimierung schließen",
+    "closeAction": "Schließen",
+    "failed": "Der Optimierer konnte kein Layout finden.",
+    "layout": {
+      "random": "Zufällige Layouts ausprobieren",
+      "view": "Aktuelles Layout als Referenz verwenden"
+    },
+    "layoutMethod": "Layout-Methode",
+    "options": "Optionen",
+    "run": "Ausführen!",
+    "running": "Läuft...",
+    "stage": {
+      "candidates": "Kandidaten-Layouts werden erzeugt...",
+      "fitting": "Am Raster ausrichten...",
+      "initializing": "Initialisierung...",
+      "preSolving": "Vorlösung läuft...",
+      "running": "Läuft...",
+      "start": "Problem wird verarbeitet..."
+    },
+    "title": "Layout optimieren",
+    "toTry": "Anzahl der zu testenden Layouts:",
+    "useBasinHopping": "Variationen des aktuellen Layouts ausprobieren",
+    "useDimension": "Breiten und Höhen der Zipfel beibehalten"
+  },
   "closeGuard": {
     "discard": "Verwerfen",
     "message": "Ihr aktuelles Projekt enthält nicht gespeicherte Änderungen. Ori Studio schließen und verwerfen?",
@@ -90,6 +116,15 @@
     "themeLight": "Hell",
     "title": "Titel",
     "titlePlaceholder": "Optional"
+  },
+  "fileDrop": {
+    "choiceMessage": "{{name}} ist ein Faltmuster und kann daher in das gerade bearbeitete Muster eingefügt oder eigenständig geöffnet werden.",
+    "choiceTitle": "{{name}} öffnen oder importieren?",
+    "importDescription": "Wird rechts neben Ihrem Faltmuster platziert, als ein einziger widerrufbarer Schritt.",
+    "importLabel": "Neben dem aktuellen Muster importieren",
+    "openDescription": "Ersetzt Ihre aktuelle Arbeit.",
+    "openDescriptionDirty": "Ersetzt Ihre aktuelle Arbeit und verwirft nicht gespeicherte Änderungen.",
+    "openLabel": "Als neue Datei öffnen"
   },
   "foldWarning": {
     "dontShowAgain": "Nicht mehr anzeigen",

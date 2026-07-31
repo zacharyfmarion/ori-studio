@@ -136,6 +136,60 @@ export function fitUserCamera(
   };
 }
 
+/** How tightly {@link frameUserCameraOnBounds} packs its target into the viewport. */
+const FRAME_PADDING = 0.5;
+/**
+ * Ceiling on a framing jump, as a multiple of the whole-document fit. Without it,
+ * a diagnostic reported on a single point has zero span and would fit to an
+ * arbitrarily large zoom.
+ */
+const FRAME_MAX_ZOOM_OVER_DOCUMENT_FIT = 4;
+
+/**
+ * Point the camera at `bounds` — the framing behind "jump to this diagnostic".
+ *
+ * Two rules make this a jump rather than a fit. It never zooms *out*: arriving at
+ * an issue should not undo a magnification the user chose, so the zoom only ever
+ * increases. And it never blows past {@link FRAME_MAX_ZOOM_OVER_DOCUMENT_FIT}
+ * times the document fit, which is what keeps a zero-span target (a single
+ * reported vertex) from filling the viewport with nothing.
+ *
+ * Rotation is carried through untouched: jumping to a diagnostic must not also
+ * straighten a view the user deliberately turned.
+ */
+export function frameUserCameraOnBounds(
+  bounds: UserBounds,
+  viewport: Viewport,
+  camera: UserCamera,
+  documentBounds: UserBounds | null
+): UserCamera {
+  const target = fitUserCamera(bounds, viewport, FRAME_PADDING, camera.rotation);
+  const documentFitZoom = documentBounds
+    ? fitUserCamera(documentBounds, viewport, undefined, camera.rotation).zoom
+    : target.zoom;
+  return {
+    centerX: target.centerX,
+    centerY: target.centerY,
+    zoom: Math.max(
+      camera.zoom,
+      Math.min(target.zoom, documentFitZoom * FRAME_MAX_ZOOM_OVER_DOCUMENT_FIT)
+    ),
+    rotation: camera.rotation,
+  };
+}
+
+/**
+ * Camera zoom for a toolbar zoom percentage, where 100% means one user unit per
+ * CSS pixel. `deviceRatio` is device pixels per CSS pixel, which is what carries
+ * a CSS-space percentage into the camera's device-space zoom.
+ *
+ * Deliberately unclamped, matching the behaviour this replaced — unlike
+ * {@link zoomUserCameraAt}, a typed or preset percentage is taken at its word.
+ */
+export function cameraZoomForPercent(percent: number, deviceRatio: number): number {
+  return deviceRatio * (percent / 100);
+}
+
 /** Pan the camera by a device-pixel delta (drag). */
 export function panUserCamera(cam: UserCamera, dxDevice: number, dyDevice: number): void {
   const delta = deviceDeltaToUser(cam, dxDevice, dyDevice);

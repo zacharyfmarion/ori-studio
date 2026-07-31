@@ -32,6 +32,7 @@ import {
   setInlineSimulationSource,
 } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
+import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type { FileService, SaveBinaryFileOptions, SaveTextFileOptions } from '../../platform/fileService';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../lib/sampleProject';
@@ -125,6 +126,7 @@ const bpMocks = vi.hoisted(() => ({
   loadOristudioBpProjectFromText: vi.fn(),
   getOristudioBpPortDescriptors: vi.fn(),
   exportOristudioBpProjectAsBps: vi.fn(),
+  optimizeOristudioBpLayout: vi.fn(),
 }));
 
 vi.mock('../../lib/creaseExport', () => exportMocks);
@@ -150,6 +152,7 @@ vi.mock('./oristudioBpRuntime', async (importOriginal) => {
     loadOristudioBpProjectFromText: bpMocks.loadOristudioBpProjectFromText,
     getOristudioBpPortDescriptors: bpMocks.getOristudioBpPortDescriptors,
     exportOristudioBpProjectAsBps: bpMocks.exportOristudioBpProjectAsBps,
+    optimizeOristudioBpLayout: bpMocks.optimizeOristudioBpLayout,
   };
 });
 
@@ -1185,6 +1188,7 @@ function resetStores(snapshot = makeSnapshot()) {
   bpMocks.exportOristudioBpProjectAsBps
     .mockReset()
     .mockResolvedValue('{"title":"Untitled","tree":{}}');
+  bpMocks.optimizeOristudioBpLayout.mockReset();
   oristudioCpMocks.getOristudioCpOperationDescriptors
     .mockReset()
     .mockResolvedValue(cpOperationDescriptors);
@@ -1427,12 +1431,17 @@ async function flushAsyncWork() {
 }
 
 describe('workspace store slices', () => {
+  // Set by the tests that stand a fake camera in front of the store.
+  let unregisterCamera: (() => void) | null = null;
+
   beforeEach(() => {
     vi.restoreAllMocks();
     resetStores();
   });
 
   afterEach(async () => {
+    unregisterCamera?.();
+    unregisterCamera = null;
     vi.useRealTimers();
     await flushAsyncWork();
   });
@@ -2088,6 +2097,57 @@ describe('workspace store slices', () => {
         extensions: ['orh'],
       })
     );
+  });
+
+  it('prompts before opening over unsaved changes, and aborts when refused', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({ dirty: true });
+    const fileService = createFileService({
+      text: 'opened text',
+      name: 'opened.tmd5',
+      path: '/tmp/opened.tmd5',
+    });
+
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      const opening = useWorkspaceStore.getState().openProject(fileService);
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({ type: 'confirm', title: 'Discard unsaved changes?' });
+      if (!dialog) throw new Error('expected a discard confirmation');
+      resolveCommandDialog(dialog.id, false);
+      await expect(opening).resolves.toBe(false);
+    } finally {
+      unregisterDialogHost();
+    }
+
+    expect(fileService.openTextFile).not.toHaveBeenCalled();
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+  });
+
+  // The drop flow states the discard consequence in its own choice dialog, so a
+  // second prompt here would be the user answering the same question twice.
+  it('skips the discard prompt when the caller has already asked', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({ dirty: true });
+    const fileService = createFileService({
+      text: 'opened text',
+      name: 'opened.tmd5',
+      path: '/tmp/opened.tmd5',
+    });
+
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      await expect(
+        useWorkspaceStore.getState().openProject(fileService, { confirmDiscard: false })
+      ).resolves.toBe(true);
+      expect(useCommandDialogStore.getState().dialog).toBeNull();
+    } finally {
+      unregisterDialogHost();
+    }
+
+    expect(fileService.openTextFile).toHaveBeenCalledOnce();
   });
 
   it('opens native Oriedita ORI documents and saves back as ORI', async () => {
@@ -3815,6 +3875,17 @@ describe('workspace store slices', () => {
 
   it('keeps editable CP diagnostic checks out of undo history', async () => {
     resetStores(seedSnapshot());
+    const frameModelBounds = vi.fn();
+    unregisterCamera = registerCpCamera({
+      zoomIn: vi.fn(),
+      zoomOut: vi.fn(),
+      fit: vi.fn(),
+      setZoomPercent: vi.fn(),
+      rotateBy: vi.fn(),
+      rotateTo: vi.fn(),
+      rotateReset: vi.fn(),
+      frameModelBounds,
+    });
     await useWorkspaceStore.getState().loadCreasePatternText('1 0 0 1 0\n2 0 0 0 1', {
       filename: 'lines.cp',
       path: '/tmp/lines.cp',
@@ -3834,6 +3905,7 @@ describe('workspace store slices', () => {
             kind: 'Check1',
             severity: 'error',
             message: 'Overlapping or contained non-auxiliary creases',
+            point: { x: 120, y: 240 },
             segments: currentDocument.document.crease_pattern.line_segments,
             rule: 'Check1',
           },
@@ -3849,6 +3921,12 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpHistoryFuture).toHaveLength(0);
     expect(useWorkspaceStore.getState().dirty).toBe(false);
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('Check1-1');
+    // Adopting the issue also frames it. Asserted here, at the store action, because
+    // that is the only point every way of running a check goes through — the tool
+    // rail, the menu (which never touches the CP panel), and the CP-detect import
+    // loop all land on this action.
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
+    expect(frameModelBounds.mock.calls[0][0]).toMatchObject({ minX: 120, minY: 240 });
     expect(
       useWorkspaceStore.getState().oristudioCpDocument?.lastCommandResult?.diagnostic_entries
     ).toHaveLength(1);
@@ -3883,6 +3961,9 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe(
       'FlatFoldableCheck-1'
     );
+    // Adopted, but it reports no geometry, so there is nothing to frame and the
+    // count stays where the Check1 jump left it.
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
 
     const flatCheckedDocument = useWorkspaceStore.getState().oristudioCpDocument;
     if (!flatCheckedDocument) throw new Error('expected flat-checked CP document');
@@ -3900,6 +3981,67 @@ describe('workspace store slices', () => {
     );
 
     expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBeNull();
+    // An edit has no issue to look at, so it frames nothing.
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
+  });
+
+  it('frames a diagnostic when it is activated, and at no other time', async () => {
+    resetStores(seedSnapshot());
+    const frameModelBounds = vi.fn();
+    unregisterCamera = registerCpCamera({
+      zoomIn: vi.fn(),
+      zoomOut: vi.fn(),
+      fit: vi.fn(),
+      setZoomPercent: vi.fn(),
+      rotateBy: vi.fn(),
+      rotateTo: vi.fn(),
+      rotateReset: vi.fn(),
+      frameModelBounds,
+    });
+    useWorkspaceStore.setState({
+      oristudioCpCamvResult: {
+        operation: 'CheckCamv',
+        status: 'OracleTested',
+        diagnostics: [],
+        diagnostic_entries: [
+          {
+            id: 'CheckCamv-1',
+            kind: 'CheckCamv',
+            severity: 'error',
+            message: 'Maekawa violated',
+            point: { x: 40, y: 60 },
+          },
+        ],
+      },
+    });
+    const { setOristudioCpActiveDiagnostic, setOristudioCpViewportOption } =
+      useWorkspaceStore.getState();
+
+    setOristudioCpActiveDiagnostic('CheckCamv-1');
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
+
+    // The reported bug: hiding and re-showing the overlay re-derives the entry
+    // list, which must not read as a fresh instruction to jump. The diagnostic
+    // stays selected throughout — only the framing is one-shot.
+    setOristudioCpViewportOption('camvIssuesVisible', false);
+    setOristudioCpViewportOption('camvIssuesVisible', true);
+    expect(frameModelBounds).toHaveBeenCalledTimes(1);
+    expect(useWorkspaceStore.getState().oristudioCpActiveDiagnosticId).toBe('CheckCamv-1');
+
+    // Activating it again is a new instruction, so it frames again — clicking the
+    // same row after panning away should bring you back.
+    setOristudioCpActiveDiagnostic('CheckCamv-1');
+    expect(frameModelBounds).toHaveBeenCalledTimes(2);
+
+    // Hidden issues are not jumped to.
+    setOristudioCpViewportOption('camvIssuesVisible', false);
+    setOristudioCpActiveDiagnostic('CheckCamv-1');
+    expect(frameModelBounds).toHaveBeenCalledTimes(2);
+
+    // Deselecting frames nothing.
+    setOristudioCpViewportOption('camvIssuesVisible', true);
+    setOristudioCpActiveDiagnostic(null);
+    expect(frameModelBounds).toHaveBeenCalledTimes(2);
   });
 
   it('clears editable CP selection after destructive kernel commands', async () => {
@@ -5273,6 +5415,102 @@ describe('workspace store slices', () => {
       expect(useWorkspaceStore.getState().workflowTarget).toBe('treemaker');
       expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
       expect(useWorkspaceStore.getState().oristudioBpDocument).toBeNull();
+    });
+
+    it('applies an optimizer result as exactly one undoable step', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const before = useWorkspaceStore.getState().oristudioBpDocument;
+      useWorkspaceStore.setState({ oristudioBpHistoryPast: [], oristudioBpHistoryFuture: [] });
+      // The snapshot the history entry must capture is the state *before* the
+      // run, so the export mocked here is the pre-optimize project.
+      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"before":"optimize"}');
+      const optimized = { ...sampleBpDocument(), activeSurface: 'packing' as const };
+      bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
+        document: optimized,
+        eventCount: 3,
+        openedNew: false,
+      });
+
+      await expect(
+        useWorkspaceStore.getState().optimizeOristudioBpLayout({
+          useDimension: true,
+          layoutMode: 'view',
+          useBasinHopping: false,
+          randomCandidateCount: 1,
+        })
+      ).resolves.toBe('applied');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).toBe(optimized);
+      expect(state.oristudioBpDocument).not.toBe(before);
+      expect(state.oristudioBpHistoryPast).toHaveLength(1);
+      expect(state.oristudioBpHistoryPast[0].snapshot.bps).toBe('{"before":"optimize"}');
+      expect(state.oristudioBpBusy).toBe(false);
+      // The sheet resized and every flap moved, so the packing pane is asked to
+      // re-fit its camera around the result.
+      expect(state.oristudioBpViewportFitRequestId).toBe(1);
+      // `openNew` is never a user choice: the optimizer always replaces in place.
+      expect(bpMocks.optimizeOristudioBpLayout).toHaveBeenCalledWith(
+        expect.objectContaining({ openNew: false, seed: null }),
+        expect.objectContaining({ activeSurface: 'packing' }),
+        undefined
+      );
+    });
+
+    it('leaves the document and history untouched when the optimizer is cancelled', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const before = useWorkspaceStore.getState().oristudioBpDocument;
+      useWorkspaceStore.setState({ oristudioBpHistoryPast: [], oristudioBpHistoryFuture: [] });
+      bpMocks.optimizeOristudioBpLayout.mockRejectedValueOnce({
+        code: 'optimization_cancelled',
+        message: 'Box Pleat optimization cancelled',
+      });
+
+      await expect(
+        useWorkspaceStore.getState().optimizeOristudioBpLayout({
+          useDimension: true,
+          layoutMode: 'random',
+          useBasinHopping: false,
+          randomCandidateCount: 4,
+        })
+      ).resolves.toBe('cancelled');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).toBe(before);
+      expect(state.oristudioBpHistoryPast).toHaveLength(0);
+      // Aborting is a user action, so nothing is surfaced as a failure.
+      expect(state.oristudioBpError).toBeNull();
+      expect(state.oristudioBpBusy).toBe(false);
+      // Nothing changed on screen, so the camera must stay where the user left it.
+      expect(state.oristudioBpViewportFitRequestId).toBe(0);
+    });
+
+    it('reports a failed optimizer run without recording history', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const before = useWorkspaceStore.getState().oristudioBpDocument;
+      useWorkspaceStore.setState({ oristudioBpHistoryPast: [], oristudioBpHistoryFuture: [] });
+      bpMocks.optimizeOristudioBpLayout.mockRejectedValueOnce({
+        code: 'optimization_failed',
+        message: 'Solution exceeds maximal sheet size.',
+      });
+
+      await expect(
+        useWorkspaceStore.getState().optimizeOristudioBpLayout({
+          useDimension: false,
+          layoutMode: 'view',
+          useBasinHopping: true,
+          randomCandidateCount: 1,
+        })
+      ).resolves.toBe('failed');
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).toBe(before);
+      expect(state.oristudioBpHistoryPast).toHaveLength(0);
+      expect(state.oristudioBpError).toBe('Solution exceeds maximal sheet size.');
+      expect(state.oristudioBpBusy).toBe(false);
     });
 
     it('opening a file clears a pending design choice', async () => {

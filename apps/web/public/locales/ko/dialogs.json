@@ -1,4 +1,30 @@
 {
+  "bpOptimizer": {
+    "abort": "중단",
+    "close": "레이아웃 최적화 닫기",
+    "closeAction": "닫기",
+    "failed": "최적화 도구가 레이아웃을 찾지 못했습니다.",
+    "layout": {
+      "random": "임의의 레이아웃을 사용해 보세요",
+      "view": "현재 레이아웃을 참조로 사용합니다"
+    },
+    "layoutMethod": "레이아웃 방법",
+    "options": "옵션",
+    "run": "실행해!",
+    "running": "실행 중...",
+    "stage": {
+      "candidates": "후보 레이아웃 생성 중...",
+      "fitting": "격자에 맞추는 중...",
+      "initializing": "초기화 중...",
+      "preSolving": "사전 해석 중...",
+      "running": "실행 중...",
+      "start": "문제 처리 중..."
+    },
+    "title": "레이아웃 최적화",
+    "toTry": "시도할 레이아웃 수:",
+    "useBasinHopping": "현재 레이아웃을 변형해 보세요",
+    "useDimension": "가지의 너비와 높이를 유지하십시오"
+  },
   "closeGuard": {
     "discard": "저장 안 함",
     "message": "현재 프로젝트에 저장되지 않은 변경 사항이 있습니다. Ori Studio를 닫고 변경 사항을 버리시겠습니까?",
@@ -85,6 +111,15 @@
     "themeLight": "라이트",
     "title": "제목",
     "titlePlaceholder": "선택 사항"
+  },
+  "fileDrop": {
+    "choiceMessage": "{{name}}은(는) 전개도이므로 편집 중인 전개도에 병합하거나 따로 열 수 있습니다.",
+    "choiceTitle": "{{name}}을(를) 열까요, 가져올까요?",
+    "importDescription": "전개도 오른쪽에 배치되며, 한 번의 실행 취소로 되돌릴 수 있습니다.",
+    "importLabel": "현재 전개도 옆에 가져오기",
+    "openDescription": "작업 중인 내용을 대체합니다.",
+    "openDescriptionDirty": "작업 중인 내용을 대체하고 저장하지 않은 변경 사항을 버립니다.",
+    "openLabel": "새 파일로 열기"
   },
   "foldWarning": {
     "dontShowAgain": "다시 표시하지 않음",

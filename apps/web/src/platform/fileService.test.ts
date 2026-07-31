@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createDroppedFileService,
   createFileService,
   createOpenedPathFileService,
   ensureExtension,
@@ -40,5 +41,46 @@ describe('file service selection', () => {
     expect(service.openTextFile).toBeTypeOf('function');
     expect(service.saveTextFile).toBeTypeOf('function');
     expect(service.saveBinaryFile).toBeTypeOf('function');
+  });
+});
+
+describe('dropped file service', () => {
+  it('resolves the dropped file as text without opening a picker', async () => {
+    const service = createDroppedFileService(new File(['{"a":1}'], 'design.fold'));
+
+    await expect(service.openTextFile({ title: 'ignored', extensions: [] })).resolves.toEqual({
+      text: '{"a":1}',
+      name: 'design.fold',
+      path: null,
+    });
+  });
+
+  it('resolves the dropped file as bytes, keeping its MIME type', async () => {
+    const service = createDroppedFileService(
+      new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' })
+    );
+
+    const result = await service.openBinaryFile({ title: 'ignored', extensions: [] });
+    expect(Array.from(result?.bytes ?? [])).toEqual([1, 2, 3]);
+    expect(result?.mimeType).toBe('image/png');
+    expect(result?.name).toBe('photo.png');
+  });
+
+  it('falls back to the filename when the drop carried no MIME type', async () => {
+    const service = createDroppedFileService(new File([new Uint8Array([1])], 'photo.png'));
+
+    const result = await service.openBinaryFile({ title: 'ignored', extensions: [] });
+    expect(result?.mimeType).toBe('image/png');
+  });
+
+  // A webview drop hands over bytes but never a location, so there is no
+  // overwrite target and the first save has to go through a save dialog.
+  it('reports no path, so saving cannot silently overwrite', async () => {
+    const service = createDroppedFileService(new File(['x'], 'design.osf'));
+
+    const text = await service.openTextFile({ title: 'ignored', extensions: [] });
+    const binary = await service.openBinaryFile({ title: 'ignored', extensions: [] });
+    expect(text?.path).toBeNull();
+    expect(binary?.path).toBeNull();
   });
 });

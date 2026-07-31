@@ -15,6 +15,12 @@
     "addTreeEdgesThenOptimize": "Añadir aristas de árbol y luego optimizar antes de generar el patrón de pliegues",
     "advanceCreaseType": "Avanzar tipo de pliegue",
     "advanceSelectedCpLineTypes": "Avanzar los tipos de línea del patrón de pliegues seleccionados",
+    "bpOptimizeBusy": "El motor de plegado en caja está ocupado",
+    "bpOptimizeLayout": "Optimizar el diseño",
+    "bpOptimizeLayoutReason": "Empaqueta las solapas en la hoja más pequeña",
+    "bpOptimizeNeedsDocument": "Abra un diseño de plegado en caja antes de optimizar",
+    "bpOptimizeNeedsEdges": "Añada aristas al árbol de plegado en caja antes de optimizar",
+    "bpOptimizeUnavailable": "La optimización del diseño no está disponible",
     "buildCp": "Generar CP",
     "buildCpBeforeExportingFold": "Generar un patrón de pliegues antes de exportar FOLD",
     "buildCpBeforeSelectingCorridorFacets": "Generar un patrón de pliegues antes de seleccionar facetas de corredor",
@@ -219,10 +225,15 @@
     "reset": "Restablecer",
     "resetNamed": "Restablecer {{label}}"
   },
+  "fileDrop": {
+    "open": "Suelta para abrir",
+    "openOrImport": "Suelta para abrir o importar"
+  },
   "toolbar": {
     "downloadMac": "Descargar Ori Studio para Mac",
     "new": "Nuevo",
     "open": "Abrir",
+    "optimizeLayout": "Optimizar",
     "optimizeScale": "Optimizar escala",
     "save": "Guardar",
     "sendToEdit": "Enviar a Editar",

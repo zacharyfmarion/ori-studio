@@ -1,4 +1,7 @@
 {
+  "bp": {
+    "optimizeLayout": "Layout optimieren…"
+  },
   "cp": {
     "advanceCreaseType": "Faltentyp weiterschalten",
     "annotations": "Anmerkungen",

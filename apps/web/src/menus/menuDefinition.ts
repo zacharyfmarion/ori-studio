@@ -181,6 +181,9 @@ export function getMenuBarDef(
     {
       label: t('menu:menubar.design', 'Design'),
       items: [
+        // BP-only, and the sole visible item in a box-pleat design (every other
+        // entry here is TreeMaker-tree authoring, which the BP mask hides).
+        { type: 'action', id: 'bp.optimize.layout', label: t('menu:bp.optimizeLayout', 'Optimize Layout…') },
         { type: 'action', id: 'optimize.scale', label: t('menu:optimize.scale', 'Optimize Scale'), shortcut: shortcut('optimize.scale', overrides) },
         { type: 'action', id: 'optimize.edges', label: t('menu:optimize.edges', 'Optimize Edges') },
         { type: 'action', id: 'optimize.strain', label: t('menu:optimize.strain', 'Optimize Strain') },

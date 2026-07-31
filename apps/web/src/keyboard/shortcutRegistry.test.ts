@@ -6,7 +6,7 @@ import {
   keyChordId,
   type ShortcutDefinition,
 } from './shortcuts';
-import { ORISTUDIO_CP_ACTIONS } from '../lib/oristudioCpActions';
+import { ORISTUDIO_CP_ACTIONS, cpHiddenActions } from '../lib/oristudioCpActions';
 
 /**
  * Registry invariants for the default keybindings.
@@ -19,6 +19,14 @@ import { ORISTUDIO_CP_ACTIONS } from '../lib/oristudioCpActions';
 function boundDefinitions(): ShortcutDefinition[] {
   return SHORTCUT_DEFINITIONS.filter((definition) => definition.defaultChords.length > 0);
 }
+
+/**
+ * CP actions whose chord is legitimately bound even though the action itself is
+ * a hidden stub: `handleCpShortcutAction` intercepts them and drives the real
+ * fold path (the Fold toolbar button) instead of selecting them as a tool. That
+ * is what makes them safe — the chord still lands on something visible.
+ */
+const ROUTED_CHORD_EXCEPTIONS = new Set(['cp.action.folding-estimate', 'cp.action.fold']);
 
 describe('shortcut registry invariants', () => {
   it('has no duplicate default chords within a scope', () => {
@@ -43,20 +51,32 @@ describe('shortcut registry invariants', () => {
   });
 
   it('only binds crease-pattern defaults to actions the UI can run', () => {
-    // Exception: the fold chord resolves to a stub CP command but is routed to
-    // the real fold path in CreasePatternPanel (`handleCpShortcutAction`).
-    const routedExceptions = new Set(['cp.action.folding-estimate', 'cp.action.fold']);
     const actionById = new Map<string, (typeof ORISTUDIO_CP_ACTIONS)[number]>(
       ORISTUDIO_CP_ACTIONS.map((action) => [action.id, action])
     );
 
     const notReady = boundDefinitions()
       .filter((definition) => definition.scope === 'crease-pattern')
-      .filter((definition) => !routedExceptions.has(definition.id))
+      .filter((definition) => !ROUTED_CHORD_EXCEPTIONS.has(definition.id))
       .filter((definition) => actionById.get(definition.id)?.uiStatus !== 'ready')
       .map((definition) => `${definition.id}=${definition.defaultChords.map(keyChordId).join(',')}`);
 
     expect(notReady).toEqual([]);
+  });
+
+  it('leaves every hidden crease-pattern action unbound', () => {
+    // `handleShortcutKeyDown` dispatches on the registry, not on placement, so a
+    // chord on a hidden action still selects it — with no rail button to show it
+    // is active. Hiding a tool therefore has to take its chord out of
+    // `ORIEDITA_DEFAULTS` too, which is what this catches.
+    const hiddenIds = new Set<string>(cpHiddenActions().map((action) => action.id));
+
+    const boundButHidden = boundDefinitions()
+      .filter((definition) => hiddenIds.has(definition.id))
+      .filter((definition) => !ROUTED_CHORD_EXCEPTIONS.has(definition.id))
+      .map((definition) => `${definition.id}=${definition.defaultChords.map(keyChordId).join(',')}`);
+
+    expect(boundButHidden).toEqual([]);
   });
 
   it('classifies every default chord it binds', () => {

@@ -21,6 +21,11 @@
     "canvasUnavailable": "Canvas 2D ist nicht verfügbar",
     "unsupportedImage": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
   },
+  "fileDrop": {
+    "dialogOpen": "Schließen Sie den geöffneten Dialog ab, bevor Sie eine Datei ablegen.",
+    "imageNotHere": "Legen Sie {{name}} auf dem Faltmuster ab, um es als Referenzbild hinzuzufügen.",
+    "unsupportedFile": "Ori Studio kann {{name}} nicht öffnen. Unterstützte Dateien: {{extensions}}."
+  },
   "fold": {
     "contradiction": "Dieses Faltmuster ist nicht flachfaltbar: Einige Flächen haben keine konsistente Stapelreihenfolge.",
     "layerSearch": "Dieses Faltmuster konnte nicht gefaltet werden: Seine Schichten lassen sich nicht überlappungsfrei anordnen.",

@@ -32,6 +32,7 @@ import {
 import { bpDefaultFlapLabel } from '../../lib/bpFlapLabel';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { formatNumber, type Point } from '../../lib/geometry';
+import { treeDotPx, type TreeDotSizes } from '../../lib/treeNodeDot';
 import {
   bpTreeDragUpdates,
   translatePoints,
@@ -106,9 +107,9 @@ const SYMMETRY_LINE_PX = 2;
 const SYMMETRY_LANE_PX = 18;
 const LABEL_STROKE_PX = 3;
 const SYMMETRY_GHOST_PX = 3;
-const NODE_DOT_PX = 7;
-const LEAF_DOT_PX = 6;
+const DOT_SIZES: TreeDotSizes = { leafPx: 6, branchPx: 7 };
 const NODE_LABEL_PX = 12;
+const NODE_SELECTED_STROKE_PX = 3;
 
 function BpTreeViewportToolbar({
   zoomPercent,
@@ -819,7 +820,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                         data-snapped={symmetryHoverPreview.snapped || undefined}
                         cx={to.x}
                         cy={to.y}
-                        r={chromePx(LEAF_DOT_PX)}
+                        r={chromePx(DOT_SIZES.leafPx)}
                       />
                     </>
                   );
@@ -842,7 +843,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                           className="symmetry-ghost-node"
                           cx={to.x}
                           cy={to.y}
-                          r={chromePx(LEAF_DOT_PX)}
+                          r={chromePx(DOT_SIZES.leafPx)}
                         />
                       </>
                     );
@@ -905,6 +906,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             {tree.vertices.map((vertex) => {
               const point = bpTreePointToSvg(displayLoc(vertex.id, vertex.loc), tree.sheet, paperRect);
               const active = linkedSelection.vertices.has(vertex.id);
+              const dotPx = treeDotPx(DOT_SIZES, vertex.isLeaf, active);
               const label = bpTreeVertexLabel(vertex);
               const vertexAriaLabel = vertex.isLeaf
                 ? label
@@ -929,10 +931,15 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                       active ? 'tree-node--selected' : '',
                     ].join(' ')}
                     data-leaf={vertex.isLeaf || undefined}
-                    style={{ strokeWidth: chromePx(NODE_STROKE_PX) }}
+                    // An inline style, not a presentation attribute, and so it
+                    // beats theme.css — which is why the selected ring has to be
+                    // widened here rather than in the stylesheet.
+                    style={{
+                      strokeWidth: chromePx(active ? NODE_SELECTED_STROKE_PX : NODE_STROKE_PX),
+                    }}
                     cx={point.x}
                     cy={point.y}
-                    r={chromePx(vertex.isLeaf ? LEAF_DOT_PX : NODE_DOT_PX)}
+                    r={chromePx(dotPx)}
                     // Intentionally not focusable (no role/tabIndex): a focusable
                     // dot draws its own browser focus ring that competes with the
                     // selection highlight and steals focus from the name field, so
@@ -947,7 +954,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
                   {layers.labels && vertex.isLeaf && label && (
                     <text
                       className="node-label bp-tree-node-label"
-                      x={point.x + chromePx(NODE_DOT_PX + 4)}
+                      x={point.x + chromePx(dotPx + 4)}
                       y={point.y + chromePx(4)}
                       style={{
                         fontSize: chromePx(NODE_LABEL_PX),

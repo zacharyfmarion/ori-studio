@@ -4,7 +4,9 @@ import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
 import { isPrimaryModifier } from '../lib/platform';
 import {
+  cameraZoomForPercent,
   fitUserCamera,
+  frameUserCameraOnBounds,
   modelViewFromCamera,
   normalizeCameraRotation,
   panUserCamera,
@@ -16,6 +18,7 @@ import {
   type UserBounds,
   type UserCamera,
 } from './renderer/camera';
+import { registerCpCamera, type CpCameraHandle } from './renderer/cpCameraRegistry';
 import {
   LineHitIndex,
   circleRingIntersectsAabb,
@@ -97,22 +100,16 @@ import type { ToolClickAction } from './tools/predicates';
  */
 export type StepKind = CpStepSnap;
 /**
- * A viewport-toolbar command for the WebGL camera. `nonce` re-fires the same command
- * (e.g. repeated zoom-in presses); `percent` is only used by `set-percent`.
- */
-/**
  * How far a stale folded figure fades. Shallow enough to read as a state rather
  * than as the Transparent display style, which is a deliberate look a user picks.
  */
 const STALE_FOLDED_FIGURE_OPACITY = 0.45;
 
-export interface CameraCommand {
-  kind: 'zoom-in' | 'zoom-out' | 'fit' | 'set-percent' | 'rotate-by' | 'rotate-to' | 'rotate-reset';
-  percent?: number;
-  /** Rotation payload: a signed step for `rotate-by`, an absolute angle for `rotate-to`. */
-  radians?: number;
-  nonce: number;
-}
+/**
+ * Zoom factor for one press of a zoom button or chord. The wheel has its own
+ * continuous factor — this is only the discrete step.
+ */
+const ZOOM_STEP = 1.35;
 
 /**
  * The owned camera's model → CSS-pixel affine (relative to the canvas top-left),
@@ -652,17 +649,6 @@ export interface CreasePatternWebglCanvasProps {
    */
   diagnosticHits: readonly { id: string; point: ModelPoint }[];
   onSelectDiagnostic: (id: string) => void;
-  /**
-   * Model-space bounds of the selected diagnostic to frame in the camera (pan + zoom
-   * to it), or null. Changing this re-frames; the WebGL camera owns pan/zoom so the
-   * SVG-era focus can't drive it.
-   */
-  focusModelBounds: { minX: number; minY: number; maxX: number; maxY: number } | null;
-  /**
-   * A viewport-toolbar command for the owned camera (zoom in/out, fit, set percent).
-   * Applied when `nonce` changes so repeated presses re-fire.
-   */
-  cameraCommand: CameraCommand | null;
   /** Report the camera's current zoom percent (100% = fit) so the toolbar reflects it. */
   onZoomPercentChange: (percent: number) => void;
   /** Current view rotation in radians, so the toolbar can show and clear it. */
@@ -785,8 +771,6 @@ export function CreasePatternWebglCanvas({
   operationFrame,
   diagnosticHits,
   onSelectDiagnostic,
-  focusModelBounds,
-  cameraCommand,
   onZoomPercentChange,
   onRotationChange,
   onViewChange,
@@ -2886,80 +2870,87 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [images, rendererGeneration]);
 
-  // Frame the selected diagnostic: pan the owned camera to its centre and zoom in to
-  // show the vertex + its creases (capped so it never over-zooms), matching the SVG's
-  // click-to-focus. Model bounds → user coords via the current modelToSvg.
-  useEffect(() => {
-    const b = focusModelBounds;
-    const canvas = canvasRef.current;
-    const cam = cameraRef.current;
-    if (!b || !canvas || !cam || canvas.width === 0) return;
-    const m2s = liveRef.current.modelToSvg;
-    const corners = [
-      m2s({ x: b.minX, y: b.minY }),
-      m2s({ x: b.maxX, y: b.maxY }),
-      m2s({ x: b.minX, y: b.maxY }),
-      m2s({ x: b.maxX, y: b.minY }),
-    ];
-    const xs = corners.map((c) => c.x);
-    const ys = corners.map((c) => c.y);
-    const userBounds = {
-      minX: Math.min(...xs),
-      minY: Math.min(...ys),
-      maxX: Math.max(...xs),
-      maxY: Math.max(...ys),
-    };
-    const viewport: Viewport = { width: canvas.width, height: canvas.height, dpr: 1 };
-    // Framing happens in the current rotated frame, and preserves it: jumping to
-    // a diagnostic should not also straighten the view the user turned.
-    const issue = fitUserCamera(userBounds, viewport, 0.5, cam.rotation);
-    const docBounds = liveRef.current.contentBounds;
-    const docFitZoom = docBounds
-      ? fitUserCamera(docBounds, viewport, undefined, cam.rotation).zoom
-      : issue.zoom;
-    // Zoom in enough to frame the issue, but never zoom out or blow past ~4x the fit.
-    const zoom = Math.max(cam.zoom, Math.min(issue.zoom, docFitZoom * 4));
-    cameraRef.current = {
-      centerX: issue.centerX,
-      centerY: issue.centerY,
-      zoom,
-      rotation: cam.rotation,
-    };
-    renderNowRef.current();
-  }, [focusModelBounds]);
+  // Every camera verb shares this: the camera is seeded lazily on the first draw,
+  // so before then there is nothing to move and the verb is a no-op. Redraws once,
+  // here, so no verb has to remember to.
+  const withCamera = useCallback(
+    (move: (camera: UserCamera, viewport: Viewport, canvas: HTMLCanvasElement) => void) => {
+      const canvas = canvasRef.current;
+      const camera = cameraRef.current;
+      if (!canvas || !camera || canvas.width === 0) return;
+      move(camera, { width: canvas.width, height: canvas.height, dpr: 1 }, canvas);
+      renderNowRef.current();
+    },
+    []
+  );
 
-  // Viewport-toolbar camera commands (zoom in/out, fit, set percent) for the owned
-  // camera — the SVG-era controls drove react-zoom-pan-pinch, which the GL camera
-  // ignores. Applied on each new command (nonce).
+  // The camera as methods, published for the panel's toolbar and shortcuts and for
+  // the store's jump-to-diagnostic. Registered rather than passed down: a check
+  // command can be dispatched from the menu, which never touches the panel.
   useEffect(() => {
-    const cmd = cameraCommand;
-    const canvas = canvasRef.current;
-    const cam = cameraRef.current;
-    if (!cmd || !canvas || !cam || canvas.width === 0) return;
-    const viewport: Viewport = { width: canvas.width, height: canvas.height, dpr: 1 };
-    const docBounds = liveRef.current.contentBounds;
-    const ratio = canvas.width / Math.max(1, canvas.clientWidth); // device px per CSS px
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-    if (cmd.kind === 'fit') {
-      // Fit reframes; it does not straighten. Rotation is cleared only by the
-      // explicit reset, so an unrelated framing command never discards it.
-      if (docBounds) cameraRef.current = fitUserCamera(docBounds, viewport, undefined, cam.rotation);
-    } else if (cmd.kind === 'zoom-in') {
-      zoomUserCameraAt(cam, viewport, cx, cy, 1.35);
-    } else if (cmd.kind === 'zoom-out') {
-      zoomUserCameraAt(cam, viewport, cx, cy, 1 / 1.35);
-    } else if (cmd.kind === 'set-percent' && cmd.percent != null) {
-      cam.zoom = ratio * (cmd.percent / 100); // 100% == 1 user unit per CSS px
-    } else if (cmd.kind === 'rotate-by' && cmd.radians != null) {
-      cam.rotation = normalizeCameraRotation(cam.rotation + cmd.radians);
-    } else if (cmd.kind === 'rotate-to' && cmd.radians != null) {
-      cam.rotation = normalizeCameraRotation(cmd.radians);
-    } else if (cmd.kind === 'rotate-reset') {
-      cam.rotation = 0;
-    }
-    renderNowRef.current();
-  }, [cameraCommand]);
+    const handle: CpCameraHandle = {
+      zoomIn: () =>
+        withCamera((camera, viewport) =>
+          zoomUserCameraAt(camera, viewport, viewport.width / 2, viewport.height / 2, ZOOM_STEP)
+        ),
+      zoomOut: () =>
+        withCamera((camera, viewport) =>
+          zoomUserCameraAt(camera, viewport, viewport.width / 2, viewport.height / 2, 1 / ZOOM_STEP)
+        ),
+      fit: () =>
+        withCamera((camera, viewport) => {
+          // Fit reframes; it does not straighten. Rotation is cleared only by the
+          // explicit reset, so an unrelated framing command never discards it.
+          const docBounds = liveRef.current.contentBounds;
+          if (docBounds) {
+            cameraRef.current = fitUserCamera(docBounds, viewport, undefined, camera.rotation);
+          }
+        }),
+      setZoomPercent: (percent) =>
+        withCamera((camera, viewport, canvas) => {
+          const deviceRatio = viewport.width / Math.max(1, canvas.clientWidth);
+          camera.zoom = cameraZoomForPercent(percent, deviceRatio);
+        }),
+      rotateBy: (radians) =>
+        withCamera((camera) => {
+          camera.rotation = normalizeCameraRotation(camera.rotation + radians);
+        }),
+      rotateTo: (radians) =>
+        withCamera((camera) => {
+          camera.rotation = normalizeCameraRotation(radians);
+        }),
+      rotateReset: () =>
+        withCamera((camera) => {
+          camera.rotation = 0;
+        }),
+      frameModelBounds: (bounds) =>
+        withCamera((camera, viewport) => {
+          // Model bounds → user coords via the current modelToSvg, taking all four
+          // corners because the mapping may rotate or flip.
+          const toUser = liveRef.current.modelToSvg;
+          const corners = [
+            toUser({ x: bounds.minX, y: bounds.minY }),
+            toUser({ x: bounds.maxX, y: bounds.maxY }),
+            toUser({ x: bounds.minX, y: bounds.maxY }),
+            toUser({ x: bounds.maxX, y: bounds.minY }),
+          ];
+          const xs = corners.map((corner) => corner.x);
+          const ys = corners.map((corner) => corner.y);
+          cameraRef.current = frameUserCameraOnBounds(
+            {
+              minX: Math.min(...xs),
+              minY: Math.min(...ys),
+              maxX: Math.max(...xs),
+              maxY: Math.max(...ys),
+            },
+            viewport,
+            camera,
+            liveRef.current.contentBounds
+          );
+        }),
+    };
+    return registerCpCamera(handle);
+  }, [withCamera]);
 
   // Voronoi seed markers: the kernel returns the current (snapped, toggled) seed set
   // as preview points; render them as dots so each mother point reads clearly. The

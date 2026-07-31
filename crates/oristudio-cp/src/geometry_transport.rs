@@ -759,11 +759,11 @@ mod tests {
         assert!(CompactGeometry::from_bytes(&[0u8; 4]).is_err());
     }
 
-    /// Pins the on-the-wire layout the TS decoder relies on: magic, then the
-    /// eleven element counts in field order, then the tail length, then the data.
-    #[test]
-    fn binary_codec_header_matches_the_spec() {
-        let compact = CompactGeometry {
+    /// The one geometry both languages check against. Small, but exercises every
+    /// element width the format has: f64 data, i32 attributes, raw u8 colours,
+    /// an empty array, and the JSON tail.
+    fn golden_geometry() -> CompactGeometry {
+        CompactGeometry {
             seg_endpoints: vec![1.0, 2.0, 3.0, 4.0],
             seg_attr: vec![5, 6, 7, 8],
             seg_custom_color: vec![9, 10, 11],
@@ -782,7 +782,67 @@ mod tests {
                 operation_frame: OperationFrame::default(),
                 metadata: BTreeMap::new(),
             },
-        };
+        }
+    }
+
+    /// Committed bytes of [`golden_geometry`], read by the TypeScript decoder's
+    /// test (`apps/web/src/engine/oristudioCpNativeClient.test.ts`).
+    fn golden_fixture_path() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/oristudio-cp/compact-geometry-golden.bin")
+    }
+
+    /// Keeps the two decoders of this format from drifting apart.
+    ///
+    /// The wasm and native (Tauri) paths each decode these bytes, in different
+    /// languages, and a format change used to be able to update one and leave the
+    /// other silently broken — which is exactly what happened when OCG1 became
+    /// OCG2: the TypeScript decoder stayed on OCG1 and every native payload
+    /// failed its magic check, while both test suites went on passing.
+    ///
+    /// So this asserts rather than writes. Change the format and this test fails
+    /// until the fixture is regenerated; regenerating it then feeds the new bytes
+    /// to the TypeScript test, which fails in turn until that decoder is updated.
+    /// Neither side can be forgotten.
+    ///
+    /// Regenerate with:
+    /// `UPDATE_FIXTURES=1 cargo test -p oristudio-cp --lib binary_codec_golden`
+    #[test]
+    fn binary_codec_golden_fixture_is_current() {
+        let bytes = golden_geometry().to_bytes().expect("to_bytes");
+        let path = golden_fixture_path();
+
+        if std::env::var_os("UPDATE_FIXTURES").is_some() {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).expect("create fixture directory");
+            }
+            std::fs::write(&path, &bytes).expect("write golden fixture");
+            return;
+        }
+
+        let committed = std::fs::read(&path).unwrap_or_else(|err| {
+            panic!(
+                "golden fixture missing at {}: {err}\n\
+                 regenerate: UPDATE_FIXTURES=1 cargo test -p oristudio-cp --lib binary_codec_golden",
+                path.display()
+            )
+        });
+        assert_eq!(
+            committed,
+            bytes,
+            "compact-geometry golden fixture is stale — the encoder changed but {} did not.\n\
+             The TypeScript decoder reads this file, so leaving it stale hides a broken \
+             native path.\n\
+             Regenerate: UPDATE_FIXTURES=1 cargo test -p oristudio-cp --lib binary_codec_golden",
+            path.display()
+        );
+    }
+
+    /// Pins the on-the-wire layout the TS decoder relies on: magic, then the
+    /// eleven element counts in field order, then the tail length, then the data.
+    #[test]
+    fn binary_codec_header_matches_the_spec() {
+        let compact = golden_geometry();
         let bytes = compact.to_bytes().expect("to_bytes");
 
         assert_eq!(&bytes[0..4], &COMPACT_GEOMETRY_MAGIC.to_le_bytes());

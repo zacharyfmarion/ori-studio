@@ -36,6 +36,22 @@ export type ConfirmWithOptionResult = {
   optionChecked: boolean;
 };
 
+export type ChoiceDialogOption = {
+  /** Returned by {@link requestChoice} when this option is picked. */
+  id: string;
+  label: string;
+  /** Second line under the label, for the consequence of picking it. */
+  description?: string;
+  tone?: 'default' | 'danger';
+};
+
+export type ChoiceDialogOptions = {
+  title: string;
+  message: string;
+  options: ChoiceDialogOption[];
+  cancelLabel?: string;
+};
+
 export type NumberDialogOptions = {
   title: string;
   label: string;
@@ -83,6 +99,7 @@ export type CreasePatternExportDialog = { id: number; type: 'crease-export' } &
 export type CommandDialog =
   | ({ id: number; type: 'confirm' } & ConfirmDialogOptions)
   | ({ id: number; type: 'confirm-option' } & ConfirmWithOptionDialogOptions)
+  | ({ id: number; type: 'choice' } & ChoiceDialogOptions)
   | ({ id: number; type: 'number' } & NumberDialogOptions)
   | CreasePatternExportDialog;
 
@@ -97,6 +114,7 @@ let mountedHostCount = 0;
 let pending:
   | { id: number; fallback: boolean; resolve: (value: boolean) => void }
   | { id: number; fallback: number | null; resolve: (value: number | null) => void }
+  | { id: number; fallback: string | null; resolve: (value: string | null) => void }
   | {
       id: number;
       fallback: ConfirmWithOptionResult;
@@ -172,6 +190,27 @@ export function requestConfirmationWithOption(
   });
 }
 
+/**
+ * Ask the user to pick one of several actions. Resolves the picked option's id,
+ * or `null` when dismissed — so a caller that only understands its own ids can
+ * treat anything else as a cancel.
+ */
+export function requestChoice(options: ChoiceDialogOptions): Promise<string | null> {
+  if (mountedHostCount === 0) return Promise.resolve(null);
+
+  clearPendingWithFallback();
+  const id = nextDialogId;
+  nextDialogId += 1;
+  return new Promise<string | null>((resolve) => {
+    pending = { id, fallback: null, resolve };
+    useCommandDialogStore.getState().openDialog({
+      id,
+      type: 'choice',
+      ...options,
+    });
+  });
+}
+
 export function requestPositiveNumber(options: NumberDialogOptions): Promise<number | null> {
   if (mountedHostCount === 0) return Promise.resolve(null);
 
@@ -213,7 +252,7 @@ export function requestCreasePatternExportOptions(
 
 export function resolveCommandDialog(
   id: number,
-  value: boolean | number | ConfirmWithOptionResult | CreaseExportDialogResult | null
+  value: boolean | number | string | ConfirmWithOptionResult | CreaseExportDialogResult | null
 ): void {
   if (!pending || pending.id !== id) return;
   pending.resolve(value as never);

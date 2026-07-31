@@ -1,4 +1,7 @@
 {
+  "bp": {
+    "optimizeLayout": "Optimizar el diseño…"
+  },
   "cp": {
     "advanceCreaseType": "Avanzar tipo de pliegue",
     "annotations": "Anotaciones",

@@ -21,6 +21,11 @@
     "canvasUnavailable": "Canvas 2D n’est pas disponible",
     "unsupportedImage": "Utilisez une image PNG, JPEG ou WebP."
   },
+  "fileDrop": {
+    "dialogOpen": "Terminez la boîte de dialogue ouverte avant de déposer un fichier.",
+    "imageNotHere": "Déposez {{name}} sur le patron de plis pour l’ajouter comme image de référence.",
+    "unsupportedFile": "Ori Studio ne peut pas ouvrir {{name}}. Fichiers pris en charge : {{extensions}}."
+  },
   "fold": {
     "contradiction": "Ce patron de plis n'est pas pliable à plat : certaines facettes n'ont pas d'ordre d'empilement cohérent.",
     "layerSearch": "Ce patron de plis n'a pas pu être plié : ses couches ne peuvent pas être disposées sans chevauchement.",

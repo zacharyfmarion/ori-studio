@@ -15,6 +15,12 @@
     "addTreeEdgesThenOptimize": "ツリー辺を追加し、展開図を作成する前に最適化してください",
     "advanceCreaseType": "折り線の種類を進める",
     "advanceSelectedCpLineTypes": "選択した展開図の線種を進める",
+    "bpOptimizeBusy": "ボックスプリーツエンジンがビジー状態です",
+    "bpOptimizeLayout": "レイアウトの最適化",
+    "bpOptimizeLayoutReason": "カドを最小の用紙に詰め込みます",
+    "bpOptimizeNeedsDocument": "最適化する前にボックスプリーツ設計を開いてください",
+    "bpOptimizeNeedsEdges": "最適化する前にボックスプリーツの木構造の辺を追加してください",
+    "bpOptimizeUnavailable": "レイアウトの最適化は利用できません",
     "buildCp": "CP を作成",
     "buildCpBeforeExportingFold": "FOLD をエクスポートする前に展開図を作成してください",
     "buildCpBeforeSelectingCorridorFacets": "回廊の面を選択する前に展開図を作成してください",
@@ -219,10 +225,15 @@
     "reset": "既定に戻す",
     "resetNamed": "{{label}} を既定に戻す"
   },
+  "fileDrop": {
+    "open": "ドロップして開く",
+    "openOrImport": "ドロップして開く／インポート"
+  },
   "toolbar": {
     "downloadMac": "Mac 版 Ori Studio をダウンロード",
     "new": "新規",
     "open": "開く",
+    "optimizeLayout": "最適化",
     "optimizeScale": "スケールを最適化",
     "save": "保存",
     "sendToEdit": "編集に送る",

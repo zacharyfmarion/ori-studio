@@ -1,4 +1,7 @@
 {
+  "bp": {
+    "optimizeLayout": "Optimize Layout…"
+  },
   "cp": {
     "advanceCreaseType": "Advance Crease Type",
     "annotations": "Annotations",

@@ -728,6 +728,17 @@ export function cpRailActions(): OristudioCpActionDefinition[] {
   );
 }
 
+/**
+ * Actions deliberately kept off every surface. They stay in the registry so the
+ * kernel, upstream-action lookups, and `.cp` mouse-mode round-tripping keep
+ * parity — which is exactly why none of them may hold a default chord. The
+ * chord would still dispatch (see `handleShortcutKeyDown`), selecting a tool
+ * with no rail button to show it is active. Asserted in shortcutRegistry.test.
+ */
+export function cpHiddenActions(): OristudioCpActionDefinition[] {
+  return ORISTUDIO_CP_ACTIONS.filter((action) => action.placement === 'hidden-ui-only');
+}
+
 function sortActionsForRail(
   actions: OristudioCpActionDefinition[]
 ): OristudioCpActionDefinition[] {

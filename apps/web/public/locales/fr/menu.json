@@ -1,4 +1,7 @@
 {
+  "bp": {
+    "optimizeLayout": "Optimiser la disposition…"
+  },
   "cp": {
     "advanceCreaseType": "Avancer le type de pli",
     "annotations": "Annotations",

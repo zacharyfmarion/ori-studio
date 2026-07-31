@@ -167,6 +167,7 @@
     "changeFoldedModel": "Cambiar modelo plegado",
     "commandFailed": "El comando falló",
     "couldNotOpenForEditing": "No se pudo abrir este patrón de pliegues para editarlo.",
+    "couldNotOpenForEditingHint": "Se muestra en modo de solo lectura. Aún puedes verlo, plegarlo y exportarlo.",
     "cropImage": "Recortar imagen",
     "current_one": "Actual {{count}}",
     "current_many": "Actual {{count}}",
@@ -660,14 +661,14 @@
     "catalogTitle": "Aprende Ori Studio",
     "checking": "Esperando tu dibujo…",
     "courseProgress": "{{completed}} / {{total}} lecciones",
-    "extra_many": "{{count}} pliegues que no están en el objetivo",
     "extra_one": "{{count}} pliegue que no está en el objetivo",
+    "extra_many": "{{count}} pliegues que no están en el objetivo",
     "extra_other": "{{count}} pliegues que no están en el objetivo",
     "finish": "Terminar la lección",
-    "matchProgress": "{{matched}} de {{expected}} pliegues coinciden",
     "matched": "Coincide. Bien hecho.",
-    "missing_many": "Faltan {{count}} pliegues por dibujar",
+    "matchProgress": "{{matched}} de {{expected}} pliegues coinciden",
     "missing_one": "Falta {{count}} pliegue por dibujar",
+    "missing_many": "Faltan {{count}} pliegues por dibujar",
     "missing_other": "Faltan {{count}} pliegues por dibujar",
     "next": "Siguiente",
     "resume": "Continuar donde lo dejaste",
@@ -679,8 +680,8 @@
       "label": "Patrón de pliegues objetivo",
       "loading": "Cargando el objetivo…"
     },
-    "wrongAssignment_many": "{{count}} pliegues están en el lugar correcto pero con el tipo equivocado",
     "wrongAssignment_one": "{{count}} pliegue está en el lugar correcto pero con el tipo equivocado",
+    "wrongAssignment_many": "{{count}} pliegues están en el lugar correcto pero con el tipo equivocado",
     "wrongAssignment_other": "{{count}} pliegues están en el lugar correcto pero con el tipo equivocado"
   }
 }

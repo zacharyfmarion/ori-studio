@@ -1,11 +1,21 @@
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FileDropOverlay } from '../components/FileDropOverlay';
 import { StartScreen } from '../components/StartScreen';
+import { useFileDropTarget } from '../hooks/useFileDropTarget';
+import type { DropTargetPolicy } from '../lib/fileDrop';
 import { useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { DESIGN_PATH, EDIT_PATH } from './paths';
 import { openedProjectPath } from './landing';
+
+/**
+ * The start screen only ever opens. The Edit canvas is always-live, so a crease
+ * pattern can still be loaded while sitting here — but "merge into the document
+ * you are not looking at" is not a choice worth offering.
+ */
+const WELCOME_DROP_POLICY: DropTargetPolicy = 'open-only';
 
 /**
  * The `/welcome` route: the start screen. Creating or opening a document
@@ -25,6 +35,7 @@ export function WelcomeRoute() {
   const openProject = useWorkspaceStore((state) => state.openProject);
   const showWelcomeOnStartup = useSettingsStore((state) => state.showWelcomeOnStartup);
   const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
+  const { dropTargetProps, isDragActive } = useFileDropTarget({ policy: WELCOME_DROP_POLICY });
 
   useEffect(() => {
     const state = useWorkspaceStore.getState();
@@ -56,7 +67,10 @@ export function WelcomeRoute() {
   }, [navigate, openProject]);
 
   return (
-    <div className="app-layout app-layout--start">
+    <div
+      className="app-layout app-layout--start file-drop-region"
+      {...dropTargetProps}
+    >
       <StartScreen
         status={status}
         errorMessage={error?.message ?? null}
@@ -66,6 +80,7 @@ export function WelcomeRoute() {
         showWelcomeOnStartup={showWelcomeOnStartup}
         onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
       />
+      <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />
     </div>
   );
 }

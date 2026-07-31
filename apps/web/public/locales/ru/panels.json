@@ -168,6 +168,7 @@
     "changeFoldedModel": "Изменить сложенную модель",
     "commandFailed": "Команда не выполнена",
     "couldNotOpenForEditing": "Этот паттерн складок не удалось открыть для редактирования.",
+    "couldNotOpenForEditingHint": "Показан только для чтения. Его по-прежнему можно просматривать, складывать и экспортировать.",
     "cropImage": "Обрезать изображение",
     "current_one": "Текущий {{count}}",
     "current_few": "Текущий {{count}}",
@@ -673,16 +674,16 @@
     "catalogTitle": "Изучение Ori Studio",
     "checking": "Ожидание вашего рисунка…",
     "courseProgress": "{{completed}} / {{total}} уроков",
+    "extra_one": "{{count}} сгиб, которого нет в образце",
     "extra_few": "{{count}} сгиба, которых нет в образце",
     "extra_many": "{{count}} сгибов, которых нет в образце",
-    "extra_one": "{{count}} сгиб, которого нет в образце",
     "extra_other": "{{count}} сгиба, которых нет в образце",
     "finish": "Завершить урок",
-    "matchProgress": "Совпало {{matched}} из {{expected}} сгибов",
     "matched": "Совпадает. Отлично.",
+    "matchProgress": "Совпало {{matched}} из {{expected}} сгибов",
+    "missing_one": "Осталось нарисовать {{count}} сгиб",
     "missing_few": "Осталось нарисовать {{count}} сгиба",
     "missing_many": "Осталось нарисовать {{count}} сгибов",
-    "missing_one": "Осталось нарисовать {{count}} сгиб",
     "missing_other": "Осталось нарисовать {{count}} сгиба",
     "next": "Далее",
     "resume": "Продолжить с места остановки",
@@ -694,9 +695,9 @@
       "label": "Целевой паттерн сгибов",
       "loading": "Загрузка образца…"
     },
+    "wrongAssignment_one": "{{count}} сгиб на правильном месте, но не того типа",
     "wrongAssignment_few": "{{count}} сгиба на правильном месте, но не того типа",
     "wrongAssignment_many": "{{count}} сгибов на правильном месте, но не того типа",
-    "wrongAssignment_one": "{{count}} сгиб на правильном месте, но не того типа",
     "wrongAssignment_other": "{{count}} сгиба на правильном месте, но не того типа"
   }
 }

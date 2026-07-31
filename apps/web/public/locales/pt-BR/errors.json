@@ -21,6 +21,11 @@
     "canvasUnavailable": "Canvas 2D não está disponível",
     "unsupportedImage": "Use uma imagem PNG, JPEG ou WebP."
   },
+  "fileDrop": {
+    "dialogOpen": "Conclua a caixa de diálogo aberta antes de soltar um arquivo.",
+    "imageNotHere": "Solte {{name}} sobre o padrão de vincos para adicioná-lo como imagem de referência.",
+    "unsupportedFile": "O Ori Studio não consegue abrir {{name}}. Arquivos compatíveis: {{extensions}}."
+  },
   "fold": {
     "contradiction": "Este padrão de vincos não é dobrável plano: algumas faces não têm uma ordem de empilhamento consistente.",
     "layerSearch": "Não foi possível dobrar este padrão de vincos: suas camadas não podem ser organizadas sem sobreposição.",
