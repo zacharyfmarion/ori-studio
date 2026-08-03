@@ -127,7 +127,18 @@ export function startBpTreeDrag(input: BpTreeDragStart): BpTreeDragSession {
       // means.
       moved ||= hasPassedDragThreshold(clientStart, client);
       pending = client;
-      if (frame === null) frame = schedule(applyPending);
+      if (frame !== null) return;
+      // `applyPending` clears the slot when it runs, and a scheduler that runs
+      // its callback synchronously — which test stubs do — has already run it by
+      // the time we get the handle back. Storing it then would leave the slot
+      // holding a frame that has been and gone, and every later sample would be
+      // dropped as "already scheduled".
+      let ran = false;
+      const handle = schedule(() => {
+        ran = true;
+        applyPending();
+      });
+      if (!ran) frame = handle;
     },
     end() {
       if (frame !== null) unschedule(frame);

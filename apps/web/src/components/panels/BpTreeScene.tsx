@@ -1,9 +1,9 @@
-import { memo, type PointerEvent, type ReactNode, type Ref } from 'react';
+import { memo, type PointerEvent, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { OristudioBpTreeView } from '../../engine/oristudioBpTypes';
 import { bpTreePointToSvg, bpTreeVertexLabel } from '../../lib/bpTreeViewport';
 import type { bpTreePaperRect } from '../../lib/bpTreeViewport';
-import { BP_TREE_SCENE_ATTR } from '../../lib/bpTreeSceneDom';
+import { BP_TREE_GHOST_PART, BP_TREE_SCENE_ATTR } from '../../lib/bpTreeSceneDom';
 import { formatNumber, type PlotRect, type Point } from '../../lib/geometry';
 import { treeDotPx, type TreeDotSizes } from '../../lib/treeNodeDot';
 import type { BpTreeSymmetryLine } from '../../hooks/useBpTreeSymmetry';
@@ -75,11 +75,14 @@ export interface BpTreeSceneProps {
   symmetryAxisLine: BpTreeSymmetryLine | null;
   symmetryPairs: readonly { v1: number; v2: number }[];
   /**
-   * Drawn inside the canvas, above the symmetry marks and below the tree.
-   * Anything here re-renders the scene when it changes, so it is for content
-   * that is stable during a gesture.
+   * Whether the mirror-draw ghost has anything to preview: mirror draw on, with
+   * a vertex to hang the new leaf from, and the pointer over the canvas.
+   *
+   * A flag, not a position. Where the ghost goes changes with every pointer
+   * sample and is written by {@link applyBpTreeGhost}; whether it exists at all
+   * changes only when the selection or the pointer enters or leaves.
    */
-  overlay?: ReactNode;
+  ghostArmed: boolean;
   onEdgePointerDown: (event: PointerEvent<SVGGElement>, edgeId: number) => void;
   onVertexPointerDown: (event: PointerEvent<SVGCircleElement>, vertexId: number) => void;
 }
@@ -105,7 +108,7 @@ export const BpTreeScene = memo(function BpTreeScene({
   previewLocs,
   symmetryAxisLine,
   symmetryPairs,
-  overlay,
+  ghostArmed,
   onEdgePointerDown,
   onVertexPointerDown,
 }: BpTreeSceneProps) {
@@ -171,7 +174,32 @@ export const BpTreeScene = memo(function BpTreeScene({
           />
         );
       })}
-      {overlay}
+      {ghostArmed && (
+        <g className="symmetry-ghost">
+          <line
+            className="symmetry-ghost-edge"
+            style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX), display: 'none' }}
+            {...{ [BP_TREE_GHOST_PART]: 'primary-edge' }}
+          />
+          <circle
+            className="symmetry-ghost-node"
+            r={chromePx(DOT_SIZES.leafPx)}
+            style={{ display: 'none' }}
+            {...{ [BP_TREE_GHOST_PART]: 'primary-node' }}
+          />
+          <line
+            className="symmetry-ghost-edge"
+            style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX), display: 'none' }}
+            {...{ [BP_TREE_GHOST_PART]: 'mirror-edge' }}
+          />
+          <circle
+            className="symmetry-ghost-node"
+            r={chromePx(DOT_SIZES.leafPx)}
+            style={{ display: 'none' }}
+            {...{ [BP_TREE_GHOST_PART]: 'mirror-node' }}
+          />
+        </g>
+      )}
       {tree.edges.map((edge) => {
         const a = vertexById.get(edge.vertices[0]);
         const b = vertexById.get(edge.vertices[1]);

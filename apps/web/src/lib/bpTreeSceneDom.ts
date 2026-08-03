@@ -15,6 +15,26 @@ import type { Point } from './geometry';
  * looking broken with nothing to point at.
  */
 
+/**
+ * Which piece of the mirror-draw ghost an element is.
+ *
+ * The ghost follows the cursor, so it is positioned the same way the tree is —
+ * written, not re-rendered. React draws its four elements once when the ghost is
+ * armed and then leaves them alone.
+ */
+export const BP_TREE_GHOST_PART = 'data-bp-ghost-part';
+
+export type BpTreeGhostPart = 'primary-edge' | 'primary-node' | 'mirror-edge' | 'mirror-node';
+
+/** Where the ghost should be drawn, in SVG coordinates. */
+export interface BpTreeGhostGeometry {
+  primary: { from: Point; to: Point };
+  /** Absent when the tip snapped to the axis, or when no mirror parent resolves. */
+  mirror: { from: Point; to: Point } | null;
+  snapped: boolean;
+  unresolved: boolean;
+}
+
 export const BP_TREE_SCENE_ATTR = {
   /** Vertex id positioning the element's first point. */
   p1: 'data-bp-p1',
@@ -135,5 +155,58 @@ export function applyBpTreeScenePositions(
     target.element.setAttribute('y1', String(a.y));
     target.element.setAttribute('x2', String(b.x));
     target.element.setAttribute('y2', String(b.y));
+  }
+}
+
+function ghostPart(root: ParentNode, part: BpTreeGhostPart): SVGElement | null {
+  return root.querySelector<SVGElement>(`[${BP_TREE_GHOST_PART}="${part}"]`);
+}
+
+function setSegment(element: SVGElement | null, from: Point, to: Point): void {
+  if (!element) return;
+  element.setAttribute('x1', String(from.x));
+  element.setAttribute('y1', String(from.y));
+  element.setAttribute('x2', String(to.x));
+  element.setAttribute('y2', String(to.y));
+}
+
+function setShown(element: SVGElement | null, shown: boolean): void {
+  if (element) element.style.display = shown ? '' : 'none';
+}
+
+/**
+ * Move the mirror-draw ghost to `geometry`, or hide it when there is none.
+ *
+ * Everything variable about the ghost is written here rather than rendered: the
+ * two segments, whether the mirror half exists, and the two state marks the
+ * stylesheet keys off. That is what lets the pointer move without the pane
+ * rendering.
+ */
+export function applyBpTreeGhost(root: ParentNode, geometry: BpTreeGhostGeometry | null): void {
+  const primaryEdge = ghostPart(root, 'primary-edge');
+  const primaryNode = ghostPart(root, 'primary-node');
+  const mirrorEdge = ghostPart(root, 'mirror-edge');
+  const mirrorNode = ghostPart(root, 'mirror-node');
+  if (!geometry) {
+    for (const element of [primaryEdge, primaryNode, mirrorEdge, mirrorNode]) setShown(element, false);
+    return;
+  }
+  setShown(primaryEdge, true);
+  setShown(primaryNode, true);
+  setSegment(primaryEdge, geometry.primary.from, geometry.primary.to);
+  primaryEdge?.classList.toggle('symmetry-ghost-edge--unresolved', geometry.unresolved);
+  if (primaryNode) {
+    primaryNode.setAttribute('cx', String(geometry.primary.to.x));
+    primaryNode.setAttribute('cy', String(geometry.primary.to.y));
+    if (geometry.snapped) primaryNode.setAttribute('data-snapped', 'true');
+    else primaryNode.removeAttribute('data-snapped');
+  }
+  setShown(mirrorEdge, geometry.mirror !== null);
+  setShown(mirrorNode, geometry.mirror !== null);
+  if (!geometry.mirror) return;
+  setSegment(mirrorEdge, geometry.mirror.from, geometry.mirror.to);
+  if (mirrorNode) {
+    mirrorNode.setAttribute('cx', String(geometry.mirror.to.x));
+    mirrorNode.setAttribute('cy', String(geometry.mirror.to.y));
   }
 }

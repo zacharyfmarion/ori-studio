@@ -206,7 +206,11 @@ afterEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
 
-function render(document_: OristudioBpDocumentState, selectedVertexId: number | null) {
+function render(
+  document_: OristudioBpDocumentState,
+  selectedVertexId: number | null,
+  symmetryEnabled = false
+) {
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
@@ -217,7 +221,7 @@ function render(document_: OristudioBpDocumentState, selectedVertexId: number | 
           ? { kind: 'bp-none' }
           : { kind: 'bp-vertex', id: selectedVertexId },
       oristudioBpSymmetry: {
-        enabled: false,
+        enabled: symmetryEnabled,
         fold: 'book',
         angle: 90,
         loc: { x: 20, y: 20 },
@@ -327,6 +331,51 @@ describe('BP tree canvas — the drawing is not rebuilt for nothing', () => {
     expect(small.touched).toBeGreaterThan(0);
     expect(large.touched).toBe(small.touched);
     // A leaf drag moves one dot, its label, its edge and that edge's label.
+    expect(small.touched).toBeLessThanOrEqual(4);
+  });
+
+  /** Sweep the pointer across the pane. Returns the elements the canvas saw change. */
+  function hover(leafCount: number, symmetryEnabled: boolean) {
+    const { body } = render(bpDocument(leafCount), symmetryEnabled ? 1 : null, symmetryEnabled);
+    const svg = body.querySelector('svg.bp-tree-canvas');
+    if (!svg) throw new Error('BP tree canvas did not render');
+    // One move to arm the ghost, which is a legitimate render; the rest is hover.
+    act(() => {
+      body.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 300, clientY: 260 }));
+    });
+    const touched = new Set<Node>();
+    const observer = new MutationObserver(() => {});
+    observer.observe(svg, { attributes: true, childList: true, subtree: true });
+    for (let step = 0; step < 12; step += 1) {
+      act(() => {
+        body.dispatchEvent(
+          new MouseEvent('pointermove', {
+            bubbles: true,
+            clientX: 300 + step * 9,
+            clientY: 260 + step * 6,
+          })
+        );
+      });
+      for (const record of observer.takeRecords()) touched.add(record.target);
+    }
+    observer.disconnect();
+    return { touched: touched.size, ghost: svg.querySelector('.symmetry-ghost') !== null };
+  }
+
+  it('leaves the canvas alone while the pointer moves with mirror draw off', () => {
+    // Nothing on screen depends on where the pointer is, so nothing should change.
+    const result = hover(48, false);
+    expect(result.ghost).toBe(false);
+    expect(result.touched).toBe(0);
+  });
+
+  it('touches only the ghost while previewing, whatever the tree size', () => {
+    const small = hover(6, true);
+    const large = hover(48, true);
+    expect(small.ghost).toBe(true);
+    expect(small.touched).toBeGreaterThan(0);
+    expect(large.touched).toBe(small.touched);
+    // The ghost is two segments and two dots, and nothing else may move.
     expect(small.touched).toBeLessThanOrEqual(4);
   });
 

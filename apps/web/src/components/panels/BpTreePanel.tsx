@@ -32,11 +32,10 @@ import { bpDefaultFlapLabel } from '../../lib/bpFlapLabel';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { formatNumber, type Point } from '../../lib/geometry';
 import {
-  BpTreeScene,
-  DOT_SIZES,
-  SYMMETRY_GHOST_PX,
-  SYMMETRY_LANE_PX,
-} from './BpTreeScene';
+  applyBpTreeGhost,
+  type BpTreeGhostGeometry,
+} from '../../lib/bpTreeSceneDom';
+import { BpTreeScene, SYMMETRY_LANE_PX } from './BpTreeScene';
 import { translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import {
   startBpTreeDrag,
@@ -268,7 +267,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   // re-render the drawing. The session writes the moving elements itself.
   const dragRef = useRef<BpTreeDragSession | null>(null);
   const paperDownRef = useRef<{ clientX: number; clientY: number; point: Point } | null>(null);
-  const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
+  // Where the ghost is drawn follows the cursor and so must not be React state.
+  // Whether it exists at all changes only on selection and pointer enter/leave,
+  // which is rare enough to render.
+  const [ghostArmed, setGhostArmed] = useState(false);
+  const ghostFrameRef = useRef<number | null>(null);
+  const ghostGeometryRef = useRef<BpTreeGhostGeometry | null>(null);
   const scheduleLongPressInspector = useBpLongPressInspector();
   const layers = useSettingsStore((state) => state.bpTreeLayers);
   const setLayer = useSettingsStore((state) => state.setBpTreeLayer);
@@ -416,16 +420,19 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   // Ghost preview of the leaf a click would add (and its mirror), mirroring what
   // addOristudioBpTreeLeafWithSymmetry will do: an on-axis tip is a single centred
   // leaf; otherwise it reflects onto the parent's mirror.
-  const symmetryHoverPreview = useMemo(() => {
-    if (!symmetry.enabled || !hoverPoint) return null;
+  //
+  // Called from the pointer handler, not from render — the answer changes with
+  // every sample, and re-rendering the pane for it is what used to make hovering
+  // a large tree as expensive as dragging one.
+  const ghostGeometryAt = useEventCallback((hoverPoint: Point): BpTreeGhostGeometry | null => {
+    if (!symmetry.enabled) return null;
     const parentId = addAnchorId;
     if (parentId === null) return null;
     const parent = findVertex(parentId);
     if (!parent) return null;
     const axis = { loc: symmetry.loc, angle: symmetry.angle };
-    const axisTolerance = symmetryAxisTolerance;
     const tip = constrainBpTreePoint(unitLeafLocation(parent.loc, hoverPoint), tree.sheet);
-    const snap = snapPointToSymmetryAxis(tip, axis, axisTolerance);
+    const snap = snapPointToSymmetryAxis(tip, axis, symmetryAxisTolerance);
     const primaryTip = snap.point;
     let mirror: { from: Point; to: Point } | null = null;
     let unresolved = false;
@@ -444,78 +451,53 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         unresolved = true;
       }
     }
+    const toSvg = (loc: Point) => bpTreePointToSvg(loc, tree.sheet, paperRect);
     return {
-      primary: { from: parent.loc, to: primaryTip },
-      mirror,
+      primary: { from: toSvg(parent.loc), to: toSvg(primaryTip) },
+      mirror: mirror && { from: toSvg(mirror.from), to: toSvg(mirror.to) },
       snapped: snap.snapped,
       unresolved,
     };
-  }, [
-    symmetry.enabled,
-    symmetry.loc,
-    symmetry.angle,
-    symmetry.pairs,
-    hoverPoint,
-    addAnchorId,
-    symmetryAxisTolerance,
-    tree,
-    findVertex,
-  ]);
+  });
 
-  const symmetryGhost = useMemo(() => {
-    if (!symmetryHoverPreview) return null;
-    const seg = (from: Point, to: Point) => ({
-      from: bpTreePointToSvg(from, tree.sheet, paperRect),
-      to: bpTreePointToSvg(to, tree.sheet, paperRect),
+  /** Show the ghost where the cursor last put it, coalesced to one frame. */
+  const scheduleGhost = useEventCallback(() => {
+    if (ghostFrameRef.current !== null) return;
+    // See `startBpTreeDrag`: a scheduler that runs synchronously has already
+    // cleared the slot by the time it hands back a handle, and storing it then
+    // would drop every later sample.
+    let ran = false;
+    const handle = requestAnimationFrame(() => {
+      ran = true;
+      ghostFrameRef.current = null;
+      const svg = svgRef.current;
+      if (svg) applyBpTreeGhost(svg, ghostGeometryRef.current);
     });
-    const primary = seg(symmetryHoverPreview.primary.from, symmetryHoverPreview.primary.to);
-    const mirror = symmetryHoverPreview.mirror
-      ? seg(symmetryHoverPreview.mirror.from, symmetryHoverPreview.mirror.to)
-      : null;
-    return (
-      <g className="symmetry-ghost">
-        <line
-          className={[
-            'symmetry-ghost-edge',
-            symmetryHoverPreview.unresolved ? 'symmetry-ghost-edge--unresolved' : '',
-          ].join(' ')}
-          style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX) }}
-          x1={primary.from.x}
-          y1={primary.from.y}
-          x2={primary.to.x}
-          y2={primary.to.y}
-        />
-        <circle
-          className="symmetry-ghost-node"
-          data-snapped={symmetryHoverPreview.snapped || undefined}
-          cx={primary.to.x}
-          cy={primary.to.y}
-          r={chromePx(DOT_SIZES.leafPx)}
-        />
-        {mirror && (
-          <>
-            <line
-              className="symmetry-ghost-edge"
-              style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX) }}
-              x1={mirror.from.x}
-              y1={mirror.from.y}
-              x2={mirror.to.x}
-              y2={mirror.to.y}
-            />
-            <circle
-              className="symmetry-ghost-node"
-              cx={mirror.to.x}
-              cy={mirror.to.y}
-              r={chromePx(DOT_SIZES.leafPx)}
-            />
-          </>
-        )}
-      </g>
-    );
-    // `chromePx` is derived fresh each render; the camera scale it closes over is
-    // the dependency that matters.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symmetryHoverPreview, tree.sheet, paperRect, svgPerScreenPx]);
+    if (!ran) ghostFrameRef.current = handle;
+  });
+
+  const setGhost = useEventCallback((geometry: BpTreeGhostGeometry | null) => {
+    ghostGeometryRef.current = geometry;
+    // Arming renders the ghost's four elements; the frame below then places
+    // them. Everything after that is writes.
+    setGhostArmed(geometry !== null);
+    scheduleGhost();
+  });
+
+  // The ghost is drawn only once armed, so its first placement has to wait for
+  // that commit. Cheap enough to just re-place it after every one.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (svg && ghostArmed) applyBpTreeGhost(svg, ghostGeometryRef.current);
+  }, [ghostArmed]);
+
+  useEffect(
+    () => () => {
+      if (ghostFrameRef.current !== null) cancelAnimationFrame(ghostFrameRef.current);
+    },
+    []
+  );
+
 
   // Set an edge's length and keep the tree length-faithful: re-place the child
   // vertex at `length` units from its parent along the current direction, and
@@ -656,7 +638,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     // The ghost previews where a *click* would put a leaf, which a drag is not.
     // Clearing it here also means the hover handler has nothing to undo when the
     // drag ends.
-    setHoverPoint(null);
+    setGhost(null);
     const svg = svgRef.current;
     if (!svg) return;
     dragRef.current = startBpTreeDrag({
@@ -703,10 +685,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     // canvas (via the container), not just over the content-sized SVG, so the mirror
     // ghost must follow the cursor there too. Skip the toolbar/editor chrome.
     if (isViewportInteractiveTarget(event.target)) {
-      setHoverPoint(null);
+      setGhost(null);
       return;
     }
-    setHoverPoint(eventToTreePoint(event));
+    setGhost(ghostGeometryAt(eventToTreePoint(event)));
   };
 
   const onCanvasPointerUp = (event: PointerEvent<Element>) => {
@@ -727,7 +709,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         onCanvasAddPointerDown(event);
       }}
       onPointerMove={onCanvasPointerMove}
-      onPointerLeave={() => setHoverPoint(null)}
+      onPointerLeave={() => setGhost(null)}
       onPointerUp={onCanvasPointerUp}
       onPointerCancel={() => finishDrag()}
     >
@@ -765,7 +747,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             chromePx={chromePx}
             symmetryAxisLine={symmetryView.axisLine}
             symmetryPairs={symmetryView.pairs}
-            overlay={symmetryGhost}
+            ghostArmed={ghostArmed}
             onEdgePointerDown={onEdgePointerDown}
             onVertexPointerDown={onVertexPointerDown}
           />
