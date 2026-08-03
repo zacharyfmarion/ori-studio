@@ -2670,18 +2670,22 @@
   top: var(--space-4);
   right: var(--space-4);
   display: grid;
-  /* Collapsed, the badge is exactly as wide as its headline — no `width`, so an
-     absolutely positioned box shrinks to fit. The cap still applies, so a long
-     headline wraps inside 420px instead of running off the canvas.
+  /* One number for both states: the cap a collapsed badge may grow to, and the
+     width an expanded panel takes. Sharing it is what stops the badge from
+     being able to come out wider closed than open.
 
      The gutter is the inset doubled — one on each side — written in terms of the
-     inset above so the two cannot drift apart.
+     inset above so the two cannot drift apart. It said `var(--space-8)` until
+     the list was windowed; that token does not exist (the scale stops at
+     `--space-6`), so the declaration was invalid at computed-value time and
+     dropped, leaving `max-width: none`. Nothing revealed it while the rows were
+     still in normal flow. */
+  --cp-diagnostic-hud-width: min(320px, calc(100% - var(--space-4) * 2));
 
-     This cap said `var(--space-8)` until the list was windowed. That token does
-     not exist (the scale stops at `--space-6`), so the declaration was invalid
-     at computed-value time and dropped, leaving `max-width: none`. Nothing
-     revealed it while the rows were in normal flow. */
-  max-width: min(420px, calc(100% - var(--space-4) * 2));
+  /* Collapsed, the badge is exactly as wide as its headline — no `width`, so an
+     absolutely positioned box shrinks to fit. The cap still applies, so a long
+     headline wraps inside the width instead of running off the canvas. */
+  max-width: var(--cp-diagnostic-hud-width);
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border-strong) 68%, transparent);
   border-radius: 6px;
@@ -2697,7 +2701,7 @@
    of flow, so they contribute no intrinsic width — left to shrink to fit, the
    panel would size itself to the headline and wrap every message to two lines. */
 .cp-diagnostic-hud[data-expanded] {
-  width: min(420px, calc(100% - var(--space-4) * 2));
+  width: var(--cp-diagnostic-hud-width);
 }
 
 .cp-diagnostic-hud__summary {

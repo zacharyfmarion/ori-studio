@@ -34,6 +34,12 @@ import { useCpDiagnosticList } from './useCpDiagnosticList';
  * 1.25, and the 1px rule. Only a starting guess — every mounted row is measured —
  * but it sets the scrollbar before anything has been measured, so a bad value
  * shows up as the thumb jumping while you scroll into new rows.
+ *
+ * One line rather than the average: measured across all fifteen English
+ * foldability messages at the panel's width, ten come out at exactly this height
+ * and five wrap to two. The common case is the better anchor, and the average
+ * would be a constant that only holds for one locale — the longer languages wrap
+ * more.
  */
 const ROW_ESTIMATE_PX = 7 + 7 + Math.round(0.72 * 16 * 1.25) + 1;
 
