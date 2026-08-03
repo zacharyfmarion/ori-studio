@@ -4454,6 +4454,7 @@
 
 .cp-context-panel {
   position: relative; /* Anchors the reset button in the header. */
+  --cp-context-reset-gutter: 58px;
   display: grid;
   width: 100%;
   overflow: hidden;
@@ -4771,6 +4772,13 @@
 /* Appears only when a setting in this panel is off its default — so it is both
    the way back and the only hint that something here was remembered from a
    previous session. Sits in the header, out of the way of the controls. */
+/* The header is a full-width button and cannot nest one, so the reset is
+   positioned over it — and this gutter is what stops it landing on the setting
+   count, which shares that corner. */
+.cp-context-panel:has(.cp-context-panel__reset) .cp-context-panel__header {
+  padding-right: calc(8px + var(--cp-context-reset-gutter));
+}
+
 .cp-context-panel__reset {
   position: absolute;
   top: 6px;
