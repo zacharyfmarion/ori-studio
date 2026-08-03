@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   OristudioBpArcPath,
+  OristudioBpPackingView,
   OristudioBpSheet,
   OristudioBpSheetKind,
 } from '../engine/oristudioBpTypes';
@@ -16,6 +17,7 @@ import {
   bpPackingSheetContains,
   bpPackingSheetFrame,
   bpPackingSvgToPoint,
+  getBpPackingWorldRect,
 } from './bpPackingViewport';
 
 function sheet(kind: OristudioBpSheetKind, width: number, height = width): OristudioBpSheet {
@@ -316,5 +318,70 @@ describe('bpPackingCanResizeFlap', () => {
     expect(bpPackingCanResizeFlap({ x: 10, y: 10 }, 4, 4, d)).toBe(true);
     // Growing it to 5x5 pushes three corners off, which is rejected.
     expect(bpPackingCanResizeFlap({ x: 10, y: 10 }, 5, 5, d)).toBe(false);
+  });
+});
+
+describe('getBpPackingWorldRect', () => {
+  /**
+   * One flap in the corner with a clearance circle reaching well past the sheet
+   * — the shape a valid packing takes whenever a flap sits on an edge.
+   */
+  function cornerPacking(): OristudioBpPackingView {
+    return {
+      sheet: sheet('rectangular', 10),
+      flaps: [
+        {
+          id: 1,
+          vertexId: 1,
+          name: 'A',
+          anchor: { x: 0, y: 0 },
+          width: 0,
+          height: 0,
+          radius: 3,
+          constrained: false,
+        },
+      ],
+      rivers: [],
+      invalidJunctions: [],
+      stretches: [],
+      devices: [],
+      graphics: [
+        { id: 'c1', layer: 'flap-clearance', kind: 'circle', center: { x: 0, y: 0 }, radius: 3 },
+      ],
+      validity: 'valid',
+    } as unknown as OristudioBpPackingView;
+  }
+
+  it('leaves room for what hangs over the edge when nothing is cropped', () => {
+    const paper = bpPackingPaperRect(cornerPacking().sheet);
+    const world = getBpPackingWorldRect(cornerPacking(), { cropToSheet: false });
+    expect(world.x).toBeLessThan(paper.x);
+    expect(world.y + world.height).toBeGreaterThan(paper.y + paper.height);
+  });
+
+  it('stops at the sheet once the crop hides what is past it', () => {
+    // The clearance circle cannot be drawn outside the sheet, so framing it
+    // would zoom out for something nobody can see.
+    const cropped = getBpPackingWorldRect(cornerPacking(), { cropToSheet: true });
+    const loose = getBpPackingWorldRect(cornerPacking(), { cropToSheet: false });
+    expect(cropped.width).toBeLessThan(loose.width);
+    expect(cropped.height).toBeLessThan(loose.height);
+  });
+
+  it('still frames the whole sheet', () => {
+    const paper = bpPackingPaperRect(cornerPacking().sheet);
+    const cropped = getBpPackingWorldRect(cornerPacking(), { cropToSheet: true });
+    expect(cropped.x).toBeLessThanOrEqual(paper.x);
+    expect(cropped.y).toBeLessThanOrEqual(paper.y);
+    expect(cropped.x + cropped.width).toBeGreaterThanOrEqual(paper.x + paper.width);
+    expect(cropped.y + cropped.height).toBeGreaterThanOrEqual(paper.y + paper.height);
+  });
+
+  it('includes everything unless asked to crop', () => {
+    // The helper keeps its old behaviour for a caller that says nothing; the
+    // packing pane is what passes the Layers toggle.
+    expect(getBpPackingWorldRect(cornerPacking())).toEqual(
+      getBpPackingWorldRect(cornerPacking(), { cropToSheet: false })
+    );
   });
 });

@@ -823,7 +823,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         .join(' '),
     [packing.sheet, paperRect]
   );
-  const worldRect = useMemo(() => getBpPackingWorldRect(displayPacking), [displayPacking]);
+  const worldRect = useMemo(
+    () => getBpPackingWorldRect(displayPacking, { cropToSheet: !layers.outsidePaper }),
+    [displayPacking, layers.outsidePaper]
+  );
   const viewportFitRequestId = useWorkspaceStore(
     (state) => state.oristudioBpViewportFitRequestId
   );
