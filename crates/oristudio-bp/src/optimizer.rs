@@ -1168,7 +1168,7 @@ pub mod kernel {
     pub struct KernelHierarchy {
         pub sheet: OptimizerSheet,
         pub flaps: Vec<KernelFlap>,
-        pub dist_map: Vec<(usize, usize, i32)>,
+        pub dist_map: Vec<(usize, usize, f64)>,
         pub parents: Vec<KernelParent>,
         pub parent_map: BTreeMap<u32, usize>,
     }
@@ -1248,7 +1248,7 @@ pub mod kernel {
                             "optimizer hierarchy distMap references missing flap {b}"
                         )));
                     };
-                    Ok((i, j, dist as i32))
+                    Ok((i, j, dist))
                 })
                 .collect::<BpResult<Vec<_>>>()?;
             let parents = hierarchy
@@ -2274,7 +2274,7 @@ pub mod kernel {
         result
     }
 
-    pub fn infer_scale(x: &[f64], i: usize, j: usize, dist: i32, flaps: &[KernelFlap]) -> f64 {
+    pub fn infer_scale(x: &[f64], i: usize, j: usize, dist: f64, flaps: &[KernelFlap]) -> f64 {
         let x1 = x[i * 2];
         let y1 = x[i * 2 + 1];
         let x2 = x[j * 2];
@@ -2283,11 +2283,10 @@ pub mod kernel {
         let h = if y2 > y1 { flaps[i] } else { flaps[j] }.height;
         let dx = (x2 - x1).abs();
         let dy = (y2 - y1).abs();
-        let dh = f64::from(dist + h);
-        let dw = f64::from(dist + w);
+        let dh = dist + f64::from(h);
+        let dw = dist + f64::from(w);
         let w = f64::from(w);
         let h = f64::from(h);
-        let dist = f64::from(dist);
 
         if dx == 0.0 && dy == 0.0 {
             return f64::from(MAX_INIT_SCALE);
@@ -2333,12 +2332,12 @@ pub mod kernel {
         x: &[f64],
         i: usize,
         j: usize,
-        dist: i32,
+        dist: f64,
     ) -> ScalarConstraintEvaluation {
-        let d = f64::from(dist) * x[x.len() - 1];
+        let d = dist * x[x.len() - 1];
         let dx = x[i * 2] - x[j * 2];
         let dy = x[i * 2 + 1] - x[j * 2 + 1];
-        let mut gradient = reset_gradient(x.len(), 2.0 * f64::from(dist) * d);
+        let mut gradient = reset_gradient(x.len(), 2.0 * dist * d);
         gradient[i * 2] = -2.0 * dx;
         gradient[j * 2] = 2.0 * dx;
         gradient[i * 2 + 1] = -2.0 * dy;
@@ -2353,11 +2352,11 @@ pub mod kernel {
         x: &[f64],
         i: usize,
         j: usize,
-        dist: i32,
+        dist: f64,
         flaps: &[KernelFlap],
     ) -> ScalarConstraintEvaluation {
         let m = x[x.len() - 1];
-        let d = f64::from(dist) * m;
+        let d = dist * m;
         let fi = flaps[i];
         let fj = flaps[j];
         let dx = interval_distance(
@@ -2388,7 +2387,7 @@ pub mod kernel {
         };
         let mut gradient = reset_gradient(
             x.len(),
-            2.0 * f64::from(dist) * d - 2.0 * dx * f64::from(dx_s) - 2.0 * dy * f64::from(dy_s),
+            2.0 * dist * d - 2.0 * dx * f64::from(dx_s) - 2.0 * dy * f64::from(dy_s),
         );
         gradient[i * 2] = -2.0 * dx;
         gradient[j * 2] = 2.0 * dx;
@@ -2400,7 +2399,7 @@ pub mod kernel {
         }
     }
 
-    pub fn rounded_exact(x: &[f64], i: usize, j: usize, dist: i32, flaps: &[KernelFlap]) -> f64 {
+    pub fn rounded_exact(x: &[f64], i: usize, j: usize, dist: f64, flaps: &[KernelFlap]) -> f64 {
         let dx = interval_distance(
             x[i * 2],
             f64::from(flaps[i].width),
@@ -2413,7 +2412,7 @@ pub mod kernel {
             x[j * 2 + 1],
             f64::from(flaps[j].height),
         );
-        f64::from(dist * dist) - dx * dx - dy * dy
+        dist * dist - dx * dx - dy * dy
     }
 
     pub fn fixed_constraint(
@@ -2616,17 +2615,19 @@ pub mod kernel {
         if direction != 0 { x.ceil() } else { x.floor() }
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    // `PartialEq` only: the distances are now real tree distances, and `f64` has
+    // no total equality.
+    #[derive(Debug, Clone, Copy, PartialEq)]
     enum PackConstraint {
         Circle {
             i: usize,
             j: usize,
-            dist: i32,
+            dist: f64,
         },
         Rounded {
             i: usize,
             j: usize,
-            dist: i32,
+            dist: f64,
         },
         RectBound {
             coordinate_index: usize,
@@ -3158,15 +3159,15 @@ mod tests {
             },
         ];
         let mut x = vec![0.0, 0.0, 0.3, 0.4, 0.0];
-        let hierarchy = kernel_hierarchy(flaps.clone(), vec![(0, 1, 10)]);
+        let hierarchy = kernel_hierarchy(flaps.clone(), vec![(0, 1, 10.0)]);
 
-        assert_eq!(infer_scale(&x, 0, 1, 10, &flaps), 20.0);
+        assert_eq!(infer_scale(&x, 0, 1, 10.0, &flaps), 20.0);
         setup_initial_scale(&mut x, &hierarchy);
         assert_eq!(get_scale(&x), 20.0);
 
         let same_position = vec![0.0, 0.0, 0.0, 0.0, 0.0];
         assert_eq!(
-            infer_scale(&same_position, 0, 1, 10, &flaps),
+            infer_scale(&same_position, 0, 1, 10.0, &flaps),
             super::kernel::MAX_INIT_SCALE as f64
         );
     }
@@ -3187,7 +3188,7 @@ mod tests {
         ];
         let x = vec![0.0, 0.0, 0.8, 0.6, 0.0];
 
-        assert!((infer_scale(&x, 0, 1, 10, &flaps) - 14.2).abs() < 1e-10);
+        assert!((infer_scale(&x, 0, 1, 10.0, &flaps) - 14.2).abs() < 1e-10);
     }
 
     #[test]
@@ -3274,7 +3275,11 @@ mod tests {
 
         assert_eq!(problem.sheet, OptimizerSheet::Diag);
         assert_eq!(hierarchy.sheet, OptimizerSheet::Diag);
-        assert_eq!(hierarchy.dist_map, vec![(0, 1, 10)]);
+        // Carried across whole, not truncated. Tree distances are genuinely
+        // fractional once flap dimensions are in play: upstream's `getArea`
+        // divides by PI, and `getDistMap` takes the square root of that for a
+        // leaf, so a distance like this one is the norm rather than an oddity.
+        assert_eq!(hierarchy.dist_map, vec![(0, 1, 10.9)]);
         assert_eq!(hierarchy.flaps[0].width, 4);
         assert_eq!(hierarchy.flaps[0].height, 5);
         assert_eq!(hierarchy.parent_for(1).unwrap().id, 9);
@@ -3379,14 +3384,14 @@ mod tests {
                     height: 0,
                 },
             ],
-            vec![(0, 1, 10)],
+            vec![(0, 1, 10.0)],
         );
 
         let result = pack_rssl(vec![0.0, 0.0, 0.3, 0.4, 0.025], &hierarchy, None, None).unwrap();
 
         assert!(result.success, "{:?}", result);
         assert_eq!(result.status, PackStatus::Success);
-        assert!(circle_constraint(&result.x, 0, 1, 10).value.abs() < 1e-5);
+        assert!(circle_constraint(&result.x, 0, 1, 10.0).value.abs() < 1e-5);
         assert!((result.x[4] - 1.0 / 2.0_f64.sqrt() / 5.0).abs() < 1e-5);
     }
 
@@ -3431,7 +3436,7 @@ mod tests {
                     height: 0,
                 },
             ],
-            vec![(0, 1, 10)],
+            vec![(0, 1, 10.0)],
         );
         let continuous = pack_rssl(vec![0.0, 0.0, 0.3, 0.4, 0.05], &hierarchy, None, None).unwrap();
 
@@ -3442,7 +3447,7 @@ mod tests {
 
     #[test]
     fn kernel_circle_constraint_matches_bp_value_and_gradient() {
-        let evaluated = circle_constraint(&[0.2, 0.3, 0.7, 0.3, 0.1], 0, 1, 5);
+        let evaluated = circle_constraint(&[0.2, 0.3, 0.7, 0.3, 0.1], 0, 1, 5.0);
 
         assert!(evaluated.value.abs() < 1e-10);
         assert_vec_close(&evaluated.gradient, &[1.0, -0.0, -1.0, 0.0, 5.0]);
@@ -3462,12 +3467,12 @@ mod tests {
                 height: 5,
             },
         ];
-        let evaluated = rounded_constraint(&[0.1, 0.2, 0.7, 0.8, 0.1], 0, 1, 10, &flaps);
+        let evaluated = rounded_constraint(&[0.1, 0.2, 0.7, 0.8, 0.1], 0, 1, 10.0, &flaps);
 
         assert!((evaluated.value - 0.75).abs() < 1e-10);
         assert_vec_close(&evaluated.gradient, &[0.8, 0.6, -0.8, -0.6, 23.4]);
         assert_eq!(
-            rounded_exact(&[1.0, 2.0, 7.0, 8.0, 0.0], 0, 1, 10, &flaps),
+            rounded_exact(&[1.0, 2.0, 7.0, 8.0, 0.0], 0, 1, 10.0, &flaps),
             75.0
         );
         assert_eq!(interval_distance(1.0, 2.0, 7.0, 4.0), -4.0);
@@ -3559,7 +3564,7 @@ mod tests {
                     height: 0,
                 },
             ],
-            vec![(0, 1, 10)],
+            vec![(0, 1, 10.0)],
         );
 
         assert!(!hierarchy.check(&[0.0, 0.0, 3.0, 4.0, 5.0], 1, &[true, false]));
@@ -3684,7 +3689,7 @@ mod tests {
 
     fn kernel_hierarchy(
         flaps: Vec<KernelFlap>,
-        dist_map: Vec<(usize, usize, i32)>,
+        dist_map: Vec<(usize, usize, f64)>,
     ) -> KernelHierarchy {
         KernelHierarchy {
             sheet: OptimizerSheet::Rect,

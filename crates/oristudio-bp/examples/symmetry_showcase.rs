@@ -46,7 +46,7 @@ struct Case {
     note: String,
     sheet: OptimizerSheet,
     leaves: Vec<Leaf>,
-    dist: Vec<(usize, usize, i32)>,
+    dist: Vec<(usize, usize, f64)>,
     partners: Vec<(u32, u32)>,
 }
 
@@ -117,7 +117,7 @@ fn bug(vertebrae: usize, spine: i32, leg: i32, head: i32) -> Case {
     for i in 0..leaves.len() {
         for j in (i + 1)..leaves.len() {
             let along = (offset[i] - offset[j]).abs();
-            dist.push((i, j, leaves[i].length + along + leaves[j].length));
+            dist.push((i, j, f64::from(leaves[i].length + along + leaves[j].length)));
         }
     }
     Case {
@@ -150,7 +150,7 @@ fn star(n: usize, leg: i32) -> Case {
     let mut dist = Vec::new();
     for i in 0..n {
         for j in (i + 1)..n {
-            dist.push((i, j, 2 * leg));
+            dist.push((i, j, f64::from(2 * leg)));
         }
     }
     Case {
@@ -188,7 +188,7 @@ fn creature(segments: &[(i32, i32)], spine: i32, head: i32, tail: i32) -> Case {
     for i in 0..leaves.len() {
         for j in (i + 1)..leaves.len() {
             let along = (offset[i] - offset[j]).abs();
-            dist.push((i, j, leaves[i].length + along + leaves[j].length));
+            dist.push((i, j, f64::from(leaves[i].length + along + leaves[j].length)));
         }
     }
     Case {
@@ -212,7 +212,7 @@ fn sized_pair() -> Case {
     let mut dist = Vec::new();
     for i in 0..leaves.len() {
         for j in (i + 1)..leaves.len() {
-            dist.push((i, j, leaves[i].length + leaves[j].length));
+            dist.push((i, j, f64::from(leaves[i].length + leaves[j].length)));
         }
     }
     Case {

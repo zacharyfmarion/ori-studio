@@ -32,7 +32,7 @@ fn star(flaps: &[(u32, i32, i32)], leg: i32) -> KernelHierarchy {
     let mut dist_map = Vec::new();
     for i in 0..kernel_flaps.len() {
         for j in (i + 1)..kernel_flaps.len() {
-            dist_map.push((i, j, 2 * leg));
+            dist_map.push((i, j, f64::from(2 * leg)));
         }
     }
     KernelHierarchy {
@@ -432,7 +432,7 @@ fn fitted_layouts_respect_the_tree_distances() {
             let dy = f64::from(output[i * 2 + 1] - output[j * 2 + 1]);
             let separation = (dx * dx + dy * dy).sqrt();
             assert!(
-                separation >= f64::from(dist) - 1e-9,
+                separation >= dist - 1e-9,
                 "{axis:?}: flaps {} and {} are {separation} apart but need {dist}",
                 hierarchy.flaps[i].id,
                 hierarchy.flaps[j].id
