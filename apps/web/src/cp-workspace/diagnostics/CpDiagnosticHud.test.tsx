@@ -97,14 +97,59 @@ const ROW_PX = 29;
 
 const realOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
 const realOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+const realClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+const realScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
 
 function heightFor(element: HTMLElement): number {
   if (element.classList?.contains('cp-diagnostic-hud__list')) return LIST_VIEWPORT_PX;
   if (element.classList?.contains('cp-diagnostic-hud__row')) return ROW_PX;
+  // The spacer's height is the virtualizer's own total, set inline.
+  if (element.classList?.contains('cp-diagnostic-hud__spacer')) {
+    return Number.parseFloat(element.style.height || '0');
+  }
   return 0;
 }
 
+/** Content height: for the scroll container, that is its spacer child. */
+function scrollHeightFor(element: HTMLElement): number {
+  if (element.classList?.contains('cp-diagnostic-hud__list')) {
+    const spacer = element.querySelector<HTMLElement>('.cp-diagnostic-hud__spacer');
+    return spacer ? heightFor(spacer) : 0;
+  }
+  return heightFor(element);
+}
+
+const realScrollTo = Element.prototype.scrollTo;
+const realScrollTop = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
+
+/**
+ * jsdom does no layout, so nothing scrolls: `scrollTo` is absent and the
+ * `scrollTop` setter is a no-op that always reads back 0. Both are stood in for
+ * here with the browser's behaviour — a real offset, and a `scroll` event when
+ * it moves — so `scrollToIndex` drives the same code path it does in a browser.
+ */
+const scrollOffsets = new WeakMap<Element, number>();
+
 beforeAll(() => {
+  Object.defineProperty(Element.prototype, 'scrollTop', {
+    configurable: true,
+    get(this: Element) {
+      return scrollOffsets.get(this) ?? 0;
+    },
+    set(this: Element, value: number) {
+      scrollOffsets.set(this, value);
+    },
+  });
+  Element.prototype.scrollTo = function scrollTo(this: Element, ...args: unknown[]) {
+    const options = args[0];
+    const top =
+      typeof options === 'object' && options !== null && 'top' in options
+        ? Number((options as { top?: number }).top ?? 0)
+        : Number(args[1] ?? 0);
+    this.scrollTop = top;
+    this.dispatchEvent(new Event('scroll'));
+  } as typeof Element.prototype.scrollTo;
+
   Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
     configurable: true,
     get(this: HTMLElement) {
@@ -117,11 +162,30 @@ beforeAll(() => {
       return heightFor(this) > 0 ? 400 : 0;
     },
   });
+  // The virtualizer clamps every scroll target to
+  // `scrollHeight - clientHeight`. Both are 0 in jsdom, so without these
+  // `scrollToIndex` computes the right offset and then clamps it to 0.
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return heightFor(this);
+    },
+  });
+  Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return scrollHeightFor(this);
+    },
+  });
 });
 
 afterAll(() => {
+  Element.prototype.scrollTo = realScrollTo;
+  if (realScrollTop) Object.defineProperty(Element.prototype, 'scrollTop', realScrollTop);
   if (realOffsetHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', realOffsetHeight);
   if (realOffsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', realOffsetWidth);
+  if (realClientHeight) Object.defineProperty(HTMLElement.prototype, 'clientHeight', realClientHeight);
+  if (realScrollHeight) Object.defineProperty(HTMLElement.prototype, 'scrollHeight', realScrollHeight);
 });
 
 function scrollListTo(view: HTMLElement, top: number) {
@@ -211,6 +275,44 @@ describe('CpDiagnosticHud', () => {
       camvIssuesVisible: false,
     });
     expect(view.querySelector('.cp-diagnostic-hud')).toBeNull();
+  });
+
+  it('scrolls a newly activated entry into view, even when its row is unmounted', () => {
+    // Clicking a marker on the canvas activates a diagnostic. Windowed, the row
+    // for entry 1500 does not exist until the list is scrolled to it.
+    const ids = Array.from({ length: 2000 }, (_, i) => `camv-${i + 1}`);
+    const view = renderHud({ camvResult: result('CheckCamv', ids) });
+    expand(view);
+    expect(rowIds(view)).not.toContain('camv-1500');
+
+    act(() => {
+      useWorkspaceStore.getState().setOristudioCpActiveDiagnostic('camv-1500');
+    });
+    expect(rowIds(view)).toContain('camv-1500');
+  });
+
+  it('does not re-scroll when the entry list is re-derived under an unchanged active id', () => {
+    // The camera side of this had the bug: framing keyed on a derived object
+    // replayed the jump whenever the list was rebuilt, throwing the user back to
+    // an issue they had scrolled away from.
+    const ids = Array.from({ length: 2000 }, (_, i) => `camv-${i + 1}`);
+    const view = renderHud({ camvResult: result('CheckCamv', ids) });
+    expand(view);
+    act(() => {
+      useWorkspaceStore.getState().setOristudioCpActiveDiagnostic('camv-1500');
+    });
+
+    // Scroll away, then force a re-derivation with the same active id.
+    act(() => {
+      scrollListTo(view, 0);
+    });
+    expect(rowIds(view)).toContain('camv-1');
+    act(() => {
+      useWorkspaceStore.setState({
+        oristudioCpCamvResult: result('CheckCamv', ids),
+      });
+    });
+    expect(rowIds(view)).toContain('camv-1');
   });
 
   it('activates the clicked entry', () => {
