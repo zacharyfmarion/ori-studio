@@ -11,6 +11,8 @@ export {
   meshTopologyFor,
   MAX_DASH_RUNS,
   packCreaseDash,
+  creaseFrameScale,
+  rasterCreaseInk,
   type CreaseDash,
   type MeshTopology,
   type RenderSettings,

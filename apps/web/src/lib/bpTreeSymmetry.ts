@@ -153,3 +153,27 @@ export function buildMirroredBpTreeUpdates(
   }
   return mirrored;
 }
+
+/**
+ * The vertices a delete of `vertexId` should remove: the vertex, plus its mirror
+ * partner when symmetry is on. The two sides of a symmetric design are one
+ * shape, so deleting a flap from one side and leaving its twin behind breaks the
+ * symmetry the user is working in -- the same reasoning that makes a length edit
+ * apply to both sides.
+ *
+ * Returns just the vertex when symmetry is off, when it sits on the axis (it
+ * mirrors to itself), or when no partner resolves. Callers should pass the
+ * result to the engine as one batch: it settles the delete cascade and the
+ * minimum-tree floor across every id at once, where deleting them one at a time
+ * could remove the first and then refuse the second, leaving the tree lopsided.
+ */
+export function bpTreeDeleteIdsWithSymmetry(
+  tree: OristudioBpTreeView,
+  pairs: BpTreeSymmetryPair[],
+  axis: SymmetryAxis,
+  vertexId: number,
+  tolerance = BP_TREE_SYMMETRY_TOLERANCE
+): number[] {
+  const mirrorId = mirrorBpTreeVertexId(tree, pairs, axis, vertexId, tolerance);
+  return mirrorId == null || mirrorId === vertexId ? [vertexId] : [vertexId, mirrorId];
+}

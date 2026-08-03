@@ -17,7 +17,10 @@ import {
 } from '../../engine/oristudioCpGeometry';
 import { initCpWasm, loadBatteryDocument } from '../../engine/oristudioCpTestSupport';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
-import { getCpVertexPoints } from '../../lib/creasePatternViewport';
+import {
+  getCpVertexPoints,
+  ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS,
+} from '../../lib/creasePatternViewport';
 import {
   cpLineStyleDashPatterns,
   cpLineStyleDashSlot,
@@ -44,6 +47,8 @@ function colorFor(name: string): Rgba {
 // A dashing line style, so the gate covers the dash slots as well as colours.
 const LINE_STYLE = 'black-two-dot';
 const DASH_PATTERNS = cpLineStyleDashPatterns(LINE_STYLE);
+/** `--fold-angle-anchor`; only the `color` mode reads it. */
+const ANCHOR: Rgba = [0.851, 0.275, 0.937, 1];
 
 function appearanceFor(name: string): CpLineAppearance {
   return { color: colorFor(name), dashSlot: cpLineStyleDashSlot(LINE_STYLE, name) };
@@ -104,36 +109,61 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
     );
   });
 
-  it('with the fold-angle ramp applied', () => {
-    // The ramp reads the magnitude from a different place in each builder
-    // (`segFoldMagnitude` vs the segment object), so it needs its own gate.
-    const canvas: Rgba = [0.1, 0.12, 0.15, 1];
-    expectStrokesEqual(
-      cpSnapshotToScene(segmentsInput(), appearanceFor, DASH_PATTERNS, undefined, undefined, canvas)
-        .strokes,
-      cpGeometryStrokesToScene(
+  // Per mode, not once: each builder reads the magnitude from a different place
+  // (`segFoldMagnitude` vs the segment object), and the two modes write different
+  // channels of the same buffer, so a gate over one mode says nothing about the
+  // other.
+  for (const display of ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS) {
+    const foldAngle = { display, anchor: ANCHOR };
+
+    it(`with the fold-angle treatment applied (${display})`, () => {
+      expectStrokesEqual(
+        cpSnapshotToScene(
+          segmentsInput(),
+          appearanceFor,
+          DASH_PATTERNS,
+          undefined,
+          undefined,
+          foldAngle
+        ).strokes,
+        cpGeometryStrokesToScene(
+          transport,
+          appearanceFor,
+          DASH_PATTERNS,
+          undefined,
+          undefined,
+          foldAngle
+        ).strokes
+      );
+    });
+
+    it(`${display} output actually differs from untreated, so the gate is not vacuous`, () => {
+      // Also the per-mode guard that no mode is a silent no-op: a dead mode
+      // would pass the parity assertion above trivially.
+      const plain = cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS).strokes;
+      const treated = cpGeometryStrokesToScene(
         transport,
         appearanceFor,
         DASH_PATTERNS,
         undefined,
         undefined,
-        canvas
-      ).strokes
-    );
-  });
+        foldAngle
+      ).strokes;
+      expect(Array.from(treated.color)).not.toEqual(Array.from(plain.color));
+    });
+  }
 
-  it('ramped output actually differs from unramped, so the gate is not vacuous', () => {
-    const canvas: Rgba = [0.1, 0.12, 0.15, 1];
-    const plain = cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS).strokes;
-    const ramped = cpGeometryStrokesToScene(
-      transport,
-      appearanceFor,
-      DASH_PATTERNS,
-      undefined,
-      undefined,
-      canvas
-    ).strokes;
-    expect(Array.from(ramped.color)).not.toEqual(Array.from(plain.color));
+  it('the two modes differ from each other', () => {
+    // They write different channels — hue vs alpha — so if these ever match, one
+    // of them has stopped doing its job.
+    const byMode = ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS.map(
+      (display) =>
+        cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS, undefined, undefined, {
+          display,
+          anchor: ANCHOR,
+        }).strokes.color
+    );
+    expect(Array.from(byMode[0])).not.toEqual(Array.from(byMode[1]));
   });
 
   it('with an in-progress move-drag delta', () => {

@@ -398,12 +398,17 @@ export async function addOristudioBpTreeLeaf(
   );
 }
 
-export async function deleteOristudioBpTreeLeaf(
-  id: number,
+/**
+ * Delete leaves as one round. Pass every id the gesture means to remove -- the
+ * engine simulates the whole batch before it mutates, so the cascade and the
+ * minimum-tree floor are resolved across all of them together.
+ */
+export async function deleteOristudioBpTreeLeaves(
+  ids: readonly number[],
   options: OristudioBpMutationOptions = {}
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.deleteTreeLeaf(handle, id)
+    api.deleteTreeLeaves(handle, [...ids])
   );
 }
 

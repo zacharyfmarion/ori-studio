@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DESIGN_PAPER_RECT } from '../../lib/designViewport';
+import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { createEmptyProject, createSampleProject, type TreeProject } from '../../lib/sampleProject';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -212,33 +213,16 @@ describe('DesignPanel', () => {
     expect(transformMocks.setTransform).not.toHaveBeenCalled();
   });
 
-  it('controls design symmetry from the compact toolbar menu', async () => {
-    renderPanel({ ...createSampleProject(), hasSymmetry: true });
+  /** Types into a controlled input past React's value tracker. */
+  function setInputValue(input: HTMLInputElement, value: string) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
 
-    expect(container?.textContent).not.toContain('Mirror Nodes');
-    const symmetryButton = container?.querySelector<HTMLButtonElement>('button[aria-label="Design symmetry"]');
-    expect(symmetryButton).toBeTruthy();
-
-    act(() => {
-      symmetryButton?.click();
-    });
-
-    expect(container?.textContent).toContain('Enable symmetry');
-    expect(container?.textContent).toContain('Mirror nodes');
-    expect(container?.textContent).toContain('Book');
-
-    await act(async () => {
-      container?.querySelector<HTMLButtonElement>('button[aria-label="Mirror design node edits"]')?.click();
-      await Promise.resolve();
-    });
-
-    expect(useWorkspaceStore.getState().toolMode).toBe('symmetry');
-    expect(container?.querySelector<HTMLButtonElement>('button[aria-label="Design symmetry"]')?.textContent).toContain('Mirror');
-    expect(container?.querySelector('button[aria-label="Pair Leaves"]')).toBeNull();
-  });
-
-  it('enables design symmetry from the toolbar menu and renders the axis', async () => {
-    const setSymmetry = vi.fn(async (update: Parameters<ReturnType<typeof useWorkspaceStore.getState>['setSymmetry']>[0]) => {
+  /** Applies a `setSymmetry` update to the store, the way the engine would. */
+  function stubSetSymmetry() {
+    return vi.fn(async (update: Parameters<ReturnType<typeof useWorkspaceStore.getState>['setSymmetry']>[0]) => {
       const project = useWorkspaceStore.getState().project;
       useWorkspaceStore.setState({
         project: {
@@ -252,25 +236,91 @@ describe('DesignPanel', () => {
         },
       });
     });
+  }
+
+  const symmetryToggle = () =>
+    container?.querySelector<HTMLButtonElement>('button[aria-label="Design symmetry"]');
+  const symmetryOptionsButton = () =>
+    container?.querySelector<HTMLButtonElement>('button[aria-label="Symmetry options"]');
+
+  it('turns design symmetry on and off from a single toolbar toggle', async () => {
+    const setSymmetry = stubSetSymmetry();
     renderPanel({ ...createSampleProject(), hasSymmetry: false }, { setSymmetry });
 
-    act(() => {
-      container?.querySelector<HTMLButtonElement>('button[aria-label="Design symmetry"]')?.click();
-    });
+    expect(symmetryToggle()?.getAttribute('aria-pressed')).toBe('false');
+    expect(container?.querySelector('.symmetry-line')).toBeNull();
 
     await act(async () => {
-      container?.querySelector<HTMLButtonElement>('button[aria-label="Enable design symmetry"]')?.click();
+      symmetryToggle()?.click();
       await Promise.resolve();
     });
 
-    expect(setSymmetry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        hasSymmetry: true,
-      })
-    );
+    expect(setSymmetry).toHaveBeenCalledWith(expect.objectContaining({ hasSymmetry: true }));
     expect(useWorkspaceStore.getState().project.hasSymmetry).toBe(true);
+    expect(symmetryToggle()?.getAttribute('aria-pressed')).toBe('true');
+    // One toggle: the axis and its snap lane come with symmetry being on.
     expect(container?.querySelector('.symmetry-line')).not.toBeNull();
-    expect(container?.querySelector<HTMLButtonElement>('button[aria-label="Design symmetry"]')?.textContent).toContain('Book');
+    expect(container?.querySelector('.symmetry-snap-lane')).not.toBeNull();
+
+    await act(async () => {
+      symmetryToggle()?.click();
+      await Promise.resolve();
+    });
+
+    expect(setSymmetry).toHaveBeenLastCalledWith({ hasSymmetry: false });
+    expect(useWorkspaceStore.getState().project.hasSymmetry).toBe(false);
+    expect(container?.querySelector('.symmetry-line')).toBeNull();
+  });
+
+  it('mirrors node edits whenever symmetry is on, with no separate mirror mode', () => {
+    const addNodeAt = vi.fn(async () => undefined);
+    const addNodeWithSymmetry = vi.fn(async () => undefined);
+    renderPanel({ ...createSampleProject(), hasSymmetry: true }, { addNodeAt, addNodeWithSymmetry });
+
+    // The old UI needed a second "Mirror nodes" opt-in before edits reflected.
+    expect(container?.textContent).not.toContain('Mirror nodes');
+
+    act(() => {
+      container
+        ?.querySelector<SVGRectElement>('.paper-hit-area')
+        ?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+    });
+
+    expect(addNodeWithSymmetry).toHaveBeenCalled();
+    expect(addNodeAt).not.toHaveBeenCalled();
+  });
+
+  it('keeps preset and axis controls behind the symmetry options button', async () => {
+    const setSymmetry = stubSetSymmetry();
+    renderPanel({ ...createSampleProject(), hasSymmetry: true }, { setSymmetry });
+
+    // Closed: the toolbar shows two buttons and no configuration.
+    expect(symmetryOptionsButton()).toBeTruthy();
+    expect(container?.querySelector('.symmetry-menu__panel')).toBeNull();
+
+    act(() => {
+      symmetryOptionsButton()?.click();
+    });
+
+    expect(container?.textContent).toContain('Preset');
+    expect(container?.textContent).toContain('Book');
+    expect(container?.textContent).toContain('Axis');
+    expect(container?.querySelectorAll('.symmetry-menu__field').length).toBe(3);
+    // The merged-away toggles are gone from the popover.
+    expect(container?.textContent).not.toContain('Enable symmetry');
+    expect(container?.textContent).not.toContain('Show axis');
+
+    const angle = container?.querySelector<HTMLInputElement>('input[aria-label="Design symmetry angle"]');
+    expect(angle).toBeTruthy();
+
+    await act(async () => {
+      setInputValue(angle!, '45');
+      // React's onBlur is delegated from focusout; plain blur does not bubble.
+      angle!.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(setSymmetry).toHaveBeenCalledWith(expect.objectContaining({ symAngle: 45 }));
   });
 
   it('clears a Select All selection when the user clicks blank paper', () => {
@@ -291,5 +341,54 @@ describe('DesignPanel', () => {
 
     expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'tree' });
     expect(addNodeAt).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Delete, through the real dispatcher and the executor this panel registers.
+   *
+   * This canvas handles the camera and nothing else, but `viewport.delete` is
+   * bound in viewport scope, so the executor is asked about every Delete press.
+   * It used to fall out of its `switch` and answer `undefined`, which counted as
+   * a claim — so Delete did nothing at all here, and nothing caught it because
+   * no test pressed the key.
+   */
+  describe('Delete reaches the tree delete', () => {
+    function press(key: string) {
+      const menu = vi.fn();
+      renderPanel();
+      act(() => {
+        handleShortcutRuntimeKeyDown(
+          new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+          { context: { activeEditingContext: 'treemaker-tree' }, menu }
+        );
+      });
+      return menu;
+    }
+
+    it('hands Delete to edit.delete', () => {
+      expect(press('Delete')).toHaveBeenCalledWith('edit.delete');
+    });
+
+    it('hands Backspace to edit.delete', () => {
+      expect(press('Backspace')).toHaveBeenCalledWith('edit.delete');
+    });
+
+    it('keeps the camera shortcuts for itself', () => {
+      const menu = vi.fn();
+      renderPanel();
+      act(() => {
+        handleShortcutRuntimeKeyDown(
+          new KeyboardEvent('keydown', {
+            key: '=',
+            metaKey: true,
+            bubbles: true,
+            cancelable: true,
+          }),
+          { context: { activeEditingContext: 'treemaker-tree' }, menu }
+        );
+      });
+      expect(transformMocks.zoomIn).toHaveBeenCalled();
+      expect(menu).not.toHaveBeenCalled();
+    });
   });
 });

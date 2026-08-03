@@ -17,6 +17,74 @@ export interface InlineSimulationPlacement {
   height: number;
   /** The whole camera-varying part. Changes every frame; costs no layout. */
   transform: string;
+  /**
+   * Corner radius in the element's own px — that is, before the transform scales
+   * it. See {@link CORNER_RADIUS_CSS}.
+   */
+  cornerRadius: number;
+  /**
+   * Style for the window's badges, or null once they have faded out entirely.
+   *
+   * Transform and opacity only, both compositor properties: a badge must be able
+   * to correct itself on every frame of a gesture, and nothing that reaches
+   * layout can do that here — a layout write wakes the canvas's ResizeObserver
+   * and re-renders the simulation, which is the cost this whole module exists to
+   * avoid.
+   */
+  badge: { transform: string; opacity: number } | null;
+}
+
+/** Corner radius of a window at a size where it reads as a panel, in CSS px. */
+const CORNER_RADIUS_CSS = 6;
+
+/**
+ * Window size, in CSS px, at which {@link CORNER_RADIUS_CSS} is the right
+ * radius. Bigger windows keep it; smaller ones shrink it from here.
+ */
+const CORNER_REFERENCE_EDGE_CSS = 200;
+
+/**
+ * How fast the corner shrinks below the reference. 0 keeps a flat 6px, which is
+ * a rounded rectangle at 200px and a lozenge at 25px; 1 holds the radius at a
+ * constant *share* of the window, which goes sub-pixel and reads as a hard square
+ * corner long before you stop zooming out.
+ *
+ * Neither end is the frame the eye wants, because a window's frame is chrome
+ * rather than content — the same reason the crease-pattern canvas gives its
+ * markers a partial shrink (`MARKER_SHRINK_EXPONENT`) while its vertices get the
+ * full one. This is the chrome number, and it is the same 0.7.
+ *
+ * Measured against the *painted* size rather than the layout box, so the shape is
+ * continuous across a settle: the layout box catching up must sharpen a window,
+ * never restyle it.
+ */
+const CORNER_SHRINK_EXPONENT = 0.7;
+
+/**
+ * Inset of a badge from the window's corner, in CSS px. Matches
+ * `.cp-inline-simulation__badge` — repeated here because the counter-transform
+ * has to undo exactly the offset the stylesheet asked for.
+ */
+const BADGE_INSET_CSS = 6;
+
+/**
+ * Where a badge is fully legible, and where it has faded out, as the window's
+ * painted short edge in CSS px.
+ *
+ * Generous at both ends. A badge is a fixed-size label inside a box the camera
+ * shrinks freely, so it is clipped by the window's own `overflow` well before it
+ * becomes unreadable — and the translated strings are longer than the English
+ * one, so the size where that starts is not a number worth cutting fine. Nothing
+ * is lost by going early: a stale window is also dimmed, which is the signal the
+ * badge only names.
+ */
+const BADGE_FULL_AT_CSS = 150;
+const BADGE_GONE_AT_CSS = 96;
+
+/** Hermite ramp between two edges, clamped — the GLSL `smoothstep`. */
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
 }
 
 export function inlineSimulationPlacement(options: {
@@ -33,15 +101,50 @@ export function inlineSimulationPlacement(options: {
   const { box, center, angle, pxPerModel, renderedPxPerModel } = options;
   const base = renderedPxPerModel > 0 ? renderedPxPerModel : pxPerModel;
   const scale = base > 0 ? pxPerModel / base : 1;
+  const paintedShortEdge = Math.min(box.width, box.height) * pxPerModel;
+  // Everything below is sized on screen and then divided back out of the
+  // transform, because the element is scaled on its way there: a length declared
+  // here arrives multiplied by `scale`.
+  const undoScale = scale > 0 ? 1 / scale : 1;
+  const shrink = Math.pow(Math.min(1, paintedShortEdge / CORNER_REFERENCE_EDGE_CSS), CORNER_SHRINK_EXPONENT);
   return {
     width: box.width * base,
     height: box.height * base,
+    cornerRadius: CORNER_RADIUS_CSS * shrink * undoScale,
+    badge: badgeChrome(paintedShortEdge, undoScale),
     // Right-to-left: centre the box on its own origin, scale and rotate about
     // that centre, then put the centre where the camera says. Paired with
     // `transform-origin: 0 0`.
     transform:
       `translate(${center.x}px, ${center.y}px) ` +
       `rotate(${angle}rad) scale(${scale}) translate(-50%, -50%)`,
+  };
+}
+
+/**
+ * Hold a badge at a fixed on-screen size and inset, whatever the camera is doing
+ * to the window around it.
+ *
+ * A badge inherits the window's transform, so during a gesture it shrank and
+ * grew with the fold and then jumped back the moment the layout box caught up —
+ * a label that lagged the camera and corrected in steps. Cancelling the scale
+ * pins it: `1/scale` about its own anchored corner makes it the size the
+ * stylesheet asked for, and the translate puts the inset back, since that was
+ * scaled too. Both are transforms, so this is free — see
+ * {@link InlineSimulationPlacement.badge}.
+ */
+function badgeChrome(
+  paintedShortEdge: number,
+  undoScale: number
+): { transform: string; opacity: number } | null {
+  const opacity = smoothstep(BADGE_GONE_AT_CSS, BADGE_FULL_AT_CSS, paintedShortEdge);
+  if (opacity <= 0) return null;
+  // Screen offset added by the translate is itself scaled, so ask for the
+  // shortfall in local units: `inset - inset * scale`, over scale.
+  const recover = BADGE_INSET_CSS * (undoScale - 1);
+  return {
+    transform: `translate(${recover}px, ${-recover}px) scale(${undoScale})`,
+    opacity,
   };
 }
 

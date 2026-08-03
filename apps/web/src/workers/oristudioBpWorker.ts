@@ -3,7 +3,7 @@ import init, {
   bp_add_tree_leaf,
   bp_check_optimizer_result,
   bp_complete_stretch,
-  bp_delete_tree_leaf,
+  bp_delete_tree_leaves,
   bp_export_bps,
   bp_export_cp,
   bp_export_fold,
@@ -177,8 +177,8 @@ const api = {
   async addTreeLeaf(handle: number, at: number, length: number): Promise<OristudioBpRawProject> {
     return call(() => bp_add_tree_leaf(handle, at, length) as OristudioBpRawProject);
   },
-  async deleteTreeLeaf(handle: number, id: number): Promise<OristudioBpRawProject> {
-    return call(() => bp_delete_tree_leaf(handle, id) as OristudioBpRawProject);
+  async deleteTreeLeaves(handle: number, ids: number[]): Promise<OristudioBpRawProject> {
+    return call(() => bp_delete_tree_leaves(handle, ids) as OristudioBpRawProject);
   },
   async joinTreeVertex(handle: number, id: number): Promise<OristudioBpRawProject> {
     return call(() => bp_join_tree_vertex(handle, id) as OristudioBpRawProject);

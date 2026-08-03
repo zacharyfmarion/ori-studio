@@ -6,6 +6,7 @@ import type {
   OristudioCpRgbColor,
 } from '../engine/oristudioCpTypes';
 import { cpActionByUpstreamMouseMode } from './oristudioCpActions';
+import { toggledCpLineColor } from './oristudioCpPalette';
 
 const DEFAULT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
   front_color: { red: 255, green: 255, blue: 50 },
@@ -91,7 +92,7 @@ export function activeLineColorFromOrieditaMetadata(
   const canvasModel = recordValue(metadata?.[ORI_CANVAS_MODEL_KEY]);
   const lineColor = lineColorValue(canvasModel?.lineColor);
   if (!lineColor) return null;
-  return booleanValue(canvasModel?.toggleLineColor) ? toggledLineColor(lineColor) : lineColor;
+  return booleanValue(canvasModel?.toggleLineColor) ? toggledCpLineColor(lineColor) : lineColor;
 }
 
 export function activeMouseModeFromOrieditaMetadata(
@@ -323,17 +324,6 @@ function customLineTypeValue(value: unknown): OristudioCpCustomLineType | null {
       return 'Aux';
     default:
       return null;
-  }
-}
-
-function toggledLineColor(lineColor: OristudioCpLineColor): OristudioCpLineColor {
-  switch (lineColor) {
-    case 'Red1':
-      return 'Blue2';
-    case 'Blue2':
-      return 'Red1';
-    default:
-      return lineColor;
   }
 }
 

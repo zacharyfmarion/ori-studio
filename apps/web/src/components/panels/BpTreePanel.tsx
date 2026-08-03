@@ -188,8 +188,14 @@ function BpTreeViewportToolbar({
 
 /**
  * Contextual editor for a selected tree edge's length. BP flap/river lengths are
- * the tree edge lengths, and the engine enforces a minimum of 1 and a
- * geometry-derived maximum (`edge.maxLength`).
+ * the tree edge lengths, and the engine enforces a minimum of 1.
+ *
+ * `edge.maxLength` clamps the field but is deliberately not shown. It is not a
+ * design constraint -- it is BP Studio's `MAX_TREE_HEIGHT` overflow guard
+ * (`ceil(8192 * sqrt(2))`, the longest span of a max-size sheet) less the depth
+ * the branch already spends, so it reads as a meaningless five-digit number.
+ * Upstream passes it to the number field's `max` and never renders it either;
+ * see `third_party/box-pleating-studio/src/app/vue/panel/edge.vue`.
  */
 function BpTreeEdgeLengthEditor({
   edge,
@@ -271,11 +277,6 @@ function BpTreeEdgeLengthEditor({
       >
         <Plus size={14} />
       </IconButton>
-      {max !== null && (
-        <span className="bp-tree-edge-editor__max">
-          {t('panels:bpTree.max', 'max {{value}}', { value: formatNumber(max, 2) })}
-        </span>
-      )}
     </div>
   );
 }

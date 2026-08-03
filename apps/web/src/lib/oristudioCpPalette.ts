@@ -53,6 +53,29 @@ export function cpPaletteEntryForColor(
   return ORISTUDIO_CP_LINE_COLOR_BY_COLOR.get(lineColor as OristudioCpLineColor);
 }
 
+/**
+ * Swap a crease colour to its mountain/valley opposite, leaving every other
+ * colour alone.
+ *
+ * Port of Oriedita's `LineColor.changeMV()`. Only Red (mountain) and Blue
+ * (valley) move; Edge, Auxiliary, Unassigned and the extra palette colours all
+ * return unchanged, which is what makes "invert while Control is held" a no-op
+ * when a non-foldable line type is selected.
+ *
+ * Used both to restore a saved `toggleLineColor` from `.ori` metadata and to
+ * derive the live inversion, so the two cannot drift.
+ */
+export function toggledCpLineColor(lineColor: OristudioCpLineColor): OristudioCpLineColor {
+  switch (lineColor) {
+    case 'Red1':
+      return 'Blue2';
+    case 'Blue2':
+      return 'Red1';
+    default:
+      return lineColor;
+  }
+}
+
 function paletteEntry(
   id: string,
   label: string,

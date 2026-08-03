@@ -35,7 +35,7 @@ export type DocumentMode = 'tree' | 'crease-pattern';
  * is the Box Pleating Studio tree + packing workflow.
  */
 export type WorkflowTarget = 'treemaker' | 'box-pleat';
-export type ToolMode = 'select' | 'node' | 'edge' | 'symmetry';
+export type ToolMode = 'select' | 'node' | 'edge';
 export type CreaseColorMode = 'mvf' | 'agrh';
 export const DEFAULT_CREASE_COLOR_MODE: CreaseColorMode = 'mvf';
 

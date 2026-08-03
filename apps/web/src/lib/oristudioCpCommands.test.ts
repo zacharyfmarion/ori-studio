@@ -4,6 +4,7 @@ import {
   ORISTUDIO_CP_COMMAND_GROUPS,
   ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS,
   cpCommandByOperation,
+  cpCommandUsesActiveLineColor,
   cpCommandsForGroup,
   cpRailCommands,
 } from './oristudioCpCommands';
@@ -215,5 +216,54 @@ describe('oristudio CP command registry', () => {
         expect(command.disabledReason).toContain('Not implemented');
       }
     }
+  });
+});
+
+describe('cpCommandUsesActiveLineColor', () => {
+  it('covers the tools that draw creases', () => {
+    expect(cpCommandUsesActiveLineColor('DrawCreaseFree')).toBe(true);
+    expect(cpCommandUsesActiveLineColor('DrawCreaseRestricted')).toBe(true);
+    expect(cpCommandUsesActiveLineColor('DrawCreaseAngleRestricted5')).toBe(true);
+  });
+
+  it('excludes selection tools, which preview in the neutral accent', () => {
+    expect(cpCommandUsesActiveLineColor('CreaseSelect')).toBe(false);
+    expect(cpCommandUsesActiveLineColor('SelectLasso')).toBe(false);
+    expect(cpCommandUsesActiveLineColor('SelectPolygon')).toBe(false);
+  });
+
+  it('excludes the lengthen variant that keeps the crease colour', () => {
+    expect(cpCommandUsesActiveLineColor('LengthenCreaseSameColor')).toBe(false);
+  });
+
+  it('is false when no command is active', () => {
+    expect(cpCommandUsesActiveLineColor(undefined)).toBe(false);
+  });
+
+  it('only names operations that exist', () => {
+    const known = new Set(ORISTUDIO_CP_COMMANDS.map((command) => command.operationId));
+    const named = ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS.filter(cpCommandUsesActiveLineColor);
+    for (const operationId of named) expect(known.has(operationId)).toBe(true);
+    expect(named.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * The regression this predicate exists for.
+   *
+   * The preview colour used to key on `command.group === 'draw'`, which reads
+   * like "is this a drawing tool" but is a UI taxonomy: Angle Restricted Line —
+   * and every other `construct` / `generators` tool — draws creases while being
+   * grouped elsewhere. Those tools previewed in the neutral accent and then
+   * committed in the active crease colour, so the line changed colour on release.
+   */
+  it('is not a restatement of the command group', () => {
+    const drawGrouped = ORISTUDIO_CP_COMMANDS.filter(
+      (command) => command.group === 'draw'
+    ).map((command) => command.operationId);
+    const usesColor = ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS.filter(cpCommandUsesActiveLineColor);
+
+    expect(usesColor.length).toBeGreaterThan(drawGrouped.length);
+    expect(cpCommandByOperation('DrawCreaseAngleRestricted5')?.group).not.toBe('draw');
+    expect(cpCommandUsesActiveLineColor('DrawCreaseAngleRestricted5')).toBe(true);
   });
 });
