@@ -180,6 +180,7 @@ fn optimizer_result_validation_and_template_write_match_bp_boundary() {
             hierarchies: vec![hierarchy(vec![1])],
         },
         vec: None,
+        symmetry: None,
     };
     let result = OptimizerResult {
         width: 16.0,
@@ -214,6 +215,7 @@ fn optimizer_packing_validation_accepts_valid_different_layouts() {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: None,
+        symmetry: None,
     };
     let result = OptimizerResult {
         width: 10.0,
@@ -248,6 +250,7 @@ fn optimizer_packing_validation_rejects_invalid_distance() {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: None,
+        symmetry: None,
     };
     let result = OptimizerResult {
         width: 10.0,
@@ -271,6 +274,62 @@ fn optimizer_packing_validation_rejects_invalid_distance() {
     assert!(err.to_string().contains("violates distance"));
 }
 
+/// A tree distance is not an integer once flap dimensions are involved.
+///
+/// Upstream's `getArea` divides by PI when `useDimension` is on, and
+/// `getDistMap` takes the square root of that as a leaf's length, so a distance
+/// like 3.2793044095787294 is ordinary rather than exotic. The kernel used to
+/// narrow the distance map to `i32`, which enforced a *shorter* separation than
+/// the tree requires: the solve then reported success and
+/// `validate_optimizer_packing`, which reads the untruncated distance, rejected
+/// the very layout the solver had just produced.
+///
+/// With dimensions off every distance in this design is a whole number, which
+/// is why the failure only ever appeared under "keep widths and heights of
+/// flaps". Driven from the real design rather than a synthetic pair, because a
+/// two-flap case is packed loosely enough to satisfy both distances by luck.
+#[test]
+fn optimizer_honours_fractional_tree_distances() {
+    let project = oristudio_bp::io::bps::load_project_str(include_str!(
+        "../../../tests/fixtures/bp-studio/dimensioned-fractional-distance.sample.json"
+    ))
+    .expect("fixture loads");
+    let (session, _) = oristudio_bp::engine::BpSession::from_design(&project.design).unwrap();
+    let hierarchies = session.get_hierarchy(true, true).unwrap();
+
+    assert!(
+        hierarchies
+            .iter()
+            .flat_map(|hierarchy| &hierarchy.dist_map)
+            .any(|&(_, _, dist)| dist.fract() > 1e-9),
+        "the fixture must carry a fractional distance, or this proves nothing"
+    );
+
+    let request = create_optimizer_request(
+        &project,
+        hierarchies,
+        OptimizerOptionsBase {
+            layout: LayoutMode::Random,
+            use_bh: false,
+            random: 5,
+        },
+        true,
+        0,
+    )
+    .unwrap();
+
+    for seed in 0..8 {
+        let result = solve(&request, Some(seed)).expect("solve");
+        // Asserted through the shared checker rather than a hand-rolled
+        // distance: the separation is a rounded-rectangle metric, not a
+        // centre-to-centre one, and re-deriving it is how a test ends up
+        // agreeing with the bug it is meant to catch.
+        validate_optimizer_packing(&request, &result).unwrap_or_else(|error| {
+            panic!("seed {seed}: solver returned a layout its own checker rejects: {error}")
+        });
+    }
+}
+
 #[test]
 fn optimizer_packing_validation_rejects_out_of_bounds_anchor() {
     let request = OptimizerRequest {
@@ -288,6 +347,7 @@ fn optimizer_packing_validation_rejects_out_of_bounds_anchor() {
             }],
         },
         vec: None,
+        symmetry: None,
     };
     let result = OptimizerResult {
         width: 10.0,
@@ -339,6 +399,7 @@ fn optimizer_solver_matches_simple_bp_oracle_for_view_layout() {
             }],
         },
         vec: Some(vec![Point { x: 0.0, y: 0.0 }, Point { x: 0.3, y: 0.4 }]),
+        symmetry: None,
     };
 
     let result = solve(&request, Some(0)).unwrap();
@@ -427,6 +488,7 @@ fn optimizer_solver_matches_simple_bp_oracle_for_random_layout() {
             }],
         },
         vec: None,
+        symmetry: None,
     };
 
     let result = solve(&request, Some(0)).unwrap();
@@ -462,6 +524,7 @@ fn simple_view_optimizer_request() -> OptimizerRequest {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: Some(vec![Point { x: 0.0, y: 0.0 }, Point { x: 0.3, y: 0.4 }]),
+        symmetry: None,
     }
 }
 
@@ -498,6 +561,7 @@ fn optimizer_solver_matches_dimensioned_rectangular_view_oracle() {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: Some(vec![Point { x: 0.0, y: 0.0 }, Point { x: 0.3, y: 0.4 }]),
+        symmetry: None,
     };
 
     let result = solve(&request, Some(0)).unwrap();
@@ -522,6 +586,7 @@ fn optimizer_solver_matches_diagonal_view_oracle() {
             hierarchies: vec![two_flap_hierarchy()],
         },
         vec: Some(vec![Point { x: 0.5, y: 0.5 }, Point { x: 0.7, y: 0.5 }]),
+        symmetry: None,
     };
 
     let result = solve(&request, Some(0)).unwrap();

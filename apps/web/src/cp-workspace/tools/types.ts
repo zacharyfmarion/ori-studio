@@ -33,6 +33,16 @@ export interface ToolInput {
 export interface ToolPreviewSegment {
   a: ModelPoint;
   b: ModelPoint;
+  /**
+   * The crease this candidate would become, when the kernel decided it rather
+   * than the active line type — the vertex-completion tool's solver determines
+   * both the mountain/valley and the fold angle, and a candidate stroked in the
+   * active colour would be showing the user the wrong crease.
+   *
+   * Absent for every other tool, which draws in the active colour. `color` is
+   * the kernel's `LineColor` name, matching {@link CpLineAppearanceFor}'s input.
+   */
+  crease?: { color: string; foldMagnitude?: number };
 }
 
 /** Live, uncommitted geometry the surface renders each frame. */

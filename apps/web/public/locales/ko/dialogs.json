@@ -3,12 +3,14 @@
     "abort": "중단",
     "close": "레이아웃 최적화 닫기",
     "closeAction": "닫기",
+    "enable": "대칭 사용",
     "failed": "최적화 도구가 레이아웃을 찾지 못했습니다.",
     "layout": {
       "random": "임의의 레이아웃을 사용해 보세요",
       "view": "현재 레이아웃을 참조로 사용합니다"
     },
     "layoutMethod": "레이아웃 방법",
+    "mirrorAxis": "대칭 기준 접기",
     "options": "옵션",
     "run": "실행해!",
     "running": "실행 중...",
@@ -20,6 +22,9 @@
       "running": "실행 중...",
       "start": "문제 처리 중..."
     },
+    "symmetry": "대칭",
+    "symmetryInconsistent": "일부 짝지어진 플랩은 트리에서 서로 교환할 수 없어, 대칭으로 만들면 종이를 더 사용합니다.",
+    "symmetryOff": "대칭이 꺼져 있습니다. 트리 뷰에서 켜면 레이아웃을 대칭으로 만들 수 있습니다.",
     "title": "레이아웃 최적화",
     "toTry": "시도할 레이아웃 수:",
     "useBasinHopping": "현재 레이아웃을 변형해 보세요",

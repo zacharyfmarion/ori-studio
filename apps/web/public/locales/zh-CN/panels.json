@@ -32,6 +32,7 @@
     "layerGrid": "网格",
     "layerHinges": "铰线",
     "layerLabels": "标签",
+    "layerOutsidePaper": "纸张外部",
     "layerRidges": "脊线",
     "layerRivers": "河",
     "layers": "图层",
@@ -61,6 +62,12 @@
     "warnings": "箱形褶皱排布警告",
     "width": "宽度"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "对折",
+      "diagonal": "对角折"
+    }
+  },
   "bpTree": {
     "canvas": "箱形褶皱树画布",
     "decreaseLength": "减小长度",
@@ -79,6 +86,7 @@
     "selectLeafVertexWithLabel": "选择 BP 叶顶点 {{id}}，{{label}}",
     "selectVertex": "选择 BP 顶点 {{id}}",
     "selectVertexWithLabel": "选择 BP 顶点 {{id}}，{{label}}",
+    "unpair": "解除镜像配对",
     "viewportControls": "箱形褶皱树视口控件"
   },
   "conditions": {

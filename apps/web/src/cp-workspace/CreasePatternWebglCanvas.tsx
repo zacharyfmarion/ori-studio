@@ -25,6 +25,7 @@ import {
   segmentIntersectsAabb,
 } from './picking/lineHitIndex';
 import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
+import { candidatePreviewGroups } from './adapters/candidatePreviewGroups';
 import {
   type FoldedGeometry,
   type MarkerGeometry,
@@ -265,20 +266,26 @@ function projectPointOnSegment(
   return { x: a.x + t * dx, y: a.y + t * dy };
 }
 
-/** Project `raw` onto the nearest of `segments` within `maxDistance`, else null. */
+/**
+ * Project `raw` onto the nearest of `segments` within `maxDistance`, else null.
+ *
+ * Returns the index as well as the point: the completion tool renders that
+ * candidate solid so you can see which one a click would take, and it must be the
+ * same answer the pick uses or the two disagree.
+ */
 function snapToNearestSegment(
   raw: ModelPoint,
   segments: readonly ToolPreviewSegment[],
   maxDistance: number
-): ModelPoint | null {
-  let best: ModelPoint | null = null;
+): { point: ModelPoint; index: number } | null {
+  let best: { point: ModelPoint; index: number } | null = null;
   let bestDist = maxDistance;
-  for (const s of segments) {
+  for (const [index, s] of segments.entries()) {
     const proj = projectPointOnSegment(raw, s.a, s.b);
     const d = Math.hypot(proj.x - raw.x, proj.y - raw.y);
     if (d <= bestDist) {
       bestDist = d;
-      best = proj;
+      best = { point: proj, index };
     }
   }
   return best;
@@ -461,6 +468,11 @@ export interface CreasePatternWebglCanvasProps {
   panToolActive: boolean;
   /** Per-step input kinds for a `sequence` tool (free point vs picked crease). */
   activeToolStepKinds: readonly StepKind[];
+  /**
+   * Whether this tool commits at once when its final candidate step has a single
+   * option — see `CpInputModelEntry.commitOnLoneCandidate`.
+   */
+  activeToolCommitsLoneCandidate: boolean;
   /**
    * The selection distance (model units) the panel sends with the active command, so
    * a `crease-required` step can gate its pick on exactly the radius the kernel will
@@ -730,6 +742,7 @@ export function CreasePatternWebglCanvas({
   activeToolOperationId,
   panToolActive,
   activeToolStepKinds,
+  activeToolCommitsLoneCandidate,
   activeToolSelectionDistance,
   activeToolLineCount,
   activeToolRequireSnap,
@@ -820,6 +833,10 @@ export function CreasePatternWebglCanvas({
   //   put the current content there, so it only ever clears its own.
   const toolPreviewSegmentsRef = useRef<readonly ToolPreviewSegment[] | null>(null);
   const sequencePreviewOwnedRef = useRef(false);
+  /** Which previewed candidate the cursor is nearest, or null. */
+  const armedCandidateRef = useRef<number | null>(null);
+  /** Repaint the sequence preview from the pointer path, without a re-render. */
+  const paintSequencePreviewRef = useRef<(() => void) | null>(null);
 
   /**
    * Take the preview channel down and forget who owned it. Every clear goes
@@ -1181,6 +1198,7 @@ export function CreasePatternWebglCanvas({
     activeToolInputMode,
     panToolActive,
     activeToolStepKinds,
+    activeToolCommitsLoneCandidate,
     activeToolSelectionDistance,
     activeToolLineCount,
     activeToolRequireSnap,
@@ -1231,20 +1249,46 @@ export function CreasePatternWebglCanvas({
   // followed was already being read as the destination — and a click on the one ray
   // on screen, the thing the prompt named, is exactly what the destination step
   // cannot accept.
+  /**
+   * Resolve a candidate step that has exactly one option, feeding it as the pick.
+   *
+   * Called from two places on purpose: from the pointer path the instant the step
+   * is reached (the candidates are already on screen, so nothing needs to arrive),
+   * and from the effect below for the tools whose candidates only appear once the
+   * kernel answers. Returns whether it acted.
+   */
+  const tryLoneCandidateAutoPick = useCallback(
+    (runtime: ToolRuntime): boolean => {
+      const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
+      const auto = loneCandidateAutoPick(
+        stepKinds,
+        sequenceStepRef.current,
+        liveRef.current.toolCommandPreviewSegments,
+        liveRef.current.activeToolCommitsLoneCandidate
+      );
+      if (!auto) return false;
+      const out = runtime.feed({ kind: 'down', point: auto });
+      if (out.commit) {
+        liveRef.current.onToolCommit(out.commit);
+        liveRef.current.onToolPreviewInput([], []);
+        sequenceStepRef.current = 0;
+        dynamicStepKindsRef.current = null;
+        armedCandidateRef.current = null;
+        liveRef.current.onToolPickProgress(0);
+        return true;
+      }
+      sequenceStepRef.current += 1;
+      liveRef.current.onToolPickProgress(sequenceStepRef.current);
+      return true;
+    },
+    []
+  );
+
   useEffect(() => {
     const runtime = persistentToolRuntimeRef.current;
     if (!runtime) return;
-    const stepKinds = dynamicStepKindsRef.current ?? activeToolStepKinds;
-    const auto = loneCandidateAutoPick(
-      stepKinds,
-      sequenceStepRef.current,
-      toolCommandPreviewSegments
-    );
-    if (!auto) return;
-    runtime.feed({ kind: 'down', point: auto });
-    sequenceStepRef.current += 1;
-    onToolPickProgress(sequenceStepRef.current);
-  }, [activeToolStepKinds, onToolPickProgress, toolCommandPreviewSegments]);
+    tryLoneCandidateAutoPick(runtime);
+  }, [tryLoneCandidateAutoPick, toolCommandPreviewSegments]);
 
   // A new document: drop the one-shot camera seed so the next frame re-fits
   // against the current bounds (creases + images + text boxes). Declared after
@@ -1888,6 +1932,14 @@ export function CreasePatternWebglCanvas({
       const stepKind = stepKinds[sequenceStepRef.current];
       const creaseStep = isCreaseStep(stepKind);
       const candidateStep = stepKind === 'candidate';
+      // Nothing is armed until the tool is actually choosing between candidates.
+      // Left set, a stale index from the last pick would draw one of the rays
+      // solid while merely hovering a vertex — reading as "this is the one" before
+      // anything has been chosen.
+      if (!candidateStep && armedCandidateRef.current !== null) {
+        armedCandidateRef.current = null;
+        paintSequencePreviewRef.current?.();
+      }
       let point: ModelPoint;
       let snappedToVertex = false;
       if (creaseStep) {
@@ -1915,7 +1967,14 @@ export function CreasePatternWebglCanvas({
         // than silently committing the nearest one from across the canvas.
         const snapped = snapToNearestSegment(raw, liveRef.current.toolCommandPreviewSegments, tol);
         if (snapped === null && kind === 'down') return;
-        point = snapped ?? raw;
+        point = snapped?.point ?? raw;
+        // Arm the candidate under the cursor so it renders solid among the dashed
+        // alternatives — the same projection the pick just used, so what looks
+        // armed and what a click takes cannot disagree.
+        if (armedCandidateRef.current !== (snapped?.index ?? null)) {
+          armedCandidateRef.current = snapped?.index ?? null;
+          paintSequencePreviewRef.current?.();
+        }
       } else {
         const resolved = liveRef.current.resolveDrawPoint(raw, tol);
         point = resolved.point;
@@ -1938,6 +1997,7 @@ export function CreasePatternWebglCanvas({
         renderer.setOverlayPoints(null);
         sequenceStepRef.current = 0;
         dynamicStepKindsRef.current = null;
+        armedCandidateRef.current = null;
         if (transform) {
           // Leave the previewed geometry up: the committed document re-renders it
           // at exactly this position a moment later, so tearing it down here would
@@ -1955,6 +2015,12 @@ export function CreasePatternWebglCanvas({
           // a cumulative count (not a delta) so the auto-advanced candidate steps
           // above, which skip a pick, stay in sync.
           liveRef.current.onToolPickProgress(sequenceStepRef.current);
+          // A lone candidate resolves the moment the step is reached, using the
+          // candidates already on screen. The effect below also watches for this,
+          // but only fires when a *new* preview arrives — and after a click with no
+          // pointer movement none does, which would leave the tool waiting for a
+          // jiggle of the mouse before it acted.
+          if (tryLoneCandidateAutoPick(runtime)) return;
         }
         const live = out.livePoints ?? [];
         const placed = kind === 'move' ? live.slice(0, -1) : live;
@@ -2859,9 +2925,9 @@ export function CreasePatternWebglCanvas({
     // Live inputs are read through liveRef rather than deps, so this runs once
     // per mount. `rendererGeneration` is the only dep that ever changes -- it
     // does so on context loss, where the dead renderer must be torn down and
-    // replaced. (`clearPreview` is a stable callback, listed to satisfy the
-    // exhaustive-deps rule.)
-  }, [rendererGeneration, clearPreview]);
+    // replaced. (`clearPreview` and `tryLoneCandidateAutoPick` are stable
+    // callbacks, listed to satisfy the exhaustive-deps rule.)
+  }, [rendererGeneration, clearPreview, tryLoneCandidateAutoPick]);
 
   // Upload geometry whenever it is rebuilt, then redraw immediately.
   useEffect(() => {
@@ -2886,46 +2952,78 @@ export function CreasePatternWebglCanvas({
   // this effect re-ran for an unrelated reason (a colour change from holding
   // Control being the way to see it, since the preview then only came back on
   // the next pointer move).
-  useEffect(() => {
+  const paintSequencePreview = useCallback(() => {
     const renderer = rendererRef.current;
-    if (!renderer) return;
-    if (toolCommandPreviewSegments.length > 0 || toolCommandHighlightSegments.length > 0) {
-      sequencePreviewOwnedRef.current = true;
-      toolPreviewSegmentsRef.current = null;
-      renderer.setPreview(
-        previewGroupsToStrokes(
-          [
-            // What the tool would create, in the crease colour it would create it in.
-            { segments: toolCommandPreviewSegments, color: toolPreviewColor },
-            // Creases that already exist and are merely being pointed at, in the
-            // selection accent — they are not being drawn, so they must not take
-            // the crease colour and read as though the tool had recoloured them.
+    if (!renderer) return false;
+    if (toolCommandPreviewSegments.length === 0 && toolCommandHighlightSegments.length === 0) {
+      return false;
+    }
+    sequencePreviewOwnedRef.current = true;
+    toolPreviewSegmentsRef.current = null;
+    renderer.setPreview(
+      previewGroupsToStrokes(
+        [
+          // What the tool would create, in the crease colour it would create it
+          // in — the active colour, unless a candidate names its own crease.
+          ...candidatePreviewGroups(
+            toolCommandPreviewSegments,
+            toolPreviewColor,
+            createCpLineAppearanceResolver(lineStyle, mode, document.documentElement),
             {
-              segments: toolCommandHighlightSegments,
-              color: readCssVarColor(
+              display: foldAngleDisplay,
+              anchor: readCssVarColor(
                 document.documentElement,
-                SELECTION_COLOR_VAR,
-                SELECTION_FALLBACK
+                FOLD_ANGLE_ANCHOR_VAR,
+                FOLD_ANGLE_ANCHOR_FALLBACK
               ),
             },
-          ],
-          activeToolDashedPreview
-        )
-      );
+            armedCandidateRef.current
+          ),
+          // Creases that already exist and are merely being pointed at, in the
+          // selection accent — they are not being drawn, so they must not take
+          // the crease colour and read as though the tool had recoloured them.
+          {
+            segments: toolCommandHighlightSegments,
+            color: readCssVarColor(
+              document.documentElement,
+              SELECTION_COLOR_VAR,
+              SELECTION_FALLBACK
+            ),
+          },
+        ],
+        activeToolDashedPreview
+      )
+    );
+    return true;
+    // `currentTheme` is not read here, but it is what makes the DOM-resolved
+    // candidate colours change — same reason the stroke builders depend on it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    toolCommandPreviewSegments,
+    toolCommandHighlightSegments,
+    toolPreviewColor,
+    activeToolDashedPreview,
+    lineStyle,
+    mode,
+    foldAngleDisplay,
+    currentTheme,
+  ]);
+  useEffect(() => {
+    paintSequencePreviewRef.current = () => {
+      if (paintSequencePreview()) renderNowRef.current();
+    };
+  }, [paintSequencePreview]);
+
+  useEffect(() => {
+    if (!rendererRef.current) return;
+    if (paintSequencePreview()) {
       renderNowRef.current();
       return;
     }
     if (!sequencePreviewOwnedRef.current) return;
     clearPreview();
     renderNowRef.current();
-  }, [
-    toolCommandPreviewSegments,
-    toolCommandHighlightSegments,
-    toolPreviewColor,
-    activeToolDashedPreview,
-    rendererGeneration,
-    clearPreview,
-  ]);
+  }, [paintSequencePreview, rendererGeneration, clearPreview]);
 
   // Repaint a live drag preview when the crease colour changes under it --
   // holding Control mid-drag inverts the colour, and the stroke should follow at

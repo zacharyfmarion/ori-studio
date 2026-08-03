@@ -32,6 +32,7 @@
     "layerGrid": "グリッド",
     "layerHinges": "ヒンジ",
     "layerLabels": "ラベル",
+    "layerOutsidePaper": "用紙の外側",
     "layerRidges": "リッジ",
     "layerRivers": "リバー",
     "layers": "レイヤー",
@@ -61,6 +62,12 @@
     "warnings": "ボックスプリーツパッキングの警告",
     "width": "幅"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "二つ折り",
+      "diagonal": "対角折り"
+    }
+  },
   "bpTree": {
     "canvas": "ボックスプリーツツリーキャンバス",
     "decreaseLength": "長さを減らす",
@@ -79,6 +86,7 @@
     "selectLeafVertexWithLabel": "BP 葉頂点 {{id}}、{{label}} を選択",
     "selectVertex": "BP 頂点 {{id}} を選択",
     "selectVertexWithLabel": "BP 頂点 {{id}}、{{label}} を選択",
+    "unpair": "ミラーとのペアを解除",
     "viewportControls": "ボックスプリーツツリーのビューポート操作"
   },
   "conditions": {

@@ -3,12 +3,14 @@
     "abort": "中止",
     "close": "关闭优化布局",
     "closeAction": "关闭",
+    "enable": "启用对称",
     "failed": "优化器无法找到布局。",
     "layout": {
       "random": "尝试随机布局",
       "view": "使用当前布局作为参考"
     },
     "layoutMethod": "布局方法",
+    "mirrorAxis": "镜像所用的折线",
     "options": "选项",
     "run": "运行！",
     "running": "运行中...",
@@ -20,6 +22,9 @@
       "running": "运行中...",
       "start": "正在处理问题..."
     },
+    "symmetry": "对称",
+    "symmetryInconsistent": "部分配对的角片在树中并不可互换，镜像它们会占用更多纸张。",
+    "symmetryOff": "对称已关闭。在树视图中开启后即可镜像布局。",
     "title": "优化布局",
     "toTry": "要尝试的布局数量：",
     "useBasinHopping": "尝试当前布局的变化",

@@ -3,19 +3,31 @@ import type { TextAnnotation } from '../cp-workspace/annotations/textAnnotation'
 import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
 import type { OristudioCpLineSegment } from '../engine/oristudioCpTypes';
 import { isClassicCrease, isFoldingCrease } from './foldAngle';
+import { defaultBpDocumentSymmetry, type BpDocumentSymmetry } from './bpTreeSymmetry';
 
 /**
  * Registry of *superset features* — capabilities Ori Studio's native `.osf`
- * stores but that no Oriedita-compatible export format can. This is the single
- * place that knows "feature X is dropped by export format Y", so every export /
- * save handler can warn the user consistently before writing.
+ * stores but that no upstream export format can. This is the single place that
+ * knows "feature X is dropped by export format Y", so every export / save
+ * handler can warn the user consistently before writing.
+ *
+ * It spans surfaces: most entries are crease-pattern features with no Oriedita
+ * equivalent, and `symmetry` is a box-pleat feature with no Box Pleating Studio
+ * equivalent. Since a design is only ever exported to its own upstream's
+ * formats, each feature simply lists the formats that drop it and the two sets
+ * do not overlap.
  *
  * See `apps/web/docs/superset-features.md`. Adding the next superset feature is a
  * one-line addition here.
  */
 
-/** Export formats that can lose superset data (every format except `.osf`). */
-export type ExportFormat = 'cp' | 'fold' | 'ori' | 'orh' | 'dxf' | 'obj' | 'svg' | 'png';
+/**
+ * Export formats that can lose superset data (every format except `.osf`).
+ *
+ * `bps` is the Box Pleating Studio project format. There is no `bpz` here
+ * because that is an import-only workspace bundle — nothing exports one.
+ */
+export type ExportFormat = 'cp' | 'fold' | 'ori' | 'orh' | 'dxf' | 'obj' | 'svg' | 'png' | 'bps';
 
 /** Current presence of every superset feature, sampled from the workspace. */
 export interface SupersetPresence {
@@ -37,6 +49,11 @@ export interface SupersetPresence {
    * entries this is sourced from kernel geometry rather than frontend state.
    */
   lineSegments: readonly OristudioCpLineSegment[];
+  /**
+   * Box-pleat mirror-draw state. Unlike the entries above this belongs to the
+   * Design surface, not the crease pattern.
+   */
+  bpSymmetry: BpDocumentSymmetry;
 }
 
 interface SupersetFeature {
@@ -97,6 +114,23 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     label: 'Simulation windows',
     count: (presence) => presence.inlineSimulations.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
+  },
+  {
+    id: 'symmetry',
+    label: 'Mirror symmetry',
+    /**
+     * One feature, not a tally: `.bps` loses the pairing, the on/off state, and
+     * the fold together, and they are not comparable units to add up. Zero when
+     * the design's symmetry is what a fresh open would give anyway, so exporting
+     * a design nobody has mirrored raises nothing.
+     */
+    count: (presence) => {
+      const defaults = defaultBpDocumentSymmetry();
+      const { enabled, fold, pairs } = presence.bpSymmetry;
+      const differs = enabled !== defaults.enabled || fold !== defaults.fold || pairs.length > 0;
+      return differs ? 1 : 0;
+    },
+    droppedByFormats: ['bps'],
   },
   {
     id: 'foldAngles',

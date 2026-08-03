@@ -391,13 +391,12 @@
       }
     },
     "cp_action_vertex_make_angularly_flat_foldable": {
-      "label": "Flat Foldable Line",
-      "tooltip": "Make vertex flat-foldable",
+      "label": "Foldable Line",
+      "tooltip": "Add the crease that makes a vertex fold consistently, solving its fold angle when the vertex is not flat",
       "disabledReason": "Ready",
       "steps": {
-        "0": "Pick odd vertex",
-        "1": "Pick candidate line",
-        "2": "Pick destination crease"
+        "0": "Pick vertex",
+        "1": "Pick the crease to add"
       }
     },
     "cp_action_foldable_line_input": {
@@ -664,7 +663,7 @@
       }
     },
     "cp_action_foldable_line_draw": {
-      "label": "Flat Foldable Line (free)",
+      "label": "Foldable Line (free)",
       "tooltip": "Foldable line draw",
       "disabledReason": "Ready",
       "steps": {
@@ -1390,12 +1389,14 @@
     },
     "makeFlatFoldableAction": {
       "intro": {
-        "0": "Draw flat foldable line."
+        "0": "Draw the crease that completes a vertex."
       },
       "steps": {
-        "0": "Select vertex with odd number of connecting lines.",
-        "1": "Select flat foldable line.",
-        "2": "Select a target line to extend to."
+        "0": "Select a vertex that does not fold consistently.",
+        "1": "Select one of the suggested creases."
+      },
+      "notes": {
+        "0": "With all creases at a full fold this is Kawasaki’s theorem, and the vertex needs an odd number of lines. Where a crease carries a partial fold angle, the suggestion also sets the new crease’s mountain/valley and angle."
       }
     },
     "lengthenCreaseAction": {

@@ -32,6 +32,7 @@
     "layerGrid": "Grid",
     "layerHinges": "Hinges",
     "layerLabels": "Labels",
+    "layerOutsidePaper": "Outside paper",
     "layerRidges": "Ridges",
     "layerRivers": "Rivers",
     "layers": "Layers",
@@ -61,6 +62,12 @@
     "warnings": "Box Pleat packing warnings",
     "width": "Width"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "Book fold",
+      "diagonal": "Diagonal fold"
+    }
+  },
   "bpTree": {
     "canvas": "Box Pleat tree canvas",
     "decreaseLength": "Decrease length",
@@ -79,6 +86,7 @@
     "selectLeafVertexWithLabel": "Select BP leaf vertex {{id}}, {{label}}",
     "selectVertex": "Select BP vertex {{id}}",
     "selectVertexWithLabel": "Select BP vertex {{id}}, {{label}}",
+    "unpair": "Unpair from mirror",
     "viewportControls": "Box Pleat tree viewport controls"
   },
   "conditions": {

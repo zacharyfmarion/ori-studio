@@ -3,12 +3,14 @@
     "abort": "Abbrechen",
     "close": "Layout-Optimierung schließen",
     "closeAction": "Schließen",
+    "enable": "Symmetrie aktivieren",
     "failed": "Der Optimierer konnte kein Layout finden.",
     "layout": {
       "random": "Zufällige Layouts ausprobieren",
       "view": "Aktuelles Layout als Referenz verwenden"
     },
     "layoutMethod": "Layout-Methode",
+    "mirrorAxis": "Falte, an der gespiegelt wird",
     "options": "Optionen",
     "run": "Ausführen!",
     "running": "Läuft...",
@@ -20,6 +22,9 @@
       "running": "Läuft...",
       "start": "Problem wird verarbeitet..."
     },
+    "symmetry": "Symmetrie",
+    "symmetryInconsistent": "Einige gepaarte Zipfel sind im Baum nicht austauschbar; sie zu spiegeln verbraucht mehr Papier.",
+    "symmetryOff": "Symmetrie ist aus. Schalte sie in der Baumansicht ein, um das Layout zu spiegeln.",
     "title": "Layout optimieren",
     "toTry": "Anzahl der zu testenden Layouts:",
     "useBasinHopping": "Variationen des aktuellen Layouts ausprobieren",

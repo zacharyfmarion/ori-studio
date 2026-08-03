@@ -32,6 +32,7 @@
     "layerGrid": "격자",
     "layerHinges": "힌지",
     "layerLabels": "레이블",
+    "layerOutsidePaper": "용지 바깥",
     "layerRidges": "능선",
     "layerRivers": "리버",
     "layers": "레이어",
@@ -61,6 +62,12 @@
     "warnings": "박스 플리츠 패킹 경고",
     "width": "너비"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "반 접기",
+      "diagonal": "대각선 접기"
+    }
+  },
   "bpTree": {
     "canvas": "박스 플리츠 트리 캔버스",
     "decreaseLength": "길이 감소",
@@ -79,6 +86,7 @@
     "selectLeafVertexWithLabel": "BP 리프 정점 {{id}} 선택, {{label}}",
     "selectVertex": "BP 정점 {{id}} 선택",
     "selectVertexWithLabel": "BP 정점 {{id}} 선택, {{label}}",
+    "unpair": "미러 페어 해제",
     "viewportControls": "박스 플리츠 트리 뷰포트 컨트롤"
   },
   "conditions": {

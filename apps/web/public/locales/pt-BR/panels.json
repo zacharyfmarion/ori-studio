@@ -32,6 +32,7 @@
     "layerGrid": "Grade",
     "layerHinges": "Dobradiças",
     "layerLabels": "Rótulos",
+    "layerOutsidePaper": "Fora do papel",
     "layerRidges": "Cristas",
     "layerRivers": "Rios",
     "layers": "Camadas",
@@ -61,6 +62,12 @@
     "warnings": "Avisos do empacotamento de dobra em caixa",
     "width": "Largura"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "Dobra de livro",
+      "diagonal": "Dobra diagonal"
+    }
+  },
   "bpTree": {
     "canvas": "Canvas da árvore de dobra em caixa",
     "decreaseLength": "Diminuir comprimento",
@@ -79,6 +86,7 @@
     "selectLeafVertexWithLabel": "Selecionar vértice folha BP {{id}}, {{label}}",
     "selectVertex": "Selecionar vértice BP {{id}}",
     "selectVertexWithLabel": "Selecionar vértice BP {{id}}, {{label}}",
+    "unpair": "Desemparelhar do espelho",
     "viewportControls": "Controles da viewport da árvore de dobra em caixa"
   },
   "conditions": {

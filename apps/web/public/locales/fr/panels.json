@@ -32,6 +32,7 @@
     "layerGrid": "Grille",
     "layerHinges": "Charnières",
     "layerLabels": "Étiquettes",
+    "layerOutsidePaper": "Hors du papier",
     "layerRidges": "Crêtes",
     "layerRivers": "Rivières",
     "layers": "Calques",
@@ -61,6 +62,12 @@
     "warnings": "Avertissements de l'agencement du pliage en boîte",
     "width": "Largeur"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "Pli livre",
+      "diagonal": "Pli diagonal"
+    }
+  },
   "bpTree": {
     "canvas": "Canevas d'arbre du pliage en boîte",
     "decreaseLength": "Diminuer la longueur",
@@ -79,6 +86,7 @@
     "selectLeafVertexWithLabel": "Sélectionner le sommet feuille BP {{id}}, {{label}}",
     "selectVertex": "Sélectionner le sommet BP {{id}}",
     "selectVertexWithLabel": "Sélectionner le sommet BP {{id}}, {{label}}",
+    "unpair": "Dissocier du miroir",
     "viewportControls": "Commandes d'affichage de l'arbre du pliage en boîte"
   },
   "conditions": {

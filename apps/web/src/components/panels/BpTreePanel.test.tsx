@@ -109,6 +109,7 @@ function bpDocument(): OristudioBpDocumentState {
         useDimension: true,
         layoutMode: 'view',
         useBasinHopping: true,
+        respectSymmetry: true,
         randomCandidateCount: 100,
         seed: null,
       },
@@ -220,6 +221,7 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
           : { kind: 'bp-vertex', id: selectedVertexId },
       oristudioBpSymmetry: {
         enabled: symmetryEnabled,
+        fold: 'book',
         angle: 90,
         loc: { x: 10, y: 10 },
         pairs: [],
@@ -300,6 +302,46 @@ describe('BP tree pane — adding is anchored to the selection', () => {
   });
 });
 
+describe('BP tree pane — a vertex on the mirror line is pinned', () => {
+  // The fixture's vertices all sit at x=10, which is the mirror line.
+  function clickVertex(body: HTMLElement, index: number) {
+    const dot = body.querySelectorAll<SVGCircleElement>('.bp-tree-node')[index];
+    const at = { clientX: 400, clientY: 300 };
+    act(() => {
+      dot.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, ...at }));
+      dot.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0, ...at }));
+    });
+  }
+
+  it('selects it without adding a leaf, mirror or otherwise', () => {
+    const body = render(1, true);
+    clickVertex(body, 1);
+    expect(actions.selectOristudioBp).toHaveBeenCalledWith({ kind: 'bp-vertex', id: 1 });
+    // Declining the drag must not let the click fall through to the canvas,
+    // which would add a leaf plus its mirror on top of the vertex.
+    expect(actions.addOristudioBpTreeLeafWithSymmetry).not.toHaveBeenCalled();
+    expect(actions.addOristudioBpTreeLeaf).not.toHaveBeenCalled();
+  });
+
+  it('does not move it', () => {
+    const body = render(1, true);
+    const dot = body.querySelectorAll<SVGCircleElement>('.bp-tree-node')[1];
+    act(() => {
+      dot.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
+      );
+      dot.dispatchEvent(
+        new MouseEvent('pointermove', { bubbles: true, button: 0, clientX: 500, clientY: 300 })
+      );
+      dot.dispatchEvent(
+        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 500, clientY: 300 })
+      );
+    });
+    expect(actions.moveOristudioBpTreeVerticesWithSymmetry).not.toHaveBeenCalled();
+    expect(actions.moveOristudioBpTreeVertices).not.toHaveBeenCalled();
+  });
+});
+
 describe('BP tree pane — the hover ghost previews the click', () => {
   const ghost = () => container?.querySelector('.symmetry-ghost');
 
@@ -332,7 +374,7 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
         ...actions,
         oristudioBpDocument: document_,
         oristudioBpSelection: { kind: 'bp-edge', id: 1 },
-        oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
+        oristudioBpSymmetry: { enabled: false, fold: 'book', angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
       },
       true
     );

@@ -75,12 +75,35 @@ const OVERSIZED_PANELS = {
   // the status memo, the entry memo, the collapse effect, and the row markup all
   // left together. This is the direction the number is for: it went down because
   // behaviour moved to where it belongs, not because a file was split in half.
-  'CreasePatternPanel.tsx': 2674,
+  //
+  // 2674 -> 2700: not a change to this file, a merge. main grew the panel by 26
+  // lines while the HUD extraction was in flight — the flat-foldable-line and
+  // vertex-completion work — which is the "a merge where main grew the file"
+  // case named above.
+  'CreasePatternPanel.tsx': 2700,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,
-  'CpContextToolPanel.tsx': 1080,
+  // 1080 -> 1090: a second message slot, for the note the vertex-completion
+  // tool shows when the assignment it solved overrides the active line type.
+  // The sentence and the rule for when to say it are in
+  // `cp-workspace/tools/toolUnavailable.ts` with their own tests; the panel
+  // takes a string and renders it beside the existing one. Extracting the two
+  // <p> tags into a child would have cost more lines than it saved, which
+  // AGENTS.md names as the wrong trade.
+  //
+  // 1090 -> 1110: the `completion-stops` group — where a suggested crease is
+  // allowed to stop. A settings group in the settings panel is the case
+  // AGENTS.md calls "a feature that genuinely belongs in a panel", and its
+  // option, default, persistence and group→keys entry all live outside this
+  // file.
+  //
+  // **The seam this file actually wants** is `CpContextToolGroup`: ~530 lines,
+  // 45% of the total, a switch over setting groups that has nothing to do with
+  // the panel's composition. Moving it out is the fix, and it is a change of its
+  // own rather than a rider on whichever feature next trips the cap.
+  'CpContextToolPanel.tsx': 1110,
 };
 
 const PANEL_MAX_LINES = 800;

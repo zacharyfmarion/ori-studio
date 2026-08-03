@@ -5,6 +5,12 @@ import type { ToolPreviewSegment } from '../tools/types';
 export interface PreviewStrokeGroup {
   segments: readonly ToolPreviewSegment[];
   color: Rgba;
+  /**
+   * Overrides the call-level dashing for this group, so one geometry can carry
+   * both — which is what lets the armed completion candidate read as solid while
+   * the alternatives stay dashed proposals.
+   */
+  dashed?: boolean;
 }
 
 /**
@@ -36,8 +42,14 @@ export function previewGroupsToStrokes(
   const b = new Float32Array(count * 2);
   const color = new Float32Array(count * 4);
   const widthMul = new Float32Array(count).fill(1);
+  // Slot 0 is solid, slot 1 is the dash pattern. Written per segment so a group
+  // can opt out of the call-level choice.
+  const dashSlot = new Float32Array(count);
+  let anyDashed = false;
   let i = 0;
   for (const group of groups) {
+    const groupDashed = group.dashed ?? dashed;
+    anyDashed = anyDashed || groupDashed;
     for (const segment of group.segments) {
       a[i * 2] = segment.a.x;
       a[i * 2 + 1] = segment.a.y;
@@ -47,6 +59,7 @@ export function previewGroupsToStrokes(
       color[i * 4 + 1] = group.color[1];
       color[i * 4 + 2] = group.color[2];
       color[i * 4 + 3] = group.color[3];
+      dashSlot[i] = groupDashed ? 1 : 0;
       i += 1;
     }
   }
@@ -56,7 +69,8 @@ export function previewGroupsToStrokes(
     color,
     widthMul,
     count,
-    dashPatterns: dashed ? [OVERLAY_DASH_PATTERN] : [],
+    dashPatterns: anyDashed ? [OVERLAY_DASH_PATTERN] : [],
+    dashSlot,
   };
 }
 

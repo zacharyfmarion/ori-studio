@@ -241,11 +241,13 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
     intro: ['Measure length by selecting 2 points.'],
   },
   makeFlatFoldableAction: {
-    intro: ['Draw flat foldable line.'],
+    intro: ['Draw the crease that completes a vertex.'],
     steps: [
-      'Select vertex with odd number of connecting lines.',
-      'Select flat foldable line.',
-      'Select a target line to extend to.',
+      'Select a vertex that does not fold consistently.',
+      'Select one of the suggested creases.',
+    ],
+    notes: [
+      'With all creases at a full fold this is Kawasaki’s theorem, and the vertex needs an odd number of lines. Where a crease carries a partial fold angle, the suggestion also sets the new crease’s mountain/valley and angle.',
     ],
   },
   lengthenCreaseAction: {

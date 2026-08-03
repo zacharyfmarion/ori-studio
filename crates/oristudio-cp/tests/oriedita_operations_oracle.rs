@@ -1761,6 +1761,9 @@ fn make_vertex_flat_foldable_matches_oriedita_oracle() {
         &candidates.candidates[0],
         &destination,
         candidates.commit_color,
+        // The flat path is Oriedita's: no fold angle, so the oracle still speaks
+        // for it byte for byte.
+        None,
     );
     let mut args = vec!["foldline-make-vertex-flat-foldable-destination".to_string()];
     push_points_args(&mut args, &[vertex]);
