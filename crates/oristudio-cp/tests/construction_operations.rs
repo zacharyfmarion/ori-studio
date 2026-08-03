@@ -733,6 +733,40 @@ fn make_vertex_flat_foldable_generates_odd_vertex_candidate_and_commits_to_desti
 }
 
 #[test]
+fn make_vertex_flat_foldable_command_finds_its_own_destination() {
+    // The same geometry as the three-click test below, with the third click
+    // removed: the candidate ray already runs to the border at x=-1, so the
+    // software answers the question that click used to ask.
+    let mut document = CreasePatternDocument {
+        crease_pattern: model_from_segments(&[
+            segment(0.0, 0.0, 1.0, 0.0, LineColor::Red1),
+            segment(-1.0, -1.0, -1.0, 1.0, LineColor::Black0),
+        ]),
+        ..Default::default()
+    };
+    let command = CreasePatternCommand::new(OperationId::VertexMakeAngularlyFlatFoldable)
+        .with_payload(CreasePatternCommandPayload {
+            points: vec![Point::new(0.0, 0.0), Point::new(-0.5, 0.0)],
+            line_color: Some(LineColor::Blue2),
+            selection_distance: Some(1.0),
+            grid_width: Some(1.0),
+            ..Default::default()
+        });
+
+    execute_command(&mut document, command).expect("2-point flat-foldable executes");
+    assert!(
+        contains_segment_close(
+            &document.crease_pattern.line_segments,
+            Point::new(-1.0, 0.0),
+            Point::new(0.0, 0.0),
+            LineColor::Red1,
+        ),
+        "expected the same crease the three-click flow commits; got {:?}",
+        document.crease_pattern.line_segments,
+    );
+}
+
+#[test]
 fn make_vertex_flat_foldable_command_uses_separate_candidate_and_destination() {
     // Oriedita's 3 clicks: vertex (0,0), a point on the candidate ray (0,0)->(-1,0),
     // then a point on the destination crease at x=-1. The candidate (point[1]) and

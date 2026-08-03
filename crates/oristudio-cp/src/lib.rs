@@ -129,6 +129,11 @@ pub struct CreasePatternCommandPayload {
     /// Optional active grid width for grid-spaced construction tools.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grid_width: Option<f64>,
+    /// Whether a completion candidate may end on an auxiliary line. Off unless
+    /// stated, because auxiliary lines are construction guides rather than
+    /// creases; see `solve_spatial::CandidateStopTargets`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_on_auxiliary: Option<bool>,
     /// Optional active angle-system divider. Oriedita's default divider is 4.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub angle_system_divider: Option<i32>,
@@ -2134,19 +2139,13 @@ pub fn execute_command(
         OperationId::VertexMakeAngularlyFlatFoldable => {
             let points = required_points_at_least(&command, 2)?;
             let candidates = vertex_completion_candidates(document, &command, points[0]);
-            // Oriedita's 3 clicks: vertex, candidate ray, then the existing crease it
-            // extends to. Keep candidate (point[1]) and destination (point[2]) separate;
-            // a legacy 2-point call reuses point[1] for both.
-            let destination_point = if points.len() >= 3 {
-                points[2]
-            } else {
-                points[1]
-            };
             let selected = nearest_candidate_segment(&command, points[1], &candidates.candidates)?;
-            let (_, destination) = nearest_line_segment(
-                &document.crease_pattern,
-                destination_point,
-                selection_distance(&command),
+            let destination = resolved_completion_destination(
+                document,
+                &command,
+                &points[2..],
+                &candidates,
+                &selected,
             )?;
             let (color, fold_magnitude) = candidates.commit_style(&selected);
             usize::from(
@@ -2238,10 +2237,12 @@ pub fn execute_command(
                 let candidates = vertex_completion_candidates(document, &command, points[0]);
                 let selected =
                     nearest_candidate_segment(&command, points[1], &candidates.candidates)?;
-                let (_, destination) = nearest_line_segment(
-                    &document.crease_pattern,
-                    points[1],
-                    selection_distance(&command),
+                let destination = resolved_completion_destination(
+                    document,
+                    &command,
+                    &[],
+                    &candidates,
+                    &selected,
                 )?;
                 let (color, fold_magnitude) = candidates.commit_style(&selected);
                 usize::from(
@@ -2773,7 +2774,44 @@ fn vertex_completion_candidates(
         grid_width(command, &document.crease_pattern),
         active_line_color(command),
         CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        solve_spatial::CandidateStopTargets {
+            auxiliary: command.payload.stop_on_auxiliary.unwrap_or(false),
+        },
     )
+}
+
+/// What the chosen completion candidate runs to.
+///
+/// The tool used to ask: a third click naming the crease to extend to. It no
+/// longer needs to, because the candidate was drawn to what stops it and carries
+/// that line along — so the software answers its own question.
+///
+/// `explicit` is whatever points follow the candidate pick. **A caller that
+/// still supplies one wins**, which keeps Oriedita's three-click flow working
+/// for anything that asks for it — including the ability to run a crease *past*
+/// the first thing in its way, which picking the nearest stop cannot express.
+fn resolved_completion_destination(
+    document: &CreasePatternDocument,
+    command: &CreasePatternCommand,
+    explicit: &[Point],
+    candidates: &solve_spatial::VertexCompletionCandidates,
+    selected: &LineSegment,
+) -> Result<LineSegment> {
+    if let Some(point) = explicit.first() {
+        let (_, destination) = nearest_line_segment(
+            &document.crease_pattern,
+            *point,
+            selection_distance(command),
+        )?;
+        return Ok(destination);
+    }
+    candidates
+        .destination_for(selected)
+        .cloned()
+        .ok_or_else(|| CommandError::InvalidInput {
+            operation: command.operation,
+            message: "the chosen candidate has nothing to extend to".to_string(),
+        })
 }
 
 /// Why the completion tool found nothing, as a stable code.
@@ -2789,6 +2827,7 @@ fn no_completion_code(reason: solve_spatial::NoCompletion) -> String {
         solve_spatial::NoCompletion::AlreadyClosed => "AlreadyClosed",
         solve_spatial::NoCompletion::ExceedsFullFold => "ExceedsFullFold",
         solve_spatial::NoCompletion::Overdetermined => "Overdetermined",
+        solve_spatial::NoCompletion::RunsOffThePaper => "RunsOffThePaper",
     }
     .to_string()
 }
@@ -3261,10 +3300,12 @@ pub fn preview_command(
                     nearest_candidate_segment(&command, points[1], &candidates.candidates)
                 {
                     preview.segments.push(selected.clone());
-                    if let Ok((_, destination)) = nearest_line_segment(
-                        &document.crease_pattern,
-                        points[2],
-                        selection_distance(&command),
+                    if let Ok(destination) = resolved_completion_destination(
+                        document,
+                        &command,
+                        &points[2..],
+                        &candidates,
+                        &selected,
                     ) {
                         let mut clone = document.clone();
                         let (color, fold_magnitude) = candidates.commit_style(&selected);

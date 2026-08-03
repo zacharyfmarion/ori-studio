@@ -62,7 +62,10 @@ use crate::checks_spatial::{
     is_interior_vertex, quat_conj, quat_mul, quat_residual, quat_rotate, vertex_fan_at,
     vertex_regime,
 };
-use crate::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
+use crate::geometry::{
+    Epsilon, FoldMagnitude, LineColor, LineSegment, Point, StraightLine, StraightLineIntersection,
+    find_intersection_straight_lines,
+};
 use crate::model::CreasePatternModel;
 use crate::operations::construction::{
     FlatFoldableVertexCandidates, make_vertex_flat_foldable_candidates,
@@ -133,6 +136,15 @@ pub enum NoCompletion {
     /// The solved crease does not lie in the sheet plane in any gap, or lands
     /// outside every gap. Two or more creases would be needed.
     Overdetermined,
+    /// Completions exist, but every one of them runs off the paper without
+    /// meeting anything, so there is nothing to draw a crease *to*.
+    ///
+    /// A well-formed sheet always stops a ray — the border is a folding line, so
+    /// it stops one like any crease. This reports an open or malformed boundary,
+    /// and exists because dropping the candidates silently would look identical
+    /// to "no completion exists", which is a different and more discouraging
+    /// thing to tell someone.
+    RunsOffThePaper,
 }
 
 /// Every crease that closes the vertex, one per (gap, reading) that survives.
@@ -261,6 +273,137 @@ fn normalise_angle(angle: f64) -> f64 {
     }
 }
 
+/// Which lines a candidate ray may end on.
+///
+/// Creases and the paper border always stop a ray — `is_folding_line` already
+/// covers `Black0`, so the border needs nothing special. Auxiliary lines are the
+/// only question, and they live in their own collection rather than being a
+/// colour, so opting in means scanning one more list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CandidateStopTargets {
+    /// Stop on auxiliary lines too. Off by default: they are construction guides,
+    /// and ending a crease on one would be a surprising place to stop.
+    pub auxiliary: bool,
+}
+
+/// Where a candidate ray ends, and what stopped it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CandidateStop {
+    pub at: Point,
+    /// The line the ray ran into.
+    ///
+    /// Handed to the commit as its destination, so the software answers the
+    /// question the third click used to ask — rather than the commit being
+    /// rewritten to do without one.
+    pub destination: LineSegment,
+}
+
+/// Ray-origin offset below which an intersection is the vertex itself rather than
+/// something the ray ran into. Matches the ported extend-until-hit primitive.
+const RAY_ORIGIN_EPSILON: f64 = Epsilon::UNKNOWN_1EN5;
+
+/// A candidate as a ray: the infinite line the intersection test needs, plus
+/// where it starts and which way it points, which is what tells a hit in front of
+/// the vertex from one behind it.
+struct Ray {
+    line: StraightLine,
+    origin: Point,
+    direction: (f64, f64),
+}
+
+/// How far each candidate ray travels before something stops it.
+///
+/// # One pass, all rays
+///
+/// The obvious shape is a loop per candidate, each walking every segment. The
+/// preview runs on every pointer move, and six candidates against a 52k-segment
+/// document is 300k intersection tests per move. So the walk is outermost and the
+/// candidates are the inner loop: the same order the preview already pays for
+/// `incident_lines_at` and `vertex_fan_at`, with no index to build or keep.
+pub fn stop_candidates(
+    model: &CreasePatternModel,
+    candidates: &[LineSegment],
+    targets: CandidateStopTargets,
+) -> Vec<Option<CandidateStop>> {
+    // Precomputed per candidate: its infinite line, and the direction that tells
+    // a hit in front of the vertex from one behind it.
+    let rays: Vec<Option<Ray>> = candidates
+        .iter()
+        .map(|candidate| {
+            let (dx, dy) = (candidate.b.x - candidate.a.x, candidate.b.y - candidate.a.y);
+            (dx != 0.0 || dy != 0.0).then(|| Ray {
+                line: StraightLine::from_segment(candidate),
+                origin: candidate.a,
+                direction: (dx, dy),
+            })
+        })
+        .collect();
+
+    let mut best: Vec<Option<(f64, CandidateStop)>> = vec![None; candidates.len()];
+    let auxiliary: &[LineSegment] = if targets.auxiliary {
+        &model.aux_line_segments
+    } else {
+        &[]
+    };
+
+    for segment in model.line_segments.iter().chain(auxiliary) {
+        // Creases and the border; helper colours (indicators, circles) are not
+        // things a crease ends on. An auxiliary line reaches here only because
+        // the caller asked for its collection.
+        if !segment.color.is_folding_line() && !targets.auxiliary {
+            continue;
+        }
+        let target = StraightLine::from_segment(segment);
+
+        for (index, ray) in rays.iter().enumerate() {
+            let Some(Ray {
+                line,
+                origin,
+                direction: (dx, dy),
+            }) = ray
+            else {
+                continue;
+            };
+            if !matches!(
+                line.line_segment_intersect_reverse_detail(segment),
+                StraightLineIntersection::IntersectX1
+                    | StraightLineIntersection::IntersectTA21
+                    | StraightLineIntersection::IntersectTB22
+            ) {
+                continue;
+            }
+
+            let at = find_intersection_straight_lines(*line, target);
+            // `line` is infinite, so it also meets things *behind* the vertex.
+            // A ray does not.
+            if (at.x - origin.x) * dx + (at.y - origin.y) * dy <= 0.0 {
+                continue;
+            }
+            let distance = at.distance(*origin);
+            if distance <= RAY_ORIGIN_EPSILON {
+                continue; // The vertex itself, where every incident crease meets.
+            }
+            if best[index]
+                .as_ref()
+                .is_some_and(|(nearest, _)| distance >= *nearest)
+            {
+                continue;
+            }
+            best[index] = Some((
+                distance,
+                CandidateStop {
+                    at,
+                    destination: segment.clone(),
+                },
+            ));
+        }
+    }
+
+    best.into_iter()
+        .map(|hit| hit.map(|(_, stop)| stop))
+        .collect()
+}
+
 /// Candidate rays for the completion tool, from whichever regime owns the vertex.
 #[derive(Debug, Clone, PartialEq)]
 pub struct VertexCompletionCandidates {
@@ -270,6 +413,10 @@ pub struct VertexCompletionCandidates {
     /// The flat path keeps the port's ray *geometry* exactly and only takes the
     /// assignment from the solve; see [`vertex_completion_candidates`].
     pub candidates: Vec<LineSegment>,
+    /// What stopped each candidate, index-aligned with `candidates`. The commit
+    /// takes its destination from here, so the software answers the question the
+    /// third click used to ask.
+    pub destinations: Vec<LineSegment>,
     /// Fallback assignment, used only where the solve could not name one: the
     /// active colour, or the lone incident crease's, as the port decides it.
     pub commit_color: LineColor,
@@ -292,6 +439,18 @@ impl VertexCompletionCandidates {
         } else {
             (self.commit_color, None)
         }
+    }
+
+    /// What stopped `selected`, for the commit to use as its destination.
+    ///
+    /// Matched by position, which is the invariant `candidates` and
+    /// `destinations` are built to hold.
+    pub fn destination_for(&self, selected: &LineSegment) -> Option<&LineSegment> {
+        let index = self
+            .candidates
+            .iter()
+            .position(|candidate| candidate == selected)?;
+        self.destinations.get(index)
     }
 
     /// Whether the assignment the solve forced differs from what the user had
@@ -325,11 +484,13 @@ pub fn vertex_completion_candidates(
     grid_width: f64,
     active_color: LineColor,
     closed_bar: f64,
+    targets: CandidateStopTargets,
 ) -> VertexCompletionCandidates {
     let lines = incident_lines_at(model, vertex);
     let regime = vertex_regime(&lines);
     let decline = |reason| VertexCompletionCandidates {
         candidates: Vec::new(),
+        destinations: Vec::new(),
         commit_color: active_color,
         regime,
         no_completion: Some(reason),
@@ -349,30 +510,50 @@ pub fn vertex_completion_candidates(
         Err(_) => Vec::new(),
     };
 
-    if regime == VertexRegime::Spatial {
-        return VertexCompletionCandidates {
-            candidates: completions
+    let (rays, commit_color) = if regime == VertexRegime::Spatial {
+        (
+            completions
                 .into_iter()
                 .map(|completion| completion_ray(vertex, completion, grid_width))
+                .collect::<Vec<_>>(),
+            active_color,
+        )
+    } else {
+        let FlatFoldableVertexCandidates {
+            candidates,
+            commit_color,
+        } = make_vertex_flat_foldable_candidates(model, vertex, grid_width, active_color);
+        (
+            candidates
+                .into_iter()
+                .map(|ray| assign_from_solve(ray, &completions))
                 .collect(),
-            commit_color: active_color,
-            regime,
-            no_completion: None,
-        };
+            commit_color,
+        )
+    };
+
+    // Each ray becomes the crease it would be: drawn to what stops it, rather
+    // than a fixed-length arrow the user then has to aim.
+    let offered = rays.len();
+    let mut candidates = Vec::with_capacity(offered);
+    let mut destinations = Vec::with_capacity(offered);
+    for (ray, stop) in rays
+        .iter()
+        .zip(stop_candidates(model, &rays, targets))
+        // A ray that meets nothing has no crease to become, so it is not offered.
+        .filter_map(|(ray, stop)| stop.map(|stop| (ray, stop)))
+    {
+        candidates.push(ray.with_b(stop.at));
+        destinations.push(stop.destination);
     }
 
-    let FlatFoldableVertexCandidates {
-        candidates,
-        commit_color,
-    } = make_vertex_flat_foldable_candidates(model, vertex, grid_width, active_color);
     VertexCompletionCandidates {
-        candidates: candidates
-            .into_iter()
-            .map(|ray| assign_from_solve(ray, &completions))
-            .collect(),
+        no_completion: (offered > 0 && candidates.is_empty())
+            .then_some(NoCompletion::RunsOffThePaper),
+        candidates,
+        destinations,
         commit_color,
         regime,
-        no_completion: None,
     }
 }
 
@@ -734,7 +915,7 @@ mod tests {
             &[0.0, 120.0, 240.0],
         ];
         for directions in cases {
-            let mut model = CreasePatternModel::default();
+            let mut model = sheet();
             for theta in directions {
                 let radians = theta.to_radians();
                 model.line_segments.push(LineSegment::with_color(
@@ -755,6 +936,7 @@ mod tests {
                 50.0,
                 LineColor::Blue2,
                 bar(),
+                stop_targets(),
             );
             // Same regime, so the dispatcher hands these to the port — the point
             // of the test is that the solver would have agreed.
@@ -794,6 +976,32 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A square sheet, which every real document has and a candidate ray needs —
+    /// without a border, a completion has nothing to run to.
+    fn sheet() -> CreasePatternModel {
+        let mut model = CreasePatternModel::default();
+        let corners = [
+            (-200.0, -200.0),
+            (200.0, -200.0),
+            (200.0, 200.0),
+            (-200.0, 200.0),
+        ];
+        for index in 0..4 {
+            let (ax, ay) = corners[index];
+            let (bx, by) = corners[(index + 1) % 4];
+            model.line_segments.push(LineSegment::with_color(
+                Point::new(ax, ay),
+                Point::new(bx, by),
+                LineColor::Black0,
+            ));
+        }
+        model
+    }
+
+    fn stop_targets() -> CandidateStopTargets {
+        CandidateStopTargets::default()
     }
 
     /// A square sheet with the bottom edge split where a crease meets it.
@@ -855,6 +1063,7 @@ mod tests {
                 50.0,
                 LineColor::Blue2,
                 bar(),
+                stop_targets(),
             );
             assert_eq!(
                 at_edge.no_completion,
@@ -870,9 +1079,170 @@ mod tests {
                 50.0,
                 LineColor::Blue2,
                 bar(),
+                stop_targets(),
             );
             assert_eq!(interior.no_completion, None);
             assert_eq!(interior.candidates.len(), 1);
+        }
+    }
+
+    /// A ray from the origin toward `(x, y)`, the length a candidate starts at.
+    fn ray(x: f64, y: f64) -> LineSegment {
+        LineSegment::with_color(Point::new(0.0, 0.0), Point::new(x, y), LineColor::Purple8)
+    }
+
+    #[test]
+    fn a_ray_stops_at_the_paper_edge() {
+        // The common case: nothing in the way, so the border is what stops it.
+        // `is_folding_line` already covers `Black0`, so this needs no special
+        // handling — worth pinning, because it is the answer most completions get.
+        let stops = stop_candidates(&sheet(), &[ray(50.0, 0.0)], stop_targets());
+        let stop = stops[0].as_ref().expect("the border stops it");
+        assert!((stop.at.x - 200.0).abs() < 1e-9 && stop.at.y.abs() < 1e-9);
+        assert_eq!(stop.destination.color, LineColor::Black0);
+    }
+
+    #[test]
+    fn a_ray_stops_at_the_first_crease_it_meets() {
+        let mut model = sheet();
+        for x in [50.0_f64, 120.0] {
+            model.line_segments.push(LineSegment::with_color(
+                Point::new(x, -100.0),
+                Point::new(x, 100.0),
+                LineColor::Red1,
+            ));
+        }
+        let stops = stop_candidates(&model, &[ray(10.0, 0.0)], stop_targets());
+        let stop = stops[0].as_ref().expect("a crease stops it");
+        assert!(
+            (stop.at.x - 50.0).abs() < 1e-9,
+            "took the far crease, not the near one"
+        );
+    }
+
+    #[test]
+    fn a_ray_ignores_what_is_behind_the_vertex() {
+        // The intersection test works on an infinite line, so a crease behind the
+        // vertex meets it too. A ray does not go backwards.
+        let mut model = sheet();
+        model.line_segments.push(LineSegment::with_color(
+            Point::new(-50.0, -100.0),
+            Point::new(-50.0, 100.0),
+            LineColor::Red1,
+        ));
+        let stops = stop_candidates(&model, &[ray(10.0, 0.0)], stop_targets());
+        let stop = stops[0].as_ref().expect("the far border stops it");
+        assert!(stop.at.x > 0.0, "ran backwards to {:?}", stop.at);
+    }
+
+    #[test]
+    fn a_ray_is_not_stopped_by_the_creases_at_its_own_vertex() {
+        let mut model = sheet();
+        for theta in [90.0_f64, 200.0] {
+            let radians = theta.to_radians();
+            model.line_segments.push(LineSegment::with_color(
+                Point::new(0.0, 0.0),
+                Point::new(100.0 * radians.cos(), 100.0 * radians.sin()),
+                LineColor::Blue2,
+            ));
+        }
+        let stops = stop_candidates(&model, &[ray(10.0, 0.0)], stop_targets());
+        let stop = stops[0].as_ref().expect("the border stops it");
+        assert!(
+            (stop.at.x - 200.0).abs() < 1e-9,
+            "stopped at its own vertex"
+        );
+    }
+
+    #[test]
+    fn auxiliary_lines_stop_a_ray_only_when_asked() {
+        let mut model = sheet();
+        model.aux_line_segments.push(LineSegment::with_color(
+            Point::new(30.0, -100.0),
+            Point::new(30.0, 100.0),
+            LineColor::Cyan3,
+        ));
+
+        let ignored = stop_candidates(&model, &[ray(10.0, 0.0)], CandidateStopTargets::default());
+        assert!(
+            (ignored[0].as_ref().expect("stops somewhere").at.x - 200.0).abs() < 1e-9,
+            "an auxiliary line stopped the ray by default"
+        );
+
+        let honoured = stop_candidates(
+            &model,
+            &[ray(10.0, 0.0)],
+            CandidateStopTargets { auxiliary: true },
+        );
+        assert!((honoured[0].as_ref().expect("stops somewhere").at.x - 30.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_ray_with_nothing_to_hit_reports_running_off_the_paper() {
+        // No border, so the completions exist but none of them becomes a crease.
+        // Reported rather than silently dropped: silence reads as "no completion
+        // exists", which is a different and more discouraging thing to be told.
+        let mut model = CreasePatternModel::default();
+        for theta in [0.0_f64, 90.0, 200.0] {
+            let radians = theta.to_radians();
+            model.line_segments.push(LineSegment::with_color(
+                Point::new(0.0, 0.0),
+                Point::new(100.0 * radians.cos(), 100.0 * radians.sin()),
+                LineColor::Blue2,
+            ));
+        }
+        let candidates = vertex_completion_candidates(
+            &model,
+            Point::new(0.0, 0.0),
+            50.0,
+            LineColor::Blue2,
+            bar(),
+            stop_targets(),
+        );
+        assert!(candidates.candidates.is_empty());
+        assert_eq!(
+            candidates.no_completion,
+            Some(NoCompletion::RunsOffThePaper)
+        );
+    }
+
+    /// The whole point of the redesign: what the old third click supplied, the
+    /// candidate now carries.
+    #[test]
+    fn a_candidate_carries_the_line_that_stopped_it() {
+        let mut model = sheet();
+        model.line_segments.push(LineSegment::with_color(
+            Point::new(0.0, 0.0),
+            Point::new(100.0, 0.0),
+            LineColor::Blue2,
+        ));
+        let candidates = vertex_completion_candidates(
+            &model,
+            Point::new(0.0, 0.0),
+            50.0,
+            LineColor::Blue2,
+            bar(),
+            stop_targets(),
+        );
+        assert_eq!(candidates.candidates.len(), candidates.destinations.len());
+        for candidate in &candidates.candidates {
+            let destination = candidates
+                .destination_for(candidate)
+                .expect("every offered candidate names what stopped it");
+            // The far end lies on the line it stopped at.
+            let (dx, dy) = (
+                destination.b.x - destination.a.x,
+                destination.b.y - destination.a.y,
+            );
+            let (px, py) = (
+                candidate.b.x - destination.a.x,
+                candidate.b.y - destination.a.y,
+            );
+            assert!(
+                (dx * py - dy * px).abs() < 1e-6,
+                "candidate ends at {:?}, not on {destination:?}",
+                candidate.b
+            );
         }
     }
 
@@ -881,7 +1251,7 @@ mod tests {
     #[test]
     fn a_flat_completion_commits_the_assignment_maekawa_forces() {
         // Three valleys: the fourth crease has to be a mountain.
-        let mut model = CreasePatternModel::default();
+        let mut model = sheet();
         for theta in [0.0_f64, 90.0, 200.0] {
             let radians = theta.to_radians();
             model.line_segments.push(LineSegment::with_color(
@@ -897,6 +1267,7 @@ mod tests {
             50.0,
             LineColor::Blue2,
             bar(),
+            stop_targets(),
         );
         assert_eq!(candidates.regime, VertexRegime::Flat);
         assert!(!candidates.candidates.is_empty());
@@ -915,11 +1286,14 @@ mod tests {
         }
     }
 
-    /// The port's ray geometry is what the oracle pins, so taking the assignment
-    /// from the solve must not move a single endpoint.
+    /// The port's ray *direction* is what the oracle pins, so neither taking the
+    /// assignment from the solve nor extending the ray may bend it.
+    ///
+    /// The endpoint does move, on purpose — that is the extension, and it is why
+    /// this asserts a direction rather than a point.
     #[test]
-    fn taking_the_assignment_leaves_the_ports_geometry_untouched() {
-        let mut model = CreasePatternModel::default();
+    fn taking_the_assignment_leaves_the_ports_direction() {
+        let mut model = sheet();
         for theta in [0.0_f64, 90.0, 200.0] {
             let radians = theta.to_radians();
             model.line_segments.push(LineSegment::with_color(
@@ -940,18 +1314,33 @@ mod tests {
             50.0,
             LineColor::Blue2,
             bar(),
+            stop_targets(),
         );
         assert_eq!(port.candidates.len(), dispatched.candidates.len());
-        for (ported, dispatched) in port.candidates.iter().zip(dispatched.candidates.iter()) {
-            assert_eq!(ported.a, dispatched.a, "ray start moved");
-            assert_eq!(ported.b, dispatched.b, "ray end moved");
-            assert_eq!(ported.active, dispatched.active);
+        for (ported, extended) in port.candidates.iter().zip(dispatched.candidates.iter()) {
+            assert_eq!(ported.a, extended.a, "ray start moved");
+            assert_eq!(ported.active, extended.active);
+            let (px, py) = (ported.b.x - ported.a.x, ported.b.y - ported.a.y);
+            let (ex, ey) = (extended.b.x - extended.a.x, extended.b.y - extended.a.y);
+            let cross = px * ey - py * ex;
+            assert!(
+                cross.abs() < 1e-9,
+                "the extended ray left the port's line: {ported:?} vs {extended:?}"
+            );
+            assert!(
+                px * ex + py * ey > 0.0,
+                "the extended ray points the other way: {ported:?} vs {extended:?}"
+            );
+            assert!(
+                (ex * ex + ey * ey) > (px * px + py * py),
+                "extension should reach past the port's stub"
+            );
         }
     }
 
     #[test]
     fn a_spatial_vertex_takes_the_solver_and_a_classic_one_takes_the_port() {
-        let mut model = CreasePatternModel::default();
+        let mut model = sheet();
         model.line_segments.push(LineSegment::with_color(
             Point::new(0.0, 0.0),
             Point::new(100.0, 0.0),
@@ -979,6 +1368,7 @@ mod tests {
             50.0,
             LineColor::Blue2,
             bar(),
+            stop_targets(),
         );
         assert_eq!(candidates.regime, VertexRegime::Spatial);
         // Whatever it finds, a candidate ray must carry the crease it commits.
