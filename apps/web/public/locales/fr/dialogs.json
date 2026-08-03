@@ -254,6 +254,16 @@
       "startup": "Démarrage"
     }
   },
+  "shareLink": {
+    "close": "Fermer le partage",
+    "copied": "Copié",
+    "copy": "Copier",
+    "longWarning": "Ce lien fonctionne dans la barre d'adresse d'un navigateur, mais certaines applis de messagerie et clients de courriel tronquent les liens aussi longs. Envoyer un fichier exporté est plus fiable.",
+    "scope": "Ne contient que le patron de plis : ni images de référence, ni annotations, ni simulations enregistrées.",
+    "summary": "{{creases}} plis · {{chars}} caractères",
+    "title": "Partager le patron de plis",
+    "url": "Lien de partage"
+  },
   "startScreen": {
     "chooseBegin": "Choisissez comment vous voulez commencer.",
     "createCp": {

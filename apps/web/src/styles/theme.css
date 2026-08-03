@@ -1236,6 +1236,65 @@
   padding: var(--space-3);
 }
 
+/* Share-link dialog. Wider than the default modal because it shows a URL, and a
+   360px field turns even a short link into an unreadable sliver. */
+.share-link-modal {
+  width: min(520px, calc(100vw - var(--space-6)));
+}
+
+.share-link-modal__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.share-link-modal__url {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  /* The payload is one long unbroken token; without this it stretches the flex
+     row instead of scrolling inside it. */
+  text-overflow: ellipsis;
+}
+
+.share-link-modal__meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.share-link-modal__note {
+  margin: 0;
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.share-link-modal__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border-warning, var(--border-default));
+  border-radius: var(--radius-md);
+  background: var(--bg-warning-subtle, var(--bg-primary));
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.share-link-modal__warning svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-warning, var(--text-secondary));
+}
+
 /* Box-Pleat layout optimizer dialog. Wider than the default modal because its
    option labels are full sentences ("Keep widths and heights of flaps"), which
    the shared 72px `.field-row` label column cannot hold. */

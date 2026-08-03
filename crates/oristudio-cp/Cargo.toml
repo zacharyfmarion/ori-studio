@@ -20,6 +20,12 @@ fold-profiling = []
 parallel = ["dep:rayon"]
 
 [dependencies]
+# Share-link codec. Both are pure Rust and already in the workspace lockfile via
+# `zip -> flate2`, so they add no new external dependency and build clean for
+# `wasm32-unknown-unknown`. `miniz_oxide` is used directly rather than through
+# `flate2` to keep the raw-DEFLATE path free of backend selection.
+crc32fast = "1.4"
+miniz_oxide = "0.8"
 encoding_rs.workspace = true
 rayon = { workspace = true, optional = true }
 serde.workspace = true

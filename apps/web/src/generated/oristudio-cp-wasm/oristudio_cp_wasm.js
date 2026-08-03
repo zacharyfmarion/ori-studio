@@ -194,6 +194,35 @@ export function export_ori(handle) {
 }
 
 /**
+ * Encode the document behind `handle` as an unpadded base64url share payload,
+ * suitable for a URL fragment (`/edit#c=<payload>`).
+ *
+ * The payload is self-contained: no server round trip, and the fragment is
+ * never transmitted. The encoder decodes and verifies its own output before
+ * returning, so a value from here always reloads.
+ * @param {number} handle
+ * @returns {string}
+ */
+export function export_share_link(handle) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ret = wasm.export_share_link(handle);
+        var ptr1 = ret[0];
+        var len1 = ret[1];
+        if (ret[3]) {
+            ptr1 = 0; len1 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * @param {number} handle
  * @returns {any}
  */
@@ -432,6 +461,26 @@ export function load_ori(text, accept_unknown_version) {
     const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.load_ori(ptr0, len0, accept_unknown_version);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return ret[0] >>> 0;
+}
+
+/**
+ * Decode a share payload into a **new** document handle.
+ *
+ * Opening a link never mutates an existing document. Errors carry the codes
+ * `share_link_too_new` (the link is from a newer Ori Studio) and
+ * `share_link_invalid` (corrupt or truncated), so the UI can tell the user
+ * which happened instead of showing one generic failure.
+ * @param {string} payload
+ * @returns {number}
+ */
+export function load_share_link(payload) {
+    const ptr0 = passStringToWasm0(payload, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.load_share_link(ptr0, len0);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

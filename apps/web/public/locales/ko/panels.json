@@ -303,6 +303,7 @@
       "fold": "접기",
       "label": "접힘 패턴 작업",
       "saveImage": "이미지로 저장",
+      "share": "공유 링크 만들기",
       "simulate": "시뮬레이션",
       "simulateInline": "인라인 시뮬레이션"
     },

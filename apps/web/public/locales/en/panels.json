@@ -314,6 +314,7 @@
       "fold": "Fold",
       "label": "Crease pattern actions",
       "saveImage": "Save to image",
+      "share": "Create shareable link",
       "simulate": "Simulate",
       "simulateInline": "Simulate inline"
     },

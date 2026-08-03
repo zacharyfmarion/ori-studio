@@ -159,6 +159,40 @@ export async function createBlankOristudioCpDocument(
 }
 
 /**
+ * Open a share payload as the active document.
+ *
+ * Deliberately the same shape as {@link createBlankOristudioCpDocument} — take a
+ * handle, build the document state, install it, free it on failure — because
+ * from Edit's point of view opening a link and seeding a blank canvas are the
+ * same act, and the two must not drift.
+ *
+ * The kernel validates the payload: a truncated or corrupt link, or one from a
+ * newer Ori Studio, throws a typed error carrying `share_link_invalid` or
+ * `share_link_too_new` rather than producing a partial document.
+ */
+export async function openSharedCpPayload(
+  payload: string,
+  filename = 'Shared.cp'
+): Promise<OristudioCpDocumentState> {
+  const api = await getOristudioCpClient();
+  const source = { format: 'cp' as const, filename, path: null };
+  // The payload carries its own title when the sharer had one, so nothing is
+  // invented here.
+  const nextHandle = await api.loadShareLink(payload);
+
+  documentLoadSerial += 1;
+  try {
+    const nextState = await buildDocumentState(api, nextHandle, source, null);
+    await replaceHandle(api, nextHandle);
+    currentSource = source;
+    return nextState;
+  } catch (error) {
+    await api.freeDocument(nextHandle).catch(() => undefined);
+    throw error;
+  }
+}
+
+/**
  * Fetch the document for a handle via the compact geometry transport: fetch **only**
  * the compact geometry (transferable typed arrays) and build the structured snapshot
  * from it on the main thread via `decodeCpGeometryToSnapshot`, skipping the worker's
@@ -496,6 +530,25 @@ export async function exportFoldFrameAsFormat(
       case 'orh':
         return await api.exportOrh(scratch);
     }
+  } finally {
+    await api.freeDocument(scratch).catch(() => undefined);
+  }
+}
+
+/**
+ * Encode a standalone FOLD frame (one extracted crease-pattern segment) as a
+ * base64url share payload, using a scratch kernel handle so the active document
+ * is never disturbed. Freed in `finally` on every path.
+ *
+ * The kernel verifies its own output before returning — it decodes the payload
+ * with the shipped decoder and compares the creases and foldability diagnostics
+ * — so a string from here always reloads to the same crease pattern.
+ */
+export async function shareFoldFrameAsLink(foldJson: string): Promise<string> {
+  const api = await getOristudioCpClient();
+  const scratch = await api.loadFold(foldJson);
+  try {
+    return await api.exportShareLink(scratch);
   } finally {
     await api.freeDocument(scratch).catch(() => undefined);
   }

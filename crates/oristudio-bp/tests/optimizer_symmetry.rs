@@ -48,6 +48,7 @@ fn symmetry(axis: SymmetryAxis, partners: &[(u32, u32)]) -> OptimizerSymmetry {
     OptimizerSymmetry {
         axis,
         partners: partners.to_vec(),
+        negative_side: Vec::new(),
     }
 }
 
@@ -601,4 +602,237 @@ fn fitted_layouts_with_dimensions_respect_the_rounded_distances() {
             );
         }
     }
+}
+
+/// A mirror pair occupies two mirrored positions, and which member takes which
+/// is free as far as the packing goes — so in random mode the solver settles it
+/// differently per pair per seed, and flaps appear to swap sides against the
+/// tree the user drew. `negative_side` says which member belongs on which side.
+mod drawn_sides {
+    use oristudio_bp::model::GridType;
+    use oristudio_bp::optimizer::{
+        FlapRequest, LayoutMode, OptimizerCommand, OptimizerProblem, OptimizerRequest,
+        OptimizerSymmetry, SymmetryAxis, solve, validate_optimizer_packing,
+    };
+    use oristudio_bp::tree::Hierarchy;
+
+    /// Three mirror pairs hanging off a spine at different depths, plus a tip on
+    /// the axis — the shape the report came from.
+    fn request(negative_side: Vec<u32>) -> OptimizerRequest {
+        // (id, spine depth, leg length)
+        let spec: [(u32, i32, i32); 7] = [
+            (1, 1, 1),
+            (2, 1, 1),
+            (3, 2, 2),
+            (4, 2, 2),
+            (5, 3, 2),
+            (6, 3, 2),
+            (7, 4, 1),
+        ];
+        let dist = |a: (u32, i32, i32), b: (u32, i32, i32)| -> f64 {
+            if a.1 == b.1 {
+                f64::from(2 * a.2)
+            } else {
+                f64::from((a.1 - b.1).abs() + a.2 + b.2)
+            }
+        };
+        let mut dist_map = Vec::new();
+        for i in 0..spec.len() {
+            for j in (i + 1)..spec.len() {
+                dist_map.push((spec[i].0, spec[j].0, dist(spec[i], spec[j])));
+            }
+        }
+        OptimizerRequest {
+            command: OptimizerCommand::Start,
+            use_bh: false,
+            layout: LayoutMode::Random,
+            random: 3,
+            problem: OptimizerProblem {
+                grid_type: GridType::Rectangular,
+                flaps: spec
+                    .iter()
+                    .map(|&(id, _, _)| FlapRequest {
+                        id,
+                        width: 0.0,
+                        height: 0.0,
+                    })
+                    .collect(),
+                hierarchies: vec![Hierarchy {
+                    leaves: spec.iter().map(|&(id, _, _)| id).collect(),
+                    dist_map,
+                    parents: Vec::new(),
+                }],
+            },
+            vec: None,
+            symmetry: Some(OptimizerSymmetry {
+                axis: SymmetryAxis::VerticalHalf,
+                partners: vec![(1, 2), (2, 1), (3, 4), (4, 3), (5, 6), (6, 5), (7, 7)],
+                negative_side,
+            }),
+        }
+    }
+
+    /// Whether each flap ended up left of the sheet's vertical centre line.
+    fn left_of_centre(result: &oristudio_bp::optimizer::OptimizerResult, id: u32) -> bool {
+        let flap = result.flaps.iter().find(|flap| flap.id == id).unwrap();
+        flap.x < result.width / 2.0
+    }
+
+    #[test]
+    fn every_pair_lands_on_the_side_it_was_drawn() {
+        let request = request(vec![1, 3, 5]);
+        for seed in 0..12 {
+            let result = solve(&request, Some(seed)).unwrap();
+            for (drawn_left, drawn_right) in [(1, 2), (3, 4), (5, 6)] {
+                assert!(
+                    left_of_centre(&result, drawn_left),
+                    "seed {seed}: flap {drawn_left} was drawn left but packed right"
+                );
+                assert!(
+                    !left_of_centre(&result, drawn_right),
+                    "seed {seed}: flap {drawn_right} was drawn right but packed left"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reversing_the_drawing_reverses_the_packing() {
+        let request = request(vec![2, 4, 6]);
+        for seed in 0..6 {
+            let result = solve(&request, Some(seed)).unwrap();
+            for (drawn_left, drawn_right) in [(2, 1), (4, 3), (6, 5)] {
+                assert!(
+                    left_of_centre(&result, drawn_left),
+                    "seed {seed}: flap {drawn_left}"
+                );
+                assert!(
+                    !left_of_centre(&result, drawn_right),
+                    "seed {seed}: flap {drawn_right}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn orienting_never_returns_a_layout_the_checker_rejects() {
+        let request = request(vec![1, 3, 5]);
+        for seed in 0..12 {
+            let result = solve(&request, Some(seed)).unwrap();
+            validate_optimizer_packing(&request, &result)
+                .unwrap_or_else(|error| panic!("seed {seed}: {error}"));
+        }
+    }
+
+    /// Mirror *subtrees*, whose partners are not interchangeable: 1 and 2 are
+    /// short leaves, 3 and 4 long ones, and each short leaf is a sibling of the
+    /// long leaf on its own side. Exchanging a pair here moves a flap to a spot
+    /// only ever cleared for its partner, which for these distances is often too
+    /// tight — so the orientation pass has to check rather than assume.
+    fn subtree_request(negative_side: Vec<u32>) -> OptimizerRequest {
+        // (id, side, leg length); a leaf reaches the far side via the two spine
+        // edges, so an across-the-axis distance picks up 2.
+        let spec: [(u32, i32, i32); 4] = [(1, 0, 1), (3, 0, 3), (2, 1, 1), (4, 1, 3)];
+        let dist = |a: (u32, i32, i32), b: (u32, i32, i32)| -> f64 {
+            if a.1 == b.1 {
+                f64::from(a.2 + b.2)
+            } else {
+                f64::from(a.2 + 2 + b.2)
+            }
+        };
+        let mut dist_map = Vec::new();
+        for i in 0..spec.len() {
+            for j in (i + 1)..spec.len() {
+                dist_map.push((spec[i].0, spec[j].0, dist(spec[i], spec[j])));
+            }
+        }
+        OptimizerRequest {
+            command: OptimizerCommand::Start,
+            use_bh: false,
+            layout: LayoutMode::Random,
+            random: 3,
+            problem: OptimizerProblem {
+                grid_type: GridType::Rectangular,
+                flaps: spec
+                    .iter()
+                    .map(|&(id, _, _)| FlapRequest {
+                        id,
+                        width: 0.0,
+                        height: 0.0,
+                    })
+                    .collect(),
+                hierarchies: vec![Hierarchy {
+                    leaves: spec.iter().map(|&(id, _, _)| id).collect(),
+                    dist_map,
+                    parents: Vec::new(),
+                }],
+            },
+            vec: None,
+            symmetry: Some(OptimizerSymmetry {
+                axis: SymmetryAxis::VerticalHalf,
+                partners: vec![(1, 2), (2, 1), (3, 4), (4, 3)],
+                negative_side,
+            }),
+        }
+    }
+
+    #[test]
+    fn a_pair_that_cannot_be_exchanged_keeps_the_layout_valid() {
+        // The packing wins over the labelling: where an exchange would not hold,
+        // the solver's arrangement stands rather than a broken separation.
+        let request = subtree_request(vec![1, 3]);
+        for seed in 0..12 {
+            let result = solve(&request, Some(seed)).unwrap();
+            validate_optimizer_packing(&request, &result).unwrap_or_else(|error| {
+                panic!("seed {seed}: orienting produced an invalid layout: {error}")
+            });
+        }
+    }
+
+    #[test]
+    fn a_wholly_reversed_layout_is_reflected_rather_than_unpicked_pair_by_pair() {
+        // Here the partners are not interchangeable one at a time, so per-pair
+        // exchanges get refused. Reflecting the whole layout moves every flap to
+        // where its own mirror was, changes no separation, and settles all of
+        // them at once — without it these sides would stay as the solver left
+        // them.
+        let request = subtree_request(vec![1, 3]);
+        for seed in 0..12 {
+            let result = solve(&request, Some(seed)).unwrap();
+            let centre = result.width / 2.0;
+            let left = |id: u32| result.flaps.iter().find(|flap| flap.id == id).unwrap().x < centre;
+            assert!(
+                left(1) && left(3),
+                "seed {seed}: drawn-left flaps packed right"
+            );
+        }
+    }
+
+    #[test]
+    fn an_empty_drawing_leaves_the_solver_alone() {
+        // Nothing declared, nothing moved: the previous behaviour, which is what
+        // an older client's request still gets.
+        let plain = request(Vec::new());
+        for seed in 0..6 {
+            validate_optimizer_packing(&plain, &solve(&plain, Some(seed)).unwrap()).unwrap();
+        }
+    }
+}
+
+/// The bridge sends this request as JSON, so the field names have to line up
+/// with what `apps/web/src/lib/bpOptimizerSymmetry.ts` writes.
+#[test]
+fn symmetry_request_round_trips_the_drawn_sides_over_json() {
+    let json = r#"{"axis":"verticalHalf","partners":[[1,2],[2,1]],"negativeSide":[1]}"#;
+    let parsed: OptimizerSymmetry = serde_json::from_str(json).unwrap();
+    assert_eq!(parsed.negative_side, vec![1]);
+    assert_eq!(parsed.axis, SymmetryAxis::VerticalHalf);
+
+    // An older client sends no sides at all, and still solves.
+    let legacy = r#"{"axis":"verticalHalf","partners":[[1,2],[2,1]]}"#;
+    let parsed: OptimizerSymmetry = serde_json::from_str(legacy).unwrap();
+    assert!(parsed.negative_side.is_empty());
+
+    let re_encoded = serde_json::to_string(&parsed).unwrap();
+    assert!(re_encoded.contains("negativeSide"), "{re_encoded}");
 }

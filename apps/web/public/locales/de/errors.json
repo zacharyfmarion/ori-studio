@@ -34,6 +34,10 @@
   "global": {
     "title": "Im Hintergrund ist ein Fehler aufgetreten"
   },
+  "shareLink": {
+    "invalid": "Dieser Link zum Teilen ist unvollständig oder beschädigt – vermutlich wurde er beim Kopieren abgeschnitten. Bitte lass ihn dir noch einmal schicken.",
+    "tooNew": "Dieser Link wurde mit einer neueren Version von Ori Studio erstellt. Lade neu, um die aktuelle Version zu erhalten, und öffne ihn dann erneut."
+  },
   "worker": {
     "cpDetect": "Die Faltmuster-Erkennung wurde unerwartet beendet. Versuche, das Bild erneut zu importieren.",
     "oristudioBp": "Die Box-Pleating-Engine wurde unerwartet beendet. Lade Ori Studio neu, um an diesem Entwurf weiterzuarbeiten.",

@@ -9,6 +9,8 @@ import init, {
   export_fold,
   export_fold_file,
   export_orh,
+  export_share_link,
+  load_share_link,
   export_ori,
   folded_figure_duplicate,
   folded_figure_fold,
@@ -287,6 +289,12 @@ const api = {
   },
   async exportOrh(handle: number, texts: FlatText[] = []): Promise<string> {
     return call(() => exportWithTexts(handle, texts, () => export_orh(handle)));
+  },
+  async exportShareLink(handle: number): Promise<string> {
+    return call(() => export_share_link(handle));
+  },
+  async loadShareLink(payload: string): Promise<number> {
+    return call(() => load_share_link(payload));
   },
   async setTexts(handle: number, texts: FlatText[]): Promise<void> {
     const coords = new Float64Array(texts.length * 2);
