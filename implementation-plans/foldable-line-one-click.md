@@ -130,30 +130,59 @@ crossing — one click still, no modifier. Not built now.
 ## Checklist
 
 ### Kernel
-- [ ] Extend-until-hit accepting borders, and aux behind a flag
-- [ ] One pass over segments for all candidate rays, not one pass each
-- [ ] Each candidate carries the segment that stopped it
-- [ ] A candidate that hits nothing is dropped
-- [ ] All candidates dropped → its own `NoCompletion` code and message
-- [ ] Commit takes the destination from the chosen candidate
-- [ ] Ported commit function and its oracle coverage untouched
-- [ ] `foldableLineStopsOnAux` on the payload, honoured by the extension
-- [ ] Test: a candidate running to the paper edge terminates there
-- [ ] Test: aux line ignored by default, honoured when the flag is set
-- [ ] Test: the extended candidate's far end is the intersection the old
-      three-click flow would have produced from the same destination
+- [x] Extend-until-hit accepting borders, and aux behind a flag
+- [x] One pass over segments for all candidate rays, not one pass each
+- [x] Each candidate carries the segment that stopped it
+- [x] A candidate that hits nothing is dropped
+- [x] All candidates dropped → its own `NoCompletion` code and message
+- [x] Commit takes the destination from the chosen candidate
+- [x] Ported commit function and its oracle coverage untouched
+- [x] `foldableLineStopsOnAux` on the payload, honoured by the extension
+- [x] Test: a candidate running to the paper edge terminates there
+- [x] Test: aux line ignored by default, honoured when the flag is set
+- [x] Test: the two-click flow commits the crease the three-click flow did
 
 ### Web
-- [ ] Two steps; the destination step and its `crease-required` snap are gone
-- [ ] Candidates dashed, in their committed colour
-- [ ] Landing dot at each candidate's far end
-- [ ] Nearest candidate rendered solid, from the same projection the pick uses
-- [ ] A click far from every candidate starts a new vertex rather than doing
-      nothing
-- [ ] Lone candidate still needs its click (assert the existing guard covers it)
-- [ ] `foldableLineStopsOnAux` setting group, persisted, defaulting off
-- [ ] Step prompts and instructions rewritten
-- [ ] `i18n:check` green
+- [x] Two steps; the destination step and its `crease-required` snap are gone
+- [x] Candidates dashed, in their committed colour
+- [ ] Landing dot at each candidate's far end — **dropped**, see below
+- [x] Nearest candidate rendered solid, from the same projection the pick uses
+- [ ] A click far from every candidate starts a new vertex — **not built**, see
+      below
+- [x] Lone candidate still needs its click (the existing guard covers it)
+- [x] `foldableLineStopsOnAux` setting group, persisted, defaulting off
+- [x] Step prompts and instructions rewritten
+- [x] `i18n:check` green
+
+## Two corrections the plan got wrong
+
+**The border was never skipped.** `is_folding_line` covers `Black0`, so the
+existing primitive already stopped at the paper's edge and the "first piece of
+work" did not exist.
+
+**Auxiliary means `Cyan3` in `line_segments`, not the `aux_line_segments`
+collection.** The model has both; the editor writes auxiliary lines to the main
+list with that colour, which is why every check in the crate filters `Cyan3` by
+name. The first implementation scanned the other collection, so the setting was
+wired all the way to the panel and silently changed nothing.
+
+## What was dropped, and why
+
+- **The landing dot.** Once a candidate is drawn to what stops it, the line
+  visibly ends there — the dot restates what the geometry already says. Left out
+  rather than added for symmetry with the plan.
+- **A click far from every candidate re-anchoring to a new vertex.** The step
+  currently ignores such a click, which is Oriedita's behaviour and not wrong;
+  making it re-anchor is a change to the shared sequence engine rather than to
+  this tool, so it wants its own change.
+
+## Not verified in the browser
+
+Arming on hover. The automated pane sends no `pointermove`, so the solid-on-
+approach state cannot be exercised there — it is covered by unit tests over the
+stroke grouping instead. Everything else was checked in the running app: the
+candidates run to the border as dashed proposals, a click commits the crease the
+dashed line showed, and the aux setting changes where the candidates stop.
 
 ## Risks
 
