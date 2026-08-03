@@ -5,6 +5,7 @@ import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
 import { getRuntimeSurface } from '../platform/runtime';
 import { EDIT_PATH, WELCOME_PATH } from './paths';
+import { ShareRoute } from './ShareRoute';
 import { WelcomeRoute } from './WelcomeRoute';
 import { WorkspaceRoute } from './WorkspaceRoute';
 
@@ -64,6 +65,10 @@ export function createAppRouter(): AppRouter {
       children: [
         { index: true, loader: startupRedirect },
         { path: 'welcome', element: <WelcomeRoute /> },
+        // Share links land here, stash their payload, and redirect to Edit. A
+        // real route (rather than a fragment on `/edit`) so the payload leaves
+        // the URL on arrival and this handling never runs on a normal start.
+        { path: 's', element: <ShareRoute /> },
         {
           element: <WorkspaceShell />,
           children: [

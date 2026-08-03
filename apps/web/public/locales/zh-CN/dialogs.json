@@ -244,6 +244,16 @@
       "startup": "启动"
     }
   },
+  "shareLink": {
+    "close": "关闭共享",
+    "copied": "已复制",
+    "copy": "复制",
+    "longWarning": "此链接可在浏览器地址栏中使用，但某些聊天应用和邮件客户端会截断这么长的链接。发送导出的文件更为可靠。",
+    "scope": "仅包含折痕图，不包含参考图片、注释或已保存的模拟。",
+    "summary": "{{creases}} 条折痕 · {{chars}} 个字符",
+    "title": "共享折痕图",
+    "url": "共享链接"
+  },
   "startScreen": {
     "chooseBegin": "选择您希望的开始方式。",
     "createCp": {

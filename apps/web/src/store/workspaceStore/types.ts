@@ -121,6 +121,15 @@ export interface OristudioCpActionRequest {
 }
 
 
+/** A generated share link plus what the user needs to judge it. */
+export interface OristudioCpShareLink {
+  url: string;
+  /** Creases in the shared segment, so the modal can say what it is. */
+  creaseCount: number;
+  /** True when the link is long enough to risk truncation in chat or email. */
+  long: boolean;
+}
+
 export interface ProjectSliceState {
   project: TreeProject;
   workflowTarget: WorkflowTarget;
@@ -167,6 +176,20 @@ export interface ProjectSliceState {
   currentFilePath: string | null;
   currentFileName: string;
   projectMessage: string | null;
+  /**
+   * The generated share link, while the share modal is open.
+   *
+   * Held in the store rather than in the toolbar because every toolbar action
+   * clears the selection as it runs (`runAndDismiss`), which unmounts the
+   * toolbar — the modal has to outlive that, exactly as the export modal does.
+   */
+  oristudioCpShareLink: OristudioCpShareLink | null;
+  /**
+   * A share payload captured by `/s`, waiting for the Edit surface to provision
+   * from it instead of creating a blank document. Raw and undecoded: the route
+   * captures intent, `ensureEditCreasePattern` does the work.
+   */
+  pendingSharedCpPayload: string | null;
   status: AppStatus;
   dirty: boolean;
   engineReady: boolean;
@@ -259,6 +282,18 @@ export interface ProjectSliceActions {
     segmentId: number,
     fileService?: FileService
   ) => Promise<boolean>;
+  /**
+   * Encode one crease-pattern segment as a share link and open the share modal.
+   *
+   * Scoped to a segment rather than the whole document: a segment is a region
+   * enclosed by border creases, which is exactly "one crease pattern" and is the
+   * same unit the sibling Fold / Export / Simulate verbs operate on.
+   */
+  shareOristudioCpSegment: (segmentId: number) => Promise<boolean>;
+  /** Close the share modal and drop the generated link. */
+  dismissOristudioCpShareLink: () => void;
+  /** Record a share payload for the Edit surface to open. Set by `/s` only. */
+  setPendingSharedCp: (payload: string) => void;
   /**
    * Save one folded figure as a standalone image, serialized from the snapshot
    * already on screen rather than re-folded. See `lib/foldedFigureExport.ts`.

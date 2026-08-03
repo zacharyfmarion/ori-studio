@@ -70,6 +70,7 @@ import {
 } from '../engineRuntime';
 import {
   createBlankOristudioCpDocument,
+  openSharedCpPayload,
   duplicateOristudioCpFoldedFigure as duplicateRuntimeOristudioCpFoldedFigure,
   deselectAllOristudioCp,
   exportOristudioCpDocumentAsFold,
@@ -888,11 +889,39 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     // The Edit workspace's always-live canvas: seed a blank editable CP when the
     // workspace is entered with no crease pattern loaded, so it is never empty.
     ensureEditCreasePattern: async () => {
+      // NOTE for share links: a pending `/s` payload is only consumed below, so
+      // this early return strands it. That is unreachable today because a share
+      // link is always a *full page load* — the address bar, or a click from
+      // another app — which starts with no document. It stops being unreachable
+      // the moment anything navigates to `/s` client-side, and the symptom would
+      // be a link that silently does nothing. If that navigation is ever added,
+      // decide here whether opening a link replaces the open document or lands in
+      // a new tab, rather than letting it fall through.
       if (get().oristudioCpDocument) return;
       if (ensureEditInFlight) return ensureEditInFlight;
       ensureEditInFlight = (async () => {
         try {
-          const document = await createBlankOristudioCpDocument();
+          // A share link routes through `/s`, which leaves its payload here for
+          // us. Opening one is the same provisioning act as seeding a blank
+          // canvas, so it happens on this one path rather than a parallel one —
+          // and it is consumed inside the in-flight guard, so a StrictMode
+          // double-invoke cannot open it twice.
+          const pending = get().pendingSharedCpPayload;
+          let document;
+          if (pending) {
+            try {
+              document = await openSharedCpPayload(pending);
+            } catch (error) {
+              // A bad link should leave a usable editor, not a broken one: tell
+              // the user which kind of failure it was (the kernel distinguishes
+              // "corrupt" from "made by a newer Ori Studio") and seed the blank
+              // canvas they would otherwise have got.
+              set({ error: engineError(error) });
+              document = await createBlankOristudioCpDocument();
+            }
+          } else {
+            document = await createBlankOristudioCpDocument();
+          }
           const priorState = get();
           // A bare, auto-seeded CP establishes no design. If nothing has been
           // authored yet (no tree, no BP project), keep the Design workspace on
@@ -909,11 +938,17 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         } catch (error) {
           set({ oristudioCpError: engineError(error).message });
         } finally {
+          // Cleared on every path, success or failure. A payload that could not
+          // be opened must not be retried on the next mount: the user has
+          // already been told, and silently re-running a failing decode would
+          // make Edit unusable rather than merely empty.
+          set({ pendingSharedCpPayload: null });
           ensureEditInFlight = null;
         }
       })();
       return ensureEditInFlight;
     },
+
 
     buildCreasePattern: async () => {
       const capability = selectWorkspaceCapabilities(get())['cp.build'];

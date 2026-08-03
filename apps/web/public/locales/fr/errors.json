@@ -34,6 +34,10 @@
   "global": {
     "title": "Une erreur s'est produite en arrière-plan"
   },
+  "shareLink": {
+    "invalid": "Ce lien de partage est incomplet ou endommagé — il a probablement été tronqué lors de la copie. Redemandez-le.",
+    "tooNew": "Ce lien de partage a été créé avec une version plus récente d'Ori Studio. Rechargez pour obtenir la dernière version, puis rouvrez-le."
+  },
   "worker": {
     "cpDetect": "La détection de patron de plis s'est arrêtée de façon inattendue. Réessayez d'importer l'image.",
     "oristudioBp": "Le moteur de pliage en boîte s'est arrêté de façon inattendue. Rechargez Ori Studio pour continuer à travailler sur ce modèle.",

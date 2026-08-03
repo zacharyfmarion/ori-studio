@@ -2009,7 +2009,18 @@
     "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
     "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
     "tools:cpContext.stopOnAuxLabel": "cac32a17ef66",
-    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2"
+    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
+    "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
+    "dialogs:shareLink.close": "bfc83eecce59",
+    "dialogs:shareLink.copied": "8d525e5f158b",
+    "dialogs:shareLink.copy": "e21f935f11d7",
+    "dialogs:shareLink.longWarning": "16043fd652ad",
+    "dialogs:shareLink.scope": "3bd26827101d",
+    "dialogs:shareLink.summary": "6e582c1cc43e",
+    "dialogs:shareLink.title": "ef0a004e8ac0",
+    "dialogs:shareLink.url": "712a4823ccb9",
+    "errors:shareLink.invalid": "841c12ca565e",
+    "errors:shareLink.tooNew": "15a1b2a63a4d"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4021,7 +4032,18 @@
     "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
     "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
     "tools:cpContext.stopOnAuxLabel": "cac32a17ef66",
-    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2"
+    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
+    "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
+    "dialogs:shareLink.close": "bfc83eecce59",
+    "dialogs:shareLink.copied": "8d525e5f158b",
+    "dialogs:shareLink.copy": "e21f935f11d7",
+    "dialogs:shareLink.longWarning": "16043fd652ad",
+    "dialogs:shareLink.scope": "3bd26827101d",
+    "dialogs:shareLink.summary": "6e582c1cc43e",
+    "dialogs:shareLink.title": "ef0a004e8ac0",
+    "dialogs:shareLink.url": "712a4823ccb9",
+    "errors:shareLink.invalid": "841c12ca565e",
+    "errors:shareLink.tooNew": "15a1b2a63a4d"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6059,7 +6081,18 @@
     "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
     "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
     "tools:cpContext.stopOnAuxLabel": "cac32a17ef66",
-    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2"
+    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
+    "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
+    "dialogs:shareLink.close": "bfc83eecce59",
+    "dialogs:shareLink.copied": "8d525e5f158b",
+    "dialogs:shareLink.copy": "e21f935f11d7",
+    "dialogs:shareLink.longWarning": "16043fd652ad",
+    "dialogs:shareLink.scope": "3bd26827101d",
+    "dialogs:shareLink.summary": "6e582c1cc43e",
+    "dialogs:shareLink.title": "ef0a004e8ac0",
+    "dialogs:shareLink.url": "712a4823ccb9",
+    "errors:shareLink.invalid": "841c12ca565e",
+    "errors:shareLink.tooNew": "15a1b2a63a4d"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8097,7 +8130,18 @@
     "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
     "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
     "tools:cpContext.stopOnAuxLabel": "cac32a17ef66",
-    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2"
+    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
+    "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
+    "dialogs:shareLink.close": "bfc83eecce59",
+    "dialogs:shareLink.copied": "8d525e5f158b",
+    "dialogs:shareLink.copy": "e21f935f11d7",
+    "dialogs:shareLink.longWarning": "16043fd652ad",
+    "dialogs:shareLink.scope": "3bd26827101d",
+    "dialogs:shareLink.summary": "6e582c1cc43e",
+    "dialogs:shareLink.title": "ef0a004e8ac0",
+    "dialogs:shareLink.url": "712a4823ccb9",
+    "errors:shareLink.invalid": "841c12ca565e",
+    "errors:shareLink.tooNew": "15a1b2a63a4d"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10135,7 +10179,18 @@
     "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
     "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
     "tools:cpContext.stopOnAuxLabel": "cac32a17ef66",
-    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2"
+    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
+    "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
+    "dialogs:shareLink.close": "bfc83eecce59",
+    "dialogs:shareLink.copied": "8d525e5f158b",
+    "dialogs:shareLink.copy": "e21f935f11d7",
+    "dialogs:shareLink.longWarning": "16043fd652ad",
+    "dialogs:shareLink.scope": "3bd26827101d",
+    "dialogs:shareLink.summary": "6e582c1cc43e",
+    "dialogs:shareLink.title": "ef0a004e8ac0",
+    "dialogs:shareLink.url": "712a4823ccb9",
+    "errors:shareLink.invalid": "841c12ca565e",
+    "errors:shareLink.tooNew": "15a1b2a63a4d"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12173,7 +12228,18 @@
     "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
     "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
     "tools:cpContext.stopOnAuxLabel": "cac32a17ef66",
-    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2"
+    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
+    "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
+    "dialogs:shareLink.close": "bfc83eecce59",
+    "dialogs:shareLink.copied": "8d525e5f158b",
+    "dialogs:shareLink.copy": "e21f935f11d7",
+    "dialogs:shareLink.longWarning": "16043fd652ad",
+    "dialogs:shareLink.scope": "3bd26827101d",
+    "dialogs:shareLink.summary": "6e582c1cc43e",
+    "dialogs:shareLink.title": "ef0a004e8ac0",
+    "dialogs:shareLink.url": "712a4823ccb9",
+    "errors:shareLink.invalid": "841c12ca565e",
+    "errors:shareLink.tooNew": "15a1b2a63a4d"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14211,7 +14277,18 @@
     "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
     "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
     "tools:cpContext.stopOnAuxLabel": "cac32a17ef66",
-    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2"
+    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
+    "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
+    "dialogs:shareLink.close": "bfc83eecce59",
+    "dialogs:shareLink.copied": "8d525e5f158b",
+    "dialogs:shareLink.copy": "e21f935f11d7",
+    "dialogs:shareLink.longWarning": "16043fd652ad",
+    "dialogs:shareLink.scope": "3bd26827101d",
+    "dialogs:shareLink.summary": "6e582c1cc43e",
+    "dialogs:shareLink.title": "ef0a004e8ac0",
+    "dialogs:shareLink.url": "712a4823ccb9",
+    "errors:shareLink.invalid": "841c12ca565e",
+    "errors:shareLink.tooNew": "15a1b2a63a4d"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16223,6 +16300,17 @@
     "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
     "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
     "tools:cpContext.stopOnAuxLabel": "cac32a17ef66",
-    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2"
+    "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
+    "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
+    "dialogs:shareLink.close": "bfc83eecce59",
+    "dialogs:shareLink.copied": "8d525e5f158b",
+    "dialogs:shareLink.copy": "e21f935f11d7",
+    "dialogs:shareLink.longWarning": "16043fd652ad",
+    "dialogs:shareLink.scope": "3bd26827101d",
+    "dialogs:shareLink.summary": "6e582c1cc43e",
+    "dialogs:shareLink.title": "ef0a004e8ac0",
+    "dialogs:shareLink.url": "712a4823ccb9",
+    "errors:shareLink.invalid": "841c12ca565e",
+    "errors:shareLink.tooNew": "15a1b2a63a4d"
   }
 }

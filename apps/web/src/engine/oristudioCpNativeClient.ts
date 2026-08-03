@@ -354,6 +354,12 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async exportOrh(handle: number, texts: FlatText[] = []): Promise<string> {
       return exportWithTexts(handle, texts, () => call('cp_export_orh', { handle }));
     },
+    async exportShareLink(handle: number): Promise<string> {
+      return call('cp_export_share', { handle });
+    },
+    async loadShareLink(payload: string): Promise<number> {
+      return call('cp_load_share', { payload });
+    },
     async setTexts(handle: number, texts: FlatText[]): Promise<void> {
       return setTextsNative(handle, texts);
     },
