@@ -68,7 +68,23 @@ const OVERSIZED_PANELS = {
   // `inlineSimulation/inlineSimulationRuntime` (the exporter registry) and its
   // store binding is in the hook, scoped to the focused window like `replay` —
   // so what landed here is composition too.
-  'CreasePatternPanel.tsx': 2939,
+  //
+  // 2939 -> 2674: the diagnostic HUD moved out, whole. Its store bindings are in
+  // `diagnostics/useCpDiagnosticList` and the surface is
+  // `diagnostics/CpDiagnosticHud`, which takes no props — so the expand state,
+  // the status memo, the entry memo, the collapse effect, and the row markup all
+  // left together. This is the direction the number is for: it went down because
+  // behaviour moved to where it belongs, not because a file was split in half.
+  //
+  // 2674 -> 2700: not a change to this file, a merge. main grew the panel by 26
+  // lines while the HUD extraction was in flight — the flat-foldable-line and
+  // vertex-completion work — which is the "a merge where main grew the file"
+  // case named above.
+  //
+  // 2700 -> 2687: the canvas half of diagnostic selection came out — the marker
+  // hit geometry, its prop wiring, and the select callback. Clicking a marker
+  // never worked, so nothing depended on it.
+  'CreasePatternPanel.tsx': 2687,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

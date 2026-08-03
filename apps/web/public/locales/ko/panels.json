@@ -164,7 +164,7 @@
     "anotherSolutionAction": "다른 해 표시",
     "bringImageToFront": "이미지를 맨 앞으로 가져오기",
     "buildingCreasePattern": "전개도 생성 중",
-    "canvasDiagnostics": "캔버스 진단",
+    "canvasDiagnostics_other": "캔버스 진단: {{count}}개",
     "case_other": "케이스 {{count}}",
     "caseLabel": "케이스",
     "changeFoldCase": "접기 경우 변경",
@@ -182,6 +182,7 @@
     "diagnostic": {
       "boundary": "경계",
       "camv": "접힘 가능성",
+      "errorAndWarning": "{{errors}}, {{warnings}}",
       "errorOne_other": "{{label}} 오류 {{count}}개",
       "errorOther_other": "{{label}} 오류 {{count}}개",
       "maekawaLbl": "Maekawa/LBL",
@@ -189,6 +190,8 @@
       "overlap": "겹침",
       "tJunction": "T자 접합",
       "vertexFoldability": "정점 접힘 가능성",
+      "warningCountOne_other": "경고 {{count}}개",
+      "warningCountOther_other": "경고 {{count}}개",
       "warningOne_other": "{{label}} 경고 {{count}}개",
       "warningOther_other": "{{label}} 경고 {{count}}개"
     },

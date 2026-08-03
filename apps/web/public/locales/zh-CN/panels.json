@@ -164,7 +164,7 @@
     "anotherSolutionAction": "显示另一个解",
     "bringImageToFront": "将图像置于顶层",
     "buildingCreasePattern": "正在生成折痕图",
-    "canvasDiagnostics": "画布诊断",
+    "canvasDiagnostics_other": "画布诊断：{{count}} 项",
     "case_other": "情形 {{count}}",
     "caseLabel": "情形",
     "changeFoldCase": "更改折叠情形",
@@ -182,6 +182,7 @@
     "diagnostic": {
       "boundary": "边界",
       "camv": "可折叠性",
+      "errorAndWarning": "{{errors}}，{{warnings}}",
       "errorOne_other": "{{count}} 个 {{label}} 错误",
       "errorOther_other": "{{count}} 个 {{label}} 错误",
       "maekawaLbl": "Maekawa/LBL",
@@ -189,6 +190,8 @@
       "overlap": "重叠",
       "tJunction": "T 型交点",
       "vertexFoldability": "顶点可折性",
+      "warningCountOne_other": "{{count}} 个警告",
+      "warningCountOther_other": "{{count}} 个警告",
       "warningOne_other": "{{count}} 个 {{label}} 警告",
       "warningOther_other": "{{count}} 个 {{label}} 警告"
     },
