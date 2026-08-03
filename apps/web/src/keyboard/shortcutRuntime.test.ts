@@ -5,6 +5,7 @@ import {
   registerViewportShortcutExecutor,
   shortcutScopeStackForContext,
 } from './shortcutRuntime';
+import type { ViewportShortcutId } from './shortcuts';
 
 const cleanupFns: Array<() => void> = [];
 
@@ -32,8 +33,8 @@ describe('shortcut runtime', () => {
   });
 
   it('lets viewport ownership differ from editing ownership', () => {
-    const designViewport = vi.fn();
-    const cpViewport = vi.fn();
+    const designViewport = vi.fn(() => true);
+    const cpViewport = vi.fn(() => true);
     const menu = vi.fn();
     cleanupWith(registerViewportShortcutExecutor('tree', designViewport));
     cleanupWith(registerViewportShortcutExecutor('crease-pattern', cpViewport));
@@ -85,8 +86,8 @@ describe('shortcut runtime', () => {
   });
 
   it('routes viewport shortcuts to the active surface executor', () => {
-    const designViewport = vi.fn();
-    const cpViewport = vi.fn();
+    const designViewport = vi.fn(() => true);
+    const cpViewport = vi.fn(() => true);
     const menu = vi.fn();
     cleanupWith(registerViewportShortcutExecutor('tree', designViewport));
     cleanupWith(registerViewportShortcutExecutor('crease-pattern', cpViewport));
@@ -127,6 +128,19 @@ describe('shortcut runtime', () => {
       });
     }
 
+    /** The shape every non-CP viewport has: a camera, and no opinion else. */
+    function cameraOnlyExecutor(id: ViewportShortcutId): boolean {
+      switch (id) {
+        case 'viewport.zoomIn':
+        case 'viewport.zoomOut':
+        case 'viewport.fit':
+        case 'viewport.actualSize':
+          return true;
+        default:
+          return false;
+      }
+    }
+
     it('deletes the canvas object and not the creases when the viewport claims it', () => {
       const menu = vi.fn();
       cleanupWith(registerViewportShortcutExecutor('crease-pattern', () => true));
@@ -142,6 +156,50 @@ describe('shortcut runtime', () => {
       expect(dispatch(menu)).toBe(true);
       expect(menu).toHaveBeenCalledWith('edit.delete');
       expect(menu).toHaveBeenCalledTimes(1);
+    });
+
+    // The regression this guards: a viewport that implements only the camera
+    // verbs still has `viewport.delete` bound in its scope, so it is *asked*
+    // about Delete. Answering anything but `false` swallows the press, and
+    // `edit.delete` -- the verb that deletes the selected BP node or tree part
+    // -- never runs. Every camera-only surface must decline.
+    for (const [surface, context] of [
+      ['tree', 'bp-tree'],
+      ['bp-editor', 'bp-packing'],
+      ['tree', 'treemaker-tree'],
+    ] as const) {
+      it(`hands Delete to edit.delete on the ${context} surface`, () => {
+        const menu = vi.fn();
+        cleanupWith(registerViewportShortcutExecutor(surface, cameraOnlyExecutor));
+
+        const event = pressDelete();
+        expect(
+          handleShortcutRuntimeKeyDown(event, { context: { activeEditingContext: context }, menu })
+        ).toBe(true);
+        expect(menu).toHaveBeenCalledWith('edit.delete');
+      });
+    }
+
+    // Belt and braces for the same failure at the dispatcher: the executor
+    // contract is a required `boolean`, but a violation that slips past the
+    // types must leave the chord for the next scope rather than eat it.
+    it('treats a viewport executor that answers nothing as declining', () => {
+      const menu = vi.fn();
+      cleanupWith(
+        registerViewportShortcutExecutor(
+          'tree',
+          (() => undefined) as unknown as () => boolean
+        )
+      );
+
+      const event = pressDelete();
+      expect(
+        handleShortcutRuntimeKeyDown(event, {
+          context: { activeEditingContext: 'treemaker-tree' },
+          menu,
+        })
+      ).toBe(true);
+      expect(menu).toHaveBeenCalledWith('edit.delete');
     });
   });
 

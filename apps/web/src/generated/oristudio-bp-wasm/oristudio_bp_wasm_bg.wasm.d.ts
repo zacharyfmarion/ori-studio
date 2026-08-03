@@ -4,7 +4,7 @@ export const memory: WebAssembly.Memory;
 export const bp_add_tree_leaf: (a: number, b: number, c: number) => [number, number, number];
 export const bp_check_optimizer_result: (a: any) => [number, number];
 export const bp_complete_stretch: (a: number, b: number, c: number) => [number, number, number];
-export const bp_delete_tree_leaf: (a: number, b: number) => [number, number, number];
+export const bp_delete_tree_leaves: (a: number, b: any) => [number, number, number];
 export const bp_export_bps: (a: number) => [number, number, number, number];
 export const bp_export_cp: (a: number, b: number, c: number, d: number) => [number, number, number, number];
 export const bp_export_fold: (a: number, b: number, c: number) => [number, number, number, number];

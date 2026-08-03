@@ -5,7 +5,7 @@ import { useLayoutStore } from '../../layoutStore';
 import {
   addOristudioBpTreeLeaf as addRuntimeOristudioBpTreeLeaf,
   completeOristudioBpStretch as completeRuntimeOristudioBpStretch,
-  deleteOristudioBpTreeLeaf as deleteRuntimeOristudioBpTreeLeaf,
+  deleteOristudioBpTreeLeaves as deleteRuntimeOristudioBpTreeLeaves,
   exportOristudioBpProjectAsBps,
   exportOristudioBpProjectAsCp,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
@@ -32,6 +32,7 @@ import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
   buildMirroredBpTreeUpdates,
+  bpTreeDeleteIdsWithSymmetry,
   bpTreeSymmetryDefaultLoc,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
@@ -587,15 +588,37 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       );
     },
 
-    deleteOristudioBpTreeNode: async (id) =>
+    deleteOristudioBpTreeNode: async (id) => {
       // The engine removes the leaf (cascading down to a leaf and reseeding the
       // parent's flap), refusing below the minimum tree size. One undo entry.
-      runBpTreeMutation('Deleted BP node', (document) =>
-        deleteRuntimeOristudioBpTreeLeaf(id, {
-          activeSurface: document.activeSurface,
-        }),
+      //
+      // Under symmetry the mirror partner goes with it, for the same reason a
+      // length edit applies to both: the two sides are one shape, and leaving a
+      // widowed flap behind is never what the gesture meant. Resolved the same
+      // way `setOristudioBpTreeEdgeLength` resolves it, and passed as one batch
+      // so the engine settles the cascade and the minimum-size floor across both
+      // ids at once rather than deleting one and then refusing the other.
+      const symmetry = get().oristudioBpSymmetry;
+      const tree = get().oristudioBpDocument?.snapshot.tree;
+      const ids =
+        symmetry.enabled && tree
+          ? bpTreeDeleteIdsWithSymmetry(
+              tree,
+              symmetry.pairs,
+              { loc: symmetry.loc, angle: symmetry.angle },
+              id,
+              BP_TREE_SYMMETRY_TOLERANCE
+            )
+          : [id];
+      return runBpTreeMutation(
+        ids.length > 1 ? 'Deleted mirrored BP nodes' : 'Deleted BP node',
+        (document) =>
+          deleteRuntimeOristudioBpTreeLeaves(ids, {
+            activeSurface: document.activeSurface,
+          }),
         { selection: emptyOristudioBpSelection() }
-      ),
+      );
+    },
 
     // Send the BP design's crease pattern to the always-live Edit canvas: export
     // the BP CP and merge it in via Import(Add), then switch to the Edit workspace.

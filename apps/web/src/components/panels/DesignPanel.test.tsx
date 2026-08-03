@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DESIGN_PAPER_RECT } from '../../lib/designViewport';
+import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { createEmptyProject, createSampleProject, type TreeProject } from '../../lib/sampleProject';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -340,5 +341,54 @@ describe('DesignPanel', () => {
 
     expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'tree' });
     expect(addNodeAt).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Delete, through the real dispatcher and the executor this panel registers.
+   *
+   * This canvas handles the camera and nothing else, but `viewport.delete` is
+   * bound in viewport scope, so the executor is asked about every Delete press.
+   * It used to fall out of its `switch` and answer `undefined`, which counted as
+   * a claim — so Delete did nothing at all here, and nothing caught it because
+   * no test pressed the key.
+   */
+  describe('Delete reaches the tree delete', () => {
+    function press(key: string) {
+      const menu = vi.fn();
+      renderPanel();
+      act(() => {
+        handleShortcutRuntimeKeyDown(
+          new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+          { context: { activeEditingContext: 'treemaker-tree' }, menu }
+        );
+      });
+      return menu;
+    }
+
+    it('hands Delete to edit.delete', () => {
+      expect(press('Delete')).toHaveBeenCalledWith('edit.delete');
+    });
+
+    it('hands Backspace to edit.delete', () => {
+      expect(press('Backspace')).toHaveBeenCalledWith('edit.delete');
+    });
+
+    it('keeps the camera shortcuts for itself', () => {
+      const menu = vi.fn();
+      renderPanel();
+      act(() => {
+        handleShortcutRuntimeKeyDown(
+          new KeyboardEvent('keydown', {
+            key: '=',
+            metaKey: true,
+            bubbles: true,
+            cancelable: true,
+          }),
+          { context: { activeEditingContext: 'treemaker-tree' }, menu }
+        );
+      });
+      expect(transformMocks.zoomIn).toHaveBeenCalled();
+      expect(menu).not.toHaveBeenCalled();
+    });
   });
 });

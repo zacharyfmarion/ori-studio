@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioBpDocumentState } from '../../engine/oristudioBpTypes';
+import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { BpTreePanel } from './BpTreePanel';
@@ -548,5 +549,59 @@ describe('BP tree pane — the name field never steals focus', () => {
     // name field swallow Delete.
     const focused = window.document.activeElement;
     expect(focused === body || focused === window.document.body).toBe(true);
+  });
+});
+
+/**
+ * Delete, through the real dispatcher and the real executor this pane registers.
+ *
+ * The focus test above checked only the precondition, and the pane passed it
+ * while Delete still did nothing: this pane's viewport executor handles the
+ * camera and nothing else, but `viewport.delete` is bound in viewport scope, so
+ * the executor is *asked* about the press. It answered with a bare `undefined`,
+ * which the dispatcher read as a claim, and `edit.delete` — the verb that
+ * removes the node — never ran. Asserting the outcome rather than the setup is
+ * the difference between these tests and that one.
+ */
+describe('BP tree pane — Delete reaches the node delete', () => {
+  function pressDelete(): ReturnType<typeof vi.fn> {
+    const menu = vi.fn();
+    act(() => {
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }),
+        { context: { activeEditingContext: 'bp-tree' }, menu }
+      );
+    });
+    return menu;
+  }
+
+  it('hands Delete to edit.delete with a vertex selected', () => {
+    render(1);
+    expect(pressDelete()).toHaveBeenCalledWith('edit.delete');
+  });
+
+  it('hands Backspace to edit.delete as well', () => {
+    render(1);
+    const menu = vi.fn();
+    act(() => {
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }),
+        { context: { activeEditingContext: 'bp-tree' }, menu }
+      );
+    });
+    expect(menu).toHaveBeenCalledWith('edit.delete');
+  });
+
+  it('still keeps the camera shortcuts for itself', () => {
+    render(1);
+    const menu = vi.fn();
+    act(() => {
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { key: '=', metaKey: true, bubbles: true, cancelable: true }),
+        { context: { activeEditingContext: 'bp-tree' }, menu }
+      );
+    });
+    // Declining Delete must not turn into declining everything.
+    expect(menu).not.toHaveBeenCalled();
   });
 });

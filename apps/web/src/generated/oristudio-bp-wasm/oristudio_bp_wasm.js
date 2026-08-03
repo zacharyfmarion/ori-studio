@@ -40,12 +40,17 @@ export function bp_complete_stretch(handle, id) {
 }
 
 /**
+ * Delete a batch of leaves in one round, as BP Studio's `$delete(vertices)`
+ * does. The batch matters: `remove_leaf` simulates the whole round before
+ * touching the tree, so the cascade (a parent that becomes a leaf once its
+ * child goes) and the `MIN_VERTICES` floor are decided across every id at
+ * once, rather than once per call.
  * @param {number} handle
- * @param {number} id
+ * @param {any} ids
  * @returns {any}
  */
-export function bp_delete_tree_leaf(handle, id) {
-    const ret = wasm.bp_delete_tree_leaf(handle, id);
+export function bp_delete_tree_leaves(handle, ids) {
+    const ret = wasm.bp_delete_tree_leaves(handle, ids);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

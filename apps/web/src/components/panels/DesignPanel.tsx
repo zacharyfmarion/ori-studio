@@ -663,21 +663,26 @@ function TreeMakerDesignPanel() {
     transformRef.current?.centerView(scale, 160);
   }, []);
 
+  // Camera only. Every other viewport verb is declined so the chord reaches the
+  // scope that owns it -- Delete belongs to `edit.delete`, which deletes the
+  // selected tree parts.
   const handleViewportShortcut = useCallback(
-    (id: ViewportShortcutId) => {
+    (id: ViewportShortcutId): boolean => {
       switch (id) {
         case 'viewport.zoomIn':
           transformRef.current?.zoomIn(0.35, 120);
-          break;
+          return true;
         case 'viewport.zoomOut':
           transformRef.current?.zoomOut(0.35, 120);
-          break;
+          return true;
         case 'viewport.fit':
           fitToView();
-          break;
+          return true;
         case 'viewport.actualSize':
           setActualSize();
-          break;
+          return true;
+        default:
+          return false;
       }
     },
     [fitToView, setActualSize]

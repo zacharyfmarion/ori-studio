@@ -72,7 +72,6 @@
     "layerLabels": "标签",
     "layers": "图层",
     "length": "长度",
-    "max": "最大 {{value}}",
     "mirrorDraw": "镜像绘制",
     "mirrorDrawOn": "镜像绘制（开）",
     "selectEdge": "选择 BP 边 {{id}}，长度 {{length}}",
