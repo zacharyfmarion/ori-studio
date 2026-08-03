@@ -24,7 +24,7 @@ import {
   isSegmentImageFormat,
   type SegmentExportFormat,
 } from '../../../lib/creaseSegmentExport';
-import { buildShareUrl, copyToClipboard, isShareLinkLong } from '../../../lib/shareLink';
+import { buildShareUrl, isShareLinkLong } from '../../../lib/shareLink';
 import {
   renderFoldedFigurePng,
   serializeFoldedFigureSvg,
@@ -2430,13 +2430,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
         const payload = await shareFoldFrameAsLink(JSON.stringify(subFold));
         const url = buildShareUrl(payload);
-        const copied = await copyToClipboard(url);
+        // Deliberately not copied here: the clipboard is the user's, and taking
+        // it over as a side effect of opening a dialog would discard whatever
+        // they had. The modal offers Copy.
         set({
           oristudioCpShareLink: {
             url,
             creaseCount: subFold.edges_vertices?.length ?? 0,
             long: isShareLinkLong(url),
-            copied,
           },
         });
         return true;

@@ -300,7 +300,7 @@
       "fold": "折る",
       "label": "展開図の操作",
       "saveImage": "画像として保存",
-      "share": "共有リンクをコピー",
+      "share": "共有リンクを作成",
       "simulate": "シミュレート",
       "simulateInline": "インラインでシミュレート"
     },

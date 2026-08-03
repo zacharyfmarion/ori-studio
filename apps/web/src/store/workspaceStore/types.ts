@@ -128,8 +128,6 @@ export interface OristudioCpShareLink {
   creaseCount: number;
   /** True when the link is long enough to risk truncation in chat or email. */
   long: boolean;
-  /** Whether the link was copied to the clipboard automatically. */
-  copied: boolean;
 }
 
 export interface ProjectSliceState {

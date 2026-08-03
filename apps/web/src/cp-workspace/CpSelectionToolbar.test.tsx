@@ -146,13 +146,13 @@ describe('CpSelectionToolbar', () => {
     await act(async () => renderToolbar(root, container));
     const toolbar = document.querySelector('[role="toolbar"]');
     expect(toolbar).not.toBeNull();
-    // Fold, Export, Save to image, Simulate inline, Simulate, Copy share link.
+    // Fold, Export, Save to image, Simulate inline, Simulate, Create shareable link.
     expect(toolbar?.querySelectorAll('button').length).toBe(6);
     expect(document.querySelector('button[aria-label="Fold"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Simulate inline"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Simulate"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Export…"]')).not.toBeNull();
-    expect(document.querySelector('button[aria-label="Copy share link"]')).not.toBeNull();
+    expect(document.querySelector('button[aria-label="Create shareable link"]')).not.toBeNull();
   });
 
   it('shares the segment the selection resolved to, not the whole document', async () => {
@@ -163,7 +163,7 @@ describe('CpSelectionToolbar', () => {
     >);
     await act(async () => renderToolbar(root, container));
 
-    const share = document.querySelector<HTMLButtonElement>('button[aria-label="Copy share link"]');
+    const share = document.querySelector<HTMLButtonElement>('button[aria-label="Create shareable link"]');
     expect(share).not.toBeNull();
     await act(async () => share!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 

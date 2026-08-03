@@ -199,7 +199,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
       <IconButton
         size="sm"
         variant="toolbar"
-        title={t('panels:creasePattern.selectionToolbar.share', 'Copy share link')}
+        title={t('panels:creasePattern.selectionToolbar.share', 'Create shareable link')}
         onClick={() => runAndDismiss(() => void shareSegment(segmentId))}
       >
         <Link2 size={14} />

@@ -13,11 +13,9 @@ import { IconButton } from '../../components/ui/IconButton';
  * toolbar action clears the selection as it runs, which unmounts the toolbar, so
  * anything owned by the toolbar would vanish the moment it opened.
  *
- * The link is copied to the clipboard before this ever renders, so the common
- * path is "hit share, paste" and this is confirmation rather than a step. It
- * still shows the URL, because clipboard writes fail on insecure origins and
- * when the document is not focused, and a user who can see the link can always
- * select it by hand.
+ * Nothing is copied or focused on open. Writing to someone's clipboard as a
+ * side effect of opening a dialog is a surprise — it silently replaces whatever
+ * they had — so copying stays an explicit act: click Copy, or select the text.
  */
 export function ShareLinkModal() {
   const { t } = useTranslation();
@@ -38,13 +36,6 @@ export function ShareLinkModal() {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [dismiss, link]);
 
-  // Pre-select the whole URL so a user whose clipboard write was blocked can
-  // copy it with one keystroke instead of dragging across a long string.
-  useEffect(() => {
-    if (!link) return;
-    inputRef.current?.select();
-  }, [link]);
-
   if (!link) return null;
 
   const copy = async () => {
@@ -55,8 +46,6 @@ export function ShareLinkModal() {
       inputRef.current?.select();
     }
   };
-
-  const copied = justCopied || link.copied;
 
   return (
     <div
@@ -97,8 +86,8 @@ export function ShareLinkModal() {
               onFocus={(event) => event.currentTarget.select()}
             />
             <Button onClick={() => void copy()}>
-              {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
-              {copied
+              {justCopied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+              {justCopied
                 ? t('dialogs:shareLink.copied', 'Copied')
                 : t('dialogs:shareLink.copy', 'Copy')}
             </Button>
