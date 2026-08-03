@@ -13,6 +13,7 @@ import {
   projectModelPoint,
   unprojectDevicePoint,
   userCameraToView,
+  userCamerasEqual,
   viewTransformScale,
   zoomUserCameraAt,
   type UserBounds,
@@ -656,6 +657,16 @@ export interface CreasePatternWebglCanvasProps {
   /** Report the camera's model→CSS and user→CSS affines so DOM overlays can position to them. */
   onViewChange: (views: CpOverlayViews) => void;
   /**
+   * The camera the document was saved at, adopted once per {@link framingKey}
+   * in place of the auto-fit. Null (or absent) fits to content as before.
+   */
+  initialCamera?: UserCamera | null;
+  /**
+   * Report the camera whenever it changes, so the document can persist the view.
+   * Fires per frame only when a value actually moved; the consumer debounces.
+   */
+  onCameraChange?: (camera: UserCamera) => void;
+  /**
    * Right-drag box erase (universal, overrides the active tool): delete every
    * crease inside the box given by its two opposite corners (model coords).
    */
@@ -778,6 +789,8 @@ export function CreasePatternWebglCanvas({
   onZoomPercentChange,
   onRotationChange,
   onViewChange,
+  initialCamera,
+  onCameraChange,
   onEraseBox,
   onEraseLine,
   onEraseCircle,
@@ -877,6 +890,10 @@ export function CreasePatternWebglCanvas({
   // user had panned and zoomed to.
   const [rendererGeneration, setRendererGeneration] = useState(0);
   const preservedCameraRef = useRef<UserCamera | null>(null);
+  // A saved camera armed by the framingKey effect, consumed by the first
+  // `ensureCamera` after it. One-shot: once adopted, the user owns the camera,
+  // so a later re-render must not drag the view back to where the file was saved.
+  const pendingInitialCameraRef = useRef<UserCamera | null>(null);
   // Persistent runtime for the click-based `sequence` tool: points accumulate
   // across pointer gestures. Reset when the active tool changes (below).
   const persistentToolRuntimeRef = useRef<ToolRuntime | null>(null);
@@ -899,6 +916,8 @@ export function CreasePatternWebglCanvas({
   const angleDragArmedRef = useRef(false);
   // Last view rotation reported to the panel (dedupes the per-frame report).
   const lastReportedRotationRef = useRef(0);
+  // Last full camera reported to the panel (dedupes the per-frame report).
+  const lastReportedCameraRef = useRef<UserCamera | null>(null);
   // Last zoom percent reported to the panel (dedupes the per-frame report).
   const lastReportedZoomRef = useRef<number | null>(null);
   // Last model→CSS affine reported to the panel (for the text overlay), to dedupe.
@@ -1229,6 +1248,8 @@ export function CreasePatternWebglCanvas({
     onZoomPercentChange,
     onRotationChange,
     onViewChange,
+    initialCamera,
+    onCameraChange,
     onEraseBox,
     onEraseLine,
     onEraseCircle,
@@ -1293,8 +1314,14 @@ export function CreasePatternWebglCanvas({
   // A new document: drop the one-shot camera seed so the next frame re-fits
   // against the current bounds (creases + images + text boxes). Declared after
   // the liveRef effect so `contentBounds` is already up to date when it re-fits.
+  //
+  // A document that carries its own saved camera arms it here instead, and
+  // `ensureCamera` adopts it in place of the fit. Arming rather than assigning
+  // keeps the seed lazy: before the first draw there is no viewport to fit
+  // against, and this effect is the one place that knows the document changed.
   useEffect(() => {
     cameraRef.current = null;
+    pendingInitialCameraRef.current = liveRef.current.initialCamera ?? null;
     renderNowRef.current();
   }, [framingKey]);
 
@@ -1369,6 +1396,16 @@ export function CreasePatternWebglCanvas({
       if (preservedCameraRef.current) {
         cameraRef.current = preservedCameraRef.current;
         preservedCameraRef.current = null;
+        return cameraRef.current;
+      }
+      // The document brought its own view. Adopted before the bounds check on
+      // purpose: a saved camera needs no content to fit against, so this also
+      // gets the view right on the first frame of a document whose geometry
+      // has not been measured yet.
+      const saved = pendingInitialCameraRef.current;
+      if (saved) {
+        pendingInitialCameraRef.current = null;
+        cameraRef.current = { ...saved };
         return cameraRef.current;
       }
       const bounds = liveRef.current.contentBounds;
@@ -1447,6 +1484,15 @@ export function CreasePatternWebglCanvas({
       if (cam.rotation !== lastReportedRotationRef.current) {
         lastReportedRotationRef.current = cam.rotation;
         liveRef.current.onRotationChange(cam.rotation);
+      }
+
+      // Report the whole camera so the document can persist the view. Deduped
+      // by value: a pan/zoom/rotate frame reports, a redraw for any other reason
+      // does not. The consumer debounces to a settle.
+      const lastCamera = lastReportedCameraRef.current;
+      if (!lastCamera || !userCamerasEqual(lastCamera, cam)) {
+        lastReportedCameraRef.current = { ...cam };
+        liveRef.current.onCameraChange?.({ ...cam });
       }
 
       // Report the model→CSS affine (device view / dpr) for DOM overlays to project

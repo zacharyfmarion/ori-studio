@@ -855,6 +855,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpActiveFoldedFigureId: null,
     oristudioCpFoldsInFlight: 0,
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+    oristudioCpCamera: null,
     oristudioCpAnnotations: [],
     oristudioCpSelectedAnnotationId: null,
     oristudioCpInlineSimulations: [],
@@ -1348,6 +1349,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     },
 
     setSequenceSimulationFocus: (sequenceSimulationFocus) => set({ sequenceSimulationFocus }),
+
+    setOristudioCpCamera: (oristudioCpCamera) => set({ oristudioCpCamera }),
 
     setOristudioCpViewportOption: (key, value) =>
       set({ oristudioCpViewport: { ...get().oristudioCpViewport, [key]: value } }),

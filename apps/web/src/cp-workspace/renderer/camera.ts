@@ -284,3 +284,35 @@ export function viewTransformsEqual(a: ViewTransform, b: ViewTransform, epsilon 
     Math.abs(a.ey[1] - b.ey[1]) < epsilon
   );
 }
+
+/** Whether two cameras are equal within a small epsilon. */
+export function userCamerasEqual(a: UserCamera, b: UserCamera, epsilon = 1e-6): boolean {
+  return (
+    Math.abs(a.centerX - b.centerX) < epsilon &&
+    Math.abs(a.centerY - b.centerY) < epsilon &&
+    Math.abs(a.zoom - b.zoom) < epsilon &&
+    Math.abs(a.rotation - b.rotation) < epsilon
+  );
+}
+
+/**
+ * Validate a camera read from a project file. All four fields are required and
+ * finite, and `zoom` must be positive and in range — a saved camera is a view,
+ * so a malformed one must fall back to the auto-fit rather than blank the
+ * canvas or divide by zero. Returns null for anything it cannot vouch for.
+ */
+export function validateUserCamera(value: unknown): UserCamera | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const centerX = finiteNumber(record.centerX);
+  const centerY = finiteNumber(record.centerY);
+  const zoom = finiteNumber(record.zoom);
+  const rotation = finiteNumber(record.rotation);
+  if (centerX === null || centerY === null || zoom === null || rotation === null) return null;
+  if (zoom < MIN_ZOOM || zoom > MAX_ZOOM) return null;
+  return { centerX, centerY, zoom, rotation: normalizeCameraRotation(rotation) };
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}

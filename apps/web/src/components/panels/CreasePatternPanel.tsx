@@ -138,6 +138,7 @@ import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSim
 import { useBlurOnPressOutside } from '../../cp-workspace/inlineSimulation/useBlurOnPressOutside';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
+import type { UserCamera } from '../../cp-workspace/renderer/camera';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
@@ -219,6 +220,13 @@ const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
  * origami work is laid out along.
  */
 const VIEW_ROTATION_STEP_RADIANS = Math.PI / 16;
+
+/**
+ * How long the camera must hold still before it is recorded as document state.
+ * Long enough that a pan or a rotate-and-adjust writes once at the end, short
+ * enough that a save immediately after moving the view catches up.
+ */
+const CAMERA_SETTLE_MS = 200;
 
 const FOLDED_DISPLAY_STYLE_OPTIONS: OristudioCpFoldedFigureDisplayStyle[] = [
   'Paper5',
@@ -801,6 +809,18 @@ export function CreasePatternPanel() {
     window.clearTimeout(overlaySettleTimerRef.current);
     overlaySettleTimerRef.current = window.setTimeout(() => setWebglOverlayView(views.model), 100);
   }, []);
+  // The camera is document state (it persists to `.osf`), but a drag moves it
+  // ~60x a second. Record it on settle only, so a pan writes the store once
+  // rather than once per frame.
+  const cameraSettleTimerRef = useRef<number | undefined>(undefined);
+  const handleWebglCameraChange = useCallback((camera: UserCamera) => {
+    window.clearTimeout(cameraSettleTimerRef.current);
+    cameraSettleTimerRef.current = window.setTimeout(
+      () => useWorkspaceStore.getState().setOristudioCpCamera(camera),
+      CAMERA_SETTLE_MS
+    );
+  }, []);
+  useEffect(() => () => window.clearTimeout(cameraSettleTimerRef.current), []);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
   // Most of these are per-use and start at their defaults every session. The few
@@ -950,6 +970,10 @@ export function CreasePatternPanel() {
     (state) => state.oristudioCpActiveDiagnosticId
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
+  // The camera the open document was saved at. The canvas consumes it once per
+  // `framingKey` — reading it live here is safe because a later settle writes the
+  // same value back, and the canvas ignores it after the first adoption.
+  const savedCpCamera = useWorkspaceStore((state) => state.oristudioCpCamera);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
   // Crease lines always use Oriedita's default M/V/flat/border coloring; the
   // color-by toggle has been removed from the CP panel header.
@@ -2915,6 +2939,8 @@ export function CreasePatternPanel() {
                   onRotationChange={setViewRotation}
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
+                  initialCamera={savedCpCamera}
+                  onCameraChange={handleWebglCameraChange}
                   onEraseBox={(points) => {
                     void executeOristudioCpCommand('LineSegmentDelete', {
                       line_ids: [],
