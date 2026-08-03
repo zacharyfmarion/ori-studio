@@ -2670,8 +2670,18 @@
   top: var(--space-4);
   right: var(--space-4);
   display: grid;
-  width: min(420px, calc(100% - var(--space-8)));
-  max-width: min(420px, calc(100% - var(--space-8)));
+  /* The gutter is the inset doubled — one on each side — written in terms of the
+     inset above so the two cannot drift apart.
+
+     This said `var(--space-8)` until the list was windowed. That token does not
+     exist (the scale stops at `--space-6`), so both declarations were invalid at
+     computed-value time and dropped: the box was `width: auto` with
+     `max-width: none`, and 420px never applied. Shrink-to-fit hid it, because
+     the in-flow rows made the box about as wide as the longest message. Windowed
+     rows are out of flow and contribute no intrinsic width, so the box collapsed
+     to the width of the headline and every row started wrapping. */
+  width: min(420px, calc(100% - var(--space-4) * 2));
+  max-width: min(420px, calc(100% - var(--space-4) * 2));
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border-strong) 68%, transparent);
   border-radius: 6px;
