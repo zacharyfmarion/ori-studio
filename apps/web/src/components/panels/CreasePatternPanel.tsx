@@ -57,13 +57,12 @@ import {
 } from '../../lib/oristudioCpActions';
 import {
   cpCommandByOperation,
-  cpCommandCandidatesCarryCrease,
   cpCommandUsesActiveLineColor,
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
-import { isFoldingCrease } from '../../lib/foldAngle';
-import { readCpToolOptions, writeCpToolOptions } from '../../lib/cpToolOptionPersistence';
 import { forcedAssignmentNotice } from '../../cp-workspace/tools/toolUnavailable';
+import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
+import { usePersistedCpToolOptions } from '../../cp-workspace/tools/usePersistedCpToolOptions';
 import type { ToolPreviewSegment } from '../../cp-workspace/tools/types';
 import {
   cancelOristudioCpToolState,
@@ -807,14 +806,7 @@ export function CreasePatternPanel() {
   // Most of these are per-use and start at their defaults every session. The few
   // that are working preferences — the angle system, Fix Inaccurate's tolerance —
   // are opted into persistence by name; see `lib/cpToolOptionPersistence.ts`.
-  const [cpToolOptions, setCpToolOptions] = useState<OristudioCpToolOptions>(readCpToolOptions);
-  // Written on change rather than on tool deactivation, so a setting survives a
-  // reload even if the tab is closed with the tool still active. Debounced
-  // because a number field would otherwise write once per keystroke.
-  useEffect(() => {
-    const timer = window.setTimeout(() => writeCpToolOptions(cpToolOptions), 300);
-    return () => window.clearTimeout(timer);
-  }, [cpToolOptions]);
+  const [cpToolOptions, setCpToolOptions] = usePersistedCpToolOptions();
   const [cpToolPoints, setCpToolPoints] = useState<Point[]>([]);
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
@@ -1092,6 +1084,7 @@ export function CreasePatternPanel() {
     nativeActiveLineColor,
     nativeCanvasToolOptions,
     projectLoadId,
+    setCpToolOptions,
   ]);
 
 
@@ -2207,18 +2200,7 @@ export function CreasePatternPanel() {
         })
       ).then((preview) => {
         if (webglPreviewRequestRef.current !== requestId) return;
-        // Most tools draw in the active line type, so a candidate is just
-        // geometry. The vertex-completion solver decides the crease itself, and
-        // dropping that here would show the user a different crease from the one
-        // the commit would make.
-        const carriesCrease = cpCommandCandidatesCarryCrease(command.operationId);
-        const kernel: ToolPreviewSegment[] = (preview?.segments ?? []).map((s) => ({
-          a: s.a,
-          b: s.b,
-          ...(carriesCrease && isFoldingCrease(s.color)
-            ? { crease: { color: s.color, foldMagnitude: s.fold_magnitude } }
-            : {}),
-        }));
+        const kernel = toolPreviewSegments(preview?.segments, command.operationId);
         const rings = (preview?.circles ?? []).flatMap((c) => cpCircleRingSegments(c.x, c.y, c.r));
         // Also highlight any existing crease the previewed line actually lands on
         // (its kernel-computed endpoints), so an angle-constrained draw that snaps
