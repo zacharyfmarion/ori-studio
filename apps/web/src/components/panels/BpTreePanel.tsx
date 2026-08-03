@@ -290,6 +290,29 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     positions: BpTreeSceneTarget[];
   } | null>(null);
   const scheduleLongPressInspector = useBpLongPressInspector();
+  /**
+   * The canvas's box on screen, cached.
+   *
+   * `getBoundingClientRect` forces a layout of the whole canvas, and a gesture
+   * asks for it on every pointer sample — which is a layout of a thousand
+   * elements per sample, for a box that cannot have moved. The cache is dropped
+   * whenever it genuinely can: React redrew the canvas, the camera moved, the
+   * pane resized, or something scrolled.
+   */
+  const svgRectRef = useRef<DOMRect | null>(null);
+  const forgetSvgRect = useEventCallback(() => {
+    svgRectRef.current = null;
+  });
+  const svgRect = useEventCallback((): DOMRect | null => {
+    const cached = svgRectRef.current;
+    if (cached) return cached;
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    svgRectRef.current = rect;
+    return rect;
+  });
+
   const layers = useSettingsStore((state) => state.bpTreeLayers);
   const setLayer = useSettingsStore((state) => state.setBpTreeLayer);
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
@@ -359,10 +382,17 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     return { parent, children };
   }, [tree.vertices, tree.edges, tree.rootVertexId]);
 
-  // Vertex locations by id — the lookup the drag rule works from.
-  const vertexLocationsById = useMemo(
-    () => new Map(tree.vertices.map((vertex) => [vertex.id, vertex.loc] as const)),
+  // Vertices by id. Everything that resolves one goes through this rather than
+  // scanning the list: an edge lookup inside a render over every edge is where
+  // an O(n) scan quietly becomes O(n²).
+  const vertexById = useMemo(
+    () => new Map(tree.vertices.map((vertex) => [vertex.id, vertex] as const)),
     [tree.vertices]
+  );
+  /** Just the locations, which is the shape the drag rule works from. */
+  const vertexLocationsById = useMemo(
+    () => new Map([...vertexById].map(([id, vertex]) => [id, vertex.loc] as const)),
+    [vertexById]
   );
 
   const subtreeOf = useCallback(
@@ -432,10 +462,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const symmetryAxisTolerance =
     SYMMETRY_LANE_PX / cameraScale(zoomPercent) / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
 
-  const findVertex = useCallback(
-    (id: number) => tree.vertices.find((vertex) => vertex.id === id),
-    [tree.vertices]
-  );
+  const findVertex = useCallback((id: number) => vertexById.get(id), [vertexById]);
   const symmetryView = useBpTreeSymmetry(tree, paperRect);
 
   // Ghost preview of the leaf a click would add (and its mirror), mirroring what
@@ -490,6 +517,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   // React redrew the canvas, so anything a gesture cached about it is stale.
   const onSceneRendered = useEventCallback(() => {
     sceneTargetsRef.current = null;
+    svgRectRef.current = null;
   });
 
   /**
@@ -517,11 +545,28 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     scaleRef.current = cameraScale(zoomPercent);
   }, [zoomPercent]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    const observer =
+      typeof ResizeObserver === 'undefined' || !container
+        ? null
+        : new ResizeObserver(forgetSvgRect);
+    if (container) observer?.observe(container);
+    window.addEventListener('scroll', forgetSvgRect, { capture: true, passive: true });
+    window.addEventListener('resize', forgetSvgRect, { passive: true });
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('scroll', forgetSvgRect, { capture: true });
+      window.removeEventListener('resize', forgetSvgRect);
+    };
+  }, [forgetSvgRect, containerRef]);
+
   const onCameraTransformed = useEventCallback(
     (ref: Parameters<typeof onTransformed>[0], state: { scale: number }) => {
       // Rounded exactly as `zoomPercent` is, so the scale this writes and the
       // scale a later render reads back out of it cannot disagree.
       scaleRef.current = cameraScale(Math.round(state.scale * 100));
+      forgetSvgRect();
       publishChromeScale();
       // The toolbar's readout still wants this, and rounding to whole percent
       // keeps a pan — which does not change scale — from touching React at all.
@@ -546,6 +591,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   });
 
   const setGhost = useEventCallback((geometry: BpTreeGhostGeometry | null) => {
+    if (geometry === null && ghostGeometryRef.current === null) return;
     ghostGeometryRef.current = geometry;
     // Arming renders the ghost's four elements; the frame below then places
     // them. Everything after that is writes.
@@ -604,12 +650,15 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
 
   const clientToTreePoint = useCallback(
     (client: Point): Point => {
-      const svg = svgRef.current;
-      if (!svg) return { x: 0, y: 0 };
-      const worldPoint = clientPointToDesignWorld(client, svg.getBoundingClientRect(), worldRect);
-      return svgToBpTreePoint(worldPoint, tree.sheet, paperRect);
+      const rect = svgRect();
+      if (!rect) return { x: 0, y: 0 };
+      return svgToBpTreePoint(
+        clientPointToDesignWorld(client, rect, worldRect),
+        tree.sheet,
+        paperRect
+      );
     },
-    [paperRect, tree.sheet, worldRect]
+    [paperRect, tree.sheet, worldRect, svgRect]
   );
   const eventToTreePoint = useCallback(
     (event: PointerEvent): Point =>
@@ -755,6 +804,12 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     // canvas (via the container), not just over the content-sized SVG, so the mirror
     // ghost must follow the cursor there too. Skip the toolbar/editor chrome.
     if (isViewportInteractiveTarget(event.target)) {
+      setGhost(null);
+      return;
+    }
+    // Converting to tree space reads layout, so it must not happen for an answer
+    // that is already known to be nothing.
+    if (!symmetry.enabled || addAnchorId === null) {
       setGhost(null);
       return;
     }
