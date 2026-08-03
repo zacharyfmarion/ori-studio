@@ -119,14 +119,11 @@ function scrollHeightFor(element: HTMLElement): number {
   return heightFor(element);
 }
 
-const realScrollTo = Element.prototype.scrollTo;
 const realScrollTop = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
 
 /**
- * jsdom does no layout, so nothing scrolls: `scrollTo` is absent and the
- * `scrollTop` setter is a no-op that always reads back 0. Both are stood in for
- * here with the browser's behaviour — a real offset, and a `scroll` event when
- * it moves — so `scrollToIndex` drives the same code path it does in a browser.
+ * jsdom does no layout, so its `scrollTop` setter is a no-op that always reads
+ * back 0. Backed by a real value here so `scrollListTo` can move the list.
  */
 const scrollOffsets = new WeakMap<Element, number>();
 
@@ -140,15 +137,6 @@ beforeAll(() => {
       scrollOffsets.set(this, value);
     },
   });
-  Element.prototype.scrollTo = function scrollTo(this: Element, ...args: unknown[]) {
-    const options = args[0];
-    const top =
-      typeof options === 'object' && options !== null && 'top' in options
-        ? Number((options as { top?: number }).top ?? 0)
-        : Number(args[1] ?? 0);
-    this.scrollTop = top;
-    this.dispatchEvent(new Event('scroll'));
-  } as typeof Element.prototype.scrollTo;
 
   Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
     configurable: true,
@@ -180,7 +168,6 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  Element.prototype.scrollTo = realScrollTo;
   if (realScrollTop) Object.defineProperty(Element.prototype, 'scrollTop', realScrollTop);
   if (realOffsetHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', realOffsetHeight);
   if (realOffsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', realOffsetWidth);
@@ -277,42 +264,23 @@ describe('CpDiagnosticHud', () => {
     expect(view.querySelector('.cp-diagnostic-hud')).toBeNull();
   });
 
-  it('scrolls a newly activated entry into view, even when its row is unmounted', () => {
-    // Clicking a marker on the canvas activates a diagnostic. Windowed, the row
-    // for entry 1500 does not exist until the list is scrolled to it.
-    const ids = Array.from({ length: 2000 }, (_, i) => `camv-${i + 1}`);
-    const view = renderHud({ camvResult: result('CheckCamv', ids) });
-    expand(view);
-    expect(rowIds(view)).not.toContain('camv-1500');
-
-    act(() => {
-      useWorkspaceStore.getState().setOristudioCpActiveDiagnostic('camv-1500');
-    });
-    expect(rowIds(view)).toContain('camv-1500');
-  });
-
-  it('does not re-scroll when the entry list is re-derived under an unchanged active id', () => {
-    // The camera side of this had the bug: framing keyed on a derived object
-    // replayed the jump whenever the list was rebuilt, throwing the user back to
-    // an issue they had scrolled away from.
+  it('leaves the scroll position alone when the active entry changes', () => {
+    // The list does not chase the active id. Nothing outside the list can set it
+    // any more, and a CAMV recompute after every edit would otherwise be able to
+    // move a list the user had scrolled deliberately.
     const ids = Array.from({ length: 2000 }, (_, i) => `camv-${i + 1}`);
     const view = renderHud({ camvResult: result('CheckCamv', ids) });
     expand(view);
     act(() => {
-      useWorkspaceStore.getState().setOristudioCpActiveDiagnostic('camv-1500');
+      scrollListTo(view, 20_000);
     });
+    const before = rowIds(view);
+    expect(before).not.toContain('camv-1');
 
-    // Scroll away, then force a re-derivation with the same active id.
     act(() => {
-      scrollListTo(view, 0);
+      useWorkspaceStore.getState().setOristudioCpActiveDiagnostic('camv-1');
     });
-    expect(rowIds(view)).toContain('camv-1');
-    act(() => {
-      useWorkspaceStore.setState({
-        oristudioCpCamvResult: result('CheckCamv', ids),
-      });
-    });
-    expect(rowIds(view)).toContain('camv-1');
+    expect(rowIds(view)).toEqual(before);
   });
 
   it('activates the clicked entry', () => {

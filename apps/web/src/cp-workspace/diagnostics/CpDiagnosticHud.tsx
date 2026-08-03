@@ -134,30 +134,6 @@ export function CpDiagnosticHud() {
     overscan: 8,
   });
 
-  // Reveal whatever became active. Clicking a marker on the canvas activates a
-  // diagnostic and frames it there (`cpDiagnosticFocus.ts`); windowed, its row
-  // may not be in the DOM at all, so the list has to be told to go find it.
-  //
-  // Keyed on the id, not on the entry or its index. `cpDiagnosticFocus.ts`
-  // records the same mistake on the camera side: framing was keyed on a derived
-  // object, so merely re-deriving the entry list replayed the jump and threw the
-  // user back to an issue they had moved away from. The id changing is the
-  // event; the list re-deriving is not.
-  const revealedId = useRef<string | null>(null);
-  useEffect(() => {
-    if (!expanded) {
-      // Nothing to scroll while collapsed, and the id must not count as revealed
-      // — expanding later should still land on it.
-      revealedId.current = null;
-      return;
-    }
-    if (!activeId || activeId === revealedId.current) return;
-    const index = entries.findIndex((entry) => entry.id === activeId);
-    if (index < 0) return;
-    revealedId.current = activeId;
-    virtualizer.scrollToIndex(index, { align: 'auto' });
-  }, [activeId, entries, expanded, virtualizer]);
-
   if (!status) return null;
 
   const items = virtualizer.getVirtualItems();

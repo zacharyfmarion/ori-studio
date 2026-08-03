@@ -212,22 +212,33 @@ would silently undo that:
 rows only — which is the actual win, since at 2,000 entries the capped list was
 never the cost; an *uncapped* unwindowed list would have been.
 
-### Phase 5 — Reveal the active entry
+### Phase 5 — Reveal the active entry — **built, then removed**
 
-Activating a diagnostic already frames the canvas (`cpDiagnosticFocus.ts`). Once
-windowed, its row may not exist in the DOM, so the list must scroll to it:
-`scrollToIndex(index, { align: 'auto' })` in an effect keyed on the **active id**
-alone.
+The reasoning was: activating a diagnostic frames the canvas
+(`cpDiagnosticFocus.ts`), and once windowed its row may not exist in the DOM, so
+the list has to scroll to it. Built as `scrollToIndex(index, { align: 'auto' })`
+in an effect keyed on the active id alone.
 
-Keyed on the id, not on the entry or the index — `cpDiagnosticFocus.ts`'s own
-comment records the bug from getting this wrong on the camera side, where
-keying on a derived object replayed the jump every time the list was re-derived
-and threw the user back to an issue they had scrolled away from. Same failure
-mode, same fix: the id changing is the event.
+It was removed, because the premise was wrong.
 
-Do not scroll when the activation came from clicking the row itself — it is
-already in view, and `align: 'auto'` mostly covers this, but the guard is worth
-being explicit about.
+The only thing that could activate a diagnostic from outside the list was a
+press on a canvas marker (`CreasePatternWebglCanvas`'s `diagnosticIdAt` →
+`onSelectDiagnostic`). The code reads correct and is unconditional in the
+plain-selection branch, but **it does not work in the running app** — pressing a
+marker does nothing. It is dead, and was dead before this change.
+
+The other path in the original justification — a check adopting its first issue
+(`projectSlice`) — always adopts `diagnosticEntries[0]`. Scrolling to index 0 in
+a list already at the top is a no-op, so it never exercised the effect either.
+
+So the effect existed for exactly one caller, and that caller was dead. Both
+sides came out: the effect, and the canvas hit-testing that was its only source
+of events (`buildCpDiagnosticMarkerHits`, the `diagnosticHits` /
+`onSelectDiagnostic` props, `diagnosticIdAt`, `DIAGNOSTIC_HIT_CSS`).
+
+What remains is one-directional and has no synchronisation in it: **clicking a
+row activates that diagnostic**, which frames the canvas through the store
+action. Nothing moves the list but the user.
 
 ## Affected Areas
 
@@ -302,7 +313,8 @@ Two things that will mislead if ignored — both learned the hard way in this re
 - [x] Phase 3 — add `@tanstack/react-virtual`; dynamic-height windowed list;
       remove `.slice(0, 12)`; separator off the entry index
 - [x] Phase 4 — memoized row; delegated click; no per-row closures
-- [x] Phase 5 — `scrollToIndex` on active-id change, keyed on the id alone
+- [x] Phase 5 — built, then removed with the dead canvas-marker click that was
+      its only trigger; the list no longer chases the active id
 - [x] i18n — extract, translate 8 locales, stamp, `i18n:check` passes
 - [x] `CpDiagnosticHud.test.tsx` covering bounded row count + reachability
 - [x] `npx tsc --noEmit`, `vitest` (1852 tests), `eslint` — all clean

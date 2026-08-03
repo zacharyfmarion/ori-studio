@@ -80,7 +80,11 @@ const OVERSIZED_PANELS = {
   // lines while the HUD extraction was in flight — the flat-foldable-line and
   // vertex-completion work — which is the "a merge where main grew the file"
   // case named above.
-  'CreasePatternPanel.tsx': 2700,
+  //
+  // 2700 -> 2687: the canvas half of diagnostic selection came out — the marker
+  // hit geometry, its prop wiring, and the select callback. Clicking a marker
+  // never worked, so nothing depended on it.
+  'CreasePatternPanel.tsx': 2687,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

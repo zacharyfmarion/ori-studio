@@ -134,7 +134,6 @@ import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
-  buildCpDiagnosticMarkerHits,
   buildCpDiagnosticMarkers,
   buildCpDiagnosticStrokes,
   buildCpDiagnosticWedges,
@@ -954,9 +953,6 @@ export function CreasePatternPanel() {
   const clearOristudioCpActionRequest = useWorkspaceStore(
     (state) => state.clearOristudioCpActionRequest
   );
-  const setOristudioCpActiveDiagnostic = useWorkspaceStore(
-    (state) => state.setOristudioCpActiveDiagnostic
-  );
   const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
     (state) => state.setOristudioCpActiveFoldedFigure
   );
@@ -1401,7 +1397,6 @@ export function CreasePatternPanel() {
       markers: buildCpDiagnosticMarkers(latestDiagnosticEntries, toneColors),
       strokes: buildCpDiagnosticStrokes(latestDiagnosticEntries, toneColors),
       wedges: buildCpDiagnosticWedges(latestDiagnosticEntries, toneColors),
-      hits: buildCpDiagnosticMarkerHits(latestDiagnosticEntries),
     };
   }, [latestDiagnosticEntries, currentTheme]);
   // Oriedita operation-frame outline for the WebGL surface: a dashed accent-coloured
@@ -1670,13 +1665,6 @@ export function CreasePatternPanel() {
         : state
     );
   }, [activeCpCommand]);
-
-  const handleSelectCpDiagnostic = useCallback(
-    (id: string) => {
-      setOristudioCpActiveDiagnostic(id);
-    },
-    [setOristudioCpActiveDiagnostic]
-  );
 
   const selectionMoveSnapDocument = useMemo<OristudioCpDocumentSnapshot | null>(() => {
     if (!editableCp || oristudioCpSelection.lines.length === 0) return null;
@@ -2820,8 +2808,6 @@ export function CreasePatternPanel() {
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
                   diagnosticStrokes={cpDiagnosticGeometry.strokes}
                   diagnosticWedges={cpDiagnosticGeometry.wedges}
-                  diagnosticHits={cpDiagnosticGeometry.hits}
-                  onSelectDiagnostic={handleSelectCpDiagnostic}
                   operationFrame={cpOperationFrameStrokes}
                   panToolActive={panToolActive}
                   onRotationChange={setViewRotation}
