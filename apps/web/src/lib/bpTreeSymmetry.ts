@@ -93,9 +93,59 @@ export interface BpDocumentSymmetry {
   pairs: BpTreeSymmetryPair[];
 }
 
+/**
+ * Narrow the runtime symmetry state to just the part that belongs in a file.
+ *
+ * Explicit rather than a cast, and not optional: the runtime state is a
+ * *subtype* of the persisted one, so handing it straight to the serializer
+ * typechecks and then quietly writes `angle` and `loc` too — the two fields that
+ * must always be derived from the sheet.
+ */
+export function bpDocumentSymmetry(state: BpDocumentSymmetry): BpDocumentSymmetry {
+  return { enabled: state.enabled, fold: state.fold, pairs: state.pairs };
+}
+
 /** Mirror draw as a new design starts: on, book fold, nothing paired yet. */
 export function defaultBpDocumentSymmetry(): BpDocumentSymmetry {
   return { enabled: true, fold: 'book', pairs: [] };
+}
+
+/**
+ * Read {@link BpDocumentSymmetry} out of a parsed file.
+ *
+ * Lenient in the house style of the `nativeProjectFile` validators: anything
+ * unusable is dropped rather than thrown, so a malformed symmetry block can
+ * never stop a design from opening. Returns `null` when there is nothing to read
+ * at all, which the caller reads as "this file predates symmetry" and answers
+ * with {@link defaultBpDocumentSymmetry}.
+ *
+ * Pairs are re-normalized rather than trusted: a file could carry a vertex in
+ * two pairs (hand-edited, or written by a version with different rules), and
+ * `mirrorBpTreeVertexId` assumes each vertex has at most one explicit mirror.
+ * Rebuilding through {@link addBpTreeSymmetryPair} restores that invariant.
+ */
+export function validateBpDocumentSymmetry(value: unknown): BpDocumentSymmetry | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const fallback = defaultBpDocumentSymmetry();
+  let pairs: BpTreeSymmetryPair[] = [];
+  if (Array.isArray(record.pairs)) {
+    for (const entry of record.pairs) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+      const { v1, v2 } = entry as Record<string, unknown>;
+      if (!isVertexId(v1) || !isVertexId(v2) || v1 === v2) continue;
+      pairs = addBpTreeSymmetryPair(pairs, v1, v2);
+    }
+  }
+  return {
+    enabled: typeof record.enabled === 'boolean' ? record.enabled : fallback.enabled,
+    fold: record.fold === 'diagonal' ? 'diagonal' : fallback.fold,
+    pairs,
+  };
+}
+
+function isVertexId(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
 /** Drop whatever pairing mentions this vertex. */

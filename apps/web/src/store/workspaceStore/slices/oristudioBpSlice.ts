@@ -149,7 +149,16 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       symmetry?: BpDocumentSymmetry | null;
     } = {}
   ) => {
-    const symmetry = options.symmetry ?? null;
+    // Pairs name vertices by id. The ids are explicit in the `.bps` text so they
+    // survive the round trip, but the file's design and its symmetry are still
+    // two separately-written things — drop any pair naming a vertex this tree
+    // does not have rather than carrying a dangling reference.
+    const symmetry = options.symmetry
+      ? {
+          ...options.symmetry,
+          pairs: filterBpTreeSymmetryPairs(document.snapshot.tree, options.symmetry.pairs),
+        }
+      : null;
     pendingHistory = null;
     set({
       workflowTarget: 'box-pleat',

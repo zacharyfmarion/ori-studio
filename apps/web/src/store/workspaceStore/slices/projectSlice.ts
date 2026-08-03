@@ -87,6 +87,7 @@ import {
   serializeNativeProjectFile,
   type NativeProjectActiveMode,
 } from '../../../lib/nativeProjectFile';
+import { bpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import {
   exportOristudioBpProjectAsBps,
   isBpProjectFilename,
@@ -1157,10 +1158,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       return;
     }
     if (nativeDocument.kind === 'box-pleat') {
-      const loaded = await get().loadOristudioBpProjectFromFile(nativeDocument.project.text, {
-        filename: source.filename,
-        path: source.path ?? null,
-      });
+      const loaded = await get().loadOristudioBpProjectFromFile(
+        nativeDocument.project.text,
+        { filename: source.filename, path: source.path ?? null },
+        { symmetry: nativeDocument.symmetry }
+      );
       // Loading the BP design clears the Edit canvas; restore the saved CP
       // companion (if any) so the Send-to-Edit result comes back too.
       if (loaded) {
@@ -1222,7 +1224,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         path: get().currentFilePath,
         activeMode,
         tree: tmd5Text !== null ? { title: get().project.title, tmd5Text } : null,
-        boxPleat: bps !== null ? { title: bpTitle, bps } : null,
+        boxPleat:
+          bps !== null
+            ? { title: bpTitle, bps, symmetry: bpDocumentSymmetry(get().oristudioBpSymmetry) }
+            : null,
         creasePattern: creasePatternCompanion,
         extensions: get().nativeProjectExtensions,
         appVersion: APP_VERSION,

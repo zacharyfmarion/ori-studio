@@ -5451,6 +5451,78 @@ describe('workspace store slices', () => {
       // The companion crease pattern is restored onto the Edit canvas.
       expect(state.oristudioCpDocument).not.toBeNull();
     });
+
+    it('carries mirror-draw state through a save and reopen', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      useWorkspaceStore.getState().setOristudioBpSymmetry({
+        enabled: false,
+        fold: 'diagonal',
+        pairs: [{ v1: 1, v2: 2 }],
+      });
+      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValue('{"title":"Crane"}');
+
+      const saveService = createFileService();
+      await expect(useWorkspaceStore.getState().saveProject(saveService)).resolves.toBe(true);
+      const saved = (
+        saveService.saveTextFile.mock.calls.at(-1)?.[0] as SaveTextFileOptions | undefined
+      )?.contents;
+      expect(saved).toBeDefined();
+
+      // A fresh store, so nothing can be carried over in memory.
+      useWorkspaceStore.setState(initialWorkspaceState, true);
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      const openService = createFileService({
+        text: saved as string,
+        name: 'crane.osf',
+        path: '/tmp/crane.osf',
+      });
+      await expect(useWorkspaceStore.getState().openProject(openService)).resolves.toBe(true);
+
+      const symmetry = useWorkspaceStore.getState().oristudioBpSymmetry;
+      expect(symmetry.enabled).toBe(false);
+      expect(symmetry.fold).toBe('diagonal');
+      expect(symmetry.pairs).toEqual([{ v1: 1, v2: 2 }]);
+      // The axis is rebuilt from the sheet rather than restored, so it is centred
+      // on whatever the reopened design turned out to be.
+      expect(symmetry.angle).toBe(90);
+      expect(symmetry.loc).toEqual({ x: 10, y: 10 });
+    });
+
+    it('drops a stored pair naming a vertex the loaded design does not have', async () => {
+      // The fixture tree has vertices 0-2; the file claims 1 is paired with 99.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: null,
+          bps: '{"title":"Crane"}',
+          symmetry: { enabled: true, fold: 'book', pairs: [{ v1: 1, v2: 99 }] },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      const fileService = createFileService({ text: osf, name: 'crane.osf', path: null });
+
+      await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+      expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([]);
+    });
+
+    it('opens a plain .bps with default mirror draw, having nowhere to store it', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal', enabled: false });
+
+      await useWorkspaceStore
+        .getState()
+        .loadOristudioBpProjectFromFile('{"tree":{}}', { filename: 'other.bps', path: null });
+
+      const symmetry = useWorkspaceStore.getState().oristudioBpSymmetry;
+      expect(symmetry).toMatchObject({ enabled: true, fold: 'book', pairs: [] });
+    });
   });
 
   describe('design method chooser', () => {

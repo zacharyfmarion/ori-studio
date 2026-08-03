@@ -19,6 +19,12 @@ import {
 } from './oristudioCpLineage';
 import { validateCpImages, type CpImage } from '../cp-workspace/images/cpImage';
 import {
+  bpDocumentSymmetry,
+  defaultBpDocumentSymmetry,
+  validateBpDocumentSymmetry,
+  type BpDocumentSymmetry,
+} from './bpTreeSymmetry';
+import {
   validateTextAnnotations,
   type TextAnnotation,
 } from '../cp-workspace/annotations/textAnnotation';
@@ -28,7 +34,7 @@ import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSi
 export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
 export const NATIVE_PROJECT_EXTENSION = 'osf';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
-export const NATIVE_PROJECT_SCHEMA_VERSION = 5;
+export const NATIVE_PROJECT_SCHEMA_VERSION = 6;
 
 export type NativeProjectDocumentKind = 'treemaker-tree' | 'crease-pattern' | 'box-pleat';
 
@@ -115,6 +121,17 @@ export interface NativeBoxPleatDocumentV1 extends NativeProjectBaseDocumentV1 {
     format: 'bps';
     text: string;
   };
+  /**
+   * Superset feature (no Box Pleating Studio equivalent): which flaps mirror
+   * which, whether mirror draw is on, and which fold of the paper the mirror
+   * represents. Persisted only in `.osf`; omitted from `.bps`/`.bpz` and every
+   * other export. Added in schema v6; absent in older files, which open with
+   * {@link ../lib/bpTreeSymmetry.defaultBpDocumentSymmetry}.
+   *
+   * The mirror *axis* is deliberately not here — it is derived from the sheet on
+   * load, so it cannot go stale when the sheet is resized.
+   */
+  symmetry: BpDocumentSymmetry;
 }
 
 export type NativeProjectDocumentV1 =
@@ -124,7 +141,7 @@ export type NativeProjectDocumentV1 =
 
 export interface NativeProjectFileV1 {
   format: typeof NATIVE_PROJECT_FORMAT;
-  schemaVersion: 1 | 2 | 3 | 4 | 5;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
   minimumReaderSchemaVersion: 1;
   createdBy: NativeProjectActor;
   modifiedBy: NativeProjectActor;
@@ -200,6 +217,11 @@ export interface NativeBoxPleatProjectInput {
   path: string | null;
   /** The Box Pleating Studio project serialized as `.bps` JSON text. */
   bps: string;
+  /**
+   * Superset feature: mirror-draw state (schema v6). Optional so older call
+   * sites and tests omit it; written as the default when absent.
+   */
+  symmetry?: BpDocumentSymmetry;
   /** The crease pattern sent to Edit, bundled so the workspace round-trips. */
   creasePatternCompanion?: Omit<
     NativeCreasePatternProjectInput,
@@ -224,7 +246,7 @@ export interface NativeProjectDocumentsInput {
   /** Which document the workspace was focused on when saved. */
   activeMode: NativeProjectActiveMode;
   tree?: { title: string; tmd5Text: string } | null;
-  boxPleat?: { title: string; bps: string } | null;
+  boxPleat?: { title: string; bps: string; symmetry?: BpDocumentSymmetry } | null;
   creasePattern?: Omit<
     NativeCreasePatternProjectInput,
     'appVersion' | 'filename' | 'path' | 'now'
@@ -285,7 +307,8 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
     schemaVersion === 2 ||
     schemaVersion === 3 ||
     schemaVersion === 4 ||
-    schemaVersion === 5
+    schemaVersion === 5 ||
+    schemaVersion === 6
   ) {
     return validateV1(value);
   }
@@ -324,6 +347,10 @@ export function createNativeProjectFile(
         format: 'bps',
         text: input.boxPleat.bps,
       },
+      // Projected here, not at the call site: the runtime symmetry state is a
+      // subtype of the persisted one, so handing it over whole typechecks and
+      // then writes the derived axis into the file.
+      symmetry: bpDocumentSymmetry(input.boxPleat.symmetry ?? defaultBpDocumentSymmetry()),
       extensions: {},
     });
   }
@@ -394,7 +421,7 @@ export function createNativeBoxPleatProjectFile(
     filename: input.filename,
     path: input.path,
     activeMode: 'box-pleat',
-    boxPleat: { title: input.title, bps: input.bps },
+    boxPleat: { title: input.title, bps: input.bps, symmetry: input.symmetry },
     creasePattern: input.creasePatternCompanion ?? null,
     appVersion: input.appVersion,
     now: input.now,
@@ -790,6 +817,7 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
         format: 'bps',
         text: stringField(project.text, 'document.project.text'),
       },
+      symmetry: validateBpDocumentSymmetry(document.symmetry) ?? defaultBpDocumentSymmetry(),
       extensions,
     };
   }
