@@ -1,5 +1,8 @@
 import type { TFunction } from 'i18next';
-import type { OristudioCpLineStyle } from '../lib/creasePatternViewport';
+import type {
+  OristudioCpFoldAngleDisplay,
+  OristudioCpLineStyle,
+} from '../lib/creasePatternViewport';
 
 /**
  * Render-time translations for small fixed enums whose English labels live in data modules.
@@ -21,6 +24,20 @@ export function cpLineStyleLabel(t: TFunction, style: OristudioCpLineStyle): str
       return t('tools:lineStyle.blackTwoDot', 'Black two-dot');
     default:
       return style;
+  }
+}
+
+export function cpFoldAngleDisplayLabel(
+  t: TFunction,
+  display: OristudioCpFoldAngleDisplay
+): string {
+  switch (display) {
+    case 'color':
+      return t('tools:foldAngleDisplay.color', 'Color');
+    case 'opacity':
+      return t('tools:foldAngleDisplay.opacity', 'Opacity');
+    default:
+      return display;
   }
 }
 

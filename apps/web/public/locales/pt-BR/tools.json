@@ -113,6 +113,10 @@
     "ariaLabel": "Ferramentas de padrão de vincos",
     "openEditableFirst": "Abra primeiro um padrão de vincos editável"
   },
+  "foldAngleDisplay": {
+    "color": "Cor",
+    "opacity": "Opacidade"
+  },
   "lineStyle": {
     "blackOneDot": "Preto de um ponto",
     "blackTwoDot": "Preto de dois pontos",

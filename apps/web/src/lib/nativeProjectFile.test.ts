@@ -750,6 +750,64 @@ describe('native project file', () => {
     );
   });
 
+  it('round-trips a non-default fold-angle display mode, with no schema change', () => {
+    // The mode rides `viewState.viewport` like `lineStyle` does, so this needs
+    // no version bump — but it does need saying, because the field is optional
+    // and a dropped optional is invisible until someone reopens their file.
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Angled CP',
+      filename: 'angled.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: { ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS, foldAngleDisplay: 'opacity' },
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+    const document = activeNativeDocument(parsed);
+    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.viewState.viewport.foldAngleDisplay).toBe('opacity');
+  });
+
+  it('leaves a file written before the fold-angle mode on the default', () => {
+    // No migration: the reader's `?? DEFAULT` at each use site is what carries
+    // an older file, so the absent field must stay absent rather than be filled
+    // in on read.
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Legacy CP',
+      filename: 'legacy.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const raw = JSON.parse(serializeNativeProjectFile(file));
+    for (const doc of raw.workspace.documents) delete doc.viewState?.viewport?.foldAngleDisplay;
+
+    const parsed = parseNativeProjectFile(JSON.stringify(raw));
+    const document = activeNativeDocument(parsed);
+    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    expect(document.viewState.viewport.foldAngleDisplay).toBeUndefined();
+  });
+
   it('migrates files written before simulations to an empty list', () => {
     const file = createNativeCreasePatternProjectFile({
       title: 'Legacy CP',

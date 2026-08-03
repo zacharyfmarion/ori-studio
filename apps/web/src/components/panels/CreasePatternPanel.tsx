@@ -81,6 +81,7 @@ import {
   cpModelToSvg,
   cpSelectionSize,
   cpSvgToModel,
+  DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   emptyOristudioCpSelection,
   getCpVertexPoints,
@@ -2895,6 +2896,10 @@ export function CreasePatternPanel() {
                   onRequestContextMenu={handleRequestContextMenu}
                   mode={mode}
                   lineStyle={oristudioCpViewport.lineStyle ?? DEFAULT_ORISTUDIO_CP_LINE_STYLE}
+                  foldAngleDisplay={
+                    oristudioCpViewport.foldAngleDisplay ??
+                    DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY
+                  }
                   lineWidth={oristudioCpViewport.lineWidth ?? 1}
                   points={editableCp.crease_pattern.points}
                   vertices={editableCpVertexPoints}
