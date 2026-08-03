@@ -37,11 +37,11 @@ import {
   SYMMETRY_GHOST_PX,
   SYMMETRY_LANE_PX,
 } from './BpTreeScene';
+import { translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import {
-  bpTreeDragUpdates,
-  translatePoints,
-  unitLeafLocation,
-} from '../../lib/bpTreeAuthoring';
+  startBpTreeDrag,
+  type BpTreeDragSession,
+} from '../../lib/bpTreeDragController';
 import {
   mirrorBpTreeVertexId,
   BP_TREE_SYMMETRY_TOLERANCE,
@@ -264,13 +264,9 @@ function BpTreeEdgeLengthEditor({
 export function BpTreePanel({ document }: { document: OristudioBpDocumentState }) {
   const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [dragging, setDragging] = useState<{
-    id: number;
-    start: Point;
-    clientStart: Point;
-    moved: boolean;
-    preview: Map<number, Point>;
-  } | null>(null);
+  // The live drag is deliberately not React state: a pointer sample must not
+  // re-render the drawing. The session writes the moving elements itself.
+  const dragRef = useRef<BpTreeDragSession | null>(null);
   const paperDownRef = useRef<{ clientX: number; clientY: number; point: Point } | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const scheduleLongPressInspector = useBpLongPressInspector();
@@ -372,7 +368,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [selection, document]
   );
   const paperRect = useMemo(() => bpTreePaperRect(tree.sheet), [tree.sheet]);
-  const vertexLocations = useMemo(() => dragging?.preview, [dragging]);
   // Fit to the committed tree bounds only (not the drag preview) so the camera
   // stays put while a flap rotates. Tight padding keeps a unit edge large.
   const worldRect = useMemo(
@@ -422,7 +417,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   // addOristudioBpTreeLeafWithSymmetry will do: an on-axis tip is a single centred
   // leaf; otherwise it reflects onto the parent's mirror.
   const symmetryHoverPreview = useMemo(() => {
-    if (!symmetry.enabled || dragging || !hoverPoint) return null;
+    if (!symmetry.enabled || !hoverPoint) return null;
     const parentId = addAnchorId;
     if (parentId === null) return null;
     const parent = findVertex(parentId);
@@ -460,7 +455,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     symmetry.loc,
     symmetry.angle,
     symmetry.pairs,
-    dragging,
     hoverPoint,
     addAnchorId,
     symmetryAxisTolerance,
@@ -557,18 +551,19 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     containerRef.current?.focus();
   }, [clearSelection, containerRef]);
 
-  const eventToTreePoint = useCallback(
-    (event: PointerEvent): Point => {
+  const clientToTreePoint = useCallback(
+    (client: Point): Point => {
       const svg = svgRef.current;
       if (!svg) return { x: 0, y: 0 };
-      const worldPoint = clientPointToDesignWorld(
-        { x: event.clientX, y: event.clientY },
-        svg.getBoundingClientRect(),
-        worldRect
-      );
+      const worldPoint = clientPointToDesignWorld(client, svg.getBoundingClientRect(), worldRect);
       return svgToBpTreePoint(worldPoint, tree.sheet, paperRect);
     },
     [paperRect, tree.sheet, worldRect]
+  );
+  const eventToTreePoint = useCallback(
+    (event: PointerEvent): Point =>
+      clientToTreePoint({ x: event.clientX, y: event.clientY }),
+    [clientToTreePoint]
   );
 
   useEffect(() => {
@@ -658,66 +653,50 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging({
-      id: vertexId,
-      start: vertex.loc,
-      clientStart: { x: event.clientX, y: event.clientY },
-      moved: false,
-      preview: new Map(),
-    });
-  });
-
-  // Pointer capture retargets the rest of the gesture to the grabbed dot, which
-  // sits inside this container — so the drag listens here rather than on every
-  // dot. One pair of listeners for the pane instead of two per vertex.
-  const onDragPointerMove = (event: PointerEvent<Element>) => {
-    if (!dragging) return;
-    const vertexId = dragging.id;
-    const target = constrainBpTreePoint(eventToTreePoint(event), tree.sheet);
-    setHoverPoint(target);
-    const moved = bpTreeDragUpdates({
+    // The ghost previews where a *click* would put a leaf, which a drag is not.
+    // Clearing it here also means the hover handler has nothing to undo when the
+    // drag ends.
+    setHoverPoint(null);
+    const svg = svgRef.current;
+    if (!svg) return;
+    dragRef.current = startBpTreeDrag({
+      root: svg,
       vertexId,
       parentId: topology.parent.get(vertexId) ?? null,
       vertices: vertexLocationsById,
       subtreeIds: subtreeOf(vertexId),
-      start: dragging.start,
-      target,
+      sheet: tree.sheet,
+      clientStart: { x: event.clientX, y: event.clientY },
+      toTreePoint: (client) => clientToTreePoint(client),
+      toSvgPoint: (loc) => bpTreePointToSvg(loc, tree.sheet, paperRect),
     });
-    const preview = new Map<number, Point>();
-    for (const [id, loc] of moved) preview.set(id, constrainBpTreePoint(loc, tree.sheet));
-    const clientMoved = hasPassedDragThreshold(dragging.clientStart, {
-      x: event.clientX,
-      y: event.clientY,
-    });
-    setDragging({
-      id: vertexId,
-      start: dragging.start,
-      clientStart: dragging.clientStart,
-      moved: dragging.moved || clientMoved,
-      preview,
-    });
-  };
+  });
 
   /** Ends a drag if one is running. Answers whether it consumed the pointerup. */
   const finishDrag = (): boolean => {
-    if (!dragging) return false;
-    const { moved, preview } = dragging;
-    setDragging(null);
+    const session = dragRef.current;
+    if (!session) return false;
+    dragRef.current = null;
+    session.end();
     // A press on a dot arms the canvas "add leaf" gesture in the capture phase.
     // Grabbing a dot means this pointerup ends a drag, not a click on the paper,
     // so disarm it — otherwise releasing without moving would add a leaf.
     paperDownRef.current = null;
-    if (moved && preview.size > 0) {
-      const updates = [...preview.entries()].map(([id, loc]) => ({ id, loc }));
+    if (session.moved && session.updates.size > 0) {
+      const updates = [...session.updates].map(([id, loc]) => ({ id, loc }));
       if (symmetry.enabled) void moveOristudioBpTreeVerticesWithSymmetry(updates, false);
       else void moveOristudioBpTreeVertices(updates, false);
     }
     return true;
   };
 
+  // Pointer capture retargets the rest of the gesture to the grabbed dot, which
+  // sits inside this container — so the drag listens here rather than on every
+  // dot. One pair of listeners for the pane instead of two per vertex.
   const onCanvasPointerMove = (event: PointerEvent<Element>) => {
-    if (dragging) {
-      onDragPointerMove(event);
+    const session = dragRef.current;
+    if (session) {
+      session.move({ x: event.clientX, y: event.clientY });
       return;
     }
     // Track hover across the whole clickable pane — clicks commit anywhere on the
@@ -784,7 +763,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             selectedVertices={linkedSelection.vertices}
             selectedEdges={linkedSelection.edges}
             chromePx={chromePx}
-            previewLocs={vertexLocations}
             symmetryAxisLine={symmetryView.axisLine}
             symmetryPairs={symmetryView.pairs}
             overlay={symmetryGhost}

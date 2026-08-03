@@ -67,7 +67,7 @@ function bpDocument(leafCount: number): OristudioBpDocumentState {
     height: 40,
     grid: { kind: 'rectangular' as const, interval: 1, snap: true },
   };
-  const vertices = [
+  const vertices: OristudioBpDocumentState['snapshot']['tree']['vertices'] = [
     {
       id: 0,
       name: '',
@@ -267,6 +267,67 @@ describe('BP tree canvas — the drawing is not rebuilt for nothing', () => {
     rerender();
     expect(canvas.count()).toBe(0);
     canvas.stop();
+  });
+
+  /** Press a leaf dot, sweep the pointer, release. Returns what the canvas saw. */
+  function dragALeaf(leafCount: number) {
+    const { body } = render(bpDocument(leafCount), null);
+    const svg = body.querySelector('svg.bp-tree-canvas');
+    if (!svg) throw new Error('BP tree canvas did not render');
+    // The dots render in vertex order, so index 1 is the first leaf.
+    const dot = body.querySelectorAll<SVGCircleElement>('.bp-tree-node')[1];
+
+    const touched = new Set<Node>();
+    const observer = new MutationObserver(() => {});
+    observer.observe(svg, { attributes: true, childList: true, subtree: true });
+    const drain = () => {
+      for (const record of observer.takeRecords()) touched.add(record.target);
+    };
+
+    act(() => {
+      dot.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
+      );
+    });
+    drain();
+    // The press selects, which is a legitimate redraw. Everything after it is
+    // the gesture, and the gesture is what must not redraw the tree.
+    touched.clear();
+    for (let step = 0; step < 12; step += 1) {
+      act(() => {
+        body.dispatchEvent(
+          new MouseEvent('pointermove', {
+            bubbles: true,
+            button: 0,
+            clientX: 400 + step * 7,
+            clientY: 300 + step * 5,
+          })
+        );
+      });
+      drain();
+    }
+    act(() => {
+      body.dispatchEvent(
+        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 484, clientY: 360 })
+      );
+    });
+    drain();
+    observer.disconnect();
+    return { touched: touched.size, committed: actions.moveOristudioBpTreeVertices.mock.calls.length };
+  }
+
+  it('touches the same few elements whether the tree is small or large', () => {
+    // The property that makes a drag usable: its cost is set by the subtree that
+    // moves, not by the tree it lives in. An 8× larger tree that touches 8× more
+    // elements is the full re-render coming back.
+    const small = dragALeaf(6);
+    const large = dragALeaf(48);
+    // Guard against the comparison passing because nothing happened at all.
+    expect(small.committed).toBe(1);
+    expect(small.touched).toBeGreaterThan(0);
+    expect(large.touched).toBe(small.touched);
+    // A leaf drag moves one dot, its label, its edge and that edge's label.
+    expect(small.touched).toBeLessThanOrEqual(4);
   });
 
   it('still redraws when the document actually changes', () => {
