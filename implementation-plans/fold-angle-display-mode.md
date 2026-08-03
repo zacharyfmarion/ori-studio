@@ -72,9 +72,9 @@ classic (magnitude undefined, or ≥ 180°)  ->  α = 1, ink returned by identit
 non-classic                                ->  α = FLOOR + (CEIL - FLOOR) * (|ρ| / 180)
 ```
 
-with a starting proposal of `FLOOR = 0.35`, `CEIL = 0.85`. That gives a visible
-step the moment a crease stops being a full fold, then a readable ramp within:
-179° → 0.85, 90° → 0.60, 45° → 0.48, 0° → 0.35.
+Measured at `FLOOR = 0.4`, `CEIL = 0.8` (see the acceptance bar below). That
+gives a visible step the moment a crease stops being a full fold, then a readable
+ramp within: 179° → 0.80, 90° → 0.60, 45° → 0.50, 0° → 0.40.
 
 **The step is not a cliff the user can land on.** Setting 180° normalises to
 `None` in the kernel, and FOLD import normalises an explicit 180 the same way
@@ -87,13 +87,27 @@ in both channels.
 
 **FLOOR and CEIL are module constants, not theme tokens** — they are numbers, not
 colours, and a CSS custom property carrying a scalar buys nothing. They are
-derived from the contrast bar below rather than picked; if dark theme measures
-worse than light, per-theme values are the follow-up, not the starting point.
+derived from the acceptance bar below rather than picked; if one theme measures
+worse than the rest, per-theme values are the follow-up, not the starting point.
 
-**Acceptance bar for the floor:** at `FLOOR`, a mountain and a valley must each
-hold **≥ 3:1 contrast against the canvas background in both light and dark
-themes** (the WCAG non-text bar). Tune the constants to meet it; do not assert
-that 0.35 is fine.
+**Acceptance bar, in Lab ΔE.** Asserted per theme in `foldAngleOpacity.test.ts`
+over all 23 bundled presets plus `theme.css`'s own fallback canvas — a new preset
+with an unusual canvas is exactly the change that would silently make shallow
+creases vanish, and it should fail there rather than ship.
+
+| | bar | worst measured |
+| --- | --- | --- |
+| floor keeps a crease visible | ≥35% of full-opacity ΔE from the canvas | 38% (`cobalt2` mountain) |
+| …and visible in absolute terms | ≥20 ΔE | 22.2 (`catppuccin-latte` valley) |
+| classic→ceiling step reads | ≥8 ΔE | 11.0 (`gruvbox-light` valley) |
+
+**The originally-planned WCAG 3:1 bar was unreachable and had to be replaced.** A
+*fully opaque* valley is only **2.25:1** on `catppuccin-latte` and `gruvbox-light`
+— so an absolute contrast bar worth having fails before alpha is involved at all.
+Contrast ratio also misranks the problem: it is super-linear on dark canvases, so
+it names a dark theme as the worst case when perceptually dark themes have the
+most room (5.7–7.8:1 to spend, against 2.25:1 on light). ΔE is the yardstick the
+hue ramp's own tests already use, and it puts the worst case where it belongs.
 
 ### 3. Composite in alpha, not in RGB
 
@@ -223,32 +237,43 @@ a file load, and costs one `default:` arm.
 ## Checklist
 
 ### Encoding
-- [ ] `applyFoldAngleOpacity`, alpha only, with the classic identity fast path
-- [ ] Test: never touches RGB (the mirror of the existing alpha pin)
-- [ ] Step at the classic boundary; ramp `FLOOR..CEIL` within, monotone in |ρ|
-- [ ] **Contrast measured**: at `FLOOR`, mountain and valley each hold ≥ 3:1
-      against the canvas in both themes. Constants derived from this, not picked
-- [ ] `foldAngleInk` dispatcher; unknown values fall back to `'color'`
-- [ ] Test: no mode is a no-op — every enum member shifts a 90° crease measurably
-- [ ] Test: classic creases return `ink` **by identity** in every mode
-- [ ] `applyFoldAngleRamp` and both its existing pins unchanged
+- [x] `applyFoldAngleOpacity`, alpha only, with the classic identity fast path
+- [x] Test: never touches RGB (the mirror of the existing alpha pin)
+- [x] Test: mountain/valley ΔE is *unchanged* at every angle — the property the
+      hue ramp deliberately gives up, and the reason this mode exists
+- [x] Step at the classic boundary; ramp `FLOOR..CEIL` within, monotone in |ρ|
+- [x] **Bar measured**, per theme, over all 23 presets + the `theme.css`
+      fallback. The planned WCAG 3:1 bar was unreachable (a *fully opaque* valley
+      is 2.25:1 on light themes) and was replaced with Lab ΔE retention;
+      constants derived from it, not picked
+- [x] `foldAngleInk` dispatcher; an unrecognised value falls through to the
+      default mode, pinned against the declared default so changing that constant
+      cannot leave the `default:` arm behind
+- [x] Test: no mode is a no-op — every enum member shifts a 90° crease measurably
+- [x] Test: classic creases return `ink` **by identity** in every mode
+- [x] `applyFoldAngleRamp` and both its existing pins unchanged — the mode never
+      reaches it, so nothing had to be edited to fit
 
 ### Plumbing
-- [ ] Options object on both stroke builders; `undefined` keeps its meaning
-- [ ] Parity gate runs per mode, with the non-vacuity assertion per mode
-- [ ] `buildStrokes` deps include the mode (switching repaints immediately)
+- [x] `CpFoldAngleStyle` on both stroke builders; `undefined` keeps its meaning
+- [x] Parity gate runs per mode, with the non-vacuity assertion per mode, plus
+      one that the two modes differ from each other
+- [x] `buildStrokes` deps include the mode (switching repaints immediately)
 
 ### UI and storage
-- [ ] `foldAngleDisplay` on `OristudioCpViewportOptions`, default `'color'`
-- [ ] `Select` row in `CpViewControlsPanel`, above "Fold angle labels"
-- [ ] `cpFoldAngleDisplayLabel` in `enumLabels.ts`
-- [ ] `.osf` `viewState.viewport` round-trip test, no schema change
-- [ ] `npm run i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check`
+- [x] `foldAngleDisplay` on `OristudioCpViewportOptions`, default `'color'`
+- [x] `Select` row in `CpViewControlsPanel`, above "Fold angle labels"
+- [x] `cpFoldAngleDisplayLabel` in `enumLabels.ts`
+- [x] `.osf` `viewState.viewport` round-trip, no schema change — plus the
+      absent-field case, so an older file is carried by `?? DEFAULT` at each use
+      site rather than being filled in on read
+- [x] `i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check` green
 
 ### Validation
-- [ ] `npx tsc --noEmit` and vitest run directly — **not** `npm run typecheck:web`,
-      which regenerates tracked `generated/**` wasm bindings nondeterministically
-- [ ] `npm run lint:web`
+- [x] `npx tsc --noEmit` clean, full vitest suite green (187 files, 1816 tests) —
+      run directly, **not** via `npm run typecheck:web`, which regenerates tracked
+      `generated/**` wasm bindings nondeterministically
+- [x] `npm run lint:web` clean
 - [ ] Browser checklist below
 
 ## Browser checklist (author)
