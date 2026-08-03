@@ -302,7 +302,9 @@ fn read_block(cur: &mut Cursor) -> Result<ReadBlock> {
     let nv = cur.count("nv", 1)?;
     let ne = cur.count("ne", 1)?;
     let np = cur.count("np", 1)?;
-    if ne > 0 && nv < 2 && !(nv == 1 && ne >= 1) {
+    // Creases need somewhere to attach. One vertex is enough — a degenerate
+    // zero-length crease is legal and joins a vertex to itself.
+    if ne > 0 && nv == 0 {
         return Err(ShareError::ImplausibleCounts {
             counts: nv as u64,
             remaining: cur.remaining(),

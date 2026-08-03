@@ -889,6 +889,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     // The Edit workspace's always-live canvas: seed a blank editable CP when the
     // workspace is entered with no crease pattern loaded, so it is never empty.
     ensureEditCreasePattern: async () => {
+      // NOTE for share links: a pending `/s` payload is only consumed below, so
+      // this early return strands it. That is unreachable today because a share
+      // link is always a *full page load* — the address bar, or a click from
+      // another app — which starts with no document. It stops being unreachable
+      // the moment anything navigates to `/s` client-side, and the symptom would
+      // be a link that silently does nothing. If that navigation is ever added,
+      // decide here whether opening a link replaces the open document or lands in
+      // a new tab, rather than letting it fall through.
       if (get().oristudioCpDocument) return;
       if (ensureEditInFlight) return ensureEditInFlight;
       ensureEditInFlight = (async () => {

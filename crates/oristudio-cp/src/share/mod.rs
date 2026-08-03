@@ -44,11 +44,20 @@ use crate::model::CreasePatternModel;
 /// shared today must still open in five years.
 const SUPPORTED_VERSIONS: &[u8] = &[v1::VERSION];
 
-/// Grammars the encoder will emit. Kept as a list because the mode-comparison
-/// loop below is the mechanism by which a future grammar is introduced safely:
-/// every candidate is verified, and the smallest verified payload wins, so a new
-/// grammar can never make a link larger or wronger than the one it joins.
-const ENCODE_VERSIONS: &[u8] = &[v1::VERSION];
+// # Adding a grammar
+//
+// Most changes do not need one. A new *optional* field is an ancillary
+// extension tag (`< 0x8000`) that old decoders skip and count; a new
+// *load-bearing* field is a critical tag (`>= 0x8000`) that old decoders
+// reject outright. Neither touches the version byte.
+//
+// A version bump is only for changing the body grammar itself. Then: add the
+// constant, write a *new* decoder (never edit a shipped one — it is frozen),
+// list it in `SUPPORTED_VERSIONS`, thread it through `v1::encode` so the body
+// echo matches the frame, add a forced golden fixture, and restore the
+// encode-side loop that tries every grammar and keeps the smallest *verified*
+// payload. That loop is what makes a new grammar safe to introduce: it can only
+// win where it is smaller, and never where it is wrong.
 
 #[derive(Debug, Clone, Copy)]
 pub struct ShareOptions {
@@ -118,33 +127,19 @@ pub fn encode_share_reported(
 
     let mut last_reason = String::from("index codec did not reproduce the document");
     for round in 0..options.max_rounds {
-        // Try every grammar at this quantum and keep the smallest that verifies.
-        // A quantum bump is the fallback for *correctness*, not for size, so it
-        // only happens when no grammar reproduced the document.
-        //
-        // Compared *after* framing and compression, because that is what ships:
-        // the topology layer emits fewer bytes but a less repetitive stream, so
-        // uncompressed body length is not a reliable proxy for the final size and
-        // picking on it chooses wrong on small documents.
-        let mut best: Option<Vec<u8>> = None;
-        for &version in ENCODE_VERSIONS {
-            match attempt(model, title, f_bits, aux_f, version, options) {
-                Ok(body) => {
-                    let framed = frame::write(version, &body);
-                    if best.as_ref().is_none_or(|b| framed.len() < b.len()) {
-                        best = Some(framed);
-                    }
-                }
-                Err(reason) => last_reason = reason,
+        // A quantum bump is the fallback for *correctness*, never for size: the
+        // only reason to retry is that the document did not survive its own
+        // round trip.
+        match attempt(model, title, f_bits, aux_f, options) {
+            Ok(body) => {
+                return Ok(EncodeReport {
+                    payload: frame::write(v1::VERSION, &body),
+                    rounds: round,
+                    used_fallback: false,
+                    fallback_reason: None,
+                });
             }
-        }
-        if let Some(payload) = best {
-            return Ok(EncodeReport {
-                payload,
-                rounds: round,
-                used_fallback: false,
-                fallback_reason: None,
-            });
+            Err(reason) => last_reason = reason,
         }
         f_bits += 2;
         if f_bits > canon::F_WIRE_MAX {
@@ -171,12 +166,10 @@ fn attempt(
     title: Option<&str>,
     f_bits: i32,
     aux_f: i32,
-    version: u8,
     options: ShareOptions,
 ) -> std::result::Result<Vec<u8>, String> {
-    let body =
-        v1::encode(model, title, f_bits, aux_f).map_err(|e| format!("v{version} encode: {e}"))?;
-    let decoded = v1::decode(&body).map_err(|e| format!("v{version} decode of own output: {e}"))?;
+    let body = v1::encode(model, title, f_bits, aux_f).map_err(|e| format!("encode: {e}"))?;
+    let decoded = v1::decode(&body).map_err(|e| format!("decode of own output: {e}"))?;
 
     // The encoder's *intent* is the quantised geometry, so compare against a
     // re-encoded reference rather than the raw source: this asserts the decoder
@@ -184,16 +177,16 @@ fn attempt(
     let reference =
         reference_model(model, f_bits, aux_f).map_err(|e| format!("reference build: {e}"))?;
     if !verify::creases_match(&reference.line_segments, &decoded.model.line_segments) {
-        return Err(format!("v{version} crease multiset changed"));
+        return Err("crease multiset changed".into());
     }
     if !verify::creases_match(
         &reference.aux_line_segments,
         &decoded.model.aux_line_segments,
     ) {
-        return Err(format!("v{version} aux crease multiset changed"));
+        return Err("aux crease multiset changed".into());
     }
     if options.verify_diagnostics && !verify::diagnostics_match(model, &decoded.model) {
-        return Err(format!("v{version} foldability diagnostics changed"));
+        return Err("foldability diagnostics changed".into());
     }
     Ok(body)
 }
