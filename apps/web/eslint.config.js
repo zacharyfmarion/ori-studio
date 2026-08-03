@@ -68,7 +68,14 @@ const OVERSIZED_PANELS = {
   // `inlineSimulation/inlineSimulationRuntime` (the exporter registry) and its
   // store binding is in the hook, scoped to the focused window like `replay` —
   // so what landed here is composition too.
-  'CreasePatternPanel.tsx': 2939,
+  //
+  // 2939 -> 2674: the diagnostic HUD moved out, whole. Its store bindings are in
+  // `diagnostics/useCpDiagnosticList` and the surface is
+  // `diagnostics/CpDiagnosticHud`, which takes no props — so the expand state,
+  // the status memo, the entry memo, the collapse effect, and the row markup all
+  // left together. This is the direction the number is for: it went down because
+  // behaviour moved to where it belongs, not because a file was split in half.
+  'CreasePatternPanel.tsx': 2674,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

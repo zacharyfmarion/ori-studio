@@ -9,8 +9,6 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { createPortal } from 'react-dom';
 import {
-  ChevronDown,
-  ChevronRight,
   Copy,
   ImagePlus,
   ListChecks,
@@ -29,7 +27,6 @@ import {
 } from '../../keyboard/shortcuts';
 import type {
   OristudioCpCommandPayload,
-  OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
@@ -40,12 +37,7 @@ import type {
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
-import { CpDiagnosticGlyph } from '../../cp-workspace/diagnostics/CpDiagnosticGlyph';
-import { cpDiagnosticEntryMessage } from '../../cp-workspace/diagnostics/foldabilityMessages';
-import {
-  diagnosticHudStatus,
-  isDiagnosticResultOperation,
-} from '../../cp-workspace/diagnostics/hudStatus';
+import { CpDiagnosticHud } from '../../cp-workspace/diagnostics/CpDiagnosticHud';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
   cpActionByOperation,
@@ -206,8 +198,6 @@ import type { FoldDocument } from '../../engine/types';
 function formatZoom(scale: number): string {
   return `${Math.round(scale * 100)}%`;
 }
-
-const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
 
 /**
  * View-rotation step per button press or key: 11.25 degrees, matching
@@ -837,7 +827,6 @@ export function CreasePatternPanel() {
       return next;
     });
   }, []);
-  const [diagnosticHudExpanded, setDiagnosticHudExpanded] = useState(false);
   const defaultCpToolDocumentRef = useRef<string | null>(null);
   const restoredNativeCanvasModelRef = useRef<string | null>(null);
   const cpToolDragRef = useRef<{
@@ -932,9 +921,6 @@ export function CreasePatternPanel() {
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
   const oristudioCpActiveFoldedFigureId = useWorkspaceStore(
     (state) => state.oristudioCpActiveFoldedFigureId
-  );
-  const oristudioCpActiveDiagnosticId = useWorkspaceStore(
-    (state) => state.oristudioCpActiveDiagnosticId
   );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
@@ -1432,31 +1418,6 @@ export function CreasePatternPanel() {
     });
     return { a, b, color: colors, widthMul, count, dashPatterns: [OVERLAY_DASH_PATTERN] };
   }, [editableCp?.operation_frame, currentTheme]);
-  const diagnosticStatus = useMemo(
-    () => {
-      const camvStatus = camvIssuesVisible
-        ? diagnosticHudStatus(t, oristudioCpCamvResult, { issueOnly: true })
-        : null;
-      const commandStatus =
-        !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
-          ? null
-          : diagnosticHudStatus(t, lastCommandResult);
-      return camvStatus ?? commandStatus;
-    },
-    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]
-  );
-  const diagnosticHudEntries = useMemo(() => {
-    const hudResult =
-      camvIssuesVisible && diagnosticHudStatus(t, oristudioCpCamvResult, { issueOnly: true }) !== null
-        ? oristudioCpCamvResult
-        : !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
-          ? null
-          : lastCommandResult;
-    if (!hudResult || !isDiagnosticResultOperation(hudResult.operation)) {
-      return EMPTY_DIAGNOSTIC_ENTRIES;
-    }
-    return hudResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]);
   // The `selection_distance` every tool command carries, exposed to the canvas so a
   // destination pick is gated on the same radius the kernel searches.
   const cpToolSelectionDistance = useMemo(
@@ -2687,11 +2648,6 @@ export function CreasePatternPanel() {
   );
 
   useEffect(() => {
-    if (!diagnosticStatus) setDiagnosticHudExpanded(false);
-  }, [diagnosticStatus]);
-
-
-  useEffect(() => {
     if (!editableCp) {
       setCpToolPoints([]);
       setCpToolPath([]);
@@ -2753,51 +2709,7 @@ export function CreasePatternPanel() {
               onDragOver={annotations.handleViewportDragOver}
               onDrop={annotations.handleViewportDrop}
             >
-              {diagnosticStatus && (
-                <div
-                  className="cp-diagnostic-hud"
-                  data-tone={diagnosticStatus.tone}
-                  data-expanded={diagnosticHudExpanded || undefined}
-                  aria-live="polite"
-                >
-                  <button
-                    type="button"
-                    className="cp-diagnostic-hud__summary"
-                    aria-expanded={diagnosticHudExpanded}
-                    onClick={() => setDiagnosticHudExpanded((expanded) => !expanded)}
-                  >
-                    <span className="cp-diagnostic-hud__copy">
-                      <span>{diagnosticStatus.label}</span>
-                      {diagnosticStatus.detail &&
-                        diagnosticStatus.detail !== diagnosticStatus.label && (
-                          <small>{diagnosticStatus.detail}</small>
-                        )}
-                    </span>
-                    {diagnosticHudExpanded ? (
-                      <ChevronDown aria-hidden="true" size={16} />
-                    ) : (
-                      <ChevronRight aria-hidden="true" size={16} />
-                    )}
-                  </button>
-                  {diagnosticHudExpanded && diagnosticHudEntries.length > 0 && (
-                    <div className="cp-diagnostic-hud__list" aria-label={t('panels:creasePattern.canvasDiagnostics', 'Canvas diagnostics')}>
-                      {diagnosticHudEntries.slice(0, 12).map((entry) => (
-                        <button
-                          type="button"
-                          className="cp-diagnostic-hud__row"
-                          data-active={entry.id === oristudioCpActiveDiagnosticId || undefined}
-                          data-severity={entry.severity}
-                          key={entry.id}
-                          onClick={() => handleSelectCpDiagnostic(entry.id)}
-                        >
-                          <CpDiagnosticGlyph t={t} entry={entry} />
-                          <span>{cpDiagnosticEntryMessage(t, entry)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              <CpDiagnosticHud />
               {editableCp ? (
                 <>
                 <CreasePatternWebglCanvas
