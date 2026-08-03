@@ -9,6 +9,11 @@ import type {
  * The options the user can choose. Excludes `openNew` (we have no BP project
  * tabs, so the optimizer always replaces in place), `seed` (randomized per run),
  * and `symmetry` (resolved from the tree at run time, not a stored preference).
+ *
+ * The mirror fold is not here either: it is a fact about the design rather than
+ * a way of running the optimizer, so it lives on the document and is saved with
+ * it. A stale `symmetryFold` in an older browser's stored options is dropped on
+ * read, because `sanitize` rebuilds the object from known keys.
  */
 export type BpOptimizerDialogOptions = OristudioBpOptimizerRunOptions;
 
@@ -26,7 +31,6 @@ export const DEFAULT_BP_OPTIMIZER_OPTIONS: BpOptimizerDialogOptions = {
   // drawn. It only takes effect when the symmetry mode is on and the pairing
   // actually resolves; the dialog says so when it does not.
   respectSymmetry: true,
-  symmetryFold: 'book',
 };
 
 /** Upstream's range for "Number of layouts to try". */
@@ -43,7 +47,6 @@ function sanitize(options: Partial<BpOptimizerDialogOptions>): BpOptimizerDialog
     layoutMode: merged.layoutMode === 'random' ? 'random' : 'view',
     useBasinHopping: Boolean(merged.useBasinHopping),
     respectSymmetry: Boolean(merged.respectSymmetry),
-    symmetryFold: merged.symmetryFold === 'diagonal' ? 'diagonal' : 'book',
     randomCandidateCount: Number.isFinite(count)
       ? Math.min(MAX_BP_RANDOM_CANDIDATES, Math.max(MIN_BP_RANDOM_CANDIDATES, count))
       : DEFAULT_BP_OPTIMIZER_OPTIONS.randomCandidateCount,

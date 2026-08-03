@@ -35,6 +35,8 @@ import {
   buildMirroredBpTreeUpdates,
   bpTreeDeleteIdsWithSymmetry,
   bpTreeSymmetryDefaultLoc,
+  defaultBpDocumentSymmetry,
+  type BpDocumentSymmetry,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
   BP_TREE_SYMMETRY_ANGLE,
@@ -141,8 +143,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   const setLoadedBpProject = (
     document: OristudioBpDocumentState,
     message: string,
-    options: { preserveEditCanvas?: boolean } = {}
+    options: {
+      preserveEditCanvas?: boolean;
+      /** Mirror-draw state the file carried, when it was an `.osf`. */
+      symmetry?: BpDocumentSymmetry | null;
+    } = {}
   ) => {
+    const symmetry = options.symmetry ?? null;
     pendingHistory = null;
     set({
       workflowTarget: 'box-pleat',
@@ -180,15 +187,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       oristudioBpBusy: false,
       oristudioBpHistoryPast: [],
       oristudioBpHistoryFuture: [],
-      // Ephemeral mirror-draw state is project-specific — reset it on every load.
-      // Symmetry defaults ON with the line centred on the sheet, so box-pleat
-      // authoring is symmetric out of the box. The line is always vertical: a
-      // tree has no paper to orient a fold against.
+      // Mirror-draw state is per-design. `symmetry` carries what the file said,
+      // if the loader read any; otherwise a new design starts symmetric, which is
+      // how box-pleat authoring wants to begin. The axis itself is always derived
+      // here rather than restored: vertical, centred on whatever sheet loaded.
       oristudioBpSymmetry: {
-        enabled: true,
+        ...(symmetry ?? defaultBpDocumentSymmetry()),
         angle: BP_TREE_SYMMETRY_ANGLE,
         loc: bpTreeSymmetryDefaultLoc(document.snapshot.tree.sheet),
-        pairs: [],
       },
       currentFileName: document.source.filename,
       currentFilePath: document.source.path,
@@ -305,10 +311,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     oristudioBpHistoryPast: [],
     oristudioBpHistoryFuture: [],
     oristudioBpViewportFitRequestId: 0,
-    // Ephemeral mirror-draw state (never persisted). Defaults ON; `loc` is
-    // re-centred on the sheet on every document load (see createOristudioBpProject),
-    // so this pre-load {0,0} is a placeholder. `angle` 90 is a vertical (book) axis.
-    oristudioBpSymmetry: { enabled: true, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+    // Defaults ON; `loc` is re-centred on the sheet on every document load (see
+    // setLoadedBpProject), so this pre-load {0,0} is a placeholder.
+    oristudioBpSymmetry: {
+      ...defaultBpDocumentSymmetry(),
+      angle: BP_TREE_SYMMETRY_ANGLE,
+      loc: { x: 0, y: 0 },
+    },
 
     ensureBoxPleatProject: async () => {
       if (get().oristudioBpDocument || get().oristudioBpBusy) return;
@@ -391,7 +400,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       }
     },
 
-    loadOristudioBpProjectFromFile: async (text, source) => {
+    loadOristudioBpProjectFromFile: async (text, source, options = {}) => {
       set({ oristudioBpBusy: true, oristudioBpError: null });
       try {
         await get().clearOristudioCpDocument();
@@ -405,7 +414,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           getOristudioBpPortDescriptors().catch(() => []),
         ]);
         set({ oristudioBpPortDescriptors: portDescriptors });
-        setLoadedBpProject(document, `Loaded ${source.filename}`);
+        setLoadedBpProject(document, `Loaded ${source.filename}`, {
+          symmetry: options.symmetry ?? null,
+        });
         return true;
       } catch (error) {
         const normalized = oristudioBpError(error);
@@ -494,7 +505,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     setOristudioBpSymmetry: (update) => {
-      set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, ...update } });
+      // Saved with the design, so changing it leaves unsaved work — with no
+      // `dirty` the close prompt would let it go silently.
+      set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, ...update }, dirty: true });
     },
 
     addOristudioBpTreeLeafWithSymmetry: async (parentId, loc, axisTolerance) => {
@@ -855,7 +868,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       let symmetry: OptimizerSymmetryPayload | null = null;
       if (options.respectSymmetry && symmetryState.enabled) {
         const resolved = resolveOptimizerSymmetry(document.snapshot.tree, symmetryState, {
-          fold: options.symmetryFold,
+          fold: symmetryState.fold,
         });
         if (!resolved.ok) {
           // Falling back to an unconstrained solve would hand back a layout the
@@ -898,7 +911,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const symmetry = get().oristudioBpSymmetry;
       const pairs = removeBpTreeSymmetryPair(symmetry.pairs, vertexId);
       if (pairs.length === symmetry.pairs.length) return;
-      set({ oristudioBpSymmetry: { ...symmetry, pairs } });
+      set({ oristudioBpSymmetry: { ...symmetry, pairs }, dirty: true });
     },
 
     setOristudioBpLayoutSheet: async (gridType, width, height) =>

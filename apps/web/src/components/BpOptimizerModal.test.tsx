@@ -160,7 +160,6 @@ describe('BpOptimizerModal', () => {
       // No BP document in this test, so symmetry cannot resolve and the run
       // does not ask the solver to mirror.
       respectSymmetry: false,
-      symmetryFold: 'book',
     });
     expect(useBpOptimizerUiStore.getState().isOpen).toBe(false);
   });
@@ -259,6 +258,7 @@ describe('symmetry row', () => {
     useWorkspaceStore.setState({
       oristudioBpSymmetry: {
         enabled: true,
+        fold: 'book',
         angle: 90,
         loc: { x: 10, y: 10 },
         pairs: [],
@@ -319,7 +319,7 @@ describe('symmetry row', () => {
     renderModal();
     const before = useWorkspaceStore.getState().oristudioBpSymmetry.angle;
     act(() => {
-      useBpOptimizerUiStore.getState().setOptions({ symmetryFold: 'diagonal' });
+      useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
     });
     expect(useWorkspaceStore.getState().oristudioBpSymmetry.angle).toBe(before);
   });

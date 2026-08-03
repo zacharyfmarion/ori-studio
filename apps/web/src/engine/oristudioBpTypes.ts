@@ -1,4 +1,4 @@
-import type { OptimizerSymmetryPayload, SymmetryFold } from '../lib/bpOptimizerSymmetry';
+import type { OptimizerSymmetryPayload } from '../lib/bpOptimizerSymmetry';
 import type { Point } from '../lib/geometry';
 import type {
   OristudioBpCapabilityId,
@@ -363,12 +363,6 @@ export interface OristudioBpOptimizerOptions {
    * per run.
    */
   respectSymmetry: boolean;
-  /**
-   * Which fold of the paper to mirror about. Separate from the tree's own mirror
-   * line, which is an authoring aid and is always vertical — a tree is not drawn
-   * on the paper, so it has no book or diagonal fold of its own.
-   */
-  symmetryFold: SymmetryFold;
   /**
    * Mirror symmetry to enforce, already resolved against the tree by
    * {@link ../lib/bpOptimizerSymmetry.resolveOptimizerSymmetry}. Omitted or null

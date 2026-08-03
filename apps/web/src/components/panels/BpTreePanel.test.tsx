@@ -110,7 +110,6 @@ function bpDocument(): OristudioBpDocumentState {
         layoutMode: 'view',
         useBasinHopping: true,
         respectSymmetry: true,
-        symmetryFold: 'book',
         randomCandidateCount: 100,
         seed: null,
       },
@@ -222,6 +221,7 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
           : { kind: 'bp-vertex', id: selectedVertexId },
       oristudioBpSymmetry: {
         enabled: symmetryEnabled,
+        fold: 'book',
         angle: 90,
         loc: { x: 10, y: 10 },
         pairs: [],
@@ -374,7 +374,7 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
         ...actions,
         oristudioBpDocument: document_,
         oristudioBpSelection: { kind: 'bp-edge', id: 1 },
-        oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
+        oristudioBpSymmetry: { enabled: false, fold: 'book', angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
       },
       true
     );

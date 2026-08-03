@@ -5544,7 +5544,6 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 1,
           respectSymmetry: false,
-          symmetryFold: 'book',
         })
       ).resolves.toBe('applied');
 
@@ -5580,7 +5579,6 @@ describe('workspace store slices', () => {
         useBasinHopping: false,
         randomCandidateCount: 1,
         respectSymmetry: false,
-        symmetryFold: 'book',
       });
 
       expect(bpMocks.optimizeOristudioBpLayout).toHaveBeenCalledWith(
@@ -5599,6 +5597,7 @@ describe('workspace store slices', () => {
       useWorkspaceStore.setState({
         oristudioBpSymmetry: {
           enabled: true,
+          fold: 'book',
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [{ v1: leaves[0].id, v2: leaves[1].id }],
@@ -5617,7 +5616,6 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 1,
           respectSymmetry: true,
-          symmetryFold: 'book',
         })
       ).resolves.toBe('applied');
 
@@ -5656,6 +5654,7 @@ describe('workspace store slices', () => {
         },
         oristudioBpSymmetry: {
           enabled: true,
+          fold: 'book',
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [],
@@ -5669,7 +5668,6 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 4,
           respectSymmetry: true,
-          symmetryFold: 'book',
         })
       ).resolves.toBe('failed');
 
@@ -5685,6 +5683,7 @@ describe('workspace store slices', () => {
       useWorkspaceStore.setState({
         oristudioBpSymmetry: {
           enabled: true,
+          fold: 'book',
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [{ v1: leaves[0], v2: leaves[1] }],
@@ -5704,7 +5703,6 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 4,
           respectSymmetry: true,
-          symmetryFold: 'book',
         })
       ).resolves.toBe('applied');
 
@@ -5730,7 +5728,6 @@ describe('workspace store slices', () => {
           useBasinHopping: false,
           randomCandidateCount: 4,
           respectSymmetry: false,
-          symmetryFold: 'book',
         })
       ).resolves.toBe('cancelled');
 
@@ -5761,7 +5758,6 @@ describe('workspace store slices', () => {
           useBasinHopping: true,
           randomCandidateCount: 1,
           respectSymmetry: false,
-          symmetryFold: 'book',
         })
       ).resolves.toBe('failed');
 

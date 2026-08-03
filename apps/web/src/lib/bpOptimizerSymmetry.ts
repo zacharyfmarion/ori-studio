@@ -1,5 +1,9 @@
 import type { OristudioBpSheetKind, OristudioBpTreeView } from '../engine/oristudioBpTypes';
-import { mirrorBpTreeVertexId, type BpTreeSymmetryPair } from './bpTreeSymmetry';
+import {
+  mirrorBpTreeVertexId,
+  type BpTreeSymmetryPair,
+  type SymmetryFold,
+} from './bpTreeSymmetry';
 import { isPaperCenter } from './symmetryPresets';
 import type { SymmetryAxis } from './symmetryGeometry';
 
@@ -51,10 +55,9 @@ export interface OptimizerSymmetryRejected {
 
 export type OptimizerSymmetryResolution = OptimizerSymmetryResolved | OptimizerSymmetryRejected;
 
-const DISTANCE_EPSILON = 1e-6;
+export type { SymmetryFold } from './bpTreeSymmetry';
 
-/** How the paper is folded onto itself. */
-export type SymmetryFold = 'book' | 'diagonal';
+const DISTANCE_EPSILON = 1e-6;
 
 /**
  * Where a fold falls in the optimizer's normalized frame.

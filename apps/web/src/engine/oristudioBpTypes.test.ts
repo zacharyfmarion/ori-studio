@@ -50,7 +50,6 @@ describe('oristudio BP DTO contract', () => {
           layoutMode: 'view',
           useBasinHopping: true,
           respectSymmetry: true,
-          symmetryFold: 'book',
           randomCandidateCount: 100,
           seed: null,
         },

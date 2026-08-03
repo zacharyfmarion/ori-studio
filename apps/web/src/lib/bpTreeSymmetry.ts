@@ -69,6 +69,35 @@ export function addBpTreeSymmetryPair(
   return [...rest, next];
 }
 
+/** How the paper is folded onto itself. */
+export type SymmetryFold = 'book' | 'diagonal';
+
+/**
+ * The part of mirror-draw state that belongs to the *design* and is saved with
+ * it, as opposed to the runtime axis (`angle`/`loc`) which is derived from the
+ * sheet on every load.
+ *
+ * `angle` is always {@link BP_TREE_SYMMETRY_ANGLE} and `loc` is always the sheet
+ * centre, so storing either would only create a way for a file to disagree with
+ * the sheet it describes — a design saved at one sheet size and reopened at
+ * another would carry a mirror line that no longer runs down the middle.
+ */
+export interface BpDocumentSymmetry {
+  enabled: boolean;
+  /**
+   * Which fold of the paper the mirror becomes. A fact about the design, not a
+   * preference about the optimizer: "this model is book-symmetric" travels with
+   * the model.
+   */
+  fold: SymmetryFold;
+  pairs: BpTreeSymmetryPair[];
+}
+
+/** Mirror draw as a new design starts: on, book fold, nothing paired yet. */
+export function defaultBpDocumentSymmetry(): BpDocumentSymmetry {
+  return { enabled: true, fold: 'book', pairs: [] };
+}
+
 /** Drop whatever pairing mentions this vertex. */
 export function removeBpTreeSymmetryPair(
   pairs: BpTreeSymmetryPair[],

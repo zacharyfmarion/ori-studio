@@ -29,7 +29,7 @@ import type {
 import type { SelectablePartKind } from '../../lib/selection';
 import type { SimulatorSettings, SimulatorSettingKey } from '../../lib/simulatorSettings';
 import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
-import type { BpTreeSymmetryPair } from '../../lib/bpTreeSymmetry';
+import type { BpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type { CreaseExportOptions } from '../../lib/creaseExport';
@@ -669,20 +669,21 @@ export interface BpHistorySnapshot {
 }
 
 /**
- * Ephemeral BP-tree symmetry authoring state. Not persisted to the document/.bps —
- * it lives only in the store for the current editing session (mirror-draw axis +
- * paired vertices). `angle`/`loc` describe the mirror axis in tree coordinates.
+ * BP-tree symmetry authoring state: the mirror-draw axis and what is paired
+ * across it.
  *
- * The angle is always {@link BP_TREE_SYMMETRY_ANGLE}: a tree is not drawn on the
- * paper, so there is nothing here to orient a mirror against, and one vertical
- * line is all mirror-draw needs. Which fold of the *paper* that mirror becomes is
- * a separate, per-run choice on the optimizer — see `symmetryFold`.
+ * Split in two. {@link BpDocumentSymmetry} — `enabled`, `fold`, `pairs` — is part
+ * of the design and is saved into `.osf`; no Box Pleating Studio format can
+ * carry it, so every BP export drops it (see `lib/supersetFeatures.ts`).
+ * `angle`/`loc` describe the axis in tree coordinates and are *derived*: the
+ * angle is always {@link BP_TREE_SYMMETRY_ANGLE}, because a tree is not drawn on
+ * the paper and so has nothing to orient a mirror against, and `loc` is the
+ * centre of whatever sheet is loaded. Which fold of the *paper* the mirror
+ * becomes is `fold`, and that does travel with the design.
  */
-export interface OristudioBpSymmetryState {
-  enabled: boolean;
+export interface OristudioBpSymmetryState extends BpDocumentSymmetry {
   angle: number;
   loc: Point;
-  pairs: BpTreeSymmetryPair[];
 }
 
 export interface OristudioBpSliceState {
@@ -730,7 +731,13 @@ export interface OristudioBpSliceActions {
    */
   loadOristudioBpProjectFromFile: (
     text: string,
-    source: { filename: string; path?: string | null }
+    source: { filename: string; path?: string | null },
+    /**
+     * Mirror-draw state to restore alongside the design. Only an `.osf` has any
+     * — a bare `.bps` cannot carry symmetry — so this is absent for plain
+     * Box Pleating Studio files and the design opens with the default.
+     */
+    options?: { symmetry?: BpDocumentSymmetry | null }
   ) => Promise<boolean>;
   /** Replace the active BP selection. */
   selectOristudioBp: (selection: OristudioBpSelection) => void;

@@ -97,6 +97,7 @@ export function BpOptimizerModal() {
   const error = useBpOptimizerUiStore((state) => state.error);
   const optimize = useWorkspaceStore((state) => state.optimizeOristudioBpLayout);
   const symmetryState = useWorkspaceStore((state) => state.oristudioBpSymmetry);
+  const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
   const tree = useWorkspaceStore((state) => state.oristudioBpDocument?.snapshot.tree ?? null);
   // The fold lives here rather than in the tree view: a tree is not drawn on the
   // paper, so it has no book or diagonal fold of its own. The tree's mirror line
@@ -110,13 +111,13 @@ export function BpOptimizerModal() {
   const symmetry = useMemo(() => {
     if (!symmetryState.enabled || !tree) return { mode: 'off' as const };
     const resolved = resolveOptimizerSymmetry(tree, symmetryState, {
-      fold: options.symmetryFold,
+      fold: symmetryState.fold,
     });
     if (!resolved.ok) {
       return { mode: 'unusable' as const, reason: resolved.reason };
     }
     return { mode: 'ready' as const, inconsistent: resolved.inconsistentPairs.length };
-  }, [options.symmetryFold, symmetryState, tree]);
+  }, [symmetryState, tree]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -288,9 +289,9 @@ export function BpOptimizerModal() {
                         <span>{t('dialogs:bpOptimizer.enable', 'Enable symmetry')}</span>
                       </label>
                       <Select
-                        value={options.symmetryFold}
+                        value={symmetryState.fold}
                         onValueChange={(value) =>
-                          setOptions({ symmetryFold: value as SymmetryFold })
+                          setOristudioBpSymmetry({ fold: value as SymmetryFold })
                         }
                       >
                         <SelectTrigger
