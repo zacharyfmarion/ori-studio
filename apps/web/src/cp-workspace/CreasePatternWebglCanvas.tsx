@@ -10,7 +10,6 @@ import {
   modelViewFromCamera,
   normalizeCameraRotation,
   panUserCamera,
-  projectModelPoint,
   unprojectDevicePoint,
   userCameraToView,
   userCamerasEqual,
@@ -20,11 +19,13 @@ import {
   type UserCamera,
 } from './renderer/camera';
 import { registerCpCamera, type CpCameraHandle } from './renderer/cpCameraRegistry';
+import { LineHitIndex } from './picking/lineHitIndex';
 import {
-  LineHitIndex,
-  circleRingIntersectsAabb,
-  segmentIntersectsAabb,
-} from './picking/lineHitIndex';
+  circleRingIntersectsConvexQuad,
+  pointInConvexQuad,
+  segmentIntersectsConvexQuad,
+} from './picking/convexQuad';
+import { viewAlignedBoxCorners, type BoxCorners } from './tools/viewAlignedBox';
 import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
 import { candidatePreviewGroups } from './adapters/candidatePreviewGroups';
 import {
@@ -662,6 +663,12 @@ export interface CreasePatternWebglCanvasProps {
    */
   initialCamera?: UserCamera | null;
   /**
+   * Keep the active drag-box tool's box axis-aligned in *model* space (and
+   * committing two diagonal corners) instead of upright on screen. Only the
+   * operation frame needs this — see `tools/predicates.isModelAlignedBoxOperation`.
+   */
+  activeToolModelAlignedBox?: boolean;
+  /**
    * Report the camera whenever it changes, so the document can persist the view.
    * Fires per frame only when a value actually moved; the consumer debounces.
    */
@@ -790,6 +797,7 @@ export function CreasePatternWebglCanvas({
   onRotationChange,
   onViewChange,
   initialCamera,
+  activeToolModelAlignedBox,
   onCameraChange,
   onEraseBox,
   onEraseLine,
@@ -1249,6 +1257,7 @@ export function CreasePatternWebglCanvas({
     onRotationChange,
     onViewChange,
     initialCamera,
+    activeToolModelAlignedBox,
     onCameraChange,
     onEraseBox,
     onEraseLine,
@@ -1651,75 +1660,55 @@ export function CreasePatternWebglCanvas({
     marquee.style.display = 'none';
     canvas.parentElement?.appendChild(marquee);
 
+    /** The live model→device transform, or null before the camera is seeded. */
+    const currentView = (): ViewTransform | null => {
+      const cam = cameraRef.current;
+      if (!cam) return null;
+      return modelViewFromCamera(cam, viewportOf(dpr()), liveRef.current.modelToSvg);
+    };
+
     /**
-     * The drag's box in *model* space, axis-aligned there rather than on screen.
+     * The drag's box in model space, axis-aligned *on screen* — a rotated
+     * quadrilateral in model space whenever the view is turned.
      *
-     * Model-aligned is the load-bearing choice: the two corners are what every
-     * drag-box tool forwards to the kernel, which reads them as an axis-aligned
-     * box (Oriedita semantics). A screen-aligned box would be a rotated
-     * quadrilateral in model space and simply cannot be expressed in that
-     * contract. {@link updateMarquee} draws this same box, so the outline always
-     * matches what gets selected.
+     * This is Oriedita's construction: `BoxSelectStepNode` builds the four
+     * corners in screen coordinates and maps each through `Camera.TV2object`.
+     * The kernel takes all four unchanged, since `required_selection_polygon`
+     * reads three or more points as a polygon verbatim.
      */
-    const dragModelBox = (clientX: number, clientY: number) => {
+    const dragBoxCorners = (clientX: number, clientY: number): BoxCorners | null => {
       const p1 = clientToModel(pressX, pressY);
       const p2 = clientToModel(clientX, clientY);
       if (!p1 || !p2) return null;
-      return {
-        minX: Math.min(p1.x, p2.x),
-        maxX: Math.max(p1.x, p2.x),
-        minY: Math.min(p1.y, p2.y),
-        maxY: Math.max(p1.y, p2.y),
-      };
+      return viewAlignedBoxCorners(p1, p2, currentView());
     };
 
     const updateMarquee = (clientX: number, clientY: number) => {
       const parent = canvas.parentElement?.getBoundingClientRect();
-      const cam = cameraRef.current;
-      const box = dragModelBox(clientX, clientY);
-      if (!parent || !cam || !box) return;
-      // Project the box's origin corner and its two edge vectors, so the outline
-      // follows any rotation in the model->CSS affine (the camera's, and any the
-      // document's own Oriedita camera contributes).
-      const ratio = dpr();
-      const view = modelViewFromCamera(cam, viewportOf(ratio), liveRef.current.modelToSvg);
-      const toCssPoint = (x: number, y: number) => {
-        const d = projectModelPoint(view, x, y);
-        return { x: d.x / ratio, y: d.y / ratio };
-      };
-      const origin = toCssPoint(box.minX, box.minY);
-      const alongX = toCssPoint(box.maxX, box.minY);
-      const alongY = toCssPoint(box.minX, box.maxY);
-      const edgeX = { x: alongX.x - origin.x, y: alongX.y - origin.y };
-      const edgeY = { x: alongY.x - origin.x, y: alongY.y - origin.y };
-      // A `rotate()` about the top-left maps the div's local +x/+y onto exactly
-      // these edges, because the view transform is rigid (uniform, no shear).
-      const angle = Math.atan2(edgeX.y, edgeX.x);
-      const canvasRect = canvas.getBoundingClientRect();
+      if (!parent) return;
+      // The box is upright on screen by construction, so the outline is the plain
+      // client-space rect between press and cursor — no projection, no rotation.
       marquee.style.display = 'block';
-      marquee.style.left = `${canvasRect.left - parent.left + origin.x}px`;
-      marquee.style.top = `${canvasRect.top - parent.top + origin.y}px`;
-      marquee.style.width = `${Math.hypot(edgeX.x, edgeX.y)}px`;
-      marquee.style.height = `${Math.hypot(edgeY.x, edgeY.y)}px`;
-      marquee.style.transform = angle === 0 ? '' : `rotate(${angle}rad)`;
+      marquee.style.left = `${Math.min(pressX, clientX) - parent.left}px`;
+      marquee.style.top = `${Math.min(pressY, clientY) - parent.top}px`;
+      marquee.style.width = `${Math.abs(clientX - pressX)}px`;
+      marquee.style.height = `${Math.abs(clientY - pressY)}px`;
     };
     const boxSelect = (clientX: number, clientY: number, additive: boolean) => {
-      const box = dragModelBox(clientX, clientY);
-      if (!box) return;
+      const quad = dragBoxCorners(clientX, clientY);
+      if (!quad) return;
       const l = liveRef.current;
-      const inBox = (p: ModelPoint) =>
-        p.x >= box.minX && p.x <= box.maxX && p.y >= box.minY && p.y <= box.maxY;
       const sets: CpBoxSelection = { lines: [], points: [], circles: [] };
       // Crossing marquee for lines/circle-rings; enclosed centres for points.
       // Vertices are derived, not selectable.
       l.lineSegments.forEach((s, i) => {
-        if (segmentIntersectsAabb(s.a, s.b, box)) sets.lines.push(i + 1);
+        if (segmentIntersectsConvexQuad(s.a, s.b, quad)) sets.lines.push(i + 1);
       });
       l.points.forEach((p, i) => {
-        if (inBox(p)) sets.points.push(i + 1);
+        if (pointInConvexQuad(p, quad)) sets.points.push(i + 1);
       });
       l.circles.forEach((c, i) => {
-        if (circleRingIntersectsAabb(c.x, c.y, c.r, box)) sets.circles.push(i + 1);
+        if (circleRingIntersectsConvexQuad(c.x, c.y, c.r, quad)) sets.circles.push(i + 1);
       });
       l.onBoxSelect(sets, additive);
     };
@@ -1831,6 +1820,7 @@ export function CreasePatternWebglCanvas({
         kind,
         point: resolved.point,
         tolerance: modelToleranceOf(CLICK_MOVE_THRESHOLD),
+        viewTransform: liveRef.current.activeToolModelAlignedBox ? null : currentView(),
       });
       setToolPreview(out.preview?.segments);
       if (snaps) syncDragLineArmed(out.livePoints, snapRingFor(resolved.point, raw));
@@ -2528,7 +2518,7 @@ export function CreasePatternWebglCanvas({
       if (!eraseRuntime) return;
       const raw = clientToModel(clientX, clientY);
       if (!raw) return;
-      const out = eraseRuntime.feed({ kind, point: raw });
+      const out = eraseRuntime.feed({ kind, point: raw, viewTransform: currentView() });
       // The erase box draws in its own colour, so it must not be repainted as a
       // tool preview when the crease colour changes.
       takePreviewChannel();
@@ -2824,7 +2814,11 @@ export function CreasePatternWebglCanvas({
               target: { kind: 'folded-figure', figureId },
             });
           } else {
-            const out = eraseRuntime.feed({ kind: 'up', point: raw });
+            const out = eraseRuntime.feed({
+              kind: 'up',
+              point: raw,
+              viewTransform: currentView(),
+            });
             if (out.commit) {
               // Right-drag: erase every crease inside the box.
               liveRef.current.onEraseBox(out.commit.points ?? []);

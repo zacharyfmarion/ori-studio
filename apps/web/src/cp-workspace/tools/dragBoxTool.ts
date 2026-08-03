@@ -1,10 +1,17 @@
 /**
  * `drag-box` tool engine (e.g. box select / box erase): press to anchor a corner,
- * drag to rubber-band a rectangle, release to commit the two opposite corners.
- * The kernel resolves the operation from the box. Pure — points arrive snapped.
+ * drag to rubber-band a rectangle, release to commit its corners. The kernel
+ * resolves the operation from the box. Pure — points arrive snapped.
+ *
+ * The box is axis-aligned in *view* space when the input carries a view
+ * transform, matching Oriedita's `BoxSelectStepNode`, and commits all four
+ * corners — `required_selection_polygon` reads three or more points as a polygon
+ * verbatim, the same path the lasso tools use. Without a view it stays
+ * model-axis-aligned and commits the two diagonal corners.
  */
 import type { ModelPoint } from '../renderer/types';
-import type { ToolEngine, ToolInput, ToolOutput, ToolPreviewSegment } from './types';
+import type { ToolEngine, ToolInput, ToolOutput } from './types';
+import { boxCornerEdges, viewAlignedBoxCorners } from './viewAlignedBox';
 
 export interface DragBoxState {
   /** Anchored corner captured on pointer-down, or null when idle. */
@@ -12,20 +19,6 @@ export interface DragBoxState {
 }
 
 const IDLE: DragBoxState = { start: null };
-
-/** The four edges of the axis-aligned rectangle spanned by two opposite corners. */
-function boxEdges(a: ModelPoint, b: ModelPoint): ToolPreviewSegment[] {
-  const tl = { x: a.x, y: a.y };
-  const tr = { x: b.x, y: a.y };
-  const br = { x: b.x, y: b.y };
-  const bl = { x: a.x, y: b.y };
-  return [
-    { a: tl, b: tr },
-    { a: tr, b: br },
-    { a: br, b: bl },
-    { a: bl, b: tl },
-  ];
-}
 
 export const dragBoxTool: ToolEngine<DragBoxState> = {
   initialState: IDLE,
@@ -35,9 +28,15 @@ export const dragBoxTool: ToolEngine<DragBoxState> = {
       case 'down':
         return { state: { start: input.point }, preview: null, commit: null };
 
-      case 'move':
+      case 'move': {
         if (!state.start) return { state, preview: null, commit: null };
-        return { state, preview: { segments: boxEdges(state.start, input.point) }, commit: null };
+        const corners = viewAlignedBoxCorners(
+          state.start,
+          input.point,
+          input.viewTransform ?? null
+        );
+        return { state, preview: { segments: boxCornerEdges(corners) }, commit: null };
+      }
 
       case 'up': {
         const start = state.start;
@@ -48,11 +47,17 @@ export const dragBoxTool: ToolEngine<DragBoxState> = {
         // not whether it fits inside — and a straight vertical or horizontal drag
         // holds one axis at exactly its press value, so rejecting per-axis dropped
         // those drags entirely.
-        const commit =
-          start.x === input.point.x && start.y === input.point.y
-            ? null
-            : { points: [start, input.point] };
-        return { state: IDLE, preview: null, commit };
+        //
+        // The test is on the drag's own two corners, not the derived four, so it
+        // means the same thing at every view rotation.
+        if (start.x === input.point.x && start.y === input.point.y) {
+          return { state: IDLE, preview: null, commit: null };
+        }
+        const view = input.viewTransform ?? null;
+        const points = view
+          ? viewAlignedBoxCorners(start, input.point, view)
+          : [start, input.point];
+        return { state: IDLE, preview: null, commit: { points } };
       }
 
       case 'cancel':

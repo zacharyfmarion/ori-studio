@@ -1,46 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  circleRingIntersectsAabb,
-  distanceToSegment,
-  LineHitIndex,
-  segmentIntersectsAabb,
-} from './lineHitIndex';
-
-describe('segmentIntersectsAabb', () => {
-  const box = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
-  it('is true when an endpoint is inside', () => {
-    expect(segmentIntersectsAabb({ x: 5, y: 5 }, { x: 50, y: 50 }, box)).toBe(true);
-  });
-  it('is true when the segment crosses with both endpoints outside', () => {
-    expect(segmentIntersectsAabb({ x: -5, y: 5 }, { x: 15, y: 5 }, box)).toBe(true);
-  });
-  it('is false when the segment misses the box entirely', () => {
-    expect(segmentIntersectsAabb({ x: -5, y: -5 }, { x: -1, y: 20 }, box)).toBe(false);
-  });
-  it('is true when it clips a corner', () => {
-    expect(segmentIntersectsAabb({ x: -1, y: 2 }, { x: 2, y: -1 }, box)).toBe(true);
-  });
-});
-
-describe('circleRingIntersectsAabb', () => {
-  // Circle centred at (0,0) radius 10.
-  it('is true when the box straddles the ring (touches the edge)', () => {
-    expect(circleRingIntersectsAabb(0, 0, 10, { minX: 8, minY: -2, maxX: 12, maxY: 2 })).toBe(true);
-  });
-  it('is true when the box encloses the whole ring', () => {
-    expect(
-      circleRingIntersectsAabb(0, 0, 10, { minX: -20, minY: -20, maxX: 20, maxY: 20 })
-    ).toBe(true);
-  });
-  it('is false when the box sits wholly inside the ring', () => {
-    expect(circleRingIntersectsAabb(0, 0, 10, { minX: -2, minY: -2, maxX: 2, maxY: 2 })).toBe(false);
-  });
-  it('is false when the box is entirely outside the ring', () => {
-    expect(circleRingIntersectsAabb(0, 0, 10, { minX: 50, minY: 50, maxX: 60, maxY: 60 })).toBe(
-      false
-    );
-  });
-});
+import { distanceToSegment, LineHitIndex } from './lineHitIndex';
 
 describe('distanceToSegment', () => {
   it('measures perpendicular distance within the segment', () => {

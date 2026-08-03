@@ -171,6 +171,7 @@ import {
   isLengthenCreaseOperation,
   isLineClickSelectionOperation,
   isLineEraseClickTool,
+  isModelAlignedBoxOperation,
   isReflectSelectionOperation,
   isRestrictedDrawOperation,
   isSelectionCircleApplyOperation,
@@ -2940,6 +2941,9 @@ export function CreasePatternPanel() {
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
                   initialCamera={savedCpCamera}
+                  activeToolModelAlignedBox={isModelAlignedBoxOperation(
+                    activeCpCommand?.operationId
+                  )}
                   onCameraChange={handleWebglCameraChange}
                   onEraseBox={(points) => {
                     void executeOristudioCpCommand('LineSegmentDelete', {
