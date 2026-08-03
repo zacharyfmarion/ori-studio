@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { FileDown, ImageDown, Origami, Play, PictureInPicture2 } from 'lucide-react';
+import { FileDown, ImageDown, Link2, Origami, Play, PictureInPicture2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
 import { IconButton } from '../components/ui/IconButton';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
@@ -87,6 +87,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const foldOristudioCpDocument = useWorkspaceStore((s) => s.foldOristudioCpDocument);
   const exportSegment = useWorkspaceStore((s) => s.exportOristudioCpSegment);
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
+  const shareSegment = useWorkspaceStore((s) => s.shareOristudioCpSegment);
   const clearSelection = useWorkspaceStore((s) => s.clearOristudioCpSelection);
   const simulateSelectionInline = useSimulateSelection();
 
@@ -194,6 +195,14 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         onClick={() => runAndDismiss(() => void simulateSegment(segmentId))}
       >
         <Play size={14} />
+      </IconButton>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t('panels:creasePattern.selectionToolbar.share', 'Copy share link')}
+        onClick={() => runAndDismiss(() => void shareSegment(segmentId))}
+      >
+        <Link2 size={14} />
       </IconButton>
     </FloatingToolbar>
   );

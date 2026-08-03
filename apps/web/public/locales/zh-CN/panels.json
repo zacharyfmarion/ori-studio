@@ -292,6 +292,7 @@
       "fold": "折叠",
       "label": "折痕图操作",
       "saveImage": "保存为图像",
+      "share": "复制共享链接",
       "simulate": "模拟",
       "simulateInline": "内嵌模拟"
     },

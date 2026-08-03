@@ -308,6 +308,7 @@
       "fold": "Plier",
       "label": "Actions du patron de plis",
       "saveImage": "Enregistrer en image",
+      "share": "Copier le lien de partage",
       "simulate": "Simuler",
       "simulateInline": "Simuler sur place"
     },

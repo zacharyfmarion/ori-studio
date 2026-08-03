@@ -41,6 +41,20 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:worker.oristudioCp',
         'The crease-pattern engine stopped unexpectedly. Reload Ori Studio — unsaved edits since the last save may be lost.'
       );
+    // Share-link failures. The kernel's own message is precise but internal
+    // ("payload is too short: need at least 16 bytes"); what the user needs is
+    // which of the two things went wrong, because only one of them is fixable
+    // by them.
+    case 'share_link_invalid':
+      return t(
+        'errors:shareLink.invalid',
+        'That share link is incomplete or damaged — it was probably cut short when it was copied. Ask for it again.'
+      );
+    case 'share_link_too_new':
+      return t(
+        'errors:shareLink.tooNew',
+        'That share link was made with a newer version of Ori Studio. Reload to get the latest version, then open it again.'
+      );
     case 'worker_oristudio_bp':
     case 'worker_oristudio_bp_optimizer':
       return t(

@@ -244,6 +244,16 @@
       "startup": "Startup"
     }
   },
+  "shareLink": {
+    "close": "Close share",
+    "copied": "Copied",
+    "copy": "Copy",
+    "longWarning": "This link works in a browser address bar, but some chat apps and email clients cut off links this long. Sending an exported file is more reliable.",
+    "scope": "Carries the crease pattern only — not reference images, annotations, or saved simulations.",
+    "summary": "{{creases}} creases · {{chars}} characters",
+    "title": "Share crease pattern",
+    "url": "Share link"
+  },
   "startScreen": {
     "chooseBegin": "Choose how you want to begin.",
     "createCp": {

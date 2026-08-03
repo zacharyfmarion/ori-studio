@@ -70,6 +70,7 @@ import {
 } from '../engineRuntime';
 import {
   createBlankOristudioCpDocument,
+  openSharedCpPayload,
   duplicateOristudioCpFoldedFigure as duplicateRuntimeOristudioCpFoldedFigure,
   deselectAllOristudioCp,
   exportOristudioCpDocumentAsFold,
@@ -892,7 +893,27 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       if (ensureEditInFlight) return ensureEditInFlight;
       ensureEditInFlight = (async () => {
         try {
-          const document = await createBlankOristudioCpDocument();
+          // A share link routes through `/s`, which leaves its payload here for
+          // us. Opening one is the same provisioning act as seeding a blank
+          // canvas, so it happens on this one path rather than a parallel one —
+          // and it is consumed inside the in-flight guard, so a StrictMode
+          // double-invoke cannot open it twice.
+          const pending = get().pendingSharedCpPayload;
+          let document;
+          if (pending) {
+            try {
+              document = await openSharedCpPayload(pending);
+            } catch (error) {
+              // A bad link should leave a usable editor, not a broken one: tell
+              // the user which kind of failure it was (the kernel distinguishes
+              // "corrupt" from "made by a newer Ori Studio") and seed the blank
+              // canvas they would otherwise have got.
+              set({ error: engineError(error) });
+              document = await createBlankOristudioCpDocument();
+            }
+          } else {
+            document = await createBlankOristudioCpDocument();
+          }
           const priorState = get();
           // A bare, auto-seeded CP establishes no design. If nothing has been
           // authored yet (no tree, no BP project), keep the Design workspace on
@@ -909,11 +930,17 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         } catch (error) {
           set({ oristudioCpError: engineError(error).message });
         } finally {
+          // Cleared on every path, success or failure. A payload that could not
+          // be opened must not be retried on the next mount: the user has
+          // already been told, and silently re-running a failing decode would
+          // make Edit unusable rather than merely empty.
+          set({ pendingSharedCpPayload: null });
           ensureEditInFlight = null;
         }
       })();
       return ensureEditInFlight;
     },
+
 
     buildCreasePattern: async () => {
       const capability = selectWorkspaceCapabilities(get())['cp.build'];

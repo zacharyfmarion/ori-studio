@@ -32,6 +32,16 @@ export function export_orh(handle: number): string;
 
 export function export_ori(handle: number): string;
 
+/**
+ * Encode the document behind `handle` as an unpadded base64url share payload,
+ * suitable for a URL fragment (`/edit#c=<payload>`).
+ *
+ * The payload is self-contained: no server round trip, and the fragment is
+ * never transmitted. The encoder decodes and verifies its own output before
+ * returning, so a value from here always reloads.
+ */
+export function export_share_link(handle: number): string;
+
 export function folded_figure_duplicate(handle: number): any;
 
 export function folded_figure_fold(document_handle: number, starting_face_id: number, order: any, model: any): any;
@@ -72,6 +82,16 @@ export function load_orh(text: string): number;
 
 export function load_ori(text: string, accept_unknown_version: boolean): number;
 
+/**
+ * Decode a share payload into a **new** document handle.
+ *
+ * Opening a link never mutates an existing document. Errors carry the codes
+ * `share_link_too_new` (the link is from a newer Ori Studio) and
+ * `share_link_invalid` (corrupt or truncated), so the UI can tell the user
+ * which happened instead of showing one generic failure.
+ */
+export function load_share_link(payload: string): number;
+
 export function preview_cp_command(handle: number, operation: any, payload: any): any;
 
 export function replace_line_segments(handle: number, line_ids: any, segments: any): number;
@@ -109,6 +129,7 @@ export interface InitOutput {
     readonly export_fold_file: (a: number) => [number, number, number, number];
     readonly export_orh: (a: number) => [number, number, number, number];
     readonly export_ori: (a: number) => [number, number, number, number];
+    readonly export_share_link: (a: number) => [number, number, number, number];
     readonly folded_figure_duplicate: (a: number) => [number, number, number];
     readonly folded_figure_fold: (a: number, b: number, c: any, d: any) => [number, number, number];
     readonly folded_figure_fold_another: (a: number) => [number, number, number];
@@ -127,6 +148,7 @@ export interface InitOutput {
     readonly load_fold_file: (a: number, b: number) => [number, number, number];
     readonly load_orh: (a: number, b: number) => [number, number, number];
     readonly load_ori: (a: number, b: number, c: number) => [number, number, number];
+    readonly load_share_link: (a: number, b: number) => [number, number, number];
     readonly preview_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly replace_line_segments: (a: number, b: any, c: any) => [number, number, number];
     readonly restore_document: (a: number, b: any) => [number, number];

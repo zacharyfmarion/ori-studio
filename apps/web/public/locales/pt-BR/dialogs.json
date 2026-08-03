@@ -249,6 +249,16 @@
       "startup": "Inicialização"
     }
   },
+  "shareLink": {
+    "close": "Fechar compartilhamento",
+    "copied": "Copiado",
+    "copy": "Copiar",
+    "longWarning": "Este link funciona na barra de endereços do navegador, mas alguns apps de bate-papo e clientes de e-mail cortam links tão longos. Enviar um arquivo exportado é mais confiável.",
+    "scope": "Contém apenas o padrão de vincos — não imagens de referência, anotações ou simulações salvas.",
+    "summary": "{{creases}} vincos · {{chars}} caracteres",
+    "title": "Compartilhar padrão de vincos",
+    "url": "Link de compartilhamento"
+  },
   "startScreen": {
     "chooseBegin": "Escolha como você quer começar.",
     "createCp": {

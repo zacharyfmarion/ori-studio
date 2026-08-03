@@ -17,6 +17,7 @@ pub mod io;
 pub mod model;
 pub mod operations;
 pub mod session;
+pub mod share;
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

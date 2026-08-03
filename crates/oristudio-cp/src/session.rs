@@ -23,6 +23,7 @@ use crate::folding::{
 use crate::geometry::LineSegment;
 use crate::geometry_transport::{self, CompactGeometry};
 use crate::model::TextElement;
+use crate::share;
 use crate::{
     CommandError, CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument,
     CreasePatternModel, OperationCategory, OperationDescriptor, OperationId, OperationStatus,
@@ -58,6 +59,8 @@ pub const CP_ENGINE_COMMANDS: &[&str] = &[
     "export_fold_file",
     "export_ori",
     "export_orh",
+    "export_share",
+    "load_share",
     "set_texts",
     "folded_figure_fold",
     "folded_figure_fold_selected",
@@ -109,6 +112,20 @@ impl From<CommandError> for EngineError {
             CommandError::UnsupportedOperation { .. } => "unsupported_operation",
             CommandError::NotImplemented { .. } => "not_implemented",
             CommandError::InvalidInput { .. } => "invalid_input",
+        };
+        Self::new(code, error.to_string())
+    }
+}
+
+/// A share link that fails to decode is ordinary user input (a truncated paste,
+/// a link from a newer build), not an engine fault — so it carries a code the
+/// frontend can branch on rather than a generic failure.
+impl From<crate::share::ShareError> for EngineError {
+    fn from(error: crate::share::ShareError) -> Self {
+        let code = match error {
+            crate::share::ShareError::UnknownVersion(_)
+            | crate::share::ShareError::UnknownCriticalExtension(_) => "share_link_too_new",
+            _ => "share_link_invalid",
         };
         Self::new(code, error.to_string())
     }
@@ -282,6 +299,23 @@ impl CpSession {
     pub fn load_fold_file(&mut self, text: &str) -> Result<u32, EngineError> {
         let document = io::fold::import_fold_file_document_json(text)?;
         Ok(self.store_document(document))
+    }
+
+    /// Encode a document as an unpadded base64url share payload for a URL
+    /// fragment. See [`crate::share`] for what does and does not travel.
+    pub fn export_share(&self, handle: u32) -> Result<String, EngineError> {
+        let document = self.document(handle)?;
+        let payload = share::encode_share(document, share::ShareOptions::default())?;
+        Ok(share::b64::encode(&payload))
+    }
+
+    /// Decode a share payload into a **new** document handle. Opening a link
+    /// never mutates an existing document.
+    pub fn load_share(&mut self, text: &str) -> Result<u32, EngineError> {
+        let bytes = share::b64::decode(text.trim())
+            .ok_or_else(|| EngineError::invalid_input("share link is not valid base64url"))?;
+        let decoded = share::decode_share(&bytes)?;
+        Ok(self.store_document(decoded.document))
     }
 
     pub fn load_ori(
