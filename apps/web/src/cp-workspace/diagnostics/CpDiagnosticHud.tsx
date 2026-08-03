@@ -19,10 +19,12 @@
  * than English, so a fixed height would mean truncating exactly the languages
  * that need the words most.
  */
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import type { TFunction } from 'i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
 import { cpDiagnosticEntryMessage } from './foldabilityMessages';
 import { CpDiagnosticGlyph } from './CpDiagnosticGlyph';
 import { useCpDiagnosticList } from './useCpDiagnosticList';
@@ -34,6 +36,53 @@ import { useCpDiagnosticList } from './useCpDiagnosticList';
  * shows up as the thumb jumping while you scroll into new rows.
  */
 const ROW_ESTIMATE_PX = 7 + 7 + Math.round(0.72 * 16 * 1.25) + 1;
+
+/**
+ * One issue.
+ *
+ * Memoized, and it has to be by hand: React Compiler skips this file (see the
+ * `useVirtualizer` call below), and the parent re-renders on every scroll frame.
+ * Without it, each frame would re-run `cpDiagnosticEntryMessage` and
+ * `cpDiagnosticMarkerStyle` and rebuild the glyph SVG for every mounted row,
+ * rather than only for the rows that just entered the window.
+ *
+ * Every prop is stable per index: `start` is an absolute offset, and
+ * `measureElement` is bound in the virtualizer's constructor and the instance
+ * itself comes from `useState`. There is deliberately no `onClick` — a closure
+ * per row per render would defeat the memo on its own. The list container reads
+ * `data-diagnostic-id` instead.
+ */
+const CpDiagnosticHudRow = memo(function CpDiagnosticHudRow({
+  t,
+  entry,
+  index,
+  start,
+  active,
+  measureElement,
+}: {
+  t: TFunction;
+  entry: OristudioCpDiagnosticEntry;
+  index: number;
+  start: number;
+  active: boolean;
+  measureElement: (node: Element | null) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="cp-diagnostic-hud__row"
+      data-active={active || undefined}
+      data-severity={entry.severity}
+      data-index={index}
+      data-diagnostic-id={entry.id}
+      ref={measureElement}
+      style={{ transform: `translateY(${start}px)` }}
+    >
+      <CpDiagnosticGlyph t={t} entry={entry} />
+      <span>{cpDiagnosticEntryMessage(t, entry)}</span>
+    </button>
+  );
+});
 
 export function CpDiagnosticHud() {
   const { t } = useTranslation();
@@ -47,6 +96,27 @@ export function CpDiagnosticHud() {
     if (!status) setExpanded(false);
   }, [status]);
 
+  // One handler for the whole list rather than a closure per row, which would
+  // give every mounted row a new prop each render and defeat its memo.
+  const handleRowClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const row = (event.target as HTMLElement).closest<HTMLElement>('[data-diagnostic-id]');
+      const id = row?.dataset.diagnosticId;
+      if (id) selectDiagnostic(id);
+    },
+    [selectDiagnostic]
+  );
+
+  // React Compiler cannot memoize a component that uses `useVirtualizer`, so
+  // this one is not compiler-memoized and re-renders on every scroll frame.
+  // That is exactly why the row above is hand-memoized and why the click
+  // handler is delegated rather than passed down.
+  //
+  // The rule's real warning is about passing this API's functions into memoized
+  // children. `CpDiagnosticHudRow` takes one — `measureElement` — and it is
+  // safe: the instance comes from `useState` and `measureElement` is bound in
+  // its constructor, so both are stable for the life of the component.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: () => listRef.current,
@@ -89,6 +159,7 @@ export function CpDiagnosticHud() {
         <div
           className="cp-diagnostic-hud__list"
           ref={listRef}
+          onClick={handleRowClick}
           // The total, not the headline's issue count: the headline names errors
           // and warnings, and an informational row is neither.
           aria-label={t('panels:creasePattern.canvasDiagnostics', 'Canvas diagnostics: {{count}}', {
@@ -103,20 +174,15 @@ export function CpDiagnosticHud() {
               const entry = entries[item.index];
               if (!entry) return null;
               return (
-                <button
-                  type="button"
-                  className="cp-diagnostic-hud__row"
-                  data-active={entry.id === activeId || undefined}
-                  data-severity={entry.severity}
-                  data-index={item.index}
+                <CpDiagnosticHudRow
                   key={item.key}
-                  ref={virtualizer.measureElement}
-                  style={{ transform: `translateY(${item.start}px)` }}
-                  onClick={() => selectDiagnostic(entry.id)}
-                >
-                  <CpDiagnosticGlyph t={t} entry={entry} />
-                  <span>{cpDiagnosticEntryMessage(t, entry)}</span>
-                </button>
+                  t={t}
+                  entry={entry}
+                  index={item.index}
+                  start={item.start}
+                  active={entry.id === activeId}
+                  measureElement={virtualizer.measureElement}
+                />
               );
             })}
           </div>
