@@ -51,12 +51,21 @@ export function isFoldingCrease(color: OristudioCpLineSegment['color']): boolean
  * This is the sanctioned way to ask what a crease does.
  */
 export function creaseFoldAngle(segment: OristudioCpLineSegment): number | null {
-  if (!isFoldingCrease(segment.color)) return null;
-  const magnitude =
-    segment.fold_magnitude === undefined
-      ? 180
-      : foldMagnitudeToDegrees(segment.fold_magnitude);
-  return segment.color === 'Red1' ? -magnitude : magnitude;
+  return foldAngleFromParts(segment.color, segment.fold_magnitude);
+}
+
+/**
+ * {@link creaseFoldAngle} for a crease that is not (yet) a segment — a tool's
+ * candidate, whose colour and magnitude the kernel solved but which nothing has
+ * committed. Same rule, so the two can never drift apart.
+ */
+export function foldAngleFromParts(
+  color: string,
+  magnitudeUnits: number | undefined
+): number | null {
+  if (!isFoldingCrease(color as OristudioCpLineSegment['color'])) return null;
+  const magnitude = magnitudeUnits === undefined ? 180 : foldMagnitudeToDegrees(magnitudeUnits);
+  return color === 'Red1' ? -magnitude : magnitude;
 }
 
 /** `|ρ|` in degrees for a crease, or `null` when the segment is not a crease. */
@@ -73,7 +82,7 @@ export function creaseFoldMagnitudeDegrees(segment: OristudioCpLineSegment): num
  * the set that blocks `.cp` export and the 2D folded view.
  */
 export function isClassicCrease(segment: OristudioCpLineSegment): boolean {
-  return segment.fold_magnitude === undefined || segment.fold_magnitude === FOLD_MAGNITUDE_FULL;
+  return isClassicMagnitude(segment.fold_magnitude);
 }
 
 /**
@@ -90,4 +99,12 @@ export function isClassicCrease(segment: OristudioCpLineSegment): boolean {
 export function formatFoldAngle(degrees: number): string {
   const rounded = Number(degrees.toFixed(4));
   return `${rounded}°`;
+}
+
+/**
+ * {@link isClassicCrease} for a magnitude on its own — a tool candidate the
+ * kernel solved, which is not a segment yet. Same rule, one definition.
+ */
+export function isClassicMagnitude(magnitudeUnits: number | undefined): boolean {
+  return magnitudeUnits === undefined || magnitudeUnits === FOLD_MAGNITUDE_FULL;
 }

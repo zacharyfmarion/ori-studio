@@ -60,13 +60,16 @@ import {
   cpCommandUsesActiveLineColor,
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
+import { forcedAssignmentNotice } from '../../cp-workspace/tools/toolUnavailable';
+import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
+import { usePersistedCpToolOptions } from '../../cp-workspace/tools/usePersistedCpToolOptions';
+import type { ToolPreviewSegment } from '../../cp-workspace/tools/types';
 import {
   cancelOristudioCpToolState,
   IDLE_ORISTUDIO_CP_TOOL_STATE,
   transitionOristudioCpToolState,
 } from '../../lib/oristudioCpToolState';
 import {
-  DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
   cpToolSettingGroupsForCommand,
   evaluateOrieditaRatioExpression,
   type OristudioCpToolOptions,
@@ -372,6 +375,15 @@ function cpCommandPayloadDefaults(
     operationId === 'FoldableLineDraw'
   ) {
     payload.grid_width = gridWidth;
+  }
+
+  // Where a completion candidate may stop. The ray extension happens in the
+  // kernel, so the setting has to travel with the command.
+  if (
+    operationId === 'VertexMakeAngularlyFlatFoldable' ||
+    operationId === 'FoldableLineDraw'
+  ) {
+    payload.stop_on_auxiliary = toolOptions.foldableLineStopsOnAux;
   }
 
   if (
@@ -791,9 +803,10 @@ export function CreasePatternPanel() {
   }, []);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
-  const [cpToolOptions, setCpToolOptions] = useState<OristudioCpToolOptions>(
-    DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS
-  );
+  // Most of these are per-use and start at their defaults every session. The few
+  // that are working preferences — the angle system, Fix Inaccurate's tolerance —
+  // are opted into persistence by name; see `lib/cpToolOptionPersistence.ts`.
+  const [cpToolOptions, setCpToolOptions] = usePersistedCpToolOptions();
   const [cpToolPoints, setCpToolPoints] = useState<Point[]>([]);
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
@@ -1071,6 +1084,7 @@ export function CreasePatternPanel() {
     nativeActiveLineColor,
     nativeCanvasToolOptions,
     projectLoadId,
+    setCpToolOptions,
   ]);
 
 
@@ -2117,7 +2131,7 @@ export function CreasePatternPanel() {
   // segments from the live points + picked/hovered creases, plus a highlight of
   // those creases. Picked creases show immediately; the kernel result merges in.
   const [webglToolPreviewSegments, setWebglToolPreviewSegments] = useState<
-    readonly { a: Point; b: Point }[]
+    readonly ToolPreviewSegment[]
   >([]);
   // Existing creases the tool is snapping to or has picked, kept apart from the
   // candidate segments above because they are stroked in the selection accent
@@ -2130,6 +2144,17 @@ export function CreasePatternPanel() {
   // Kernel-computed candidate *points* (e.g. Converging Lines ray intersections)
   // rendered as pickable dots on the canvas, separate from candidate segments.
   const [webglToolPreviewPoints, setWebglToolPreviewPoints] = useState<readonly Point[]>([]);
+  // Why the tool has nothing to offer for the points placed so far — the
+  // vertex-completion solve's "no single crease closes this vertex", which is a
+  // real answer and would otherwise show as an empty canvas.
+  const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
+  // The completion tool determines mountain/valley itself, so the crease can come
+  // out the opposite colour to the one selected in the rail. Correct, and worth a
+  // word: nothing else in the editor overrides the active line type.
+  const cpToolForcedAssignment = useMemo(
+    () => forcedAssignmentNotice(t, webglToolPreviewSegments, effectiveCpLineColor),
+    [t, webglToolPreviewSegments, effectiveCpLineColor]
+  );
   const webglPreviewRequestRef = useRef(0);
   // The crease transform tools (Move / Copy, two- and four-point) preview by
   // transforming the selection on the canvas itself, so they take no kernel
@@ -2156,6 +2181,7 @@ export function CreasePatternPanel() {
         setWebglToolPreviewSegments([]);
         setWebglToolHighlightSegments(highlight);
         setWebglToolPreviewPoints([]);
+        setCpToolUnavailable(null);
         return;
       }
       // Show a hovered-crease highlight immediately, but when there is none don't blank
@@ -2174,7 +2200,7 @@ export function CreasePatternPanel() {
         })
       ).then((preview) => {
         if (webglPreviewRequestRef.current !== requestId) return;
-        const kernel = (preview?.segments ?? []).map((s) => ({ a: s.a, b: s.b }));
+        const kernel = toolPreviewSegments(preview?.segments, command.operationId);
         const rings = (preview?.circles ?? []).flatMap((c) => cpCircleRingSegments(c.x, c.y, c.r));
         // Also highlight any existing crease the previewed line actually lands on
         // (its kernel-computed endpoints), so an angle-constrained draw that snaps
@@ -2199,6 +2225,7 @@ export function CreasePatternPanel() {
         setWebglToolPreviewSegments([...kernel, ...rings]);
         setWebglToolHighlightSegments([...highlight, ...snapped]);
         setWebglToolPreviewPoints(preview?.points ?? []);
+        setCpToolUnavailable(preview?.unavailable ?? null);
         // Measure: surface the kernel-computed length/angle live as points are placed
         // (Oriedita-parity math, never recomputed in JS). Only once the kernel returns
         // a value — it needs the full point count for the kind.
@@ -2239,6 +2266,7 @@ export function CreasePatternPanel() {
       setWebglToolPreviewSegments([]);
       setWebglToolHighlightSegments([]);
       setWebglToolPreviewPoints([]);
+      setCpToolUnavailable(null);
     }
   }, [webglActiveTool.mode, webglActiveToolTransform]);
 
@@ -2846,6 +2874,9 @@ export function CreasePatternPanel() {
                   activeToolInputMode={webglActiveTool.mode}
                   activeToolOperationId={activeCpCommand?.operationId ?? null}
                   activeToolStepKinds={webglActiveTool.stepKinds}
+                  activeToolCommitsLoneCandidate={
+                    cpInputModel(activeCpCommand?.operationId)?.commitOnLoneCandidate ?? false
+                  }
                   activeToolSelectionDistance={cpToolSelectionDistance}
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolDualMirror={webglActiveTool.dualMirror}
@@ -2944,7 +2975,12 @@ export function CreasePatternPanel() {
                       scale={cpMeasureScale}
                     />
                   )}
-                {webglOverlayView && <CpFoldAngleLayer lineSegments={editableCp?.crease_pattern.line_segments} />}
+                {webglOverlayView && (
+                  <CpFoldAngleLayer
+                    lineSegments={editableCp?.crease_pattern.line_segments}
+                    toolCandidates={webglToolPreviewSegments}
+                  />
+                )}
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}
@@ -3148,6 +3184,8 @@ export function CreasePatternPanel() {
                     onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
                     pendingPointCount={cpToolPoints.length}
                     selection={oristudioCpSelection}
+                    unavailable={cpToolUnavailable}
+                    toolNotice={cpToolForcedAssignment}
                     onApply={
                       cpCommandRequiresContextApply(activeCpCommand)
                         ? handleApplyActiveContextCommand

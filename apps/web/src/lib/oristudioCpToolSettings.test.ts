@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
+  cpToolOptionKeysForGroups,
   cpToolSettingGroupsForOperation,
   evaluateOrieditaRatioExpression,
   formatOrieditaRatioHalf,
@@ -84,5 +85,52 @@ describe('oristudioCpToolSettings', () => {
       'angle-system',
       'candidate-choice',
     ]);
+  });
+
+  describe('cpToolOptionKeysForGroups', () => {
+    it('names the options behind a group, so the reset can put them back', () => {
+      expect(cpToolOptionKeysForGroups(['angle-system']).sort()).toEqual([
+        'angleSystemAngles',
+        'angleSystemDivider',
+      ]);
+      expect(cpToolOptionKeysForGroups(['fix-precision']).sort()).toEqual([
+        'fixPrecision',
+        'fixPrecisionUse22_5',
+        'fixPrecisionUseBp',
+      ]);
+    });
+
+    it('deduplicates across groups that share an option', () => {
+      // Delete-by-type and erase-by-type both drive `customLineType`.
+      expect(cpToolOptionKeysForGroups(['delete-line-type', 'erase-line-type'])).toEqual([
+        'customLineType',
+      ]);
+    });
+
+    it('yields nothing for groups that own no options', () => {
+      expect(cpToolOptionKeysForGroups(['line-select-help', 'apply-lines', 'measure'])).toEqual([]);
+      expect(cpToolOptionKeysForGroups([])).toEqual([]);
+    });
+
+    it('only names keys that exist on the options struct', () => {
+      // The map is hand-maintained beside the switch that renders the controls;
+      // a typo here would be a reset that silently misses a setting.
+      const groups = [
+        'angle-system',
+        'division-count',
+        'division-ratio',
+        'replace-line-type',
+        'delete-line-type',
+        'erase-line-type',
+        'fix-precision',
+        'polygon-corners',
+        'parallel-width',
+        'candidate-choice',
+        'custom-circle-color',
+      ] as const;
+      for (const key of cpToolOptionKeysForGroups([...groups])) {
+        expect(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS).toHaveProperty(key);
+      }
+    });
   });
 });

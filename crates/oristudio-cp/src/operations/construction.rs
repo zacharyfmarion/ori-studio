@@ -1,8 +1,8 @@
 //! Construction/drawing commands ported from Oriedita handlers.
 
 use crate::geometry::{
-    ActiveState, Epsilon, Intersection, LineColor, LineSegment, ParallelJudgement, Point,
-    StraightLine, StraightLineIntersection, angle, angle_between_0_360, center,
+    ActiveState, Epsilon, FoldMagnitude, Intersection, LineColor, LineSegment, ParallelJudgement,
+    Point, StraightLine, StraightLineIntersection, angle, angle_between_0_360, center,
     determine_line_segment_distance, determine_line_segment_intersection,
     determine_line_segment_intersection_sweet_with_tolerances, distance,
     find_intersection_segments, find_intersection_straight_lines, find_line_symmetry_line_segment,
@@ -270,15 +270,21 @@ pub fn make_vertex_flat_foldable_candidates(
 }
 
 /// Oriedita `VERTEX_MAKE_ANGULARLY_FLAT_FOLDABLE_38` final add after candidate and destination are resolved.
+///
+/// `fold_magnitude` is `None` on the flat path, which is Oriedita's behaviour
+/// exactly. The generalised tool passes the angle its solver determined for the
+/// new crease — see [`crate::solve_spatial`].
 pub fn make_vertex_flat_foldable_to_destination(
     model: &mut CreasePatternModel,
     invalid_point: Point,
     selected_candidate: &LineSegment,
     destination: &LineSegment,
     color: LineColor,
+    fold_magnitude: Option<FoldMagnitude>,
 ) -> bool {
     let cross_point = find_intersection_segments(selected_candidate, destination);
-    let result = LineSegment::with_color(cross_point, invalid_point, color);
+    let result = LineSegment::with_color(cross_point, invalid_point, color)
+        .with_fold_magnitude(fold_magnitude);
     if !Epsilon::HIGH.gt0(result.determine_length()) {
         return false;
     }

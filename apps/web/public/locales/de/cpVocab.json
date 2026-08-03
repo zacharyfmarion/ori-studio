@@ -391,13 +391,12 @@
       }
     },
     "cp_action_vertex_make_angularly_flat_foldable": {
-      "label": "Flachfaltbare Linie",
-      "tooltip": "Knoten flachfaltbar machen",
+      "label": "Faltbare Linie",
+      "tooltip": "Fügt die Falte hinzu, mit der ein Knoten konsistent faltet, und löst ihren Faltwinkel, wenn der Knoten nicht flach ist",
       "disabledReason": "Bereit",
       "steps": {
-        "0": "Ungeraden Knoten wählen",
-        "1": "Kandidatenlinie wählen",
-        "2": "Bestimmungsfalte wählen"
+        "0": "Knoten wählen",
+        "1": "Hinzuzufügende Falte wählen"
       }
     },
     "cp_action_foldable_line_input": {
@@ -664,7 +663,7 @@
       }
     },
     "cp_action_foldable_line_draw": {
-      "label": "Flachfaltbare Linie (frei)",
+      "label": "Faltbare Linie (frei)",
       "tooltip": "Flachfaltbare Linie zeichnen",
       "disabledReason": "Bereit",
       "steps": {
@@ -1390,12 +1389,14 @@
     },
     "makeFlatFoldableAction": {
       "intro": {
-        "0": "Flachfaltbare Linie zeichnen."
+        "0": "Die Falte zeichnen, die einen Knoten vervollständigt."
       },
       "steps": {
-        "0": "Knoten mit ungerader Anzahl verbindender Linien auswählen.",
-        "1": "Flachfaltbare Linie auswählen.",
-        "2": "Eine Ziellinie zum Verlängern auswählen."
+        "0": "Knoten auswählen, der nicht konsistent faltet.",
+        "1": "Eine der vorgeschlagenen Falten auswählen."
+      },
+      "notes": {
+        "0": "Sind alle Falten voll gefaltet, ist dies der Satz von Kawasaki, und der Knoten braucht eine ungerade Anzahl Linien. Trägt eine Falte einen teilweisen Faltwinkel, legt der Vorschlag auch Berg/Tal und Winkel der neuen Falte fest."
       }
     },
     "lengthenCreaseAction": {

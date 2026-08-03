@@ -25,6 +25,7 @@ export const STORAGE_KEYS = {
   foldWarning: 'fold-warning',
   cpToolRailGroups: 'cp-tool-rail-groups',
   cpMeasure: 'cp-measure',
+  cpToolOptions: 'cp-tool-options',
   bpOptimizer: 'bp-optimizer',
   simulatorSettings: 'simulator-settings',
   layout: 'layout',

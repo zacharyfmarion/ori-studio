@@ -78,7 +78,7 @@ describe('oristudio CP action registry', () => {
       'Line',
       'Grid Restricted Line',
       'Rabbit Ear',
-      'Flat Foldable Line',
+      'Foldable Line',
       'Extend Line',
       'Lengthen by Same Color',
     ]);

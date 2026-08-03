@@ -15,8 +15,15 @@ import { useCpOverlayView } from '../cpOverlayViewStore';
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
 import { overlayModelToCss } from '../annotations/annotationTransform';
 import type { OristudioCpLineSegment } from '../../engine/oristudioCpTypes';
-import { creaseFoldAngle, isClassicCrease, isFoldingCrease } from '../../lib/foldAngle';
+import {
+  creaseFoldAngle,
+  foldAngleFromParts,
+  isClassicCrease,
+  isClassicMagnitude,
+  isFoldingCrease,
+} from '../../lib/foldAngle';
 import { formatFoldAngle } from '../../lib/foldAngle';
+import type { ToolPreviewSegment } from '../tools/types';
 import {
   planFoldAngleBadges,
   type FoldAngleBadgeInput,
@@ -24,9 +31,19 @@ import {
 
 export function CpFoldAngleLayer({
   lineSegments,
+  toolCandidates,
 }: {
   /** Crease line segments in model space, indexed so id === index + 1. */
   lineSegments: readonly OristudioCpLineSegment[] | undefined;
+  /**
+   * Candidate creases the active tool would create, when it solved them rather
+   * than taking the active line type — the vertex-completion tool.
+   *
+   * These are badged **whether or not the labels toggle is on**: the angle is
+   * the tool's answer, not document decoration, and a tool that offers three
+   * rays without saying which folds how far has not told the user anything.
+   */
+  toolCandidates?: readonly ToolPreviewSegment[];
 }) {
   const view = useCpOverlayView();
   // The layer owns its own visibility rather than the panel deciding for it.
@@ -35,18 +52,40 @@ export function CpFoldAngleLayer({
   const labelsVisible = useWorkspaceStore(
     (state) => state.oristudioCpViewport.foldAngleLabelsVisible !== false
   );
-  if (!view || !lineSegments || !labelsVisible) return null;
+  if (!view) return null;
+
+  const creases: FoldAngleBadgeInput[] = [];
+  if (lineSegments && labelsVisible) {
+    lineSegments.forEach((segment, index) => {
+      if (!isFoldingCrease(segment.color) || isClassicCrease(segment)) return;
+      // Signed, not |rho|. The sign duplicates what the colour already says, and
+      // that redundancy is the point: a red crease reading -90 teaches the
+      // convention for free, where an unsigned 90 on both a red and a blue crease
+      // teaches nothing and quietly implies they are the same fold.
+      const degrees = creaseFoldAngle(segment);
+      if (degrees === null) return;
+      creases.push({
+        lineId: index + 1,
+        a: overlayModelToCss(view, segment.a),
+        b: overlayModelToCss(view, segment.b),
+        degrees,
+      });
+    });
+  }
 
   const candidates: FoldAngleBadgeInput[] = [];
-  lineSegments.forEach((segment, index) => {
-    if (!isFoldingCrease(segment.color) || isClassicCrease(segment)) return;
-    // Signed, not |rho|. The sign duplicates what the colour already says, and
-    // that redundancy is the point: a red crease reading -90 teaches the
-    // convention for free, where an unsigned 90 on both a red and a blue crease
-    // teaches nothing and quietly implies they are the same fold.
-    const degrees = creaseFoldAngle(segment);
+  (toolCandidates ?? []).forEach((segment, index) => {
+    if (!segment.crease) return;
+    // Same rule the document follows: a full fold is the default and says
+    // nothing, so it gets no number. On a flat pattern every candidate is 180
+    // and badging them all would be noise on top of the colour, which already
+    // carries the only fact that varies — mountain or valley.
+    if (isClassicMagnitude(segment.crease.foldMagnitude)) return;
+    const degrees = foldAngleFromParts(segment.crease.color, segment.crease.foldMagnitude);
     if (degrees === null) return;
     candidates.push({
+      // Planned separately from the document creases, so this index is a key
+      // within its own set and never has to avoid a real line id.
       lineId: index + 1,
       a: overlayModelToCss(view, segment.a),
       b: overlayModelToCss(view, segment.b),
@@ -54,9 +93,9 @@ export function CpFoldAngleLayer({
     });
   });
 
-  if (candidates.length === 0) return null;
-  const badges = planFoldAngleBadges(candidates);
-  if (badges.length === 0) return null;
+  const badges = planFoldAngleBadges(creases);
+  const candidateBadges = planFoldAngleBadges(candidates);
+  if (badges.length === 0 && candidateBadges.length === 0) return null;
 
   return (
     <div
@@ -77,6 +116,19 @@ export function CpFoldAngleLayer({
           key={badge.lineId}
           className="cp-fold-angle-layer__badge"
           data-detail={badge.detail}
+          style={{
+            transform: `translate(-50%, -50%) translate(${badge.at.x}px, ${badge.at.y}px)`,
+          }}
+        >
+          {badge.detail === 'number' ? formatFoldAngle(badge.degrees) : null}
+        </div>
+      ))}
+      {candidateBadges.map((badge) => (
+        <div
+          key={`candidate-${badge.lineId}`}
+          className="cp-fold-angle-layer__badge"
+          data-detail={badge.detail}
+          data-candidate="true"
           style={{
             transform: `translate(-50%, -50%) translate(${badge.at.x}px, ${badge.at.y}px)`,
           }}

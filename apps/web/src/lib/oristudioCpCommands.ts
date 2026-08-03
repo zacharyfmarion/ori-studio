@@ -401,8 +401,9 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('DrawCreaseAngleRestricted5', 'Angle restricted 5 crease', 'construct', 'chart-pie', 'MouseHandlerDrawCreaseAngleRestricted5', {
     toolSteps: ['Pick anchor point', 'Pick snapped endpoint'],
   }),
-  ready('VertexMakeAngularlyFlatFoldable', 'Make vertex flat-foldable', 'construct', 'badge-check', 'MouseHandlerVertexMakeAngularlyFlatFoldable', {
-    toolSteps: ['Pick odd vertex', 'Pick candidate line', 'Pick destination crease'],
+  ready('VertexMakeAngularlyFlatFoldable', 'Make vertex foldable', 'construct', 'badge-check', 'MouseHandlerVertexMakeAngularlyFlatFoldable', {
+    toolSteps: ['Pick vertex', 'Pick the crease to add'],
+    tooltip: 'Add the crease that makes a vertex fold consistently, solving its fold angle when the vertex is not flat',
   }),
   ready('FoldableLineInput', 'Foldable line input', 'construct', 'list-plus', 'MouseHandlerFoldableLineInput', {
     // Not present in Oriedita's UI — hide the rail button (revisit at end).
@@ -1012,6 +1013,28 @@ export function cpCommandUsesActiveLineColor(
   operationId: OristudioCpOperationId | undefined
 ): boolean {
   return operationId ? CP_ACTIVE_LINE_COLOR_OPERATIONS.has(operationId) : false;
+}
+
+/**
+ * Tools whose candidate previews are creases the *kernel* determined, not the
+ * active line type.
+ *
+ * The vertex-completion solver works out both the mountain/valley and the fold
+ * angle of the crease that closes a vertex — that answer is the tool's whole
+ * output, so its candidates carry it and are stroked and labelled accordingly.
+ * Every other tool draws what the user chose, and its preview stays in the
+ * active colour.
+ */
+const CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS = new Set<OristudioCpOperationId>([
+  'VertexMakeAngularlyFlatFoldable',
+  'FoldableLineDraw',
+]);
+
+/** Whether `operationId`'s candidates carry their own crease type and angle. */
+export function cpCommandCandidatesCarryCrease(
+  operationId: OristudioCpOperationId | undefined
+): boolean {
+  return operationId ? CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS.has(operationId) : false;
 }
 
 export function cpRailCommands(): OristudioCpCommandDefinition[] {
