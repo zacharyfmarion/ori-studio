@@ -325,6 +325,15 @@ Three things the plan did not anticipate:
   mounted row. The warning is suppressed at the call with that reasoning.
 - **`contain: strict` would have collapsed the scroll container** — size
   containment computes the box as if it had no contents. It is `layout paint`.
+- **The panel's width had been broken all along, and windowing exposed it.**
+  `.cp-diagnostic-hud` asked for `width: min(420px, calc(100% - var(--space-8)))`
+  against a spacing scale that stops at `--space-6`. An undefined custom property
+  with no fallback invalidates the whole declaration, so `width` and `max-width`
+  were both dropped and the 420px cap had never applied — the panel was
+  shrink-to-fit, sized by the in-flow rows. Absolutely positioned rows contribute
+  no intrinsic width, so it collapsed to its headline. Fixed, and
+  `styles/themeTokens.test.ts` now fails on any undefined token reference;
+  it found nine more dropped declarations across five other tokens, baselined.
 - **jsdom has no layout, in four separate ways** that all had to be stood in for
   before `scrollToIndex` could be tested: `scrollTo` is absent, the `scrollTop`
   setter is a no-op reading back 0, and `scrollHeight`/`clientHeight` are 0 —
