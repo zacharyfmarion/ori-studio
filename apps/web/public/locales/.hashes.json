@@ -1995,7 +1995,9 @@
     "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
     "tools:cpContext.completion.boundaryVertex": "2d80b6325273",
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
-    "tools:cpContext.completion.forcedValley": "982376d0c1f2"
+    "tools:cpContext.completion.forcedValley": "982376d0c1f2",
+    "tools:cpContext.resetSettings": "daee7606b339",
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3993,7 +3995,9 @@
     "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
     "tools:cpContext.completion.boundaryVertex": "2d80b6325273",
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
-    "tools:cpContext.completion.forcedValley": "982376d0c1f2"
+    "tools:cpContext.completion.forcedValley": "982376d0c1f2",
+    "tools:cpContext.resetSettings": "daee7606b339",
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6017,7 +6021,9 @@
     "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
     "tools:cpContext.completion.boundaryVertex": "2d80b6325273",
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
-    "tools:cpContext.completion.forcedValley": "982376d0c1f2"
+    "tools:cpContext.completion.forcedValley": "982376d0c1f2",
+    "tools:cpContext.resetSettings": "daee7606b339",
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8041,7 +8047,9 @@
     "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
     "tools:cpContext.completion.boundaryVertex": "2d80b6325273",
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
-    "tools:cpContext.completion.forcedValley": "982376d0c1f2"
+    "tools:cpContext.completion.forcedValley": "982376d0c1f2",
+    "tools:cpContext.resetSettings": "daee7606b339",
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10065,7 +10073,9 @@
     "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
     "tools:cpContext.completion.boundaryVertex": "2d80b6325273",
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
-    "tools:cpContext.completion.forcedValley": "982376d0c1f2"
+    "tools:cpContext.completion.forcedValley": "982376d0c1f2",
+    "tools:cpContext.resetSettings": "daee7606b339",
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12089,7 +12099,9 @@
     "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
     "tools:cpContext.completion.boundaryVertex": "2d80b6325273",
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
-    "tools:cpContext.completion.forcedValley": "982376d0c1f2"
+    "tools:cpContext.completion.forcedValley": "982376d0c1f2",
+    "tools:cpContext.resetSettings": "daee7606b339",
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14113,7 +14125,9 @@
     "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
     "tools:cpContext.completion.boundaryVertex": "2d80b6325273",
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
-    "tools:cpContext.completion.forcedValley": "982376d0c1f2"
+    "tools:cpContext.completion.forcedValley": "982376d0c1f2",
+    "tools:cpContext.resetSettings": "daee7606b339",
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16111,6 +16125,8 @@
     "cpVocab:instructions.makeFlatFoldableAction.notes.0": "1ab958b816f2",
     "tools:cpContext.completion.boundaryVertex": "2d80b6325273",
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
-    "tools:cpContext.completion.forcedValley": "982376d0c1f2"
+    "tools:cpContext.completion.forcedValley": "982376d0c1f2",
+    "tools:cpContext.resetSettings": "daee7606b339",
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
   }
 }

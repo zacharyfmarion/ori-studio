@@ -88,6 +88,8 @@
     "replaceFromLineType": "置換元の線種",
     "replaceLineType": "線種を置換",
     "replaceToLineType": "置換先の線種",
+    "resetSettings": "リセット",
+    "resetSettingsHint": "ここの設定が既定値ではありません。一部の設定はセッション間で保持されます。",
     "right": "右",
     "rightSegmentRatio": "右セグメントの比率",
     "seedPressPendingOne_other": "{{count}} 件のシード押下が保留中",

@@ -4453,6 +4453,7 @@
 }
 
 .cp-context-panel {
+  position: relative; /* Anchors the reset button in the header. */
   display: grid;
   width: 100%;
   overflow: hidden;
@@ -4765,6 +4766,30 @@
   color: var(--text-secondary);
   font-size: 0.68rem;
   line-height: 1.35;
+}
+
+/* Appears only when a setting in this panel is off its default — so it is both
+   the way back and the only hint that something here was remembered from a
+   previous session. Sits in the header, out of the way of the controls. */
+.cp-context-panel__reset {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.cp-context-panel__reset:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
 }
 
 /* The tool overrode the active line type because the maths forced it. Accented

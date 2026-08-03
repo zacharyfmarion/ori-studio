@@ -88,6 +88,8 @@
     "replaceFromLineType": "교체 대상 선 종류",
     "replaceLineType": "선 종류 교체",
     "replaceToLineType": "교체 결과 선 종류",
+    "resetSettings": "초기화",
+    "resetSettingsHint": "여기의 설정이 기본값이 아닙니다. 일부 설정은 세션 간에 기억됩니다.",
     "right": "오른쪽",
     "rightSegmentRatio": "오른쪽 구간 비율",
     "seedPressPendingOne_other": "시드 클릭 {{count}}개 대기 중",

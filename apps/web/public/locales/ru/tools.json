@@ -100,6 +100,8 @@
     "replaceFromLineType": "Заменить с типа линии",
     "replaceLineType": "Заменить тип линии",
     "replaceToLineType": "Заменить на тип линии",
+    "resetSettings": "Сбросить",
+    "resetSettingsHint": "Здесь есть настройка, отличная от значения по умолчанию. Некоторые настройки сохраняются между сеансами.",
     "right": "Правый",
     "rightSegmentRatio": "Соотношение правого сегмента",
     "seedPressPendingOne_one": "Ожидается {{count}} нажатие семени",

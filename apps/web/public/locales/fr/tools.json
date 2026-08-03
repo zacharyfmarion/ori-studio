@@ -96,6 +96,8 @@
     "replaceFromLineType": "Remplacer depuis le type de ligne",
     "replaceLineType": "Remplacer le type de ligne",
     "replaceToLineType": "Remplacer vers le type de ligne",
+    "resetSettings": "Réinitialiser",
+    "resetSettingsHint": "Un réglage ici n’est pas celui par défaut. Certains réglages sont conservés d’une session à l’autre.",
     "right": "Droite",
     "rightSegmentRatio": "Rapport du segment droit",
     "seedPressPendingOne_one": "{{count}} appui de germe en attente",

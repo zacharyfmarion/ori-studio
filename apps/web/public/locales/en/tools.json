@@ -92,6 +92,8 @@
     "replaceFromLineType": "Replace from line type",
     "replaceLineType": "Replace line type",
     "replaceToLineType": "Replace to line type",
+    "resetSettings": "Reset",
+    "resetSettingsHint": "A setting here is not its default. Some settings are remembered between sessions.",
     "right": "Right",
     "rightSegmentRatio": "Right segment ratio",
     "seedPressPendingOne_one": "{{count}} seed press pending",

@@ -38,6 +38,7 @@ import { cpPaletteEntryForColor } from '../../lib/oristudioCpPalette';
 import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
 import { cpToolUnavailableMessage } from '../../cp-workspace/tools/toolUnavailable';
+import { CpContextToolReset } from './CpContextToolReset';
 import { copyTextToClipboard } from '../../lib/clipboardText';
 import { FoldAngleControl } from '../../cp-workspace/foldAngle/FoldAngleControl';
 import {
@@ -207,6 +208,7 @@ export function CpContextToolPanel({
         <span className="cp-context-panel__title">{title}</span>
         <span className="cp-context-panel__meta">{meta}</span>
       </button>
+      <CpContextToolReset options={options} setOptions={setOptions} groups={groups} />
       {!collapsed && (
         <div className="cp-context-panel__body">
           {unavailableMessage && (

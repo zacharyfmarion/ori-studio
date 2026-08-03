@@ -206,6 +206,44 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   Axiom7: ['candidate-choice'],
 };
 
+/**
+ * Which tool options each settings group owns.
+ *
+ * The same knowledge `CpContextToolGroup` switches on to render the controls,
+ * written out so the panel's reset can name what it would put back. Keep the two
+ * in step: a group that renders a control for an option it does not claim here
+ * has a setting the reset cannot reach.
+ *
+ * Groups absent from this table own no options — they are help text or act on
+ * the selection.
+ */
+const TOOL_OPTION_KEYS_BY_GROUP: Partial<
+  Record<OristudioCpToolSettingGroup, readonly (keyof OristudioCpToolOptions)[]>
+> = {
+  'angle-system': ['angleSystemDivider', 'angleSystemAngles'],
+  'division-count': ['divisionCount'],
+  'division-ratio': ['divisionRatio'],
+  'replace-line-type': ['customFromLineType', 'customToLineType'],
+  'delete-line-type': ['customLineType'],
+  'erase-line-type': ['customLineType'],
+  'fix-precision': ['fixPrecision', 'fixPrecisionUseBp', 'fixPrecisionUse22_5'],
+  'polygon-corners': ['polygonCorners'],
+  'parallel-width': ['parallelWidth'],
+  'candidate-choice': ['candidateIndex'],
+  'custom-circle-color': ['customCircleColor'],
+};
+
+/** The options behind a set of groups, deduplicated. */
+export function cpToolOptionKeysForGroups(
+  groups: readonly OristudioCpToolSettingGroup[]
+): (keyof OristudioCpToolOptions)[] {
+  const keys = new Set<keyof OristudioCpToolOptions>();
+  for (const group of groups) {
+    for (const key of TOOL_OPTION_KEYS_BY_GROUP[group] ?? []) keys.add(key);
+  }
+  return [...keys];
+}
+
 export function cpToolSettingGroupsForOperation(
   operationId: OristudioCpOperationId
 ): readonly OristudioCpToolSettingGroup[] {

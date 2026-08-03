@@ -88,6 +88,8 @@
     "replaceFromLineType": "替换源线型",
     "replaceLineType": "替换线型",
     "replaceToLineType": "替换目标线型",
+    "resetSettings": "重置",
+    "resetSettingsHint": "此处有设置不是默认值。部分设置会在会话之间保留。",
     "right": "右",
     "rightSegmentRatio": "右段比率",
     "seedPressPendingOne_other": "{{count}} 次种子按压待处理",

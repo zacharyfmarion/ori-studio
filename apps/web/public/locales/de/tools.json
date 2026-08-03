@@ -92,6 +92,8 @@
     "replaceFromLineType": "Von Linientyp ersetzen",
     "replaceLineType": "Linientyp ersetzen",
     "replaceToLineType": "Zu Linientyp ersetzen",
+    "resetSettings": "Zurücksetzen",
+    "resetSettingsHint": "Eine Einstellung hier ist nicht der Standardwert. Manche Einstellungen bleiben zwischen Sitzungen erhalten.",
     "right": "Rechts",
     "rightSegmentRatio": "Verhältnis des rechten Segments",
     "seedPressPendingOne_one": "{{count}} Keimpunkt-Klick ausstehend",

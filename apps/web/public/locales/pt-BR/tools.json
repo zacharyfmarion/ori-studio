@@ -96,6 +96,8 @@
     "replaceFromLineType": "Substituir do tipo de linha",
     "replaceLineType": "Substituir tipo de linha",
     "replaceToLineType": "Substituir para o tipo de linha",
+    "resetSettings": "Redefinir",
+    "resetSettingsHint": "Há um ajuste aqui que não é o padrão. Alguns ajustes são lembrados entre sessões.",
     "right": "Direita",
     "rightSegmentRatio": "Proporção do segmento direito",
     "seedPressPendingOne_one": "{{count}} toque de semente pendente",
