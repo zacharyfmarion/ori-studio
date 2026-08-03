@@ -82,3 +82,40 @@ describe('candidatePreviewGroups', () => {
     expect(groups.map((group) => group.color)).toContainEqual(TOOL);
   });
 });
+
+describe('candidatePreviewGroups arming', () => {
+  it('dashes the proposals and leaves the armed one solid', () => {
+    const groups = candidatePreviewGroups(
+      [segment(0, { color: 'Red1' }), segment(1, { color: 'Red1' })],
+      TOOL,
+      appearanceFor,
+      ANCHOR,
+      1
+    );
+    // Same colour, so without the armed split these would be one group.
+    expect(groups).toHaveLength(2);
+    const armed = groups.find((group) => group.dashed === false);
+    expect(armed?.segments).toHaveLength(1);
+    expect(armed?.segments[0].b.x).toBe(2);
+    expect(groups.filter((group) => group.dashed).flatMap((g) => g.segments)).toHaveLength(1);
+  });
+
+  it('dashes everything when nothing is armed', () => {
+    const groups = candidatePreviewGroups(
+      [segment(0, { color: 'Red1' }), segment(1, { color: 'Blue2' })],
+      TOOL,
+      appearanceFor,
+      ANCHOR,
+      null
+    );
+    expect(groups.every((group) => group.dashed)).toBe(true);
+  });
+
+  it('leaves other tools alone: one group, no dash opinion', () => {
+    // Arming is the completion tool's affordance; every other tool passes no
+    // index and must keep the single undashed group it had before.
+    const groups = candidatePreviewGroups([segment(0), segment(1)], TOOL, appearanceFor, ANCHOR);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].dashed).toBeUndefined();
+  });
+});

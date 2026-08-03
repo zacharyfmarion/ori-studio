@@ -265,20 +265,26 @@ function projectPointOnSegment(
   return { x: a.x + t * dx, y: a.y + t * dy };
 }
 
-/** Project `raw` onto the nearest of `segments` within `maxDistance`, else null. */
+/**
+ * Project `raw` onto the nearest of `segments` within `maxDistance`, else null.
+ *
+ * Returns the index as well as the point: the completion tool renders that
+ * candidate solid so you can see which one a click would take, and it must be the
+ * same answer the pick uses or the two disagree.
+ */
 function snapToNearestSegment(
   raw: ModelPoint,
   segments: readonly ToolPreviewSegment[],
   maxDistance: number
-): ModelPoint | null {
-  let best: ModelPoint | null = null;
+): { point: ModelPoint; index: number } | null {
+  let best: { point: ModelPoint; index: number } | null = null;
   let bestDist = maxDistance;
-  for (const s of segments) {
+  for (const [index, s] of segments.entries()) {
     const proj = projectPointOnSegment(raw, s.a, s.b);
     const d = Math.hypot(proj.x - raw.x, proj.y - raw.y);
     if (d <= bestDist) {
       bestDist = d;
-      best = proj;
+      best = { point: proj, index };
     }
   }
   return best;
@@ -817,6 +823,10 @@ export function CreasePatternWebglCanvas({
   //   put the current content there, so it only ever clears its own.
   const toolPreviewSegmentsRef = useRef<readonly ToolPreviewSegment[] | null>(null);
   const sequencePreviewOwnedRef = useRef(false);
+  /** Which previewed candidate the cursor is nearest, or null. */
+  const armedCandidateRef = useRef<number | null>(null);
+  /** Repaint the sequence preview from the pointer path, without a re-render. */
+  const paintSequencePreviewRef = useRef<(() => void) | null>(null);
 
   /**
    * Take the preview channel down and forget who owned it. Every clear goes
@@ -1906,7 +1916,14 @@ export function CreasePatternWebglCanvas({
         // than silently committing the nearest one from across the canvas.
         const snapped = snapToNearestSegment(raw, liveRef.current.toolCommandPreviewSegments, tol);
         if (snapped === null && kind === 'down') return;
-        point = snapped ?? raw;
+        point = snapped?.point ?? raw;
+        // Arm the candidate under the cursor so it renders solid among the dashed
+        // alternatives — the same projection the pick just used, so what looks
+        // armed and what a click takes cannot disagree.
+        if (armedCandidateRef.current !== (snapped?.index ?? null)) {
+          armedCandidateRef.current = snapped?.index ?? null;
+          paintSequencePreviewRef.current?.();
+        }
       } else {
         const resolved = liveRef.current.resolveDrawPoint(raw, tol);
         point = resolved.point;
@@ -2877,61 +2894,74 @@ export function CreasePatternWebglCanvas({
   // this effect re-ran for an unrelated reason (a colour change from holding
   // Control being the way to see it, since the preview then only came back on
   // the next pointer move).
-  useEffect(() => {
+  const paintSequencePreview = useCallback(() => {
     const renderer = rendererRef.current;
-    if (!renderer) return;
-    if (toolCommandPreviewSegments.length > 0 || toolCommandHighlightSegments.length > 0) {
-      sequencePreviewOwnedRef.current = true;
-      toolPreviewSegmentsRef.current = null;
-      renderer.setPreview(
-        previewGroupsToStrokes(
-          [
-            // What the tool would create, in the crease colour it would create it
-            // in — the active colour, unless a candidate names its own crease.
-            ...candidatePreviewGroups(
-              toolCommandPreviewSegments,
-              toolPreviewColor,
-              createCpLineAppearanceResolver(lineStyle, mode, document.documentElement),
-              readCssVarColor(
-                document.documentElement,
-                FOLD_ANGLE_ANCHOR_VAR,
-                FOLD_ANGLE_ANCHOR_FALLBACK
-              )
+    if (!renderer) return false;
+    if (toolCommandPreviewSegments.length === 0 && toolCommandHighlightSegments.length === 0) {
+      return false;
+    }
+    sequencePreviewOwnedRef.current = true;
+    toolPreviewSegmentsRef.current = null;
+    renderer.setPreview(
+      previewGroupsToStrokes(
+        [
+          // What the tool would create, in the crease colour it would create it
+          // in — the active colour, unless a candidate names its own crease.
+          ...candidatePreviewGroups(
+            toolCommandPreviewSegments,
+            toolPreviewColor,
+            createCpLineAppearanceResolver(lineStyle, mode, document.documentElement),
+            readCssVarColor(
+              document.documentElement,
+              FOLD_ANGLE_ANCHOR_VAR,
+              FOLD_ANGLE_ANCHOR_FALLBACK
             ),
-            // Creases that already exist and are merely being pointed at, in the
-            // selection accent — they are not being drawn, so they must not take
-            // the crease colour and read as though the tool had recoloured them.
-            {
-              segments: toolCommandHighlightSegments,
-              color: readCssVarColor(
-                document.documentElement,
-                SELECTION_COLOR_VAR,
-                SELECTION_FALLBACK
-              ),
-            },
-          ],
-          activeToolDashedPreview
-        )
-      );
+            armedCandidateRef.current
+          ),
+          // Creases that already exist and are merely being pointed at, in the
+          // selection accent — they are not being drawn, so they must not take
+          // the crease colour and read as though the tool had recoloured them.
+          {
+            segments: toolCommandHighlightSegments,
+            color: readCssVarColor(
+              document.documentElement,
+              SELECTION_COLOR_VAR,
+              SELECTION_FALLBACK
+            ),
+          },
+        ],
+        activeToolDashedPreview
+      )
+    );
+    return true;
+    // `currentTheme` is not read here, but it is what makes the DOM-resolved
+    // candidate colours change — same reason the stroke builders depend on it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    toolCommandPreviewSegments,
+    toolCommandHighlightSegments,
+    toolPreviewColor,
+    activeToolDashedPreview,
+    lineStyle,
+    mode,
+    currentTheme,
+  ]);
+  useEffect(() => {
+    paintSequencePreviewRef.current = () => {
+      if (paintSequencePreview()) renderNowRef.current();
+    };
+  }, [paintSequencePreview]);
+
+  useEffect(() => {
+    if (!rendererRef.current) return;
+    if (paintSequencePreview()) {
       renderNowRef.current();
       return;
     }
     if (!sequencePreviewOwnedRef.current) return;
     clearPreview();
     renderNowRef.current();
-    // `currentTheme` is not read here, but it is what makes the DOM-resolved
-    // candidate colours change — same reason the stroke builders depend on it.
-  }, [
-    toolCommandPreviewSegments,
-    toolCommandHighlightSegments,
-    toolPreviewColor,
-    activeToolDashedPreview,
-    rendererGeneration,
-    clearPreview,
-    lineStyle,
-    mode,
-    currentTheme,
-  ]);
+  }, [paintSequencePreview, rendererGeneration, clearPreview]);
 
   // Repaint a live drag preview when the crease colour changes under it --
   // holding Control mid-drag inverts the colour, and the stroke should follow at
