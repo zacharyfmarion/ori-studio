@@ -32,6 +32,7 @@
     "layerGrid": "Raster",
     "layerHinges": "Scharniere",
     "layerLabels": "Beschriftungen",
+    "layerOutsidePaper": "Außerhalb des Papiers",
     "layerRidges": "Grate",
     "layerRivers": "Flüsse",
     "layers": "Ebenen",

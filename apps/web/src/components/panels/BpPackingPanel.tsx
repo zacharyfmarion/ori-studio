@@ -26,6 +26,7 @@ import {
   Plus,
   Route,
   Ruler,
+  SquareDashed,
   Tag,
   TriangleAlert,
   Waypoints,
@@ -186,6 +187,7 @@ const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
   { key: 'axisParallels', icon: <Waypoints size={13} /> },
   { key: 'conflicts', icon: <TriangleAlert size={13} /> },
   { key: 'labels', icon: <Tag size={13} /> },
+  { key: 'outsidePaper', icon: <SquareDashed size={13} /> },
 ];
 
 /** Localized BP-packing layer label. Literal `t()` calls keep the keys extractable. */
@@ -209,6 +211,8 @@ function bpPackingLayerLabel(t: TFunction, key: BpPackingViewLayerKey): string {
       return t('panels:bpPacking.layerConflicts', 'Conflicts');
     case 'labels':
       return t('panels:bpPacking.layerLabels', 'Labels');
+    case 'outsidePaper':
+      return t('panels:bpPacking.layerOutsidePaper', 'Outside paper');
     default:
       return key;
   }
@@ -883,6 +887,16 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     ]
   );
   const sheetClipId = useId();
+  /**
+   * Crop to the sheet, the way Box Pleating Studio does.
+   *
+   * Upstream masks every geometry layer to the sheet border — shade, edge,
+   * hinge, ridge, axis-parallels, junction (`client/shared/layers.ts`) — so a
+   * flap pushed past the edge is simply cut off. Only the flap dots, the labels
+   * and the sheet itself escape the mask, which is why those render outside this
+   * group here too. `outsidePaper` lifts the crop; upstream has no equivalent.
+   */
+  const sheetClipPath = layers.outsidePaper ? undefined : `url(#${sheetClipId})`;
   const flapsClipId = useId();
 
   const eventToPackingPoint = useCallback(
@@ -1557,9 +1571,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 onPointerDown={onPaperPointerDown}
               />
             )}
-            {displayPacking.graphics.map((primitive) =>
-              primitive.layer !== 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
-                <Primitive
+            <g clipPath={sheetClipPath}>
+              {displayPacking.graphics.map((primitive) =>
+                primitive.layer !== 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
+                  <Primitive
                   key={primitive.id}
                   primitive={primitive}
                   document={document}
@@ -1567,10 +1582,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   paperRect={paperRect}
                   onPointerDown={onPrimitivePointerDown}
                   onPointerMove={onPrimitivePointerMove}
-                  onPointerUp={finishDeviceDrag}
-                />
-              ) : null
-            )}
+                    onPointerUp={finishDeviceDrag}
+                  />
+                ) : null
+              )}
+            </g>
             {layers.conflicts && (
               // Conflict fills sit *under* the creases, rivers and flaps, so an
               // overlap never hides the geometry you need in order to fix it.
@@ -1578,11 +1594,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
               // our canvas the fill obscured the creases, so this deviates
               // deliberately.) Clipped to the sheet and non-interactive — the
               // hit targets are a separate group below the flap hits.
-              <g
-                className="bp-packing-conflicts"
-                clipPath={`url(#${sheetClipId})`}
-                aria-hidden="true"
-              >
+              <g className="bp-packing-conflicts" clipPath={sheetClipPath} aria-hidden="true">
                 <g clipPath={`url(#${flapsClipId})`}>
                   {conflictVisuals.map((visual) => (
                     <g
@@ -1656,34 +1668,36 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                       className={active ? 'bp-packing-flap--selected' : undefined}
                       aria-hidden="true"
                     >
-                      {layers.clearance && clearance && (
+                      <g clipPath={sheetClipPath}>
+                        {layers.clearance && clearance && (
+                          <rect
+                            className="bp-packing-flap-clearance"
+                            x={clearance.x}
+                            y={clearance.y}
+                            width={clearance.width}
+                            height={clearance.height}
+                            rx={clearance.radius}
+                          />
+                        )}
                         <rect
-                          className="bp-packing-flap-clearance"
-                          x={clearance.x}
-                          y={clearance.y}
-                          width={clearance.width}
-                          height={clearance.height}
-                          rx={clearance.radius}
-                        />
-                      )}
-                      <rect
-                        className="bp-packing-flap"
-                        x={rect.x}
-                        y={rect.y}
-                        width={rect.width}
-                        height={rect.height}
-                        rx={Math.min(6, Math.max(1, unit * 0.08))}
-                      />
-                      {layers.selectionShade && active && (
-                        <rect
-                          className="bp-packing-selection-shade"
+                          className="bp-packing-flap"
                           x={rect.x}
                           y={rect.y}
                           width={rect.width}
                           height={rect.height}
                           rx={Math.min(6, Math.max(1, unit * 0.08))}
                         />
-                      )}
+                        {layers.selectionShade && active && (
+                          <rect
+                            className="bp-packing-selection-shade"
+                            x={rect.x}
+                            y={rect.y}
+                            width={rect.width}
+                            height={rect.height}
+                            rx={Math.min(6, Math.max(1, unit * 0.08))}
+                          />
+                        )}
+                      </g>
                       {layers.dots && <circle className="bp-packing-flap-dot" cx={center.x} cy={center.y} r={4} />}
                       {layers.labels && (
                         <text className="bp-packing-label" x={center.x + 7} y={center.y - 7}>
@@ -1755,9 +1769,10 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   })}
               </g>
             )}
-            {displayPacking.graphics.map((primitive) =>
-              primitive.layer === 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
-                <Primitive
+            <g clipPath={sheetClipPath}>
+              {displayPacking.graphics.map((primitive) =>
+                primitive.layer === 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
+                  <Primitive
                   key={primitive.id}
                   primitive={primitive}
                   document={document}
@@ -1765,10 +1780,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   paperRect={paperRect}
                   onPointerDown={onPrimitivePointerDown}
                   onPointerMove={onPrimitivePointerMove}
-                  onPointerUp={finishDeviceDrag}
-                />
-              ) : null
-            )}
+                    onPointerUp={finishDeviceDrag}
+                  />
+                ) : null
+              )}
+            </g>
             {layers.devices && (
               <g className="bp-packing-device-ranges" aria-hidden="true">
                 {displayPacking.devices.map((device) => {

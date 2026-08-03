@@ -1997,7 +1997,8 @@
     "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
-    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17"
+    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
+    "panels:bpPacking.layerOutsidePaper": "625412dea9f3"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3997,7 +3998,8 @@
     "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
-    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17"
+    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
+    "panels:bpPacking.layerOutsidePaper": "625412dea9f3"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6023,7 +6025,8 @@
     "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
-    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17"
+    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
+    "panels:bpPacking.layerOutsidePaper": "625412dea9f3"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8049,7 +8052,8 @@
     "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
-    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17"
+    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
+    "panels:bpPacking.layerOutsidePaper": "625412dea9f3"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10075,7 +10079,8 @@
     "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
-    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17"
+    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
+    "panels:bpPacking.layerOutsidePaper": "625412dea9f3"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12101,7 +12106,8 @@
     "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
-    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17"
+    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
+    "panels:bpPacking.layerOutsidePaper": "625412dea9f3"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14127,7 +14133,8 @@
     "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
-    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17"
+    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
+    "panels:bpPacking.layerOutsidePaper": "625412dea9f3"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16127,6 +16134,7 @@
     "dialogs:bpOptimizer.mirrorAxis": "1840f2f6c9ff",
     "dialogs:bpOptimizer.symmetry": "cc14de692631",
     "dialogs:bpOptimizer.symmetryInconsistent": "74a729524d81",
-    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17"
+    "dialogs:bpOptimizer.symmetryOff": "5431b595fb17",
+    "panels:bpPacking.layerOutsidePaper": "625412dea9f3"
   }
 }
