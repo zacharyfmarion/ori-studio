@@ -239,15 +239,78 @@ tree, dragging a node near the root, no dropped frames.
 
 ## Checklist
 
-- [ ] Phase 1 — extract `BpTreeScene`, memoize it, add `data-bp-*` identity
-- [ ] Phase 1 — test: a second render with the same document mutates no DOM
-- [ ] Phase 2 — `bpTreeDragController.ts` (session + writer, no React)
-- [ ] Phase 2 — `useBpTreeDrag.ts`, rAF-coalesced, commit unchanged
-- [ ] Phase 2 — test: 0 scene renders per `pointermove`; committed positions match
-- [ ] Phase 3 — hover ghost driven imperatively; `setHoverPoint` off the hot path
-- [ ] Phase 3 — test: 0 scene renders while hovering with mirror-draw off
-- [ ] Phase 4 — `--bp-chrome-scale` published from the camera, consumed in CSS
-- [ ] Phase 4 — rewrite the five proportionality tests; note the weaker guarantee
-- [ ] Phase 5 — id→vertex map replaces `findVertex`; aria-labels inside the child
+- [x] Phase 1 — extract `BpTreeScene`, memoize it, add `data-bp-*` identity
+- [x] Phase 1 — test: a second render with the same document mutates no DOM
+- [x] Phase 2 — `bpTreeDragController.ts` (session + writer, no React)
+- [x] Phase 2 — bound to the pane, rAF-coalesced, commit unchanged
+- [x] Phase 2 — test: a drag touches the same few elements at any tree size
+- [x] Phase 3 — hover ghost driven imperatively; `setHoverPoint` off the hot path
+- [x] Phase 3 — test: 0 canvas mutations while hovering with mirror draw off
+- [x] Phase 4 — camera scale published imperatively (see note: not via CSS)
+- [x] Phase 4 — the five proportionality tests kept as they were
+- [x] Phase 5 — id→vertex map replaces `findVertex`
+- [x] Phase 5 — canvas rect cached, so a sample stops forcing a reflow
 - [ ] Manual check in a production build on a ~300-vertex tree
-- [ ] Phase 6 (separate PR) — same treatment for the packing pane's flap drag
+- [ ] Phase 6 — the packing pane (**blocked on a decision, see below**)
+
+## Outcome
+
+Measured in the running app at 260 tree vertices (1042 SVG elements):
+
+| | before | after |
+| --- | --- | --- |
+| drag, per `pointermove` | ~24 ms | **0.05 ms** |
+| hover, per `pointermove` | ~24 ms | **0.04 ms** |
+
+Flat with tree size, and confirmed structurally rather than only by the clock: a
+gesture causes **0** panel renders, **0** scene renders, and touches only the
+elements that actually move.
+
+Two departures from the plan, both for the better:
+
+- **Phase 4 did not need CSS `calc()`.** The camera writes the counter-scaled
+  sizes the same way a drag writes positions. Measured, the writes are 0.29 ms
+  for every stroke and radius in the canvas — so the one real cost the plan
+  identified, five tests giving up their numbers, was not worth paying.
+- **Phase 5 grew a second half.** With the renders gone, the remaining cost was
+  a forced reflow: `getBoundingClientRect` on the canvas, once per pointer
+  sample, for a box that cannot have moved. That, not the vertex scan, was what
+  was left.
+
+### The zoom remainder
+
+A zoom step at 260 vertices still costs ~42 ms, and it splits like this:
+
+| | cost |
+| --- | --- |
+| react-zoom-pan-pinch's own wheel handling | ~17 ms |
+| the render `setZoomPercent` causes | ~22 ms |
+| rescaling the canvas's chrome | ~4.5 ms |
+
+Only the last is this pane's. The middle one is a panel render that redraws
+nothing — the scene's memo holds — but re-renders `TransformWrapper` and
+`TransformComponent`, which read layout. Removing it means `zoomPercent` can no
+longer be state returned by `useViewportSurface`, which the packing pane and the
+CP editor also call. **That is a change to a shared surface, not a detail of this
+one**, so it is left for a separate decision.
+
+### Phase 6 is a different problem
+
+The packing pane's flap drag measures **206 ms p50 / 410 ms p90 at 38 flaps** —
+far worse than the tree ever was — but not for the same reason. Its drag drives
+the engine per frame, and each step runs the whole refresh:
+
+```
+exportBps · moveLayoutFlap · summary · treeData · layoutSnapshot ·
+packingValidation · creasePatternSnapshot
+```
+
+`creasePatternSnapshot` alone measures ~43 ms, and mid-drag nothing is showing a
+crease pattern. So the fix there is not this plan's — it is to stop computing,
+per drag step, the derived snapshots nothing displays.
+
+That lives in `applyOristudioBp` / the document assembler in
+`oristudioBpRuntime.ts`, which **every** BP mutation goes through, and it changes
+what a mid-gesture snapshot contains — which the staleness model and anything
+reading `snapshot.creasePattern` depend on. It needs a decision about
+engine-refresh semantics before it is written.
