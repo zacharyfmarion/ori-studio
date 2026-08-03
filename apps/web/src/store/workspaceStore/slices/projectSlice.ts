@@ -1318,6 +1318,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
       lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
+      bpSymmetry: get().oristudioBpSymmetry,
     });
     if (warnings.length === 0) return true;
 
@@ -2175,6 +2176,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     exportBps: async (fileService = getFileService()) => {
       try {
         if (rejectDisabled('file.exportBps')) return false;
+        // Box Pleating Studio has no symmetry concept, and its writer rebuilds
+        // the project from its own model — so this is where mirror-draw state
+        // stops, whatever we did or did not put in the file.
+        const symmetryLoss = guardExportLoss('bps');
+        if (symmetryLoss !== true && !(await symmetryLoss)) return false;
         const contents = await exportOristudioBpProjectAsBps();
         const result = await fileService.saveTextFile({
           title: 'Export Box Pleating Studio Project',

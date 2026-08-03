@@ -5452,6 +5452,53 @@ describe('workspace store slices', () => {
       expect(state.oristudioCpDocument).not.toBeNull();
     });
 
+    it('warns before a .bps export drops mirror symmetry, and aborts when refused', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      useWorkspaceStore.getState().setOristudioBpSymmetry({ pairs: [{ v1: 1, v2: 2 }] });
+      const fileService = createFileService();
+
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const exporting = useWorkspaceStore.getState().exportBps(fileService);
+        const dialog = useCommandDialogStore.getState().dialog;
+        expect(dialog).toMatchObject({
+          type: 'confirm',
+          title: 'Some features can’t be exported',
+        });
+        expect((dialog as { message: string }).message).toContain('Mirror symmetry');
+        expect((dialog as { message: string }).message).toContain('BPS');
+        if (!dialog) throw new Error('expected an export-loss confirmation');
+        resolveCommandDialog(dialog.id, false);
+        await expect(exporting).resolves.toBe(false);
+      } finally {
+        unregisterDialogHost();
+      }
+      expect(fileService.saveTextFile).not.toHaveBeenCalled();
+    });
+
+    it('exports .bps without a prompt when the design carries no symmetry of its own', async () => {
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"exported":true}');
+      const fileService = createFileService();
+
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        await expect(useWorkspaceStore.getState().exportBps(fileService)).resolves.toBe(true);
+        expect(useCommandDialogStore.getState().dialog).toBeNull();
+      } finally {
+        unregisterDialogHost();
+      }
+      expect(fileService.saveTextFile).toHaveBeenCalled();
+    });
+
     it('carries mirror-draw state through a save and reopen', async () => {
       useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
       await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
