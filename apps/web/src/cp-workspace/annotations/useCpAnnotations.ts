@@ -8,10 +8,15 @@ import { annotationAsTransformable } from '../canvasObjects/transformableObject'
 import type { TransformableCanvasObject } from '../canvasObjects/transformableObject';
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import { createCpImage } from '../images/cpImage';
+import type { BoxCorners } from '../tools/viewAlignedBox';
 import { importImageFile, isSupportedImageFile } from '../images/cpImageImport';
 import { cropImage, fitImageModelSize } from '../images/cpImagePlacement';
 import { dragCarriesFiles } from '../../lib/fileDrop';
-import { overlayCssPerModel, overlayCssToModel } from './annotationTransform';
+import {
+  overlayCssPerModel,
+  overlayCssToModel,
+  uprightRotationForView,
+} from './annotationTransform';
 import type { AnnotationResizeHandle } from './annotationTransform';
 import {
   annotationAtModelPoint,
@@ -22,7 +27,7 @@ import {
 import type { CanvasAnnotation, ImageAnnotation } from './annotation';
 import {
   createTextAnnotation,
-  textBoxFromDrag,
+  textBoxFromDragCorners,
   DEFAULT_TEXT_BOX_WIDTH,
   DEFAULT_TEXT_FONT_SIZE,
 } from './textAnnotation';
@@ -186,6 +191,9 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
             center,
             width,
             height,
+            // Square to the screen it was dropped on. Centre and extent above
+            // already go through the overlay view, so they need no adjustment.
+            rotation: uprightRotationForView(overlayView),
             z: topZ + 1,
           })
         );
@@ -301,6 +309,8 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
       const box = createTextAnnotation({
         center: { x: modelPoint.x, y: modelPoint.y },
         width: cssPerModel > 0 ? 220 / cssPerModel : DEFAULT_TEXT_BOX_WIDTH,
+        // Square to the screen the user clicked on, not to the paper.
+        rotation: uprightRotationForView(overlayView),
         fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
         z: topAnnotationZ(prev) + 1,
       });
@@ -316,13 +326,13 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
   // minimum; content still grows it downward). Too small a drag falls back to the
   // click-created auto-sizing box.
   const createTextBoxFromDrag = useCallback(
-    (start: Point, end: Point) => {
+    (corners: BoxCorners) => {
       if (!overlayView) return;
       const cssPerModel = overlayCssPerModel(overlayView);
       const minExtent = cssPerModel > 0 ? 12 / cssPerModel : DEFAULT_TEXT_FONT_SIZE;
-      const box = textBoxFromDrag(start, end, minExtent);
+      const box = textBoxFromDragCorners(corners, minExtent, uprightRotationForView(overlayView));
       if (!box) {
-        createTextAt(start);
+        createTextAt(corners[0]);
         return;
       }
       const prev = useWorkspaceStore.getState().oristudioCpAnnotations;
@@ -331,6 +341,7 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         width: box.width,
         height: box.height,
         minHeight: box.height,
+        rotation: box.rotation,
         fontSize: cssPerModel > 0 ? 16 / cssPerModel : DEFAULT_TEXT_FONT_SIZE,
         z: topAnnotationZ(prev) + 1,
       });

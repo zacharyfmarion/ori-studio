@@ -59,6 +59,25 @@ export function overlayCssPerModel(view: CpOverlayView): number {
   return Math.sqrt(Math.abs(det));
 }
 
+/**
+ * The object-space rotation whose local +x axis points along screen +x — what to
+ * store on a box so it renders upright under this view.
+ *
+ * Objects are anchored to the paper, so an object created on a canvas turned by
+ * θ has to carry −θ to look square to the person creating it. Derived by mapping
+ * a CSS +x step back through the inverse affine rather than by negating a camera
+ * angle, so it stays exact under a flipped or non-conformal basis instead of
+ * assuming the view is a pure rotation.
+ *
+ * Returns 0 for a degenerate view — an unrotated box beats no box.
+ */
+export function uprightRotationForView(view: CpOverlayView | null | undefined): number {
+  if (!view) return 0;
+  const alongScreenX = overlayCssDeltaToModel(view, { x: 1, y: 0 });
+  if (!alongScreenX) return 0;
+  return Math.atan2(alongScreenX.y, alongScreenX.x);
+}
+
 /** A rotated, centred box — the transform shared by every manipulable object. */
 export interface AnnotationBox {
   center: Vec2;

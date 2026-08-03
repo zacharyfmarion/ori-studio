@@ -559,7 +559,12 @@ export interface CreasePatternWebglCanvasProps {
    * the panel can create a text box of that size (vs. the click above, which
    * makes an auto-sizing box).
    */
-  onTextCreateBox?: (start: ModelPoint, end: ModelPoint) => void;
+  /**
+   * Text-tool press-drag: create a box at the four corners the marquee drew, so
+   * the created box carries the marquee's orientation rather than deriving its
+   * own. Corners are in perimeter order (see `tools/viewAlignedBox`).
+   */
+  onTextCreateBox?: (corners: BoxCorners) => void;
   /** The current Voronoi click list (owned by the panel as `cpToolPoints`). */
   voronoiSeeds: readonly ModelPoint[];
   /** Report the updated Voronoi click list after a seed add / gesture reset. */
@@ -2789,9 +2794,8 @@ export function CreasePatternWebglCanvas({
         // (dismissing an editor), does nothing.
         if (textPressStarted && !cancelled) {
           if (moved) {
-            const start = clientToModel(pressX, pressY);
-            const end = clientToModel(e.clientX, e.clientY);
-            if (start && end) liveRef.current.onTextCreateBox?.(start, end);
+            const corners = dragBoxCorners(e.clientX, e.clientY);
+            if (corners) liveRef.current.onTextCreateBox?.(corners);
           } else {
             const m = clientToModel(e.clientX, e.clientY);
             if (m) liveRef.current.onTextCreate?.(m);

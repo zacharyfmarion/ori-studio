@@ -10,6 +10,7 @@ import {
   resizeAnnotationBox,
   resizeAspectLock,
   snapAngle,
+  uprightRotationForView,
   type AnnotationBox,
 } from './annotationTransform';
 
@@ -165,5 +166,48 @@ describe('snapAngle', () => {
     expect(snapAngle((14 * Math.PI) / 180, step)).toBeCloseTo(step); // ~14° → 15°
     expect(snapAngle((22 * Math.PI) / 180, step)).toBeCloseTo(step); // ~22° → 15°
     expect(snapAngle((24 * Math.PI) / 180, step)).toBeCloseTo(2 * step); // ~24° → 30°
+  });
+});
+
+describe('uprightRotationForView', () => {
+  /** An overlay view for a camera turned by `angle` (model -> CSS). */
+  const viewAt = (angle: number) => ({
+    origin: [0, 0] as const,
+    ex: [Math.cos(angle), Math.sin(angle)] as const,
+    ey: [-Math.sin(angle), Math.cos(angle)] as const,
+  });
+
+  it('is zero for a square view', () => {
+    expect(uprightRotationForView(viewAt(0))).toBeCloseTo(0);
+  });
+
+  it('is the negation of the view angle, so an object anchored to the paper reads upright', () => {
+    for (const angle of [Math.PI / 6, Math.PI / 4, -Math.PI / 3, 2.1]) {
+      expect(uprightRotationForView(viewAt(angle))).toBeCloseTo(-angle);
+    }
+  });
+
+  it('round-trips: a box at this rotation has zero screen angle', () => {
+    // The property that matters, stated without reference to the implementation.
+    for (const angle of [0, Math.PI / 8, Math.PI / 2, -1.2]) {
+      const view = viewAt(angle);
+      const rotation = uprightRotationForView(view);
+      const centre = overlayModelToCss(view, { x: 0, y: 0 });
+      const tip = overlayModelToCss(view, { x: Math.cos(rotation), y: Math.sin(rotation) });
+      expect(Math.atan2(tip.y - centre.y, tip.x - centre.x)).toBeCloseTo(0);
+    }
+  });
+
+  it('is exact under a non-uniform basis rather than assuming a pure rotation', () => {
+    const stretched = { origin: [0, 0] as const, ex: [0, 3] as const, ey: [-1, 0] as const };
+    const rotation = uprightRotationForView(stretched);
+    const centre = overlayModelToCss(stretched, { x: 0, y: 0 });
+    const tip = overlayModelToCss(stretched, { x: Math.cos(rotation), y: Math.sin(rotation) });
+    expect(Math.atan2(tip.y - centre.y, tip.x - centre.x)).toBeCloseTo(0);
+  });
+
+  it('falls back to square for a missing or degenerate view', () => {
+    expect(uprightRotationForView(null)).toBe(0);
+    expect(uprightRotationForView({ origin: [0, 0], ex: [0, 0], ey: [0, 0] })).toBe(0);
   });
 });
