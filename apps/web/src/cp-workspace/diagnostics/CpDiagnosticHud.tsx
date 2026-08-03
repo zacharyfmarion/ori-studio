@@ -184,6 +184,12 @@ export function CpDiagnosticHud() {
           className="cp-diagnostic-hud__list"
           ref={listRef}
           onClick={handleRowClick}
+          // `group` so the label below is actually exposed: `aria-label` on a
+          // bare div is not reliably announced. It matters more now than it did
+          // behind the 12-row cap — windowed, assistive tech can only see the
+          // ~27 mounted rows, so the count in the label is the only place the
+          // real total is stated.
+          role="group"
           // The total, not the headline's issue count: the headline names errors
           // and warnings, and an informational row is neither.
           aria-label={t('panels:creasePattern.canvasDiagnostics', 'Canvas diagnostics: {{count}}', {

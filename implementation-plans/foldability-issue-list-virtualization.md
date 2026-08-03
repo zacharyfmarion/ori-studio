@@ -293,19 +293,19 @@ Two things that will mislead if ignored — both learned the hard way in this re
 
 ## Checklist
 
-- [ ] Phase 0 — extract `CpDiagnosticHud.tsx` + `useCpDiagnosticList.ts`; panel
-      mounts it; lower `OVERSIZED_PANELS`
-- [ ] Phase 1 — delete `diagnosticHudEntries`; HUD reads
-      `visibleCpDiagnosticEntries`; failing-first test in `visibleEntries.test.ts`
-- [ ] Phase 2 — reconcile the header count with the list; test in
+- [x] Phase 0 — extract `CpDiagnosticHud.tsx` + `useCpDiagnosticList.ts`; panel
+      mounts it; lower `OVERSIZED_PANELS` (2939 → 2674)
+- [x] Phase 1 — delete `diagnosticHudEntries`; HUD reads
+      `visibleCpDiagnosticEntries`; failing-first test
+- [x] Phase 2 — reconcile the header count with the list; test in
       `hudStatus.test.ts`
-- [ ] Phase 3 — add `@tanstack/react-virtual`; dynamic-height windowed list;
-      remove `.slice(0, 12)`; separator → `border-bottom`
-- [ ] Phase 4 — memoized row; delegated click; no per-row closures
-- [ ] Phase 5 — `scrollToIndex` on active-id change, keyed on the id alone
-- [ ] i18n — extract, translate 8 locales, stamp, `i18n:check` passes
-- [ ] `CpDiagnosticHud.test.tsx` covering bounded row count + reachability
-- [ ] `npx tsc --noEmit`, `vitest`, `npm run lint:web`
+- [x] Phase 3 — add `@tanstack/react-virtual`; dynamic-height windowed list;
+      remove `.slice(0, 12)`; separator off the entry index
+- [x] Phase 4 — memoized row; delegated click; no per-row closures
+- [x] Phase 5 — `scrollToIndex` on active-id change, keyed on the id alone
+- [x] i18n — extract, translate 8 locales, stamp, `i18n:check` passes
+- [x] `CpDiagnosticHud.test.tsx` covering bounded row count + reachability
+- [x] `npx tsc --noEmit`, `vitest` (1852 tests), `eslint` — all clean
 - [ ] Browser checklist for Zach (prod build, DevTools closed):
       - [ ] Large CP: HUD expands without a stall; scrolling is smooth to the end
       - [ ] Wheel over the HUD scrolls the list and does **not** zoom the canvas
@@ -313,3 +313,28 @@ Two things that will mislead if ignored — both learned the hard way in this re
       - [ ] Toggling "Foldability issues" off/on does not throw the list back to
             a previous position
       - [ ] Header count and list contents agree
+
+## Notes from implementation
+
+Three things the plan did not anticipate:
+
+- **React Compiler declines to memoize any component using `useVirtualizer`**,
+  and says so as a lint warning. That makes Phase 4 load-bearing rather than
+  belt-and-braces: nothing else memoizes this component, so the row's `memo` and
+  the delegated click are what keep a scroll frame from re-rendering every
+  mounted row. The warning is suppressed at the call with that reasoning.
+- **`contain: strict` would have collapsed the scroll container** — size
+  containment computes the box as if it had no contents. It is `layout paint`.
+- **jsdom has no layout, in four separate ways** that all had to be stood in for
+  before `scrollToIndex` could be tested: `scrollTo` is absent, the `scrollTop`
+  setter is a no-op reading back 0, and `scrollHeight`/`clientHeight` are 0 —
+  the last of which made the virtualizer clamp every scroll target to
+  `scrollHeight - clientHeight`, i.e. to 0, while otherwise looking like it
+  worked.
+
+A lever left on the table: `@tanstack/react-virtual` 3.14 has
+`directDomUpdates`, which writes row transforms straight to the DOM during
+scroll and re-renders React only when the visible *range* changes. Not taken —
+with ~27 memoized rows mounted the React path is already cheap, and it is a
+less-travelled code path that would fight the inline `transform` style. Worth
+revisiting only if profiling shows the scroll path is actually hot.
