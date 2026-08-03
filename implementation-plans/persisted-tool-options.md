@@ -120,17 +120,35 @@ joins that branch.
 
 ## Checklist
 
-- [ ] `cpToolOptionPersistence.ts`: registry, per-key validators, read/write
-- [ ] Unknown keys in a stored blob are dropped
-- [ ] A key with a now-invalid value falls back **alone**, leaving its neighbours
-- [ ] `candidateIndex` and `textContent` are never written, asserted by test
-- [ ] Storage-unavailable path returns defaults rather than throwing
-- [ ] Panel initialises from storage and writes on change, debounced
-- [ ] Group→keys map, beside the switch that renders those groups
-- [ ] Reset control, scoped to the visible groups
-- [ ] Reset appears only when a visible setting is non-default
-- [ ] `foldableLineStopsOnAux` end to end: setting → payload → kernel
-- [ ] `i18n:check` green
+- [x] `cpToolOptionPersistence.ts`: registry, per-key validators, read/write
+- [x] Unknown keys in a stored blob are dropped
+- [x] A key with a now-invalid value falls back **alone**, leaving its neighbours
+- [x] `candidateIndex` and `textContent` are never written, asserted by test
+- [x] Storage-unavailable path returns defaults rather than throwing
+- [x] Values are validated on the way **out** as well as in, so a control with a
+      bad clamp cannot write a value this module then declines to read — which
+      would present as a setting that silently forgets itself
+- [x] Panel initialises from storage and writes on change, debounced
+- [x] Group→keys map, beside the switch that renders those groups, with a test
+      that every key it claims exists on the options struct
+- [x] Reset control, scoped to the visible groups
+- [x] Reset appears only when a visible setting is non-default
+- [ ] `foldableLineStopsOnAux` end to end: setting → payload → kernel —
+      **deferred to the tool work**, see below
+- [x] `i18n:check` green
+
+## Why the aux-line flag is not here
+
+It has nothing to configure yet. The setting decides what stops an extended
+candidate ray, and the ray extension is the *next* piece of work
+(`spatial-vertex-completion.md`'s one-click follow-up). Shipping the toggle now
+would put a control in the panel that changes nothing, which is worse than
+waiting — so it lands with the feature it configures, as the persistence layer's
+first new customer.
+
+The mechanism is proven without it: the angle system and Fix Inaccurate's
+tolerance are real settings that now survive a reload, which is the complaint
+that motivated this.
 
 ## Non-goals
 
