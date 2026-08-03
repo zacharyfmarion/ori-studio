@@ -2720,14 +2720,29 @@
 }
 
 .cp-diagnostic-hud__list {
-  display: grid;
   max-height: min(320px, calc(100vh - 170px));
   overflow: auto;
   border-top: 1px solid var(--border-subtle);
   text-align: left;
+  /* The list is windowed: only the rows near the viewport are in the DOM, so
+     scroll position comes from a spacer of the full height rather than from the
+     rows themselves. See CpDiagnosticHud.tsx.
+
+     `layout paint` only — NOT `strict`/`size`, which would compute this box as
+     if it had no contents and collapse the scroll container to nothing. */
+  contain: layout paint;
+}
+
+/* Full-height spacer; rows are positioned into it by the virtualizer. */
+.cp-diagnostic-hud__spacer {
+  position: relative;
+  width: 100%;
 }
 
 .cp-diagnostic-hud__row {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: grid;
   /* The marker glyph, then the message. The kind column is gone: the HUD header
      already names the check, and the glyph carries which rule failed — see
@@ -2746,8 +2761,20 @@
   text-align: left;
 }
 
-.cp-diagnostic-hud__row + .cp-diagnostic-hud__row {
+/* A border on the row itself, not `.row + .row` and not `:first-child`. Windowed
+   rows are absolutely positioned and only the ones near the viewport exist, so
+   neither sibling order nor "is it the first child" tracks position in the list.
+   The entry's own index does.
+
+   Transparent rather than absent on the first row so every row measures the same
+   height — the virtualizer caches what it measures, and a 1px-shorter row 0
+   would put a permanent 1px skew in the total. */
+.cp-diagnostic-hud__row {
   border-top: 1px solid var(--border-subtle);
+}
+
+.cp-diagnostic-hud__row[data-index='0'] {
+  border-top-color: transparent;
 }
 
 .cp-diagnostic-hud__row:hover,

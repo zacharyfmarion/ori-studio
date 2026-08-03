@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type {
   OristudioCpCommandResult,
   OristudioCpDiagnosticEntry,
@@ -10,6 +10,15 @@ import { visibleCpDiagnosticEntries } from './visibleEntries';
 import { CpDiagnosticHud } from './CpDiagnosticHud';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// The virtualizer observes its scroll element; jsdom has no ResizeObserver.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -70,6 +79,58 @@ function renderHud(options: {
   return container;
 }
 
+/**
+ * jsdom gives every element a zero-size box, so the virtualizer would see a
+ * viewport of height 0 and mount nothing at all.
+ *
+ * Both measurements it takes go through `offsetWidth`/`offsetHeight` — the
+ * scroll element's, via virtual-core's `getRect`, and each row's, via
+ * `measureElement`. Patched on the prototype rather than on instances because
+ * the list does not exist until the HUD is expanded, and by then the
+ * measurement has already happened.
+ *
+ * The numbers are the stylesheet's: `.cp-diagnostic-hud__list` caps at 320px,
+ * and a one-line row is ~29px.
+ */
+const LIST_VIEWPORT_PX = 320;
+const ROW_PX = 29;
+
+const realOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+const realOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+
+function heightFor(element: HTMLElement): number {
+  if (element.classList?.contains('cp-diagnostic-hud__list')) return LIST_VIEWPORT_PX;
+  if (element.classList?.contains('cp-diagnostic-hud__row')) return ROW_PX;
+  return 0;
+}
+
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return heightFor(this);
+    },
+  });
+  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return heightFor(this) > 0 ? 400 : 0;
+    },
+  });
+});
+
+afterAll(() => {
+  if (realOffsetHeight) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', realOffsetHeight);
+  if (realOffsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', realOffsetWidth);
+});
+
+function scrollListTo(view: HTMLElement, top: number) {
+  const list = view.querySelector<HTMLElement>('.cp-diagnostic-hud__list');
+  if (!list) throw new Error('list not mounted');
+  list.scrollTop = top;
+  list.dispatchEvent(new Event('scroll'));
+}
+
 function expand(view: HTMLElement) {
   const summary = view.querySelector<HTMLButtonElement>('.cp-diagnostic-hud__summary');
   act(() => {
@@ -89,6 +150,31 @@ describe('CpDiagnosticHud', () => {
   it('renders nothing when there is no diagnostic result', () => {
     const view = renderHud({});
     expect(view.querySelector('.cp-diagnostic-hud')).toBeNull();
+  });
+
+  it('windows a long list: every entry reachable, few rows mounted', () => {
+    const ids = Array.from({ length: 2000 }, (_, i) => `camv-${i + 1}`);
+    const view = renderHud({ camvResult: result('CheckCamv', ids) });
+    expand(view);
+
+    // The cap is gone: the scroll extent covers all 2000, not 12.
+    const spacer = view.querySelector<HTMLElement>('.cp-diagnostic-hud__spacer');
+    const total = Number.parseFloat(spacer?.style.height ?? '0');
+    expect(total).toBeGreaterThan(2000 * 20);
+
+    // ...but they are not all in the DOM. A 320px viewport of 29px rows is ~11
+    // visible, plus 8 of overscan each way: ~27. The bound is loose enough to
+    // survive a row-height tweak and tight enough that dropping the virtualizer
+    // (2000 rows) fails it.
+    const mounted = view.querySelectorAll('.cp-diagnostic-hud__row').length;
+    expect(mounted).toBeGreaterThan(0);
+    expect(mounted).toBeLessThan(60);
+
+    // The last entry is reachable by scrolling, not merely absent.
+    act(() => {
+      scrollListTo(view, total);
+    });
+    expect(rowIds(view)).toContain('camv-2000');
   });
 
   it('shows the same entries the canvas draws when a check result and the overlay coexist', () => {
