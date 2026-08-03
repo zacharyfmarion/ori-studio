@@ -3,12 +3,14 @@
     "abort": "Abort",
     "close": "Close optimize layout",
     "closeAction": "Close",
+    "enable": "Enable symmetry",
     "failed": "The optimizer could not find a layout.",
     "layout": {
       "random": "Try random layouts",
       "view": "Use current layout as reference"
     },
     "layoutMethod": "Layout method",
+    "mirrorAxis": "Fold to mirror about",
     "options": "Options",
     "run": "Run!",
     "running": "Running...",
@@ -20,6 +22,9 @@
       "running": "Running...",
       "start": "Processing problem..."
     },
+    "symmetry": "Symmetry",
+    "symmetryInconsistent": "Some paired flaps are not interchangeable in the tree, so mirroring them will use more paper.",
+    "symmetryOff": "Symmetry is off. Turn it on in the tree view to mirror the layout.",
     "title": "Optimize layout",
     "toTry": "Number of layouts to try:",
     "useBasinHopping": "Try variations of the current layouts",

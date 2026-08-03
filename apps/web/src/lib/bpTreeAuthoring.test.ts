@@ -75,7 +75,7 @@ describe('bpTreeDragUpdates', () => {
     [2, { x: 2, y: 0 }],
   ]);
 
-  it('translates the whole tree when the root is dragged', () => {
+  it('moves nothing when the root is dragged', () => {
     const moved = bpTreeDragUpdates({
       vertexId: 0,
       parentId: null,
@@ -84,9 +84,7 @@ describe('bpTreeDragUpdates', () => {
       start: { x: 0, y: 0 },
       target: { x: 3, y: 5 },
     });
-    expect(moved.get(0)).toEqual({ x: 3, y: 5 });
-    expect(moved.get(1)).toEqual({ x: 4, y: 5 });
-    expect(moved.get(2)).toEqual({ x: 5, y: 5 });
+    expect(moved.size).toBe(0);
   });
 
   it('rotates a vertex and its subtree about its parent, preserving edge lengths', () => {

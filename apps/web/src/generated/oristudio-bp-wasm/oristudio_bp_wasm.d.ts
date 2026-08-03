@@ -7,7 +7,14 @@ export function bp_check_optimizer_result(result: any): void;
 
 export function bp_complete_stretch(handle: number, id: string): any;
 
-export function bp_delete_tree_leaf(handle: number, id: number): any;
+/**
+ * Delete a batch of leaves in one round, as BP Studio's `$delete(vertices)`
+ * does. The batch matters: `remove_leaf` simulates the whole round before
+ * touching the tree, so the cascade (a parent that becomes a leaf once its
+ * child goes) and the `MIN_VERTICES` floor are decided across every id at
+ * once, rather than once per call.
+ */
+export function bp_delete_tree_leaves(handle: number, ids: any): any;
 
 export function bp_export_bps(handle: number): string;
 
@@ -104,7 +111,7 @@ export interface InitOutput {
     readonly bp_add_tree_leaf: (a: number, b: number, c: number) => [number, number, number];
     readonly bp_check_optimizer_result: (a: any) => [number, number];
     readonly bp_complete_stretch: (a: number, b: number, c: number) => [number, number, number];
-    readonly bp_delete_tree_leaf: (a: number, b: number) => [number, number, number];
+    readonly bp_delete_tree_leaves: (a: number, b: any) => [number, number, number];
     readonly bp_export_bps: (a: number) => [number, number, number, number];
     readonly bp_export_cp: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly bp_export_fold: (a: number, b: number, c: number) => [number, number, number, number];

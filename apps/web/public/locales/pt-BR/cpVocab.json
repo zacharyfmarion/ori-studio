@@ -391,13 +391,12 @@
       }
     },
     "cp_action_vertex_make_angularly_flat_foldable": {
-      "label": "Linha dobrável plana",
-      "tooltip": "Tornar o vértice dobrável plano",
+      "label": "Linha dobrável",
+      "tooltip": "Adiciona o vinco que faz um vértice dobrar de forma consistente, resolvendo seu ângulo quando o vértice não é plano",
       "disabledReason": "Pronto",
       "steps": {
-        "0": "Escolha o vértice ímpar",
-        "1": "Escolha a linha candidata",
-        "2": "Escolha o vinco de destino"
+        "0": "Escolha o vértice",
+        "1": "Escolha o vinco a adicionar"
       }
     },
     "cp_action_foldable_line_input": {
@@ -664,7 +663,7 @@
       }
     },
     "cp_action_foldable_line_draw": {
-      "label": "Linha dobrável plana (livre)",
+      "label": "Linha dobrável (livre)",
       "tooltip": "Desenho de linha dobrável",
       "disabledReason": "Pronto",
       "steps": {
@@ -1390,12 +1389,14 @@
     },
     "makeFlatFoldableAction": {
       "intro": {
-        "0": "Desenhe uma linha dobrável plana."
+        "0": "Desenhe o vinco que completa um vértice."
       },
       "steps": {
-        "0": "Selecione o vértice com número ímpar de linhas conectadas.",
-        "1": "Selecione a linha dobrável plana.",
-        "2": "Selecione uma linha alvo para estender até ela."
+        "0": "Selecione um vértice que não dobra de forma consistente.",
+        "1": "Selecione um dos vincos sugeridos."
+      },
+      "notes": {
+        "0": "Com todos os vincos em dobra completa isto é o teorema de Kawasaki, e o vértice precisa de um número ímpar de linhas. Quando um vinco tem ângulo de dobra parcial, a sugestão também define a montanha/vale e o ângulo do novo vinco."
       }
     },
     "lengthenCreaseAction": {

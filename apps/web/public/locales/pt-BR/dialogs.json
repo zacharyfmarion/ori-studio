@@ -3,12 +3,14 @@
     "abort": "Abortar",
     "close": "Fechar otimizar o layout",
     "closeAction": "Fechar",
+    "enable": "Ativar simetria",
     "failed": "O otimizador não encontrou um layout.",
     "layout": {
       "random": "Tentar layouts aleatórios",
       "view": "Usar o layout atual como referência"
     },
     "layoutMethod": "Método de layout",
+    "mirrorAxis": "Dobra usada como eixo",
     "options": "Opções",
     "run": "Executar!",
     "running": "Executando...",
@@ -20,6 +22,9 @@
       "running": "Executando...",
       "start": "Processando o problema..."
     },
+    "symmetry": "Simetria",
+    "symmetryInconsistent": "Algumas pontas emparelhadas não são intercambiáveis na árvore, então espelhá-las usará mais papel.",
+    "symmetryOff": "A simetria está desligada. Ative-a na visão de árvore para espelhar o layout.",
     "title": "Otimizar o layout",
     "toTry": "Número de layouts a tentar:",
     "useBasinHopping": "Tentar variações do layout atual",

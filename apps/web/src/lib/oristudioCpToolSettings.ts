@@ -19,6 +19,7 @@ export type OristudioCpToolSettingGroup =
   | 'polygon-corners'
   | 'parallel-width'
   | 'candidate-choice'
+  | 'completion-stops'
   | 'line-select-help'
   | 'circle-select-help'
   | 'apply-lines'
@@ -54,6 +55,13 @@ export interface OristudioCpToolOptions {
   polygonCorners: number;
   parallelWidth: number;
   candidateIndex: number | null;
+  /**
+   * Whether a completion candidate may end on an auxiliary line. Off by default:
+   * auxiliary lines are construction guides, so stopping a crease at one is a
+   * surprising place to stop — but a designer who draws guides deliberately wants
+   * exactly that.
+   */
+  foldableLineStopsOnAux: boolean;
   customCircleColor: OristudioCpRgbColor;
   textContent: string;
 }
@@ -79,6 +87,7 @@ export const DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS: OristudioCpToolOptions = {
   polygonCorners: 5,
   parallelWidth: 1,
   candidateIndex: null,
+  foldableLineStopsOnAux: false,
   customCircleColor: { red: 100, green: 200, blue: 200 },
   textContent: '',
 };
@@ -184,6 +193,8 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   DeleteLineTypeSelect: ['delete-line-type'],
   LineSegmentDelete: ['erase-line-type'],
   FixInaccurate: ['fix-precision'],
+  VertexMakeAngularlyFlatFoldable: ['completion-stops'],
+  FoldableLineDraw: ['completion-stops'],
   SelectLineIntersecting: ['line-select-help'],
   UnselectLineIntersecting: ['line-select-help'],
   CreaseDeleteIntersecting: ['line-select-help'],
@@ -205,6 +216,45 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   Axiom5: ['candidate-choice'],
   Axiom7: ['candidate-choice'],
 };
+
+/**
+ * Which tool options each settings group owns.
+ *
+ * The same knowledge `CpContextToolGroup` switches on to render the controls,
+ * written out so the panel's reset can name what it would put back. Keep the two
+ * in step: a group that renders a control for an option it does not claim here
+ * has a setting the reset cannot reach.
+ *
+ * Groups absent from this table own no options — they are help text or act on
+ * the selection.
+ */
+const TOOL_OPTION_KEYS_BY_GROUP: Partial<
+  Record<OristudioCpToolSettingGroup, readonly (keyof OristudioCpToolOptions)[]>
+> = {
+  'angle-system': ['angleSystemDivider', 'angleSystemAngles'],
+  'division-count': ['divisionCount'],
+  'division-ratio': ['divisionRatio'],
+  'replace-line-type': ['customFromLineType', 'customToLineType'],
+  'delete-line-type': ['customLineType'],
+  'erase-line-type': ['customLineType'],
+  'fix-precision': ['fixPrecision', 'fixPrecisionUseBp', 'fixPrecisionUse22_5'],
+  'polygon-corners': ['polygonCorners'],
+  'parallel-width': ['parallelWidth'],
+  'candidate-choice': ['candidateIndex'],
+  'completion-stops': ['foldableLineStopsOnAux'],
+  'custom-circle-color': ['customCircleColor'],
+};
+
+/** The options behind a set of groups, deduplicated. */
+export function cpToolOptionKeysForGroups(
+  groups: readonly OristudioCpToolSettingGroup[]
+): (keyof OristudioCpToolOptions)[] {
+  const keys = new Set<keyof OristudioCpToolOptions>();
+  for (const group of groups) {
+    for (const key of TOOL_OPTION_KEYS_BY_GROUP[group] ?? []) keys.add(key);
+  }
+  return [...keys];
+}
 
 export function cpToolSettingGroupsForOperation(
   operationId: OristudioCpOperationId

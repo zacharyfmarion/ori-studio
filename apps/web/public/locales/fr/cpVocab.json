@@ -391,13 +391,12 @@
       }
     },
     "cp_action_vertex_make_angularly_flat_foldable": {
-      "label": "Ligne pliable à plat",
-      "tooltip": "Rendre le sommet pliable à plat",
+      "label": "Ligne pliable",
+      "tooltip": "Ajoute le pli qui rend un sommet cohérent au pliage, en résolvant son angle lorsque le sommet n’est pas plat",
       "disabledReason": "Prêt",
       "steps": {
-        "0": "Choisissez le sommet impair",
-        "1": "Choisissez la ligne candidate",
-        "2": "Choisissez le pli de destination"
+        "0": "Choisissez le sommet",
+        "1": "Choisissez le pli à ajouter"
       }
     },
     "cp_action_foldable_line_input": {
@@ -664,7 +663,7 @@
       }
     },
     "cp_action_foldable_line_draw": {
-      "label": "Ligne pliable à plat (libre)",
+      "label": "Ligne pliable (libre)",
       "tooltip": "Tracé de ligne pliable",
       "disabledReason": "Prêt",
       "steps": {
@@ -1390,12 +1389,14 @@
     },
     "makeFlatFoldableAction": {
       "intro": {
-        "0": "Tracez une ligne pliable à plat."
+        "0": "Tracez le pli qui complète un sommet."
       },
       "steps": {
-        "0": "Sélectionnez un sommet avec un nombre impair de lignes connectées.",
-        "1": "Sélectionnez la ligne pliable à plat.",
-        "2": "Sélectionnez une ligne cible vers laquelle prolonger."
+        "0": "Sélectionnez un sommet qui ne se plie pas de façon cohérente.",
+        "1": "Sélectionnez l’un des plis proposés."
+      },
+      "notes": {
+        "0": "Lorsque tous les plis sont à pliage complet, il s’agit du théorème de Kawasaki et le sommet doit avoir un nombre impair de lignes. Si un pli porte un angle de pliage partiel, la proposition détermine aussi le mont/vallée et l’angle du nouveau pli."
       }
     },
     "lengthenCreaseAction": {

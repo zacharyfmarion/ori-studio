@@ -3,12 +3,14 @@
     "abort": "Abortar",
     "close": "Cerrar optimizar el diseño",
     "closeAction": "Cerrar",
+    "enable": "Activar simetría",
     "failed": "El optimizador no pudo encontrar un diseño.",
     "layout": {
       "random": "Pruebe diseños aleatorios",
       "view": "Utilice el diseño actual como referencia"
     },
     "layoutMethod": "Método de diseño",
+    "mirrorAxis": "Pliegue sobre el que reflejar",
     "options": "Opciones",
     "run": "¡Ejecuta!",
     "running": "Ejecutando...",
@@ -20,6 +22,9 @@
       "running": "Ejecutando...",
       "start": "Procesando el problema..."
     },
+    "symmetry": "Simetría",
+    "symmetryInconsistent": "Algunas solapas emparejadas no son intercambiables en el árbol, así que reflejarlas usará más papel.",
+    "symmetryOff": "La simetría está desactivada. Actívala en la vista de árbol para reflejar la disposición.",
     "title": "Optimizar el diseño",
     "toTry": "Número de diseños para probar:",
     "useBasinHopping": "Pruebe variaciones de los diseños actuales",

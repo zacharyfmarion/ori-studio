@@ -2,7 +2,10 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioBpDocumentState } from '../../engine/oristudioBpTypes';
+import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { DEFAULT_BP_PACKING_VIEW_LAYERS } from '../../lib/oristudioBpViewportSettings';
 import { TooltipProvider } from '../ui/Tooltip';
 import { BpPackingPanel } from './BpPackingPanel';
 
@@ -69,6 +72,7 @@ function packingDocument(): OristudioBpDocumentState {
         useDimension: true,
         layoutMode: 'view',
         useBasinHopping: true,
+        respectSymmetry: true,
         randomCandidateCount: 100,
         seed: null,
       },
@@ -271,6 +275,61 @@ function rectOf(element: Element) {
   return { x, y, width, height, cx: x + width / 2, cy: y + height / 2 };
 }
 
+describe('BP packing pane — the sheet crops what hangs over its edge', () => {
+  /**
+   * Box Pleating Studio masks every geometry layer to the sheet border
+   * (`client/shared/layers.ts`: shade, edge, hinge, ridge, axis-parallels,
+   * junction), leaving only the dots, the labels and the sheet itself unmasked.
+   * These check we crop the same set, and that the `outsidePaper` layer — an Ori
+   * Studio addition, since upstream offers no way to look past the edge — lifts
+   * it.
+   */
+  /**
+   * Whether the element is inside a clipping group. Asked per element rather
+   * than by counting clips on the canvas: the conflict layer carries a second,
+   * unrelated clip — to the flap circles, so a conflict stroke cannot paint
+   * outside the flap it belongs to — which the sheet crop must leave alone.
+   */
+  const isCropped = (root: HTMLElement, selector: string) => {
+    const node = root.querySelector(selector);
+    expect(node, selector).not.toBeNull();
+    return node?.closest('[clip-path]') !== null;
+  };
+
+  afterEach(() => {
+    useSettingsStore.setState({ bpPackingLayers: DEFAULT_BP_PACKING_VIEW_LAYERS });
+  });
+
+  it('crops by default, matching upstream', () => {
+    expect(DEFAULT_BP_PACKING_VIEW_LAYERS.outsidePaper).toBe(false);
+    expect(isCropped(renderPacking(), '.bp-packing-flap')).toBe(true);
+  });
+
+  it('stops cropping when Outside paper is turned on', () => {
+    useSettingsStore.setState({
+      bpPackingLayers: { ...DEFAULT_BP_PACKING_VIEW_LAYERS, outsidePaper: true },
+    });
+    const root = renderPacking();
+    for (const selector of ['.bp-packing-flap', '.bp-packing-flap-clearance']) {
+      expect(isCropped(root, selector), selector).toBe(false);
+    }
+  });
+
+  it('never crops the dots or the labels, which upstream leaves unmasked', () => {
+    const root = renderPacking();
+    for (const selector of ['.bp-packing-flap-dot', '.bp-packing-label']) {
+      expect(isCropped(root, selector), selector).toBe(false);
+    }
+  });
+
+  it('crops the flap body and its clearance circle', () => {
+    const root = renderPacking();
+    for (const selector of ['.bp-packing-flap', '.bp-packing-flap-clearance']) {
+      expect(isCropped(root, selector), selector).toBe(true);
+    }
+  });
+});
+
 describe('BP packing pane — conflict fills sit behind the geometry', () => {
   it('paints conflicts before the rivers, flaps and creases', () => {
     const host = renderPacking();
@@ -446,5 +505,28 @@ describe('BP packing pane — nothing in the canvas takes focus', () => {
     expect(canvas).not.toBeNull();
     expect(canvas?.querySelectorAll('[tabindex]')).toHaveLength(0);
     expect(canvas?.querySelectorAll('[role="button"]')).toHaveLength(0);
+  });
+});
+
+/**
+ * Delete, through the real dispatcher and the executor this pane registers.
+ *
+ * This pane owns the camera and nothing else, but `viewport.delete` is bound in
+ * viewport scope, so its executor is asked about every Delete press. Answering
+ * with a bare `undefined` counted as a claim, and `edit.delete` — which deletes
+ * the selected node from either BP pane — never ran.
+ */
+describe('BP packing pane — Delete reaches the node delete', () => {
+  it('hands Delete to edit.delete', () => {
+    renderPacking();
+    useWorkspaceStore.setState({ oristudioBpSelection: { kind: 'bp-vertex', id: 1 } });
+    const menu = vi.fn();
+    act(() => {
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }),
+        { context: { activeEditingContext: 'bp-packing' }, menu }
+      );
+    });
+    expect(menu).toHaveBeenCalledWith('edit.delete');
   });
 });

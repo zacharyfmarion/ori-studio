@@ -73,7 +73,25 @@ const OVERSIZED_PANELS = {
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,
-  'CpContextToolPanel.tsx': 1080,
+  // 1080 -> 1090: a second message slot, for the note the vertex-completion
+  // tool shows when the assignment it solved overrides the active line type.
+  // The sentence and the rule for when to say it are in
+  // `cp-workspace/tools/toolUnavailable.ts` with their own tests; the panel
+  // takes a string and renders it beside the existing one. Extracting the two
+  // <p> tags into a child would have cost more lines than it saved, which
+  // AGENTS.md names as the wrong trade.
+  //
+  // 1090 -> 1110: the `completion-stops` group — where a suggested crease is
+  // allowed to stop. A settings group in the settings panel is the case
+  // AGENTS.md calls "a feature that genuinely belongs in a panel", and its
+  // option, default, persistence and group→keys entry all live outside this
+  // file.
+  //
+  // **The seam this file actually wants** is `CpContextToolGroup`: ~530 lines,
+  // 45% of the total, a switch over setting groups that has nothing to do with
+  // the panel's composition. Moving it out is the fix, and it is a change of its
+  // own rather than a rider on whichever feature next trips the cap.
+  'CpContextToolPanel.tsx': 1110,
 };
 
 const PANEL_MAX_LINES = 800;

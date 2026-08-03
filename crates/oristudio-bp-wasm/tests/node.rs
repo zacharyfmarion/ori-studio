@@ -693,6 +693,9 @@ fn simple_view_optimizer_request() -> oristudio_bp::optimizer::OptimizerRequest 
             oristudio_bp::Point { x: 0.0, y: 0.0 },
             oristudio_bp::Point { x: 0.3, y: 0.4 },
         ]),
+        // None means the unmodified upstream algorithm, which is what these
+        // bridge tests measure.
+        symmetry: None,
     }
 }
 

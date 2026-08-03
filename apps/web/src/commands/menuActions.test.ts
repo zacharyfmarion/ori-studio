@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import type {
+  OristudioBpDocumentState,
+  OristudioBpSelection,
+} from '../engine/oristudioBpTypes';
 import type { OristudioCpDocumentState } from '../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import { getWorkspaceCapabilities } from '../lib/workspaceCapabilities';
@@ -57,8 +61,8 @@ function createDeps() {
       addLargestStubForSelectedPoly: vi.fn().mockResolvedValue(undefined),
       triangulateTree: vi.fn().mockResolvedValue(undefined),
       activeEditingContext: 'treemaker-tree' as import('../workspaces/editingContext').EditingContext,
-      oristudioBpDocument: null,
-      oristudioBpSelection: { kind: 'bp-none' as const },
+      oristudioBpDocument: null as OristudioBpDocumentState | null,
+      oristudioBpSelection: { kind: 'bp-none' } as OristudioBpSelection,
       deleteOristudioBpTreeNode: vi.fn().mockResolvedValue(true),
       oristudioCpDocument: null as OristudioCpDocumentState | null,
       oristudioCpSelection: {
@@ -565,6 +569,53 @@ describe('menu actions', () => {
     await expect(handle('edit.delete')).resolves.toBe(false);
 
     expect(deps.workspace.executeOristudioCpCommand).not.toHaveBeenCalled();
+  });
+
+  // The other half of the Delete chain. The viewport declines the chord and it
+  // arrives here, so this is where "Delete removes the selected BP node" is
+  // actually decided -- for both BP panes, since either can hold the selection.
+  describe('Delete in the Box Pleating editor', () => {
+    /** `deletableBpNodeId` reads only the tree's root and its edges. */
+    function bpDocument() {
+      return {
+        snapshot: { tree: { rootVertexId: 0, edges: [{ id: 1, vertices: [0, 1] }] } },
+      } as unknown as OristudioBpDocumentState;
+    }
+
+    for (const context of ['bp-tree', 'bp-packing'] as const) {
+      it(`deletes the selected vertex from the ${context} pane`, async () => {
+        const deps = createDeps();
+        deps.workspace.activeEditingContext = context;
+        deps.workspace.oristudioBpDocument = bpDocument();
+        deps.workspace.oristudioBpSelection = { kind: 'bp-vertex', id: 1 };
+
+        await expect(createMenuActionHandler(deps)('edit.delete')).resolves.toBe(true);
+
+        expect(deps.workspace.deleteOristudioBpTreeNode).toHaveBeenCalledWith(1);
+      });
+    }
+
+    it('deletes the child endpoint of a selected edge', async () => {
+      const deps = createDeps();
+      deps.workspace.activeEditingContext = 'bp-tree';
+      deps.workspace.oristudioBpDocument = bpDocument();
+      deps.workspace.oristudioBpSelection = { kind: 'bp-edge', id: 1 };
+
+      await expect(createMenuActionHandler(deps)('edit.delete')).resolves.toBe(true);
+
+      expect(deps.workspace.deleteOristudioBpTreeNode).toHaveBeenCalledWith(1);
+    });
+
+    it('leaves the root alone', async () => {
+      const deps = createDeps();
+      deps.workspace.activeEditingContext = 'bp-tree';
+      deps.workspace.oristudioBpDocument = bpDocument();
+      deps.workspace.oristudioBpSelection = { kind: 'bp-vertex', id: 0 };
+
+      await expect(createMenuActionHandler(deps)('edit.delete')).resolves.toBe(false);
+
+      expect(deps.workspace.deleteOristudioBpTreeNode).not.toHaveBeenCalled();
+    });
   });
 
   it('requests in-app numeric values for parameterized edit commands', async () => {

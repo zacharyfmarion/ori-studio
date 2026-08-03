@@ -21,6 +21,16 @@
     "circlesSelectedOne_other": "已选择 {{count}} 个圆",
     "circlesSelectedOther_other": "已选择 {{count}} 个圆",
     "clearSeeds": "清除种子",
+    "completion": {
+      "alreadyClosed": "该顶点已经可以一致折叠——没有缺少的折痕。",
+      "boundaryVertex": "该点位于纸张边缘，没有需要闭合的部分——请选择纸张内部的顶点。",
+      "exceedsFullFold": "单条折痕无法闭合该顶点：它需要折叠超过 180°。",
+      "forcedMountain": "这条折痕必须是山折，因此按山折绘制，而非当前选中的线型。",
+      "forcedValley": "这条折痕必须是谷折，因此按谷折绘制，而非当前选中的线型。",
+      "indeterminate": "无法判断：此处有未指定的折痕，或另一条折痕从此处穿过而未结束于此。",
+      "overdetermined": "单条折痕无法闭合该顶点——至少需要两条。"
+    },
+    "completionStops": "延伸至",
     "computedRatio": "计算比率 {{s}} : {{t}}",
     "corners": "角数",
     "count": "数量",
@@ -79,12 +89,16 @@
     "replaceFromLineType": "替换源线型",
     "replaceLineType": "替换线型",
     "replaceToLineType": "替换目标线型",
+    "resetSettings": "重置",
+    "resetSettingsHint": "此处有设置不是默认值。部分设置会在会话之间保留。",
     "right": "右",
     "rightSegmentRatio": "右段比率",
     "seedPressPendingOne_other": "{{count}} 次种子按压待处理",
     "seedPressPendingOther_other": "{{count}} 次种子按压待处理",
     "settingCountOne_other": "{{count}} 项设置",
     "settingCountOther_other": "{{count}} 项设置",
+    "stopOnAuxAria": "允许建议的折痕停在辅助线上",
+    "stopOnAuxLabel": "辅助线",
     "to": "到",
     "use225FixTargets": "使用 22.5 修正目标",
     "useBpFixTargets": "使用 BP 修正目标",
@@ -96,6 +110,10 @@
   "cpRail": {
     "ariaLabel": "折痕图工具",
     "openEditableFirst": "请先打开可编辑折痕图"
+  },
+  "foldAngleDisplay": {
+    "color": "颜色",
+    "opacity": "不透明度"
   },
   "lineStyle": {
     "blackOneDot": "黑色单点划线",

@@ -32,6 +32,7 @@
     "layerGrid": "网格",
     "layerHinges": "铰线",
     "layerLabels": "标签",
+    "layerOutsidePaper": "纸张外部",
     "layerRidges": "脊线",
     "layerRivers": "河",
     "layers": "图层",
@@ -61,6 +62,12 @@
     "warnings": "箱形褶皱排布警告",
     "width": "宽度"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "对折",
+      "diagonal": "对角折"
+    }
+  },
   "bpTree": {
     "canvas": "箱形褶皱树画布",
     "decreaseLength": "减小长度",
@@ -72,7 +79,6 @@
     "layerLabels": "标签",
     "layers": "图层",
     "length": "长度",
-    "max": "最大 {{value}}",
     "mirrorDraw": "镜像绘制",
     "mirrorDrawOn": "镜像绘制（开）",
     "selectEdge": "选择 BP 边 {{id}}，长度 {{length}}",
@@ -80,6 +86,7 @@
     "selectLeafVertexWithLabel": "选择 BP 叶顶点 {{id}}，{{label}}",
     "selectVertex": "选择 BP 顶点 {{id}}",
     "selectVertexWithLabel": "选择 BP 顶点 {{id}}，{{label}}",
+    "unpair": "解除镜像配对",
     "viewportControls": "箱形褶皱树视口控件"
   },
   "conditions": {
@@ -126,6 +133,7 @@
     "camvIssues": "可折叠性问题",
     "diagonalGridlines": "对角网格线",
     "emptyNote": "打开可编辑折痕图以调整视图选项。",
+    "foldAngleDisplay": "折叠角度样式",
     "foldAngleLabels": "折叠角度标签",
     "grid": "网格",
     "gridConfiguration": "网格配置",

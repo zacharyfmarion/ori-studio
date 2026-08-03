@@ -32,6 +32,7 @@
     "layerGrid": "Cuadrícula",
     "layerHinges": "Bisagras",
     "layerLabels": "Etiquetas",
+    "layerOutsidePaper": "Fuera del papel",
     "layerRidges": "Crestas",
     "layerRivers": "Ríos",
     "layers": "Capas",
@@ -61,6 +62,12 @@
     "warnings": "Advertencias del empaquetado de plegado en caja",
     "width": "Anchura"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "Pliegue de libro",
+      "diagonal": "Pliegue diagonal"
+    }
+  },
   "bpTree": {
     "canvas": "Lienzo del árbol de plegado en caja",
     "decreaseLength": "Reducir longitud",
@@ -72,7 +79,6 @@
     "layerLabels": "Etiquetas",
     "layers": "Capas",
     "length": "Longitud",
-    "max": "máx {{value}}",
     "mirrorDraw": "Dibujo simétrico",
     "mirrorDrawOn": "Dibujo simétrico (activado)",
     "selectEdge": "Seleccionar arista BP {{id}}, longitud {{length}}",
@@ -80,6 +86,7 @@
     "selectLeafVertexWithLabel": "Seleccionar vértice hoja BP {{id}}, {{label}}",
     "selectVertex": "Seleccionar vértice BP {{id}}",
     "selectVertexWithLabel": "Seleccionar vértice BP {{id}}, {{label}}",
+    "unpair": "Desemparejar del espejo",
     "viewportControls": "Controles de la vista del árbol de plegado en caja"
   },
   "conditions": {
@@ -126,6 +133,7 @@
     "camvIssues": "Problemas de plegabilidad",
     "diagonalGridlines": "Líneas de cuadrícula diagonales",
     "emptyNote": "Abra un patrón de pliegues editable para ajustar las opciones de vista.",
+    "foldAngleDisplay": "Estilo de ángulo de plegado",
     "foldAngleLabels": "Etiquetas de ángulo de plegado",
     "grid": "Cuadrícula",
     "gridConfiguration": "Configuración de la cuadrícula",

@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioBpDocumentState } from '../../engine/oristudioBpTypes';
+import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { BpTreePanel } from './BpTreePanel';
@@ -108,6 +109,7 @@ function bpDocument(): OristudioBpDocumentState {
         useDimension: true,
         layoutMode: 'view',
         useBasinHopping: true,
+        respectSymmetry: true,
         randomCandidateCount: 100,
         seed: null,
       },
@@ -219,6 +221,7 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
           : { kind: 'bp-vertex', id: selectedVertexId },
       oristudioBpSymmetry: {
         enabled: symmetryEnabled,
+        fold: 'book',
         angle: 90,
         loc: { x: 10, y: 10 },
         pairs: [],
@@ -299,6 +302,46 @@ describe('BP tree pane — adding is anchored to the selection', () => {
   });
 });
 
+describe('BP tree pane — a vertex on the mirror line is pinned', () => {
+  // The fixture's vertices all sit at x=10, which is the mirror line.
+  function clickVertex(body: HTMLElement, index: number) {
+    const dot = body.querySelectorAll<SVGCircleElement>('.bp-tree-node')[index];
+    const at = { clientX: 400, clientY: 300 };
+    act(() => {
+      dot.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, ...at }));
+      dot.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0, ...at }));
+    });
+  }
+
+  it('selects it without adding a leaf, mirror or otherwise', () => {
+    const body = render(1, true);
+    clickVertex(body, 1);
+    expect(actions.selectOristudioBp).toHaveBeenCalledWith({ kind: 'bp-vertex', id: 1 });
+    // Declining the drag must not let the click fall through to the canvas,
+    // which would add a leaf plus its mirror on top of the vertex.
+    expect(actions.addOristudioBpTreeLeafWithSymmetry).not.toHaveBeenCalled();
+    expect(actions.addOristudioBpTreeLeaf).not.toHaveBeenCalled();
+  });
+
+  it('does not move it', () => {
+    const body = render(1, true);
+    const dot = body.querySelectorAll<SVGCircleElement>('.bp-tree-node')[1];
+    act(() => {
+      dot.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
+      );
+      dot.dispatchEvent(
+        new MouseEvent('pointermove', { bubbles: true, button: 0, clientX: 500, clientY: 300 })
+      );
+      dot.dispatchEvent(
+        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 500, clientY: 300 })
+      );
+    });
+    expect(actions.moveOristudioBpTreeVerticesWithSymmetry).not.toHaveBeenCalled();
+    expect(actions.moveOristudioBpTreeVertices).not.toHaveBeenCalled();
+  });
+});
+
 describe('BP tree pane — the hover ghost previews the click', () => {
   const ghost = () => container?.querySelector('.symmetry-ghost');
 
@@ -331,7 +374,7 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
         ...actions,
         oristudioBpDocument: document_,
         oristudioBpSelection: { kind: 'bp-edge', id: 1 },
-        oristudioBpSymmetry: { enabled: false, angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
+        oristudioBpSymmetry: { enabled: false, fold: 'book', angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
       },
       true
     );
@@ -548,5 +591,59 @@ describe('BP tree pane — the name field never steals focus', () => {
     // name field swallow Delete.
     const focused = window.document.activeElement;
     expect(focused === body || focused === window.document.body).toBe(true);
+  });
+});
+
+/**
+ * Delete, through the real dispatcher and the real executor this pane registers.
+ *
+ * The focus test above checked only the precondition, and the pane passed it
+ * while Delete still did nothing: this pane's viewport executor handles the
+ * camera and nothing else, but `viewport.delete` is bound in viewport scope, so
+ * the executor is *asked* about the press. It answered with a bare `undefined`,
+ * which the dispatcher read as a claim, and `edit.delete` — the verb that
+ * removes the node — never ran. Asserting the outcome rather than the setup is
+ * the difference between these tests and that one.
+ */
+describe('BP tree pane — Delete reaches the node delete', () => {
+  function pressDelete(): ReturnType<typeof vi.fn> {
+    const menu = vi.fn();
+    act(() => {
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }),
+        { context: { activeEditingContext: 'bp-tree' }, menu }
+      );
+    });
+    return menu;
+  }
+
+  it('hands Delete to edit.delete with a vertex selected', () => {
+    render(1);
+    expect(pressDelete()).toHaveBeenCalledWith('edit.delete');
+  });
+
+  it('hands Backspace to edit.delete as well', () => {
+    render(1);
+    const menu = vi.fn();
+    act(() => {
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }),
+        { context: { activeEditingContext: 'bp-tree' }, menu }
+      );
+    });
+    expect(menu).toHaveBeenCalledWith('edit.delete');
+  });
+
+  it('still keeps the camera shortcuts for itself', () => {
+    render(1);
+    const menu = vi.fn();
+    act(() => {
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { key: '=', metaKey: true, bubbles: true, cancelable: true }),
+        { context: { activeEditingContext: 'bp-tree' }, menu }
+      );
+    });
+    // Declining Delete must not turn into declining everything.
+    expect(menu).not.toHaveBeenCalled();
   });
 });

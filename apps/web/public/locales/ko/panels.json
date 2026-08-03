@@ -32,6 +32,7 @@
     "layerGrid": "격자",
     "layerHinges": "힌지",
     "layerLabels": "레이블",
+    "layerOutsidePaper": "용지 바깥",
     "layerRidges": "능선",
     "layerRivers": "리버",
     "layers": "레이어",
@@ -61,6 +62,12 @@
     "warnings": "박스 플리츠 패킹 경고",
     "width": "너비"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "반 접기",
+      "diagonal": "대각선 접기"
+    }
+  },
   "bpTree": {
     "canvas": "박스 플리츠 트리 캔버스",
     "decreaseLength": "길이 감소",
@@ -72,7 +79,6 @@
     "layerLabels": "레이블",
     "layers": "레이어",
     "length": "길이",
-    "max": "최대 {{value}}",
     "mirrorDraw": "대칭 그리기",
     "mirrorDrawOn": "대칭 그리기(켜짐)",
     "selectEdge": "BP 모서리 {{id}} 선택, 길이 {{length}}",
@@ -80,6 +86,7 @@
     "selectLeafVertexWithLabel": "BP 리프 정점 {{id}} 선택, {{label}}",
     "selectVertex": "BP 정점 {{id}} 선택",
     "selectVertexWithLabel": "BP 정점 {{id}} 선택, {{label}}",
+    "unpair": "미러 페어 해제",
     "viewportControls": "박스 플리츠 트리 뷰포트 컨트롤"
   },
   "conditions": {
@@ -126,6 +133,7 @@
     "camvIssues": "접힘 가능성 문제",
     "diagonalGridlines": "대각선 격자선",
     "emptyNote": "보기 옵션을 조정하려면 편집 가능한 전개도를 여세요.",
+    "foldAngleDisplay": "접기 각도 스타일",
     "foldAngleLabels": "접기 각도 라벨",
     "grid": "격자",
     "gridConfiguration": "격자 구성",

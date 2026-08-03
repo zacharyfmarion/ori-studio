@@ -25,6 +25,16 @@
     "circlesSelectedOther_many": "{{count}} círculos seleccionados",
     "circlesSelectedOther_other": "{{count}} círculos seleccionados",
     "clearSeeds": "Borrar semillas",
+    "completion": {
+      "alreadyClosed": "Este vértice ya pliega de forma consistente: no falta ningún pliegue.",
+      "boundaryVertex": "Este punto está en el borde del papel, así que no hay nada que cerrar: elige un vértice dentro de la hoja.",
+      "exceedsFullFold": "Ningún pliegue por sí solo puede cerrar este vértice: tendría que plegarse más de 180°.",
+      "forcedMountain": "Este pliegue tiene que ser monte: se traza así, no con el tipo de línea seleccionado.",
+      "forcedValley": "Este pliegue tiene que ser valle: se traza así, no con el tipo de línea seleccionado.",
+      "indeterminate": "No se puede determinar: aquí hay un pliegue sin asignar, o otro pliegue pasa por este punto sin terminar en él.",
+      "overdetermined": "Ningún pliegue por sí solo cierra este vértice: harían falta al menos dos."
+    },
+    "completionStops": "Extender hasta",
     "computedRatio": "Proporción calculada {{s}} : {{t}}",
     "corners": "Vértices",
     "count": "Cantidad",
@@ -87,6 +97,8 @@
     "replaceFromLineType": "Reemplazar desde tipo de línea",
     "replaceLineType": "Reemplazar tipo de línea",
     "replaceToLineType": "Reemplazar por tipo de línea",
+    "resetSettings": "Restablecer",
+    "resetSettingsHint": "Aquí hay un ajuste que no es el predeterminado. Algunos ajustes se recuerdan entre sesiones.",
     "right": "Derecha",
     "rightSegmentRatio": "Proporción del segmento derecho",
     "seedPressPendingOne_one": "{{count}} pulsación de semilla pendiente",
@@ -101,6 +113,8 @@
     "settingCountOther_one": "{{count}} ajustes",
     "settingCountOther_many": "{{count}} ajustes",
     "settingCountOther_other": "{{count}} ajustes",
+    "stopOnAuxAria": "Permite que un pliegue sugerido se detenga en una línea auxiliar",
+    "stopOnAuxLabel": "Líneas auxiliares",
     "to": "Hasta",
     "use225FixTargets": "Usar objetivos de corrección 22.5",
     "useBpFixTargets": "Usar objetivos de corrección BP",
@@ -112,6 +126,10 @@
   "cpRail": {
     "ariaLabel": "Herramientas de patrón de pliegues",
     "openEditableFirst": "Abre primero un patrón de pliegues editable"
+  },
+  "foldAngleDisplay": {
+    "color": "Color",
+    "opacity": "Opacidad"
   },
   "lineStyle": {
     "blackOneDot": "Negro de un punto",

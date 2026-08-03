@@ -157,6 +157,9 @@ describe('BpOptimizerModal', () => {
       layoutMode: 'random',
       useBasinHopping: false,
       randomCandidateCount: 8,
+      // No BP document in this test, so symmetry cannot resolve and the run
+      // does not ask the solver to mirror.
+      respectSymmetry: false,
     });
     expect(useBpOptimizerUiStore.getState().isOpen).toBe(false);
   });
@@ -236,5 +239,126 @@ describe('BpOptimizerModal', () => {
     const bar = container?.querySelector('[role="progressbar"]');
     expect(bar?.getAttribute('aria-valuenow')).toBeNull();
     expect(container?.querySelector('.bp-optimizer__progress-fill--indeterminate')).toBeTruthy();
+  });
+});
+
+describe('symmetry row', () => {
+  function withTree(
+    symmetry: Partial<{
+      enabled: boolean;
+      angle: number;
+      loc: { x: number; y: number };
+      pairs: { v1: number; v2: number }[];
+    }> = {},
+    sheetKind: 'rectangular' | 'diagonal' = 'rectangular',
+    // A leaf that is neither on the mirror line nor opposite another one.
+    stray = false
+  ) {
+    const sheet = { kind: sheetKind, width: 20, height: 20, grid: {} };
+    useWorkspaceStore.setState({
+      oristudioBpSymmetry: {
+        enabled: true,
+        fold: 'book',
+        angle: 90,
+        loc: { x: 10, y: 10 },
+        pairs: [],
+        ...symmetry,
+      },
+      oristudioBpDocument: {
+        snapshot: {
+          tree: {
+            sheet,
+            vertices: [
+              { id: 0, name: 'root', loc: { x: 10, y: 10 }, isLeaf: false },
+              { id: 1, name: 'a', loc: { x: 6, y: 12 }, isLeaf: true },
+              { id: 2, name: 'b', loc: { x: 14, y: 12 }, isLeaf: true },
+              ...(stray ? [{ id: 3, name: 'c', loc: { x: 3, y: 4 }, isLeaf: true }] : []),
+            ],
+            edges: [
+              { id: 0, vertices: [0, 1], length: 4 },
+              { id: 1, vertices: [0, 2], length: 4 },
+            ],
+          },
+        },
+      },
+    } as never);
+  }
+
+  it('says so when symmetry is off', () => {
+    withTree({ enabled: false });
+    renderModal();
+    expect(text()).toContain('Symmetry is off');
+  });
+
+  it('says plainly that the toggle turns symmetry on', () => {
+    // "Mirror the layout" read as a description of what the run does rather
+    // than as the switch that enables it.
+    withTree();
+    renderModal();
+    expect(text()).toContain('Enable symmetry');
+  });
+
+  it('names the fold, which belongs here rather than in the tree view', () => {
+    // A tree is not drawn on the paper, so it has no book or diagonal fold of
+    // its own; naming one only makes sense once there is paper.
+    withTree();
+    renderModal();
+    expect(text()).toContain('Book fold');
+  });
+
+  it('names the fold the same way whatever the sheet', () => {
+    // The name is paper-relative. Which grid axis it lands on does depend on the
+    // sheet, but that is the optimizer's problem, not a label.
+    withTree({}, 'diagonal');
+    renderModal();
+    expect(text()).toContain('Book fold');
+  });
+
+  it('does not touch the tree mirror line when the fold changes', () => {
+    withTree();
+    renderModal();
+    const before = useWorkspaceStore.getState().oristudioBpSymmetry.angle;
+    act(() => {
+      useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
+    });
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.angle).toBe(before);
+  });
+
+  it('explains why it cannot mirror instead of blocking the run', () => {
+    // A flap with no mirror drawn and not on the line cannot be accounted for.
+    withTree({}, 'rectangular', true);
+    openWith({ layoutMode: 'view' });
+    renderModal();
+    expect(text()).toMatch(/mirrors/i);
+    const run = findButton('Run!');
+    expect(run.disabled).toBe(false);
+  });
+
+  it('does not ask the solver to mirror when it cannot be resolved', async () => {
+    withTree({}, 'rectangular', true);
+    openWith({ layoutMode: 'view', respectSymmetry: true });
+    const spy = optimizeSpy();
+    renderModal();
+    await act(async () => {
+      findButton('Run!').click();
+    });
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ respectSymmetry: false }),
+      expect.anything()
+    );
+  });
+
+  it('asks the solver to mirror when the pairing resolves', async () => {
+    withTree();
+    openWith({ layoutMode: 'view', respectSymmetry: true });
+    const spy = optimizeSpy();
+    renderModal();
+    await act(async () => {
+      findButton('Run!').click();
+    });
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ respectSymmetry: true }),
+      expect.anything()
+    );
   });
 });

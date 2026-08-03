@@ -23,6 +23,16 @@
     "circlesSelectedOther_one": "{{count}} Kreise ausgewählt",
     "circlesSelectedOther_other": "{{count}} Kreise ausgewählt",
     "clearSeeds": "Keimpunkte löschen",
+    "completion": {
+      "alreadyClosed": "Dieser Knoten faltet bereits konsistent — es fehlt keine Falte.",
+      "boundaryVertex": "Dieser Punkt liegt am Papierrand, es gibt also nichts zu schließen — wählen Sie einen Knoten im Inneren des Blattes.",
+      "exceedsFullFold": "Keine einzelne Falte kann diesen Knoten schließen: sie müsste über 180° hinaus falten.",
+      "forcedMountain": "Diese Falte muss ein Berg sein — sie wird so gezeichnet, nicht im gewählten Linientyp.",
+      "forcedValley": "Diese Falte muss ein Tal sein — sie wird so gezeichnet, nicht im gewählten Linientyp.",
+      "indeterminate": "Nicht bestimmbar: Hier ist eine Falte nicht zugewiesen, oder eine andere Falte verläuft durch diesen Punkt, ohne dort zu enden.",
+      "overdetermined": "Keine einzelne Falte schließt diesen Knoten — es wären mindestens zwei nötig."
+    },
+    "completionStops": "Verlängern bis",
     "computedRatio": "Berechnetes Verhältnis {{s}} : {{t}}",
     "corners": "Ecken",
     "count": "Anzahl",
@@ -83,6 +93,8 @@
     "replaceFromLineType": "Von Linientyp ersetzen",
     "replaceLineType": "Linientyp ersetzen",
     "replaceToLineType": "Zu Linientyp ersetzen",
+    "resetSettings": "Zurücksetzen",
+    "resetSettingsHint": "Eine Einstellung hier ist nicht der Standardwert. Manche Einstellungen bleiben zwischen Sitzungen erhalten.",
     "right": "Rechts",
     "rightSegmentRatio": "Verhältnis des rechten Segments",
     "seedPressPendingOne_one": "{{count}} Keimpunkt-Klick ausstehend",
@@ -93,6 +105,8 @@
     "settingCountOne_other": "{{count}} Einstellung",
     "settingCountOther_one": "{{count}} Einstellungen",
     "settingCountOther_other": "{{count}} Einstellungen",
+    "stopOnAuxAria": "Lässt eine vorgeschlagene Falte an einer Hilfslinie enden",
+    "stopOnAuxLabel": "Hilfslinien",
     "to": "Bis",
     "use225FixTargets": "22.5-Korrekturziele verwenden",
     "useBpFixTargets": "BP-Korrekturziele verwenden",
@@ -104,6 +118,10 @@
   "cpRail": {
     "ariaLabel": "Faltmuster-Werkzeuge",
     "openEditableFirst": "Öffnen Sie zuerst ein bearbeitbares Faltmuster"
+  },
+  "foldAngleDisplay": {
+    "color": "Farbe",
+    "opacity": "Deckkraft"
   },
   "lineStyle": {
     "blackOneDot": "Schwarz mit einem Punkt",

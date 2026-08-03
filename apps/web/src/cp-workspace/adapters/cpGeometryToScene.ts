@@ -1,9 +1,10 @@
-import { applyFoldAngleRamp } from '../foldAngle/foldAngleRamp';
+import { foldAngleInk } from '../foldAngle/foldAngleRamp';
 import { lineColorName, SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import type { Rgba, StrokeGeometry } from '../renderer/types';
+import type { StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
 import type {
   CpDashPatterns,
+  CpFoldAngleStyle,
   CpLineAppearanceFor,
   CpSelectionStyle,
   CpTransformPreview,
@@ -28,11 +29,8 @@ export function cpGeometryStrokesToScene(
   dashPatterns: CpDashPatterns,
   selection?: CpSelectionStyle,
   move?: CpTransformPreview,
-  /**
-   * Hue a shallower fold shifts toward. Omit to disable the fold-angle ramp
-   * (used by callers that render classic geometry only).
-   */
-  foldAngleAnchor?: Rgba
+  /** How a non-180 crease shows its angle. Omit to disable the treatment. */
+  foldAngle?: CpFoldAngleStyle
 ): { strokes: StrokeGeometry } {
   const endpoints = transport.segEndpoints;
   const attr = transport.segAttr;
@@ -80,12 +78,12 @@ export function cpGeometryStrokesToScene(
       appearance = appearanceFor(lineColorName(colorNumber));
       appearanceCache.set(colorNumber, appearance);
     }
-    // Ramp is applied after the colour-keyed cache: hue is the crease's
-    // direction (cacheable), lightness is its magnitude (per segment).
+    // Applied after the colour-keyed cache: the crease's *direction* is what
+    // the cache keys on, and its magnitude is per segment.
     const rgba =
-      foldAngleAnchor === undefined
+      foldAngle === undefined
         ? appearance.color
-        : applyFoldAngleRamp(appearance.color, transport.segFoldMagnitude?.[i], foldAngleAnchor);
+        : foldAngleInk(appearance.color, transport.segFoldMagnitude?.[i], foldAngle);
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];

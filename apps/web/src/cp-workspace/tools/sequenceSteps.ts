@@ -27,15 +27,26 @@ export function requiresCreaseInRange(kind: CpStepSnap | undefined): boolean {
  * (`MouseHandlerVertexMakeAngularlyFlatFoldable`: `if (candidates.size() == 1)`
  * → `SELECT_DESTINATION`), so the lone ray's midpoint stands in for the click.
  *
- * A candidate step that is a tool's *last* step never auto-picks: resolving it
- * would commit the whole command off a preview arriving, with no click at all.
+ * # Why the final step is guarded, and how a tool opts out
+ *
+ * On a tool whose candidate step is followed by more steps, resolving it is free
+ * — the user still confirms later. On a tool that *ends* on the candidate step it
+ * commits geometry off a preview arriving, which is only acceptable when the
+ * preceding click already expressed the whole intent.
+ *
+ * So the final step is refused unless the tool asks for it via
+ * `commitOnLoneCandidate`. Foldable Line does: it has clicked a vertex, and there
+ * is exactly one crease that completes it, so a second click would have only one
+ * place to land.
  */
 export function loneCandidateAutoPick(
   stepKinds: readonly CpStepSnap[],
   step: number,
-  previewSegments: readonly ToolPreviewSegment[]
+  previewSegments: readonly ToolPreviewSegment[],
+  commitOnLoneCandidate = false
 ): ModelPoint | null {
-  if (stepKinds[step] !== 'candidate' || step >= stepKinds.length - 1) return null;
+  if (stepKinds[step] !== 'candidate') return null;
+  if (step >= stepKinds.length - 1 && !commitOnLoneCandidate) return null;
   if (previewSegments.length !== 1) return null;
   const only = previewSegments[0];
   return { x: (only.a.x + only.b.x) / 2, y: (only.a.y + only.b.y) / 2 };

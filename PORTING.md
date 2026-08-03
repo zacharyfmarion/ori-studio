@@ -88,6 +88,47 @@ Release caveats:
   `treemaker-cli` before making claims about a private archive of historical
   user files.
 
+## Box Pleating Studio (`oristudio-bp*`)
+
+Deliberate divergences, each additive — the ported algorithms and their outputs
+are unchanged:
+
+- **Layout symmetry** is an Ori Studio extension with no upstream counterpart.
+  Upstream Box Pleating Studio has no notion of a symmetric layout, so there is
+  nothing to be faithful to; the closest domain precedent is TreeMaker's
+  `tmConditionNodesPaired` / `tmConditionNodeSymmetric`, whose linear-equality
+  formulation this follows.
+
+  The whole feature is gated on `OptimizerRequest::symmetry` being `Some`. With
+  it absent, every code path is the upstream one: `pack_rssl` delegates to
+  `pack_rssl_symmetric` with no symmetry, the basin-hopping and global-solve
+  entry points delegate likewise, and the grid fit uses the upstream greedy. The
+  differential test in `crates/oristudio-bp/tests/optimizer_oracle.rs` compares
+  against the vendored WASM over 400+ cases and must keep passing untouched.
+
+  Symmetric fitting does depart from the upstream greedy in one structural way,
+  because it has to: upstream pins flaps at absolute grid coordinates and grows
+  the sheet lazily, and in absolute coordinates a book mirror is `x -> s - x - w`,
+  so growth would move the axis out from under the already-pinned pairs. The
+  symmetric fit measures the mirrored axes from the sheet centre instead — the
+  same thing the diagonal sheet already does — which makes the mirror map
+  independent of the sheet size at the cost of an even sheet size.
+
+- **Mirror-draw state is persisted only in `.osf`.** Which flaps mirror which,
+  whether mirror draw is on, and which fold the mirror represents are saved as a
+  typed `symmetry` field on the box-pleat document (native schema v6). Nothing
+  about it enters the Rust `Project` model, so `.bps` and `.bpz` stay
+  byte-faithful with no export-path changes — and correspondingly cannot carry
+  it. `.bps` export warns first, through the shared superset-feature registry in
+  `apps/web/src/lib/supersetFeatures.ts`.
+
+  Upstream reads tolerantly (`Migration.$process` mutates and casts, and its own
+  notes say "All difference will be ignored"), so smuggling symmetry into a
+  `.bps` under a namespaced key would work — and still die, because
+  `Project.toJSON()` rebuilds the file from upstream's model on their next save.
+  Note also that `$getVersionIndex` throws `"Unrecognized version"` on a version
+  it does not know, so the `version` field must always be one upstream published.
+
 ## Origami Simulator (`packages/origami-simulator`)
 
 The vendored reference is `third_party/origami-simulator` at commit

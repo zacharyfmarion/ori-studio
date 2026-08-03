@@ -5,7 +5,7 @@ import { useLayoutStore } from '../../layoutStore';
 import {
   addOristudioBpTreeLeaf as addRuntimeOristudioBpTreeLeaf,
   completeOristudioBpStretch as completeRuntimeOristudioBpStretch,
-  deleteOristudioBpTreeLeaf as deleteRuntimeOristudioBpTreeLeaf,
+  deleteOristudioBpTreeLeaves as deleteRuntimeOristudioBpTreeLeaves,
   exportOristudioBpProjectAsBps,
   exportOristudioBpProjectAsCp,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
@@ -31,12 +31,24 @@ import {
 import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
+  removeBpTreeSymmetryPair,
   buildMirroredBpTreeUpdates,
+  bpTreeDeleteIdsWithSymmetry,
   bpTreeSymmetryDefaultLoc,
+  bpDocumentSymmetry,
+  defaultBpDocumentSymmetry,
+  type BpDocumentSymmetry,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
+  BP_TREE_SYMMETRY_ANGLE,
   BP_TREE_SYMMETRY_TOLERANCE,
 } from '../../../lib/bpTreeSymmetry';
+import {
+  optimizerSymmetryAxisForFold,
+  optimizerSymmetryAxisSwapsDimensions,
+  resolveOptimizerSymmetry,
+  type OptimizerSymmetryPayload,
+} from '../../../lib/bpOptimizerSymmetry';
 import {
   reflectPointAcrossSymmetryAxis,
   snapPointToSymmetryAxis,
@@ -54,7 +66,12 @@ import {
 } from '../../../engine/oristudioBpTypes';
 import { bpFlapSelection, bpSelectionSize } from '../../../lib/oristudioBpSelection';
 import { runAfterPointerGesture } from '../../../lib/pointerGesture';
-import type { BpHistorySnapshot, OristudioBpSlice, WorkspaceSliceCreator } from '../types';
+import type {
+  BpHistorySnapshot,
+  OristudioBpSlice,
+  OristudioBpSymmetryState,
+  WorkspaceSliceCreator,
+} from '../types';
 
 /**
  * A new Box Pleating design is scaffolded like BP Studio's blank project: a root
@@ -134,8 +151,22 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   const setLoadedBpProject = (
     document: OristudioBpDocumentState,
     message: string,
-    options: { preserveEditCanvas?: boolean } = {}
+    options: {
+      preserveEditCanvas?: boolean;
+      /** Mirror-draw state the file carried, when it was an `.osf`. */
+      symmetry?: BpDocumentSymmetry | null;
+    } = {}
   ) => {
+    // Pairs name vertices by id. The ids are explicit in the `.bps` text so they
+    // survive the round trip, but the file's design and its symmetry are still
+    // two separately-written things — drop any pair naming a vertex this tree
+    // does not have rather than carrying a dangling reference.
+    const symmetry = options.symmetry
+      ? {
+          ...options.symmetry,
+          pairs: filterBpTreeSymmetryPairs(document.snapshot.tree, options.symmetry.pairs),
+        }
+      : null;
     pendingHistory = null;
     set({
       workflowTarget: 'box-pleat',
@@ -173,14 +204,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       oristudioBpBusy: false,
       oristudioBpHistoryPast: [],
       oristudioBpHistoryFuture: [],
-      // Ephemeral mirror-draw state is project-specific — reset it on every load.
-      // Symmetry defaults ON with the axis centred on the sheet (angle 90 =
-      // vertical book axis), so box-pleat authoring is symmetric out of the box.
+      // Mirror-draw state is per-design. `symmetry` carries what the file said,
+      // if the loader read any; otherwise a new design starts symmetric, which is
+      // how box-pleat authoring wants to begin. The axis itself is always derived
+      // here rather than restored: vertical, centred on whatever sheet loaded.
       oristudioBpSymmetry: {
-        enabled: true,
-        angle: 90,
+        ...(symmetry ?? defaultBpDocumentSymmetry()),
+        angle: BP_TREE_SYMMETRY_ANGLE,
         loc: bpTreeSymmetryDefaultLoc(document.snapshot.tree.sheet),
-        pairs: [],
       },
       currentFileName: document.source.filename,
       currentFilePath: document.source.path,
@@ -222,6 +253,38 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     });
   };
 
+  /**
+   * Record an undo entry for a change that touches only the mirror-draw state.
+   *
+   * `bps: null` says the design itself is untouched, which is what lets this
+   * stay synchronous — serializing the project is a worker round-trip, and
+   * awaiting one here would let two quick toggles record their entries out of
+   * order. Called *before* the change, so it captures the state to go back to.
+   */
+  const recordSymmetryHistory = (label: string) => {
+    if (!get().oristudioBpDocument) return;
+    const entry = snapshotEntry(
+      {
+        bps: null,
+        selection: get().oristudioBpSelection,
+        symmetry: bpDocumentSymmetry(get().oristudioBpSymmetry),
+      },
+      label
+    );
+    const history = recordSnapshot(
+      { past: get().oristudioBpHistoryPast, future: get().oristudioBpHistoryFuture },
+      entry
+    );
+    set({ oristudioBpHistoryPast: history.past, oristudioBpHistoryFuture: history.future });
+  };
+
+  /** What the undo menu should call a mirror-draw change. */
+  const symmetryEditLabel = (update: Partial<OristudioBpSymmetryState>): string => {
+    if (update.fold !== undefined) return 'Mirror fold';
+    if (update.enabled !== undefined) return update.enabled ? 'Mirror draw on' : 'Mirror draw off';
+    return 'Mirror symmetry';
+  };
+
   // The "before" snapshot for the in-progress gesture. Captured lazily on the
   // first mutation of a gesture and committed as one history entry when the
   // gesture ends (dragging=false). A drag's intermediate steps keep it pending so
@@ -240,7 +303,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     try {
       if (!pendingHistory) {
         const bps = await exportOristudioBpProjectAsBps();
-        pendingHistory = snapshotEntry({ bps, selection: get().oristudioBpSelection }, message);
+        pendingHistory = snapshotEntry(
+          {
+            bps,
+            selection: get().oristudioBpSelection,
+            symmetry: bpDocumentSymmetry(get().oristudioBpSymmetry),
+          },
+          message
+        );
       }
       const nextDocument = await operation(document);
       // Prune ephemeral symmetry pairs to vertices that still exist after the edit,
@@ -297,10 +367,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     oristudioBpHistoryPast: [],
     oristudioBpHistoryFuture: [],
     oristudioBpViewportFitRequestId: 0,
-    // Ephemeral mirror-draw state (never persisted). Defaults ON; `loc` is
-    // re-centred on the sheet on every document load (see createOristudioBpProject),
-    // so this pre-load {0,0} is a placeholder. `angle` 90 is a vertical (book) axis.
-    oristudioBpSymmetry: { enabled: true, angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+    // Defaults ON; `loc` is re-centred on the sheet on every document load (see
+    // setLoadedBpProject), so this pre-load {0,0} is a placeholder.
+    oristudioBpSymmetry: {
+      ...defaultBpDocumentSymmetry(),
+      angle: BP_TREE_SYMMETRY_ANGLE,
+      loc: { x: 0, y: 0 },
+    },
 
     ensureBoxPleatProject: async () => {
       if (get().oristudioBpDocument || get().oristudioBpBusy) return;
@@ -383,7 +456,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       }
     },
 
-    loadOristudioBpProjectFromFile: async (text, source) => {
+    loadOristudioBpProjectFromFile: async (text, source, options = {}) => {
       set({ oristudioBpBusy: true, oristudioBpError: null });
       try {
         await get().clearOristudioCpDocument();
@@ -397,7 +470,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           getOristudioBpPortDescriptors().catch(() => []),
         ]);
         set({ oristudioBpPortDescriptors: portDescriptors });
-        setLoadedBpProject(document, `Loaded ${source.filename}`);
+        setLoadedBpProject(document, `Loaded ${source.filename}`, {
+          symmetry: options.symmetry ?? null,
+        });
         return true;
       } catch (error) {
         const normalized = oristudioBpError(error);
@@ -486,7 +561,17 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     setOristudioBpSymmetry: (update) => {
-      set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, ...update } });
+      const current = get().oristudioBpSymmetry;
+      // An update that changes nothing must not leave an undo step that appears
+      // to do nothing, nor claim the project has unsaved work.
+      const changed = (Object.keys(update) as (keyof OristudioBpSymmetryState)[]).some(
+        (key) => update[key] !== current[key]
+      );
+      if (!changed) return;
+      recordSymmetryHistory(symmetryEditLabel(update));
+      // Saved with the design, so changing it leaves unsaved work — with no
+      // `dirty` the close prompt would let it go silently.
+      set({ oristudioBpSymmetry: { ...current, ...update }, dirty: true });
     },
 
     addOristudioBpTreeLeafWithSymmetry: async (parentId, loc, axisTolerance) => {
@@ -587,15 +672,37 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       );
     },
 
-    deleteOristudioBpTreeNode: async (id) =>
+    deleteOristudioBpTreeNode: async (id) => {
       // The engine removes the leaf (cascading down to a leaf and reseeding the
       // parent's flap), refusing below the minimum tree size. One undo entry.
-      runBpTreeMutation('Deleted BP node', (document) =>
-        deleteRuntimeOristudioBpTreeLeaf(id, {
-          activeSurface: document.activeSurface,
-        }),
+      //
+      // Under symmetry the mirror partner goes with it, for the same reason a
+      // length edit applies to both: the two sides are one shape, and leaving a
+      // widowed flap behind is never what the gesture meant. Resolved the same
+      // way `setOristudioBpTreeEdgeLength` resolves it, and passed as one batch
+      // so the engine settles the cascade and the minimum-size floor across both
+      // ids at once rather than deleting one and then refusing the other.
+      const symmetry = get().oristudioBpSymmetry;
+      const tree = get().oristudioBpDocument?.snapshot.tree;
+      const ids =
+        symmetry.enabled && tree
+          ? bpTreeDeleteIdsWithSymmetry(
+              tree,
+              symmetry.pairs,
+              { loc: symmetry.loc, angle: symmetry.angle },
+              id,
+              BP_TREE_SYMMETRY_TOLERANCE
+            )
+          : [id];
+      return runBpTreeMutation(
+        ids.length > 1 ? 'Deleted mirrored BP nodes' : 'Deleted BP node',
+        (document) =>
+          deleteRuntimeOristudioBpTreeLeaves(ids, {
+            activeSurface: document.activeSurface,
+          }),
         { selection: emptyOristudioBpSelection() }
-      ),
+      );
+    },
 
     // Send the BP design's crease pattern to the always-live Edit canvas: export
     // the BP CP and merge it in via Import(Add), then switch to the Edit workspace.
@@ -724,19 +831,50 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         { dragging, selection: { kind: 'bp-flap', id } }
       ),
 
-    resizeOristudioBpLayoutFlap: async (id, width, height) =>
+    resizeOristudioBpLayoutFlap: async (id, width, height) => {
       // Discrete commit (not a drag): one solve, one undo entry. The engine
       // no-ops an unchanged size and rejects one that pushes more than one flap
       // corner off the sheet (surfaced as an error by runBpTreeMutation, which
       // leaves the document — and the field's rendered value — unchanged).
-      runBpTreeMutation(
-        'Resized BP flap',
-        () =>
-          resizeRuntimeOristudioBpLayoutFlap(id, width, height, {
+      //
+      // Under mirror draw the partner is resized to match, the same way an edge
+      // length edit already mirrors. A pair whose boxes are not mirror images is
+      // rejected outright by the optimizer (`validate_dimensions`), so leaving
+      // the partner behind would quietly break the symmetry the user drew.
+      const symmetry = get().oristudioBpSymmetry;
+      const label = symmetry.enabled ? 'Resized mirrored BP flaps' : 'Resized BP flap';
+      return runBpTreeMutation(
+        label,
+        async (document) => {
+          const next = await resizeRuntimeOristudioBpLayoutFlap(id, width, height, {
             activeSurface: 'packing',
-          }),
+          });
+          if (!symmetry.enabled) return next;
+          // A flap is its tree leaf, so the pairing is resolved on the tree —
+          // read from the pre-edit tree, like every other mirrored edit here.
+          const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
+          const mirrorId = mirrorBpTreeVertexId(
+            document.snapshot.tree,
+            symmetry.pairs,
+            axis,
+            id,
+            BP_TREE_SYMMETRY_TOLERANCE
+          );
+          // No partner, or its own (it sits on the axis): nothing to carry over.
+          if (mirrorId === null || mirrorId === id) return next;
+          const swaps = optimizerSymmetryAxisSwapsDimensions(
+            optimizerSymmetryAxisForFold(document.snapshot.tree.sheet.kind, symmetry.fold)
+          );
+          return resizeRuntimeOristudioBpLayoutFlap(
+            mirrorId,
+            swaps ? height : width,
+            swaps ? width : height,
+            { activeSurface: 'packing' }
+          );
+        },
         { selection: { kind: 'bp-flap', id } }
-      ),
+      );
+    },
 
     moveOristudioBpLayoutFlaps: async (ids, loc, dragging = false) =>
       runBpTreeMutation(
@@ -816,7 +954,26 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       ),
 
     optimizeOristudioBpLayout: async (options, onProgress) => {
-      if (!get().oristudioBpDocument) return 'failed';
+      const document = get().oristudioBpDocument;
+      if (!document) return 'failed';
+
+      // Symmetry is resolved here rather than carried in the dialog options,
+      // because it is read from the tree as it stands right now.
+      const symmetryState = get().oristudioBpSymmetry;
+      let symmetry: OptimizerSymmetryPayload | null = null;
+      if (options.respectSymmetry && symmetryState.enabled) {
+        const resolved = resolveOptimizerSymmetry(document.snapshot.tree, symmetryState, {
+          fold: symmetryState.fold,
+        });
+        if (!resolved.ok) {
+          // Falling back to an unconstrained solve would hand back a layout the
+          // user did not ask for, so refuse and say why.
+          set({ oristudioBpError: resolved.reason });
+          return 'failed';
+        }
+        symmetry = resolved.payload;
+      }
+
       // `runBpTreeMutation` captures the pre-run .bps snapshot before the
       // operation and commits exactly one history entry on success, so the whole
       // optimize — new sheet size, every flap, and the stretches it clears — is
@@ -826,7 +983,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const applied = await runBpTreeMutation('Optimized BP layout', async () => {
         try {
           const summary = await optimizeRuntimeOristudioBpLayout(
-            { ...options, openNew: false, seed: null },
+            { ...options, openNew: false, seed: null, symmetry },
             { activeSurface: 'packing' },
             onProgress
           );
@@ -843,6 +1000,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         return 'applied';
       }
       return cancelled ? 'cancelled' : 'failed';
+    },
+
+    unpairOristudioBpTreeSymmetry: (vertexId) => {
+      const symmetry = get().oristudioBpSymmetry;
+      const pairs = removeBpTreeSymmetryPair(symmetry.pairs, vertexId);
+      if (pairs.length === symmetry.pairs.length) return;
+      recordSymmetryHistory('Unpair from mirror');
+      set({ oristudioBpSymmetry: { ...symmetry, pairs }, dirty: true });
     },
 
     setOristudioBpLayoutSheet: async (gridType, width, height) =>

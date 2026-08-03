@@ -1,6 +1,21 @@
-import { applyFoldAngleRamp } from '../foldAngle/foldAngleRamp';
+import { foldAngleInk } from '../foldAngle/foldAngleRamp';
+import type { OristudioCpFoldAngleDisplay } from '../../lib/creasePatternViewport';
 import type { ModelPoint, Rgba, StrokeGeometry } from '../renderer/types';
 import type { CpLineAppearance } from './cpLineStyle';
+
+/**
+ * How a non-180 crease shows its angle: which channel carries it, and the hue
+ * the `color` mode ramps toward.
+ *
+ * Passed as one value so the two builders take a single fold-angle argument
+ * rather than drifting apart a parameter at a time. Omitting it disables the
+ * treatment entirely, which no production caller does — it exists so the parity
+ * gate can compare encoded output against untouched ink.
+ */
+export interface CpFoldAngleStyle {
+  display: OristudioCpFoldAngleDisplay;
+  anchor: Rgba;
+}
 
 /**
  * How a crease's line colour is painted: the active line style's ink and dash
@@ -79,7 +94,7 @@ export function cpSnapshotToScene(
   selection?: CpSelectionStyle,
   move?: CpTransformPreview,
   /** See {@link cpGeometryStrokesToScene}; kept in step for the parity gate. */
-  foldAngleAnchor?: Rgba
+  foldAngle?: CpFoldAngleStyle
 ): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
   const a = new Float32Array(count * 2);
@@ -125,9 +140,9 @@ export function cpSnapshotToScene(
       appearanceCache.set(seg.color, appearance);
     }
     const rgba =
-      foldAngleAnchor === undefined
+      foldAngle === undefined
         ? appearance.color
-        : applyFoldAngleRamp(appearance.color, seg.fold_magnitude, foldAngleAnchor);
+        : foldAngleInk(appearance.color, seg.fold_magnitude, foldAngle);
     color[i * 4] = rgba[0];
     color[i * 4 + 1] = rgba[1];
     color[i * 4 + 2] = rgba[2];

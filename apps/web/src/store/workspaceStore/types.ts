@@ -29,7 +29,7 @@ import type {
 import type { SelectablePartKind } from '../../lib/selection';
 import type { SimulatorSettings, SimulatorSettingKey } from '../../lib/simulatorSettings';
 import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
-import type { BpTreeSymmetryPair } from '../../lib/bpTreeSymmetry';
+import type { BpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
 import type { CreaseExportOptions } from '../../lib/creaseExport';
@@ -696,25 +696,37 @@ export interface CreasePatternSliceActions {
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;
 
 /**
- * A BP undo/redo snapshot: the serialized project (bps text) plus the selection
- * to restore. BP history is snapshot-based (restore a whole previous state)
- * rather than engine command-replay — see `snapshotHistory`.
+ * A BP undo/redo snapshot: the serialized project (bps text), the selection to
+ * restore, and the mirror-draw state that went with them. BP history is
+ * snapshot-based (restore a whole previous state) rather than engine
+ * command-replay — see `snapshotHistory`.
+ *
+ * `bps` is null for a step that changed only the symmetry, which is how a
+ * symmetry edit records an undo entry without a worker round-trip to serialize a
+ * design it did not touch. Restoring such a step leaves the document alone.
  */
 export interface BpHistorySnapshot {
-  bps: string;
+  bps: string | null;
   selection: OristudioBpSelection;
+  symmetry: BpDocumentSymmetry;
 }
 
 /**
- * Ephemeral BP-tree symmetry authoring state. Not persisted to the document/.bps —
- * it lives only in the store for the current editing session (mirror-draw axis +
- * paired vertices). `angle`/`loc` describe the mirror axis in tree coordinates.
+ * BP-tree symmetry authoring state: the mirror-draw axis and what is paired
+ * across it.
+ *
+ * Split in two. {@link BpDocumentSymmetry} — `enabled`, `fold`, `pairs` — is part
+ * of the design and is saved into `.osf`; no Box Pleating Studio format can
+ * carry it, so every BP export drops it (see `lib/supersetFeatures.ts`).
+ * `angle`/`loc` describe the axis in tree coordinates and are *derived*: the
+ * angle is always {@link BP_TREE_SYMMETRY_ANGLE}, because a tree is not drawn on
+ * the paper and so has nothing to orient a mirror against, and `loc` is the
+ * centre of whatever sheet is loaded. Which fold of the *paper* the mirror
+ * becomes is `fold`, and that does travel with the design.
  */
-export interface OristudioBpSymmetryState {
-  enabled: boolean;
+export interface OristudioBpSymmetryState extends BpDocumentSymmetry {
   angle: number;
   loc: Point;
-  pairs: BpTreeSymmetryPair[];
 }
 
 export interface OristudioBpSliceState {
@@ -762,7 +774,13 @@ export interface OristudioBpSliceActions {
    */
   loadOristudioBpProjectFromFile: (
     text: string,
-    source: { filename: string; path?: string | null }
+    source: { filename: string; path?: string | null },
+    /**
+     * Mirror-draw state to restore alongside the design. Only an `.osf` has any
+     * — a bare `.bps` cannot carry symmetry — so this is absent for plain
+     * Box Pleating Studio files and the design opens with the default.
+     */
+    options?: { symmetry?: BpDocumentSymmetry | null }
   ) => Promise<boolean>;
   /** Replace the active BP selection. */
   selectOristudioBp: (selection: OristudioBpSelection) => void;
@@ -860,6 +878,12 @@ export interface OristudioBpSliceActions {
     width: number,
     height: number
   ) => Promise<boolean>;
+  /**
+   * Forget that this vertex mirrors another. The two stay where they are; they
+   * simply stop being each other's mirror, and the optimizer will fall back to
+   * whatever their positions imply.
+   */
+  unpairOristudioBpTreeSymmetry: (vertexId: number) => void;
   /**
    * Run the BP layout optimizer and apply its result as one undoable step.
    * Cancelling leaves the document and history untouched.

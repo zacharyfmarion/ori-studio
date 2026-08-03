@@ -23,6 +23,16 @@
     "circlesSelectedOther_one": "{{count}} circles selected",
     "circlesSelectedOther_other": "{{count}} circles selected",
     "clearSeeds": "Clear seeds",
+    "completion": {
+      "alreadyClosed": "This vertex already folds consistently — no crease is missing.",
+      "boundaryVertex": "This point is on the edge of the paper, so there is nothing to close — pick a vertex inside the sheet.",
+      "exceedsFullFold": "No single crease can close this vertex: it would have to fold past 180°.",
+      "forcedMountain": "This crease has to be a mountain — drawn as one, not in the selected line type.",
+      "forcedValley": "This crease has to be a valley — drawn as one, not in the selected line type.",
+      "indeterminate": "Cannot tell: a crease here is unassigned, or another crease passes through without ending here.",
+      "overdetermined": "No single crease closes this vertex — at least two would be needed."
+    },
+    "completionStops": "Extend to",
     "computedRatio": "Computed ratio {{s}} : {{t}}",
     "corners": "Corners",
     "count": "Count",
@@ -83,6 +93,8 @@
     "replaceFromLineType": "Replace from line type",
     "replaceLineType": "Replace line type",
     "replaceToLineType": "Replace to line type",
+    "resetSettings": "Reset",
+    "resetSettingsHint": "A setting here is not its default. Some settings are remembered between sessions.",
     "right": "Right",
     "rightSegmentRatio": "Right segment ratio",
     "seedPressPendingOne_one": "{{count}} seed press pending",
@@ -93,6 +105,8 @@
     "settingCountOne_other": "{{count}} setting",
     "settingCountOther_one": "{{count}} settings",
     "settingCountOther_other": "{{count}} settings",
+    "stopOnAuxAria": "Let a suggested crease stop at an auxiliary line",
+    "stopOnAuxLabel": "Auxiliary lines",
     "to": "To",
     "use225FixTargets": "Use 22.5 fix targets",
     "useBpFixTargets": "Use BP fix targets",
@@ -104,6 +118,10 @@
   "cpRail": {
     "ariaLabel": "Crease pattern tools",
     "openEditableFirst": "Open an editable crease pattern first"
+  },
+  "foldAngleDisplay": {
+    "color": "Color",
+    "opacity": "Opacity"
   },
   "lineStyle": {
     "blackOneDot": "Black one-dot",

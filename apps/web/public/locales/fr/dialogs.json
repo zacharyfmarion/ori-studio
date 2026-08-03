@@ -3,12 +3,14 @@
     "abort": "Interrompre",
     "close": "Fermer l'optimisation de la disposition",
     "closeAction": "Fermer",
+    "enable": "Activer la symétrie",
     "failed": "L'optimiseur n'a pas trouvé de disposition.",
     "layout": {
       "random": "Essayer des dispositions aléatoires",
       "view": "Utiliser la disposition actuelle comme référence"
     },
     "layoutMethod": "Méthode de disposition",
+    "mirrorAxis": "Pli servant d’axe",
     "options": "Options",
     "run": "Lancer !",
     "running": "En cours...",
@@ -20,6 +22,9 @@
       "running": "En cours...",
       "start": "Traitement du problème..."
     },
+    "symmetry": "Symétrie",
+    "symmetryInconsistent": "Certaines pointes appariées ne sont pas interchangeables dans l’arbre : les refléter consommera plus de papier.",
+    "symmetryOff": "La symétrie est désactivée. Activez-la dans la vue arborescente pour refléter la disposition.",
     "title": "Optimiser la disposition",
     "toTry": "Nombre de dispositions à essayer :",
     "useBasinHopping": "Essayer des variantes de la disposition actuelle",

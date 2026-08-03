@@ -32,6 +32,7 @@
     "layerGrid": "Grille",
     "layerHinges": "Charnières",
     "layerLabels": "Étiquettes",
+    "layerOutsidePaper": "Hors du papier",
     "layerRidges": "Crêtes",
     "layerRivers": "Rivières",
     "layers": "Calques",
@@ -61,6 +62,12 @@
     "warnings": "Avertissements de l'agencement du pliage en boîte",
     "width": "Largeur"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "Pli livre",
+      "diagonal": "Pli diagonal"
+    }
+  },
   "bpTree": {
     "canvas": "Canevas d'arbre du pliage en boîte",
     "decreaseLength": "Diminuer la longueur",
@@ -72,7 +79,6 @@
     "layerLabels": "Étiquettes",
     "layers": "Calques",
     "length": "Longueur",
-    "max": "max {{value}}",
     "mirrorDraw": "Dessin en miroir",
     "mirrorDrawOn": "Dessin en miroir (activé)",
     "selectEdge": "Sélectionner l'arête BP {{id}}, longueur {{length}}",
@@ -80,6 +86,7 @@
     "selectLeafVertexWithLabel": "Sélectionner le sommet feuille BP {{id}}, {{label}}",
     "selectVertex": "Sélectionner le sommet BP {{id}}",
     "selectVertexWithLabel": "Sélectionner le sommet BP {{id}}, {{label}}",
+    "unpair": "Dissocier du miroir",
     "viewportControls": "Commandes d'affichage de l'arbre du pliage en boîte"
   },
   "conditions": {
@@ -126,6 +133,7 @@
     "camvIssues": "Problèmes de pliabilité",
     "diagonalGridlines": "Lignes de grille diagonales",
     "emptyNote": "Ouvrez un patron de plis modifiable pour ajuster les options d'affichage.",
+    "foldAngleDisplay": "Style d’angle de pliage",
     "foldAngleLabels": "Étiquettes d’angle de pliage",
     "grid": "Grille",
     "gridConfiguration": "Configuration de la grille",

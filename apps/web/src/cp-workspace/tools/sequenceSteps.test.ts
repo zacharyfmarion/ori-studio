@@ -22,9 +22,10 @@ describe('requiresCreaseInRange', () => {
     expect(requiresCreaseInRange(undefined)).toBe(false);
   });
 
-  it("gates Flat Foldable Line's destination step but not the vertex or candidate ones", () => {
+  it('has nothing to gate on Foldable Line, which no longer asks for a destination', () => {
     const snap = cpInputModel('VertexMakeAngularlyFlatFoldable')?.snapPerStep ?? [];
-    expect(snap.map(requiresCreaseInRange)).toEqual([false, false, true]);
+    expect([...snap]).toEqual(['point', 'candidate']);
+    expect(snap.some(requiresCreaseInRange)).toBe(false);
   });
 
   it("leaves FoldableLineDraw's free-draw step ungated", () => {
@@ -55,5 +56,34 @@ describe('loneCandidateAutoPick', () => {
 
   it('never resolves a trailing candidate step, which would commit with no click', () => {
     expect(loneCandidateAutoPick(['point', 'point', 'candidate'], 2, [RAY])).toBeNull();
+  });
+});
+
+describe('the lone candidate on Foldable Line', () => {
+  it('commits on the vertex click, because there is nothing to choose between', () => {
+    const entry = cpInputModel('VertexMakeAngularlyFlatFoldable');
+    const snap = entry?.snapPerStep ?? [];
+    expect(entry?.commitOnLoneCandidate).toBe(true);
+    expect(
+      loneCandidateAutoPick(snap, snap.length - 1, [RAY], entry?.commitOnLoneCandidate)
+    ).toEqual({ x: 5, y: 10 });
+  });
+
+  it('still needs a click when there is more than one', () => {
+    const entry = cpInputModel('VertexMakeAngularlyFlatFoldable');
+    const snap = entry?.snapPerStep ?? [];
+    const two = [RAY, { a: { x: 0, y: 0 }, b: { x: -10, y: 20 } }];
+    expect(
+      loneCandidateAutoPick(snap, snap.length - 1, two, entry?.commitOnLoneCandidate)
+    ).toBeNull();
+  });
+
+  it('leaves a tool that did not ask for it alone', () => {
+    // Every other tool ending on a candidate step keeps the guard: resolving it
+    // would commit geometry off a preview arriving.
+    const snap = cpInputModel('DrawCreaseAngleRestricted')?.snapPerStep ?? [];
+    expect(snap[snap.length - 1]).toBe('candidate');
+    expect(cpInputModel('DrawCreaseAngleRestricted')?.commitOnLoneCandidate).toBeUndefined();
+    expect(loneCandidateAutoPick(snap, snap.length - 1, [RAY])).toBeNull();
   });
 });

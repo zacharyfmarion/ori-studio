@@ -1,0 +1,161 @@
+import { useCallback, useMemo } from 'react';
+import { useWorkspaceStore } from '../store/workspaceStore';
+import {
+  BP_TREE_SYMMETRY_ANGLE,
+  BP_TREE_SYMMETRY_TOLERANCE,
+  bpTreeSymmetryDefaultLoc,
+  explicitBpTreePairId,
+} from '../lib/bpTreeSymmetry';
+import { symmetrySide } from '../lib/symmetryGeometry';
+import { bpTreePointToSvg, bpTreePaperRect } from '../lib/bpTreeViewport';
+import type { OristudioBpTreeView } from '../engine/oristudioBpTypes';
+import type { Point } from '../lib/geometry';
+
+/**
+ * Mirror draw, as the tree view needs it: whether it is on, and where the mirror
+ * line falls on screen.
+ *
+ * Which fold the axis *is* belongs to the optimizer dialog, not here — a tree is
+ * not drawn on the paper, so there is nothing in this view to call a book or a
+ * diagonal fold. The tree only needs a line to reflect across.
+ *
+ * Lives beside the panel rather than inside it because it is one concern with a
+ * small interface — the tree and its paper rect in, a view-model out — and the
+ * panel is a composition site.
+ */
+
+export interface BpTreeSymmetryLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+export interface BpTreeSymmetryView {
+  enabled: boolean;
+  toggle: () => void;
+  /** The mirror line clipped to the sheet, in SVG coords. */
+  axisLine: BpTreeSymmetryLine | null;
+  /** One segment per explicit pair, joining the two mirrored vertices. */
+  pairLines: BpTreeSymmetryLine[];
+  /** The vertex this one is explicitly mirrored with, if any. */
+  partnerOf: (vertexId: number) => number | null;
+  /**
+   * Whether this vertex sits on the mirror line.
+   *
+   * Such a vertex is its own mirror, so moving it off the line quietly costs it
+   * that status — and leaves it with nothing to mirror. The tree view refuses
+   * the drag rather than letting the symmetry break unnoticed.
+   */
+  isOnAxis: (vertexId: number) => boolean;
+  unpair: (vertexId: number) => void;
+}
+
+export function useBpTreeSymmetry(
+  tree: OristudioBpTreeView,
+  paperRect: ReturnType<typeof bpTreePaperRect>,
+  /** Live positions during a drag, so the pair lines follow the cursor. */
+  resolveLoc: (id: number, loc: Point) => Point = (_id, loc) => loc
+): BpTreeSymmetryView {
+  const symmetry = useWorkspaceStore((state) => state.oristudioBpSymmetry);
+  const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
+  const unpairOristudioBpTreeSymmetry = useWorkspaceStore(
+    (state) => state.unpairOristudioBpTreeSymmetry
+  );
+
+  const toggle = useCallback(() => {
+    if (symmetry.enabled) {
+      setOristudioBpSymmetry({ enabled: false });
+      return;
+    }
+    setOristudioBpSymmetry({
+      enabled: true,
+      loc: bpTreeSymmetryDefaultLoc(tree.sheet),
+      angle: BP_TREE_SYMMETRY_ANGLE,
+    });
+  }, [setOristudioBpSymmetry, tree.sheet, symmetry.enabled]);
+
+
+  const axisLine = useMemo(() => {
+    if (!symmetry.enabled) return null;
+    const w = Math.max(1, tree.sheet.width);
+    const h = Math.max(1, tree.sheet.height);
+    const rad = (symmetry.angle * Math.PI) / 180;
+    const dir = { x: Math.cos(rad), y: Math.sin(rad) };
+    const hits: Point[] = [];
+    const push = (p: Point) => {
+      if (p.x >= -1e-6 && p.x <= w + 1e-6 && p.y >= -1e-6 && p.y <= h + 1e-6) hits.push(p);
+    };
+    if (Math.abs(dir.x) > 1e-9) {
+      for (const bx of [0, w]) {
+        const step = (bx - symmetry.loc.x) / dir.x;
+        push({ x: bx, y: symmetry.loc.y + step * dir.y });
+      }
+    }
+    if (Math.abs(dir.y) > 1e-9) {
+      for (const by of [0, h]) {
+        const step = (by - symmetry.loc.y) / dir.y;
+        push({ x: symmetry.loc.x + step * dir.x, y: by });
+      }
+    }
+    if (hits.length < 2) return null;
+    // Take the two most distant intersection points.
+    let a = hits[0];
+    let b = hits[1];
+    let best = -1;
+    for (let i = 0; i < hits.length; i += 1) {
+      for (let j = i + 1; j < hits.length; j += 1) {
+        const d = Math.hypot(hits[i].x - hits[j].x, hits[i].y - hits[j].y);
+        if (d > best) {
+          best = d;
+          a = hits[i];
+          b = hits[j];
+        }
+      }
+    }
+    const p1 = bpTreePointToSvg(a, tree.sheet, paperRect);
+    const p2 = bpTreePointToSvg(b, tree.sheet, paperRect);
+    return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
+  }, [symmetry.enabled, symmetry.angle, symmetry.loc, tree.sheet, paperRect]);
+
+  const pairLines = useMemo(() => {
+    if (!symmetry.enabled) return [];
+    const at = new Map(tree.vertices.map((vertex) => [vertex.id, vertex.loc]));
+    const lines: BpTreeSymmetryLine[] = [];
+    for (const pair of symmetry.pairs) {
+      const a = at.get(pair.v1);
+      const b = at.get(pair.v2);
+      if (!a || !b) continue;
+      const p1 = bpTreePointToSvg(resolveLoc(pair.v1, a), tree.sheet, paperRect);
+      const p2 = bpTreePointToSvg(resolveLoc(pair.v2, b), tree.sheet, paperRect);
+      lines.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
+    }
+    return lines;
+  }, [symmetry.enabled, symmetry.pairs, tree.vertices, tree.sheet, paperRect, resolveLoc]);
+
+  const partnerOf = useCallback(
+    (vertexId: number) => (symmetry.enabled ? explicitBpTreePairId(symmetry.pairs, vertexId) : null),
+    [symmetry.enabled, symmetry.pairs]
+  );
+
+  const isOnAxis = useCallback(
+    (vertexId: number) => {
+      if (!symmetry.enabled) return false;
+      const loc = tree.vertices.find((vertex) => vertex.id === vertexId)?.loc;
+      if (!loc) return false;
+      const axis = { loc: symmetry.loc, angle: symmetry.angle };
+      return symmetrySide(loc, axis, BP_TREE_SYMMETRY_TOLERANCE) === 0;
+    },
+    [symmetry.enabled, symmetry.loc, symmetry.angle, tree.vertices]
+  );
+
+  return {
+    enabled: symmetry.enabled,
+    toggle,
+    axisLine,
+    pairLines,
+    partnerOf,
+    isOnAxis,
+    unpair: unpairOristudioBpTreeSymmetry,
+  };
+}

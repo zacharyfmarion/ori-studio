@@ -3,6 +3,7 @@ import {
   oristudioBpProjectStateFromRaw,
   type OristudioBpStateFromRawInput,
 } from '../../engine/oristudioBpSnapshotMapper';
+import type { OptimizerSymmetryPayload } from '../../lib/bpOptimizerSymmetry';
 import type {
   OristudioBpDocumentState,
   OristudioBpEditingSurface,
@@ -397,12 +398,17 @@ export async function addOristudioBpTreeLeaf(
   );
 }
 
-export async function deleteOristudioBpTreeLeaf(
-  id: number,
+/**
+ * Delete leaves as one round. Pass every id the gesture means to remove -- the
+ * engine simulates the whole batch before it mutates, so the cascade and the
+ * minimum-tree floor are resolved across all of them together.
+ */
+export async function deleteOristudioBpTreeLeaves(
+  ids: readonly number[],
   options: OristudioBpMutationOptions = {}
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
-    api.deleteTreeLeaf(handle, id)
+    api.deleteTreeLeaves(handle, [...ids])
   );
 }
 
@@ -571,6 +577,11 @@ export async function optimizeOristudioBpLayout(
     options.randomCandidateCount,
     options.useDimension
   );
+  // The request is built engine-side and carried as plain JSON, so a symmetry
+  // requirement is attached here rather than threaded through the wasm signature.
+  if (options.symmetry && request && typeof request === 'object') {
+    (request as { symmetry?: OptimizerSymmetryPayload }).symmetry = options.symmetry;
+  }
   const report = await solveOptimizerRequestWithProgress(request, options.seed, onProgress);
   const { result: solved, events } = optimizerSolveReportParts(report);
   await api.checkOptimizerResult(solved);

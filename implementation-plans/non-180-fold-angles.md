@@ -840,8 +840,13 @@ See **Editing UX** above for the reasoning behind each item.
 ### Phase 7 — Solvers (separate follow-up, not this branch)
 - [ ] §5 three-unknown solver, both roots surfaced as a branch choice
 - [ ] Degree-4 "set one, solve three"
-- [ ] §4 unknown-crease insertion, generalising `FlatFoldableVertexCandidates`
-- [ ] Offer §4 as the one-click fix for a rigid or non-closing vertex
+- [x] §4 unknown-crease insertion, generalising `FlatFoldableVertexCandidates` —
+      see `implementation-plans/spatial-vertex-completion.md`. The `T` tool
+      dispatches per vertex: classic vertices keep the port, and a vertex
+      touching a non-classic crease takes the quaternion solve, which determines
+      the new crease's mountain/valley and fold angle as well as its direction
+- [x] Offer §4 as the one-click fix for a rigid or non-closing vertex — it is
+      the same tool, reached from the vertex the closure diagnostic marks
 - [ ] Explicit propagate-from-selection (never automatic)
 
 ### Phase 8 — Spherical simplicity and multiply-connected patterns (separate follow-up)

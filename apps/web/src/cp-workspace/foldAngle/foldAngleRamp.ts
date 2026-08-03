@@ -37,10 +37,12 @@
  *
  * This is unconditional — there is no view in which a non-180 crease is allowed
  * to look like a full fold. The View panel's toggle governs the numeric badges
- * only.
+ * only, and its display dropdown chooses *which* channel carries the angle, not
+ * whether one does. See {@link foldAngleInk}.
  */
 import type { Rgba } from '../renderer/types';
 import { FOLD_MAGNITUDE_FULL } from '../../lib/foldAngle';
+import type { OristudioCpFoldAngleDisplay } from '../../lib/creasePatternViewport';
 
 /**
  * Blend `ink` toward `anchor` according to a stored fold magnitude.
@@ -54,13 +56,97 @@ export function applyFoldAngleRamp(
   magnitudeUnits: number | undefined,
   anchor: Rgba
 ): Rgba {
-  if (magnitudeUnits === undefined || magnitudeUnits >= FOLD_MAGNITUDE_FULL) return ink;
-  const t = Math.max(0, Math.min(1, magnitudeUnits / FOLD_MAGNITUDE_FULL));
-  const mix = 1 - t;
+  const fraction = nonClassicFoldFraction(magnitudeUnits);
+  if (fraction === null) return ink;
+  const mix = 1 - fraction;
   return [
     ink[0] + (anchor[0] - ink[0]) * mix,
     ink[1] + (anchor[1] - ink[1]) * mix,
     ink[2] + (anchor[2] - ink[2]) * mix,
     ink[3],
   ];
+}
+
+/**
+ * Alpha a crease fades to at |ρ| = 0, and the alpha *any* non-180 crease starts
+ * from.
+ *
+ * The gap between {@link FOLD_ANGLE_MAX_OPACITY} and full opacity is the point:
+ * a linear ramp down from 1.0 puts 135° at α 0.87, which is invisible on a
+ * hairline. Stepping down the moment a crease stops being a full fold makes
+ * "this is not flat" categorical, and the ramp within says how shallow — the
+ * same two-part shape the midpoint badge uses (classic creases never get one).
+ *
+ * Both numbers are measured, not picked, against every bundled theme canvas
+ * (`foldAngleOpacity.test.ts`):
+ *
+ * - at the floor a crease keeps ≥35% of its full-opacity Lab ΔE from the canvas,
+ *   and ≥20 ΔE absolute — worst case 38% / 22.2, on `cobalt2` and
+ *   `catppuccin-latte` respectively;
+ * - the classic→ceiling step is ≥8 ΔE everywhere — worst case 11.0, on
+ *   `gruvbox-light`.
+ *
+ * ΔE rather than WCAG contrast ratio, for a concrete reason: on light themes a
+ * *fully opaque* valley is only 2.25:1, so any absolute contrast bar worth
+ * having is unreachable before alpha is even involved. Contrast ratio is also
+ * super-linear on dark canvases, which ranks a dark theme as the worst case when
+ * perceptually it is the roomiest. ΔE is the yardstick the hue ramp's own tests
+ * already use.
+ */
+export const FOLD_ANGLE_MIN_OPACITY = 0.4;
+/** Alpha at |ρ| just under 180°. See {@link FOLD_ANGLE_MIN_OPACITY}. */
+export const FOLD_ANGLE_MAX_OPACITY = 0.8;
+
+/**
+ * Fade `ink` according to a stored fold magnitude, leaving **RGB untouched**.
+ *
+ * The mirror of {@link applyFoldAngleRamp}: one function per channel, each
+ * pinned by a test to stay in its own. That separation is what keeps the two
+ * modes genuine alternatives rather than a blend — `opacity` exists so that
+ * `Red1` reads as plain mountain red at 20° the way it does at 180°.
+ *
+ * Classic creases return `ink` **by identity**, same as the hue ramp.
+ */
+export function applyFoldAngleOpacity(ink: Rgba, magnitudeUnits: number | undefined): Rgba {
+  const fraction = nonClassicFoldFraction(magnitudeUnits);
+  if (fraction === null) return ink;
+  const scale =
+    FOLD_ANGLE_MIN_OPACITY + (FOLD_ANGLE_MAX_OPACITY - FOLD_ANGLE_MIN_OPACITY) * fraction;
+  // Multiply rather than assign, so an ink that already carries alpha composes
+  // instead of being overridden. Every crease ink is opaque today.
+  return [ink[0], ink[1], ink[2], ink[3] * scale];
+}
+
+/**
+ * Resolve a crease's ink for the active display mode — the one entry point the
+ * stroke builders call.
+ *
+ * An unrecognised `display` falls through to the default mode rather than
+ * throwing or rendering flat. `.osf` casts `viewState.viewport` without
+ * validating it (`nativeProjectFile.ts`), so an unknown string is reachable from
+ * a file, and the one thing that must never happen is a non-180 crease rendering
+ * as a full fold. The `default:` arm is pinned to the declared default mode by
+ * test, so changing that constant cannot silently leave this behind.
+ */
+export function foldAngleInk(
+  ink: Rgba,
+  magnitudeUnits: number | undefined,
+  options: { display: OristudioCpFoldAngleDisplay; anchor: Rgba }
+): Rgba {
+  switch (options.display) {
+    case 'opacity':
+      return applyFoldAngleOpacity(ink, magnitudeUnits);
+    case 'color':
+    default:
+      return applyFoldAngleRamp(ink, magnitudeUnits, options.anchor);
+  }
+}
+
+/**
+ * |ρ| as a 0..1 fraction of a full fold, or `null` for a classic crease —
+ * `undefined` or ≥180°, which every mode returns by identity.
+ */
+function nonClassicFoldFraction(magnitudeUnits: number | undefined): number | null {
+  if (magnitudeUnits === undefined || magnitudeUnits >= FOLD_MAGNITUDE_FULL) return null;
+  return Math.max(0, magnitudeUnits / FOLD_MAGNITUDE_FULL);
 }

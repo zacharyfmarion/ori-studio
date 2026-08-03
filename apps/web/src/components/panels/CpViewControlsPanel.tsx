@@ -6,17 +6,20 @@ import {
   clampOrieditaGridAngle,
   clampOristudioCpLineWidth,
   clampOristudioCpPointSize,
+  DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   normalizeOrieditaGridSize,
   normalizeOrieditaIntervalGridSize,
   ORIEDITA_GRID_SCALE_DEFAULTS,
+  ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS,
   ORISTUDIO_CP_LINE_STYLES,
   ORISTUDIO_CP_MAX_LINE_WIDTH,
   ORISTUDIO_CP_MAX_POINT_SIZE,
   ORISTUDIO_CP_MIN_LINE_WIDTH,
   ORISTUDIO_CP_MIN_POINT_SIZE,
+  type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
 } from '../../lib/creasePatternViewport';
-import { cpLineStyleLabel } from '../../i18n/enumLabels';
+import { cpFoldAngleDisplayLabel, cpLineStyleLabel } from '../../i18n/enumLabels';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
@@ -70,7 +73,13 @@ export function CpViewControlsPanel() {
             checked={camvVisible}
             onChange={(checked) => setViewportOption('camvIssuesVisible', checked)}
           />
-          {/* Labels only. Crease colour always distinguishes a non-180 crease,
+          {/* Which channel carries the angle — never whether one does, so there
+              is no "off" here. */}
+          <FoldAngleDisplayRow
+            value={viewport.foldAngleDisplay ?? DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY}
+            onChange={(display) => setViewportOption('foldAngleDisplay', display)}
+          />
+          {/* Labels only. Crease ink always distinguishes a non-180 crease,
               which is why this is not called "fold angles". */}
           <ToggleRow
             label={t('panels:cpViewControls.foldAngleLabels', 'Fold angle labels')}
@@ -230,6 +239,39 @@ function GridSettingsSection({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function FoldAngleDisplayRow({
+  value,
+  onChange,
+}: {
+  value: OristudioCpFoldAngleDisplay;
+  onChange: (value: OristudioCpFoldAngleDisplay) => void;
+}) {
+  const { t } = useTranslation();
+  const label = t('panels:cpViewControls.foldAngleDisplay', 'Fold angle style');
+  return (
+    <div className="control-row">
+      <span className="control-row__label">{label}</span>
+      <div className="control-row__value control-row__value--select">
+        <Select
+          value={value}
+          onValueChange={(next) => onChange(next as OristudioCpFoldAngleDisplay)}
+        >
+          <SelectTrigger aria-label={label} className="cp-view-controls-panel__select">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS.map((display) => (
+              <SelectItem key={display} value={display}>
+                {cpFoldAngleDisplayLabel(t, display)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }
