@@ -62,6 +62,7 @@ import {
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
 import { isFoldingCrease } from '../../lib/foldAngle';
+import { readCpToolOptions, writeCpToolOptions } from '../../lib/cpToolOptionPersistence';
 import { forcedAssignmentNotice } from '../../cp-workspace/tools/toolUnavailable';
 import type { ToolPreviewSegment } from '../../cp-workspace/tools/types';
 import {
@@ -70,7 +71,6 @@ import {
   transitionOristudioCpToolState,
 } from '../../lib/oristudioCpToolState';
 import {
-  DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
   cpToolSettingGroupsForCommand,
   evaluateOrieditaRatioExpression,
   type OristudioCpToolOptions,
@@ -794,9 +794,17 @@ export function CreasePatternPanel() {
   }, []);
   const [cpToolState, setCpToolState] = useState(IDLE_ORISTUDIO_CP_TOOL_STATE);
   const [activeCpLineColor, setActiveCpLineColor] = useState<OristudioCpLineColor>('Red1');
-  const [cpToolOptions, setCpToolOptions] = useState<OristudioCpToolOptions>(
-    DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS
-  );
+  // Most of these are per-use and start at their defaults every session. The few
+  // that are working preferences — the angle system, Fix Inaccurate's tolerance —
+  // are opted into persistence by name; see `lib/cpToolOptionPersistence.ts`.
+  const [cpToolOptions, setCpToolOptions] = useState<OristudioCpToolOptions>(readCpToolOptions);
+  // Written on change rather than on tool deactivation, so a setting survives a
+  // reload even if the tab is closed with the tool still active. Debounced
+  // because a number field would otherwise write once per keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => writeCpToolOptions(cpToolOptions), 300);
+    return () => window.clearTimeout(timer);
+  }, [cpToolOptions]);
   const [cpToolPoints, setCpToolPoints] = useState<Point[]>([]);
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
