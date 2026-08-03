@@ -44,6 +44,8 @@ import {
   BP_TREE_SYMMETRY_TOLERANCE,
 } from '../../../lib/bpTreeSymmetry';
 import {
+  optimizerSymmetryAxisForFold,
+  optimizerSymmetryAxisSwapsDimensions,
   resolveOptimizerSymmetry,
   type OptimizerSymmetryPayload,
 } from '../../../lib/bpOptimizerSymmetry';
@@ -829,19 +831,50 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         { dragging, selection: { kind: 'bp-flap', id } }
       ),
 
-    resizeOristudioBpLayoutFlap: async (id, width, height) =>
+    resizeOristudioBpLayoutFlap: async (id, width, height) => {
       // Discrete commit (not a drag): one solve, one undo entry. The engine
       // no-ops an unchanged size and rejects one that pushes more than one flap
       // corner off the sheet (surfaced as an error by runBpTreeMutation, which
       // leaves the document — and the field's rendered value — unchanged).
-      runBpTreeMutation(
-        'Resized BP flap',
-        () =>
-          resizeRuntimeOristudioBpLayoutFlap(id, width, height, {
+      //
+      // Under mirror draw the partner is resized to match, the same way an edge
+      // length edit already mirrors. A pair whose boxes are not mirror images is
+      // rejected outright by the optimizer (`validate_dimensions`), so leaving
+      // the partner behind would quietly break the symmetry the user drew.
+      const symmetry = get().oristudioBpSymmetry;
+      const label = symmetry.enabled ? 'Resized mirrored BP flaps' : 'Resized BP flap';
+      return runBpTreeMutation(
+        label,
+        async (document) => {
+          const next = await resizeRuntimeOristudioBpLayoutFlap(id, width, height, {
             activeSurface: 'packing',
-          }),
+          });
+          if (!symmetry.enabled) return next;
+          // A flap is its tree leaf, so the pairing is resolved on the tree —
+          // read from the pre-edit tree, like every other mirrored edit here.
+          const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
+          const mirrorId = mirrorBpTreeVertexId(
+            document.snapshot.tree,
+            symmetry.pairs,
+            axis,
+            id,
+            BP_TREE_SYMMETRY_TOLERANCE
+          );
+          // No partner, or its own (it sits on the axis): nothing to carry over.
+          if (mirrorId === null || mirrorId === id) return next;
+          const swaps = optimizerSymmetryAxisSwapsDimensions(
+            optimizerSymmetryAxisForFold(document.snapshot.tree.sheet.kind, symmetry.fold)
+          );
+          return resizeRuntimeOristudioBpLayoutFlap(
+            mirrorId,
+            swaps ? height : width,
+            swaps ? width : height,
+            { activeSurface: 'packing' }
+          );
+        },
         { selection: { kind: 'bp-flap', id } }
-      ),
+      );
+    },
 
     moveOristudioBpLayoutFlaps: async (ids, loc, dragging = false) =>
       runBpTreeMutation(

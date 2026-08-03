@@ -78,6 +78,19 @@ export function optimizerSymmetryAxisForFold(
   return alongGrid ? 'verticalHalf' : 'mainDiagonal';
 }
 
+/**
+ * Whether the mirror exchanges a flap's width and height.
+ *
+ * A reflection across a vertical line leaves a rectangle's extents alone; one
+ * across a diagonal turns the rectangle a quarter turn, so the partner's width
+ * is this flap's height. Mirrors `SymmetryAxis::swaps_dimensions` in
+ * `crates/oristudio-bp/src/optimizer.rs`, which is what actually rejects a pair
+ * whose boxes are not mirror images.
+ */
+export function optimizerSymmetryAxisSwapsDimensions(axis: OptimizerSymmetryAxis): boolean {
+  return axis === 'mainDiagonal' || axis === 'antiDiagonal';
+}
+
 /** Tree distance between every pair of leaves, keyed `min,max`. */
 function leafDistances(tree: OristudioBpTreeView): Map<string, number> {
   const neighbours = new Map<number, { id: number; length: number }[]>();
