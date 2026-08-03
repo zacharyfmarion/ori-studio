@@ -17,6 +17,7 @@ pub mod io;
 pub mod model;
 pub mod operations;
 pub mod session;
+pub mod solve_spatial;
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -252,6 +253,14 @@ pub struct CommandPreview {
     pub measurement: Option<f64>,
     /// Human-readable diagnostics emitted by the preview query.
     pub diagnostics: Vec<String>,
+    /// Why the active tool cannot act on the input so far, as a stable code the
+    /// frontend turns into a sentence.
+    ///
+    /// Distinct from `diagnostics` on purpose: this is an *expected* answer
+    /// ("no single crease closes this vertex"), not a complaint, and it has to
+    /// survive translation, so it is a code rather than English.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unavailable: Option<String>,
 }
 
 /// Error returned by command dispatch.
@@ -2124,12 +2133,7 @@ pub fn execute_command(
         }
         OperationId::VertexMakeAngularlyFlatFoldable => {
             let points = required_points_at_least(&command, 2)?;
-            let candidates = operations::construction::make_vertex_flat_foldable_candidates(
-                &document.crease_pattern,
-                points[0],
-                grid_width(&command, &document.crease_pattern),
-                active_line_color(&command),
-            );
+            let candidates = vertex_completion_candidates(document, &command, points[0]);
             // Oriedita's 3 clicks: vertex, candidate ray, then the existing crease it
             // extends to. Keep candidate (point[1]) and destination (point[2]) separate;
             // a legacy 2-point call reuses point[1] for both.
@@ -2144,13 +2148,15 @@ pub fn execute_command(
                 destination_point,
                 selection_distance(&command),
             )?;
+            let (color, fold_magnitude) = candidates.commit_style(&selected);
             usize::from(
                 operations::construction::make_vertex_flat_foldable_to_destination(
                     &mut document.crease_pattern,
                     points[0],
                     &selected,
                     &destination,
-                    candidates.commit_color,
+                    color,
+                    fold_magnitude,
                 ),
             )
         }
@@ -2229,12 +2235,7 @@ pub fn execute_command(
                     operations::construction::DrawCreaseTarget::FoldLine,
                 ))
             } else {
-                let candidates = operations::construction::make_vertex_flat_foldable_candidates(
-                    &document.crease_pattern,
-                    points[0],
-                    grid_width(&command, &document.crease_pattern),
-                    active_line_color(&command),
-                );
+                let candidates = vertex_completion_candidates(document, &command, points[0]);
                 let selected =
                     nearest_candidate_segment(&command, points[1], &candidates.candidates)?;
                 let (_, destination) = nearest_line_segment(
@@ -2242,13 +2243,15 @@ pub fn execute_command(
                     points[1],
                     selection_distance(&command),
                 )?;
+                let (color, fold_magnitude) = candidates.commit_style(&selected);
                 usize::from(
                     operations::construction::make_vertex_flat_foldable_to_destination(
                         &mut document.crease_pattern,
                         points[0],
                         &selected,
                         &destination,
-                        candidates.commit_color,
+                        color,
+                        fold_magnitude,
                     ),
                 )
             }
@@ -2752,6 +2755,44 @@ fn flat_foldability_diagnostics(
 /// lives here, applied once, so revising it stays a one-constant change.
 const CLOSURE_RESIDUAL_BAR_DEGREES: f64 = 1e-6;
 
+/// Candidate rays for the vertex-completion tool, from whichever regime owns the
+/// vertex under the cursor.
+///
+/// One helper for the commit and the preview, and for both gestures that offer
+/// the tool (`VertexMakeAngularlyFlatFoldable`, `FoldableLineDraw`): a preview
+/// that computed its candidates differently from the commit would let the user
+/// pick a ray and get another.
+fn vertex_completion_candidates(
+    document: &CreasePatternDocument,
+    command: &CreasePatternCommand,
+    vertex: geometry::Point,
+) -> solve_spatial::VertexCompletionCandidates {
+    solve_spatial::vertex_completion_candidates(
+        &document.crease_pattern,
+        vertex,
+        grid_width(command, &document.crease_pattern),
+        active_line_color(command),
+        CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+    )
+}
+
+/// Why the completion tool found nothing, as a stable code.
+///
+/// A code and not a sentence, for the reason `checks::FlatFoldabilityRule` is:
+/// the frontend gates eight locales in CI and a Rust string literal cannot pass
+/// that gate. Each of these is an ordinary answer rather than a failure, and each
+/// wants a different next move, which is why there are four of them.
+fn no_completion_code(reason: solve_spatial::NoCompletion) -> String {
+    match reason {
+        solve_spatial::NoCompletion::BoundaryVertex => "BoundaryVertex",
+        solve_spatial::NoCompletion::Indeterminate => "Indeterminate",
+        solve_spatial::NoCompletion::AlreadyClosed => "AlreadyClosed",
+        solve_spatial::NoCompletion::ExceedsFullFold => "ExceedsFullFold",
+        solve_spatial::NoCompletion::Overdetermined => "Overdetermined",
+    }
+    .to_string()
+}
+
 fn spatial_closure_diagnostics(
     reports: &[checks_spatial::SpatialVertexReport],
 ) -> Vec<CommandDiagnostic> {
@@ -3209,12 +3250,10 @@ pub fn preview_command(
             ));
         }
         OperationId::VertexMakeAngularlyFlatFoldable if !points.is_empty() => {
-            let candidates = operations::construction::make_vertex_flat_foldable_candidates(
-                &document.crease_pattern,
-                points[0],
-                grid_width(&command, &document.crease_pattern),
-                active_line_color(&command),
-            );
+            let candidates = vertex_completion_candidates(document, &command, points[0]);
+            // "Overdetermined" is the ordinary answer on a freely-angled vertex,
+            // not an error, and an empty canvas would read as a broken tool.
+            preview.unavailable = candidates.no_completion.map(no_completion_code);
             if points.len() >= 3 {
                 // Step 3: a candidate ray is chosen — show only it, plus the crease
                 // that would be committed to the hovered destination (best-effort).
@@ -3228,12 +3267,14 @@ pub fn preview_command(
                         selection_distance(&command),
                     ) {
                         let mut clone = document.clone();
+                        let (color, fold_magnitude) = candidates.commit_style(&selected);
                         if operations::construction::make_vertex_flat_foldable_to_destination(
                             &mut clone.crease_pattern,
                             points[0],
                             &selected,
                             &destination,
-                            candidates.commit_color,
+                            color,
+                            fold_magnitude,
                         ) {
                             preview.segments.extend(
                                 clone

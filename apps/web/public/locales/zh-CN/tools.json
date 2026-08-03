@@ -21,6 +21,15 @@
     "circlesSelectedOne_other": "已选择 {{count}} 个圆",
     "circlesSelectedOther_other": "已选择 {{count}} 个圆",
     "clearSeeds": "清除种子",
+    "completion": {
+      "alreadyClosed": "该顶点已经可以一致折叠——没有缺少的折痕。",
+      "boundaryVertex": "该点位于纸张边缘，没有需要闭合的部分——请选择纸张内部的顶点。",
+      "exceedsFullFold": "单条折痕无法闭合该顶点：它需要折叠超过 180°。",
+      "forcedMountain": "这条折痕必须是山折，因此按山折绘制，而非当前选中的线型。",
+      "forcedValley": "这条折痕必须是谷折，因此按谷折绘制，而非当前选中的线型。",
+      "indeterminate": "无法判断：此处有未指定的折痕，或另一条折痕从此处穿过而未结束于此。",
+      "overdetermined": "单条折痕无法闭合该顶点——至少需要两条。"
+    },
     "computedRatio": "计算比率 {{s}} : {{t}}",
     "corners": "角数",
     "count": "数量",

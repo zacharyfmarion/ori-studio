@@ -722,6 +722,7 @@ fn make_vertex_flat_foldable_generates_odd_vertex_candidate_and_commits_to_desti
         &candidates.candidates[0],
         &destination,
         candidates.commit_color,
+        None,
     ));
     assert!(contains_segment_close(
         &model.line_segments,

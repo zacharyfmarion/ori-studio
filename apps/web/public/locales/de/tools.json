@@ -23,6 +23,15 @@
     "circlesSelectedOther_one": "{{count}} Kreise ausgewählt",
     "circlesSelectedOther_other": "{{count}} Kreise ausgewählt",
     "clearSeeds": "Keimpunkte löschen",
+    "completion": {
+      "alreadyClosed": "Dieser Knoten faltet bereits konsistent — es fehlt keine Falte.",
+      "boundaryVertex": "Dieser Punkt liegt am Papierrand, es gibt also nichts zu schließen — wählen Sie einen Knoten im Inneren des Blattes.",
+      "exceedsFullFold": "Keine einzelne Falte kann diesen Knoten schließen: sie müsste über 180° hinaus falten.",
+      "forcedMountain": "Diese Falte muss ein Berg sein — sie wird so gezeichnet, nicht im gewählten Linientyp.",
+      "forcedValley": "Diese Falte muss ein Tal sein — sie wird so gezeichnet, nicht im gewählten Linientyp.",
+      "indeterminate": "Nicht bestimmbar: Hier ist eine Falte nicht zugewiesen, oder eine andere Falte verläuft durch diesen Punkt, ohne dort zu enden.",
+      "overdetermined": "Keine einzelne Falte schließt diesen Knoten — es wären mindestens zwei nötig."
+    },
     "computedRatio": "Berechnetes Verhältnis {{s}} : {{t}}",
     "corners": "Ecken",
     "count": "Anzahl",

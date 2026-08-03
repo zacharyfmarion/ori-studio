@@ -25,6 +25,7 @@ import {
   segmentIntersectsAabb,
 } from './picking/lineHitIndex';
 import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
+import { candidatePreviewGroups } from './adapters/candidatePreviewGroups';
 import {
   type FoldedGeometry,
   type MarkerGeometry,
@@ -2885,8 +2886,18 @@ export function CreasePatternWebglCanvas({
       renderer.setPreview(
         previewGroupsToStrokes(
           [
-            // What the tool would create, in the crease colour it would create it in.
-            { segments: toolCommandPreviewSegments, color: toolPreviewColor },
+            // What the tool would create, in the crease colour it would create it
+            // in — the active colour, unless a candidate names its own crease.
+            ...candidatePreviewGroups(
+              toolCommandPreviewSegments,
+              toolPreviewColor,
+              createCpLineAppearanceResolver(lineStyle, mode, document.documentElement),
+              readCssVarColor(
+                document.documentElement,
+                FOLD_ANGLE_ANCHOR_VAR,
+                FOLD_ANGLE_ANCHOR_FALLBACK
+              )
+            ),
             // Creases that already exist and are merely being pointed at, in the
             // selection accent — they are not being drawn, so they must not take
             // the crease colour and read as though the tool had recoloured them.
@@ -2908,6 +2919,8 @@ export function CreasePatternWebglCanvas({
     if (!sequencePreviewOwnedRef.current) return;
     clearPreview();
     renderNowRef.current();
+    // `currentTheme` is not read here, but it is what makes the DOM-resolved
+    // candidate colours change — same reason the stroke builders depend on it.
   }, [
     toolCommandPreviewSegments,
     toolCommandHighlightSegments,
@@ -2915,6 +2928,9 @@ export function CreasePatternWebglCanvas({
     activeToolDashedPreview,
     rendererGeneration,
     clearPreview,
+    lineStyle,
+    mode,
+    currentTheme,
   ]);
 
   // Repaint a live drag preview when the crease colour changes under it --

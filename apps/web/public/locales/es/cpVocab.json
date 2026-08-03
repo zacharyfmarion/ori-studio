@@ -391,11 +391,11 @@
       }
     },
     "cp_action_vertex_make_angularly_flat_foldable": {
-      "label": "Línea plegable plana",
-      "tooltip": "Hacer el vértice plegable plano",
+      "label": "Línea plegable",
+      "tooltip": "Añade el pliegue que hace que un vértice pliegue de forma consistente, resolviendo su ángulo cuando el vértice no es plano",
       "disabledReason": "Listo",
       "steps": {
-        "0": "Elige el vértice impar",
+        "0": "Elige el vértice",
         "1": "Elige la línea candidata",
         "2": "Elige el pliegue de destino"
       }
@@ -664,7 +664,7 @@
       }
     },
     "cp_action_foldable_line_draw": {
-      "label": "Línea plegable plana (libre)",
+      "label": "Línea plegable (libre)",
       "tooltip": "Dibujo de línea plegable",
       "disabledReason": "Listo",
       "steps": {
@@ -1390,12 +1390,15 @@
     },
     "makeFlatFoldableAction": {
       "intro": {
-        "0": "Traza una línea plegable plana."
+        "0": "Traza el pliegue que completa un vértice."
       },
       "steps": {
-        "0": "Selecciona un vértice con un número impar de líneas conectadas.",
-        "1": "Selecciona la línea plegable plana.",
+        "0": "Selecciona un vértice que no pliega de forma consistente.",
+        "1": "Selecciona uno de los pliegues sugeridos.",
         "2": "Selecciona una línea objetivo hasta la que extender."
+      },
+      "notes": {
+        "0": "Con todos los pliegues a plegado completo esto es el teorema de Kawasaki, y el vértice necesita un número impar de líneas. Cuando un pliegue tiene un ángulo de plegado parcial, la sugerencia también fija el monte/valle y el ángulo del nuevo pliegue."
       }
     },
     "lengthenCreaseAction": {

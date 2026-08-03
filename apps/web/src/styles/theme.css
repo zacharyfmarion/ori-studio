@@ -4741,6 +4741,40 @@
   border: 1px solid color-mix(in srgb, var(--bg-primary) 70%, transparent);
 }
 
+/* A candidate crease the vertex-completion tool would create, not one that
+   exists. Accented so it reads as a proposal alongside the document's own
+   readouts, which it is deliberately shown next to. */
+.cp-fold-angle-layer__badge[data-candidate='true'][data-detail='number'] {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+}
+
+.cp-fold-angle-layer__badge[data-candidate='true'][data-detail='dot'] {
+  background: var(--accent-primary);
+}
+
+/* Why the active tool has no answer for the click just made. Quiet: it reports
+   a legitimate outcome of the solve, not a mistake the user made. */
+.cp-context-panel__unavailable {
+  margin: 0 0 6px;
+  padding: 5px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+/* The tool overrode the active line type because the maths forced it. Accented
+   rather than neutral: it is a statement about what you are about to get, not a
+   reason you cannot proceed. */
+.cp-context-panel__unavailable[data-tone='notice'] {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
 .cp-context-panel__chips {
   display: flex;
   flex-wrap: wrap;

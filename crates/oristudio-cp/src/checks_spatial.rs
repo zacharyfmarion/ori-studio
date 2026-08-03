@@ -107,9 +107,9 @@ pub fn vertex_regime(lines: &[LineSegment]) -> VertexRegime {
 }
 
 /// Quaternion `[w, x, y, z]`.
-type Quat = (f64, f64, f64, f64);
+pub(crate) type Quat = (f64, f64, f64, f64);
 
-fn crease_quat(theta: f64, rho: f64) -> Quat {
+pub(crate) fn crease_quat(theta: f64, rho: f64) -> Quat {
     let (sin_half, cos_half) = (rho / 2.0).sin_cos();
     (
         cos_half,
@@ -119,7 +119,7 @@ fn crease_quat(theta: f64, rho: f64) -> Quat {
     )
 }
 
-fn quat_mul(a: Quat, b: Quat) -> Quat {
+pub(crate) fn quat_mul(a: Quat, b: Quat) -> Quat {
     (
         a.0 * b.0 - a.1 * b.1 - a.2 * b.2 - a.3 * b.3,
         a.0 * b.1 + a.1 * b.0 + a.2 * b.3 - a.3 * b.2,
@@ -129,7 +129,7 @@ fn quat_mul(a: Quat, b: Quat) -> Quat {
 }
 
 /// `q_n * ... * q_1` for the fan, in angular order.
-fn closure_product(creases: &[(f64, f64)]) -> Quat {
+pub(crate) fn closure_product(creases: &[(f64, f64)]) -> Quat {
     let mut q: Quat = (1.0, 0.0, 0.0, 0.0);
     for &(theta, rho) in creases {
         q = quat_mul(crease_quat(theta, rho), q);
@@ -137,11 +137,16 @@ fn closure_product(creases: &[(f64, f64)]) -> Quat {
     q
 }
 
+/// The inverse of a unit quaternion — its conjugate.
+pub(crate) fn quat_conj(q: Quat) -> Quat {
+    (q.0, -q.1, -q.2, -q.3)
+}
+
 /// Angle from the identity quaternion, in radians over `[0, 2*pi]`.
 ///
 /// See the module docs: `w` is **signed**. `q = -1` must come out at `2*pi`,
 /// never `0`, or every Maekawa violation reads as a perfect closure.
-fn quat_residual(q: Quat) -> f64 {
+pub(crate) fn quat_residual(q: Quat) -> f64 {
     let vector_norm = (q.1 * q.1 + q.2 * q.2 + q.3 * q.3).sqrt();
     2.0 * vector_norm.atan2(q.0)
 }
@@ -156,9 +161,9 @@ pub fn vertex_closure_residual(fan: &VertexFan) -> f64 {
 }
 
 /// A point on the unit sphere.
-type Vec3 = [f64; 3];
+pub(crate) type Vec3 = [f64; 3];
 
-fn quat_rotate(q: Quat, v: Vec3) -> Vec3 {
+pub(crate) fn quat_rotate(q: Quat, v: Vec3) -> Vec3 {
     let (w, x, y, z) = q;
     let t = [
         2.0 * (y * v[2] - z * v[1]),
@@ -618,7 +623,7 @@ fn jacobian_rank(rows: &[[f64; 3]]) -> usize {
 /// Oriedita's `NumberOfFolds` to report — the spatial check stays out of it
 /// rather than issuing a second, differently-worded complaint about the same
 /// geometry.
-fn is_interior_vertex(lines: &[LineSegment]) -> bool {
+pub(crate) fn is_interior_vertex(lines: &[LineSegment]) -> bool {
     lines
         .iter()
         .filter(|line| line.color == LineColor::Black0)
@@ -672,6 +677,50 @@ pub fn vertex_fan(point: Point, lines: &[LineSegment], through_line: bool) -> Ve
         creases,
         indeterminate,
     }
+}
+
+/// Build the fan at one point, without mapping the whole document.
+///
+/// [`spatial_vertex_reports`] runs over every vertex and pays for
+/// [`point_line_map`] once. A tool asks about the single vertex under the
+/// cursor, on every pointer move, so it takes this instead: one linear pass, no
+/// map, no index.
+///
+/// # It must agree with `point_line_map` about what "at this point" means
+///
+/// Same epsilon, same colour filter — deliberately, and the reason is not
+/// tidiness. A user reaches for the completion tool *because* a vertex is
+/// reporting `Creases do not close`; if the tool clustered differently it could
+/// see a different fan than the diagnostic did and disagree about the regime, or
+/// about the answer, with nothing on screen to explain why.
+pub fn vertex_fan_at(model: &CreasePatternModel, point: Point) -> VertexFan {
+    let mut lines = Vec::new();
+    let mut through = false;
+    for segment in &model.line_segments {
+        if segment.color == LineColor::Cyan3 {
+            continue;
+        }
+        if point.distance(segment.a) < CELL || point.distance(segment.b) < CELL {
+            lines.push(segment.clone());
+        } else if point_on_segment(point, segment) {
+            through = true;
+        }
+    }
+    vertex_fan(point, &lines, through)
+}
+
+/// The lines [`vertex_fan_at`] would gather, for callers that need the segments
+/// themselves rather than the fan — the regime test, principally.
+pub fn incident_lines_at(model: &CreasePatternModel, point: Point) -> Vec<LineSegment> {
+    model
+        .line_segments
+        .iter()
+        .filter(|segment| {
+            segment.color != LineColor::Cyan3
+                && (point.distance(segment.a) < CELL || point.distance(segment.b) < CELL)
+        })
+        .cloned()
+        .collect()
 }
 
 /// One vertex's spatial verdict.

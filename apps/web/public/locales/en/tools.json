@@ -23,6 +23,15 @@
     "circlesSelectedOther_one": "{{count}} circles selected",
     "circlesSelectedOther_other": "{{count}} circles selected",
     "clearSeeds": "Clear seeds",
+    "completion": {
+      "alreadyClosed": "This vertex already folds consistently — no crease is missing.",
+      "boundaryVertex": "This point is on the edge of the paper, so there is nothing to close — pick a vertex inside the sheet.",
+      "exceedsFullFold": "No single crease can close this vertex: it would have to fold past 180°.",
+      "forcedMountain": "This crease has to be a mountain — drawn as one, not in the selected line type.",
+      "forcedValley": "This crease has to be a valley — drawn as one, not in the selected line type.",
+      "indeterminate": "Cannot tell: a crease here is unassigned, or another crease passes through without ending here.",
+      "overdetermined": "No single crease closes this vertex — at least two would be needed."
+    },
     "computedRatio": "Computed ratio {{s}} : {{t}}",
     "corners": "Corners",
     "count": "Count",

@@ -145,6 +145,11 @@ export interface OristudioCpCommandPreview {
   /** Non-mutating measurement (length or angle) for the measure tools. */
   measurement?: number | null;
   diagnostics: string[];
+  /**
+   * Why the active tool cannot act on the input so far, as a stable kernel code
+   * — see `cpToolUnavailableMessage`. An expected answer, not a complaint.
+   */
+  unavailable?: string | null;
 }
 
 export type OristudioCpEstimationOrder =

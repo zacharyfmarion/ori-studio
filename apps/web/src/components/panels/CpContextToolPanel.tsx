@@ -37,6 +37,7 @@ import type { OristudioCpToolInstructions } from '../../lib/oristudioCpToolInstr
 import { cpPaletteEntryForColor } from '../../lib/oristudioCpPalette';
 import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
+import { cpToolUnavailableMessage } from '../../cp-workspace/tools/toolUnavailable';
 import { copyTextToClipboard } from '../../lib/clipboardText';
 import { FoldAngleControl } from '../../cp-workspace/foldAngle/FoldAngleControl';
 import {
@@ -136,6 +137,8 @@ export function CpContextToolPanel({
   onMeasurePaperEdgeMmChange,
   pendingPointCount,
   selection,
+  unavailable,
+  toolNotice,
   onApply,
   onClearInput,
 }: {
@@ -155,6 +158,19 @@ export function CpContextToolPanel({
   onMeasurePaperEdgeMmChange: (paperEdgeMm: number) => void;
   pendingPointCount: number;
   selection: OristudioCpSelection;
+  /**
+   * Kernel code for why the tool has no answer for the input placed so far, or
+   * null. Shown above the instructions because it is about *this* click, not
+   * about how the tool works.
+   */
+  unavailable?: string | null;
+  /**
+   * A note about the answer the tool is about to commit — currently that the
+   * completion solve overrode the active line type. Shown alongside
+   * {@link unavailable}, never instead of it: they describe different states and
+   * cannot both be true, but nothing here depends on that.
+   */
+  toolNotice?: string | null;
   onApply?: () => void;
   onClearInput?: () => void;
 }) {
@@ -163,6 +179,7 @@ export function CpContextToolPanel({
   const groups = cpToolSettingGroupsForCommand(command);
   const instructions = cpToolInstructions(t, action, command);
   const applyDisabled = contextApplyDisabledForCommand(command, selection, pendingPointCount);
+  const unavailableMessage = cpToolUnavailableMessage(t, unavailable);
   const title = action?.kind === 'command' ? cpActionLabel(t, action) : command.label;
   const meta =
     groups.length > 0
@@ -171,7 +188,7 @@ export function CpContextToolPanel({
         : t('tools:cpContext.settingCountOther', '{{count}} settings', { count: groups.length })
       : t('tools:cpContext.instructions', 'Instructions');
 
-  if (groups.length === 0 && !instructions) return null;
+  if (groups.length === 0 && !instructions && !unavailableMessage && !toolNotice) return null;
 
   return (
     <section
@@ -192,6 +209,16 @@ export function CpContextToolPanel({
       </button>
       {!collapsed && (
         <div className="cp-context-panel__body">
+          {unavailableMessage && (
+            <p className="cp-context-panel__unavailable" role="status">
+              {unavailableMessage}
+            </p>
+          )}
+          {toolNotice && (
+            <p className="cp-context-panel__unavailable" data-tone="notice" role="status">
+              {toolNotice}
+            </p>
+          )}
           {instructions && <CpContextToolInstructions instructions={instructions} />}
           {groups.map((group) => (
             <CpContextToolGroup

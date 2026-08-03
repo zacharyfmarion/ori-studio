@@ -25,6 +25,15 @@
     "circlesSelectedOther_many": "{{count}} círculos selecionados",
     "circlesSelectedOther_other": "{{count}} círculos selecionados",
     "clearSeeds": "Limpar sementes",
+    "completion": {
+      "alreadyClosed": "Este vértice já dobra de forma consistente — não falta nenhum vinco.",
+      "boundaryVertex": "Este ponto está na borda do papel, então não há nada a fechar — escolha um vértice dentro da folha.",
+      "exceedsFullFold": "Nenhum vinco sozinho pode fechar este vértice: ele teria de dobrar além de 180°.",
+      "forcedMountain": "Este vinco tem de ser montanha: é desenhado assim, não no tipo de linha selecionado.",
+      "forcedValley": "Este vinco tem de ser vale: é desenhado assim, não no tipo de linha selecionado.",
+      "indeterminate": "Não é possível determinar: há um vinco sem atribuição aqui, ou outro vinco passa por este ponto sem terminar nele.",
+      "overdetermined": "Nenhum vinco sozinho fecha este vértice — seriam necessários pelo menos dois."
+    },
     "computedRatio": "Proporção calculada {{s}} : {{t}}",
     "corners": "Vértices",
     "count": "Quantidade",

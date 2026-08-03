@@ -184,7 +184,7 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     railOrder: 30,
   },
   VertexMakeAngularlyFlatFoldable: {
-    label: 'Flat Foldable Line',
+    label: 'Foldable Line',
     group: 'draw',
     upstreamAction: 'makeFlatFoldableAction',
     upstreamMouseMode: 'VERTEX_MAKE_ANGULARLY_FLAT_FOLDABLE_38',
@@ -226,7 +226,7 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     railOrder: 90,
   },
   FoldableLineDraw: {
-    label: 'Flat Foldable Line (free)',
+    label: 'Foldable Line (free)',
     group: 'draw',
     upstreamAction: 'foldableLineDrawAction',
     upstreamMouseMode: 'FOLDABLE_LINE_DRAW_71',
