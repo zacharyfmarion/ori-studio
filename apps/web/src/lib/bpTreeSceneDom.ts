@@ -42,9 +42,28 @@ export const BP_TREE_SCENE_ATTR = {
   p2: 'data-bp-p2',
   /** Which of {@link BpTreeSceneAnchor} this element is. */
   anchor: 'data-bp-anchor',
-  /** Constant offset from the anchor point, in SVG units. */
+  /** Constant offset from the anchor point, in *screen pixels*. */
   dx: 'data-bp-dx',
   dy: 'data-bp-dy',
+} as const;
+
+/**
+ * Sizes that counter-scale against the camera, in screen pixels.
+ *
+ * The drawing keeps its proportions as you zoom, which means every stroke
+ * width, dot radius and font size is a function of the camera. Rendering that
+ * function is what made a zoom step cost a full redraw of the canvas; declaring
+ * it lets {@link applyBpTreeChromeScale} rewrite them all directly instead.
+ *
+ * They stay inline styles rather than moving to the stylesheet: SVG presentation
+ * attributes lose to any author CSS rule, and theme.css already sets
+ * `stroke-width` on these classes, so an attribute here would be silently
+ * ignored.
+ */
+export const BP_TREE_CHROME_ATTR = {
+  stroke: 'data-bp-stroke-px',
+  radius: 'data-bp-r-px',
+  font: 'data-bp-font-px',
 } as const;
 
 /**
@@ -126,10 +145,14 @@ export function collectAllBpTreeSceneTargets(root: ParentNode): BpTreeSceneTarge
  * in SVG coordinates. A vertex the caller has no position for leaves every
  * element that depends on it untouched, so a partial answer is a partial move
  * rather than a jump to the origin.
+ *
+ * Label offsets are held in screen pixels and converted here, so the same call
+ * re-places them when the camera scale changes and nothing has moved.
  */
 export function applyBpTreeScenePositions(
   targets: readonly BpTreeSceneTarget[],
-  pointFor: (vertexId: number) => Point | undefined
+  pointFor: (vertexId: number) => Point | undefined,
+  chromePx: (px: number) => number
 ): void {
   for (const target of targets) {
     const a = pointFor(target.p1);
@@ -140,15 +163,15 @@ export function applyBpTreeScenePositions(
       continue;
     }
     if (target.anchor === 'node-label') {
-      target.element.setAttribute('x', String(a.x + target.dx));
-      target.element.setAttribute('y', String(a.y + target.dy));
+      target.element.setAttribute('x', String(a.x + chromePx(target.dx)));
+      target.element.setAttribute('y', String(a.y + chromePx(target.dy)));
       continue;
     }
     const b = target.p2 === null ? undefined : pointFor(target.p2);
     if (!b) continue;
     if (target.anchor === 'edge-label') {
-      target.element.setAttribute('x', String((a.x + b.x) / 2 + target.dx));
-      target.element.setAttribute('y', String((a.y + b.y) / 2 + target.dy));
+      target.element.setAttribute('x', String((a.x + b.x) / 2 + chromePx(target.dx)));
+      target.element.setAttribute('y', String((a.y + b.y) / 2 + chromePx(target.dy)));
       continue;
     }
     target.element.setAttribute('x1', String(a.x));
@@ -208,5 +231,56 @@ export function applyBpTreeGhost(root: ParentNode, geometry: BpTreeGhostGeometry
   if (mirrorNode) {
     mirrorNode.setAttribute('cx', String(geometry.mirror.to.x));
     mirrorNode.setAttribute('cy', String(geometry.mirror.to.y));
+  }
+}
+
+/** One element's counter-scaled sizes, already parsed out of the markup. */
+export interface BpTreeChromeTarget {
+  element: SVGElement;
+  strokePx: number | null;
+  radiusPx: number | null;
+  fontPx: number | null;
+}
+
+/**
+ * Every element whose size counter-scales against the camera.
+ *
+ * Collected once per rendered scene and reused across zoom steps — re-reading
+ * the markup on each step made a zoom four passes over the whole canvas.
+ */
+export function collectBpTreeChromeTargets(root: ParentNode): BpTreeChromeTarget[] {
+  const selector = [
+    `[${BP_TREE_CHROME_ATTR.stroke}]`,
+    `[${BP_TREE_CHROME_ATTR.radius}]`,
+    `[${BP_TREE_CHROME_ATTR.font}]`,
+  ].join(',');
+  const targets: BpTreeChromeTarget[] = [];
+  for (const element of root.querySelectorAll<SVGElement>(selector)) {
+    targets.push({
+      element,
+      strokePx: readNumber(element, BP_TREE_CHROME_ATTR.stroke),
+      radiusPx: readNumber(element, BP_TREE_CHROME_ATTR.radius),
+      fontPx: readNumber(element, BP_TREE_CHROME_ATTR.font),
+    });
+  }
+  return targets;
+}
+
+/**
+ * Rewrite every counter-scaled size for a new camera scale.
+ *
+ * A zoom step changes nothing about *what* is drawn, only how thick it is — so
+ * it has no business re-rendering the canvas. Callers pair this with
+ * {@link applyBpTreeScenePositions}, which re-places the labels whose offsets
+ * are counter-scaled too.
+ */
+export function applyBpTreeChromeScale(
+  targets: readonly BpTreeChromeTarget[],
+  chromePx: (px: number) => number
+): void {
+  for (const target of targets) {
+    if (target.strokePx !== null) target.element.style.strokeWidth = String(chromePx(target.strokePx));
+    if (target.radiusPx !== null) target.element.setAttribute('r', String(chromePx(target.radiusPx)));
+    if (target.fontPx !== null) target.element.style.fontSize = `${chromePx(target.fontPx)}px`;
   }
 }

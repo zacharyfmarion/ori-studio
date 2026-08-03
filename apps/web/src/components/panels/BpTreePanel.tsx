@@ -32,8 +32,14 @@ import { bpDefaultFlapLabel } from '../../lib/bpFlapLabel';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { formatNumber, type Point } from '../../lib/geometry';
 import {
+  applyBpTreeChromeScale,
   applyBpTreeGhost,
+  applyBpTreeScenePositions,
+  collectAllBpTreeSceneTargets,
+  collectBpTreeChromeTargets,
+  type BpTreeChromeTarget,
   type BpTreeGhostGeometry,
+  type BpTreeSceneTarget,
 } from '../../lib/bpTreeSceneDom';
 import { BpTreeScene, SYMMETRY_LANE_PX } from './BpTreeScene';
 import { translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
@@ -85,6 +91,11 @@ function bpTreeLayerLabel(t: TFunction, key: BpTreeViewLayerKey): string {
   }
 }
 
+
+/** SVG units per screen pixel at a whole-percent zoom, floored so it stays sane. */
+function cameraScale(zoomPercent: number): number {
+  return Math.max(0.02, zoomPercent / 100);
+}
 
 // Default so a unit-length edge is ~this many screen pixels. Node dots and
 // labels are drawn at fixed screen sizes (counter-scaled by the zoom) so they
@@ -273,6 +284,11 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const [ghostArmed, setGhostArmed] = useState(false);
   const ghostFrameRef = useRef<number | null>(null);
   const ghostGeometryRef = useRef<BpTreeGhostGeometry | null>(null);
+  // Cached scene lookups, dropped whenever React redraws the canvas.
+  const sceneTargetsRef = useRef<{
+    chrome: BpTreeChromeTarget[];
+    positions: BpTreeSceneTarget[];
+  } | null>(null);
   const scheduleLongPressInspector = useBpLongPressInspector();
   const layers = useSettingsStore((state) => state.bpTreeLayers);
   const setLayer = useSettingsStore((state) => state.setBpTreeLayer);
@@ -403,13 +419,18 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
 
   // Convert a target screen-pixel size into SVG units at the current zoom, so
   // dots/labels keep a constant on-screen size regardless of zoom.
-  const svgPerScreenPx = Math.max(0.02, zoomPercent / 100);
-  const chromePx = useCallback((px: number) => px / svgPerScreenPx, [svgPerScreenPx]);
+  //
+  // Read through a ref rather than closed over, so `chromePx` keeps one identity
+  // for the life of the pane. A zoom step must not re-render the canvas: it
+  // changes how thick the drawing is, not what is drawn, and rendering that was
+  // costing a full redraw per wheel tick.
+  const scaleRef = useRef(cameraScale(zoomPercent));
+  const chromePx = useCallback((px: number) => px / scaleRef.current, []);
   // Half the visible snap band, in tree units. A tip landing inside it snaps onto
   // the axis — so this is derived from the band's *drawn* width, keeping what the
   // user sees and what the click does the same thing at every zoom.
   const symmetryAxisTolerance =
-    chromePx(SYMMETRY_LANE_PX) / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
+    SYMMETRY_LANE_PX / cameraScale(zoomPercent) / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
 
   const findVertex = useCallback(
     (id: number) => tree.vertices.find((vertex) => vertex.id === id),
@@ -459,6 +480,54 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       unresolved,
     };
   });
+
+  /** Where a vertex is right now: mid-drag if one is running, else committed. */
+  const svgPointOfVertex = useEventCallback((id: number): Point | undefined => {
+    const loc = dragRef.current?.updates.get(id) ?? vertexLocationsById.get(id);
+    return loc && bpTreePointToSvg(loc, tree.sheet, paperRect);
+  });
+
+  // React redrew the canvas, so anything a gesture cached about it is stale.
+  const onSceneRendered = useEventCallback(() => {
+    sceneTargetsRef.current = null;
+  });
+
+  /**
+   * Rewrite the counter-scaled chrome for a new camera scale.
+   *
+   * The element lists are read once per rendered scene and reused: a zoom is a
+   * burst of steps, and re-reading the markup on each one turned a zoom into
+   * several passes over the whole canvas.
+   */
+  const publishChromeScale = useEventCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    sceneTargetsRef.current ??= {
+      chrome: collectBpTreeChromeTargets(svg),
+      positions: collectAllBpTreeSceneTargets(svg),
+    };
+    applyBpTreeChromeScale(sceneTargetsRef.current.chrome, chromePx);
+    // Label offsets counter-scale too, so they have to be re-placed even though
+    // nothing moved.
+    applyBpTreeScenePositions(sceneTargetsRef.current.positions, svgPointOfVertex, chromePx);
+    applyBpTreeGhost(svg, ghostGeometryRef.current);
+  });
+
+  useEffect(() => {
+    scaleRef.current = cameraScale(zoomPercent);
+  }, [zoomPercent]);
+
+  const onCameraTransformed = useEventCallback(
+    (ref: Parameters<typeof onTransformed>[0], state: { scale: number }) => {
+      // Rounded exactly as `zoomPercent` is, so the scale this writes and the
+      // scale a later render reads back out of it cannot disagree.
+      scaleRef.current = cameraScale(Math.round(state.scale * 100));
+      publishChromeScale();
+      // The toolbar's readout still wants this, and rounding to whole percent
+      // keeps a pan — which does not change scale — from touching React at all.
+      onTransformed(ref, state);
+    }
+  );
 
   /** Show the ghost where the cursor last put it, coalesced to one frame. */
   const scheduleGhost = useEventCallback(() => {
@@ -651,6 +720,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       clientStart: { x: event.clientX, y: event.clientY },
       toTreePoint: (client) => clientToTreePoint(client),
       toSvgPoint: (loc) => bpTreePointToSvg(loc, tree.sheet, paperRect),
+      chromePx,
     });
   });
 
@@ -730,7 +800,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         pinch={VIEWPORT_PINCH_ZOOM}
         doubleClick={{ disabled: true }}
         onInit={onInit}
-        onTransformed={onTransformed}
+        onTransformed={onCameraTransformed}
       >
         <TransformComponent
           wrapperStyle={{ width: '100%', height: '100%' }}
@@ -748,6 +818,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
             symmetryAxisLine={symmetryView.axisLine}
             symmetryPairs={symmetryView.pairs}
             ghostArmed={ghostArmed}
+            onRendered={onSceneRendered}
             onEdgePointerDown={onEdgePointerDown}
             onVertexPointerDown={onVertexPointerDown}
           />

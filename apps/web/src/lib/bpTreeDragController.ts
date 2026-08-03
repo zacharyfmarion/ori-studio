@@ -38,6 +38,8 @@ export interface BpTreeDragStart {
   toTreePoint: (client: Point) => Point;
   /** Tree space to SVG space, for writing the attributes back. */
   toSvgPoint: (loc: Point) => Point;
+  /** Screen pixels to SVG units, for the counter-scaled label offsets. */
+  chromePx: (px: number) => number;
   /** Injected so tests can run a frame synchronously. */
   schedule?: (callback: () => void) => number;
   unschedule?: (handle: number) => void;
@@ -66,6 +68,7 @@ export function startBpTreeDrag(input: BpTreeDragStart): BpTreeDragSession {
     clientStart,
     toTreePoint,
     toSvgPoint,
+    chromePx,
     schedule = requestAnimationFrame,
     unschedule = cancelAnimationFrame,
   } = input;
@@ -107,10 +110,14 @@ export function startBpTreeDrag(input: BpTreeDragStart): BpTreeDragSession {
     for (const [id, loc] of rotated) next.set(id, constrainBpTreePoint(loc, sheet));
     updates = next;
     targets ??= collectBpTreeSceneTargets(root, new Set(subtreeIds));
-    applyBpTreeScenePositions(targets, (id) => {
-      const loc = locOf(id);
-      return loc && toSvgPoint(loc);
-    });
+    applyBpTreeScenePositions(
+      targets,
+      (id) => {
+        const loc = locOf(id);
+        return loc && toSvgPoint(loc);
+      },
+      chromePx
+    );
   };
 
   return {

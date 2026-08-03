@@ -1,9 +1,13 @@
-import { memo, type PointerEvent, type Ref } from 'react';
+import { memo, useLayoutEffect, type PointerEvent, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { OristudioBpTreeView } from '../../engine/oristudioBpTypes';
 import { bpTreePointToSvg, bpTreeVertexLabel } from '../../lib/bpTreeViewport';
 import type { bpTreePaperRect } from '../../lib/bpTreeViewport';
-import { BP_TREE_GHOST_PART, BP_TREE_SCENE_ATTR } from '../../lib/bpTreeSceneDom';
+import {
+  BP_TREE_CHROME_ATTR,
+  BP_TREE_GHOST_PART,
+  BP_TREE_SCENE_ATTR,
+} from '../../lib/bpTreeSceneDom';
 import { formatNumber, type PlotRect, type Point } from '../../lib/geometry';
 import { treeDotPx, type TreeDotSizes } from '../../lib/treeNodeDot';
 import type { BpTreeSymmetryLine } from '../../hooks/useBpTreeSymmetry';
@@ -83,6 +87,15 @@ export interface BpTreeSceneProps {
    * changes only when the selection or the pointer enters or leaves.
    */
   ghostArmed: boolean;
+  /**
+   * Called after every commit of this scene.
+   *
+   * Gestures cache element lookups into the rendered SVG, and those caches are
+   * only stale when React has redrawn it. Letting the scene say so keeps the
+   * invalidation from drifting away from what actually causes a redraw, which a
+   * hand-maintained dependency list beside the memo would eventually do.
+   */
+  onRendered: () => void;
   onEdgePointerDown: (event: PointerEvent<SVGGElement>, edgeId: number) => void;
   onVertexPointerDown: (event: PointerEvent<SVGCircleElement>, vertexId: number) => void;
 }
@@ -109,10 +122,12 @@ export const BpTreeScene = memo(function BpTreeScene({
   symmetryAxisLine,
   symmetryPairs,
   ghostArmed,
+  onRendered,
   onEdgePointerDown,
   onVertexPointerDown,
 }: BpTreeSceneProps) {
   const { t } = useTranslation();
+  useLayoutEffect(onRendered);
   const vertexById = new Map(tree.vertices.map((vertex) => [vertex.id, vertex] as const));
   const locOf = (id: number, loc: Point) => previewLocs?.get(id) ?? loc;
 
@@ -136,6 +151,7 @@ export const BpTreeScene = memo(function BpTreeScene({
             // which no longer matches where a tip actually snaps.
             className="symmetry-snap-lane"
             style={{ strokeWidth: chromePx(SYMMETRY_LANE_PX) }}
+            {...{ [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_LANE_PX }}
             x1={symmetryAxisLine.x1}
             y1={symmetryAxisLine.y1}
             x2={symmetryAxisLine.x2}
@@ -144,6 +160,7 @@ export const BpTreeScene = memo(function BpTreeScene({
           <line
             className="symmetry-line"
             style={{ strokeWidth: chromePx(SYMMETRY_LINE_PX) }}
+            {...{ [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_LINE_PX }}
             x1={symmetryAxisLine.x1}
             y1={symmetryAxisLine.y1}
             x2={symmetryAxisLine.x2}
@@ -162,6 +179,7 @@ export const BpTreeScene = memo(function BpTreeScene({
             key={`${pair.v1}:${pair.v2}`}
             className="symmetry-pair-line"
             style={{ strokeWidth: chromePx(SYMMETRY_PAIR_PX) }}
+            {...{ [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_PAIR_PX }}
             x1={p1.x}
             y1={p1.y}
             x2={p2.x}
@@ -179,24 +197,24 @@ export const BpTreeScene = memo(function BpTreeScene({
           <line
             className="symmetry-ghost-edge"
             style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX), display: 'none' }}
-            {...{ [BP_TREE_GHOST_PART]: 'primary-edge' }}
+            {...{ [BP_TREE_GHOST_PART]: 'primary-edge', [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX }}
           />
           <circle
             className="symmetry-ghost-node"
             r={chromePx(DOT_SIZES.leafPx)}
             style={{ display: 'none' }}
-            {...{ [BP_TREE_GHOST_PART]: 'primary-node' }}
+            {...{ [BP_TREE_GHOST_PART]: 'primary-node', [BP_TREE_CHROME_ATTR.radius]: DOT_SIZES.leafPx }}
           />
           <line
             className="symmetry-ghost-edge"
             style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX), display: 'none' }}
-            {...{ [BP_TREE_GHOST_PART]: 'mirror-edge' }}
+            {...{ [BP_TREE_GHOST_PART]: 'mirror-edge', [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX }}
           />
           <circle
             className="symmetry-ghost-node"
             r={chromePx(DOT_SIZES.leafPx)}
             style={{ display: 'none' }}
-            {...{ [BP_TREE_GHOST_PART]: 'mirror-node' }}
+            {...{ [BP_TREE_GHOST_PART]: 'mirror-node', [BP_TREE_CHROME_ATTR.radius]: DOT_SIZES.leafPx }}
           />
         </g>
       )}
@@ -240,6 +258,7 @@ export const BpTreeScene = memo(function BpTreeScene({
                 [BP_TREE_SCENE_ATTR.anchor]: 'edge',
                 [BP_TREE_SCENE_ATTR.p1]: a.id,
                 [BP_TREE_SCENE_ATTR.p2]: b.id,
+                [BP_TREE_CHROME_ATTR.stroke]: active ? EDGE_SELECTED_STROKE_PX : EDGE_STROKE_PX,
               }}
             />
             {layers.labels && edge.isLeafEdge && (
@@ -255,8 +274,10 @@ export const BpTreeScene = memo(function BpTreeScene({
                   [BP_TREE_SCENE_ATTR.anchor]: 'edge-label',
                   [BP_TREE_SCENE_ATTR.p1]: a.id,
                   [BP_TREE_SCENE_ATTR.p2]: b.id,
-                  [BP_TREE_SCENE_ATTR.dx]: chromePx(EDGE_LABEL_DX_PX),
-                  [BP_TREE_SCENE_ATTR.dy]: chromePx(EDGE_LABEL_DY_PX),
+                  [BP_TREE_SCENE_ATTR.dx]: EDGE_LABEL_DX_PX,
+                  [BP_TREE_SCENE_ATTR.dy]: EDGE_LABEL_DY_PX,
+                  [BP_TREE_CHROME_ATTR.font]: NODE_LABEL_PX,
+                  [BP_TREE_CHROME_ATTR.stroke]: LABEL_STROKE_PX,
                 }}
               >
                 {formatNumber(edge.length, 2)}
@@ -312,6 +333,8 @@ export const BpTreeScene = memo(function BpTreeScene({
               {...{
                 [BP_TREE_SCENE_ATTR.anchor]: 'node',
                 [BP_TREE_SCENE_ATTR.p1]: vertex.id,
+                [BP_TREE_CHROME_ATTR.stroke]: active ? NODE_SELECTED_STROKE_PX : NODE_STROKE_PX,
+                [BP_TREE_CHROME_ATTR.radius]: dotPx,
               }}
             />
             {layers.labels && vertex.isLeaf && label && (
@@ -326,8 +349,10 @@ export const BpTreeScene = memo(function BpTreeScene({
                 {...{
                   [BP_TREE_SCENE_ATTR.anchor]: 'node-label',
                   [BP_TREE_SCENE_ATTR.p1]: vertex.id,
-                  [BP_TREE_SCENE_ATTR.dx]: chromePx(dotPx + NODE_LABEL_DX_PX),
-                  [BP_TREE_SCENE_ATTR.dy]: chromePx(NODE_LABEL_DY_PX),
+                  [BP_TREE_SCENE_ATTR.dx]: dotPx + NODE_LABEL_DX_PX,
+                  [BP_TREE_SCENE_ATTR.dy]: NODE_LABEL_DY_PX,
+                  [BP_TREE_CHROME_ATTR.font]: NODE_LABEL_PX,
+                  [BP_TREE_CHROME_ATTR.stroke]: LABEL_STROKE_PX,
                 }}
               >
                 {label}
