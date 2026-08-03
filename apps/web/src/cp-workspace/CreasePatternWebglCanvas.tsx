@@ -468,6 +468,11 @@ export interface CreasePatternWebglCanvasProps {
   /** Per-step input kinds for a `sequence` tool (free point vs picked crease). */
   activeToolStepKinds: readonly StepKind[];
   /**
+   * Whether this tool commits at once when its final candidate step has a single
+   * option — see `CpInputModelEntry.commitOnLoneCandidate`.
+   */
+  activeToolCommitsLoneCandidate: boolean;
+  /**
    * The selection distance (model units) the panel sends with the active command, so
    * a `crease-required` step can gate its pick on exactly the radius the kernel will
    * search — a click the kernel would reject is ignored instead of erroring.
@@ -734,6 +739,7 @@ export function CreasePatternWebglCanvas({
   activeToolOperationId,
   panToolActive,
   activeToolStepKinds,
+  activeToolCommitsLoneCandidate,
   activeToolSelectionDistance,
   activeToolLineCount,
   activeToolRequireSnap,
@@ -1182,6 +1188,7 @@ export function CreasePatternWebglCanvas({
     activeToolInputMode,
     panToolActive,
     activeToolStepKinds,
+    activeToolCommitsLoneCandidate,
     activeToolSelectionDistance,
     activeToolLineCount,
     activeToolRequireSnap,
@@ -1232,20 +1239,46 @@ export function CreasePatternWebglCanvas({
   // followed was already being read as the destination — and a click on the one ray
   // on screen, the thing the prompt named, is exactly what the destination step
   // cannot accept.
+  /**
+   * Resolve a candidate step that has exactly one option, feeding it as the pick.
+   *
+   * Called from two places on purpose: from the pointer path the instant the step
+   * is reached (the candidates are already on screen, so nothing needs to arrive),
+   * and from the effect below for the tools whose candidates only appear once the
+   * kernel answers. Returns whether it acted.
+   */
+  const tryLoneCandidateAutoPick = useCallback(
+    (runtime: ToolRuntime): boolean => {
+      const stepKinds = dynamicStepKindsRef.current ?? liveRef.current.activeToolStepKinds;
+      const auto = loneCandidateAutoPick(
+        stepKinds,
+        sequenceStepRef.current,
+        liveRef.current.toolCommandPreviewSegments,
+        liveRef.current.activeToolCommitsLoneCandidate
+      );
+      if (!auto) return false;
+      const out = runtime.feed({ kind: 'down', point: auto });
+      if (out.commit) {
+        liveRef.current.onToolCommit(out.commit);
+        liveRef.current.onToolPreviewInput([], []);
+        sequenceStepRef.current = 0;
+        dynamicStepKindsRef.current = null;
+        armedCandidateRef.current = null;
+        liveRef.current.onToolPickProgress(0);
+        return true;
+      }
+      sequenceStepRef.current += 1;
+      liveRef.current.onToolPickProgress(sequenceStepRef.current);
+      return true;
+    },
+    []
+  );
+
   useEffect(() => {
     const runtime = persistentToolRuntimeRef.current;
     if (!runtime) return;
-    const stepKinds = dynamicStepKindsRef.current ?? activeToolStepKinds;
-    const auto = loneCandidateAutoPick(
-      stepKinds,
-      sequenceStepRef.current,
-      toolCommandPreviewSegments
-    );
-    if (!auto) return;
-    runtime.feed({ kind: 'down', point: auto });
-    sequenceStepRef.current += 1;
-    onToolPickProgress(sequenceStepRef.current);
-  }, [activeToolStepKinds, onToolPickProgress, toolCommandPreviewSegments]);
+    tryLoneCandidateAutoPick(runtime);
+  }, [tryLoneCandidateAutoPick, toolCommandPreviewSegments]);
 
   // A new document: drop the one-shot camera seed so the next frame re-fits
   // against the current bounds (creases + images + text boxes). Declared after
@@ -1889,6 +1922,14 @@ export function CreasePatternWebglCanvas({
       const stepKind = stepKinds[sequenceStepRef.current];
       const creaseStep = isCreaseStep(stepKind);
       const candidateStep = stepKind === 'candidate';
+      // Nothing is armed until the tool is actually choosing between candidates.
+      // Left set, a stale index from the last pick would draw one of the rays
+      // solid while merely hovering a vertex — reading as "this is the one" before
+      // anything has been chosen.
+      if (!candidateStep && armedCandidateRef.current !== null) {
+        armedCandidateRef.current = null;
+        paintSequencePreviewRef.current?.();
+      }
       let point: ModelPoint;
       let snappedToVertex = false;
       if (creaseStep) {
@@ -1946,6 +1987,7 @@ export function CreasePatternWebglCanvas({
         renderer.setOverlayPoints(null);
         sequenceStepRef.current = 0;
         dynamicStepKindsRef.current = null;
+        armedCandidateRef.current = null;
         if (transform) {
           // Leave the previewed geometry up: the committed document re-renders it
           // at exactly this position a moment later, so tearing it down here would
@@ -1963,6 +2005,12 @@ export function CreasePatternWebglCanvas({
           // a cumulative count (not a delta) so the auto-advanced candidate steps
           // above, which skip a pick, stay in sync.
           liveRef.current.onToolPickProgress(sequenceStepRef.current);
+          // A lone candidate resolves the moment the step is reached, using the
+          // candidates already on screen. The effect below also watches for this,
+          // but only fires when a *new* preview arrives — and after a click with no
+          // pointer movement none does, which would leave the tool waiting for a
+          // jiggle of the mouse before it acted.
+          if (tryLoneCandidateAutoPick(runtime)) return;
         }
         const live = out.livePoints ?? [];
         const placed = kind === 'move' ? live.slice(0, -1) : live;
@@ -2867,9 +2915,9 @@ export function CreasePatternWebglCanvas({
     // Live inputs are read through liveRef rather than deps, so this runs once
     // per mount. `rendererGeneration` is the only dep that ever changes -- it
     // does so on context loss, where the dead renderer must be torn down and
-    // replaced. (`clearPreview` is a stable callback, listed to satisfy the
-    // exhaustive-deps rule.)
-  }, [rendererGeneration, clearPreview]);
+    // replaced. (`clearPreview` and `tryLoneCandidateAutoPick` are stable
+    // callbacks, listed to satisfy the exhaustive-deps rule.)
+  }, [rendererGeneration, clearPreview, tryLoneCandidateAutoPick]);
 
   // Upload geometry whenever it is rebuilt, then redraw immediately.
   useEffect(() => {

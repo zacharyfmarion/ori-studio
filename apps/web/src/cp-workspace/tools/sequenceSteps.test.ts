@@ -59,13 +59,31 @@ describe('loneCandidateAutoPick', () => {
   });
 });
 
-describe('the confirming click on Foldable Line', () => {
-  it('is required, because the candidate step is now the last one', () => {
-    // Oriedita skips the pick when there is one candidate. Under a two-step tool
-    // that would mean geometry appearing from a single click on a vertex, which
-    // `loneCandidateAutoPick` already refuses for a tool's final step — so the
-    // decision needs no new code, only this test to keep it true.
-    const snap = cpInputModel('VertexMakeAngularlyFlatFoldable')?.snapPerStep ?? [];
+describe('the lone candidate on Foldable Line', () => {
+  it('commits on the vertex click, because there is nothing to choose between', () => {
+    const entry = cpInputModel('VertexMakeAngularlyFlatFoldable');
+    const snap = entry?.snapPerStep ?? [];
+    expect(entry?.commitOnLoneCandidate).toBe(true);
+    expect(
+      loneCandidateAutoPick(snap, snap.length - 1, [RAY], entry?.commitOnLoneCandidate)
+    ).toEqual({ x: 5, y: 10 });
+  });
+
+  it('still needs a click when there is more than one', () => {
+    const entry = cpInputModel('VertexMakeAngularlyFlatFoldable');
+    const snap = entry?.snapPerStep ?? [];
+    const two = [RAY, { a: { x: 0, y: 0 }, b: { x: -10, y: 20 } }];
+    expect(
+      loneCandidateAutoPick(snap, snap.length - 1, two, entry?.commitOnLoneCandidate)
+    ).toBeNull();
+  });
+
+  it('leaves a tool that did not ask for it alone', () => {
+    // Every other tool ending on a candidate step keeps the guard: resolving it
+    // would commit geometry off a preview arriving.
+    const snap = cpInputModel('DrawCreaseAngleRestricted')?.snapPerStep ?? [];
+    expect(snap[snap.length - 1]).toBe('candidate');
+    expect(cpInputModel('DrawCreaseAngleRestricted')?.commitOnLoneCandidate).toBeUndefined();
     expect(loneCandidateAutoPick(snap, snap.length - 1, [RAY])).toBeNull();
   });
 });

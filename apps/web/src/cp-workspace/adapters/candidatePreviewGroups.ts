@@ -59,13 +59,19 @@ export function candidatePreviewGroups(
   const named = segments.some((segment) => segment.crease);
   if (!named && armed === null) return [{ segments, color: fallback }];
 
+  // A lone candidate is armed by definition: there is nothing to choose between,
+  // so it is already the crease you will get and reads solid from the start —
+  // which matches the tool committing it on the vertex click rather than asking
+  // for a second one.
+  const effectiveArmed = named && segments.length === 1 ? 0 : armed;
+
   const groups = new Map<string, PreviewStrokeGroup & { segments: ToolPreviewSegment[] }>();
   for (const [index, segment] of segments.entries()) {
     const color = inkFor(segment);
     // The armed candidate is the one a click would commit, and it says so by
     // being solid where the alternatives are dashed. Its own group, keyed apart,
     // so a candidate sharing its colour does not inherit the state.
-    const isArmed = index === armed;
+    const isArmed = index === effectiveArmed;
     const key = `${colorKey(color)}|${isArmed ? 'armed' : 'proposed'}`;
     const group = groups.get(key);
     if (group) group.segments.push(segment);

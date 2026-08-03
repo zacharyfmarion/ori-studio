@@ -57,6 +57,16 @@ export interface CpInputModelEntry {
   snapPerStep?: readonly CpStepSnap[];
   /** line-entity: number of crease picks the tool collects. */
   lineCount?: number;
+  /**
+   * Commit straight away when the tool's *final* candidate step has exactly one
+   * option, instead of asking for a click that has only one place to land.
+   *
+   * Opt-in per tool rather than a blanket rule. On a tool whose candidate step
+   * is followed by more steps, resolving it is free — the user still confirms
+   * later. On a tool that *ends* on the candidate step this commits geometry, so
+   * it is only right where the preceding click already expressed the intent.
+   */
+  commitOnLoneCandidate?: boolean;
 }
 
 export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputModelEntry>> = {
@@ -119,7 +129,15 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   // that line along, so the kernel no longer needs a click naming the crease to
   // extend to. It still accepts one (see `resolved_completion_destination`); the
   // UI simply has nothing left to ask.
-  VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'candidate'] },
+  VertexMakeAngularlyFlatFoldable: {
+    model: 'point-sequence',
+    pointCount: 2,
+    snapPerStep: ['point', 'candidate'],
+    // With one completion there is nothing to choose between, so clicking the
+    // vertex is already the whole decision and a second click would only have
+    // one place to land.
+    commitOnLoneCandidate: true,
+  },
 
   // LENGTHEN — drag a selection line across the crease(s) to extend (a click is the
   // degenerate nearest-crease fallback), then click the target line to extend to.

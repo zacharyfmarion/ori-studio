@@ -2888,6 +2888,9 @@ export function CreasePatternPanel() {
                   activeToolInputMode={webglActiveTool.mode}
                   activeToolOperationId={activeCpCommand?.operationId ?? null}
                   activeToolStepKinds={webglActiveTool.stepKinds}
+                  activeToolCommitsLoneCandidate={
+                    cpInputModel(activeCpCommand?.operationId)?.commitOnLoneCandidate ?? false
+                  }
                   activeToolSelectionDistance={cpToolSelectionDistance}
                   activeToolLineCount={webglActiveTool.lineCount}
                   activeToolDualMirror={webglActiveTool.dualMirror}

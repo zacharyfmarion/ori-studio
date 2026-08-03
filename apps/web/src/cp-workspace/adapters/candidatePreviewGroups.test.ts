@@ -100,7 +100,9 @@ describe('candidatePreviewGroups arming', () => {
     expect(groups.filter((group) => group.dashed).flatMap((g) => g.segments)).toHaveLength(1);
   });
 
-  it('dashes everything when nothing is armed', () => {
+  it('dashes every candidate while nothing is armed', () => {
+    // Before a vertex is picked there is no armed index, and a dashed ray reads
+    // as a proposal rather than as the answer.
     const groups = candidatePreviewGroups(
       [segment(0, { color: 'Red1' }), segment(1, { color: 'Blue2' })],
       TOOL,
@@ -109,6 +111,21 @@ describe('candidatePreviewGroups arming', () => {
       null
     );
     expect(groups.every((group) => group.dashed)).toBe(true);
+  });
+
+  it('leaves a lone candidate solid even before anything arms it', () => {
+    // With one option there is nothing to choose between, so it *is* the crease
+    // you will get — and the tool commits it on the vertex click rather than
+    // asking for a second one.
+    const groups = candidatePreviewGroups(
+      [segment(0, { color: 'Red1' })],
+      TOOL,
+      appearanceFor,
+      ANCHOR,
+      null
+    );
+    expect(groups).toHaveLength(1);
+    expect(groups[0].dashed).toBe(false);
   });
 
   it('leaves other tools alone: one group, no dash opinion', () => {
