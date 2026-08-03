@@ -105,6 +105,20 @@ describe('CpDiagnosticHud', () => {
     expect(rowIds(view)).toEqual(canvasEntries.map((e) => e.message));
   });
 
+  it('counts the headline over every visible entry, not just the naming result', () => {
+    // 21 CAMV errors + 1 Check1 error. The headline counted the naming result's
+    // own entries, so it said 21 over a list holding 22.
+    const camvResult = result(
+      'CheckCamv',
+      Array.from({ length: 21 }, (_, i) => `camv-${i + 1}`)
+    );
+    const lastCommandResult = result('Check1', ['check1-1']);
+    const view = renderHud({ camvResult, lastCommandResult });
+    expect(view.querySelector('.cp-diagnostic-hud__copy span')?.textContent).toBe(
+      '22 Foldability Errors'
+    );
+  });
+
   it('drops every row when the foldability toggle hides the overlay', () => {
     const view = renderHud({
       camvResult: result('CheckCamv', ['camv-1']),

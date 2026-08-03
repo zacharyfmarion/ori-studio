@@ -646,7 +646,6 @@
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
-    "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
     "panels:creasePattern.case_other": "9f949dde1cbf",
     "panels:creasePattern.caseLabel": "15f86e24ed25",
     "panels:creasePattern.commandFailed": "8c45c79c6d11",
@@ -1989,7 +1988,11 @@
     "panels:design.symmetryToolbar": "fef5b4ba327f",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
-    "tools:foldAngleDisplay.opacity": "6062652e10dd"
+    "tools:foldAngleDisplay.opacity": "6062652e10dd",
+    "panels:creasePattern.canvasDiagnostics_other": "0483ec7f8c0f",
+    "panels:creasePattern.diagnostic.errorAndWarning": "438c3aa6fcf5",
+    "panels:creasePattern.diagnostic.warningCountOne_other": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOther_other": "405faac597ac"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2638,7 +2641,6 @@
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
-    "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
     "panels:creasePattern.case_other": "9f949dde1cbf",
     "panels:creasePattern.caseLabel": "15f86e24ed25",
     "panels:creasePattern.commandFailed": "8c45c79c6d11",
@@ -3981,7 +3983,11 @@
     "panels:design.symmetryToolbar": "fef5b4ba327f",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
-    "tools:foldAngleDisplay.opacity": "6062652e10dd"
+    "tools:foldAngleDisplay.opacity": "6062652e10dd",
+    "panels:creasePattern.canvasDiagnostics_other": "0483ec7f8c0f",
+    "panels:creasePattern.diagnostic.errorAndWarning": "438c3aa6fcf5",
+    "panels:creasePattern.diagnostic.warningCountOne_other": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOther_other": "405faac597ac"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4642,7 +4648,6 @@
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
-    "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
     "panels:creasePattern.case_one": "9f949dde1cbf",
     "panels:creasePattern.case_other": "9f949dde1cbf",
     "panels:creasePattern.caseLabel": "15f86e24ed25",
@@ -5999,7 +6004,14 @@
     "panels:design.symmetryToolbar": "fef5b4ba327f",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
-    "tools:foldAngleDisplay.opacity": "6062652e10dd"
+    "tools:foldAngleDisplay.opacity": "6062652e10dd",
+    "panels:creasePattern.canvasDiagnostics_one": "0483ec7f8c0f",
+    "panels:creasePattern.canvasDiagnostics_other": "0483ec7f8c0f",
+    "panels:creasePattern.diagnostic.errorAndWarning": "438c3aa6fcf5",
+    "panels:creasePattern.diagnostic.warningCountOne_one": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOne_other": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOther_one": "405faac597ac",
+    "panels:creasePattern.diagnostic.warningCountOther_other": "405faac597ac"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6660,7 +6672,6 @@
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
-    "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
     "panels:creasePattern.case_one": "9f949dde1cbf",
     "panels:creasePattern.case_other": "9f949dde1cbf",
     "panels:creasePattern.caseLabel": "15f86e24ed25",
@@ -8017,7 +8028,14 @@
     "panels:design.symmetryToolbar": "fef5b4ba327f",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
-    "tools:foldAngleDisplay.opacity": "6062652e10dd"
+    "tools:foldAngleDisplay.opacity": "6062652e10dd",
+    "panels:creasePattern.canvasDiagnostics_one": "0483ec7f8c0f",
+    "panels:creasePattern.canvasDiagnostics_other": "0483ec7f8c0f",
+    "panels:creasePattern.diagnostic.errorAndWarning": "438c3aa6fcf5",
+    "panels:creasePattern.diagnostic.warningCountOne_one": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOne_other": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOther_one": "405faac597ac",
+    "panels:creasePattern.diagnostic.warningCountOther_other": "405faac597ac"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8678,7 +8696,6 @@
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
-    "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
     "panels:creasePattern.case_one": "9f949dde1cbf",
     "panels:creasePattern.case_other": "9f949dde1cbf",
     "panels:creasePattern.caseLabel": "15f86e24ed25",
@@ -10035,7 +10052,14 @@
     "panels:design.symmetryToolbar": "fef5b4ba327f",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
-    "tools:foldAngleDisplay.opacity": "6062652e10dd"
+    "tools:foldAngleDisplay.opacity": "6062652e10dd",
+    "panels:creasePattern.canvasDiagnostics_one": "0483ec7f8c0f",
+    "panels:creasePattern.canvasDiagnostics_other": "0483ec7f8c0f",
+    "panels:creasePattern.diagnostic.errorAndWarning": "438c3aa6fcf5",
+    "panels:creasePattern.diagnostic.warningCountOne_one": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOne_other": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOther_one": "405faac597ac",
+    "panels:creasePattern.diagnostic.warningCountOther_other": "405faac597ac"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10696,7 +10720,6 @@
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
-    "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
     "panels:creasePattern.case_one": "9f949dde1cbf",
     "panels:creasePattern.case_other": "9f949dde1cbf",
     "panels:creasePattern.caseLabel": "15f86e24ed25",
@@ -12053,7 +12076,14 @@
     "panels:design.symmetryToolbar": "fef5b4ba327f",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
-    "tools:foldAngleDisplay.opacity": "6062652e10dd"
+    "tools:foldAngleDisplay.opacity": "6062652e10dd",
+    "panels:creasePattern.canvasDiagnostics_one": "0483ec7f8c0f",
+    "panels:creasePattern.canvasDiagnostics_other": "0483ec7f8c0f",
+    "panels:creasePattern.diagnostic.errorAndWarning": "438c3aa6fcf5",
+    "panels:creasePattern.diagnostic.warningCountOne_one": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOne_other": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOther_one": "405faac597ac",
+    "panels:creasePattern.diagnostic.warningCountOther_other": "405faac597ac"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12714,7 +12744,6 @@
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
-    "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
     "panels:creasePattern.case_one": "9f949dde1cbf",
     "panels:creasePattern.case_other": "9f949dde1cbf",
     "panels:creasePattern.caseLabel": "15f86e24ed25",
@@ -14071,7 +14100,14 @@
     "panels:design.symmetryToolbar": "fef5b4ba327f",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
-    "tools:foldAngleDisplay.opacity": "6062652e10dd"
+    "tools:foldAngleDisplay.opacity": "6062652e10dd",
+    "panels:creasePattern.canvasDiagnostics_one": "0483ec7f8c0f",
+    "panels:creasePattern.canvasDiagnostics_other": "0483ec7f8c0f",
+    "panels:creasePattern.diagnostic.errorAndWarning": "438c3aa6fcf5",
+    "panels:creasePattern.diagnostic.warningCountOne_one": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOne_other": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOther_one": "405faac597ac",
+    "panels:creasePattern.diagnostic.warningCountOther_other": "405faac597ac"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14720,7 +14756,6 @@
     "panels:creasePattern.angleBisectorSelectSegmentToEnd": "5b3a8e51bc99",
     "panels:creasePattern.bringImageToFront": "dd113a7473d9",
     "panels:creasePattern.buildingCreasePattern": "458de595c419",
-    "panels:creasePattern.canvasDiagnostics": "3fd8eba12224",
     "panels:creasePattern.case_other": "9f949dde1cbf",
     "panels:creasePattern.caseLabel": "15f86e24ed25",
     "panels:creasePattern.commandFailed": "8c45c79c6d11",
@@ -16063,6 +16098,10 @@
     "panels:design.symmetryToolbar": "fef5b4ba327f",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
-    "tools:foldAngleDisplay.opacity": "6062652e10dd"
+    "tools:foldAngleDisplay.opacity": "6062652e10dd",
+    "panels:creasePattern.canvasDiagnostics_other": "0483ec7f8c0f",
+    "panels:creasePattern.diagnostic.errorAndWarning": "438c3aa6fcf5",
+    "panels:creasePattern.diagnostic.warningCountOne_other": "176ed5a79779",
+    "panels:creasePattern.diagnostic.warningCountOther_other": "405faac597ac"
   }
 }

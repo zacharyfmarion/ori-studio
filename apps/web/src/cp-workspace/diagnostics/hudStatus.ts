@@ -72,27 +72,74 @@ export function diagnosticHudStatus(
 ): CpDiagnosticHudStatus | null {
   if (!result || !isDiagnosticResultOperation(result.operation)) return null;
   if (!result.diagnostics.length) return null;
-  const entries = result.diagnostic_entries ?? EMPTY_ENTRIES;
-  const label = diagnosticOperationLabel(t, result.operation);
+  return diagnosticHudStatusForEntries(
+    t,
+    diagnosticOperationLabel(t, result.operation),
+    result.diagnostic_entries ?? EMPTY_ENTRIES,
+    options
+  );
+}
+
+/**
+ * The headline for a set of entries, under a check's name.
+ *
+ * Split out from {@link diagnosticHudStatus} because the HUD summarises the
+ * entries it *lists*, and those are the union of the CAMV overlay and any check
+ * command's findings (see `visibleEntries.ts`) — not one result's. Counting from
+ * a single result while listing the union is how "21 Foldability Errors" came to
+ * sit above 22 rows.
+ *
+ * The check name still comes from one result: whichever is naming the headline.
+ * A union has no single operation, and the alternative — "Foldability and
+ * Boundary" — names a check the user did not run.
+ */
+export function diagnosticHudStatusForEntries(
+  t: TFunction,
+  label: string,
+  entries: readonly OristudioCpDiagnosticEntry[],
+  options: { issueOnly?: boolean } = {}
+): CpDiagnosticHudStatus | null {
   const errorCount = entries.filter((entry) => entry.severity === 'error').length;
   const warningCount = entries.filter((entry) => entry.severity === 'warning').length;
   const detail = entries.length === 1 && entries[0] ? cpDiagnosticEntryMessage(t, entries[0]) : null;
 
   if (errorCount > 0) {
-    return {
-      label:
-        errorCount === 1
-          ? t('panels:creasePattern.diagnostic.errorOne', '{{count}} {{label}} Error', {
-              count: errorCount,
-              label,
+    const errors =
+      errorCount === 1
+        ? t('panels:creasePattern.diagnostic.errorOne', '{{count}} {{label}} Error', {
+            count: errorCount,
+            label,
+          })
+        : t('panels:creasePattern.diagnostic.errorOther', '{{count}} {{label}} Errors', {
+            count: errorCount,
+            label,
+          });
+    // Warnings alongside errors get named too. The headline used to report the
+    // error count alone, which read as the whole account of a list that also
+    // held warnings — the row count did not match the number above it.
+    //
+    // Composed from two separately pluralised clauses rather than one string
+    // with two counts: i18next pluralises on a single `count`, and locales with
+    // more than two plural forms cannot be served by picking one of them.
+    if (warningCount > 0) {
+      const warnings =
+        warningCount === 1
+          ? t('panels:creasePattern.diagnostic.warningCountOne', '{{count}} Warning', {
+              count: warningCount,
             })
-          : t('panels:creasePattern.diagnostic.errorOther', '{{count}} {{label}} Errors', {
-              count: errorCount,
-              label,
-            }),
-      detail,
-      tone: 'error',
-    };
+          : t('panels:creasePattern.diagnostic.warningCountOther', '{{count}} Warnings', {
+              count: warningCount,
+            });
+      return {
+        label: t('panels:creasePattern.diagnostic.errorAndWarning', '{{errors}}, {{warnings}}', {
+          errors,
+          warnings,
+        }),
+        detail,
+        tone: 'error',
+      };
+    }
+    return { label: errors, detail, tone: 'error' };
   }
 
   if (warningCount > 0) {

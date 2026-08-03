@@ -52,7 +52,11 @@ export function CpDiagnosticHud() {
       {expanded && entries.length > 0 && (
         <div
           className="cp-diagnostic-hud__list"
-          aria-label={t('panels:creasePattern.canvasDiagnostics', 'Canvas diagnostics')}
+          // The total, not the headline's issue count: the headline names errors
+          // and warnings, and an informational row is neither.
+          aria-label={t('panels:creasePattern.canvasDiagnostics', 'Canvas diagnostics: {{count}}', {
+            count: entries.length,
+          })}
         >
           {entries.slice(0, 12).map((entry) => (
             <button

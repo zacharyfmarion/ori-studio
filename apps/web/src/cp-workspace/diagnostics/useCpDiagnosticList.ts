@@ -15,7 +15,13 @@ import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
-import { diagnosticHudStatus, type CpDiagnosticHudStatus } from './hudStatus';
+import {
+  diagnosticHudStatus,
+  diagnosticHudStatusForEntries,
+  diagnosticOperationLabel,
+  isDiagnosticResultOperation,
+  type CpDiagnosticHudStatus,
+} from './hudStatus';
 import { visibleCpDiagnosticEntries } from './visibleEntries';
 
 export interface CpDiagnosticList {
@@ -39,17 +45,6 @@ export function useCpDiagnosticList(): CpDiagnosticList {
   const activeId = useWorkspaceStore((state) => state.oristudioCpActiveDiagnosticId);
   const setActive = useWorkspaceStore((state) => state.setOristudioCpActiveDiagnostic);
 
-  const status = useMemo(() => {
-    const camvStatus = camvIssuesVisible
-      ? diagnosticHudStatus(t, camvResult, { issueOnly: true })
-      : null;
-    const commandStatus =
-      !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
-        ? null
-        : diagnosticHudStatus(t, lastCommandResult);
-    return camvStatus ?? commandStatus;
-  }, [camvIssuesVisible, camvResult, lastCommandResult, t]);
-
   // The same call the canvas overlay makes.
   //
   // This used to be its own rule that picked ONE result — the CAMV overlay, or
@@ -63,6 +58,36 @@ export function useCpDiagnosticList(): CpDiagnosticList {
     () => visibleCpDiagnosticEntries(camvResult, lastCommandResult, camvIssuesVisible),
     [camvIssuesVisible, camvResult, lastCommandResult]
   );
+
+  // Which check names the headline, and whether a clean result is worth showing.
+  //
+  // The overlay names it whenever it has something to report — CAMV re-runs after
+  // every edit, so it is the standing account of the document — and an explicit
+  // check command names it otherwise. `issueOnly` follows: a clean overlay is
+  // silent, a clean command the user ran on purpose says "OK".
+  const headline = useMemo(() => {
+    const camvNames =
+      camvIssuesVisible && diagnosticHudStatus(t, camvResult, { issueOnly: true }) !== null;
+    if (camvNames && camvResult) return { result: camvResult, issueOnly: true };
+    const command =
+      !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv' ? null : lastCommandResult;
+    return command ? { result: command, issueOnly: false } : null;
+  }, [camvIssuesVisible, camvResult, lastCommandResult, t]);
+
+  // Counted from `entries` — what the list actually shows — rather than from the
+  // naming result's own entries, which is a different set whenever both the
+  // overlay and a check command contribute.
+  const status = useMemo(() => {
+    if (!headline) return null;
+    const { result, issueOnly } = headline;
+    if (!isDiagnosticResultOperation(result.operation) || !result.diagnostics.length) return null;
+    return diagnosticHudStatusForEntries(
+      t,
+      diagnosticOperationLabel(t, result.operation),
+      entries,
+      { issueOnly }
+    );
+  }, [entries, headline, t]);
 
   const selectDiagnostic = useCallback((id: string) => setActive(id), [setActive]);
 
