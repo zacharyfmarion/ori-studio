@@ -318,7 +318,12 @@ fn main() {
         creature(&[(14, 0), (9, 0), (11, 0), (16, 0)], 6, 15, 9),
         star(12, 10),
         bug(6, 6, 11, 13),
-        creature(&[(15, 0), (10, 0), (10, 0), (13, 0), (8, 0), (17, 0)], 5, 16, 10),
+        creature(
+            &[(15, 0), (10, 0), (10, 0), (13, 0), (8, 0), (17, 0)],
+            5,
+            16,
+            10,
+        ),
         on_diagonal_sheet(
             star(6, 10),
             "Star, 6 flaps — diagonal grid",
@@ -371,7 +376,15 @@ fn main() {
         }
         if let Some((size, fitted)) = best {
             layouts.push(json_layout(
-                "No symmetry", None, size, &fitted, case, trials, ok, presolve, fit,
+                "No symmetry",
+                None,
+                size,
+                &fitted,
+                case,
+                trials,
+                ok,
+                presolve,
+                fit,
             ));
         }
 
