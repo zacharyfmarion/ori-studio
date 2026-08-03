@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
+import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
 
 /**
  * Mirror-draw state belongs to the design, not the session.
@@ -10,7 +11,30 @@ import { defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
  * documents nor lives in the browser's stored optimizer options.
  */
 
+const runtimeMocks = vi.hoisted(() => ({
+  exportOristudioBpProjectAsBps: vi.fn(async () => '<bps/>'),
+  restoreOristudioBpProjectSnapshot: vi.fn(),
+}));
+
+vi.mock('../oristudioBpRuntime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../oristudioBpRuntime')>();
+  return {
+    ...actual,
+    exportOristudioBpProjectAsBps: runtimeMocks.exportOristudioBpProjectAsBps,
+    restoreOristudioBpProjectSnapshot: runtimeMocks.restoreOristudioBpProjectSnapshot,
+  };
+});
+
 const { useWorkspaceStore } = await import('../store');
+
+/** Only the fields the history path reads. */
+function bpDocument(): OristudioBpDocumentState {
+  return {
+    activeSurface: 'tree',
+    history: { activeLabel: 'edit' },
+    snapshot: { tree: { sheet: { width: 8, height: 8 }, vertices: [], edges: [] } },
+  } as unknown as OristudioBpDocumentState;
+}
 
 afterEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
@@ -78,5 +102,121 @@ describe('the fold is not a browser preference', () => {
       .getState()
       .setOptions({ symmetryFold: 'diagonal' } as Record<string, unknown>);
     expect(useBpOptimizerUiStore.getState().options).not.toHaveProperty('symmetryFold');
+  });
+});
+
+describe('symmetry rides the undo stack', () => {
+  beforeEach(() => {
+    runtimeMocks.exportOristudioBpProjectAsBps.mockClear().mockResolvedValue('<bps/>');
+    runtimeMocks.restoreOristudioBpProjectSnapshot.mockClear();
+    // `activeEditingContext` is derived by a store subscriber, so it has to be
+    // steered through its inputs rather than set.
+    useWorkspaceStore.setState({
+      oristudioBpDocument: bpDocument(),
+      activePanelId: 'design',
+      workflowTarget: 'box-pleat',
+      pendingDesignChoice: false,
+    });
+    expect(useWorkspaceStore.getState().activeEditingContext).toBe('bp-tree');
+  });
+
+  it('undoes turning mirror draw off', async () => {
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.enabled).toBe(false);
+
+    await useWorkspaceStore.getState().undo();
+
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.enabled).toBe(true);
+  });
+
+  it('undoes a fold change, then redoes it', async () => {
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
+
+    await useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.fold).toBe('book');
+
+    await useWorkspaceStore.getState().redo();
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.fold).toBe('diagonal');
+  });
+
+  it('undoes an unpair, putting the pair back', async () => {
+    useWorkspaceStore.setState({
+      oristudioBpSymmetry: {
+        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+        pairs: [{ v1: 1, v2: 2 }],
+      },
+    });
+    useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([]);
+
+    await useWorkspaceStore.getState().undo();
+
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([{ v1: 1, v2: 2 }]);
+  });
+
+  it('does not rebuild the design for a change that only touched symmetry', async () => {
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
+
+    await useWorkspaceStore.getState().undo();
+
+    // Restoring a design it never touched would be a wasted worker round-trip,
+    // and would throw away the live handle.
+    expect(runtimeMocks.restoreOristudioBpProjectSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('leaves the derived axis alone when restoring', async () => {
+    useWorkspaceStore.setState({
+      oristudioBpSymmetry: {
+        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+        angle: 90,
+        loc: { x: 4, y: 4 },
+      },
+    });
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
+
+    await useWorkspaceStore.getState().undo();
+
+    const symmetry = useWorkspaceStore.getState().oristudioBpSymmetry;
+    expect(symmetry.angle).toBe(90);
+    expect(symmetry.loc).toEqual({ x: 4, y: 4 });
+  });
+
+  it('restores the pairing that went with a design edit, not just the design', async () => {
+    // The case this exists for: deleting a flap under symmetry prunes its pair.
+    // Undo has to bring back both, or the flap returns unpaired.
+    runtimeMocks.restoreOristudioBpProjectSnapshot.mockResolvedValue(bpDocument());
+    useWorkspaceStore.setState({
+      oristudioBpSymmetry: {
+        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+        pairs: [],
+      },
+      oristudioBpHistoryPast: [
+        {
+          snapshot: {
+            bps: '<before/>',
+            selection: { kind: 'bp-none' },
+            symmetry: { enabled: true, fold: 'book', pairs: [{ v1: 1, v2: 2 }] },
+          },
+          label: 'Delete flap',
+          timestamp: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    await useWorkspaceStore.getState().undo();
+
+    expect(runtimeMocks.restoreOristudioBpProjectSnapshot).toHaveBeenCalledWith('<before/>');
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([{ v1: 1, v2: 2 }]);
+  });
+
+  it('records nothing when unpairing a vertex that was not paired', () => {
+    useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(9);
+    expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toEqual([]);
+  });
+
+  it('records nothing with no design open', () => {
+    useWorkspaceStore.setState({ oristudioBpDocument: null });
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
+    expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toEqual([]);
   });
 });

@@ -137,40 +137,63 @@ the `.osf`.
 ## Checklist
 
 ### Phase 1 — symmetry becomes document state
-- [ ] Add `fold` to `OristudioBpSymmetryState`; derive `angle` and `loc` instead
-      of storing them (or leave them in the runtime state but exclude them from
-      what is written — decide at the type, not at the serializer).
-- [ ] Move `symmetryFold` out of `bpOptimizerUiStore`'s persisted options; ignore
+- [x] Add `fold` to `OristudioBpSymmetryState`; `angle`/`loc` stay in the runtime
+      state and are excluded at the type — `BpDocumentSymmetry` is the persisted
+      shape and `OristudioBpSymmetryState` extends it. The serializer narrows
+      explicitly, because the subtype relation means passing the runtime state
+      whole typechecks and then writes the axis anyway.
+- [x] Move `symmetryFold` out of `bpOptimizerUiStore`'s persisted options; ignore
       the stale `localStorage` key on read.
-- [ ] Point `BpOptimizerModal` and `optimizeOristudioBpLayout` at the document's
+- [x] Point `BpOptimizerModal` and `optimizeOristudioBpLayout` at the document's
       fold.
-- [ ] Mark the document dirty when symmetry changes (toggle, pair, unpair, fold).
-- [ ] Correct the "ephemeral / never persisted" comments.
-- [ ] Tests: the fold survives a document swap; a new document does not inherit
+- [x] Mark the document dirty when symmetry changes (toggle, pair, unpair, fold).
+- [x] Correct the "ephemeral / never persisted" comments.
+- [x] Tests: the fold survives a document swap; a new document does not inherit
       the previous one's fold.
 
 ### Phase 2 — persist in `.osf`
-- [ ] Typed `symmetry` field on `NativeBoxPleatDocumentV1`, with the same
+- [x] Typed `symmetry` field on `NativeBoxPleatDocumentV1`, with the same
       doc-comment shape as `images`/`textAnnotations`/`inlineSimulations`.
-- [ ] `NATIVE_PROJECT_SCHEMA_VERSION` → 6; accept 6 in `validate`; default the
+- [x] `NATIVE_PROJECT_SCHEMA_VERSION` → 6; accept 6 in `validate`; default the
       field when absent; `minimumReaderSchemaVersion` stays 1.
-- [ ] Write it in `saveNativeWorkspaceProject`; restore it in the `box-pleat`
+- [x] Write it in `saveNativeWorkspaceProject`; restore it in the `box-pleat`
       load branch, pruning pairs to live vertices.
-- [ ] Tests: round trip preserves pairs/enabled/fold; a v5 file loads with the
+- [x] Tests: round trip preserves pairs/enabled/fold; a v5 file loads with the
       default; a file with garbage in `symmetry` is rejected the way other
       malformed fields are; ids still resolve after the BPS text round trip.
 
 ### Phase 3 — register the loss
-- [ ] Extend `ExportFormat` with `bps`/`bpz` (and the other BP export formats
+- [x] Extend `ExportFormat` with `bps`/`bpz` (and the other BP export formats
       that drop symmetry: `cp`, `fold`, `svg`, `png`).
-- [ ] Add a `symmetry` entry to the registry, non-blocking, counting pairs (plus
+- [x] Add a `symmetry` entry to the registry, non-blocking, counting pairs (plus
       `enabled` — a symmetric design with no explicit pairs still loses the fold).
-- [ ] Call the guard from the BP export actions in `projectSlice.ts`.
-- [ ] Tests: exporting `.bps` with symmetry warns; without symmetry it does not;
+- [x] Call the guard from the BP export actions in `projectSlice.ts`.
+- [x] Tests: exporting `.bps` with symmetry warns; without symmetry it does not;
       `.osf` save never warns.
 
 ### Phase 4 — undo and docs
-- [ ] Include symmetry in `BpHistorySnapshot` so unpair/toggle are undoable, one
-      entry per completed gesture.
-- [ ] Update `apps/web/docs/superset-features.md` to cover the BP surface.
-- [ ] Update `PORTING.md` with where symmetry is persisted and what drops it.
+- [x] Include symmetry in `BpHistorySnapshot` so unpair/toggle are undoable, one
+      entry per completed gesture. A symmetry-only step records `bps: null`,
+      which keeps the recording synchronous — serializing is a worker round-trip,
+      and awaiting one would let two quick toggles record out of order — and lets
+      the restore skip rebuilding a design it never touched. This also fixed a
+      latent bug: undoing a symmetric delete restored the flaps but not the pairs
+      the delete had pruned.
+- [x] Update `apps/web/docs/superset-features.md` to cover the BP surface.
+- [x] Update `PORTING.md` with where symmetry is persisted and what drops it.
+
+## Outcome
+
+All four phases landed. Beyond the checklist:
+
+- Each guard was verified by mutation — reverted in turn, with the covering test
+  confirmed to fail — rather than trusted because the suite was green. The
+  schema-version bump alone would not have been caught, since the format tests
+  assert against `NATIVE_PROJECT_SCHEMA_VERSION` rather than a literal.
+- The fold vocabulary (`SymmetryFold`) moved down into `bpTreeSymmetry`, which
+  now owns the document symmetry type, so the resolver keeps depending on the
+  authoring model instead of the two importing each other.
+- Not done, and deliberately: nothing warns when a design is opened by an older
+  build that will drop symmetry on re-save. That is the documented, accepted
+  degradation for every superset feature (`minimumReaderSchemaVersion` stays 1),
+  not a symmetry-specific gap.

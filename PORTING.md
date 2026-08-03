@@ -114,6 +114,21 @@ are unchanged:
   same thing the diagonal sheet already does — which makes the mirror map
   independent of the sheet size at the cost of an even sheet size.
 
+- **Mirror-draw state is persisted only in `.osf`.** Which flaps mirror which,
+  whether mirror draw is on, and which fold the mirror represents are saved as a
+  typed `symmetry` field on the box-pleat document (native schema v6). Nothing
+  about it enters the Rust `Project` model, so `.bps` and `.bpz` stay
+  byte-faithful with no export-path changes — and correspondingly cannot carry
+  it. `.bps` export warns first, through the shared superset-feature registry in
+  `apps/web/src/lib/supersetFeatures.ts`.
+
+  Upstream reads tolerantly (`Migration.$process` mutates and casts, and its own
+  notes say "All difference will be ignored"), so smuggling symmetry into a
+  `.bps` under a namespaced key would work — and still die, because
+  `Project.toJSON()` rebuilds the file from upstream's model on their next save.
+  Note also that `$getVersionIndex` throws `"Unrecognized version"` on a version
+  it does not know, so the `version` field must always be one upstream published.
+
 ## Origami Simulator (`packages/origami-simulator`)
 
 The vendored reference is `third_party/origami-simulator` at commit

@@ -35,6 +35,7 @@ import {
   buildMirroredBpTreeUpdates,
   bpTreeDeleteIdsWithSymmetry,
   bpTreeSymmetryDefaultLoc,
+  bpDocumentSymmetry,
   defaultBpDocumentSymmetry,
   type BpDocumentSymmetry,
   filterBpTreeSymmetryPairs,
@@ -63,7 +64,12 @@ import {
 } from '../../../engine/oristudioBpTypes';
 import { bpFlapSelection, bpSelectionSize } from '../../../lib/oristudioBpSelection';
 import { runAfterPointerGesture } from '../../../lib/pointerGesture';
-import type { BpHistorySnapshot, OristudioBpSlice, WorkspaceSliceCreator } from '../types';
+import type {
+  BpHistorySnapshot,
+  OristudioBpSlice,
+  OristudioBpSymmetryState,
+  WorkspaceSliceCreator,
+} from '../types';
 
 /**
  * A new Box Pleating design is scaffolded like BP Studio's blank project: a root
@@ -245,6 +251,38 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     });
   };
 
+  /**
+   * Record an undo entry for a change that touches only the mirror-draw state.
+   *
+   * `bps: null` says the design itself is untouched, which is what lets this
+   * stay synchronous — serializing the project is a worker round-trip, and
+   * awaiting one here would let two quick toggles record their entries out of
+   * order. Called *before* the change, so it captures the state to go back to.
+   */
+  const recordSymmetryHistory = (label: string) => {
+    if (!get().oristudioBpDocument) return;
+    const entry = snapshotEntry(
+      {
+        bps: null,
+        selection: get().oristudioBpSelection,
+        symmetry: bpDocumentSymmetry(get().oristudioBpSymmetry),
+      },
+      label
+    );
+    const history = recordSnapshot(
+      { past: get().oristudioBpHistoryPast, future: get().oristudioBpHistoryFuture },
+      entry
+    );
+    set({ oristudioBpHistoryPast: history.past, oristudioBpHistoryFuture: history.future });
+  };
+
+  /** What the undo menu should call a mirror-draw change. */
+  const symmetryEditLabel = (update: Partial<OristudioBpSymmetryState>): string => {
+    if (update.fold !== undefined) return 'Mirror fold';
+    if (update.enabled !== undefined) return update.enabled ? 'Mirror draw on' : 'Mirror draw off';
+    return 'Mirror symmetry';
+  };
+
   // The "before" snapshot for the in-progress gesture. Captured lazily on the
   // first mutation of a gesture and committed as one history entry when the
   // gesture ends (dragging=false). A drag's intermediate steps keep it pending so
@@ -263,7 +301,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     try {
       if (!pendingHistory) {
         const bps = await exportOristudioBpProjectAsBps();
-        pendingHistory = snapshotEntry({ bps, selection: get().oristudioBpSelection }, message);
+        pendingHistory = snapshotEntry(
+          {
+            bps,
+            selection: get().oristudioBpSelection,
+            symmetry: bpDocumentSymmetry(get().oristudioBpSymmetry),
+          },
+          message
+        );
       }
       const nextDocument = await operation(document);
       // Prune ephemeral symmetry pairs to vertices that still exist after the edit,
@@ -514,6 +559,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     setOristudioBpSymmetry: (update) => {
+      recordSymmetryHistory(symmetryEditLabel(update));
       // Saved with the design, so changing it leaves unsaved work — with no
       // `dirty` the close prompt would let it go silently.
       set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, ...update }, dirty: true });
@@ -920,6 +966,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const symmetry = get().oristudioBpSymmetry;
       const pairs = removeBpTreeSymmetryPair(symmetry.pairs, vertexId);
       if (pairs.length === symmetry.pairs.length) return;
+      recordSymmetryHistory('Unpair from mirror');
       set({ oristudioBpSymmetry: { ...symmetry, pairs }, dirty: true });
     },
 

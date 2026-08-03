@@ -659,13 +659,19 @@ export interface CreasePatternSliceActions {
 export type CreasePatternSlice = CreasePatternSliceState & CreasePatternSliceActions;
 
 /**
- * A BP undo/redo snapshot: the serialized project (bps text) plus the selection
- * to restore. BP history is snapshot-based (restore a whole previous state)
- * rather than engine command-replay — see `snapshotHistory`.
+ * A BP undo/redo snapshot: the serialized project (bps text), the selection to
+ * restore, and the mirror-draw state that went with them. BP history is
+ * snapshot-based (restore a whole previous state) rather than engine
+ * command-replay — see `snapshotHistory`.
+ *
+ * `bps` is null for a step that changed only the symmetry, which is how a
+ * symmetry edit records an undo entry without a worker round-trip to serialize a
+ * design it did not touch. Restoring such a step leaves the document alone.
  */
 export interface BpHistorySnapshot {
-  bps: string;
+  bps: string | null;
   selection: OristudioBpSelection;
+  symmetry: BpDocumentSymmetry;
 }
 
 /**
