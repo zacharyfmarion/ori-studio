@@ -17,6 +17,7 @@ pub mod io;
 pub mod model;
 pub mod operations;
 pub mod session;
+pub mod solve_fold_angles;
 pub mod solve_spatial;
 
 use serde::{Deserialize, Serialize};
