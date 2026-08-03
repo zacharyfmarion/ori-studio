@@ -89,3 +89,33 @@ describe('previewSegmentsToStrokes', () => {
     expect(single.dashPatterns).toEqual(grouped.dashPatterns);
   });
 });
+
+describe('per-group dashing leaves every other tool alone', () => {
+  const seg = (x: number) => ({ a: { x: 0, y: 0 }, b: { x, y: 0 } });
+
+  it('draws solid when no group has an opinion and the call says solid', () => {
+    const geometry = previewGroupsToStrokes([{ segments: [seg(1), seg(2)], color: RED }], false);
+    expect(geometry.dashPatterns).toEqual([]);
+    expect([...(geometry.dashSlot ?? [])]).toEqual([0, 0]);
+  });
+
+  it('dashes every segment when the call says dashed', () => {
+    // What the measure guides and the operation frame rely on: one uniform
+    // pattern across the whole draw.
+    const geometry = previewGroupsToStrokes([{ segments: [seg(1), seg(2)], color: RED }], true);
+    expect(geometry.dashPatterns).toHaveLength(1);
+    expect([...(geometry.dashSlot ?? [])]).toEqual([1, 1]);
+  });
+
+  it('lets a group override the call, which is the only new behaviour', () => {
+    const geometry = previewGroupsToStrokes(
+      [
+        { segments: [seg(1)], color: RED, dashed: false },
+        { segments: [seg(2)], color: RED, dashed: true },
+      ],
+      false
+    );
+    expect(geometry.dashPatterns).toHaveLength(1);
+    expect([...(geometry.dashSlot ?? [])]).toEqual([0, 1]);
+  });
+});
