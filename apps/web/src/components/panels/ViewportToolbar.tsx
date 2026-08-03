@@ -310,3 +310,70 @@ export function ViewportLayerMenu<Key extends string>({
     </div>
   );
 }
+
+export interface ViewportChoiceOption<Value extends string | number> {
+  value: Value;
+  label: string;
+}
+
+/**
+ * Single-select sibling of {@link ViewportLayerMenu}, for a toolbar control with
+ * a handful of mutually exclusive choices.
+ */
+export function ViewportChoiceMenu<Value extends string | number>({
+  title,
+  icon,
+  options,
+  value,
+  onChange,
+}: {
+  title: string;
+  icon: ReactNode;
+  options: readonly ViewportChoiceOption<Value>[];
+  value: Value;
+  onChange: (value: Value) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: MouseEvent) => {
+      if (anchorRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open]);
+
+  return (
+    <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={title}
+        isActive={open}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
+      >
+        {icon}
+      </IconButton>
+      {open && (
+        <div className="design-layer-menu" role="menu">
+          {options.map((option) => (
+            <label key={String(option.value)} className="design-layer-option">
+              <input
+                type="radio"
+                checked={option.value === value}
+                onChange={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

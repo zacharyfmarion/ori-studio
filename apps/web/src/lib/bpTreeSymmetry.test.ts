@@ -8,6 +8,7 @@ import {
   bpTreeDeleteIdsWithSymmetry,
   filterBpTreeSymmetryPairs,
   mirrorBpTreeVertexId,
+  removeBpTreeSymmetryPair,
 } from './bpTreeSymmetry';
 
 // A vertical axis through x = 4 (centre of an 8×8 sheet), mirroring left/right.
@@ -141,9 +142,30 @@ describe('pair bookkeeping', () => {
     expect(pairs).toEqual([{ v1: 1, v2: 3 }]);
   });
 
+  it('unpairs from either side of the pair', () => {
+    const pairs = addBpTreeSymmetryPair(addBpTreeSymmetryPair([], 1, 2), 3, 4);
+    expect(removeBpTreeSymmetryPair(pairs, 2)).toEqual([{ v1: 3, v2: 4 }]);
+    expect(removeBpTreeSymmetryPair(pairs, 3)).toEqual([{ v1: 1, v2: 2 }]);
+    expect(removeBpTreeSymmetryPair(pairs, 9)).toEqual(pairs);
+  });
+
   it('drops pairs that reference a removed vertex', () => {
     const t = tree([vertex(0, 4, 4), vertex(1, 2, 6)]);
     const pairs = addBpTreeSymmetryPair([], 1, 2); // vertex 2 no longer exists
     expect(filterBpTreeSymmetryPairs(t, pairs)).toEqual([]);
+  });
+});
+
+describe('mirror pairing', () => {
+  it('gives a vertex exactly one mirror', () => {
+    let pairs = addBpTreeSymmetryPair([], 1, 2);
+    pairs = addBpTreeSymmetryPair(pairs, 2, 3);
+    expect(pairs).toEqual([{ v1: 2, v2: 3 }]);
+  });
+
+  it('ignores a vertex paired with itself', () => {
+    // On-axis is read from the drawing, not declared: a flap drawn on the mirror
+    // line snaps onto it and is inferred as its own mirror.
+    expect(addBpTreeSymmetryPair([], 5, 5)).toEqual([]);
   });
 });

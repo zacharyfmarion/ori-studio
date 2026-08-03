@@ -23,6 +23,7 @@ export const BP_PACKING_VIEW_LAYER_KEYS = [
   'conflicts',
   'devices',
   'selectionShade',
+  'outsidePaper',
 ] as const;
 export type BpPackingViewLayerKey = (typeof BP_PACKING_VIEW_LAYER_KEYS)[number];
 export type BpPackingViewLayers = Record<BpPackingViewLayerKey, boolean>;
@@ -40,6 +41,11 @@ export const DEFAULT_BP_PACKING_VIEW_LAYERS: BpPackingViewLayers = {
   conflicts: true,
   devices: true,
   selectionShade: true,
+  // Off by default, which is the cropping Box Pleating Studio does: it masks
+  // every geometry layer to the sheet, so a flap pushed past the edge is simply
+  // cut off there. Turning this on is an Ori Studio addition — upstream has no
+  // way to see what is outside the paper.
+  outsidePaper: false,
 };
 
 function asRecord(value: unknown): Record<string, unknown> {

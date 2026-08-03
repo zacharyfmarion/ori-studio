@@ -32,6 +32,7 @@
     "layerGrid": "Сетка",
     "layerHinges": "Шарниры",
     "layerLabels": "Подписи",
+    "layerOutsidePaper": "За пределами бумаги",
     "layerRidges": "Гребни",
     "layerRivers": "Реки",
     "layers": "Слои",
@@ -61,6 +62,12 @@
     "warnings": "Предупреждения упаковки Box Pleat",
     "width": "Ширина"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "Книжная складка",
+      "diagonal": "Диагональная складка"
+    }
+  },
   "bpTree": {
     "canvas": "Холст дерева Box Pleat",
     "decreaseLength": "Уменьшить длину",
@@ -79,6 +86,7 @@
     "selectLeafVertexWithLabel": "Выбрать концевую вершину BP {{id}}, {{label}}",
     "selectVertex": "Выбрать вершину BP {{id}}",
     "selectVertexWithLabel": "Выбрать вершину BP {{id}}, {{label}}",
+    "unpair": "Разорвать пару с зеркалом",
     "viewportControls": "Элементы управления областью просмотра дерева Box Pleat"
   },
   "conditions": {

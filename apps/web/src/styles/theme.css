@@ -1243,6 +1243,17 @@
   width: min(460px, calc(100vw - var(--space-6)));
 }
 
+/* Roomier than the shared modal body: this one stacks several labelled rows,
+   and at the shared spacing the labels crowd their controls. */
+.simple-modal__document--bp-optimizer .simple-modal__body {
+  gap: var(--space-5);
+  padding: var(--space-4);
+}
+
+.simple-modal__document--bp-optimizer .bp-optimizer__row {
+  align-items: center;
+}
+
 .bp-optimizer__row {
   display: grid;
   grid-template-columns: 104px minmax(0, 1fr);
@@ -1259,7 +1270,7 @@
 
 .bp-optimizer__control {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -4018,6 +4029,14 @@
   stroke-width: 2;
   stroke-dasharray: 12 8;
   opacity: 0.8;
+  pointer-events: none;
+}
+
+.symmetry-pair-line {
+  stroke: var(--accent-tertiary);
+  stroke-dasharray: 2 6;
+  stroke-linecap: round;
+  opacity: 0.45;
   pointer-events: none;
 }
 
@@ -6832,3 +6851,16 @@ button.bp-packing-alert:focus-visible {
 .simulator-view-controls-panel__colors > .control-row:last-child {
   border-bottom: 0;
 }
+
+.bp-optimizer__hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.bp-optimizer__hint--warn {
+  color: var(--text-warning, var(--text-secondary));
+}
+

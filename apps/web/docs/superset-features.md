@@ -1,16 +1,22 @@
-# Adding a Superset Feature (beyond Oriedita)
+# Adding a Superset Feature (beyond the upstream tools)
 
-Ori Studio's crease-pattern kernel (`oristudio-cp`, in `crates/`) is a faithful
-**port of Oriedita**. Most editor features map onto an Oriedita concept and live
-in that kernel. Occasionally we add something Oriedita has **no concept of** —
-images on the canvas, and whatever comes next. We call these **superset
-features**, because Ori Studio's native `.osf` becomes a *superset* of every
-format it can export.
+Ori Studio's kernels are faithful **ports of upstream tools** — `oristudio-cp` of
+Oriedita, `oristudio-bp` of Box Pleating Studio. Most editor features map onto an
+upstream concept and live in the relevant kernel. Occasionally we add something
+the upstream has **no concept of** — images on the canvas, mirror symmetry on a
+box-pleat design. We call these **superset features**, because Ori Studio's
+native `.osf` becomes a *superset* of every format it can export.
 
-This guide is the pattern for adding one. It generalizes the first
-implementation (images); read it alongside
-[`implementation-plans/image-support-edit-workspace.md`](../../../implementation-plans/image-support-edit-workspace.md),
-which is the worked reference.
+This guide is the pattern for adding one. It is written in terms of the
+crease-pattern surface, which is where most of them are and where the pattern was
+established, but the rules are the same on either surface: substitute the
+relevant kernel, upstream, and export formats. Read it alongside
+[`implementation-plans/image-support-edit-workspace.md`](../../../implementation-plans/image-support-edit-workspace.md)
+(the worked CP reference) and
+[`implementation-plans/bp-symmetry-persistence.md`](../../../implementation-plans/bp-symmetry-persistence.md)
+(the same shape on the Design surface, where the "kernel stays pure" rule meant
+symmetry never entered `oristudio-bp` and `.bps` export needed no changes at
+all).
 
 ---
 
@@ -97,7 +103,9 @@ The native format and its migration live in
 ### 3. Register it as *lossy-on-export*
 Add the feature to the shared **superset-feature registry**
 (`src/lib/supersetFeatures.ts`) so every non-`.osf` export warns the user before
-dropping it:
+dropping it. The registry spans both surfaces; because a design is only ever
+exported to its own upstream's formats, each feature simply names the formats
+that drop it and the two sets do not overlap:
 
 ```ts
 {

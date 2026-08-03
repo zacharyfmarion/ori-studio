@@ -3,6 +3,7 @@ import {
   oristudioBpProjectStateFromRaw,
   type OristudioBpStateFromRawInput,
 } from '../../engine/oristudioBpSnapshotMapper';
+import type { OptimizerSymmetryPayload } from '../../lib/bpOptimizerSymmetry';
 import type {
   OristudioBpDocumentState,
   OristudioBpEditingSurface,
@@ -576,6 +577,11 @@ export async function optimizeOristudioBpLayout(
     options.randomCandidateCount,
     options.useDimension
   );
+  // The request is built engine-side and carried as plain JSON, so a symmetry
+  // requirement is attached here rather than threaded through the wasm signature.
+  if (options.symmetry && request && typeof request === 'object') {
+    (request as { symmetry?: OptimizerSymmetryPayload }).symmetry = options.symmetry;
+  }
   const report = await solveOptimizerRequestWithProgress(request, options.seed, onProgress);
   const { result: solved, events } = optimizerSolveReportParts(report);
   await api.checkOptimizerResult(solved);

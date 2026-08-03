@@ -76,7 +76,12 @@ function setUp(symmetry: { enabled: boolean; pairs?: { v1: number; v2: number }[
     {
       ...useWorkspaceStore.getInitialState(),
       oristudioBpDocument: bpDocument(),
-      oristudioBpSymmetry: { ...AXIS, enabled: symmetry.enabled, pairs: symmetry.pairs ?? [] },
+      oristudioBpSymmetry: {
+        ...AXIS,
+        enabled: symmetry.enabled,
+        fold: 'book',
+        pairs: symmetry.pairs ?? [],
+      },
     },
     true
   );
