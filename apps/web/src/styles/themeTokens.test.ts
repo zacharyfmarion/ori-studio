@@ -36,20 +36,30 @@ const REFERENCE = /var\(\s*(--[\w-]+)\s*([,)])/gu;
 const RUNTIME_INJECTED = /^--radix-/u;
 
 /**
- * Undefined tokens that predate this check, with the number of declarations
- * each one silently kills. Every entry is a real bug — `--shadow-soft` alone
- * means several panels render with no shadow at all — but they are older than
- * the check and fixing them means choosing values, which is a design decision
- * rather than a typo correction.
+ * Undefined tokens this check has found but not fixed, with the number of
+ * declarations each one silently kills. Every entry is a real bug —
+ * `--shadow-soft` alone means several panels render with no shadow — but fixing
+ * them means choosing values, which is a design decision rather than a typo
+ * correction, and usually one for whoever owns that surface.
  *
  * The point of listing them is that the number is visible in a diff when it
- * changes. Lower one as it is fixed; delete the entry at zero. Adding a new one
- * needs a reason in the PR, the same way `OVERSIZED_PANELS` does in
- * `eslint.config.js`.
+ * changes. Lower one as it is fixed; delete the entry at zero. It works like
+ * `OVERSIZED_PANELS` in `eslint.config.js`, including the part where a merge can
+ * grow it: this list is repo-wide, so a branch that never touched `theme.css`
+ * can still trip it after merging a branch that did.
+ *
+ * **If that is why you are here:** the offending token was almost certainly
+ * introduced by the change you merged, not by yours. Add it with a one-line note
+ * saying where it came from and what it breaks, and move on — or fix it, if the
+ * right value is obvious.
  */
 const KNOWN_MISSING: Record<string, number> = {
   '--border-muted': 2,
   '--font-sans': 4,
+  // From main's share-a-CP-as-URL feature (97d709db), caught on merge. Kills
+  // `font-family` on the share-link input, so the base64 payload — the one place
+  // a monospace font actually matters — renders proportional.
+  '--font-mono': 1,
   '--shadow-soft': 1,
   '--surface-base': 1,
   '--surface-raised': 1,
@@ -86,7 +96,8 @@ describe('theme.css custom properties', () => {
       Object.fromEntries(missing),
       'a var() here names a property theme.css never defines, so every declaration ' +
         'using it is dropped by the browser and the rule silently does not apply — ' +
-        'define the token, or give the var() a fallback'
+        'define the token, give the var() a fallback, or, if it arrived with a merge ' +
+        'and is not yours to value, add it to KNOWN_MISSING with a note'
     ).toEqual(KNOWN_MISSING);
   });
 });
