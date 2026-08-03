@@ -209,6 +209,27 @@ describe('symmetry rides the undo stack', () => {
     expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([{ v1: 1, v2: 2 }]);
   });
 
+  it('records nothing when the update changes nothing', () => {
+    useWorkspaceStore.setState({ dirty: false });
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: true, fold: 'book' });
+    expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toEqual([]);
+    expect(useWorkspaceStore.getState().dirty).toBe(false);
+  });
+
+  it('does not hand the live pairs array to a snapshot', () => {
+    useWorkspaceStore.setState({
+      oristudioBpSymmetry: {
+        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+        pairs: [{ v1: 1, v2: 2 }],
+      },
+    });
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
+    const recorded = useWorkspaceStore.getState().oristudioBpHistoryPast.at(-1);
+    expect(recorded?.snapshot.symmetry.pairs).not.toBe(
+      useWorkspaceStore.getState().oristudioBpSymmetry.pairs
+    );
+  });
+
   it('records nothing when unpairing a vertex that was not paired', () => {
     useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(9);
     expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toEqual([]);

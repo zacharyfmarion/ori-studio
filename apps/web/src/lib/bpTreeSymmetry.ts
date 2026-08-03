@@ -102,7 +102,9 @@ export interface BpDocumentSymmetry {
  * must always be derived from the sheet.
  */
 export function bpDocumentSymmetry(state: BpDocumentSymmetry): BpDocumentSymmetry {
-  return { enabled: state.enabled, fold: state.fold, pairs: state.pairs };
+  // Copied, not aliased: the result outlives the call as an undo snapshot or a
+  // serialized file, and sharing the live array makes those hostage to it.
+  return { enabled: state.enabled, fold: state.fold, pairs: [...state.pairs] };
 }
 
 /** Mirror draw as a new design starts: on, book fold, nothing paired yet. */

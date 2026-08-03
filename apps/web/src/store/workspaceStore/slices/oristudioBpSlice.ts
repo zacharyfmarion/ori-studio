@@ -559,10 +559,17 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     setOristudioBpSymmetry: (update) => {
+      const current = get().oristudioBpSymmetry;
+      // An update that changes nothing must not leave an undo step that appears
+      // to do nothing, nor claim the project has unsaved work.
+      const changed = (Object.keys(update) as (keyof OristudioBpSymmetryState)[]).some(
+        (key) => update[key] !== current[key]
+      );
+      if (!changed) return;
       recordSymmetryHistory(symmetryEditLabel(update));
       // Saved with the design, so changing it leaves unsaved work — with no
       // `dirty` the close prompt would let it go silently.
-      set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, ...update }, dirty: true });
+      set({ oristudioBpSymmetry: { ...current, ...update }, dirty: true });
     },
 
     addOristudioBpTreeLeafWithSymmetry: async (parentId, loc, axisTolerance) => {
