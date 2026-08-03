@@ -575,22 +575,52 @@ Browser checklist (owner: Zach):
 
 ## Checklist
 
-- [ ] Phase 1: `viewAlignedBox.ts` + unit tests (identity, 45°, mirror, flat)
-- [ ] Phase 2: `convexQuad.ts` + unit tests; retire the AABB predicates
-- [ ] Phase 3: `ToolInput.viewTransform`; `dragBoxTool` four-corner commit + tests
-- [ ] Phase 4: canvas wiring; `boxSelect` on quads; simplified marquee
-- [ ] Phase 5: `isModelAlignedBoxOperation` + prop; operation frame unchanged
-- [ ] Phase 6: kernel four-corner characterisation tests
-- [ ] Phase 7: `uprightRotationForView` + tests; `textBoxFromDragCorners`;
+- [x] Phase 1: `viewAlignedBox.ts` + unit tests (identity, 45°, mirror, flat)
+- [x] Phase 2: `convexQuad.ts` + unit tests; retire the AABB predicates
+- [x] Phase 3: `ToolInput.viewTransform`; `dragBoxTool` four-corner commit + tests
+- [x] Phase 4: canvas wiring; `boxSelect` on quads; simplified marquee
+- [x] Phase 5: `isModelAlignedBoxOperation` + prop; operation frame unchanged
+- [x] Phase 6: kernel four-corner characterisation tests
+- [x] Phase 7: `uprightRotationForView` + tests; `textBoxFromDragCorners`;
       `onTextCreateBox` takes corners; click- and drag-created text upright
-- [ ] Phase 8: images upright on drop and on insert
-- [ ] Phase 9: folded figures + inline simulations upright; optional view-space
+- [x] Phase 8: images upright on drop and on insert
+- [x] Phase 9: folded figures + inline simulations upright; optional view-space
       packing with a model-space default; row reads as a row at 45°
-- [ ] Phase 10: `.osf` `viewState.camera` + schema v7 + migration test
-- [ ] Phase 10: `.ori` camera reader (degrees → radians, sign verified against a
-      real Oriedita fixture); `savedCreasePatternView` left alone
-- [ ] Phase 10: restored camera beats the `framingKey` auto-fit, with a test that
-      asserts the camera after load (silent failure mode)
-- [ ] tsc / lint / web tests / `cargo test -p oristudio-cp` green
+- [x] Phase 10: `.osf` `viewState.camera` + schema v7 + migration test
+- [ ] Phase 10: `.ori` camera reader — **deferred, see Outcome**
+- [x] Phase 10: restored camera beats the `framingKey` auto-fit (armed by that
+      effect, adopted by `ensureCamera` before the bounds check)
+- [x] tsc / lint / web tests / `cargo test -p oristudio-cp` green
 - [ ] `cp-view-rotation.md` correction appended
 - [ ] Browser checklist passed, including the round trip (item 13)
+
+## Outcome
+
+Phases 1–10 landed across three commits, minus one piece.
+
+**`.ori` camera restore is deferred.** It looked like free parity — Oriedita
+persists `creasePatternCamera` and we already round-trip it — but `bf484295`
+deliberately took that camera *out* of the canvas transform after an `.ori`
+worksheet misplaced everything parked beside its patterns, and the
+folded-figure `scale`/`rotation` compensation in `savedCreasePatternView` exists
+*because* it is out. Restoring the angle would double-count against that
+compensation, and the sign cannot be settled by reasoning: upstream turns the
+screen→object map where `UserCamera.rotation` turns object→screen. It needs a
+real `.ori` saved from Oriedita at a known angle. `.osf` — what the report was
+actually about — is unaffected.
+
+Three things worth recording:
+
+- **The camera was not being written, not merely not read.** A `.osf` saved from
+  a rotated canvas carries `viewState` with display toggles and nothing else, so
+  a read-only fix would have looked plausible and done nothing.
+- **Four new-document reset paths cleared every other CP field but not the
+  camera**, which would have let a fresh document inherit the previous one's
+  view. Found by inspection, not by a failing test — the same silent-failure
+  shape the plan flagged for the auto-fit race.
+- **Degenerate boxes bit twice.** A straight drag makes all four corners
+  collinear: the convex-quad clip treated it as an infinite line (its zero-length
+  cap edges contribute no half-plane) and would have selected the whole document
+  along it, and the first text-box implementation read its angle off corner
+  directions that reverse with the drag, flipping a box dragged up-and-left
+  upside down. Both are covered.
