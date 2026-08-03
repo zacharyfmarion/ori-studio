@@ -126,6 +126,7 @@
     "camvIssues": "Problèmes de pliabilité",
     "diagonalGridlines": "Lignes de grille diagonales",
     "emptyNote": "Ouvrez un patron de plis modifiable pour ajuster les options d'affichage.",
+    "foldAngleDisplay": "Style d’angle de pliage",
     "foldAngleLabels": "Étiquettes d’angle de pliage",
     "grid": "Grille",
     "gridConfiguration": "Configuration de la grille",

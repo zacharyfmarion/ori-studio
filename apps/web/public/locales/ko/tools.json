@@ -97,6 +97,10 @@
     "ariaLabel": "전개도 도구",
     "openEditableFirst": "편집 가능한 전개도를 먼저 여세요"
   },
+  "foldAngleDisplay": {
+    "color": "색상",
+    "opacity": "불투명도"
+  },
   "lineStyle": {
     "blackOneDot": "검정 1점선",
     "blackTwoDot": "검정 2점선",

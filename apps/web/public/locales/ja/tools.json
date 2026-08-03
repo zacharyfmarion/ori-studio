@@ -97,6 +97,10 @@
     "ariaLabel": "展開図ツール",
     "openEditableFirst": "まず編集可能な展開図を開いてください"
   },
+  "foldAngleDisplay": {
+    "color": "カラー",
+    "opacity": "不透明度"
+  },
   "lineStyle": {
     "blackOneDot": "黒（一点鎖線）",
     "blackTwoDot": "黒（二点鎖線）",

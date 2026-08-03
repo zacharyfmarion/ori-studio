@@ -97,6 +97,10 @@
     "ariaLabel": "折痕图工具",
     "openEditableFirst": "请先打开可编辑折痕图"
   },
+  "foldAngleDisplay": {
+    "color": "颜色",
+    "opacity": "不透明度"
+  },
   "lineStyle": {
     "blackOneDot": "黑色单点划线",
     "blackTwoDot": "黑色双点划线",

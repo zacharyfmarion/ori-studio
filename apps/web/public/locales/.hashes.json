@@ -1987,7 +1987,10 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f"
+    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
+    "tools:foldAngleDisplay.color": "6b73191a0a4b",
+    "tools:foldAngleDisplay.opacity": "6062652e10dd"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3977,7 +3980,10 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f"
+    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
+    "tools:foldAngleDisplay.color": "6b73191a0a4b",
+    "tools:foldAngleDisplay.opacity": "6062652e10dd"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -5993,7 +5999,10 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f"
+    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
+    "tools:foldAngleDisplay.color": "6b73191a0a4b",
+    "tools:foldAngleDisplay.opacity": "6062652e10dd"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8009,7 +8018,10 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f"
+    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
+    "tools:foldAngleDisplay.color": "6b73191a0a4b",
+    "tools:foldAngleDisplay.opacity": "6062652e10dd"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10025,7 +10037,10 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f"
+    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
+    "tools:foldAngleDisplay.color": "6b73191a0a4b",
+    "tools:foldAngleDisplay.opacity": "6062652e10dd"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12041,7 +12056,10 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f"
+    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
+    "tools:foldAngleDisplay.color": "6b73191a0a4b",
+    "tools:foldAngleDisplay.opacity": "6062652e10dd"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14057,7 +14075,10 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f"
+    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
+    "tools:foldAngleDisplay.color": "6b73191a0a4b",
+    "tools:foldAngleDisplay.opacity": "6062652e10dd"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16047,6 +16068,9 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f"
+    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
+    "tools:foldAngleDisplay.color": "6b73191a0a4b",
+    "tools:foldAngleDisplay.opacity": "6062652e10dd"
   }
 }
