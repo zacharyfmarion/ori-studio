@@ -1995,7 +1995,10 @@
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
     "tools:cpContext.completion.forcedValley": "982376d0c1f2",
     "tools:cpContext.resetSettings": "daee7606b339",
-    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
+    "tools:cpContext.completionStops": "98b5113f7f35",
+    "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
+    "tools:cpContext.stopOnAuxLabel": "cac32a17ef66"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -3993,7 +3996,10 @@
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
     "tools:cpContext.completion.forcedValley": "982376d0c1f2",
     "tools:cpContext.resetSettings": "daee7606b339",
-    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
+    "tools:cpContext.completionStops": "98b5113f7f35",
+    "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
+    "tools:cpContext.stopOnAuxLabel": "cac32a17ef66"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6017,7 +6023,10 @@
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
     "tools:cpContext.completion.forcedValley": "982376d0c1f2",
     "tools:cpContext.resetSettings": "daee7606b339",
-    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
+    "tools:cpContext.completionStops": "98b5113f7f35",
+    "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
+    "tools:cpContext.stopOnAuxLabel": "cac32a17ef66"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8041,7 +8050,10 @@
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
     "tools:cpContext.completion.forcedValley": "982376d0c1f2",
     "tools:cpContext.resetSettings": "daee7606b339",
-    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
+    "tools:cpContext.completionStops": "98b5113f7f35",
+    "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
+    "tools:cpContext.stopOnAuxLabel": "cac32a17ef66"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10065,7 +10077,10 @@
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
     "tools:cpContext.completion.forcedValley": "982376d0c1f2",
     "tools:cpContext.resetSettings": "daee7606b339",
-    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
+    "tools:cpContext.completionStops": "98b5113f7f35",
+    "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
+    "tools:cpContext.stopOnAuxLabel": "cac32a17ef66"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12089,7 +12104,10 @@
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
     "tools:cpContext.completion.forcedValley": "982376d0c1f2",
     "tools:cpContext.resetSettings": "daee7606b339",
-    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
+    "tools:cpContext.completionStops": "98b5113f7f35",
+    "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
+    "tools:cpContext.stopOnAuxLabel": "cac32a17ef66"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14113,7 +14131,10 @@
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
     "tools:cpContext.completion.forcedValley": "982376d0c1f2",
     "tools:cpContext.resetSettings": "daee7606b339",
-    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
+    "tools:cpContext.completionStops": "98b5113f7f35",
+    "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
+    "tools:cpContext.stopOnAuxLabel": "cac32a17ef66"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16111,6 +16132,9 @@
     "tools:cpContext.completion.forcedMountain": "0b61c3d7370e",
     "tools:cpContext.completion.forcedValley": "982376d0c1f2",
     "tools:cpContext.resetSettings": "daee7606b339",
-    "tools:cpContext.resetSettingsHint": "c3c45ae444ae"
+    "tools:cpContext.resetSettingsHint": "c3c45ae444ae",
+    "tools:cpContext.completionStops": "98b5113f7f35",
+    "tools:cpContext.stopOnAuxAria": "a44a583db6ea",
+    "tools:cpContext.stopOnAuxLabel": "cac32a17ef66"
   }
 }

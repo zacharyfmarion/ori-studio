@@ -106,6 +106,7 @@ describe('cpToolOptionPersistence', () => {
         'fixPrecision',
         'fixPrecisionUse22_5',
         'fixPrecisionUseBp',
+        'foldableLineStopsOnAux',
       ].sort()
     );
   });

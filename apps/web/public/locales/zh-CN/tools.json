@@ -30,6 +30,7 @@
       "indeterminate": "无法判断：此处有未指定的折痕，或另一条折痕从此处穿过而未结束于此。",
       "overdetermined": "单条折痕无法闭合该顶点——至少需要两条。"
     },
+    "completionStops": "延伸至",
     "computedRatio": "计算比率 {{s}} : {{t}}",
     "corners": "角数",
     "count": "数量",
@@ -96,6 +97,8 @@
     "seedPressPendingOther_other": "{{count}} 次种子按压待处理",
     "settingCountOne_other": "{{count}} 项设置",
     "settingCountOther_other": "{{count}} 项设置",
+    "stopOnAuxAria": "允许建议的折痕停在辅助线上",
+    "stopOnAuxLabel": "辅助线",
     "to": "到",
     "use225FixTargets": "使用 22.5 修正目标",
     "useBpFixTargets": "使用 BP 修正目标",

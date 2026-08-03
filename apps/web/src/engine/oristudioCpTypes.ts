@@ -470,6 +470,8 @@ export interface OristudioCpCommandPayload {
   selection_distance?: number;
   replace_selection?: boolean;
   grid_width?: number;
+  /** Whether a completion candidate may end on an auxiliary line. */
+  stop_on_auxiliary?: boolean;
   angle_system_divider?: number;
   angles?: [number, number, number, number, number, number];
   candidate_index?: number;

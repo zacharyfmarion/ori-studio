@@ -19,6 +19,7 @@ export type OristudioCpToolSettingGroup =
   | 'polygon-corners'
   | 'parallel-width'
   | 'candidate-choice'
+  | 'completion-stops'
   | 'line-select-help'
   | 'circle-select-help'
   | 'apply-lines'
@@ -54,6 +55,13 @@ export interface OristudioCpToolOptions {
   polygonCorners: number;
   parallelWidth: number;
   candidateIndex: number | null;
+  /**
+   * Whether a completion candidate may end on an auxiliary line. Off by default:
+   * auxiliary lines are construction guides, so stopping a crease at one is a
+   * surprising place to stop — but a designer who draws guides deliberately wants
+   * exactly that.
+   */
+  foldableLineStopsOnAux: boolean;
   customCircleColor: OristudioCpRgbColor;
   textContent: string;
 }
@@ -79,6 +87,7 @@ export const DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS: OristudioCpToolOptions = {
   polygonCorners: 5,
   parallelWidth: 1,
   candidateIndex: null,
+  foldableLineStopsOnAux: false,
   customCircleColor: { red: 100, green: 200, blue: 200 },
   textContent: '',
 };
@@ -184,6 +193,8 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   DeleteLineTypeSelect: ['delete-line-type'],
   LineSegmentDelete: ['erase-line-type'],
   FixInaccurate: ['fix-precision'],
+  VertexMakeAngularlyFlatFoldable: ['completion-stops'],
+  FoldableLineDraw: ['completion-stops'],
   SelectLineIntersecting: ['line-select-help'],
   UnselectLineIntersecting: ['line-select-help'],
   CreaseDeleteIntersecting: ['line-select-help'],
@@ -230,6 +241,7 @@ const TOOL_OPTION_KEYS_BY_GROUP: Partial<
   'polygon-corners': ['polygonCorners'],
   'parallel-width': ['parallelWidth'],
   'candidate-choice': ['candidateIndex'],
+  'completion-stops': ['foldableLineStopsOnAux'],
   'custom-circle-color': ['customCircleColor'],
 };
 

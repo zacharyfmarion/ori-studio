@@ -96,6 +96,9 @@ export const PERSISTED_CP_TOOL_OPTIONS: Registry = {
   fixPrecision: (value) => finiteIn(value, Number.MIN_VALUE, 1000),
   fixPrecisionUseBp: boolean,
   fixPrecisionUse22_5: boolean,
+  // Where a completion candidate is allowed to stop. A working preference: a
+  // designer either draws guide lines to build against, or does not.
+  foldableLineStopsOnAux: boolean,
 };
 
 /** The opted-in keys, for callers that need to reason about the set. */

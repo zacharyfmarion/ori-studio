@@ -32,6 +32,7 @@
       "indeterminate": "Nicht bestimmbar: Hier ist eine Falte nicht zugewiesen, oder eine andere Falte verläuft durch diesen Punkt, ohne dort zu enden.",
       "overdetermined": "Keine einzelne Falte schließt diesen Knoten — es wären mindestens zwei nötig."
     },
+    "completionStops": "Verlängern bis",
     "computedRatio": "Berechnetes Verhältnis {{s}} : {{t}}",
     "corners": "Ecken",
     "count": "Anzahl",
@@ -104,6 +105,8 @@
     "settingCountOne_other": "{{count}} Einstellung",
     "settingCountOther_one": "{{count}} Einstellungen",
     "settingCountOther_other": "{{count}} Einstellungen",
+    "stopOnAuxAria": "Lässt eine vorgeschlagene Falte an einer Hilfslinie enden",
+    "stopOnAuxLabel": "Hilfslinien",
     "to": "Bis",
     "use225FixTargets": "22.5-Korrekturziele verwenden",
     "useBpFixTargets": "BP-Korrekturziele verwenden",

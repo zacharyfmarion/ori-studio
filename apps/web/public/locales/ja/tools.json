@@ -30,6 +30,7 @@
       "indeterminate": "判定できません。この頂点に未割り当ての折り線があるか、別の折り線がここで終わらずに通過しています。",
       "overdetermined": "1 本の折り線ではこの頂点を閉じられません。少なくとも 2 本必要です。"
     },
+    "completionStops": "延長先",
     "computedRatio": "計算された比率 {{s}} : {{t}}",
     "corners": "角数",
     "count": "数",
@@ -96,6 +97,8 @@
     "seedPressPendingOther_other": "{{count}} 件のシード押下が保留中",
     "settingCountOne_other": "{{count}} 件の設定",
     "settingCountOther_other": "{{count}} 件の設定",
+    "stopOnAuxAria": "提案された折り線を補助線で止められるようにします",
+    "stopOnAuxLabel": "補助線",
     "to": "先",
     "use225FixTargets": "22.5 の修正ターゲットを使用",
     "useBpFixTargets": "BP の修正ターゲットを使用",

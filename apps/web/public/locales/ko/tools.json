@@ -30,6 +30,7 @@
       "indeterminate": "판단할 수 없습니다. 이 정점에 지정되지 않은 접힘선이 있거나, 다른 접힘선이 여기서 끝나지 않고 지나갑니다.",
       "overdetermined": "접힘선 하나로는 이 정점을 닫을 수 없습니다. 최소 두 개가 필요합니다."
     },
+    "completionStops": "연장 대상",
     "computedRatio": "계산된 비율 {{s}} : {{t}}",
     "corners": "꼭짓점",
     "count": "개수",
@@ -96,6 +97,8 @@
     "seedPressPendingOther_other": "시드 클릭 {{count}}개 대기 중",
     "settingCountOne_other": "설정 {{count}}개",
     "settingCountOther_other": "설정 {{count}}개",
+    "stopOnAuxAria": "제안된 접힘선이 보조선에서 멈추도록 허용합니다",
+    "stopOnAuxLabel": "보조선",
     "to": "끝",
     "use225FixTargets": "22.5 수정 대상 사용",
     "useBpFixTargets": "BP 수정 대상 사용",

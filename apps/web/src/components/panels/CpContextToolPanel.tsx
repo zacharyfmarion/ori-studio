@@ -557,6 +557,27 @@ function CpContextToolGroup({
     );
   }
 
+  if (group === 'completion-stops') {
+    return (
+      <div className="cp-context-panel__group">
+        <div className="cp-context-panel__group-title">
+          {t('tools:cpContext.completionStops', 'Extend to')}
+        </div>
+        <CheckboxToolOption
+          label={t('tools:cpContext.stopOnAuxLabel', 'Auxiliary lines')}
+          ariaLabel={t(
+            'tools:cpContext.stopOnAuxAria',
+            'Let a suggested crease stop at an auxiliary line'
+          )}
+          checked={options.foldableLineStopsOnAux}
+          onChange={(foldableLineStopsOnAux) =>
+            setOptions((current) => ({ ...current, foldableLineStopsOnAux }))
+          }
+        />
+      </div>
+    );
+  }
+
   if (group === 'candidate-choice') {
     const usesNearestCandidate =
       activeOperationId !== 'CircleDrawTangentLine' &&

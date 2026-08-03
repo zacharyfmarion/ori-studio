@@ -277,13 +277,27 @@ fn normalise_angle(angle: f64) -> f64 {
 ///
 /// Creases and the paper border always stop a ray — `is_folding_line` already
 /// covers `Black0`, so the border needs nothing special. Auxiliary lines are the
-/// only question, and they live in their own collection rather than being a
-/// colour, so opting in means scanning one more list.
+/// only question.
+///
+/// # Auxiliary means `Cyan3`, not `aux_line_segments`
+///
+/// `CreasePatternModel` has an `aux_line_segments` collection, and it is the
+/// wrong one: the editor draws an auxiliary line as a `Cyan3` segment in
+/// `line_segments`, which is why every check in this crate filters `Cyan3` out
+/// by name rather than by collection. Scanning the other list looks right and
+/// does nothing — the setting would appear to work and never change an answer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CandidateStopTargets {
     /// Stop on auxiliary lines too. Off by default: they are construction guides,
     /// and ending a crease on one would be a surprising place to stop.
     pub auxiliary: bool,
+}
+
+/// Whether a segment is something a candidate ray can end on.
+fn stops_a_ray(segment: &LineSegment, targets: CandidateStopTargets) -> bool {
+    // Creases and the border. Every other colour is an indicator or a helper —
+    // things drawn *about* the pattern, not part of it.
+    segment.color.is_folding_line() || (targets.auxiliary && segment.color == LineColor::Cyan3)
 }
 
 /// Where a candidate ray ends, and what stopped it.
@@ -340,17 +354,9 @@ pub fn stop_candidates(
         .collect();
 
     let mut best: Vec<Option<(f64, CandidateStop)>> = vec![None; candidates.len()];
-    let auxiliary: &[LineSegment] = if targets.auxiliary {
-        &model.aux_line_segments
-    } else {
-        &[]
-    };
 
-    for segment in model.line_segments.iter().chain(auxiliary) {
-        // Creases and the border; helper colours (indicators, circles) are not
-        // things a crease ends on. An auxiliary line reaches here only because
-        // the caller asked for its collection.
-        if !segment.color.is_folding_line() && !targets.auxiliary {
+    for segment in &model.line_segments {
+        if !stops_a_ray(segment, targets) {
             continue;
         }
         let target = StraightLine::from_segment(segment);
@@ -1157,7 +1163,10 @@ mod tests {
     #[test]
     fn auxiliary_lines_stop_a_ray_only_when_asked() {
         let mut model = sheet();
-        model.aux_line_segments.push(LineSegment::with_color(
+        // `Cyan3` in `line_segments` — where the editor actually puts an
+        // auxiliary line. The `aux_line_segments` collection is not what the
+        // drawing tools write to, so a flag reading it would never fire.
+        model.line_segments.push(LineSegment::with_color(
             Point::new(30.0, -100.0),
             Point::new(30.0, 100.0),
             LineColor::Cyan3,
@@ -1175,6 +1184,30 @@ mod tests {
             CandidateStopTargets { auxiliary: true },
         );
         assert!((honoured[0].as_ref().expect("stops somewhere").at.x - 30.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn opting_in_to_auxiliary_lines_does_not_admit_indicator_colours() {
+        // Candidate rays, angle-system fans and the like are drawn *about* the
+        // pattern. Widening the filter to "anything not a crease" would let a
+        // ray end on one of them.
+        let mut model = sheet();
+        for color in [LineColor::Orange4, LineColor::Green6, LineColor::Purple8] {
+            model.line_segments.push(LineSegment::with_color(
+                Point::new(30.0, -100.0),
+                Point::new(30.0, 100.0),
+                color,
+            ));
+        }
+        let stops = stop_candidates(
+            &model,
+            &[ray(10.0, 0.0)],
+            CandidateStopTargets { auxiliary: true },
+        );
+        assert!(
+            (stops[0].as_ref().expect("stops somewhere").at.x - 200.0).abs() < 1e-9,
+            "an indicator colour stopped the ray"
+        );
     }
 
     #[test]

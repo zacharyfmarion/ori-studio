@@ -34,6 +34,7 @@
       "indeterminate": "Não é possível determinar: há um vinco sem atribuição aqui, ou outro vinco passa por este ponto sem terminar nele.",
       "overdetermined": "Nenhum vinco sozinho fecha este vértice — seriam necessários pelo menos dois."
     },
+    "completionStops": "Estender até",
     "computedRatio": "Proporção calculada {{s}} : {{t}}",
     "corners": "Vértices",
     "count": "Quantidade",
@@ -112,6 +113,8 @@
     "settingCountOther_one": "{{count}} configurações",
     "settingCountOther_many": "{{count}} configurações",
     "settingCountOther_other": "{{count}} configurações",
+    "stopOnAuxAria": "Permite que um vinco sugerido pare em uma linha auxiliar",
+    "stopOnAuxLabel": "Linhas auxiliares",
     "to": "Até",
     "use225FixTargets": "Usar alvos de correção 22.5",
     "useBpFixTargets": "Usar alvos de correção BP",

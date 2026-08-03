@@ -34,6 +34,7 @@
       "indeterminate": "Impossible de déterminer : un pli n’est pas assigné ici, ou un autre pli passe par ce point sans s’y terminer.",
       "overdetermined": "Aucun pli seul ne ferme ce sommet : il en faudrait au moins deux."
     },
+    "completionStops": "Prolonger jusqu’à",
     "computedRatio": "Rapport calculé {{s}} : {{t}}",
     "corners": "Sommets",
     "count": "Nombre",
@@ -112,6 +113,8 @@
     "settingCountOther_one": "{{count}} paramètres",
     "settingCountOther_many": "{{count}} paramètres",
     "settingCountOther_other": "{{count}} paramètres",
+    "stopOnAuxAria": "Autorise un pli proposé à s’arrêter sur une ligne auxiliaire",
+    "stopOnAuxLabel": "Lignes auxiliaires",
     "to": "À",
     "use225FixTargets": "Utiliser les cibles de correction 22.5",
     "useBpFixTargets": "Utiliser les cibles de correction BP",

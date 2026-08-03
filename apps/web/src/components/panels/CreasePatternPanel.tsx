@@ -377,6 +377,15 @@ function cpCommandPayloadDefaults(
     payload.grid_width = gridWidth;
   }
 
+  // Where a completion candidate may stop. The ray extension happens in the
+  // kernel, so the setting has to travel with the command.
+  if (
+    operationId === 'VertexMakeAngularlyFlatFoldable' ||
+    operationId === 'FoldableLineDraw'
+  ) {
+    payload.stop_on_auxiliary = toolOptions.foldableLineStopsOnAux;
+  }
+
   if (
     operationId === 'AngleSystem' ||
     operationId === 'DrawCreaseAngleRestricted' ||
