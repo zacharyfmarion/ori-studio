@@ -122,6 +122,22 @@ pub struct OptimizerSymmetry {
     pub axis: SymmetryAxis,
     /// `(flap id, mirror partner id)` for every flap.
     pub partners: Vec<(u32, u32)>,
+    /// Flap ids the user drew on the *negative* side of the mirror — left of a
+    /// vertical axis, below a horizontal one, and the matching half of a
+    /// diagonal.
+    ///
+    /// Purely a labelling preference. A mirror pair occupies two mirrored
+    /// positions, and which member takes which is free as far as the packing is
+    /// concerned, so the solver picks one arbitrarily — in random mode, a
+    /// different one per pair per seed. That reads as flaps swapping sides
+    /// against the tree the user drew.
+    ///
+    /// Advisory rather than a constraint: partners are only interchangeable when
+    /// they are metrically identical, which mirror siblings normally are but
+    /// mirrored *subtrees* are not. Honoured after solving, and only where the
+    /// swap leaves the layout valid — see `orient_result_to_drawing`.
+    #[serde(rename = "negativeSide", default)]
+    pub negative_side: Vec<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -332,7 +348,114 @@ pub fn solve_with_progress(
             &mut on_event,
         )?,
     };
-    optimizer_result_from_vector(request, &vector)
+    let mut result = optimizer_result_from_vector(request, &vector)?;
+    if let Some(request_symmetry) = &request.symmetry {
+        orient_result_to_drawing(request, request_symmetry, &mut result);
+    }
+    Ok(result)
+}
+
+/// Put each mirror pair back on the sides the user drew it.
+///
+/// A pair occupies two mirrored positions; which member takes which is free as
+/// far as the packing is concerned, so the solver settles it arbitrarily — and
+/// in random mode differently per pair per seed, which is what makes flaps look
+/// like they have swapped sides after optimizing.
+///
+/// Swapping two anchors is only sound when the partners are metrically
+/// identical. Mirror siblings hanging off one node are, but a mirrored *subtree*
+/// is not: its members sit at different distances from the rest of the tree, and
+/// exchanging them would break a separation the layout has to honour. Rather
+/// than reason about which case this is, each swap is checked against the same
+/// validator the solve is checked against, and kept only if it holds.
+fn orient_result_to_drawing(
+    request: &OptimizerRequest,
+    symmetry: &OptimizerSymmetry,
+    result: &mut OptimizerResult,
+) {
+    if symmetry.negative_side.is_empty() {
+        return;
+    }
+    let wanted = symmetry
+        .negative_side
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let (nx, ny) = symmetry.axis.grid_normal();
+
+    // Every mirror pair, as indices into the result. Each is listed both ways
+    // round in `partners`, so take it once; `a == b` is a flap that is its own
+    // mirror, sits on the axis, and has no side.
+    let mut pairs = Vec::new();
+    for &(a, b) in &symmetry.partners {
+        if a >= b {
+            continue;
+        }
+        let (Some(ia), Some(ib)) = (
+            result.flaps.iter().position(|flap| flap.id == a),
+            result.flaps.iter().position(|flap| flap.id == b),
+        ) else {
+            continue;
+        };
+        // A pair is only steerable when exactly one member was drawn on the
+        // negative side; an unmentioned or contradictory one keeps what it got.
+        let steer = wanted.contains(&a) != wanted.contains(&b);
+        pairs.push((ia, ib, wanted.contains(&a), steer));
+    }
+
+    let exchange = |layout: &OptimizerResult, ia: usize, ib: usize| {
+        let mut next = layout.clone();
+        next.flaps[ia].x = layout.flaps[ib].x;
+        next.flaps[ia].y = layout.flaps[ib].y;
+        next.flaps[ib].x = layout.flaps[ia].x;
+        next.flaps[ib].y = layout.flaps[ia].y;
+        next
+    };
+    // The two sit at mirrored positions, so the vector between them runs along
+    // the axis normal and its sign says which is on which side. Asking it of the
+    // pair rather than of the axis keeps this free of where the axis sits and of
+    // which coordinates are measured from the sheet centre.
+    let agrees = |layout: &OptimizerResult, ia: usize, ib: usize, a_negative: bool| {
+        let side = nx * (layout.flaps[ia].x - layout.flaps[ib].x)
+            + ny * (layout.flaps[ia].y - layout.flaps[ib].y);
+        side == 0.0 || (side < 0.0) == a_negative
+    };
+    let misplaced = |layout: &OptimizerResult| {
+        pairs
+            .iter()
+            .filter(|&&(ia, ib, a_negative, steer)| steer && !agrees(layout, ia, ib, a_negative))
+            .count()
+    };
+
+    // Reflecting the whole layout is the one exchange that is always sound:
+    // every flap lands exactly where its own mirror was, so no separation
+    // changes. Take it first, when it agrees with more of the drawing than what
+    // the solver returned — that alone settles a layout that came back wholly
+    // back-to-front.
+    let mut reflected = result.clone();
+    for &(ia, ib, _, _) in &pairs {
+        reflected = exchange(&reflected, ia, ib);
+    }
+    if misplaced(&reflected) < misplaced(result) {
+        *result = reflected;
+    }
+
+    // Whatever is still on the wrong side is exchanged on its own. That is only
+    // sound when the partners are metrically identical — mirror siblings off one
+    // node are, a mirrored *subtree* is not, since its members sit at different
+    // distances from the rest of the tree. Rather than reason about which case
+    // this is, each exchange is put to the same validator the solve answers to,
+    // and kept only if it holds. Where it does not, the packing wins and the
+    // pair keeps the side the solver gave it.
+    for &(ia, ib, a_negative, steer) in &pairs {
+        if !steer || agrees(result, ia, ib, a_negative) {
+            continue;
+        }
+        let swapped = exchange(result, ia, ib);
+        if validate_optimizer_packing(request, &swapped).is_ok() {
+            *result = swapped;
+        }
+    }
 }
 
 fn check_cancelled(should_cancel: &mut impl FnMut() -> bool) -> BpResult<()> {
@@ -908,6 +1031,19 @@ pub mod kernel {
                 Self::HorizontalHalf => (x, -y - height),
                 Self::MainDiagonal => (y, x),
                 Self::AntiDiagonal => (-y - height, -x - width),
+            }
+        }
+
+        /// A vector along the axis normal, pointing to the positive side.
+        ///
+        /// Not normalized: every use compares a sign, and `mirror_grid` puts
+        /// `p - mirror(p)` along this direction by construction.
+        pub fn grid_normal(self) -> (f64, f64) {
+            match self {
+                Self::VerticalHalf => (1.0, 0.0),
+                Self::HorizontalHalf => (0.0, 1.0),
+                Self::MainDiagonal => (1.0, -1.0),
+                Self::AntiDiagonal => (1.0, 1.0),
             }
         }
 
