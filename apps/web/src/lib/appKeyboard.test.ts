@@ -69,7 +69,9 @@ describe('app keyboard shortcuts', () => {
     // Deselecting is only the first rung of the CP ladder (hand tool, then
     // selection, then the active tool), and only the panel knows which applies —
     // so the app layer must not answer Escape itself in that context.
-    const viewport = vi.fn();
+    // Claims whatever it is asked, as the real crease-pattern executor does for
+    // Escape. A viewport that answers nothing declines and the chord moves on.
+    const viewport = vi.fn(() => true);
     cleanups.push(registerViewportShortcutExecutor('crease-pattern', viewport));
     const actions = createActions(
       selectEverything(createSampleProject()),
@@ -89,7 +91,9 @@ describe('app keyboard shortcuts', () => {
     // The regression this replaces: Escape was scoped to the panel container and
     // skipped for any focused button, so it did nothing right after clicking a
     // tool in the rail or a control on a floating toolbar.
-    const viewport = vi.fn();
+    // Claims whatever it is asked, as the real crease-pattern executor does for
+    // Escape. A viewport that answers nothing declines and the chord moves on.
+    const viewport = vi.fn(() => true);
     cleanups.push(registerViewportShortcutExecutor('crease-pattern', viewport));
     const actions = createActions({ kind: 'tree' }, { activeEditingContext: 'crease-pattern' });
     const button = document.body.appendChild(document.createElement('button'));
@@ -106,7 +110,9 @@ describe('app keyboard shortcuts', () => {
   });
 
   it('leaves Escape to a focused text editor rather than the viewport', () => {
-    const viewport = vi.fn();
+    // Claims whatever it is asked, as the real crease-pattern executor does for
+    // Escape. A viewport that answers nothing declines and the chord moves on.
+    const viewport = vi.fn(() => true);
     cleanups.push(registerViewportShortcutExecutor('crease-pattern', viewport));
     const actions = createActions({ kind: 'tree' }, { activeEditingContext: 'crease-pattern' });
     const editor = document.body.appendChild(document.createElement('div'));

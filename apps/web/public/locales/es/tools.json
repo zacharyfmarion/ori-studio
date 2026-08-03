@@ -127,6 +127,10 @@
     "ariaLabel": "Herramientas de patrón de pliegues",
     "openEditableFirst": "Abre primero un patrón de pliegues editable"
   },
+  "foldAngleDisplay": {
+    "color": "Color",
+    "opacity": "Opacidad"
+  },
   "lineStyle": {
     "blackOneDot": "Negro de un punto",
     "blackTwoDot": "Negro de dos puntos",

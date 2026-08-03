@@ -127,6 +127,10 @@
     "ariaLabel": "Outils de patron de plis",
     "openEditableFirst": "Ouvrez d'abord un patron de plis modifiable"
   },
+  "foldAngleDisplay": {
+    "color": "Couleur",
+    "opacity": "Opacité"
+  },
   "lineStyle": {
     "blackOneDot": "Noir à un point",
     "blackTwoDot": "Noir à deux points",

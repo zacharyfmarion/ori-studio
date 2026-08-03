@@ -71,6 +71,25 @@ export const ORISTUDIO_CP_LINE_STYLES: readonly OristudioCpLineStyle[] = [
   'black-two-dot',
 ];
 
+/**
+ * Which channel a non-180 crease spends to show its fold angle.
+ *
+ * The two are alternatives, not a spectrum. `color` ramps hue, which costs the
+ * mountain/valley reading as the fold flattens — the ramp converges both to the
+ * same anchor at 0. `opacity` leaves hue alone, so `Red1` stays red and `Blue2`
+ * stays blue at every angle, and spends alpha instead. Composing them would give
+ * up the one property that makes `opacity` worth having.
+ *
+ * There is deliberately no "off": every member still encodes the angle, so a
+ * non-180 crease can never render as a full fold.
+ */
+export type OristudioCpFoldAngleDisplay = 'color' | 'opacity';
+
+export const ORISTUDIO_CP_FOLD_ANGLE_DISPLAYS: readonly OristudioCpFoldAngleDisplay[] = [
+  'color',
+  'opacity',
+];
+
 export const ORISTUDIO_CP_MIN_LINE_WIDTH = 1;
 export const ORISTUDIO_CP_MAX_LINE_WIDTH = 8;
 export const ORISTUDIO_CP_MIN_POINT_SIZE = 0;
@@ -87,11 +106,14 @@ export interface OristudioCpViewportOptions {
    * always distinguishes a non-180 crease and is not gated by this.
    */
   foldAngleLabelsVisible?: boolean;
+  /** Which channel a non-180 crease spends on its angle. Never "off". */
+  foldAngleDisplay?: OristudioCpFoldAngleDisplay;
   lineStyle?: OristudioCpLineStyle;
   lineWidth?: number;
   pointSize?: number;
 }
 
+export const DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY: OristudioCpFoldAngleDisplay = 'color';
 export const DEFAULT_ORISTUDIO_CP_LINE_STYLE: OristudioCpLineStyle = 'color';
 export const DEFAULT_ORISTUDIO_CP_LINE_WIDTH = 1;
 export const DEFAULT_ORISTUDIO_CP_POINT_SIZE = 1;
@@ -143,6 +165,7 @@ export const DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS: OristudioCpViewportOptions =
   snapToVertices: true,
   snapToLines: true,
   camvIssuesVisible: true,
+  foldAngleDisplay: DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
   lineStyle: 'color',
   lineWidth: 1,
   pointSize: 1,

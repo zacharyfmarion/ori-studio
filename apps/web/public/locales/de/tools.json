@@ -119,6 +119,10 @@
     "ariaLabel": "Faltmuster-Werkzeuge",
     "openEditableFirst": "Öffnen Sie zuerst ein bearbeitbares Faltmuster"
   },
+  "foldAngleDisplay": {
+    "color": "Farbe",
+    "opacity": "Deckkraft"
+  },
   "lineStyle": {
     "blackOneDot": "Schwarz mit einem Punkt",
     "blackTwoDot": "Schwarz mit zwei Punkten",

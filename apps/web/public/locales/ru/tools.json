@@ -135,6 +135,10 @@
     "ariaLabel": "Инструменты паттерна складок",
     "openEditableFirst": "Сначала откройте редактируемый паттерн складок"
   },
+  "foldAngleDisplay": {
+    "color": "Цвет",
+    "opacity": "Непрозрачность"
+  },
   "lineStyle": {
     "blackOneDot": "Чёрная с одной точкой",
     "blackTwoDot": "Чёрная с двумя точками",

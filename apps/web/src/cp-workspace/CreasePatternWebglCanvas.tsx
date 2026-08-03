@@ -83,6 +83,7 @@ import {
 import {
   cpVertexId,
   orieditaGridLinesForModelBounds,
+  type OristudioCpFoldAngleDisplay,
   type OristudioCpLineStyle,
   getOrieditaGridBasis,
 } from '../lib/creasePatternViewport';
@@ -677,6 +678,8 @@ export interface CreasePatternWebglCanvasProps {
   mode: 'mvf' | 'agrh';
   /** Oriedita line style: how each crease colour is inked and dashed. */
   lineStyle: OristudioCpLineStyle;
+  /** Which channel a non-180 crease spends on its fold angle. */
+  foldAngleDisplay: OristudioCpFoldAngleDisplay;
   /** `--cp-line-width` value driving stroke thickness. */
   lineWidth: number;
   /** Explicit crease points in model coordinates. */
@@ -781,6 +784,7 @@ export function CreasePatternWebglCanvas({
   onRequestContextMenu,
   mode,
   lineStyle,
+  foldAngleDisplay,
   lineWidth,
   points,
   vertices,
@@ -1061,14 +1065,17 @@ export function CreasePatternWebglCanvas({
       // path. The two builders are byte-identical (guarded by the parity gate), so
       // the structured fallback below is only for the rare state that carries no
       // geometry (e.g. a fixture); it never runs on a real edit.
-      // Hue a shallower crease shifts toward. Deliberately not the canvas
-      // colour: washing toward the background is what made lines read as
-      // thinner. See foldAngle/foldAngleRamp.ts.
-      const foldAngleAnchor = readCssVarColor(
-        document.documentElement,
-        FOLD_ANGLE_ANCHOR_VAR,
-        FOLD_ANGLE_ANCHOR_FALLBACK
-      );
+      // The anchor is only read by the `color` mode, but resolving it
+      // unconditionally keeps the two modes symmetric at the call site — the
+      // builders take one fold-angle value either way.
+      const foldAngle = {
+        display: foldAngleDisplay,
+        anchor: readCssVarColor(
+          document.documentElement,
+          FOLD_ANGLE_ANCHOR_VAR,
+          FOLD_ANGLE_ANCHOR_FALLBACK
+        ),
+      };
       if (geometry) {
         return cpGeometryStrokesToScene(
           geometry,
@@ -1076,7 +1083,7 @@ export function CreasePatternWebglCanvas({
           dashPatterns,
           selection,
           move,
-          foldAngleAnchor
+          foldAngle
         ).strokes;
       }
       return cpSnapshotToScene(
@@ -1085,12 +1092,15 @@ export function CreasePatternWebglCanvas({
         dashPatterns,
         selection,
         move,
-        foldAngleAnchor
+        foldAngle
       ).strokes;
     },
     // currentTheme drives DOM-resolved colours; rebuild callers on theme change.
+    // foldAngleDisplay belongs here for the same reason lineStyle does: leave it
+    // out and switching the View panel's dropdown does nothing until some
+    // unrelated edit happens to invalidate this callback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lineSegments, geometry, mode, lineStyle, selectedLineSet, currentTheme]
+    [lineSegments, geometry, mode, lineStyle, foldAngleDisplay, selectedLineSet, currentTheme]
   );
   useEffect(() => {
     buildStrokesRef.current = buildStrokes;
@@ -2959,11 +2969,14 @@ export function CreasePatternWebglCanvas({
             toolCommandPreviewSegments,
             toolPreviewColor,
             createCpLineAppearanceResolver(lineStyle, mode, document.documentElement),
-            readCssVarColor(
-              document.documentElement,
-              FOLD_ANGLE_ANCHOR_VAR,
-              FOLD_ANGLE_ANCHOR_FALLBACK
-            ),
+            {
+              display: foldAngleDisplay,
+              anchor: readCssVarColor(
+                document.documentElement,
+                FOLD_ANGLE_ANCHOR_VAR,
+                FOLD_ANGLE_ANCHOR_FALLBACK
+              ),
+            },
             armedCandidateRef.current
           ),
           // Creases that already exist and are merely being pointed at, in the
@@ -2992,6 +3005,7 @@ export function CreasePatternWebglCanvas({
     activeToolDashedPreview,
     lineStyle,
     mode,
+    foldAngleDisplay,
     currentTheme,
   ]);
   useEffect(() => {

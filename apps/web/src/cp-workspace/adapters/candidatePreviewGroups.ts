@@ -9,8 +9,10 @@
  * crease from the one the commit makes.
  *
  * So a candidate that names a crease is resolved exactly the way the document
- * resolves it — the same appearance table, the same fold-angle ramp — and one
- * that does not keeps the active colour, unchanged.
+ * resolves it — the same appearance table, and {@link foldAngleInk} rather than
+ * one channel of it, so a candidate follows the View panel's fold-angle display
+ * mode like every other crease. One that names no crease keeps the active
+ * colour, unchanged.
  *
  * # Dashed proposals, one solid answer
  *
@@ -21,7 +23,8 @@
  * commit has to be distinguishable *before* the click — otherwise picking is a
  * guess. So the armed candidate is solid, and it is the only one.
  */
-import { applyFoldAngleRamp } from '../foldAngle/foldAngleRamp';
+import { foldAngleInk } from '../foldAngle/foldAngleRamp';
+import type { OristudioCpFoldAngleDisplay } from '../../lib/creasePatternViewport';
 import type { PreviewStrokeGroup } from '../renderer/previewStrokes';
 import type { Rgba } from '../renderer/types';
 import type { ToolPreviewSegment } from '../tools/types';
@@ -43,16 +46,16 @@ export function candidatePreviewGroups(
   segments: readonly ToolPreviewSegment[],
   fallback: Rgba,
   appearanceFor: CpLineAppearanceFor,
-  foldAngleAnchor: Rgba,
+  foldAngle: { display: OristudioCpFoldAngleDisplay; anchor: Rgba },
   armed: number | null = null
 ): PreviewStrokeGroup[] {
   if (segments.length === 0) return [];
   const inkFor = (segment: ToolPreviewSegment): Rgba =>
     segment.crease
-      ? applyFoldAngleRamp(
+      ? foldAngleInk(
           appearanceFor(segment.crease.color).color,
           segment.crease.foldMagnitude,
-          foldAngleAnchor
+          foldAngle
         )
       : fallback;
 

@@ -6438,11 +6438,6 @@ button.bp-packing-alert:focus-visible {
   outline-offset: 1px;
 }
 
-.bp-tree-edge-editor__max {
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
 .bp-name-editor {
   position: absolute;
   top: var(--space-3);

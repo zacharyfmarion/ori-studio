@@ -255,10 +255,16 @@ pub fn bp_add_tree_leaf(handle: u32, at: u32, length: f64) -> Result<JsValue, Js
     })
 }
 
+/// Delete a batch of leaves in one round, as BP Studio's `$delete(vertices)`
+/// does. The batch matters: `remove_leaf` simulates the whole round before
+/// touching the tree, so the cascade (a parent that becomes a leaf once its
+/// child goes) and the `MIN_VERTICES` floor are decided across every id at
+/// once, rather than once per call.
 #[wasm_bindgen]
-pub fn bp_delete_tree_leaf(handle: u32, id: u32) -> Result<JsValue, JsValue> {
+pub fn bp_delete_tree_leaves(handle: u32, ids: JsValue) -> Result<JsValue, JsValue> {
+    let ids = from_js_value::<Vec<u32>>(ids)?;
     with_session_mut(handle, |session| {
-        session.remove_leaf(vec![id]).map_err(to_js_bp_error)?;
+        session.remove_leaf(ids).map_err(to_js_bp_error)?;
         to_js_value(&session.project_for_export())
     })
 }

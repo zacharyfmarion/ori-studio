@@ -6,7 +6,7 @@ import type { ToolPreviewSegment } from '../tools/types';
 
 const RED: Rgba = [1, 0, 0, 1];
 const BLUE: Rgba = [0, 0, 1, 1];
-const ANCHOR: Rgba = [1, 0, 1, 1];
+const FOLD_ANGLE = { display: 'color' as const, anchor: [1, 0, 1, 1] as Rgba };
 const TOOL: Rgba = [0.5, 0.5, 0.5, 1];
 
 const appearanceFor = (color: string) => ({
@@ -24,7 +24,7 @@ describe('candidatePreviewGroups', () => {
       [segment(0), segment(1)],
       TOOL,
       appearanceFor,
-      ANCHOR
+      FOLD_ANGLE
     );
     expect(groups).toHaveLength(1);
     expect(groups[0].color).toEqual(TOOL);
@@ -32,7 +32,7 @@ describe('candidatePreviewGroups', () => {
   });
 
   it('has nothing to draw for no candidates', () => {
-    expect(candidatePreviewGroups([], TOOL, appearanceFor, ANCHOR)).toEqual([]);
+    expect(candidatePreviewGroups([], TOOL, appearanceFor, FOLD_ANGLE)).toEqual([]);
   });
 
   it('strokes a candidate in the crease it would commit', () => {
@@ -40,7 +40,7 @@ describe('candidatePreviewGroups', () => {
       [segment(0, { color: 'Red1' })],
       TOOL,
       appearanceFor,
-      ANCHOR
+      FOLD_ANGLE
     );
     expect(groups).toHaveLength(1);
     expect(groups[0].color).toEqual(RED);
@@ -52,7 +52,7 @@ describe('candidatePreviewGroups', () => {
       [segment(0, { color: 'Red1', foldMagnitude: half })],
       TOOL,
       appearanceFor,
-      ANCHOR
+      FOLD_ANGLE
     );
     // Halfway between the ink and the anchor: the green channel is untouched by
     // both, and the blue channel is what moves.
@@ -65,7 +65,7 @@ describe('candidatePreviewGroups', () => {
       [segment(0, { color: 'Red1' }), segment(1, { color: 'Blue2' }), segment(2, { color: 'Red1' })],
       TOOL,
       appearanceFor,
-      ANCHOR
+      FOLD_ANGLE
     );
     expect(groups).toHaveLength(2);
     const red = groups.find((group) => group.color === RED || group.color[0] === 1);
@@ -77,7 +77,7 @@ describe('candidatePreviewGroups', () => {
       [segment(0, { color: 'Red1' }), segment(1)],
       TOOL,
       appearanceFor,
-      ANCHOR
+      FOLD_ANGLE
     );
     expect(groups.map((group) => group.color)).toContainEqual(TOOL);
   });
@@ -89,7 +89,7 @@ describe('candidatePreviewGroups arming', () => {
       [segment(0, { color: 'Red1' }), segment(1, { color: 'Red1' })],
       TOOL,
       appearanceFor,
-      ANCHOR,
+      FOLD_ANGLE,
       1
     );
     // Same colour, so without the armed split these would be one group.
@@ -107,7 +107,7 @@ describe('candidatePreviewGroups arming', () => {
       [segment(0, { color: 'Red1' }), segment(1, { color: 'Blue2' })],
       TOOL,
       appearanceFor,
-      ANCHOR,
+      FOLD_ANGLE,
       null
     );
     expect(groups.every((group) => group.dashed)).toBe(true);
@@ -121,7 +121,7 @@ describe('candidatePreviewGroups arming', () => {
       [segment(0, { color: 'Red1' })],
       TOOL,
       appearanceFor,
-      ANCHOR,
+      FOLD_ANGLE,
       null
     );
     expect(groups).toHaveLength(1);
@@ -131,8 +131,39 @@ describe('candidatePreviewGroups arming', () => {
   it('leaves other tools alone: one group, no dash opinion', () => {
     // Arming is the completion tool's affordance; every other tool passes no
     // index and must keep the single undashed group it had before.
-    const groups = candidatePreviewGroups([segment(0), segment(1)], TOOL, appearanceFor, ANCHOR);
+    const groups = candidatePreviewGroups([segment(0), segment(1)], TOOL, appearanceFor, FOLD_ANGLE);
     expect(groups).toHaveLength(1);
     expect(groups[0].dashed).toBeUndefined();
+  });
+});
+
+describe('candidates follow the fold-angle display mode', () => {
+  // The point of colouring a candidate at all is that it looks like the crease
+  // the commit makes. If the document fades by angle while candidates hue-ramp,
+  // that promise breaks — so both go through `foldAngleInk`, not one channel.
+  const half = 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE;
+
+  it('hue-ramps under the colour mode', () => {
+    const [group] = candidatePreviewGroups(
+      [segment(0, { color: 'Red1', foldMagnitude: half })],
+      TOOL,
+      appearanceFor,
+      { display: 'color', anchor: [1, 0, 1, 1] },
+      null
+    );
+    expect(group.color[2]).toBeCloseTo(0.5, 6);
+    expect(group.color[3]).toBe(1);
+  });
+
+  it('fades under the opacity mode instead', () => {
+    const [group] = candidatePreviewGroups(
+      [segment(0, { color: 'Red1', foldMagnitude: half })],
+      TOOL,
+      appearanceFor,
+      { display: 'opacity', anchor: [1, 0, 1, 1] },
+      null
+    );
+    expect(group.color.slice(0, 3)).toEqual(RED.slice(0, 3));
+    expect(group.color[3]).toBeLessThan(1);
   });
 });

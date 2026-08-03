@@ -119,6 +119,10 @@
     "ariaLabel": "Crease pattern tools",
     "openEditableFirst": "Open an editable crease pattern first"
   },
+  "foldAngleDisplay": {
+    "color": "Color",
+    "opacity": "Opacity"
+  },
   "lineStyle": {
     "blackOneDot": "Black one-dot",
     "blackTwoDot": "Black two-dot",
