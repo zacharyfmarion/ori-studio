@@ -2680,7 +2680,7 @@
      `--space-6`), so the declaration was invalid at computed-value time and
      dropped, leaving `max-width: none`. Nothing revealed it while the rows were
      still in normal flow. */
-  --cp-diagnostic-hud-width: min(320px, calc(100% - var(--space-4) * 2));
+  --cp-diagnostic-hud-width: min(360px, calc(100% - var(--space-4) * 2));
 
   /* Collapsed, the badge is exactly as wide as its headline — no `width`, so an
      absolutely positioned box shrinks to fit. The cap still applies, so a long

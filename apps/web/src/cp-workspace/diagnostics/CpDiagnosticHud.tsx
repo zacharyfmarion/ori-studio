@@ -36,8 +36,8 @@ import { useCpDiagnosticList } from './useCpDiagnosticList';
  * shows up as the thumb jumping while you scroll into new rows.
  *
  * One line rather than the average: measured across all fifteen English
- * foldability messages at the panel's width, ten come out at exactly this height
- * and five wrap to two. The common case is the better anchor, and the average
+ * foldability messages at the panel's width, thirteen come out at exactly this
+ * height and two wrap. The common case is the better anchor, and the average
  * would be a constant that only holds for one locale — the longer languages wrap
  * more.
  */
