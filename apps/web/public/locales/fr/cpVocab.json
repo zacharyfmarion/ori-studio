@@ -396,8 +396,7 @@
       "disabledReason": "Prêt",
       "steps": {
         "0": "Choisissez le sommet",
-        "1": "Choisissez la ligne candidate",
-        "2": "Choisissez le pli de destination"
+        "1": "Choisissez le pli à ajouter"
       }
     },
     "cp_action_foldable_line_input": {
@@ -1394,8 +1393,7 @@
       },
       "steps": {
         "0": "Sélectionnez un sommet qui ne se plie pas de façon cohérente.",
-        "1": "Sélectionnez l’un des plis proposés.",
-        "2": "Sélectionnez une ligne cible vers laquelle prolonger."
+        "1": "Sélectionnez l’un des plis proposés."
       },
       "notes": {
         "0": "Lorsque tous les plis sont à pliage complet, il s’agit du théorème de Kawasaki et le sommet doit avoir un nombre impair de lignes. Si un pli porte un angle de pliage partiel, la proposition détermine aussi le mont/vallée et l’angle du nouveau pli."

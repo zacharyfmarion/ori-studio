@@ -396,8 +396,7 @@
       "disabledReason": "Ready",
       "steps": {
         "0": "Pick vertex",
-        "1": "Pick candidate line",
-        "2": "Pick destination crease"
+        "1": "Pick the crease to add"
       }
     },
     "cp_action_foldable_line_input": {
@@ -1394,8 +1393,7 @@
       },
       "steps": {
         "0": "Select a vertex that does not fold consistently.",
-        "1": "Select one of the suggested creases.",
-        "2": "Select a target line to extend to."
+        "1": "Select one of the suggested creases."
       },
       "notes": {
         "0": "With all creases at a full fold this is Kawasaki’s theorem, and the vertex needs an odd number of lines. Where a crease carries a partial fold angle, the suggestion also sets the new crease’s mountain/valley and angle."

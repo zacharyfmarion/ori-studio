@@ -22,9 +22,10 @@ describe('requiresCreaseInRange', () => {
     expect(requiresCreaseInRange(undefined)).toBe(false);
   });
 
-  it("gates Flat Foldable Line's destination step but not the vertex or candidate ones", () => {
+  it('has nothing to gate on Foldable Line, which no longer asks for a destination', () => {
     const snap = cpInputModel('VertexMakeAngularlyFlatFoldable')?.snapPerStep ?? [];
-    expect(snap.map(requiresCreaseInRange)).toEqual([false, false, true]);
+    expect([...snap]).toEqual(['point', 'candidate']);
+    expect(snap.some(requiresCreaseInRange)).toBe(false);
   });
 
   it("leaves FoldableLineDraw's free-draw step ungated", () => {
@@ -55,5 +56,16 @@ describe('loneCandidateAutoPick', () => {
 
   it('never resolves a trailing candidate step, which would commit with no click', () => {
     expect(loneCandidateAutoPick(['point', 'point', 'candidate'], 2, [RAY])).toBeNull();
+  });
+});
+
+describe('the confirming click on Foldable Line', () => {
+  it('is required, because the candidate step is now the last one', () => {
+    // Oriedita skips the pick when there is one candidate. Under a two-step tool
+    // that would mean geometry appearing from a single click on a vertex, which
+    // `loneCandidateAutoPick` already refuses for a tool's final step — so the
+    // decision needs no new code, only this test to keep it true.
+    const snap = cpInputModel('VertexMakeAngularlyFlatFoldable')?.snapPerStep ?? [];
+    expect(loneCandidateAutoPick(snap, snap.length - 1, [RAY])).toBeNull();
   });
 });

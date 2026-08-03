@@ -114,11 +114,12 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   SymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
   UnselectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   VertexDeleteOnCrease: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
-  // Flat Foldable Line: vertex → one of the previewed candidate rays → the existing
-  // crease to extend to. That last step is `crease-required`: the kernel resolves the
-  // destination with `nearest_line_segment`, which errors when nothing is in range,
-  // and upstream's `release_select_destination` ignores such a click outright.
-  VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'candidate', 'crease-required'] },
+  // Foldable Line: vertex → one of the previewed candidates. Two steps, not
+  // Oriedita's three — each candidate is drawn to whatever stops it and carries
+  // that line along, so the kernel no longer needs a click naming the crease to
+  // extend to. It still accepts one (see `resolved_completion_destination`); the
+  // UI simply has nothing left to ask.
+  VertexMakeAngularlyFlatFoldable: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'candidate'] },
 
   // LENGTHEN — drag a selection line across the crease(s) to extend (a click is the
   // degenerate nearest-crease fallback), then click the target line to extend to.

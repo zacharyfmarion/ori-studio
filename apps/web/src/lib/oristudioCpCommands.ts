@@ -402,7 +402,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick anchor point', 'Pick snapped endpoint'],
   }),
   ready('VertexMakeAngularlyFlatFoldable', 'Make vertex foldable', 'construct', 'badge-check', 'MouseHandlerVertexMakeAngularlyFlatFoldable', {
-    toolSteps: ['Pick vertex', 'Pick candidate line', 'Pick destination crease'],
+    toolSteps: ['Pick vertex', 'Pick the crease to add'],
     tooltip: 'Add the crease that makes a vertex fold consistently, solving its fold angle when the vertex is not flat',
   }),
   ready('FoldableLineInput', 'Foldable line input', 'construct', 'list-plus', 'MouseHandlerFoldableLineInput', {

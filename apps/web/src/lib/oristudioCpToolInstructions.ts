@@ -245,7 +245,6 @@ export const ORIEDITA_CP_TOOL_INSTRUCTIONS: Record<string, OristudioCpToolInstru
     steps: [
       'Select a vertex that does not fold consistently.',
       'Select one of the suggested creases.',
-      'Select a target line to extend to.',
     ],
     notes: [
       'With all creases at a full fold this is Kawasaki’s theorem, and the vertex needs an odd number of lines. Where a crease carries a partial fold angle, the suggestion also sets the new crease’s mountain/valley and angle.',

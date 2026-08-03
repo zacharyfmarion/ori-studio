@@ -396,8 +396,7 @@
       "disabledReason": "Listo",
       "steps": {
         "0": "Elige el vértice",
-        "1": "Elige la línea candidata",
-        "2": "Elige el pliegue de destino"
+        "1": "Elige el pliegue a añadir"
       }
     },
     "cp_action_foldable_line_input": {
@@ -1394,8 +1393,7 @@
       },
       "steps": {
         "0": "Selecciona un vértice que no pliega de forma consistente.",
-        "1": "Selecciona uno de los pliegues sugeridos.",
-        "2": "Selecciona una línea objetivo hasta la que extender."
+        "1": "Selecciona uno de los pliegues sugeridos."
       },
       "notes": {
         "0": "Con todos los pliegues a plegado completo esto es el teorema de Kawasaki, y el vértice necesita un número impar de líneas. Cuando un pliegue tiene un ángulo de plegado parcial, la sugerencia también fija el monte/valle y el ángulo del nuevo pliegue."

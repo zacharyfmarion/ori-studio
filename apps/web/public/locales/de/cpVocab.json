@@ -396,8 +396,7 @@
       "disabledReason": "Bereit",
       "steps": {
         "0": "Knoten wählen",
-        "1": "Kandidatenlinie wählen",
-        "2": "Bestimmungsfalte wählen"
+        "1": "Hinzuzufügende Falte wählen"
       }
     },
     "cp_action_foldable_line_input": {
@@ -1394,8 +1393,7 @@
       },
       "steps": {
         "0": "Knoten auswählen, der nicht konsistent faltet.",
-        "1": "Eine der vorgeschlagenen Falten auswählen.",
-        "2": "Eine Ziellinie zum Verlängern auswählen."
+        "1": "Eine der vorgeschlagenen Falten auswählen."
       },
       "notes": {
         "0": "Sind alle Falten voll gefaltet, ist dies der Satz von Kawasaki, und der Knoten braucht eine ungerade Anzahl Linien. Trägt eine Falte einen teilweisen Faltwinkel, legt der Vorschlag auch Berg/Tal und Winkel der neuen Falte fest."
