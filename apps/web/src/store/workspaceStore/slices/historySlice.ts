@@ -35,6 +35,7 @@ import type {
   OristudioCpDocumentState,
 } from '../../../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../../../lib/creasePatternViewport';
+import { bpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import type { BpHistorySnapshot } from '../types';
 import type { OristudioCpFoldedFigureEntry } from '../../../engine/oristudioCpTypes';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
@@ -169,7 +170,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     try {
       const currentBps = await exportOristudioBpProjectAsBps();
       const current = snapshotEntry(
-        { bps: currentBps, selection: get().oristudioBpSelection },
+        {
+          bps: currentBps,
+          selection: get().oristudioBpSelection,
+          symmetry: bpDocumentSymmetry(get().oristudioBpSymmetry),
+        },
         document.history.activeLabel ?? 'edit'
       );
       const step = pick(history, current);
@@ -177,9 +182,19 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
         set({ historyBusy: false });
         return false;
       }
-      const restored = await restoreOristudioBpProjectSnapshot(step.restore.snapshot.bps);
+      // A symmetry-only step carries no `bps`, because it did not touch the
+      // design — rebuilding the project from the current text would be a
+      // needless worker round-trip that also throws away the live handle.
+      const restoredBps = step.restore.snapshot.bps;
+      const restored =
+        restoredBps === null ? document : await restoreOristudioBpProjectSnapshot(restoredBps);
       set({
         oristudioBpDocument: restored,
+        // The axis stays derived; only the saved half of symmetry is restored.
+        oristudioBpSymmetry: {
+          ...get().oristudioBpSymmetry,
+          ...step.restore.snapshot.symmetry,
+        },
         // Restored as presentation — showing what the step touched — not because
         // the selection was stored as part of the document.
         oristudioBpSelection: step.restore.snapshot.selection,

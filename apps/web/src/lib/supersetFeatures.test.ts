@@ -1,3 +1,4 @@
+import { defaultBpDocumentSymmetry } from './bpTreeSymmetry';
 import { describe, expect, it } from 'vitest';
 import { createCpImage, type CpImage } from '../cp-workspace/images/cpImage';
 import { createTextAnnotation } from '../cp-workspace/annotations/textAnnotation';
@@ -38,6 +39,7 @@ const noneElse = {
   richText: [] as [],
   inlineSimulations: [] as [],
   lineSegments: [] as [],
+  bpSymmetry: defaultBpDocumentSymmetry(),
 };
 
 describe('collectExportLossWarnings', () => {
@@ -47,6 +49,7 @@ describe('collectExportLossWarnings', () => {
       richText: [],
       inlineSimulations: [],
       lineSegments: [],
+      bpSymmetry: defaultBpDocumentSymmetry(),
     };
     for (const format of ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj', 'svg', 'png'] as const) {
       const warnings = collectExportLossWarnings(format, presence);
@@ -60,6 +63,7 @@ describe('collectExportLossWarnings', () => {
       richText: [createTextAnnotation({ center: { x: 0, y: 0 } })],
       inlineSimulations: [],
       lineSegments: [],
+      bpSymmetry: defaultBpDocumentSymmetry(),
     };
     expect(collectExportLossWarnings('ori', presence)).toEqual([
       { id: 'richText', label: 'Rich text formatting', count: 1, blocking: false },
@@ -78,11 +82,54 @@ describe('collectExportLossWarnings', () => {
       richText: [] as [],
       lineSegments: [] as [],
       inlineSimulations: [{ id: 'a' } as never, { id: 'b' } as never],
+      bpSymmetry: defaultBpDocumentSymmetry(),
     };
     expect(collectExportLossWarnings('cp', presence)).toEqual([
       { id: 'inlineSimulations', label: 'Simulation windows', count: 2, blocking: false },
     ]);
     expect(collectExportLossWarnings('fold', presence)).toHaveLength(1);
+  });
+
+  it('warns that .bps drops mirror symmetry, and only .bps', () => {
+    const presence = {
+      ...noneElse,
+      images: [],
+      bpSymmetry: { enabled: true, fold: 'book' as const, pairs: [{ v1: 1, v2: 2 }] },
+    };
+    expect(collectExportLossWarnings('bps', presence)).toEqual([
+      { id: 'symmetry', label: 'Mirror symmetry', count: 1, blocking: false },
+    ]);
+    // The two surfaces do not overlap: a crease-pattern format never carries a
+    // box-pleat design, so it has no symmetry to drop.
+    for (const format of ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj', 'svg', 'png'] as const) {
+      expect(collectExportLossWarnings(format, presence)).toEqual([]);
+    }
+  });
+
+  it('says nothing when the design is symmetric only by default', () => {
+    // Mirror draw is on for every new design, so "on, book, nothing paired" is
+    // exactly what reopening the .bps gives back. Nothing was lost.
+    const presence = { ...noneElse, images: [], bpSymmetry: defaultBpDocumentSymmetry() };
+    expect(collectExportLossWarnings('bps', presence)).toEqual([]);
+  });
+
+  it('warns when mirror draw was turned off, or the fold changed, with nothing paired', () => {
+    for (const bpSymmetry of [
+      { enabled: false, fold: 'book' as const, pairs: [] },
+      { enabled: true, fold: 'diagonal' as const, pairs: [] },
+    ]) {
+      const warnings = collectExportLossWarnings('bps', { ...noneElse, images: [], bpSymmetry });
+      expect(warnings.map((warning) => warning.id)).toEqual(['symmetry']);
+    }
+  });
+
+  it('never refuses a .bps export — the design still means what it meant', () => {
+    const warnings = collectExportLossWarnings('bps', {
+      ...noneElse,
+      images: [],
+      bpSymmetry: { enabled: false, fold: 'diagonal' as const, pairs: [{ v1: 1, v2: 2 }] },
+    });
+    expect(blockingExportLoss(warnings)).toEqual([]);
   });
 
   it('describes and labels the loss', () => {
@@ -101,6 +148,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
     richText: [] as [],
     inlineSimulations: [] as [],
     lineSegments: segments,
+    bpSymmetry: defaultBpDocumentSymmetry(),
   });
   const ninety = 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE;
 

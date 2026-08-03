@@ -32,6 +32,7 @@
     "layerGrid": "Raster",
     "layerHinges": "Scharniere",
     "layerLabels": "Beschriftungen",
+    "layerOutsidePaper": "Außerhalb des Papiers",
     "layerRidges": "Grate",
     "layerRivers": "Flüsse",
     "layers": "Ebenen",
@@ -61,6 +62,12 @@
     "warnings": "Warnungen der Box-Pleating-Packung",
     "width": "Breite"
   },
+  "bpSymmetry": {
+    "fold": {
+      "book": "Buchfalte",
+      "diagonal": "Diagonalfalte"
+    }
+  },
   "bpTree": {
     "canvas": "Box-Pleating-Baumleinwand",
     "decreaseLength": "Länge verringern",
@@ -79,6 +86,7 @@
     "selectLeafVertexWithLabel": "BP-Blattknoten {{id}} auswählen, {{label}}",
     "selectVertex": "BP-Knoten {{id}} auswählen",
     "selectVertexWithLabel": "BP-Knoten {{id}} auswählen, {{label}}",
+    "unpair": "Spiegelpaar aufheben",
     "viewportControls": "Ansichtssteuerung des Box-Pleating-Baums"
   },
   "conditions": {

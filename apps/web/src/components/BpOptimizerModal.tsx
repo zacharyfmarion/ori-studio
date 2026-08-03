@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Play, Sparkles, X } from 'lucide-react';
@@ -9,6 +9,8 @@ import {
 } from '../store/bpOptimizerUiStore';
 import { cancelActiveOristudioBpOptimizer } from '../store/workspaceStore/oristudioBpRuntime';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { resolveOptimizerSymmetry, type SymmetryFold } from '../lib/bpOptimizerSymmetry';
+import { SYMMETRY_FOLDS, symmetryFoldLabel } from '../lib/bpSymmetryLabels';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
@@ -94,6 +96,28 @@ export function BpOptimizerModal() {
   const progress = useBpOptimizerUiStore((state) => state.progress);
   const error = useBpOptimizerUiStore((state) => state.error);
   const optimize = useWorkspaceStore((state) => state.optimizeOristudioBpLayout);
+  const symmetryState = useWorkspaceStore((state) => state.oristudioBpSymmetry);
+  const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
+  const tree = useWorkspaceStore((state) => state.oristudioBpDocument?.snapshot.tree ?? null);
+  // The fold lives here rather than in the tree view: a tree is not drawn on the
+  // paper, so it has no book or diagonal fold of its own. The tree's mirror line
+  // stays vertical whatever is chosen here.
+  const foldOptions = useMemo(
+    () => SYMMETRY_FOLDS.map((fold) => ({ fold, label: symmetryFoldLabel(t, fold) })),
+    [t]
+  );
+
+  /** What the dialog can say about symmetry right now. */
+  const symmetry = useMemo(() => {
+    if (!symmetryState.enabled || !tree) return { mode: 'off' as const };
+    const resolved = resolveOptimizerSymmetry(tree, symmetryState, {
+      fold: symmetryState.fold,
+    });
+    if (!resolved.ok) {
+      return { mode: 'unusable' as const, reason: resolved.reason };
+    }
+    return { mode: 'ready' as const, inconsistent: resolved.inconsistentPairs.length };
+  }, [symmetryState, tree]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -115,7 +139,10 @@ export function BpOptimizerModal() {
   const run = async () => {
     const store = useBpOptimizerUiStore.getState();
     store.beginRun();
-    const outcome = await optimize(options, (next) => {
+    // The stored preference is left alone when symmetry cannot apply; the row
+    // explains why rather than silently rewriting what the user chose.
+    const effective = { ...options, respectSymmetry: options.respectSymmetry && symmetry.mode === 'ready' };
+    const outcome = await optimize(effective, (next) => {
       useBpOptimizerUiStore.getState().reportProgress(next);
     });
     if (outcome === 'applied') {
@@ -235,6 +262,65 @@ export function BpOptimizerModal() {
                         }
                       />
                     </label>
+                  )}
+                </div>
+              </div>
+
+              <div className="bp-optimizer__row">
+                <span className="bp-optimizer__row-label">
+                  {t('dialogs:bpOptimizer.symmetry', 'Symmetry')}
+                </span>
+                <div className="bp-optimizer__control">
+                  {symmetry.mode === 'off' ? (
+                    <p className="bp-optimizer__hint">
+                      {t(
+                        'dialogs:bpOptimizer.symmetryOff',
+                        'Symmetry is off. Turn it on in the tree view to mirror the layout.'
+                      )}
+                    </p>
+                  ) : (
+                    <>
+                      <label className="bp-optimizer__check">
+                        <Toggle
+                          checked={options.respectSymmetry && symmetry.mode === 'ready'}
+                          disabled={symmetry.mode !== 'ready'}
+                          onChange={(checked) => setOptions({ respectSymmetry: checked })}
+                        />
+                        <span>{t('dialogs:bpOptimizer.enable', 'Enable symmetry')}</span>
+                      </label>
+                      <Select
+                        value={symmetryState.fold}
+                        onValueChange={(value) =>
+                          setOristudioBpSymmetry({ fold: value as SymmetryFold })
+                        }
+                      >
+                        <SelectTrigger
+                          aria-label={t('dialogs:bpOptimizer.mirrorAxis', 'Fold to mirror about')}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {foldOptions.map((option) => (
+                            <SelectItem key={option.fold} value={option.fold}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {symmetry.mode === 'unusable' && (
+                        <p className="bp-optimizer__hint bp-optimizer__hint--warn">
+                          {symmetry.reason}
+                        </p>
+                      )}
+                      {symmetry.mode === 'ready' && symmetry.inconsistent > 0 && (
+                        <p className="bp-optimizer__hint bp-optimizer__hint--warn">
+                          {t(
+                            'dialogs:bpOptimizer.symmetryInconsistent',
+                            'Some paired flaps are not interchangeable in the tree, so mirroring them will use more paper.'
+                          )}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

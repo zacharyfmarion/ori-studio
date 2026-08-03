@@ -69,21 +69,22 @@ export interface BpTreeDragInput {
 /**
  * Every vertex a drag moves, and where to.
  *
- * The rule this encodes: **dragging the root translates the whole tree
- * rigidly; dragging any other vertex rotates it and its subtree about its
- * parent**, so no edge ever changes length. It is a pure function so the live
- * preview and the committed move are the same computation rather than two
+ * The rule this encodes: **dragging a vertex rotates it and its subtree about
+ * its parent**, so no edge ever changes length. It is a pure function so the
+ * live preview and the committed move are the same computation rather than two
  * copies that can drift apart.
  *
- * Returns an empty map when the drag can't be resolved (an unknown parent),
- * which reads at the call site as "this drag moves nothing".
+ * The root has no parent to rotate about, so it does not move. Sliding it alone
+ * would stretch every edge below it, and sliding the tree with it only shifts
+ * a drawing the optimizer is free to place anywhere.
+ *
+ * Returns an empty map when the drag can't be resolved (the root, or an unknown
+ * parent), which reads at the call site as "this drag moves nothing".
  */
 export function bpTreeDragUpdates(input: BpTreeDragInput): Map<number, Point> {
   const { vertexId, parentId, vertices, subtreeIds, start, target } = input;
 
-  if (parentId === null) {
-    return translatePoints(start, target, vertices);
-  }
+  if (parentId === null) return new Map();
 
   const pivot = vertices.get(parentId);
   if (!pivot) return new Map();

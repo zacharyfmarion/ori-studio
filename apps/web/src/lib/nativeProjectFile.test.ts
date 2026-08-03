@@ -559,6 +559,97 @@ describe('native project file', () => {
     expect(parsed.workspace.documents.map((document) => document.kind)).toEqual(['box-pleat']);
   });
 
+  describe('box-pleat symmetry (schema v6)', () => {
+    const bpFile = (symmetry?: Parameters<typeof createNativeBoxPleatProjectFile>[0]['symmetry']) =>
+      JSON.parse(
+        serializeNativeProjectFile(
+          createNativeBoxPleatProjectFile({
+            title: 'Sym',
+            filename: 'sym.osf',
+            path: null,
+            bps: '{"tree":{}}',
+            symmetry,
+            appVersion: '0.1.1',
+            now,
+          })
+        )
+      );
+
+    /** The box-pleat document of a parsed file, narrowed. */
+    const bpDocumentOf = (raw: unknown) => {
+      const parsed = parseNativeProjectFile(JSON.stringify(raw));
+      const document = parsed.workspace.documents[0];
+      if (document.kind !== 'box-pleat') throw new Error('expected a box-pleat document');
+      return document;
+    };
+
+    it('round-trips what mirrors what, and the fold', () => {
+      const raw = bpFile({ enabled: false, fold: 'diagonal', pairs: [{ v1: 3, v2: 7 }] });
+      expect(bpDocumentOf(raw).symmetry).toEqual({
+        enabled: false,
+        fold: 'diagonal',
+        pairs: [{ v1: 3, v2: 7 }],
+      });
+    });
+
+    it('never writes the derived axis, which would go stale against the sheet', () => {
+      // The *runtime* shape, which carries the axis. It is a subtype of the
+      // persisted one, so this typechecks at every call site — which is exactly
+      // why the serializer has to drop the extra fields itself.
+      const runtimeState = {
+        enabled: true,
+        fold: 'book' as const,
+        pairs: [],
+        angle: 90,
+        loc: { x: 4, y: 4 },
+      };
+      const raw = bpFile(runtimeState);
+      expect(Object.keys(raw.workspace.documents[0].symmetry).sort()).toEqual([
+        'enabled',
+        'fold',
+        'pairs',
+      ]);
+    });
+
+    it('opens a v5 file, which predates symmetry, with mirror draw on', () => {
+      const raw = bpFile({ enabled: false, fold: 'diagonal', pairs: [{ v1: 1, v2: 2 }] });
+      raw.schemaVersion = 5;
+      delete raw.workspace.documents[0].symmetry;
+      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: true, fold: 'book', pairs: [] });
+    });
+
+    it('opens rather than refuses when the symmetry block is malformed', () => {
+      for (const junk of [null, 42, 'book', [], { pairs: 'nope' }]) {
+        const raw = bpFile();
+        raw.workspace.documents[0].symmetry = junk;
+        expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: true, fold: 'book', pairs: [] });
+      }
+    });
+
+    it('keeps the usable half of a partly malformed block', () => {
+      const raw = bpFile();
+      raw.workspace.documents[0].symmetry = { enabled: false, fold: 'sideways', pairs: null };
+      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', pairs: [] });
+    });
+
+    it('re-establishes one mirror per vertex, whatever the file claims', () => {
+      const raw = bpFile();
+      raw.workspace.documents[0].symmetry = {
+        enabled: true,
+        fold: 'book',
+        pairs: [
+          { v1: 2, v2: 1 }, // stored the wrong way round
+          { v1: 1, v2: 5 }, // vertex 1 claimed twice — the later pair wins
+          { v1: 8, v2: 8 }, // a vertex paired with itself
+          { v1: -1, v2: 4 }, // not a vertex id
+          { v1: 2.5, v2: 6 }, // nor is this
+          'nope',
+        ],
+      };
+      expect(bpDocumentOf(raw).symmetry.pairs).toEqual([{ v1: 1, v2: 5 }]);
+    });
+  });
+
   it('rejects a box-pleat document with an unknown engine', () => {
     const file = JSON.parse(
       serializeNativeProjectFile(

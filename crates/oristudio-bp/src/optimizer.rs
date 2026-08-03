@@ -56,6 +56,74 @@ pub struct FlapResult {
     pub y: f64,
 }
 
+/// A mirror axis, named by where it sits in the optimizer's **normalized** unit
+/// sheet rather than by what it means on paper.
+///
+/// These are the four symmetry axes of the square, and they are constants: the
+/// optimizer always works in a unit sheet, so none of them depends on the
+/// sheet-size variable. What they *mean* on paper depends on the sheet type,
+/// because a diagonal-grid sheet is the paper rotated 45° against the grid — see
+/// [`SymmetryAxis::for_preset`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SymmetryAxis {
+    /// `x = 1/2`
+    VerticalHalf,
+    /// `y = 1/2`
+    HorizontalHalf,
+    /// `y = x`
+    MainDiagonal,
+    /// `y = 1 - x`
+    AntiDiagonal,
+}
+
+/// How the user names a symmetry: relative to the paper, not the grid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SymmetryPreset {
+    /// Fold the paper in half edge to edge.
+    Book,
+    /// Fold the paper corner to corner.
+    Diagonal,
+}
+
+impl SymmetryAxis {
+    /// The two normalized axes a paper-relative preset maps to on a given sheet.
+    ///
+    /// On a rectangular sheet the paper axes are the grid axes, so book folds are
+    /// axis-aligned. On a diagonal sheet the paper is rotated 45°, so the roles
+    /// swap: a book fold of the paper runs diagonally in grid coordinates.
+    pub fn for_preset(preset: SymmetryPreset, grid_type: GridType) -> [Self; 2] {
+        let axis_aligned = [Self::VerticalHalf, Self::HorizontalHalf];
+        let diagonal = [Self::MainDiagonal, Self::AntiDiagonal];
+        match (preset, grid_type) {
+            (SymmetryPreset::Book, GridType::Rectangular) => axis_aligned,
+            (SymmetryPreset::Book, GridType::Diagonal) => diagonal,
+            (SymmetryPreset::Diagonal, GridType::Rectangular) => diagonal,
+            (SymmetryPreset::Diagonal, GridType::Diagonal) => axis_aligned,
+        }
+    }
+
+    /// Whether the mirrored flap's width and height are exchanged.
+    pub fn swaps_dimensions(self) -> bool {
+        matches!(self, Self::MainDiagonal | Self::AntiDiagonal)
+    }
+}
+
+/// A mirror-symmetry requirement for the optimizer.
+///
+/// `partners` must be a **total involution** over the request's flaps: every flap
+/// id appears exactly once as a key, and `partners[partners[i]] == i`. A flap
+/// mapped to itself sits on the axis. Totality is deliberate — inferring that an
+/// unmentioned flap belongs on the axis would silently produce a layout the user
+/// did not ask for.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OptimizerSymmetry {
+    pub axis: SymmetryAxis,
+    /// `(flap id, mirror partner id)` for every flap.
+    pub partners: Vec<(u32, u32)>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OptimizerProblem {
     #[serde(rename = "type")]
@@ -73,6 +141,10 @@ pub struct OptimizerRequest {
     pub random: usize,
     pub problem: OptimizerProblem,
     pub vec: Option<Vec<Point>>,
+    /// Mirror symmetry to enforce. `None` runs the upstream Box Pleating Studio
+    /// algorithm unchanged, which is what the oracle parity test relies on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symmetry: Option<OptimizerSymmetry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -166,6 +238,7 @@ pub fn create_optimizer_request(
             hierarchies,
         },
         vec,
+        symmetry: None,
     })
 }
 
@@ -204,28 +277,38 @@ pub fn solve_with_progress(
         ));
     };
     let seed = seed.unwrap_or(0) as u32;
+    let symmetry = request
+        .symmetry
+        .as_ref()
+        .map(|symmetry| kernel::KernelSymmetry::from_request(symmetry, main))
+        .transpose()?;
     let packed = if request.layout == LayoutMode::Random {
-        kernel::solve_global_rssl_with_progress(
+        kernel::solve_global_symmetric_with_progress(
             &problem,
             request.random,
             seed,
             &mut should_cancel,
             &mut on_event,
+            symmetry.as_ref(),
         )?
     } else {
-        let x0 = kernel::read_initial_vector(request, main)?;
+        let mut x0 = kernel::read_initial_vector(request, main)?;
+        if let Some(symmetry) = &symmetry {
+            kernel::symmetrize(&mut x0, main, symmetry);
+        }
         if request.use_bh {
-            kernel::basin_hopping_rssl_with_progress(
+            kernel::basin_hopping_symmetric_with_progress(
                 x0,
                 main,
                 seed,
                 &mut should_cancel,
                 &mut on_event,
+                symmetry.as_ref(),
             )?
         } else {
             on_event(OptimizerEvent::Pack(0));
             check_cancelled(&mut should_cancel)?;
-            kernel::pack_rssl(x0, main, None, None)?
+            kernel::pack_rssl_symmetric(x0, main, None, None, symmetry.as_ref())?
         }
     };
     if !packed.success {
@@ -234,12 +317,21 @@ pub fn solve_with_progress(
             packed.status
         )));
     }
-    let vector = kernel::greedy_solve_integer_rssl_with_progress(
-        &packed.x,
-        main,
-        &mut should_cancel,
-        &mut on_event,
-    )?;
+    let vector = match &symmetry {
+        Some(symmetry) => kernel::greedy_solve_integer_symmetric(
+            &packed.x,
+            main,
+            symmetry,
+            &mut should_cancel,
+            &mut on_event,
+        )?,
+        None => kernel::greedy_solve_integer_rssl_with_progress(
+            &packed.x,
+            main,
+            &mut should_cancel,
+            &mut on_event,
+        )?,
+    };
     optimizer_result_from_vector(request, &vector)
 }
 
@@ -580,7 +672,7 @@ fn optimizer_result_from_vector(
 }
 
 pub mod kernel {
-    use super::{OptimizerEvent, OptimizerRequest};
+    use super::{OptimizerEvent, OptimizerRequest, OptimizerSymmetry, SymmetryAxis};
     use crate::error::{BpError, BpResult};
     use crate::model::GridType;
     use std::collections::BTreeMap;
@@ -774,6 +866,291 @@ pub mod kernel {
         }
     }
 
+    // ---------------------------------------------------------------- symmetry
+
+    impl SymmetryAxis {
+        /// Which grid axes must be measured from the sheet centre so the mirror
+        /// map does not depend on the (still floating) sheet size.
+        ///
+        /// In absolute grid coordinates a book mirror is `x -> s - x - w`, which
+        /// moves as the greedy grows `s`, silently breaking every already-pinned
+        /// pair. Measured from the centre it becomes `x -> -x - w`, which does
+        /// not. `y = x` needs no centring at all: on a rectangular sheet that
+        /// axis passes through the origin corner.
+        pub fn centered(self) -> (bool, bool) {
+            match self {
+                Self::VerticalHalf => (true, false),
+                Self::HorizontalHalf => (false, true),
+                Self::MainDiagonal => (false, false),
+                Self::AntiDiagonal => (true, true),
+            }
+        }
+
+        /// Mirror of a flap anchor in normalized (unit sheet) coordinates.
+        ///
+        /// A flap's anchor is its lower-left corner and its box is `w*m` by
+        /// `h*m`, so mirroring the flap is not the same as mirroring the anchor —
+        /// the reflected box's lower-left corner picks up the size term.
+        pub fn mirror_norm(self, x: f64, y: f64, width: f64, height: f64, m: f64) -> (f64, f64) {
+            match self {
+                Self::VerticalHalf => (1.0 - x - width * m, y),
+                Self::HorizontalHalf => (x, 1.0 - y - height * m),
+                Self::MainDiagonal => (y, x),
+                Self::AntiDiagonal => (1.0 - y - height * m, 1.0 - x - width * m),
+            }
+        }
+
+        /// Mirror of a flap anchor in grid coordinates, using this axis's
+        /// offsets. Independent of the sheet size by construction.
+        pub fn mirror_grid(self, x: f64, y: f64, width: f64, height: f64) -> (f64, f64) {
+            match self {
+                Self::VerticalHalf => (-x - width, y),
+                Self::HorizontalHalf => (x, -y - height),
+                Self::MainDiagonal => (y, x),
+                Self::AntiDiagonal => (-y - height, -x - width),
+            }
+        }
+
+        /// The grid origin offsets in normalized coordinates: 0.5 means "measure
+        /// this axis from the sheet centre".
+        pub fn offsets(self) -> (f64, f64) {
+            let (cx, cy) = self.centered();
+            (if cx { 0.5 } else { 0.0 }, if cy { 0.5 } else { 0.0 })
+        }
+
+        /// The point on the axis at parameter `t`, for a flap of this size.
+        pub fn axis_point(self, t: f64, width: f64, height: f64) -> (f64, f64) {
+            match self {
+                Self::VerticalHalf => (-width / 2.0, t),
+                Self::HorizontalHalf => (t, -height / 2.0),
+                Self::MainDiagonal => (t, t),
+                Self::AntiDiagonal => (-t - height, t),
+            }
+        }
+
+        /// The free parameter of an on-axis placement, given a grid position.
+        pub fn axis_parameter(self, x: f64, y: f64) -> f64 {
+            match self {
+                Self::VerticalHalf | Self::AntiDiagonal => y,
+                Self::HorizontalHalf => x,
+                Self::MainDiagonal => (x + y) / 2.0,
+            }
+        }
+    }
+
+    /// Symmetry resolved against a hierarchy: an involution on flap *indices*.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct KernelSymmetry {
+        pub axis: SymmetryAxis,
+        /// `partner[i] == i` means flap `i` sits on the axis.
+        pub partner: Vec<usize>,
+    }
+
+    impl KernelSymmetry {
+        pub fn on_axis(&self, i: usize) -> bool {
+            self.partner[i] == i
+        }
+
+        /// One index per orbit: on-axis flaps, plus the lower index of each pair.
+        pub fn representatives(&self) -> Vec<usize> {
+            (0..self.partner.len())
+                .filter(|&i| self.partner[i] >= i)
+                .collect()
+        }
+
+        /// Resolve a request's symmetry against a hierarchy, validating that it is
+        /// a total involution whose flap dimensions can actually be mirrored.
+        pub fn from_request(
+            symmetry: &OptimizerSymmetry,
+            hierarchy: &KernelHierarchy,
+        ) -> BpResult<Self> {
+            let index_of = hierarchy
+                .flaps
+                .iter()
+                .enumerate()
+                .map(|(index, flap)| (flap.id, index))
+                .collect::<BTreeMap<_, _>>();
+
+            let mut partner = vec![usize::MAX; hierarchy.flaps.len()];
+            for &(id, mate) in &symmetry.partners {
+                let Some(&i) = index_of.get(&id) else {
+                    return Err(BpError::InvalidInput(format!(
+                        "optimizer symmetry references unknown flap {id}"
+                    )));
+                };
+                let Some(&j) = index_of.get(&mate) else {
+                    return Err(BpError::InvalidInput(format!(
+                        "optimizer symmetry pairs flap {id} with unknown flap {mate}"
+                    )));
+                };
+                if partner[i] != usize::MAX && partner[i] != j {
+                    return Err(BpError::InvalidInput(format!(
+                        "optimizer symmetry gives flap {id} more than one partner"
+                    )));
+                }
+                partner[i] = j;
+            }
+
+            let unpaired = hierarchy
+                .flaps
+                .iter()
+                .zip(&partner)
+                .filter(|(_, mate)| **mate == usize::MAX)
+                .map(|(flap, _)| flap.id.to_string())
+                .collect::<Vec<_>>();
+            if !unpaired.is_empty() {
+                return Err(BpError::InvalidInput(format!(
+                    "optimizer symmetry does not say what mirrors flap(s) {}; \
+                     pair them or place them on the axis",
+                    unpaired.join(", ")
+                )));
+            }
+            for (i, &j) in partner.iter().enumerate() {
+                if partner[j] != i {
+                    return Err(BpError::InvalidInput(format!(
+                        "optimizer symmetry is not a mirror: flap {} pairs with {} \
+                         but {} does not pair back",
+                        hierarchy.flaps[i].id, hierarchy.flaps[j].id, hierarchy.flaps[j].id
+                    )));
+                }
+            }
+
+            let resolved = Self {
+                axis: symmetry.axis,
+                partner,
+            };
+            resolved.validate_dimensions(hierarchy)?;
+            Ok(resolved)
+        }
+
+        /// A mirrored flap must be the mirror image of its partner as a *box*, not
+        /// just as a point, and an on-axis flap must be its own mirror image.
+        fn validate_dimensions(&self, hierarchy: &KernelHierarchy) -> BpResult<()> {
+            for (i, &j) in self.partner.iter().enumerate() {
+                let a = hierarchy.flaps[i];
+                let b = hierarchy.flaps[j];
+                if i == j {
+                    let ok = match self.axis {
+                        SymmetryAxis::VerticalHalf => a.width % 2 == 0,
+                        SymmetryAxis::HorizontalHalf => a.height % 2 == 0,
+                        SymmetryAxis::MainDiagonal | SymmetryAxis::AntiDiagonal => {
+                            a.width == a.height
+                        }
+                    };
+                    if !ok {
+                        return Err(BpError::InvalidInput(format!(
+                            "flap {} sits on the symmetry axis, so it must be its own \
+                             mirror image; a {}x{} flap cannot be",
+                            a.id, a.width, a.height
+                        )));
+                    }
+                    continue;
+                }
+                let (want_width, want_height) = if self.axis.swaps_dimensions() {
+                    (a.height, a.width)
+                } else {
+                    (a.width, a.height)
+                };
+                if b.width != want_width || b.height != want_height {
+                    return Err(BpError::InvalidInput(format!(
+                        "flaps {} ({}x{}) and {} ({}x{}) are paired across the symmetry \
+                         axis but are not mirror images of each other",
+                        a.id, a.width, a.height, b.id, b.width, b.height
+                    )));
+                }
+            }
+            Ok(())
+        }
+    }
+
+    /// Which `(flap, component)` pairs contribute a symmetry equality, where
+    /// component 0 is x and 1 is y.
+    ///
+    /// A pair contributes two equations; a flap on the axis contributes one, on
+    /// whichever component the axis actually constrains. Orbits whose members are
+    /// all pinned contribute none — their pins already imply the symmetry.
+    pub fn symmetry_residuals(
+        hierarchy: &KernelHierarchy,
+        symmetry: &KernelSymmetry,
+        fixed: Option<&[bool]>,
+    ) -> Vec<(usize, usize)> {
+        let is_fixed = |k: usize| fixed.map(|f| f[k]).unwrap_or(false);
+        let mut out = Vec::new();
+        for i in 0..hierarchy.flaps.len() {
+            let j = symmetry.partner[i];
+            if j < i || (is_fixed(i) && is_fixed(j)) {
+                continue;
+            }
+            if i == j {
+                out.push(match symmetry.axis {
+                    SymmetryAxis::HorizontalHalf => (i, 1),
+                    _ => (i, 0),
+                });
+            } else {
+                out.push((i, 0));
+                out.push((i, 1));
+            }
+        }
+        out
+    }
+
+    /// How far off the axis a mirror pair is pushed when folding would land both
+    /// members on it, as a fraction of the sheet.
+    const SYMMETRIZE_MIN_SPLIT: f64 = 0.05;
+
+    /// The unit normal of an axis in normalized coordinates.
+    fn axis_normal(axis: SymmetryAxis) -> (f64, f64) {
+        let diagonal = std::f64::consts::FRAC_1_SQRT_2;
+        match axis {
+            SymmetryAxis::VerticalHalf => (1.0, 0.0),
+            SymmetryAxis::HorizontalHalf => (0.0, 1.0),
+            SymmetryAxis::MainDiagonal => (diagonal, -diagonal),
+            SymmetryAxis::AntiDiagonal => (diagonal, diagonal),
+        }
+    }
+
+    /// Fold a starting vector onto the symmetry manifold, so SLSQP starts feasible.
+    ///
+    /// Each partner is overwritten with the mirror of its representative; an
+    /// on-axis flap is moved to the midpoint of itself and its own mirror, which
+    /// is the nearest point of the axis.
+    ///
+    /// A mirror *pair* whose representative already sits on the axis is a special
+    /// case: folding would put both members at the same point, and a separation
+    /// constraint evaluated at zero separation has a zero gradient, so SLSQP
+    /// reports incompatible constraints rather than pushing them apart. Such a
+    /// pair is nudged off the axis first.
+    pub fn symmetrize(x: &mut [f64], hierarchy: &KernelHierarchy, symmetry: &KernelSymmetry) {
+        let m = x[x.len() - 1];
+        for i in 0..hierarchy.flaps.len() {
+            let j = symmetry.partner[i];
+            if j < i {
+                continue;
+            }
+            let width = f64::from(hierarchy.flaps[i].width);
+            let height = f64::from(hierarchy.flaps[i].height);
+            let (mut mx, mut my) =
+                symmetry
+                    .axis
+                    .mirror_norm(x[i * 2], x[i * 2 + 1], width, height, m);
+            if i == j {
+                x[i * 2] = (x[i * 2] + mx) / 2.0;
+                x[i * 2 + 1] = (x[i * 2 + 1] + my) / 2.0;
+                continue;
+            }
+            if meg(x[i * 2] - mx, x[i * 2 + 1] - my) < SYMMETRIZE_MIN_SPLIT {
+                let (nx, ny) = axis_normal(symmetry.axis);
+                x[i * 2] += nx * SYMMETRIZE_MIN_SPLIT;
+                x[i * 2 + 1] += ny * SYMMETRIZE_MIN_SPLIT;
+                (mx, my) = symmetry
+                    .axis
+                    .mirror_norm(x[i * 2], x[i * 2 + 1], width, height, m);
+            }
+            x[j * 2] = mx;
+            x[j * 2 + 1] = my;
+        }
+    }
+
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct KernelFlap {
         pub id: u32,
@@ -791,7 +1168,7 @@ pub mod kernel {
     pub struct KernelHierarchy {
         pub sheet: OptimizerSheet,
         pub flaps: Vec<KernelFlap>,
-        pub dist_map: Vec<(usize, usize, i32)>,
+        pub dist_map: Vec<(usize, usize, f64)>,
         pub parents: Vec<KernelParent>,
         pub parent_map: BTreeMap<u32, usize>,
     }
@@ -871,7 +1248,7 @@ pub mod kernel {
                             "optimizer hierarchy distMap references missing flap {b}"
                         )));
                     };
-                    Ok((i, j, dist as i32))
+                    Ok((i, j, dist))
                 })
                 .collect::<BpResult<Vec<_>>>()?;
             let parents = hierarchy
@@ -1096,10 +1473,22 @@ pub mod kernel {
     }
 
     pub fn pack_rssl(
+        x: Vec<f64>,
+        hierarchy: &KernelHierarchy,
+        fixed: Option<&[bool]>,
+        fixed_solution: Option<&[f64]>,
+    ) -> BpResult<PackResult> {
+        pack_rssl_symmetric(x, hierarchy, fixed, fixed_solution, None)
+    }
+
+    /// `pack_rssl` with optional mirror-symmetry equalities. Passing `None` for
+    /// `symmetry` is byte-identical to the upstream algorithm.
+    pub fn pack_rssl_symmetric(
         mut x: Vec<f64>,
         hierarchy: &KernelHierarchy,
         fixed: Option<&[bool]>,
         fixed_solution: Option<&[f64]>,
+        symmetry: Option<&KernelSymmetry>,
     ) -> BpResult<PackResult> {
         let dim = hierarchy.flaps.len() * 2 + 1;
         if x.len() != dim {
@@ -1120,7 +1509,10 @@ pub mod kernel {
         clip_to_bounds(&mut x, &bounds);
 
         let objective = |x: &[f64]| -x[x.len() - 1];
-        let constraints = make_rssl_constraints(hierarchy, fixed, fixed_solution);
+        let mut constraints = make_rssl_constraints(hierarchy, fixed, fixed_solution);
+        if let Some(symmetry) = symmetry {
+            constraints.extend(make_rssl_symmetry_constraints(hierarchy, symmetry, fixed));
+        }
         let result = slsqp_rssl::fmin_slsqp(
             objective,
             &x,
@@ -1138,6 +1530,445 @@ pub mod kernel {
             status: PackStatus::from_rssl_status(result.status),
             fun: result.fun,
         })
+    }
+
+    // ------------------------------------------------ symmetric grid fitting
+
+    /// How many grid steps the fallback searches outward before giving up.
+    const MAX_FALLBACK_STEPS: i32 = 200;
+
+    /// Grid origins for the symmetric fit, in normalized coordinates.
+    ///
+    /// A diagonal sheet already measures both axes from the sheet centre — its
+    /// diamond is centred there — so it keeps that whatever the axis. A
+    /// rectangular sheet centres only the axes the mirror needs, because
+    /// centring an axis the layout is *not* symmetric about would force the
+    /// sheet to be symmetric about the layout's own extent and waste paper.
+    pub fn symmetric_offsets(sheet: OptimizerSheet, axis: SymmetryAxis) -> (f64, f64) {
+        match sheet {
+            OptimizerSheet::Diag => (0.5, 0.5),
+            OptimizerSheet::Rect => axis.offsets(),
+        }
+    }
+
+    /// Which axes the symmetric fit measures from the sheet centre.
+    fn symmetric_centered(sheet: OptimizerSheet, axis: SymmetryAxis) -> (bool, bool) {
+        match sheet {
+            OptimizerSheet::Diag => (true, true),
+            OptimizerSheet::Rect => axis.centered(),
+        }
+    }
+
+    fn to_grid_offset(x: &[f64], offsets: (f64, f64)) -> Vec<f64> {
+        let grid = get_scale(x);
+        let last = x.len() - 1;
+        let mut out = Vec::with_capacity(x.len());
+        for (index, value) in x.iter().enumerate().take(last) {
+            let offset = if index % 2 == 0 { offsets.0 } else { offsets.1 };
+            out.push((value - offset) * grid);
+        }
+        out.push(grid);
+        out
+    }
+
+    fn to_double_offset(x: &[f64], offsets: (f64, f64)) -> Vec<f64> {
+        let grid = get_scale(x);
+        let last = x.len() - 1;
+        let mut out = Vec::with_capacity(x.len());
+        for (index, value) in x.iter().enumerate().take(last) {
+            let offset = if index % 2 == 0 { offsets.0 } else { offsets.1 };
+            out.push(value * grid + offset);
+        }
+        out.push(grid);
+        out
+    }
+
+    /// The smallest sheet that contains this flap's box, given which axes are
+    /// measured from the centre.
+    fn symmetric_required_size(
+        sheet: OptimizerSheet,
+        axis: SymmetryAxis,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> f64 {
+        match sheet {
+            OptimizerSheet::Diag => {
+                let mut need: f64 = 0.0;
+                for (cx, cy) in [
+                    (x, y),
+                    (x + width, y),
+                    (x, y + height),
+                    (x + width, y + height),
+                ] {
+                    need = need.max(2.0 * (cx.abs() + cy.abs()));
+                }
+                need
+            }
+            OptimizerSheet::Rect => {
+                let (center_x, center_y) = axis.centered();
+                let need_x = if center_x {
+                    (-2.0 * x).max(2.0 * (x + width))
+                } else {
+                    x + width
+                };
+                let need_y = if center_y {
+                    (-2.0 * y).max(2.0 * (y + height))
+                } else {
+                    y + height
+                };
+                need_x.max(need_y)
+            }
+        }
+    }
+
+    /// A centred axis has no lower bound of its own — negative coordinates are
+    /// the other side of the sheet — so only absolute axes get the `>= 0` check.
+    fn symmetric_bounds_ok(sheet: OptimizerSheet, axis: SymmetryAxis, x: f64, y: f64) -> bool {
+        let (center_x, center_y) = symmetric_centered(sheet, axis);
+        (center_x || x >= 0.0) && (center_y || y >= 0.0)
+    }
+
+    /// Exact integer separation of flap `n` from every already-pinned flap.
+    ///
+    /// This is `KernelHierarchy::check` without its sheet-bounds test, which
+    /// assumes an absolute origin and would reject legitimate negative centred
+    /// coordinates.
+    fn symmetric_distances_ok(
+        xk: &[f64],
+        hierarchy: &KernelHierarchy,
+        n: usize,
+        fixed: &[bool],
+    ) -> bool {
+        for &(i, j, dist) in &hierarchy.dist_map {
+            let touches = (i == n && fixed[j]) || (j == n && fixed[i]);
+            if touches && rounded_exact(xk, i, j, dist, &hierarchy.flaps) > 0.0 {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Candidate grid placements for an orbit representative.
+    ///
+    /// A pair branches over the four surrounding grid points and derives its
+    /// partner; a flap on the axis has a single degree of freedom, so it gets the
+    /// two nearest placements along the axis.
+    fn symmetric_candidates(
+        symmetry: &KernelSymmetry,
+        rep: usize,
+        px: f64,
+        py: f64,
+        width: f64,
+        height: f64,
+    ) -> Vec<(f64, f64)> {
+        let mut out = Vec::new();
+        if symmetry.on_axis(rep) {
+            let t = symmetry.axis.axis_parameter(px, py);
+            for t in [t.floor(), t.ceil()] {
+                let point = symmetry.axis.axis_point(t, width, height);
+                if !out.contains(&point) {
+                    out.push(point);
+                }
+            }
+        } else {
+            for q in 0..4 {
+                let point = (branch_value(px, q & 1), branch_value(py, q >> 1));
+                if !out.contains(&point) {
+                    out.push(point);
+                }
+            }
+        }
+        out
+    }
+
+    /// Place a whole orbit at once and re-solve the free flaps around it.
+    ///
+    /// Returns the packed solution in normalized space, or `None` when this
+    /// placement is not viable.
+    /// The parts of a symmetric fit that do not change as orbits are placed.
+    struct SymmetricFit<'a> {
+        hierarchy: &'a KernelHierarchy,
+        symmetry: &'a KernelSymmetry,
+        offsets: (f64, f64),
+    }
+
+    fn try_orbit_placement(
+        fit: &SymmetricFit<'_>,
+        fixed: &[bool],
+        solution: &[f64],
+        rep: usize,
+        (gx, gy): (f64, f64),
+    ) -> BpResult<Option<Vec<f64>>> {
+        let SymmetricFit {
+            hierarchy,
+            symmetry,
+            offsets,
+        } = *fit;
+        let mate = symmetry.partner[rep];
+        let width = f64::from(hierarchy.flaps[rep].width);
+        let height = f64::from(hierarchy.flaps[rep].height);
+        let (mx, my) = symmetry.axis.mirror_grid(gx, gy, width, height);
+        if !symmetric_bounds_ok(hierarchy.sheet, symmetry.axis, gx, gy)
+            || !symmetric_bounds_ok(hierarchy.sheet, symmetry.axis, mx, my)
+        {
+            return Ok(None);
+        }
+
+        let mut xk = solution.to_vec();
+        xk[rep * 2] = gx;
+        xk[rep * 2 + 1] = gy;
+        xk[mate * 2] = mx;
+        xk[mate * 2 + 1] = my;
+
+        // Both orbit members are already marked fixed, so this also covers the
+        // pair colliding with itself across the axis.
+        if !symmetric_distances_ok(&xk, hierarchy, rep, fixed) {
+            return Ok(None);
+        }
+        if mate != rep && !symmetric_distances_ok(&xk, hierarchy, mate, fixed) {
+            return Ok(None);
+        }
+
+        let mate_width = f64::from(hierarchy.flaps[mate].width);
+        let mate_height = f64::from(hierarchy.flaps[mate].height);
+        let need = symmetric_required_size(hierarchy.sheet, symmetry.axis, gx, gy, width, height)
+            .max(symmetric_required_size(
+                hierarchy.sheet,
+                symmetry.axis,
+                mx,
+                my,
+                mate_width,
+                mate_height,
+            ));
+        let last = xk.len() - 1;
+        if need > xk[last] {
+            xk[last] = need;
+        }
+
+        let start = to_double_offset(&xk, offsets);
+        let mut bounds = vec![(0.0, 1.0); xk.len()];
+        bounds[last] = (
+            1.0 / f64::from(MAX_SHEET_SIZE),
+            1.0 / f64::from(MIN_SHEET_SIZE),
+        );
+        let mut start = start;
+        clip_to_bounds(&mut start, &bounds);
+
+        let mut constraints =
+            make_rssl_constraints_with_offsets(hierarchy, Some(fixed), Some(&xk), offsets);
+        constraints.extend(make_rssl_symmetry_constraints(
+            hierarchy,
+            symmetry,
+            Some(fixed),
+        ));
+        let result = slsqp_rssl::fmin_slsqp(
+            |x: &[f64]| -x[x.len() - 1],
+            &start,
+            &bounds,
+            constraints,
+            PACK_MAX_EVAL,
+            PACK_XTOL_ABS,
+            None,
+        );
+        if result.status == slsqp_rssl::SlsqpMode::Success as i32 {
+            Ok(Some(result.x))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Round the fitted grid coordinates into a sheet, centring the axes that
+    /// need it.
+    fn symmetric_output(
+        solution: &[f64],
+        hierarchy: &KernelHierarchy,
+        axis: SymmetryAxis,
+    ) -> Vec<i32> {
+        let count = hierarchy.flaps.len();
+        let mut need = f64::from(MIN_SHEET_SIZE);
+        for i in 0..count {
+            need = need.max(symmetric_required_size(
+                hierarchy.sheet,
+                axis,
+                solution[i * 2].round(),
+                solution[i * 2 + 1].round(),
+                f64::from(hierarchy.flaps[i].width),
+                f64::from(hierarchy.flaps[i].height),
+            ));
+        }
+        let mut size = need.ceil() as i32;
+        let (center_x, center_y) = symmetric_centered(hierarchy.sheet, axis);
+        // A centred axis puts the sheet centre on a grid point, which needs an
+        // even size. This is the rule the diagonal sheet already lives by.
+        if (center_x || center_y) && size % 2 != 0 {
+            size += 1;
+        }
+        let half = size / 2;
+        let mut out = Vec::with_capacity(count * 2 + 1);
+        for i in 0..count {
+            let x = solution[i * 2].round() as i32 + if center_x { half } else { 0 };
+            let y = solution[i * 2 + 1].round() as i32 + if center_y { half } else { 0 };
+            out.push(x);
+            out.push(y);
+        }
+        out.push(size);
+        out
+    }
+
+    /// Fit a symmetric continuous solution onto the grid, one orbit at a time.
+    ///
+    /// The upstream greedy pins flaps at absolute grid coordinates and grows the
+    /// sheet lazily. That cannot work here: in absolute coordinates a book mirror
+    /// is `x -> s - x - w`, so every growth step would move the axis out from
+    /// under the already-pinned pairs. Measuring the mirrored axes from the sheet
+    /// centre makes the mirror map independent of the sheet size, and growth
+    /// becomes symmetric margin.
+    pub fn greedy_solve_integer_symmetric(
+        x0: &[f64],
+        hierarchy: &KernelHierarchy,
+        symmetry: &KernelSymmetry,
+        should_cancel: &mut dyn FnMut() -> bool,
+        on_event: &mut dyn FnMut(OptimizerEvent),
+    ) -> BpResult<Vec<i32>> {
+        let offsets = symmetric_offsets(hierarchy.sheet, symmetry.axis);
+        let fit = SymmetricFit {
+            hierarchy,
+            symmetry,
+            offsets,
+        };
+        let count = hierarchy.flaps.len();
+        let mut solution = to_grid_offset(x0, offsets);
+        let mut fixed = vec![false; count];
+        let mut pins: Vec<Option<(f64, f64)>> = vec![None; count];
+        let representatives = symmetry.representatives();
+        let mut placed = 0usize;
+
+        while placed < count {
+            check_cancelled(should_cancel)?;
+            on_event(OptimizerEvent::Fit((placed, count)));
+
+            let Some(rep) = representatives
+                .iter()
+                .copied()
+                .filter(|&i| !fixed[i])
+                .min_by(|&a, &b| {
+                    meg(solution[a * 2], solution[a * 2 + 1])
+                        .total_cmp(&meg(solution[b * 2], solution[b * 2 + 1]))
+                })
+            else {
+                break;
+            };
+            let mate = symmetry.partner[rep];
+            fixed[rep] = true;
+            fixed[mate] = true;
+
+            let width = f64::from(hierarchy.flaps[rep].width);
+            let height = f64::from(hierarchy.flaps[rep].height);
+            let px = convert_if_almost_integer(solution[rep * 2]);
+            let py = convert_if_almost_integer(solution[rep * 2 + 1]);
+
+            let mut chosen: Option<Vec<f64>> = None;
+            let mut chosen_scale = f64::NEG_INFINITY;
+            let consider = |placement: Option<Vec<f64>>,
+                            chosen: &mut Option<Vec<f64>>,
+                            chosen_scale: &mut f64,
+                            pins: &mut Vec<Option<(f64, f64)>>,
+                            gx: f64,
+                            gy: f64|
+             -> bool {
+                let Some(packed) = placement else {
+                    return false;
+                };
+                let scale = packed[packed.len() - 1];
+                if scale > *chosen_scale {
+                    *chosen_scale = scale;
+                    *chosen = Some(packed);
+                    let (mx, my) = symmetry.axis.mirror_grid(gx, gy, width, height);
+                    pins[rep] = Some((gx, gy));
+                    pins[mate] = Some((mx, my));
+                }
+                true
+            };
+
+            for (gx, gy) in symmetric_candidates(symmetry, rep, px, py, width, height) {
+                let placement = try_orbit_placement(&fit, &fixed, &solution, rep, (gx, gy))?;
+                consider(placement, &mut chosen, &mut chosen_scale, &mut pins, gx, gy);
+            }
+
+            if chosen.is_none() {
+                if symmetry.on_axis(rep) {
+                    // One degree of freedom, so scan outward *along* the axis.
+                    // Projecting a 2-D annulus onto the axis would retry the same
+                    // handful of placements thousands of times.
+                    let t0 = symmetry.axis.axis_parameter(px, py);
+                    'axis: for step in 1..MAX_FALLBACK_STEPS {
+                        for direction in [-1.0, 1.0] {
+                            let t = (t0 + direction * f64::from(step)).round();
+                            let (gx, gy) = symmetry.axis.axis_point(t, width, height);
+                            let placement =
+                                try_orbit_placement(&fit, &fixed, &solution, rep, (gx, gy))?;
+                            if consider(
+                                placement,
+                                &mut chosen,
+                                &mut chosen_scale,
+                                &mut pins,
+                                gx,
+                                gy,
+                            ) {
+                                break 'axis;
+                            }
+                        }
+                    }
+                } else {
+                    'annulus: for radius in 1..MAX_FALLBACK_STEPS {
+                        let mut points = annulus(radius, px.round(), py.round());
+                        points.sort_by(|a, b| {
+                            meg(a.x - px, a.y - py).total_cmp(&meg(b.x - px, b.y - py))
+                        });
+                        for point in points {
+                            let placement = try_orbit_placement(
+                                &fit,
+                                &fixed,
+                                &solution,
+                                rep,
+                                (point.x, point.y),
+                            )?;
+                            if consider(
+                                placement,
+                                &mut chosen,
+                                &mut chosen_scale,
+                                &mut pins,
+                                point.x,
+                                point.y,
+                            ) {
+                                break 'annulus;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let Some(packed) = chosen else {
+                return Err(BpError::OptimizationFailed(format!(
+                    "could not place flap {} symmetrically within {MAX_FALLBACK_STEPS} grid steps",
+                    hierarchy.flaps[rep].id
+                )));
+            };
+
+            solution = to_grid_offset(&packed, offsets);
+            for (i, pin) in pins.iter().enumerate() {
+                if let Some((x, y)) = *pin {
+                    solution[i * 2] = x;
+                    solution[i * 2 + 1] = y;
+                }
+            }
+            placed += if mate == rep { 1 } else { 2 };
+        }
+
+        on_event(OptimizerEvent::Fit((count, count)));
+        Ok(symmetric_output(&solution, hierarchy, symmetry.axis))
     }
 
     pub fn greedy_solve_integer_rssl(
@@ -1183,8 +2014,28 @@ pub mod kernel {
         should_cancel: &mut dyn FnMut() -> bool,
         on_event: &mut dyn FnMut(OptimizerEvent),
     ) -> BpResult<PackResult> {
+        basin_hopping_symmetric_with_progress(x0, hierarchy, seed, should_cancel, on_event, None)
+    }
+
+    /// `basin_hopping_rssl_with_progress` with optional mirror symmetry.
+    pub fn basin_hopping_symmetric_with_progress(
+        x0: Vec<f64>,
+        hierarchy: &KernelHierarchy,
+        seed: u32,
+        should_cancel: &mut dyn FnMut() -> bool,
+        on_event: &mut dyn FnMut(OptimizerEvent),
+        symmetry: Option<&KernelSymmetry>,
+    ) -> BpResult<PackResult> {
         let mut rng = BpRandom::new(seed);
-        basin_hopping_with_rng(x0, hierarchy, &mut rng, should_cancel, on_event, 0)
+        basin_hopping_with_rng(
+            x0,
+            hierarchy,
+            &mut rng,
+            should_cancel,
+            on_event,
+            0,
+            symmetry,
+        )
     }
 
     pub fn solve_global_rssl(
@@ -1201,6 +2052,22 @@ pub mod kernel {
         seed: u32,
         should_cancel: &mut dyn FnMut() -> bool,
         on_event: &mut dyn FnMut(OptimizerEvent),
+    ) -> BpResult<PackResult> {
+        solve_global_symmetric_with_progress(problem, target, seed, should_cancel, on_event, None)
+    }
+
+    /// `solve_global_rssl_with_progress` with optional mirror symmetry.
+    ///
+    /// The coarse hierarchy levels stay unconstrained: they only produce starting
+    /// points, and a simplified tree need not admit the same mirror. Each
+    /// candidate is folded onto the manifold before its final-level solve.
+    pub fn solve_global_symmetric_with_progress(
+        problem: &KernelProblem,
+        target: usize,
+        seed: u32,
+        should_cancel: &mut dyn FnMut() -> bool,
+        on_event: &mut dyn FnMut(OptimizerEvent),
+        symmetry: Option<&KernelSymmetry>,
     ) -> BpResult<PackResult> {
         let Some(main) = problem.hierarchies.last() else {
             return Err(BpError::InvalidInput(
@@ -1219,8 +2086,15 @@ pub mod kernel {
         let mut best_result = None;
         for (index, vector) in initial_vectors.into_iter().enumerate() {
             check_cancelled(should_cancel)?;
-            let result =
-                basin_hopping_with_rng(vector, main, &mut rng, should_cancel, on_event, index)?;
+            let result = basin_hopping_with_rng(
+                vector,
+                main,
+                &mut rng,
+                should_cancel,
+                on_event,
+                index,
+                symmetry,
+            )?;
             if result.success {
                 let scale = get_scale(&result.x);
                 if scale < best_scale {
@@ -1313,8 +2187,9 @@ pub mod kernel {
         should_cancel: &mut dyn FnMut() -> bool,
         on_event: &mut dyn FnMut(OptimizerEvent),
         range: usize,
+        symmetry: Option<&KernelSymmetry>,
     ) -> BpResult<PackResult> {
-        let mut runner = BasinHoppingRunner::new(x0, hierarchy)?;
+        let mut runner = BasinHoppingRunner::new(x0, hierarchy, symmetry)?;
         let mut stale_count = 0;
         for minor in 0..BH_NITER {
             check_cancelled(should_cancel)?;
@@ -1399,7 +2274,7 @@ pub mod kernel {
         result
     }
 
-    pub fn infer_scale(x: &[f64], i: usize, j: usize, dist: i32, flaps: &[KernelFlap]) -> f64 {
+    pub fn infer_scale(x: &[f64], i: usize, j: usize, dist: f64, flaps: &[KernelFlap]) -> f64 {
         let x1 = x[i * 2];
         let y1 = x[i * 2 + 1];
         let x2 = x[j * 2];
@@ -1408,11 +2283,10 @@ pub mod kernel {
         let h = if y2 > y1 { flaps[i] } else { flaps[j] }.height;
         let dx = (x2 - x1).abs();
         let dy = (y2 - y1).abs();
-        let dh = f64::from(dist + h);
-        let dw = f64::from(dist + w);
+        let dh = dist + f64::from(h);
+        let dw = dist + f64::from(w);
         let w = f64::from(w);
         let h = f64::from(h);
-        let dist = f64::from(dist);
 
         if dx == 0.0 && dy == 0.0 {
             return f64::from(MAX_INIT_SCALE);
@@ -1458,12 +2332,12 @@ pub mod kernel {
         x: &[f64],
         i: usize,
         j: usize,
-        dist: i32,
+        dist: f64,
     ) -> ScalarConstraintEvaluation {
-        let d = f64::from(dist) * x[x.len() - 1];
+        let d = dist * x[x.len() - 1];
         let dx = x[i * 2] - x[j * 2];
         let dy = x[i * 2 + 1] - x[j * 2 + 1];
-        let mut gradient = reset_gradient(x.len(), 2.0 * f64::from(dist) * d);
+        let mut gradient = reset_gradient(x.len(), 2.0 * dist * d);
         gradient[i * 2] = -2.0 * dx;
         gradient[j * 2] = 2.0 * dx;
         gradient[i * 2 + 1] = -2.0 * dy;
@@ -1478,11 +2352,11 @@ pub mod kernel {
         x: &[f64],
         i: usize,
         j: usize,
-        dist: i32,
+        dist: f64,
         flaps: &[KernelFlap],
     ) -> ScalarConstraintEvaluation {
         let m = x[x.len() - 1];
-        let d = f64::from(dist) * m;
+        let d = dist * m;
         let fi = flaps[i];
         let fj = flaps[j];
         let dx = interval_distance(
@@ -1513,7 +2387,7 @@ pub mod kernel {
         };
         let mut gradient = reset_gradient(
             x.len(),
-            2.0 * f64::from(dist) * d - 2.0 * dx * f64::from(dx_s) - 2.0 * dy * f64::from(dy_s),
+            2.0 * dist * d - 2.0 * dx * f64::from(dx_s) - 2.0 * dy * f64::from(dy_s),
         );
         gradient[i * 2] = -2.0 * dx;
         gradient[j * 2] = 2.0 * dx;
@@ -1525,7 +2399,7 @@ pub mod kernel {
         }
     }
 
-    pub fn rounded_exact(x: &[f64], i: usize, j: usize, dist: i32, flaps: &[KernelFlap]) -> f64 {
+    pub fn rounded_exact(x: &[f64], i: usize, j: usize, dist: f64, flaps: &[KernelFlap]) -> f64 {
         let dx = interval_distance(
             x[i * 2],
             f64::from(flaps[i].width),
@@ -1538,7 +2412,7 @@ pub mod kernel {
             x[j * 2 + 1],
             f64::from(flaps[j].height),
         );
-        f64::from(dist * dist) - dx * dx - dy * dy
+        dist * dist - dx * dx - dy * dy
     }
 
     pub fn fixed_constraint(
@@ -1741,17 +2615,19 @@ pub mod kernel {
         if direction != 0 { x.ceil() } else { x.floor() }
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    // `PartialEq` only: the distances are now real tree distances, and `f64` has
+    // no total equality.
+    #[derive(Debug, Clone, Copy, PartialEq)]
     enum PackConstraint {
         Circle {
             i: usize,
             j: usize,
-            dist: i32,
+            dist: f64,
         },
         Rounded {
             i: usize,
             j: usize,
-            dist: i32,
+            dist: f64,
         },
         RectBound {
             coordinate_index: usize,
@@ -1914,6 +2790,20 @@ pub mod kernel {
         fixed: Option<&'a [bool]>,
         fixed_solution: Option<&'a [f64]>,
     ) -> Vec<slsqp_rssl::Constraint<'a>> {
+        let offset = hierarchy.sheet.offset();
+        make_rssl_constraints_with_offsets(hierarchy, fixed, fixed_solution, (offset, offset))
+    }
+
+    /// `make_rssl_constraints` with the grid origin given per axis.
+    ///
+    /// The symmetric fit measures one or both axes from the sheet centre, so a
+    /// pin has to be expressed against the same origin the grid coordinates use.
+    fn make_rssl_constraints_with_offsets<'a>(
+        hierarchy: &'a KernelHierarchy,
+        fixed: Option<&'a [bool]>,
+        fixed_solution: Option<&'a [f64]>,
+        offsets: (f64, f64),
+    ) -> Vec<slsqp_rssl::Constraint<'a>> {
         let mut constraints = Vec::new();
         for constraint in make_pack_constraints_with_fixed(hierarchy, fixed) {
             constraints.push(slsqp_rssl::Constraint::Ineq(Box::new(move |x| {
@@ -1921,7 +2811,7 @@ pub mod kernel {
             })));
         }
         if let (Some(fixed), Some(fixed_solution)) = (fixed, fixed_solution) {
-            let offset = hierarchy.sheet.offset();
+            let (offset_x, offset_y) = offsets;
             for i in 0..hierarchy.flaps.len() {
                 if !fixed.get(i).copied().unwrap_or(false) {
                     continue;
@@ -1930,14 +2820,42 @@ pub mod kernel {
                 let vx = fixed_solution[coordinate_index];
                 let vy = fixed_solution[coordinate_index + 1];
                 constraints.push(slsqp_rssl::Constraint::Eq(Box::new(move |x| {
-                    x[coordinate_index] - offset - vx * x[x.len() - 1]
+                    x[coordinate_index] - offset_x - vx * x[x.len() - 1]
                 })));
                 constraints.push(slsqp_rssl::Constraint::Eq(Box::new(move |x| {
-                    x[coordinate_index + 1] - offset - vy * x[x.len() - 1]
+                    x[coordinate_index + 1] - offset_y - vy * x[x.len() - 1]
                 })));
             }
         }
         constraints
+    }
+
+    /// One linear equality per symmetry residual.
+    ///
+    /// Each closure evaluates only its own orbit. Recomputing the whole residual
+    /// vector per residual would be O(n^2) per evaluation, which dominates
+    /// runtime under finite-difference gradients.
+    fn make_rssl_symmetry_constraints<'a>(
+        hierarchy: &'a KernelHierarchy,
+        symmetry: &'a KernelSymmetry,
+        fixed: Option<&'a [bool]>,
+    ) -> Vec<slsqp_rssl::Constraint<'a>> {
+        symmetry_residuals(hierarchy, symmetry, fixed)
+            .into_iter()
+            .map(|(i, component)| {
+                let axis = symmetry.axis;
+                let partner = symmetry.partner[i];
+                let width = f64::from(hierarchy.flaps[i].width);
+                let height = f64::from(hierarchy.flaps[i].height);
+                slsqp_rssl::Constraint::Eq(Box::new(move |x: &[f64]| {
+                    let m = x[x.len() - 1];
+                    let (mx, my) = axis.mirror_norm(x[i * 2], x[i * 2 + 1], width, height, m);
+                    let target = if component == 0 { mx } else { my };
+                    let source = x[partner * 2 + component];
+                    source - target
+                }))
+            })
+            .collect()
     }
 
     #[derive(Debug, Clone)]
@@ -1956,15 +2874,31 @@ pub mod kernel {
             }
         }
 
-        fn take_step(&mut self, mut x: Vec<f64>, rng: &mut BpRandom) -> Vec<f64> {
+        fn take_step(
+            &mut self,
+            mut x: Vec<f64>,
+            rng: &mut BpRandom,
+            symmetry: Option<(&KernelHierarchy, &KernelSymmetry)>,
+        ) -> Vec<f64> {
             self.nstep += 1;
             if self.nstep.is_multiple_of(BH_INTERVAL) {
                 self.adjust_step_size();
             }
             let last = x.len() - 1;
-            for coordinate in x.iter_mut().take(last) {
-                *coordinate += rng.random01() * 2.0 * self.stepsize - self.stepsize;
+            let Some((hierarchy, symmetry)) = symmetry else {
+                for coordinate in x.iter_mut().take(last) {
+                    *coordinate += rng.random01() * 2.0 * self.stepsize - self.stepsize;
+                }
+                return x;
+            };
+            // Displace one member of each orbit and mirror the displacement, so
+            // the jiggle stays on the symmetry manifold instead of spending half
+            // of every step being pulled back onto it.
+            for i in symmetry.representatives() {
+                x[i * 2] += rng.random01() * 2.0 * self.stepsize - self.stepsize;
+                x[i * 2 + 1] += rng.random01() * 2.0 * self.stepsize - self.stepsize;
             }
+            symmetrize(&mut x, hierarchy, symmetry);
             x
         }
 
@@ -1987,6 +2921,7 @@ pub mod kernel {
     #[derive(Debug, Clone)]
     struct BasinHoppingRunner<'a> {
         hierarchy: &'a KernelHierarchy,
+        symmetry: Option<&'a KernelSymmetry>,
         step_taking: AdaptiveStepSize,
         incumbent: PackResult,
         lowest: PackResult,
@@ -1994,10 +2929,18 @@ pub mod kernel {
     }
 
     impl<'a> BasinHoppingRunner<'a> {
-        fn new(x0: Vec<f64>, hierarchy: &'a KernelHierarchy) -> BpResult<Self> {
-            let minres = pack_rssl(x0, hierarchy, None, None)?;
+        fn new(
+            mut x0: Vec<f64>,
+            hierarchy: &'a KernelHierarchy,
+            symmetry: Option<&'a KernelSymmetry>,
+        ) -> BpResult<Self> {
+            if let Some(symmetry) = symmetry {
+                symmetrize(&mut x0, hierarchy, symmetry);
+            }
+            let minres = pack_rssl_symmetric(x0, hierarchy, None, None, symmetry)?;
             Ok(Self {
                 hierarchy,
+                symmetry,
                 step_taking: AdaptiveStepSize::new(),
                 x: minres.x.clone(),
                 incumbent: minres.clone(),
@@ -2006,8 +2949,13 @@ pub mod kernel {
         }
 
         fn one_cycle(&mut self, rng: &mut BpRandom) -> BpResult<bool> {
-            let x_after_step = self.step_taking.take_step(self.x.clone(), rng);
-            let minres = pack_rssl(x_after_step, self.hierarchy, None, None)?;
+            let x_after_step = self.step_taking.take_step(
+                self.x.clone(),
+                rng,
+                self.symmetry.map(|symmetry| (self.hierarchy, symmetry)),
+            );
+            let minres =
+                pack_rssl_symmetric(x_after_step, self.hierarchy, None, None, self.symmetry)?;
             let accept = metropolis_accept(&minres, &self.incumbent, rng);
             self.step_taking.report(accept);
             let mut new_global_min = false;
@@ -2211,15 +3159,15 @@ mod tests {
             },
         ];
         let mut x = vec![0.0, 0.0, 0.3, 0.4, 0.0];
-        let hierarchy = kernel_hierarchy(flaps.clone(), vec![(0, 1, 10)]);
+        let hierarchy = kernel_hierarchy(flaps.clone(), vec![(0, 1, 10.0)]);
 
-        assert_eq!(infer_scale(&x, 0, 1, 10, &flaps), 20.0);
+        assert_eq!(infer_scale(&x, 0, 1, 10.0, &flaps), 20.0);
         setup_initial_scale(&mut x, &hierarchy);
         assert_eq!(get_scale(&x), 20.0);
 
         let same_position = vec![0.0, 0.0, 0.0, 0.0, 0.0];
         assert_eq!(
-            infer_scale(&same_position, 0, 1, 10, &flaps),
+            infer_scale(&same_position, 0, 1, 10.0, &flaps),
             super::kernel::MAX_INIT_SCALE as f64
         );
     }
@@ -2240,7 +3188,7 @@ mod tests {
         ];
         let x = vec![0.0, 0.0, 0.8, 0.6, 0.0];
 
-        assert!((infer_scale(&x, 0, 1, 10, &flaps) - 14.2).abs() < 1e-10);
+        assert!((infer_scale(&x, 0, 1, 10.0, &flaps) - 14.2).abs() < 1e-10);
     }
 
     #[test]
@@ -2319,6 +3267,7 @@ mod tests {
                 }],
             },
             vec: None,
+            symmetry: None,
         };
 
         let problem = KernelProblem::from_request(&request).unwrap();
@@ -2326,7 +3275,11 @@ mod tests {
 
         assert_eq!(problem.sheet, OptimizerSheet::Diag);
         assert_eq!(hierarchy.sheet, OptimizerSheet::Diag);
-        assert_eq!(hierarchy.dist_map, vec![(0, 1, 10)]);
+        // Carried across whole, not truncated. Tree distances are genuinely
+        // fractional once flap dimensions are in play: upstream's `getArea`
+        // divides by PI, and `getDistMap` takes the square root of that for a
+        // leaf, so a distance like this one is the norm rather than an oddity.
+        assert_eq!(hierarchy.dist_map, vec![(0, 1, 10.9)]);
         assert_eq!(hierarchy.flaps[0].width, 4);
         assert_eq!(hierarchy.flaps[0].height, 5);
         assert_eq!(hierarchy.parent_for(1).unwrap().id, 9);
@@ -2361,6 +3314,7 @@ mod tests {
                 }],
             },
             vec: Some(vec![Point { x: 0.0, y: 0.0 }, Point { x: 0.3, y: 0.4 }]),
+            symmetry: None,
         };
         let problem = KernelProblem::from_request(&request).unwrap();
 
@@ -2430,14 +3384,14 @@ mod tests {
                     height: 0,
                 },
             ],
-            vec![(0, 1, 10)],
+            vec![(0, 1, 10.0)],
         );
 
         let result = pack_rssl(vec![0.0, 0.0, 0.3, 0.4, 0.025], &hierarchy, None, None).unwrap();
 
         assert!(result.success, "{:?}", result);
         assert_eq!(result.status, PackStatus::Success);
-        assert!(circle_constraint(&result.x, 0, 1, 10).value.abs() < 1e-5);
+        assert!(circle_constraint(&result.x, 0, 1, 10.0).value.abs() < 1e-5);
         assert!((result.x[4] - 1.0 / 2.0_f64.sqrt() / 5.0).abs() < 1e-5);
     }
 
@@ -2482,7 +3436,7 @@ mod tests {
                     height: 0,
                 },
             ],
-            vec![(0, 1, 10)],
+            vec![(0, 1, 10.0)],
         );
         let continuous = pack_rssl(vec![0.0, 0.0, 0.3, 0.4, 0.05], &hierarchy, None, None).unwrap();
 
@@ -2493,7 +3447,7 @@ mod tests {
 
     #[test]
     fn kernel_circle_constraint_matches_bp_value_and_gradient() {
-        let evaluated = circle_constraint(&[0.2, 0.3, 0.7, 0.3, 0.1], 0, 1, 5);
+        let evaluated = circle_constraint(&[0.2, 0.3, 0.7, 0.3, 0.1], 0, 1, 5.0);
 
         assert!(evaluated.value.abs() < 1e-10);
         assert_vec_close(&evaluated.gradient, &[1.0, -0.0, -1.0, 0.0, 5.0]);
@@ -2513,12 +3467,12 @@ mod tests {
                 height: 5,
             },
         ];
-        let evaluated = rounded_constraint(&[0.1, 0.2, 0.7, 0.8, 0.1], 0, 1, 10, &flaps);
+        let evaluated = rounded_constraint(&[0.1, 0.2, 0.7, 0.8, 0.1], 0, 1, 10.0, &flaps);
 
         assert!((evaluated.value - 0.75).abs() < 1e-10);
         assert_vec_close(&evaluated.gradient, &[0.8, 0.6, -0.8, -0.6, 23.4]);
         assert_eq!(
-            rounded_exact(&[1.0, 2.0, 7.0, 8.0, 0.0], 0, 1, 10, &flaps),
+            rounded_exact(&[1.0, 2.0, 7.0, 8.0, 0.0], 0, 1, 10.0, &flaps),
             75.0
         );
         assert_eq!(interval_distance(1.0, 2.0, 7.0, 4.0), -4.0);
@@ -2610,7 +3564,7 @@ mod tests {
                     height: 0,
                 },
             ],
-            vec![(0, 1, 10)],
+            vec![(0, 1, 10.0)],
         );
 
         assert!(!hierarchy.check(&[0.0, 0.0, 3.0, 4.0, 5.0], 1, &[true, false]));
@@ -2735,7 +3689,7 @@ mod tests {
 
     fn kernel_hierarchy(
         flaps: Vec<KernelFlap>,
-        dist_map: Vec<(usize, usize, i32)>,
+        dist_map: Vec<(usize, usize, f64)>,
     ) -> KernelHierarchy {
         KernelHierarchy {
             sheet: OptimizerSheet::Rect,

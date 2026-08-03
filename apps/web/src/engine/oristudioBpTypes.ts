@@ -1,3 +1,4 @@
+import type { OptimizerSymmetryPayload } from '../lib/bpOptimizerSymmetry';
 import type { Point } from '../lib/geometry';
 import type {
   OristudioBpCapabilityId,
@@ -353,6 +354,21 @@ export interface OristudioBpOptimizerOptions {
   useBasinHopping: boolean;
   randomCandidateCount: number;
   seed: number | null;
+  /**
+   * Whether to constrain the layout to the tree's mirror symmetry.
+   *
+   * Separate from the symmetry-authoring mode being on, which is a *drawing*
+   * aid and defaults on for every design — it carries no signal about what the
+   * packing should be. Constraining the optimizer is a decision the user makes
+   * per run.
+   */
+  respectSymmetry: boolean;
+  /**
+   * Mirror symmetry to enforce, already resolved against the tree by
+   * {@link ../lib/bpOptimizerSymmetry.resolveOptimizerSymmetry}. Omitted or null
+   * runs the unmodified upstream algorithm.
+   */
+  symmetry?: OptimizerSymmetryPayload | null;
 }
 
 /**
@@ -361,9 +377,17 @@ export interface OristudioBpOptimizerOptions {
  * layout in place and undo is the recovery path) and `seed` is randomized per
  * run, so neither is a user choice.
  */
+/**
+ * What the user chooses for a run.
+ *
+ * `symmetry` is deliberately excluded: it is derived from the tree and the
+ * symmetry-authoring mode at the moment the run starts, not a preference the
+ * dialog owns or persists. The slice action resolves it — see
+ * {@link ../lib/bpOptimizerSymmetry.resolveOptimizerSymmetry}.
+ */
 export type OristudioBpOptimizerRunOptions = Omit<
   OristudioBpOptimizerOptions,
-  'openNew' | 'seed'
+  'openNew' | 'seed' | 'symmetry'
 >;
 
 /**
