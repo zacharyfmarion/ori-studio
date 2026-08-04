@@ -118,11 +118,21 @@ const OVERSIZED_PANELS = {
   // is. The placement rule and the collapse preference live beside the chrome
   // with their own tests.
   //
+  // 1097 -> 1105: the window stays shut for the resting tool — the one Escape
+  // and every new document land on, whose hint would otherwise be on screen most
+  // of the time saying how to drag a box. Both rules it needs are outside this
+  // file with their own tests: `toolHint/restingTool` (which tool is the resting
+  // one) and `foldAngle/hasFoldableCpSelection` (whether the fold-angle control
+  // has anything to offer, which is the one thing that still opens the window
+  // there). What landed here is the composition — two predicate calls and the
+  // render decision they feed. Still below the 1110 this file started the change
+  // at, because the window chrome came out on the way.
+  //
   // **The seam this file actually wants** is `CpContextToolGroup`: ~530 lines,
   // 45% of the total, a switch over setting groups that has nothing to do with
   // the panel's composition. Moving it out is the fix, and it is a change of its
   // own rather than a rider on whichever feature next trips the cap.
-  'CpContextToolPanel.tsx': 1097,
+  'CpContextToolPanel.tsx': 1105,
 };
 
 const PANEL_MAX_LINES = 800;

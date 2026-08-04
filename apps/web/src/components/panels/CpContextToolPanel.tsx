@@ -39,6 +39,8 @@ import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predic
 import { cpToolUnavailableMessage } from '../../cp-workspace/tools/toolUnavailable';
 import { CpContextToolReset } from './CpContextToolReset';
 import { CpToolHintWindow } from '../../cp-workspace/toolHint/CpToolHintWindow';
+import { isRestingCpTool } from '../../cp-workspace/toolHint/restingTool';
+import { useFoldAngleAvailable } from '../../cp-workspace/foldAngle/useFoldAngleSelection';
 import { copyTextToClipboard } from '../../lib/clipboardText';
 import { FoldAngleControl } from '../../cp-workspace/foldAngle/FoldAngleControl';
 import {
@@ -187,8 +189,14 @@ export function CpContextToolPanel({
   onClearInput?: () => void;
 }) {
   const { t } = useTranslation();
+  const foldAngleAvailable = useFoldAngleAvailable();
   const groups = cpToolSettingGroupsForCommand(command);
-  const instructions = cpToolInstructions(t, action, command);
+  // The resting tool is where Escape and every new document land, so its hint
+  // would be on screen most of the time telling you how to drag a box. Only the
+  // *instructions* are dropped: settings and the this-click messages below are
+  // not hints, and if the resting tool ever has any it should still show them.
+  const resting = isRestingCpTool(action, command);
+  const instructions = resting ? null : cpToolInstructions(t, action, command);
   const applyDisabled = contextApplyDisabledForCommand(command, selection, pendingPointCount);
   const unavailableMessage = cpToolUnavailableMessage(t, unavailable);
   const title = action?.kind === 'command' ? cpActionLabel(t, action) : command.label;
@@ -197,9 +205,17 @@ export function CpContextToolPanel({
       ? groups.length === 1
         ? t('tools:cpContext.settingCountOne', '{{count}} setting', { count: groups.length })
         : t('tools:cpContext.settingCountOther', '{{count}} settings', { count: groups.length })
-      : t('tools:cpContext.instructions', 'Instructions');
+      : instructions
+        ? t('tools:cpContext.instructions', 'Instructions')
+        : t('tools:cpContext.foldAngle', 'Fold angle');
 
-  if (groups.length === 0 && !instructions && !unavailableMessage && !toolNotice) return null;
+  // `FoldAngleControl` counts, and for the resting tool it is the only thing
+  // that does. It is not a hint — it is the sole route to setting a fold angle
+  // on a selection, and select-then-assign is exactly how that workflow goes, so
+  // suppressing the hint must not take it with it.
+  const hasContent =
+    groups.length > 0 || !!instructions || !!unavailableMessage || !!toolNotice || foldAngleAvailable;
+  if (!hasContent) return null;
 
   return (
     <CpToolHintWindow
