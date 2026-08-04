@@ -80,6 +80,24 @@ describe('useCpDocumentCamera', () => {
     expect(seen.initialCamera).toBeNull();
   });
 
+  it('does not carry a previous document’s view onto the next one', () => {
+    // The reported regression, in miniature. A blank crease pattern frames to
+    // ~110% (the paper square); that gets recorded on settle. Opening a large
+    // document must then re-fit to it — the previously recorded camera is not
+    // this document's view, and offering it would strand the canvas on the old
+    // framing while the new content sits outside the viewport.
+    openDocument(null);
+    render();
+    act(() => seen.onCameraChange({ centerX: 360, centerY: 348, zoom: 2.2, rotation: 0 }));
+    act(() => void vi.advanceTimersByTime(500));
+    expect(useWorkspaceStore.getState().oristudioCpCamera).not.toBeNull();
+
+    // The next open carries no camera of its own, in one atomic store update.
+    openDocument(null);
+    render();
+    expect(seen.initialCamera).toBeNull();
+  });
+
   it('picks up the next document’s camera', () => {
     openDocument(null);
     render();
