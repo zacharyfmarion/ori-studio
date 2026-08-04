@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { cpContentBounds, type CpOverlayBox } from './cpContentBounds';
 import { createCpImage } from './images/cpImage';
+import { foldedFigureUserAabb } from './adapters/cpFoldedToScene';
+import { IDENTITY_FOLDED_PLACEMENT } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedRenderPrimitive,
+} from '../engine/oristudioCpTypes';
 
 // Model space and user space differ in the real canvas; an identity keeps the
 // assertions about *what is included* rather than about the transform.
@@ -25,6 +31,48 @@ const imageAt = (x: number, y: number, hidden = false) => ({
     height: 20,
   }),
   hidden,
+});
+
+/**
+ * A folded figure occupying the user-space square (0,0)-(10,10) before placement.
+ * Its render primitives are already in SVG user coordinates, which is the point
+ * of the coordinate-space test below.
+ */
+const squarePrimitive: OristudioCpFoldedRenderPrimitive = {
+  sequence: 0,
+  kind: 'fill_polygon',
+  style: {
+    paint: { kind: 'color', color: { red: 255, green: 0, blue: 0, alpha: 255 } },
+    stroke: { kind: 'none' },
+    antialias: 'default',
+  },
+  geometry: {
+    kind: 'polygon',
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ],
+  },
+};
+
+const foldedFigureAt = (
+  offset: { x: number; y: number },
+  primitives: OristudioCpFoldedRenderPrimitive[] = [squarePrimitive]
+): OristudioCpFoldedFigureEntry => ({
+  id: 'generated-1',
+  title: 'Folded model 1',
+  handle: 1,
+  sourceKind: 'generated-from-current-cp',
+  sourceCpRevision: null,
+  startingFaceId: null,
+  displayStyle: 'Paper5',
+  status: 'ready',
+  snapshot: null,
+  renderSnapshot: { schema_version: 1, fixture: null, pass: null, primitives },
+  placement: { ...IDENTITY_FOLDED_PLACEMENT, offset },
+  error: null,
 });
 
 describe('what the camera frames against', () => {
@@ -83,6 +131,72 @@ describe('what the camera frames against', () => {
       modelToSvg,
     });
     expect(bounds).toEqual({ minX: 40, minY: 40, maxX: 60, maxY: 60 });
+  });
+
+  it('includes folded figures', () => {
+    // The same bug inline simulation windows had. A figure is parked to the
+    // right of its source creases by construction (`placeFoldedFigureBesideCp`
+    // anchors it one gap past `anchor.right`), so on a pattern with a figure
+    // beside it and nothing further out, framing the creases alone cuts it off.
+    const figure = foldedFigureAt({ x: 200, y: 0 });
+    const bounds = cpContentBounds({
+      lineSegments: [crease],
+      foldedFigures: [figure],
+      modelToSvg,
+    });
+    const figureBounds = foldedFigureUserAabb(figure)!;
+    expect(figureBounds.maxX).toBeGreaterThan(10);
+    expect(bounds?.maxX).toBeCloseTo(figureBounds.maxX);
+  });
+
+  it('leaves the bounds alone for a figure already inside them', () => {
+    const bounds = cpContentBounds({
+      lineSegments: [crease],
+      overlayBoxes: [boxAt(5000, 5000)],
+      foldedFigures: [foldedFigureAt({ x: 0, y: 0 })],
+      modelToSvg,
+    });
+    expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 5010, maxY: 5010 });
+  });
+
+  it('does not put folded figures through modelToSvg', () => {
+    // A figure is already in SVG user space — the space its render primitives
+    // land in once `foldedFigureLocalGeometry` has projected them — while every
+    // other input here is model space. Projecting it a second time would place
+    // it at the paper transform's scale, the mistake bf484295 was about.
+    //
+    // Pinned by giving the same figure two very different `modelToSvg`s: its
+    // contribution must not move.
+    const foldedFigures = [foldedFigureAt({ x: 0, y: 0 })];
+    const identity = cpContentBounds({ lineSegments: [], foldedFigures, modelToSvg });
+    const scaled = cpContentBounds({
+      lineSegments: [],
+      foldedFigures,
+      modelToSvg: (p) => ({ x: p.x * 100, y: p.y * 100 }),
+    });
+    expect(scaled).toEqual(identity);
+    expect(identity).toEqual(foldedFigureUserAabb(foldedFigures[0]));
+  });
+
+  it('skips a figure that draws nothing', () => {
+    // No primitives, or no snapshot at all: nothing on screen, nothing to frame.
+    const bounds = cpContentBounds({
+      lineSegments: [crease],
+      foldedFigures: [
+        foldedFigureAt({ x: 9000, y: 9000 }, []),
+        { ...foldedFigureAt({ x: 9000, y: 9000 }), renderSnapshot: null },
+      ],
+      modelToSvg,
+    });
+    expect(bounds).toEqual({ minX: 0, minY: 0, maxX: 10, maxY: 10 });
+  });
+
+  it('frames a document whose only content is a folded figure', () => {
+    // A figure has to be reachable even with the creases deleted out from under it.
+    const figure = foldedFigureAt({ x: 50, y: 50 });
+    expect(cpContentBounds({ lineSegments: [], foldedFigures: [figure], modelToSvg })).toEqual(
+      foldedFigureUserAabb(figure)
+    );
   });
 
   it('is null when nothing is placed', () => {

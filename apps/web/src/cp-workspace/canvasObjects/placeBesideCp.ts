@@ -63,6 +63,88 @@ export function firstFreeSlotBeside(options: {
 }
 
 /**
+ * The row packs "to the right, top-aligned" in one space. When objects are
+ * created upright on a turned canvas, that space has to be the *view's*, or the
+ * row marches diagonally down the screen and reads as a staircase.
+ *
+ * These convert between an object space and the frame rotated by `frameAngle` —
+ * the angle at which an object is upright on screen (see
+ * `annotationTransform.uprightRotationForView`). Packing happens in the frame,
+ * and the resulting slot comes back out. At `frameAngle === 0` every one of
+ * these is the identity, so the unrotated case is untouched.
+ */
+export function pointToFrame(p: Vec2Like, frameAngle: number): Vec2Like {
+  const cos = Math.cos(frameAngle);
+  const sin = Math.sin(frameAngle);
+  return { x: p.x * cos + p.y * sin, y: -p.x * sin + p.y * cos };
+}
+
+/** Inverse of {@link pointToFrame}. */
+export function pointFromFrame(p: Vec2Like, frameAngle: number): Vec2Like {
+  const cos = Math.cos(frameAngle);
+  const sin = Math.sin(frameAngle);
+  return { x: p.x * cos - p.y * sin, y: p.x * sin + p.y * cos };
+}
+
+interface Vec2Like {
+  x: number;
+  y: number;
+}
+
+/**
+ * Bounds of a rotated box measured along the frame's axes. Exact — not
+ * inflated — for a box whose own rotation is `frameAngle`, which is every object
+ * created upright under the current view.
+ */
+export function boxAabbInFrame(box: AnnotationBox, frameAngle: number): Aabb {
+  const hw = box.width / 2;
+  const hh = box.height / 2;
+  const cos = Math.cos(box.rotation);
+  const sin = Math.sin(box.rotation);
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [dx, dy] of [
+    [-hw, -hh],
+    [hw, -hh],
+    [hw, hh],
+    [-hw, hh],
+  ] as const) {
+    const corner = pointToFrame(
+      {
+        x: box.center.x + dx * cos - dy * sin,
+        y: box.center.y + dx * sin + dy * cos,
+      },
+      frameAngle
+    );
+    if (corner.x < minX) minX = corner.x;
+    if (corner.y < minY) minY = corner.y;
+    if (corner.x > maxX) maxX = corner.x;
+    if (corner.y > maxY) maxY = corner.y;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+/**
+ * An already-flattened AABB measured along the frame's axes. Conservative: an
+ * AABB has lost the orientation of whatever produced it, so this can only
+ * re-enclose it, which costs a little extra spacing and never an overlap.
+ * Prefer {@link boxAabbInFrame} where the box itself is still in hand.
+ */
+export function aabbInFrame(aabb: Aabb, frameAngle: number): Aabb {
+  return boxAabbInFrame(
+    {
+      center: { x: (aabb.minX + aabb.maxX) / 2, y: (aabb.minY + aabb.maxY) / 2 },
+      width: aabb.maxX - aabb.minX,
+      height: aabb.maxY - aabb.minY,
+      rotation: 0,
+    },
+    frameAngle
+  );
+}
+
+/**
  * Axis-aligned bounds of a rotated box, taken over its corners so a turned
  * object is fully enclosed.
  */

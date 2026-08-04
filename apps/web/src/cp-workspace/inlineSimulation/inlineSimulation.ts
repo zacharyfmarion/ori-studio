@@ -11,7 +11,12 @@ import {
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { AnnotationBox } from '../annotations/annotationTransform';
 import type { Aabb } from '../picking/lineHitIndex';
-import { CANVAS_OBJECT_GAP, firstFreeSlotBeside } from '../canvasObjects/placeBesideCp';
+import {
+  CANVAS_OBJECT_GAP,
+  aabbInFrame,
+  firstFreeSlotBeside,
+  pointFromFrame,
+} from '../canvasObjects/placeBesideCp';
 import type { TransformableCanvasObject } from '../canvasObjects/transformableObject';
 import type { SimulatorOrbitView } from '../../lib/simulatorOrbit';
 
@@ -142,9 +147,25 @@ export function createInlineSimulation(options: {
   cpLineIds: readonly number[];
   z: number;
   view: SimulatorOrbitView;
+  /** Blockers already measured along the frame's axes (see `frameAngle`). */
   blockers?: readonly Aabb[];
+  /**
+   * The angle at which a window is upright on screen. The window is created at
+   * this rotation and packed along the view's axes, so a row of windows reads as
+   * a row however the canvas is turned. 0 is the old model-space behaviour.
+   */
+  frameAngle?: number;
 }): InlineSimulation {
-  const { id, segment, document, cpLineIds, z, view, blockers = [] } = options;
+  const {
+    id,
+    segment,
+    document,
+    cpLineIds,
+    z,
+    view,
+    blockers = [],
+    frameAngle = 0,
+  } = options;
   const bounds = foldedSourceBounds(cpLinesByIds(document, cpLineIds));
   // Sized and anchored from the crease bounds, which are the document's own
   // coordinates by construction, rather than from the segment's — those come
@@ -154,20 +175,24 @@ export function createInlineSimulation(options: {
   // Square, at the region's larger side: the fold is three-dimensional and can
   // stand taller or wider than the flat footprint it came from.
   const edge = Math.max(source.maxX - source.minX, source.maxY - source.minY);
+  // "Beside" is measured along the view's axes, so the anchor is the source
+  // region's frame-space right/top edge rather than its model-space one.
+  const sourceInFrame = aabbInFrame(source, frameAngle);
   const { left, top } = firstFreeSlotBeside({
-    anchor: { right: source.maxX, top: source.minY },
+    anchor: { right: sourceInFrame.maxX, top: sourceInFrame.minY },
     width: edge,
     height: edge,
     gap: INLINE_SIMULATION_GAP,
     blockers,
   });
+  const centre = pointFromFrame({ x: left + edge / 2, y: top + edge / 2 }, frameAngle);
   return {
     id,
     box: {
-      center: { x: left + edge / 2, y: top + edge / 2 },
+      center: centre,
       width: edge,
       height: edge,
-      rotation: 0,
+      rotation: frameAngle,
     },
     z,
     view,

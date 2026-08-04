@@ -14,6 +14,7 @@ import {
   isLineClickSelectionOperation,
   isLineEraseClickTool,
   isReflectSelectionOperation,
+  isModelAlignedBoxOperation,
   isRestrictedDrawOperation,
   toolClickAction,
   isSelectionCircleApplyOperation,
@@ -45,6 +46,17 @@ describe('operation predicates', () => {
     expect(isVariablePointSequenceOperation('VoronoiCreate')).toBe(true);
     expect(isTextAnnotationOperation('Text')).toBe(true);
     expect(isCircleTangentPointOperation('CircleDrawTangentLine')).toBe(true);
+  });
+
+  it('only the operation frame keeps a model-aligned box', () => {
+    // Every other drag-box tool resolves its region through
+    // `required_selection_polygon`, which takes four corners; the frame's handler
+    // reads its points positionally and would build a frame across an edge.
+    expect(isModelAlignedBoxOperation('OperationFrameCreate')).toBe(true);
+    for (const op of ['LineSegmentDelete', 'CreaseSelect', 'CreaseUnselect', 'CreaseToggleMv']) {
+      expect(isModelAlignedBoxOperation(op as never)).toBe(false);
+    }
+    expect(isModelAlignedBoxOperation(undefined)).toBe(false);
   });
 
   it('null / undefined operation ids never match', () => {

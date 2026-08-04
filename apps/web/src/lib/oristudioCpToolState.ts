@@ -1,3 +1,4 @@
+import { cpActionById } from './oristudioCpActions';
 import type {
   OristudioCpActionDefinition,
   OristudioCpActionId,
@@ -7,6 +8,8 @@ import type {
   OristudioCpCommandUiStatus,
   OristudioCpOperationId,
 } from './oristudioCpCommands';
+import { resolveCpVariantOperation } from './cpToolVariants';
+import type { OristudioCpToolOptions } from './oristudioCpToolSettings';
 
 export type OristudioCpToolPhase = 'idle' | 'active' | 'blocked' | 'error';
 
@@ -22,8 +25,15 @@ export interface OristudioCpToolState {
 }
 
 export type OristudioCpToolEvent =
-  | { type: 'selectAction'; action: OristudioCpActionDefinition; editable: boolean }
+  | {
+      type: 'selectAction';
+      action: OristudioCpActionDefinition;
+      editable: boolean;
+      toolOptions: OristudioCpToolOptions;
+    }
   | { type: 'selectCommand'; command: OristudioCpCommandDefinition; editable: boolean }
+  /** Re-read the variant mode, for a tool whose mode changed while it was active. */
+  | { type: 'resolveVariant'; toolOptions: OristudioCpToolOptions }
   | { type: 'advanceStep' }
   | { type: 'commit'; keepActive?: boolean }
   | { type: 'cancel'; keepActive?: boolean }
@@ -47,9 +57,11 @@ export function transitionOristudioCpToolState(
 ): OristudioCpToolState {
   switch (event.type) {
     case 'selectAction':
-      return stateForAction(event.action, event.editable);
+      return stateForAction(event.action, event.editable, event.toolOptions);
     case 'selectCommand':
       return stateForCommand(event.command, event.editable);
+    case 'resolveVariant':
+      return resolveActiveVariant(state, event.toolOptions);
     case 'advanceStep':
       return advanceToolStep(state);
     case 'commit':
@@ -103,7 +115,8 @@ function stateForCommand(
 
 function stateForAction(
   action: OristudioCpActionDefinition,
-  editable: boolean
+  editable: boolean,
+  toolOptions: OristudioCpToolOptions
 ): OristudioCpToolState {
   if (action.kind === 'line-type') return IDLE_ORISTUDIO_CP_TOOL_STATE;
   if (!editable) {
@@ -116,7 +129,7 @@ function stateForAction(
   const steps = action.toolSteps ?? action.command.toolSteps ?? [];
   return {
     activeActionId: action.id,
-    activeOperationId: action.operationId,
+    activeOperationId: resolveCpVariantOperation(action.operationId, toolOptions),
     activeLabel: action.label,
     phase: 'active',
     prompt: promptForStep(action.label, steps, 0),
@@ -124,6 +137,24 @@ function stateForAction(
     stepIndex: 0,
     steps,
   };
+}
+
+/**
+ * The one place `activeOperationId` moves without the tool changing.
+ *
+ * A merged tool's mode is a tool option, so it can change while the tool is
+ * already armed. Only the operation is recomputed -- the action, its label, and
+ * its steps are the same tool, and both variants of each pair carry identical
+ * steps -- so a mode flip mid-gesture keeps whatever has been picked so far.
+ */
+function resolveActiveVariant(
+  state: OristudioCpToolState,
+  toolOptions: OristudioCpToolOptions
+): OristudioCpToolState {
+  const action = state.activeActionId ? cpActionById(state.activeActionId) : undefined;
+  if (!action || action.kind !== 'command') return state;
+  const activeOperationId = resolveCpVariantOperation(action.operationId, toolOptions);
+  return activeOperationId === state.activeOperationId ? state : { ...state, activeOperationId };
 }
 
 function blockedCommandState(

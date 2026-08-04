@@ -8,7 +8,6 @@ import type { Rgba } from '../renderer/types';
 import { MARKER_SHAPE } from '../renderer/types';
 import {
   boundsFromPoints,
-  buildCpDiagnosticMarkerHits,
   buildCpDiagnosticMarkers,
   buildCpDiagnosticStrokes,
   buildCpDiagnosticWedges,
@@ -114,16 +113,6 @@ describe('buildCpDiagnosticMarkers', () => {
     });
     expect(cpHasLblWedges(lbl)).toBe(true);
     expect(buildCpDiagnosticMarkers([lbl], tones).count).toBe(0);
-  });
-});
-
-describe('buildCpDiagnosticMarkerHits', () => {
-  it('anchors {id, point} for renderable markers and drops shape "none"', () => {
-    const hits = buildCpDiagnosticMarkerHits([
-      entry({ id: 'a', point: { x: 3, y: 4 } }),
-      entry({ id: 'b', kind: 'Check4', rule: 'None', point: { x: 5, y: 6 } }),
-    ]);
-    expect(hits).toEqual([{ id: 'a', point: { x: 3, y: 4 } }]);
   });
 });
 

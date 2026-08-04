@@ -25,8 +25,8 @@
       "railLabel": "Transf."
     },
     "color": {
-      "label": "Cor e atribuição",
-      "railLabel": "Cor"
+      "label": "Cor, atribuição e reparo",
+      "railLabel": "Cor e reparo"
     },
     "annotations": {
       "label": "Círculos, texto e anotações",
@@ -292,8 +292,8 @@
       "disabledReason": "Tratado pelo runtime do viewport em vez de um comando de CP"
     },
     "cp_action_line_segment_division": {
-      "label": "Linha dividida igualmente",
-      "tooltip": "Dividir a linha por quantidade",
+      "label": "Linha dividida",
+      "tooltip": "Desenhar uma linha dividida por quantidade ou proporção",
       "disabledReason": "Pronto",
       "steps": {
         "0": "Clique ou arraste para iniciar a linha a dividir",
@@ -397,6 +397,16 @@
       "steps": {
         "0": "Escolha o vértice",
         "1": "Escolha o vinco a adicionar"
+      }
+    },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "Resolver ângulos de dobra",
+      "tooltip": "Escolha três vincos em um vértice e resolva seus ângulos de dobra para que o vértice feche, sem mover nada",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro vinco a alterar",
+        "1": "Escolha o segundo vinco a alterar",
+        "2": "Escolha o terceiro vinco a alterar"
       }
     },
     "cp_action_foldable_line_input": {
@@ -654,7 +664,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "Estender pela mesma cor",
+      "label": "Estender linha (mesma cor)",
       "tooltip": "Estender os vincos cruzados pela linha-guia preservando as cores originais",
       "disabledReason": "Pronto",
       "steps": {

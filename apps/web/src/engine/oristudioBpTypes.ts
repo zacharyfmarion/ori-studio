@@ -255,13 +255,6 @@ export interface OristudioBpCreaseLine {
   sourceLayer: OristudioBpLayerId | null;
 }
 
-export interface OristudioBpCreasePatternView {
-  sheet: OristudioBpSheet;
-  lines: OristudioBpCreaseLine[];
-  selectedPatternId: string | null;
-  stale: boolean;
-}
-
 /**
  * What the user currently has selected in a BP surface.
  *
@@ -328,6 +321,7 @@ export interface OristudioBpDiagnostic {
 
 export interface OristudioBpStaleState {
   packing: boolean;
+  /** Whether an exported crease pattern would need regenerating. */
   creasePattern: boolean;
   exports: boolean;
   reasons: string[];
@@ -442,7 +436,6 @@ export interface OristudioBpProjectSnapshot {
   summary: OristudioBpProjectSummary;
   tree: OristudioBpTreeView;
   packing: OristudioBpPackingView;
-  creasePattern: OristudioBpCreasePatternView | null;
   diagnostics: OristudioBpDiagnostic[];
   stale: OristudioBpStaleState;
 }

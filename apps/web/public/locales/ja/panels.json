@@ -164,7 +164,7 @@
     "anotherSolutionAction": "別の解を表示",
     "bringImageToFront": "画像を最前面へ",
     "buildingCreasePattern": "展開図を作成中",
-    "canvasDiagnostics": "キャンバス診断",
+    "canvasDiagnostics_other": "キャンバス診断: {{count}} 件",
     "case_other": "ケース {{count}}",
     "caseLabel": "ケース",
     "changeFoldCase": "折りケースを変更",
@@ -182,6 +182,7 @@
     "diagnostic": {
       "boundary": "境界",
       "camv": "折り可能性",
+      "errorAndWarning": "{{errors}}、{{warnings}}",
       "errorOne_other": "{{label}} エラー {{count}} 件",
       "errorOther_other": "{{label}} エラー {{count}} 件",
       "maekawaLbl": "Maekawa/LBL",
@@ -189,6 +190,8 @@
       "overlap": "重なり",
       "tJunction": "T字接合",
       "vertexFoldability": "頂点の折り可能性",
+      "warningCountOne_other": "警告 {{count}} 件",
+      "warningCountOther_other": "警告 {{count}} 件",
       "warningOne_other": "{{label}} 警告 {{count}} 件",
       "warningOther_other": "{{label}} 警告 {{count}} 件"
     },

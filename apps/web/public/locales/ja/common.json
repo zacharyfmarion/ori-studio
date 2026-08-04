@@ -229,6 +229,10 @@
     "open": "ドロップして開く",
     "openOrImport": "ドロップして開く／インポート"
   },
+  "numberField": {
+    "decrease": "{{label}} を減らす",
+    "increase": "{{label}} を増やす"
+  },
   "toolbar": {
     "downloadMac": "Mac 版 Ori Studio をダウンロード",
     "new": "新規",

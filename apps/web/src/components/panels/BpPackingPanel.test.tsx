@@ -215,7 +215,6 @@ function packingDocument(): OristudioBpDocumentState {
         ],
         validity: 'valid',
       },
-      creasePattern: null,
       diagnostics: [],
       stale: { packing: false, creasePattern: true, exports: true, reasons: [] },
     },

@@ -68,7 +68,56 @@ const OVERSIZED_PANELS = {
   // `inlineSimulation/inlineSimulationRuntime` (the exporter registry) and its
   // store binding is in the hook, scoped to the focused window like `replay` —
   // so what landed here is composition too.
-  'CreasePatternPanel.tsx': 2939,
+  //
+  // 2939 -> 2674: the diagnostic HUD moved out, whole. Its store bindings are in
+  // `diagnostics/useCpDiagnosticList` and the surface is
+  // `diagnostics/CpDiagnosticHud`, which takes no props — so the expand state,
+  // the status memo, the entry memo, the collapse effect, and the row markup all
+  // left together. This is the direction the number is for: it went down because
+  // behaviour moved to where it belongs, not because a file was split in half.
+  //
+  // 2674 -> 2700: not a change to this file, a merge. main grew the panel by 26
+  // lines while the HUD extraction was in flight — the flat-foldable-line and
+  // vertex-completion work — which is the "a merge where main grew the file"
+  // case named above.
+  //
+  // 2700 -> 2687: the canvas half of diagnostic selection came out — the marker
+  // hit geometry, its prop wiring, and the select callback. Clicking a marker
+  // never worked, so nothing depended on it.
+  //
+  // 2687 -> 2669: the tool hint's portal machinery went away. It used to hunt
+  // for a slot inside another dock pane with a body-wide MutationObserver and
+  // hold the result in state; the hint is now a floating window that positions
+  // itself, so the panel just mounts it and passes the viewport element it
+  // already tracks for its other floating surfaces.
+  //
+  // 2669 -> 2676: persisting the view. The binding went out first — the
+  // saved camera, the `.ori` fallback angle, and the settle-debounced write-back
+  // are one concern with one invariant (what is written back is what the canvas
+  // is restored from), so they are `camera/useCpDocumentCamera` and reach the
+  // canvas as a single spread. What is left is composition: that spread, and one
+  // prop feeding `isModelAlignedBoxOperation` to the canvas so the operation
+  // frame keeps a model-aligned drag box — the same shape as the
+  // `activeToolRequireSnap` prop beside it.
+  //
+  // 2676 -> 2729: the Solve Fold Angles tool. Its behaviour is three new
+  // `cp-workspace/` modules — the review state, the on-canvas option window and
+  // its placement math — and the rule that a crease-picking tool starts from an
+  // empty selection went out to `tools/usePickToolSelectionReset`, beside the
+  // registry that defines what a crease-picking tool is. What is left here is
+  // composition: mounting the hook and the layer, routing the tool's commit to
+  // the review instead of the kernel, and four viewport shortcut cases in the
+  // executor every other viewport verb already lives in.
+  //
+  // 2729 -> 2740: the shared-link loading state. Opening `/s/<id>` by id is the one
+  // provisioning path that waits on the network — up to a minute while KV propagates — and
+  // without this it renders as an ordinary empty editor, which is indistinguishable from
+  // the link having failed. What landed is an import, a store selector and a
+  // `SurfaceLoading` early return: composition, mounting a shared component on a store
+  // flag, the same shape `BpEditorPanel` uses for its own readiness. Extracting eleven
+  // lines of that into a hook or a child would cost more than it saved, which AGENTS.md
+  // names as the wrong trade.
+  'CreasePatternPanel.tsx': 2740,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
@@ -87,11 +136,41 @@ const OVERSIZED_PANELS = {
   // option, default, persistence and group→keys entry all live outside this
   // file.
   //
-  // **The seam this file actually wants** is `CpContextToolGroup`: ~530 lines,
-  // 45% of the total, a switch over setting groups that has nothing to do with
+  // 1110 -> 1097: the hint became a floating window, and the window chrome went
+  // to `cp-workspace/toolHint/CpToolHintWindow` rather than landing here. The
+  // first pass did land here — portal, placement, collapse state and the header
+  // — and tripped the cap by 8 lines, which is exactly the prompt the number is
+  // for. Positioning and collapse are one concern and the same for whatever the
+  // tool has to say; what is left is the tool's content, which is what this file
+  // is. The placement rule and the collapse preference live beside the chrome
+  // with their own tests.
+  //
+  // 1097 -> 1105: the window stays shut for the resting tool — the one Escape
+  // and every new document land on, whose hint would otherwise be on screen most
+  // of the time saying how to drag a box. Both rules it needs are outside this
+  // file with their own tests: `toolHint/restingTool` (which tool is the resting
+  // one) and `foldAngle/hasFoldableCpSelection` (whether the fold-angle control
+  // has anything to offer, which is the one thing that still opens the window
+  // there). What landed here is the composition — two predicate calls and the
+  // render decision they feed. Still below the 1110 this file started the change
+  // at, because the window chrome came out on the way.
+  //
+  // 1105 -> 1167: the mode switches for the two merged tools — Extend Line's
+  // colour, Divided Line's count-vs-ratio. Two more settings groups in the
+  // settings panel, the same case as `completion-stops` above; the option, its
+  // default, its persistence, its group→keys entry, and the operation resolution
+  // it drives all live outside this file. `ModeToolOption` is the shared control
+  // both render, and it costs more lines than the two inline blocks it replaced
+  // — deliberately, because two near-identical `SegmentedControl` blocks in a
+  // switch is the duplication this file least needs more of.
+  //
+  // **The seam this file actually wants** is `CpContextToolGroup`: ~560 lines,
+  // 48% of the total, a switch over setting groups that has nothing to do with
   // the panel's composition. Moving it out is the fix, and it is a change of its
-  // own rather than a rider on whichever feature next trips the cap.
-  'CpContextToolPanel.tsx': 1110,
+  // own rather than a rider on whichever feature next trips the cap. Every raise
+  // since 1090 has been another group landing in that switch, which is the
+  // signal AGENTS.md says to act on — this is now overdue.
+  'CpContextToolPanel.tsx': 1167,
 };
 
 const PANEL_MAX_LINES = 800;

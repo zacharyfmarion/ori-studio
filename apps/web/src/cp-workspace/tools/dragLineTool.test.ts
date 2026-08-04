@@ -166,5 +166,33 @@ describe('dragLineTool', () => {
       expect(outs[1].commit).toBeNull();
       expect(outs[1].state).toEqual({ start: { x: 3, y: 3 }, armed: true });
     });
+
+    // The contract this engine places on its surface, stated next to the rule that
+    // depends on it. Points arrive already snapped, and the snap radius (10px) is
+    // wider than the click threshold (4px), so a press a few pixels off a vertex
+    // anchors *away* from the cursor. Snapping every phase is what keeps a stationary
+    // click reading as zero travel: Angle Restricted Line snapped only its press and
+    // committed a crease from the vertex to the cursor on a click that never moved.
+    it('arms when the press snapped away from the cursor and the release did too', () => {
+      const vertex = { x: 100, y: 100 };
+      const outs = run([
+        // Cursor at (108, 100) — 8 units off the vertex, inside the snap radius, so
+        // both phases resolve to the vertex itself.
+        { kind: 'down', point: vertex, tolerance: 4 },
+        { kind: 'up', point: vertex, tolerance: 4 },
+      ]);
+      expect(outs[1].commit).toBeNull();
+      expect(outs[1].state).toEqual({ start: vertex, armed: true });
+    });
+
+    it('commits the snap displacement as a drag when the release is left unsnapped', () => {
+      // The failure the case above rules out: feed the *raw* release against a snapped
+      // start and 8 units of snap displacement become 8 units of "travel".
+      const outs = run([
+        { kind: 'down', point: { x: 100, y: 100 }, tolerance: 4 },
+        { kind: 'up', point: { x: 108, y: 100 }, tolerance: 4 },
+      ]);
+      expect(outs[1].commit).toEqual({ points: [{ x: 100, y: 100 }, { x: 108, y: 100 }] });
+    });
   });
 });

@@ -762,6 +762,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       toolMode: 'select',
       symmetryAuthoringPairs: [],
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+      oristudioCpCamera: null,
       ...emptyFoldArtifactResourceState(),
       status: statusFromSnapshot(snapshot),
       dirty: source.dirty ?? false,
@@ -948,6 +949,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpRevision: 0,
       toolMode: 'select',
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+      oristudioCpCamera: null,
       ...artifactState,
       sequenceTarget: null,
       sequencePlan: null,
@@ -1080,6 +1082,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
         ...nativeDocument.viewState.viewport,
       },
+      // Null (pre-v7 file, or a malformed camera) leaves the canvas to auto-fit.
+      oristudioCpCamera: nativeDocument.viewState.camera ?? null,
       ...artifactState,
       sequenceTarget: null,
       sequencePlan: null,
@@ -1307,6 +1311,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       creaseColorMode: get().creaseColorMode,
       selection: get().oristudioCpSelection,
       viewport: get().oristudioCpViewport,
+      camera: get().oristudioCpCamera,
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
@@ -1638,6 +1643,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpRevision: 0,
               oristudioCpDocumentExtensions: {},
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+              oristudioCpCamera: null,
               ...emptyFoldArtifactResourceState(),
             };
         set({
@@ -1701,6 +1707,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+          oristudioCpCamera: null,
           ...emptyFoldArtifactResourceState(),
           dirty: false,
           lastOptimization: null,

@@ -229,6 +229,10 @@
     "open": "Drop to open",
     "openOrImport": "Drop to open or import"
   },
+  "numberField": {
+    "decrease": "Decrease {{label}}",
+    "increase": "Increase {{label}}"
+  },
   "toolbar": {
     "downloadMac": "Download Ori Studio for Mac",
     "new": "New",

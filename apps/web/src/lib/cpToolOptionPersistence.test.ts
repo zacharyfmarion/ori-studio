@@ -98,15 +98,52 @@ describe('cpToolOptionPersistence', () => {
     expect(raw).not.toHaveProperty('angleSystemDivider');
   });
 
+  it('takes a mode only when it is one the tool actually has', () => {
+    store({ lengthenColorMode: 'active', divideMode: 'ratio' });
+    expect(readCpToolOptions().lengthenColorMode).toBe('active');
+    expect(readCpToolOptions().divideMode).toBe('ratio');
+
+    // A mode removed by a later release, or hand-edited, costs only itself.
+    store({ lengthenColorMode: 'rainbow', divideMode: 'ratio' });
+    const options = readCpToolOptions();
+    expect(options.lengthenColorMode).toBe(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.lengthenColorMode);
+    expect(options.divideMode).toBe('ratio');
+  });
+
+  it('takes a ratio only when all six coefficients are usable', () => {
+    const expression = { a: 3, b: 0, c: 0, d: 1, e: 1, f: 5 };
+    store({ divisionRatio: expression });
+    expect(readCpToolOptions().divisionRatio).toEqual(expression);
+
+    // A partial ratio would evaluate its missing halves to zero, which is a
+    // silently different division rather than a visibly reset one.
+    store({ divisionRatio: { a: 3, b: 0, c: 0 } });
+    expect(readCpToolOptions().divisionRatio).toEqual(
+      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.divisionRatio
+    );
+  });
+
+  it('persists the divide mode together with its operands', () => {
+    // Restoring Ratio mode with the ratio reverted to its default is the
+    // half-restored state the angle-system pair exists to avoid.
+    for (const key of ['divideMode', 'divisionCount', 'divisionRatio'] as const) {
+      expect(isPersistedCpToolOption(key)).toBe(true);
+    }
+  });
+
   it('names every opted-in key', () => {
     expect(persistedCpToolOptionKeys().sort()).toEqual(
       [
         'angleSystemAngles',
         'angleSystemDivider',
+        'divideMode',
+        'divisionCount',
+        'divisionRatio',
         'fixPrecision',
         'fixPrecisionUse22_5',
         'fixPrecisionUseBp',
         'foldableLineStopsOnAux',
+        'lengthenColorMode',
       ].sort()
     );
   });

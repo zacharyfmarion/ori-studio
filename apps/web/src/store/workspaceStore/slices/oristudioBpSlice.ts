@@ -299,7 +299,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   ): Promise<boolean> => {
     const document = get().oristudioBpDocument;
     if (!document) return false;
-    set({ oristudioBpBusy: true });
+    // Not for a mid-gesture step. `busy` disables the actions that must not run
+    // against a half-solved design — Optimize, chiefly — and a drag step settles
+    // within a frame, so the gate buys nothing there. What it costs is a store
+    // write per step, which re-renders every subscriber and strobes the toolbar's
+    // disabled styling; a 1.9 s flap drag flipped it about 250 times. The
+    // gesture's final commit runs with `dragging` false and still raises it.
+    if (!options.dragging) set({ oristudioBpBusy: true });
     try {
       if (!pendingHistory) {
         const bps = await exportOristudioBpProjectAsBps();
