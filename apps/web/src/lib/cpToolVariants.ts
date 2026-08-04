@@ -1,3 +1,5 @@
+import { cpActionByOperation, cpActionByUpstreamMouseMode } from './oristudioCpActions';
+import type { OristudioCpCommandActionDefinition } from './oristudioCpActions';
 import type { OristudioCpOperationId } from './oristudioCpCommands';
 import type { OristudioCpToolOptions } from './oristudioCpToolSettings';
 
@@ -124,4 +126,31 @@ export function cpVariantOptionPatch(
   const value = VALUE_BY_OPERATION.get(operationId);
   if (!groupId || value === undefined) return {};
   return { [CP_TOOL_VARIANT_GROUPS[groupId].optionKey]: value } as Partial<OristudioCpToolOptions>;
+}
+
+/**
+ * The tool to arm for a document saved with `mouseMode` active — the action that
+ * owns its rail button, plus the options that make that mouse mode's operation
+ * the one the tool runs.
+ *
+ * Oriedita writes one of four mouse modes for the merged pairs, and two of them
+ * now belong to actions with no button. Restoring those directly would leave the
+ * rail with nothing lit and the mode reading whatever it happened to be, so the
+ * indirection through the host is the whole point of this function.
+ */
+export function cpToolSelectionForMouseMode(mouseMode: string): {
+  action: OristudioCpCommandActionDefinition;
+  /** Absent when the mode is already the tool's own — most of the time. */
+  options?: Partial<OristudioCpToolOptions>;
+} | null {
+  const action = cpActionByUpstreamMouseMode(mouseMode);
+  if (!action) return null;
+  // Every member of a pair carries its mode, the host included -- the host is one
+  // of the variants, not a neutral default. Returning no options for it would
+  // restore a file saved in Active colour into whatever mode was last used.
+  if (!cpVariantGroupForOperation(action.operationId)) return { action };
+  return {
+    action: cpActionByOperation(cpVariantHostOperation(action.operationId)) ?? action,
+    options: cpVariantOptionPatch(action.operationId),
+  };
 }

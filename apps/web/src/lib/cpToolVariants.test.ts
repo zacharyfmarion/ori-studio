@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cpToolSelectionForMouseMode,
   cpVariantGroupForOperation,
   cpVariantHostOperation,
   cpVariantOptionPatch,
@@ -96,5 +97,47 @@ describe('cpVariantOptionPatch', () => {
 
   it('is empty for an ordinary tool', () => {
     expect(cpVariantOptionPatch('DrawCreaseFree')).toEqual({});
+  });
+});
+
+// Oriedita writes the active mouse mode into the file, and two of the four modes
+// for the merged pairs now belong to actions with no rail button. Restoring one
+// directly would leave the rail with nothing lit and the mode reading whatever it
+// happened to be.
+describe('cpToolSelectionForMouseMode', () => {
+  it('lands a non-host variant on the host tool with the mode that runs it', () => {
+    const lengthen = cpToolSelectionForMouseMode('LENGTHEN_CREASE_SAME_COLOR_70');
+    expect(lengthen?.action.id).toBe('cp.action.lengthen-crease');
+    expect(lengthen?.options).toEqual({ lengthenColorMode: 'same' });
+
+    const divide = cpToolSelectionForMouseMode('LINE_SEGMENT_RATIO_SET_28');
+    expect(divide?.action.id).toBe('cp.action.line-segment-division');
+    expect(divide?.options).toEqual({ divideMode: 'ratio' });
+  });
+
+  it('round-trips: the restored tool plus mode arms the saved operation', () => {
+    for (const [mouseMode, operationId] of [
+      ['LENGTHEN_CREASE_5', 'LengthenCrease'],
+      ['LENGTHEN_CREASE_SAME_COLOR_70', 'LengthenCreaseSameColor'],
+      ['LINE_SEGMENT_DIVISION_27', 'LineSegmentDivision'],
+      ['LINE_SEGMENT_RATIO_SET_28', 'LineSegmentRatioSet'],
+    ] as const) {
+      const selection = cpToolSelectionForMouseMode(mouseMode);
+      expect(selection, mouseMode).not.toBeNull();
+      expect(
+        resolveCpVariantOperation(
+          selection!.action.operationId,
+          options(selection!.options ?? {})
+        ),
+        mouseMode
+      ).toBe(operationId);
+    }
+  });
+
+  it('leaves an ordinary tool alone, and is null for an unknown mode', () => {
+    const plain = cpToolSelectionForMouseMode('DRAW_CREASE_FREE_1');
+    expect(plain?.action.id).toBe('cp.action.draw-crease');
+    expect(plain?.options).toBeUndefined();
+    expect(cpToolSelectionForMouseMode('FUTURE_MOUSE_MODE_999')).toBeNull();
   });
 });

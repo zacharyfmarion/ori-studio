@@ -30,11 +30,20 @@ import {
 import type { OristudioCpToolOptions } from '../../lib/oristudioCpToolSettings';
 
 export interface CpToolVariantSurface {
-  /** Select `action`, resolving its variant against the current tool options. */
+  /**
+   * Select `action`, resolving its variant against the current tool options.
+   *
+   * `modeOverrides` is for the caller that is *also* setting the mode in the
+   * same tick — restoring a document saved with a non-host variant active. The
+   * options state has not caught up at that point, so the override is what makes
+   * the restore land on the right operation in one step rather than arming the
+   * wrong one and correcting on the next commit.
+   */
   armTool: (
     state: OristudioCpToolState,
     action: OristudioCpActionDefinition,
-    editable: boolean
+    editable: boolean,
+    modeOverrides?: Partial<OristudioCpToolOptions>
   ) => OristudioCpToolState;
   /** The command the armed tool would actually run. */
   activeCommand: OristudioCpCommandDefinition | undefined;
@@ -52,12 +61,17 @@ export function useCpToolVariant({
   activeAction: OristudioCpActionDefinition | undefined;
 }): CpToolVariantSurface {
   const armTool = useEventCallback(
-    (state: OristudioCpToolState, action: OristudioCpActionDefinition, editable: boolean) =>
+    (
+      state: OristudioCpToolState,
+      action: OristudioCpActionDefinition,
+      editable: boolean,
+      modeOverrides?: Partial<OristudioCpToolOptions>
+    ) =>
       transitionOristudioCpToolState(state, {
         type: 'selectAction',
         action,
         editable,
-        toolOptions,
+        toolOptions: modeOverrides ? { ...toolOptions, ...modeOverrides } : toolOptions,
       })
   );
 

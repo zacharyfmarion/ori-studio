@@ -41,7 +41,6 @@ import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
   cpActionByOperation,
   cpActionById,
-  cpActionByUpstreamMouseMode,
   type OristudioCpActionDefinition,
   type OristudioCpActionId,
   type OristudioCpCommandActionDefinition,
@@ -52,6 +51,7 @@ import {
 } from '../../lib/oristudioCpCommands';
 import { forcedAssignmentNotice } from '../../cp-workspace/tools/toolUnavailable';
 import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
+import { cpToolSelectionForMouseMode } from '../../lib/cpToolVariants';
 import { usePersistedCpToolOptions } from '../../cp-workspace/tools/usePersistedCpToolOptions';
 import { useCpToolVariant } from '../../cp-workspace/tools/useCpToolVariant';
 import type { ToolPreviewSegment } from '../../cp-workspace/tools/types';
@@ -1449,15 +1449,24 @@ export function CreasePatternPanel() {
     // Prefer the tool the user last selected (persisted across panel remounts),
     // then the document's native mouse mode, then the default tool.
     const persistedToolId = useWorkspaceStore.getState().oristudioCpActiveToolId;
-    const restoredAction =
-      (persistedToolId ? cpActionById(persistedToolId) : undefined) ??
-      (nativeActiveMouseMode ? cpActionByUpstreamMouseMode(nativeActiveMouseMode) : undefined);
+    const persistedAction = persistedToolId ? cpActionById(persistedToolId) : undefined;
+    // A mouse mode belonging to a merged tool's non-host variant resolves to the
+    // action that owns the rail button, plus the mode that runs that variant.
+    // Only consulted when the user has no tool of their own to restore, so the
+    // document never overrides a mode they picked.
+    const nativeSelection =
+      !persistedAction && nativeActiveMouseMode
+        ? cpToolSelectionForMouseMode(nativeActiveMouseMode)
+        : null;
+    const restoredAction = persistedAction ?? nativeSelection?.action;
     const nextAction = isNewDocument ? restoredAction ?? defaultAction : defaultAction;
     if (!nextAction) return;
+    const modeOverrides = isNewDocument ? nativeSelection?.options : undefined;
+    if (modeOverrides) setCpToolOptions((current) => ({ ...current, ...modeOverrides }));
     setCpToolState((state) =>
-      isNewDocument || state.phase === 'idle' ? armCpTool(state, nextAction, true) : state
+      isNewDocument || state.phase === 'idle' ? armCpTool(state, nextAction, true, modeOverrides) : state
     );
-  }, [armCpTool, cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId]);
+  }, [armCpTool, cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId, setCpToolOptions]);
 
 
   const handleCpToolAction = useCallback(
