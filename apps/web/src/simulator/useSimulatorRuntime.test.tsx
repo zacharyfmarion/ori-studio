@@ -2,6 +2,7 @@ import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FoldDocument } from '@treemaker/origami-simulator';
+import type { SimulatorFramePayload } from './simulatorSession';
 
 /**
  * The worker, as far as the hook can tell. `load` resolves only when the test
@@ -11,6 +12,36 @@ import type { FoldDocument } from '@treemaker/origami-simulator';
 const released: number[] = [];
 let nextToken = 0;
 let pendingLoads: Array<() => void> = [];
+
+/**
+ * A tick reply that says the worker still has our session.
+ *
+ * This is the default because `null` is not an inert stand-in here — it is the
+ * eviction signal, and the runtime answers it by reloading. A `null` default
+ * armed that path from the moment an unpaused probe mounted, so
+ * "reloads when the worker no longer has the session it holds" was racing the
+ * loop it had not simulated the eviction for yet: any frame that landed during
+ * `settleLoads` made `load` fire twice before the test's own arrange step. It
+ * passed when frames were slow and failed when they were not, which is why it
+ * only surfaced under CI load and once locally.
+ */
+function liveFrame(): SimulatorFramePayload | null {
+  return {
+    positions: null,
+    colors: null,
+    renderedInWorker: false,
+    bitmap: null,
+    step: 0,
+    stepsThisTick: 1,
+    elapsedMs: 0,
+    // Not converged: a converged frame idles the loop, and these tests want it
+    // running so an eviction has something to be noticed by.
+    converged: false,
+    maxVelocity: 0,
+    foldPercent: 0,
+    maxStrain: 0,
+  };
+}
 
 const client = {
   load: vi.fn(async () => {
@@ -33,7 +64,7 @@ const client = {
   settle: vi.fn(async () => null),
   attachBitmapOutput: vi.fn(async () => undefined),
   attachCanvas: vi.fn(async () => undefined),
-  tick: vi.fn(async () => null),
+  tick: vi.fn(async () => liveFrame()),
   setCamera: vi.fn(async () => undefined),
   setRenderSettings: vi.fn(async () => undefined),
   setFoldPercent: vi.fn(async () => undefined),
@@ -85,6 +116,10 @@ beforeEach(() => {
   pendingLoads = [];
   client.load.mockClear();
   client.release.mockClear();
+  // Restored, not just cleared: the eviction tests replace this with `null` and
+  // nothing put it back, so the override outlived the test that set it.
+  client.tick.mockReset();
+  client.tick.mockImplementation(async () => liveFrame());
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
