@@ -9,6 +9,8 @@ import { escapeHtmlAttribute, escapeJsonForScript } from './cpShare';
 // Shared with the share modal's embed preview, so the preview cannot claim a card the
 // crawler never receives. Pure strings, no browser or Worker dependencies either way.
 import { shareCardDescription, shareCardTitle } from '../../src/lib/shareCardText';
+// One owner for the script id, because a drift here fails silently — see the module.
+import { SHARED_CP_SCRIPT_ID } from '../../src/lib/sharedCpContract';
 
 /** Everything the card and the inlined bootstrap need. */
 export interface ShareCardMeta {
@@ -19,10 +21,7 @@ export interface ShareCardMeta {
   imageUrl: string;
 }
 
-/** The id the client reads the inlined payload from. */
-export const SHARED_CP_SCRIPT_ID = 'shared-cp';
-
-export { shareCardDescription, shareCardTitle };
+export { shareCardDescription, shareCardTitle, SHARED_CP_SCRIPT_ID };
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

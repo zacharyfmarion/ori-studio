@@ -214,11 +214,11 @@ existence check does catch a collision; it should never fire, and if it does we 
 
 ### Phase 3 — Make silent degradation impossible
 
-- [ ] Single `SHARED_CP_SCRIPT_ID`, imported by Worker and client.
-- [ ] Round-trip test: `renderSharedCpHtml` output → `inlinedSharedCp()` → payload matches.
-- [ ] Client-side navigation to `/s/<id>` with a document open: confirm-then-replace via
+- [x] Single `SHARED_CP_SCRIPT_ID`, imported by Worker and client.
+- [x] Round-trip test: `renderSharedCpHtml` output → `inlinedSharedCp()` → payload matches.
+- [x] Client-side navigation to `/s/<id>` with a document open: confirm-then-replace via
       `confirmDiscardDirty`; delete the stale "unreachable" comment.
-- [ ] Test that navigating to a share with a document open does not silently no-op.
+- [x] Test that navigating to a share with a document open does not silently no-op.
 
 ### Phase 4 — Thumbnails
 
@@ -239,7 +239,7 @@ existence check does catch a collision; it should never fire, and if it does we 
 
 ### Phase 6 — Coverage
 
-- [ ] Handler-level round-trip: create → serve → parse → open.
+- [x] Handler-level round-trip: create → serve → parse → open.
 - [ ] Flatness gate on a real non-flat pattern, in both dialogs.
 - [ ] Re-run the full suite and the smoke test; record both in the PR.
 

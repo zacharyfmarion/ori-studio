@@ -6,12 +6,16 @@
  * per click *and* the loading state: the pattern is present at first paint, so there is
  * no fetch to wait on and no blank-canvas flash to paper over.
  *
+ * The script id is owned by `lib/sharedCpContract.ts` and shared with the Worker.
+ *
  * Read once at module scope and cached. The script element is inert data — leaving it in
  * the DOM would let a later reader see a payload that no longer reflects what the user
  * has since edited.
  */
 
-export const SHARED_CP_SCRIPT_ID = 'shared-cp';
+import { SHARED_CP_SCRIPT_ID } from '../../lib/sharedCpContract';
+
+export { SHARED_CP_SCRIPT_ID };
 
 export interface InlinedSharedCp {
   id: string;
