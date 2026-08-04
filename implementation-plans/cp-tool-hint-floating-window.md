@@ -80,6 +80,14 @@ Three things follow from that placement, and all three are the complaint:
   reads as a normal window inset. Bottom-aligned with the canvas so it shares a
   baseline with the viewport toolbar.
 
+  **Amended during implementation** (the browser found it): sharing that baseline
+  only works while the viewport toolbar stays clear of the corner. The toolbar is
+  centred in the viewport, so at 1280px — a 431px viewport under a 407px toolbar —
+  it reaches the corner and the window sat on top of it, covering 38px. The rule
+  gained a fourth line: when the window's horizontal span overlaps the toolbar's,
+  its bottom clears the toolbar's top instead of the canvas's. Flush wherever
+  flush is possible, which at any normal desktop width is everywhere.
+
 - **Plain fixed positioning, not `FloatingToolbar`.** The existing floating
   chrome is collision-aware — it flips and shifts to stay in view, because it
   tracks an object that moves under a camera. This window is pinned to a corner
@@ -98,8 +106,18 @@ Three things follow from that placement, and all three are the complaint:
 - **`CpContextToolPanel.tsx` stays in `components/panels/`.** Moving it to
   `cp-workspace/` would silently drop it out of the `max-lines` rule, which
   AGENTS.md names as the illegitimate way to make a number go down. Its
-  `OVERSIZED_PANELS` entry (1110) and the note above it — that the seam this file
-  wants is `CpContextToolGroup`, as its own change — stay exactly as they are.
+  `OVERSIZED_PANELS` entry and the note above it — that the seam this file wants
+  is `CpContextToolGroup`, as its own change — stay as they are.
+
+- **The window chrome is its own component** (`CpToolHintWindow`), added during
+  implementation. The first pass put the portal, placement, collapse state and
+  header inline in `CpContextToolPanel` and tripped its line cap by 8, which is
+  the prompt that number exists for. The plan said that was a stop-and-reconsider
+  rather than an edit-the-number, and reconsidering found a real seam: positioning
+  and collapse are one concern, and the same one whatever the tool has to say. So
+  the chrome went to `cp-workspace/toolHint/` beside the placement rule and the
+  collapse preference, and what stayed behind is the tool's content. Both caps
+  came *down* — 1110 → 1097 and 2687 → 2669.
 
 - **Element class names stay `cp-context-panel__*`.** Only the root block's own
   rules change, from "full-width strip at the bottom of a pane" to "floating
@@ -150,17 +168,17 @@ Three things follow from that placement, and all three are the complaint:
 
 New `apps/web/src/cp-workspace/toolHint/toolHintPlacement.ts`:
 
-- [ ] `cpToolHintPlacement(viewportRect, windowSize): { left, bottom, width }` —
+- [x] `cpToolHintPlacement(viewportRect, windowSize): { left, bottom, width }` —
       the rule above, plus the clamp: `left` is capped so the right edge stays
       `>= 8px` inside the window, and floored at `8px` so a very narrow Edit pane
       pins it to the left instead of pushing it off-screen.
-- [ ] Unit tests: default 260px pane overhangs exactly 50px; a widened pane still
+- [x] Unit tests: default 260px pane overhangs exactly 50px; a widened pane still
       overhangs exactly 50px; a closed View pane (seam at the app edge) clamps
       instead of overflowing; a viewport narrower than the window floors at 8px.
 
 New `apps/web/src/cp-workspace/toolHint/useCpToolHintAnchor.ts`:
 
-- [ ] Takes the container element, returns the placement. Tracks the element with
+- [x] Takes the container element, returns the placement. Tracks the element with
       a `ResizeObserver` (sash drags, pane open/close) and `window` `resize`.
       Deliberately **not** subscribed to `cpOverlayViewStore` — the window is
       pinned to the pane, not to the camera, so it must not re-render per pan
@@ -170,114 +188,124 @@ New `apps/web/src/cp-workspace/toolHint/useCpToolHintAnchor.ts`:
 
 New `apps/web/src/cp-workspace/toolHint/useCpToolHintCollapsed.ts`:
 
-- [ ] `useCpToolHintCollapsed(): [boolean, (collapsed: boolean) => void]` —
+- [x] `useCpToolHintCollapsed(): [boolean, (collapsed: boolean) => void]` —
       reads once on mount, writes through on change. Absent or non-boolean stored
       values fall back to `false` (expanded), matching the per-key validation in
       `lib/cpToolOptionPersistence.ts` / `cp-workspace/measurePreferences.ts`
       rather than adding a version field.
-- [ ] Add `cpToolHint: 'cp-tool-hint'` to `STORAGE_KEYS` in `lib/storage.ts`.
-- [ ] Unit test: default expanded; round-trips a write; ignores a corrupt value;
+- [x] Add `cpToolHint: 'cp-tool-hint'` to `STORAGE_KEYS` in `lib/storage.ts`.
+- [x] Unit test: default expanded; round-trips a write; ignores a corrupt value;
       survives unavailable storage.
 
 ### Phase 3 — The window shell
 
 In `CpContextToolPanel.tsx` — small, local changes only:
 
-- [ ] Accept a `container: HTMLElement | null` prop, call the anchor hook, and
+- [x] Accept a `container: HTMLElement | null` prop, call the anchor hook, and
       wrap the existing `<section>` in a `createPortal(…, document.body)` with the
       computed `left` / `bottom` / `width` as inline style.
-- [ ] Swap `useState(false)` for `useCpToolHintCollapsed()`; add `data-collapsed`
+- [x] Swap `useState(false)` for `useCpToolHintCollapsed()`; add `data-collapsed`
       on the root so CSS can size both states.
-- [ ] Keep the early `return null` when there are no groups, no instructions, no
+- [x] Keep the early `return null` when there are no groups, no instructions, no
       unavailable message and no notice
       ([CpContextToolPanel.tsx:192](apps/web/src/components/panels/CpContextToolPanel.tsx:192)) —
       an empty floating window over the canvas would be worse than the status quo.
-- [ ] Keep the `onPointerDown` / `onClick` `stopPropagation` guards. They stop
+- [x] Keep the `onPointerDown` / `onClick` `stopPropagation` guards. They stop
       mattering for the panel body (the window is portaled out of it) and start
       mattering for anything listening at `document`.
 
 In `theme.css`, rewrite `.cp-context-panel`'s own rules (leaving every
 `__element` rule untouched):
 
-- [ ] `position: fixed` with `left`/`bottom`/`width` supplied inline;
+- [x] `position: fixed` with `left`/`bottom`/`width` supplied inline;
       `z-index: 900` — above all in-pane chrome (the highest is the viewport
       toolbar at 17) and safely below `--z-modal` (9999).
-- [ ] Window chrome matching `.cp-diagnostic-hud`: full border (not the current
+- [x] Window chrome matching `.cp-diagnostic-hud`: full border (not the current
       `border-top`), `border-radius: 6px`, translucent `color-mix(...)`
       background, `var(--shadow-soft)`, `overflow: hidden`.
-- [ ] Cap the height and let the body scroll: the expanded body can be tall (the
+- [x] Cap the height and let the body scroll: the expanded body can be tall (the
       measure list, the six-field angle-system grid) and it no longer sits in a
       scrolling pane. `max-height` on the root plus `overflow-y: auto` on
       `.cp-context-panel__body`. Check nothing depended on the body's current
       `overflow: visible` — Radix `Select` portals out, so the likely answer is
       no, but the `<details>` "Exact form" block and the reset button's
       `--cp-context-reset-gutter` positioning are worth an eye.
-- [ ] Drop `width: 100%` and `border-top`.
+- [x] Drop `width: 100%` and `border-top`.
 
 ### Phase 4 — Move the mount, delete the old portal
 
-- [ ] `CreasePatternPanel.tsx`: render `<CpContextToolPanel container={toolbarContainer} …/>`
+- [x] `CreasePatternPanel.tsx`: render `<CpContextToolPanel container={toolbarContainer} …/>`
       alongside the other body-portaled surfaces, gated on
       `editableCp && activeCpCommand`. All existing props unchanged.
-- [ ] Delete `toolOptionsPortalTarget` state, the `MutationObserver` effect, and
+- [x] Delete `toolOptionsPortalTarget` state, the `MutationObserver` effect, and
       the `CP_TOOL_OPTIONS_PANE_SLOT_ID` import.
-- [ ] `CpViewControlsPanel.tsx`: delete the slot div and its import.
-- [ ] Delete `apps/web/src/components/panels/cpToolOptionsPortal.ts`.
-- [ ] `theme.css`: delete `.cp-view-controls-panel__tool-options-slot` and its
+- [x] `CpViewControlsPanel.tsx`: delete the slot div and its import.
+- [x] Delete `apps/web/src/components/panels/cpToolOptionsPortal.ts`.
+- [x] `theme.css`: delete `.cp-view-controls-panel__tool-options-slot` and its
       `:empty` rule.
-- [ ] `CpViewControlsPanel.test.tsx`: drop the slot assertion (the rest of that
+- [x] `CpViewControlsPanel.test.tsx`: drop the slot assertion (the rest of that
       test — grid/snapping toggles — stays).
 
 ### Phase 5 — Tests and validation
 
-- [ ] Component test in `cp-workspace/toolHint/`: renders into the body portal;
+- [x] Component test in `cp-workspace/toolHint/`: renders into the body portal;
       header toggles collapse; collapsed hides the body but keeps the title and
       meta; the collapse choice survives an unmount/remount cycle (the regression
       this change exists to fix); renders nothing when the active command has no
       groups, instructions, message or notice; renders nothing with a null
       container.
-- [ ] **i18n: no new strings expected.** The header already names the tool and
+- [x] **i18n: no new strings expected.** The header already names the tool and
       says `Instructions` / `N settings`, and its accessible name comes from that
       text. If anything is added anyway, follow `apps/web/CLAUDE.md` —
       `i18n:extract`, translate all 8 locales, `i18n:stamp`, `i18n:check`.
-- [ ] `npx tsc --noEmit` + `npx vitest run` in `apps/web` (per
+- [x] `npx tsc --noEmit` + `npx vitest run` in `apps/web` (per
       `web-typecheck-regenerates-wasm`, the npm wrappers rebuild tracked
       `generated/**`), plus `npm run lint:web`.
-- [ ] Confirm `CreasePatternPanel.tsx` still passes its 2687-line cap and
-      `CpContextToolPanel.tsx` has not grown past 1110. Neither `OVERSIZED_PANELS`
-      number should need to move; if one does, that is the signal to stop and
-      reconsider, not to edit the number.
+- [x] The caps moved *down*, not up: `CreasePatternPanel.tsx` 2687 → 2669 and
+      `CpContextToolPanel.tsx` 1110 → 1097. The first pass did trip the second cap
+      by 8, which is what produced `CpToolHintWindow` — see Key design decisions.
 
-### Phase 6 — Browser checklist (author)
+### Phase 6 — Browser pass
 
-Nothing above proves how it looks or how it tracks a dragged sash, and the
-automated browser pane suspends rAF, so this part is a manual pass in Edit:
+Verified in the automated pane (measured, not eyeballed — it reports layout even
+though it suspends rAF):
 
-- [ ] The overhang reads as intended — the window visibly crosses the View pane's
-      left edge and sits above the canvas, with the pane's own controls behind it.
-- [ ] Drag the View pane's sash wider and narrower: the window follows the seam,
-      keeps its 50px overhang, and clamps rather than leaving the screen. Close
-      the View pane entirely — the window stays, now pinned near the app edge.
-- [ ] Pick a tool with instructions (Solve Fold Angles) and one with many
-      settings (Divide by ratio, Angle system) — both read well, and the tall one
-      scrolls rather than running off the top of the canvas.
-- [ ] Collapse it, switch tools, reload — it stays collapsed both times.
-- [ ] Switch to Design and Simulate — the window is gone, not floating over them.
-- [ ] Open a modal (export image) — the modal covers the window, not the reverse.
+- [x] The overhang is exactly 50px, the window is a child of `document.body`, and
+      it visibly crosses the View pane's left edge onto the canvas.
+- [x] It clears the viewport toolbar — 0px vertical overlap where there was 38px
+      of coverage before the step-over rule.
+- [x] The border resolves to `--border-default` (`#3e4452`), not the blue active
+      token it wore first.
+- [x] Collapse leaves the header, title and setting count; the choice is written
+      to `oristudio:cp-tool-hint-collapsed` and survives a reload.
+
+Left for the author — these need a real window, a mouse, and a look:
+
+- [ ] Drag the View pane's sash wider and narrower: the window should follow the
+      seam and keep its 50px overhang. Close the pane entirely — it should stay,
+      pinned near the app edge, and the step-over should release once the toolbar
+      is clear.
+- [ ] A tall tool (Angle system, or Measure after several readings): the body
+      should scroll inside the window rather than run off the top of the canvas.
+- [ ] Switch to Design and Simulate — the window should be gone, not floating over
+      them.
+- [ ] Open a modal (export image) — the modal should cover the window.
 - [ ] Type into a numeric field, then press a canvas shortcut (`Esc`, tool
-      chords) — focus and shortcut routing behave as they did in the dock pane.
-- [ ] Light and dark themes; it should read as the same family as the diagnostic
-      HUD in the corner above it.
+      chords) — focus and shortcut routing should behave as they did in the pane.
+- [ ] Light theme, and against the diagnostic HUD in the opposite corner: the two
+      should read as the same family.
 
 ## Affected Areas
 
-- **New**: `apps/web/src/cp-workspace/toolHint/toolHintPlacement.ts`,
-  `useCpToolHintAnchor.ts`, `useCpToolHintCollapsed.ts` (+ tests), a window test.
-- **Edit**: `apps/web/src/components/panels/CpContextToolPanel.tsx` (portal,
-  anchor, collapse hook), `CreasePatternPanel.tsx` (mount moves, old portal
-  machinery out), `CpViewControlsPanel.tsx` (slot out),
+- **New**: `apps/web/src/cp-workspace/toolHint/` — `toolHintPlacement.ts`,
+  `useCpToolHintAnchor.ts`, `useCpToolHintCollapsed.ts`, `CpToolHintWindow.tsx`,
+  and tests for the placement rule, the collapse preference and the window.
+- **Edit**: `apps/web/src/components/panels/CpContextToolPanel.tsx` (content
+  only now — the chrome moved out), `CreasePatternPanel.tsx` (mount moves, old
+  portal machinery out), `CpViewControlsPanel.tsx` (slot out),
   `CpViewControlsPanel.test.tsx` (assertion out), `lib/storage.ts` (one key),
-  `styles/theme.css` (root block rewritten, slot rules deleted).
+  `styles/theme.css` (root block rewritten, slot rules deleted),
+  `eslint.config.js` (both caps lowered).
 - **Delete**: `apps/web/src/components/panels/cpToolOptionsPortal.ts`.
 - **Unchanged**: every `cp-context-panel__*` element rule, `CpContextToolGroup`,
   `CpContextToolReset`, `FoldAngleControl`, `cpLineTypeStatusLabel` and its
@@ -286,6 +314,10 @@ automated browser pane suspends rAF, so this part is a manual pass in Edit:
   `useCanvasObjectAnchor` (not reused — see Key design decisions).
 
 ## Open risks
+
+- ~~**Collision with the viewport toolbar.**~~ Resolved: it was real (38px of
+  coverage at 1280px), and the placement now steps over the toolbar when the two
+  would overlap. See the amended placement rule.
 
 - **The window covers the View pane's own controls.** That is the request — but
   the bottom of that pane is where point size and line width live, and they will
