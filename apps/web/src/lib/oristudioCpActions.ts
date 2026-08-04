@@ -362,27 +362,35 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamAction: 'lengthenCrease2Action',
     upstreamMouseMode: 'LENGTHEN_CREASE_SAME_COLOR_70',
   },
+  // The Color & Fix group is ordered explicitly. Left to the default every
+  // member ties at 10_000 and falls back on the *commands* list's order, which
+  // is not the order this file reads in — the repair tool landed third of four
+  // despite being declared last.
+  CreaseMakeMv: {
+    upstreamAction: 'in_L_col_changeAction',
+    upstreamMouseMode: 'CREASE_MAKE_MV_34',
+    railOrder: 10,
+  },
+  CreasesAlternateMv: {
+    upstreamAction: 'on_L_col_changeAction',
+    upstreamMouseMode: 'CREASES_ALTERNATE_MV_36',
+    railOrder: 20,
+  },
   CreaseToggleMv: {
     label: 'Flip Mountain/Valley',
     group: 'color',
     upstreamAction: 'senbun_henkan2Action',
     upstreamMouseMode: 'CREASE_TOGGLE_MV_58',
-  },
-  CreaseMakeMv: {
-    upstreamAction: 'in_L_col_changeAction',
-    upstreamMouseMode: 'CREASE_MAKE_MV_34',
-  },
-  CreasesAlternateMv: {
-    upstreamAction: 'on_L_col_changeAction',
-    upstreamMouseMode: 'CREASES_ALTERNATE_MV_36',
+    railOrder: 30,
   },
   VertexSolveFoldAngles: {
     label: 'Solve Fold Angles',
     group: 'color',
     // Ori Studio native: Oriedita has no equivalent, because its creases are
-    // always a full +/-180 and there is no angle to solve. Last in the group,
-    // after the assignment tools — it is the "Fix" half of "Color & Fix".
+    // always a full +/-180 and there is no angle to solve. Last in the group —
+    // the "Fix" half of "Color & Fix".
     upstreamAction: 'solveVertexFoldAnglesAction',
+    railOrder: 40,
   },
   CircleDraw: {
     upstreamAction: 'circleDrawAction',
