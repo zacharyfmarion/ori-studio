@@ -111,8 +111,20 @@ export function isPng(bytes: ArrayBuffer): boolean {
   return PNG_SIGNATURE.every((byte, index) => head[index] === byte);
 }
 
+/**
+ * Sent on every Function response.
+ *
+ * The thumbnail endpoint serves bytes an uploader supplied, from our own origin. The
+ * signature check makes them a real PNG, but `nosniff` is what stops a browser deciding
+ * for itself that some other type is a better fit.
+ */
+export function withSecurityHeaders(headers: Headers): Headers {
+  headers.set('X-Content-Type-Options', 'nosniff');
+  return headers;
+}
+
 export function json(data: unknown, init: ResponseInit = {}): Response {
-  const headers = new Headers(init.headers);
+  const headers = withSecurityHeaders(new Headers(init.headers));
   headers.set('Content-Type', 'application/json; charset=utf-8');
   return new Response(JSON.stringify(data), { ...init, headers });
 }

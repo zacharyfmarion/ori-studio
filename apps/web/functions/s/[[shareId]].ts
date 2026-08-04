@@ -4,6 +4,7 @@ import {
   readShareIdParam,
   shareUrl,
   thumbnailUrl,
+  withSecurityHeaders,
 } from '../_lib/cpShare';
 import { renderSharedCpHtml, type ShareCardMeta } from '../_lib/cpShareHtml';
 
@@ -85,7 +86,7 @@ async function handleShare(context: CpShareContext, includeBody: boolean): Promi
  * would only ever reproduce for people arriving from a shared link.
  */
 function withIsolationHeaders(response: Response): Response {
-  const headers = new Headers(response.headers);
+  const headers = withSecurityHeaders(new Headers(response.headers));
   headers.set('Cross-Origin-Opener-Policy', 'same-origin');
   headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
   return new Response(response.body, {

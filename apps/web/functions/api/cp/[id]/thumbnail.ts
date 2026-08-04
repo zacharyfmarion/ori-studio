@@ -8,6 +8,7 @@ import {
   readShareIdParam,
   thumbnailObjectKey,
   thumbnailUrl,
+  withSecurityHeaders,
 } from '../../../_lib/cpShare';
 
 /** Cache lifetime for the placeholder served when a share has no thumbnail yet. */
@@ -37,10 +38,9 @@ async function serveFallbackCard(request: Request, includeBody: boolean): Promis
     return json({ error: 'Thumbnail not found.', code: 'not_found' }, { status: 404 });
   }
   return new Response(includeBody ? upstream.body : null, {
-    headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': FALLBACK_CACHE_CONTROL,
-    },
+    headers: withSecurityHeaders(
+      new Headers({ 'Content-Type': 'image/png', 'Cache-Control': FALLBACK_CACHE_CONTROL })
+    ),
   });
 }
 
@@ -60,7 +60,7 @@ async function serveThumbnail(context: CpShareContext, includeBody: boolean): Pr
     return serveFallbackCard(context.request, includeBody);
   }
 
-  const headers = new Headers();
+  const headers = withSecurityHeaders(new Headers());
   object.writeHttpMetadata(headers);
   headers.set('etag', object.httpEtag);
   headers.set('Cache-Control', THUMBNAIL_CACHE_CONTROL);

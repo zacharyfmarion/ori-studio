@@ -81,12 +81,30 @@ share puts the ceiling at 500/day.
   error. A vague true message beats a precise false one, so the existing copy stands and no
   `{{time}}` interpolation is built. Revisit only if Cloudflare exposes a distinguishable
   error shape.
-- **Reclaim the second write.** `ratelimits` is not a Pages binding, but **Durable Objects
-  are**, and a DO counter costs no KV write — that would restore 1 write/share and a
-  1,000/day ceiling. Spike it; if the free-plan story does not hold up, stay on the KV counter
-  and document the ceiling.
-- **Know before users do.** A scheduled check on KV usage, or simply a documented runbook for
-  switching to Workers Paid, so the response to an outage is not discovery.
+- **Reclaim the second write — feasible, deliberately not taken.** `ratelimits` is not a
+  Pages binding, but `durable_objects` is, and **SQLite-backed Durable Objects are
+  free-plan eligible** (100,000 requests/day, 100,000 row writes/day — verified 2026-08-04).
+  A DO counter costs one DO request and one row write per share against those budgets, and
+  would remove the KV rate-limit write, taking creation from 500/day to 1,000/day.
+
+  Not built. It is a new binding type, a new class, a `wrangler.toml` migration, and a new
+  set of failure modes — to double a ceiling already 25× realistic usage, in a feature that
+  has not yet served a single production request. Revisit if sustained creation gets within
+  sight of 500/day; the numbers above are the homework, so it is a decision rather than an
+  investigation when that happens.
+
+- **Runbook — what to do when a quota is exhausted.** Both KV limits reset at 00:00 UTC and
+  fail hard rather than billing, so the response is the same either way: stop guessing, take
+  Workers Paid.
+
+  | Symptom | Cause | Fix |
+  |---|---|---|
+  | Creating a link 503s (`storage_quota`) | 1,000 KV writes/day, 2 per share | Workers Paid ($5/mo) lifts to 1M writes/month |
+  | Existing links stop opening | 100,000 KV reads/day | Same. Check first whether it is a `/s/<garbage>` flood — id-shape validation blocks most, but well-formed random ids still read |
+  | Both, without traffic to match | Something is looping | Check the KV metrics page for the write/read split before upgrading |
+
+  Upgrading is a dashboard action and takes effect immediately; no redeploy. Nothing in the
+  code needs to change, because the limits are account-level.
 
 ### 4. Thumbnails: retry, sanity-check, and match the card
 
@@ -141,7 +159,10 @@ existence check does catch a collision; it should never fire, and if it does we 
 ### 8. Measure the CPU ceiling, and pin the SPA fallback
 
 - The free plan allows **10 ms CPU per invocation**. `/s/<id>` inlines up to 24 KB and runs
-  ten regex passes. Measure with a worst-case payload rather than assuming.
+  ten regex passes. **Measured** (500 iterations against the real `index.html`): 0.029 ms
+  mean at 1 KB, **0.082 ms mean / 0.224 ms worst at 24 KB**, and 0.177 ms mean / 0.323 ms
+  worst even at the 64 KB payload cap. That is roughly 120× of headroom at the realistic
+  maximum, so the ceiling is not a constraint on this design.
 - A custom `404.html` would make Pages serve it instead of `index.html`, and `/s/<id>` would
   render an error page. The smoke test's fourth assertion covers this; note the constraint
   where someone would look before adding one.
@@ -230,12 +251,12 @@ existence check does catch a collision; it should never fire, and if it does we 
 ### Phase 5 — Limits and abuse
 
 - [x] Ids to 10 chars; validator accepts 8–12; log a caught collision.
-- [ ] `X-Content-Type-Options: nosniff` on Function responses.
-- [ ] Measure `/s/<id>` CPU with a 24 KB payload against the 10 ms ceiling; record it.
-- [ ] Note the "no `404.html`" constraint where someone would look before adding one.
-- [ ] Spike a Durable Object rate-limit counter; adopt it if the free-plan story holds,
+- [x] `X-Content-Type-Options: nosniff` on Function responses.
+- [x] Measure `/s/<id>` CPU with a 24 KB payload against the 10 ms ceiling; record it.
+- [x] Note the "no `404.html`" constraint where someone would look before adding one.
+- [x] Spike a Durable Object rate-limit counter; adopt it if the free-plan story holds,
       otherwise document the 500/day ceiling and the Workers Paid trigger.
-- [ ] Runbook: what to do when KV writes or reads are exhausted.
+- [x] Runbook: what to do when KV writes or reads are exhausted.
 
 ### Phase 6 — Coverage
 
