@@ -991,8 +991,8 @@ export function CreasePatternWebglCanvas({
   // Content bounds in SVG user coords, for the initial camera fit (independent
   // of the SVG's own fixed-rect fit, which mis-centres imported cameras).
   const contentBounds = useMemo<UserBounds | null>(
-    () => cpContentBounds({ lineSegments, images, overlayBoxes, modelToSvg }),
-    [lineSegments, images, overlayBoxes, modelToSvg]
+    () => cpContentBounds({ lineSegments, images, overlayBoxes, foldedFigures, modelToSvg }),
+    [lineSegments, images, overlayBoxes, foldedFigures, modelToSvg]
   );
 
   // Spatial indices for click hit-testing. Points are indexed as zero-length
