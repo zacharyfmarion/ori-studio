@@ -189,27 +189,57 @@ Supporting changes in `feedTool`'s neighbourhood:
 
 ## Checklist
 
-- [ ] Phase 1: snap the release point for the threshold test in `feedAngleDrag`;
+- [x] Phase 1: snap the release point for the threshold test in `feedAngleDrag`;
       commit the raw endpoint unchanged
-- [ ] Phase 1 browser check: press 5–8 px from a vertex and release without
-      moving — the anchor parks, no crease appears; a second click elsewhere
-      commits; clicking the parked anchor again drops it
-- [ ] `toolModeSnapsDrawPoint` in `tools/predicates.ts` + test covering
-      `angle-drag`
-- [ ] `feedTool` handles `angle-drag`: snapped point to the engine, raw cursor to
+- [x] `toolModeSnapsDrawPoint` + test covering `angle-drag`
+- [x] `feedTool` handles `angle-drag`: snapped point to the engine, raw cursor to
       the kernel preview and the commit endpoint
-- [ ] `drawRuntime()` returns the persistent runtime for `angle-drag`
-- [ ] Delete `feedAngleDrag`; collapse the two angle refs into
+- [x] `drawRuntime()` returns the persistent runtime for `angle-drag`
+- [x] Delete `feedAngleDrag`; collapse the two angle refs into
       `armedDrawPointRef` / `armedDrawRuntimeRef`; update the tool-change reset
-- [ ] Update the five call sites (erase cancel, hover, release route, pointer
+- [x] Update the five call sites (erase cancel, hover, release route, pointer
       leave, Escape); `pointerRelease.ts` route unchanged
-- [ ] `dragLineTool.test.ts`: press snapped away from the cursor, release in
+- [x] `dragLineTool.test.ts`: press snapped away from the cursor, release in
       place → arms
-- [ ] Refresh the `inputModelRegistry.ts` comment and cross-reference
+- [x] Refresh the `inputModelRegistry.ts` comment and cross-reference
       `crease-draw-click-to-place.md`
-- [ ] `cd apps/web && npx tsc --noEmit`, `npx vitest run`, `npm run lint:web`
+- [x] `npx tsc --noEmit`, `npx vitest run`, `npx eslint` on the changed files
       (prefer these over `npm run typecheck:web` / `test:web`, which regenerate
       the tracked wasm bindings as a side effect)
+- [ ] Browser check: press 5–8 px from a vertex and release without moving — the
+      anchor parks, no crease appears; a second click elsewhere commits; clicking
+      the parked anchor again drops it
 - [ ] Browser check after the refactor: drag-draw, click-click, Escape,
       right-button erase mid-arm, pointer-leave-and-return, and pan/zoom while
       armed all behave identically for Angle Restricted Line and Draw Crease
+
+## Implementation notes
+
+Four decisions worth recording, three of them departures from the sketch above:
+
+- **`toolModeSnapsDrawPoint` went in `pointerRelease.ts`, not `predicates.ts`.**
+  That module owns the `ActiveToolMode` vocabulary and already exists to state
+  cross-mode rules once and test them over every member; `predicates.ts` is
+  entirely `operationId`-keyed, and a mode-keyed predicate there would have been
+  the odd one out.
+- **`syncArmedDrawPoint` takes the dots to draw.** Keying the overlay purely off
+  `livePoints` would have dropped the anchor dot during a press-drag, which
+  upstream draws for the whole gesture (`drawStepVertex(anchorPoint)`). The
+  parameter defaults to the armed start, so drag-line is unchanged; arming and
+  the step prompt still key off `livePoints` alone, because an anchor being
+  dragged from is not a parked one.
+- **The kernel preview is published only on a change.** `dragLineTool` reports
+  `preview: null` for an idle hover, and forwarding that every frame would have
+  called `onToolPreviewInput([], [])` per mouse move — four React state writes
+  with fresh array identities, so a panel re-render per frame. The bespoke
+  handler never touched the preview channel while idle; `publishAnglePreview`
+  keeps that property.
+- **`angle-drag` kept its own pointerdown branch** rather than falling through to
+  the generic drag-tool branch: that branch's `toolEngineFor(toolMode)` relies on
+  the preceding cases having narrowed `ActiveToolMode` down to `ToolInputMode`,
+  and `angle-drag` is not one.
+
+One behaviour is knowingly not preserved: the anchor dot no longer appears
+between `pointerdown` and the first `pointermove`, because the engine reports its
+start through the preview segment and there is none yet on `down`. That window is
+under one frame, and drag-line has always behaved this way.

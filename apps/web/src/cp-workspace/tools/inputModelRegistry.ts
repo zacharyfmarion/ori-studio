@@ -101,8 +101,9 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   DrawCreaseAngleRestricted: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'candidate'] },
   DrawCreaseAngleRestricted3: { model: 'point-sequence', pointCount: 3, snapPerStep: ['point', 'point', 'crease'] },
   // Angle Restricted Line: the panel special-cases this op as a press-drag-release
-  // 'angle-drag' (bespoke canvas handler, kernel-previewed angle snap), so the entry
-  // below is nominal — kept only for registry coverage, not routed via snapPerStep.
+  // 'angle-drag' — the shared drag-line engine, but kernel-previewed (the kernel owns
+  // the angle snap). The entry below is nominal: kept for registry coverage, not
+  // routed via snapPerStep.
   DrawCreaseAngleRestricted5: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   DrawDoveBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   DrawFishBase: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
