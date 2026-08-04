@@ -37,6 +37,9 @@
 import { STORAGE_KEYS, readJson, storageKey, writeJson } from './storage';
 import {
   DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
+  ORISTUDIO_CP_DIVIDE_MODES,
+  ORISTUDIO_CP_LENGTHEN_COLOR_MODES,
+  type OristudioCpRatioExpression,
   type OristudioCpToolOptions,
 } from './oristudioCpToolSettings';
 
@@ -70,13 +73,29 @@ function boolean(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
 }
 
+function oneOf<T extends string>(values: readonly T[]): (value: unknown) => T | null {
+  return (value) =>
+    typeof value === 'string' && (values as readonly string[]).includes(value) ? (value as T) : null;
+}
+
+/** The six coefficients of `a + b*sqrt(c) : d + e*sqrt(f)`, all present and finite. */
+const RATIO_FIELDS = ['a', 'b', 'c', 'd', 'e', 'f'] as const;
+
+function ratioExpression(value: unknown): OristudioCpRatioExpression | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (RATIO_FIELDS.some((field) => finiteIn(record[field], -1e6, 1e6) === null)) return null;
+  return Object.fromEntries(
+    RATIO_FIELDS.map((field) => [field, record[field] as number])
+  ) as unknown as OristudioCpRatioExpression;
+}
+
 /**
  * The opted-in set, deliberately small. Each later addition is one line, added
  * when someone asks for it.
  *
- * Reasonable candidates left ephemeral for now: `divisionCount`,
- * `divisionRatio`, `polygonCorners`, `parallelWidth`, the custom line types, and
- * `customCircleColor`.
+ * Reasonable candidates left ephemeral for now: `polygonCorners`,
+ * `parallelWidth`, the custom line types, and `customCircleColor`.
  */
 export const PERSISTED_CP_TOOL_OPTIONS: Registry = {
   // The most "how I work" setting in the editor, and the complaint that
@@ -99,6 +118,18 @@ export const PERSISTED_CP_TOOL_OPTIONS: Registry = {
   // Where a completion candidate is allowed to stop. A working preference: a
   // designer either draws guide lines to build against, or does not.
   foldableLineStopsOnAux: boolean,
+  // Which kernel operation the two merged rail tools run (see
+  // `cp-workspace/tools/toolVariants.ts`). Persisted because the mode *is* the
+  // tool as far as the user is concerned -- someone who extends creases in their
+  // own colour does that every time -- and because it is what keeps the `E`
+  // chord doing the same thing across sessions.
+  lengthenColorMode: oneOf(ORISTUDIO_CP_LENGTHEN_COLOR_MODES),
+  divideMode: oneOf(ORISTUDIO_CP_DIVIDE_MODES),
+  // The divide mode's operands, and they come as a set with it: restoring Ratio
+  // mode with the ratio reverted to its default is the same half-restored state
+  // the angle-system pair above avoids.
+  divisionCount: (value) => integerIn(value, 1, 256),
+  divisionRatio: ratioExpression,
 };
 
 /** The opted-in keys, for callers that need to reason about the set. */
