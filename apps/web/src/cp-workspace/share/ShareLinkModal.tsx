@@ -366,19 +366,35 @@ export function ShareLinkModal() {
               </Button>
             </>
           ) : (
-            <Button variant="primary" disabled={publishing} onClick={() => void onPublish()}>
-              {publishing
-                ? t('dialogs:share.creating', 'Creating link…')
-                : t('dialogs:share.create', 'Create share link')}
-            </Button>
+            <>
+              {/* Same shape as the published state, so the footer does not jump when the
+                  link appears — and it answers the question the button raises before it is
+                  pressed: nothing has left this machine yet. */}
+              <span className="share-link-modal__status">
+                {t('dialogs:share.notPublished', 'Nothing is published until you create the link.')}
+              </span>
+              <Button variant="primary" disabled={publishing} onClick={() => void onPublish()}>
+                <Link2 size={14} aria-hidden="true" />
+                {publishing
+                  ? t('dialogs:share.creating', 'Creating link…')
+                  : t('dialogs:share.create', 'Create link')}
+              </Button>
+            </>
           )}
         </footer>
 
+        {/* The note says what is true *now*: before publishing, that the settings are
+            about to be frozen; after, what the recipient actually gets. */}
         <p className="share-link-modal__note">
-          {t(
-            'dialogs:share.scope',
-            'Anyone with this link opens their own editable copy — they cannot change your original. Links cannot be deleted or changed once created, and carry the crease pattern only: not reference images, annotations, or saved simulations.'
-          )}
+          {url
+            ? t(
+                'dialogs:share.scope',
+                'Anyone with this link opens their own editable copy — they cannot change your original. Links cannot be deleted or changed once created, and carry the crease pattern only: not reference images, annotations, or saved simulations.'
+              )
+            : t(
+                'dialogs:share.scopeDraft',
+                'Set the title, author and figure first: a link is a permanent snapshot — it cannot be edited or deleted afterwards, so changes mean creating another one. Carries the crease pattern only — not reference images, annotations, or saved simulations.'
+              )}
         </p>
       </div>
     </div>

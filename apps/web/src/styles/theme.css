@@ -1335,7 +1335,8 @@
 .share-link-modal__folded {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  padding-top: var(--space-1);
 }
 
 .share-link-modal__folded-row {
@@ -1354,8 +1355,7 @@
 /* Deliberately light regardless of theme: this is a mock of someone else's chat client,
    not part of the app's own surface, and every one of them renders link cards on white. */
 .share-embed {
-  width: 300px;
-  max-width: 100%;
+  width: 100%;
   overflow: hidden;
   border-radius: var(--radius-lg, 10px);
   background: #ffffff;
@@ -1409,6 +1409,14 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--border-subtle);
+}
+
+/* Takes the width the URL field will, so the button does not move when the link lands. */
+.share-link-modal__status {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
 }
 
 .share-link-modal__url {

@@ -2021,7 +2021,7 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.create": "5abb03628549",
+    "dialogs:share.create": "e6b850cff6af",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
     "dialogs:share.folding": "73700a8434f9",
@@ -2040,7 +2040,9 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
     "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.linkPreview": "165e9250b511"
+    "dialogs:share.linkPreview": "165e9250b511",
+    "dialogs:share.notPublished": "b4590f148edd",
+    "dialogs:share.scopeDraft": "f60bcd1d5601"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4064,7 +4066,7 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.create": "5abb03628549",
+    "dialogs:share.create": "e6b850cff6af",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
     "dialogs:share.folding": "73700a8434f9",
@@ -4083,7 +4085,9 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
     "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.linkPreview": "165e9250b511"
+    "dialogs:share.linkPreview": "165e9250b511",
+    "dialogs:share.notPublished": "b4590f148edd",
+    "dialogs:share.scopeDraft": "f60bcd1d5601"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6133,7 +6137,7 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.create": "5abb03628549",
+    "dialogs:share.create": "e6b850cff6af",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
     "dialogs:share.folding": "73700a8434f9",
@@ -6152,7 +6156,9 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
     "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.linkPreview": "165e9250b511"
+    "dialogs:share.linkPreview": "165e9250b511",
+    "dialogs:share.notPublished": "b4590f148edd",
+    "dialogs:share.scopeDraft": "f60bcd1d5601"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8202,7 +8208,7 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.create": "5abb03628549",
+    "dialogs:share.create": "e6b850cff6af",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
     "dialogs:share.folding": "73700a8434f9",
@@ -8221,7 +8227,9 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
     "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.linkPreview": "165e9250b511"
+    "dialogs:share.linkPreview": "165e9250b511",
+    "dialogs:share.notPublished": "b4590f148edd",
+    "dialogs:share.scopeDraft": "f60bcd1d5601"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10271,7 +10279,7 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.create": "5abb03628549",
+    "dialogs:share.create": "e6b850cff6af",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
     "dialogs:share.folding": "73700a8434f9",
@@ -10290,7 +10298,9 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
     "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.linkPreview": "165e9250b511"
+    "dialogs:share.linkPreview": "165e9250b511",
+    "dialogs:share.notPublished": "b4590f148edd",
+    "dialogs:share.scopeDraft": "f60bcd1d5601"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12340,7 +12350,7 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.create": "5abb03628549",
+    "dialogs:share.create": "e6b850cff6af",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
     "dialogs:share.folding": "73700a8434f9",
@@ -12359,7 +12369,9 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
     "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.linkPreview": "165e9250b511"
+    "dialogs:share.linkPreview": "165e9250b511",
+    "dialogs:share.notPublished": "b4590f148edd",
+    "dialogs:share.scopeDraft": "f60bcd1d5601"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14409,7 +14421,7 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.create": "5abb03628549",
+    "dialogs:share.create": "e6b850cff6af",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
     "dialogs:share.folding": "73700a8434f9",
@@ -14428,7 +14440,9 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
     "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.linkPreview": "165e9250b511"
+    "dialogs:share.linkPreview": "165e9250b511",
+    "dialogs:share.notPublished": "b4590f148edd",
+    "dialogs:share.scopeDraft": "f60bcd1d5601"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16452,7 +16466,7 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.create": "5abb03628549",
+    "dialogs:share.create": "e6b850cff6af",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
     "dialogs:share.folding": "73700a8434f9",
@@ -16471,6 +16485,8 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
     "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.linkPreview": "165e9250b511"
+    "dialogs:share.linkPreview": "165e9250b511",
+    "dialogs:share.notPublished": "b4590f148edd",
+    "dialogs:share.scopeDraft": "f60bcd1d5601"
   }
 }
