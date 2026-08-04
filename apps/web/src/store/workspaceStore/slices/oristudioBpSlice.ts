@@ -476,7 +476,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     loadOristudioBpProjectFromFile: async (text, source, options = {}) => {
       set({ oristudioBpBusy: true, oristudioBpError: null });
       try {
-        await get().clearOristudioCpDocument();
+        // A bare `.bps` carries no crease pattern, so opening one clears the Edit
+        // canvas. Inside a native `.osf` the caller owns the canvas — the bundle
+        // may hold a crease pattern to install right after — so it opts out, and
+        // the load never publishes an empty canvas mid-flight.
+        if (!options.preserveEditCanvas) await get().clearOristudioCpDocument();
         const [document, portDescriptors] = await Promise.all([
           loadOristudioBpProjectFromText(text, {
             filename: source.filename,
@@ -489,6 +493,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         set({ oristudioBpPortDescriptors: portDescriptors });
         setLoadedBpProject(document, `Loaded ${source.filename}`, {
           symmetry: options.symmetry ?? null,
+          preserveEditCanvas: options.preserveEditCanvas,
         });
         // No workspace activation: this is a loader. Its callers land once, from
         // the finished project (`applyLandingWorkspace`).

@@ -5521,6 +5521,96 @@ describe('workspace store slices', () => {
       expect(state.projectLoadId).toBeGreaterThan(projectLoadIdBefore);
     });
 
+    it('never empties the Edit canvas while loading a design bundled with a crease pattern', async () => {
+      // Regression: the design installer cleared the canvas before the bundle's
+      // crease pattern was restored, so the load published an empty Edit canvas
+      // mid-flight. The Edit surface self-provisions into any gap it sees, so
+      // each gap cost a blank document built and thrown away moments later —
+      // measured at two per open. The bundle knows its companion is coming
+      // before anything is installed, so the design installer is told to keep
+      // the canvas and the companion replaces it directly.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          creasePatternCompanion: {
+            title: 'Crane CP',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: null,
+            foldProjection: null,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+          },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({
+        engineReady: true,
+        status: 'ready',
+        dirty: false,
+        // A crease pattern is already on the always-live canvas.
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 0, y: 1 })]),
+      });
+
+      const presence: boolean[] = [];
+      const unsubscribe = useWorkspaceStore.subscribe((state, previous) => {
+        if ((state.oristudioCpDocument !== null) !== (previous.oristudioCpDocument !== null)) {
+          presence.push(state.oristudioCpDocument !== null);
+        }
+      });
+      try {
+        await expect(
+          useWorkspaceStore
+            .getState()
+            .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+        ).resolves.toBe(true);
+      } finally {
+        unsubscribe();
+      }
+
+      // Never null at any point: no gap for the Edit surface to fill.
+      expect(presence).toEqual([]);
+      expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+    });
+
+    it('still discards the open crease pattern for a design with no companion', async () => {
+      // The other half: the opt-out is scoped to bundles that carry a crease
+      // pattern. A design-only file is not one, so the previous file's canvas
+      // must still go.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({
+        engineReady: true,
+        status: 'ready',
+        dirty: false,
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 0, y: 1 })]),
+      });
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+      ).resolves.toBe(true);
+
+      expect(useWorkspaceStore.getState().oristudioCpDocument).toBeNull();
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+    });
+
     it('moves the user exactly once when opening a design bundled with a crease pattern', async () => {
       // Regression: `setLoadedBpProject` both installed the BP document and
       // called `activateWorkspace('design')`, so the destination was chosen from

@@ -781,7 +781,16 @@ export interface OristudioBpSliceActions {
      * — a bare `.bps` cannot carry symmetry — so this is absent for plain
      * Box Pleating Studio files and the design opens with the default.
      */
-    options?: { symmetry?: BpDocumentSymmetry | null }
+    options?: {
+      symmetry?: BpDocumentSymmetry | null;
+      /**
+       * Keep the Edit canvas rather than clearing it. Set by the `.osf` loader
+       * when the bundle also carries a crease pattern to install right after, so
+       * the load never publishes an empty canvas for the Edit surface to
+       * self-provision into and then discard.
+       */
+      preserveEditCanvas?: boolean;
+    }
   ) => Promise<boolean>;
   /** Replace the active BP selection. */
   selectOristudioBp: (selection: OristudioBpSelection) => void;

@@ -729,6 +729,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       filename?: string;
       path?: string | null;
       dirty?: boolean;
+      /**
+       * Keep the Edit canvas rather than clearing it. Set by the `.osf` loader
+       * when the bundle also carries a crease pattern to install right after, so
+       * the load never publishes an empty canvas for the Edit surface to
+       * self-provision into and then discard.
+       */
+      preserveEditCanvas?: boolean;
     } = {}
   ) => {
     set({ status: 'loading_engine', error: null, projectMessage: null });
@@ -737,28 +744,32 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const snapshot = await loadTreeFromText(api, text);
     const filename = source.filename ?? defaultNativeFilename('Untitled');
     const title = source.title ?? basenameWithoutProjectExtension(filename);
+    const editCanvasState = source.preserveEditCanvas
+      ? pickFoldArtifactResourceState(get())
+      : {
+          ...discardCpDocumentState(),
+          importedCreasePattern: null,
+          oristudioCpDocument: null,
+          oristudioCpLineage: null,
+          oristudioCpError: null,
+          oristudioCpCamvResult: null,
+          oristudioCpHistoryPast: [],
+          oristudioCpHistoryFuture: [],
+          oristudioCpSelection: emptyOristudioCpSelection(),
+          oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+          ...emptyFoldArtifactResourceState(),
+        };
     set({
-      ...discardCpDocumentState(),
       ...projectStateFromSnapshot(snapshot, title),
-      importedCreasePattern: null,
-      oristudioCpDocument: null,
-      oristudioCpLineage: null,
-      oristudioCpError: null,
-      oristudioCpCamvResult: null,
-      oristudioCpHistoryPast: [],
-      oristudioCpHistoryFuture: [],
       projectLoadId: get().projectLoadId + 1,
       currentFileName: filename,
       currentFilePath: source.path ?? null,
       projectMessage: `Loaded ${filename}`,
       selection: { kind: 'tree' },
-      oristudioCpSelection: emptyOristudioCpSelection(),
-      oristudioCpActiveDiagnosticId: null,
-      oristudioCpRevision: 0,
       toolMode: 'select',
       symmetryAuthoringPairs: [],
-      creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
-      ...emptyFoldArtifactResourceState(),
       status: statusFromSnapshot(snapshot),
       dirty: source.dirty ?? false,
       lastOptimization: null,
@@ -772,6 +783,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       designMethod: 'treemaker',
       oristudioBpDocument: null,
       oristudioBpWorkspace: null,
+      // Spread last so a preserved canvas wins over the resets above.
+      ...editCanvasState,
     });
   };
 
@@ -1168,15 +1181,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // Retain the file-level extension bag for a lossless save round-trip. Set
     // early; the document load paths below never touch this field.
     set({ nativeProjectExtensions: nativeProject.extensions });
+    // Known before anything is installed, and the design installers need it: a
+    // bundle that carries a crease pattern must not publish an empty Edit canvas
+    // on the way to installing it. The Edit surface self-provisions into any gap
+    // it sees, so each such gap cost a blank document built and thrown away.
+    const companion = nativeProject.workspace.documents.find(
+      (document) => document.kind === 'crease-pattern'
+    );
+    const preserveEditCanvas = companion !== undefined;
     if (nativeDocument.kind === 'treemaker-tree') {
       await loadText(nativeDocument.tree.text, {
         title: nativeDocument.title || nativeProject.workspace.title,
         filename: source.filename,
         path: source.path ?? null,
+        preserveEditCanvas,
       });
-      const companion = nativeProject.workspace.documents.find(
-        (document) => document.kind === 'crease-pattern'
-      );
       if (companion?.kind === 'crease-pattern') {
         await restoreNativeCreasePatternCompanion(companion, source);
       }
@@ -1186,17 +1205,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const loaded = await get().loadOristudioBpProjectFromFile(
         nativeDocument.project.text,
         { filename: source.filename, path: source.path ?? null },
-        { symmetry: nativeDocument.symmetry }
+        { symmetry: nativeDocument.symmetry, preserveEditCanvas }
       );
-      // Loading the BP design clears the Edit canvas; restore the saved CP
-      // companion (if any) so the Send-to-Edit result comes back too.
-      if (loaded) {
-        const companion = nativeProject.workspace.documents.find(
-          (document) => document.kind === 'crease-pattern'
-        );
-        if (companion?.kind === 'crease-pattern') {
-          await restoreNativeCreasePatternCompanion(companion, source);
-        }
+      // Restore the saved CP companion (if any) so the Send-to-Edit result comes
+      // back too. It replaces the canvas the design load was told to keep.
+      if (loaded && companion?.kind === 'crease-pattern') {
+        await restoreNativeCreasePatternCompanion(companion, source);
       }
       return;
     }
