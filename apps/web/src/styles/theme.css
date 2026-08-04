@@ -6932,25 +6932,28 @@ button.bp-packing-alert:focus-visible {
 }
 
 
-/* The active tool's option window: a small panel over the canvas, anchored to
-   the thing the tool is talking about. Borrows the inline simulation window's
-   frame so the two read as the same kind of object, but it is chrome rather than
-   content and therefore holds one size at every zoom — see
-   `toolOptionPlacement`. */
-.cp-tool-option {
+/* The active tool's option window: a transparent frame around the geometry the
+   chosen answer would change, with its controls on the top edge. The creases
+   themselves are the content — they are already stroked in the colour the answer
+   would give them and badged with their angles — so the frame must not tint or
+   obscure them. */
+.cp-tool-option__frame {
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 40%),
+    inset 0 0 0 1px rgb(0 0 0 / 25%);
+}
+
+.cp-tool-option__chrome {
   display: flex;
   flex-direction: column;
-  min-width: 208px;
+  gap: 4px;
   max-width: 320px;
-  border: 1px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
-  border-radius: 6px;
-  background: var(--bg-secondary);
-  box-shadow:
-    0 0 0 1px rgb(0 0 0 / 55%),
-    0 8px 24px rgb(0 0 0 / 32%);
   font-size: 0.72rem;
-  /* The window owns its own gestures; a drag started on it must not also draw a
-     crease on the canvas underneath. */
+  /* The controls own their own gestures; a drag started on them must not also
+     draw a crease on the canvas underneath. */
   touch-action: none;
   user-select: none;
 }
@@ -6959,8 +6962,13 @@ button.bp-packing-alert:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 6px;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 3px 4px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 55%),
+    0 6px 18px rgb(0 0 0 / 30%);
 }
 
 .cp-tool-option__stepper {
@@ -6972,6 +6980,7 @@ button.bp-packing-alert:focus-visible {
 .cp-tool-option__count,
 .cp-tool-option__title {
   min-width: 0;
+  padding: 0 2px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   font-weight: 650;
@@ -6985,63 +6994,13 @@ button.bp-packing-alert:focus-visible {
   margin-left: auto;
 }
 
-.cp-tool-option__rows {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 6px;
-  list-style: none;
-}
-
-.cp-tool-option__row {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-/* A row the chosen option leaves alone recedes rather than disappearing: the
-   set of things being changed is part of what the window is saying, so dropping
-   an unchanged one would make the list mean something different per option. */
-.cp-tool-option__row[data-changed='false'] {
-  opacity: 0.55;
-}
-
-.cp-tool-option__swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  border: 1px solid var(--border-subtle);
-}
-
-.cp-tool-option__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text-tertiary);
-}
-
-.cp-tool-option__before {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.cp-tool-option__before::after {
-  content: ' \2192';
-}
-
-.cp-tool-option__after {
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-}
-
 .cp-tool-option__note {
   margin: 0;
-  padding: 0 8px 8px;
+  padding: 5px 7px;
+  border-radius: 5px;
   color: var(--text-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
   font-size: 0.68rem;
   line-height: 1.35;
   white-space: normal;

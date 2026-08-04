@@ -14,10 +14,20 @@
  *   want is more direct than reading a list. Those keep their click.
  * - The three-angle solve's branches occupy the *same three creases* and differ
  *   only in their angles. There is nothing to click at, so the answers have to
- *   be listed.
+ *   be stepped through.
  *
- * This window is for the second kind. It is deliberately not a general floating
- * panel system: one window, at one anchor, for the active tool.
+ * This window is for the second kind.
+ *
+ * # It frames the geometry rather than describing it
+ *
+ * The first version listed the affected creases inside the window, with their
+ * before and after angles. That was redundant twice over: the creases are
+ * already drawn in the colour the answer would give them, and
+ * {@link CpFoldAngleLayer} already badges each with its angle. A list beside
+ * them said the same thing again, in words, while covering the canvas.
+ *
+ * So the window is a **transparent frame around the region being changed**, with
+ * its controls on the top edge. The content is the drawing itself.
  *
  * # It holds nothing
  *
@@ -28,41 +38,48 @@
  */
 import type { Point } from '../../lib/geometry';
 
-/** One thing the chosen option would change. */
-export interface CpToolOptionRow {
-  /** Stable across steps, so React keeps the row rather than remounting it. */
-  id: string;
-  /**
-   * Leading swatch colour, resolved. Optional because "what colour is this"
-   * only means something for some kinds of thing.
-   */
-  color?: string | null;
-  label: string;
-  /** What it is now, when showing the change is clearer than showing the result. */
-  before?: string | null;
-  /** What the chosen option would make it. */
-  after: string;
-  /** False when this row is untouched by the chosen option, so it can recede. */
-  changed?: boolean;
+/** An axis-aligned region of crease-pattern model space. */
+export interface CpToolOptionBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
 }
 
 export interface CpToolOptionWindow {
   /**
-   * Where the window points, in crease-pattern model space — the vertex being
-   * solved, the crease being offered alternatives for.
+   * The region the choice is about, in model space — the three creases being
+   * solved, the crease being offered alternatives. The window frames it, so this
+   * is what the user sees change as they step.
    */
-  anchor: Point;
+  bounds: CpToolOptionBounds;
   title: string;
   /** 0-based; `count` of 0 means there is nothing to step through. */
   index: number;
   count: number;
-  rows: readonly CpToolOptionRow[];
   /**
-   * A sentence about the chosen option that the rows cannot carry — "this is one
-   * of infinitely many", "this is what the vertex already does".
+   * A sentence about the chosen option that the drawing cannot carry — "this is
+   * one of infinitely many", "this is what the vertex already does".
    */
   note?: string | null;
   onStep: (delta: number) => void;
   onApply: () => void;
   onCancel: () => void;
+}
+
+/** The region enclosing every one of `points`, or null when there are none. */
+export function boundsOfPoints(points: readonly Point[]): CpToolOptionBounds | null {
+  if (points.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const point of points) {
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+    minX = Math.min(minX, point.x);
+    minY = Math.min(minY, point.y);
+    maxX = Math.max(maxX, point.x);
+    maxY = Math.max(maxY, point.y);
+  }
+  return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
 }

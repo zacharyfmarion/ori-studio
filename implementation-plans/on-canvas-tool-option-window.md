@@ -47,42 +47,52 @@ it is "give the tools that cannot point at their answers somewhere to show them"
 ### The shape
 
 ```
-┌───────────────────────────────────┐
-│  ‹   2 of 3   ›      Apply Cancel │   header — fixed height, always present
-├───────────────────────────────────┤
-│  ▬ crease 12      90°  →  −90°    │   one row per changed thing
-│  ▬ crease 15     180°  →   45°    │
-│  ▬ crease 19       0°  →  135°    │
-└───────────────────────────────────┘
+  ‹  2 of 3  ›   Apply  Cancel        controls — fixed size, on the top edge
+┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+│        the actual creases,    │    transparent frame around the region
+│        drawn as the chosen    │    the chosen answer would change
+│        answer would leave     │
+│        them                   │
+└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
 ```
 
-Rows are descriptors, not components: a leading colour, a label, a before value
-and an after value. That is enough for creases and for anything else a tool
-changes, and it keeps the window from growing a `crease` special case the first
-time a non-crease tool wants it.
+**Built as a list first, and that was wrong.** Listing the affected creases with
+their before and after angles was redundant twice over: the creases are already
+stroked in the colour the answer would give them, and `CpFoldAngleLayer` already
+badges each with its angle. The list said the same thing again, in words, while
+covering the canvas.
 
-### Placement: anchored to model space, sized in CSS pixels
+So the window frames the geometry instead. The descriptor carries a model-space
+**region**, not rows — which is no less generic: any tool that changes things on
+the canvas can say where they are.
 
-Anchored like [`CpFoldAngleLayer`](../apps/web/src/cp-workspace/foldAngle/CpFoldAngleLayer.tsx)
-— project the anchor through `overlayModelToCss` against the live camera from
-`cpOverlayViewStore`, so it tracks pans and zooms without re-rendering the panel.
+### The frame scales, the controls do not
 
-**It does not scale with zoom, and that is the one thing not to copy from the
-inline simulator.** `InlineSimulationLayer` scales because its content *is* model
-geometry: a folded figure two grid squares wide should look two grid squares
-wide. A tool window is chrome — its text has to stay legible at 10% and must not
-swell to fill the viewport at 800%. So it borrows the anchoring and the visual
-language, and takes none of `inlineSimulationPlacement`'s
-`renderedPxPerModel` transform machinery.
+Two kinds of thing, following the camera differently, and this is the one
+subtlety.
 
-That also removes the reason that module is complicated. It exists to keep a
-canvas's layout box stable across camera frames, because a layout write wakes a
-`ResizeObserver` and re-renders the simulation. Nothing here has a bitmap, so
-`translate()` on a fixed-size box is the whole placement story.
+The **frame** encloses model-space geometry, so it must move and resize with the
+camera exactly as that geometry does — otherwise it stops surrounding the creases
+it is about, which is its entire job. Projected like
+[`CpFoldAngleLayer`](../apps/web/src/cp-workspace/foldAngle/CpFoldAngleLayer.tsx)'s
+badges, through `overlayModelToCss` against the live camera from
+`cpOverlayViewStore`, so it tracks a pan or zoom without re-rendering the panel.
 
-Offset from the anchor by a fixed screen gap, flipped to the other side when it
-would leave the viewport, and clamped to stay fully visible. Pure function, unit
-tested: `(anchor, windowSize, viewportSize) → {left, top}`.
+All **four** corners are projected, not two: the view can be rotated, and a box
+built from min/max alone would then be the wrong rectangle — cutting the geometry
+on one diagonal.
+
+The **controls** are chrome. Scaling them with the camera is what
+`InlineSimulationLayer` deliberately avoids for its badge, and for the reason
+that applies doubly here: text that stayed legible at 10% zoom would fill the
+viewport at 800%. They are a fixed-size block positioned against the frame's top
+edge, above it where there is room and inside it where there is not — never
+below, because below covers whatever is outside the frame while inside overlaps
+only what the user is already looking at.
+
+Both rules are pure functions, unit tested, including the rotated-view case and
+the minimum frame size that keeps three short creases at low zoom from
+collapsing the frame into a smudge.
 
 ### Not draggable
 
@@ -99,11 +109,10 @@ The window renders a descriptor and calls back. It holds nothing:
 
 ```ts
 interface CpToolOptionWindow {
-  anchor: { x: number; y: number };      // model space
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };  // model space
   title: string;
   index: number;                          // 0-based
   count: number;                          // 0 ⇒ no counter (a family, say)
-  rows: readonly CpToolOptionRow[];
   note?: string | null;                   // the family / already-current sentence
   onStep(delta: number): void;
   onApply(): void;
@@ -161,34 +170,29 @@ choice moves to where the creases are.
 - `apps/web/public/locales/*` — the row labels and the `before → after` format
 
 **Kernel**
-- `crates/oristudio-cp/src/lib.rs` — the preview needs to report each solved
-  crease's *previous* angle as well as its new one, or the rows cannot show
-  `90° → −90°`. Currently the preview returns only the segments as they would
-  become; the before values are in the document, so the frontend can read them
-  from `line_ids` without a kernel change. **Prefer that** — it is a lookup the
-  frontend can already do, and a second array to keep index-aligned is a
-  correctness liability for no gain.
+- `crates/oristudio-cp/src/lib.rs` — the preview names the vertex in
+  `preview.points`, so the window frames the point the creases meet at rather
+  than re-deriving it and risking a disagreement with the solve about which
+  endpoint that is.
 
 ## Checklist
 
-- [ ] `toolOptionPlacement` — offset, edge flip, clamp; pure and unit tested
-- [ ] `CpToolOptionWindow` renders header + rows from a descriptor and holds no
-      state
-- [ ] Anchored through `cpOverlayViewStore`, tracking pan and zoom without
+- [x] `toolOptionFrame` / `toolOptionChromePlacement` — projection, four corners, minimum size, edge flip, clamp; pure and unit tested
+- [x] The layer renders a frame + controls from a descriptor and holds no state
+- [x] Anchored through `cpOverlayViewStore`, tracking pan and zoom without
       re-rendering the panel
-- [ ] Fixed CSS size at every zoom — asserted, because "looks like the inline
-      simulator" is exactly the instinct that would scale it
-- [ ] `pointer-events: none` on the layer, `auto` on the window; a drag across
+- [x] The frame scales with the camera and the controls do not — both asserted, because scaling the controls is exactly the instinct "looks like the inline simulator" invites
+- [x] `pointer-events: none` on the layer, `auto` on the window; a drag across
       the canvas behind it still draws
-- [ ] Rows show before → after, with the crease's committed colour as the swatch
-- [ ] `count === 0` renders the note without a counter (the family case)
-- [ ] Arrows and Enter still work after clicking a header button — the focus case
+- [x] The frame is transparent and click-through, so the creases inside stay visible and drawable
+- [x] `count <= 1` shows the title rather than a counter (the family case)
+- [x] Arrows and Enter still work after clicking a header button — the focus case
       a panel listener would fail; assert `isShortcutEditingTarget` declines a
       button
-- [ ] Escape still cancels and leaves the creases untouched
-- [ ] `useVertexSolve` supplies a descriptor; the stepper component is deleted
-- [ ] Context panel no longer carries the choice
-- [ ] `i18n:check` green
+- [x] Escape still cancels and leaves the creases untouched
+- [x] `useVertexSolve` supplies a descriptor; the stepper component is deleted
+- [x] Context panel no longer carries the choice
+- [x] `i18n:check` green
 - [ ] A second tool's descriptor sketched in a test — the honest check on whether
       the abstraction is one
 

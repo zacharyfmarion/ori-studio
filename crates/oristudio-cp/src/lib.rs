@@ -3420,10 +3420,33 @@ pub fn preview_command(
                 if let Ok(solution) = chosen_angle_solution(&command, &solved) {
                     preview.candidate_is_family = Some(!solution.isolated);
                     preview.candidate_is_current = Some(solution.is_current);
+                    // The vertex the solve is about, so a UI anchored to it does
+                    // not have to re-derive which endpoint the three creases
+                    // share and risk disagreeing with the solve about it.
+                    if let Some(vertex) =
+                        solve_fold_angles::shared_vertex(&document.crease_pattern, &chosen)
+                    {
+                        preview.points.push(vertex);
+                    }
                     // The three creases as they would become: same geometry,
                     // carrying the solved colour and angle, so the ramp and the
                     // angle badges say what applying would do.
-                    for (index, degrees) in solution.creases {
+                    //
+                    // Emitted **in the order the creases were picked**, not in
+                    // the fan order the solver works in, so a caller can zip
+                    // them against its own `line_ids` without matching on
+                    // geometry. Matching would be the alternative and it is a
+                    // worse one: the segments are clones, so it would compare
+                    // endpoints that round-tripped through a serialiser.
+                    for line in &chosen {
+                        let Some((index, degrees)) = solution
+                            .creases
+                            .iter()
+                            .find(|(index, _)| index == line)
+                            .copied()
+                        else {
+                            continue;
+                        };
                         let Some(segment) = document.crease_pattern.line_segments.get(index) else {
                             continue;
                         };
@@ -4475,6 +4498,36 @@ mod tests {
                     "preview showed {segment:?}, which the commit did not write"
                 );
             }
+        }
+    }
+
+    /// The preview names the vertex and returns the creases in the order they
+    /// were *picked*, not the fan order the solver works in.
+    ///
+    /// Both exist so a UI can render the answer without re-deriving anything.
+    /// The alternative — matching preview segments back to line ids by their
+    /// endpoints — would be comparing coordinates that had round-tripped through
+    /// a serialiser, and re-deriving the vertex would let the window point
+    /// somewhere the solve was not about.
+    #[test]
+    fn the_preview_names_the_vertex_and_keeps_the_pick_order() {
+        let (document, lines) =
+            document_with_vertex_fan(&[(0.0, 90.0), (45.0, 180.0), (90.0, -90.0), (225.0, 30.0)]);
+        let vertex = Point::new(0.0, 0.0);
+        // Deliberately not in fan order: the solver sorts by direction, and the
+        // preview has to undo that.
+        let chosen = [lines[3], lines[0], lines[2]];
+        let mut command = solve_command(vertex, &chosen, None);
+        command.payload.points.clear();
+        let preview = preview_command(&document, command).expect("preview succeeds");
+
+        assert_eq!(preview.points.len(), 1);
+        assert!(preview.points[0].distance(vertex) < 1e-9);
+        assert_eq!(preview.segments.len(), 3);
+        for (segment, line) in preview.segments.iter().zip(chosen) {
+            let original = &document.crease_pattern.line_segments[line];
+            assert_eq!(segment.a, original.a, "row {line} is not the picked crease");
+            assert_eq!(segment.b, original.b, "row {line} is not the picked crease");
         }
     }
 

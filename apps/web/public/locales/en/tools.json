@@ -106,15 +106,10 @@
     "settingCountOther_one": "{{count}} settings",
     "settingCountOther_other": "{{count}} settings",
     "solveAngles": {
-      "apply": "Apply",
-      "count": "{{index}} of {{total}}",
       "creaseNotInFan": "Pick three different creases that all meet at the same vertex.",
       "current": "This is what the vertex already does — step to see the alternative.",
       "family": "These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.",
-      "next": "Next solution",
       "notEnoughCreases": "Fewer than three creases meet here, so there are no three angles to solve.",
-      "previous": "Previous solution",
-      "single": "One solution",
       "title": "Fold angles",
       "unreachable": "These three creases cannot close this vertex at any fold angles — try a different three."
     },
@@ -131,6 +126,12 @@
   "cpRail": {
     "ariaLabel": "Crease pattern tools",
     "openEditableFirst": "Open an editable crease pattern first"
+  },
+  "cpToolOption": {
+    "apply": "Apply",
+    "count": "{{index}} of {{total}}",
+    "next": "Next option",
+    "previous": "Previous option"
   },
   "foldAngleDisplay": {
     "color": "Color",

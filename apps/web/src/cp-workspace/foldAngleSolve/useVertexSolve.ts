@@ -11,16 +11,24 @@
  * and applying are driven by keys and buttons, not by pointers; widening
  * `ToolInput['kind']` would touch every engine's exhaustive switch for one
  * tool's benefit. See vertexSolveReview.ts and the implementation plan.
+ *
+ * What it renders through is generic: the hook produces a
+ * {@link CpToolOptionWindow} descriptor and nothing about the window knows what
+ * a fold angle is.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
+  OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
+import type { Point } from '../../lib/geometry';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { toolPreviewSegments } from '../tools/toolPreviewSegments';
 import type { ToolPreviewSegment } from '../tools/types';
+import { boundsOfPoints, type CpToolOptionWindow } from '../toolOptions/toolOptionWindow';
 import {
   isSteppable,
   outcomeForPreview,
@@ -55,6 +63,8 @@ export interface VertexSolveController {
    * badges show what applying would do, in the channel they already use.
    */
   segments: readonly ToolPreviewSegment[];
+  /** The on-canvas window, or null when the tool has no question open. */
+  option: CpToolOptionWindow | null;
   /**
    * Take the tool's three-crease commit. Applies straight away when there is a
    * single isolated answer; otherwise enters review. Returns whether it handled
@@ -66,9 +76,22 @@ export interface VertexSolveController {
   cancel: () => void;
 }
 
+/** What the kernel said about the answer currently being shown. */
+interface SolvedPreview {
+  /**
+   * The three creases as they would become, **in the order they were picked** —
+   * the kernel re-orders them out of its own fan order for exactly this, so
+   * these zip against `review.lineIds` with no geometry matching.
+   */
+  segments: readonly OristudioCpLineSegment[];
+  /** The vertex, named by the kernel rather than re-derived here. */
+  anchor: Point | null;
+}
+
 export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveController {
+  const { t } = useTranslation(['tools']);
   const [review, setReview] = useState<VertexSolveReview | null>(null);
-  const [segments, setSegments] = useState<readonly ToolPreviewSegment[]>([]);
+  const [solved, setSolved] = useState<SolvedPreview | null>(null);
   // The options object is rebuilt on every panel render; keeping it in a ref
   // means the returned callbacks stay stable, so the shortcut registry is not
   // re-bound on every keystroke's worth of state change. Written in an effect
@@ -117,7 +140,7 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
   useEffect(() => {
     if (!review) {
       request.current += 1;
-      setSegments([]);
+      setSolved(null);
       return;
     }
     const id = ++request.current;
@@ -125,7 +148,10 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
       .preview(OPERATION, payloadFor(review.lineIds, review.index))
       .then((preview) => {
         if (id !== request.current) return;
-        setSegments(toolPreviewSegments(preview?.segments, OPERATION));
+        setSolved({
+          segments: preview?.segments ?? [],
+          anchor: preview?.points?.[0] ?? null,
+        });
         // Only the kernel knows whether the answer now shown is the one the
         // creases already hold, so the flag is refreshed from the same response
         // that produced the segments rather than guessed at step time.
@@ -158,16 +184,54 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
     latest.current.onUnavailable(null);
   }, []);
 
+  const segments = useMemo(
+    () => toolPreviewSegments(solved?.segments, OPERATION),
+    [solved]
+  );
+
+  const option = useMemo((): CpToolOptionWindow | null => {
+    if (!review || !solved) return null;
+    // The three creases, plus the vertex — so a solve whose creases all run one
+    // way still frames the point they meet at rather than sitting off it.
+    const bounds = boundsOfPoints([
+      ...solved.segments.flatMap((segment) => [segment.a, segment.b]),
+      ...(solved.anchor ? [solved.anchor] : []),
+    ]);
+    if (!bounds) return null;
+    const note = review.isFamily
+      ? t(
+          'tools:cpContext.solveAngles.family',
+          'These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.'
+        )
+      : review.isCurrent
+        ? t(
+            'tools:cpContext.solveAngles.current',
+            'This is what the vertex already does — step to see the alternative.'
+          )
+        : null;
+    return {
+      bounds,
+      title: t('tools:cpContext.solveAngles.title', 'Fold angles'),
+      index: review.index,
+      count: review.count,
+      note,
+      onStep: step,
+      onApply: () => void apply(),
+      onCancel: cancel,
+    };
+  }, [apply, cancel, review, solved, step, t]);
+
   return useMemo(
     () => ({
       review,
       steppable: isSteppable(review),
       segments,
+      option,
       begin,
       step,
       apply,
       cancel,
     }),
-    [apply, begin, cancel, review, segments, step]
+    [apply, begin, cancel, option, review, segments, step]
   );
 }

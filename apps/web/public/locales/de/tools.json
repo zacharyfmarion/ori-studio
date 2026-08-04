@@ -106,15 +106,10 @@
     "settingCountOther_one": "{{count}} Einstellungen",
     "settingCountOther_other": "{{count}} Einstellungen",
     "solveAngles": {
-      "apply": "Anwenden",
-      "count": "{{index}} von {{total}}",
       "creaseNotInFan": "Wählen Sie drei verschiedene Falten, die sich im selben Knoten treffen.",
       "current": "Das ist bereits der Zustand des Knotens – blättern Sie weiter für die Alternative.",
       "family": "Diese drei Falten lassen einen Freiheitsgrad übrig, dies ist also eine von unendlich vielen Lösungen – wählen Sie eine andere dritte Falte für eine eindeutige.",
-      "next": "Nächste Lösung",
       "notEnoughCreases": "Hier treffen sich weniger als drei Falten, es gibt also keine drei Winkel zu lösen.",
-      "previous": "Vorherige Lösung",
-      "single": "Eine Lösung",
       "title": "Faltwinkel",
       "unreachable": "Diese drei Falten können den Knoten bei keinem Faltwinkel schließen – versuchen Sie drei andere."
     },
@@ -131,6 +126,12 @@
   "cpRail": {
     "ariaLabel": "Faltmuster-Werkzeuge",
     "openEditableFirst": "Öffnen Sie zuerst ein bearbeitbares Faltmuster"
+  },
+  "cpToolOption": {
+    "apply": "Anwenden",
+    "count": "{{index}} von {{total}}",
+    "next": "Nächste Option",
+    "previous": "Vorherige Option"
   },
   "foldAngleDisplay": {
     "color": "Farbe",

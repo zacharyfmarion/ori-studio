@@ -125,8 +125,8 @@ import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverl
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
 import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
-import { CpVertexSolveStepper } from '../../cp-workspace/foldAngleSolve/CpVertexSolveStepper';
 import { useVertexSolve } from '../../cp-workspace/foldAngleSolve/useVertexSolve';
+import { CpToolOptionLayer } from '../../cp-workspace/toolOptions/CpToolOptionLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
@@ -3048,6 +3048,9 @@ export function CreasePatternPanel() {
                     toolCandidates={cpPreviewSegments}
                   />
                 )}
+                {/* Subscribes to the camera itself and renders nothing without
+                    an option, so it needs no gate of its own. */}
+                <CpToolOptionLayer option={vertexSolve.option} />
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}
@@ -3235,16 +3238,6 @@ export function CreasePatternPanel() {
                 activeCpCommand &&
                 toolOptionsPortalTarget &&
                 createPortal(
-                  <>
-                  {vertexSolve.review ? (
-                    <CpVertexSolveStepper
-                      review={vertexSolve.review}
-                      steppable={vertexSolve.steppable}
-                      onStep={vertexSolve.step}
-                      onApply={vertexSolve.apply}
-                      onCancel={vertexSolve.cancel}
-                    />
-                  ) : null}
                   <CpContextToolPanel
                     action={activeCpAction}
                     command={activeCpCommand}
@@ -3273,8 +3266,7 @@ export function CreasePatternPanel() {
                         ? handleClearActiveContextInput
                         : undefined
                     }
-                  />
-                  </>,
+                  />,
                   toolOptionsPortalTarget
                 )}
               <div className="viewport-status-readout">
