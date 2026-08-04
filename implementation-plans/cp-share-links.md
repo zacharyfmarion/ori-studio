@@ -248,10 +248,17 @@ passed.
 
 Four verified facts changed the design from the first draft:
 
-1. **The Workers rate-limiting binding went GA in September 2025 and is available on the
-   Workers Free plan.** So the rate limiter costs **zero KV writes** instead of one, and the
-   free creation ceiling is **1,000 shares/day**, not the ~330 the openscad-studio shape
-   would give. This is now a shipped baseline, not an optimization to investigate.
+1. **The Workers rate-limiting binding is GA and free-plan eligible — but Cloudflare Pages
+   cannot use it.** An earlier draft of this plan claimed it as a shipped baseline and put
+   the free creation ceiling at 1,000 shares/day. That was wrong: the binding was verified,
+   its availability *on Pages* was not. The supported Pages Functions bindings are `vars`,
+   `d1_databases`, `durable_objects`, `hyperdrive`, `kv_namespaces`, `queues.producers`,
+   `r2_buckets`, `vectorize`, `services`, `analytics_engine_datasets` and `ai` —
+   `ratelimits` is not among them. So rate limiting is a KV counter, share creation costs
+   **2 KV writes**, and the free ceiling is **500 shares/day**. Two ways to recover the
+   other 500, both deferred and neither urgent at realistic volume: a WAF rate-limiting rule
+   (zero KV cost, and it rejects before the Function is even invoked) once there is a custom
+   domain to attach one to, or moving off Pages to Workers Static Assets.
 2. **Exceeding a free-plan KV limit is a hard failure, not an overage charge**: *"If you
    exceed any one of these limits, further operations of that type will fail with an
    error."* Sharing breaks until 00:00 UTC rather than quietly costing money. That needs a
@@ -327,19 +334,17 @@ Four choices, each removing a per-share or per-click operation:
 | **Store the codec payload verbatim** | — | Record is 1.6 KB instead of the multi-KB `.cp`/`.fold` text openscad-studio compresses server-side. ~650k shares fit in the 1 GB free KV tier. |
 | **Inline the payload into the `/s/<id>` HTML** | 1 KV read + 1 Function invocation **per click** | Halves the read cost, doubling the click ceiling to ~100,000/day. Also deletes the load jank and the entire phase-machine that would otherwise be needed. |
 | **Don't store `thumbnailKey`; fall back in the thumbnail GET** | 1 KV write **per share** | openscad-studio writes the record a second time after upload. Serving a default card on R2 miss makes thumbnail existence both underivable and unneeded. 3 writes → 2. |
-| **Rate-limit binding instead of a KV counter** | 1 KV write **per share** | 2 writes → **1**. Triples the free creation ceiling to **1,000 shares/day**. GA since Sept 2025, free-plan eligible, and counters are cached on the same machine as the Worker so it adds no network latency. |
+| ~~Rate-limit binding instead of a KV counter~~ | *(unavailable)* | Would have been 2 writes → 1 and a 1,000/day ceiling, but `ratelimits` is not a Pages Functions binding. The KV counter stays, and with it the second write. |
 
-Combined, these take the free creation ceiling from **~330 to 1,000 shares/day** and the
-free click ceiling from **~50,000 to ~100,000/day** — 3× and 2× respectively, against the
+Combined, the two that shipped take the free creation ceiling from **~330 to 500
+shares/day** and the free click ceiling from **~50,000 to ~100,000/day**, against the
 openscad-studio shape, while removing code rather than adding it.
 
-Two caveats on the rate-limit binding, both acceptable here: its counters are **per
-Cloudflare location**, not global, so a distributed attacker gets one bucket per colo; and
-the docs describe it as *"permissive, eventually consistent, and intentionally designed to
-not be used as an accurate accounting system."* Both are fine for an abuse speed bump — and
-the KV counter it replaces was *also* eventually consistent, so nothing was lost. (It also
-sidesteps KV's **1 write/second per key** limit, which a shared `ratelimit:{ip}:{hour}` key
-could plausibly hit.)
+The rate limiter is worth its write. It is 30/hour per hashed IP, which no legitimate user
+reaches, and it stops a buggy client loop or a naive script from burning the daily budget.
+It is emphatically **not** a defence against a determined attacker — IPs are cheap, and KV's
+own eventual consistency means the counter undercounts across colos. What actually bounds
+damage is the free plan's hard daily write ceiling and the 64 KB payload cap.
 
 ### Free-tier ceilings
 
@@ -603,32 +608,32 @@ during Phase A rather than assuming.
 
 - [ ] Create the `SHARE_KV` namespace and `share-thumbnails` R2 bucket (production +
       preview).
-- [ ] `apps/web/wrangler.toml` with both bindings.
-- [ ] **Fix `deploy-web.yml` to run wrangler from `apps/web`** and verify the Functions
+- [x] `apps/web/wrangler.toml` with both bindings.
+- [x] **Fix `deploy-web.yml` to run wrangler from `apps/web`** and verify the Functions
       actually upload — a wrong CWD 404s every endpoint while reporting success.
-- [ ] `_lib/cpShare.ts` — no KV rate-limit counter; the **platform rate-limiting binding**
+- [x] `_lib/cpShare.ts` — no KV rate-limit counter; the **platform rate-limiting binding**
       replaces it. No raw IP is ever stored.
-- [ ] **Reject ids failing `/^[a-zA-Z0-9]{8}$/` before any KV access**, on every route.
+- [x] **Reject ids failing `/^[a-zA-Z0-9]{8}$/` before any KV access**, on every route.
       Null reads are billed, so this is the read-side abuse defence and it is free.
-- [ ] `POST /api/cp`, `GET /api/cp/[id]`, `PUT|GET|HEAD /api/cp/[id]/thumbnail`.
-- [ ] Thumbnail GET falls back to `og-default.png` bytes with `max-age=60`; real thumbnails
+- [x] `POST /api/cp`, `GET /api/cp/[id]`, `PUT|GET|HEAD /api/cp/[id]/thumbnail`.
+- [x] Thumbnail GET falls back to `og-default.png` bytes with `max-age=60`; real thumbnails
       served `immutable`.
-- [ ] `GET /s/[[shareId]]` — OG tags (`og:description` includes `author` when present),
+- [x] `GET /s/[[shareId]]` — OG tags (`og:description` includes `author` when present),
       payload inlining, **explicit COOP/COEP**.
 - [ ] Verify COOP/COEP survive on the `/s/<id>` response and the wasm engine still boots.
 - [ ] **Measure the `/s/<id>` function's CPU time with a 24 KB payload inlined** against the
       free plan's 10 ms/invocation ceiling.
 - [ ] Confirm Pages' SPA fallback resolves `context.next()` to `index.html` for `/s/<id>`.
-- [ ] `share:dev` script: `wrangler pages dev dist --kv SHARE_KV --r2 SHARE_R2 --persist-to`,
+- [x] `share:dev` script: `wrangler pages dev dist --kv SHARE_KV --r2 SHARE_R2 --persist-to`,
       plus `VITE_SHARE_API_URL` so the vite dev server targets it.
-- [ ] Worker unit tests: payload validation, size cap, id-shape rejection, rate limiting,
+- [x] Worker unit tests: payload validation, size cap, id-shape rejection, rate limiting,
       token hashing, one-time upload gate, meta-tag rewriting, author in `og:description`.
 
 ### Phase B — the preview image
 
-- [ ] `svgToPngCard()` in `creaseExport.ts` — fit-and-centre onto a fixed 1200×630 canvas
+- [x] `svgToPngCard()` in `creaseExport.ts` — fit-and-centre onto a fixed 1200×630 canvas
       filled with `palette.canvas`.
-- [ ] Unit tests: output is exactly 1200×630; aspect preserved; a tiny intrinsic SVG still
+- [x] Unit tests: output is exactly 1200×630; aspect preserved; a tiny intrinsic SVG still
       produces a full-size card; invalid input fails cleanly.
 - [ ] **Measure the real PNG size distribution** across the corpus and replace the estimated
       80 KB in "Cost model" with a measured mean and p90. If the mean exceeds ~150 KB,

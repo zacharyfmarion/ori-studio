@@ -774,3 +774,139 @@ export function renderCreasePatternPng(
   );
   return svgToPng(page.svg, page.width, page.height);
 }
+
+/**
+ * The OpenGraph card size every platform sizes its previews around: Twitter/X,
+ * Facebook, Discord, Slack, and iMessage all lay out 1.91:1 large-image cards.
+ */
+export const SHARE_CARD_WIDTH = 1200;
+export const SHARE_CARD_HEIGHT = 630;
+/** Breathing room so the artwork never touches the card edge. */
+export const SHARE_CARD_PADDING = 48;
+
+export interface ShareCardFrame {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Fit a page of arbitrary aspect into the card, preserving aspect and centring.
+ *
+ * **Upscaling is deliberate.** The obvious implementation rasterizes at the SVG's own
+ * dimensions, which is how openscad-studio shipped 90x54 thumbnails that no platform
+ * would render as a large card (see implementation-plans/share-2d-thumbnail-improvement.md).
+ * A card is a fixed-size surface; whatever goes on it is scaled to suit, in both directions.
+ */
+export function computeShareCardFrame(
+  sourceWidth: number,
+  sourceHeight: number,
+  cardWidth: number = SHARE_CARD_WIDTH,
+  cardHeight: number = SHARE_CARD_HEIGHT,
+  padding: number = SHARE_CARD_PADDING
+): ShareCardFrame {
+  const safeSourceWidth = Number.isFinite(sourceWidth) && sourceWidth > 0 ? sourceWidth : 1;
+  const safeSourceHeight = Number.isFinite(sourceHeight) && sourceHeight > 0 ? sourceHeight : 1;
+  // Padding that would leave no room at all is padding we ignore; a card with a sliver of
+  // artwork is worse than a card with none of the requested margin.
+  const safePadding = Math.max(
+    0,
+    Math.min(
+      Number.isFinite(padding) && padding > 0 ? padding : 0,
+      (Math.min(cardWidth, cardHeight) - 1) / 2
+    )
+  );
+  const boxWidth = cardWidth - safePadding * 2;
+  const boxHeight = cardHeight - safePadding * 2;
+  const scale = Math.min(boxWidth / safeSourceWidth, boxHeight / safeSourceHeight);
+  const width = safeSourceWidth * scale;
+  const height = safeSourceHeight * scale;
+  return {
+    x: (cardWidth - width) / 2,
+    y: (cardHeight - height) / 2,
+    width,
+    height,
+  };
+}
+
+export interface ShareCardOptions {
+  /** Card fill behind the artwork. Use the export palette's `canvas`. */
+  background: string;
+  width?: number;
+  height?: number;
+  padding?: number;
+}
+
+/**
+ * Rasterize a composed export page onto a fixed-size social card.
+ *
+ * Distinct from {@link svgToPng}, which renders a page at its own dimensions because an
+ * exported file should be exactly what the preview showed. A share card is the opposite
+ * contract: a fixed canvas the artwork is fitted into.
+ */
+export async function svgToPngCard(
+  svg: string,
+  sourceWidth: number,
+  sourceHeight: number,
+  options: ShareCardOptions
+): Promise<Uint8Array> {
+  const cardWidth = options.width ?? SHARE_CARD_WIDTH;
+  const cardHeight = options.height ?? SHARE_CARD_HEIGHT;
+  const frame = computeShareCardFrame(
+    sourceWidth,
+    sourceHeight,
+    cardWidth,
+    cardHeight,
+    options.padding ?? SHARE_CARD_PADDING
+  );
+
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.decoding = 'async';
+    const loaded = new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Failed to render share card SVG'));
+    });
+    image.src = url;
+    await loaded;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = cardWidth;
+    canvas.height = cardHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas rendering is unavailable');
+    // The page already paints its own background, but only where the artwork lands. The
+    // letterboxed remainder needs the same fill or the card reads as a transparent PNG,
+    // which several platforms composite onto black.
+    ctx.fillStyle = options.background;
+    ctx.fillRect(0, 0, cardWidth, cardHeight);
+    ctx.drawImage(image, frame.x, frame.y, frame.width, frame.height);
+
+    const pngBlob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((result) => {
+        if (result) resolve(result);
+        else reject(new Error('Failed to encode share card PNG'));
+      }, 'image/png');
+    });
+    return new Uint8Array(await pngBlob.arrayBuffer());
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Render a crease pattern straight to a share card PNG. */
+export function renderCreasePatternCardPng(
+  fold: FoldDocument,
+  segments: CpSegment[],
+  options: CreaseExportOptions = DEFAULT_CREASE_EXPORT_OPTIONS,
+  content: CreaseExportContent = EMPTY_CREASE_EXPORT_CONTENT
+): Promise<Uint8Array> {
+  const artwork = buildCreaseExportArtwork(fold, segments, options, content);
+  const page = composeCreaseExportSvg(artwork, options.caption);
+  return svgToPngCard(page.svg, page.width, page.height, {
+    background: artwork.palette.canvas,
+  });
+}
