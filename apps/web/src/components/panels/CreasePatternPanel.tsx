@@ -2011,6 +2011,23 @@ export function CreasePatternPanel() {
     ]
   );
 
+  // A crease-picking tool starts from an empty selection.
+  //
+  // Its picks render in the *selection* style — that is how a picked crease
+  // reads as picked — so a selection left over from before is visually
+  // indistinguishable from a pick while counting for nothing: the tool builds
+  // its own set and the document's is ignored. Clearing removes the only state
+  // that can look like an input without being one.
+  //
+  // Scoped to `line-entity` on purpose. Tools that operate *on* the selection
+  // (`select-apply`, and the box/lasso ones) obviously must not clear it, and
+  // point-sequence tools never confuse the two because their input is a point.
+  const activeCpOperationId = activeCpCommand?.operationId;
+  useEffect(() => {
+    if (cpInputModel(activeCpOperationId)?.model !== 'line-entity') return;
+    clearOristudioCpSelection();
+  }, [activeCpOperationId, clearOristudioCpSelection]);
+
   // Drive the step prompt in lock-step with the inputs a tool has taken: creases for
   // a line-entity tool (Lengthen), placed points for a point-sequence one. Derive the
   // step from the count (reset, then advance once per input) so a multi-step tool
