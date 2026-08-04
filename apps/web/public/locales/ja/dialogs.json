@@ -234,8 +234,8 @@
     },
     "title": "設定",
     "workspace": {
-      "folding": "折り",
       "foldWarning": "平坦折りエラーのある展開図を折る前に警告する",
+      "folding": "折り",
       "layout": "レイアウト",
       "resetButton": "ワークスペースレイアウトをリセット",
       "resetMessage": "現在のワークスペースの既定のレイアウトに戻しますか？",
@@ -244,13 +244,29 @@
       "startup": "起動"
     }
   },
+  "share": {
+    "author": "作者",
+    "authorPlaceholder": "任意",
+    "backColor": "裏面の色",
+    "byLine": "作者: {{author}}",
+    "create": "共有リンクを作成",
+    "creating": "リンクを作成中…",
+    "foldedFigure": "折り上がり図を表示",
+    "folding": "折りたたみ中…",
+    "frontColor": "表面の色",
+    "previewAlt": "共有する展開図のプレビュー",
+    "scope": "リンクを知っている人は誰でも閲覧できます。作成後のリンクは削除も変更もできません。展開図のみが含まれ、参考画像・注釈・保存したシミュレーションは含まれません。",
+    "side": "面",
+    "sideBack": "裏",
+    "sideFront": "表",
+    "title": "タイトル",
+    "titlePlaceholder": "無題の展開図"
+  },
   "shareLink": {
     "close": "共有を閉じる",
     "copied": "コピーしました",
     "copy": "コピー",
-    "longWarning": "このリンクはブラウザーのアドレスバーでは動作しますが、一部のチャットアプリやメールクライアントはこの長さのリンクを切り詰めます。書き出したファイルを送るほうが確実です。",
-    "scope": "折り線パターンのみが含まれます。参照画像、注釈、保存されたシミュレーションは含まれません。",
-    "summary": "{{creases}} 本の折り線 · {{chars}} 文字",
+    "summary": "{{creases}} 本の折り線",
     "title": "折り線パターンを共有",
     "url": "共有リンク"
   },

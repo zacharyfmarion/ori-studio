@@ -55,6 +55,35 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:shareLink.tooNew',
         'That share link was made with a newer version of Ori Studio. Reload to get the latest version, then open it again.'
       );
+    // Failures from the share service. Each says what the person can actually do:
+    // wait, shrink the pattern, or nothing at all.
+    case 'not_found':
+      return t(
+        'errors:shareLink.notFound',
+        'That crease pattern no longer exists. Share links are permanent once created, so this one was probably mistyped.'
+      );
+    case 'rate_limited':
+      return t(
+        'errors:shareLink.rateLimited',
+        'Too many share links from this connection. Wait a few minutes and try again.'
+      );
+    case 'payload_too_large':
+      return t(
+        'errors:shareLink.tooLarge',
+        'This crease pattern is too large to share as a link. Export it as a file instead.'
+      );
+    // The free-plan storage quota resets at midnight UTC, so this is an outage with a
+    // known end rather than something retrying in a moment will fix.
+    case 'storage_quota':
+      return t(
+        'errors:shareLink.storageQuota',
+        'Sharing is temporarily unavailable. Please try again later.'
+      );
+    case 'storage_failure':
+      return t(
+        'errors:shareLink.storageFailure',
+        "Couldn't create a share link. Check your connection and try again."
+      );
     case 'worker_oristudio_bp':
     case 'worker_oristudio_bp_optimizer':
       return t(

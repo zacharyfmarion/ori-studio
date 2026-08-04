@@ -249,13 +249,29 @@
       "startup": "Startup"
     }
   },
+  "share": {
+    "author": "Author",
+    "authorPlaceholder": "Optional",
+    "backColor": "Back color",
+    "byLine": "by {{author}}",
+    "create": "Create share link",
+    "creating": "Creating link…",
+    "foldedFigure": "Show folded figure",
+    "folding": "Folding…",
+    "frontColor": "Front color",
+    "previewAlt": "Preview of the shared crease pattern",
+    "scope": "Anyone with this link can view it, and links cannot be deleted or changed. Carries the crease pattern only — not reference images, annotations, or saved simulations.",
+    "side": "Side",
+    "sideBack": "Back",
+    "sideFront": "Front",
+    "title": "Title",
+    "titlePlaceholder": "Untitled crease pattern"
+  },
   "shareLink": {
     "close": "Close share",
     "copied": "Copied",
     "copy": "Copy",
-    "longWarning": "This link works in a browser address bar, but some chat apps and email clients cut off links this long. Sending an exported file is more reliable.",
-    "scope": "Carries the crease pattern only — not reference images, annotations, or saved simulations.",
-    "summary": "{{creases}} creases · {{chars}} characters",
+    "summary": "{{creases}} creases",
     "title": "Share crease pattern",
     "url": "Share link"
   },

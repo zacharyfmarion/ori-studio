@@ -65,19 +65,19 @@
     "rectified": "Redressé",
     "report": {
       "ambiguous": "ambigu",
-      "assignmentChange_one": "{{count}} changement d'assignation",
       "assignmentChange_many": "{{count}} changement d'assignation",
+      "assignmentChange_one": "{{count}} changement d'assignation",
       "assignmentChange_other": "{{count}} changement d'assignation",
-      "assignmentChanges_one": "{{count}} changements d'assignation",
       "assignmentChanges_many": "{{count}} changements d'assignation",
+      "assignmentChanges_one": "{{count}} changements d'assignation",
       "assignmentChanges_other": "{{count}} changements d'assignation",
       "compilerFallback": "solution de repli du compilateur",
       "counts": "{{vertices}} sommets, {{edges}} arêtes",
-      "topologyMove_one": "{{count}} déplacement topologique",
       "topologyMove_many": "{{count}} déplacement topologique",
+      "topologyMove_one": "{{count}} déplacement topologique",
       "topologyMove_other": "{{count}} déplacement topologique",
-      "topologyMoves_one": "{{count}} déplacements topologiques",
       "topologyMoves_many": "{{count}} déplacements topologiques",
+      "topologyMoves_one": "{{count}} déplacements topologiques",
       "topologyMoves_other": "{{count}} déplacements topologiques"
     },
     "runningModel": "Exécution du modèle",
@@ -93,8 +93,8 @@
     "descriptionPlaceholder": "Facultatif",
     "foldedBackColor": "Verso",
     "foldedCase": "Cas de pliage",
-    "foldedCasesFound_one": "{{count}} trouvé(s) jusqu’ici",
     "foldedCasesFound_many": "{{count}} trouvé(s) jusqu’ici",
+    "foldedCasesFound_one": "{{count}} trouvé(s) jusqu’ici",
     "foldedCasesFound_other": "{{count}} trouvé(s) jusqu’ici",
     "foldedFigureNeedsCp": "Ouvrez un patron de plis modifiable pour le plier",
     "foldedFigureNeedsOnePattern": "Sélectionnez un seul patron à plier",
@@ -138,7 +138,7 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {
@@ -244,8 +244,8 @@
     },
     "title": "Paramètres",
     "workspace": {
-      "folding": "Pliage",
       "foldWarning": "Avertir avant de plier un patron de plis comportant des erreurs de pliabilité à plat",
+      "folding": "Pliage",
       "layout": "Disposition",
       "resetButton": "Réinitialiser la disposition de l'espace de travail",
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
@@ -254,13 +254,29 @@
       "startup": "Démarrage"
     }
   },
+  "share": {
+    "author": "Auteur",
+    "authorPlaceholder": "Facultatif",
+    "backColor": "Couleur du verso",
+    "byLine": "par {{author}}",
+    "create": "Créer un lien de partage",
+    "creating": "Création du lien…",
+    "foldedFigure": "Afficher la figure pliée",
+    "folding": "Pliage en cours…",
+    "frontColor": "Couleur du recto",
+    "previewAlt": "Aperçu du patron de pliage partagé",
+    "scope": "Toute personne disposant de ce lien peut le consulter, et les liens ne peuvent être ni supprimés ni modifiés. Contient uniquement le patron de pliage, sans les images de référence, les annotations ni les simulations enregistrées.",
+    "side": "Face",
+    "sideBack": "Verso",
+    "sideFront": "Recto",
+    "title": "Titre",
+    "titlePlaceholder": "Patron de pliage sans titre"
+  },
   "shareLink": {
     "close": "Fermer le partage",
     "copied": "Copié",
     "copy": "Copier",
-    "longWarning": "Ce lien fonctionne dans la barre d'adresse d'un navigateur, mais certaines applis de messagerie et clients de courriel tronquent les liens aussi longs. Envoyer un fichier exporté est plus fiable.",
-    "scope": "Ne contient que le patron de plis : ni images de référence, ni annotations, ni simulations enregistrées.",
-    "summary": "{{creases}} plis · {{chars}} caractères",
+    "summary": "{{creases}} plis",
     "title": "Partager le patron de plis",
     "url": "Lien de partage"
   },

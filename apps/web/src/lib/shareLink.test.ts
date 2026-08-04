@@ -1,40 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { SHARE_LENGTH_WARNING, buildShareUrl, isShareLinkLong, readShareFragment } from './shareLink';
+import { buildShareUrl, isShareId, readShareFragment } from './shareLink';
 
 describe('buildShareUrl', () => {
-  it('targets the share route with the payload in the fragment', () => {
-    const url = buildShareUrl('AAAA', 'https://ori.studio');
-    expect(url).toBe('https://ori.studio/s#AAAA');
-    // The fragment is the whole point: it is never sent to a server, so it
-    // escapes request-line limits, access logs, and Referer leakage. Putting the
-    // payload in the path instead would give all three back.
-    expect(url).not.toContain('?');
-    expect(url.slice(0, url.indexOf('#'))).toBe('https://ori.studio/s');
+  it('targets the share route with the id in the path', () => {
+    // A path, not a fragment: a fragment is never sent to the server, so the Worker
+    // could not look up the title or emit an og:image — and the preview card is the
+    // entire reason this scheme is server-backed.
+    expect(buildShareUrl('a3bK9xmQ', 'https://ori.studio')).toBe('https://ori.studio/s/a3bK9xmQ');
   });
 
-  it('leaves a base64url payload unescaped', () => {
-    const payload = 'AZaz09-_';
-    const url = buildShareUrl(payload, 'https://ori.studio');
-    expect(url.endsWith(payload)).toBe(true);
+  it('produces a link short enough that length stops being a concern', () => {
+    // The fragment scheme measured p90 2,628 characters and a 23,675-character worst
+    // case; 16% of real patterns crossed the threshold where chat clients truncate.
+    expect(buildShareUrl('a3bK9xmQ', 'https://ori.studio').length).toBeLessThan(40);
+  });
+
+  it('emits no characters that need escaping', () => {
+    const url = buildShareUrl('AZaz0918', 'https://ori.studio');
     expect(url).not.toContain('%');
+    expect(url).not.toContain('?');
+  });
+});
+
+describe('isShareId', () => {
+  it('accepts exactly the shape the Worker mints', () => {
+    expect(isShareId('a3bK9xmQ')).toBe(true);
+    expect(isShareId('00000000')).toBe(true);
+  });
+
+  it('rejects everything else', () => {
+    for (const bad of ['a3bK9xm', 'a3bK9xmQQ', 'a3bK-xmQ', 'a3bK_xmQ', '', '../../etc']) {
+      expect(isShareId(bad)).toBe(false);
+    }
   });
 });
 
 describe('readShareFragment', () => {
+  // The original `/s#<payload>` scheme. Links already shared must keep working, and a
+  // fragment payload is self-contained, so honouring it costs one branch and no network.
   it('reads the payload with or without a leading hash', () => {
     expect(readShareFragment('#ABC')).toBe('ABC');
     expect(readShareFragment('ABC')).toBe('ABC');
   });
 
-  it('round-trips what buildShareUrl produced', () => {
-    const payload = 'T0NTMQEB-_09';
-    const url = buildShareUrl(payload, 'https://ori.studio');
-    expect(readShareFragment(url.slice(url.indexOf('#')))).toBe(payload);
-  });
-
   it('rejects anything that is not a bare base64url payload', () => {
-    // `/s` can be reached with any fragment at all, so shape-check here rather
-    // than handing junk to the decoder.
+    // `/s` can be reached with any fragment at all, so shape-check here rather than
+    // handing junk to the decoder.
     expect(readShareFragment('#section 3')).toBeNull();
     expect(readShareFragment('#other=ABC')).toBeNull();
     expect(readShareFragment('#AB+CD/EF')).toBeNull();
@@ -44,17 +55,5 @@ describe('readShareFragment', () => {
 
   it('accepts the full base64url alphabet', () => {
     expect(readShareFragment('#AZaz09-_')).toBe('AZaz09-_');
-  });
-});
-
-describe('isShareLinkLong', () => {
-  it('flags only links past the truncation threshold', () => {
-    expect(isShareLinkLong('x'.repeat(SHARE_LENGTH_WARNING))).toBe(false);
-    expect(isShareLinkLong('x'.repeat(SHARE_LENGTH_WARNING + 1))).toBe(true);
-  });
-
-  it('does not flag a typical crease pattern', () => {
-    // A median real crease pattern measures ~838 payload characters.
-    expect(isShareLinkLong(buildShareUrl('x'.repeat(838), 'https://ori.studio'))).toBe(false);
   });
 });

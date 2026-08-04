@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type {
   ConditionKind,
   FoldArtifacts,
+  FoldDocument,
   OptimizationReport,
   SequencePlan,
   SequenceTargetState,
@@ -32,7 +33,12 @@ import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
 import type { BpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
-import type { CreaseExportOptions } from '../../lib/creaseExport';
+import type {
+  CreaseExportFoldedFigureSettings,
+  CreaseExportOptions,
+} from '../../lib/creaseExport';
+import type { CpSegment } from '../../lib/creasePatternSegmentation';
+import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldedFigureExportFormat } from '../../cp-workspace/folded/foldedFigureExport';
 import type { FoldArtifactStatus } from './foldArtifactResource';
@@ -121,14 +127,41 @@ export interface OristudioCpActionRequest {
 }
 
 
-/** A generated share link plus what the user needs to judge it. */
-export interface OristudioCpShareLink {
-  url: string;
-  /** Creases in the shared segment, so the modal can say what it is. */
+/**
+ * What the share modal is working on: one crease pattern, resolved to a codec payload
+ * and ready to publish. Held in the store rather than in the toolbar that started it,
+ * because every selection-toolbar action clears the selection as it runs and would
+ * unmount anything the toolbar owned.
+ */
+export interface OristudioCpShareDraft {
+  /** Segment being shared, so the preview can re-render it under new options. */
+  segmentId: number;
+  /** Codec output, already encoded — the Worker stores this verbatim. */
+  payload: string;
   creaseCount: number;
-  /** True when the link is long enough to risk truncation in chat or email. */
-  long: boolean;
+  /**
+   * Document fold and its segments — the same pair the export dialog takes, so the
+   * card preview runs through `buildCreaseExportArtwork` unchanged rather than needing
+   * its own extraction path.
+   */
+  fold: FoldDocument;
+  segments: CpSegment[];
+  /** The published link, once created. */
+  url: string | null;
 }
+
+/**
+ * A share waiting to be opened on the Edit surface.
+ *
+ * Two shapes because a link can arrive two ways. `payload` is the common case: the
+ * server inlines the crease pattern into the page it serves for `/s/<id>`, so opening a
+ * link needs no request at all. `id` is the fallback — a hand-typed URL, or a link
+ * opened inside the ~60s KV takes to propagate globally — and is the only case that
+ * fetches.
+ */
+export type PendingSharedCp =
+  | { kind: 'payload'; payload: string }
+  | { kind: 'id'; shareId: string };
 
 export interface ProjectSliceState {
   project: TreeProject;
@@ -183,13 +216,13 @@ export interface ProjectSliceState {
    * clears the selection as it runs (`runAndDismiss`), which unmounts the
    * toolbar — the modal has to outlive that, exactly as the export modal does.
    */
-  oristudioCpShareLink: OristudioCpShareLink | null;
+  oristudioCpShareDraft: OristudioCpShareDraft | null;
   /**
-   * A share payload captured by `/s`, waiting for the Edit surface to provision
-   * from it instead of creating a blank document. Raw and undecoded: the route
-   * captures intent, `ensureEditCreasePattern` does the work.
+   * A share captured by `/s`, waiting for the Edit surface to provision from it
+   * instead of creating a blank document. Raw and unresolved: the route captures
+   * intent, `ensureEditCreasePattern` does the work.
    */
-  pendingSharedCpPayload: string | null;
+  pendingSharedCp: PendingSharedCp | null;
   status: AppStatus;
   dirty: boolean;
   engineReady: boolean;
@@ -290,10 +323,23 @@ export interface ProjectSliceActions {
    * same unit the sibling Fold / Export / Simulate verbs operate on.
    */
   shareOristudioCpSegment: (segmentId: number) => Promise<boolean>;
+  publishOristudioCpShare: (args: {
+    title: string;
+    author: string | null;
+    renderCard: () => Promise<Uint8Array | null>;
+  }) => Promise<boolean>;
+  /**
+   * Fold the drafted share's pattern for its card preview. Injected through the store
+   * rather than imported so the modal stays free of the kernel runtime, exactly as the
+   * export dialog's `foldSegment` is.
+   */
+  foldOristudioCpShareFigure: (
+    settings: CreaseExportFoldedFigureSettings
+  ) => Promise<CreaseExportFoldResult>;
   /** Close the share modal and drop the generated link. */
-  dismissOristudioCpShareLink: () => void;
+  dismissOristudioCpShare: () => void;
   /** Record a share payload for the Edit surface to open. Set by `/s` only. */
-  setPendingSharedCp: (payload: string) => void;
+  setPendingSharedCp: (pending: PendingSharedCp) => void;
   /**
    * Save one folded figure as a standalone image, serialized from the snapshot
    * already on screen rather than re-folded. See `lib/foldedFigureExport.ts`.

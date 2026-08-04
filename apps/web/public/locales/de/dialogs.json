@@ -239,8 +239,8 @@
     },
     "title": "Einstellungen",
     "workspace": {
-      "folding": "Falten",
       "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
+      "folding": "Falten",
       "layout": "Layout",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",
@@ -249,13 +249,29 @@
       "startup": "Start"
     }
   },
+  "share": {
+    "author": "Autor",
+    "authorPlaceholder": "Optional",
+    "backColor": "Rückseitenfarbe",
+    "byLine": "von {{author}}",
+    "create": "Freigabelink erstellen",
+    "creating": "Link wird erstellt…",
+    "foldedFigure": "Gefaltete Figur anzeigen",
+    "folding": "Wird gefaltet…",
+    "frontColor": "Vorderseitenfarbe",
+    "previewAlt": "Vorschau des geteilten Faltmusters",
+    "scope": "Jede Person mit diesem Link kann ihn ansehen, und Links lassen sich weder löschen noch ändern. Enthält nur das Faltmuster — keine Referenzbilder, Anmerkungen oder gespeicherten Simulationen.",
+    "side": "Seite",
+    "sideBack": "Rückseite",
+    "sideFront": "Vorderseite",
+    "title": "Titel",
+    "titlePlaceholder": "Unbenanntes Faltmuster"
+  },
   "shareLink": {
     "close": "Teilen schließen",
     "copied": "Kopiert",
     "copy": "Kopieren",
-    "longWarning": "Dieser Link funktioniert in der Adressleiste eines Browsers, aber manche Chat-Apps und E-Mail-Programme kürzen so lange Links. Eine exportierte Datei zu senden ist zuverlässiger.",
-    "scope": "Enthält nur das Faltmuster – keine Referenzbilder, Anmerkungen oder gespeicherten Simulationen.",
-    "summary": "{{creases}} Falten · {{chars}} Zeichen",
+    "summary": "{{creases}} Faltlinien",
     "title": "Faltmuster teilen",
     "url": "Link zum Teilen"
   },

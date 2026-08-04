@@ -68,6 +68,7 @@ import {
   projectStateFromSnapshot,
   type EngineClient,
 } from '../engineRuntime';
+import { fetchCpShare } from '../../../cp-workspace/share/cpShareService';
 import {
   createBlankOristudioCpDocument,
   openSharedCpPayload,
@@ -906,11 +907,19 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // canvas, so it happens on this one path rather than a parallel one —
           // and it is consumed inside the in-flight guard, so a StrictMode
           // double-invoke cannot open it twice.
-          const pending = get().pendingSharedCpPayload;
+          const pending = get().pendingSharedCp;
           let document;
           if (pending) {
             try {
-              document = await openSharedCpPayload(pending);
+              // A link normally arrives with its crease pattern already inlined into
+              // the page, so this is pure decode. The `id` shape is the exception —
+              // a hand-typed URL, or one opened inside the ~60s KV takes to propagate
+              // — and is the only path that touches the network.
+              const payload =
+                pending.kind === 'payload'
+                  ? pending.payload
+                  : (await fetchCpShare(pending.shareId)).payload;
+              document = await openSharedCpPayload(payload);
             } catch (error) {
               // A bad link should leave a usable editor, not a broken one: tell
               // the user which kind of failure it was (the kernel distinguishes
@@ -942,7 +951,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // be opened must not be retried on the next mount: the user has
           // already been told, and silently re-running a failing decode would
           // make Edit unusable rather than merely empty.
-          set({ pendingSharedCpPayload: null });
+          set({ pendingSharedCp: null });
           ensureEditInFlight = null;
         }
       })();

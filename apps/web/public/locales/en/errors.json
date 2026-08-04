@@ -36,6 +36,11 @@
   },
   "shareLink": {
     "invalid": "That share link is incomplete or damaged — it was probably cut short when it was copied. Ask for it again.",
+    "notFound": "That crease pattern no longer exists. Share links are permanent once created, so this one was probably mistyped.",
+    "rateLimited": "Too many share links from this connection. Wait a few minutes and try again.",
+    "storageFailure": "Couldn't create a share link. Check your connection and try again.",
+    "storageQuota": "Sharing is temporarily unavailable. Please try again later.",
+    "tooLarge": "This crease pattern is too large to share as a link. Export it as a file instead.",
     "tooNew": "That share link was made with a newer version of Ori Studio. Reload to get the latest version, then open it again."
   },
   "worker": {
