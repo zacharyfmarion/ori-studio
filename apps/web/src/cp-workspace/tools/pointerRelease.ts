@@ -53,6 +53,25 @@ const ALL_MODES: Record<ActiveToolMode, true> = {
 
 export const CP_ACTIVE_TOOL_MODES = Object.keys(ALL_MODES) as readonly ActiveToolMode[];
 
+/**
+ * Which modes resolve the cursor onto a grid point / vertex before feeding the draw
+ * engine — and, because they share `dragLineTool`, which ones must do so on *every*
+ * phase.
+ *
+ * That engine's click-vs-drag test measures the release against the start, so a
+ * phase left unsnapped makes the snap displacement itself read as pointer travel:
+ * Angle Restricted Line snapped only its press, and a stationary click near a vertex
+ * committed a crease from the vertex to the cursor. Stated once here, over the mode
+ * vocabulary, so a new draw mode has to answer the question rather than inherit the
+ * omission.
+ *
+ * Selection / erase boxes and freehand paths follow the raw cursor instead, so a
+ * rubber-band select doesn't jump to nearby points.
+ */
+export function toolModeSnapsDrawPoint(mode: ActiveToolMode | null): boolean {
+  return mode === 'drag-line' || mode === 'angle-drag';
+}
+
 /** Which handler a release belongs to. `'none'` ends the gesture with no action. */
 export type CpReleaseRoute =
   | 'erase'

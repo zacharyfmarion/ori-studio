@@ -90,7 +90,11 @@ import {
   getOrieditaGridBasis,
 } from '../lib/creasePatternViewport';
 import { toolEngineFor } from './tools/registry';
-import { cpPointerReleaseRoute, type ActiveToolMode } from './tools/pointerRelease';
+import {
+  cpPointerReleaseRoute,
+  toolModeSnapsDrawPoint,
+  type ActiveToolMode,
+} from './tools/pointerRelease';
 import { createToolRuntime, type ToolRuntime } from './tools/runtime';
 import { createStepSequenceTool } from './tools/stepSequenceTool';
 import { createLinePickTool } from './tools/linePickTool';
@@ -926,13 +930,6 @@ export function CreasePatternWebglCanvas({
   // click: a crease pick fills both at once, two point picks fill one each. Once it
   // holds 2, the gesture is in its converge (candidate-point) step.
   const convergingBaseRef = useRef<ModelPoint[]>([]);
-  // Angle Restricted Line's anchor (the press point), held while dragging the
-  // angle-snapped endpoint; null when no drag is in progress.
-  const angleDragAnchorRef = useRef<ModelPoint | null>(null);
-  // True once a click in place has parked that anchor between gestures, so the next
-  // click is its endpoint rather than a new anchor — the same arming the shared
-  // drag-line engine does for the other crease-draw tools.
-  const angleDragArmedRef = useRef(false);
   // Last view rotation reported to the panel (dedupes the per-frame report).
   const lastReportedRotationRef = useRef(0);
   // Last full camera reported to the panel (dedupes the per-frame report).
@@ -961,27 +958,27 @@ export function CreasePatternWebglCanvas({
     a: ModelPoint | null;
     b: ModelPoint | null;
   }>({ phase: 'select', a: null, b: null });
-  // Persistent runtime for a `drag-line` tool. Unlike the box/path engines — whose
-  // whole gesture lives between one press and its release — this one has to survive
-  // between gestures, because a click-to-place draw parks its start endpoint there
-  // while the user moves to the second click. Cleared on a tool change below.
-  const dragLineRuntimeRef = useRef<ToolRuntime | null>(null);
+  // Persistent runtime for a crease-draw tool — `drag-line` and Angle Restricted
+  // Line both run `dragLineTool` (see `toolModeSnapsDrawPoint`). Unlike the box/path
+  // engines — whose whole gesture lives between one press and its release — this one
+  // has to survive between gestures, because a click-to-place draw parks its start
+  // endpoint there while the user moves to the second click. Cleared on a tool change
+  // below.
+  const armedDrawRuntimeRef = useRef<ToolRuntime | null>(null);
   // Mirror of that runtime's armed start (from its `livePoints`), so the surface can
   // mark it, gate presses on it, and drive the step prompt without re-deriving the
   // engine's arming rule. Null whenever no start is parked.
-  const dragLineArmedRef = useRef<ModelPoint | null>(null);
+  const armedDrawPointRef = useRef<ModelPoint | null>(null);
   const currentTheme = useThemeStore((state) => state.currentTheme);
 
   // A tool change abandons any in-progress click sequence and its overlay.
   useEffect(() => {
     persistentToolRuntimeRef.current = null;
     sequenceStepRef.current = 0;
-    dragLineRuntimeRef.current = null;
-    dragLineArmedRef.current = null;
+    armedDrawRuntimeRef.current = null;
+    armedDrawPointRef.current = null;
     dynamicStepKindsRef.current = null;
     convergingBaseRef.current = [];
-    angleDragAnchorRef.current = null;
-    angleDragArmedRef.current = false;
     squareBisectorRef.current = { mode: null, points: [], lineIds: [] };
     linePickHighlightRef.current = [];
     lengthenRef.current = { phase: 'select', a: null, b: null };
@@ -1757,31 +1754,40 @@ export function CreasePatternWebglCanvas({
     const snapRingFor = (point: ModelPoint, raw: ModelPoint): ModelPoint | null =>
       point.x !== raw.x || point.y !== raw.y ? point : null;
     /**
-     * The runtime driving the current draw. A `drag-line` tool keeps one for its whole
+     * The runtime driving the current draw. A crease-draw tool keeps one for its whole
      * activation — its click-to-place start is parked in the engine between gestures —
-     * created here on first use; box/path tools get a fresh one per press.
+     * created here on first use; box/path tools get a fresh one per press. Both draw
+     * modes run the same `drag-line` engine; what differs is where their preview and
+     * commit endpoint come from, which `feedTool` handles.
      */
     const drawRuntime = (): ToolRuntime | null => {
-      if (liveRef.current.activeToolInputMode !== 'drag-line') return toolRuntime;
-      dragLineRuntimeRef.current ??= createToolRuntime(toolEngineFor('drag-line'));
-      return dragLineRuntimeRef.current;
+      if (!toolModeSnapsDrawPoint(liveRef.current.activeToolInputMode)) return toolRuntime;
+      armedDrawRuntimeRef.current ??= createToolRuntime(toolEngineFor('drag-line'));
+      return armedDrawRuntimeRef.current;
     };
     /**
-     * Mark the drag-line's armed start (a dot, like a half-placed point sequence) plus
-     * the usual snap ring, and keep the step prompt on the endpoint the tool is now
+     * Mark the draw's armed start (a dot, like a half-placed point sequence) plus the
+     * usual snap ring, and keep the step prompt on the endpoint the tool is now
      * waiting for. `livePoints` is the engine's own report of what it has parked, so
      * the arming rule lives in exactly one place.
      */
-    const syncDragLineArmed = (
+    const syncArmedDrawPoint = (
       livePoints: readonly ModelPoint[] | undefined,
-      snapRing: ModelPoint | null
+      snapRing: ModelPoint | null,
+      /**
+       * Dots to draw, when they are not just the armed start: Angle Restricted Line
+       * marks its anchor for the whole drag, as upstream's `drawStepVertex(anchorPoint)`
+       * does. Arming and the step prompt still key off `livePoints` alone — an anchor
+       * being *dragged* from is not a parked one.
+       */
+      placed: readonly ModelPoint[] = livePoints ?? []
     ) => {
       const armed = livePoints?.[0] ?? null;
-      const was = dragLineArmedRef.current;
-      dragLineArmedRef.current = armed;
+      const was = armedDrawPointRef.current;
+      armedDrawPointRef.current = armed;
       renderer.setOverlayPoints(
         sequenceOverlayPoints(
-          armed ? [armed] : [],
+          placed,
           snapRing,
           readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK)
         )
@@ -1805,17 +1811,42 @@ export function CreasePatternWebglCanvas({
       toolPreviewSegmentsRef.current = null;
       sequencePreviewOwnedRef.current = false;
     };
+    /**
+     * Angle Restricted Line previews through the kernel rather than locally, and that
+     * preview is a React state write — blanking it on every hover frame would
+     * re-render the panel per mouse move. Only publish a *change*, so an idle hover
+     * (before an anchor exists) stays silent, as its bespoke handler did.
+     */
+    let anglePreviewLive = false;
+    const publishAnglePreview = (segment: ToolPreviewSegment | undefined, cursor: ModelPoint) => {
+      if (segment) {
+        anglePreviewLive = true;
+        // The kernel resolves the angle-system ray from the *cursor direction*
+        // (`snap_to_close_point_in_active_angle_system`, upstream `syuusei_point_A_37`),
+        // so it gets the raw cursor — a vertex-snapped one would pick a different ray.
+        liveRef.current.onToolPreviewInput([segment.a, cursor], []);
+      } else if (anglePreviewLive) {
+        anglePreviewLive = false;
+        liveRef.current.onToolPreviewInput([], []);
+      }
+    };
     const feedTool = (kind: 'down' | 'move' | 'up' | 'cancel', clientX: number, clientY: number) => {
       const runtime = drawRuntime();
       if (!runtime) return;
-      // Only crease-drawing (drag-line) snaps to grid/vertices; selection/erase
-      // boxes (drag-box) and freehand paths (drag-path — lasso/polygon) follow the
-      // raw cursor, so a rubber-band select doesn't jump to nearby points.
-      const snaps = liveRef.current.activeToolInputMode === 'drag-line';
+      // Only crease-drawing snaps to grid/vertices; selection/erase boxes (drag-box)
+      // and freehand paths (drag-path — lasso/polygon) follow the raw cursor, so a
+      // rubber-band select doesn't jump to nearby points. Snapping every phase is what
+      // keeps the engine's click-vs-drag test honest — see `toolModeSnapsDrawPoint`.
+      const mode = liveRef.current.activeToolInputMode;
+      const snaps = toolModeSnapsDrawPoint(mode);
+      // Angle Restricted Line runs the same engine but hands its preview to the kernel,
+      // which owns the angle snap; the local preview channel stays empty for it.
+      const kernelPreviewed = mode === 'angle-drag';
       if (kind === 'cancel') {
         const out = runtime.feed({ kind, point: { x: 0, y: 0 } });
         setToolPreview(null);
-        if (snaps) syncDragLineArmed(out.livePoints, null);
+        if (kernelPreviewed) publishAnglePreview(undefined, { x: 0, y: 0 });
+        if (snaps) syncArmedDrawPoint(out.livePoints, null);
         renderNow();
         return;
       }
@@ -1829,10 +1860,10 @@ export function CreasePatternWebglCanvas({
       // click-to-place draw instead ignores the miss and stays armed — losing the
       // parked start to a stray click would be the worse failure.
       if (liveRef.current.activeToolRequireSnap && kind === 'up' && !resolved.snapped) {
-        if (dragLineArmedRef.current) return;
+        if (armedDrawPointRef.current) return;
         const out = runtime.feed({ kind: 'cancel', point: resolved.point });
         setToolPreview(null);
-        if (snaps) syncDragLineArmed(out.livePoints, null);
+        if (snaps) syncArmedDrawPoint(out.livePoints, null);
         renderNow();
         return;
       }
@@ -1842,10 +1873,28 @@ export function CreasePatternWebglCanvas({
         tolerance: modelToleranceOf(CLICK_MOVE_THRESHOLD),
         viewTransform: liveRef.current.activeToolModelAlignedBox ? null : currentView(),
       });
-      setToolPreview(out.preview?.segments);
-      if (snaps) syncDragLineArmed(out.livePoints, snapRingFor(resolved.point, raw));
+      const segment = out.preview?.segments[0];
+      if (kernelPreviewed) publishAnglePreview(segment, raw);
+      else setToolPreview(out.preview?.segments);
+      if (snaps) {
+        // Keep the anchor dotted for the whole angle drag, not just while armed.
+        const placed = segment ? [segment.a] : out.livePoints;
+        syncArmedDrawPoint(
+          out.livePoints,
+          snapRingFor(resolved.point, raw),
+          kernelPreviewed ? (placed ?? []) : undefined
+        );
+      }
       renderNow();
-      if (out.commit) liveRef.current.onToolCommit({ ...out.commit, additive: dragShift });
+      if (out.commit) {
+        // Same raw-cursor rule as the preview: the engine saw the snapped point so its
+        // arming rule holds, but the endpoint the kernel angle-snaps is the cursor.
+        const points =
+          kernelPreviewed && out.commit.points
+            ? [out.commit.points[0], raw]
+            : out.commit.points;
+        liveRef.current.onToolCommit({ ...out.commit, points, additive: dragShift });
+      }
     };
     // --- Crease transform preview (Move / Copy, two-point and four-point) ---
     // While the gesture runs, the selection is drawn where it would land. A `move`
@@ -2186,79 +2235,6 @@ export function CreasePatternWebglCanvas({
       }
       renderNow();
     };
-    // Angle Restricted Line (DrawCreaseAngleRestricted5). Press anchors the start
-    // (snapped to grid/vertices, as Oriedita's move_click_drag_point snaps to the
-    // closest point); moving kernel-previews the angle-system-snapped segment
-    // [anchor, cursor]; a release away from the anchor commits those two points (the
-    // kernel re-snaps the endpoint on execute). Before an anchor exists, hover just
-    // shows the anchor snap indicator.
-    //
-    // Like the shared drag-line engine, it takes either gesture: press-drag-release,
-    // or click the anchor and click the endpoint. The same predicate splits them — a
-    // release within the click threshold of the anchor parks it for a second click
-    // instead of committing, and clicking the parked anchor again drops it.
-    const feedAngleDrag = (
-      kind: 'down' | 'move' | 'up' | 'cancel',
-      clientX: number,
-      clientY: number
-    ) => {
-      const accent = readCssVarColor(document.documentElement, SELECTION_COLOR_VAR, SELECTION_FALLBACK);
-      const tol = modelToleranceOf(SNAP_TOLERANCE_CSS);
-      const reset = () => {
-        const wasArmed = angleDragArmedRef.current;
-        angleDragAnchorRef.current = null;
-        angleDragArmedRef.current = false;
-        liveRef.current.onToolPreviewInput([], []);
-        renderer.setOverlayPoints(null);
-        if (wasArmed) liveRef.current.onToolPickProgress(0);
-      };
-      if (kind === 'cancel') {
-        reset();
-        renderNow();
-        return;
-      }
-      const raw = clientToModel(clientX, clientY);
-      if (!raw) return;
-      if (kind === 'down') {
-        // A press with the anchor already parked is the endpoint, not a new anchor.
-        const anchor = angleDragArmedRef.current
-          ? angleDragAnchorRef.current
-          : liveRef.current.resolveDrawPoint(raw, tol).point;
-        angleDragAnchorRef.current = anchor;
-        if (anchor) renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
-        renderNow();
-        return;
-      }
-      const anchor = angleDragAnchorRef.current;
-      if (kind === 'move') {
-        if (!anchor) {
-          // Pre-press hover: show where the anchor would snap.
-          const snap = liveRef.current.resolveDrawPoint(raw, tol).point;
-          const ring = snap.x !== raw.x || snap.y !== raw.y ? snap : null;
-          renderer.setOverlayPoints(sequenceOverlayPoints([], ring, accent));
-          renderNow();
-          return;
-        }
-        liveRef.current.onToolPreviewInput([anchor, raw], []);
-        renderer.setOverlayPoints(sequenceOverlayPoints([anchor], null, accent));
-        renderNow();
-        return;
-      }
-      // up
-      if (!anchor) {
-        reset();
-      } else if (Math.hypot(raw.x - anchor.x, raw.y - anchor.y) > modelToleranceOf(CLICK_MOVE_THRESHOLD)) {
-        liveRef.current.onToolCommit({ points: [anchor, raw] });
-        reset();
-      } else if (angleDragArmedRef.current) {
-        reset();
-      } else {
-        // A click on the anchor: park it and move the prompt to the endpoint step.
-        angleDragArmedRef.current = true;
-        liveRef.current.onToolPickProgress(1);
-      }
-      renderNow();
-    };
     // Square Bisector (modes A + B): the first pick decides the mode. A point starts
     // 3-point mode — collect 3 angle points then a destination crease, commit 4
     // points. A crease starts 2-line mode — collect 2 source crease ids then a
@@ -2569,8 +2545,7 @@ export function CreasePatternWebglCanvas({
         // Right button: universal erase gesture, overrides any active tool — including
         // a crease draw waiting on its second click, whose parked start it abandons.
         e.preventDefault();
-        if (toolMode === 'drag-line' && dragLineArmedRef.current) feedTool('cancel', 0, 0);
-        if (toolMode === 'angle-drag' && angleDragArmedRef.current) feedAngleDrag('cancel', 0, 0);
+        if (toolModeSnapsDrawPoint(toolMode) && armedDrawPointRef.current) feedTool('cancel', 0, 0);
         erasing = true;
         eraseRuntime = createToolRuntime(toolEngineFor('drag-box'));
         feedErase('down', e.clientX, e.clientY);
@@ -2612,9 +2587,14 @@ export function CreasePatternWebglCanvas({
         feedLengthen('down', e.clientX, e.clientY);
       } else if (toolMode === 'angle-drag') {
         // Angle Restricted Line: press anchors the start, drag previews the
-        // angle-snapped segment, release commits.
+        // angle-snapped segment, release commits — the same gesture and the same
+        // engine as the drag-line tools below, so it takes the same press setup. It
+        // needs its own branch only to keep those tools' `toolEngineFor` narrowing,
+        // and because its runtime is persistent (`drawRuntime`).
         e.preventDefault();
-        feedAngleDrag('down', e.clientX, e.clientY);
+        drawing = true;
+        dragShift = e.shiftKey;
+        feedTool('down', e.clientX, e.clientY);
       } else if (toolMode === 'text') {
         // Text tool: a plain click on empty canvas starts an inline-edit draft
         // (handled on release, once we know it was a click and not a pan/drag).
@@ -2637,9 +2617,11 @@ export function CreasePatternWebglCanvas({
         if (endpointSnapped) {
           drawing = true;
           dragShift = e.shiftKey;
-          // drag-line runs on a persistent runtime (see drawRuntime); the others open
-          // a fresh engine per gesture.
-          if (toolMode !== 'drag-line') toolRuntime = createToolRuntime(toolEngineFor(toolMode));
+          // The crease-draw tools run on a persistent runtime (see drawRuntime); the
+          // others open a fresh engine per gesture.
+          if (!toolModeSnapsDrawPoint(toolMode)) {
+            toolRuntime = createToolRuntime(toolEngineFor(toolMode));
+          }
           feedTool('down', e.clientX, e.clientY);
         }
       } else {
@@ -2687,15 +2669,6 @@ export function CreasePatternWebglCanvas({
         // phase) track the target-point cursor. Fires on hover too.
         feedLengthen('move', e.clientX, e.clientY);
       } else if (
-        liveRef.current.activeToolInputMode === 'angle-drag' &&
-        !panning &&
-        !movingSelection &&
-        !selecting
-      ) {
-        // Angle Restricted Line: preview the angle-snapped segment while dragging
-        // (and show the anchor snap indicator on hover before the press).
-        feedAngleDrag('move', e.clientX, e.clientY);
-      } else if (
         liveRef.current.activeToolInputMode === 'sequence' &&
         !panning &&
         !movingSelection &&
@@ -2712,7 +2685,7 @@ export function CreasePatternWebglCanvas({
         // Hover with an entity-pick tool active: highlight the crease under cursor.
         feedLinePick('move', e.clientX, e.clientY);
       } else if (
-        liveRef.current.activeToolInputMode === 'drag-line' &&
+        toolModeSnapsDrawPoint(liveRef.current.activeToolInputMode) &&
         !panning &&
         !movingSelection &&
         !selecting
@@ -2720,8 +2693,8 @@ export function CreasePatternWebglCanvas({
         // Hover with a crease-draw tool (before pressing): show the snap indicator at
         // where the endpoint would land, and — once a click-to-place start is armed —
         // rubber-band the crease from it. The engine ignores a move with nothing
-        // started, so the same feed covers both. Only drag-line snaps; drag-path
-        // (lasso/polygon) follows the raw cursor with no snap indicator.
+        // started, so the same feed covers both. Only the crease-draw tools snap;
+        // drag-path (lasso/polygon) follows the raw cursor with no snap indicator.
         feedTool('move', e.clientX, e.clientY);
       } else if (movingSelection && moveStart) {
         if (moved) {
@@ -2794,8 +2767,10 @@ export function CreasePatternWebglCanvas({
       } else if (route === 'lengthen') {
         feedLengthen(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
       } else if (route === 'angle-drag') {
-        // Angle Restricted Line: release commits the [anchor, endpoint] segment.
-        feedAngleDrag(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
+        // Angle Restricted Line: release commits the [anchor, endpoint] segment, or
+        // parks the anchor for a second click. Its own route (rather than 'draw')
+        // because the mode is panel-selected, not declared as a drag `inputMode`.
+        feedTool(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
       } else if (route === 'text') {
         // Text tool: a click (no drag) whose press started on the canvas starts an
         // inline-edit draft at that model point; a press-drag creates a text box of
@@ -2858,12 +2833,12 @@ export function CreasePatternWebglCanvas({
         } else {
           feedTool(cancelled ? 'cancel' : 'up', e.clientX, e.clientY);
         }
-        if (liveRef.current.activeToolInputMode !== 'drag-line') {
+        if (!toolModeSnapsDrawPoint(liveRef.current.activeToolInputMode)) {
           toolRuntime = null;
           renderer.setOverlayPoints(null);
         }
-        // A drag-line keeps its runtime (a click may have just armed its start) and
-        // its overlay, which feedTool has already set to the armed dot + snap ring.
+        // A crease-draw tool keeps its runtime (a click may have just armed its start)
+        // and its overlay, which feedTool has already set to the armed dot + snap ring.
       } else if (route === 'move-selection') {
         if (moved && (Math.abs(moveDelta.x) > 1e-9 || Math.abs(moveDelta.y) > 1e-9)) {
           // Commit: the document update re-renders the strokes at their final
@@ -2916,10 +2891,9 @@ export function CreasePatternWebglCanvas({
     // there is no cursor left to stretch it to.
     const onPointerLeave = () => {
       const mode = liveRef.current.activeToolInputMode;
-      const parked =
-        (mode === 'drag-line' && dragLineArmedRef.current) ||
-        (mode === 'angle-drag' && angleDragArmedRef.current && angleDragAnchorRef.current) ||
-        null;
+      // Guarded on the mode as well as the ref, so a parked point cannot outlive the
+      // tool that placed it if a reset is ever missed.
+      const parked = (toolModeSnapsDrawPoint(mode) && armedDrawPointRef.current) || null;
       if (parked) {
         clearPreview();
         if (mode === 'angle-drag') liveRef.current.onToolPreviewInput([], []);
@@ -2944,10 +2918,8 @@ export function CreasePatternWebglCanvas({
         feedLinePick('cancel', 0, 0);
       } else if (liveRef.current.activeToolInputMode === 'lengthen') {
         feedLengthen('cancel', 0, 0);
-      } else if (liveRef.current.activeToolInputMode === 'drag-line') {
+      } else if (toolModeSnapsDrawPoint(liveRef.current.activeToolInputMode)) {
         feedTool('cancel', 0, 0);
-      } else if (liveRef.current.activeToolInputMode === 'angle-drag') {
-        feedAngleDrag('cancel', 0, 0);
       }
     };
     canvas.addEventListener('pointerdown', onPointerDown);

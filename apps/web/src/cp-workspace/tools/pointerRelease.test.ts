@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CP_ACTIVE_TOOL_MODES,
   cpPointerReleaseRoute,
+  toolModeSnapsDrawPoint,
   type ActiveToolMode,
   type CpReleaseState,
 } from './pointerRelease';
@@ -146,5 +147,31 @@ describe('cpPointerReleaseRoute', () => {
       ];
       expect([...CP_ACTIVE_TOOL_MODES].sort()).toEqual(expected.sort());
     });
+  });
+});
+
+describe('toolModeSnapsDrawPoint', () => {
+  // Both crease-draw modes run `dragLineTool`, whose click-vs-drag test measures the
+  // release against the start. Angle Restricted Line used to snap only its press, so
+  // the snap displacement (up to a 10px radius, against a 4px click threshold) read as
+  // pointer travel and a stationary click near a vertex committed a crease from the
+  // vertex to the cursor. Both modes must be in this set for that test to compare like
+  // with like.
+  it('includes every mode that feeds the draw engine', () => {
+    expect(toolModeSnapsDrawPoint('drag-line')).toBe(true);
+    expect(toolModeSnapsDrawPoint('angle-drag')).toBe(true);
+  });
+
+  // Selection/erase boxes and freehand paths follow the raw cursor, so a rubber-band
+  // select doesn't jump to nearby points.
+  it.each(CP_ACTIVE_TOOL_MODES.filter((mode) => mode !== 'drag-line' && mode !== 'angle-drag'))(
+    'leaves %s on the raw cursor',
+    (mode) => {
+      expect(toolModeSnapsDrawPoint(mode)).toBe(false);
+    }
+  );
+
+  it('is false with no tool active', () => {
+    expect(toolModeSnapsDrawPoint(null)).toBe(false);
   });
 });
