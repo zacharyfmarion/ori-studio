@@ -1237,9 +1237,34 @@
 }
 
 /* Share-link dialog. Wider than the default modal because it shows a URL, and a
-   360px field turns even a short link into an unreadable sliver. */
+   360px field turns even a short link into an unreadable sliver.
+   
+   Height-capped and scrolling like the export dialog: the embed preview plus the folded
+   controls can exceed a laptop viewport, and without this the header and the retention
+   note are simply clipped off either end. */
 .share-link-modal {
+  display: flex;
+  flex-direction: column;
   width: min(520px, calc(100vw - var(--space-6)));
+  max-height: calc(100vh - var(--space-6));
+}
+
+/* Flex rather than the default grid body.
+   
+   Once the dialog is height-capped the body has a definite height, and a grid distributes
+   that height across its rows — squeezing the embed below its own contents. Since the
+   embed clips overflow to keep its rounded corners, that silently ate the title and
+   description. Flex with non-shrinking children keeps every child at content height and
+   lets the body scroll, which is what should have happened all along. */
+.share-link-modal .simple-modal__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.share-link-modal .simple-modal__body > * {
+  flex: 0 0 auto;
 }
 
 .share-link-modal__row {
@@ -1276,22 +1301,61 @@
   line-height: 1.5;
 }
 
-/* The card exactly as it will be published, at the same 1.91:1 the Worker serves. Both
-   the aspect ratio and the fill are set inline — from SHARE_CARD_WIDTH/HEIGHT and from
-   the export palette's canvas colour — so the preview cannot drift from the PNG. */
-.share-link-modal__preview {
+/* A mock of the unfurled link, not a bare image preview: the thing being judged is what
+   a recipient sees in Discord or Messages — card, headline, description, domain. The
+   image half is exactly what gets published: 1.91:1 from SHARE_CARD_WIDTH/HEIGHT, filled
+   with the export palette's canvas colour, both set inline so they cannot drift. */
+.share-embed {
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg, 10px);
+  background: var(--bg-elevated);
+}
+
+.share-embed__image {
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
 }
 
-.share-link-modal__preview img {
+.share-embed__image img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.share-embed__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.share-embed__title {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-embed__description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.share-embed__host {
+  margin-top: 2px;
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.7rem;
 }
 
 .share-link-modal__fields {
@@ -1335,13 +1399,15 @@
 }
 
 .share-link-modal__folded {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--bg-primary);
+}
+
+/* `control-row` draws a divider under every row; the last one would sit on the border. */
+.share-link-modal__folded .control-row:last-child {
+  border-bottom: 0;
 }
 
 .share-link-modal__warning svg {

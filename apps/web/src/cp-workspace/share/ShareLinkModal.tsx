@@ -15,6 +15,7 @@ import {
   type CreaseExportFoldedFigureSettings,
 } from '../../lib/creaseExport';
 import { isFlatFoldableFold } from '../../lib/creaseExportFold';
+import { shareCardDescription, shareCardTitle } from '../../lib/shareCardText';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
 import { readRememberedAuthor } from './cpShareService';
 import { Button } from '../../components/ui/Button';
@@ -140,6 +141,15 @@ export function ShareLinkModal() {
     return { ...page, background: artwork.palette.canvas };
   }, [draft, showFolded, folded.figure, folded.transform, foldedSettings]);
 
+  // Exactly what the Worker will write into the OpenGraph tags — same helpers, so the
+  // preview cannot promise a card the crawler never receives.
+  const cardText = {
+    title: title.trim() || t('dialogs:share.titlePlaceholder', 'Untitled crease pattern'),
+    author: author.trim() || null,
+    creaseCount: draft?.creaseCount ?? 0,
+  };
+  const shareHost = url ? new URL(url).host : window.location.host;
+
   const previewSrc = useMemo(
     () => (card ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.svg)}` : null),
     [card]
@@ -205,22 +215,31 @@ export function ShareLinkModal() {
         </header>
 
         <div className="simple-modal__body">
-          <div
-            className="share-link-modal__preview"
-            style={{
-              aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
-              // `svgToPngCard` fills the whole canvas with this before drawing, so the
-              // preview must letterbox against it too — against the app background the
-              // preview would show a framing the published PNG never has.
-              background: card.background,
-            }}
-          >
-            {previewSrc && (
-              <img
-                src={previewSrc}
-                alt={t('dialogs:share.previewAlt', 'Preview of the shared crease pattern')}
-              />
-            )}
+          {/* Not a bare image: a mock of the unfurled embed, so what is being judged is
+              what a recipient actually sees — card, headline, description, domain. */}
+          <div className="share-embed">
+            <div
+              className="share-embed__image"
+              style={{
+                aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
+                // `svgToPngCard` fills the whole canvas with this before drawing, so the
+                // preview must letterbox against it too — against the app background it
+                // would show a framing the published PNG never has.
+                background: card.background,
+              }}
+            >
+              {previewSrc && (
+                <img
+                  src={previewSrc}
+                  alt={t('dialogs:share.previewAlt', 'Preview of the shared crease pattern')}
+                />
+              )}
+            </div>
+            <div className="share-embed__meta">
+              <div className="share-embed__title">{shareCardTitle(cardText)}</div>
+              <div className="share-embed__description">{shareCardDescription(cardText)}</div>
+              <div className="share-embed__host">{shareHost}</div>
+            </div>
           </div>
 
           <div className="share-link-modal__fields">
@@ -281,26 +300,30 @@ export function ShareLinkModal() {
 
           {showFolded && canFold && (
             <div className="share-link-modal__folded">
-              <div className="export-modal__control-group">
-                <span className="export-modal__label">
-                  {t('dialogs:share.side', 'Side')}
+              <div className="control-row">
+                <span className="control-row__label">{t('dialogs:share.side', 'Side')}</span>
+                <span className="control-row__value">
+                  <SegmentedControl<ShareFoldedSide>
+                    aria-label={t('dialogs:share.side', 'Side')}
+                    value={side}
+                    onChange={setSide}
+                    options={[
+                      { value: 'Front0', label: t('dialogs:share.sideFront', 'Front') },
+                      { value: 'Back1', label: t('dialogs:share.sideBack', 'Back') },
+                    ]}
+                  />
                 </span>
-                <SegmentedControl<ShareFoldedSide>
-                  aria-label={t('dialogs:share.side', 'Side')}
-                  value={side}
-                  onChange={setSide}
-                  options={[
-                    { value: 'Front0', label: t('dialogs:share.sideFront', 'Front') },
-                    { value: 'Back1', label: t('dialogs:share.sideBack', 'Back') },
-                  ]}
-                />
               </div>
+              {/* `row` rather than the default `stacked`: a square swatch beside its label,
+                  not a full-width colour band, matching every other options pane. */}
               <ColorField
+                layout="row"
                 label={t('dialogs:share.frontColor', 'Front color')}
                 value={frontColor}
                 onChange={setFrontColor}
               />
               <ColorField
+                layout="row"
                 label={t('dialogs:share.backColor', 'Back color')}
                 value={backColor}
                 onChange={setBackColor}

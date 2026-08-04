@@ -6,6 +6,9 @@
  */
 
 import { escapeHtmlAttribute, escapeJsonForScript } from './cpShare';
+// Shared with the share modal's embed preview, so the preview cannot claim a card the
+// crawler never receives. Pure strings, no browser or Worker dependencies either way.
+import { shareCardDescription, shareCardTitle } from '../../src/lib/shareCardText';
 
 /** Everything the card and the inlined bootstrap need. */
 export interface ShareCardMeta {
@@ -20,16 +23,7 @@ export interface ShareCardMeta {
 /** The id the client reads the inlined payload from. */
 export const SHARED_CP_SCRIPT_ID = 'shared-cp';
 
-export function shareCardTitle(meta: ShareCardMeta): string {
-  return `${meta.title} — Ori Studio`;
-}
-
-export function shareCardDescription(meta: ShareCardMeta): string {
-  const creases =
-    meta.creaseCount === 1 ? '1 crease' : `${meta.creaseCount.toLocaleString('en-US')} creases`;
-  const subject = meta.author ? `A crease pattern by ${meta.author}` : 'A crease pattern';
-  return `${subject} · ${creases}. Open it in Ori Studio to fold, edit, and export.`;
-}
+export { shareCardDescription, shareCardTitle };
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
