@@ -34,6 +34,9 @@ export function useCpToolHintAnchor(container: HTMLElement | null): CpToolHintPl
       return undefined;
     }
 
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => measure());
+
     const measure = () => {
       const rect = container.getBoundingClientRect();
       // A panel that exists but is not being displayed measures 0x0. Anchoring to
@@ -42,11 +45,22 @@ export function useCpToolHintAnchor(container: HTMLElement | null): CpToolHintPl
         setPlacement(null);
         return;
       }
-      const next = cpToolHintPlacement(rect, {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-      // A ResizeObserver fires for changes that leave this rule's inputs alone
+      // Scoped to this viewport, so it cannot pick up another surface's toolbar.
+      // Measured rather than assumed constant: which controls the toolbar carries
+      // depends on the document, and so does how wide it ends up.
+      const toolbar = container.querySelector('.viewport-toolbar');
+      // Observed here rather than at setup, because it mounts with the document
+      // and then changes width in place — gaining folded-figure controls, say —
+      // which the container's own box never reflects. `observe` is idempotent per
+      // element, so repeating it costs nothing.
+      if (toolbar) observer?.observe(toolbar);
+
+      const next = cpToolHintPlacement(
+        rect,
+        { width: window.innerWidth, height: window.innerHeight },
+        toolbar?.getBoundingClientRect() ?? null
+      );
+      // The observer fires for changes that leave this rule's inputs alone
       // (height-only splits, sub-pixel reflows). Bailing on an equal result keeps
       // those out of the window's render path.
       setPlacement((current) => (samePlacement(current, next) ? current : next));
@@ -56,7 +70,6 @@ export function useCpToolHintAnchor(container: HTMLElement | null): CpToolHintPl
 
     // The sash between the viewport and the View pane resizes both, so observing
     // the viewport is enough to follow a drag of the seam itself.
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     observer?.observe(container);
     window.addEventListener('resize', measure);
     return () => {

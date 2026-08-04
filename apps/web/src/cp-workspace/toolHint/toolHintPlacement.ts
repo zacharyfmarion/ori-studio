@@ -34,6 +34,9 @@ export const CP_TOOL_HINT_INSET = 12;
 /** Minimum gap to the browser window's edges once the clamps below take over. */
 const EDGE_GUARD = 8;
 
+/** Gap left between the window and anything it has to step over. */
+const OBSTACLE_GAP = 8;
+
 /** The part of a `DOMRect` the placement reads. */
 export interface CpToolHintAnchorRect {
   /** The seam — the viewport's right edge, in CSS px from the window's left. */
@@ -47,6 +50,17 @@ export interface CpToolHintWindowSize {
   height: number;
 }
 
+/**
+ * Something at the bottom of the viewport the window must not cover — in
+ * practice the viewport toolbar, which is centred and therefore reaches the
+ * bottom-right corner once the pane is narrow enough.
+ */
+export interface CpToolHintObstacleRect {
+  left: number;
+  right: number;
+  top: number;
+}
+
 /** Fixed-position offsets, ready to spread onto a style object. */
 export interface CpToolHintPlacement {
   left: number;
@@ -56,7 +70,8 @@ export interface CpToolHintPlacement {
 
 export function cpToolHintPlacement(
   anchor: CpToolHintAnchorRect,
-  windowSize: CpToolHintWindowSize
+  windowSize: CpToolHintWindowSize,
+  obstacle?: CpToolHintObstacleRect | null
 ): CpToolHintPlacement {
   // Only shrinks on a browser window too narrow to hold the window at all; the
   // normal case is the constant.
@@ -69,7 +84,23 @@ export function cpToolHintPlacement(
 
   // `bottom` in a fixed layout is measured up from the browser window's bottom,
   // so the viewport's own bottom has to be converted out of top-down coordinates.
-  const bottom = Math.max(windowSize.height - anchor.bottom + CP_TOOL_HINT_INSET, EDGE_GUARD);
+  const flush = windowSize.height - anchor.bottom + CP_TOOL_HINT_INSET;
+
+  // The viewport toolbar is centred in the viewport while this window is pinned
+  // to its right, so the two share a baseline and never meet — until the pane is
+  // narrow enough that a centred toolbar reaches the corner, at which point the
+  // window would sit on top of it. Stepping over it only in that case keeps the
+  // window flush with the canvas at every width where flush is possible.
+  const overlapsHorizontally =
+    obstacle !== undefined &&
+    obstacle !== null &&
+    left < obstacle.right &&
+    left + width > obstacle.left;
+  const cleared = overlapsHorizontally
+    ? windowSize.height - obstacle.top + OBSTACLE_GAP
+    : flush;
+
+  const bottom = Math.max(cleared, EDGE_GUARD);
 
   return { left, bottom, width };
 }
