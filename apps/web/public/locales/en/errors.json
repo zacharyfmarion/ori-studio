@@ -36,7 +36,7 @@
   },
   "shareLink": {
     "invalid": "That share link is incomplete or damaged — it was probably cut short when it was copied. Ask for it again.",
-    "notFound": "That crease pattern no longer exists. Share links are permanent once created, so this one was probably mistyped.",
+    "notFound": "Couldn't open this share link. If it was just created, try again in a moment.",
     "rateLimited": "Too many share links from this connection. Wait a few minutes and try again.",
     "storageFailure": "Couldn't create a share link. Check your connection and try again.",
     "storageQuota": "Sharing is temporarily unavailable. Please try again later.",

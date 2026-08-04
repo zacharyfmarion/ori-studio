@@ -194,6 +194,7 @@ import {
 } from '../../cp-workspace/measurePreferences';
 import { ColorField } from '../ui/ColorField';
 import { IconButton } from '../ui/IconButton';
+import { SurfaceLoading } from '../ui/SurfaceLoading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
 import { CpToolRail } from './CpToolRail';
@@ -1011,6 +1012,7 @@ export function CreasePatternPanel() {
   // Why the editable kernel refused this file, recorded by `loadCreasePattern`.
   // Only meaningful in the read-only state below, where there is no document.
   const cpLoadError = useWorkspaceStore((state) => state.oristudioCpError);
+  const openingSharedCp = useWorkspaceStore((state) => state.openingSharedCp);
   const nativeActiveLineColor = useMemo(
     () => activeLineColorFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
@@ -2750,6 +2752,19 @@ export function CreasePatternPanel() {
       setCpMeasureLiveValue(null);
     }
   }, [cpToolState.activeOperationId, cpToolState.phase]);
+
+  // A shared link opened by id is the one provisioning path that waits on the network, and
+  // it can wait up to a minute while KV propagates. Without this it looks like an ordinary
+  // empty editor, which is indistinguishable from the link having failed.
+  if (openingSharedCp && !hasCreasePattern) {
+    return (
+      <section className="panel-shell cp-panel">
+        <SurfaceLoading
+          label={t('panels:creasePattern.openingSharedLink', 'Opening shared crease pattern…')}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="panel-shell cp-panel">

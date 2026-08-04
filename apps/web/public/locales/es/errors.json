@@ -36,7 +36,7 @@
   },
   "shareLink": {
     "invalid": "Ese enlace para compartir está incompleto o dañado; probablemente se cortó al copiarlo. Pide que te lo envíen de nuevo.",
-    "notFound": "Ese patrón de pliegues ya no existe. Los enlaces para compartir son permanentes una vez creados, así que probablemente este se escribió mal.",
+    "notFound": "No se pudo abrir este enlace. Si acaba de crearse, inténtalo de nuevo en un momento.",
     "rateLimited": "Demasiados enlaces para compartir desde esta conexión. Espera unos minutos e inténtalo de nuevo.",
     "storageFailure": "No se pudo crear el enlace para compartir. Comprueba tu conexión e inténtalo de nuevo.",
     "storageQuota": "La función de compartir no está disponible temporalmente. Inténtalo más tarde.",

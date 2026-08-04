@@ -101,6 +101,56 @@ export async function fetchCpShare(shareId: string): Promise<CpShareData> {
 }
 
 /**
+ * Backoff for the eventual-consistency retry, summing to ~60s.
+ *
+ * Cloudflare documents KV as taking up to 60 seconds to propagate globally, and a link is
+ * most often pasted to someone the moment it is created — so the *first* person to open a
+ * share is the one most likely to hit a colo that has not seen the write yet.
+ */
+const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000, 30_000];
+
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * Fetch a share, retrying a 404 until KV has had time to propagate.
+ *
+ * **Only** a 404 is retried. Every other failure is either permanent (a malformed id) or
+ * will not be fixed by waiting (a 503 from an exhausted quota lasts until 00:00 UTC), and
+ * retrying those would just make the user wait a minute for the same answer.
+ */
+export async function fetchCpShareWithRetry(
+  shareId: string,
+  options: { signal?: AbortSignal; onRetry?: (attempt: number) => void } = {}
+): Promise<CpShareData> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await fetchCpShare(shareId);
+    } catch (error) {
+      const isMissing = error instanceof CpShareError && error.status === 404;
+      if (!isMissing || attempt >= RETRY_DELAYS_MS.length) throw error;
+      options.onRetry?.(attempt + 1);
+      await delay(RETRY_DELAYS_MS[attempt]!, options.signal);
+    }
+  }
+}
+
+/**
  * Upload the preview card. Fire-and-forget at the call site: a share link is useful
  * without an image, so a failure here must never surface as a failed share.
  */

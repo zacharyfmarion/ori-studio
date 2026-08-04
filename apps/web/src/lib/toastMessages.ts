@@ -57,10 +57,13 @@ export function humanizeError(error: unknown, t: TFunction): string {
       );
     // Failures from the share service. Each says what the person can actually do:
     // wait, shrink the pattern, or nothing at all.
+    // Reached only after the retry window has run out. We genuinely cannot tell "never
+    // existed" from "not propagated yet" — KV takes up to a minute globally — so the copy
+    // does not claim either.
     case 'not_found':
       return t(
         'errors:shareLink.notFound',
-        'That crease pattern no longer exists. Share links are permanent once created, so this one was probably mistyped.'
+        "Couldn't open this share link. If it was just created, try again in a moment."
       );
     case 'rate_limited':
       return t(
@@ -72,8 +75,10 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:shareLink.tooLarge',
         'This crease pattern is too large to share as a link. Export it as a file instead.'
       );
-    // The free-plan storage quota resets at midnight UTC, so this is an outage with a
-    // known end rather than something retrying in a moment will fix.
+    // Deliberately vague. The quota does reset at a known instant (00:00 UTC), but the
+    // classification behind this code is a regex over the thrown message — naming a time
+    // would send someone away for hours whenever that heuristic misfires on an unrelated
+    // failure. A vague true message beats a precise false one.
     case 'storage_quota':
       return t(
         'errors:shareLink.storageQuota',

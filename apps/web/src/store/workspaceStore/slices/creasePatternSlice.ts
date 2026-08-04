@@ -68,7 +68,7 @@ import {
   projectStateFromSnapshot,
   type EngineClient,
 } from '../engineRuntime';
-import { fetchCpShare } from '../../../cp-workspace/share/cpShareService';
+import { fetchCpShareWithRetry } from '../../../cp-workspace/share/cpShareService';
 import {
   createBlankOristudioCpDocument,
   openSharedCpPayload,
@@ -915,10 +915,19 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               // the page, so this is pure decode. The `id` shape is the exception —
               // a hand-typed URL, or one opened inside the ~60s KV takes to propagate
               // — and is the only path that touches the network.
-              const payload =
-                pending.kind === 'payload'
-                  ? pending.payload
-                  : (await fetchCpShare(pending.shareId)).payload;
+              let payload: string;
+              if (pending.kind === 'payload') {
+                payload = pending.payload;
+              } else {
+                // KV needs up to a minute to propagate, and a link is usually opened the
+                // moment it is created — so retry a miss rather than reporting one.
+                set({ openingSharedCp: true });
+                try {
+                  payload = (await fetchCpShareWithRetry(pending.shareId)).payload;
+                } finally {
+                  set({ openingSharedCp: false });
+                }
+              }
               document = await openSharedCpPayload(payload);
             } catch (error) {
               // A bad link should leave a usable editor, not a broken one: tell
@@ -951,7 +960,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // be opened must not be retried on the next mount: the user has
           // already been told, and silently re-running a failing decode would
           // make Edit unusable rather than merely empty.
-          set({ pendingSharedCp: null });
+          set({ pendingSharedCp: null, openingSharedCp: false });
           ensureEditInFlight = null;
         }
       })();

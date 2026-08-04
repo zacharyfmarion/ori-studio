@@ -165,8 +165,8 @@
     "bringImageToFront": "画像を最前面へ",
     "buildingCreasePattern": "展開図を作成中",
     "canvasDiagnostics": "キャンバス診断",
-    "case_other": "ケース {{count}}",
     "caseLabel": "ケース",
+    "case_other": "ケース {{count}}",
     "changeFoldCase": "折りケースを変更",
     "changeFoldedColor": "折り上がり図の色を変更",
     "changeFoldedDisplayStyle": "折り上がり図の表示スタイルを変更",
@@ -197,6 +197,8 @@
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
+    "foldCase": "折りケース",
+    "foldModelAction": "モデルを折る",
     "foldability": {
       "compose": "{{lead}}：{{tail}}",
       "edgeLineConfiguration": "外周線の構成が不正です",
@@ -217,7 +219,6 @@
         "triangle": "折り線の数が正しくありません（奇数）"
       }
     },
-    "foldCase": "折りケース",
     "foldedColor": {
       "back": "裏",
       "front": "表",
@@ -225,8 +226,8 @@
     },
     "foldedDisplayStyle": "折りの表示スタイル",
     "foldedModelControls": "折りモデルの操作",
-    "foldedModels": "折りモデル",
     "foldedModelSide": "折りモデルの面",
+    "foldedModels": "折りモデル",
     "foldedState": {
       "back": "裏",
       "backShort": "B",
@@ -245,7 +246,6 @@
       "transparent": "透明",
       "wire": "ワイヤー"
     },
-    "foldModelAction": "モデルを折る",
     "inlineSimulation": {
       "addAction": "シミュレーションウィンドウを追加",
       "canvasAriaLabel": "インラインシミュレーション。ドラッグで回転します。",
@@ -279,6 +279,7 @@
     "noCreasePattern": "展開図がありません",
     "noImportedCreasePattern": "インポートした展開図がありません",
     "none": "なし",
+    "openingSharedLink": "共有された展開図を開いています…",
     "optimizingScale": "スケールを最適化中",
     "preparing": "エディターを準備中…",
     "refoldFoldedModelAction": "折り上がり図を折り直す",
@@ -333,8 +334,8 @@
     "layerCircles": "円",
     "layerLabels": "ラベル",
     "layerPaths": "パス",
-    "layers": "レイヤー",
     "layerSymmetry": "対称",
+    "layers": "レイヤー",
     "legendActivePath": "アクティブなパス",
     "legendScale": "スケール {{value}}",
     "legendTerminal": "終端",
@@ -554,8 +555,8 @@
   "simulatorSegments": {
     "creasePatterns": "展開図",
     "patternLabel": "パターン {{n}}",
-    "patterns": "パターン",
-    "patternTitle_other": "パターン {{n}} — {{count}} 面"
+    "patternTitle_other": "パターン {{n}} — {{count}} 面",
+    "patterns": "パターン"
   },
   "simulatorViewControls": {
     "axialStiffness": "伸び",
@@ -568,18 +569,18 @@
     "colorPaper": "紙",
     "colorStrain": "ひずみ",
     "creaseLines": "折り線",
-    "creases": "折り線",
     "creaseStiffness": "折り目",
     "creaseStyle": "スタイル",
     "creaseStyleColor": "山 / 谷",
     "creaseStyleMono": "単色",
     "creaseStyleMonoDashed": "単色・破線",
     "creaseWidth": "太さ",
+    "creases": "折り線",
     "damping": "減衰",
     "export": "書き出し",
     "exportHint": "書き出す画像の背景です。",
-    "faces": "面",
     "faceStiffness": "面",
+    "faces": "面",
     "hiddenLines": "隠線",
     "lighting": "照明",
     "material": "材質",
@@ -606,8 +607,8 @@
     "addText": "テキストを追加",
     "alignCenter": "中央揃え",
     "alignLeft": "左揃え",
-    "alignment": "配置",
     "alignRight": "右揃え",
+    "alignment": "配置",
     "blockBody": "本文",
     "blockHeading": "見出し",
     "blockSubheading": "小見出し",

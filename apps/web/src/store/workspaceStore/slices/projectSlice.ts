@@ -1550,6 +1550,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     projectMessage: null,
     oristudioCpShareDraft: null,
     pendingSharedCp: null,
+    openingSharedCp: false,
     status: 'loading_engine',
     dirty: false,
     engineReady: false,

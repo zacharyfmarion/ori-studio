@@ -3,6 +3,7 @@ import {
   CpShareError,
   createCpShare,
   fetchCpShare,
+  fetchCpShareWithRetry,
   readRememberedAuthor,
   rememberAuthor,
   uploadCpShareThumbnail,
@@ -104,5 +105,53 @@ describe('remembered author', () => {
     expect(readRememberedAuthor()).toBe('');
     rememberAuthor('  Zachary Marion  ');
     expect(readRememberedAuthor()).toBe('Zachary Marion');
+  });
+});
+
+describe('fetchCpShareWithRetry', () => {
+  const share = { id: 'a', payload: 'p', title: '', author: null, createdAt: '' };
+
+  it('retries a 404 until the share appears', async () => {
+    // The propagation case: the link is real, this colo just has not seen the write.
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: 'gone', code: 'not_found' }, 404))
+      .mockResolvedValueOnce(jsonResponse({ error: 'gone', code: 'not_found' }, 404))
+      .mockResolvedValueOnce(jsonResponse(share));
+
+    const pending = fetchCpShareWithRetry('a3bK9xmQwe');
+    await vi.advanceTimersByTimeAsync(60_000);
+    await expect(pending).resolves.toMatchObject({ payload: 'p' });
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+
+  it('does not retry anything a wait cannot fix', async () => {
+    // A 503 lasts until 00:00 UTC and a 400 is permanent; retrying either just makes the
+    // person wait a minute for the same answer.
+    for (const status of [400, 429, 503]) {
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(jsonResponse({ error: 'nope', code: 'x' }, status));
+      await expect(fetchCpShareWithRetry('a3bK9xmQwe')).rejects.toMatchObject({ status });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('gives up after the retry window and reports the 404', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ error: 'gone', code: 'not_found' }, 404));
+
+    const pending = fetchCpShareWithRetry('a3bK9xmQwe');
+    const assertion = expect(pending).rejects.toMatchObject({ status: 404 });
+    await vi.advanceTimersByTimeAsync(120_000);
+    await assertion;
+    // Seven attempts: the first plus one per backoff step.
+    expect(fetchSpy).toHaveBeenCalledTimes(7);
+    vi.useRealTimers();
   });
 });

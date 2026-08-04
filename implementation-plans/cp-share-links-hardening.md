@@ -206,11 +206,11 @@ existence check does catch a collision; it should never fire, and if it does we 
 
 ### Phase 2 — Stop the lie (the failure users will actually hit)
 
-- [ ] `fetchCpShareWithRetry` — 404-only backoff to ~60s, abortable.
+- [x] `fetchCpShareWithRetry` — 404-only backoff to ~60s, abortable.
 - [x] Quota copy stays vague — decided, see Approach §3. No reset-time interpolation.
-- [ ] Status on the store for an in-flight shared-CP fetch; CP surface renders it.
-- [ ] Soften the exhausted-retry message; add the read-quota case to `toastMessages.ts`.
-- [ ] Tests: retries on 404, does **not** retry on 400/503, gives up and reports.
+- [x] Status on the store for an in-flight shared-CP fetch; CP surface renders it.
+- [x] Soften the exhausted-retry message; add the read-quota case to `toastMessages.ts`.
+- [x] Tests: retries on 404, does **not** retry on 400/503, gives up and reports.
 
 ### Phase 3 — Make silent degradation impossible
 

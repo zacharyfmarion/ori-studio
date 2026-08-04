@@ -286,6 +286,7 @@
     "noCreasePattern": "No crease pattern",
     "noImportedCreasePattern": "No imported crease pattern",
     "none": "None",
+    "openingSharedLink": "Opening shared crease pattern…",
     "optimizingScale": "Optimizing scale",
     "preparing": "Preparing the editor…",
     "refoldFoldedModelAction": "Refold folded model",

@@ -36,7 +36,7 @@
   },
   "shareLink": {
     "invalid": "Dieser Link zum Teilen ist unvollständig oder beschädigt – vermutlich wurde er beim Kopieren abgeschnitten. Bitte lass ihn dir noch einmal schicken.",
-    "notFound": "Dieses Faltmuster existiert nicht mehr. Freigabelinks sind nach dem Erstellen dauerhaft — dieser wurde also vermutlich falsch eingegeben.",
+    "notFound": "Dieser Freigabelink ließ sich nicht öffnen. Wenn er gerade erst erstellt wurde, versuche es gleich noch einmal.",
     "rateLimited": "Zu viele Freigabelinks von dieser Verbindung. Warte ein paar Minuten und versuche es erneut.",
     "storageFailure": "Der Freigabelink konnte nicht erstellt werden. Prüfe deine Verbindung und versuche es erneut.",
     "storageQuota": "Die Freigabe ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.",

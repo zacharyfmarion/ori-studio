@@ -36,7 +36,7 @@
   },
   "shareLink": {
     "invalid": "Esse link de compartilhamento está incompleto ou danificado — provavelmente foi cortado ao ser copiado. Peça o link novamente.",
-    "notFound": "Esse padrão de vincos não existe mais. Links de compartilhamento são permanentes depois de criados, então este provavelmente foi digitado errado.",
+    "notFound": "Não foi possível abrir este link. Se ele acabou de ser criado, tente novamente em instantes.",
     "rateLimited": "Links de compartilhamento demais a partir desta conexão. Aguarde alguns minutos e tente novamente.",
     "storageFailure": "Não foi possível criar o link de compartilhamento. Verifique sua conexão e tente novamente.",
     "storageQuota": "O compartilhamento está temporariamente indisponível. Tente novamente mais tarde.",

@@ -222,6 +222,13 @@ export interface ProjectSliceState {
    * intent, `ensureEditCreasePattern` does the work.
    */
   pendingSharedCp: PendingSharedCp | null;
+  /**
+   * True while a shared crease pattern is being fetched by id. Only the `id` shape of
+   * `pendingSharedCp` is asynchronous -- the common case arrives inlined in the page -- and
+   * without this the Edit surface would show an ordinary blank canvas for up to a minute
+   * while the eventual-consistency retry runs.
+   */
+  openingSharedCp: boolean;
   status: AppStatus;
   dirty: boolean;
   engineReady: boolean;

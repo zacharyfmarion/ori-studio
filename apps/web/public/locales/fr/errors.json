@@ -36,7 +36,7 @@
   },
   "shareLink": {
     "invalid": "Ce lien de partage est incomplet ou endommagé — il a probablement été tronqué lors de la copie. Redemandez-le.",
-    "notFound": "Ce patron de pliage n'existe plus. Les liens de partage sont permanents une fois créés ; celui-ci a donc probablement été mal saisi.",
+    "notFound": "Impossible d'ouvrir ce lien de partage. S'il vient d'être créé, réessayez dans un instant.",
     "rateLimited": "Trop de liens de partage depuis cette connexion. Patientez quelques minutes, puis réessayez.",
     "storageFailure": "Impossible de créer le lien de partage. Vérifiez votre connexion et réessayez.",
     "storageQuota": "Le partage est temporairement indisponible. Veuillez réessayer plus tard.",
