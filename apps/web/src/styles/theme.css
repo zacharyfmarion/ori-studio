@@ -4581,30 +4581,6 @@
   text-transform: uppercase;
 }
 
-/* Stepping through the fold-angle solutions for a vertex. */
-.cp-vertex-solve__row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.cp-vertex-solve__count {
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-  white-space: nowrap;
-}
-
-.cp-vertex-solve__note {
-  margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 0.68rem;
-  line-height: 1.35;
-}
-
 .cp-context-panel__field {
   display: grid;
   grid-template-columns: minmax(54px, 0.68fr) minmax(0, 1fr);
@@ -6955,3 +6931,118 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-warning, var(--text-secondary));
 }
 
+
+/* The active tool's option window: a small panel over the canvas, anchored to
+   the thing the tool is talking about. Borrows the inline simulation window's
+   frame so the two read as the same kind of object, but it is chrome rather than
+   content and therefore holds one size at every zoom — see
+   `toolOptionPlacement`. */
+.cp-tool-option {
+  display: flex;
+  flex-direction: column;
+  min-width: 208px;
+  max-width: 320px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 55%),
+    0 8px 24px rgb(0 0 0 / 32%);
+  font-size: 0.72rem;
+  /* The window owns its own gestures; a drag started on it must not also draw a
+     crease on the canvas underneath. */
+  touch-action: none;
+  user-select: none;
+}
+
+.cp-tool-option__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cp-tool-option__stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cp-tool-option__count,
+.cp-tool-option__title {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.cp-tool-option__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.cp-tool-option__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+
+.cp-tool-option__row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* A row the chosen option leaves alone recedes rather than disappearing: the
+   set of things being changed is part of what the window is saying, so dropping
+   an unchanged one would make the list mean something different per option. */
+.cp-tool-option__row[data-changed='false'] {
+  opacity: 0.55;
+}
+
+.cp-tool-option__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--border-subtle);
+}
+
+.cp-tool-option__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-tertiary);
+}
+
+.cp-tool-option__before {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-tool-option__before::after {
+  content: ' \2192';
+}
+
+.cp-tool-option__after {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.cp-tool-option__note {
+  margin: 0;
+  padding: 0 8px 8px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  white-space: normal;
+}
