@@ -250,8 +250,11 @@ tree, dragging a node near the root, no dropped frames.
 - [x] Phase 4 — the five proportionality tests kept as they were
 - [x] Phase 5 — id→vertex map replaces `findVertex`
 - [x] Phase 5 — canvas rect cached, so a sample stops forcing a reflow
-- [ ] Manual check in a production build on a ~300-vertex tree
-- [ ] Phase 6 — the packing pane (**blocked on a decision, see below**)
+- [x] Manual check in a production build on a ~300-vertex tree
+- [x] Engine-refresh path: stop regenerating an unread crease pattern
+- [x] Engine-refresh path: no busy flag for a mid-gesture step
+- [x] Engine-refresh path: drop requests whose grid-snapped target has not moved
+- [ ] Phase 6 — the packing pane's per-sample re-render (see below)
 
 ## Outcome
 
@@ -309,8 +312,24 @@ packingValidation · creasePatternSnapshot
 crease pattern. So the fix there is not this plan's — it is to stop computing,
 per drag step, the derived snapshots nothing displays.
 
-That lives in `applyOristudioBp` / the document assembler in
-`oristudioBpRuntime.ts`, which **every** BP mutation goes through, and it changes
-what a mid-gesture snapshot contains — which the staleness model and anything
-reading `snapshot.creasePattern` depend on. It needs a decision about
-engine-refresh semantics before it is written.
+Three of those have now been fixed, and none of them turned out to need the
+decision this paragraph was worried about:
+
+| | what it was | what it is |
+| --- | --- | --- |
+| crease pattern per step | ~43 ms per refresh | gone — nothing read it |
+| busy flag | ~250 toggles per drag | 0 |
+| engine messages per pointer sample | 1.83 | 0.30 |
+
+`snapshot.creasePattern` had no readers at all, so removing it was deleting dead
+work rather than trading away freshness. The refresh is now six calls instead of
+seven and ~43 ms lighter, and a drag only asks at all when its grid-snapped
+target actually moves.
+
+What remains in that pane is the per-sample re-render: `setFlapDragging` still
+runs on every pointer sample, re-rendering ~4,700 elements. That is the same
+defect the tree had, and the same fix — a memoized scene plus an imperative
+drag — but with a lower ceiling, because when the engine answers, rivers,
+gadgets and creases genuinely move and a render is correct. Best case is one
+render per engine response rather than none per gesture, which is why cutting
+the responses came first.
