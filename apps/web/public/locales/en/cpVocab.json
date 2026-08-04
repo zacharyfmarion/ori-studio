@@ -25,8 +25,8 @@
       "railLabel": "Transform"
     },
     "color": {
-      "label": "Color and assignment",
-      "railLabel": "Color"
+      "label": "Color, assignment, and repair",
+      "railLabel": "Color & Fix"
     },
     "annotations": {
       "label": "Circles, text, and annotations",

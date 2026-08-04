@@ -25,8 +25,8 @@ export const ORISTUDIO_CP_COMMAND_GROUPS = [
   },
   {
     id: 'color',
-    label: 'Color and assignment',
-    railLabel: 'Color',
+    label: 'Color, assignment, and repair',
+    railLabel: 'Color & Fix',
     order: 50,
   },
   {

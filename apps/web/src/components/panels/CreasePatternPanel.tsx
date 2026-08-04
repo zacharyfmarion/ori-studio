@@ -1512,7 +1512,6 @@ export function CreasePatternPanel() {
       [activeCpCommand, buildCpCommandPayload]
     ),
     documentVersion: editableCp?.crease_pattern.line_segments,
-    onUnavailable: setCpToolUnavailable,
   });
 
   useEffect(() => {

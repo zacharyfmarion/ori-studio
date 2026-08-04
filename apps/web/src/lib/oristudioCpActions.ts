@@ -190,14 +190,6 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamMouseMode: 'VERTEX_MAKE_ANGULARLY_FLAT_FOLDABLE_38',
     railOrder: 40,
   },
-  VertexSolveFoldAngles: {
-    label: 'Solve Fold Angles',
-    group: 'draw',
-    // Ori Studio native: Oriedita has no equivalent, because its creases are
-    // always a full +/-180 and there is no angle to solve.
-    upstreamAction: 'solveVertexFoldAnglesAction',
-    railOrder: 45,
-  },
   LengthenCrease: {
     label: 'Extend Line',
     group: 'draw',
@@ -383,6 +375,14 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   CreasesAlternateMv: {
     upstreamAction: 'on_L_col_changeAction',
     upstreamMouseMode: 'CREASES_ALTERNATE_MV_36',
+  },
+  VertexSolveFoldAngles: {
+    label: 'Solve Fold Angles',
+    group: 'color',
+    // Ori Studio native: Oriedita has no equivalent, because its creases are
+    // always a full +/-180 and there is no angle to solve. Last in the group,
+    // after the assignment tools — it is the "Fix" half of "Color & Fix".
+    upstreamAction: 'solveVertexFoldAnglesAction',
   },
   CircleDraw: {
     upstreamAction: 'circleDrawAction',

@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 import type {
   OristudioCpCommandPayload,
@@ -26,6 +27,7 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
+import { cpToolUnavailableMessage } from '../tools/toolUnavailable';
 import { toolPreviewSegments } from '../tools/toolPreviewSegments';
 import type { ToolPreviewSegment } from '../tools/types';
 import { boundsOfPoints, type CpToolOptionWindow } from '../toolOptions/toolOptionWindow';
@@ -54,8 +56,6 @@ export interface UseVertexSolveOptions {
    * segment array will do. See the effect that watches it.
    */
   documentVersion: unknown;
-  /** Surface the kernel's reason when there is no answer. */
-  onUnavailable: (reason: string | null) => void;
 }
 
 export interface VertexSolveController {
@@ -111,9 +111,9 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
   // re-bound on every keystroke's worth of state change. Written in an effect
   // rather than during render — the callbacks that read it all run later (a
   // click, a keypress, an async response), so there is nothing to miss.
-  const latest = useRef(options);
+  const latest = useRef({ ...options, t });
   useEffect(() => {
-    latest.current = options;
+    latest.current = { ...options, t };
   });
   /** The document the open review was solved against. */
   const documentAtReview = useRef<unknown>(null);
@@ -130,17 +130,24 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
       const preview = await latest.current.preview(OPERATION, payloadFor(lineIds, 0));
       const outcome = outcomeForPreview(lineIds, preview);
       if (outcome.kind === 'none') {
-        latest.current.onUnavailable(outcome.reason);
+        // A toast rather than the context panel's inline line.
+        //
+        // The panel's version is for a *continuous* state — the completion tool
+        // recomputes it on every pointer move, so it reads as a running
+        // commentary on wherever the cursor is. This is a discrete answer to a
+        // question the user just finished asking, and it landed there for a
+        // fraction of a second before the next preview wiped it, which is worse
+        // than not saying anything.
+        const message = cpToolUnavailableMessage(latest.current.t, outcome.reason);
+        if (message) toast.info(message);
         setReview(null);
         return true;
       }
       if (outcome.kind === 'apply') {
-        latest.current.onUnavailable(null);
         setReview(null);
         await latest.current.execute(OPERATION, payloadFor(lineIds, 0));
         return true;
       }
-      latest.current.onUnavailable(null);
       documentAtReview.current = latest.current.documentVersion;
       setReview(outcome.review);
       return true;
@@ -162,7 +169,6 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
   useEffect(() => {
     if (!review || documentVersion === documentAtReview.current) return;
     setReview(null);
-    latest.current.onUnavailable(null);
   }, [documentVersion, review]);
 
   // Re-preview whenever the selected answer changes, so stepping shows the
@@ -215,7 +221,6 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
 
   const cancel = useCallback(() => {
     setReview(null);
-    latest.current.onUnavailable(null);
   }, []);
 
   const segments = useMemo(

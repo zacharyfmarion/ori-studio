@@ -25,8 +25,8 @@
       "railLabel": "Transf."
     },
     "color": {
-      "label": "Couleur et attribution",
-      "railLabel": "Couleur"
+      "label": "Couleur, assignation et réparation",
+      "railLabel": "Couleur et correction"
     },
     "annotations": {
       "label": "Cercles, texte et annotations",

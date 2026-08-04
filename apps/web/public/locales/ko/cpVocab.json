@@ -25,8 +25,8 @@
       "railLabel": "변형"
     },
     "color": {
-      "label": "색상 및 지정",
-      "railLabel": "색상"
+      "label": "색상, 지정 및 수리",
+      "railLabel": "색상 및 수리"
     },
     "annotations": {
       "label": "원, 텍스트, 주석",

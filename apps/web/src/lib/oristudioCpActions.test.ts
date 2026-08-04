@@ -69,14 +69,8 @@ describe('oristudio CP action registry', () => {
   it('orders rail actions like Oriedita while exposing dropdown entries', () => {
     // Line types lead the rail in their own group, so the Oriedita tool order
     // is asserted from the first command action onward.
-    //
-    // `Solve Fold Angles` is Ori Studio's own — Oriedita has no equivalent,
-    // because its creases are always a full +/-180 and there is no angle to
-    // solve. It sits beside `Foldable Line` on purpose: both repair a vertex
-    // that does not close, one by adding a crease and one by changing three
-    // angles, and they are the two answers to the same diagnostic.
     const tools = cpRailActions().filter((action) => action.kind === 'command');
-    expect(tools.slice(0, 11).map((action) => action.label)).toEqual([
+    expect(tools.slice(0, 10).map((action) => action.label)).toEqual([
       'Box Select',
       'Lasso Select',
       'Box Deselect',
@@ -85,12 +79,11 @@ describe('oristudio CP action registry', () => {
       'Grid Restricted Line',
       'Rabbit Ear',
       'Foldable Line',
-      'Solve Fold Angles',
       'Extend Line',
       'Lengthen by Same Color',
     ]);
 
-    expect(tools.slice(11, 12).map((action) => action.label)).toEqual([
+    expect(tools.slice(10, 11).map((action) => action.label)).toEqual([
       'Perpendicular Line',
     ]);
 
