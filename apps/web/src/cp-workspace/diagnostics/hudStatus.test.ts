@@ -75,11 +75,22 @@ describe('the collapsed HUD subtitle', () => {
 });
 
 describe('tone and count', () => {
-  it('reports errors over warnings', () => {
+  it('names both when errors and warnings are mixed, and keeps the error tone', () => {
+    // The label used to report errors alone, which read as the whole account of
+    // a list that also held warnings — the row count did not match the headline.
     const entries = [violation(1), { ...violation(2), severity: 'warning' }];
     const status = diagnosticHudStatus(t, camv(entries));
     expect(status?.tone).toBe('error');
-    expect(status?.label).toBe('1 Foldability Error');
+    expect(status?.label).toBe('1 Foldability Error, 1 Warning');
+  });
+
+  it('pluralises each clause on its own count', () => {
+    const entries = [
+      violation(1),
+      violation(2),
+      { ...violation(3), severity: 'warning' },
+    ];
+    expect(diagnosticHudStatus(t, camv(entries))?.label).toBe('2 Foldability Errors, 1 Warning');
   });
 
   it('reports a warning-only result as a warning', () => {

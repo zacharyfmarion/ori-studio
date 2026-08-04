@@ -1236,6 +1236,65 @@
   padding: var(--space-3);
 }
 
+/* Share-link dialog. Wider than the default modal because it shows a URL, and a
+   360px field turns even a short link into an unreadable sliver. */
+.share-link-modal {
+  width: min(520px, calc(100vw - var(--space-6)));
+}
+
+.share-link-modal__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.share-link-modal__url {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  /* The payload is one long unbroken token; without this it stretches the flex
+     row instead of scrolling inside it. */
+  text-overflow: ellipsis;
+}
+
+.share-link-modal__meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.share-link-modal__note {
+  margin: 0;
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.share-link-modal__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border-warning, var(--border-default));
+  border-radius: var(--radius-md);
+  background: var(--bg-warning-subtle, var(--bg-primary));
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.share-link-modal__warning svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-warning, var(--text-secondary));
+}
+
 /* Box-Pleat layout optimizer dialog. Wider than the default modal because its
    option labels are full sentences ("Keep widths and heights of flaps"), which
    the shared 72px `.field-row` label column cannot hold. */
@@ -2681,8 +2740,22 @@
   top: var(--space-4);
   right: var(--space-4);
   display: grid;
-  width: min(420px, calc(100% - var(--space-8)));
-  max-width: min(420px, calc(100% - var(--space-8)));
+  /* One number for both states: the cap a collapsed badge may grow to, and the
+     width an expanded panel takes. Sharing it is what stops the badge from
+     being able to come out wider closed than open.
+
+     The gutter is the inset doubled — one on each side — written in terms of the
+     inset above so the two cannot drift apart. It said `var(--space-8)` until
+     the list was windowed; that token does not exist (the scale stops at
+     `--space-6`), so the declaration was invalid at computed-value time and
+     dropped, leaving `max-width: none`. Nothing revealed it while the rows were
+     still in normal flow. */
+  --cp-diagnostic-hud-width: min(360px, calc(100% - var(--space-4) * 2));
+
+  /* Collapsed, the badge is exactly as wide as its headline — no `width`, so an
+     absolutely positioned box shrinks to fit. The cap still applies, so a long
+     headline wraps inside the width instead of running off the canvas. */
+  max-width: var(--cp-diagnostic-hud-width);
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border-strong) 68%, transparent);
   border-radius: 6px;
@@ -2692,6 +2765,13 @@
   font-weight: 760;
   line-height: 1.2;
   text-align: right;
+}
+
+/* Expanded, the width has to be stated. The rows are windowed and therefore out
+   of flow, so they contribute no intrinsic width — left to shrink to fit, the
+   panel would size itself to the headline and wrap every message to two lines. */
+.cp-diagnostic-hud[data-expanded] {
+  width: var(--cp-diagnostic-hud-width);
 }
 
 .cp-diagnostic-hud__summary {
@@ -2731,14 +2811,29 @@
 }
 
 .cp-diagnostic-hud__list {
-  display: grid;
   max-height: min(320px, calc(100vh - 170px));
   overflow: auto;
   border-top: 1px solid var(--border-subtle);
   text-align: left;
+  /* The list is windowed: only the rows near the viewport are in the DOM, so
+     scroll position comes from a spacer of the full height rather than from the
+     rows themselves. See CpDiagnosticHud.tsx.
+
+     `layout paint` only — NOT `strict`/`size`, which would compute this box as
+     if it had no contents and collapse the scroll container to nothing. */
+  contain: layout paint;
+}
+
+/* Full-height spacer; rows are positioned into it by the virtualizer. */
+.cp-diagnostic-hud__spacer {
+  position: relative;
+  width: 100%;
 }
 
 .cp-diagnostic-hud__row {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: grid;
   /* The marker glyph, then the message. The kind column is gone: the HUD header
      already names the check, and the glyph carries which rule failed — see
@@ -2757,8 +2852,20 @@
   text-align: left;
 }
 
-.cp-diagnostic-hud__row + .cp-diagnostic-hud__row {
+/* A border on the row itself, not `.row + .row` and not `:first-child`. Windowed
+   rows are absolutely positioned and only the ones near the viewport exist, so
+   neither sibling order nor "is it the first child" tracks position in the list.
+   The entry's own index does.
+
+   Transparent rather than absent on the first row so every row measures the same
+   height — the virtualizer caches what it measures, and a 1px-shorter row 0
+   would put a permanent 1px skew in the total. */
+.cp-diagnostic-hud__row {
   border-top: 1px solid var(--border-subtle);
+}
+
+.cp-diagnostic-hud__row[data-index='0'] {
+  border-top-color: transparent;
 }
 
 .cp-diagnostic-hud__row:hover,

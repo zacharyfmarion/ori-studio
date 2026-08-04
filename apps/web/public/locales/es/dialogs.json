@@ -254,6 +254,16 @@
       "startup": "Inicio"
     }
   },
+  "shareLink": {
+    "close": "Cerrar compartir",
+    "copied": "Copiado",
+    "copy": "Copiar",
+    "longWarning": "Este enlace funciona en la barra de direcciones del navegador, pero algunas apps de chat y clientes de correo cortan los enlaces tan largos. Enviar un archivo exportado es más fiable.",
+    "scope": "Incluye solo el patrón de pliegues: no las imágenes de referencia, las anotaciones ni las simulaciones guardadas.",
+    "summary": "{{creases}} pliegues · {{chars}} caracteres",
+    "title": "Compartir patrón de pliegues",
+    "url": "Enlace para compartir"
+  },
   "startScreen": {
     "chooseBegin": "Elige cómo quieres empezar.",
     "createCp": {

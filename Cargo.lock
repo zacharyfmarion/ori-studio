@@ -2704,7 +2704,9 @@ dependencies = [
 name = "oristudio-cp"
 version = "0.1.2"
 dependencies = [
+ "crc32fast",
  "encoding_rs",
+ "miniz_oxide",
  "rayon",
  "serde",
  "serde_json",

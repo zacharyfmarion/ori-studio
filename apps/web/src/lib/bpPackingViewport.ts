@@ -537,7 +537,23 @@ export function bpPackingGridLines(
   return lines;
 }
 
-export function getBpPackingWorldRect(packing: OristudioBpPackingView): PlotRect {
+/**
+ * The drawable extent of the packing canvas, which is also what a fit frames.
+ *
+ * `cropToSheet` mirrors the Layers > Outside paper toggle. With the crop on, the
+ * geometry layers are masked to the sheet, so anything hanging past its edge —
+ * most often a corner flap's clearance circle — cannot be drawn and has no
+ * business enlarging the world. Leaving it in is what made a fit after
+ * optimizing zoom out to frame circles nobody can see.
+ *
+ * The flap dots and labels are outside the mask (see `BpPackingPanel`), so they
+ * still count either way.
+ */
+export function getBpPackingWorldRect(
+  packing: OristudioBpPackingView,
+  options: { cropToSheet?: boolean } = {}
+): PlotRect {
+  const cropToSheet = options.cropToSheet === true;
   const paperRect = bpPackingPaperRect(packing.sheet);
   const shadowRect = bpPackingShadowRect(packing.sheet);
   const bounds: Bounds = {
@@ -556,13 +572,28 @@ export function getBpPackingWorldRect(packing: OristudioBpPackingView): PlotRect
       packing.sheet,
       paperRect
     );
-    includeRect(bounds, rect);
+    // The body is masked when cropping; whatever of it shows is inside the
+    // sheet, which is already in the bounds. Its dot and label are not masked.
+    if (cropToSheet) {
+      includePoints(bounds, [{ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }]);
+    } else {
+      includeRect(bounds, rect);
+    }
     includeRect(bounds, {
       x: rect.x + rect.width / 2 + 8,
       y: rect.y + rect.height / 2 - LABEL_HEIGHT / 2,
       width: labelWidth(flap.name || String(flap.id), 8),
       height: LABEL_HEIGHT,
     });
+  }
+
+  if (cropToSheet) {
+    return {
+      x: bounds.minX - WORLD_PADDING,
+      y: bounds.minY - WORLD_PADDING,
+      width: bounds.maxX - bounds.minX + WORLD_PADDING * 2,
+      height: bounds.maxY - bounds.minY + WORLD_PADDING * 2,
+    };
   }
 
   for (const junction of packing.invalidJunctions) {

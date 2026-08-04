@@ -231,8 +231,6 @@ const GHOST_ALPHA = 0.55;
     they win only on a tighter radius than the fatter line tolerance. */
 const HIT_TOLERANCE_CSS = 8;
 const POINT_HIT_TOLERANCE_CSS = 6;
-/** Click radius (CSS px) for selecting a diagnostic marker (≈ its ~10px half-extent). */
-const DIAGNOSTIC_HIT_CSS = 12;
 const CLICK_MOVE_THRESHOLD = 4;
 /** Move-drag snap radius (CSS px): how close an anchor must be to a target. */
 const SNAP_TOLERANCE_CSS = 10;
@@ -649,13 +647,6 @@ export interface CreasePatternWebglCanvasProps {
   diagnosticWedges: WedgeGeometry;
   /** The Oriedita operation-frame outline (dashed closed loop), or null when inactive. */
   operationFrame: StrokeGeometry | null;
-  /**
-   * Diagnostic markers as {id, model point} for click hit-testing — clicking a
-   * marker in select mode selects that diagnostic (frames + highlights it), like the
-   * SVG marker's own click handler. Parallel to {@link diagnosticMarkers} (render).
-   */
-  diagnosticHits: readonly { id: string; point: ModelPoint }[];
-  onSelectDiagnostic: (id: string) => void;
   /** Report the camera's current zoom percent (100% = fit) so the toolbar reflects it. */
   onZoomPercentChange: (percent: number) => void;
   /** Current view rotation in radians, so the toolbar can show and clear it. */
@@ -804,8 +795,6 @@ export function CreasePatternWebglCanvas({
   diagnosticStrokes,
   diagnosticWedges,
   operationFrame,
-  diagnosticHits,
-  onSelectDiagnostic,
   onZoomPercentChange,
   onRotationChange,
   onViewChange,
@@ -1278,8 +1267,6 @@ export function CreasePatternWebglCanvas({
     onEraseLine,
     onEraseCircle,
     onRequestContextMenu,
-    diagnosticHits,
-    onSelectDiagnostic,
   };
   const liveRef = useRef(live);
   useEffect(() => {
@@ -1633,21 +1620,6 @@ export function CreasePatternWebglCanvas({
 
     // The id of the diagnostic marker under a model point, if any (nearest within a
     // screen-constant radius). Markers are screen-sized, so the tolerance is CSS px.
-    const diagnosticIdAt = (m: ModelPoint): string | null => {
-      const hits = liveRef.current.diagnosticHits;
-      if (hits.length === 0) return null;
-      let bestId: string | null = null;
-      let bestDist = modelToleranceOf(DIAGNOSTIC_HIT_CSS);
-      for (const hit of hits) {
-        const d = Math.hypot(hit.point.x - m.x, hit.point.y - m.y);
-        if (d <= bestDist) {
-          bestDist = d;
-          bestId = hit.id;
-        }
-      }
-      return bestId;
-    };
-
     // Pick the primitive under the cursor. Points win only on a tight radius
     // (small precise targets) so a click near one still lets you grab the crease;
     // circles match near their ring. Vertices are derived and not pickable.
@@ -2650,16 +2622,10 @@ export function CreasePatternWebglCanvas({
         // A plain drag that starts on an already-selected crease moves the whole
         // line selection; otherwise it selects (click or marquee).
         const m = clientToModel(e.clientX, e.clientY);
-        // A press on a diagnostic marker selects that diagnostic (frames + highlights
-        // it), like the SVG marker's own click. Markers sit on top, so check first.
-        const diagId = m ? diagnosticIdAt(m) : null;
         const lineId = m
           ? liveRef.current.hitIndex.query(m.x, m.y, modelToleranceOf(HIT_TOLERANCE_CSS))
           : -1;
-        if (diagId) {
-          e.preventDefault();
-          liveRef.current.onSelectDiagnostic(diagId);
-        } else if (m && lineId > 0 && liveRef.current.selectedLineSet.has(lineId)) {
+        if (m && lineId > 0 && liveRef.current.selectedLineSet.has(lineId)) {
           e.preventDefault();
           movingSelection = true;
           moveStart = m;

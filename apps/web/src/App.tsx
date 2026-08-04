@@ -10,6 +10,7 @@ import { OverlayErrorBoundary } from './components/errors/OverlayErrorBoundary';
 import { GlobalToasts } from './components/GlobalToasts';
 import { HelpModal } from './components/HelpModal';
 import { SelectByIndexModal } from './components/SelectByIndexModal';
+import { ShareLinkModal } from './cp-workspace/share/ShareLinkModal';
 import { SettingsModal } from './components/SettingsModal';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
@@ -155,6 +156,7 @@ export default function App() {
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="select-by-index">
         <SelectByIndexModal />
+        <ShareLinkModal />
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="cp-detect-import">
         <CpDetectImportModal />

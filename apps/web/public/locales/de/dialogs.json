@@ -249,6 +249,16 @@
       "startup": "Start"
     }
   },
+  "shareLink": {
+    "close": "Teilen schließen",
+    "copied": "Kopiert",
+    "copy": "Kopieren",
+    "longWarning": "Dieser Link funktioniert in der Adressleiste eines Browsers, aber manche Chat-Apps und E-Mail-Programme kürzen so lange Links. Eine exportierte Datei zu senden ist zuverlässiger.",
+    "scope": "Enthält nur das Faltmuster – keine Referenzbilder, Anmerkungen oder gespeicherten Simulationen.",
+    "summary": "{{creases}} Falten · {{chars}} Zeichen",
+    "title": "Faltmuster teilen",
+    "url": "Link zum Teilen"
+  },
   "startScreen": {
     "chooseBegin": "Wählen Sie, wie Sie beginnen möchten.",
     "createCp": {

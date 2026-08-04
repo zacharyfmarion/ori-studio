@@ -34,6 +34,10 @@
   "global": {
     "title": "Something went wrong in the background"
   },
+  "shareLink": {
+    "invalid": "That share link is incomplete or damaged — it was probably cut short when it was copied. Ask for it again.",
+    "tooNew": "That share link was made with a newer version of Ori Studio. Reload to get the latest version, then open it again."
+  },
   "worker": {
     "cpDetect": "Crease-pattern detection stopped unexpectedly. Try importing the image again.",
     "oristudioBp": "The box-pleating engine stopped unexpectedly. Reload Ori Studio to continue working on this design.",
