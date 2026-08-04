@@ -1,6 +1,6 @@
 import { useLayoutStore } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
+import { designLayoutVariant } from '../store/workspaceStore/designVariant';
 import { workspacePath } from './paths';
 import type { WorkspaceId } from '../workspaces/workspaces';
 
@@ -18,7 +18,7 @@ import type { WorkspaceId } from '../workspaces/workspaces';
  */
 export function pathForWorkspace(workspace: WorkspaceId): string {
   if (workspace === 'design') {
-    return workspacePath('design', deriveDesignVariant(useWorkspaceStore.getState()));
+    return workspacePath('design', designLayoutVariant(useWorkspaceStore.getState().designMethod));
   }
   return workspacePath(workspace);
 }

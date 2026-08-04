@@ -2,15 +2,22 @@ import type { WorkflowTarget } from '../../lib/sampleProject';
 import type { DesignLayoutVariant } from '../layoutStore';
 
 /**
- * Derive the Design workspace layout variant from the design state. A pending
- * method choice shows the NUX chooser; otherwise the workflow target selects the
- * TreeMaker or box-pleat layout. Single source of truth for both the layout
- * store's variant lookup and the URL sync.
+ * Which method the Design workspace is authoring with, or `'none'` when the user
+ * has not picked one and the method chooser is what Design should show.
+ *
+ * One field, because the two it replaced — `pendingDesignChoice` plus
+ * `workflowTarget` — could contradict each other. "No method chosen" while a
+ * box-pleat design is loaded was a representable state, and reaching it (by
+ * routing to bare `/design`) put the chooser on top of a design that was already
+ * open, where picking a method replaced it with a blank one. A single field with
+ * three states cannot express that.
  */
-export function deriveDesignVariant(input: {
-  pendingDesignChoice: boolean;
-  workflowTarget: WorkflowTarget;
-}): DesignLayoutVariant {
-  if (input.pendingDesignChoice) return 'nux';
-  return input.workflowTarget === 'box-pleat' ? 'box-pleat' : 'treemaker';
+export type DesignMethod = WorkflowTarget | 'none';
+
+/**
+ * The Design layout variant for a method. Total, and takes the one field, so it
+ * cannot disagree with the state it describes.
+ */
+export function designLayoutVariant(method: DesignMethod): DesignLayoutVariant {
+  return method === 'none' ? 'nux' : method;
 }

@@ -33,7 +33,7 @@ import { getRuntimeSurface } from '../platform/runtime';
 import { applyDefaultLayout, clearPersistedLayout, useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
+import { designLayoutVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import { pathForWorkspace } from '../routing/landing';
 import { parseWorkspacePath } from '../routing/paths';
@@ -243,11 +243,10 @@ function FixedDockTab(props: IDockviewPanelHeaderProps) {
  */
 function DesignWorkspaceFooter() {
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
-  const pendingDesignChoice = useWorkspaceStore((state) => state.pendingDesignChoice);
-  const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
+  const designMethod = useWorkspaceStore((state) => state.designMethod);
 
   if (activeWorkspace !== 'design') return null;
-  const variant = deriveDesignVariant({ pendingDesignChoice, workflowTarget });
+  const variant = designLayoutVariant(designMethod);
   if (variant !== 'box-pleat') return null;
   return <DesignAttributionFooter method="bp" />;
 }

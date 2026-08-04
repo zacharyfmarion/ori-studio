@@ -769,8 +769,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // `setLoadedBpProject`): this file's tree *is* the design now, so a
       // box-pleat design left over from the previous file must not stay loaded
       // and must not keep naming the Design layout variant.
-      workflowTarget: 'treemaker',
-      pendingDesignChoice: false,
+      designMethod: 'treemaker',
       oristudioBpDocument: null,
       oristudioBpWorkspace: null,
     });
@@ -923,8 +922,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // report the activated panel (which never fires in headless tests).
       activePanelId: oristudioCpDocument ? 'crease-pattern' : 'design',
       // A bare crease pattern establishes no design, so the Design workspace
-      // should still offer the method chooser rather than an empty tree.
-      pendingDesignChoice: true,
+      // should still offer the method chooser rather than an empty tree — and
+      // the previous file's box-pleat design must not stay loaded behind it,
+      // which would leave "no method chosen" sitting beside a live design. Same
+      // claim `loadText` makes for a tree: an open replaces the project.
+      designMethod: 'none',
+      oristudioBpDocument: null,
+      oristudioBpWorkspace: null,
       project: result.project,
       importedCreasePattern: result.document,
       oristudioCpDocument,
@@ -1108,7 +1112,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // Opening a crease pattern makes the CP editor the active view.
       activePanelId: 'crease-pattern',
       // A CP-only project establishes no design; keep the Design chooser.
-      pendingDesignChoice: true,
+      designMethod: 'none',
       project: { ...result.project, title: nativeDocument.title || result.project.title },
       importedCreasePattern: importedDocument,
       currentFileName: source.filename,
@@ -1556,8 +1560,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
   return {
     project: createEmptyProject(),
-    workflowTarget: 'treemaker',
-    pendingDesignChoice: false,
+    // The exact translation of the pair this replaced, whose initial state was
+    // `pendingDesignChoice: false` + `workflowTarget: 'treemaker'`. The paths that
+    // genuinely establish no design — a bare crease pattern, File › New, and
+    // `startNewDesign` — set `'none'` explicitly.
+    designMethod: 'treemaker',
     projectEstablished: false,
     activePanelId: null,
     activeEditingContext: 'treemaker-tree',
@@ -1668,8 +1675,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         set({
           ...projectStateFromSnapshot(snapshot, 'Untitled'),
           activePanelId: 'design',
-          workflowTarget: 'treemaker',
-          pendingDesignChoice: false,
+          designMethod: 'treemaker',
           oristudioBpDocument: null,
           oristudioBpWorkspace: null,
           nativeProjectExtensions: {},
@@ -1753,10 +1759,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           ...freshEditableCpState(documentState, get()),
           // File › New additionally discards the whole project back to a bare CP:
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
-          workflowTarget: 'treemaker',
           // Creating a bare CP establishes no design, so the Design workspace
           // keeps offering the method chooser (Circle-packed vs Box-pleated).
-          pendingDesignChoice: true,
+          designMethod: 'none',
           importedCreasePattern: null,
           currentFileName: defaultNativeFilename(documentState.summary.title ?? 'Untitled CP'),
           currentFilePath: null,
@@ -1777,7 +1782,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     loadProjectText: async (text, source) => {
-      set({ pendingDesignChoice: false });
       try {
         await loadText(text, source);
         applyLandingWorkspace();
@@ -1787,7 +1791,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     loadCreasePatternText: async (text, source) => {
-      set({ pendingDesignChoice: false });
       try {
         await loadCreasePattern(text, source);
         applyLandingWorkspace();
@@ -2101,7 +2104,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
         return false;
       }
-      set({ pendingDesignChoice: false });
       let openedSourceLength = 0;
       try {
         const file = await fileService.openTextFile({
@@ -2640,36 +2642,28 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     clearProjectMessage: () => set({ projectMessage: null }),
     setActivePanelId: (id) => set({ activePanelId: id }),
-    setWorkflowTarget: (target) => {
-      if (get().workflowTarget === target) return;
-      set({ workflowTarget: target });
-      // The Design layout variant follows the method, so rebuild it if needed.
-      useLayoutStore.getState().ensureDesignLayout();
-    },
 
     startNewDesign: () => {
-      // Enter the Design workspace on the NUX chooser; no document is created
-      // until the user picks Circle-packed or Box-pleated.
-      set({ pendingDesignChoice: true, error: null, projectMessage: null });
+      // Enter the Design workspace on the method chooser; no document is created
+      // until the user picks Circle-packed or Box-pleated. The one caller that
+      // legitimately clears the method — everything else only ever sets a real
+      // one, so no route or loader can put the chooser over a live design.
+      set({ designMethod: 'none', error: null, projectMessage: null });
       useLayoutStore.getState().activateWorkspace('design');
       useLayoutStore.getState().ensureDesignLayout();
     },
 
     applyDesignRoute: (variant) => {
-      // Reflect the Design sub-route into the variant fields. Layout rebuild and
-      // document provisioning are the caller's concern (WorkspaceRoute).
-      const state = get();
-      if (variant === 'nux') {
-        if (!state.pendingDesignChoice) set({ pendingDesignChoice: true });
-      } else if (variant === 'box-pleat') {
-        if (state.pendingDesignChoice || state.workflowTarget !== 'box-pleat') {
-          set({ pendingDesignChoice: false, workflowTarget: 'box-pleat' });
-        }
-      } else {
-        if (state.pendingDesignChoice || state.workflowTarget !== 'treemaker') {
-          set({ pendingDesignChoice: false, workflowTarget: 'treemaker' });
-        }
-      }
+      // Reflect a Design sub-route into the method. Layout rebuild and document
+      // provisioning are the caller's concern (WorkspaceRoute).
+      //
+      // `nux` writes nothing: bare `/design` is where the chooser lives, not an
+      // instruction to discard the method. It used to force
+      // `pendingDesignChoice: true`, which is how landing there replaced a design
+      // that had just loaded with the chooser. `/design` now redirects to the
+      // active method's sub-route instead, and only `startNewDesign` clears it.
+      if (variant === 'nux') return;
+      if (get().designMethod !== variant) set({ designMethod: variant });
     },
 
     chooseDesignMethod: async (target) => {

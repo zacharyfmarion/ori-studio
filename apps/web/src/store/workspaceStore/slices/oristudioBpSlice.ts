@@ -169,8 +169,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       : null;
     pendingHistory = null;
     set({
-      workflowTarget: 'box-pleat',
-      pendingDesignChoice: false,
+      designMethod: 'box-pleat',
       // Every entry point but the design-method chooser replaces the open
       // document: the Edit canvas, the tree, and everything derived from them.
       // The chooser instead layers a BP design onto the project already being
