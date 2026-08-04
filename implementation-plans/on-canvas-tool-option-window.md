@@ -47,14 +47,20 @@ it is "give the tools that cannot point at their answers somewhere to show them"
 ### The shape
 
 ```
-  ‹  2 of 3  ›   Apply  Cancel        controls — fixed size, on the top edge
-┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
-│        the actual creases,    │    transparent frame around the region
-│        drawn as the chosen    │    the chosen answer would change
-│        answer would leave     │
-│        them                   │
-└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+┌───────────────────────────────────────────┐
+│           ‹  2 of 3  ›   Apply   Cancel   │  header, attached and right-pinned
+├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┤
+│                                           │  transparent frame around the
+│        the actual creases, drawn as       │  region the chosen answer would
+│        the chosen answer would leave      │  change
+│        them                               │
+└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
 ```
+
+The header **shares the frame's top edge** rather than floating above it, and is
+pinned to its right. Both matter for the same reason: on a pattern with several
+vertices the only thing the controls say is *which* region they belong to, and a
+detached toolbar stops saying it.
 
 **Built as a list first, and that was wrong.** Listing the affected creases with
 their before and after angles was redundant twice over: the creases are already
@@ -82,13 +88,21 @@ All **four** corners are projected, not two: the view can be rotated, and a box
 built from min/max alone would then be the wrong rectangle — cutting the geometry
 on one diagonal.
 
-The **controls** are chrome. Scaling them with the camera is what
+The **header** is chrome. Scaling it with the camera is what
 `InlineSimulationLayer` deliberately avoids for its badge, and for the reason
 that applies doubly here: text that stayed legible at 10% zoom would fill the
-viewport at 800%. They are a fixed-size block positioned against the frame's top
-edge, above it where there is room and inside it where there is not — never
-below, because below covers whatever is outside the frame while inside overlaps
-only what the user is already looking at.
+viewport at 800%. It is a fixed-height bar attached to the frame's top edge —
+above it where there is room and just inside it where there is not, never below,
+because below covers whatever is outside the frame while inside overlaps only
+what the user is already looking at.
+
+It spans a wide frame (`min-width: 100%`) and outgrows a narrow one leftward
+(`width: max-content`), so its right edge is always the frame's. **It is not
+clamped horizontally**: panning the framed geometry off screen takes the controls
+with it. That is the price of attachment and it is the right one — a toolbar that
+detached and slid along the viewport edge would stop identifying its region. The
+keyboard path is unaffected, since Escape, the arrows and Enter all dispatch
+focus-independently.
 
 Both rules are pure functions, unit tested, including the rotated-view case and
 the minimum frame size that keeps three short creases at low zoom from

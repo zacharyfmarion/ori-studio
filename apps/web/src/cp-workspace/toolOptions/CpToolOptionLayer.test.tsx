@@ -73,25 +73,37 @@ describe('CpToolOptionLayer', () => {
     // content, so a window that also spelled them out in words would say the
     // same thing twice while covering the canvas.
     render(option());
-    const frame = host.querySelector<HTMLElement>('.cp-tool-option__frame');
-    expect(frame).not.toBeNull();
+    const window = host.querySelector<HTMLElement>('.cp-tool-option');
+    expect(host.querySelector('.cp-tool-option__frame')).not.toBeNull();
     expect(host.querySelector('.cp-tool-option__rows')).toBeNull();
     // Encloses the bounds, with the padding outside them.
-    expect(frame!.style.transform).toMatch(/translate\(4px, 4px\)/);
-    expect(frame!.style.width).toBe('132px');
-    expect(frame!.style.height).toBe('102px');
+    expect(window!.style.transform).toMatch(/translate\(4px, 4px\)/);
+    expect(window!.style.width).toBe('132px');
+    expect(window!.style.height).toBe('102px');
+  });
+
+  it('attaches the header to the frame rather than floating it nearby', () => {
+    // One window, not a toolbar that happens to be close: the header is a child
+    // of the framed box, offset by exactly its own height so they share an edge.
+    render(option());
+    const window = host.querySelector<HTMLElement>('.cp-tool-option')!;
+    const header = host.querySelector<HTMLElement>('.cp-tool-option__header')!;
+    expect(header.parentElement).toBe(window);
+    // jsdom measures the header at zero height, so the offset is 0 — what
+    // matters here is that it is expressed relative to the frame at all.
+    expect(header.style.top).toBe('0px');
   });
 
   it('leaves the framed region clickable', () => {
     // The frame surrounds creases you may still want to draw over; only the
-    // controls take pointer events.
+    // header takes pointer events.
     render(option());
     const layer = host.querySelector<HTMLElement>('.cp-tool-option-layer');
-    const frame = host.querySelector<HTMLElement>('.cp-tool-option__frame');
-    const chrome = host.querySelector<HTMLElement>('.cp-tool-option__chrome');
+    const window = host.querySelector<HTMLElement>('.cp-tool-option');
+    const header = host.querySelector<HTMLElement>('.cp-tool-option__header');
     expect(layer!.style.pointerEvents).toBe('none');
-    expect(frame!.style.pointerEvents).toBe('none');
-    expect(chrome!.style.pointerEvents).toBe('auto');
+    expect(window!.style.pointerEvents).toBe('none');
+    expect(header!.style.pointerEvents).toBe('auto');
   });
 
   it('steps and applies through the descriptor', () => {
@@ -127,9 +139,9 @@ describe('CpToolOptionLayer', () => {
     );
   });
 
-  it('resizes the frame with the camera but not the controls', () => {
+  it('resizes the frame with the camera but not the header', () => {
     render(option());
-    const width = () => host.querySelector<HTMLElement>('.cp-tool-option__frame')!.style.width;
+    const width = () => host.querySelector<HTMLElement>('.cp-tool-option')!.style.width;
     const before = width();
     act(() => {
       cpOverlayViewStore.set({
@@ -138,10 +150,10 @@ describe('CpToolOptionLayer', () => {
       });
     });
     expect(Number.parseFloat(width())).toBeGreaterThan(Number.parseFloat(before));
-    // The controls are a plain block with no camera-derived size at all — the
+    // The header is a plain block with no camera-derived size at all — the
     // mistake this whole split exists to avoid.
-    const chrome = host.querySelector<HTMLElement>('.cp-tool-option__chrome')!;
-    expect(chrome.style.width).toBe('');
-    expect(chrome.style.transform).not.toContain('scale');
+    const header = host.querySelector<HTMLElement>('.cp-tool-option__header')!;
+    expect(header.style.width).toBe('');
+    expect(header.style.transform).toBe('');
   });
 });

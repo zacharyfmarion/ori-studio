@@ -43,10 +43,7 @@ export const FRAME_PADDING_CSS = 16;
  */
 const MIN_FRAME_CSS = 48;
 
-/** Gap between the frame's top edge and the controls above it, in CSS px. */
-const CHROME_GAP_CSS = 6;
-
-/** How close the controls may come to the viewport edge, in CSS px. */
+/** How close the header may come to the top of the viewport, in CSS px. */
 const VIEWPORT_MARGIN_CSS = 8;
 
 /**
@@ -86,32 +83,33 @@ export function toolOptionFrame(view: CpOverlayView, bounds: CpToolOptionBounds)
 }
 
 /**
- * Where the controls go, given the frame they belong to.
+ * Where the header sits relative to the frame's top edge, in CSS px.
  *
- * Above the frame's top-left by default — a title bar, and out of the way of the
- * geometry the frame is showing. When there is no room above, they drop *inside*
- * the frame's top edge rather than below it: below would put them over whatever
- * is beneath the frame, and inside at least overlaps only the region the user is
- * already looking at.
+ * `-height` puts it above the frame — a title bar, attached along the frame's
+ * top edge and out of the way of the geometry inside. `0` puts it just inside
+ * that edge, for when the frame is against the top of the viewport and there is
+ * no room above.
+ *
+ * Never *below* the frame: below would cover whatever is outside it, while
+ * inside overlaps only the region the user is already looking at. And never
+ * detached — the header shares the frame's edge either way, so the two read as
+ * one window rather than as a floating toolbar that happens to be nearby.
+ *
+ * # The header is not clamped horizontally
+ *
+ * It is pinned to the frame's right edge, so panning the framed geometry off
+ * screen takes the controls with it. That is the price of attachment and it is
+ * the right one: a toolbar that detached and slid along the viewport edge would
+ * stop saying *which* region it belongs to, which on a pattern with several
+ * vertices is the only thing it is saying. Escape, the arrows and Enter all
+ * dispatch focus-independently, so the tool stays operable either way.
  */
-export function toolOptionChromePlacement(
+export function toolOptionHeaderOffset(
   frame: Box,
-  chrome: Size,
+  headerHeight: number,
   viewport: Size
-): { left: number; top: number } {
-  const above = frame.top - CHROME_GAP_CSS - chrome.height;
-  const inside = frame.top + CHROME_GAP_CSS;
-  const top = above >= VIEWPORT_MARGIN_CSS ? above : inside;
-  const highest = Math.max(
-    VIEWPORT_MARGIN_CSS,
-    viewport.height - chrome.height - VIEWPORT_MARGIN_CSS
-  );
-  const rightmost = Math.max(
-    VIEWPORT_MARGIN_CSS,
-    viewport.width - chrome.width - VIEWPORT_MARGIN_CSS
-  );
-  return {
-    left: Math.min(Math.max(frame.left, VIEWPORT_MARGIN_CSS), rightmost),
-    top: Math.min(Math.max(top, VIEWPORT_MARGIN_CSS), highest),
-  };
+): number {
+  const above = frame.top - headerHeight;
+  const fitsAbove = above >= VIEWPORT_MARGIN_CSS && above + headerHeight <= viewport.height;
+  return fitsAbove ? -headerHeight : 0;
 }

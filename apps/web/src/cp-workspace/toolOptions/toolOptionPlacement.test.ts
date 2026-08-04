@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import {
   FRAME_PADDING_CSS,
-  toolOptionChromePlacement,
   toolOptionFrame,
+  toolOptionHeaderOffset,
 } from './toolOptionPlacement';
 import { boundsOfPoints } from './toolOptionWindow';
 
@@ -58,53 +58,42 @@ describe('toolOptionFrame', () => {
   });
 });
 
-describe('toolOptionChromePlacement', () => {
+describe('toolOptionHeaderOffset', () => {
   const viewport = { width: 1000, height: 800 };
-  const chrome = { width: 220, height: 30 };
+  const HEADER = 30;
 
-  it('sits above the frame, aligned to its left edge', () => {
-    const at = toolOptionChromePlacement(
+  it('sits on top of the frame, attached to its edge', () => {
+    // Not floating near it: the offset is exactly the header's own height, so
+    // the two share an edge and read as one window.
+    const offset = toolOptionHeaderOffset(
       { left: 200, top: 300, width: 400, height: 200 },
-      chrome,
+      HEADER,
       viewport
     );
-    expect(at.left).toBe(200);
-    expect(at.top).toBeLessThan(300);
+    expect(offset).toBe(-HEADER);
   });
 
-  it('drops inside the frame when there is no room above', () => {
-    // Not below: below would cover whatever is beneath the frame, while inside
-    // overlaps only the region the user is already looking at.
-    const frame = { left: 200, top: 4, width: 400, height: 300 };
-    const at = toolOptionChromePlacement(frame, chrome, viewport);
-    expect(at.top).toBeGreaterThanOrEqual(frame.top);
-    expect(at.top).toBeLessThan(frame.top + frame.height);
-  });
-
-  it('stays inside the viewport when the frame runs off the right', () => {
-    const at = toolOptionChromePlacement(
-      { left: 950, top: 300, width: 400, height: 200 },
-      chrome,
+  it('drops just inside the frame when there is no room above', () => {
+    // Not below: below would cover whatever is outside the frame, while inside
+    // overlaps only the region the user is already looking at. Still attached
+    // to the same edge either way.
+    const offset = toolOptionHeaderOffset(
+      { left: 200, top: 4, width: 400, height: 300 },
+      HEADER,
       viewport
     );
-    expect(at.left + chrome.width).toBeLessThanOrEqual(viewport.width);
+    expect(offset).toBe(0);
   });
 
-  it('follows the frame without inheriting its scale', () => {
-    // Chrome, not content: text that stayed legible at 10% zoom would fill the
-    // viewport at 800%. It tracks the frame's corner and nothing else — the
-    // frame's *size* is the camera's business, the controls' size is not.
-    const offset: [number, number] = [200, 200];
-    const near = toolOptionFrame(view(1, offset), BOUNDS);
-    const far = toolOptionFrame(view(4, offset), BOUNDS);
+  it('does not scale with the camera', () => {
+    // Chrome, not content: a header that grew with the zoom would fill the
+    // viewport at 800%. Only the frame it is attached to scales.
+    const near = toolOptionFrame(view(1, [200, 200]), BOUNDS);
+    const far = toolOptionFrame(view(4, [200, 200]), BOUNDS);
     expect(far.width).toBeGreaterThan(near.width);
-
-    const nearChrome = toolOptionChromePlacement(near, chrome, viewport);
-    const farChrome = toolOptionChromePlacement(far, chrome, viewport);
-    // Same corner, same offsets, at both scales — nothing about the placement
-    // reads the zoom.
-    expect(nearChrome.left - near.left).toBe(farChrome.left - far.left);
-    expect(nearChrome.top - near.top).toBe(farChrome.top - far.top);
+    expect(toolOptionHeaderOffset(near, HEADER, viewport)).toBe(
+      toolOptionHeaderOffset(far, HEADER, viewport)
+    );
   });
 });
 

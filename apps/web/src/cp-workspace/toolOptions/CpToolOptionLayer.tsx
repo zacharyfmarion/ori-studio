@@ -12,7 +12,12 @@
  * zoom without re-rendering the (very large) panel. The frame scales with the
  * camera and the controls do not; see {@link toolOptionPlacement}.
  *
- * The layer and the frame are `pointer-events: none` — only the controls take
+ * The header is **attached** to the frame's top edge and pinned to its right,
+ * so the two read as one window rather than as a toolbar that happens to be
+ * nearby — which matters on a pattern with several vertices, where the only
+ * thing the controls say is *which* region they belong to.
+ *
+ * The layer and the frame are `pointer-events: none` — only the header takes
  * them — so drawing a crease inside the framed region still works.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -22,11 +27,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCpOverlayView } from '../cpOverlayViewStore';
 import { Button } from '../../components/ui/Button';
 import type { CpToolOptionWindow } from './toolOptionWindow';
-import {
-  toolOptionChromePlacement,
-  toolOptionFrame,
-  type Size,
-} from './toolOptionPlacement';
+import { toolOptionFrame, toolOptionHeaderOffset, type Size } from './toolOptionPlacement';
 
 export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | null }) {
   const { t } = useTranslation(['tools', 'common']);
@@ -75,8 +76,8 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
   if (!option || !view) return null;
 
   const frame = toolOptionFrame(view, option.bounds);
-  const chrome =
-    chromeSize && viewport ? toolOptionChromePlacement(frame, chromeSize, viewport) : null;
+  const headerTop =
+    chromeSize && viewport ? toolOptionHeaderOffset(frame, chromeSize.height, viewport) : null;
 
   return (
     <div
@@ -93,38 +94,37 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
       }}
     >
       <div
-        className="cp-tool-option__frame"
+        className="cp-tool-option"
         style={{
           position: 'absolute',
           left: 0,
           top: 0,
           width: `${frame.width}px`,
           height: `${frame.height}px`,
-          // Inline, next to the layer's and the controls', because this is
+          // Inline, alongside the layer's and the header's, because this is
           // behaviour rather than styling: a frame that swallowed clicks would
           // stop you drawing inside the very region it is drawing attention to.
           pointerEvents: 'none',
           transform: `translate(${frame.left}px, ${frame.top}px)`,
         }}
-        aria-hidden
-      />
-      <div
-        ref={chromeRef}
-        className="cp-tool-option__chrome"
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          pointerEvents: 'auto',
-          // Hidden for the single frame before the measurement lands, so it is
-          // never seen at the unplaced origin.
-          visibility: chrome ? 'visible' : 'hidden',
-          transform: `translate(${chrome?.left ?? 0}px, ${chrome?.top ?? 0}px)`,
-        }}
-        role="group"
-        aria-label={option.title}
       >
-        <div className="cp-tool-option__header">
+        <div className="cp-tool-option__frame" aria-hidden />
+        <div
+          ref={chromeRef}
+          className="cp-tool-option__header"
+          style={{
+            // `right: 0` in CSS pins it to the frame's right edge; this is the
+            // only part that varies. `-height` sits it on top of the frame,
+            // `0` just inside when there is no room above.
+            top: `${headerTop ?? 0}px`,
+            pointerEvents: 'auto',
+            // Hidden for the single frame before the measurement lands, so it
+            // is never seen at the unplaced offset.
+            visibility: headerTop == null ? 'hidden' : 'visible',
+          }}
+          role="group"
+          aria-label={option.title}
+        >
           {option.count > 1 ? (
             <div className="cp-tool-option__stepper">
               <Button
