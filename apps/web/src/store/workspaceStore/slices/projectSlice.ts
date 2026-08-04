@@ -26,6 +26,7 @@ import {
 } from '../../../lib/creaseSegmentExport';
 import {
   createCpShare,
+  MIN_CARD_BYTES,
   rememberAuthor,
   uploadCpShareThumbnail,
 } from '../../../cp-workspace/share/cpShareService';
@@ -2480,6 +2481,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           try {
             const png = await renderCard();
             if (!png) return;
+            // Upload is write-once, so a blank card would be permanent. Better to fall back
+            // to the generic one, which the Worker serves whenever R2 has nothing.
+            if (png.byteLength < MIN_CARD_BYTES) {
+              console.warn('[share] preview card looks blank, keeping the default', {
+                bytes: png.byteLength,
+              });
+              return;
+            }
             await uploadCpShareThumbnail(
               created.id,
               new Blob([png as BlobPart], { type: 'image/png' }),

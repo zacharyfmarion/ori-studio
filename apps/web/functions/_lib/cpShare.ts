@@ -96,6 +96,21 @@ export const MAX_THUMBNAIL_BYTES = 512 * 1024;
 export const MAX_TITLE_CHARS = 100;
 export const MAX_AUTHOR_CHARS = 60;
 
+/** The eight bytes every PNG starts with. */
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+/**
+ * Whether these bytes really are a PNG.
+ *
+ * The upload endpoint stores what it is given and serves it back from our own origin, so
+ * `Content-Type: image/png` being a header the client chose is not good enough.
+ */
+export function isPng(bytes: ArrayBuffer): boolean {
+  if (bytes.byteLength < PNG_SIGNATURE.length) return false;
+  const head = new Uint8Array(bytes, 0, PNG_SIGNATURE.length);
+  return PNG_SIGNATURE.every((byte, index) => head[index] === byte);
+}
+
 export function json(data: unknown, init: ResponseInit = {}): Response {
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json; charset=utf-8');

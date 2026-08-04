@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generate `apps/web/public/og-default.png` — the 1200x630 card served whenever a share
+ * Generate `apps/web/public/og-default.png` — the fallback card served whenever a share
  * has no preview image: not uploaded yet, upload failed, or expired from R2 after a year.
  *
  * Written as a script rather than a checked-in binary blob nobody can regenerate. It draws
@@ -16,8 +16,10 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const WIDTH = 1200;
-const HEIGHT = 630;
+// Must equal SHARE_CARD_WIDTH/HEIGHT in apps/web/src/lib/creaseExport.ts — the fallback
+// should be the same surface as the cards it stands in for, and a test pins the two.
+const WIDTH = 1000;
+const HEIGHT = 525;
 
 // CREASE_EXPORT_PALETTES.light
 const CANVAS = [0xff, 0xff, 0xff];
@@ -27,7 +29,7 @@ const VALLEY = [0x60, 0xa5, 0xfa];
 const BORDER = [0x11, 0x14, 0x17];
 
 /** Square sheet, centred, with a margin that matches the export's visual weight. */
-const SHEET = 470;
+const SHEET = 400;
 const ORIGIN_X = (WIDTH - SHEET) / 2;
 const ORIGIN_Y = (HEIGHT - SHEET) / 2;
 

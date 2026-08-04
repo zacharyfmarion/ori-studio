@@ -7,6 +7,7 @@ import {
   escapeJsonForScript,
   enforceRateLimit,
   hashToken,
+  isPng,
   isValidShareId,
   MAX_PAYLOAD_BYTES,
   randomShareId,
@@ -299,6 +300,10 @@ describe('thumbnail endpoint', () => {
     ).json()) as { id: string; thumbnailUploadToken: string };
   }
 
+  /** A real 8-byte PNG signature; the endpoint checks it, so a shorter stub is rejected. */
+  const PNG_HEAD = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const pngBytes = (extra = 0) => new Uint8Array([...PNG_HEAD, ...new Array(extra).fill(0)]);
+
   function putRequest(id: string, token: string, bytes: Uint8Array): Request {
     return new Request(`https://oristudio.pages.dev/api/cp/${id}/thumbnail`, {
       method: 'PUT',
@@ -310,7 +315,7 @@ describe('thumbnail endpoint', () => {
   it('accepts one upload and rejects the second with 409', async () => {
     const env = createEnv();
     const share = await createShare(env);
-    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    const png = pngBytes();
 
     const first = await putThumbnail(
       createContext(env, putRequest(share.id, share.thumbnailUploadToken, png), { id: share.id })
@@ -327,7 +332,7 @@ describe('thumbnail endpoint', () => {
     const env = createEnv();
     const share = await createShare(env);
     const response = await putThumbnail(
-      createContext(env, putRequest(share.id, 'not-the-token', new Uint8Array([1])), {
+      createContext(env, putRequest(share.id, 'not-the-token', pngBytes()), {
         id: share.id,
       })
     );
@@ -340,7 +345,7 @@ describe('thumbnail endpoint', () => {
     const response = await putThumbnail(
       createContext(
         env,
-        putRequest(share.id, share.thumbnailUploadToken, new Uint8Array(512 * 1024 + 1)),
+        putRequest(share.id, share.thumbnailUploadToken, pngBytes(512 * 1024)),
         { id: share.id }
       )
     );
@@ -352,7 +357,7 @@ describe('thumbnail endpoint', () => {
     const share = await createShare(env);
     const put = vi.spyOn(env.SHARE_KV, 'put');
     await putThumbnail(
-      createContext(env, putRequest(share.id, share.thumbnailUploadToken, new Uint8Array([1])), {
+      createContext(env, putRequest(share.id, share.thumbnailUploadToken, pngBytes()), {
         id: share.id,
       })
     );
@@ -547,5 +552,41 @@ describe('escaping helpers', () => {
   it('escapes script-terminating and line-separator characters in JSON', () => {
     expect(escapeJsonForScript({ a: '</script>' })).toBe('{"a":"\\u003c/script>"}');
     expect(escapeJsonForScript({ a: '\u2028\u2029' })).toBe('{"a":"\\u2028\\u2029"}');
+  });
+});
+
+describe('PNG validation on upload', () => {
+  it('rejects bytes that only claim to be a PNG', async () => {
+    // Content-Type is the uploader's word for it; this endpoint stores what it is given and
+    // serves it back from our own origin, so the signature is what actually decides.
+    const env = createEnv();
+    const share = (await (
+      await onRequestPost(createContext(env, postRequest({ payload: VALID_PAYLOAD })))
+    ).json()) as { id: string; thumbnailUploadToken: string };
+
+    const notAPng = new TextEncoder().encode('<svg onload="alert(1)"></svg>');
+    const response = await putThumbnail(
+      createContext(
+        env,
+        new Request(`https://oristudio.pages.dev/api/cp/${share.id}/thumbnail`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'image/png',
+            Authorization: `Bearer ${share.thumbnailUploadToken}`,
+          },
+          body: notAPng.buffer as ArrayBuffer,
+        }),
+        { id: share.id }
+      )
+    );
+
+    expect(response.status).toBe(400);
+    expect(env.r2.size).toBe(0);
+  });
+
+  it('accepts real PNG bytes', () => {
+    expect(isPng(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]).buffer)).toBe(true);
+    expect(isPng(new Uint8Array([0x89, 0x50]).buffer)).toBe(false);
+    expect(isPng(new Uint8Array([]).buffer)).toBe(false);
   });
 });

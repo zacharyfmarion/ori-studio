@@ -222,10 +222,10 @@ existence check does catch a collision; it should never fire, and if it does we 
 
 ### Phase 4 — Thumbnails
 
-- [ ] Upload retry, 3× with backoff.
-- [ ] Reject a card under ~2 KB rather than uploading a blank one.
-- [ ] Server-side PNG magic-byte validation.
-- [ ] Regenerate `og-default.png` at 1000×525; test pinning it to `SHARE_CARD_*`.
+- [x] Upload retry, 3× with backoff.
+- [x] Reject a card under ~2 KB rather than uploading a blank one.
+- [x] Server-side PNG magic-byte validation.
+- [x] Regenerate `og-default.png` at 1000×525; test pinning it to `SHARE_CARD_*`.
 
 ### Phase 5 — Limits and abuse
 

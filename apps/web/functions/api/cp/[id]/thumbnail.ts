@@ -1,6 +1,7 @@
 import {
   type CpShareContext,
   hashToken,
+  isPng,
   json,
   MAX_THUMBNAIL_BYTES,
   readShare,
@@ -119,6 +120,11 @@ export async function onRequestPut(context: CpShareContext): Promise<Response> {
   }
   if (bytes.byteLength > MAX_THUMBNAIL_BYTES) {
     return json({ error: 'Preview image is too large.', code: 'payload_too_large' }, { status: 413 });
+  }
+  // `Content-Type: image/png` is the uploader's claim. These eight bytes are the fact, and
+  // this endpoint serves what it stores back from our own origin.
+  if (!isPng(bytes)) {
+    return json({ error: 'Expected a PNG image.', code: 'bad_request' }, { status: 400 });
   }
 
   await context.env.SHARE_R2.put(key, bytes, {

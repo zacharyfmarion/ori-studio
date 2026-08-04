@@ -150,24 +150,48 @@ export async function fetchCpShareWithRetry(
   }
 }
 
+/** Backoff for the card upload. Short, because nobody is waiting on it. */
+const UPLOAD_RETRY_DELAYS_MS = [500, 2_000];
+
+/**
+ * Smallest card we will publish.
+ *
+ * Canvas fingerprinting defences can make `toBlob` return a blank or near-empty image, and
+ * the upload is write-once — a blank card cannot be replaced later. The smallest real card
+ * measured on the corpus was 30 KB, so anything at this scale is not a crease pattern.
+ */
+export const MIN_CARD_BYTES = 2_048;
+
 /**
  * Upload the preview card. Fire-and-forget at the call site: a share link is useful
  * without an image, so a failure here must never surface as a failed share.
+ *
+ * Retried, because the token exists only in memory — one transient network error and that
+ * share keeps the generic card permanently, with no path back.
  */
 export async function uploadCpShareThumbnail(
   shareId: string,
   png: Blob,
   token: string
 ): Promise<void> {
-  const response = await fetch(
-    `${shareApiBase()}/api/cp/${encodeURIComponent(shareId)}/thumbnail`,
-    {
-      method: 'PUT',
-      headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${token}` },
-      body: png,
-    }
-  );
-  if (!response.ok) throw await toShareError(response, 'Preview image upload failed.');
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetch(
+      `${shareApiBase()}/api/cp/${encodeURIComponent(shareId)}/thumbnail`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${token}` },
+        body: png,
+      }
+    );
+    if (response.ok) return;
+
+    const error = await toShareError(response, 'Preview image upload failed.');
+    // 409 means a card is already there and 401 that the token is wrong; neither improves
+    // by asking again. Only transport and server faults are worth another attempt.
+    const worthRetrying = error.status >= 500 || error.status === 0;
+    if (!worthRetrying || attempt >= UPLOAD_RETRY_DELAYS_MS.length) throw error;
+    await delay(UPLOAD_RETRY_DELAYS_MS[attempt]!);
+  }
 }
 
 /** The author name, remembered so it is not retyped on every share. */
