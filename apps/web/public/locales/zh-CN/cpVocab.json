@@ -25,8 +25,8 @@
       "railLabel": "变换"
     },
     "color": {
-      "label": "颜色与指定",
-      "railLabel": "颜色"
+      "label": "颜色、指定与修复",
+      "railLabel": "颜色与修复"
     },
     "annotations": {
       "label": "圆、文本和标注",
@@ -397,6 +397,16 @@
       "steps": {
         "0": "选取顶点",
         "1": "选取要添加的折痕"
+      }
+    },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "求解折叠角度",
+      "tooltip": "在一个顶点选择三条折线，在不移动任何线的前提下求解其折叠角度，使该顶点闭合",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "选择要修改的第一条折线",
+        "1": "选择要修改的第二条折线",
+        "2": "选择要修改的第三条折线"
       }
     },
     "cp_action_foldable_line_input": {

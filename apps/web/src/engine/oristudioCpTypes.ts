@@ -150,6 +150,26 @@ export interface OristudioCpCommandPreview {
    * — see `cpToolUnavailableMessage`. An expected answer, not a complaint.
    */
   unavailable?: string | null;
+  /**
+   * How many *isolated* solutions the active tool found, when it enumerates
+   * solutions at all.
+   *
+   * Only the isolated ones are counted, so a "2 of 3" readout means what it
+   * says. A rank-deficient triple has a continuous family of answers rather than
+   * a set of them; `candidate_is_family` marks that case instead of putting a
+   * number on infinity.
+   */
+  candidate_count?: number | null;
+  /**
+   * Whether the previewed solution is one arbitrary member of a continuous
+   * family rather than a branch in its own right.
+   */
+  candidate_is_family?: boolean | null;
+  /**
+   * Whether the previewed solution is the state the document is already in, so
+   * the UI can say "this is what you have" rather than offering it as a change.
+   */
+  candidate_is_current?: boolean | null;
 }
 
 export type OristudioCpEstimationOrder =

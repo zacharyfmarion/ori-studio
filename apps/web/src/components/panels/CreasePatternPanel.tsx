@@ -116,6 +116,8 @@ import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverl
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
 import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
+import { useVertexSolve } from '../../cp-workspace/foldAngleSolve/useVertexSolve';
+import { CpToolOptionLayer } from '../../cp-workspace/toolOptions/CpToolOptionLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
@@ -141,6 +143,7 @@ import {
 } from '../../cp-workspace/diagnostics/geometry';
 import { visibleCpDiagnosticEntries } from '../../cp-workspace/diagnostics/visibleEntries';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
+import { usePickToolSelectionReset } from '../../cp-workspace/tools/usePickToolSelectionReset';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { useCpLineColorInversion } from '../../cp-workspace/lineColor/useCpLineColorInversion';
@@ -1436,6 +1439,23 @@ export function CreasePatternPanel() {
     [effectiveCpLineColor, cpToolOptions, editableCpBounds, editableCpGridWidth, zoomPercent]
   );
 
+  const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
+
+  // The three-angle solve holds its answers for review instead of committing on
+  // the third pick, because closing a vertex generally admits more than one set
+  // of fold angles and there is no basis for the software to choose. All of that
+  // state lives in the hook; the panel mounts it and wires it up.
+  const vertexSolve = useVertexSolve({
+    preview: previewOristudioCpCommand,
+    execute: executeOristudioCpCommand,
+    buildPayload: useCallback(
+      (payload: OristudioCpCommandPayload) =>
+        activeCpCommand ? buildCpCommandPayload(activeCpCommand, payload) : payload,
+      [activeCpCommand, buildCpCommandPayload]
+    ),
+    documentVersion: editableCp?.crease_pattern.line_segments,
+  });
+
   useEffect(() => {
     const documentKey = editableCp
       ? String(editableCpHandle ?? `editable-cp-${projectLoadId}`)
@@ -1812,6 +1832,18 @@ export function CreasePatternPanel() {
       const isLineEntityCommit = pickedLineIds.length > 0 && points.length === 0;
       if (!isLineEntityCommit && points.length === 0) return;
 
+      // The three-angle solve does not apply on its final pick. It hands the
+      // answers to the review state, which applies one when asked.
+      if (command.operationId === 'VertexSolveFoldAngles') {
+        void vertexSolve.begin(pickedLineIds);
+        setCpToolState((state) =>
+          state.activeOperationId === command.operationId
+            ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
+            : state
+        );
+        return;
+      }
+
       // Measure tools are non-mutating: never execute (the kernel has no execute arm
       // by design). Ask the kernel for the exact length/angle at the committed points
       // and show it; then just finalize the tool state. The active *command* is always
@@ -1909,8 +1941,11 @@ export function CreasePatternPanel() {
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
       t,
+      vertexSolve,
     ]
   );
+
+  usePickToolSelectionReset(activeCpCommand?.operationId);
 
   // Drive the step prompt in lock-step with the inputs a tool has taken: creases for
   // a line-entity tool (Lengthen), placed points for a point-sequence one. Derive the
@@ -2081,10 +2116,20 @@ export function CreasePatternPanel() {
   // Why the tool has nothing to offer for the points placed so far — the
   // vertex-completion solve's "no single crease closes this vertex", which is a
   // real answer and would otherwise show as an empty canvas.
-  const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
   // The completion tool determines mountain/valley itself, so the crease can come
   // out the opposite colour to the one selected in the rail. Correct, and worth a
   // word: nothing else in the editor overrides the active line type.
+  // While the solve is in review the three creases-as-they-would-be are the
+  // preview. They ride the same channel as every other tool candidate, so the
+  // fold-angle ramp and the angle badges pick them up with nothing new added.
+  const cpPreviewSegments = useMemo(
+    () =>
+      vertexSolve.segments.length > 0
+        ? [...webglToolPreviewSegments, ...vertexSolve.segments]
+        : webglToolPreviewSegments,
+    [vertexSolve.segments, webglToolPreviewSegments]
+  );
+
   const cpToolForcedAssignment = useMemo(
     () => forcedAssignmentNotice(t, webglToolPreviewSegments, effectiveCpLineColor),
     [t, webglToolPreviewSegments, effectiveCpLineColor]
@@ -2535,6 +2580,13 @@ export function CreasePatternPanel() {
       setPanToolActive(false);
       return;
     }
+    // A fold-angle solve waiting for a choice is an in-progress gesture, and
+    // Escape discards it — leaving the three creases exactly as they were,
+    // because nothing has been applied yet.
+    if (vertexSolve.review) {
+      vertexSolve.cancel();
+      return;
+    }
     // A selection takes priority as long as no gesture is in progress; a second
     // Escape then cancels the tool.
     const gestureInProgress =
@@ -2568,6 +2620,7 @@ export function CreasePatternPanel() {
     editingTextId,
     annotations,
     panToolActive,
+    vertexSolve,
     pendingLengthenLineId,
     pendingSquareBisectorLineIds.length,
   ]);
@@ -2609,6 +2662,22 @@ export function CreasePatternPanel() {
         case 'viewport.simulateSelectionInline':
           void simulateSelectionInline();
           return true;
+        // Declined unless the three-angle solve is holding answers, so the
+        // arrows and Enter stay available to everything else the moment it is
+        // not. Returning `true` unconditionally would swallow them app-wide for
+        // a tool that is almost never in review.
+        case 'viewport.solveAnglesPrevious':
+          if (!vertexSolve.steppable) return false;
+          vertexSolve.step(-1);
+          return true;
+        case 'viewport.solveAnglesNext':
+          if (!vertexSolve.steppable) return false;
+          vertexSolve.step(1);
+          return true;
+        case 'viewport.solveAnglesApply':
+          if (!vertexSolve.review) return false;
+          void vertexSolve.apply();
+          return true;
         case 'viewport.zoomIn':
           cpCamera()?.zoomIn();
           return true;
@@ -2638,6 +2707,7 @@ export function CreasePatternPanel() {
     [
       cancelActiveCpInput,
       simulateSelectionInline,
+      vertexSolve,
       deleteSelectedCanvasObject,
       dropLastMeasurement,
     ]
@@ -2786,8 +2856,9 @@ export function CreasePatternPanel() {
                   onToolPreviewInput={handleWebglToolPreviewInput}
                   onToolPickProgress={handleWebglToolPickProgress}
                   onToolSnapKind={setCpMeasureSnapKind}
-                  toolCommandPreviewSegments={webglToolPreviewSegments}
+                  toolCommandPreviewSegments={cpPreviewSegments}
                   toolCommandHighlightSegments={webglToolHighlightSegments}
+                  toolReplacedLineIds={vertexSolve.replacedLineIds}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
@@ -2865,9 +2936,12 @@ export function CreasePatternPanel() {
                 {webglOverlayView && (
                   <CpFoldAngleLayer
                     lineSegments={editableCp?.crease_pattern.line_segments}
-                    toolCandidates={webglToolPreviewSegments}
+                    toolCandidates={cpPreviewSegments}
                   />
                 )}
+                {/* Subscribes to the camera itself and renders nothing without
+                    an option, so it needs no gate of its own. */}
+                <CpToolOptionLayer option={vertexSolve.option} />
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}

@@ -25,8 +25,8 @@
       "railLabel": "Transf."
     },
     "color": {
-      "label": "Couleur et attribution",
-      "railLabel": "Couleur"
+      "label": "Couleur, assignation et réparation",
+      "railLabel": "Couleur et correction"
     },
     "annotations": {
       "label": "Cercles, texte et annotations",
@@ -397,6 +397,16 @@
       "steps": {
         "0": "Choisissez le sommet",
         "1": "Choisissez le pli à ajouter"
+      }
+    },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "Résoudre les angles de pliage",
+      "tooltip": "Choisissez trois plis à un sommet et résolvez leurs angles pour que le sommet se ferme, sans rien déplacer",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Choisir le premier pli à modifier",
+        "1": "Choisir le deuxième pli à modifier",
+        "2": "Choisir le troisième pli à modifier"
       }
     },
     "cp_action_foldable_line_input": {

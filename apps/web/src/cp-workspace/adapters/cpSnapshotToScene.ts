@@ -78,6 +78,28 @@ export interface CpTransformPreview {
 }
 
 /**
+ * 1-based line ids the active tool is drawing a *replacement* for, which the
+ * document must therefore stop drawing.
+ *
+ * The sibling of {@link CpTransformPreview}: a move-drag shifts the real strokes
+ * so "the originals leave with them", and this does the same for a tool whose
+ * preview occupies the same place as the crease it would change. Without it the
+ * preview lies on top of the original — a dashed stroke over a solid one in a
+ * different colour, which is harder to read than either alone.
+ *
+ * Hidden by leaving the colour at zero alpha rather than by dropping the segment
+ * from the buffers. The arrays are indexed by segment, so removing one would
+ * shift every id after it, and those ids are what the selection and transform
+ * sets are keyed on.
+ *
+ * **Purely visual.** The hit index is built from the document independently of
+ * these buffers, so a replaced crease is still there to click, select and draw
+ * over.
+ */
+export type CpReplacedLines = ReadonlySet<number>;
+
+
+/**
  * Convert crease-pattern line segments into GPU-ready stroke geometry. Pure: the
  * per-colour resolution is injected so this stays testable without the DOM/theme.
  * Selected lines (1-based ids, matching the SVG's index+1) are recoloured and
@@ -94,7 +116,8 @@ export function cpSnapshotToScene(
   selection?: CpSelectionStyle,
   move?: CpTransformPreview,
   /** See {@link cpGeometryStrokesToScene}; kept in step for the parity gate. */
-  foldAngle?: CpFoldAngleStyle
+  foldAngle?: CpFoldAngleStyle,
+  replaced?: CpReplacedLines
 ): { strokes: StrokeGeometry } {
   const count = lineSegments.length;
   const a = new Float32Array(count * 2);
@@ -123,6 +146,12 @@ export function cpSnapshotToScene(
       b[i * 2] = seg.b.x;
       b[i * 2 + 1] = seg.b.y;
     }
+
+    // Before the selection branch: a replaced crease must vanish even when it is
+    // also selected, which is exactly the case here — the tool's picked creases
+    // render selected, and drawing both that and the preview over each other is
+    // the muddiness this exists to remove.
+    if (replaced !== undefined && replaced.has(i + 1)) continue;
 
     if (selection && selection.selected.has(i + 1)) {
       const c = selection.color;

@@ -636,6 +636,13 @@ export interface CreasePatternWebglCanvasProps {
    * other wrong.
    */
   toolCommandHighlightSegments: readonly ToolPreviewSegment[];
+  /**
+   * Creases the active tool is previewing a *replacement* for, as 1-based ids.
+   * The document stops drawing them so the preview stands alone rather than
+   * lying on top of the crease it would change. Purely visual — they are still
+   * there to click, select and draw over.
+   */
+  toolReplacedLineIds: readonly number[];
   /** Kernel-computed candidate *points* (Converging Lines ray intersections). */
   toolCommandPreviewPoints: readonly ModelPoint[];
   /** Colour of the in-progress candidate crease (the resolved active line colour). */
@@ -789,6 +796,7 @@ export function CreasePatternWebglCanvas({
   onToolSnapKind,
   toolCommandPreviewSegments,
   toolCommandHighlightSegments,
+  toolReplacedLineIds,
   toolCommandPreviewPoints,
   toolPreviewColor,
   diagnosticMarkers,
@@ -1054,6 +1062,10 @@ export function CreasePatternWebglCanvas({
   );
   // Selected line ids as a set, for "is the press on a selected line" (move-drag).
   const selectedLineSet = useMemo(() => new Set(selectedLineIds), [selectedLineIds]);
+  const replacedLineSet = useMemo(
+    () => (toolReplacedLineIds.length > 0 ? new Set(toolReplacedLineIds) : undefined),
+    [toolReplacedLineIds]
+  );
   // Quantized ids of the endpoints of the selected lines. A derived vertex sits
   // on one of these iff it belongs to a moved line, so it should follow the drag.
   const selectedEndpointKeys = useMemo(() => {
@@ -1106,6 +1118,7 @@ export function CreasePatternWebglCanvas({
           FOLD_ANGLE_ANCHOR_FALLBACK
         ),
       };
+      const replaced = replacedLineSet;
       if (geometry) {
         return cpGeometryStrokesToScene(
           geometry,
@@ -1113,7 +1126,8 @@ export function CreasePatternWebglCanvas({
           dashPatterns,
           selection,
           move,
-          foldAngle
+          foldAngle,
+          replaced
         ).strokes;
       }
       return cpSnapshotToScene(
@@ -1122,7 +1136,8 @@ export function CreasePatternWebglCanvas({
         dashPatterns,
         selection,
         move,
-        foldAngle
+        foldAngle,
+        replaced
       ).strokes;
     },
     // currentTheme drives DOM-resolved colours; rebuild callers on theme change.
@@ -1130,7 +1145,16 @@ export function CreasePatternWebglCanvas({
     // out and switching the View panel's dropdown does nothing until some
     // unrelated edit happens to invalidate this callback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lineSegments, geometry, mode, lineStyle, foldAngleDisplay, selectedLineSet, currentTheme]
+    [
+      lineSegments,
+      geometry,
+      mode,
+      lineStyle,
+      foldAngleDisplay,
+      selectedLineSet,
+      replacedLineSet,
+      currentTheme,
+    ]
   );
   useEffect(() => {
     buildStrokesRef.current = buildStrokes;
