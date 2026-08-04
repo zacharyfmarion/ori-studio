@@ -202,6 +202,22 @@ const LUCIDE_ICONS: Record<string, CpToolIcon> = {
   Wrench,
 };
 
+/** The size every rail icon is drawn at unless it needs an optical correction. */
+const RAIL_ICON_SIZE = 20;
+
+/**
+ * Icons that need a different box to carry the same visual weight.
+ *
+ * Lucide's glyphs are drawn to fill a square, so one size suits all of them. A
+ * local icon whose artwork is a different shape does not match at the same
+ * number: {@link SolveFoldAnglesIcon} is wide and short, so even filling its
+ * viewBox it reads lighter than the blockier glyphs beside it.
+ *
+ * Keyed by the component rather than by name, so an icon that is never rendered
+ * here cannot leave a stale string behind.
+ */
+const RAIL_ICON_SIZES = new Map<CpToolIcon, number>([[SolveFoldAnglesIcon, 24]]);
+
 const ICON_ALIASES: Record<string, string> = {
   angle: 'ProtractorIcon',
   'angle-solve': 'SolveFoldAnglesIcon',
@@ -489,7 +505,7 @@ const CpToolButton = memo(function CpToolButton({
           {orieditaGlyph}
         </span>
       ) : (
-        <Icon size={20} aria-hidden="true" />
+        <Icon size={RAIL_ICON_SIZES.get(Icon) ?? RAIL_ICON_SIZE} aria-hidden="true" />
       )}
     </button>
   );
