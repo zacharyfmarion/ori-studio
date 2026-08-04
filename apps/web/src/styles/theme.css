@@ -1236,132 +1236,61 @@
   padding: var(--space-3);
 }
 
-/* Share-link dialog. Wider than the default modal because it shows a URL, and a
-   360px field turns even a short link into an unreadable sliver.
-   
-   Height-capped and scrolling like the export dialog: the embed preview plus the folded
-   controls can exceed a laptop viewport, and without this the header and the retention
-   note are simply clipped off either end. */
+/* Share-link dialog: controls on the left, the link preview on its own lit surface to
+   the right. The preview is the thing being judged, so it holds still while the controls
+   beside it change, and it never has to compete with them for width.
+
+   Height-capped and scrolling like the export dialog, because the folded controls plus the
+   preview can exceed a laptop viewport. */
 .share-link-modal {
   display: flex;
   flex-direction: column;
-  width: min(520px, calc(100vw - var(--space-6)));
+  width: min(760px, calc(100vw - var(--space-6)));
   max-height: calc(100vh - var(--space-6));
 }
 
-/* Flex rather than the default grid body.
-   
-   Once the dialog is height-capped the body has a definite height, and a grid distributes
-   that height across its rows — squeezing the embed below its own contents. Since the
-   embed clips overflow to keep its rounded corners, that silently ate the title and
-   description. Flex with non-shrinking children keeps every child at content height and
-   lets the body scroll, which is what should have happened all along. */
-.share-link-modal .simple-modal__body {
-  display: flex;
-  flex-direction: column;
+.share-link-modal__columns {
+  display: grid;
+  grid-template-columns: 296px minmax(0, 1fr);
   min-height: 0;
   overflow-y: auto;
 }
 
-.share-link-modal .simple-modal__body > * {
+.share-link-modal__controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.share-link-modal__controls > * {
   flex: 0 0 auto;
 }
 
-.share-link-modal__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.share-link-modal__divider {
+  height: 1px;
+  background: var(--border-subtle);
 }
 
-.share-link-modal__url {
-  flex: 1;
-  min-width: 0;
-  padding: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  /* The payload is one long unbroken token; without this it stretches the flex
-     row instead of scrolling inside it. */
-  text-overflow: ellipsis;
-}
-
-.share-link-modal__meta {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-.share-link-modal__note {
-  margin: 0;
-  color: var(--text-tertiary, var(--text-secondary));
-  font-size: 0.75rem;
-  line-height: 1.5;
-}
-
-/* A mock of the unfurled link, not a bare image preview: the thing being judged is what
-   a recipient sees in Discord or Messages — card, headline, description, domain. The
-   image half is exactly what gets published: 1.91:1 from SHARE_CARD_WIDTH/HEIGHT, filled
-   with the export palette's canvas colour, both set inline so they cannot drift. */
-.share-embed {
-  overflow: hidden;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg, 10px);
-  background: var(--bg-elevated);
-}
-
-.share-embed__image {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.share-embed__image img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.share-embed__meta {
+.share-link-modal__preview-pane {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3);
-  border-top: 1px solid var(--border-subtle);
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  background: var(--bg-primary);
 }
 
-.share-embed__title {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.share-embed__description {
-  display: -webkit-box;
-  overflow: hidden;
+/* Section and field micro-labels. Uppercase and small so they read as captions on the
+   controls rather than as content competing with them. */
+.share-link-modal__field-label {
   color: var(--text-secondary);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.share-embed__host {
-  margin-top: 2px;
-  color: var(--text-tertiary, var(--text-secondary));
-  font-size: 0.7rem;
-}
-
-.share-link-modal__fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .share-link-modal__field {
@@ -1369,8 +1298,6 @@
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
 }
 
 .share-link-modal__field input {
@@ -1381,6 +1308,11 @@
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 0.8125rem;
+}
+
+.share-link-modal__field input:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
 }
 
 .share-link-modal__toggle-row {
@@ -1410,11 +1342,103 @@
   border-bottom: 0;
 }
 
-.share-link-modal__warning svg {
-  flex: none;
-  margin-top: 1px;
-  color: var(--text-warning, var(--text-secondary));
+/* The card as a received message. An unfurled link is only ever seen inside someone
+   else's chat, so judging it outside that frame is judging it in a context it never
+   appears in. */
+.share-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg, 10px);
+  background: var(--bg-elevated);
 }
+
+.share-message__status {
+  align-self: flex-end;
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.65rem;
+}
+
+/* Deliberately light regardless of theme: this is a mock of someone else's chat client,
+   not part of the app's own surface, and every one of them renders link cards on white. */
+.share-embed {
+  width: 300px;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-lg, 10px);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+}
+
+.share-embed__image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.share-embed__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.share-embed__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-2) var(--space-3) 11px;
+  background: #ededed;
+}
+
+.share-embed__title {
+  overflow: hidden;
+  color: #1c1c1e;
+  font-size: 0.83rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-embed__host {
+  color: #8e8e93;
+  font-size: 0.73rem;
+}
+
+/* The shared `.simple-modal__footer` contributes neither padding nor a rule here, and
+   the link is the one thing this dialog exists to produce — so it gets a divider of its
+   own rather than floating against the columns above it. */
+.share-link-modal__footer {
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.share-link-modal__url {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+}
+
+.share-link-modal__note {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
 
 /* Box-Pleat layout optimizer dialog. Wider than the default modal because its
    option labels are full sentences ("Keep widths and heights of flaps"), which
@@ -7019,6 +7043,14 @@ button.bp-packing-alert:focus-visible {
   align-items: center;
   gap: 4px;
   min-width: 0;
+}
+
+/* Monospace so digits line up between two swatches being compared. */
+.color-field__hex {
+  color: var(--text-tertiary, var(--text-secondary));
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
 }
 
 .color-field__input {

@@ -240,8 +240,8 @@
     },
     "title": "Einstellungen",
     "workspace": {
-      "folding": "Falten",
       "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
+      "folding": "Falten",
       "layout": "Layout",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",
@@ -256,10 +256,12 @@
     "backColor": "Rückseitenfarbe",
     "create": "Freigabelink erstellen",
     "creating": "Link wird erstellt…",
+    "delivered": "Zugestellt",
     "foldedFigure": "Gefaltete Figur anzeigen",
     "foldedFigureNeedsFlat": "Dieses Faltmuster enthält Falten, die keine vollen Faltungen sind, und hat daher keine flach gefaltete Form",
     "folding": "Wird gefaltet…",
     "frontColor": "Vorderseitenfarbe",
+    "linkPreview": "Linkvorschau",
     "previewAlt": "Vorschau des geteilten Faltmusters",
     "scope": "Jede Person mit diesem Link kann ihn ansehen, und Links lassen sich weder löschen noch ändern. Enthält nur das Faltmuster — keine Referenzbilder, Anmerkungen oder gespeicherten Simulationen.",
     "side": "Seite",
@@ -271,7 +273,7 @@
   "shareLink": {
     "close": "Teilen schließen",
     "copied": "Kopiert",
-    "copy": "Kopieren",
+    "copy": "Link kopieren",
     "title": "Faltmuster teilen",
     "url": "Link zum Teilen"
   },

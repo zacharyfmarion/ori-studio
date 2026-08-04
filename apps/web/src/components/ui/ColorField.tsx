@@ -22,6 +22,7 @@ export function ColorField({
   onClear,
   disabled = false,
   layout = 'stacked',
+  showValue = false,
   className,
 }: {
   label: string;
@@ -46,6 +47,12 @@ export function ColorField({
    * and selects it sits between in an options pane.
    */
   layout?: 'stacked' | 'row';
+  /**
+   * Show the hex alongside the swatch. Useful where the exact value is part of what is
+   * being chosen — a colour that will be published, or one being matched to another —
+   * and noise everywhere else, so it is opt-in.
+   */
+  showValue?: boolean;
   className?: string;
 }) {
   const { t } = useTranslation();
@@ -87,6 +94,7 @@ export function ColorField({
         {label}
       </label>
       <span className={layout === 'row' ? 'control-row__value color-field__value' : 'color-field__value'}>
+        {showValue && <span className="color-field__hex">{value}</span>}
         {swatch}
         {reset}
       </span>

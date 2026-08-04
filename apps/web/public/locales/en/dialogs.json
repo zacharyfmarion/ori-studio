@@ -256,10 +256,12 @@
     "backColor": "Back color",
     "create": "Create share link",
     "creating": "Creating link…",
+    "delivered": "Delivered",
     "foldedFigure": "Show folded figure",
     "foldedFigureNeedsFlat": "This pattern has creases that are not full folds, so it has no flat-folded form",
     "folding": "Folding…",
     "frontColor": "Front color",
+    "linkPreview": "Link preview",
     "previewAlt": "Preview of the shared crease pattern",
     "scope": "Anyone with this link can view it, and links cannot be deleted or changed. Carries the crease pattern only — not reference images, annotations, or saved simulations.",
     "side": "Side",
@@ -271,7 +273,7 @@
   "shareLink": {
     "close": "Close share",
     "copied": "Copied",
-    "copy": "Copy",
+    "copy": "Copy link",
     "title": "Share crease pattern",
     "url": "Share link"
   },

@@ -2013,8 +2013,7 @@
     "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
     "dialogs:shareLink.close": "bfc83eecce59",
     "dialogs:shareLink.copied": "8d525e5f158b",
-    "dialogs:shareLink.copy": "e21f935f11d7",
-    "dialogs:shareLink.summary": "1a6cfde9b51d",
+    "dialogs:shareLink.copy": "dbf362d4f210",
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
@@ -2040,7 +2039,9 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.delivered": "906115657390",
+    "dialogs:share.linkPreview": "165e9250b511"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4056,8 +4057,7 @@
     "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
     "dialogs:shareLink.close": "bfc83eecce59",
     "dialogs:shareLink.copied": "8d525e5f158b",
-    "dialogs:shareLink.copy": "e21f935f11d7",
-    "dialogs:shareLink.summary": "1a6cfde9b51d",
+    "dialogs:shareLink.copy": "dbf362d4f210",
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
@@ -4083,7 +4083,9 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.delivered": "906115657390",
+    "dialogs:share.linkPreview": "165e9250b511"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6125,8 +6127,7 @@
     "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
     "dialogs:shareLink.close": "bfc83eecce59",
     "dialogs:shareLink.copied": "8d525e5f158b",
-    "dialogs:shareLink.copy": "e21f935f11d7",
-    "dialogs:shareLink.summary": "1a6cfde9b51d",
+    "dialogs:shareLink.copy": "dbf362d4f210",
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
@@ -6152,7 +6153,9 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.delivered": "906115657390",
+    "dialogs:share.linkPreview": "165e9250b511"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8194,8 +8197,7 @@
     "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
     "dialogs:shareLink.close": "bfc83eecce59",
     "dialogs:shareLink.copied": "8d525e5f158b",
-    "dialogs:shareLink.copy": "e21f935f11d7",
-    "dialogs:shareLink.summary": "1a6cfde9b51d",
+    "dialogs:shareLink.copy": "dbf362d4f210",
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
@@ -8221,7 +8223,9 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.delivered": "906115657390",
+    "dialogs:share.linkPreview": "165e9250b511"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10263,8 +10267,7 @@
     "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
     "dialogs:shareLink.close": "bfc83eecce59",
     "dialogs:shareLink.copied": "8d525e5f158b",
-    "dialogs:shareLink.copy": "e21f935f11d7",
-    "dialogs:shareLink.summary": "1a6cfde9b51d",
+    "dialogs:shareLink.copy": "dbf362d4f210",
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
@@ -10290,7 +10293,9 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.delivered": "906115657390",
+    "dialogs:share.linkPreview": "165e9250b511"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12332,8 +12337,7 @@
     "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
     "dialogs:shareLink.close": "bfc83eecce59",
     "dialogs:shareLink.copied": "8d525e5f158b",
-    "dialogs:shareLink.copy": "e21f935f11d7",
-    "dialogs:shareLink.summary": "1a6cfde9b51d",
+    "dialogs:shareLink.copy": "dbf362d4f210",
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
@@ -12359,7 +12363,9 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.delivered": "906115657390",
+    "dialogs:share.linkPreview": "165e9250b511"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14401,8 +14407,7 @@
     "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
     "dialogs:shareLink.close": "bfc83eecce59",
     "dialogs:shareLink.copied": "8d525e5f158b",
-    "dialogs:shareLink.copy": "e21f935f11d7",
-    "dialogs:shareLink.summary": "1a6cfde9b51d",
+    "dialogs:shareLink.copy": "dbf362d4f210",
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
@@ -14428,7 +14433,9 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.delivered": "906115657390",
+    "dialogs:share.linkPreview": "165e9250b511"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16444,8 +16451,7 @@
     "panels:creasePattern.selectionToolbar.share": "05e98b2488ec",
     "dialogs:shareLink.close": "bfc83eecce59",
     "dialogs:shareLink.copied": "8d525e5f158b",
-    "dialogs:shareLink.copy": "e21f935f11d7",
-    "dialogs:shareLink.summary": "1a6cfde9b51d",
+    "dialogs:shareLink.copy": "dbf362d4f210",
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
@@ -16471,6 +16477,8 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
-    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.delivered": "906115657390",
+    "dialogs:share.linkPreview": "165e9250b511"
   }
 }

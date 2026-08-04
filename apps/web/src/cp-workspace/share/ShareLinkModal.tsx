@@ -15,7 +15,7 @@ import {
   type CreaseExportFoldedFigureSettings,
 } from '../../lib/creaseExport';
 import { isFlatFoldableFold } from '../../lib/creaseExportFold';
-import { shareCardDescription, shareCardTitle } from '../../lib/shareCardText';
+import { shareCardTitle } from '../../lib/shareCardText';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
 import { readRememberedAuthor } from './cpShareService';
 import { Button } from '../../components/ui/Button';
@@ -213,37 +213,14 @@ export function ShareLinkModal() {
           </IconButton>
         </header>
 
-        <div className="simple-modal__body">
-          {/* Not a bare image: a mock of the unfurled embed, so what is being judged is
-              what a recipient actually sees — card, headline, description, domain. */}
-          <div className="share-embed">
-            <div
-              className="share-embed__image"
-              style={{
-                aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
-                // `svgToPngCard` fills the whole canvas with this before drawing, so the
-                // preview must letterbox against it too — against the app background it
-                // would show a framing the published PNG never has.
-                background: card.background,
-              }}
-            >
-              {previewSrc && (
-                <img
-                  src={previewSrc}
-                  alt={t('dialogs:share.previewAlt', 'Preview of the shared crease pattern')}
-                />
-              )}
-            </div>
-            <div className="share-embed__meta">
-              <div className="share-embed__title">{shareCardTitle(cardText)}</div>
-              <div className="share-embed__description">{shareCardDescription()}</div>
-              <div className="share-embed__host">{shareHost}</div>
-            </div>
-          </div>
-
-          <div className="share-link-modal__fields">
+        {/* Controls left, preview right. The preview is the thing being judged, so it gets
+            its own lit surface and stays put while the controls beside it change. */}
+        <div className="share-link-modal__columns">
+          <div className="share-link-modal__controls">
             <label className="share-link-modal__field">
-              <span>{t('dialogs:share.title', 'Title')}</span>
+              <span className="share-link-modal__field-label">
+                {t('dialogs:share.title', 'Title')}
+              </span>
               <input
                 type="text"
                 value={title}
@@ -253,7 +230,9 @@ export function ShareLinkModal() {
               />
             </label>
             <label className="share-link-modal__field">
-              <span>{t('dialogs:share.author', 'Author')}</span>
+              <span className="share-link-modal__field-label">
+                {t('dialogs:share.author', 'Author')}
+              </span>
               <input
                 type="text"
                 value={author}
@@ -262,76 +241,122 @@ export function ShareLinkModal() {
                 placeholder={t('dialogs:share.authorPlaceholder', 'Optional')}
               />
             </label>
-          </div>
 
-          <div className="share-link-modal__toggle-row">
-            <span>
-              {t('dialogs:share.foldedFigure', 'Show folded figure')}
-              {!isFlat && (
-                <small className="export-modal__hint">
-                  {t(
-                    'dialogs:share.foldedFigureNeedsFlat',
-                    'This pattern has creases that are not full folds, so it has no flat-folded form'
-                  )}
-                </small>
-              )}
-              {folded.folding && (
-                <small className="export-modal__hint">
-                  {t('dialogs:share.folding', 'Folding…')}
-                </small>
-              )}
-              {folded.error && (
-                <small className="export-modal__hint export-modal__hint--error" role="alert">
-                  {folded.error}
-                </small>
-              )}
-            </span>
-            <Toggle
-              checked={showFolded}
-              disabled={!canFold}
-              onChange={(next) => {
-                folded.clearError();
-                setShowFolded(next);
-              }}
-              aria-label={t('dialogs:share.foldedFigure', 'Show folded figure')}
-            />
-          </div>
+            <div className="share-link-modal__divider" />
 
-          {showFolded && canFold && (
-            <div className="share-link-modal__folded">
-              <div className="control-row">
-                <span className="control-row__label">{t('dialogs:share.side', 'Side')}</span>
-                <span className="control-row__value">
-                  <SegmentedControl<ShareFoldedSide>
-                    aria-label={t('dialogs:share.side', 'Side')}
-                    value={side}
-                    onChange={setSide}
-                    options={[
-                      { value: 'Front0', label: t('dialogs:share.sideFront', 'Front') },
-                      { value: 'Back1', label: t('dialogs:share.sideBack', 'Back') },
-                    ]}
-                  />
-                </span>
-              </div>
-              {/* `row` rather than the default `stacked`: a square swatch beside its label,
-                  not a full-width colour band, matching every other options pane. */}
-              <ColorField
-                layout="row"
-                label={t('dialogs:share.frontColor', 'Front color')}
-                value={frontColor}
-                onChange={setFrontColor}
-              />
-              <ColorField
-                layout="row"
-                label={t('dialogs:share.backColor', 'Back color')}
-                value={backColor}
-                onChange={setBackColor}
+            <div className="share-link-modal__toggle-row">
+              <span>
+                {t('dialogs:share.foldedFigure', 'Show folded figure')}
+                {!isFlat && (
+                  <small className="export-modal__hint">
+                    {t(
+                      'dialogs:share.foldedFigureNeedsFlat',
+                      'This pattern has creases that are not full folds, so it has no flat-folded form'
+                    )}
+                  </small>
+                )}
+                {folded.folding && (
+                  <small className="export-modal__hint">
+                    {t('dialogs:share.folding', 'Folding…')}
+                  </small>
+                )}
+                {folded.error && (
+                  <small className="export-modal__hint export-modal__hint--error" role="alert">
+                    {folded.error}
+                  </small>
+                )}
+              </span>
+              <Toggle
+                checked={showFolded}
+                disabled={!canFold}
+                onChange={(next) => {
+                  folded.clearError();
+                  setShowFolded(next);
+                }}
+                aria-label={t('dialogs:share.foldedFigure', 'Show folded figure')}
               />
             </div>
-          )}
 
+            {showFolded && canFold && (
+              <div className="share-link-modal__folded">
+                <div className="control-row">
+                  <span className="control-row__label">{t('dialogs:share.side', 'Side')}</span>
+                  <span className="control-row__value">
+                    <SegmentedControl<ShareFoldedSide>
+                      aria-label={t('dialogs:share.side', 'Side')}
+                      value={side}
+                      onChange={setSide}
+                      options={[
+                        { value: 'Front0', label: t('dialogs:share.sideFront', 'Front') },
+                        { value: 'Back1', label: t('dialogs:share.sideBack', 'Back') },
+                      ]}
+                    />
+                  </span>
+                </div>
+                {/* `row` rather than the default `stacked`: a square swatch beside its
+                    label, not a full-width colour band, matching every other options pane. */}
+                <ColorField
+                  layout="row"
+                  showValue
+                  label={t('dialogs:share.frontColor', 'Front color')}
+                  value={frontColor}
+                  onChange={setFrontColor}
+                />
+                <ColorField
+                  layout="row"
+                  showValue
+                  label={t('dialogs:share.backColor', 'Back color')}
+                  value={backColor}
+                  onChange={setBackColor}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="share-link-modal__preview-pane">
+            <span className="share-link-modal__field-label">
+              {t('dialogs:share.linkPreview', 'Link preview')}
+            </span>
+
+            {/* Framed as a received message rather than a bare image: an unfurled link is
+                only ever seen inside someone else's chat, and judging the card outside that
+                frame is judging it in a context it never appears in. */}
+            <div className="share-message">
+              <div className="share-embed">
+                <div
+                  className="share-embed__image"
+                  style={{
+                    aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
+                    // `svgToPngCard` fills the whole canvas with this before drawing, so the
+                    // preview must letterbox against it too — against the app background it
+                    // would show a framing the published PNG never has.
+                    background: card.background,
+                  }}
+                >
+                  {previewSrc && (
+                    <img
+                      src={previewSrc}
+                      alt={t('dialogs:share.previewAlt', 'Preview of the shared crease pattern')}
+                    />
+                  )}
+                </div>
+                <div className="share-embed__meta">
+                  <div className="share-embed__title">{shareCardTitle(cardText)}</div>
+                  <div className="share-embed__host">{shareHost}</div>
+                </div>
+              </div>
+              <span className="share-message__status">
+                {t('dialogs:share.delivered', 'Delivered')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* The link and its primary action live in the footer, so the one thing the dialog
+            exists to produce is always in the same place. */}
+        <footer className="simple-modal__footer share-link-modal__footer">
           {url ? (
-            <div className="share-link-modal__row">
+            <>
               <input
                 ref={inputRef}
                 type="text"
@@ -341,13 +366,13 @@ export function ShareLinkModal() {
                 aria-label={t('dialogs:shareLink.url', 'Share link')}
                 onFocus={(event) => event.currentTarget.select()}
               />
-              <Button onClick={() => void copy()}>
+              <Button variant="primary" onClick={() => void copy()}>
                 {justCopied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
                 {justCopied
                   ? t('dialogs:shareLink.copied', 'Copied')
-                  : t('dialogs:shareLink.copy', 'Copy')}
+                  : t('dialogs:shareLink.copy', 'Copy link')}
               </Button>
-            </div>
+            </>
           ) : (
             <Button variant="primary" disabled={publishing} onClick={() => void onPublish()}>
               {publishing
@@ -355,14 +380,14 @@ export function ShareLinkModal() {
                 : t('dialogs:share.create', 'Create share link')}
             </Button>
           )}
+        </footer>
 
-          <p className="share-link-modal__note">
-            {t(
-              'dialogs:share.scope',
-              'Anyone with this link can view it, and links cannot be deleted or changed. Carries the crease pattern only — not reference images, annotations, or saved simulations.'
-            )}
-          </p>
-        </div>
+        <p className="share-link-modal__note">
+          {t(
+            'dialogs:share.scope',
+            'Anyone with this link can view it, and links cannot be deleted or changed. Carries the crease pattern only — not reference images, annotations, or saved simulations.'
+          )}
+        </p>
       </div>
     </div>
   );
