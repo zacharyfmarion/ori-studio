@@ -44,9 +44,12 @@ export function ColorField({
    * `stacked` puts the label above a full-width swatch, for the narrow grid
    * columns the folded-figure menu and the export dialog lay out. `row` is a
    * `control-row`: label left, small square swatch right, matching the sliders
-   * and selects it sits between in an options pane.
+   * and selects it sits between in an options pane. `inline` is the same
+   * arrangement without the pane chrome — no padding, no dividing rule — for
+   * dialogs, where a boxed column of controls reads as a table when nothing
+   * about it is tabular.
    */
-  layout?: 'stacked' | 'row';
+  layout?: 'stacked' | 'row' | 'inline';
   /**
    * Show the hex alongside the swatch. Useful where the exact value is part of what is
    * being chosen — a colour that will be published, or one being matched to another —
@@ -85,15 +88,13 @@ export function ColorField({
 
   // Two elements rather than a wrapping <label>: the reset button has to sit
   // outside it, or clicking reset would also open the colour picker.
+  const rowLike = layout === 'row' || layout === 'inline';
   return (
     <div className={layout === 'row' ? `control-row ${classes}` : classes}>
-      <label
-        className={layout === 'row' ? 'control-row__label' : 'color-field__name'}
-        htmlFor={inputId}
-      >
+      <label className={rowLike ? 'control-row__label' : 'color-field__name'} htmlFor={inputId}>
         {label}
       </label>
-      <span className={layout === 'row' ? 'control-row__value color-field__value' : 'color-field__value'}>
+      <span className={rowLike ? 'control-row__value color-field__value' : 'color-field__value'}>
         {showValue && <span className="color-field__hex">{value}</span>}
         {swatch}
         {reset}

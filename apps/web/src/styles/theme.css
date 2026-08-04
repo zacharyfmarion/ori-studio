@@ -1330,35 +1330,25 @@
   gap: var(--space-1);
 }
 
+/* A plain stack, not a boxed table: three settings under a toggle are a short list,
+   and ruling and boxing them implies a structure they do not have. */
 .share-link-modal__folded {
-  overflow: hidden;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-}
-
-/* `control-row` draws a divider under every row; the last one would sit on the border. */
-.share-link-modal__folded .control-row:last-child {
-  border-bottom: 0;
-}
-
-/* The card as a received message. An unfurled link is only ever seen inside someone
-   else's chat, so judging it outside that frame is judging it in a context it never
-   appears in. */
-.share-message {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
-  padding: var(--space-3);
-  border-radius: var(--radius-lg, 10px);
-  background: var(--bg-elevated);
+  gap: var(--space-2);
 }
 
-.share-message__status {
-  align-self: flex-end;
-  color: var(--text-tertiary, var(--text-secondary));
-  font-size: 0.65rem;
+.share-link-modal__folded-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.share-link-modal__folded-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
 }
 
 /* Deliberately light regardless of theme: this is a mock of someone else's chat client,
@@ -1407,10 +1397,14 @@
   font-size: 0.73rem;
 }
 
-/* The shared `.simple-modal__footer` contributes neither padding nor a rule here, and
-   the link is the one thing this dialog exists to produce — so it gets a divider of its
-   own rather than floating against the columns above it. */
-.share-link-modal__footer {
+/* The link is the one thing this dialog exists to produce, so its row gets real padding
+   and a divider rather than floating flush against the columns above it.
+   
+   Scoped through `.share-link-modal` rather than written as a bare `.share-link-modal__footer`,
+   which is what `.export-modal` next door already does: a later `.simple-modal__footer`
+   rule sets `padding: 0` at equal specificity, so a single-class selector here loses on
+   source order no matter what it declares. */
+.share-link-modal .simple-modal__footer {
   flex: 0 0 auto;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
@@ -7113,14 +7107,32 @@ button.bp-packing-alert:focus-visible {
 
 /* Row: a square swatch on the right, so a colour reads as one control in a
    column of sliders and selects rather than as a full-width band. */
-.color-field--row .color-field__value {
+.color-field--row .color-field__value,
+.color-field--inline .color-field__value {
   justify-content: flex-end;
 }
 
-.color-field--row .color-field__input {
+.color-field--row .color-field__input,
+.color-field--inline .color-field__input {
   width: 22px;
   height: 22px;
   flex: 0 0 auto;
+}
+
+/* Inline: the same arrangement with none of the pane chrome. A dialog is not an
+   options pane, and boxing a few controls in ruled rows reads as a table when
+   nothing about them is tabular. */
+.color-field--inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.color-field--inline .control-row__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
 }
 
 /* Only rendered while the colour is overridden, so its absence is the signal

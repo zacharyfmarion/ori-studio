@@ -279,31 +279,31 @@ export function ShareLinkModal() {
 
             {showFolded && canFold && (
               <div className="share-link-modal__folded">
-                <div className="control-row">
-                  <span className="control-row__label">{t('dialogs:share.side', 'Side')}</span>
-                  <span className="control-row__value">
-                    <SegmentedControl<ShareFoldedSide>
-                      aria-label={t('dialogs:share.side', 'Side')}
-                      value={side}
-                      onChange={setSide}
-                      options={[
-                        { value: 'Front0', label: t('dialogs:share.sideFront', 'Front') },
-                        { value: 'Back1', label: t('dialogs:share.sideBack', 'Back') },
-                      ]}
-                    />
+                <div className="share-link-modal__folded-row">
+                  <span className="share-link-modal__folded-label">
+                    {t('dialogs:share.side', 'Side')}
                   </span>
+                  <SegmentedControl<ShareFoldedSide>
+                    aria-label={t('dialogs:share.side', 'Side')}
+                    value={side}
+                    onChange={setSide}
+                    options={[
+                      { value: 'Front0', label: t('dialogs:share.sideFront', 'Front') },
+                      { value: 'Back1', label: t('dialogs:share.sideBack', 'Back') },
+                    ]}
+                  />
                 </div>
-                {/* `row` rather than the default `stacked`: a square swatch beside its
-                    label, not a full-width colour band, matching every other options pane. */}
+                {/* `inline`, not `row`: a dialog is not an options pane, and the ruled,
+                    padded rows a `control-row` draws made three settings look like a table. */}
                 <ColorField
-                  layout="row"
+                  layout="inline"
                   showValue
                   label={t('dialogs:share.frontColor', 'Front color')}
                   value={frontColor}
                   onChange={setFrontColor}
                 />
                 <ColorField
-                  layout="row"
+                  layout="inline"
                   showValue
                   label={t('dialogs:share.backColor', 'Back color')}
                   value={backColor}
@@ -318,11 +318,7 @@ export function ShareLinkModal() {
               {t('dialogs:share.linkPreview', 'Link preview')}
             </span>
 
-            {/* Framed as a received message rather than a bare image: an unfurled link is
-                only ever seen inside someone else's chat, and judging the card outside that
-                frame is judging it in a context it never appears in. */}
-            <div className="share-message">
-              <div className="share-embed">
+            <div className="share-embed">
                 <div
                   className="share-embed__image"
                   style={{
@@ -340,14 +336,10 @@ export function ShareLinkModal() {
                     />
                   )}
                 </div>
-                <div className="share-embed__meta">
-                  <div className="share-embed__title">{shareCardTitle(cardText)}</div>
-                  <div className="share-embed__host">{shareHost}</div>
-                </div>
+              <div className="share-embed__meta">
+                <div className="share-embed__title">{shareCardTitle(cardText)}</div>
+                <div className="share-embed__host">{shareHost}</div>
               </div>
-              <span className="share-message__status">
-                {t('dialogs:share.delivered', 'Delivered')}
-              </span>
             </div>
           </div>
         </div>
@@ -385,7 +377,7 @@ export function ShareLinkModal() {
         <p className="share-link-modal__note">
           {t(
             'dialogs:share.scope',
-            'Anyone with this link can view it, and links cannot be deleted or changed. Carries the crease pattern only — not reference images, annotations, or saved simulations.'
+            'Anyone with this link opens their own editable copy — they cannot change your original. Links cannot be deleted or changed once created, and carry the crease pattern only: not reference images, annotations, or saved simulations.'
           )}
         </p>
       </div>
