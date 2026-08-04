@@ -559,6 +559,67 @@ describe('native project file', () => {
     expect(parsed.workspace.documents.map((document) => document.kind)).toEqual(['box-pleat']);
   });
 
+  describe('canvas camera (schema v7)', () => {
+    const camera = { centerX: 12.5, centerY: -40, zoom: 3.25, rotation: Math.PI / 4 };
+
+    /** A CP file, optionally carrying a saved camera. */
+    const cpFileWith = (input: { camera?: typeof camera | null }) =>
+      createNativeCreasePatternProjectFile({
+        title: 'Rotated CP',
+        filename: 'rotated.osf',
+        path: null,
+        document: cpDocument(),
+        source: null,
+        foldProjection: null,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf',
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [],
+        activeFoldedFigureId: null,
+        lineage: importedCpLineage(),
+        appVersion: '0.1.1',
+        now,
+        ...input,
+      });
+
+    const cameraOf = (raw: unknown) => {
+      const parsed = parseNativeProjectFile(
+        typeof raw === 'string' ? raw : JSON.stringify(raw)
+      );
+      const document = activeNativeDocument(parsed);
+      if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+      return document.viewState.camera;
+    };
+
+    it('round-trips the camera, so a rotated canvas reopens rotated', () => {
+      expect(cameraOf(serializeNativeProjectFile(cpFileWith({ camera })))).toEqual(camera);
+    });
+
+    it('writes null when the document has no camera', () => {
+      expect(cameraOf(serializeNativeProjectFile(cpFileWith({})))).toBeNull();
+    });
+
+    it('opens a v6 file, which predates the camera, with no camera', () => {
+      // The migration case: every file written before this feature. It must open
+      // and fall back to the auto-fit, not throw.
+      const raw = JSON.parse(serializeNativeProjectFile(cpFileWith({ camera })));
+      raw.schemaVersion = 6;
+      delete raw.workspace.documents[0].viewState.camera;
+      expect(cameraOf(raw)).toBeNull();
+    });
+
+    it('drops a malformed camera rather than refusing the file', () => {
+      // A camera is a *view*: a bad one must never cost the user their geometry.
+      // Zero zoom would divide by zero; an out-of-range one blanks the canvas.
+      for (const junk of [null, 42, 'square', [], { zoom: 2 }, { ...camera, zoom: 0 }, { ...camera, rotation: Number.NaN }, { ...camera, zoom: 1e9 }]) {
+        const raw = JSON.parse(serializeNativeProjectFile(cpFileWith({ camera })));
+        raw.workspace.documents[0].viewState.camera = junk;
+        expect(cameraOf(raw)).toBeNull();
+      }
+    });
+  });
+
   describe('box-pleat symmetry (schema v6)', () => {
     const bpFile = (symmetry?: Parameters<typeof createNativeBoxPleatProjectFile>[0]['symmetry']) =>
       JSON.parse(

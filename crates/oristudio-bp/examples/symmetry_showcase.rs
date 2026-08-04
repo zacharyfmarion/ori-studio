@@ -393,6 +393,7 @@ fn main() {
             let request = OptimizerSymmetry {
                 axis,
                 partners: case.partners.clone(),
+                negative_side: Vec::new(),
             };
             let Ok(resolved) = KernelSymmetry::from_request(&request, &h) else {
                 continue; // these flap dimensions cannot mirror across this axis

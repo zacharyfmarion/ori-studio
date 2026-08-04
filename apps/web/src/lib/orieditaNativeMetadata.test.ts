@@ -3,6 +3,7 @@ import {
   activeLineColorFromOrieditaMetadata,
   activeMouseModeFromOrieditaMetadata,
   canvasToolOptionsFromOrieditaMetadata,
+  creasePatternRotationFromOrieditaMetadata,
   foldedFigureModelFromOrieditaMetadata,
   orieditaNativeMetadataStatus,
 } from './orieditaNativeMetadata';
@@ -191,6 +192,9 @@ describe('oriedita native metadata', () => {
       // The camera is preserved for round-tripping but no longer *restored*: it
       // describes the view its author last had, not the document, and applying
       // it to the canvas transform is what misplaced folded figures.
+      // The camera is *partly* restored now: its angle turns the view, while
+      // zoom and centre are only carried through (the document opens fit to
+      // content). An empty camera has no angle, so nothing is restored from it.
       restored: ['Canvas line color', 'Canvas tool', 'Folded colors', 'Folded model'],
       preserved: ['Camera', 'Canvas', 'unknownFutureField'],
     });
@@ -209,5 +213,68 @@ describe('oriedita native metadata', () => {
 
   it('returns null when metadata does not contain Oriedita-native fields', () => {
     expect(orieditaNativeMetadataStatus({ author: 'Ori Studio' })).toBeNull();
+  });
+});
+
+describe('creasePatternRotationFromOrieditaMetadata', () => {
+  const withAngle = (cameraAngle: unknown) => ({
+    'oriedita:ori:creasePatternCamera': { cameraZoomX: 1.5, cameraAngle },
+  });
+
+  it('opens a real Oriedita file at the angle its author left it', () => {
+    // The exact camera block from a file saved out of Oriedita with the canvas
+    // turned. Degrees -> radians, and the sign flips: `Camera.TV2object` maps
+    // screen->object with R(+angle), so object->screen is R(-angle), while our
+    // `UserCamera.rotation` composes object->screen directly.
+    const metadata = {
+      'oriedita:ori:creasePatternCamera': {
+        cameraPositionX: 73.50907225545524,
+        cameraPositionY: -67.60910849832943,
+        cameraAngle: -22.5,
+        cameraMirror: 1.0,
+        cameraZoomX: 1.4093331472389004,
+        cameraZoomY: 1.4093331472389004,
+        displayPositionX: 459.0,
+        displayPositionY: 423.0,
+      },
+    };
+    expect(creasePatternRotationFromOrieditaMetadata(metadata)).toBeCloseTo(Math.PI / 8);
+  });
+
+  it('converts degrees to radians and flips the sign', () => {
+    expect(creasePatternRotationFromOrieditaMetadata(withAngle(45))).toBeCloseTo(-Math.PI / 4);
+    expect(creasePatternRotationFromOrieditaMetadata(withAngle(-90))).toBeCloseTo(Math.PI / 2);
+  });
+
+  it('reads a square camera as no rotation, so the view is left to fit', () => {
+    expect(creasePatternRotationFromOrieditaMetadata(withAngle(0))).toBeNull();
+  });
+
+  it('returns null when there is no camera to read', () => {
+    expect(creasePatternRotationFromOrieditaMetadata(null)).toBeNull();
+    expect(creasePatternRotationFromOrieditaMetadata({})).toBeNull();
+    expect(creasePatternRotationFromOrieditaMetadata(withAngle(undefined))).toBeNull();
+    expect(creasePatternRotationFromOrieditaMetadata(withAngle('45'))).toBeNull();
+  });
+
+  it('reports the angle as restored and the rest of the camera as preserved', () => {
+    expect(orieditaNativeMetadataStatus(withAngle(-22.5))).toEqual({
+      restored: ['View rotation'],
+      preserved: ['Camera'],
+    });
+  });
+
+  it('leaves the folded-figure reader alone', () => {
+    // `savedCreasePatternView` un-bakes the camera from a folded figure's saved
+    // scale/rotation, making them paper-relative. Restoring the *view* then turns
+    // the figure and the pattern together, which is exactly what upstream's
+    // `d_foldedFigure_rotation_correction` exists to do. The two readers stay
+    // independent; this pins that.
+    const metadata = {
+      ...withAngle(30),
+      'oriedita:ori:foldedFigureModel': { scale: 1.5, rotation: 90 },
+    };
+    expect(foldedFigureModelFromOrieditaMetadata(metadata)).toMatchObject({ rotation: 60 });
+    expect(creasePatternRotationFromOrieditaMetadata(metadata)).toBeCloseTo(-Math.PI / 6);
   });
 });

@@ -30,11 +30,13 @@ import {
 } from '../cp-workspace/annotations/textAnnotation';
 import { validateInlineSimulations } from '../cp-workspace/inlineSimulation/inlineSimulationFile';
 import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
+import { validateUserCamera } from '../cp-workspace/renderer/camera';
+import type { UserCamera } from '../cp-workspace/renderer/camera';
 
 export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
 export const NATIVE_PROJECT_EXTENSION = 'osf';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
-export const NATIVE_PROJECT_SCHEMA_VERSION = 6;
+export const NATIVE_PROJECT_SCHEMA_VERSION = 7;
 
 export type NativeProjectDocumentKind = 'treemaker-tree' | 'crease-pattern' | 'box-pleat';
 
@@ -109,6 +111,17 @@ export interface NativeCreasePatternDocumentV1 extends NativeProjectBaseDocument
     creaseColorMode: CreaseColorMode;
     selection: OristudioCpSelection;
     viewport: OristudioCpViewportOptions;
+    /**
+     * The canvas camera the document was last saved at — centre, zoom, and
+     * rotation. Added in schema v7; absent in older files, which open auto-fit
+     * as they always did.
+     *
+     * The view is document state, not a transient way of looking at the
+     * document: a rotated canvas is how hex-pleated designs are authored for
+     * their whole life, and every object created on that canvas is oriented
+     * relative to it. Reopening square would tilt all of them.
+     */
+    camera: UserCamera | null;
     foldedFigures: OristudioCpFoldedFigureEntry[];
     activeFoldedFigureId: string | null;
   };
@@ -141,7 +154,7 @@ export type NativeProjectDocumentV1 =
 
 export interface NativeProjectFileV1 {
   format: typeof NATIVE_PROJECT_FORMAT;
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   minimumReaderSchemaVersion: 1;
   createdBy: NativeProjectActor;
   modifiedBy: NativeProjectActor;
@@ -189,6 +202,11 @@ export interface NativeCreasePatternProjectInput {
   creaseColorMode: CreaseColorMode;
   selection: OristudioCpSelection;
   viewport: OristudioCpViewportOptions;
+  /**
+   * Canvas camera to persist (schema v7). Optional so older call sites and
+   * tests omit it; written as `null`, which reads back as "auto-fit".
+   */
+  camera?: UserCamera | null;
   foldedFigures: OristudioCpFoldedFigureEntry[];
   activeFoldedFigureId: string | null;
   lineage: OristudioCpLineage;
@@ -308,7 +326,8 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
     schemaVersion === 3 ||
     schemaVersion === 4 ||
     schemaVersion === 5 ||
-    schemaVersion === 6
+    schemaVersion === 6 ||
+    schemaVersion === 7
   ) {
     return validateV1(value);
   }
@@ -487,6 +506,7 @@ function createNativeCreasePatternDocument(
       creaseColorMode: input.creaseColorMode,
       selection: input.selection,
       viewport: input.viewport,
+      camera: input.camera ?? null,
       foldedFigures: nativeFoldedFigures(input.foldedFigures),
       activeFoldedFigureId: activeFoldedFigureId(
         input.foldedFigures,
@@ -787,6 +807,9 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
         viewport: isRecord(viewState.viewport)
           ? (viewState.viewport as unknown as OristudioCpViewportOptions)
           : ({} as OristudioCpViewportOptions),
+        // Absent before schema v7 → null, i.e. auto-fit. A malformed camera is
+        // dropped rather than thrown, like every other viewState field.
+        camera: validateUserCamera(viewState.camera),
         foldedFigures,
         activeFoldedFigureId: activeFoldedFigureId(
           foldedFigures,

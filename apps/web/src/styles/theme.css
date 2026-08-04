@@ -492,6 +492,69 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 
+/* A number input with its own − / + buttons. The native spinners go: they are a
+   4px hit target in a 26px row, and clicking one only moved the field's draft,
+   so nothing changed until the field lost focus. */
+.number-field {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.number-field > .number-field__input {
+  min-width: 44px;
+}
+
+.number-field__input {
+  appearance: textfield;
+}
+
+.number-field__input::-webkit-outer-spin-button,
+.number-field__input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.number-field__step {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  /* Square on the input's own height, so the three boxes share a top and a
+     bottom edge. */
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.number-field__step:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.number-field__step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.number-field__step:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.number-field__suffix {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1234,6 +1297,65 @@
   display: grid;
   gap: var(--space-3);
   padding: var(--space-3);
+}
+
+/* Share-link dialog. Wider than the default modal because it shows a URL, and a
+   360px field turns even a short link into an unreadable sliver. */
+.share-link-modal {
+  width: min(520px, calc(100vw - var(--space-6)));
+}
+
+.share-link-modal__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.share-link-modal__url {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  /* The payload is one long unbroken token; without this it stretches the flex
+     row instead of scrolling inside it. */
+  text-overflow: ellipsis;
+}
+
+.share-link-modal__meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.share-link-modal__note {
+  margin: 0;
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.share-link-modal__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border-warning, var(--border-default));
+  border-radius: var(--radius-md);
+  background: var(--bg-warning-subtle, var(--bg-primary));
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.share-link-modal__warning svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-warning, var(--text-secondary));
 }
 
 /* Box-Pleat layout optimizer dialog. Wider than the default modal because its
@@ -2681,8 +2803,22 @@
   top: var(--space-4);
   right: var(--space-4);
   display: grid;
-  width: min(420px, calc(100% - var(--space-8)));
-  max-width: min(420px, calc(100% - var(--space-8)));
+  /* One number for both states: the cap a collapsed badge may grow to, and the
+     width an expanded panel takes. Sharing it is what stops the badge from
+     being able to come out wider closed than open.
+
+     The gutter is the inset doubled — one on each side — written in terms of the
+     inset above so the two cannot drift apart. It said `var(--space-8)` until
+     the list was windowed; that token does not exist (the scale stops at
+     `--space-6`), so the declaration was invalid at computed-value time and
+     dropped, leaving `max-width: none`. Nothing revealed it while the rows were
+     still in normal flow. */
+  --cp-diagnostic-hud-width: min(360px, calc(100% - var(--space-4) * 2));
+
+  /* Collapsed, the badge is exactly as wide as its headline — no `width`, so an
+     absolutely positioned box shrinks to fit. The cap still applies, so a long
+     headline wraps inside the width instead of running off the canvas. */
+  max-width: var(--cp-diagnostic-hud-width);
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border-strong) 68%, transparent);
   border-radius: 6px;
@@ -2692,6 +2828,13 @@
   font-weight: 760;
   line-height: 1.2;
   text-align: right;
+}
+
+/* Expanded, the width has to be stated. The rows are windowed and therefore out
+   of flow, so they contribute no intrinsic width — left to shrink to fit, the
+   panel would size itself to the headline and wrap every message to two lines. */
+.cp-diagnostic-hud[data-expanded] {
+  width: var(--cp-diagnostic-hud-width);
 }
 
 .cp-diagnostic-hud__summary {
@@ -2731,14 +2874,29 @@
 }
 
 .cp-diagnostic-hud__list {
-  display: grid;
   max-height: min(320px, calc(100vh - 170px));
   overflow: auto;
   border-top: 1px solid var(--border-subtle);
   text-align: left;
+  /* The list is windowed: only the rows near the viewport are in the DOM, so
+     scroll position comes from a spacer of the full height rather than from the
+     rows themselves. See CpDiagnosticHud.tsx.
+
+     `layout paint` only — NOT `strict`/`size`, which would compute this box as
+     if it had no contents and collapse the scroll container to nothing. */
+  contain: layout paint;
+}
+
+/* Full-height spacer; rows are positioned into it by the virtualizer. */
+.cp-diagnostic-hud__spacer {
+  position: relative;
+  width: 100%;
 }
 
 .cp-diagnostic-hud__row {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: grid;
   /* The marker glyph, then the message. The kind column is gone: the HUD header
      already names the check, and the glyph carries which rule failed — see
@@ -2757,8 +2915,20 @@
   text-align: left;
 }
 
-.cp-diagnostic-hud__row + .cp-diagnostic-hud__row {
+/* A border on the row itself, not `.row + .row` and not `:first-child`. Windowed
+   rows are absolutely positioned and only the ones near the viewport exist, so
+   neither sibling order nor "is it the first child" tracks position in the list.
+   The entry's own index does.
+
+   Transparent rather than absent on the first row so every row measures the same
+   height — the virtualizer caches what it measures, and a 1px-shorter row 0
+   would put a permanent 1px skew in the total. */
+.cp-diagnostic-hud__row {
   border-top: 1px solid var(--border-subtle);
+}
+
+.cp-diagnostic-hud__row[data-index='0'] {
+  border-top-color: transparent;
 }
 
 .cp-diagnostic-hud__row:hover,
@@ -4471,16 +4641,42 @@
   text-decoration: underline;
 }
 
+/* The tool hint window: a floating window over the bottom right of the Edit
+   workspace, overhanging the seam between the crease-pattern viewport and the
+   View pane.
+
+   `left`, `bottom` and `width` come from `cpToolHintPlacement` as inline style —
+   they are a function of a measured rect, so they cannot live here. Everything
+   else does. It is body-portaled, which is what `fixed` needs to mean the
+   browser window rather than the nearest Dockview panel. */
 .cp-context-panel {
-  position: relative; /* Anchors the reset button in the header. */
+  position: fixed;
+  z-index: 900; /* Above all in-pane chrome (max 17), below --z-modal. */
   --cp-context-reset-gutter: 58px;
   display: grid;
-  width: 100%;
+  /* `minmax(0, …)` on the body row is what lets it shrink below its content and
+     therefore scroll; without it the row takes its full intrinsic height and the
+     max-height below just clips the bottom off. */
+  grid-template-rows: auto minmax(0, 1fr);
+  /* Never taller than the viewport it floats over. The body scrolls; the header
+     stays put, so the tool is always named even mid-scroll. */
+  max-height: min(60vh, 520px);
   overflow: hidden;
-  border-top: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-secondary) 82%, var(--bg-primary));
+  /* `--border-default`, not `--border-strong`. Strong maps to the theme preset's
+     *active* border (a saturated blue), so a window wearing it looks permanently
+     focused — the emphasis here has to come from the shadow and the fill. */
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-primary));
+  box-shadow: 0 8px 24px var(--shadow-overlay);
   color: var(--text-secondary);
   font-size: 0.68rem;
+}
+
+/* Collapsed the window is only its header, so a max-height meant for the open
+   state would leave it able to grow. */
+.cp-context-panel[data-collapsed] {
+  max-height: none;
 }
 
 .cp-context-panel__header {
@@ -4518,8 +4714,12 @@
 
 .cp-context-panel__body {
   display: grid;
+  align-content: start;
   gap: 8px;
-  overflow: visible;
+  /* Was `visible`, from when this sat in a scrolling pane that took the overflow.
+     Floating, it has to take its own. Nothing here escapes the box that needs to
+     — the selects are native and the menus are portaled. */
+  overflow-y: auto;
   padding: 8px;
 }
 
@@ -5015,26 +5215,19 @@
   flex: 0 0 auto;
 }
 
-.cp-view-controls-panel__tool-options-slot {
-  display: grid;
-  flex: 0 0 auto;
-  margin-top: auto;
-}
-
-.cp-view-controls-panel__tool-options-slot:empty {
-  min-height: 0;
-}
-
 .control-row__value--toggle {
   display: flex;
   justify-content: flex-end;
 }
 
+/* One width for every stepper row. A number input's intrinsic width follows its
+   `max` attribute, so Grid size (unbounded) renders far wider than Line width
+   (max 8) and the fields down the pane would not line up. */
 .control-row__value--input {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  width: 112px;
 }
 
 .control-row__value--select {
@@ -5046,11 +5239,6 @@
   width: 100%;
   min-width: 0;
   height: 26px;
-}
-
-.control-row__suffix {
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
 }
 
 /* Simulate workspace options pane, alongside the Edit workspace's view pane. */

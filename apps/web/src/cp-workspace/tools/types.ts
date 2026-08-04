@@ -7,7 +7,7 @@
  * renders the {@link ToolPreview}; the controller routes {@link ToolCommit}s to
  * the kernel command layer. See implementation-plans/webgl-canvas-workspace-migration.md.
  */
-import type { ModelPoint } from '../renderer/types';
+import type { ModelPoint, ViewTransform } from '../renderer/types';
 
 /** A pointer intent, translated to model space by the surface. */
 export interface ToolInput {
@@ -27,6 +27,17 @@ export interface ToolInput {
    * Only the drag-line engine consumes it; box/path engines ignore it.
    */
   tolerance?: number;
+  /**
+   * The live model→device transform, so a box tool can build a rectangle that is
+   * axis-aligned *on screen* — Oriedita's `BoxSelectStepNode` forms its box in
+   * view space and unprojects the corners, which is what makes a marquee stay
+   * upright while the canvas is turned.
+   *
+   * Surface-computed and camera-dependent, like {@link tolerance}. Absent means
+   * the box is model-axis-aligned and commits its two diagonal corners, which is
+   * what a tool whose kernel handler reads the points positionally needs.
+   */
+  viewTransform?: ViewTransform | null;
 }
 
 /** A candidate crease segment shown while a tool is in progress. */

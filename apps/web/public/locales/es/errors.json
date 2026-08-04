@@ -34,6 +34,10 @@
   "global": {
     "title": "Algo ha fallado en segundo plano"
   },
+  "shareLink": {
+    "invalid": "Ese enlace para compartir está incompleto o dañado; probablemente se cortó al copiarlo. Pide que te lo envíen de nuevo.",
+    "tooNew": "Ese enlace se creó con una versión más reciente de Ori Studio. Recarga para obtener la última versión y ábrelo de nuevo."
+  },
   "worker": {
     "cpDetect": "La detección de patrones de pliegues se ha detenido inesperadamente. Prueba a importar la imagen de nuevo.",
     "oristudioBp": "El motor de plegado en caja se ha detenido inesperadamente. Recarga Ori Studio para seguir trabajando en este diseño.",

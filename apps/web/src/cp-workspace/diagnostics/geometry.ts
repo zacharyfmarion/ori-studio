@@ -231,19 +231,6 @@ export function buildCpDiagnosticMarkers(
   return { center, size, shape, fill, stroke, count };
 }
 
-/** Marker anchors {id, model point} for click hit-testing — same filter as the render. */
-export function buildCpDiagnosticMarkerHits(
-  entries: readonly OristudioCpDiagnosticEntry[]
-): { id: string; point: Point }[] {
-  const hits: { id: string; point: Point }[] = [];
-  for (const entry of entries) {
-    if (!entry.point) continue;
-    if (CP_DIAGNOSTIC_MARKER_SHAPE_ID[cpDiagnosticMarkerStyle(entry).shape] === null) continue;
-    hits.push({ id: entry.id, point: entry.point });
-  }
-  return hits;
-}
-
 /** Build model-space segment-highlight strokes for the diagnostic entries. */
 export function buildCpDiagnosticStrokes(
   entries: readonly OristudioCpDiagnosticEntry[],

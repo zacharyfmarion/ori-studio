@@ -35,6 +35,16 @@ export interface OptimizerSymmetryPayload {
   axis: OptimizerSymmetryAxis;
   /** `[flap id, mirror partner id]` for every flap. */
   partners: [number, number][];
+  /**
+   * Flap ids drawn on the left of the tree's mirror line.
+   *
+   * A mirror pair occupies two mirrored positions and which member takes which
+   * is free as far as the packing goes, so the solver settles it arbitrarily —
+   * in random mode differently per pair per run, which reads as flaps swapping
+   * sides. This carries the drawing's answer; the kernel honours it after
+   * solving, and only where the exchange leaves the layout valid.
+   */
+  negativeSide: number[];
 }
 
 export interface OptimizerSymmetryResolved {
@@ -218,11 +228,22 @@ export function resolveOptimizerSymmetry(
     }
   }
 
+  // Which member of each pair the user drew on the left. The tree's mirror is
+  // always vertical, so "left" is simply a smaller x; where that lands on the
+  // paper is the fold's business, and all that matters is that it is consistent.
+  const negativeSide: number[] = [];
+  for (const vertex of tree.vertices) {
+    const mirror = partner.get(vertex.id);
+    if (mirror === undefined || mirror === vertex.id) continue;
+    if (vertex.loc.x < symmetry.loc.x) negativeSide.push(vertex.id);
+  }
+
   return {
     ok: true,
     payload: {
       axis,
       partners: [...partner].map(([id, mirror]): [number, number] => [id, mirror]),
+      negativeSide,
     },
     inconsistentPairs,
   };

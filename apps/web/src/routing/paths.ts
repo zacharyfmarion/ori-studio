@@ -12,6 +12,17 @@ export const DESIGN_TREEMAKER_PATH = '/design/treemaker';
 export const DESIGN_BP_PATH = '/design/bp';
 export const EDIT_PATH = '/edit';
 export const SIMULATE_PATH = '/simulate';
+/**
+ * Share links land here, hand their payload to the store, and redirect to Edit.
+ *
+ * A route of its own rather than a fragment on `/edit`, for three reasons: the
+ * route table documents that share links exist, the handling code mounts only
+ * when one is opened, and the redirect strips the payload from the URL — so a
+ * refresh cannot re-import it over work in progress, and no reload guard is
+ * needed. The payload stays in the *fragment*, never the path, so it is never
+ * sent to a server (RFC 3986 §3.5).
+ */
+export const SHARE_PATH = '/s';
 
 /** Path for a Design workspace layout variant. */
 export function designVariantPath(variant: DesignLayoutVariant): string {

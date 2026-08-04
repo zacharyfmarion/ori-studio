@@ -211,3 +211,50 @@ describe('on-axis declaration', () => {
     expect(new Map(result.payload.partners).get(3)).toBe(3);
   });
 });
+
+describe('the sides the tree was drawn on', () => {
+  it('names the left member of each pair, and nothing on the axis', () => {
+    // Vertex 1 sits at x=2, left of the centre line at x=4; its partner 2 is at
+    // x=6. Vertex 3 is on the axis and has no side.
+    const result = resolveOptimizerSymmetry(
+      bugTree(),
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
+      { fold: 'book' }
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.payload.negativeSide).toEqual([1]);
+  });
+
+  it('follows the drawing when the pair is drawn the other way round', () => {
+    const mirrored = tree(
+      [vertex(0, 4, 4, false), vertex(1, 6, 6), vertex(2, 2, 6), vertex(3, 4, 1)],
+      [edge(0, 0, 1, 3), edge(1, 0, 2, 3), edge(2, 0, 3, 3)]
+    );
+    const result = resolveOptimizerSymmetry(
+      mirrored,
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
+      { fold: 'book' }
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.payload.negativeSide).toEqual([2]);
+  });
+
+  it('is unaffected by the fold, which only decides where that side lands', () => {
+    const book = resolveOptimizerSymmetry(
+      bugTree(),
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
+      { fold: 'book' }
+    );
+    const diagonal = resolveOptimizerSymmetry(
+      bugTree(),
+      symmetryState({ pairs: [{ v1: 1, v2: 2 }] }),
+      { fold: 'diagonal' }
+    );
+    expect(book.ok && diagonal.ok).toBe(true);
+    if (!book.ok || !diagonal.ok) return;
+    expect(book.payload.negativeSide).toEqual(diagonal.payload.negativeSide);
+    expect(book.payload.axis).not.toBe(diagonal.payload.axis);
+  });
+});

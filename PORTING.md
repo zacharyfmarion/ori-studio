@@ -114,6 +114,17 @@ are unchanged:
   same thing the diagonal sheet already does — which makes the mirror map
   independent of the sheet size at the cost of an even sheet size.
 
+- **Which member of a mirror pair lands on which side is settled after solving.**
+  A pair occupies two mirrored positions and the packing is indifferent to which
+  member takes which, so the solver picks arbitrarily — in random mode
+  differently per pair per seed. `OptimizerSymmetry::negative_side` carries the
+  sides the user drew, and `orient_result_to_drawing` restores them: first by
+  reflecting the whole layout when that agrees with more of the drawing (always
+  sound — every flap lands where its own mirror was), then pair by pair, keeping
+  an exchange only when it still validates. Partners are interchangeable when
+  they are metrically identical, which mirror siblings are and mirrored subtrees
+  are not.
+
 - **Mirror-draw state is persisted only in `.osf`.** Which flaps mirror which,
   whether mirror draw is on, and which fold the mirror represents are saved as a
   typed `symmetry` field on the box-pleat document (native schema v6). Nothing

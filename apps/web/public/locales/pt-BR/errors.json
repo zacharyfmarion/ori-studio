@@ -34,6 +34,10 @@
   "global": {
     "title": "Algo deu errado em segundo plano"
   },
+  "shareLink": {
+    "invalid": "Esse link de compartilhamento está incompleto ou danificado — provavelmente foi cortado ao ser copiado. Peça o link novamente.",
+    "tooNew": "Esse link foi criado com uma versão mais recente do Ori Studio. Recarregue para obter a versão mais nova e abra-o de novo."
+  },
   "worker": {
     "cpDetect": "A detecção de padrão de vincos parou inesperadamente. Tente importar a imagem novamente.",
     "oristudioBp": "O motor de box pleating parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando neste design.",

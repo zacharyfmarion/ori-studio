@@ -24,6 +24,7 @@ import {
   isSegmentImageFormat,
   type SegmentExportFormat,
 } from '../../../lib/creaseSegmentExport';
+import { buildShareUrl, isShareLinkLong } from '../../../lib/shareLink';
 import {
   renderFoldedFigurePng,
   serializeFoldedFigureSvg,
@@ -143,6 +144,7 @@ import {
   exportOristudioCpDocumentAsOri,
   exportOristudioCpDocumentAsOrh,
   exportFoldFrameAsFormat,
+  shareFoldFrameAsLink,
   clearOristudioCpKernelTexts,
   createBlankOristudioCpDocument,
   foldOristudioCpDocument,
@@ -750,6 +752,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       toolMode: 'select',
       symmetryAuthoringPairs: [],
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+      oristudioCpCamera: null,
       ...emptyFoldArtifactResourceState(),
       status: statusFromSnapshot(snapshot),
       dirty: source.dirty ?? false,
@@ -936,6 +939,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpRevision: 0,
       toolMode: 'select',
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+      oristudioCpCamera: null,
       ...artifactState,
       sequenceTarget: null,
       sequencePlan: null,
@@ -1068,6 +1072,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
         ...nativeDocument.viewState.viewport,
       },
+      // Null (pre-v7 file, or a malformed camera) leaves the canvas to auto-fit.
+      oristudioCpCamera: nativeDocument.viewState.camera ?? null,
       ...artifactState,
       sequenceTarget: null,
       sequencePlan: null,
@@ -1295,6 +1301,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       creaseColorMode: get().creaseColorMode,
       selection: get().oristudioCpSelection,
       viewport: get().oristudioCpViewport,
+      camera: get().oristudioCpCamera,
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
@@ -1537,6 +1544,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     currentFilePath: null,
     currentFileName: defaultNativeFilename('Untitled'),
     projectMessage: null,
+    oristudioCpShareLink: null,
+    pendingSharedCpPayload: null,
     status: 'loading_engine',
     dirty: false,
     engineReady: false,
@@ -1623,6 +1632,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpRevision: 0,
               oristudioCpDocumentExtensions: {},
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+              oristudioCpCamera: null,
               ...emptyFoldArtifactResourceState(),
             };
         set({
@@ -1686,6 +1696,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+          oristudioCpCamera: null,
           ...emptyFoldArtifactResourceState(),
           dirty: false,
           lastOptimization: null,
@@ -2412,6 +2423,43 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         return false;
       }
     },
+
+    shareOristudioCpSegment: async (segmentId: number) => {
+      try {
+        // Same artifacts and same sub-fold extraction the sibling Export verb
+        // uses, so a shared segment is byte-for-byte the pattern that Export
+        // would have written -- border creases included, since a segment is by
+        // construction a region enclosed by them.
+        const foldArtifacts = await ensureCpSegmentationArtifacts(get().oristudioCpDocument?.document);
+        if (!foldArtifacts) return false;
+        const subFold = buildSegmentSubFold(foldArtifacts, segmentId);
+        if (!subFold) return false;
+
+        const payload = await shareFoldFrameAsLink(JSON.stringify(subFold));
+        const url = buildShareUrl(payload);
+        // Deliberately not copied here: the clipboard is the user's, and taking
+        // it over as a side effect of opening a dialog would discard whatever
+        // they had. The modal offers Copy.
+        set({
+          oristudioCpShareLink: {
+            url,
+            creaseCount: subFold.edges_vertices?.length ?? 0,
+            long: isShareLinkLong(url),
+          },
+        });
+        return true;
+      } catch (error) {
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    dismissOristudioCpShareLink: () => set({ oristudioCpShareLink: null }),
+
+    // Written only by the `/s` route, read only by `ensureEditCreasePattern`.
+    // Raw and undecoded on purpose: the route captures intent, the Edit surface
+    // provisions from it.
+    setPendingSharedCp: (payload: string) => set({ pendingSharedCpPayload: payload }),
 
     exportOristudioCpSegment: async (
       format: SegmentExportFormat,

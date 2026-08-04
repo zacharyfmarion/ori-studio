@@ -19,7 +19,10 @@ import type {
 import type { Aabb } from '../picking/lineHitIndex';
 import {
   CANVAS_OBJECT_GAP,
+  boxAabbInFrame,
   firstFreeSlotBeside,
+  pointFromFrame,
+  pointToFrame,
   type BesideAnchor,
 } from '../canvasObjects/placeBesideCp';
 import type { FillGeometry, FoldedGeometry, Rgba } from '../renderer/types';
@@ -566,7 +569,8 @@ export type FoldedFigureAnchor = BesideAnchor;
  */
 export function cpUserAnchorForLineIds(
   document: { crease_pattern: { line_segments: readonly { a: Point; b: Point }[] } },
-  lineIds: readonly number[]
+  lineIds: readonly number[],
+  frameAngle = 0
 ): FoldedFigureAnchor {
   const segments = document.crease_pattern.line_segments;
   let minY = Infinity;
@@ -576,13 +580,19 @@ export function cpUserAnchorForLineIds(
     const line = segments[id - 1];
     if (!line) continue;
     for (const point of [line.a, line.b]) {
-      const user = cpModelToSvg(point);
+      // "Right" and "top" are measured along the *view's* axes, so the figure
+      // parks beside the pattern on screen rather than diagonally from it.
+      const user = pointToFrame(cpModelToSvg(point), frameAngle);
       if (user.y < minY) minY = user.y;
       if (user.x > maxX) maxX = user.x;
     }
   }
   if (!Number.isFinite(minY) || !Number.isFinite(maxX)) {
-    return { right: CP_PAPER_RECT.x + CP_PAPER_RECT.width, top: CP_PAPER_RECT.y };
+    const fallback = pointToFrame(
+      { x: CP_PAPER_RECT.x + CP_PAPER_RECT.width, y: CP_PAPER_RECT.y },
+      frameAngle
+    );
+    return { right: fallback.x, top: fallback.y };
   }
   return { right: maxX, top: minY };
 }
@@ -606,30 +616,40 @@ export function cpUserAnchorForLineIds(
 export function placeFoldedFigureBesideCp(
   figure: OristudioCpFoldedFigureEntry,
   existing: readonly OristudioCpFoldedFigureEntry[],
-  paper: FoldedFigureAnchor
+  paper: FoldedFigureAnchor,
+  frameAngle = 0
 ): FoldedFigurePlacement {
   const snapshot = figure.renderSnapshot;
   if (!snapshot?.primitives.length) return IDENTITY_FOLDED_PLACEMENT;
   const local = foldedFigureLocalGeometry(snapshot);
   if (!local.bounds) return IDENTITY_FOLDED_PLACEMENT;
 
-  // The figure is placed unrotated and unscaled, so its footprint is just its
-  // local extent, and its vertical band is fixed by the top alignment.
+  // Packed in the view's frame, where a figure created upright is axis-aligned —
+  // so its footprint is exactly its local extent, and the row runs across the
+  // screen. `paper` is already expressed in that frame by `cpUserAnchorForLineIds`.
+  const width = local.bounds.maxX - local.bounds.minX;
+  const height = local.bounds.maxY - local.bounds.minY;
   const { left, top } = firstFreeSlotBeside({
     anchor: paper,
-    width: local.bounds.maxX - local.bounds.minX,
-    height: local.bounds.maxY - local.bounds.minY,
+    width,
+    height,
     gap: CANVAS_OBJECT_GAP,
     blockers: existing
       .filter((other) => other.id !== figure.id)
-      .map(foldedFigureUserAabb)
+      .map((other) => {
+        const box = foldedFigureBox(other);
+        return box ? boxAabbInFrame(box, frameAngle) : null;
+      })
       .filter((aabb): aabb is Aabb => aabb !== null),
   });
 
+  // Placement rotates about the figure's local centre, so the centre only ever
+  // translates — the offset is centre-to-centre and the rotation rides along.
+  const centre = pointFromFrame({ x: left + width / 2, y: top + height / 2 }, frameAngle);
   return {
-    offset: { x: left - local.bounds.minX, y: top - local.bounds.minY },
+    offset: { x: centre.x - local.center.x, y: centre.y - local.center.y },
     scale: 1,
-    rotation: 0,
+    rotation: frameAngle,
   };
 }
 

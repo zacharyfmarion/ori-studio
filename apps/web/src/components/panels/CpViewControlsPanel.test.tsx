@@ -5,7 +5,6 @@ import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { CpViewControlsPanel } from './CpViewControlsPanel';
-import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -91,12 +90,6 @@ describe('CpViewControlsPanel', () => {
       setOristudioCpGridSize,
     });
 
-    const toolOptionsSlot = view.querySelector<HTMLElement>(`#${CP_TOOL_OPTIONS_PANE_SLOT_ID}`);
-    expect(toolOptionsSlot).not.toBeNull();
-    expect(toolOptionsSlot?.previousElementSibling?.className).toContain(
-      'cp-view-controls-panel__view-options'
-    );
-
     const gridToggle = view.querySelector<HTMLButtonElement>('button[aria-label="Grid"]');
     act(() => gridToggle?.click());
     expect(useWorkspaceStore.getState().oristudioCpViewport.gridVisible).toBe(false);
@@ -140,6 +133,30 @@ describe('CpViewControlsPanel', () => {
     if (!pointInput) throw new Error('Point size input did not render');
     commitNumberInput(pointInput, '4');
     expect(useWorkspaceStore.getState().oristudioCpViewport.pointSize).toBe(4);
+  });
+
+  it('steps line width and point size on the click, with no Enter needed', () => {
+    const view = renderPanel({ oristudioCpDocument: editableCpState() });
+
+    const increaseWidth = view.querySelector<HTMLButtonElement>(
+      'button[aria-label="Increase Line width"]'
+    );
+    act(() => increaseWidth?.click());
+    expect(useWorkspaceStore.getState().oristudioCpViewport.lineWidth).toBe(2);
+
+    const decreaseWidth = view.querySelector<HTMLButtonElement>(
+      'button[aria-label="Decrease Line width"]'
+    );
+    act(() => decreaseWidth?.click());
+    expect(useWorkspaceStore.getState().oristudioCpViewport.lineWidth).toBe(1);
+    // Line width bottoms out at 1, so there is nothing left to take away.
+    expect(decreaseWidth?.disabled).toBe(true);
+
+    const increasePoint = view.querySelector<HTMLButtonElement>(
+      'button[aria-label="Increase Point size"]'
+    );
+    act(() => increasePoint?.click());
+    expect(useWorkspaceStore.getState().oristudioCpViewport.pointSize).toBe(2);
   });
 
   it('edits advanced grid options through the expandable settings section', () => {

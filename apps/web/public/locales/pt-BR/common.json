@@ -229,6 +229,10 @@
     "open": "Solte para abrir",
     "openOrImport": "Solte para abrir ou importar"
   },
+  "numberField": {
+    "decrease": "Diminuir {{label}}",
+    "increase": "Aumentar {{label}}"
+  },
   "toolbar": {
     "downloadMac": "Baixar o Ori Studio para Mac",
     "new": "Novo",

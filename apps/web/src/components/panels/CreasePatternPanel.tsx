@@ -7,10 +7,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { createPortal } from 'react-dom';
 import {
-  ChevronDown,
-  ChevronRight,
   Copy,
   ImagePlus,
   ListChecks,
@@ -29,7 +26,6 @@ import {
 } from '../../keyboard/shortcuts';
 import type {
   OristudioCpCommandPayload,
-  OristudioCpDiagnosticEntry,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
@@ -40,12 +36,7 @@ import type {
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
-import { CpDiagnosticGlyph } from '../../cp-workspace/diagnostics/CpDiagnosticGlyph';
-import { cpDiagnosticEntryMessage } from '../../cp-workspace/diagnostics/foldabilityMessages';
-import {
-  diagnosticHudStatus,
-  isDiagnosticResultOperation,
-} from '../../cp-workspace/diagnostics/hudStatus';
+import { CpDiagnosticHud } from '../../cp-workspace/diagnostics/CpDiagnosticHud';
 import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
   cpActionByOperation,
@@ -140,11 +131,11 @@ import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSim
 import { useBlurOnPressOutside } from '../../cp-workspace/inlineSimulation/useBlurOnPressOutside';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
+import { useCpDocumentCamera } from '../../cp-workspace/camera/useCpDocumentCamera';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
 import {
-  buildCpDiagnosticMarkerHits,
   buildCpDiagnosticMarkers,
   buildCpDiagnosticStrokes,
   buildCpDiagnosticWedges,
@@ -152,6 +143,7 @@ import {
 } from '../../cp-workspace/diagnostics/geometry';
 import { visibleCpDiagnosticEntries } from '../../cp-workspace/diagnostics/visibleEntries';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
+import { usePickToolSelectionReset } from '../../cp-workspace/tools/usePickToolSelectionReset';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { useCpLineColorInversion } from '../../cp-workspace/lineColor/useCpLineColorInversion';
@@ -172,6 +164,7 @@ import {
   isLengthenCreaseOperation,
   isLineClickSelectionOperation,
   isLineEraseClickTool,
+  isModelAlignedBoxOperation,
   isReflectSelectionOperation,
   isRestrictedDrawOperation,
   isSelectionCircleApplyOperation,
@@ -205,14 +198,11 @@ import {
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
-import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 import type { FoldDocument } from '../../engine/types';
 
 function formatZoom(scale: number): string {
   return `${Math.round(scale * 100)}%`;
 }
-
-const EMPTY_DIAGNOSTIC_ENTRIES: OristudioCpDiagnosticEntry[] = [];
 
 /**
  * View-rotation step per button press or key: 11.25 degrees, matching
@@ -769,7 +759,6 @@ export function CreasePatternPanel() {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cpViewportRef = useRef<HTMLDivElement | null>(null);
-  const [toolOptionsPortalTarget, setToolOptionsPortalTarget] = useState<HTMLElement | null>(null);
   const zoomPercentRef = useRef(100);
   const [zoomPercent, setZoomPercent] = useState(100);
   // Hand tool: a plain drag pans the canvas instead of running the active
@@ -852,7 +841,6 @@ export function CreasePatternPanel() {
       return next;
     });
   }, []);
-  const [diagnosticHudExpanded, setDiagnosticHudExpanded] = useState(false);
   const defaultCpToolDocumentRef = useRef<string | null>(null);
   const restoredNativeCanvasModelRef = useRef<string | null>(null);
   const cpToolDragRef = useRef<{
@@ -948,9 +936,6 @@ export function CreasePatternPanel() {
   const oristudioCpActiveFoldedFigureId = useWorkspaceStore(
     (state) => state.oristudioCpActiveFoldedFigureId
   );
-  const oristudioCpActiveDiagnosticId = useWorkspaceStore(
-    (state) => state.oristudioCpActiveDiagnosticId
-  );
   const oristudioCpViewport = useWorkspaceStore((state) => state.oristudioCpViewport);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
   // Crease lines always use Oriedita's default M/V/flat/border coloring; the
@@ -970,9 +955,6 @@ export function CreasePatternPanel() {
   const clearOristudioCpActionRequest = useWorkspaceStore(
     (state) => state.clearOristudioCpActionRequest
   );
-  const setOristudioCpActiveDiagnostic = useWorkspaceStore(
-    (state) => state.setOristudioCpActiveDiagnostic
-  );
   const setOristudioCpActiveFoldedFigure = useWorkspaceStore(
     (state) => state.setOristudioCpActiveFoldedFigure
   );
@@ -990,22 +972,6 @@ export function CreasePatternPanel() {
   // The fold chord lands on FoldingEstimate (Fold is the deduped duplicate);
   // `handleCpShortcutAction` routes both to the real fold path.
   const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutOverrides);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-
-    const updateTarget = () => {
-      const target = document.getElementById(CP_TOOL_OPTIONS_PANE_SLOT_ID);
-      setToolOptionsPortalTarget((current) => (current === target ? current : target));
-    };
-
-    updateTarget();
-    if (typeof MutationObserver === 'undefined' || !document.body) return undefined;
-
-    const observer = new MutationObserver(updateTarget);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
@@ -1025,6 +991,8 @@ export function CreasePatternPanel() {
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
+  // The document's view: what to open at, and where a moved camera is recorded.
+  const documentCamera = useCpDocumentCamera(editableCp?.metadata);
   // Upstream's `calculateLineColor()`: while the modifier is held the crease
   // colour reads inverted everywhere -- rail, preview, committed line -- while
   // `activeCpLineColor` keeps the colour the user actually chose. Every read
@@ -1417,7 +1385,6 @@ export function CreasePatternPanel() {
       markers: buildCpDiagnosticMarkers(latestDiagnosticEntries, toneColors),
       strokes: buildCpDiagnosticStrokes(latestDiagnosticEntries, toneColors),
       wedges: buildCpDiagnosticWedges(latestDiagnosticEntries, toneColors),
-      hits: buildCpDiagnosticMarkerHits(latestDiagnosticEntries),
     };
   }, [latestDiagnosticEntries, currentTheme]);
   // Oriedita operation-frame outline for the WebGL surface: a dashed accent-coloured
@@ -1448,31 +1415,6 @@ export function CreasePatternPanel() {
     });
     return { a, b, color: colors, widthMul, count, dashPatterns: [OVERLAY_DASH_PATTERN] };
   }, [editableCp?.operation_frame, currentTheme]);
-  const diagnosticStatus = useMemo(
-    () => {
-      const camvStatus = camvIssuesVisible
-        ? diagnosticHudStatus(t, oristudioCpCamvResult, { issueOnly: true })
-        : null;
-      const commandStatus =
-        !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
-          ? null
-          : diagnosticHudStatus(t, lastCommandResult);
-      return camvStatus ?? commandStatus;
-    },
-    [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]
-  );
-  const diagnosticHudEntries = useMemo(() => {
-    const hudResult =
-      camvIssuesVisible && diagnosticHudStatus(t, oristudioCpCamvResult, { issueOnly: true }) !== null
-        ? oristudioCpCamvResult
-        : !camvIssuesVisible && lastCommandResult?.operation === 'CheckCamv'
-          ? null
-          : lastCommandResult;
-    if (!hudResult || !isDiagnosticResultOperation(hudResult.operation)) {
-      return EMPTY_DIAGNOSTIC_ENTRIES;
-    }
-    return hudResult.diagnostic_entries ?? EMPTY_DIAGNOSTIC_ENTRIES;
-  }, [camvIssuesVisible, lastCommandResult, oristudioCpCamvResult, t]);
   // The `selection_distance` every tool command carries, exposed to the canvas so a
   // destination pick is gated on the same radius the kernel searches.
   const cpToolSelectionDistance = useMemo(
@@ -1728,13 +1670,6 @@ export function CreasePatternPanel() {
         : state
     );
   }, [activeCpCommand]);
-
-  const handleSelectCpDiagnostic = useCallback(
-    (id: string) => {
-      setOristudioCpActiveDiagnostic(id);
-    },
-    [setOristudioCpActiveDiagnostic]
-  );
 
   const selectionMoveSnapDocument = useMemo<OristudioCpDocumentSnapshot | null>(() => {
     if (!editableCp || oristudioCpSelection.lines.length === 0) return null;
@@ -2010,22 +1945,7 @@ export function CreasePatternPanel() {
     ]
   );
 
-  // A crease-picking tool starts from an empty selection.
-  //
-  // Its picks render in the *selection* style — that is how a picked crease
-  // reads as picked — so a selection left over from before is visually
-  // indistinguishable from a pick while counting for nothing: the tool builds
-  // its own set and the document's is ignored. Clearing removes the only state
-  // that can look like an input without being one.
-  //
-  // Scoped to `line-entity` on purpose. Tools that operate *on* the selection
-  // (`select-apply`, and the box/lasso ones) obviously must not clear it, and
-  // point-sequence tools never confuse the two because their input is a point.
-  const activeCpOperationId = activeCpCommand?.operationId;
-  useEffect(() => {
-    if (cpInputModel(activeCpOperationId)?.model !== 'line-entity') return;
-    clearOristudioCpSelection();
-  }, [activeCpOperationId, clearOristudioCpSelection]);
+  usePickToolSelectionReset(activeCpCommand?.operationId);
 
   // Drive the step prompt in lock-step with the inputs a tool has taken: creases for
   // a line-entity tool (Lengthen), placed points for a point-sequence one. Derive the
@@ -2799,11 +2719,6 @@ export function CreasePatternPanel() {
   );
 
   useEffect(() => {
-    if (!diagnosticStatus) setDiagnosticHudExpanded(false);
-  }, [diagnosticStatus]);
-
-
-  useEffect(() => {
     if (!editableCp) {
       setCpToolPoints([]);
       setCpToolPath([]);
@@ -2865,51 +2780,7 @@ export function CreasePatternPanel() {
               onDragOver={annotations.handleViewportDragOver}
               onDrop={annotations.handleViewportDrop}
             >
-              {diagnosticStatus && (
-                <div
-                  className="cp-diagnostic-hud"
-                  data-tone={diagnosticStatus.tone}
-                  data-expanded={diagnosticHudExpanded || undefined}
-                  aria-live="polite"
-                >
-                  <button
-                    type="button"
-                    className="cp-diagnostic-hud__summary"
-                    aria-expanded={diagnosticHudExpanded}
-                    onClick={() => setDiagnosticHudExpanded((expanded) => !expanded)}
-                  >
-                    <span className="cp-diagnostic-hud__copy">
-                      <span>{diagnosticStatus.label}</span>
-                      {diagnosticStatus.detail &&
-                        diagnosticStatus.detail !== diagnosticStatus.label && (
-                          <small>{diagnosticStatus.detail}</small>
-                        )}
-                    </span>
-                    {diagnosticHudExpanded ? (
-                      <ChevronDown aria-hidden="true" size={16} />
-                    ) : (
-                      <ChevronRight aria-hidden="true" size={16} />
-                    )}
-                  </button>
-                  {diagnosticHudExpanded && diagnosticHudEntries.length > 0 && (
-                    <div className="cp-diagnostic-hud__list" aria-label={t('panels:creasePattern.canvasDiagnostics', 'Canvas diagnostics')}>
-                      {diagnosticHudEntries.slice(0, 12).map((entry) => (
-                        <button
-                          type="button"
-                          className="cp-diagnostic-hud__row"
-                          data-active={entry.id === oristudioCpActiveDiagnosticId || undefined}
-                          data-severity={entry.severity}
-                          key={entry.id}
-                          onClick={() => handleSelectCpDiagnostic(entry.id)}
-                        >
-                          <CpDiagnosticGlyph t={t} entry={entry} />
-                          <span>{cpDiagnosticEntryMessage(t, entry)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              <CpDiagnosticHud />
               {editableCp ? (
                 <>
                 <CreasePatternWebglCanvas
@@ -2993,13 +2864,15 @@ export function CreasePatternPanel() {
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
                   diagnosticStrokes={cpDiagnosticGeometry.strokes}
                   diagnosticWedges={cpDiagnosticGeometry.wedges}
-                  diagnosticHits={cpDiagnosticGeometry.hits}
-                  onSelectDiagnostic={handleSelectCpDiagnostic}
                   operationFrame={cpOperationFrameStrokes}
                   panToolActive={panToolActive}
                   onRotationChange={setViewRotation}
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
+                  {...documentCamera}
+                  activeToolModelAlignedBox={isModelAlignedBoxOperation(
+                    activeCpCommand?.operationId
+                  )}
                   onEraseBox={(points) => {
                     void executeOristudioCpCommand('LineSegmentDelete', {
                       line_ids: [],
@@ -3252,41 +3125,38 @@ export function CreasePatternPanel() {
                   </>
                 )}
               </ViewportToolbar>
-              {editableCp &&
-                activeCpCommand &&
-                toolOptionsPortalTarget &&
-                createPortal(
-                  <CpContextToolPanel
-                    action={activeCpAction}
-                    command={activeCpCommand}
-                    options={cpToolOptions}
-                    setOptions={setCpToolOptions}
-                    activeLineColor={effectiveCpLineColor}
-                    measurements={cpMeasurements}
-                    onHoverMeasurement={setCpHoveredMeasureIndex}
-                    measureUnit={cpMeasurePreferences.unit}
-                    measureAngleUnit={cpMeasurePreferences.angleUnit}
-                    measureScale={cpMeasureScale}
-                    onMeasureUnitChange={setCpMeasureUnit}
-                    onMeasureAngleUnitChange={setCpMeasureAngleUnit}
-                    onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
-                    pendingPointCount={cpToolPoints.length}
-                    selection={oristudioCpSelection}
-                    unavailable={cpToolUnavailable}
-                    toolNotice={cpToolForcedAssignment}
-                    onApply={
-                      cpCommandRequiresContextApply(activeCpCommand)
-                        ? handleApplyActiveContextCommand
-                        : undefined
-                    }
-                    onClearInput={
-                      activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
-                        ? handleClearActiveContextInput
-                        : undefined
-                    }
-                  />,
-                  toolOptionsPortalTarget
-                )}
+              {editableCp && activeCpCommand && (
+                <CpContextToolPanel
+                  container={toolbarContainer}
+                  action={activeCpAction}
+                  command={activeCpCommand}
+                  options={cpToolOptions}
+                  setOptions={setCpToolOptions}
+                  activeLineColor={effectiveCpLineColor}
+                  measurements={cpMeasurements}
+                  onHoverMeasurement={setCpHoveredMeasureIndex}
+                  measureUnit={cpMeasurePreferences.unit}
+                  measureAngleUnit={cpMeasurePreferences.angleUnit}
+                  measureScale={cpMeasureScale}
+                  onMeasureUnitChange={setCpMeasureUnit}
+                  onMeasureAngleUnitChange={setCpMeasureAngleUnit}
+                  onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
+                  pendingPointCount={cpToolPoints.length}
+                  selection={oristudioCpSelection}
+                  unavailable={cpToolUnavailable}
+                  toolNotice={cpToolForcedAssignment}
+                  onApply={
+                    cpCommandRequiresContextApply(activeCpCommand)
+                      ? handleApplyActiveContextCommand
+                      : undefined
+                  }
+                  onClearInput={
+                    activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
+                      ? handleClearActiveContextInput
+                      : undefined
+                  }
+                />
+              )}
               <div className="viewport-status-readout">
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}

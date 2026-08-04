@@ -3,7 +3,7 @@ import {
   createTextAnnotation,
   emptyTextDoc,
   serializedStateToPlainText,
-  textBoxFromDrag,
+  textBoxFromDragCorners,
   textDocFromPlainText,
   validateTextAnnotation,
   validateTextAnnotations,
@@ -47,31 +47,72 @@ describe('textDocFromPlainText round-trip', () => {
   });
 });
 
-describe('textBoxFromDrag', () => {
+describe('textBoxFromDragCorners', () => {
+  /** The corners `viewAlignedBoxCorners` produces for an unrotated view. */
+  const corners = (ax: number, ay: number, bx: number, by: number) =>
+    [
+      { x: ax, y: ay },
+      { x: ax, y: by },
+      { x: bx, y: by },
+      { x: bx, y: ay },
+    ] as const;
+
   it('returns the centered box for a real drag', () => {
-    expect(textBoxFromDrag({ x: 1, y: 2 }, { x: 5, y: 8 }, 0.5)).toEqual({
+    expect(textBoxFromDragCorners(corners(1, 2, 5, 8), 0.5, 0)).toEqual({
       center: { x: 3, y: 5 },
       width: 4,
       height: 6,
+      rotation: 0,
     });
   });
 
   it('normalizes direction (drag up-left)', () => {
-    expect(textBoxFromDrag({ x: 5, y: 8 }, { x: 1, y: 2 }, 0.5)).toEqual({
-      center: { x: 3, y: 5 },
-      width: 4,
-      height: 6,
-    });
+    const box = textBoxFromDragCorners(corners(5, 8, 1, 2), 0.5, 0);
+    expect(box?.center).toEqual({ x: 3, y: 5 });
+    expect(box?.width).toBeCloseTo(4);
+    expect(box?.height).toBeCloseTo(6);
   });
 
   it('returns null when the drag is below the minimum on both axes', () => {
-    expect(textBoxFromDrag({ x: 0, y: 0 }, { x: 0.2, y: 0.2 }, 0.5)).toBeNull();
+    expect(textBoxFromDragCorners(corners(0, 0, 0.2, 0.2), 0.5, 0)).toBeNull();
   });
 
   it('clamps a thin drag up to the minimum on the small axis', () => {
-    const box = textBoxFromDrag({ x: 0, y: 0 }, { x: 4, y: 0.1 }, 0.5);
-    expect(box?.width).toBe(4);
-    expect(box?.height).toBe(0.5);
+    const box = textBoxFromDragCorners(corners(0, 0, 4, 0.1), 0.5, 0);
+    expect(box?.width).toBeCloseTo(4);
+    expect(box?.height).toBeCloseTo(0.5);
+  });
+
+  it('takes the marquee\u2019s extent and the view\u2019s orientation', () => {
+    // A box dragged on a canvas turned 45 degrees: the corners arrive rotated,
+    // so the extents come off them, while the angle is the view's upright one.
+    const c = Math.SQRT1_2;
+    const turned = [
+      { x: 0, y: 0 },
+      { x: -2 * c, y: 2 * c },
+      { x: 4 * c - 2 * c, y: 4 * c + 2 * c },
+      { x: 4 * c, y: 4 * c },
+    ] as const;
+    const box = textBoxFromDragCorners(turned, 0.1, Math.PI / 4);
+    expect(box?.rotation).toBeCloseTo(Math.PI / 4);
+    expect(box?.width).toBeCloseTo(4);
+    expect(box?.height).toBeCloseTo(2);
+    // Centre is the diagonal's midpoint, so it holds at any rotation.
+    expect(box?.center.x).toBeCloseTo(c);
+    expect(box?.center.y).toBeCloseTo(3 * c);
+  });
+
+  it('does not flip a box dragged up-and-left', () => {
+    // The corners run press-to-cursor, so their edge directions reverse with the
+    // drag. Reading the angle off them would render this box upside down.
+    expect(textBoxFromDragCorners(corners(5, 8, 1, 2), 0.5, 0)?.rotation).toBe(0);
+  });
+
+  it('keeps the extent of a straight drag, which has one zero side', () => {
+    const box = textBoxFromDragCorners(corners(3, 1, 3, 9), 0.5, 0);
+    expect(box?.rotation).toBe(0);
+    expect(box?.height).toBeCloseTo(8);
+    expect(box?.width).toBeCloseTo(0.5);
   });
 });
 

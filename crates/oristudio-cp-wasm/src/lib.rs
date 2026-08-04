@@ -69,6 +69,28 @@ pub fn load_orh(text: &str) -> Result<u32, JsValue> {
     with_session_mut(|session| session.load_orh(text))
 }
 
+/// Encode the document behind `handle` as an unpadded base64url share payload,
+/// suitable for a URL fragment (`/edit#c=<payload>`).
+///
+/// The payload is self-contained: no server round trip, and the fragment is
+/// never transmitted. The encoder decodes and verifies its own output before
+/// returning, so a value from here always reloads.
+#[wasm_bindgen]
+pub fn export_share_link(handle: u32) -> Result<String, JsValue> {
+    with_session(|session| session.export_share(handle))
+}
+
+/// Decode a share payload into a **new** document handle.
+///
+/// Opening a link never mutates an existing document. Errors carry the codes
+/// `share_link_too_new` (the link is from a newer Ori Studio) and
+/// `share_link_invalid` (corrupt or truncated), so the UI can tell the user
+/// which happened instead of showing one generic failure.
+#[wasm_bindgen]
+pub fn load_share_link(payload: &str) -> Result<u32, JsValue> {
+    with_session_mut(|session| session.load_share(payload))
+}
+
 #[wasm_bindgen]
 pub fn load_document(document: JsValue) -> Result<u32, JsValue> {
     let document: CreasePatternDocument = from_js(document)?;

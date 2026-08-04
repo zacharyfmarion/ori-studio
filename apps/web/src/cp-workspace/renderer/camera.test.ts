@@ -9,6 +9,8 @@ import {
   projectModelPoint,
   unprojectDevicePoint,
   userCameraToView,
+  userCamerasEqual,
+  validateUserCamera,
   viewTransformFromSamples,
   viewTransformScale,
   viewTransformsEqual,
@@ -306,5 +308,52 @@ describe('cameraZoomForPercent', () => {
   it('scales linearly with the percentage', () => {
     expect(cameraZoomForPercent(50, 2)).toBe(1);
     expect(cameraZoomForPercent(400, 1)).toBe(4);
+  });
+});
+
+describe('userCamerasEqual', () => {
+  const base: UserCamera = { centerX: 1, centerY: 2, zoom: 3, rotation: 0.5 };
+
+  it('is true for the same camera', () => {
+    expect(userCamerasEqual(base, { ...base })).toBe(true);
+  });
+
+  it('notices a change in any single field', () => {
+    expect(userCamerasEqual(base, { ...base, centerX: 1.1 })).toBe(false);
+    expect(userCamerasEqual(base, { ...base, centerY: 2.1 })).toBe(false);
+    expect(userCamerasEqual(base, { ...base, zoom: 3.1 })).toBe(false);
+    expect(userCamerasEqual(base, { ...base, rotation: 0.6 })).toBe(false);
+  });
+
+  it('ignores float noise below the epsilon, so a still camera stops reporting', () => {
+    expect(userCamerasEqual(base, { ...base, centerX: 1 + 1e-12 })).toBe(true);
+  });
+});
+
+describe('validateUserCamera', () => {
+  const camera = { centerX: 10, centerY: -4, zoom: 2.5, rotation: Math.PI / 4 };
+
+  it('accepts a complete camera', () => {
+    expect(validateUserCamera(camera)).toEqual(camera);
+  });
+
+  it('normalizes the stored rotation', () => {
+    // A file could carry an un-wrapped angle; the canvas expects (-PI, PI].
+    expect(validateUserCamera({ ...camera, rotation: Math.PI * 2 })?.rotation).toBe(0);
+  });
+
+  it('rejects anything it cannot vouch for', () => {
+    expect(validateUserCamera(null)).toBeNull();
+    expect(validateUserCamera(42)).toBeNull();
+    expect(validateUserCamera([])).toBeNull();
+    // A missing field would leave the camera partly undefined.
+    expect(validateUserCamera({ centerX: 1, centerY: 2, zoom: 3 })).toBeNull();
+    expect(validateUserCamera({ ...camera, rotation: Number.NaN })).toBeNull();
+  });
+
+  it('rejects an out-of-range zoom, which would blank the canvas', () => {
+    expect(validateUserCamera({ ...camera, zoom: 0 })).toBeNull();
+    expect(validateUserCamera({ ...camera, zoom: -2 })).toBeNull();
+    expect(validateUserCamera({ ...camera, zoom: 1e9 })).toBeNull();
   });
 });

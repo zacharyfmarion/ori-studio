@@ -286,6 +286,26 @@ pub async fn cp_export_orh(handle: u32, state: State<'_, CpEngine>) -> Result<St
     run(state, move |session| session.export_orh(handle)).await
 }
 
+/// Encode a document as a base64url share payload for a URL fragment.
+///
+/// Desktop can *produce* a link even though it cannot open one: the frontend
+/// runs under `createMemoryRouter`, so there is no URL to read back.
+#[tauri::command]
+pub async fn cp_export_share(
+    handle: u32,
+    state: State<'_, CpEngine>,
+) -> Result<String, EngineError> {
+    run(state, move |session| session.export_share(handle)).await
+}
+
+#[tauri::command]
+pub async fn cp_load_share(
+    payload: String,
+    state: State<'_, CpEngine>,
+) -> Result<u32, EngineError> {
+    run(state, move |session| session.load_share(&payload)).await
+}
+
 #[tauri::command]
 pub async fn cp_set_texts(
     handle: u32,
@@ -448,6 +468,8 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_export_fold_file",
     "cp_export_ori",
     "cp_export_orh",
+    "cp_export_share",
+    "cp_load_share",
     "cp_set_texts",
     "cp_folded_figure_fold",
     "cp_folded_figure_fold_selected",

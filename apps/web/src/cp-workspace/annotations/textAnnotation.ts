@@ -191,22 +191,50 @@ export function createTextAnnotation(input: CreateTextAnnotationInput): TextAnno
 }
 
 /**
- * Box geometry for a Text-tool drag from `start` to `end` (crease-pattern model
- * coordinates). Returns null when the drag is smaller than `minExtent` on both
- * axes, so the caller can fall back to a click-created (auto-sizing) box.
+ * Box geometry for a Text-tool drag, from the same four corners the marquee drew
+ * (`tools/viewAlignedBox`), in perimeter order and crease-pattern model
+ * coordinates.
+ *
+ * Taking the corners rather than the two drag points is what keeps the created
+ * box identical to the rectangle the user saw: it inherits the marquee's
+ * orientation instead of re-deriving one, so the two cannot drift. Under an
+ * unrotated view this is exactly the old min/max box.
+ *
+ * Returns null when the drag is smaller than `minExtent` along both of the box's
+ * own axes, so the caller can fall back to a click-created (auto-sizing) box.
  */
-export function textBoxFromDrag(
-  start: { x: number; y: number },
-  end: { x: number; y: number },
-  minExtent: number
-): { center: { x: number; y: number }; width: number; height: number } | null {
-  const width = Math.abs(end.x - start.x);
-  const height = Math.abs(end.y - start.y);
+export function textBoxFromDragCorners(
+  corners: readonly [
+    { x: number; y: number },
+    { x: number; y: number },
+    { x: number; y: number },
+    { x: number; y: number },
+  ],
+  minExtent: number,
+  rotation: number
+): {
+  center: { x: number; y: number };
+  width: number;
+  height: number;
+  rotation: number;
+} | null {
+  const [c0, c1, c2] = corners;
+  // Edge 1->2 is the box's screen-horizontal side, edge 0->1 its vertical one.
+  // Only their *lengths* are used: the corners run press-to-cursor, so their
+  // directions flip with the drag, and reading the angle off them would turn a
+  // box dragged up-and-left upside down. The orientation comes from the caller's
+  // view instead — the same `uprightRotationForView` every other canvas object
+  // is created with, so all four kinds agree.
+  const width = Math.hypot(c2.x - c1.x, c2.y - c1.y);
+  const height = Math.hypot(c1.x - c0.x, c1.y - c0.y);
   if (width < minExtent && height < minExtent) return null;
   return {
-    center: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+    // Corners 0 and 2 are the drag's diagonal, so their midpoint is the centre
+    // at any rotation.
+    center: { x: (c0.x + c2.x) / 2, y: (c0.y + c2.y) / 2 },
     width: Math.max(width, minExtent),
     height: Math.max(height, minExtent),
+    rotation,
   };
 }
 
