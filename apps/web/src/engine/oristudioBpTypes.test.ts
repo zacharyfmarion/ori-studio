@@ -155,7 +155,6 @@ describe('oristudio BP DTO contract', () => {
           graphics: [],
           validity: 'unknown',
         },
-        creasePattern: null,
         diagnostics: [],
         stale: { packing: false, creasePattern: true, exports: true, reasons: [] },
       },
