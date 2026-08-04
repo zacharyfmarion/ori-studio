@@ -6962,7 +6962,12 @@ button.bp-packing-alert:focus-visible {
 .cp-tool-option__header {
   position: absolute;
   right: 0;
-  justify-content: flex-end;
+  /* Stepper left, actions right — but only when the bar is wider than its
+     contents, which the sizing below already decides: `min-width` spans a wide
+     frame and leaves free space to distribute, `max-content` shrink-wraps a
+     narrow one and leaves none, so the two groups fall together. That is the
+     "when there is space" rule, with no measurement. */
+  justify-content: space-between;
   min-width: 100%;
   width: max-content;
   border-bottom-left-radius: 0;
