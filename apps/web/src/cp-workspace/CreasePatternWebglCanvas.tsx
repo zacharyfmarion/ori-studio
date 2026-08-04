@@ -2220,10 +2220,16 @@ export function CreasePatternWebglCanvas({
         renderNow();
         return;
       }
-      // up
+      // up. The press anchors up to `SNAP_TOLERANCE_CSS` away from the cursor, so
+      // testing the *raw* release against it reads that displacement as a drag and a
+      // stationary click near a vertex commits a crease from the vertex to the cursor.
+      // Compare snapped to snapped, as the shared drag-line path does (`feedTool`
+      // resolves every phase); the commit still carries the raw endpoint, since the
+      // kernel picks the angle-system ray from the cursor direction.
+      const end = liveRef.current.resolveDrawPoint(raw, tol).point;
       if (!anchor) {
         reset();
-      } else if (Math.hypot(raw.x - anchor.x, raw.y - anchor.y) > modelToleranceOf(CLICK_MOVE_THRESHOLD)) {
+      } else if (Math.hypot(end.x - anchor.x, end.y - anchor.y) > modelToleranceOf(CLICK_MOVE_THRESHOLD)) {
         liveRef.current.onToolCommit({ points: [anchor, raw] });
         reset();
       } else if (angleDragArmedRef.current) {
