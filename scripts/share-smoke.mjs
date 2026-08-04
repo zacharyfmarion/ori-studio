@@ -51,8 +51,41 @@ async function json(response) {
   }
 }
 
+/**
+ * Wait for the deployment to start answering before asserting anything about it.
+ *
+ * `wrangler pages deploy` returns as soon as Cloudflare accepts the upload, and the branch
+ * alias can take a few seconds longer to resolve — CI ran these checks 0.1s after the
+ * deploy completed and got 404 on everything, including the SPA itself.
+ *
+ * The gate is deliberately narrow: it waits only for the origin to serve *something*. A
+ * deploy that uploaded no Functions still serves its SPA, so this cannot mask the failure
+ * the checks below exist to find — that case reaches them and fails on the first check, as
+ * it should.
+ */
+async function waitForDeployment(timeoutMs = 120_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastStatus = 'no response';
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${base}/`, { redirect: 'follow' });
+      if (response.ok) return;
+      lastStatus = `HTTP ${response.status}`;
+    } catch (error) {
+      lastStatus = error instanceof Error ? error.message : String(error);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+  }
+  console.error(
+    `share smoke: ${base} never became reachable (last: ${lastStatus}). ` +
+      'The deploy itself failed, or the URL is wrong.'
+  );
+  process.exit(1);
+}
+
 async function main() {
   console.log(`share smoke: ${base}\n`);
+  await waitForDeployment();
 
   // 1. The Functions are deployed at all.
   {

@@ -220,10 +220,14 @@ existence check does catch a collision; it should never fire, and if it does we 
 - [x] `scripts/share-smoke.mjs` with the four read-only assertions; non-zero exit on mismatch.
 - [x] Wire it into `deploy-web.yml` after the deploy step, against the deployment URL.
 - [x] Same for `deploy-pr-preview.yml`, so preview deploys prove their own bindings.
-- [ ] Run it once against a real deploy and record the result. **Until this passes, treat the
-      feature as unshipped.**
-- [ ] Confirm whether `[[env.preview]]` bindings actually apply to `--branch=pr-N`; if not,
-      configure preview bindings in the dashboard and note it in `wrangler.toml`.
+- [x] Run it once against a real deploy and record the result. **PR #191 preview deploy,
+      2026-08-04: Functions upload confirmed (`✨ Uploading Functions bundle`) and all five
+      checks pass against `pr-191.oristudio.pages.dev`.** The first CI run failed all five
+      on 404s — it ran 0.1s after the deploy returned, before the branch alias resolved — so
+      the script now waits for the origin to answer before asserting.
+- [x] Confirm whether `[[env.preview]]` bindings actually apply to `--branch=pr-N`.
+      **They do** — the KV and R2 checks pass on the PR preview, which they could not if the
+      bindings were absent.
 
 ### Phase 2 — Stop the lie (the failure users will actually hit)
 
