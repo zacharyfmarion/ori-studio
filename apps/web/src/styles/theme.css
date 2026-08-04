@@ -4729,6 +4729,20 @@
   min-width: 0;
 }
 
+/* A settings group is a full-width column, so the grid stretches a segmented
+   control rather than letting it hug its labels — and its options, sized to
+   their text, then leave the rest of the track empty. Sharing the width evenly
+   is what a stretched segmented control is supposed to look like. Every other
+   `.segmented` in the app sits in a row that lets it hug, so this is scoped
+   here rather than changing the control. */
+.cp-context-panel__group .segmented {
+  display: flex;
+}
+
+.cp-context-panel__group .segmented__option {
+  flex: 1 1 0;
+}
+
 .cp-context-panel__instructions {
   display: grid;
   gap: 7px;

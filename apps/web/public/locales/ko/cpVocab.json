@@ -654,7 +654,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "같은 색상으로 연장",
+      "label": "선 연장(같은 색)",
       "tooltip": "원래 색상을 유지하면서 가이드 선이 가로지르는 접힘선 연장",
       "disabledReason": "준비됨",
       "steps": {

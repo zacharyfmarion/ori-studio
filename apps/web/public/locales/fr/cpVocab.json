@@ -654,7 +654,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "Prolonger selon la même couleur",
+      "label": "Prolonger la ligne (même couleur)",
       "tooltip": "Prolonger les plis traversés par la ligne guide tout en conservant les couleurs d'origine",
       "disabledReason": "Prêt",
       "steps": {

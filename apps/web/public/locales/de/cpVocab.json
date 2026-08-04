@@ -654,7 +654,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "Nach gleicher Farbe verlängern",
+      "label": "Linie verlängern (gleiche Farbe)",
       "tooltip": "Falten, die von der Führungslinie gekreuzt werden, verlängern und dabei die Originalfarben beibehalten",
       "disabledReason": "Bereit",
       "steps": {

@@ -358,10 +358,12 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamAction: 'operationFrameSelectAction',
     upstreamMouseMode: 'OPERATION_FRAME_CREATE_61',
   },
-  // Merged into Extend Line above, with the colour mode a tool param. Kept for
-  // the upstream mouse-mode lookup only — no rail button, and therefore no
-  // default chord (`E` moved to `lengthenCreaseAction`, the host).
+  // Merged into Extend Line above, with the colour mode a tool param. No rail
+  // button of its own, but still bindable: a chord naming a variant arms the
+  // merged tool in that variant's mode, which is how upstream's `E` keeps
+  // meaning "extend, keeping each crease's colour". Labelled for that list.
   LengthenCreaseSameColor: {
+    label: 'Extend Line (same color)',
     group: 'draw',
     upstreamAction: 'lengthenCrease2Action',
     upstreamMouseMode: 'LENGTHEN_CREASE_SAME_COLOR_70',

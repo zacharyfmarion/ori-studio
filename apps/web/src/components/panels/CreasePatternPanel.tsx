@@ -51,7 +51,11 @@ import {
 } from '../../lib/oristudioCpCommands';
 import { forcedAssignmentNotice } from '../../cp-workspace/tools/toolUnavailable';
 import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
-import { cpToolSelectionForMouseMode } from '../../lib/cpToolVariants';
+import {
+  cpToolSelectionForMouseMode,
+  cpVariantHostAction,
+  cpVariantModeForNamedAction,
+} from '../../lib/cpToolVariants';
 import { usePersistedCpToolOptions } from '../../cp-workspace/tools/usePersistedCpToolOptions';
 import { useCpToolVariant } from '../../cp-workspace/tools/useCpToolVariant';
 import type { ToolPreviewSegment } from '../../cp-workspace/tools/types';
@@ -1470,15 +1474,28 @@ export function CreasePatternPanel() {
 
 
   const handleCpToolAction = useCallback(
-    (action: OristudioCpActionDefinition) => {
+    /**
+     * `byName` means the caller picked this exact action — a shortcut bound to
+     * "Divided Line (ratio)", a command request naming an operation — so a
+     * merged tool's mode follows the action it named. The rail passes nothing:
+     * its button is the tool, and which mode it runs in is the user's to keep.
+     */
+    (selected: OristudioCpActionDefinition, byName = false) => {
       setPendingLengthenLineId(null);
       // The hand tool and a crease tool are mutually exclusive, so the rail
       // and the toolbar never both read as active.
       setPanToolActive(false);
-      if (action.kind === 'line-type') {
-        setActiveCpLineColor(action.lineColor);
+      if (selected.kind === 'line-type') {
+        setActiveCpLineColor(selected.lineColor);
         return;
       }
+
+      // A caller naming a merged tool's non-host variant ("Divided Line
+      // (ratio)") gets the tool that has the rail button, armed in the mode that
+      // runs the variant it named. Arming the variant itself would light nothing
+      // up, since the rail has no button for it.
+      const modeOverrides = byName ? cpVariantModeForNamedAction(selected) : undefined;
+      const action = cpVariantHostAction(selected);
 
       // Picking a crease/geometry tool deselects the active reference image, so
       // its handles don't linger over the canvas while another tool is active.
@@ -1497,7 +1514,8 @@ export function CreasePatternPanel() {
       // nowhere. Decide before the state writes, not after them.
       const runsImmediately = !!editableCp && isWholeDocumentCpCommand(command);
       if (!runsImmediately) {
-        setCpToolState((state) => armCpTool(state, action, !!editableCp));
+        if (modeOverrides) setCpToolOptions((current) => ({ ...current, ...modeOverrides }));
+        setCpToolState((state) => armCpTool(state, action, !!editableCp, modeOverrides));
         // Persist the selection so the tool survives panel remounts (workspace switches).
         useWorkspaceStore.getState().setOristudioCpActiveToolId(action.id);
       }
@@ -1539,6 +1557,7 @@ export function CreasePatternPanel() {
       editableCp,
       executeOristudioCpCommand,
       oristudioCpSelection.lines,
+      setCpToolOptions,
       setSelectedAnnotation,
       t,
     ]
@@ -1559,7 +1578,7 @@ export function CreasePatternPanel() {
           return;
         }
       }
-      handleCpToolAction(action);
+      handleCpToolAction(action, true);
     },
     [handleCpToolAction, folded]
   );
@@ -1574,7 +1593,8 @@ export function CreasePatternPanel() {
 
     const action = cpActionByOperation(oristudioCpActionRequest.operationId);
     if (action) {
-      handleCpToolAction(action);
+      // The request names an operation, so a merged tool's mode follows it.
+      handleCpToolAction(action, true);
     }
     clearOristudioCpActionRequest(oristudioCpActionRequest.id);
   }, [clearOristudioCpActionRequest, handleCpToolAction, oristudioCpActionRequest]);

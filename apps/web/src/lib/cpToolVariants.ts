@@ -129,6 +129,38 @@ export function cpVariantOptionPatch(
 }
 
 /**
+ * The mode a caller asked for by naming this exact action — a keyboard shortcut
+ * bound to "Divided Line (ratio)", or a command request naming an operation.
+ * `undefined` for an ordinary tool.
+ *
+ * The rail deliberately does *not* use this. Its button is the tool, not one of
+ * the variants, so clicking it keeps whatever mode the user last chose; a
+ * shortcut bound to a variant by name is the opposite — it says which variant.
+ */
+export function cpVariantModeForNamedAction(
+  action: OristudioCpCommandActionDefinition
+): Partial<OristudioCpToolOptions> | undefined {
+  const patch = cpVariantOptionPatch(action.operationId);
+  return Object.keys(patch).length > 0 ? patch : undefined;
+}
+
+/**
+ * The action to actually arm for `action` — itself, unless it is a merged tool's
+ * non-host variant, in which case the tool with the rail button.
+ *
+ * Arming a variant directly would set `activeActionId` to an action the rail has
+ * no button for, so nothing would light up and the tool would look unselected
+ * while being armed.
+ */
+export function cpVariantHostAction(
+  action: OristudioCpCommandActionDefinition
+): OristudioCpCommandActionDefinition {
+  const hostOperationId = cpVariantHostOperation(action.operationId);
+  if (hostOperationId === action.operationId) return action;
+  return cpActionByOperation(hostOperationId) ?? action;
+}
+
+/**
  * The tool to arm for a document saved with `mouseMode` active — the action that
  * owns its rail button, plus the options that make that mouse mode's operation
  * the one the tool runs.

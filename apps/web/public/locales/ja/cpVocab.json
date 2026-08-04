@@ -654,7 +654,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "同色で延長",
+      "label": "線を延長（元の線種）",
       "tooltip": "元の色を保持しながらガイド線が横切る折り線を延長します",
       "disabledReason": "準備完了",
       "steps": {

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   cpToolSelectionForMouseMode,
+  cpVariantHostAction,
+  cpVariantModeForNamedAction,
   cpVariantGroupForOperation,
   cpVariantHostOperation,
   cpVariantOptionPatch,
   resolveCpVariantOperation,
 } from './cpToolVariants';
+import { cpActionByOperation } from './oristudioCpActions';
 import {
   DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
   type OristudioCpToolOptions,
@@ -139,5 +142,47 @@ describe('cpToolSelectionForMouseMode', () => {
     expect(plain?.action.id).toBe('cp.action.draw-crease');
     expect(plain?.options).toBeUndefined();
     expect(cpToolSelectionForMouseMode('FUTURE_MOUSE_MODE_999')).toBeNull();
+  });
+});
+
+// A shortcut can be bound to a merged tool's non-host variant ("Divided Line
+// (ratio)"). Binding it by name has to give that variant, which is what makes a
+// hidden action safe to hold a chord: the tool armed is the visible host.
+describe('naming a variant', () => {
+  it('arms the host action, so the rail lights up', () => {
+    const ratio = cpActionByOperation('LineSegmentRatioSet');
+    const sameColor = cpActionByOperation('LengthenCreaseSameColor');
+    expect(cpVariantHostAction(ratio!).id).toBe('cp.action.line-segment-division');
+    expect(cpVariantHostAction(sameColor!).id).toBe('cp.action.lengthen-crease');
+  });
+
+  it('sets the mode that runs the variant that was named', () => {
+    const ratio = cpActionByOperation('LineSegmentRatioSet')!;
+    expect(cpVariantModeForNamedAction(ratio)).toEqual({ divideMode: 'ratio' });
+    // Including the host: naming it means Count, not "whatever is set".
+    const count = cpActionByOperation('LineSegmentDivision')!;
+    expect(cpVariantModeForNamedAction(count)).toEqual({ divideMode: 'count' });
+  });
+
+  it('leaves an ordinary tool alone', () => {
+    const draw = cpActionByOperation('DrawCreaseFree')!;
+    expect(cpVariantHostAction(draw)).toBe(draw);
+    expect(cpVariantModeForNamedAction(draw)).toBeUndefined();
+  });
+
+  it('round-trips: arming the host in the named mode runs the named operation', () => {
+    for (const operationId of [
+      'LengthenCrease',
+      'LengthenCreaseSameColor',
+      'LineSegmentDivision',
+      'LineSegmentRatioSet',
+    ] as const) {
+      const named = cpActionByOperation(operationId)!;
+      const armed = cpVariantHostAction(named);
+      const mode = cpVariantModeForNamedAction(named);
+      expect(resolveCpVariantOperation(armed.operationId, options(mode)), operationId).toBe(
+        operationId
+      );
+    }
   });
 });

@@ -7,6 +7,7 @@ import {
   type ShortcutDefinition,
 } from './shortcuts';
 import { ORISTUDIO_CP_ACTIONS, cpHiddenActions } from '../lib/oristudioCpActions';
+import { cpVariantHostAction } from '../lib/cpToolVariants';
 
 /**
  * Registry invariants for the default keybindings.
@@ -64,12 +65,23 @@ describe('shortcut registry invariants', () => {
     expect(notReady).toEqual([]);
   });
 
-  it('leaves every hidden crease-pattern action unbound', () => {
+  it('leaves every hidden crease-pattern action unbound, unless it arms a visible one', () => {
     // `handleShortcutKeyDown` dispatches on the registry, not on placement, so a
     // chord on a hidden action still selects it — with no rail button to show it
     // is active. Hiding a tool therefore has to take its chord out of
     // `ORIEDITA_DEFAULTS` too, which is what this catches.
-    const hiddenIds = new Set<string>(cpHiddenActions().map((action) => action.id));
+    //
+    // The exception is a merged tool's non-host variant. It is hidden because it
+    // has no button *of its own*, but `handleCpToolAction` arms its host and sets
+    // the mode, so the rail does light up — see `cpVariantHostAction`. That is
+    // how E keeps upstream's `lengthenCrease2Action` binding.
+    const hiddenIds = new Set<string>(
+      cpHiddenActions()
+        .filter(
+          (action) => action.kind !== 'command' || cpVariantHostAction(action).id === action.id
+        )
+        .map((action) => action.id)
+    );
 
     const boundButHidden = boundDefinitions()
       .filter((definition) => hiddenIds.has(definition.id))
@@ -109,9 +121,10 @@ const EXPECTED_SINGLE_KEY_LAYOUT: ReadonlyArray<[chord: string, actionId: string
   ['m', 'cp.action.symmetric-draw'],
   ['y', 'cp.action.perpendicular-draw'],
   ['b', 'cp.action.square-bisector'],
-  // Extend Line, whose colour mode is a tool param defaulting to same-colour --
-  // which is what this chord selected when the two were separate rail tools.
-  ['e', 'cp.action.lengthen-crease'],
+  // Upstream's own binding, unchanged by the tool merge: naming a variant in a
+  // chord arms the merged Extend Line tool *in that variant's mode*, so E still
+  // means "extend, keeping each crease's colour".
+  ['e', 'cp.action.lengthen-crease-same-color'],
   ['t', 'cp.action.vertex-make-angularly-flat-foldable'],
   ['r', 'cp.action.draw-crease-angle-restricted5'],
   ['h', 'cp.action.fish-bone-draw'],

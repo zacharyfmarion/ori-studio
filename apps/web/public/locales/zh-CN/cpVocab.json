@@ -654,7 +654,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "按同色延长",
+      "label": "延长线（原线型）",
       "tooltip": "延长参考线穿过的折痕，同时保留原始颜色",
       "disabledReason": "就绪",
       "steps": {
