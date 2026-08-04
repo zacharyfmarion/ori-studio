@@ -48,12 +48,14 @@
     "deleteLineTypeAria": "Excluir tipo de linha",
     "divideByCount": "Dividir por quantidade",
     "divideByRatio": "Dividir por proporção",
+    "divideMode": "Modo de divisão",
     "divider": "Divisor",
     "divisionCount": "Número de divisões",
     "dragAcrossCreases": "Arraste sobre os vincos para aplicar esta ação.",
     "erase": "Apagar",
     "eraseLineType": "Apagar tipo de linha",
     "exactForm": "Forma exata",
+    "extendColor": "Cor da extensão",
     "filter": "Filtro",
     "firstCandidate": "Primeiro candidato",
     "fixInaccurate": "Corrigir imprecisos",
@@ -141,9 +143,21 @@
     "next": "Próxima opção",
     "previous": "Opção anterior"
   },
+  "divideMode": {
+    "count": "Quantidade",
+    "countTitle": "Dividir a linha em partes iguais",
+    "ratio": "Proporção",
+    "ratioTitle": "Dividir a linha por uma proporção"
+  },
   "foldAngleDisplay": {
     "color": "Cor",
     "opacity": "Opacidade"
+  },
+  "lengthenColorMode": {
+    "active": "Ativo",
+    "activeTitle": "Estender com o tipo de linha ativo",
+    "same": "Original",
+    "sameTitle": "Estender cada vinco com seu próprio tipo de linha"
   },
   "lineStyle": {
     "blackOneDot": "Preto de um ponto",

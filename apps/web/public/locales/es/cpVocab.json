@@ -292,8 +292,8 @@
       "disabledReason": "Gestionado por el entorno de ejecución del visor en lugar de un comando de CP"
     },
     "cp_action_line_segment_division": {
-      "label": "Línea dividida en partes iguales",
-      "tooltip": "Dividir la línea por cantidad",
+      "label": "Línea dividida",
+      "tooltip": "Dibujar una línea dividida por cantidad o proporción",
       "disabledReason": "Listo",
       "steps": {
         "0": "Haz clic o arrastra para iniciar la línea a dividir",
@@ -664,7 +664,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "Extender por mismo color",
+      "label": "Extender línea (mismo color)",
       "tooltip": "Extender los pliegues cruzados por la línea guía conservando los colores originales",
       "disabledReason": "Listo",
       "steps": {

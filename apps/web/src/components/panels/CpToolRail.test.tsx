@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
 import { storageKey, STORAGE_KEYS } from '../../lib/storage';
@@ -22,7 +22,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function renderRail(): HTMLDivElement {
+function renderRail(active: Partial<CpToolRailActive> = {}): HTMLDivElement {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -30,7 +30,8 @@ function renderRail(): HTMLDivElement {
     root?.render(
       <TooltipProvider delayDuration={0}>
         <CpToolRail
-          activeActionId={null}
+          activeActionId={active.activeActionId ?? null}
+          activeOperationId={active.activeOperationId ?? null}
           activeLineColor="Red1"
           editable
           onSelectAction={() => {}}
@@ -39,6 +40,17 @@ function renderRail(): HTMLDivElement {
     );
   });
   return container;
+}
+
+type CpToolRailActive = Pick<
+  ComponentProps<typeof CpToolRail>,
+  'activeActionId' | 'activeOperationId'
+>;
+
+function buttonFor(host: HTMLDivElement, label: string): HTMLElement {
+  const button = host.querySelector(`[aria-label="${label}"]`);
+  if (!(button instanceof HTMLElement)) throw new Error(`Missing rail button ${label}`);
+  return button;
 }
 
 function groupToggle(host: HTMLDivElement, groupId: string): HTMLElement {
@@ -92,5 +104,46 @@ describe('CpToolRail collapsible groups', () => {
     const remounted = remount();
     expect(isExpanded(remounted, 'advanced')).toBe(true);
     expect(isExpanded(remounted, 'select-edit')).toBe(false);
+  });
+});
+
+// Extend Line and Divided Line are one button each over two kernel operations.
+// The button draws the variant its mode currently resolves to, so which mode is
+// armed is readable from the rail without opening the context panel.
+describe('CpToolRail merged tools', () => {
+  it('shows one button per merged pair, not one per operation', () => {
+    const host = renderRail();
+
+    expect(host.querySelector('[aria-label="Extend Line"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Divided Line"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Lengthen by Same Color"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Divided Line (ratio)"]')).toBeNull();
+  });
+
+  it('draws the resolved variant glyph while the tool is active', () => {
+    const asCount = renderRail({
+      activeActionId: 'cp.action.line-segment-division',
+      activeOperationId: 'LineSegmentDivision',
+    });
+    expect(buttonFor(asCount, 'Divided Line').textContent).toBe('\uE011');
+
+    act(() => {
+      root?.unmount();
+    });
+    container?.remove();
+
+    const asRatio = renderRail({
+      activeActionId: 'cp.action.line-segment-division',
+      activeOperationId: 'LineSegmentRatioSet',
+    });
+    expect(buttonFor(asRatio, 'Divided Line').textContent).toBe('\uE044');
+  });
+
+  it('falls back to its own glyph when another tool is active', () => {
+    const host = renderRail({
+      activeActionId: 'cp.action.draw-crease',
+      activeOperationId: 'DrawCreaseFree',
+    });
+    expect(buttonFor(host, 'Divided Line').textContent).toBe('\uE011');
   });
 });

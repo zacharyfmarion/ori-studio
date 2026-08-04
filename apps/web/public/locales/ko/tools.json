@@ -40,12 +40,14 @@
     "deleteLineTypeAria": "선 종류 삭제",
     "divideByCount": "개수로 분할",
     "divideByRatio": "비율로 분할",
+    "divideMode": "분할 방식",
     "divider": "분할기",
     "divisionCount": "분할 개수",
     "dragAcrossCreases": "접힘선을 가로질러 드래그하여 이 작업을 적용합니다.",
     "erase": "지우기",
     "eraseLineType": "선 종류 지우기",
     "exactForm": "정확한 형식",
+    "extendColor": "연장 선 종류",
     "filter": "필터",
     "firstCandidate": "첫 번째 후보",
     "fixInaccurate": "부정확 수정",
@@ -125,9 +127,21 @@
     "next": "다음 옵션",
     "previous": "이전 옵션"
   },
+  "divideMode": {
+    "count": "개수",
+    "countTitle": "선을 같은 크기로 분할합니다",
+    "ratio": "비율",
+    "ratioTitle": "선을 비율로 분할합니다"
+  },
   "foldAngleDisplay": {
     "color": "색상",
     "opacity": "불투명도"
+  },
+  "lengthenColorMode": {
+    "active": "현재",
+    "activeTitle": "현재 선 종류로 연장합니다",
+    "same": "원래대로",
+    "sameTitle": "각 접는 선을 원래 선 종류로 연장합니다"
   },
   "lineStyle": {
     "blackOneDot": "검정 1점선",

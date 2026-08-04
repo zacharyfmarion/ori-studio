@@ -9,7 +9,14 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cpActionLabel, cpToolInstructions } from '../../i18n/cpVocab';
+import {
+  cpDivideModeLabel,
+  cpDivideModeTitle,
+  cpLengthenColorModeLabel,
+  cpLengthenColorModeTitle,
+} from '../../i18n/enumLabels';
 import { cpPaletteStatusLabel } from '../../i18n/paletteLabels';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import type {
   OristudioCpCustomLineType,
   OristudioCpLineColor,
@@ -19,6 +26,8 @@ import type { OristudioCpActionDefinition } from '../../lib/oristudioCpActions';
 import type { OristudioCpCommandDefinition } from '../../lib/oristudioCpCommands';
 import {
   ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS,
+  ORISTUDIO_CP_DIVIDE_MODES,
+  ORISTUDIO_CP_LENGTHEN_COLOR_MODES,
   ORISTUDIO_CP_RATIO_PRESETS,
   ORISTUDIO_CP_REPLACE_TARGET_LINE_TYPE_OPTIONS,
   cpToolSettingGroupsForCommand,
@@ -381,6 +390,34 @@ function CpContextToolGroup({
         <div className="cp-context-panel__group-title">{t('tools:cpContext.lineType', 'Line type')}</div>
         <div className="cp-context-panel__readout">{cpLineTypeStatusLabel(activeLineColor, t)}</div>
       </div>
+    );
+  }
+
+  if (group === 'lengthen-color-mode') {
+    return (
+      <ModeToolOption
+        title={t('tools:cpContext.extendColor', 'Extend color')}
+        modes={ORISTUDIO_CP_LENGTHEN_COLOR_MODES}
+        value={options.lengthenColorMode}
+        label={(mode) => cpLengthenColorModeLabel(t, mode)}
+        describe={(mode) => cpLengthenColorModeTitle(t, mode)}
+        onChange={(lengthenColorMode) =>
+          setOptions((current) => ({ ...current, lengthenColorMode }))
+        }
+      />
+    );
+  }
+
+  if (group === 'divide-mode') {
+    return (
+      <ModeToolOption
+        title={t('tools:cpContext.divideMode', 'Divide mode')}
+        modes={ORISTUDIO_CP_DIVIDE_MODES}
+        value={options.divideMode}
+        label={(mode) => cpDivideModeLabel(t, mode)}
+        describe={(mode) => cpDivideModeTitle(t, mode)}
+        onChange={(divideMode) => setOptions((current) => ({ ...current, divideMode }))}
+      />
     );
   }
 
@@ -1140,6 +1177,39 @@ function TextToolOption({
         onChange={(event) => onChange(event.currentTarget.value)}
       />
     </label>
+  );
+}
+
+/**
+ * The mode switch for a tool that is one rail button over several kernel
+ * operations — Extend Line's colour, Divided Line's count-vs-ratio. Which
+ * operation the tool runs is a tool option like any other, so it renders as one.
+ */
+function ModeToolOption<T extends string>({
+  title,
+  modes,
+  value,
+  label,
+  describe,
+  onChange,
+}: {
+  title: string;
+  modes: readonly T[];
+  value: T;
+  label: (mode: T) => string;
+  describe: (mode: T) => string;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="cp-context-panel__group">
+      <div className="cp-context-panel__group-title">{title}</div>
+      <SegmentedControl
+        aria-label={title}
+        value={value}
+        options={modes.map((mode) => ({ value: mode, label: label(mode), title: describe(mode) }))}
+        onChange={onChange}
+      />
+    </div>
   );
 }
 

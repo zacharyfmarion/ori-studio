@@ -125,6 +125,11 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   drawCreaseRestrictedAction: 'SPACE',
   perpendicularDrawAction: 'Y',
   angleBisectorAction: 'B',
+  // Upstream's own binding, kept exactly. Ori Studio merges the two lengthen
+  // tools into one rail tool whose colour mode is a tool param, and a chord
+  // bound to a variant by name arms the merged tool *in that variant's mode* --
+  // so E still means "extend, keeping each crease's colour", and the rail lights
+  // up on Extend Line while it does.
   lengthenCrease2Action: 'E',
   makeFlatFoldableAction: 'T', // flat-foldable line (the rail-visible tool)
   deg2Action: 'R', // radial / angle-restricted snapping (22.5, 30, 15 deg)

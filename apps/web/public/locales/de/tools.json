@@ -44,12 +44,14 @@
     "deleteLineTypeAria": "Linientyp löschen",
     "divideByCount": "Nach Anzahl teilen",
     "divideByRatio": "Nach Verhältnis teilen",
+    "divideMode": "Teilungsmodus",
     "divider": "Trenner",
     "divisionCount": "Anzahl der Teilungen",
     "dragAcrossCreases": "Ziehen Sie über die Falten, um diese Aktion anzuwenden.",
     "erase": "Radieren",
     "eraseLineType": "Linientyp radieren",
     "exactForm": "Exakte Form",
+    "extendColor": "Farbe der Verlängerung",
     "filter": "Filter",
     "firstCandidate": "Erster Kandidat",
     "fixInaccurate": "Ungenaue korrigieren",
@@ -133,9 +135,21 @@
     "next": "Nächste Option",
     "previous": "Vorherige Option"
   },
+  "divideMode": {
+    "count": "Anzahl",
+    "countTitle": "Die Linie in gleiche Teile teilen",
+    "ratio": "Verhältnis",
+    "ratioTitle": "Die Linie nach einem Verhältnis teilen"
+  },
   "foldAngleDisplay": {
     "color": "Farbe",
     "opacity": "Deckkraft"
+  },
+  "lengthenColorMode": {
+    "active": "Aktiv",
+    "activeTitle": "Mit dem aktiven Linientyp verlängern",
+    "same": "Original",
+    "sameTitle": "Jede Falte mit ihrem eigenen Linientyp verlängern"
   },
   "lineStyle": {
     "blackOneDot": "Schwarz mit einem Punkt",

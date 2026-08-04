@@ -79,11 +79,9 @@ describe('oristudio CP action registry', () => {
       'Grid Restricted Line',
       'Rabbit Ear',
       'Foldable Line',
+      // One button for both lengthen operations; the same-colour one is hidden
+      // and reached through Extend Line's colour mode.
       'Extend Line',
-      'Lengthen by Same Color',
-    ]);
-
-    expect(tools.slice(10, 11).map((action) => action.label)).toEqual([
       'Perpendicular Line',
     ]);
 

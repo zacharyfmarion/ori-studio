@@ -352,6 +352,10 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Click or drag to start the line to divide', 'Click to end the line'],
   }),
   ready('LineSegmentRatioSet', 'Divide line by ratio', 'draw', 'divide', 'MouseHandlerLineSegmentRatioSet', {
+    // Merged into Divided Line, which picks between this and LineSegmentDivision
+    // from its divide-mode option. Kept in the registry for parity and for the
+    // upstream mouse-mode lookup; no surface of its own. See `cpToolVariants.ts`.
+    placement: 'hidden-ui-only',
     inputMode: 'drag-line',
     toolSteps: ['Click or drag to start the line to divide', 'Click to end the line'],
   }),
@@ -591,6 +595,10 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     tooltip: 'Unselect crease segments intersecting or overlapping a dragged line',
   }),
   ready('LengthenCreaseSameColor', 'Lengthen by Same Color', 'draw', 'stretch-horizontal', 'MouseHandlerLengthenCreaseSameColor', {
+    // Merged into Extend Line, which picks between this and LengthenCrease from
+    // its colour-mode option. Kept in the registry for parity and for the
+    // upstream mouse-mode lookup; no surface of its own. See `cpToolVariants.ts`.
+    placement: 'hidden-ui-only',
     toolSteps: ['Select line to extend', 'Select target line'],
     tooltip: 'Extend creases crossed by the guide line while preserving original colors',
   }),

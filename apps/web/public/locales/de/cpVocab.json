@@ -292,8 +292,8 @@
       "disabledReason": "Wird von der Ansichts-Laufzeit statt von einem CP-Befehl verarbeitet"
     },
     "cp_action_line_segment_division": {
-      "label": "Gleichmäßig geteilte Linie",
-      "tooltip": "Linie nach Anzahl teilen",
+      "label": "Geteilte Linie",
+      "tooltip": "Eine nach Anzahl oder Verhältnis geteilte Linie zeichnen",
       "disabledReason": "Bereit",
       "steps": {
         "0": "Klicken oder ziehen, um die zu teilende Linie zu beginnen",
@@ -664,7 +664,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "Nach gleicher Farbe verlängern",
+      "label": "Linie verlängern (gleiche Farbe)",
       "tooltip": "Falten, die von der Führungslinie gekreuzt werden, verlängern und dabei die Originalfarben beibehalten",
       "disabledReason": "Bereit",
       "steps": {

@@ -3,6 +3,10 @@ import type {
   OristudioCpFoldAngleDisplay,
   OristudioCpLineStyle,
 } from '../lib/creasePatternViewport';
+import type {
+  OristudioCpDivideMode,
+  OristudioCpLengthenColorMode,
+} from '../lib/oristudioCpToolSettings';
 
 /**
  * Render-time translations for small fixed enums whose English labels live in data modules.
@@ -25,6 +29,36 @@ export function cpLineStyleLabel(t: TFunction, style: OristudioCpLineStyle): str
     default:
       return style;
   }
+}
+
+export function cpLengthenColorModeLabel(
+  t: TFunction,
+  mode: OristudioCpLengthenColorMode
+): string {
+  return mode === 'same'
+    ? t('tools:lengthenColorMode.same', 'Same')
+    : t('tools:lengthenColorMode.active', 'Active');
+}
+
+export function cpLengthenColorModeTitle(
+  t: TFunction,
+  mode: OristudioCpLengthenColorMode
+): string {
+  return mode === 'same'
+    ? t('tools:lengthenColorMode.sameTitle', 'Extend each crease in its own line type')
+    : t('tools:lengthenColorMode.activeTitle', 'Extend in the active line type');
+}
+
+export function cpDivideModeLabel(t: TFunction, mode: OristudioCpDivideMode): string {
+  return mode === 'ratio'
+    ? t('tools:divideMode.ratio', 'Ratio')
+    : t('tools:divideMode.count', 'Count');
+}
+
+export function cpDivideModeTitle(t: TFunction, mode: OristudioCpDivideMode): string {
+  return mode === 'ratio'
+    ? t('tools:divideMode.ratioTitle', 'Divide the line at a ratio')
+    : t('tools:divideMode.countTitle', 'Divide the line into equal parts');
 }
 
 export function cpFoldAngleDisplayLabel(

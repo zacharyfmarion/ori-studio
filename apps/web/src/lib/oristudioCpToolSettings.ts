@@ -10,6 +10,8 @@ import type {
 export type OristudioCpToolSettingGroup =
   | 'line-color'
   | 'angle-system'
+  | 'lengthen-color-mode'
+  | 'divide-mode'
   | 'division-count'
   | 'division-ratio'
   | 'replace-line-type'
@@ -41,7 +43,33 @@ export interface OristudioCpRatioHalf {
   c: number;
 }
 
+/**
+ * Which colour the Extend Line tool gives an extension: the active line type, or
+ * whatever the crease being extended already carries.
+ *
+ * The two are separate Oriedita mouse handlers (`LENGTHEN_CREASE_5` and
+ * `LENGTHEN_CREASE_SAME_COLOR_70`); Ori Studio merges them into one rail tool and
+ * chooses between them with this option. See `cp-workspace/tools/toolVariants.ts`.
+ */
+export type OristudioCpLengthenColorMode = 'active' | 'same';
+
+export const ORISTUDIO_CP_LENGTHEN_COLOR_MODES: readonly OristudioCpLengthenColorMode[] = [
+  'active',
+  'same',
+];
+
+/**
+ * How the Divided Line tool subdivides the segment it draws: into N equal parts,
+ * or at a ratio. The same merge as {@link OristudioCpLengthenColorMode}, over
+ * `LINE_SEGMENT_DIVISION_27` and `LINE_SEGMENT_RATIO_SET_28`.
+ */
+export type OristudioCpDivideMode = 'count' | 'ratio';
+
+export const ORISTUDIO_CP_DIVIDE_MODES: readonly OristudioCpDivideMode[] = ['count', 'ratio'];
+
 export interface OristudioCpToolOptions {
+  lengthenColorMode: OristudioCpLengthenColorMode;
+  divideMode: OristudioCpDivideMode;
   divisionCount: number;
   divisionRatio: OristudioCpRatioExpression;
   angleSystemDivider: number;
@@ -67,6 +95,11 @@ export interface OristudioCpToolOptions {
 }
 
 export const DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS: OristudioCpToolOptions = {
+  // Same-colour, because that is what the `E` chord did when Extend Line and
+  // Lengthen by Same Color were two rail buttons, and `E` is in the adopted
+  // single-key layout. The option is persisted, so this only decides first run.
+  lengthenColorMode: 'same',
+  divideMode: 'count',
   divisionCount: 2,
   divisionRatio: {
     a: 1,
@@ -185,8 +218,14 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   DrawCreaseAngleRestricted: ['angle-system', 'candidate-choice'],
   DrawCreaseAngleRestricted3: ['angle-system', 'candidate-choice'],
   DrawCreaseAngleRestricted5: ['angle-system', 'candidate-choice'],
-  LineSegmentDivision: ['division-count'],
-  LineSegmentRatioSet: ['division-ratio'],
+  // The merged-tool pairs. Both variants of a pair list the mode selector, so it
+  // is present whichever way the mode currently resolves — and the operand
+  // control below it (count vs ratio) swaps with the resolved operation, with no
+  // conditional rendering in the panel.
+  LengthenCrease: ['lengthen-color-mode'],
+  LengthenCreaseSameColor: ['lengthen-color-mode'],
+  LineSegmentDivision: ['divide-mode', 'division-count'],
+  LineSegmentRatioSet: ['divide-mode', 'division-ratio'],
   PolygonSetNoCorners: ['polygon-corners'],
   ParallelDrawWidth: ['parallel-width'],
   ReplaceLineTypeSelect: ['replace-line-type'],
@@ -232,6 +271,8 @@ const TOOL_OPTION_KEYS_BY_GROUP: Partial<
   Record<OristudioCpToolSettingGroup, readonly (keyof OristudioCpToolOptions)[]>
 > = {
   'angle-system': ['angleSystemDivider', 'angleSystemAngles'],
+  'lengthen-color-mode': ['lengthenColorMode'],
+  'divide-mode': ['divideMode'],
   'division-count': ['divisionCount'],
   'division-ratio': ['divisionRatio'],
   'replace-line-type': ['customFromLineType', 'customToLineType'],

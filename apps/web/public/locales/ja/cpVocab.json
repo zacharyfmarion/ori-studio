@@ -292,8 +292,8 @@
       "disabledReason": "CP コマンドではなくビューポートランタイムで処理されます"
     },
     "cp_action_line_segment_division": {
-      "label": "等分線",
-      "tooltip": "個数で線を分割",
+      "label": "分割線",
+      "tooltip": "個数または比率で分割した線を描画",
       "disabledReason": "準備完了",
       "steps": {
         "0": "クリックまたはドラッグして分割する線の始点を指定",
@@ -664,7 +664,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "同色で延長",
+      "label": "線を延長（元の線種）",
       "tooltip": "元の色を保持しながらガイド線が横切る折り線を延長します",
       "disabledReason": "準備完了",
       "steps": {
