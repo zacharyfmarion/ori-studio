@@ -100,9 +100,10 @@ import {
 } from '../../i18n/cpVocab';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import { ProtractorIcon } from '../ui/ProtractorIcon';
+import { SolveFoldAnglesIcon } from '../ui/SolveFoldAnglesIcon';
 
 /** A rail icon: any lucide icon, or a local component with the same props. */
-type CpToolIcon = LucideIcon | typeof ProtractorIcon;
+type CpToolIcon = LucideIcon | typeof ProtractorIcon | typeof SolveFoldAnglesIcon;
 
 const RAIL_GROUPS_STORAGE_KEY = storageKey(STORAGE_KEYS.cpToolRailGroups);
 
@@ -126,6 +127,7 @@ interface CpToolRailProps {
 
 const LUCIDE_ICONS: Record<string, CpToolIcon> = {
   ProtractorIcon,
+  SolveFoldAnglesIcon,
   AlignJustify,
   BadgeAlert,
   BadgeCheck,
@@ -202,6 +204,7 @@ const LUCIDE_ICONS: Record<string, CpToolIcon> = {
 
 const ICON_ALIASES: Record<string, string> = {
   angle: 'ProtractorIcon',
+  'angle-solve': 'SolveFoldAnglesIcon',
   compass: 'DraftingCompass',
   divide: 'Divide',
   frame: 'Scan',
@@ -314,7 +317,6 @@ const ORIEDITA_OPERATION_GLYPHS: Partial<Record<OristudioCpOperationId, string>>
   UnselectPolygon: '\uE06E',
   VertexDeleteOnCrease: '\uE021',
   VertexMakeAngularlyFlatFoldable: '\uE003',
-  VertexSolveFoldAngles: '\uE003',
   VoronoiCreate: '\uE002',
 };
 

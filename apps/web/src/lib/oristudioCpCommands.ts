@@ -405,7 +405,7 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick vertex', 'Pick the crease to add'],
     tooltip: 'Add the crease that makes a vertex fold consistently, solving its fold angle when the vertex is not flat',
   }),
-  ready('VertexSolveFoldAngles', 'Solve fold angles', 'construct', 'sliders-horizontal', 'OriStudioSolveVertexFoldAngles', {
+  ready('VertexSolveFoldAngles', 'Solve fold angles', 'construct', 'angle-solve', 'OriStudioSolveVertexFoldAngles', {
     toolSteps: [
       'Pick the first crease to change',
       'Pick the second crease to change',
