@@ -23,13 +23,16 @@ describe('buildShareUrl', () => {
 });
 
 describe('isShareId', () => {
-  it('accepts exactly the shape the Worker mints', () => {
+  it('accepts the range the Worker mints and has minted', () => {
+    // Kept in step with SHARE_ID_PATTERN in functions/_lib/cpShare.ts. Eight-character links
+    // predate the widening and must keep resolving.
     expect(isShareId('a3bK9xmQ')).toBe(true);
-    expect(isShareId('00000000')).toBe(true);
+    expect(isShareId('a3bK9xmQwe')).toBe(true);
+    expect(isShareId('a3bK9xmQwert')).toBe(true);
   });
 
   it('rejects everything else', () => {
-    for (const bad of ['a3bK9xm', 'a3bK9xmQQ', 'a3bK-xmQ', 'a3bK_xmQ', '', '../../etc']) {
+    for (const bad of ['a3bK9xm', 'a3bK9xmQwertyu', 'a3bK-xmQ', 'a3bK_xmQ', '', '../../etc']) {
       expect(isShareId(bad)).toBe(false);
     }
   });

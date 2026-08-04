@@ -78,6 +78,9 @@ export async function onRequestPost(context: CpShareContext): Promise<Response> 
         id = candidate;
         break;
       }
+      // At 62^10 this is a ~6e-7 event per million shares, so it firing at all means either
+      // extraordinary luck or a broken id generator. Either is worth a log line.
+      console.warn('[share] id collision', { attempt, length: candidate.length });
     }
     if (!id) {
       return json(

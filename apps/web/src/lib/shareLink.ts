@@ -23,8 +23,11 @@ export function buildShareUrl(shareId: string, origin: string = window.location.
   return `${origin}${SHARE_PATH}/${shareId}`;
 }
 
-/** The id shape the Worker mints and validates. */
-const SHARE_ID_PATTERN = /^[a-zA-Z0-9]{8}$/;
+/**
+ * The id shape the Worker mints and validates — kept in step with `SHARE_ID_PATTERN` in
+ * `functions/_lib/cpShare.ts`. The range spans older 8-character links and the 10 minted now.
+ */
+const SHARE_ID_PATTERN = /^[a-zA-Z0-9]{8,12}$/;
 
 /** Characters a legacy base64url payload can contain, and nothing else. */
 const PAYLOAD_PATTERN = /^[A-Za-z0-9_-]+$/;

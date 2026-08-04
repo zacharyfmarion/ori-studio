@@ -62,7 +62,13 @@ const encoder = new TextEncoder();
 /** Alphabet for share ids. Alphanumeric only, so the id is safe everywhere unescaped. */
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
-export const SHARE_ID_LENGTH = 8;
+/**
+ * Ids are minted at 10 characters. 62^10 is ~8.4e17, which puts the birthday probability of
+ * any collision at a million shares near 6e-7 — against ~2e-3 at eight characters, for two
+ * characters of URL. That margin is what actually protects us, because the existence check
+ * below it reads eventually-consistent KV and so cannot see a concurrent write.
+ */
+export const SHARE_ID_LENGTH = 10;
 
 /**
  * The id shape, checked **before any KV access**.
@@ -71,8 +77,12 @@ export const SHARE_ID_LENGTH = 8;
  * exceeding a free-plan limit fails hard rather than billing. So an unfiltered
  * `/s/<garbage>` flood would exhaust the day's read quota and take every real share link
  * down with it until 00:00 UTC. Rejecting on shape first makes that attack free to defend.
+ *
+ * The range spans 8 to 12 rather than pinning the current mint length: links created before
+ * ids widened are eight characters and must keep resolving, and a future change of mind
+ * should not invalidate everything shared in the meantime.
  */
-export const SHARE_ID_PATTERN = /^[a-zA-Z0-9]{8}$/;
+export const SHARE_ID_PATTERN = /^[a-zA-Z0-9]{8,12}$/;
 
 /** Unpadded base64url, which is all the codec ever emits. */
 const PAYLOAD_PATTERN = /^[A-Za-z0-9_-]+$/;

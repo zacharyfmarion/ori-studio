@@ -61,3 +61,9 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      # The deploy above reports success even when it uploads no Functions at all, so
+      # nothing before this point can tell a working share feature from a broken one.
+      # Read-only checks: no writes against the daily free-tier budget, no junk records.
+      - name: Verify share endpoints
+        run: node scripts/share-smoke.mjs https://oristudio.pages.dev

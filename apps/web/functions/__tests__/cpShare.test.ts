@@ -96,21 +96,30 @@ function postRequest(body: unknown, headers: Record<string, string> = {}): Reque
 const VALID_PAYLOAD = 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRob';
 
 describe('share id validation', () => {
-  it('accepts exactly 8 alphanumeric characters', () => {
+  it('accepts 8 to 12 alphanumeric characters', () => {
+    // 8 for links minted before ids widened, 10 for what is minted now, and headroom
+    // either side so a future change does not invalidate everything already shared.
     expect(isValidShareId('a3bK9xmQ')).toBe(true);
-    expect(isValidShareId('00000000')).toBe(true);
+    expect(isValidShareId('a3bK9xmQwe')).toBe(true);
+    expect(isValidShareId('a3bK9xmQwert')).toBe(true);
   });
 
   it('rejects everything else, which is what keeps null reads off the KV quota', () => {
-    for (const bad of ['a3bK9xm', 'a3bK9xmQQ', 'a3bK-xmQ', 'a3bK_xmQ', '', '../../etc', 'a3bK9xm ']) {
+    for (const bad of ['a3bK9xm', 'a3bK9xmQwertyu', 'a3bK-xmQ', 'a3bK_xmQ', '', '../../etc', 'a3bK9xm ']) {
       expect(isValidShareId(bad)).toBe(false);
     }
   });
 
+  it('mints ids at the width the collision margin assumes', () => {
+    // The 6e-7 birthday probability is a property of the *length*, and the existence check
+    // cannot be relied on to catch a collision, so this is the only thing enforcing it.
+    expect(randomShareId()).toHaveLength(10);
+  });
+
   it('normalises the route param, including single-element catch-all arrays', () => {
-    expect(readShareIdParam('a3bK9xmQ')).toBe('a3bK9xmQ');
-    expect(readShareIdParam(['a3bK9xmQ'])).toBe('a3bK9xmQ');
-    expect(readShareIdParam(['a3bK9xmQ', 'extra'])).toBeNull();
+    expect(readShareIdParam('a3bK9xmQwe')).toBe('a3bK9xmQwe');
+    expect(readShareIdParam(['a3bK9xmQwe'])).toBe('a3bK9xmQwe');
+    expect(readShareIdParam(['a3bK9xmQwe', 'extra'])).toBeNull();
     expect(readShareIdParam(undefined)).toBeNull();
     expect(readShareIdParam('nope')).toBeNull();
   });
