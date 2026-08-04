@@ -164,7 +164,12 @@ import {
   restoreOristudioCpDocumentInPlace,
   setOristudioCpDocumentSource,
 } from '../oristudioCpRuntime';
-import type { OristudioCpHistoryEntry, ProjectSlice, WorkspaceSliceCreator } from '../types';
+import type {
+  OristudioCpHistoryEntry,
+  ProjectSlice,
+  WorkspaceSliceCreator,
+  WorkspaceState,
+} from '../types';
 import { retainFoldedFigureHandles } from '../../../cp-workspace/folded/foldedFigureHandles';
 import type { FoldDocument } from '../../../engine/types';
 import type {
@@ -992,6 +997,68 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     };
   };
 
+  /**
+   * Every field that restores the Edit canvas from a crease-pattern document in a
+   * saved `.osf`. The single source of truth shared by the CP-only load path and
+   * the bundled-companion path, so the two cannot drift — the same discipline
+   * `freshEditableCpState` applies to the blank-canvas paths.
+   *
+   * Divergence here is exactly what the companion path had lost: it restored the
+   * document and its folded figures but not the saved `creaseColorMode`, viewport
+   * (grid, snaps, line width), `toolMode`, or the `projectLoadId` bump. None of
+   * those live in localStorage, so reopening a design bundled with an Edit crease
+   * pattern silently reverted the crease colours and every grid setting, and left
+   * the CP panel and undo stack without a fresh baseline.
+   *
+   * Scoped to the Edit canvas: it deliberately does NOT touch the design fields
+   * (`project`, `pendingDesignChoice`, `status`, `activePanelId`) so it can install
+   * a crease pattern alongside a design without unclaiming it.
+   */
+  const nativeCpEditorState = (
+    nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
+    documentState: OristudioCpDocumentState,
+    camvResult: OristudioCpCommandResult | null
+  ): Partial<WorkspaceState> => ({
+    // Overridden field-by-field below; spread for the fold side table,
+    // which hydration only refills for the incoming windows.
+    ...discardCpDocumentState(),
+    oristudioCpDocument: documentState,
+    oristudioCpLineage: nativeDocument.creasePattern.lineage,
+    oristudioCpAnnotations: [
+      ...nativeDocument.creasePattern.images,
+      ...nativeDocument.creasePattern.textAnnotations,
+    ],
+    oristudioCpSelectedAnnotationId: null,
+    // Placement and provenance only. Each window's fold is rebuilt from the
+    // loaded document by the caller's hydrate, and until then a window has no
+    // mesh to draw.
+    oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
+    oristudioCpFocusedInlineSimulationId: null,
+    oristudioCpDocumentExtensions: nativeDocument.extensions,
+    oristudioCpCamvResult: camvResult,
+    oristudioCpOperationDescriptors: documentState.operationDescriptors,
+    oristudioCpError: null,
+    oristudioCpHistoryPast: [],
+    oristudioCpHistoryFuture: [],
+    oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
+    oristudioCpActiveDiagnosticId: null,
+    oristudioCpRevision: 0,
+    oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
+    oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
+    creaseColorMode: nativeDocument.viewState.creaseColorMode ?? DEFAULT_CREASE_COLOR_MODE,
+    oristudioCpViewport: {
+      ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      ...nativeDocument.viewState.viewport,
+    },
+    toolMode: 'select',
+    // Re-baselines the CP panel and the undo stack against the document just
+    // installed (see freshCreasePattern.ts).
+    projectLoadId: get().projectLoadId + 1,
+    // This document becomes the simulator's source, so whatever the previous
+    // load left behind must not be simulated in its place.
+    ...staleFoldArtifactResourceState(get().foldArtifactRevision),
+  });
+
   const loadNativeCreasePattern = async (
     nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
     source: { filename: string; path?: string | null }
@@ -1030,54 +1097,24 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // Simulation faces are inferred in JS (no flat-folding), so multi-pattern
     // documents work.
     const result = parsed;
-    // See the note on the other install site: a kernel-backed document's
-    // artifacts come from the kernel, never from the importer.
-    const artifactState = staleFoldArtifactResourceState(get().foldArtifactRevision);
     const originalSource = importedSourceFromNativeSource(nativeDocument.creasePattern.source);
     const importedDocument = originalSource
       ? { ...result.document, source: originalSource }
       : result.document;
     set({
-      // Overridden field-by-field below; spread for the fold side table,
-      // which hydration only refills for the incoming windows.
-      ...discardCpDocumentState(),
+      ...nativeCpEditorState(nativeDocument, documentState, checked.camvResult),
+      // Everything below is the "this crease pattern is the whole project" part,
+      // which the companion path must not apply — it would unclaim the design.
       // Opening a crease pattern makes the CP editor the active view.
       activePanelId: 'crease-pattern',
       // A CP-only project establishes no design; keep the Design chooser.
       pendingDesignChoice: true,
       project: { ...result.project, title: nativeDocument.title || result.project.title },
       importedCreasePattern: importedDocument,
-      oristudioCpDocument: documentState,
-      oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
-      oristudioCpSelectedAnnotationId: null,
-      // Placement and provenance only. Each window's fold is rebuilt from the
-      // loaded document below, and until then a window has no mesh to draw.
-      oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
-      oristudioCpFocusedInlineSimulationId: null,
-      oristudioCpDocumentExtensions: nativeDocument.extensions,
-      oristudioCpCamvResult: checked.camvResult,
-      oristudioCpOperationDescriptors: documentState.operationDescriptors,
-      oristudioCpError: null,
-      oristudioCpHistoryPast: [],
-      oristudioCpHistoryFuture: [],
-      projectLoadId: get().projectLoadId + 1,
       currentFileName: source.filename,
       currentFilePath: source.path ?? null,
       projectMessage: `Loaded ${source.filename}`,
       selection: { kind: 'tree' },
-      oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
-      oristudioCpActiveDiagnosticId: null,
-      oristudioCpRevision: 0,
-      oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
-      oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
-      toolMode: 'select',
-      creaseColorMode: nativeDocument.viewState.creaseColorMode ?? DEFAULT_CREASE_COLOR_MODE,
-      oristudioCpViewport: {
-        ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
-        ...nativeDocument.viewState.viewport,
-      },
-      ...artifactState,
       sequenceTarget: null,
       sequencePlan: null,
       sequenceSimulationFocus: { kind: 'whole' },
@@ -1112,33 +1149,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       nativeSource
     );
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
-    set({
-      // Overridden field-by-field below; spread for the fold side table,
-      // which hydration only refills for the incoming windows.
-      ...discardCpDocumentState(),
-      oristudioCpDocument: checked.documentState,
-      oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
-      oristudioCpSelectedAnnotationId: null,
-      // Placement and provenance only. Each window's fold is rebuilt from the
-      // loaded document below, and until then a window has no mesh to draw.
-      oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
-      oristudioCpFocusedInlineSimulationId: null,
-      oristudioCpDocumentExtensions: nativeDocument.extensions,
-      oristudioCpCamvResult: checked.camvResult,
-      oristudioCpOperationDescriptors: checked.documentState.operationDescriptors,
-      oristudioCpError: null,
-      oristudioCpHistoryPast: [],
-      oristudioCpHistoryFuture: [],
-      oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
-      oristudioCpActiveDiagnosticId: null,
-      oristudioCpRevision: 0,
-      oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
-      oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
-      // The companion becomes the simulator's source, so whatever the design
-      // load left behind must not be simulated in its place.
-      ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-    });
+    // Only the Edit-canvas fields: the design has already claimed `project`,
+    // `pendingDesignChoice`, and `status`.
+    set(nativeCpEditorState(nativeDocument, checked.documentState, checked.camvResult));
     void get().hydrateOristudioCpInlineSimulations();
   };
 

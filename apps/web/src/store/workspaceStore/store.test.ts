@@ -5459,6 +5459,66 @@ describe('workspace store slices', () => {
       expect(currentWorkspacePath()).toBe('/edit');
     });
 
+    it('restores the crease-pattern view settings saved alongside a design', async () => {
+      // Regression: the companion installer was a hand-rolled subset of the
+      // CP-only one and silently dropped `creaseColorMode`, the viewport (grid,
+      // snaps, line width), `toolMode`, and the `projectLoadId` bump. None of
+      // those are in localStorage, so reopening a design bundled with an Edit
+      // crease pattern really did revert the crease colours and every grid
+      // setting. Both paths now spread one `nativeCpEditorState`.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          creasePatternCompanion: {
+            title: 'Crane CP',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: null,
+            foldProjection: null,
+            foldArtifacts: null,
+            creaseColorMode: 'agrh',
+            selection: emptyOristudioCpSelection(),
+            viewport: {
+              ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+              gridVisible: false,
+              snapToGrid: false,
+              lineWidth: 3,
+            },
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+          },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({
+        engineReady: true,
+        status: 'ready',
+        dirty: false,
+        // Non-default values the load must overwrite, not inherit.
+        creaseColorMode: 'mvf',
+        oristudioCpViewport: { ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS },
+      });
+      const projectLoadIdBefore = useWorkspaceStore.getState().projectLoadId;
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+      ).resolves.toBe(true);
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(state.creaseColorMode).toBe('agrh');
+      expect(state.oristudioCpViewport.gridVisible).toBe(false);
+      expect(state.oristudioCpViewport.snapToGrid).toBe(false);
+      expect(state.oristudioCpViewport.lineWidth).toBe(3);
+      expect(state.toolMode).toBe('select');
+      expect(state.projectLoadId).toBeGreaterThan(projectLoadIdBefore);
+    });
+
     it('moves the user exactly once when opening a design bundled with a crease pattern', async () => {
       // Regression: `setLoadedBpProject` both installed the BP document and
       // called `activateWorkspace('design')`, so the destination was chosen from
