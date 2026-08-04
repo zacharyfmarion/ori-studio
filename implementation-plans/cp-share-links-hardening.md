@@ -73,8 +73,36 @@ share puts the ceiling at 500/day.
 
 - **Keep validation before the rate-limit write** (it already is): a malformed payload costs
   zero writes, so garbage cannot drain the budget.
-- **Surface `storage_quota` distinctly** — already wired to a toast; add the read-side case,
-  where an exhausted read quota makes *existing* links fail rather than creation.
+- **Say when it comes back.** Free-plan limits reset at **00:00 UTC** — a known instant, so
+  "please try again later" throws away the one useful fact we have. Two messages, because the
+  two quotas fail at different moments and for different people:
+
+  | Quota | Who sees it | English source string |
+  |---|---|---|
+  | Writes | Someone creating a link | `Ori Studio has reached today's limit for new share links. Try again after {{time}}.` |
+  | Reads | Someone *opening* a link, possibly a stranger to the app | `Ori Studio has reached today's limit for opening share links. This one should work again after {{time}}.` |
+
+  Deliberately neutral about the cause: it states the cap and when it lifts without
+  advertising which plan we are on, and it makes clear the limit is the service's rather than
+  anything the person did.
+
+  `{{time}}` is the next 00:00 UTC rendered in the **user's** locale and timezone — not the
+  browser's, since the app has its own language picker. A `formatQuotaReset(now, locale)`
+  helper in `lib/` computes it with `Intl.DateTimeFormat`, including the weekday only when
+  the reset falls on a different local calendar day (in UTC-8 it is later the same
+  afternoon; in UTC+9 it is tomorrow morning). Letting `Intl` carry the weekday keeps the
+  translated string down to one `{{time}}` placeholder, where hand-writing "tomorrow" would
+  need translating and pluralising in nine languages.
+
+  Both strings need the usual `i18n:extract` → translate → `i18n:stamp` → `i18n:check` pass.
+
+- **The message is only as good as the detection.** `storage_quota` is currently inferred by
+  matching `/limit|quota|exceeded/i` against the thrown message. That heuristic is tolerable
+  behind "temporarily unavailable"; it is *not* tolerable behind "try again after 4:00 PM",
+  which would be actively wrong if some unrelated KV failure happened to contain the word
+  "limit". Confirm what Cloudflare actually throws on quota exhaustion, tighten the match, and
+  fall back to the generic `storage_failure` copy whenever the classification is uncertain —
+  a vague true message beats a precise false one.
 - **Reclaim the second write.** `ratelimits` is not a Pages binding, but **Durable Objects
   are**, and a DO counter costs no KV write — that would restore 1 write/share and a
   1,000/day ceiling. Spike it; if the free-plan story does not hold up, stay on the KV counter
@@ -201,6 +229,11 @@ existence check does catch a collision; it should never fire, and if it does we 
 ### Phase 2 — Stop the lie (the failure users will actually hit)
 
 - [ ] `fetchCpShareWithRetry` — 404-only backoff to ~60s, abortable.
+- [ ] `formatQuotaReset(now, locale)` helper + unit tests: same-local-day vs next-day
+      rendering, and a non-Latin locale.
+- [ ] Both quota strings (write and read) with `{{time}}`, translated across all 9 locales.
+- [ ] Confirm the real Cloudflare quota-exhaustion error shape; tighten the classifier and
+      fall back to generic copy when unsure.
 - [ ] Status on the store for an in-flight shared-CP fetch; CP surface renders it.
 - [ ] Soften the exhausted-retry message; add the read-quota case to `toastMessages.ts`.
 - [ ] Tests: retries on 404, does **not** retry on 400/503, gives up and reports.
