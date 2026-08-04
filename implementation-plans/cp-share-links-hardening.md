@@ -261,8 +261,8 @@ existence check does catch a collision; it should never fire, and if it does we 
 ### Phase 6 — Coverage
 
 - [x] Handler-level round-trip: create → serve → parse → open.
-- [ ] Flatness gate on a real non-flat pattern, in both dialogs.
-- [ ] Re-run the full suite and the smoke test; record both in the PR.
+- [x] Flatness gate on a real non-flat pattern, in both dialogs.
+- [x] Re-run the full suite and the smoke test; record both in the PR.
 
 ---
 
