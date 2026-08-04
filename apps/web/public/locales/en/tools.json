@@ -44,12 +44,14 @@
     "deleteLineTypeAria": "Delete line type",
     "divideByCount": "Divide by count",
     "divideByRatio": "Divide by ratio",
+    "divideMode": "Divide mode",
     "divider": "Divider",
     "divisionCount": "Division count",
     "dragAcrossCreases": "Drag across creases to apply this action.",
     "erase": "Erase",
     "eraseLineType": "Erase line type",
     "exactForm": "Exact form",
+    "extendColor": "Extend color",
     "filter": "Filter",
     "firstCandidate": "First candidate",
     "fixInaccurate": "Fix inaccurate",
@@ -119,9 +121,21 @@
     "ariaLabel": "Crease pattern tools",
     "openEditableFirst": "Open an editable crease pattern first"
   },
+  "divideMode": {
+    "count": "Count",
+    "countTitle": "Divide the line into equal parts",
+    "ratio": "Ratio",
+    "ratioTitle": "Divide the line at a ratio"
+  },
   "foldAngleDisplay": {
     "color": "Color",
     "opacity": "Opacity"
+  },
+  "lengthenColorMode": {
+    "active": "Active",
+    "activeTitle": "Extend in the active line type",
+    "same": "Same",
+    "sameTitle": "Extend each crease in its own line type"
   },
   "lineStyle": {
     "blackOneDot": "Black one-dot",

@@ -281,8 +281,11 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamMouseMode: 'CONTINUOUS_SYMMETRIC_DRAW_52',
     railOrder: 170,
   },
+  // One rail tool over two operations, with count-vs-ratio a tool param. See
+  // `cpToolVariants.ts`; the ratio variant keeps its action for the upstream
+  // mouse-mode lookup, but has no button of its own.
   LineSegmentDivision: {
-    label: 'Equally Divided Line',
+    label: 'Divided Line',
     group: 'draw',
     upstreamAction: 'senbun_b_nyuryokuAction',
     upstreamMouseMode: 'LINE_SEGMENT_DIVISION_27',
@@ -293,7 +296,6 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     group: 'draw',
     upstreamAction: 'drawLineSegmentInternalDivisionRatioAction',
     upstreamMouseMode: 'LINE_SEGMENT_RATIO_SET_28',
-    railOrder: 190,
   },
   PolygonSetNoCorners: {
     label: 'Regular Polygon',
@@ -356,9 +358,11 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamAction: 'operationFrameSelectAction',
     upstreamMouseMode: 'OPERATION_FRAME_CREATE_61',
   },
+  // Merged into Extend Line above, with the colour mode a tool param. Kept for
+  // the upstream mouse-mode lookup only — no rail button, and therefore no
+  // default chord (`E` moved to `lengthenCreaseAction`, the host).
   LengthenCreaseSameColor: {
     group: 'draw',
-    railOrder: 55,
     upstreamAction: 'lengthenCrease2Action',
     upstreamMouseMode: 'LENGTHEN_CREASE_SAME_COLOR_70',
   },

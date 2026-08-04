@@ -48,12 +48,14 @@
     "deleteLineTypeAria": "Supprimer le type de ligne",
     "divideByCount": "Diviser par nombre",
     "divideByRatio": "Diviser par rapport",
+    "divideMode": "",
     "divider": "Séparateur",
     "divisionCount": "Nombre de divisions",
     "dragAcrossCreases": "Faites glisser sur les plis pour appliquer cette action.",
     "erase": "Effacer",
     "eraseLineType": "Effacer le type de ligne",
     "exactForm": "Forme exacte",
+    "extendColor": "",
     "filter": "Filtre",
     "firstCandidate": "Premier candidat",
     "fixInaccurate": "Corriger les imprécis",
@@ -127,9 +129,21 @@
     "ariaLabel": "Outils de patron de plis",
     "openEditableFirst": "Ouvrez d'abord un patron de plis modifiable"
   },
+  "divideMode": {
+    "count": "",
+    "countTitle": "",
+    "ratio": "",
+    "ratioTitle": ""
+  },
   "foldAngleDisplay": {
     "color": "Couleur",
     "opacity": "Opacité"
+  },
+  "lengthenColorMode": {
+    "active": "",
+    "activeTitle": "",
+    "same": "",
+    "sameTitle": ""
   },
   "lineStyle": {
     "blackOneDot": "Noir à un point",

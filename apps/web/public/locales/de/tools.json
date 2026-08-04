@@ -44,12 +44,14 @@
     "deleteLineTypeAria": "Linientyp löschen",
     "divideByCount": "Nach Anzahl teilen",
     "divideByRatio": "Nach Verhältnis teilen",
+    "divideMode": "",
     "divider": "Trenner",
     "divisionCount": "Anzahl der Teilungen",
     "dragAcrossCreases": "Ziehen Sie über die Falten, um diese Aktion anzuwenden.",
     "erase": "Radieren",
     "eraseLineType": "Linientyp radieren",
     "exactForm": "Exakte Form",
+    "extendColor": "",
     "filter": "Filter",
     "firstCandidate": "Erster Kandidat",
     "fixInaccurate": "Ungenaue korrigieren",
@@ -119,9 +121,21 @@
     "ariaLabel": "Faltmuster-Werkzeuge",
     "openEditableFirst": "Öffnen Sie zuerst ein bearbeitbares Faltmuster"
   },
+  "divideMode": {
+    "count": "",
+    "countTitle": "",
+    "ratio": "",
+    "ratioTitle": ""
+  },
   "foldAngleDisplay": {
     "color": "Farbe",
     "opacity": "Deckkraft"
+  },
+  "lengthenColorMode": {
+    "active": "",
+    "activeTitle": "",
+    "same": "",
+    "sameTitle": ""
   },
   "lineStyle": {
     "blackOneDot": "Schwarz mit einem Punkt",

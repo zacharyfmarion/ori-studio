@@ -47,13 +47,13 @@ import {
   type OristudioCpCommandActionDefinition,
 } from '../../lib/oristudioCpActions';
 import {
-  cpCommandByOperation,
   cpCommandUsesActiveLineColor,
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
 import { forcedAssignmentNotice } from '../../cp-workspace/tools/toolUnavailable';
 import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
 import { usePersistedCpToolOptions } from '../../cp-workspace/tools/usePersistedCpToolOptions';
+import { useCpToolVariant } from '../../cp-workspace/tools/useCpToolVariant';
 import type { ToolPreviewSegment } from '../../cp-workspace/tools/types';
 import {
   cancelOristudioCpToolState,
@@ -795,12 +795,6 @@ export function CreasePatternPanel() {
   // that are working preferences — the angle system, Fix Inaccurate's tolerance —
   // are opted into persistence by name; see `lib/cpToolOptionPersistence.ts`.
   const [cpToolOptions, setCpToolOptions] = usePersistedCpToolOptions();
-  // Arming a tool resolves its variant mode (`resolveCpVariantOperation`, via the
-  // tool state), so tool selection needs to read the options — but neither the
-  // document-restore effect nor the rail's select handler may re-run when an
-  // unrelated option changes, so they read the latest through a ref.
-  const cpToolOptionsRef = useRef(cpToolOptions);
-  cpToolOptionsRef.current = cpToolOptions;
   const [cpToolPoints, setCpToolPoints] = useState<Point[]>([]);
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
@@ -1300,29 +1294,14 @@ export function CreasePatternPanel() {
     () => (cpToolState.activeActionId ? cpActionById(cpToolState.activeActionId) : undefined),
     [cpToolState.activeActionId]
   );
-  const activeCpCommand = useMemo(
-    () => {
-      // The tool state holds the *resolved* operation, which for a merged tool
-      // (Extend Line, Divided Line) is not always its action's own — so it wins.
-      // For every other tool the two name the same command.
-      const resolved = cpToolState.activeOperationId
-        ? cpCommandByOperation(cpToolState.activeOperationId)
-        : undefined;
-      if (resolved) return resolved;
-      return activeCpAction?.kind === 'command' ? activeCpAction.command : undefined;
-    },
-    [activeCpAction, cpToolState.activeOperationId]
-  );
-  // A merged tool's mode is a tool option, so it can change while the tool is
-  // already armed. Re-resolve rather than making the user reselect the tool.
-  useEffect(() => {
-    setCpToolState((state) =>
-      transitionOristudioCpToolState(state, {
-        type: 'resolveVariant',
-        toolOptions: cpToolOptions,
-      })
-    );
-  }, [cpToolOptions]);
+  // Extend Line and Divided Line are one rail button over two kernel operations
+  // each, so which one is armed depends on a tool option as well as the action.
+  const { armTool: armCpTool, activeCommand: activeCpCommand } = useCpToolVariant({
+    toolState: cpToolState,
+    setToolState: setCpToolState,
+    toolOptions: cpToolOptions,
+    activeAction: activeCpAction,
+  });
   // Annotations (images, text) select/drag/resize directly — no dedicated tool.
   // They are interactive whenever the active tool isn't mid-draw, or explicitly
   // allows direct entity selection; a drawing tool keeps its clicks on the canvas.
@@ -1476,16 +1455,9 @@ export function CreasePatternPanel() {
     const nextAction = isNewDocument ? restoredAction ?? defaultAction : defaultAction;
     if (!nextAction) return;
     setCpToolState((state) =>
-      isNewDocument || state.phase === 'idle'
-        ? transitionOristudioCpToolState(state, {
-            type: 'selectAction',
-            action: nextAction,
-            editable: true,
-            toolOptions: cpToolOptionsRef.current,
-          })
-        : state
+      isNewDocument || state.phase === 'idle' ? armCpTool(state, nextAction, true) : state
     );
-  }, [cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId]);
+  }, [armCpTool, cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId]);
 
 
   const handleCpToolAction = useCallback(
@@ -1516,14 +1488,7 @@ export function CreasePatternPanel() {
       // nowhere. Decide before the state writes, not after them.
       const runsImmediately = !!editableCp && isWholeDocumentCpCommand(command);
       if (!runsImmediately) {
-        setCpToolState((state) =>
-          transitionOristudioCpToolState(state, {
-            type: 'selectAction',
-            action,
-            editable: !!editableCp,
-            toolOptions: cpToolOptionsRef.current,
-          })
-        );
+        setCpToolState((state) => armCpTool(state, action, !!editableCp));
         // Persist the selection so the tool survives panel remounts (workspace switches).
         useWorkspaceStore.getState().setOristudioCpActiveToolId(action.id);
       }
@@ -1560,6 +1525,7 @@ export function CreasePatternPanel() {
       })();
     },
     [
+      armCpTool,
       buildCpCommandPayload,
       editableCp,
       executeOristudioCpCommand,
@@ -2721,6 +2687,7 @@ export function CreasePatternPanel() {
             {editableCp && (
               <CpToolRail
                 activeActionId={cpToolState.activeActionId}
+                activeOperationId={cpToolState.activeOperationId}
                 activeLineColor={effectiveCpLineColor}
                 editable={!!editableCp}
                 onSelectAction={handleCpToolAction}

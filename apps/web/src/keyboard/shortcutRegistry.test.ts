@@ -109,7 +109,9 @@ const EXPECTED_SINGLE_KEY_LAYOUT: ReadonlyArray<[chord: string, actionId: string
   ['m', 'cp.action.symmetric-draw'],
   ['y', 'cp.action.perpendicular-draw'],
   ['b', 'cp.action.square-bisector'],
-  ['e', 'cp.action.lengthen-crease-same-color'],
+  // Extend Line, whose colour mode is a tool param defaulting to same-colour --
+  // which is what this chord selected when the two were separate rail tools.
+  ['e', 'cp.action.lengthen-crease'],
   ['t', 'cp.action.vertex-make-angularly-flat-foldable'],
   ['r', 'cp.action.draw-crease-angle-restricted5'],
   ['h', 'cp.action.fish-bone-draw'],

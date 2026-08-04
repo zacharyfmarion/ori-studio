@@ -52,12 +52,14 @@
     "deleteLineTypeAria": "Удалить тип линии",
     "divideByCount": "Разделить по количеству",
     "divideByRatio": "Разделить по соотношению",
+    "divideMode": "",
     "divider": "Разделитель",
     "divisionCount": "Число делений",
     "dragAcrossCreases": "Проведите по складкам, чтобы применить это действие.",
     "erase": "Стереть",
     "eraseLineType": "Стереть тип линии",
     "exactForm": "Точная форма",
+    "extendColor": "",
     "filter": "Фильтр",
     "firstCandidate": "Первый кандидат",
     "fixInaccurate": "Исправить неточные",
@@ -135,9 +137,21 @@
     "ariaLabel": "Инструменты паттерна складок",
     "openEditableFirst": "Сначала откройте редактируемый паттерн складок"
   },
+  "divideMode": {
+    "count": "",
+    "countTitle": "",
+    "ratio": "",
+    "ratioTitle": ""
+  },
   "foldAngleDisplay": {
     "color": "Цвет",
     "opacity": "Непрозрачность"
+  },
+  "lengthenColorMode": {
+    "active": "",
+    "activeTitle": "",
+    "same": "",
+    "sameTitle": ""
   },
   "lineStyle": {
     "blackOneDot": "Чёрная с одной точкой",

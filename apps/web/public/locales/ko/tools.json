@@ -40,12 +40,14 @@
     "deleteLineTypeAria": "선 종류 삭제",
     "divideByCount": "개수로 분할",
     "divideByRatio": "비율로 분할",
+    "divideMode": "",
     "divider": "분할기",
     "divisionCount": "분할 개수",
     "dragAcrossCreases": "접힘선을 가로질러 드래그하여 이 작업을 적용합니다.",
     "erase": "지우기",
     "eraseLineType": "선 종류 지우기",
     "exactForm": "정확한 형식",
+    "extendColor": "",
     "filter": "필터",
     "firstCandidate": "첫 번째 후보",
     "fixInaccurate": "부정확 수정",
@@ -111,9 +113,21 @@
     "ariaLabel": "전개도 도구",
     "openEditableFirst": "편집 가능한 전개도를 먼저 여세요"
   },
+  "divideMode": {
+    "count": "",
+    "countTitle": "",
+    "ratio": "",
+    "ratioTitle": ""
+  },
   "foldAngleDisplay": {
     "color": "색상",
     "opacity": "불투명도"
+  },
+  "lengthenColorMode": {
+    "active": "",
+    "activeTitle": "",
+    "same": "",
+    "sameTitle": ""
   },
   "lineStyle": {
     "blackOneDot": "검정 1점선",

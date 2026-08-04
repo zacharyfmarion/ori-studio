@@ -122,7 +122,12 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   drawCreaseRestrictedAction: 'SPACE',
   perpendicularDrawAction: 'Y',
   angleBisectorAction: 'B',
-  lengthenCrease2Action: 'E',
+  // Upstream binds E to `lengthenCrease2Action`, the same-colour lengthen. Ori
+  // Studio merges the two lengthen tools into one rail tool whose colour mode is
+  // a tool param, so the chord moves to the host action -- the same-colour one
+  // is hidden now, and a hidden action must not hold a chord. What E did is
+  // preserved by `lengthenColorMode` defaulting to 'same'.
+  lengthenCreaseAction: 'E',
   makeFlatFoldableAction: 'T', // flat-foldable line (the rail-visible tool)
   deg2Action: 'R', // radial / angle-restricted snapping (22.5, 30, 15 deg)
   fishBoneDrawAction: 'H', // Oriedita labels this button "gridFill"

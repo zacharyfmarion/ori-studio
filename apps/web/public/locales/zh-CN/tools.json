@@ -40,12 +40,14 @@
     "deleteLineTypeAria": "删除线型",
     "divideByCount": "按数量分割",
     "divideByRatio": "按比率分割",
+    "divideMode": "",
     "divider": "分隔符",
     "divisionCount": "分割数量",
     "dragAcrossCreases": "拖动跨越折痕以应用此操作。",
     "erase": "擦除",
     "eraseLineType": "擦除线型",
     "exactForm": "精确形式",
+    "extendColor": "",
     "filter": "筛选",
     "firstCandidate": "第一个候选",
     "fixInaccurate": "修正不精确折痕",
@@ -111,9 +113,21 @@
     "ariaLabel": "折痕图工具",
     "openEditableFirst": "请先打开可编辑折痕图"
   },
+  "divideMode": {
+    "count": "",
+    "countTitle": "",
+    "ratio": "",
+    "ratioTitle": ""
+  },
   "foldAngleDisplay": {
     "color": "颜色",
     "opacity": "不透明度"
+  },
+  "lengthenColorMode": {
+    "active": "",
+    "activeTitle": "",
+    "same": "",
+    "sameTitle": ""
   },
   "lineStyle": {
     "blackOneDot": "黑色单点划线",

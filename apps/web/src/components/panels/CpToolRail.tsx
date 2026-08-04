@@ -119,6 +119,13 @@ function writeRailGroupOpenState(groupId: string, open: boolean): void {
 
 interface CpToolRailProps {
   activeActionId: OristudioCpActionId | null;
+  /**
+   * The operation the active tool would run. For a merged tool (Extend Line,
+   * Divided Line) this is the variant its mode currently names, not the action's
+   * own — the button draws that variant's glyph, so the mode is readable from
+   * the rail without opening the context panel.
+   */
+  activeOperationId: OristudioCpOperationId | null;
   activeLineColor: OristudioCpLineColor;
   editable: boolean;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
@@ -330,6 +337,7 @@ const CP_TOOL_ICON_BY_ACTION = Object.fromEntries(
 
 export const CpToolRail = memo(function CpToolRail({
   activeActionId,
+  activeOperationId,
   activeLineColor,
   editable,
   onSelectAction,
@@ -354,6 +362,7 @@ export const CpToolRail = memo(function CpToolRail({
               group={group}
               actions={actions}
               activeActionId={activeActionId}
+              activeOperationId={activeOperationId}
               activeLineColor={activeLineColor}
               editable={editable}
               onSelectAction={onSelectAction}
@@ -370,6 +379,7 @@ function CpToolRailGroup({
   group,
   actions,
   activeActionId,
+  activeOperationId,
   activeLineColor,
   editable,
   onSelectAction,
@@ -378,6 +388,7 @@ function CpToolRailGroup({
   group: OristudioCpActionGroupDefinition;
   actions: OristudioCpActionDefinition[];
   activeActionId: OristudioCpActionId | null;
+  activeOperationId: OristudioCpOperationId | null;
   activeLineColor: OristudioCpLineColor;
   editable: boolean;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
@@ -413,20 +424,23 @@ function CpToolRailGroup({
       </button>
       {open && (
         <div className="cp-tool-rail__buttons" id={buttonsId} data-group={group.id}>
-          {actions.map((action) => (
-            <CpToolButton
-              key={action.id}
-              action={action}
-              editable={editable}
-              isActive={
-                action.kind === 'line-type'
-                  ? activeLineColor === action.lineColor
-                  : activeActionId === action.id
-              }
-              onSelectAction={onSelectAction}
-              shortcutLabel={shortcutLabelForAction(action.id, shortcutOverrides)}
-            />
-          ))}
+          {actions.map((action) => {
+            const isActive =
+              action.kind === 'line-type'
+                ? activeLineColor === action.lineColor
+                : activeActionId === action.id;
+            return (
+              <CpToolButton
+                key={action.id}
+                action={action}
+                editable={editable}
+                isActive={isActive}
+                glyphOperationId={isActive ? activeOperationId : null}
+                onSelectAction={onSelectAction}
+                shortcutLabel={shortcutLabelForAction(action.id, shortcutOverrides)}
+              />
+            );
+          })}
         </div>
       )}
     </section>
@@ -437,12 +451,15 @@ const CpToolButton = memo(function CpToolButton({
   action,
   editable,
   isActive,
+  glyphOperationId,
   onSelectAction,
   shortcutLabel,
 }: {
   action: OristudioCpActionDefinition;
   editable: boolean;
   isActive: boolean;
+  /** The resolved operation to draw, when this is the active tool; else null. */
+  glyphOperationId: OristudioCpOperationId | null;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
   shortcutLabel?: string;
 }) {
@@ -451,7 +468,11 @@ const CpToolButton = memo(function CpToolButton({
     action.kind === 'command'
       ? (CP_TOOL_ICON_BY_OPERATION[action.operationId] ?? CircleDashed)
       : (CP_TOOL_ICON_BY_ACTION[action.id] ?? CircleDashed);
+  // A merged tool draws the variant it would actually run. Its own glyph is the
+  // fallback, which is what every ordinary tool uses -- their resolved operation
+  // is their own, so the two agree.
   const orieditaGlyph =
+    (glyphOperationId ? ORIEDITA_OPERATION_GLYPHS[glyphOperationId] : undefined) ??
     ORIEDITA_ICON_GLYPHS[action.upstreamAction] ??
     (action.kind === 'command' ? ORIEDITA_OPERATION_GLYPHS[action.operationId] : undefined);
   const available = editable && action.uiStatus === 'ready';

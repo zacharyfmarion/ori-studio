@@ -137,11 +137,22 @@ const OVERSIZED_PANELS = {
   // render decision they feed. Still below the 1110 this file started the change
   // at, because the window chrome came out on the way.
   //
-  // **The seam this file actually wants** is `CpContextToolGroup`: ~530 lines,
-  // 45% of the total, a switch over setting groups that has nothing to do with
+  // 1105 -> 1167: the mode switches for the two merged tools — Extend Line's
+  // colour, Divided Line's count-vs-ratio. Two more settings groups in the
+  // settings panel, the same case as `completion-stops` above; the option, its
+  // default, its persistence, its group→keys entry, and the operation resolution
+  // it drives all live outside this file. `ModeToolOption` is the shared control
+  // both render, and it costs more lines than the two inline blocks it replaced
+  // — deliberately, because two near-identical `SegmentedControl` blocks in a
+  // switch is the duplication this file least needs more of.
+  //
+  // **The seam this file actually wants** is `CpContextToolGroup`: ~560 lines,
+  // 48% of the total, a switch over setting groups that has nothing to do with
   // the panel's composition. Moving it out is the fix, and it is a change of its
-  // own rather than a rider on whichever feature next trips the cap.
-  'CpContextToolPanel.tsx': 1105,
+  // own rather than a rider on whichever feature next trips the cap. Every raise
+  // since 1090 has been another group landing in that switch, which is the
+  // signal AGENTS.md says to act on — this is now overdue.
+  'CpContextToolPanel.tsx': 1167,
 };
 
 const PANEL_MAX_LINES = 800;
