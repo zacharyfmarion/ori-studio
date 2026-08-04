@@ -292,7 +292,7 @@
       "disabledReason": "전개도 명령이 아닌 뷰포트 런타임에서 처리됨"
     },
     "cp_action_line_segment_division": {
-      "label": "균등 분할 선",
+      "label": "분할 선",
       "tooltip": "개수로 선 분할",
       "disabledReason": "준비됨",
       "steps": {

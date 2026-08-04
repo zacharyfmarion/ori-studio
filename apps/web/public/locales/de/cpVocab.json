@@ -292,7 +292,7 @@
       "disabledReason": "Wird von der Ansichts-Laufzeit statt von einem CP-Befehl verarbeitet"
     },
     "cp_action_line_segment_division": {
-      "label": "Gleichmäßig geteilte Linie",
+      "label": "Geteilte Linie",
       "tooltip": "Linie nach Anzahl teilen",
       "disabledReason": "Bereit",
       "steps": {

@@ -292,7 +292,7 @@
       "disabledReason": "Tratado pelo runtime do viewport em vez de um comando de CP"
     },
     "cp_action_line_segment_division": {
-      "label": "Linha dividida igualmente",
+      "label": "Linha dividida",
       "tooltip": "Dividir a linha por quantidade",
       "disabledReason": "Pronto",
       "steps": {

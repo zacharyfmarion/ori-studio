@@ -292,7 +292,7 @@
       "disabledReason": "由视口运行时处理，而非折痕图命令"
     },
     "cp_action_line_segment_division": {
-      "label": "等分线",
+      "label": "分割线",
       "tooltip": "按数量分割线",
       "disabledReason": "就绪",
       "steps": {

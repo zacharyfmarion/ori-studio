@@ -40,14 +40,14 @@
     "deleteLineTypeAria": "線種を削除",
     "divideByCount": "個数で分割",
     "divideByRatio": "比率で分割",
-    "divideMode": "",
+    "divideMode": "分割方法",
     "divider": "区切り",
     "divisionCount": "分割数",
     "dragAcrossCreases": "折り線をドラッグしてこの操作を適用します。",
     "erase": "消去",
     "eraseLineType": "線種を消去",
     "exactForm": "正確な形式",
-    "extendColor": "",
+    "extendColor": "延長の線種",
     "filter": "フィルター",
     "firstCandidate": "最初の候補",
     "fixInaccurate": "不正確な折り線を修正",
@@ -114,20 +114,20 @@
     "openEditableFirst": "まず編集可能な展開図を開いてください"
   },
   "divideMode": {
-    "count": "",
-    "countTitle": "",
-    "ratio": "",
-    "ratioTitle": ""
+    "count": "個数",
+    "countTitle": "線を等分に分割します",
+    "ratio": "比率",
+    "ratioTitle": "線を比率で分割します"
   },
   "foldAngleDisplay": {
     "color": "カラー",
     "opacity": "不透明度"
   },
   "lengthenColorMode": {
-    "active": "",
-    "activeTitle": "",
-    "same": "",
-    "sameTitle": ""
+    "active": "現在",
+    "activeTitle": "現在の線種で延長します",
+    "same": "元のまま",
+    "sameTitle": "各折り線を元の線種のまま延長します"
   },
   "lineStyle": {
     "blackOneDot": "黒（一点鎖線）",

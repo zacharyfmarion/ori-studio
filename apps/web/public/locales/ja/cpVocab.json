@@ -292,7 +292,7 @@
       "disabledReason": "CP コマンドではなくビューポートランタイムで処理されます"
     },
     "cp_action_line_segment_division": {
-      "label": "等分線",
+      "label": "分割線",
       "tooltip": "個数で線を分割",
       "disabledReason": "準備完了",
       "steps": {

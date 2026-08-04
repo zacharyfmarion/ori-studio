@@ -48,14 +48,14 @@
     "deleteLineTypeAria": "Supprimer le type de ligne",
     "divideByCount": "Diviser par nombre",
     "divideByRatio": "Diviser par rapport",
-    "divideMode": "",
+    "divideMode": "Mode de division",
     "divider": "Séparateur",
     "divisionCount": "Nombre de divisions",
     "dragAcrossCreases": "Faites glisser sur les plis pour appliquer cette action.",
     "erase": "Effacer",
     "eraseLineType": "Effacer le type de ligne",
     "exactForm": "Forme exacte",
-    "extendColor": "",
+    "extendColor": "Couleur du prolongement",
     "filter": "Filtre",
     "firstCandidate": "Premier candidat",
     "fixInaccurate": "Corriger les imprécis",
@@ -130,20 +130,20 @@
     "openEditableFirst": "Ouvrez d'abord un patron de plis modifiable"
   },
   "divideMode": {
-    "count": "",
-    "countTitle": "",
-    "ratio": "",
-    "ratioTitle": ""
+    "count": "Nombre",
+    "countTitle": "Diviser la ligne en parts égales",
+    "ratio": "Rapport",
+    "ratioTitle": "Diviser la ligne selon un rapport"
   },
   "foldAngleDisplay": {
     "color": "Couleur",
     "opacity": "Opacité"
   },
   "lengthenColorMode": {
-    "active": "",
-    "activeTitle": "",
-    "same": "",
-    "sameTitle": ""
+    "active": "Actif",
+    "activeTitle": "Prolonger avec le type de ligne actif",
+    "same": "Identique",
+    "sameTitle": "Prolonger chaque pli avec son propre type de ligne"
   },
   "lineStyle": {
     "blackOneDot": "Noir à un point",

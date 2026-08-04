@@ -52,14 +52,14 @@
     "deleteLineTypeAria": "Удалить тип линии",
     "divideByCount": "Разделить по количеству",
     "divideByRatio": "Разделить по соотношению",
-    "divideMode": "",
+    "divideMode": "Режим деления",
     "divider": "Разделитель",
     "divisionCount": "Число делений",
     "dragAcrossCreases": "Проведите по складкам, чтобы применить это действие.",
     "erase": "Стереть",
     "eraseLineType": "Стереть тип линии",
     "exactForm": "Точная форма",
-    "extendColor": "",
+    "extendColor": "Цвет продления",
     "filter": "Фильтр",
     "firstCandidate": "Первый кандидат",
     "fixInaccurate": "Исправить неточные",
@@ -138,20 +138,20 @@
     "openEditableFirst": "Сначала откройте редактируемый паттерн складок"
   },
   "divideMode": {
-    "count": "",
-    "countTitle": "",
-    "ratio": "",
-    "ratioTitle": ""
+    "count": "Количество",
+    "countTitle": "Разделить линию на равные части",
+    "ratio": "Соотношение",
+    "ratioTitle": "Разделить линию по соотношению"
   },
   "foldAngleDisplay": {
     "color": "Цвет",
     "opacity": "Непрозрачность"
   },
   "lengthenColorMode": {
-    "active": "",
-    "activeTitle": "",
-    "same": "",
-    "sameTitle": ""
+    "active": "Активный",
+    "activeTitle": "Продлить активным типом линии",
+    "same": "Исходный",
+    "sameTitle": "Продлить каждую складку её собственным типом линии"
   },
   "lineStyle": {
     "blackOneDot": "Чёрная с одной точкой",

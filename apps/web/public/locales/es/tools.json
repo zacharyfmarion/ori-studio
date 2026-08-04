@@ -48,14 +48,14 @@
     "deleteLineTypeAria": "Eliminar tipo de línea",
     "divideByCount": "Dividir por cantidad",
     "divideByRatio": "Dividir por proporción",
-    "divideMode": "",
+    "divideMode": "Modo de división",
     "divider": "Divisor",
     "divisionCount": "Número de divisiones",
     "dragAcrossCreases": "Arrastra sobre los pliegues para aplicar esta acción.",
     "erase": "Borrar",
     "eraseLineType": "Borrar tipo de línea",
     "exactForm": "Forma exacta",
-    "extendColor": "",
+    "extendColor": "Color de extensión",
     "filter": "Filtro",
     "firstCandidate": "Primer candidato",
     "fixInaccurate": "Corregir imprecisos",
@@ -130,20 +130,20 @@
     "openEditableFirst": "Abre primero un patrón de pliegues editable"
   },
   "divideMode": {
-    "count": "",
-    "countTitle": "",
-    "ratio": "",
-    "ratioTitle": ""
+    "count": "Cantidad",
+    "countTitle": "Dividir la línea en partes iguales",
+    "ratio": "Proporción",
+    "ratioTitle": "Dividir la línea según una proporción"
   },
   "foldAngleDisplay": {
     "color": "Color",
     "opacity": "Opacidad"
   },
   "lengthenColorMode": {
-    "active": "",
-    "activeTitle": "",
-    "same": "",
-    "sameTitle": ""
+    "active": "Activo",
+    "activeTitle": "Extender con el tipo de línea activo",
+    "same": "Original",
+    "sameTitle": "Extender cada pliegue con su propio tipo de línea"
   },
   "lineStyle": {
     "blackOneDot": "Negro de un punto",

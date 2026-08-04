@@ -292,7 +292,7 @@
       "disabledReason": "Géré par le moteur d'affichage plutôt que par une commande CP"
     },
     "cp_action_line_segment_division": {
-      "label": "Ligne divisée également",
+      "label": "Ligne divisée",
       "tooltip": "Diviser la ligne par nombre",
       "disabledReason": "Prêt",
       "steps": {
