@@ -287,6 +287,8 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
   LineSegmentDivision: {
     label: 'Divided Line',
     group: 'draw',
+    // The command's own tooltip names only its half of the merged tool.
+    tooltip: 'Draw a line divided by count or ratio',
     upstreamAction: 'senbun_b_nyuryokuAction',
     upstreamMouseMode: 'LINE_SEGMENT_DIVISION_27',
     railOrder: 180,

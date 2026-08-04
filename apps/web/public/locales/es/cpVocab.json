@@ -293,7 +293,7 @@
     },
     "cp_action_line_segment_division": {
       "label": "Línea dividida",
-      "tooltip": "Dividir la línea por cantidad",
+      "tooltip": "Dibujar una línea dividida por cantidad o proporción",
       "disabledReason": "Listo",
       "steps": {
         "0": "Haz clic o arrastra para iniciar la línea a dividir",

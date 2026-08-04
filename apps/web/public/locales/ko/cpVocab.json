@@ -293,7 +293,7 @@
     },
     "cp_action_line_segment_division": {
       "label": "분할 선",
-      "tooltip": "개수로 선 분할",
+      "tooltip": "개수 또는 비율로 분할된 선 그리기",
       "disabledReason": "준비됨",
       "steps": {
         "0": "클릭하거나 드래그하여 분할할 선 시작",
