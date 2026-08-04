@@ -10,7 +10,6 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { cpActionLabel, cpToolInstructions } from '../../i18n/cpVocab';
 import { cpPaletteStatusLabel } from '../../i18n/paletteLabels';
-import { ChevronDown, ChevronRight } from 'lucide-react';
 import type {
   OristudioCpCustomLineType,
   OristudioCpLineColor,
@@ -39,6 +38,7 @@ import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/crea
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
 import { cpToolUnavailableMessage } from '../../cp-workspace/tools/toolUnavailable';
 import { CpContextToolReset } from './CpContextToolReset';
+import { CpToolHintWindow } from '../../cp-workspace/toolHint/CpToolHintWindow';
 import { copyTextToClipboard } from '../../lib/clipboardText';
 import { FoldAngleControl } from '../../cp-workspace/foldAngle/FoldAngleControl';
 import {
@@ -122,7 +122,13 @@ function contextApplyDisabledForCommand(
   }
 }
 
+/**
+ * What the active tool wants you to do, and the settings it acts on — the
+ * contents of the tool hint window. {@link CpToolHintWindow} is the window
+ * itself: where it floats, and whether it is collapsed.
+ */
 export function CpContextToolPanel({
+  container,
   action,
   command,
   options,
@@ -143,6 +149,11 @@ export function CpContextToolPanel({
   onApply,
   onClearInput,
 }: {
+  /**
+   * The crease-pattern viewport element the window anchors to. Its right edge is
+   * the seam with the View pane, which is the whole placement rule.
+   */
+  container: HTMLElement | null;
   action: OristudioCpActionDefinition | undefined;
   command: OristudioCpCommandDefinition;
   options: OristudioCpToolOptions;
@@ -176,7 +187,6 @@ export function CpContextToolPanel({
   onClearInput?: () => void;
 }) {
   const { t } = useTranslation();
-  const [collapsed, setCollapsed] = useState(false);
   const groups = cpToolSettingGroupsForCommand(command);
   const instructions = cpToolInstructions(t, action, command);
   const applyDisabled = contextApplyDisabledForCommand(command, selection, pendingPointCount);
@@ -192,83 +202,71 @@ export function CpContextToolPanel({
   if (groups.length === 0 && !instructions && !unavailableMessage && !toolNotice) return null;
 
   return (
-    <section
-      className="cp-context-panel"
-      aria-label={t('tools:cpContext.ariaLabel', 'Crease pattern tool options')}
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
+    <CpToolHintWindow
+      container={container}
+      title={title}
+      meta={meta}
+      ariaLabel={t('tools:cpContext.ariaLabel', 'Crease pattern tool options')}
+      headerAction={
+        <CpContextToolReset options={options} setOptions={setOptions} groups={groups} />
+      }
     >
-      <button
-        className="cp-context-panel__header"
-        type="button"
-        aria-expanded={!collapsed}
-        onClick={() => setCollapsed((current) => !current)}
-      >
-        {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-        <span className="cp-context-panel__title">{title}</span>
-        <span className="cp-context-panel__meta">{meta}</span>
-      </button>
-      <CpContextToolReset options={options} setOptions={setOptions} groups={groups} />
-      {!collapsed && (
-        <div className="cp-context-panel__body">
-          {unavailableMessage && (
-            <p className="cp-context-panel__unavailable" role="status">
-              {unavailableMessage}
-            </p>
-          )}
-          {toolNotice && (
-            <p className="cp-context-panel__unavailable" data-tone="notice" role="status">
-              {toolNotice}
-            </p>
-          )}
-          {instructions && <CpContextToolInstructions instructions={instructions} />}
-          {groups.map((group) => (
-            <CpContextToolGroup
-              key={group}
-              group={group}
-              options={options}
-              setOptions={setOptions}
-              activeLineColor={activeLineColor}
-              activeOperationId={command.operationId}
-              measurements={measurements}
-              onHoverMeasurement={onHoverMeasurement}
-              measureUnit={measureUnit}
-              measureAngleUnit={measureAngleUnit}
-              measureScale={measureScale}
-              onMeasureUnitChange={onMeasureUnitChange}
-              onMeasureAngleUnitChange={onMeasureAngleUnitChange}
-              onMeasurePaperEdgeMmChange={onMeasurePaperEdgeMmChange}
-              pendingPointCount={pendingPointCount}
-              selection={selection}
-            />
-          ))}
-          {/* Selection-scoped, so it renders outside `groups` -- the active
-              tool does not decide whether you can set a fold angle. */}
-          <FoldAngleControl />
-          {onApply && (
-            <button
-              className="cp-context-panel__apply"
-              type="button"
-              disabled={applyDisabled}
-              onClick={onApply}
-            >
-              {command.operationId === 'VoronoiCreate'
-                ? t('tools:cpContext.applyVoronoi', 'Apply Voronoi')
-                : command.operationId === 'CircleChangeColor'
-                  ? t('tools:cpContext.applyColor', 'Apply color')
-                  : isSelectionCircleApplyOperation(command.operationId)
-                    ? t('tools:cpContext.applyCircle', 'Apply circle')
-                    : t('tools:cpContext.applyToSelection', 'Apply to selection')}
-            </button>
-          )}
-          {onClearInput && (
-            <button className="cp-context-panel__secondary" type="button" onClick={onClearInput}>
-              {t('tools:cpContext.clearSeeds', 'Clear seeds')}
-            </button>
-          )}
-        </div>
+      {unavailableMessage && (
+        <p className="cp-context-panel__unavailable" role="status">
+          {unavailableMessage}
+        </p>
       )}
-    </section>
+      {toolNotice && (
+        <p className="cp-context-panel__unavailable" data-tone="notice" role="status">
+          {toolNotice}
+        </p>
+      )}
+      {instructions && <CpContextToolInstructions instructions={instructions} />}
+      {groups.map((group) => (
+        <CpContextToolGroup
+          key={group}
+          group={group}
+          options={options}
+          setOptions={setOptions}
+          activeLineColor={activeLineColor}
+          activeOperationId={command.operationId}
+          measurements={measurements}
+          onHoverMeasurement={onHoverMeasurement}
+          measureUnit={measureUnit}
+          measureAngleUnit={measureAngleUnit}
+          measureScale={measureScale}
+          onMeasureUnitChange={onMeasureUnitChange}
+          onMeasureAngleUnitChange={onMeasureAngleUnitChange}
+          onMeasurePaperEdgeMmChange={onMeasurePaperEdgeMmChange}
+          pendingPointCount={pendingPointCount}
+          selection={selection}
+        />
+      ))}
+      {/* Selection-scoped, so it renders outside `groups` -- the active
+          tool does not decide whether you can set a fold angle. */}
+      <FoldAngleControl />
+      {onApply && (
+        <button
+          className="cp-context-panel__apply"
+          type="button"
+          disabled={applyDisabled}
+          onClick={onApply}
+        >
+          {command.operationId === 'VoronoiCreate'
+            ? t('tools:cpContext.applyVoronoi', 'Apply Voronoi')
+            : command.operationId === 'CircleChangeColor'
+              ? t('tools:cpContext.applyColor', 'Apply color')
+              : isSelectionCircleApplyOperation(command.operationId)
+                ? t('tools:cpContext.applyCircle', 'Apply circle')
+                : t('tools:cpContext.applyToSelection', 'Apply to selection')}
+        </button>
+      )}
+      {onClearInput && (
+        <button className="cp-context-panel__secondary" type="button" onClick={onClearInput}>
+          {t('tools:cpContext.clearSeeds', 'Clear seeds')}
+        </button>
+      )}
+    </CpToolHintWindow>
   );
 }
 

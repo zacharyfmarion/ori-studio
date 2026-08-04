@@ -4578,16 +4578,39 @@
   text-decoration: underline;
 }
 
+/* The tool hint window: a floating window over the bottom right of the Edit
+   workspace, overhanging the seam between the crease-pattern viewport and the
+   View pane.
+
+   `left`, `bottom` and `width` come from `cpToolHintPlacement` as inline style —
+   they are a function of a measured rect, so they cannot live here. Everything
+   else does. It is body-portaled, which is what `fixed` needs to mean the
+   browser window rather than the nearest Dockview panel. */
 .cp-context-panel {
-  position: relative; /* Anchors the reset button in the header. */
+  position: fixed;
+  z-index: 900; /* Above all in-pane chrome (max 17), below --z-modal. */
   --cp-context-reset-gutter: 58px;
   display: grid;
-  width: 100%;
+  /* `minmax(0, …)` on the body row is what lets it shrink below its content and
+     therefore scroll; without it the row takes its full intrinsic height and the
+     max-height below just clips the bottom off. */
+  grid-template-rows: auto minmax(0, 1fr);
+  /* Never taller than the viewport it floats over. The body scrolls; the header
+     stays put, so the tool is always named even mid-scroll. */
+  max-height: min(60vh, 520px);
   overflow: hidden;
-  border-top: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-secondary) 82%, var(--bg-primary));
+  border: 1px solid color-mix(in srgb, var(--border-strong) 68%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-primary));
+  box-shadow: 0 8px 24px var(--shadow-overlay);
   color: var(--text-secondary);
   font-size: 0.68rem;
+}
+
+/* Collapsed the window is only its header, so a max-height meant for the open
+   state would leave it able to grow. */
+.cp-context-panel[data-collapsed] {
+  max-height: none;
 }
 
 .cp-context-panel__header {
@@ -4625,8 +4648,12 @@
 
 .cp-context-panel__body {
   display: grid;
+  align-content: start;
   gap: 8px;
-  overflow: visible;
+  /* Was `visible`, from when this sat in a scrolling pane that took the overflow.
+     Floating, it has to take its own. Nothing here escapes the box that needs to
+     — the selects are native and the menus are portaled. */
+  overflow-y: auto;
   padding: 8px;
 }
 
@@ -5120,16 +5147,6 @@
 
 .cp-view-controls-panel__view-options {
   flex: 0 0 auto;
-}
-
-.cp-view-controls-panel__tool-options-slot {
-  display: grid;
-  flex: 0 0 auto;
-  margin-top: auto;
-}
-
-.cp-view-controls-panel__tool-options-slot:empty {
-  min-height: 0;
 }
 
 .control-row__value--toggle {
