@@ -135,6 +135,30 @@ describe('CpViewControlsPanel', () => {
     expect(useWorkspaceStore.getState().oristudioCpViewport.pointSize).toBe(4);
   });
 
+  it('steps line width and point size on the click, with no Enter needed', () => {
+    const view = renderPanel({ oristudioCpDocument: editableCpState() });
+
+    const increaseWidth = view.querySelector<HTMLButtonElement>(
+      'button[aria-label="Increase Line width"]'
+    );
+    act(() => increaseWidth?.click());
+    expect(useWorkspaceStore.getState().oristudioCpViewport.lineWidth).toBe(2);
+
+    const decreaseWidth = view.querySelector<HTMLButtonElement>(
+      'button[aria-label="Decrease Line width"]'
+    );
+    act(() => decreaseWidth?.click());
+    expect(useWorkspaceStore.getState().oristudioCpViewport.lineWidth).toBe(1);
+    // Line width bottoms out at 1, so there is nothing left to take away.
+    expect(decreaseWidth?.disabled).toBe(true);
+
+    const increasePoint = view.querySelector<HTMLButtonElement>(
+      'button[aria-label="Increase Point size"]'
+    );
+    act(() => increasePoint?.click());
+    expect(useWorkspaceStore.getState().oristudioCpViewport.pointSize).toBe(2);
+  });
+
   it('edits advanced grid options through the expandable settings section', () => {
     const updateOristudioCpGrid = vi.fn(async () => true);
     const view = renderPanel({

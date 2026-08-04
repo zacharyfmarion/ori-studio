@@ -229,6 +229,10 @@
     "open": "拖放以打开",
     "openOrImport": "拖放以打开或导入"
   },
+  "numberField": {
+    "decrease": "减小{{label}}",
+    "increase": "增大{{label}}"
+  },
   "toolbar": {
     "downloadMac": "下载 Mac 版 Ori Studio",
     "new": "新建",

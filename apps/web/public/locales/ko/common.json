@@ -229,6 +229,10 @@
     "open": "놓아서 열기",
     "openOrImport": "놓아서 열거나 가져오기"
   },
+  "numberField": {
+    "decrease": "{{label}} 줄이기",
+    "increase": "{{label}} 늘리기"
+  },
   "toolbar": {
     "downloadMac": "Mac용 Ori Studio 다운로드",
     "new": "새로 만들기",

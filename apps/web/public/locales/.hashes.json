@@ -2023,7 +2023,9 @@
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
-    "errors:shareLink.tooNew": "15a1b2a63a4d"
+    "errors:shareLink.tooNew": "15a1b2a63a4d",
+    "common:numberField.decrease": "46cf4efa2af9",
+    "common:numberField.increase": "c7158356e9b7"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4049,7 +4051,9 @@
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
-    "errors:shareLink.tooNew": "15a1b2a63a4d"
+    "errors:shareLink.tooNew": "15a1b2a63a4d",
+    "common:numberField.decrease": "46cf4efa2af9",
+    "common:numberField.increase": "c7158356e9b7"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6104,7 +6108,9 @@
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
-    "errors:shareLink.tooNew": "15a1b2a63a4d"
+    "errors:shareLink.tooNew": "15a1b2a63a4d",
+    "common:numberField.decrease": "46cf4efa2af9",
+    "common:numberField.increase": "c7158356e9b7"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8159,7 +8165,9 @@
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
-    "errors:shareLink.tooNew": "15a1b2a63a4d"
+    "errors:shareLink.tooNew": "15a1b2a63a4d",
+    "common:numberField.decrease": "46cf4efa2af9",
+    "common:numberField.increase": "c7158356e9b7"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10214,7 +10222,9 @@
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
-    "errors:shareLink.tooNew": "15a1b2a63a4d"
+    "errors:shareLink.tooNew": "15a1b2a63a4d",
+    "common:numberField.decrease": "46cf4efa2af9",
+    "common:numberField.increase": "c7158356e9b7"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12269,7 +12279,9 @@
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
-    "errors:shareLink.tooNew": "15a1b2a63a4d"
+    "errors:shareLink.tooNew": "15a1b2a63a4d",
+    "common:numberField.decrease": "46cf4efa2af9",
+    "common:numberField.increase": "c7158356e9b7"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14324,7 +14336,9 @@
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
-    "errors:shareLink.tooNew": "15a1b2a63a4d"
+    "errors:shareLink.tooNew": "15a1b2a63a4d",
+    "common:numberField.decrease": "46cf4efa2af9",
+    "common:numberField.increase": "c7158356e9b7"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16350,6 +16364,8 @@
     "dialogs:shareLink.title": "ef0a004e8ac0",
     "dialogs:shareLink.url": "712a4823ccb9",
     "errors:shareLink.invalid": "841c12ca565e",
-    "errors:shareLink.tooNew": "15a1b2a63a4d"
+    "errors:shareLink.tooNew": "15a1b2a63a4d",
+    "common:numberField.decrease": "46cf4efa2af9",
+    "common:numberField.increase": "c7158356e9b7"
   }
 }
