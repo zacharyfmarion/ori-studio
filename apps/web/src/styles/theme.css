@@ -492,6 +492,69 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 
+/* A number input with its own − / + buttons. The native spinners go: they are a
+   4px hit target in a 26px row, and clicking one only moved the field's draft,
+   so nothing changed until the field lost focus. */
+.number-field {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.number-field > .number-field__input {
+  min-width: 44px;
+}
+
+.number-field__input {
+  appearance: textfield;
+}
+
+.number-field__input::-webkit-outer-spin-button,
+.number-field__input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.number-field__step {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  /* Square on the input's own height, so the three boxes share a top and a
+     bottom edge. */
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.number-field__step:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.number-field__step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.number-field__step:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.number-field__suffix {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5157,11 +5220,14 @@
   justify-content: flex-end;
 }
 
+/* One width for every stepper row. A number input's intrinsic width follows its
+   `max` attribute, so Grid size (unbounded) renders far wider than Line width
+   (max 8) and the fields down the pane would not line up. */
 .control-row__value--input {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  width: 112px;
 }
 
 .control-row__value--select {
@@ -5173,11 +5239,6 @@
   width: 100%;
   min-width: 0;
   height: 26px;
-}
-
-.control-row__suffix {
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
 }
 
 /* Simulate workspace options pane, alongside the Edit workspace's view pane. */

@@ -229,6 +229,10 @@
     "open": "Zum Öffnen ablegen",
     "openOrImport": "Zum Öffnen oder Importieren ablegen"
   },
+  "numberField": {
+    "decrease": "{{label}} verringern",
+    "increase": "{{label}} erhöhen"
+  },
   "toolbar": {
     "downloadMac": "Ori Studio für Mac herunterladen",
     "new": "Neu",

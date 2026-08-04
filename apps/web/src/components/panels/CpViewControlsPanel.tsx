@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, RotateCcw } from 'lucide-react';
 import type { OristudioCpGridMetadata } from '../../engine/oristudioCpTypes';
@@ -21,6 +21,7 @@ import {
 } from '../../lib/creasePatternViewport';
 import { cpFoldAngleDisplayLabel, cpLineStyleLabel } from '../../i18n/enumLabels';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { NumberField } from '../ui/NumberField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
 
@@ -338,22 +339,28 @@ function NumberRow({
   normalize?: (value: number) => number;
   onCommit: (value: number) => void;
 }) {
+  // Two elements rather than a wrapping <label>, so a click on a step button
+  // lands on the button alone.
+  const inputId = useId();
   return (
-    <label className="control-row">
-      <span className="control-row__label">{label}</span>
+    <div className="control-row">
+      <label className="control-row__label" htmlFor={inputId}>
+        {label}
+      </label>
       <span className="control-row__value control-row__value--input">
-        <CommittedNumberInput
-          ariaLabel={label}
+        <NumberField
+          id={inputId}
+          label={label}
           value={value}
           min={min}
           max={max}
           step={step}
+          suffix={suffix}
           normalize={normalize}
           onCommit={onCommit}
         />
-        {suffix && <span className="control-row__suffix">{suffix}</span>}
       </span>
-    </label>
+    </div>
   );
 }
 
@@ -374,99 +381,41 @@ function GridScaleRow({
   return (
     <div className="grid-scale-row">
       <span className="grid-scale-row__label">{label}</span>
+      {/* Three fields and two operators on one line — no room for step buttons,
+          so these stay type-and-commit fields. */}
       <div className="grid-scale-row__formula">
-        <CommittedNumberInput
-          ariaLabel={t('panels:cpViewControls.gridConstantTerm', '{{label}} constant term', { label })}
+        <NumberField
+          label={t('panels:cpViewControls.gridConstantTerm', '{{label}} constant term', { label })}
           className="grid-scale-row__input"
           value={a}
           step={0.1}
+          steppers={false}
           onCommit={(next) => onChange(next, b, c)}
         />
         <span className="grid-scale-row__op" aria-hidden="true">
           +
         </span>
-        <CommittedNumberInput
-          ariaLabel={t('panels:cpViewControls.gridRootCoefficient', '{{label}} root coefficient', { label })}
+        <NumberField
+          label={t('panels:cpViewControls.gridRootCoefficient', '{{label}} root coefficient', { label })}
           className="grid-scale-row__input"
           value={b}
           step={0.1}
+          steppers={false}
           onCommit={(next) => onChange(a, next, c)}
         />
         <span className="grid-scale-row__op" aria-hidden="true">
           √
         </span>
-        <CommittedNumberInput
-          ariaLabel={t('panels:cpViewControls.gridRadicand', '{{label}} radicand', { label })}
+        <NumberField
+          label={t('panels:cpViewControls.gridRadicand', '{{label}} radicand', { label })}
           className="grid-scale-row__input"
           value={c}
           min={0}
           step={0.1}
+          steppers={false}
           onCommit={(next) => onChange(a, b, next)}
         />
       </div>
     </div>
   );
-}
-
-function CommittedNumberInput({
-  ariaLabel,
-  value,
-  min,
-  max,
-  step,
-  normalize,
-  className,
-  onCommit,
-}: {
-  ariaLabel: string;
-  value: number;
-  min?: number;
-  max?: number;
-  step?: number;
-  normalize?: (value: number) => number;
-  className?: string;
-  onCommit: (value: number) => void;
-}) {
-  const [draft, setDraft] = useState(() => formatGridNumber(value));
-
-  useEffect(() => {
-    setDraft(formatGridNumber(value));
-  }, [value]);
-
-  const commit = () => {
-    const parsed = Number(draft);
-    if (!Number.isFinite(parsed)) {
-      setDraft(formatGridNumber(value));
-      return;
-    }
-    const nextValue = normalize ? normalize(parsed) : parsed;
-    setDraft(formatGridNumber(nextValue));
-    onCommit(nextValue);
-  };
-
-  return (
-    <input
-      className={`control-row__input ${className ?? ''}`.trim()}
-      aria-label={ariaLabel}
-      type="number"
-      min={min}
-      max={max}
-      step={step}
-      value={draft}
-      onChange={(event) => setDraft(event.currentTarget.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur();
-        if (event.key === 'Escape') {
-          setDraft(formatGridNumber(value));
-          event.currentTarget.blur();
-        }
-      }}
-    />
-  );
-}
-
-function formatGridNumber(value: number): string {
-  if (!Number.isFinite(value)) return '0';
-  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4)));
 }
