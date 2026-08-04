@@ -15,7 +15,8 @@ import type { LucideProps } from 'lucide-react';
  *
  * The star sits clear of the upper crease and the sparkles occupy the gap
  * between them: at rail size anything that touches reads as one blob, so the
- * separations are the part worth preserving if this is ever redrawn.
+ * separations are the part worth preserving if this is ever redrawn. The
+ * coordinates stay on the 24 grid; only the viewBox crops in.
  */
 export function SolveFoldAnglesIcon({ size = 20, ...props }: LucideProps) {
   return (
@@ -23,7 +24,14 @@ export function SolveFoldAnglesIcon({ size = 20, ...props }: LucideProps) {
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      /* Cropped to the artwork rather than the full 24 grid. The drawing is
+         wide and short — it spans nearly the whole width but only two thirds of
+         the height — so on lucide's square grid it is width-bound and reads
+         small beside blockier neighbours. Trimming the dead margin scales it
+         about 15% larger inside the *same* 20-pixel slot, so it grows without
+         breaking the rail's alignment. Keep this in step with the geometry:
+         these numbers are the artwork's bounding box plus a hair. */
+      viewBox="1.6 2.6 21.1 17"
       fill="none"
       stroke="currentColor"
       strokeWidth={1.75}
