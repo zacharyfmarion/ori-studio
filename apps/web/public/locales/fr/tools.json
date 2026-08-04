@@ -117,6 +117,7 @@
       "apply": "Appliquer",
       "count": "{{index}} sur {{total}}",
       "creaseNotInFan": "Choisissez trois plis différents qui se rejoignent au même sommet.",
+      "current": "C'est ce que le sommet fait déjà — avancez pour voir l'alternative.",
       "family": "Ces trois plis laissent un degré de liberté ; c'est donc une réponse parmi une infinité — choisissez un autre troisième pli pour en obtenir une définie.",
       "next": "Solution suivante",
       "notEnoughCreases": "Moins de trois plis se rejoignent ici, il n'y a donc pas trois angles à résoudre.",

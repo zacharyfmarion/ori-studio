@@ -165,6 +165,11 @@ export interface OristudioCpCommandPreview {
    * family rather than a branch in its own right.
    */
   candidate_is_family?: boolean | null;
+  /**
+   * Whether the previewed solution is the state the document is already in, so
+   * the UI can say "this is what you have" rather than offering it as a change.
+   */
+  candidate_is_current?: boolean | null;
 }
 
 export type OristudioCpEstimationOrder =

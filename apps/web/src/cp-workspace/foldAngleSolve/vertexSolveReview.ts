@@ -44,6 +44,14 @@ export interface VertexSolveReview {
    * would be false.
    */
   readonly isFamily: boolean;
+  /**
+   * Whether the shown answer is the state the three creases are already in.
+   *
+   * A vertex that already closes offers its own angles and the vertex popped
+   * inside out. Both are real; saying which is which is the difference between
+   * "here are two options" and "here is yours, and here is the alternative".
+   */
+  readonly isCurrent: boolean;
 }
 
 export type VertexSolveOutcome =
@@ -72,8 +80,11 @@ export function outcomeForPreview(
   // `unavailable`, handled above, so reaching here means the preview never ran —
   // a stale response or a document that changed underneath it.
   if (count === 0 && !isFamily) return { kind: 'none', reason: null };
-  if (count === 1) return { kind: 'apply' };
-  return { kind: 'review', review: { lineIds, index: 0, count, isFamily } };
+  const isCurrent = preview.candidate_is_current === true;
+  // Nothing to apply: this *is* the document. Offering it as a one-click change
+  // would be offering a no-op, so it holds for review with the alternatives.
+  if (count === 1 && !isCurrent) return { kind: 'apply' };
+  return { kind: 'review', review: { lineIds, index: 0, count, isFamily, isCurrent } };
 }
 
 /**
@@ -87,7 +98,9 @@ export function outcomeForPreview(
 export function stepReview(review: VertexSolveReview, delta: number): VertexSolveReview {
   if (review.count <= 1) return review;
   const next = (((review.index + delta) % review.count) + review.count) % review.count;
-  return next === review.index ? review : { ...review, index: next };
+  // `isCurrent` describes the *shown* answer, so stepping invalidates it until
+  // the new preview lands. Assuming it carried over would label the wrong one.
+  return next === review.index ? review : { ...review, index: next, isCurrent: false };
 }
 
 /** Whether the stepper should be shown at all. */

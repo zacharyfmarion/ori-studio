@@ -117,6 +117,7 @@
       "apply": "Aplicar",
       "count": "{{index}} de {{total}}",
       "creaseNotInFan": "Elige tres pliegues distintos que coincidan en el mismo vértice.",
+      "current": "Esto es lo que el vértice ya hace: avanza para ver la alternativa.",
       "family": "Estos tres pliegues dejan un grado de libertad, así que esta es una de infinitas respuestas: elige otro tercer pliegue para obtener una definida.",
       "next": "Solución siguiente",
       "notEnoughCreases": "Aquí coinciden menos de tres pliegues, así que no hay tres ángulos que resolver.",

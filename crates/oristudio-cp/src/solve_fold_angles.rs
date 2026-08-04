@@ -155,6 +155,13 @@ pub struct AngleSolution {
     pub isolated: bool,
     /// Closure residual after applying, in degrees.
     pub residual_degrees: f64,
+    /// Whether this is the state the three creases are already in.
+    ///
+    /// A vertex that already closes has its own angles as one solution and the
+    /// vertex popped inside out as the other — both real answers, and telling
+    /// them apart is the difference between "here are two options" and "here is
+    /// yours, and here is the alternative".
+    pub is_current: bool,
 }
 
 impl AngleSolution {
@@ -671,6 +678,13 @@ pub fn solve_fold_angles(
             ],
             isolated: jacobian_rank(&closure_jacobian(fan, triple, quantised)) == 3,
             residual_degrees: residual.to_degrees(),
+            // Compared at storage resolution, because that is what the creases
+            // actually hold — an answer differing only below 1e-7 degrees would
+            // write back the same bytes and is the same state.
+            is_current: current
+                .iter()
+                .zip(&degrees)
+                .all(|(now, solved)| (now.to_degrees() - solved).abs() < 1e-7),
         });
     }
 
@@ -1257,6 +1271,7 @@ mod tests {
     fn a_closed_vertex_offers_its_own_state_and_the_other_branch() {
         let mut found_current = false;
         let mut found_alternative = false;
+        let mut flagged = false;
         for fan in designed_fans(5, 40) {
             for triple in triples(5) {
                 let Ok(solutions) = solve_fold_angles(&fan, triple, bar()) else {
@@ -1274,14 +1289,20 @@ mod tests {
                         .all(|((_, have), want)| (have - want).abs() < 1e-6);
                     if matches {
                         found_current = true;
+                        flagged |= solution.is_current;
                     } else {
                         found_alternative = true;
                     }
+                    assert_eq!(
+                        solution.is_current, matches,
+                        "is_current must mean exactly 'the angles it already has'"
+                    );
                 }
             }
         }
         assert!(found_current, "a closed vertex must offer its own state");
         assert!(found_alternative, "and the popped-through branch");
+        assert!(flagged, "and must say which one the vertex is already in");
     }
 
     /// Solutions are ordered nearest-to-current, so stepping starts at the

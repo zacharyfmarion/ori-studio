@@ -312,73 +312,102 @@ and wires; it does not accumulate this.
 ## Checklist
 
 ### Kernel — the solve
-- [ ] Closed form per §5, in quaternions, with **eq. 45's product order** (not 46)
-- [ ] `√(A²+B²)·cos(ρ−φ) = −C` form, never the Weierstrass quadratic — a full
+- [x] Closed form per §5, in quaternions, with **eq. 45's product order** (not 46)
+- [x] `√(A²+B²)·cos(ρ−φ) = −C` form, never the Weierstrass quadratic — a full
       fold is the pole it drops
-- [ ] `ρ_a = 2·atan2(v·u_a, s)`, signed; `s < 0` rejected as beyond a full fold
-- [ ] Both ±180 lifts enumerated wherever a solved `|ρ|` lands on a full fold
-- [ ] Tangency (`|C| = R`) tolerated rather than rejected — designed geometry
+- [x] `ρ_a = 2·atan2(v·u_a, s)`, signed; `s < 0` rejected as beyond a full fold
+- [x] Both ±180 lifts enumerated wherever a solved `|ρ|` lands on a full fold
+- [x] Tangency (`|C| = R`) tolerated rather than rejected — designed geometry
       lands on it systematically
-- [ ] All three cyclic labelings tried (it is cheap; it is not sufficient alone)
-- [ ] Levenberg fallback with the `w > 0` guard, seeded from the current angles
-- [ ] Every solution gated on `vertex_closure_residual`, from either stage
-- [ ] Rank-deficient triples reported as a one-parameter family, with a member
-- [ ] Solutions deduplicated and returned as an ordered list, nearest-to-current
+- [x] All three cyclic labelings tried (it is cheap; it is not sufficient alone)
+- [x] Levenberg fallback with the `w > 0` guard, seeded from the current angles
+- [x] Every solution gated on `vertex_closure_residual`, from either stage
+- [x] Rank-deficient triples reported as a one-parameter family, with a member
+- [x] Solutions deduplicated and returned as an ordered list, nearest-to-current
       first, each carrying its three angles and whether it is isolated or a
       family member
-- [ ] Boundary vertex, indeterminate fan, and non-incident crease all declined
+- [x] Boundary vertex, indeterminate fan, and non-incident crease all declined
 
 ### Kernel — plumbing
-- [ ] Fan extraction carrying source line indices, with an alignment test
-- [ ] `OperationId::VertexSolveFoldAngles`; colour + magnitude in one undo step,
+- [x] Fan extraction carrying source line indices, with an alignment test
+- [x] `OperationId::VertexSolveFoldAngles`; colour + magnitude in one undo step,
       including a mountain/valley flip when the solve calls for one
-- [ ] `payload.candidate_index` selects the solution, for preview and commit
+- [x] `payload.candidate_index` selects the solution, for preview and commit
       alike — one solve behind both, so the reviewed answer is the applied one
-- [ ] `CreasePatternPreview` gains `candidate_count` and `candidate_is_family`,
+- [x] `CreasePatternPreview` gains `candidate_count` and `candidate_is_family`,
       both additive and optional
-- [ ] Preview path shares the solve with the commit — §4's rule, for §4's reason
-- [ ] Oracle suite green with no fixture edits
+- [x] Preview path shares the solve with the commit — §4's rule, for §4's reason
+- [x] Oracle suite green with no fixture edits
 
 ### Kernel — tests that pin the measurements
-- [ ] Rank-3 recovery is **100%** at degrees 4, 5 and 6 over the 45° grid with
+- [x] Rank-3 recovery is **100%** at degrees 4, 5 and 6 over the 45° grid with
       `{±90, ±180}` — the prototype's 192/192, 1,280/1,280, 1,128/1,128
-- [ ] Closed form + fallback repairs ≥99% of corrupted designed vertices
-- [ ] Freely-angled vertices: rank 3 at 100%, so the degeneracy path is
+- [x] Closed form + fallback repairs ≥99% of corrupted designed vertices
+- [x] Freely-angled vertices: rank 3 at 100%, so the degeneracy path is
       exercised only by snapped fixtures — assert both populations
-- [ ] Worst residual over every offered solution stays below 1e-9° (measured
+- [x] Worst residual over every offered solution stays below 1e-9° (measured
       7.1e-14; the floor is there to catch a regression, not to be tight)
-- [ ] The Maekawa branch is rejected: a case where SO(3) closes and the
+- [x] The Maekawa branch is rejected: a case where SO(3) closes and the
       quaternion does not
-- [ ] The solution set is independent of the three creases' current angles
-- [ ] Degree 3 returns only the flat solution
-- [ ] A closed vertex offers its current state *and* the popped-through branch
+- [x] The solution set is independent of the three creases' current angles
+- [x] Degree 3 returns only the flat solution
+- [x] A closed vertex offers its current state *and* the popped-through branch
 
 ### Web
-- [ ] Tool, steps, rail placement, and the diagnostic marker's route into it
-- [ ] Solvable-third-crease marking after the second pick
-- [ ] Preview strokes in solved colour through the ramp, badged with the angle
-- [ ] Review state in `cp-workspace/foldAngleSolve/useVertexSolve.ts`; the
+- [x] Tool, steps, rail placement, and the diagnostic marker's route into it
+- [x] Solvable-third-crease marking after the second pick
+- [x] Preview strokes in solved colour through the ramp, badged with the angle
+- [x] Review state in `cp-workspace/foldAngleSolve/useVertexSolve.ts`; the
       `ToolEngine` union is **not** widened for it
-- [ ] Back/forward stepper reading `2 of 3`, with `←` / `→` and `Enter`
+- [x] Back/forward stepper reading `2 of 3`, with `←` / `→` and `Enter`
       registered in `apps/web/src/keyboard/` and declining outside review
-- [ ] Verified against `findShortcutConflict` — duplicate chords fail silently
-- [ ] Escape cancels the review and leaves the three creases untouched
-- [ ] Exactly one isolated solution applies immediately, with no review step
-- [ ] A lone family member still holds in review, badged, rather than committing
+- [x] Verified against `findShortcutConflict` — duplicate chords fail silently
+- [x] Escape cancels the review and leaves the three creases untouched
+- [x] Exactly one isolated solution applies immediately, with no review step
+- [x] A lone family member still holds in review, badged, rather than committing
       an arbitrary point on the curve
-- [ ] The solution matching the current state is marked as such when there is one
-- [ ] Unavailable codes and sentences; `i18n:check` green
-- [ ] wasm rebuilt and committed
+- [x] The solution matching the current state is marked as such when there is one
+- [x] Unavailable codes and sentences; `i18n:check` green
+- [x] wasm rebuilt and committed
 
 ### Verification
-- [ ] `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`,
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`,
       `cargo test --workspace`
-- [ ] `npx tsc --noEmit` + vitest directly (the npm scripts regenerate tracked
+- [x] `npx tsc --noEmit` + vitest directly (the npm scripts regenerate tracked
       wasm bindings nondeterministically)
 - [ ] Browser checklist for the author: pick a vertex the closure diagnostic has
       marked; step through every solution and confirm the preview changes with
       the stepper; Escape leaves the creases untouched; Apply clears the marker;
       and a vertex with a single solution never shows the stepper at all
+
+## Verified
+
+Kernel, web and wasm all green: `cargo fmt --check`, `cargo clippy --workspace
+--all-targets -D warnings`, `cargo test --workspace`, `npx tsc --noEmit`,
+`npx eslint src`, 1,988 web tests, and `i18n:check` across all eight locales.
+
+Three things the build shook out that the plan had not anticipated:
+
+- **Trying all three cyclic labelings was not the fix for the degenerate
+  cases.** It was in the plan as the answer to `rho_c_free` and `A = B = 0`, and
+  measured on its own it moved recovery by less than a point (67.4% to 67.9% at
+  degree 4). The rank analysis is what explained why: those labelings all
+  describe the same rank-deficient solution *set*, so no relabeling can turn a
+  curve into a point. The labelings are still tried — they are nearly free and
+  they do dodge individual degeneracies — but the numerical stage is what earns
+  the 99%.
+- **`vertex_dof`'s finite-difference step is marginal at 3x3.** Forward
+  differences at `h = 1e-7` carry roughly `eps/h = 1e-9` of noise, which is
+  exactly `jacobian_rank`'s pivot tolerance. Diluted over a tall fan it does not
+  matter; over three columns it decided the answer, and rank-deficient triples
+  were being reported as isolated. `closure_jacobian` uses central differences at
+  `h = 1e-5` instead.
+- **The residual bar defines a band, not a point, wherever closure is
+  second-order.** A rigid degree-3 vertex answered `-0.0021 degrees` rather than
+  flat — a number that reads as deliberate and is really just where the iteration
+  stopped. Solved angles are now offered to progressively coarser grids and the
+  coarsest that still closes is kept, each snap validated by the same residual
+  gate as everything else.
 
 ## Decisions
 

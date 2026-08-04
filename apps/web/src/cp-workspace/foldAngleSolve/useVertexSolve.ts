@@ -139,6 +139,13 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
       .then((preview) => {
         if (id !== request.current) return;
         setSegments(toolPreviewSegments(preview?.segments, OPERATION));
+        // Only the kernel knows whether the answer now shown is the one the
+        // creases already hold, so the flag is refreshed from the same response
+        // that produced the segments rather than guessed at step time.
+        const isCurrent = preview?.candidate_is_current === true;
+        setReview((current) =>
+          current && current.isCurrent !== isCurrent ? { ...current, isCurrent } : current
+        );
       });
     // `key` is the identity of what is being previewed; `review` itself is a new
     // object on every step even when nothing about the request changed.

@@ -2025,7 +2025,8 @@
     "cpVocab:action.cp_action_vertex_solve_fold_angles.disabledReason": "5fa7aac5375c",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.0": "2041a5448481",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.1": "5f4e5f3ee4c2",
-    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7"
+    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7",
+    "tools:cpContext.solveAngles.current": "3cb91b099d2d"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4053,7 +4054,8 @@
     "cpVocab:action.cp_action_vertex_solve_fold_angles.disabledReason": "5fa7aac5375c",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.0": "2041a5448481",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.1": "5f4e5f3ee4c2",
-    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7"
+    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7",
+    "tools:cpContext.solveAngles.current": "3cb91b099d2d"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6107,7 +6109,8 @@
     "cpVocab:action.cp_action_vertex_solve_fold_angles.disabledReason": "5fa7aac5375c",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.0": "2041a5448481",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.1": "5f4e5f3ee4c2",
-    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7"
+    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7",
+    "tools:cpContext.solveAngles.current": "3cb91b099d2d"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8161,7 +8164,8 @@
     "cpVocab:action.cp_action_vertex_solve_fold_angles.disabledReason": "5fa7aac5375c",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.0": "2041a5448481",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.1": "5f4e5f3ee4c2",
-    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7"
+    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7",
+    "tools:cpContext.solveAngles.current": "3cb91b099d2d"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10215,7 +10219,8 @@
     "cpVocab:action.cp_action_vertex_solve_fold_angles.disabledReason": "5fa7aac5375c",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.0": "2041a5448481",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.1": "5f4e5f3ee4c2",
-    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7"
+    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7",
+    "tools:cpContext.solveAngles.current": "3cb91b099d2d"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12269,7 +12274,8 @@
     "cpVocab:action.cp_action_vertex_solve_fold_angles.disabledReason": "5fa7aac5375c",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.0": "2041a5448481",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.1": "5f4e5f3ee4c2",
-    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7"
+    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7",
+    "tools:cpContext.solveAngles.current": "3cb91b099d2d"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14323,7 +14329,8 @@
     "cpVocab:action.cp_action_vertex_solve_fold_angles.disabledReason": "5fa7aac5375c",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.0": "2041a5448481",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.1": "5f4e5f3ee4c2",
-    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7"
+    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7",
+    "tools:cpContext.solveAngles.current": "3cb91b099d2d"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16351,6 +16358,7 @@
     "cpVocab:action.cp_action_vertex_solve_fold_angles.disabledReason": "5fa7aac5375c",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.0": "2041a5448481",
     "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.1": "5f4e5f3ee4c2",
-    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7"
+    "cpVocab:action.cp_action_vertex_solve_fold_angles.steps.2": "0f97795bb9d7",
+    "tools:cpContext.solveAngles.current": "3cb91b099d2d"
   }
 }

@@ -74,6 +74,14 @@ export function CpVertexSolveStepper({
           {t('common:cancel', 'Cancel')}
         </Button>
       </div>
+      {review.isCurrent ? (
+        <p className="cp-vertex-solve__note">
+          {t(
+            'tools:cpContext.solveAngles.current',
+            'This is what the vertex already does — step to see the alternative.'
+          )}
+        </p>
+      ) : null}
       {review.isFamily ? (
         <p className="cp-vertex-solve__note">
           {t(

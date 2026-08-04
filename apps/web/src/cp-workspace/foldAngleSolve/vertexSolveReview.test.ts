@@ -25,7 +25,7 @@ describe('outcomeForPreview', () => {
   it('reviews when there is more than one answer', () => {
     expect(outcomeForPreview(LINES, preview({ candidate_count: 2 }))).toEqual({
       kind: 'review',
-      review: { lineIds: LINES, index: 0, count: 2, isFamily: false },
+      review: { lineIds: LINES, index: 0, count: 2, isFamily: false, isCurrent: false },
     });
   });
 
@@ -39,7 +39,7 @@ describe('outcomeForPreview', () => {
     );
     expect(outcome).toEqual({
       kind: 'review',
-      review: { lineIds: LINES, index: 0, count: 0, isFamily: true },
+      review: { lineIds: LINES, index: 0, count: 0, isFamily: true, isCurrent: false },
     });
   });
 
@@ -52,6 +52,17 @@ describe('outcomeForPreview', () => {
       preview({ candidate_count: 2, candidate_is_family: true })
     );
     expect(outcome).toMatchObject({ kind: 'review', review: { count: 0, isFamily: true } });
+  });
+
+  it('holds a lone answer for review when it is the state the vertex already has', () => {
+    // Applying it would be applying a no-op. Held instead, so the counter and
+    // the note can say "this is what you already do" rather than dressing the
+    // document's own state up as a change.
+    const outcome = outcomeForPreview(
+      LINES,
+      preview({ candidate_count: 1, candidate_is_current: true })
+    );
+    expect(outcome).toMatchObject({ kind: 'review', review: { isCurrent: true, count: 1 } });
   });
 
   it('reports the kernel reason when there is no answer', () => {
@@ -68,7 +79,7 @@ describe('outcomeForPreview', () => {
 });
 
 describe('stepReview', () => {
-  const review = { lineIds: LINES, index: 0, count: 3, isFamily: false };
+  const review = { lineIds: LINES, index: 0, count: 3, isFamily: false, isCurrent: false };
 
   it('wraps at both ends', () => {
     // The solutions are a ring of alternatives ordered by distance from where
@@ -76,6 +87,13 @@ describe('stepReview', () => {
     expect(stepReview(review, 1).index).toBe(1);
     expect(stepReview(review, -1).index).toBe(2);
     expect(stepReview({ ...review, index: 2 }, 1).index).toBe(0);
+  });
+
+  it('drops the current-state flag on a step, until the new preview says otherwise', () => {
+    // The flag describes the answer being *shown*. Carrying it across a step
+    // would label the wrong one for as long as the preview took to land.
+    const stepped = stepReview({ ...review, isCurrent: true }, 1);
+    expect(stepped.isCurrent).toBe(false);
   });
 
   it('stands still when there is nothing to step through', () => {
@@ -89,8 +107,14 @@ describe('stepReview', () => {
 describe('isSteppable', () => {
   it('is false for nothing, for one answer, and for a family', () => {
     expect(isSteppable(null)).toBe(false);
-    expect(isSteppable({ lineIds: LINES, index: 0, count: 1, isFamily: false })).toBe(false);
-    expect(isSteppable({ lineIds: LINES, index: 0, count: 0, isFamily: true })).toBe(false);
-    expect(isSteppable({ lineIds: LINES, index: 0, count: 2, isFamily: false })).toBe(true);
+    expect(isSteppable({ lineIds: LINES, index: 0, count: 1, isFamily: false, isCurrent: false })).toBe(
+      false
+    );
+    expect(isSteppable({ lineIds: LINES, index: 0, count: 0, isFamily: true, isCurrent: false })).toBe(
+      false
+    );
+    expect(isSteppable({ lineIds: LINES, index: 0, count: 2, isFamily: false, isCurrent: false })).toBe(
+      true
+    );
   });
 });

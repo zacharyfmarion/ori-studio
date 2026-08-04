@@ -280,6 +280,11 @@ pub struct CommandPreview {
     /// family rather than a branch in its own right.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candidate_is_family: Option<bool>,
+    /// Whether the previewed solution is the state the document is already in,
+    /// so the UI can say "this is what you have" rather than offering it as a
+    /// change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_is_current: Option<bool>,
 }
 
 /// Error returned by command dispatch.
@@ -3426,6 +3431,7 @@ pub fn preview_command(
                 preview.candidate_count = Some(solved.isolated_count);
                 if let Ok(solution) = chosen_angle_solution(&command, &solved) {
                     preview.candidate_is_family = Some(!solution.isolated);
+                    preview.candidate_is_current = Some(solution.is_current);
                     // The three creases as they would become: same geometry,
                     // carrying the solved colour and angle, so the ramp and the
                     // angle badges say what applying would do.
