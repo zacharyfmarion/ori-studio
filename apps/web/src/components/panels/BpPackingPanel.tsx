@@ -72,6 +72,7 @@ import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
 import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
 import { unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
+import { useBpPackingDragRequests } from '../../hooks/useBpPackingDragRequests';
 import { type Point } from '../../lib/geometry';
 import {
   isBpPackingLayerVisible,
@@ -110,24 +111,6 @@ const BP_PACKING_FLAP_HIT_MIN_PX = 16;
 // the "same spot" and advances the stacked-object selection cycle.
 const BP_PACKING_CYCLE_THRESHOLD_PX = 4;
 
-interface BpPackingDragState {
-  id: number;
-  ids: number[];
-  baseFlaps: OristudioBpFlap[];
-  start: Point;
-  clientStart: Point;
-  /** Offset from the reference flap's anchor to the grab point, in sheet units. */
-  grabOffset: Point;
-  loc: Point;
-  vector: Point;
-  moved: boolean;
-}
-
-interface BpPackingDragBackendUpdate {
-  ids: number[];
-  loc: Point;
-}
-
 /**
  * Rubberband (box) selection drag. Mirrors Box Pleating Studio's
  * SelectionController.$processDragSelect: after the pointer travels past a
@@ -161,11 +144,19 @@ interface BpPackingDeviceDragState {
   moved: boolean;
 }
 
-interface BpPackingDeviceBackendUpdate {
-  stretchId: string;
-  index: number;
+interface BpPackingDragState {
+  id: number;
+  ids: number[];
+  baseFlaps: OristudioBpFlap[];
+  start: Point;
+  clientStart: Point;
+  /** Offset from the reference flap's anchor to the grab point, in sheet units. */
+  grabOffset: Point;
   loc: Point;
+  vector: Point;
+  moved: boolean;
 }
+
 
 const BP_PACKING_NUDGE_VECTORS: Record<BpPackingNudgeDirection, Point> = {
   up: { x: 0, y: 1 },
@@ -682,13 +673,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [flapDragging, setFlapDragging] = useState<BpPackingDragState | null>(null);
   const [marquee, setMarquee] = useState<BpPackingMarqueeState | null>(null);
-  const dragBackendFrameRef = useRef<number | null>(null);
-  const dragBackendPendingRef = useRef<BpPackingDragBackendUpdate | null>(null);
-  const dragBackendQueueRef = useRef<Promise<void> | null>(null);
   const [deviceDragging, setDeviceDragging] = useState<BpPackingDeviceDragState | null>(null);
-  const deviceDragBackendFrameRef = useRef<number | null>(null);
-  const deviceDragBackendPendingRef = useRef<BpPackingDeviceBackendUpdate | null>(null);
-  const deviceDragBackendQueueRef = useRef<Promise<void> | null>(null);
   const scheduleLongPressInspector = useBpLongPressInspector();
   const layers = useSettingsStore((state) => state.bpPackingLayers);
   const setLayer = useSettingsStore((state) => state.setBpPackingLayer);
@@ -978,115 +963,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     ]
   );
 
-  const sendDragBackendUpdate = useCallback(
-    (update: BpPackingDragBackendUpdate, draggingUpdate: boolean) => {
-      if (update.ids.length === 0) return;
-      const run = async () => {
-        if (update.ids.length > 1) {
-          await moveOristudioBpLayoutFlaps(update.ids, update.loc, draggingUpdate);
-          return;
-        }
-        const id = update.ids[0];
-        if (id !== undefined) {
-          await moveOristudioBpLayoutFlap(id, update.loc, draggingUpdate);
-        }
-      };
-      const queued = dragBackendQueueRef.current;
-      const next = queued ? queued.then(run, run) : run();
-      const guarded = next.catch(() => undefined);
-      dragBackendQueueRef.current = guarded;
-      void guarded.finally(() => {
-        if (dragBackendQueueRef.current === guarded) {
-          dragBackendQueueRef.current = null;
-        }
-      });
-    },
-    [moveOristudioBpLayoutFlap, moveOristudioBpLayoutFlaps]
-  );
+  const dragRequests = useBpPackingDragRequests({
+    moveFlap: moveOristudioBpLayoutFlap,
+    moveFlaps: moveOristudioBpLayoutFlaps,
+    moveDevice: moveOristudioBpDevice,
+  });
 
-  const queueDragBackendUpdate = useCallback(
-    (update: BpPackingDragBackendUpdate) => {
-      dragBackendPendingRef.current = update;
-      if (dragBackendFrameRef.current !== null) return;
-      dragBackendFrameRef.current = requestAnimationFrame(() => {
-        dragBackendFrameRef.current = null;
-        const pending = dragBackendPendingRef.current;
-        dragBackendPendingRef.current = null;
-        if (pending) sendDragBackendUpdate(pending, true);
-      });
-    },
-    [sendDragBackendUpdate]
-  );
-
-  const flushDragBackendUpdate = useCallback(
-    (update: BpPackingDragBackendUpdate) => {
-      if (dragBackendFrameRef.current !== null) {
-        cancelAnimationFrame(dragBackendFrameRef.current);
-        dragBackendFrameRef.current = null;
-      }
-      dragBackendPendingRef.current = null;
-      sendDragBackendUpdate(update, false);
-    },
-    [sendDragBackendUpdate]
-  );
-
-  const sendDeviceDragBackendUpdate = useCallback(
-    (update: BpPackingDeviceBackendUpdate, draggingUpdate: boolean) => {
-      const run = async () => {
-        await moveOristudioBpDevice(update.stretchId, update.index, update.loc, draggingUpdate);
-      };
-      const queued = deviceDragBackendQueueRef.current;
-      const next = queued ? queued.then(run, run) : run();
-      const guarded = next.catch(() => undefined);
-      deviceDragBackendQueueRef.current = guarded;
-      void guarded.finally(() => {
-        if (deviceDragBackendQueueRef.current === guarded) {
-          deviceDragBackendQueueRef.current = null;
-        }
-      });
-    },
-    [moveOristudioBpDevice]
-  );
-
-  const queueDeviceDragBackendUpdate = useCallback(
-    (update: BpPackingDeviceBackendUpdate) => {
-      deviceDragBackendPendingRef.current = update;
-      if (deviceDragBackendFrameRef.current !== null) return;
-      deviceDragBackendFrameRef.current = requestAnimationFrame(() => {
-        deviceDragBackendFrameRef.current = null;
-        const pending = deviceDragBackendPendingRef.current;
-        deviceDragBackendPendingRef.current = null;
-        if (pending) sendDeviceDragBackendUpdate(pending, true);
-      });
-    },
-    [sendDeviceDragBackendUpdate]
-  );
-
-  const flushDeviceDragBackendUpdate = useCallback(
-    (update: BpPackingDeviceBackendUpdate) => {
-      if (deviceDragBackendFrameRef.current !== null) {
-        cancelAnimationFrame(deviceDragBackendFrameRef.current);
-        deviceDragBackendFrameRef.current = null;
-      }
-      deviceDragBackendPendingRef.current = null;
-      sendDeviceDragBackendUpdate(update, false);
-    },
-    [sendDeviceDragBackendUpdate]
-  );
-
-  useEffect(
-    () => () => {
-      if (dragBackendFrameRef.current !== null) {
-        cancelAnimationFrame(dragBackendFrameRef.current);
-        dragBackendFrameRef.current = null;
-      }
-      if (deviceDragBackendFrameRef.current !== null) {
-        cancelAnimationFrame(deviceDragBackendFrameRef.current);
-        deviceDragBackendFrameRef.current = null;
-      }
-    },
-    []
-  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -1228,6 +1110,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     // fixed during the drag so the flap follows the cursor by the grab point,
     // matching Box Pleating Studio (dragController $dragStart -> _dragOffset).
     const grabPoint = eventToPackingPoint(event);
+    dragRequests.beginFlapDrag();
     setFlapDragging({
       id: flapId,
       ids: dragIds,
@@ -1276,7 +1159,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       vector,
       moved,
     });
-    if (moved) queueDragBackendUpdate({ ids: flapDragging.ids, loc });
+    if (moved) dragRequests.queueFlapDrag({ ids: flapDragging.ids, loc });
   };
 
   const finishFlapDrag = (event: PointerEvent<SVGGElement>, flap: OristudioBpFlap) => {
@@ -1290,7 +1173,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     const ids = flapDragging.ids;
     setFlapDragging(null);
     if (moved) {
-      flushDragBackendUpdate({ ids, loc });
+      dragRequests.flushFlapDrag({ ids, loc });
     }
   };
 
@@ -1344,6 +1227,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         return;
       }
       event.currentTarget.setPointerCapture(event.pointerId);
+      dragRequests.beginDeviceDrag();
       setDeviceDragging({
         id: device.id,
         stretchId: device.stretchId,
@@ -1395,7 +1279,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       moved,
     });
     if (moved) {
-      queueDeviceDragBackendUpdate({
+      dragRequests.queueDeviceDrag({
         stretchId: deviceDragging.stretchId,
         index: deviceDragging.index,
         loc: constrained.loc,
@@ -1419,7 +1303,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     };
     const moved = deviceDragging.moved;
     setDeviceDragging(null);
-    if (moved) flushDeviceDragBackendUpdate(update);
+    if (moved) dragRequests.flushDeviceDrag(update);
   };
 
   const onCanvasPointerMove = (event: PointerEvent<SVGSVGElement>) => {
