@@ -33,7 +33,12 @@ import {
 } from '../../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { resolveInlineSimulationRegion } from '../../../cp-workspace/inlineSimulation/resolveSimulationRegion';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
-import { boxAabb } from '../../../cp-workspace/canvasObjects/placeBesideCp';
+import {
+  aabbInFrame,
+  boxAabbInFrame,
+} from '../../../cp-workspace/canvasObjects/placeBesideCp';
+import { uprightRotationForView } from '../../../cp-workspace/annotations/annotationTransform';
+import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
 import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import { cpSelectionSize, cpSvgToModel } from '../../../lib/creasePatternViewport';
 import type { Aabb } from '../../../cp-workspace/picking/lineHitIndex';
@@ -135,18 +140,26 @@ const inlineSimulationRevisions = new Map<string, number>();
  * the flat pattern uses. It is positive and axis-preserving, so an axis-aligned
  * box stays axis-aligned and the corners are enough.
  */
-function occupiedModelSpace(state: WorkspaceState): Aabb[] {
+function occupiedModelSpace(state: WorkspaceState, frameAngle = 0): Aabb[] {
+  // Measured along the frame's axes, straight from each object's own box, so an
+  // object created upright under this view contributes its exact footprint
+  // rather than a bounding box inflated by its rotation.
   const boxes = [
-    ...state.oristudioCpInlineSimulations.map((simulation) => boxAabb(simulation.box)),
+    ...state.oristudioCpInlineSimulations.map((simulation) =>
+      boxAabbInFrame(simulation.box, frameAngle)
+    ),
     ...state.oristudioCpAnnotations
       .filter((annotation) => !annotation.hidden)
       .map((annotation) =>
-        boxAabb({
-          center: annotation.center,
-          width: annotation.width,
-          height: annotation.height,
-          rotation: annotation.rotation,
-        })
+        boxAabbInFrame(
+          {
+            center: annotation.center,
+            width: annotation.width,
+            height: annotation.height,
+            rotation: annotation.rotation,
+          },
+          frameAngle
+        )
       ),
   ];
   for (const figure of state.oristudioCpFoldedFigures) {
@@ -154,14 +167,29 @@ function occupiedModelSpace(state: WorkspaceState): Aabb[] {
     if (!userAabb) continue;
     const min = cpSvgToModel({ x: userAabb.minX, y: userAabb.minY });
     const max = cpSvgToModel({ x: userAabb.maxX, y: userAabb.maxY });
-    boxes.push({
-      minX: Math.min(min.x, max.x),
-      minY: Math.min(min.y, max.y),
-      maxX: Math.max(min.x, max.x),
-      maxY: Math.max(min.y, max.y),
-    });
+    boxes.push(
+      aabbInFrame(
+        {
+          minX: Math.min(min.x, max.x),
+          minY: Math.min(min.y, max.y),
+          maxX: Math.max(min.x, max.x),
+          maxY: Math.max(min.y, max.y),
+        },
+        frameAngle
+      )
+    );
   }
   return boxes;
+}
+
+/**
+ * The rotation at which a newly created canvas object is upright on screen, in
+ * the given space. Read from the imperative overlay-view store because placement
+ * runs in the store, outside React — the same reason the canvas publishes it
+ * there in the first place.
+ */
+function uprightFrameAngle(space: 'model' | 'user'): number {
+  return uprightRotationForView(cpOverlayViewStore.get()?.[space] ?? null);
 }
 
 function inlineSimulationRevision(id: string): number {
@@ -856,6 +884,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpActiveFoldedFigureId: null,
     oristudioCpFoldsInFlight: 0,
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+    oristudioCpCamera: null,
     oristudioCpAnnotations: [],
     oristudioCpSelectedAnnotationId: null,
     oristudioCpInlineSimulations: [],
@@ -1211,6 +1240,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       if ((fold.faces_vertices?.length ?? 0) === 0) return 'unavailable';
 
       const id = `inline-sim-${nextInlineSimulationId++}`;
+      const modelFrameAngle = uprightFrameAngle('model');
       const simulation = createInlineSimulation({
         id,
         segment,
@@ -1218,7 +1248,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         cpLineIds,
         z: topInlineSimulationZ(simulations) + 1,
         view: DEFAULT_SIMULATOR_VIEW,
-        blockers: occupiedModelSpace(get()),
+        blockers: occupiedModelSpace(get(), modelFrameAngle),
+        frameAngle: modelFrameAngle,
       });
       setInlineSimulationSource(id, { fold, modelKey: `${id}:0` });
 
@@ -1383,6 +1414,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     },
 
     setSequenceSimulationFocus: (sequenceSimulationFocus) => set({ sequenceSimulationFocus }),
+
+    setOristudioCpCamera: (oristudioCpCamera) => set({ oristudioCpCamera }),
 
     setOristudioCpViewportOption: (key, value) =>
       set({ oristudioCpViewport: { ...get().oristudioCpViewport, [key]: value } }),
@@ -1594,9 +1627,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // Park the figure against the creases it was actually folded from, not
         // against the nominal paper square — a pattern can sit anywhere in the
         // sheet, and anchoring to the paper leaves the figure adrift from it.
+        // Folded figures live in SVG user space, so the frame angle is read for
+        // that space rather than the model's.
+        const userFrameAngle = uprightFrameAngle('user');
         const foldedSourceAnchor = cpUserAnchorForLineIds(
           oristudioCpDocument.document,
-          selectedLineIds
+          selectedLineIds,
+          userFrameAngle
         );
         const existing = get().oristudioCpFoldedFigures;
         const folded: OristudioCpFoldedFigureEntry = {
@@ -1621,7 +1658,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   // Park it beside the crease pattern: the kernel folds into
                   // roughly the flat CP's own coordinates, so left alone the
                   // figure covers the pattern it came from.
-                  placement: placeFoldedFigureBesideCp(folded, existing, foldedSourceAnchor),
+                  placement: placeFoldedFigureBesideCp(
+                    folded,
+                    existing,
+                    foldedSourceAnchor,
+                    userFrameAngle
+                  ),
                 }
               : figure
           ),

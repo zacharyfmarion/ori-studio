@@ -129,6 +129,7 @@ import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSim
 import { useBlurOnPressOutside } from '../../cp-workspace/inlineSimulation/useBlurOnPressOutside';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
+import { useCpDocumentCamera } from '../../cp-workspace/camera/useCpDocumentCamera';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
@@ -160,6 +161,7 @@ import {
   isLengthenCreaseOperation,
   isLineClickSelectionOperation,
   isLineEraseClickTool,
+  isModelAlignedBoxOperation,
   isReflectSelectionOperation,
   isRestrictedDrawOperation,
   isSelectionCircleApplyOperation,
@@ -986,6 +988,8 @@ export function CreasePatternPanel() {
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
+  // The document's view: what to open at, and where a moved camera is recorded.
+  const documentCamera = useCpDocumentCamera(editableCp?.metadata);
   // Upstream's `calculateLineColor()`: while the modifier is held the crease
   // colour reads inverted everywhere -- rail, preview, committed line -- while
   // `activeCpLineColor` keeps the colour the user actually chose. Every read
@@ -2794,6 +2798,10 @@ export function CreasePatternPanel() {
                   onRotationChange={setViewRotation}
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
+                  {...documentCamera}
+                  activeToolModelAlignedBox={isModelAlignedBoxOperation(
+                    activeCpCommand?.operationId
+                  )}
                   onEraseBox={(points) => {
                     void executeOristudioCpCommand('LineSegmentDelete', {
                       line_ids: [],

@@ -56,6 +56,7 @@ import type { OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { CpLineClipboardPayload, CpSelectionTransform } from '../../lib/creasePatternClipboard';
 import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
+import type { UserCamera } from '../../cp-workspace/renderer/camera';
 import type {
   AddInlineSimulationResult,
   InlineSimulation,
@@ -465,6 +466,16 @@ export interface CreasePatternSliceState {
   oristudioCpActiveFoldedFigureId: string | null;
   oristudioCpViewport: OristudioCpViewportOptions;
   /**
+   * The Edit canvas camera — centre, zoom, rotation — as document state, so a
+   * save/reopen round-trip returns the canvas the user left. Null means "no
+   * saved view", i.e. auto-fit.
+   *
+   * Written on *settle* by the canvas (not per frame) and read at save time.
+   * Moving the camera deliberately does not mark the document dirty: panning
+   * around while reading a pattern is not an edit.
+   */
+  oristudioCpCamera: UserCamera | null;
+  /**
    * Superset feature: annotations (reference images, rich-text boxes) placed on
    * the crease-pattern canvas. Web-side layer, never in the kernel; the full
    * model persists only in `.osf`. A single array so z-order and selection are
@@ -580,6 +591,11 @@ export interface CreasePatternSliceActions {
    */
   restoreOristudioCpInlineSimulationSources: () => Promise<number>;
   setSequenceSimulationFocus: (focus: SequenceSimulationFocus) => void;
+  /**
+   * Record the settled Edit-canvas camera so a save persists the view. Does not
+   * touch `dirty` — see {@link WorkspaceState.oristudioCpCamera}.
+   */
+  setOristudioCpCamera: (camera: UserCamera | null) => void;
   setOristudioCpViewportOption: <K extends OristudioCpViewportOptionKey>(
     key: K,
     value: OristudioCpViewportOptions[K]

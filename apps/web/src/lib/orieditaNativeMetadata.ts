@@ -32,6 +32,8 @@ const ORI_METADATA_PREFIX = 'oriedita:ori:';
 const ORH_METADATA_PREFIX = 'oriedita:orh:';
 
 const RESTORED_ORI_FIELDS = new Map<string, string>([['foldedFigureModel', 'Folded model']]);
+/** What {@link creasePatternRotationFromOrieditaMetadata} takes from the camera. */
+const RESTORED_CAMERA_LABEL = 'View rotation';
 const RESTORED_ORH_FIELDS = new Map<string, string>([
   ['oriagarizu_front_color', 'Folded colors'],
   ['oriagarizu_back_color', 'Folded colors'],
@@ -86,6 +88,40 @@ export function foldedFigureModelFromOrieditaMetadata(
   };
 }
 
+/**
+ * The view rotation an Oriedita file was saved at, in radians, or null when it
+ * carries no camera (or a square one).
+ *
+ * Oriedita persists its crease-pattern camera and reloads it, so restoring the
+ * angle is parity: a pattern authored on a turned canvas reopens turned.
+ *
+ * **Rotation only, deliberately.** Zoom and centre are the parts that went wrong
+ * before (`bf484295`) — Oriedita's `cameraZoomX` and `displayPosition` are in its
+ * own display units, and this app frames by fitting content — so those are left
+ * to the fit. An angle is unit-free and transfers exactly.
+ *
+ * Two conversions, both easy to get wrong:
+ *
+ * - `cameraAngle` is **degrees** (`Camera.java`: `camera_rad = camera_angle *
+ *   do2rad`); ours is radians.
+ * - The sign flips. `Camera.TV2object` maps screen→object applying `R(+angle)`,
+ *   so object→screen applies `R(−angle)`; our `UserCamera.rotation` composes
+ *   object→screen directly. `cpModelToSvg` between them is a positive
+ *   scale+translate with no flip, so the negation is the whole correction.
+ *
+ * Verified against a file saved from Oriedita at `cameraAngle: -22.5`, which
+ * must open at +22.5° here.
+ */
+export function creasePatternRotationFromOrieditaMetadata(
+  metadata: Record<string, unknown> | null | undefined
+): number | null {
+  if (!metadata) return null;
+  const camera = recordValue(metadata[ORI_CAMERA_KEY]);
+  const degrees = numberValue(camera?.cameraAngle);
+  if (degrees === null || degrees === 0) return null;
+  return (-degrees * Math.PI) / 180;
+}
+
 export function activeLineColorFromOrieditaMetadata(
   metadata: Record<string, unknown> | null | undefined
 ): OristudioCpLineColor | null {
@@ -134,6 +170,13 @@ export function orieditaNativeMetadataStatus(
       const restoredLabel = RESTORED_ORI_FIELDS.get(field);
       if (restoredLabel) {
         restored.add(restoredLabel);
+      } else if (field === 'creasePatternCamera') {
+        // Partly both: the angle is applied to the view, while zoom and centre
+        // are carried through untouched and the document opens fit to content.
+        if (creasePatternRotationFromOrieditaMetadata(metadata) !== null) {
+          restored.add(RESTORED_CAMERA_LABEL);
+        }
+        preserved.add(PRESERVED_ORI_FIELD_LABELS.get(field) ?? field);
       } else if (field === 'canvasModel') {
         if (activeLineColorFromOrieditaMetadata(metadata)) restored.add('Canvas line color');
         const mouseMode = activeMouseModeFromOrieditaMetadata(metadata);
