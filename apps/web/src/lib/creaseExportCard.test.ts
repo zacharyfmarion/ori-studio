@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   computeShareCardFrame,
   SHARE_CARD_HEIGHT,
@@ -39,7 +39,7 @@ describe('computeShareCardFrame', () => {
     // artwork fills the padded height with room to spare on the sides.
     expect(frame.height).toBeCloseTo(SHARE_CARD_HEIGHT - SHARE_CARD_PADDING * 2);
     expect(frame.width / frame.height).toBeCloseTo(90 / 54);
-    expect(frame.width / 90).toBeGreaterThan(9);
+    expect(frame.width / 90).toBeGreaterThan(8);
   });
 
   it('never exceeds the padded box in either dimension', () => {
@@ -94,13 +94,39 @@ describe('computeShareCardFrame', () => {
 });
 
 describe('svgToPngCard', () => {
-  it('fails cleanly when no canvas is available', async () => {
-    // jsdom has no 2D context, which is exactly the "rasterization unavailable" path the
-    // share flow must survive: a failed card must never block getting a link.
-    await expect(
-      svgToPngCard('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>', 10, 10, {
-        background: '#ffffff',
-      })
-    ).rejects.toThrow();
+  it('rejects rather than hanging when 2D rendering is unavailable', async () => {
+    // The rasterization itself needs a real browser, so what is worth asserting here is
+    // the guard: a missing 2D context must surface as a rejection the caller can catch,
+    // because a failed card must never block getting a share link.
+    //
+    // jsdom neither loads images nor provides a context, so both are stubbed — otherwise
+    // `new Image()` never settles and this test times out instead of failing.
+    const objectUrl = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:stub');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockReturnValue(null);
+    const src = vi
+      .spyOn(HTMLImageElement.prototype, 'src', 'set')
+      .mockImplementation(function (this: HTMLImageElement) {
+        queueMicrotask(() => this.onload?.(new Event('load')));
+      });
+
+    try {
+      await expect(
+        svgToPngCard('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>', 10, 10, {
+          background: '#ffffff',
+        })
+      ).rejects.toThrow('Canvas rendering is unavailable');
+      // The object URL is released even on the failure path.
+      expect(revoke).toHaveBeenCalledWith('blob:stub');
+    } finally {
+      objectUrl.mockRestore();
+      revoke.mockRestore();
+      getContext.mockRestore();
+      src.mockRestore();
+    }
   });
 });

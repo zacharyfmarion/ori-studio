@@ -5,18 +5,14 @@ pages_build_output_dir = "./dist"
 # Bindings for crease-pattern share links (see
 # implementation-plans/cp-share-links.md).
 #
-# The ids below are placeholders. Real namespaces must be created against the account
-# and the ids pasted in, or the bindings configured in the Cloudflare Pages dashboard:
+# Both buckets carry a lifecycle rule `expire-thumbnails-1y`: objects under `thumbnails/`
+# expire after 365 days. That is what turns unbounded R2 growth into a bounded steady
+# state — storage converges to (share rate x retention) and stops. The crease patterns in
+# KV deliberately carry no TTL: the payload is the artifact and is kept indefinitely, the
+# preview image is packaging and is not. Recreate with:
 #
-#   npx wrangler@4 kv namespace create SHARE_KV
-#   npx wrangler@4 kv namespace create SHARE_KV --preview
-#   npx wrangler@4 r2 bucket create oristudio-cp-thumbnails
-#   npx wrangler@4 r2 bucket create oristudio-cp-thumbnails-preview
-#
-# The thumbnail buckets need a **lifecycle rule expiring objects after 365 days**. That
-# is what turns unbounded R2 growth into a bounded steady state; the crease patterns in
-# KV are kept indefinitely and deliberately carry no TTL. Lifecycle rules are configured
-# per bucket in the dashboard or via `wrangler r2 bucket lifecycle add`, not here.
+#   wrangler r2 bucket lifecycle add <bucket> expire-thumbnails-1y thumbnails/ \
+#     --expire-days 365
 #
 # Rate limiting is a KV counter rather than the platform `ratelimits` binding, because
 # `ratelimits` is not among the bindings Pages Functions supports. See
@@ -24,7 +20,7 @@ pages_build_output_dir = "./dist"
 
 [[kv_namespaces]]
 binding = "SHARE_KV"
-id = "REPLACE_WITH_PRODUCTION_KV_NAMESPACE_ID"
+id = "fb0e4645cdce47beb0809d2d945b5bf3"
 
 [[r2_buckets]]
 binding = "SHARE_R2"
@@ -32,7 +28,7 @@ bucket_name = "oristudio-cp-thumbnails"
 
 [[env.preview.kv_namespaces]]
 binding = "SHARE_KV"
-id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+id = "5b08ed1c951c4029822acb39285c4eff"
 
 [[env.preview.r2_buckets]]
 binding = "SHARE_R2"

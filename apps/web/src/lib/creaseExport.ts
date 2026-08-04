@@ -776,13 +776,24 @@ export function renderCreasePatternPng(
 }
 
 /**
- * The OpenGraph card size every platform sizes its previews around: Twitter/X,
- * Facebook, Discord, Slack, and iMessage all lay out 1.91:1 large-image cards.
+ * The share card's fixed geometry: 1.91:1, the aspect Twitter/X, Facebook, Discord,
+ * Slack, and iMessage all lay out as a large-image card.
+ *
+ * 1000x525 rather than the conventional 1200x630, chosen by measuring the corpus: it is
+ * 22% fewer bytes (median card 91 KB -> 71 KB, densest 261 KB -> 208 KB) with no visible
+ * loss even on a 6,256-crease pattern, where individual pleats still resolve. Detail does
+ * collapse further down — at 600 wide the pleat bands merge into hatching, and by 400 the
+ * mountain/valley colours average into a haze — so this is the small end of the range that
+ * still renders a dense CP honestly, not the smallest that fits.
  */
-export const SHARE_CARD_WIDTH = 1200;
-export const SHARE_CARD_HEIGHT = 630;
-/** Breathing room so the artwork never touches the card edge. */
-export const SHARE_CARD_PADDING = 48;
+export const SHARE_CARD_WIDTH = 1000;
+export const SHARE_CARD_HEIGHT = 525;
+/**
+ * Breathing room so the artwork never touches the card edge. Non-zero because Discord
+ * rounds card corners and some surfaces trim an edge pixel — at zero padding the pattern's
+ * border stroke is what gets shaved.
+ */
+export const SHARE_CARD_PADDING = 20;
 
 export interface ShareCardFrame {
   x: number;

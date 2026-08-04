@@ -10,7 +10,7 @@
  */
 
 import { createServer } from 'node:http';
-import { readFile, appendFile } from 'node:fs/promises';
+import { readFile, appendFile, writeFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 
 const root = process.argv[2];
@@ -33,6 +33,17 @@ createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
     await appendFile(join(root, 'rows.jsonl'), `${Buffer.concat(chunks).toString()}\n`);
+    response.writeHead(204).end();
+    return;
+  }
+
+  // Save a rendered card to disk, so a real 1200x630 PNG can be inspected rather than
+  // described. `?name=` picks the filename.
+  if (request.method === 'POST' && url.pathname === '/png') {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const name = (url.searchParams.get('name') || 'card').replace(/[^a-zA-Z0-9_-]/g, '');
+    await writeFile(join(root, `${name}.png`), Buffer.concat(chunks));
     response.writeHead(204).end();
     return;
   }

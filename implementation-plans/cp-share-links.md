@@ -285,24 +285,77 @@ Cross-check: mean 1,356 against the measured p50 of 838 is a 1.6× mean/median r
 right shape for that skew. Plus ~250 bytes of JSON record overhead (id, title, ISO
 timestamp, 64-char token hash, crease count):
 
-| | mean | p90 | max measured |
+| | mean | p90 | max |
 |---|---|---|---|
 | KV record | **~1.6 KB** | ~2.9 KB | ~24 KB |
-| R2 thumbnail | **~80 KB** *(estimated)* | — | 512 KB cap |
+| R2 thumbnail | **79.9 KB** *(measured)* | 110.7 KB | 211.6 KB |
 
 **The thumbnail is 50–200× larger than the crease pattern it depicts.** The payload is free;
-the image is the entire storage story. The 80 KB is the one input estimated rather than
-derived — 1200×630 PNG of 6-colour line art from `canvas.toBlob` — and it is measurable the
-moment `svgToPngCard` exists. Sensitivity:
+the image is the entire storage story.
+
+### Thumbnail size — MEASURED, all 563 corpus documents
+
+Real export SVGs through the real pipeline, rasterized by `canvas.toBlob` in a browser at
+1200×630 (`scripts/share-card-measure/`, sources built by `export_corpus_fold.rs`):
+
+| | value |
+|---|---|
+| mean | **79.9 KB** |
+| p50 / p90 / p99 | 77.3 / 110.7 / 153.9 KB |
+| min / max | 30.0 / 211.6 KB |
+| over the 512 KB cap | **0 of 563** — the largest is 2.4× under it |
+
+The plan's estimate was 80 KB. **No cost figure needs revising.** 10 GB holds ~125,000
+thumbnails, exactly as modelled.
+
+**Size is resolution-bound, not crease-bound**, which is what makes the estimate robust:
+
+| creases | n | mean PNG |
+|---|---|---|
+| <100 | 32 | 55.0 KB |
+| 100–300 | 117 | 73.7 KB |
+| 300–600 | 63 | 83.4 KB |
+| 600–1,200 | 40 | 89.3 KB |
+| 1,200–2,500 | 25 | 94.2 KB |
+| 2,500+ | 11 | 146.1 KB |
+
+A 25× range in crease count moves the mean 2.7×. The card is a fixed pixel budget; density
+adds detail within it rather than bytes proportional to it. There is no tail to fear, and
+the 512 KB cap will effectively never fire.
+
+For reference, if the card geometry changes (see below), the sensitivity is:
 
 | PNG mean | thumbnails in 10 GB |
 |---|---|
-| 40 KB | 250,000 |
-| 80 KB | 125,000 |
+| 80 KB *(measured)* | 125,000 |
+| 100 KB | 100,000 |
 | 150 KB | 67,000 |
 | 300 KB | 33,000 |
 
 (Decimal GB throughout, matching how Cloudflare bills storage.)
+
+### Open: the card wastes most of its canvas
+
+A crease pattern is square. At 1200×630 with 48px padding it renders **534×534 — 38% of the
+card**, with white bars either side. Measured alternatives on the median document:
+
+| card | CP size | fill | PNG |
+|---|---|---|---|
+| 1200×630, pad 48 | 534px | 38% | 83.9 KB |
+| 1200×630, pad 12 | 606px | 49% | 95.2 KB |
+| 800×630, pad 12 | 606px | 73% | 87.6 KB |
+| 700×700, pad 12 | 676px | 93% | 96.4 KB |
+| 630×630, pad 8 | 614px | 95% | 85.9 KB |
+
+**Filling the card is nearly free**: 2.4× the fill costs +15% bytes, because flat white
+compresses to almost nothing. So this is a design decision, not a cost one.
+
+The constraint is platform rendering, not size. 1200×630 is the aspect every platform lays
+out as a large card; a square image declared `summary_large_image` gets centre-cropped by
+Twitter/X, which would slice the top and bottom off the pattern. Three ways out, to decide
+in Phase C: keep 1.91:1 and use the horizontal space for metadata beside the pattern; go
+squarer and accept Twitter's crop; or keep 1.91:1 and merely cut the padding, which buys
+38% → 49% for free.
 
 ### What each action costs
 
