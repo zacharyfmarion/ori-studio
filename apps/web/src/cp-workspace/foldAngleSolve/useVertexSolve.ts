@@ -18,7 +18,6 @@ import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
 } from '../../engine/oristudioCpTypes';
-import type { Point } from '../../lib/geometry';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { toolPreviewSegments } from '../tools/toolPreviewSegments';
 import type { ToolPreviewSegment } from '../tools/types';
@@ -57,22 +56,11 @@ export interface VertexSolveController {
    */
   segments: readonly ToolPreviewSegment[];
   /**
-   * Creases that would complete a solvable triple with the two already picked.
-   *
-   * The affordance the tool needs to be usable rather than a guessing game:
-   * about 62% of triples cannot close a freely-angled vertex, so an unmarked
-   * third pick is a coin toss. Two picks are enough to fix the vertex, which is
-   * exactly when this becomes answerable.
-   */
-  partners: readonly { a: Point; b: Point }[];
-  /**
    * Take the tool's three-crease commit. Applies straight away when there is a
    * single isolated answer; otherwise enters review. Returns whether it handled
    * the commit, so the caller knows not to execute it itself.
    */
   begin: (lineIds: readonly number[]) => Promise<boolean>;
-  /** Recompute {@link VertexSolveController.partners} for a partial pick. */
-  markPartners: (lineIds: readonly number[]) => void;
   step: (delta: number) => void;
   apply: () => Promise<void>;
   cancel: () => void;
@@ -81,7 +69,6 @@ export interface VertexSolveController {
 export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveController {
   const [review, setReview] = useState<VertexSolveReview | null>(null);
   const [segments, setSegments] = useState<readonly ToolPreviewSegment[]>([]);
-  const [partners, setPartners] = useState<readonly { a: Point; b: Point }[]>([]);
   // The options object is rebuilt on every panel render; keeping it in a ref
   // means the returned callbacks stay stable, so the shortcut registry is not
   // re-bound on every keystroke's worth of state change. Written in an effect
@@ -152,24 +139,6 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, payloadFor]);
 
-  const partnerRequest = useRef(0);
-  const markPartners = useCallback(
-    (lineIds: readonly number[]) => {
-      const id = ++partnerRequest.current;
-      if (lineIds.length !== 2) {
-        setPartners([]);
-        return;
-      }
-      void latest.current
-        .preview(OPERATION, latest.current.buildPayload({ line_ids: [...lineIds] }))
-        .then((preview) => {
-          if (id !== partnerRequest.current) return;
-          setPartners((preview?.segments ?? []).map((segment) => ({ a: segment.a, b: segment.b })));
-        });
-    },
-    []
-  );
-
   const step = useCallback((delta: number) => {
     setReview((current) => (current ? stepReview(current, delta) : current));
   }, []);
@@ -186,8 +155,6 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
 
   const cancel = useCallback(() => {
     setReview(null);
-    setPartners([]);
-    partnerRequest.current += 1;
     latest.current.onUnavailable(null);
   }, []);
 
@@ -196,13 +163,11 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
       review,
       steppable: isSteppable(review),
       segments,
-      partners,
       begin,
-      markPartners,
       step,
       apply,
       cancel,
     }),
-    [apply, begin, cancel, markPartners, partners, review, segments, step]
+    [apply, begin, cancel, review, segments, step]
   );
 }

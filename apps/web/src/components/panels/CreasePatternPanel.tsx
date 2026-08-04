@@ -2016,15 +2016,10 @@ export function CreasePatternPanel() {
   // reads "Pick destination point" once its source point is down, instead of sitting
   // on step one for the whole gesture.
   const handleWebglToolPickProgress = useCallback(
-    (picked: number, lineIds?: readonly number[]) => {
+    (picked: number) => {
       const command = activeCpCommand;
       if (!command || command.uiStatus !== 'ready') return;
       if (isCpMeasurementOperation(command.operationId)) setCpMeasurePicked(picked);
-      // Which creases would complete a solvable triple with the ones picked so
-      // far. Owned by the solve's own hook, which is where its state belongs.
-      if (command.operationId === 'VertexSolveFoldAngles') {
-        vertexSolve.markPartners(lineIds ?? []);
-      }
       setCpToolState((state) => {
         if (state.activeOperationId !== command.operationId) return state;
         let next = transitionOristudioCpToolState(state, { type: 'cancel', keepActive: true });
@@ -2034,7 +2029,7 @@ export function CreasePatternPanel() {
         return next;
       });
     },
-    [activeCpCommand, vertexSolve]
+    [activeCpCommand]
   );
 
   // Only crease-drawing tools preview in the active line colour; select / toggle /
@@ -2187,17 +2182,6 @@ export function CreasePatternPanel() {
   // The completion tool determines mountain/valley itself, so the crease can come
   // out the opposite colour to the one selected in the rail. Correct, and worth a
   // word: nothing else in the editor overrides the active line type.
-  // Creases the solve says would complete a solvable triple, shown through the
-  // same highlight channel a hovered crease uses — they are the same kind of
-  // fact ("this one is pickable"), so they should not look like a new concept.
-  const cpHighlightSegments = useMemo(
-    () =>
-      vertexSolve.partners.length > 0
-        ? [...webglToolHighlightSegments, ...vertexSolve.partners]
-        : webglToolHighlightSegments,
-    [vertexSolve.partners, webglToolHighlightSegments]
-  );
-
   // While the solve is in review the three creases-as-they-would-be are the
   // preview. They ride the same channel as every other tool candidate, so the
   // fold-angle ramp and the angle badges pick them up with nothing new added.
@@ -2985,7 +2969,7 @@ export function CreasePatternPanel() {
                   onToolPickProgress={handleWebglToolPickProgress}
                   onToolSnapKind={setCpMeasureSnapKind}
                   toolCommandPreviewSegments={cpPreviewSegments}
-                  toolCommandHighlightSegments={cpHighlightSegments}
+                  toolCommandHighlightSegments={webglToolHighlightSegments}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}

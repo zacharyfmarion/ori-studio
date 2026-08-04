@@ -3399,33 +3399,21 @@ pub fn preview_command(
         }
         OperationId::VertexSolveFoldAngles => {
             // Fewer than three creases picked is the *normal* state for the
-            // first two steps, not a failure — the tool is still collecting.
-            // Marking which creases would complete a solvable triple is the
-            // whole affordance here: most triples cannot close a given vertex,
-            // so picking blind means guessing.
+            // first two steps, not a failure — the tool is still collecting, and
+            // it previews nothing until it has something to say.
             //
-            // Two picks are enough to fix the vertex (two segments meeting at a
-            // point determine it), which is exactly when the marking becomes
-            // useful. One pick leaves both of its ends open, so there is nothing
-            // to mark yet.
+            // **This must not hand back the existing creases.** An earlier
+            // version returned the ones that would complete a solvable triple,
+            // as a "these are pickable" affordance, and the frontend drew them
+            // through the highlight channel — which strokes in the selection
+            // accent, a blue. Every mountain at the vertex therefore read as a
+            // valley for as long as two creases were picked. The affordance is
+            // worth having; a channel whose only vocabulary is repainting the
+            // crease is not the way to show it.
+            // [`solve_fold_angles::solvable_partners`] still computes it, for
+            // whatever surface finally does.
             let chosen = optional_line_indices(&command)?;
-            if chosen.len() < 3 {
-                let vertex = points.first().copied().or_else(|| {
-                    solve_fold_angles::shared_vertex(&document.crease_pattern, &chosen)
-                });
-                if let Some(vertex) = vertex.filter(|_| chosen.len() >= 2) {
-                    for line in solve_fold_angles::solvable_partners(
-                        &document.crease_pattern,
-                        vertex,
-                        &chosen,
-                        CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
-                    ) {
-                        if let Some(segment) = document.crease_pattern.line_segments.get(line) {
-                            preview.segments.push(segment.clone());
-                        }
-                    }
-                }
-            } else {
+            if chosen.len() >= 3 {
                 let solved = vertex_angle_solutions(document, &command)?;
                 preview.unavailable = solved.no_solution.map(no_solution_code);
                 preview.candidate_count = Some(solved.isolated_count);
@@ -4490,11 +4478,17 @@ mod tests {
         }
     }
 
-    /// Before the third pick the tool is still collecting, and the preview's job
-    /// is to say which creases would complete a solvable triple. Most triples
-    /// cannot close a given vertex, so without this the pick is a guess.
+    /// Before the third pick the tool has nothing to say, and in particular it
+    /// must not hand back the *existing* creases.
+    ///
+    /// It used to: the ones that would complete a solvable triple were returned
+    /// as a "these are pickable" hint, and the frontend drew them in the
+    /// selection accent, so every mountain at the vertex read as a valley for as
+    /// long as two creases were picked. `solvable_partners` still computes the
+    /// same set — it is the *preview channel* that is the wrong way to show it,
+    /// because repainting the crease is all that channel can do.
     #[test]
-    fn the_preview_marks_which_creases_complete_a_solvable_triple() {
+    fn a_partial_pick_previews_nothing() {
         let (document, lines) = document_with_vertex_fan(&[
             (0.0, 90.0),
             (45.0, 180.0),
@@ -4503,31 +4497,14 @@ mod tests {
             (300.0, -60.0),
         ]);
         let vertex = Point::new(0.0, 0.0);
-        let partial = preview_command(&document, solve_command(vertex, &lines[0..2], None))
-            .expect("preview succeeds");
-        assert!(
-            !partial.segments.is_empty(),
-            "no third crease was offered at all"
-        );
-        for segment in &partial.segments {
-            let line = document
-                .crease_pattern
-                .line_segments
-                .iter()
-                .position(|candidate| candidate == segment)
-                .expect("an offered partner is a real crease");
-            let mut trial = lines[0..2].to_vec();
-            trial.push(line);
+        for picked in 0..3 {
+            let preview =
+                preview_command(&document, solve_command(vertex, &lines[0..picked], None))
+                    .expect("preview succeeds");
             assert!(
-                solve_fold_angles::vertex_angle_solutions(
-                    &document.crease_pattern,
-                    vertex,
-                    &trial,
-                    CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
-                )
-                .no_solution
-                .is_none(),
-                "offered a partner that does not solve"
+                preview.segments.is_empty(),
+                "{picked} picks previewed {} segments",
+                preview.segments.len()
             );
         }
     }
