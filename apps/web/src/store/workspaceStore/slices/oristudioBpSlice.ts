@@ -220,6 +220,20 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       status: 'ready',
       error: null,
     });
+  };
+
+  /**
+   * Show the Design workspace for a BP document that was just installed.
+   *
+   * Kept out of {@link setLoadedBpProject} so installing a document and deciding
+   * which view to show stay separable. Loading a native `.osf` installs every
+   * document the file holds and then lands once, from the finished project — a BP
+   * design in that bundle must not drag the workspace to Design on its way past,
+   * because the crease pattern that would have chosen Edit has not been installed
+   * yet. Only the entry points that mean "make a box-pleat design and show it"
+   * call this.
+   */
+  const showBpDesignWorkspace = () => {
     const layout = useLayoutStore.getState();
     layout.activateWorkspace('design');
     layout.ensureDesignLayout();
@@ -411,6 +425,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         setLoadedBpProject(document, 'Created Box Pleat project', {
           preserveEditCanvas: options.preserveEditCanvas,
         });
+        // "New Box Pleat" means show it: the BP Editor's empty state offers this
+        // while the variant is still TreeMaker, so the layout has to rebuild.
+        showBpDesignWorkspace();
         return true;
       } catch (error) {
         const normalized = oristudioBpError(error);
@@ -443,6 +460,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         ]);
         set({ oristudioBpPortDescriptors: portDescriptors });
         setLoadedBpProject(document, `Loaded ${example.title}`);
+        showBpDesignWorkspace();
         return true;
       } catch (error) {
         const normalized = oristudioBpError(error);
@@ -473,6 +491,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         setLoadedBpProject(document, `Loaded ${source.filename}`, {
           symmetry: options.symmetry ?? null,
         });
+        // No workspace activation: this is a loader. Its callers land once, from
+        // the finished project (`applyLandingWorkspace`).
         return true;
       } catch (error) {
         const normalized = oristudioBpError(error);

@@ -5459,6 +5459,61 @@ describe('workspace store slices', () => {
       expect(currentWorkspacePath()).toBe('/edit');
     });
 
+    it('moves the user exactly once when opening a design bundled with a crease pattern', async () => {
+      // Regression: `setLoadedBpProject` both installed the BP document and
+      // called `activateWorkspace('design')`, so the destination was chosen from
+      // a half-installed project — the companion crease pattern that decides on
+      // Edit had not been restored yet. The landing rule then corrected it, and
+      // the two decisions disagreeing showed up as a ~150ms flash of the BP
+      // workspace plus a junk `/design/bp` browser-history entry.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          creasePatternCompanion: {
+            title: 'Crane CP',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: null,
+            foldProjection: null,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+          },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      useLayoutStore.setState({ activeWorkspace: 'edit' });
+
+      const transitions: string[] = [];
+      const unsubscribe = useLayoutStore.subscribe((state, previous) => {
+        if (state.activeWorkspace !== previous.activeWorkspace) {
+          transitions.push(`${previous.activeWorkspace}->${state.activeWorkspace}`);
+        }
+      });
+      try {
+        await expect(
+          useWorkspaceStore
+            .getState()
+            .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+        ).resolves.toBe(true);
+      } finally {
+        unsubscribe();
+      }
+
+      // Never design-then-edit: the design installer must not move anyone.
+      expect(transitions).toEqual([]);
+      expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+      expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
+    });
+
     it('opens a box-pleat .osf with no crease pattern on the BP design, not the chooser', async () => {
       // Regression: the landing path was derived from which documents existed,
       // and returned bare `/design` for anything without a crease pattern. That

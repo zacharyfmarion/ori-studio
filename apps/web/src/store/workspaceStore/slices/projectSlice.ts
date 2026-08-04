@@ -769,7 +769,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioBpDocument: null,
       oristudioBpWorkspace: null,
     });
-    useLayoutStore.getState().activateWorkspace('design');
   };
 
   const loadCreasePattern = async (
@@ -961,7 +960,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       historyFuture: [],
       clipboardPasteCount: 0,
     });
-    useLayoutStore.getState().activateWorkspace('edit');
   };
 
   const parseFoldProjection = (text: string): FoldDocument | null => {
@@ -1098,7 +1096,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // are shared. Not awaited — a window draws nothing until its fold arrives,
     // and blocking the open on twenty of them would freeze it for no benefit.
     void get().hydrateOristudioCpInlineSimulations();
-    useLayoutStore.getState().activateWorkspace('edit');
   };
 
   const restoreNativeCreasePatternCompanion = async (
@@ -1770,6 +1767,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       set({ pendingDesignChoice: false });
       try {
         await loadText(text, source);
+        applyLandingWorkspace();
       } catch (error) {
         set({ status: 'error', error: engineError(error), projectMessage: null });
       }
@@ -1779,6 +1777,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       set({ pendingDesignChoice: false });
       try {
         await loadCreasePattern(text, source);
+        applyLandingWorkspace();
       } catch (error) {
         set({ status: 'error', error: engineError(error), projectMessage: null });
       }
