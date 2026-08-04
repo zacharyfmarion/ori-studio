@@ -80,11 +80,14 @@ This is the reason to do it this way rather than branching on a param at each
 call site: the branching already exists and is already correct. It just needs to
 be reached.
 
-### New module: `cp-workspace/tools/toolVariants.ts`
+### New module: `lib/cpToolVariants.ts`
 
-One React-free, store-free table as the single source of truth, next to the
-other tools modules (per the panel-components table in `AGENTS.md` — this is
-"pure model logic", not panel code):
+One React-free, store-free table as the single source of truth.
+
+*(As built: this was planned for `cp-workspace/tools/`, but `lib/oristudioCpToolState.ts`
+needs it and `lib/` may not depend on `cp-workspace/`. It sits with the other CP
+data modules instead. The React side — arming with the current options, the
+re-resolve effect, the resolved command — is `cp-workspace/tools/useCpToolVariant.ts`.)*
 
 ```ts
 export const CP_TOOL_VARIANT_GROUPS = {
@@ -109,11 +112,15 @@ export const CP_TOOL_VARIANT_GROUPS = {
 
 Derived lookups, all pure:
 
-- `resolveCpOperationId(action, options)` — the seam above. Returns
-  `action.operationId` unchanged for every non-variant tool.
-- `cpVariantGroupForAction(action)` — the host action's group, or `null`.
-- `cpVariantSelectionForMouseMode(mouseMode)` — `{ actionId, optionPatch }`, so
-  the `.osf` restore can land on the host action *and* set the mode.
+- `resolveCpVariantOperation(operationId, options)` — the seam above. Returns
+  `operationId` unchanged for every non-variant tool.
+- `cpVariantGroupForOperation(operationId)` — the group, or `null`.
+- `cpVariantHostOperation(operationId)` / `cpVariantOptionPatch(operationId)`.
+- `cpToolSelectionForMouseMode(mouseMode)` — `{ action, options? }`, so the
+  `.osf` restore lands on the host action *and* sets the mode. Note every member
+  of a pair carries a mode, the host included: the host is one of the variants,
+  not a neutral default, so returning nothing for it would restore a file saved
+  in Active colour into whatever mode was last used.
 
 ### Tool options
 
@@ -260,58 +267,58 @@ round-trip), `i18n/cpVocab.gen.test.ts` (regenerated).
 
 ### Phase 0 — variant model
 
-- [ ] Add `toolVariants.ts` with the group table and the three pure lookups.
-- [ ] Unit-test `resolveCpOperationId` for both pairs and for a non-variant tool
+- [x] Add `toolVariants.ts` with the group table and the three pure lookups.
+- [x] Unit-test `resolveCpOperationId` for both pairs and for a non-variant tool
       (must return its own id untouched).
-- [ ] Add `lengthenColorMode` / `divideMode` to `OristudioCpToolOptions` and its
+- [x] Add `lengthenColorMode` / `divideMode` to `OristudioCpToolOptions` and its
       defaults.
-- [ ] Register both keys in `TOOL_OPTION_KEYS_BY_GROUP`.
-- [ ] Add the `oneOf` string-union validator to `cpToolOptionPersistence.ts`.
-- [ ] Opt `lengthenColorMode`, `divideMode`, `divisionCount`, and
+- [x] Register both keys in `TOOL_OPTION_KEYS_BY_GROUP`.
+- [x] Add the `oneOf` string-union validator to `cpToolOptionPersistence.ts`.
+- [x] Opt `lengthenColorMode`, `divideMode`, `divisionCount`, and
       `divisionRatio` into `PERSISTED_CP_TOOL_OPTIONS`, and drop the last two
       from the module comment's ephemeral-candidates list.
-- [ ] Test the round trip and the rejection path: a stale or hand-edited mode
+- [x] Test the round trip and the rejection path: a stale or hand-edited mode
       string falls back to its default alone, leaving the other keys intact.
 
 ### Phase 1 — resolution seam
 
-- [ ] Resolve the operation id from `(action, toolOptions)` where tool state
+- [x] Resolve the operation id from `(action, toolOptions)` where tool state
       records `activeOperationId`; thread tool options to that call site.
-- [ ] Verify the four downstream consumers in the table above pick up the
+- [x] Verify the four downstream consumers in the table above pick up the
       resolved id with no further branching (payload, settings groups, preview
       color, hint text).
-- [ ] Re-resolve when the mode changes while the tool is already active — the
+- [x] Re-resolve when the mode changes while the tool is already active — the
       context panel must not need a tool reselect to take effect.
 
 ### Phase 2 — rail and panel
 
-- [ ] Map both variants of each pair to the new selector groups in
+- [x] Map both variants of each pair to the new selector groups in
       `TOOL_SETTING_GROUPS_BY_OPERATION`.
-- [ ] Render both selectors as `SegmentedControl` groups in
+- [x] Render both selectors as `SegmentedControl` groups in
       `CpContextToolPanel`.
-- [ ] Hide the two secondary actions (`placement: 'hidden-ui-only'`); relabel
+- [x] Hide the two secondary actions (`placement: 'hidden-ui-only'`); relabel
       the divide host to "Divided Line".
-- [ ] Show the resolved operation's glyph on the active rail button.
+- [x] Show the resolved operation's glyph on the active rail button.
 
 ### Phase 3 — shortcut and file restore
 
-- [ ] Move the `E` binding from `lengthenCrease2Action` to
+- [x] Move the `E` binding from `lengthenCrease2Action` to
       `lengthenCreaseAction`; update `shortcutRegistry.test.ts`.
-- [ ] Route `.osf` mouse-mode restore through
+- [x] Route `.osf` mouse-mode restore through
       `cpVariantSelectionForMouseMode` so a file saved in either variant lands
       on the host action with the right mode set.
-- [ ] Confirm `orieditaNativeMetadata` still reports "Canvas tool" as restored
+- [x] Confirm `orieditaNativeMetadata` still reports "Canvas tool" as restored
       for all four mouse modes.
 
 ### Phase 4 — i18n and validation
 
-- [ ] `npm run i18n:extract`, translate the new `tools:` strings and the changed
+- [x] `npm run i18n:extract`, translate the new `tools:` strings and the changed
       `cpVocab` labels across all 8 locales, `npm run i18n:stamp`.
-- [ ] `npm run i18n:check` passes.
-- [ ] `npx tsc --noEmit` and vitest pass. (Use these directly rather than
+- [x] `npm run i18n:check` passes.
+- [x] `npx tsc --noEmit` and vitest pass. (Use these directly rather than
       `npm run typecheck:web` — the npm scripts regenerate the tracked wasm
       bindings nondeterministically and would dirty the diff.)
-- [ ] `npm run lint:web` passes, including the `max-lines` cap on
+- [x] `npm run lint:web` passes, including the `max-lines` cap on
       `CreasePatternPanel.tsx` and `CpContextToolPanel.tsx`.
 
 ### Browser verification (author)
