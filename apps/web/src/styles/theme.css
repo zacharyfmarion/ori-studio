@@ -522,8 +522,10 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  /* Square on the input's own height, so the three boxes share a top and a
+     bottom edge. */
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -5225,7 +5227,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  width: 104px;
+  width: 112px;
 }
 
 .control-row__value--select {
