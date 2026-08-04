@@ -216,7 +216,7 @@ const RAIL_ICON_SIZE = 20;
  * Keyed by the component rather than by name, so an icon that is never rendered
  * here cannot leave a stale string behind.
  */
-const RAIL_ICON_SIZES = new Map<CpToolIcon, number>([[SolveFoldAnglesIcon, 24]]);
+const RAIL_ICON_SIZES = new Map<CpToolIcon, number>([[SolveFoldAnglesIcon, 23]]);
 
 const ICON_ALIASES: Record<string, string> = {
   angle: 'ProtractorIcon',
