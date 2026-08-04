@@ -5,7 +5,6 @@ import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { CpViewControlsPanel } from './CpViewControlsPanel';
-import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -90,12 +89,6 @@ describe('CpViewControlsPanel', () => {
       oristudioCpDocument: editableCpState(),
       setOristudioCpGridSize,
     });
-
-    const toolOptionsSlot = view.querySelector<HTMLElement>(`#${CP_TOOL_OPTIONS_PANE_SLOT_ID}`);
-    expect(toolOptionsSlot).not.toBeNull();
-    expect(toolOptionsSlot?.previousElementSibling?.className).toContain(
-      'cp-view-controls-panel__view-options'
-    );
 
     const gridToggle = view.querySelector<HTMLButtonElement>('button[aria-label="Grid"]');
     act(() => gridToggle?.click());
