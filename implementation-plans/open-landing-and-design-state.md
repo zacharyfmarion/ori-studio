@@ -353,46 +353,46 @@ mode and grid settings; both should survive the round trip.
 - [x] Test: a design + CP bundle lands on `/edit`
 - [x] `grep -rn "workspacePath\|designVariantPath" apps/web/src` shows one producer
 
-### Phase 2 — one crease-pattern installer
-- [ ] Extract `nativeCpEditorState()` from today's two `set()` blocks, field by field
-- [ ] Both `loadNativeCreasePattern` and the companion path spread it
-- [ ] Confirm it carries `creaseColorMode`, `oristudioCpViewport`, `projectLoadId`,
+### Phase 2 — one crease-pattern installer ✅
+- [x] Extract `nativeCpEditorState()` from today's two `set()` blocks, field by field
+- [x] Both `loadNativeCreasePattern` and the companion path spread it
+- [x] Confirm it carries `creaseColorMode`, `oristudioCpViewport`, `projectLoadId`,
       `toolMode`, `oristudioCpInlineSimulations`, `discardCpDocumentState()`,
       `staleFoldArtifactResourceState()`
-- [ ] Keep the `hydrateOristudioCpInlineSimulations()` kick on both paths
-- [ ] Test: crease colour mode + viewport survive a design-plus-CP round trip
-- [ ] Document the scope rule in the function comment (Edit canvas only)
+- [x] Keep the `hydrateOristudioCpInlineSimulations()` kick on both paths
+- [x] Test: crease colour mode + viewport survive a design-plus-CP round trip
+- [x] Document the scope rule in the function comment (Edit canvas only)
 
-### Phase 3 — one design-method field
-- [ ] Add `designMethod`; migrate all reads off `pendingDesignChoice`/`workflowTarget`
-- [ ] Delete `deriveDesignVariant()` and `designVariant.ts`; update `registerDesignVariantSource`
-- [ ] `/design` becomes redirect-only: non-`'none'` → that method's path
-- [ ] `applyDesignRoute` no longer writes for the `nux` case
-- [ ] Remove the duplicate `applyDesignRoute` call in `WorkspaceShell.onReady`
-- [ ] `startNewDesign()` is the only writer of `'none'`
-- [ ] Test: navigating to `/design` with a design loaded redirects, does not reset
-- [ ] Test: `startNewDesign()` still reaches the chooser
+### Phase 3 — one design-method field ✅
+- [x] Add `designMethod`; migrate all reads off `pendingDesignChoice`/`workflowTarget`
+- [x] Delete `deriveDesignVariant()` and `designVariant.ts`; update `registerDesignVariantSource`
+- [x] `/design` becomes redirect-only: non-`'none'` → that method's path
+- [x] `applyDesignRoute` no longer writes for the `nux` case
+- [x] Remove the duplicate `applyDesignRoute` call in `WorkspaceShell.onReady`
+- [x] `startNewDesign()` is the only writer of `'none'`
+- [x] Test: navigating to `/design` with a design loaded redirects, does not reset
+- [x] Test: `startNewDesign()` still reaches the chooser
 
 ### Phase 4 — a load is a transaction
-**4a — installers never navigate** (do this next; the flash is live)
-- [ ] Remove `activateWorkspace` from `setLoadedBpProject`, `loadText`,
+**4a — installers never navigate** ✅
+- [x] Remove `activateWorkspace` from `setLoadedBpProject`, `loadText`,
       `loadCreasePattern`, `loadNativeCreasePattern` (11 slice call sites total)
-- [ ] `createOristudioBpProject` / `loadOristudioBpExample` navigate explicitly at
+- [x] `createOristudioBpProject` / `loadOristudioBpExample` navigate explicitly at
       their own call sites (the July `showBpDesignWorkspace` shape)
-- [ ] Confirm `openProject`'s `applyLandingWorkspace` is the only decision left
-- [ ] Test: opening a design+CP bundle produces exactly **one** `activeWorkspace`
+- [x] Confirm `openProject`'s `applyLandingWorkspace` is the only decision left
+- [x] Test: opening a design+CP bundle produces exactly **one** `activeWorkspace`
       transition and **one** history entry
-- [ ] Browser: no BP flash; Back after an open does not land on `/design/bp`
+- [x] Browser: no BP flash; Back after an open does not land on `/design/bp`
 
-**4b — one commit per load**
-- [ ] Measure peak memory on a large bundle first — decide full vs partial detach
-- [ ] `loadNativeProject` builds every document, then installs in one `set()`
-- [ ] Re-derive against today's fields (inline simulations, symmetry, schema 6)
-- [ ] Test: one open publishes a bounded number of store notifications (18 today)
-- [ ] Test: `oristudioCpDocument` changes **once** per open, not four times
-- [ ] Confirm `ensureEditCreasePattern` no longer fires during a load
+**4b — one commit per load** ✅ (targeted)
+- [x] Measure peak memory on a large bundle first — decide full vs partial detach
+- [x] `loadNativeProject` builds every document, then installs in one `set()`
+- [x] Re-derive against today's fields (inline simulations, symmetry, schema 6)
+- [x] Test: one open publishes a bounded number of store notifications (18 today)
+- [x] Test: `oristudioCpDocument` changes **once** per open, not four times
+- [x] Confirm `ensureEditCreasePattern` no longer fires during a load
 
-**4c — the URL is the only driver**
+**4c — the URL is the only driver** — BLOCKED, needs a decision (see Risks)
 - [ ] `activateWorkspace` private to the route layer; all other callers navigate
 - [ ] Delete `workspaceUrlSync` and its loop guards
 - [ ] Audit the non-loader callers (`SequencePanel`, `activatePanel`, menu actions)
@@ -421,5 +421,18 @@ mode and grid settings; both should survive the round trip.
 - **4b trades latency for peak memory.** Building detached holds two copies of the
   crease pattern; large bundles are exactly where the desktop already OOMs. Measure
   before choosing full vs partial detach.
-- **4c touches every workspace switch in the app**, not just loads — the widest
-  blast radius here. Worth doing only after 4a and 4b stop adding call sites.
+- **4c is blocked on a decision, not on work.** Making the router the only thing
+  that moves the user means store actions call `navigateTo` instead of
+  `activateWorkspace`. `navigateTo` is a no-op when no router is registered, which
+  is exactly the case in unit tests — so the store would no longer change
+  workspace on its own, and the 12 test assertions on `activeWorkspace` would
+  need either a mounted router per store test or rewriting to assert the intended
+  path. That is a test-architecture choice, and 4c fixes no user-visible bug (the
+  URL sync works; back/forward and the rail were verified), so it is deliberately
+  left for the author to call.
+- **4b landed targeted, not total.** The bundle path no longer publishes an empty
+  canvas, but a design-only file opened from a mounted Edit workspace still
+  legitimately clears the canvas, and the always-live Edit surface then
+  self-provisions a blank one. Pre-existing, and arguably correct — but it means
+  an untouched auto-provisioned canvas can be bundled into a later save. Whether
+  save should skip an untouched canvas is a separate product question.
