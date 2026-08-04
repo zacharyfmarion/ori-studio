@@ -1511,6 +1511,7 @@ export function CreasePatternPanel() {
         activeCpCommand ? buildCpCommandPayload(activeCpCommand, payload) : payload,
       [activeCpCommand, buildCpCommandPayload]
     ),
+    documentVersion: editableCp?.crease_pattern.line_segments,
     onUnavailable: setCpToolUnavailable,
   });
 
@@ -2970,6 +2971,7 @@ export function CreasePatternPanel() {
                   onToolSnapKind={setCpMeasureSnapKind}
                   toolCommandPreviewSegments={cpPreviewSegments}
                   toolCommandHighlightSegments={webglToolHighlightSegments}
+                  toolReplacedLineIds={vertexSolve.replacedLineIds}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}

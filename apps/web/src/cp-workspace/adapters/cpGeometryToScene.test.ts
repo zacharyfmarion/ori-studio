@@ -109,6 +109,77 @@ describe('cpGeometryStrokesToScene parity with cpSnapshotToScene', () => {
     );
   });
 
+  it('with creases replaced by a tool preview', () => {
+    const replaced = new Set([2, 5]);
+    expectStrokesEqual(
+      cpSnapshotToScene(
+        segmentsInput(),
+        appearanceFor,
+        DASH_PATTERNS,
+        undefined,
+        undefined,
+        undefined,
+        replaced
+      ).strokes,
+      cpGeometryStrokesToScene(
+        transport,
+        appearanceFor,
+        DASH_PATTERNS,
+        undefined,
+        undefined,
+        undefined,
+        replaced
+      ).strokes
+    );
+  });
+
+  it('hides a replaced crease without shifting the ones after it', () => {
+    // Zero alpha rather than dropping the segment: the buffers are indexed by
+    // segment and those indices are what the selection and transform sets are
+    // keyed on, so removing one would silently retarget every id after it.
+    const plain = cpGeometryStrokesToScene(transport, appearanceFor, DASH_PATTERNS).strokes;
+    const hidden = cpGeometryStrokesToScene(
+      transport,
+      appearanceFor,
+      DASH_PATTERNS,
+      undefined,
+      undefined,
+      undefined,
+      new Set([2])
+    ).strokes;
+    expect(hidden.count).toBe(plain.count);
+    expect(hidden.color[(2 - 1) * 4 + 3]).toBe(0);
+    // Endpoints stay put, and every other crease is untouched.
+    expect(Array.from(hidden.a)).toEqual(Array.from(plain.a));
+    expect(Array.from(hidden.b)).toEqual(Array.from(plain.b));
+    for (let i = 0; i < plain.count; i++) {
+      if (i === 1) continue;
+      expect(hidden.color.slice(i * 4, i * 4 + 4)).toEqual(plain.color.slice(i * 4, i * 4 + 4));
+    }
+  });
+
+  it('hides a replaced crease even when it is also selected', () => {
+    // The case that matters: the tool's picked creases render *selected*, so a
+    // replaced-after-selection order would leave the selection style drawn under
+    // the preview — which is the muddiness the whole thing exists to remove.
+    const selection: CpSelectionStyle = {
+      selected: new Set([2]),
+      color: [0.9, 0.1, 0.2, 1],
+      widthMul: 2.5,
+    };
+    const strokes = cpGeometryStrokesToScene(
+      transport,
+      appearanceFor,
+      DASH_PATTERNS,
+      selection,
+      undefined,
+      undefined,
+      new Set([2])
+    ).strokes;
+    expect(strokes.color[(2 - 1) * 4 + 3]).toBe(0);
+    expect(strokes.widthMul[1]).toBe(1);
+  });
+
   // Per mode, not once: each builder reads the magnitude from a different place
   // (`segFoldMagnitude` vs the segment object), and the two modes write different
   // channels of the same buffer, so a gate over one mode says nothing about the

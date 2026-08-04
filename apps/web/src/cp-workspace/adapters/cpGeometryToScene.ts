@@ -6,6 +6,7 @@ import type {
   CpDashPatterns,
   CpFoldAngleStyle,
   CpLineAppearanceFor,
+  CpReplacedLines,
   CpSelectionStyle,
   CpTransformPreview,
 } from './cpSnapshotToScene';
@@ -30,7 +31,8 @@ export function cpGeometryStrokesToScene(
   selection?: CpSelectionStyle,
   move?: CpTransformPreview,
   /** How a non-180 crease shows its angle. Omit to disable the treatment. */
-  foldAngle?: CpFoldAngleStyle
+  foldAngle?: CpFoldAngleStyle,
+  replaced?: CpReplacedLines
 ): { strokes: StrokeGeometry } {
   const endpoints = transport.segEndpoints;
   const attr = transport.segAttr;
@@ -61,6 +63,12 @@ export function cpGeometryStrokesToScene(
       b[i * 2] = endpoints[e + 2];
       b[i * 2 + 1] = endpoints[e + 3];
     }
+
+    // Before the selection branch: a replaced crease must vanish even when it is
+    // also selected, which is exactly the case here — the tool's picked creases
+    // render selected, and drawing both that and the preview over each other is
+    // the muddiness this exists to remove.
+    if (replaced !== undefined && replaced.has(i + 1)) continue;
 
     if (selection && selection.selected.has(i + 1)) {
       const c = selection.color;

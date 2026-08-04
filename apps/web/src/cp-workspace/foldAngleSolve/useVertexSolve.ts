@@ -49,6 +49,11 @@ export interface UseVertexSolveOptions {
   ) => Promise<boolean>;
   /** Fills in grid width, active colour and the rest, as the panel does. */
   buildPayload: (payload: OristudioCpCommandPayload) => OristudioCpCommandPayload;
+  /**
+   * Anything whose identity changes when the document's creases do — the
+   * segment array will do. See the effect that watches it.
+   */
+  documentVersion: unknown;
   /** Surface the kernel's reason when there is no answer. */
   onUnavailable: (reason: string | null) => void;
 }
@@ -63,6 +68,15 @@ export interface VertexSolveController {
    * badges show what applying would do, in the channel they already use.
    */
   segments: readonly ToolPreviewSegment[];
+  /**
+   * The creases whose place the preview has taken, as 1-based ids — so the
+   * document stops drawing them and the answer stands on its own.
+   *
+   * Driven by the *preview*, not by the review: they must appear and disappear
+   * in the same render, or the creases would vanish for the length of a kernel
+   * round trip and come back as the preview arrived.
+   */
+  replacedLineIds: readonly number[];
   /** The on-canvas window, or null when the tool has no question open. */
   option: CpToolOptionWindow | null;
   /**
@@ -101,6 +115,8 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
   useEffect(() => {
     latest.current = options;
   });
+  /** The document the open review was solved against. */
+  const documentAtReview = useRef<unknown>(null);
 
   const payloadFor = useCallback(
     (lineIds: readonly number[], index: number): OristudioCpCommandPayload =>
@@ -125,11 +141,29 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
         return true;
       }
       latest.current.onUnavailable(null);
+      documentAtReview.current = latest.current.documentVersion;
       setReview(outcome.review);
       return true;
     },
     [payloadFor]
   );
+
+  // Drop the review if the document changes under it.
+  //
+  // Line ids are *indices*, so an undo or a parallel edit leaves both the solve
+  // and the replaced set pointing at whatever now occupies those slots. The
+  // answers were already stale at that point; what makes it worth guarding is
+  // that the creases are hidden, so a stale set would blank geometry that has
+  // nothing to do with the solve.
+  //
+  // `apply` clears the review before it commits, so its own mutation never
+  // reaches here.
+  const { documentVersion } = options;
+  useEffect(() => {
+    if (!review || documentVersion === documentAtReview.current) return;
+    setReview(null);
+    latest.current.onUnavailable(null);
+  }, [documentVersion, review]);
 
   // Re-preview whenever the selected answer changes, so stepping shows the
   // creases that answer would produce. Guarded by a request id because the
@@ -189,6 +223,11 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
     [solved]
   );
 
+  const replacedLineIds = useMemo(
+    () => (review && solved ? [...review.lineIds] : []),
+    [review, solved]
+  );
+
   const option = useMemo((): CpToolOptionWindow | null => {
     if (!review || !solved) return null;
     // The three creases, plus the vertex — so a solve whose creases all run one
@@ -226,12 +265,13 @@ export function useVertexSolve(options: UseVertexSolveOptions): VertexSolveContr
       review,
       steppable: isSteppable(review),
       segments,
+      replacedLineIds,
       option,
       begin,
       step,
       apply,
       cancel,
     }),
-    [apply, begin, cancel, option, review, segments, step]
+    [apply, begin, cancel, option, replacedLineIds, review, segments, step]
   );
 }
