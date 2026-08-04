@@ -668,6 +668,14 @@ export interface CreasePatternWebglCanvasProps {
    */
   initialCamera?: UserCamera | null;
   /**
+   * A view rotation (radians) the document names without a full camera — an
+   * imported Oriedita file, which persists its own camera angle. Used as the
+   * angle of the auto-fit, so the pattern is framed *and* turned the way its
+   * author left it. Ignored when {@link initialCamera} is present, which already
+   * carries a rotation.
+   */
+  initialRotation?: number | null;
+  /**
    * Keep the active drag-box tool's box axis-aligned in *model* space (and
    * committing two diagonal corners) instead of upright on screen. Only the
    * operation frame needs this — see `tools/predicates.isModelAlignedBoxOperation`.
@@ -802,6 +810,7 @@ export function CreasePatternWebglCanvas({
   onRotationChange,
   onViewChange,
   initialCamera,
+  initialRotation,
   activeToolModelAlignedBox,
   onCameraChange,
   onEraseBox,
@@ -1262,6 +1271,7 @@ export function CreasePatternWebglCanvas({
     onRotationChange,
     onViewChange,
     initialCamera,
+    initialRotation,
     activeToolModelAlignedBox,
     onCameraChange,
     onEraseBox,
@@ -1424,7 +1434,16 @@ export function CreasePatternWebglCanvas({
       }
       const bounds = liveRef.current.contentBounds;
       if (!bounds) return null;
-      cameraRef.current = fitUserCamera(bounds, viewport);
+      // No saved camera, but the document may still name the angle it was
+      // authored at (an imported Oriedita file's own camera). Fit at that
+      // rotation rather than square — `fitUserCamera` measures the bounds along
+      // the rotated screen axes, so the pattern still fills the viewport.
+      cameraRef.current = fitUserCamera(
+        bounds,
+        viewport,
+        undefined,
+        liveRef.current.initialRotation ?? 0
+      );
       return cameraRef.current;
     };
 

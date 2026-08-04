@@ -587,7 +587,8 @@ Browser checklist (owner: Zach):
 - [x] Phase 9: folded figures + inline simulations upright; optional view-space
       packing with a model-space default; row reads as a row at 45°
 - [x] Phase 10: `.osf` `viewState.camera` + schema v7 + migration test
-- [ ] Phase 10: `.ori` camera reader — **deferred, see Outcome**
+- [x] Phase 10: `.ori` camera reader (rotation only; sign verified against a
+      real Oriedita file saved at -22.5 degrees)
 - [x] Phase 10: restored camera beats the `framingKey` auto-fit (armed by that
       effect, adopted by `ensureCamera` before the bounds check)
 - [x] tsc / lint / web tests / `cargo test -p oristudio-cp` green
@@ -598,16 +599,32 @@ Browser checklist (owner: Zach):
 
 Phases 1–10 landed across three commits, minus one piece.
 
-**`.ori` camera restore is deferred.** It looked like free parity — Oriedita
-persists `creasePatternCamera` and we already round-trip it — but `bf484295`
-deliberately took that camera *out* of the canvas transform after an `.ori`
-worksheet misplaced everything parked beside its patterns, and the
-folded-figure `scale`/`rotation` compensation in `savedCreasePatternView` exists
-*because* it is out. Restoring the angle would double-count against that
-compensation, and the sign cannot be settled by reasoning: upstream turns the
-screen→object map where `UserCamera.rotation` turns object→screen. It needs a
-real `.ori` saved from Oriedita at a known angle. `.osf` — what the report was
-actually about — is unaffected.
+**`.ori` camera restore landed after a detour.** It was held back first:
+`bf484295` deliberately took that camera *out* of the canvas transform after an
+`.ori` worksheet misplaced everything parked beside its patterns, and the
+folded-figure compensation in `savedCreasePatternView` exists because it is out.
+Two things resolved it.
+
+A file saved from Oriedita at `cameraAngle: -22.5` settled the sign, which could
+not be settled by reasoning: `Camera.TV2object` maps screen→object with
+`R(+angle)` so object→screen is `R(−angle)`, while `UserCamera.rotation` composes
+object→screen directly, and `cpModelToSvg` between them is a positive
+scale+translate with no flip. So the correction is exactly a negation, and that
+file must open at +22.5°.
+
+And the folded-figure worry resolved the *opposite* way from expected.
+`FoldedFigure_Drawer.createTwoColorCreasePattern` seeds the folded figure's own
+camera *from the crease-pattern camera* and names the value
+`d_foldedFigure_rotation_correction`: upstream deliberately turns the figure
+**with** the pattern. Un-baking makes the figure's stored angle paper-relative;
+restoring the view then turns figure and pattern together, which is what that
+code exists to do. `bf484295`'s failure mode — the pattern positioned by one
+mapping and the figures by another — cannot recur, because a view rotation
+applies to every kind of canvas content at once.
+
+Only the **angle** is restored. Zoom and centre are the parts that went wrong
+before (they are in Oriedita's own display units, and this app frames by fitting
+content), so those are still left to the fit.
 
 Three things worth recording:
 

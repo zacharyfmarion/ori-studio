@@ -77,6 +77,7 @@ import {
 import {
   activeLineColorFromOrieditaMetadata,
   activeMouseModeFromOrieditaMetadata,
+  creasePatternRotationFromOrieditaMetadata,
   canvasToolOptionsFromOrieditaMetadata,
 } from '../../lib/orieditaNativeMetadata';
 import {
@@ -1046,6 +1047,13 @@ export function CreasePatternPanel() {
   );
   const nativeCanvasToolOptions = useMemo(
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
+    [editableCp?.metadata]
+  );
+  // An imported Oriedita file names the angle its canvas was turned to. Read from
+  // the document's own metadata rather than the store, so it travels with the
+  // document exactly like the mouse mode and tool options above.
+  const nativeViewRotation = useMemo(
+    () => creasePatternRotationFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
   // Upstream's `calculateLineColor()`: while the modifier is held the crease
@@ -2941,6 +2949,7 @@ export function CreasePatternPanel() {
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
                   initialCamera={savedCpCamera}
+                  initialRotation={nativeViewRotation}
                   activeToolModelAlignedBox={isModelAlignedBoxOperation(
                     activeCpCommand?.operationId
                   )}
