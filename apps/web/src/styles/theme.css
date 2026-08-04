@@ -4581,6 +4581,30 @@
   text-transform: uppercase;
 }
 
+/* Stepping through the fold-angle solutions for a vertex. */
+.cp-vertex-solve__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cp-vertex-solve__count {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.cp-vertex-solve__note {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
 .cp-context-panel__field {
   display: grid;
   grid-template-columns: minmax(54px, 0.68fr) minmax(0, 1fr);

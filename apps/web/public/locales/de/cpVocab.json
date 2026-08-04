@@ -399,6 +399,16 @@
         "1": "Hinzuzufügende Falte wählen"
       }
     },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "Faltwinkel lösen",
+      "tooltip": "Wählen Sie drei Falten an einem Knoten und lösen Sie ihre Faltwinkel, sodass der Knoten schließt, ohne etwas zu verschieben",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Erste zu ändernde Falte wählen",
+        "1": "Zweite zu ändernde Falte wählen",
+        "2": "Dritte zu ändernde Falte wählen"
+      }
+    },
     "cp_action_foldable_line_input": {
       "label": "Flachfaltbare Linie (verlängern)",
       "tooltip": "Flachfaltbare Linie eingeben",

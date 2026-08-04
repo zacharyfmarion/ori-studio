@@ -180,6 +180,11 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   UnselectPolygon: { model: 'drag-path' },
 
   // BESPOKE — per-tool state machines (§4.J)
+  // Three crease picks and no points: the vertex is the endpoint all three
+  // share, which the kernel derives rather than asking for a fourth click.
+  // The commit is intercepted by `useVertexSolve` — the solve usually has more
+  // than one answer, so the tool holds them for review instead of applying.
+  VertexSolveFoldAngles: { model: 'line-entity', lineCount: 3 },
   SquareBisector: { model: 'bespoke' },
   Text: { model: 'bespoke' },
   VoronoiCreate: { model: 'bespoke' },

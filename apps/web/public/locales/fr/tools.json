@@ -113,6 +113,18 @@
     "settingCountOther_one": "{{count}} paramètres",
     "settingCountOther_many": "{{count}} paramètres",
     "settingCountOther_other": "{{count}} paramètres",
+    "solveAngles": {
+      "apply": "Appliquer",
+      "count": "{{index}} sur {{total}}",
+      "creaseNotInFan": "Choisissez trois plis différents qui se rejoignent au même sommet.",
+      "family": "Ces trois plis laissent un degré de liberté ; c'est donc une réponse parmi une infinité — choisissez un autre troisième pli pour en obtenir une définie.",
+      "next": "Solution suivante",
+      "notEnoughCreases": "Moins de trois plis se rejoignent ici, il n'y a donc pas trois angles à résoudre.",
+      "previous": "Solution précédente",
+      "single": "Une solution",
+      "title": "Angles de pliage",
+      "unreachable": "Ces trois plis ne peuvent fermer ce sommet à aucun angle — essayez-en trois autres."
+    },
     "stopOnAuxAria": "Autorise un pli proposé à s’arrêter sur une ligne auxiliaire",
     "stopOnAuxLabel": "Lignes auxiliaires",
     "to": "À",

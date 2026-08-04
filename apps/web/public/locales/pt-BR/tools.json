@@ -113,6 +113,18 @@
     "settingCountOther_one": "{{count}} configurações",
     "settingCountOther_many": "{{count}} configurações",
     "settingCountOther_other": "{{count}} configurações",
+    "solveAngles": {
+      "apply": "Aplicar",
+      "count": "{{index}} de {{total}}",
+      "creaseNotInFan": "Escolha três vincos diferentes que se encontrem no mesmo vértice.",
+      "family": "Estes três vincos deixam um grau de liberdade, então esta é uma entre infinitas respostas — escolha outro terceiro vinco para obter uma definida.",
+      "next": "Próxima solução",
+      "notEnoughCreases": "Menos de três vincos se encontram aqui, então não há três ângulos a resolver.",
+      "previous": "Solução anterior",
+      "single": "Uma solução",
+      "title": "Ângulos de dobra",
+      "unreachable": "Estes três vincos não fecham este vértice com nenhum ângulo de dobra — tente outros três."
+    },
     "stopOnAuxAria": "Permite que um vinco sugerido pare em uma linha auxiliar",
     "stopOnAuxLabel": "Linhas auxiliares",
     "to": "Até",

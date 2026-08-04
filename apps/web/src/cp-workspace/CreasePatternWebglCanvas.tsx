@@ -609,7 +609,13 @@ export interface CreasePatternWebglCanvasProps {
    * for a `line-entity` tool, placed points for a `sequence` one — so the controller
    * can advance the step prompt in lock-step with them. Cumulative, not a delta.
    */
-  onToolPickProgress: (picked: number) => void;
+  /**
+   * How many inputs the active tool has taken, and — for a crease-picking tool —
+   * which creases they were. The ids matter to the three-angle solve, whose
+   * preview marks which remaining creases would complete a solvable triple; most
+   * tools only need the count to advance their step prompt.
+   */
+  onToolPickProgress: (picked: number, lineIds?: readonly number[]) => void;
   /**
    * What the live point of a `sequence` tool has snapped onto, or null when it is
    * free. Taken from the resolve the step already does, so naming the snap costs no
@@ -2373,7 +2379,7 @@ export function CreasePatternWebglCanvas({
           // On a pick the engine's highlight is the picked set (no hover on down).
           const picked = out.highlightLineIds ?? [];
           setLinePickHighlight(picked);
-          liveRef.current.onToolPickProgress(picked.length);
+          liveRef.current.onToolPickProgress(picked.length, picked);
         }
         // Preview the crease under the cursor as the next-pick candidate.
         liveRef.current.onToolPreviewInput([], hoveredId != null ? [hoveredId] : []);

@@ -1693,8 +1693,7 @@ pub fn execute_command(
             )
         }
         OperationId::VertexSolveFoldAngles => {
-            let points = required_points(&command, 1)?;
-            let solved = vertex_angle_solutions(document, &command, points[0])?;
+            let solved = vertex_angle_solutions(document, &command)?;
             let solution = chosen_angle_solution(&command, &solved)?;
             operations::color::set_signed_fold_angles(
                 &mut document.crease_pattern,
@@ -2857,9 +2856,21 @@ fn resolved_completion_destination(
 fn vertex_angle_solutions(
     document: &CreasePatternDocument,
     command: &CreasePatternCommand,
-    vertex: geometry::Point,
 ) -> Result<solve_fold_angles::VertexAngleSolutions> {
     let chosen = required_line_indices(command)?;
+    // The tool asks for three creases and no vertex click, because three
+    // segments meeting at a point determine that point. A caller that supplies
+    // one anyway wins — which is what keeps the door open for reaching this from
+    // a closure diagnostic, where the vertex is what was marked.
+    let vertex = match command.payload.points.first() {
+        Some(point) => *point,
+        None => solve_fold_angles::shared_vertex(&document.crease_pattern, &chosen).ok_or_else(
+            || CommandError::InvalidInput {
+                operation: command.operation,
+                message: "the chosen creases do not all meet at one point".to_string(),
+            },
+        )?,
+    };
     Ok(solve_fold_angles::vertex_angle_solutions(
         &document.crease_pattern,
         vertex,
@@ -2901,6 +2912,7 @@ fn no_solution_code(reason: solve_fold_angles::NoSolution) -> String {
         solve_fold_angles::NoSolution::Indeterminate => "Indeterminate",
         solve_fold_angles::NoSolution::NotEnoughCreases => "NotEnoughCreases",
         solve_fold_angles::NoSolution::CreaseNotInFan => "CreaseNotInFan",
+        solve_fold_angles::NoSolution::CreasesDoNotMeet => "CreasesDoNotMeet",
         solve_fold_angles::NoSolution::Unreachable => "AnglesUnreachable",
     }
     .to_string()
@@ -3380,26 +3392,36 @@ pub fn preview_command(
                 active_line_color(&command),
             ));
         }
-        OperationId::VertexSolveFoldAngles if !points.is_empty() => {
+        OperationId::VertexSolveFoldAngles => {
             // Fewer than three creases picked is the *normal* state for the
             // first two steps, not a failure — the tool is still collecting.
             // Marking which creases would complete a solvable triple is the
             // whole affordance here: most triples cannot close a given vertex,
             // so picking blind means guessing.
+            //
+            // Two picks are enough to fix the vertex (two segments meeting at a
+            // point determine it), which is exactly when the marking becomes
+            // useful. One pick leaves both of its ends open, so there is nothing
+            // to mark yet.
             let chosen = optional_line_indices(&command)?;
             if chosen.len() < 3 {
-                for line in solve_fold_angles::solvable_partners(
-                    &document.crease_pattern,
-                    points[0],
-                    &chosen,
-                    CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
-                ) {
-                    if let Some(segment) = document.crease_pattern.line_segments.get(line) {
-                        preview.segments.push(segment.clone());
+                let vertex = points.first().copied().or_else(|| {
+                    solve_fold_angles::shared_vertex(&document.crease_pattern, &chosen)
+                });
+                if let Some(vertex) = vertex.filter(|_| chosen.len() >= 2) {
+                    for line in solve_fold_angles::solvable_partners(
+                        &document.crease_pattern,
+                        vertex,
+                        &chosen,
+                        CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+                    ) {
+                        if let Some(segment) = document.crease_pattern.line_segments.get(line) {
+                            preview.segments.push(segment.clone());
+                        }
                     }
                 }
             } else {
-                let solved = vertex_angle_solutions(document, &command, points[0])?;
+                let solved = vertex_angle_solutions(document, &command)?;
                 preview.unavailable = solved.no_solution.map(no_solution_code);
                 preview.candidate_count = Some(solved.isolated_count);
                 if let Ok(solution) = chosen_angle_solution(&command, &solved) {
@@ -4337,6 +4359,50 @@ mod tests {
             let segment = &document.crease_pattern.line_segments[line];
             assert_eq!(segment.a, Point::new(0.0, 0.0));
         }
+    }
+
+    /// The tool asks for three creases and no vertex click, because three
+    /// segments meeting at a point determine that point. Solving with the vertex
+    /// left out must reach the same answer as solving with it supplied — the
+    /// explicit form is what keeps a closure-diagnostic entry point open.
+    #[test]
+    fn the_vertex_is_derived_from_the_chosen_creases() {
+        let (document, lines) =
+            document_with_vertex_fan(&[(0.0, 90.0), (45.0, 180.0), (90.0, -90.0), (225.0, 30.0)]);
+        let chosen = [lines[0], lines[2], lines[3]];
+        let vertex = Point::new(0.0, 0.0);
+
+        let mut derived = document.clone();
+        execute_command(&mut derived, solve_command(vertex, &chosen, None)).expect("with a point");
+        let mut implied = document.clone();
+        let mut without = solve_command(vertex, &chosen, None);
+        without.payload.points.clear();
+        execute_command(&mut implied, without).expect("without a point");
+        assert_eq!(
+            derived.crease_pattern.line_segments,
+            implied.crease_pattern.line_segments
+        );
+    }
+
+    /// Creases that do not all end at one point have no shared closure condition,
+    /// so there is nothing for the solve to be about.
+    #[test]
+    fn creases_that_do_not_meet_are_refused() {
+        let (mut document, lines) =
+            document_with_vertex_fan(&[(0.0, 90.0), (90.0, -90.0), (225.0, 30.0)]);
+        // A crease somewhere else entirely.
+        let stray = document.crease_pattern.line_segments.len();
+        document
+            .crease_pattern
+            .line_segments
+            .push(geometry::LineSegment::with_color(
+                Point::new(100.0, 100.0),
+                Point::new(150.0, 100.0),
+                LineColor::Blue2,
+            ));
+        let mut command = solve_command(Point::new(0.0, 0.0), &[lines[0], lines[1], stray], None);
+        command.payload.points.clear();
+        assert!(execute_command(&mut document, command).is_err());
     }
 
     /// The colour and the magnitude have to land in one step. Closing a vertex

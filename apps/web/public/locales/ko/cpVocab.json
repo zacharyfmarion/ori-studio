@@ -399,6 +399,16 @@
         "1": "추가할 접힘선 선택"
       }
     },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "접기 각도 풀기",
+      "tooltip": "한 꼭짓점에서 접선 세 개를 고르면 아무것도 옮기지 않고 꼭짓점이 닫히도록 접기 각도를 풉니다",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "변경할 첫 번째 접선 선택",
+        "1": "변경할 두 번째 접선 선택",
+        "2": "변경할 세 번째 접선 선택"
+      }
+    },
     "cp_action_foldable_line_input": {
       "label": "평면 접힘 가능 선(연장)",
       "tooltip": "접힘 가능 선 입력",

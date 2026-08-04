@@ -314,6 +314,7 @@ const ORIEDITA_OPERATION_GLYPHS: Partial<Record<OristudioCpOperationId, string>>
   UnselectPolygon: '\uE06E',
   VertexDeleteOnCrease: '\uE021',
   VertexMakeAngularlyFlatFoldable: '\uE003',
+  VertexSolveFoldAngles: '\uE003',
   VoronoiCreate: '\uE002',
 };
 

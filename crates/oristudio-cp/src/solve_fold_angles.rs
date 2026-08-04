@@ -202,6 +202,9 @@ pub enum NoSolution {
     /// A chosen line does not end at this vertex, is not a crease, or was chosen
     /// twice.
     CreaseNotInFan,
+    /// The chosen creases do not all end at one point, so there is no single
+    /// vertex whose closure they could be solving.
+    CreasesDoNotMeet,
     /// The three chosen creases cannot close this vertex at any angles. The
     /// ordinary answer, not a failure — 62% of randomly chosen triples on
     /// freely-angled vertices — and the next move is to choose a different
@@ -776,6 +779,33 @@ pub fn vertex_angle_solutions(
             }
         }
     }
+}
+
+/// The point every one of `chosen` ends at, when there is exactly one.
+///
+/// The tool asks for three creases and no vertex click: three segments meeting
+/// at a point determine that point, so asking for it as well would be asking the
+/// user to tell the software something it can already see. Two creases are
+/// enough to fix it, which is what makes the solvable-partner marking possible
+/// before the third pick.
+///
+/// `None` when they share no endpoint — the creases are not all at one vertex,
+/// and there is no closure condition spanning them.
+pub fn shared_vertex(model: &CreasePatternModel, chosen: &[usize]) -> Option<Point> {
+    let segments: Vec<&crate::geometry::LineSegment> = chosen
+        .iter()
+        .map(|index| model.line_segments.get(*index))
+        .collect::<Option<Vec<_>>>()?;
+    let (first, rest) = segments.split_first()?;
+    // `CELL` in `checks_spatial` is what "at this point" means for the fan, so
+    // the same tolerance decides it here — a vertex the fan would accept and
+    // this would not is a disagreement with nothing to explain it.
+    const MEETING: f64 = crate::geometry::Epsilon::UNKNOWN_1EN4;
+    [first.a, first.b].into_iter().find(|candidate| {
+        rest.iter().all(|segment| {
+            candidate.distance(segment.a) < MEETING || candidate.distance(segment.b) < MEETING
+        })
+    })
 }
 
 /// Which creases would complete a solvable triple with the ones already chosen.

@@ -97,6 +97,18 @@
     "seedPressPendingOther_other": "{{count}} 件のシード押下が保留中",
     "settingCountOne_other": "{{count}} 件の設定",
     "settingCountOther_other": "{{count}} 件の設定",
+    "solveAngles": {
+      "apply": "適用",
+      "count": "{{total}} 件中 {{index}} 件目",
+      "creaseNotInFan": "同じ頂点に集まる異なる 3 本の折り線を選んでください。",
+      "family": "この 3 本には自由度が 1 つ残るため、これは無数にある解の 1 つです。確定した解が必要なら、3 本目に別の折り線を選んでください。",
+      "next": "次の解",
+      "notEnoughCreases": "ここに集まる折り線が 3 本未満のため、解くべき 3 つの角度がありません。",
+      "previous": "前の解",
+      "single": "解は 1 つ",
+      "title": "折り角度",
+      "unreachable": "この 3 本ではどの折り角度でも頂点を閉じられません。別の 3 本を試してください。"
+    },
     "stopOnAuxAria": "提案された折り線を補助線で止められるようにします",
     "stopOnAuxLabel": "補助線",
     "to": "先",

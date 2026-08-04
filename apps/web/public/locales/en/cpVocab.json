@@ -399,6 +399,16 @@
         "1": "Pick the crease to add"
       }
     },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "Solve Fold Angles",
+      "tooltip": "Pick three creases at one vertex and solve their fold angles so the vertex closes, without moving anything",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick the first crease to change",
+        "1": "Pick the second crease to change",
+        "2": "Pick the third crease to change"
+      }
+    },
     "cp_action_foldable_line_input": {
       "label": "Flat Foldable Line (extend)",
       "tooltip": "Foldable line input",

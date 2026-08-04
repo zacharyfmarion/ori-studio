@@ -97,6 +97,18 @@
     "seedPressPendingOther_other": "시드 클릭 {{count}}개 대기 중",
     "settingCountOne_other": "설정 {{count}}개",
     "settingCountOther_other": "설정 {{count}}개",
+    "solveAngles": {
+      "apply": "적용",
+      "count": "{{total}}개 중 {{index}}번째",
+      "creaseNotInFan": "같은 꼭짓점에서 만나는 서로 다른 세 접선을 고르세요.",
+      "family": "이 세 접선에는 자유도가 하나 남아 있어 무수히 많은 해 중 하나입니다. 확정된 해를 원하면 다른 세 번째 접선을 고르세요.",
+      "next": "다음 해",
+      "notEnoughCreases": "여기서 만나는 접선이 세 개 미만이라 풀 각도가 없습니다.",
+      "previous": "이전 해",
+      "single": "해가 하나",
+      "title": "접기 각도",
+      "unreachable": "이 세 접선으로는 어떤 접기 각도로도 이 꼭짓점을 닫을 수 없습니다. 다른 셋을 시도해 보세요."
+    },
     "stopOnAuxAria": "제안된 접힘선이 보조선에서 멈추도록 허용합니다",
     "stopOnAuxLabel": "보조선",
     "to": "끝",

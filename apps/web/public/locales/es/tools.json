@@ -113,6 +113,18 @@
     "settingCountOther_one": "{{count}} ajustes",
     "settingCountOther_many": "{{count}} ajustes",
     "settingCountOther_other": "{{count}} ajustes",
+    "solveAngles": {
+      "apply": "Aplicar",
+      "count": "{{index}} de {{total}}",
+      "creaseNotInFan": "Elige tres pliegues distintos que coincidan en el mismo vértice.",
+      "family": "Estos tres pliegues dejan un grado de libertad, así que esta es una de infinitas respuestas: elige otro tercer pliegue para obtener una definida.",
+      "next": "Solución siguiente",
+      "notEnoughCreases": "Aquí coinciden menos de tres pliegues, así que no hay tres ángulos que resolver.",
+      "previous": "Solución anterior",
+      "single": "Una solución",
+      "title": "Ángulos de plegado",
+      "unreachable": "Estos tres pliegues no pueden cerrar este vértice con ningún ángulo: prueba con otros tres."
+    },
     "stopOnAuxAria": "Permite que un pliegue sugerido se detenga en una línea auxiliar",
     "stopOnAuxLabel": "Líneas auxiliares",
     "to": "Hasta",

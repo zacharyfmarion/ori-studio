@@ -399,6 +399,16 @@
         "1": "Elige el pliegue a añadir"
       }
     },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "Resolver ángulos de plegado",
+      "tooltip": "Elige tres pliegues en un vértice y resuelve sus ángulos para que el vértice cierre, sin mover nada",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Elige el primer pliegue a cambiar",
+        "1": "Elige el segundo pliegue a cambiar",
+        "2": "Elige el tercer pliegue a cambiar"
+      }
+    },
     "cp_action_foldable_line_input": {
       "label": "Línea plegable plana (extender)",
       "tooltip": "Entrada de línea plegable",

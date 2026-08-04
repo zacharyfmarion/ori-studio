@@ -399,6 +399,16 @@
         "1": "Escolha o vinco a adicionar"
       }
     },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "Resolver ângulos de dobra",
+      "tooltip": "Escolha três vincos em um vértice e resolva seus ângulos de dobra para que o vértice feche, sem mover nada",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Escolha o primeiro vinco a alterar",
+        "1": "Escolha o segundo vinco a alterar",
+        "2": "Escolha o terceiro vinco a alterar"
+      }
+    },
     "cp_action_foldable_line_input": {
       "label": "Linha dobrável plana (estender)",
       "tooltip": "Entrada de linha dobrável",

@@ -405,6 +405,15 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
     toolSteps: ['Pick vertex', 'Pick the crease to add'],
     tooltip: 'Add the crease that makes a vertex fold consistently, solving its fold angle when the vertex is not flat',
   }),
+  ready('VertexSolveFoldAngles', 'Solve fold angles', 'construct', 'sliders-horizontal', 'OriStudioSolveVertexFoldAngles', {
+    toolSteps: [
+      'Pick the first crease to change',
+      'Pick the second crease to change',
+      'Pick the third crease to change',
+    ],
+    tooltip:
+      'Pick three creases at one vertex and solve their fold angles so the vertex closes, without moving anything',
+  }),
   ready('FoldableLineInput', 'Foldable line input', 'construct', 'list-plus', 'MouseHandlerFoldableLineInput', {
     // Not present in Oriedita's UI — hide the rail button (revisit at end).
     placement: 'hidden-ui-only',
@@ -836,6 +845,7 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'CreaseMakeEdge',
   'CreaseSetLineColor',
   'CreaseSetFoldAngle',
+  'VertexSolveFoldAngles',
   'BackgroundChangePosition',
   'LineSegmentDivision',
   'LineSegmentRatioSet',
@@ -1028,6 +1038,7 @@ export function cpCommandUsesActiveLineColor(
 const CP_KERNEL_DECIDED_CANDIDATE_OPERATIONS = new Set<OristudioCpOperationId>([
   'VertexMakeAngularlyFlatFoldable',
   'FoldableLineDraw',
+  'VertexSolveFoldAngles',
 ]);
 
 /** Whether `operationId`'s candidates carry their own crease type and angle. */
