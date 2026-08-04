@@ -51,8 +51,13 @@ jobs:
       - name: Build web app
         run: npm run build:web
 
+      # Run from apps/web so Wrangler discovers `functions/` and `wrangler.toml`, which it
+      # resolves relative to its working directory. Deploying `apps/web/dist` from the repo
+      # root uploads the static assets and silently skips every Pages Function — the deploy
+      # reports success and all the share endpoints 404.
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler@4 pages deploy apps/web/dist --project-name=oristudio --branch=main
+        working-directory: apps/web
+        run: npx wrangler@4 pages deploy dist --project-name=oristudio --branch=main
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

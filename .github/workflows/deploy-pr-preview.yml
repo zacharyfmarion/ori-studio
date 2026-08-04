@@ -115,7 +115,8 @@ jobs:
         run: npm run build:web
 
       - name: Deploy preview to Cloudflare Pages
-        run: npx wrangler@4 pages deploy apps/web/dist --project-name=oristudio --branch=pr-${{ github.event.pull_request.number }}
+        working-directory: apps/web
+        run: npx wrangler@4 pages deploy dist --project-name=oristudio --branch=pr-${{ github.event.pull_request.number }}
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
