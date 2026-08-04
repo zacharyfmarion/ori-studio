@@ -86,16 +86,12 @@ function inlineSharedPayload(html: string, meta: ShareCardMeta, payload: string)
 /** Apply the card metadata only — used when the share is missing but the SPA still serves. */
 export function renderShareCardMeta(html: string, meta: ShareCardMeta): string {
   const title = shareCardTitle(meta);
-  const description = shareCardDescription(meta);
+  const description = shareCardDescription();
 
   let next = setDocumentTitle(html, title);
-  // An absent description leaves index.html's generic one in place rather than writing an
-  // empty tag, which some crawlers render as a blank line.
-  if (description) {
-    next = setMetaTag(next, 'name', 'description', description);
-    next = setMetaTag(next, 'property', 'og:description', description);
-  }
+  next = setMetaTag(next, 'name', 'description', description);
   next = setMetaTag(next, 'property', 'og:title', title);
+  next = setMetaTag(next, 'property', 'og:description', description);
   next = setMetaTag(next, 'property', 'og:image', meta.imageUrl);
   next = setMetaTag(next, 'property', 'og:url', meta.shareUrl);
   next = setMetaTag(next, 'property', 'og:type', 'website');
@@ -104,7 +100,7 @@ export function renderShareCardMeta(html: string, meta: ShareCardMeta): string {
   // would render a broken image.
   next = setMetaTag(next, 'name', 'twitter:card', 'summary_large_image');
   next = setMetaTag(next, 'name', 'twitter:title', title);
-  if (description) next = setMetaTag(next, 'name', 'twitter:description', description);
+  next = setMetaTag(next, 'name', 'twitter:description', description);
   next = setMetaTag(next, 'name', 'twitter:image', meta.imageUrl);
   return next;
 }

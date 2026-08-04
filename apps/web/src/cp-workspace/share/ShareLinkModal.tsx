@@ -236,9 +236,7 @@ export function ShareLinkModal() {
             </div>
             <div className="share-embed__meta">
               <div className="share-embed__title">{shareCardTitle(cardText)}</div>
-              {shareCardDescription(cardText) && (
-                <div className="share-embed__description">{shareCardDescription(cardText)}</div>
-              )}
+              <div className="share-embed__description">{shareCardDescription()}</div>
               <div className="share-embed__host">{shareHost}</div>
             </div>
           </div>

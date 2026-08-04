@@ -13,20 +13,25 @@ export interface ShareCardText {
   author: string | null;
 }
 
-/** The embed's headline. */
+/**
+ * The embed's headline: the pattern, then whose it is.
+ *
+ * Attribution belongs on the headline rather than the line below, because the headline is
+ * the part that survives — it is what a chat client bolds, what a search result shows, and
+ * often all that fits on a phone. "Ori Studio" only takes the slot when there is no author
+ * to put there; the description names the app either way, so it is never lost.
+ */
 export function shareCardTitle(card: ShareCardText): string {
-  return `${card.title} — Ori Studio`;
+  return `${card.title} — ${card.author ?? 'Ori Studio'}`;
 }
 
 /**
- * The line beneath it, or null to omit the tag entirely.
+ * The line beneath it: what clicking will do.
  *
- * An attribution and nothing else. A link preview is read in a fraction of a second while
- * scrolling a chat, so the only thing worth the second line is whose pattern it is —
- * everything else (what the app does, how to open it, how big the pattern is) is either
- * obvious from the image or of no interest to the reader. With no author there is nothing
- * left to say, and an absent description reads better than a padded one.
+ * Constant on purpose. A link preview gets about a second of attention while someone
+ * scrolls a chat, and by then the image has already said what the thing *is* — so the only
+ * job left for the second line is telling them what happens if they tap it.
  */
-export function shareCardDescription(card: ShareCardText): string | null {
-  return card.author ? `by ${card.author}` : null;
+export function shareCardDescription(): string {
+  return 'View this crease pattern in Ori Studio';
 }

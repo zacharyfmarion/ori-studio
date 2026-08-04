@@ -24,7 +24,7 @@ import {
   onRequestPut as putThumbnail,
 } from '../api/cp/[id]/thumbnail';
 import { onRequestGet as getSharePage } from '../s/[[shareId]]';
-import { renderSharedCpHtml, shareCardDescription } from '../_lib/cpShareHtml';
+import { renderSharedCpHtml, shareCardDescription, shareCardTitle } from '../_lib/cpShareHtml';
 
 const INDEX_HTML = `<!doctype html>
 <html lang="en">
@@ -372,15 +372,18 @@ describe('thumbnail endpoint', () => {
 });
 
 describe('card metadata', () => {
-  it('is an attribution and nothing else', () => {
-    // A link preview is read in a second while scrolling a chat, so the only thing worth
-    // the second line is whose pattern it is.
-    expect(shareCardDescription({ title: 'Bird base', author: 'Zach' })).toBe('by Zach');
+  it('puts the author on the headline, where a chat client bolds it', () => {
+    expect(shareCardTitle({ title: 'Lamprey V1', author: 'Gyosh' })).toBe('Lamprey V1 — Gyosh');
   });
 
-  it('omits the description entirely when there is no author', () => {
-    // Nothing left to say, and an absent description reads better than a padded one.
-    expect(shareCardDescription({ title: 'Bird base', author: null })).toBeNull();
+  it('falls back to the app name only when there is no author to name', () => {
+    expect(shareCardTitle({ title: 'Lamprey V1', author: null })).toBe('Lamprey V1 — Ori Studio');
+  });
+
+  it('uses the second line to say what tapping does', () => {
+    // The image has already said what the thing is; by the time anyone reads this they
+    // need to know what happens if they act on it.
+    expect(shareCardDescription()).toBe('View this crease pattern in Ori Studio');
   });
 });
 
@@ -397,7 +400,7 @@ describe('GET /s/[[shareId]]', () => {
     const html = renderSharedCpHtml(INDEX_HTML, meta, VALID_PAYLOAD);
     expect(html.match(/property="og:title"/g)).toHaveLength(1);
     expect(html.match(/property="og:description"/g)).toHaveLength(1);
-    expect(html).toContain('content="Bird base — Ori Studio"');
+    expect(html).toContain('content="Bird base — Zach"');
     expect(html).not.toContain('content="Ori Studio"');
   });
 
