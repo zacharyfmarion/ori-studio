@@ -84,7 +84,16 @@ const OVERSIZED_PANELS = {
   // 2700 -> 2687: the canvas half of diagnostic selection came out — the marker
   // hit geometry, its prop wiring, and the select callback. Clicking a marker
   // never worked, so nothing depended on it.
-  'CreasePatternPanel.tsx': 2687,
+  //
+  // 2687 -> 2694: persisting the view. The binding went out first — the saved
+  // camera, the `.ori` fallback angle, and the settle-debounced write-back are
+  // one concern with one invariant (what is written back is what the canvas is
+  // restored from), so they are `camera/useCpDocumentCamera` and reach the
+  // canvas as a single spread. What is left is composition: that spread, and one
+  // prop feeding `isModelAlignedBoxOperation` to the canvas so the operation
+  // frame keeps a model-aligned drag box — the same shape as the
+  // `activeToolRequireSnap` prop beside it.
+  'CreasePatternPanel.tsx': 2694,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
