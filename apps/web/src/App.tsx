@@ -23,7 +23,7 @@ import { createOpenedPathFileService } from './platform/fileService';
 import { getRuntimeSurface } from './platform/runtime';
 import { applyWindowTitle, formatWindowTitle } from './platform/windowTitle';
 import { navigateTo } from './routing/appRouter';
-import { openedProjectPath } from './routing/landing';
+import { currentWorkspacePath } from './routing/landing';
 import { startWorkspaceUrlSync } from './routing/workspaceUrlSync';
 import { useWelcomeDiscardGuard } from './routing/useWelcomeDiscardGuard';
 import { requestConfirmation } from './store/commandDialogStore';
@@ -141,7 +141,7 @@ export default function App() {
     async (path: string) => {
       const opened = await openProject(createOpenedPathFileService(path));
       if (!opened) return;
-      navigateTo(openedProjectPath());
+      navigateTo(currentWorkspacePath());
     },
     [openProject]
   );

@@ -62,6 +62,7 @@ import {
 } from '../../cp-workspace/folded/foldedFigureHandles';
 import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../../lib/foldAngle';
 import { useLayoutStore } from '../layoutStore';
+import { currentWorkspacePath } from '../../routing/landing';
 import {
   registerCommandDialogHost,
   resolveCommandDialog,
@@ -5450,6 +5451,68 @@ describe('workspace store slices', () => {
       expect(state.workflowTarget).toBe('box-pleat');
       // The companion crease pattern is restored onto the Edit canvas.
       expect(state.oristudioCpDocument).not.toBeNull();
+      // The bundle dispatches its load on the design document, so the BP loader
+      // activated Design and the file always opened there — even though the
+      // crease pattern it carries is the surface that was being worked on. One
+      // landing rule now places every format the same way.
+      expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
+      expect(currentWorkspacePath()).toBe('/edit');
+    });
+
+    it('opens a box-pleat .osf with no crease pattern on the BP design, not the chooser', async () => {
+      // Regression: the landing path was derived from which documents existed,
+      // and returned bare `/design` for anything without a crease pattern. That
+      // is the method-chooser sub-route, so routing there ran
+      // `applyDesignRoute('nux')` and replaced the design that had just loaded
+      // with the chooser — the design stayed in the store, invisible.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      const fileService = createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' });
+
+      await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(state.pendingDesignChoice).toBe(false);
+      expect(useLayoutStore.getState().activeWorkspace).toBe('design');
+      expect(currentWorkspacePath()).toBe('/design/bp');
+    });
+
+    it('names the TreeMaker variant when a tree replaces a box-pleat design', async () => {
+      // Regression: `loadText` installed a tree without claiming the design
+      // fields, so the previous file's `workflowTarget` and BP document both
+      // survived. Harmless while every design landed on bare `/design`; once the
+      // landing names the variant it would send a freshly-opened tree to
+      // `/design/bp` and show the stale box-pleat design instead.
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      expect(useWorkspaceStore.getState().workflowTarget).toBe('box-pleat');
+      useWorkspaceStore.setState({ dirty: false });
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .openProject(
+            createFileService({ text: 'tree text', name: 'tree.tmd5', path: '/tmp/tree.tmd5' })
+          )
+      ).resolves.toBe(true);
+
+      const state = useWorkspaceStore.getState();
+      expect(state.workflowTarget).toBe('treemaker');
+      expect(state.pendingDesignChoice).toBe(false);
+      expect(state.oristudioBpDocument).toBeNull();
+      expect(currentWorkspacePath()).toBe('/design/treemaker');
     });
 
     it('warns before a .bps export drops mirror symmetry, and aborts when refused', async () => {

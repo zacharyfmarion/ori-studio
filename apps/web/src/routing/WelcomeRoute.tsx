@@ -8,7 +8,7 @@ import { useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { DESIGN_PATH, EDIT_PATH } from './paths';
-import { openedProjectPath } from './landing';
+import { currentWorkspacePath } from './landing';
 
 /**
  * The start screen only ever opens. The Edit canvas is always-live, so a crease
@@ -63,7 +63,7 @@ export function WelcomeRoute() {
   const handleOpenFile = useCallback(async () => {
     const opened = await openProject();
     if (!opened) return;
-    navigate(openedProjectPath());
+    navigate(currentWorkspacePath());
   }, [navigate, openProject]);
 
   return (

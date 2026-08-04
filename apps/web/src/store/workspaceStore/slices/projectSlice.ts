@@ -107,6 +107,7 @@ import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { frameActiveCpDiagnostic } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
+import { landingWorkspace } from '../landingWorkspace';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
 import { getRuntimeSurface } from '../../../platform/runtime';
@@ -759,6 +760,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       historyPast: [],
       historyFuture: [],
       clipboardPasteCount: 0,
+      // A tree claims the design the way its siblings do (`createNewProject`,
+      // `setLoadedBpProject`): this file's tree *is* the design now, so a
+      // box-pleat design left over from the previous file must not stay loaded
+      // and must not keep naming the Design layout variant.
+      workflowTarget: 'treemaker',
+      pendingDesignChoice: false,
+      oristudioBpDocument: null,
+      oristudioBpWorkspace: null,
     });
     useLayoutStore.getState().activateWorkspace('design');
   };
@@ -1503,6 +1512,23 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return true;
   };
 
+  // Land every successful open in the same workspace, whatever the file format.
+  // Each format's loader activates a workspace of its own as it installs state,
+  // so without this the landing was whichever loader happened to run last: an
+  // `.osf` holding a design plus an Edit crease pattern dispatches on its design
+  // document and always opened on Design, even when the crease pattern was the
+  // surface being worked on. Applied here so File › Open, the start screen, the
+  // drop handler, and the desktop open-with handler cannot disagree — the latter
+  // three navigate to `currentWorkspacePath()`, which follows this decision
+  // rather than making a second one.
+  const applyLandingWorkspace = () => {
+    if (get().status === 'error') return;
+    const layout = useLayoutStore.getState();
+    layout.activateWorkspace(landingWorkspace(get()));
+    // No-ops outside Design; rebuilds the variant layout when a design landed.
+    layout.ensureDesignLayout();
+  };
+
   // Route a native save/save-as by the documents that exist, NOT by the pane in
   // focus. The Edit crease-pattern canvas is always focusable, so keying off the
   // active view would drop the design whenever the user saved from Edit. If any
@@ -2084,6 +2110,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         } else {
           await loadText(file.text, { filename: file.name, path: file.path });
         }
+        applyLandingWorkspace();
         return true;
       } catch (error) {
         set({ status: 'error', error: annotateLargeSourceError(engineError(error), openedSourceLength) });

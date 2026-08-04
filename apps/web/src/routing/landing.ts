@@ -1,13 +1,37 @@
+import { useLayoutStore } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { DESIGN_PATH, EDIT_PATH } from './paths';
+import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
+import { workspacePath } from './paths';
+import type { WorkspaceId } from '../workspaces/workspaces';
 
 /**
- * Where to land after opening a project: the Edit workspace when it produced a
- * crease pattern, otherwise the Design workspace (method chooser).
+ * The path for `workspace` as the store currently stands. Design resolves to its
+ * method sub-route, because bare `/design` is the method-chooser route — routing
+ * there replaces a loaded design with the chooser.
+ *
+ * The only place a workspace path is derived from state. Everything that needs
+ * one goes through here or through {@link currentWorkspacePath}: the workspace
+ * rail, the URL sync, and every path that opens a file. They used to derive it
+ * three separate ways, and the copy that opening used disagreed with the other
+ * two — it asked which documents existed rather than which workspace was showing,
+ * so any project with no crease pattern landed on the chooser.
  */
-export function openedProjectPath(): string {
-  const state = useWorkspaceStore.getState();
-  return state.oristudioCpDocument !== null || state.importedCreasePattern !== null
-    ? EDIT_PATH
-    : DESIGN_PATH;
+export function pathForWorkspace(workspace: WorkspaceId): string {
+  if (workspace === 'design') {
+    return workspacePath('design', deriveDesignVariant(useWorkspaceStore.getState()));
+  }
+  return workspacePath(workspace);
+}
+
+/**
+ * The path matching the workspace the app is currently showing.
+ *
+ * This is how a caller follows a decision the store already made rather than
+ * making a second one. Opening a project is the case that matters: the loader
+ * installs the documents and `applyLandingWorkspace` picks the workspace, so the
+ * start screen, the drop handler, and the desktop open-with handler only have to
+ * name where that landed.
+ */
+export function currentWorkspacePath(): string {
+  return pathForWorkspace(useLayoutStore.getState().activeWorkspace);
 }

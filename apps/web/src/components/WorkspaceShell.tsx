@@ -35,7 +35,8 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
-import { parseWorkspacePath, workspacePath } from '../routing/paths';
+import { pathForWorkspace } from '../routing/landing';
+import { parseWorkspacePath } from '../routing/paths';
 import { WORKSPACE_DEFINITIONS, type WorkspaceId } from '../workspaces/workspaces';
 
 const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
@@ -51,18 +52,6 @@ const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
  * about store state, not about which workspace happens to be visible.
  */
 const WORKSPACE_DROP_POLICY: DropTargetPolicy = 'open-or-import';
-
-/**
- * Path a rail button navigates to. Design targets its active variant sub-route
- * (so an in-progress design isn't bounced back to the method chooser); other
- * workspaces have a single path.
- */
-function railPath(workspace: WorkspaceId): string {
-  if (workspace === 'design') {
-    return workspacePath('design', deriveDesignVariant(useWorkspaceStore.getState()));
-  }
-  return workspacePath(workspace);
-}
 
 /** Localized workspace-rail tooltip. Literal `t()` calls keep the keys extractable. */
 function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
@@ -96,7 +85,7 @@ function WorkspaceRail() {
               title={workspaceTooltip(t, workspace.id)}
               tooltipSide="right"
               aria-label={workspaceTooltip(t, workspace.id)}
-              onClick={() => navigate(railPath(workspace.id))}
+              onClick={() => navigate(pathForWorkspace(workspace.id))}
             >
               <Icon size={19} />
             </IconButton>
