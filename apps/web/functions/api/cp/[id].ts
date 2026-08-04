@@ -29,7 +29,6 @@ export async function onRequestGet(context: CpShareContext): Promise<Response> {
       title: share.title,
       author: share.author,
       createdAt: share.createdAt,
-      creaseCount: share.creaseCount,
     },
     // Records are immutable, so a client that retries after a consistency miss can cache
     // the result — but only briefly, because the miss it is retrying is itself a cache

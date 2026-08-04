@@ -18,7 +18,6 @@ export interface InlinedSharedCp {
   payload: string;
   title: string;
   author: string | null;
-  creaseCount: number;
 }
 
 function isInlinedSharedCp(value: unknown): value is InlinedSharedCp {

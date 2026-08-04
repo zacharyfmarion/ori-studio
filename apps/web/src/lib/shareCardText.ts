@@ -11,18 +11,22 @@
 export interface ShareCardText {
   title: string;
   author: string | null;
-  creaseCount: number;
 }
 
-/** What appears as the embed's headline. */
+/** The embed's headline. */
 export function shareCardTitle(card: ShareCardText): string {
   return `${card.title} — Ori Studio`;
 }
 
-/** The line beneath it. Names the author when there is one; always states the size. */
-export function shareCardDescription(card: ShareCardText): string {
-  const creases =
-    card.creaseCount === 1 ? '1 crease' : `${card.creaseCount.toLocaleString('en-US')} creases`;
-  const subject = card.author ? `A crease pattern by ${card.author}` : 'A crease pattern';
-  return `${subject} · ${creases}. Open it in Ori Studio to fold, edit, and export.`;
+/**
+ * The line beneath it, or null to omit the tag entirely.
+ *
+ * An attribution and nothing else. A link preview is read in a fraction of a second while
+ * scrolling a chat, so the only thing worth the second line is whose pattern it is —
+ * everything else (what the app does, how to open it, how big the pattern is) is either
+ * obvious from the image or of no interest to the reader. With no author there is nothing
+ * left to say, and an absent description reads better than a padded one.
+ */
+export function shareCardDescription(card: ShareCardText): string | null {
+  return card.author ? `by ${card.author}` : null;
 }

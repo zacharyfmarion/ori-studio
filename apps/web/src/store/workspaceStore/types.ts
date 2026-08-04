@@ -138,7 +138,6 @@ export interface OristudioCpShareDraft {
   segmentId: number;
   /** Codec output, already encoded — the Worker stores this verbatim. */
   payload: string;
-  creaseCount: number;
   /**
    * Document fold and its segments — the same pair the export dialog takes, so the
    * card preview runs through `buildCreaseExportArtwork` unchanged rather than needing

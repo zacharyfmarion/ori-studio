@@ -13,7 +13,6 @@ import {
   RATE_LIMIT_PER_HOUR,
   readShareIdParam,
   sanitizeAuthor,
-  sanitizeCreaseCount,
   sanitizeTitle,
   shareKey,
   validatePayload,
@@ -80,7 +79,7 @@ function createContext(
   env: Env,
   request: Request,
   params: Record<string, string | string[] | undefined> = {},
-  next: () => Promise<Response> = async () =>
+  next: (request?: Request) => Promise<Response> = async () =>
     new Response(INDEX_HTML, { headers: { 'Content-Type': 'text/html' } })
 ): CpShareContext {
   return { request, env, params, next };
@@ -137,12 +136,6 @@ describe('field sanitisation', () => {
     expect(sanitizeAuthor('y'.repeat(200))).toHaveLength(60);
   });
 
-  it('floors the crease count and refuses nonsense', () => {
-    expect(sanitizeCreaseCount(361.7)).toBe(361);
-    expect(sanitizeCreaseCount(-5)).toBe(0);
-    expect(sanitizeCreaseCount(Number.NaN)).toBe(0);
-    expect(sanitizeCreaseCount('361')).toBe(0);
-  });
 });
 
 describe('payload validation', () => {
@@ -169,7 +162,7 @@ describe('POST /api/cp', () => {
   it('stores the payload verbatim and returns a share url', async () => {
     const env = createEnv();
     const response = await onRequestPost(
-      createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Bird base', creaseCount: 361 }))
+      createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Bird base' }))
     );
     expect(response.status).toBe(200);
 
@@ -181,7 +174,6 @@ describe('POST /api/cp', () => {
     expect(record.payload).toBe(VALID_PAYLOAD);
     expect(record.title).toBe('Bird base');
     expect(record.author).toBeNull();
-    expect(record.creaseCount).toBe(361);
   });
 
   it('stores only the hash of the upload token, never the token', async () => {
@@ -380,19 +372,15 @@ describe('thumbnail endpoint', () => {
 });
 
 describe('card metadata', () => {
-  it('names the author when there is one, and pluralises creases', () => {
-    const base = {
-      id: 'a3bK9xmQ',
-      title: 'Bird base',
-      shareUrl: 'https://x/s/a3bK9xmQ',
-      imageUrl: 'https://x/api/cp/a3bK9xmQ/thumbnail',
-    };
-    expect(shareCardDescription({ ...base, author: 'Zach', creaseCount: 361 })).toContain(
-      'A crease pattern by Zach · 361 creases'
-    );
-    expect(shareCardDescription({ ...base, author: null, creaseCount: 1 })).toContain(
-      'A crease pattern · 1 crease'
-    );
+  it('is an attribution and nothing else', () => {
+    // A link preview is read in a second while scrolling a chat, so the only thing worth
+    // the second line is whose pattern it is.
+    expect(shareCardDescription({ title: 'Bird base', author: 'Zach' })).toBe('by Zach');
+  });
+
+  it('omits the description entirely when there is no author', () => {
+    // Nothing left to say, and an absent description reads better than a padded one.
+    expect(shareCardDescription({ title: 'Bird base', author: null })).toBeNull();
   });
 });
 
@@ -401,7 +389,6 @@ describe('GET /s/[[shareId]]', () => {
     id: 'a3bK9xmQ',
     title: 'Bird base',
     author: 'Zach',
-    creaseCount: 361,
     shareUrl: 'https://oristudio.pages.dev/s/a3bK9xmQ',
     imageUrl: 'https://oristudio.pages.dev/api/cp/a3bK9xmQ/thumbnail',
   };
@@ -479,6 +466,54 @@ describe('GET /s/[[shareId]]', () => {
     expect(get).not.toHaveBeenCalled();
     expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
     expect(await response.text()).toContain('<title>Ori Studio</title>');
+  });
+
+  it('asks for index.html unconditionally, so a cached copy cannot preempt the rewrite', async () => {
+    // Every share serves the same index.html, so its ETag is identical for every link. A
+    // client that has seen any other page sends If-None-Match, the asset handler answers
+    // 304, and the OpenGraph tags never reach it -- after throwing, because a 304 cannot
+    // carry the body we tried to give it.
+    const env = createEnv();
+    const created = (await (
+      await onRequestPost(createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane' })))
+    ).json()) as { id: string };
+
+    let seen: Headers | null = null;
+    const next = async (request?: Request) => {
+      seen = new Headers(request?.headers);
+      if (seen.has('If-None-Match')) return new Response(null, { status: 304 });
+      return new Response(INDEX_HTML, { headers: { 'Content-Type': 'text/html' } });
+    };
+
+    const request = new Request(`https://oristudio.pages.dev/s/${created.id}`, {
+      headers: { 'If-None-Match': '"abc"', 'If-Modified-Since': 'Mon, 01 Jan 2024 00:00:00 GMT' },
+    });
+    const response = await getSharePage(createContext(env, request, { shareId: created.id }, next));
+
+    expect(seen!.has('If-None-Match')).toBe(false);
+    expect(seen!.has('If-Modified-Since')).toBe(false);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain(VALID_PAYLOAD);
+  });
+
+  it('passes through a response it cannot rewrite rather than throwing', async () => {
+    // `new Response(html, { status: 304 })` is a TypeError; a share must degrade to the
+    // plain asset instead of a Worker exception page.
+    const env = createEnv();
+    const created = (await (
+      await onRequestPost(createContext(env, postRequest({ payload: VALID_PAYLOAD, title: 'Crane' })))
+    ).json()) as { id: string };
+
+    const response = await getSharePage(
+      createContext(
+        env,
+        new Request(`https://oristudio.pages.dev/s/${created.id}`),
+        { shareId: created.id },
+        async () => new Response(null, { status: 304 })
+      )
+    );
+    expect(response.status).toBe(304);
+    expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
   });
 
   it('serves the SPA for a well-formed id that no longer exists', async () => {

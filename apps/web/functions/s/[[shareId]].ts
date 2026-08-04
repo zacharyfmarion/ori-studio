@@ -8,20 +8,47 @@ import {
 import { renderSharedCpHtml, type ShareCardMeta } from '../_lib/cpShareHtml';
 
 /**
+ * Ask the asset handler for `index.html` **unconditionally**.
+ *
+ * Every share serves the same underlying `index.html`, so its ETag is the same for every
+ * link. A client that has seen any other page will therefore send `If-None-Match` and the
+ * asset handler will answer `304 Not Modified` — with no body to rewrite, and at a status
+ * that legally cannot carry one. That is not merely a crash (`new Response(html, {status:
+ * 304})` throws): a 304 means the client reuses its cached copy, so the share's OpenGraph
+ * tags and inlined payload would never reach it at all.
+ *
+ * Stripping the validators is what makes the per-share rewrite reachable. The response we
+ * send is marked `must-revalidate`, so nothing downstream caches it either.
+ */
+function unconditional(request: Request): Request {
+  const headers = new Headers(request.headers);
+  headers.delete('If-None-Match');
+  headers.delete('If-Modified-Since');
+  return new Request(request.url, { method: request.method, headers });
+}
+
+/**
  * Serve a shared crease pattern.
  *
  * Does two jobs in one KV read: writes the OpenGraph card (crawlers do not run JS, which
  * is the entire reason this scheme is server-backed rather than fragment-based) and
  * inlines the payload so the SPA renders the pattern with no follow-up request.
  */
-async function handleShare(context: CpShareContext): Promise<Response> {
+async function handleShare(context: CpShareContext, includeBody: boolean): Promise<Response> {
   const shareId = readShareIdParam(context.params.shareId);
-  const response = await context.next();
+  const response = await context.next(unconditional(context.request));
 
   // Not a share-shaped id — a truncated paste, a crawler probing, `/s` on its own. Serve
   // the SPA untouched and, critically, without a KV read: null reads are billed, and an
   // exhausted free-plan read quota takes every real link down until 00:00 UTC.
   if (!shareId) return withIsolationHeaders(response);
+
+  // Anything that is not an HTML body is not ours to rewrite — an error page, a redirect,
+  // or a status that cannot carry a body at all.
+  const contentType = response.headers.get('Content-Type') || '';
+  if (!response.ok || !contentType.includes('text/html')) {
+    return withIsolationHeaders(response);
+  }
 
   const share = await readShare(context.env, shareId);
   if (!share) return withIsolationHeaders(response);
@@ -31,7 +58,6 @@ async function handleShare(context: CpShareContext): Promise<Response> {
     id: share.id,
     title: share.title,
     author: share.author,
-    creaseCount: share.creaseCount,
     shareUrl: shareUrl(origin, share.id),
     imageUrl: thumbnailUrl(origin, share.id),
   };
@@ -41,11 +67,13 @@ async function handleShare(context: CpShareContext): Promise<Response> {
   headers.set('Content-Type', 'text/html; charset=utf-8');
   // Per-share HTML: never shared between links, and cheap to regenerate.
   headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+  // Both are the upstream asset's, and neither describes what we just built.
   headers.delete('Content-Length');
+  headers.delete('ETag');
 
-  return withIsolationHeaders(
-    new Response(html, { status: response.status, statusText: response.statusText, headers })
-  );
+  // A HEAD reply must carry the headers and none of the body. Building it from `html`
+  // and trusting the runtime to strip it would send a Content-Length nothing follows.
+  return withIsolationHeaders(new Response(includeBody ? html : null, { status: 200, headers }));
 }
 
 /**
@@ -68,9 +96,9 @@ function withIsolationHeaders(response: Response): Response {
 }
 
 export async function onRequestGet(context: CpShareContext): Promise<Response> {
-  return handleShare(context);
+  return handleShare(context, true);
 }
 
 export async function onRequestHead(context: CpShareContext): Promise<Response> {
-  return handleShare(context);
+  return handleShare(context, false);
 }

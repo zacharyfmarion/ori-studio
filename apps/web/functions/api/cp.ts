@@ -9,7 +9,6 @@ import {
   randomToken,
   readShare,
   sanitizeAuthor,
-  sanitizeCreaseCount,
   sanitizeTitle,
   shareUrl,
   storageFailure,
@@ -21,7 +20,6 @@ interface CreateCpShareBody {
   payload?: unknown;
   title?: unknown;
   author?: unknown;
-  creaseCount?: unknown;
 }
 
 /**
@@ -59,7 +57,6 @@ export async function onRequestPost(context: CpShareContext): Promise<Response> 
   const payload = body.payload as string;
   const title = sanitizeTitle(body.title);
   const author = sanitizeAuthor(body.author);
-  const creaseCount = sanitizeCreaseCount(body.creaseCount);
   const thumbnailUploadToken = randomToken();
   const now = new Date();
 
@@ -95,7 +92,6 @@ export async function onRequestPost(context: CpShareContext): Promise<Response> 
       title,
       author,
       createdAt: now.toISOString(),
-      creaseCount,
       thumbnailUploadTokenHash: await hashToken(thumbnailUploadToken),
     };
     await writeShare(env, record);

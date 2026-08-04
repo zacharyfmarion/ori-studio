@@ -43,7 +43,7 @@ export interface CpShareContext {
   request: Request;
   env: Env;
   params: Record<string, string | string[] | undefined>;
-  next: () => Promise<Response>;
+  next: (request?: Request) => Promise<Response>;
 }
 
 export interface CpShareRecord {
@@ -53,7 +53,6 @@ export interface CpShareRecord {
   title: string;
   author: string | null;
   createdAt: string;
-  creaseCount: number;
   /** SHA-256 of the one-time upload token. Null once a thumbnail exists. */
   thumbnailUploadTokenHash: string | null;
 }
@@ -140,11 +139,6 @@ export function sanitizeAuthor(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const next = value.trim().slice(0, MAX_AUTHOR_CHARS);
   return next || null;
-}
-
-export function sanitizeCreaseCount(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return 0;
-  return Math.floor(value);
 }
 
 /** Validate a payload, returning an error message or null. */

@@ -2445,7 +2445,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpShareDraft: {
             segmentId,
             payload,
-            creaseCount: subFold.edges_vertices?.length ?? 0,
             fold: foldArtifacts.fold,
             segments: segmentFoldDocument(foldArtifacts.fold),
             url: null,
@@ -2470,12 +2469,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const draft = get().oristudioCpShareDraft;
       if (!draft) return false;
       try {
-        const created = await createCpShare({
-          payload: draft.payload,
-          title,
-          author,
-          creaseCount: draft.creaseCount,
-        });
+        const created = await createCpShare({ payload: draft.payload, title, author });
         set({
           oristudioCpShareDraft: { ...get().oristudioCpShareDraft!, url: created.url },
         });

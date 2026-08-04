@@ -33,7 +33,6 @@ export interface CreateCpShareRequest {
   payload: string;
   title: string;
   author: string | null;
-  creaseCount: number;
 }
 
 export interface CreateCpShareResponse {
@@ -48,7 +47,6 @@ export interface CpShareData {
   title: string;
   author: string | null;
   createdAt: string;
-  creaseCount: number;
 }
 
 /** An API failure carrying the status and the Worker's own error code. */

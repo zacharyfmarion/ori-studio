@@ -15,7 +15,6 @@ export interface ShareCardMeta {
   id: string;
   title: string;
   author: string | null;
-  creaseCount: number;
   shareUrl: string;
   imageUrl: string;
 }
@@ -77,7 +76,6 @@ function inlineSharedPayload(html: string, meta: ShareCardMeta, payload: string)
     payload,
     title: meta.title,
     author: meta.author,
-    creaseCount: meta.creaseCount,
   });
   const script = `<script type="application/json" id="${SHARED_CP_SCRIPT_ID}">${data}</script>`;
   return html.includes('</head>')
@@ -91,9 +89,13 @@ export function renderShareCardMeta(html: string, meta: ShareCardMeta): string {
   const description = shareCardDescription(meta);
 
   let next = setDocumentTitle(html, title);
-  next = setMetaTag(next, 'name', 'description', description);
+  // An absent description leaves index.html's generic one in place rather than writing an
+  // empty tag, which some crawlers render as a blank line.
+  if (description) {
+    next = setMetaTag(next, 'name', 'description', description);
+    next = setMetaTag(next, 'property', 'og:description', description);
+  }
   next = setMetaTag(next, 'property', 'og:title', title);
-  next = setMetaTag(next, 'property', 'og:description', description);
   next = setMetaTag(next, 'property', 'og:image', meta.imageUrl);
   next = setMetaTag(next, 'property', 'og:url', meta.shareUrl);
   next = setMetaTag(next, 'property', 'og:type', 'website');
@@ -102,7 +104,7 @@ export function renderShareCardMeta(html: string, meta: ShareCardMeta): string {
   // would render a broken image.
   next = setMetaTag(next, 'name', 'twitter:card', 'summary_large_image');
   next = setMetaTag(next, 'name', 'twitter:title', title);
-  next = setMetaTag(next, 'name', 'twitter:description', description);
+  if (description) next = setMetaTag(next, 'name', 'twitter:description', description);
   next = setMetaTag(next, 'name', 'twitter:image', meta.imageUrl);
   return next;
 }

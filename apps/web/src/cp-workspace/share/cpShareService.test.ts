@@ -28,12 +28,7 @@ describe('createCpShare', () => {
         jsonResponse({ id: 'a3bK9xmQ', url: 'https://ori.studio/s/a3bK9xmQ', thumbnailUploadToken: 'tok' })
       );
 
-    const result = await createCpShare({
-      payload: 'T0NTMQEB',
-      title: 'Bird base',
-      author: 'Zach',
-      creaseCount: 361,
-    });
+    const result = await createCpShare({ payload: 'T0NTMQEB', title: 'Bird base', author: 'Zach' });
 
     expect(result.url).toBe('https://ori.studio/s/a3bK9xmQ');
     const [, init] = fetchSpy.mock.calls[0];
@@ -41,7 +36,6 @@ describe('createCpShare', () => {
       payload: 'T0NTMQEB',
       title: 'Bird base',
       author: 'Zach',
-      creaseCount: 361,
     });
   });
 
@@ -52,13 +46,13 @@ describe('createCpShare', () => {
 
     // The code, not just the status, is what distinguishes "wait a few minutes" from
     // "this pattern is too big" — both are refusals the person can act on differently.
-    await expect(createCpShare({ payload: 'x', title: '', author: null, creaseCount: 0 }))
+    await expect(createCpShare({ payload: 'x', title: '', author: null }))
       .rejects.toMatchObject({ status: 429, code: 'rate_limited' });
   });
 
   it('still throws a typed error when the body is not JSON', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<html>502</html>', { status: 502 }));
-    const error = await createCpShare({ payload: 'x', title: '', author: null, creaseCount: 0 }).catch(
+    const error = await createCpShare({ payload: 'x', title: '', author: null }).catch(
       (caught: unknown) => caught
     );
     expect(error).toBeInstanceOf(CpShareError);
@@ -70,7 +64,7 @@ describe('fetchCpShare', () => {
   it('encodes the id rather than interpolating it raw', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(jsonResponse({ id: 'a', payload: 'p', title: '', author: null, createdAt: '', creaseCount: 0 }));
+      .mockResolvedValue(jsonResponse({ id: 'a', payload: 'p', title: '', author: null, createdAt: '' }));
     await fetchCpShare('../../etc');
     expect(String(fetchSpy.mock.calls[0][0])).toContain(encodeURIComponent('../../etc'));
   });

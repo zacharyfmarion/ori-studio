@@ -146,7 +146,6 @@ export function ShareLinkModal() {
   const cardText = {
     title: title.trim() || t('dialogs:share.titlePlaceholder', 'Untitled crease pattern'),
     author: author.trim() || null,
-    creaseCount: draft?.creaseCount ?? 0,
   };
   const shareHost = url ? new URL(url).host : window.location.host;
 
@@ -237,7 +236,9 @@ export function ShareLinkModal() {
             </div>
             <div className="share-embed__meta">
               <div className="share-embed__title">{shareCardTitle(cardText)}</div>
-              <div className="share-embed__description">{shareCardDescription(cardText)}</div>
+              {shareCardDescription(cardText) && (
+                <div className="share-embed__description">{shareCardDescription(cardText)}</div>
+              )}
               <div className="share-embed__host">{shareHost}</div>
             </div>
           </div>
@@ -356,12 +357,6 @@ export function ShareLinkModal() {
                 : t('dialogs:share.create', 'Create share link')}
             </Button>
           )}
-
-          <p className="share-link-modal__meta">
-            {t('dialogs:shareLink.summary', '{{creases}} creases', {
-              creases: draft.creaseCount,
-            })}
-          </p>
 
           <p className="share-link-modal__note">
             {t(

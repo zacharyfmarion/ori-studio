@@ -7022,11 +7022,29 @@ button.bp-packing-alert:focus-visible {
 }
 
 .color-field__input {
-  padding: 2px;
+  padding: 0;
+  overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
   cursor: pointer;
+}
+
+/* `input[type=color]` draws its swatch inside browser-default padding, so the colour
+   floats in a frame instead of being the control. These reach past that and let it fill
+   the whole interior — what a swatch is supposed to look like. */
+.color-field__input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-field__input::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 1px);
+}
+
+.color-field__input::-moz-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 1px);
 }
 
 .color-field__input:focus-visible {
