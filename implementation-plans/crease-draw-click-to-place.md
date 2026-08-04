@@ -213,7 +213,10 @@ time. Worth confirming in browser testing that it does not feel wrong.
 - [x] `npm run i18n:extract`, translate 8 locales, `i18n:stamp`, `i18n:check`
 - [x] `cd apps/web && npx tsc --noEmit`, `npm run lint:web`, `npm run test:web`
 - [x] Phase 5 (`DrawCreaseAngleRestricted5` / `angle-drag`) landed here, on its
-      bespoke handler, using the same predicate
+      bespoke handler, using the same predicate — since retired. Copying the
+      predicate onto a handler that snapped only its press made the snap
+      displacement read as a drag; `angle-drag` now runs the shared engine. See
+      `angle-drag-shared-engine.md`.
 - [ ] Browser check: each of the 7 tools draws by drag *and* by click-click;
       grid-restricted rejects unsnapped clicks without losing the armed point;
       Escape bails; pan/zoom mid-arm keeps the armed point anchored to the model

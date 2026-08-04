@@ -57,6 +57,44 @@ describe('linePickTool', () => {
     expect(outs[1].highlightLineIds).toEqual([3]);
   });
 
+  it('un-picks a crease that is picked again', () => {
+    // Appending it instead produced a duplicate id, which every one of these
+    // tools rejects downstream — the three-angle solve answered `CreaseNotInFan`
+    // and the gesture died with no way back except restarting it.
+    const outs = run(3, [
+      { kind: 'down', point: P, lineId: 3 },
+      { kind: 'down', point: P, lineId: 7 },
+      { kind: 'down', point: P, lineId: 3 },
+    ]);
+    expect(outs[2].state).toEqual({ lineIds: [7] });
+    expect(outs[2].highlightLineIds).toEqual([7]);
+    expect(outs[2].commit).toBeNull();
+  });
+
+  it('lets a changed mind reach a different crease', () => {
+    // The whole point: un-picking has to leave room to pick another and still
+    // commit, not merely avoid the crash.
+    const outs = run(3, [
+      { kind: 'down', point: P, lineId: 3 },
+      { kind: 'down', point: P, lineId: 7 },
+      { kind: 'down', point: P, lineId: 7 },
+      { kind: 'down', point: P, lineId: 9 },
+      { kind: 'down', point: P, lineId: 11 },
+    ]);
+    expect(outs[4].commit).toEqual({ lineIds: [3, 9, 11] });
+  });
+
+  it('never commits a duplicate id', () => {
+    // A two-pick tool clicking one crease twice used to commit `[a, a]`, which
+    // is meaningless for every tool on this engine.
+    const outs = run(2, [
+      { kind: 'down', point: P, lineId: 4 },
+      { kind: 'down', point: P, lineId: 4 },
+    ]);
+    expect(outs[1].commit).toBeNull();
+    expect(outs[1].state).toEqual({ lineIds: [] });
+  });
+
   it('cancel discards the picks', () => {
     const outs = run(2, [
       { kind: 'down', point: P, lineId: 3 },

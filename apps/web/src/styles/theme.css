@@ -7133,3 +7133,92 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-warning, var(--text-secondary));
 }
 
+
+/* The active tool's option window: a transparent frame around the geometry the
+   chosen answer would change, with its header attached to the top edge. The
+   creases themselves are the content — already stroked in the colour the answer
+   would give them and badged with their angles — so the frame must not tint or
+   obscure them. */
+.cp-tool-option {
+  /* Positions the header against the frame's own edges. */
+  position: absolute;
+}
+
+/* Accented, because the frame's job is to say *this region*. Kept to a single
+   hairline with no drop shadow: a heavier edge competes with the creases inside
+   it, which are the thing being looked at. */
+.cp-tool-option__frame {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  border-radius: 0 0 8px 8px;
+  background: transparent;
+}
+
+/* Wears `.floating-toolbar` for its colour, border, radius and shadow, so it
+   matches every other floating control over the canvas by construction rather
+   than by copied values. Everything here is about *attachment*: it shares the
+   frame's top edge and is pinned to its right, `min-width` spanning a wide frame
+   and `max-content` outgrowing a narrow one leftward — either way its right edge
+   is the frame's, which is what says which region these controls belong to. */
+.cp-tool-option__header {
+  position: absolute;
+  right: 0;
+  /* Stepper left, actions right — but only when the bar is wider than its
+     contents, which the sizing below already decides: `min-width` spans a wide
+     frame and leaves free space to distribute, `max-content` shrink-wraps a
+     narrow one and leaves none, so the two groups fall together. That is the
+     "when there is space" rule, with no measurement. */
+  justify-content: space-between;
+  min-width: 100%;
+  width: max-content;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  font-size: 0.72rem;
+  /* The header owns its own gestures; a drag started on it must not also draw a
+     crease on the canvas underneath. */
+  touch-action: none;
+  user-select: none;
+}
+
+.cp-tool-option__stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cp-tool-option__count,
+.cp-tool-option__title {
+  min-width: 0;
+  padding: 0 2px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.cp-tool-option__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Under the frame, so it never covers the geometry the frame is showing, and in
+   the same elevated surface as the header. */
+.cp-tool-option__note {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: max-content;
+  max-width: 320px;
+  margin: 6px 0 0;
+  padding: 5px 8px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: var(--bg-elevated, var(--bg-secondary));
+  border: 1px solid var(--border-default);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  white-space: normal;
+}

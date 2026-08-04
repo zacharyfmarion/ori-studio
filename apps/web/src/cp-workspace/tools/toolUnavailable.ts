@@ -18,13 +18,21 @@
  */
 import type { TFunction } from 'i18next';
 
-/** `solve_spatial::NoCompletion`, as it crosses the wasm boundary. */
+/**
+ * `solve_spatial::NoCompletion` and `solve_fold_angles::NoSolution`, as they
+ * cross the wasm boundary. The two solvers share this table because they share
+ * two codes exactly — a boundary vertex and an indeterminate fan mean the same
+ * thing and want the same next move whichever tool you reached for.
+ */
 export const CP_TOOL_UNAVAILABLE_CODES = [
   'BoundaryVertex',
   'Indeterminate',
   'AlreadyClosed',
   'ExceedsFullFold',
   'Overdetermined',
+  'NotEnoughCreases',
+  'CreaseNotInFan',
+  'AnglesUnreachable',
 ] as const;
 
 export type CpToolUnavailableCode = (typeof CP_TOOL_UNAVAILABLE_CODES)[number];
@@ -68,6 +76,24 @@ export function cpToolUnavailableMessage(
       return t(
         'tools:cpContext.completion.overdetermined',
         'No single crease closes this vertex — at least two would be needed.'
+      );
+    case 'NotEnoughCreases':
+      return t(
+        'tools:cpContext.solveAngles.notEnoughCreases',
+        'Fewer than three creases meet here, so there are no three angles to solve.'
+      );
+    case 'CreaseNotInFan':
+      return t(
+        'tools:cpContext.solveAngles.creaseNotInFan',
+        'Pick three different creases that all meet at the same vertex.'
+      );
+    // Not a failure: three creases chosen at random cannot close a freely-angled
+    // vertex about 62% of the time. The next move is a different three, which is
+    // why the tool marks which ones work.
+    case 'AnglesUnreachable':
+      return t(
+        'tools:cpContext.solveAngles.unreachable',
+        'These three creases cannot close this vertex at any fold angles — try a different three.'
       );
   }
 }

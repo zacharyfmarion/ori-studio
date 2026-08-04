@@ -396,3 +396,47 @@ pub fn set_fold_magnitude_for_indices(
     }
     changed
 }
+
+/// Set a signed fold angle — direction *and* magnitude — on several creases at
+/// once.
+///
+/// Ori Studio native. The two halves have to move together and in one step:
+/// closing a vertex can require a mountain to become a valley, and applying the
+/// colour and the magnitude as two operations would put a state on the undo
+/// stack that the solve never proposed — a crease carrying the new angle with
+/// the old direction, which is a different fold.
+///
+/// Only folding creases are touched, matching
+/// [`set_fold_magnitude_for_indices`]. Angles outside `-180..=180` are skipped
+/// rather than clamped: a caller offering one has a bug, and clamping would hide
+/// it behind a plausible-looking crease.
+pub fn set_signed_fold_angles(model: &mut CreasePatternModel, angles: &[(usize, f64)]) -> usize {
+    let mut changed = 0;
+    for &(index, degrees) in angles {
+        let Some(segment) = model.line_segments.get(index) else {
+            continue;
+        };
+        if !matches!(segment.color, LineColor::Red1 | LineColor::Blue2) {
+            continue;
+        }
+        let Some(magnitude) = FoldMagnitude::from_degrees(degrees.abs()) else {
+            continue;
+        };
+        let color = if degrees < 0.0 {
+            LineColor::Red1
+        } else {
+            LineColor::Blue2
+        };
+        // `with_fold_magnitude` normalises a full fold to `None` itself, which is
+        // the one canonical form for 180 degrees.
+        let updated = segment
+            .with_line_color(color)
+            .with_fold_magnitude(Some(magnitude));
+        if updated == *segment {
+            continue;
+        }
+        model.line_segments[index] = updated;
+        changed += 1;
+    }
+    changed
+}

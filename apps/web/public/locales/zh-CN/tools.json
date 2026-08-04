@@ -99,6 +99,14 @@
     "seedPressPendingOther_other": "{{count}} 次种子按压待处理",
     "settingCountOne_other": "{{count}} 项设置",
     "settingCountOther_other": "{{count}} 项设置",
+    "solveAngles": {
+      "creaseNotInFan": "请选择交于同一顶点的三条不同折线。",
+      "current": "这就是该顶点当前的状态——继续切换可查看另一个解。",
+      "family": "这三条折线仍留有一个自由度，因此这只是无穷多解中的一个——若需确定解，请换一条第三折线。",
+      "notEnoughCreases": "此处交会的折线不足三条，没有三个角度可解。",
+      "title": "折叠角度",
+      "unreachable": "无论折叠角度为何，这三条折线都无法闭合此顶点——请换三条试试。"
+    },
     "stopOnAuxAria": "允许建议的折痕停在辅助线上",
     "stopOnAuxLabel": "辅助线",
     "to": "到",
@@ -112,6 +120,12 @@
   "cpRail": {
     "ariaLabel": "折痕图工具",
     "openEditableFirst": "请先打开可编辑折痕图"
+  },
+  "cpToolOption": {
+    "apply": "应用",
+    "count": "第 {{index}} 个，共 {{total}} 个",
+    "next": "下一个选项",
+    "previous": "上一个选项"
   },
   "divideMode": {
     "count": "数量",

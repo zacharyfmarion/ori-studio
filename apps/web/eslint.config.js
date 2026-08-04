@@ -99,7 +99,16 @@ const OVERSIZED_PANELS = {
   // prop feeding `isModelAlignedBoxOperation` to the canvas so the operation
   // frame keeps a model-aligned drag box — the same shape as the
   // `activeToolRequireSnap` prop beside it.
-  'CreasePatternPanel.tsx': 2676,
+  //
+  // 2676 -> 2729: the Solve Fold Angles tool. Its behaviour is three new
+  // `cp-workspace/` modules — the review state, the on-canvas option window and
+  // its placement math — and the rule that a crease-picking tool starts from an
+  // empty selection went out to `tools/usePickToolSelectionReset`, beside the
+  // registry that defines what a crease-picking tool is. What is left here is
+  // composition: mounting the hook and the layer, routing the tool's commit to
+  // the review instead of the kernel, and four viewport shortcut cases in the
+  // executor every other viewport verb already lives in.
+  'CreasePatternPanel.tsx': 2729,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
