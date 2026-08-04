@@ -26,6 +26,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { useCpOverlayView } from '../cpOverlayViewStore';
 import { Button } from '../../components/ui/Button';
+import { IconButton } from '../../components/ui/IconButton';
 import type { CpToolOptionWindow } from './toolOptionWindow';
 import { toolOptionFrame, toolOptionHeaderOffset, type Size } from './toolOptionPlacement';
 
@@ -111,7 +112,10 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
         <div className="cp-tool-option__frame" aria-hidden />
         <div
           ref={chromeRef}
-          className="cp-tool-option__header"
+          // Wears the shared floating-toolbar look rather than restating it:
+          // this is one of several floating controls over the canvas and they
+          // must not drift apart. Only its attachment to the frame is local.
+          className="floating-toolbar cp-tool-option__header"
           style={{
             // `right: 0` in CSS pins it to the frame's right edge; this is the
             // only part that varies. `-height` sits it on top of the frame,
@@ -127,28 +131,28 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
         >
           {option.count > 1 ? (
             <div className="cp-tool-option__stepper">
-              <Button
+              <IconButton
                 size="sm"
-                variant="ghost"
+                variant="toolbar"
                 aria-label={t('tools:cpToolOption.previous', 'Previous option')}
                 onClick={() => option.onStep(-1)}
               >
                 <ChevronLeft size={14} aria-hidden />
-              </Button>
+              </IconButton>
               <span className="cp-tool-option__count">
                 {t('tools:cpToolOption.count', '{{index}} of {{total}}', {
                   index: option.index + 1,
                   total: option.count,
                 })}
               </span>
-              <Button
+              <IconButton
                 size="sm"
-                variant="ghost"
+                variant="toolbar"
                 aria-label={t('tools:cpToolOption.next', 'Next option')}
                 onClick={() => option.onStep(1)}
               >
                 <ChevronRight size={14} aria-hidden />
-              </Button>
+              </IconButton>
             </div>
           ) : (
             <span className="cp-tool-option__title">{option.title}</span>
