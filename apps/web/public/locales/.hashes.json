@@ -2022,7 +2022,6 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.byLine": "7e7e61546345",
     "dialogs:share.create": "5abb03628549",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
@@ -2039,7 +2038,9 @@
     "errors:shareLink.rateLimited": "026c2a99eb6e",
     "errors:shareLink.storageFailure": "b5f2f1ac9455",
     "errors:shareLink.storageQuota": "b726bcd562ad",
-    "errors:shareLink.tooLarge": "1d76f50c0423"
+    "errors:shareLink.tooLarge": "1d76f50c0423",
+    "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4064,7 +4065,6 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.byLine": "7e7e61546345",
     "dialogs:share.create": "5abb03628549",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
@@ -4081,7 +4081,9 @@
     "errors:shareLink.rateLimited": "026c2a99eb6e",
     "errors:shareLink.storageFailure": "b5f2f1ac9455",
     "errors:shareLink.storageQuota": "b726bcd562ad",
-    "errors:shareLink.tooLarge": "1d76f50c0423"
+    "errors:shareLink.tooLarge": "1d76f50c0423",
+    "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6132,7 +6134,6 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.byLine": "7e7e61546345",
     "dialogs:share.create": "5abb03628549",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
@@ -6149,7 +6150,9 @@
     "errors:shareLink.rateLimited": "026c2a99eb6e",
     "errors:shareLink.storageFailure": "b5f2f1ac9455",
     "errors:shareLink.storageQuota": "b726bcd562ad",
-    "errors:shareLink.tooLarge": "1d76f50c0423"
+    "errors:shareLink.tooLarge": "1d76f50c0423",
+    "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8200,7 +8203,6 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.byLine": "7e7e61546345",
     "dialogs:share.create": "5abb03628549",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
@@ -8217,7 +8219,9 @@
     "errors:shareLink.rateLimited": "026c2a99eb6e",
     "errors:shareLink.storageFailure": "b5f2f1ac9455",
     "errors:shareLink.storageQuota": "b726bcd562ad",
-    "errors:shareLink.tooLarge": "1d76f50c0423"
+    "errors:shareLink.tooLarge": "1d76f50c0423",
+    "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10268,7 +10272,6 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.byLine": "7e7e61546345",
     "dialogs:share.create": "5abb03628549",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
@@ -10285,7 +10288,9 @@
     "errors:shareLink.rateLimited": "026c2a99eb6e",
     "errors:shareLink.storageFailure": "b5f2f1ac9455",
     "errors:shareLink.storageQuota": "b726bcd562ad",
-    "errors:shareLink.tooLarge": "1d76f50c0423"
+    "errors:shareLink.tooLarge": "1d76f50c0423",
+    "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12336,7 +12341,6 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.byLine": "7e7e61546345",
     "dialogs:share.create": "5abb03628549",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
@@ -12353,7 +12357,9 @@
     "errors:shareLink.rateLimited": "026c2a99eb6e",
     "errors:shareLink.storageFailure": "b5f2f1ac9455",
     "errors:shareLink.storageQuota": "b726bcd562ad",
-    "errors:shareLink.tooLarge": "1d76f50c0423"
+    "errors:shareLink.tooLarge": "1d76f50c0423",
+    "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14404,7 +14410,6 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.byLine": "7e7e61546345",
     "dialogs:share.create": "5abb03628549",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
@@ -14421,7 +14426,9 @@
     "errors:shareLink.rateLimited": "026c2a99eb6e",
     "errors:shareLink.storageFailure": "b5f2f1ac9455",
     "errors:shareLink.storageQuota": "b726bcd562ad",
-    "errors:shareLink.tooLarge": "1d76f50c0423"
+    "errors:shareLink.tooLarge": "1d76f50c0423",
+    "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16446,7 +16453,6 @@
     "dialogs:share.author": "d95082a2ee57",
     "dialogs:share.authorPlaceholder": "59be71333c96",
     "dialogs:share.backColor": "21d095d2a433",
-    "dialogs:share.byLine": "7e7e61546345",
     "dialogs:share.create": "5abb03628549",
     "dialogs:share.creating": "26756b8c8a6e",
     "dialogs:share.foldedFigure": "8500f9250873",
@@ -16463,6 +16469,8 @@
     "errors:shareLink.rateLimited": "026c2a99eb6e",
     "errors:shareLink.storageFailure": "b5f2f1ac9455",
     "errors:shareLink.storageQuota": "b726bcd562ad",
-    "errors:shareLink.tooLarge": "1d76f50c0423"
+    "errors:shareLink.tooLarge": "1d76f50c0423",
+    "dialogs:export.foldedFigureNeedsFlat": "b4d4cd3d4cf1",
+    "dialogs:share.foldedFigureNeedsFlat": "b4d4cd3d4cf1"
   }
 }

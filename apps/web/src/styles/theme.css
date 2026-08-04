@@ -1276,8 +1276,9 @@
   line-height: 1.5;
 }
 
-/* The card exactly as it will be published, at the same 1.91:1 the Worker serves. The
-   aspect ratio is set inline from SHARE_CARD_WIDTH/HEIGHT so the two cannot drift. */
+/* The card exactly as it will be published, at the same 1.91:1 the Worker serves. Both
+   the aspect ratio and the fill are set inline — from SHARE_CARD_WIDTH/HEIGHT and from
+   the export palette's canvas colour — so the preview cannot drift from the PNG. */
 .share-link-modal__preview {
   display: flex;
   align-items: center;
@@ -1285,7 +1286,6 @@
   overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  background: var(--bg-primary);
 }
 
 .share-link-modal__preview img {

@@ -128,7 +128,9 @@ const PANELS_WITH_LEGACY_KEYDOWN = [
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'src/generated'],
+    // `.wrangler` holds the bundles `wrangler pages dev` generates from `functions/` —
+    // build output, and minified, so linting it reports on generated code rather than ours.
+    ignores: ['dist', 'src/generated', '.wrangler'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -8,11 +8,13 @@ import {
   composeCreaseExportSvg,
   DEFAULT_CREASE_EXPORT_FOLDED_FIGURE,
   DEFAULT_CREASE_EXPORT_OPTIONS,
+  EMPTY_CREASE_EXPORT_CAPTION,
   SHARE_CARD_HEIGHT,
   SHARE_CARD_WIDTH,
   svgToPngCard,
   type CreaseExportFoldedFigureSettings,
 } from '../../lib/creaseExport';
+import { isFlatFoldableFold } from '../../lib/creaseExportFold';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
 import { readRememberedAuthor } from './cpShareService';
 import { Button } from '../../components/ui/Button';
@@ -48,7 +50,7 @@ export function ShareLinkModal() {
   const dismiss = useWorkspaceStore((state) => state.dismissOristudioCpShare);
   const publish = useWorkspaceStore((state) => state.publishOristudioCpShare);
   const foldShareFigure = useWorkspaceStore((state) => state.foldOristudioCpShareFigure);
-  const canFold = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
+  const hasDocument = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
 
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -80,6 +82,21 @@ export function ShareLinkModal() {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [dismiss, open]);
 
+  // The layer-order solver assumes a flat-folded model, so a pattern with partial folds
+  // has no figure to draw and fails inside the solver rather than at the boundary. Gate
+  // the option instead of offering something that cannot work.
+  const isFlat = useMemo(
+    () =>
+      draft
+        ? isFlatFoldableFold(
+            draft.fold,
+            draft.segments.find((entry) => entry.id === draft.segmentId) ?? null
+          )
+        : true,
+    [draft]
+  );
+  const canFold = hasDocument && isFlat;
+
   const foldedSettings: CreaseExportFoldedFigureSettings = useMemo(
     () => ({ side, frontColor, backColor, foldCase: 1 }),
     [side, frontColor, backColor]
@@ -100,6 +117,12 @@ export function ShareLinkModal() {
 
   // The card is composed from the same primitives the export dialog previews with, so
   // what is published is what was shown.
+  //
+  // Deliberately captionless: title and author are *metadata*, not artwork. They ride in
+  // the OpenGraph tags, where Discord, Slack and iMessage lay them out in their own
+  // typography beside the image. Drawing them into the PNG as well would render them
+  // twice, at a size and font we do not control, and would waste card area that the
+  // crease pattern should have.
   const card = useMemo(() => {
     if (!draft) return null;
     const artwork = buildCreaseExportArtwork(
@@ -113,13 +136,9 @@ export function ShareLinkModal() {
       },
       { foldedFigure: folded.figure, foldedFigureTransform: folded.transform }
     );
-    const page = composeCreaseExportSvg(artwork, {
-      title: title.trim(),
-      subtitle: author.trim() ? t('dialogs:share.byLine', 'by {{author}}', { author: author.trim() }) : '',
-      description: '',
-    });
+    const page = composeCreaseExportSvg(artwork, EMPTY_CREASE_EXPORT_CAPTION);
     return { ...page, background: artwork.palette.canvas };
-  }, [draft, showFolded, folded.figure, folded.transform, foldedSettings, title, author, t]);
+  }, [draft, showFolded, folded.figure, folded.transform, foldedSettings]);
 
   const previewSrc = useMemo(
     () => (card ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.svg)}` : null),
@@ -188,7 +207,13 @@ export function ShareLinkModal() {
         <div className="simple-modal__body">
           <div
             className="share-link-modal__preview"
-            style={{ aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}` }}
+            style={{
+              aspectRatio: `${SHARE_CARD_WIDTH} / ${SHARE_CARD_HEIGHT}`,
+              // `svgToPngCard` fills the whole canvas with this before drawing, so the
+              // preview must letterbox against it too — against the app background the
+              // preview would show a framing the published PNG never has.
+              background: card.background,
+            }}
           >
             {previewSrc && (
               <img
@@ -224,6 +249,14 @@ export function ShareLinkModal() {
           <div className="share-link-modal__toggle-row">
             <span>
               {t('dialogs:share.foldedFigure', 'Show folded figure')}
+              {!isFlat && (
+                <small className="export-modal__hint">
+                  {t(
+                    'dialogs:share.foldedFigureNeedsFlat',
+                    'This pattern has creases that are not full folds, so it has no flat-folded form'
+                  )}
+                </small>
+              )}
               {folded.folding && (
                 <small className="export-modal__hint">
                   {t('dialogs:share.folding', 'Folding…')}

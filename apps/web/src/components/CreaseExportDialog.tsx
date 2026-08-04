@@ -19,9 +19,10 @@ import {
   type CreaseExportTheme,
 } from '../lib/creaseExport';
 import { cpThumbnailSvg, type CpSegment } from '../lib/creasePatternSegmentation';
-import type {
-  CpModelToFoldTransform,
-  CreaseExportFoldResult,
+import {
+  isFlatFoldableFold,
+  type CpModelToFoldTransform,
+  type CreaseExportFoldResult,
 } from '../lib/creaseExportFold';
 import {
   ORISTUDIO_CP_LINE_STYLES,
@@ -179,9 +180,20 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   } = options;
 
   const multiPattern = dialog.segments.length > 1;
+  // The layer-order solver assumes every face lands in a plane, so a pattern with
+  // partial folds cannot produce a figure — it fails inside the solver with a message
+  // about its own data structures. Gate the option rather than let it fail.
+  const isFlat = useMemo(
+    () =>
+      isFlatFoldableFold(
+        dialog.fold,
+        segmentId != null ? (dialog.segments.find((entry) => entry.id === segmentId) ?? null) : null
+      ),
+    [dialog.fold, dialog.segments, segmentId]
+  );
   // Folding needs a kernel document, and one pattern at a time: "All patterns"
   // has no single folded form to draw beside the sheet.
-  const canFold = dialog.foldSegment !== null && (!multiPattern || segmentId !== null);
+  const canFold = dialog.foldSegment !== null && (!multiPattern || segmentId !== null) && isFlat;
   const foldSegment = dialog.foldSegment;
 
   useEffect(() => {
@@ -480,10 +492,15 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                             'dialogs:export.foldedFigureNeedsCp',
                             'Open an editable crease pattern to fold it'
                           )
-                        : t(
-                            'dialogs:export.foldedFigureNeedsOnePattern',
-                            'Select a single pattern to fold'
-                          )}
+                        : !isFlat
+                          ? t(
+                              'dialogs:export.foldedFigureNeedsFlat',
+                              'This pattern has creases that are not full folds, so it has no flat-folded form'
+                            )
+                          : t(
+                              'dialogs:export.foldedFigureNeedsOnePattern',
+                              'Select a single pattern to fold'
+                            )}
                     </small>
                   )}
                   {folding && (
