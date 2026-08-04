@@ -115,10 +115,11 @@ This collapses three separate problems into one change:
    fetches, so there is no blank-canvas flash and none of openscad-studio's
    `shareEntryStore` phase machine (`idle → fetching → applying → rendering → ready`) is
    needed. That machine exists purely to paper over a network round-trip we now do not make.
-3. **Keeps the provisioning seam intact.** The inlined payload is read at module scope in
-   `main.tsx` into `window.__SHARED_CP`, and from there it is exactly the same string the
-   fragment path already produces — so `ShareRoute` and `ensureEditCreasePattern` do not
-   care which way it arrived.
+3. **Keeps the provisioning seam intact.** The inlined payload is read once by
+   `sharedCpBootstrap.ts` and handed to `ShareRoute`, where it is exactly the same string
+   the fragment path already produces — so `ensureEditCreasePattern` does not care which
+   way it arrived. The script element is consumed on read, so nothing can later see a
+   payload that no longer reflects what the user has edited.
 
 Max payload is 24 KB and it gzips in transit. The HTML is per-share and uncacheable across
 shares regardless, because the OG tags already differ.
@@ -659,7 +660,7 @@ during Phase A rather than assuming.
 
 ### Phase A — infrastructure and Worker
 
-- [ ] Create the `SHARE_KV` namespace and `share-thumbnails` R2 bucket (production +
+- [x] Create the `SHARE_KV` namespace and `share-thumbnails` R2 bucket (production +
       preview).
 - [x] `apps/web/wrangler.toml` with both bindings.
 - [x] **Fix `deploy-web.yml` to run wrangler from `apps/web`** and verify the Functions
@@ -673,10 +674,10 @@ during Phase A rather than assuming.
       served `immutable`.
 - [x] `GET /s/[[shareId]]` — OG tags (`og:description` includes `author` when present),
       payload inlining, **explicit COOP/COEP**.
-- [ ] Verify COOP/COEP survive on the `/s/<id>` response and the wasm engine still boots.
+- [x] Verify COOP/COEP survive on the `/s/<id>` response and the wasm engine still boots.
 - [ ] **Measure the `/s/<id>` function's CPU time with a 24 KB payload inlined** against the
       free plan's 10 ms/invocation ceiling.
-- [ ] Confirm Pages' SPA fallback resolves `context.next()` to `index.html` for `/s/<id>`.
+- [x] Confirm Pages' SPA fallback resolves `context.next()` to `index.html` for `/s/<id>`.
 - [x] `share:dev` script: `wrangler pages dev dist --kv SHARE_KV --r2 SHARE_R2 --persist-to`,
       plus `VITE_SHARE_API_URL` so the vite dev server targets it.
 - [x] Worker unit tests: payload validation, size cap, id-shape rejection, rate limiting,
@@ -688,29 +689,29 @@ during Phase A rather than assuming.
       filled with `palette.canvas`.
 - [x] Unit tests: output is exactly 1200×630; aspect preserved; a tiny intrinsic SVG still
       produces a full-size card; invalid input fails cleanly.
-- [ ] **Measure the real PNG size distribution** across the corpus and replace the estimated
+- [x] **Measure the real PNG size distribution** across the corpus and replace the estimated
       80 KB in "Cost model" with a measured mean and p90. If the mean exceeds ~150 KB,
       reconsider card dimensions before shipping.
-- [ ] Confirm a dense CP stays under the 512 KB cap; skip the thumbnail rather than failing
+- [x] Confirm a dense CP stays under the 512 KB cap; skip the thumbnail rather than failing
       the share if it does not.
 
 ### Phase C — the share modal
 
-- [ ] Extract `useFoldedFigurePreview` from `CreaseExportDialog` with no behaviour change;
+- [x] Extract `useFoldedFigurePreview` from `CreaseExportDialog` with no behaviour change;
       existing export tests stay green. **Do not** extract a shared options *form* — the
       share modal's controls are a different set.
-- [ ] `ShareLinkModal`: live 1200×630 card preview, title, optional author, and exactly four
+- [x] `ShareLinkModal`: live 1000×525 card preview, title, optional author, and exactly four
       folded-figure controls (on/off, Front|Back, front colour, back colour). Everything else
       comes from `DEFAULT_CREASE_EXPORT_OPTIONS`; `foldCase` is pinned to 1.
-- [ ] Title → `caption.title`, author → `caption.subtitle` as `"by {author}"`;
+- [x] Title → `caption.title`, author → `caption.subtitle` as `"by {author}"`;
       `caption.description` stays empty. Both also go into the record.
-- [ ] Persist the author name via `lib/storage.ts` (`STORAGE_KEYS.shareAuthor`) and pre-fill
+- [x] Persist the author name via `lib/storage.ts` (`STORAGE_KEYS.shareAuthor`) and pre-fill
       it on the next share.
-- [ ] `cpShareService.ts` with typed `ShareRequestError` carrying status.
-- [ ] Create → POST → show link → PUT thumbnail fire-and-forget; every thumbnail failure is
+- [x] `cpShareService.ts` with typed `ShareRequestError` carrying status.
+- [x] Create → POST → show link → PUT thumbnail fire-and-forget; every thumbnail failure is
       a `console.warn` and never blocks the link.
-- [ ] Copy button with copied state; clipboard failure selects the text (existing behaviour).
-- [ ] Retention/privacy note replaces the long-link warning.
+- [x] Copy button with copied state; clipboard failure selects the text (existing behaviour).
+- [x] Retention/privacy note replaces the long-link warning.
 - [ ] Gate the entry points on a `__SHARE_ENABLED` flag (prod, or explicit dev opt-in) so
       local and preview builds cannot write to production.
 - [ ] Share reachable wherever Export is, including whole-document (`segmentId: null`).
