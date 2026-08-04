@@ -7,12 +7,43 @@
  */
 import { useCallback, useMemo } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore/store';
+import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
+import type { OristudioCpSelection } from '../../lib/creasePatternViewport';
 import { selectedCpLineSegments } from '../../lib/creasePatternClipboard';
 import { creaseFoldMagnitudeDegrees, isFoldingCrease } from '../../lib/foldAngle';
 import {
   type FoldAngleSelectionSummary,
   summariseFoldAngles,
 } from './foldAngleActions';
+
+/**
+ * Is there anything in the selection a fold angle could be set on?
+ *
+ * The one definition of that question — {@link useFoldAngleSelection} reports it
+ * as `enabled`, and {@link useFoldAngleAvailable} is the form for callers that
+ * only need the answer. Short-circuits and clones nothing, because the tool hint
+ * window asks it on every selection change to decide whether to open at all.
+ */
+export function hasFoldableCpSelection(
+  document: OristudioCpDocumentSnapshot | null | undefined,
+  selection: OristudioCpSelection
+): boolean {
+  if (!document) return false;
+  return selection.lines.some((id) => {
+    const segment = document.crease_pattern.line_segments[id - 1];
+    return segment !== undefined && isFoldingCrease(segment.color);
+  });
+}
+
+/**
+ * {@link hasFoldableCpSelection} against the live selection, without building
+ * the summary the control itself needs.
+ */
+export function useFoldAngleAvailable(): boolean {
+  const selection = useWorkspaceStore((s) => s.oristudioCpSelection);
+  const cpDocument = useWorkspaceStore((s) => s.oristudioCpDocument?.document ?? null);
+  return useMemo(() => hasFoldableCpSelection(cpDocument, selection), [cpDocument, selection]);
+}
 
 export interface FoldAngleSelectionBinding {
   /** Shape of the fold angles across the current selection. */
@@ -54,5 +85,9 @@ export function useFoldAngleSelection(): FoldAngleSelectionBinding {
     [executeCommand, selection.lines]
   );
 
-  return { summary, enabled: summary.creaseCount > 0, setDegrees };
+  return {
+    summary,
+    enabled: hasFoldableCpSelection(cpDocument, selection),
+    setDegrees,
+  };
 }

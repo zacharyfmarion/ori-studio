@@ -85,15 +85,21 @@ const OVERSIZED_PANELS = {
   // hit geometry, its prop wiring, and the select callback. Clicking a marker
   // never worked, so nothing depended on it.
   //
-  // 2687 -> 2694: persisting the view. The binding went out first — the saved
-  // camera, the `.ori` fallback angle, and the settle-debounced write-back are
-  // one concern with one invariant (what is written back is what the canvas is
-  // restored from), so they are `camera/useCpDocumentCamera` and reach the
+  // 2687 -> 2669: the tool hint's portal machinery went away. It used to hunt
+  // for a slot inside another dock pane with a body-wide MutationObserver and
+  // hold the result in state; the hint is now a floating window that positions
+  // itself, so the panel just mounts it and passes the viewport element it
+  // already tracks for its other floating surfaces.
+  //
+  // 2669 -> 2676: persisting the view. The binding went out first — the
+  // saved camera, the `.ori` fallback angle, and the settle-debounced write-back
+  // are one concern with one invariant (what is written back is what the canvas
+  // is restored from), so they are `camera/useCpDocumentCamera` and reach the
   // canvas as a single spread. What is left is composition: that spread, and one
   // prop feeding `isModelAlignedBoxOperation` to the canvas so the operation
   // frame keeps a model-aligned drag box — the same shape as the
   // `activeToolRequireSnap` prop beside it.
-  'CreasePatternPanel.tsx': 2694,
+  'CreasePatternPanel.tsx': 2676,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
@@ -112,11 +118,30 @@ const OVERSIZED_PANELS = {
   // option, default, persistence and group→keys entry all live outside this
   // file.
   //
+  // 1110 -> 1097: the hint became a floating window, and the window chrome went
+  // to `cp-workspace/toolHint/CpToolHintWindow` rather than landing here. The
+  // first pass did land here — portal, placement, collapse state and the header
+  // — and tripped the cap by 8 lines, which is exactly the prompt the number is
+  // for. Positioning and collapse are one concern and the same for whatever the
+  // tool has to say; what is left is the tool's content, which is what this file
+  // is. The placement rule and the collapse preference live beside the chrome
+  // with their own tests.
+  //
+  // 1097 -> 1105: the window stays shut for the resting tool — the one Escape
+  // and every new document land on, whose hint would otherwise be on screen most
+  // of the time saying how to drag a box. Both rules it needs are outside this
+  // file with their own tests: `toolHint/restingTool` (which tool is the resting
+  // one) and `foldAngle/hasFoldableCpSelection` (whether the fold-angle control
+  // has anything to offer, which is the one thing that still opens the window
+  // there). What landed here is the composition — two predicate calls and the
+  // render decision they feed. Still below the 1110 this file started the change
+  // at, because the window chrome came out on the way.
+  //
   // **The seam this file actually wants** is `CpContextToolGroup`: ~530 lines,
   // 45% of the total, a switch over setting groups that has nothing to do with
   // the panel's composition. Moving it out is the fix, and it is a change of its
   // own rather than a rider on whichever feature next trips the cap.
-  'CpContextToolPanel.tsx': 1110,
+  'CpContextToolPanel.tsx': 1105,
 };
 
 const PANEL_MAX_LINES = 800;

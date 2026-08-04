@@ -23,7 +23,6 @@ import { cpFoldAngleDisplayLabel, cpLineStyleLabel } from '../../i18n/enumLabels
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Toggle } from '../ui/Toggle';
-import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 
 export function CpViewControlsPanel() {
   const { t } = useTranslation();
@@ -118,10 +117,6 @@ export function CpViewControlsPanel() {
             onCommit={(value) => setViewportOption('pointSize', value)}
           />
         </div>
-        <div
-          id={CP_TOOL_OPTIONS_PANE_SLOT_ID}
-          className="cp-view-controls-panel__tool-options-slot"
-        />
       </div>
     </section>
   );

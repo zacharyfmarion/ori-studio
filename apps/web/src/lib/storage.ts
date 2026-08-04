@@ -26,6 +26,7 @@ export const STORAGE_KEYS = {
   cpToolRailGroups: 'cp-tool-rail-groups',
   cpMeasure: 'cp-measure',
   cpToolOptions: 'cp-tool-options',
+  cpToolHintCollapsed: 'cp-tool-hint-collapsed',
   bpOptimizer: 'bp-optimizer',
   simulatorSettings: 'simulator-settings',
   layout: 'layout',

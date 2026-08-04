@@ -7,7 +7,6 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { createPortal } from 'react-dom';
 import {
   Copy,
   ImagePlus,
@@ -196,7 +195,6 @@ import {
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
-import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 import type { FoldDocument } from '../../engine/types';
 
 function formatZoom(scale: number): string {
@@ -758,7 +756,6 @@ export function CreasePatternPanel() {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cpViewportRef = useRef<HTMLDivElement | null>(null);
-  const [toolOptionsPortalTarget, setToolOptionsPortalTarget] = useState<HTMLElement | null>(null);
   const zoomPercentRef = useRef(100);
   const [zoomPercent, setZoomPercent] = useState(100);
   // Hand tool: a plain drag pans the canvas instead of running the active
@@ -972,22 +969,6 @@ export function CreasePatternPanel() {
   // The fold chord lands on FoldingEstimate (Fold is the deduped duplicate);
   // `handleCpShortcutAction` routes both to the real fold path.
   const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutOverrides);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-
-    const updateTarget = () => {
-      const target = document.getElementById(CP_TOOL_OPTIONS_PANE_SLOT_ID);
-      setToolOptionsPortalTarget((current) => (current === target ? current : target));
-    };
-
-    updateTarget();
-    if (typeof MutationObserver === 'undefined' || !document.body) return undefined;
-
-    const observer = new MutationObserver(updateTarget);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
 
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
@@ -3070,41 +3051,38 @@ export function CreasePatternPanel() {
                   </>
                 )}
               </ViewportToolbar>
-              {editableCp &&
-                activeCpCommand &&
-                toolOptionsPortalTarget &&
-                createPortal(
-                  <CpContextToolPanel
-                    action={activeCpAction}
-                    command={activeCpCommand}
-                    options={cpToolOptions}
-                    setOptions={setCpToolOptions}
-                    activeLineColor={effectiveCpLineColor}
-                    measurements={cpMeasurements}
-                    onHoverMeasurement={setCpHoveredMeasureIndex}
-                    measureUnit={cpMeasurePreferences.unit}
-                    measureAngleUnit={cpMeasurePreferences.angleUnit}
-                    measureScale={cpMeasureScale}
-                    onMeasureUnitChange={setCpMeasureUnit}
-                    onMeasureAngleUnitChange={setCpMeasureAngleUnit}
-                    onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
-                    pendingPointCount={cpToolPoints.length}
-                    selection={oristudioCpSelection}
-                    unavailable={cpToolUnavailable}
-                    toolNotice={cpToolForcedAssignment}
-                    onApply={
-                      cpCommandRequiresContextApply(activeCpCommand)
-                        ? handleApplyActiveContextCommand
-                        : undefined
-                    }
-                    onClearInput={
-                      activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
-                        ? handleClearActiveContextInput
-                        : undefined
-                    }
-                  />,
-                  toolOptionsPortalTarget
-                )}
+              {editableCp && activeCpCommand && (
+                <CpContextToolPanel
+                  container={toolbarContainer}
+                  action={activeCpAction}
+                  command={activeCpCommand}
+                  options={cpToolOptions}
+                  setOptions={setCpToolOptions}
+                  activeLineColor={effectiveCpLineColor}
+                  measurements={cpMeasurements}
+                  onHoverMeasurement={setCpHoveredMeasureIndex}
+                  measureUnit={cpMeasurePreferences.unit}
+                  measureAngleUnit={cpMeasurePreferences.angleUnit}
+                  measureScale={cpMeasureScale}
+                  onMeasureUnitChange={setCpMeasureUnit}
+                  onMeasureAngleUnitChange={setCpMeasureAngleUnit}
+                  onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
+                  pendingPointCount={cpToolPoints.length}
+                  selection={oristudioCpSelection}
+                  unavailable={cpToolUnavailable}
+                  toolNotice={cpToolForcedAssignment}
+                  onApply={
+                    cpCommandRequiresContextApply(activeCpCommand)
+                      ? handleApplyActiveContextCommand
+                      : undefined
+                  }
+                  onClearInput={
+                    activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
+                      ? handleClearActiveContextInput
+                      : undefined
+                  }
+                />
+              )}
               <div className="viewport-status-readout">
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}

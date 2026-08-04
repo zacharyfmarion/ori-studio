@@ -1,5 +1,4 @@
 import type {
-  OristudioBpCreasePatternView,
   OristudioBpDiagnostic,
   OristudioBpDevice,
   OristudioBpDocumentState,
@@ -29,7 +28,6 @@ import type {
   OristudioBpTreeEdge,
   OristudioBpTreeVertex,
   OristudioBpTreeView,
-  OristudioBpWasmCreasePatternSnapshot,
   OristudioBpWasmGraphicsData,
   OristudioBpWasmInvalidJunction,
   OristudioBpWasmLayoutSnapshot,
@@ -49,7 +47,6 @@ export interface OristudioBpStateFromRawInput {
   treeData?: OristudioBpWasmTreeData | null;
   layoutSnapshot?: OristudioBpWasmLayoutSnapshot | null;
   packingValidation?: OristudioBpWasmPackingValidation | null;
-  creasePatternSnapshot?: OristudioBpWasmCreasePatternSnapshot | null;
   source: OristudioBpSourceRef;
   activeSurface?: OristudioBpDocumentState['activeSurface'];
   dirty?: boolean;
@@ -70,8 +67,7 @@ export function oristudioBpProjectStateFromRaw(
       input.summary ?? null,
       input.treeData ?? null,
       input.layoutSnapshot ?? null,
-      input.packingValidation ?? null,
-      input.creasePatternSnapshot ?? null
+      input.packingValidation ?? null
     ),
     history: historySummary(input.project),
     optimizer: defaultOptimizerState(),
@@ -85,8 +81,7 @@ export function oristudioBpProjectSnapshotFromRaw(
   wasmSummary: OristudioBpWasmProjectSummary | null = null,
   treeData: OristudioBpWasmTreeData | null = null,
   layoutSnapshot: OristudioBpWasmLayoutSnapshot | null = null,
-  packingValidation: OristudioBpWasmPackingValidation | null = null,
-  creasePatternSnapshot: OristudioBpWasmCreasePatternSnapshot | null = null
+  packingValidation: OristudioBpWasmPackingValidation | null = null
 ): OristudioBpProjectSnapshot {
   const tree = treeView(
     project.design.tree.sheet,
@@ -100,7 +95,6 @@ export function oristudioBpProjectSnapshotFromRaw(
     summary: projectSummary(project, packing, wasmSummary),
     tree,
     packing,
-    creasePattern: creasePatternView(project, creasePatternSnapshot),
     diagnostics: projectDiagnostics(project, packing, layoutSnapshot, packingValidation),
     stale: {
       packing: project.design.layout.flaps.length === 0 && project.design.tree.nodes.length > 0,
@@ -560,49 +554,6 @@ function deviceIdFromGraphicsId(id: string): string {
   return match ? `${match[1]}:device:${match[2]}` : id;
 }
 
-function creasePatternView(
-  project: OristudioBpRawProject,
-  snapshot: OristudioBpWasmCreasePatternSnapshot | null
-): OristudioBpCreasePatternView | null {
-  if (!snapshot) return null;
-  return {
-    sheet: {
-      kind: project.design.layout.sheet.type === 'diag' ? 'diagonal' : 'rectangular',
-      width: snapshot.sheet.width,
-      height: snapshot.sheet.height,
-      grid: {
-        kind: project.design.layout.sheet.type === 'diag' ? 'diagonal' : 'rectangular',
-        interval: 1,
-        snap: false,
-      },
-    },
-    lines: snapshot.lines.map((line) => ({
-      id: line.id,
-      vertices: [line.p1, line.p2],
-      assignment: line.assignment,
-      sourceLayer: bpCpLineSourceLayer(line.assignment),
-    })),
-    selectedPatternId: null,
-    stale: false,
-  };
-}
-
-function bpCpLineSourceLayer(
-  assignment: OristudioBpCreasePatternView['lines'][number]['assignment']
-): OristudioBpCreasePatternView['lines'][number]['sourceLayer'] {
-  switch (assignment) {
-    case 'border':
-      return 'sheet-border';
-    case 'mountain':
-      return 'ridge';
-    case 'valley':
-    case 'auxiliary':
-      return 'hinge';
-    case 'flat':
-    case 'unassigned':
-      return null;
-  }
-}
 
 function sheet(raw: OristudioBpRawSheet): OristudioBpSheet {
   const kind = raw.type === 'diag' ? 'diagonal' : 'rectangular';
