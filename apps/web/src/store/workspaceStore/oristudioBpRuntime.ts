@@ -830,9 +830,6 @@ async function buildProjectState(
     api.layoutSnapshot(input.handle).catch(() => null),
     api.packingValidation(input.handle).catch(() => null),
   ]);
-  const creasePatternSnapshot =
-    input.creasePatternSnapshot ??
-    (await api.creasePatternSnapshot(input.handle, false, false).catch(() => null));
   return oristudioBpProjectStateFromRaw({
     ...input,
     project,
@@ -840,7 +837,6 @@ async function buildProjectState(
     treeData,
     layoutSnapshot,
     packingValidation,
-    creasePatternSnapshot,
   });
 }
 
@@ -862,7 +858,6 @@ async function buildWorkspaceProjectState(
     treeData: await api.treeData(project.handle).catch(() => null),
     layoutSnapshot: await api.layoutSnapshot(project.handle).catch(() => null),
     packingValidation: await api.packingValidation(project.handle).catch(() => null),
-    creasePatternSnapshot: await api.creasePatternSnapshot(project.handle, false, false).catch(() => null),
     source,
     dirty,
   });
@@ -881,7 +876,6 @@ async function buildOpenedProjectState(
     treeData: await api.treeData(opened.handle).catch(() => null),
     layoutSnapshot: await api.layoutSnapshot(opened.handle).catch(() => null),
     packingValidation: await api.packingValidation(opened.handle).catch(() => null),
-    creasePatternSnapshot: await api.creasePatternSnapshot(opened.handle, false, false).catch(() => null),
     source,
     ...options,
   });

@@ -24,7 +24,6 @@ import {
   bpTreePaperRect,
   bpTreePointToSvg,
   bpTreeUnitToSvg,
-  bpTreeVertexLabel,
   constrainBpTreePoint,
   getBpTreeWorldRect,
   svgToBpTreePoint,
@@ -32,12 +31,22 @@ import {
 import { bpDefaultFlapLabel } from '../../lib/bpFlapLabel';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { formatNumber, type Point } from '../../lib/geometry';
-import { treeDotPx, type TreeDotSizes } from '../../lib/treeNodeDot';
 import {
-  bpTreeDragUpdates,
-  translatePoints,
-  unitLeafLocation,
-} from '../../lib/bpTreeAuthoring';
+  applyBpTreeChromeScale,
+  applyBpTreeGhost,
+  applyBpTreeScenePositions,
+  collectAllBpTreeSceneTargets,
+  collectBpTreeChromeTargets,
+  type BpTreeChromeTarget,
+  type BpTreeGhostGeometry,
+  type BpTreeSceneTarget,
+} from '../../lib/bpTreeSceneDom';
+import { BpTreeScene, SYMMETRY_LANE_PX } from './BpTreeScene';
+import { translatePoints, unitLeafLocation } from '../../lib/bpTreeAuthoring';
+import {
+  startBpTreeDrag,
+  type BpTreeDragSession,
+} from '../../lib/bpTreeDragController';
 import {
   mirrorBpTreeVertexId,
   BP_TREE_SYMMETRY_TOLERANCE,
@@ -51,12 +60,12 @@ import { type BpTreeViewLayerKey, type BpTreeViewLayers } from '../../lib/oristu
 import { clientPointToDesignWorld } from '../../lib/designViewport';
 import { setActiveShortcutViewportSurface } from '../../keyboard/shortcutRuntime';
 import { useBpLongPressInspector } from '../../hooks/useBpLongPressInspector';
+import { useEventCallback } from '../../hooks/useEventCallback';
 import {
   useViewportSurface,
   VIEWPORT_PINCH_ZOOM,
   VIEWPORT_WHEEL_ZOOM,
 } from '../../hooks/useViewportSurface';
-import { viewportRectToViewBox } from '../../lib/treeViewportPrimitives';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
@@ -83,34 +92,15 @@ function bpTreeLayerLabel(t: TFunction, key: BpTreeViewLayerKey): string {
 }
 
 
+/** SVG units per screen pixel at a whole-percent zoom, floored so it stays sane. */
+function cameraScale(zoomPercent: number): number {
+  return Math.max(0.02, zoomPercent / 100);
+}
+
 // Default so a unit-length edge is ~this many screen pixels. Node dots and
 // labels are drawn at fixed screen sizes (counter-scaled by the zoom) so they
 // stay small relative to the geometry at any zoom.
 const TARGET_UNIT_PX = 56;
-// Stroke widths in screen pixels, counter-scaled against the camera so the
-// drawing keeps its proportions as you zoom. `non-scaling-stroke` cannot do this:
-// it only defends against the SVG's own viewBox, not the pan/zoom wrapper's CSS
-// transform.
-//
-// These must be applied as inline *styles*, not presentation attributes: SVG
-// presentation attributes lose to any author CSS rule, and theme.css sets
-// `stroke-width` on these same classes. An attribute here is silently ignored —
-// which is exactly how the lines went on scaling while the numbers looked right.
-//
-// This applies to *chrome* only. A mark that stands for a distance in the model
-// — the symmetry snap lane, whose width is the snap tolerance — must scale with
-// the drawing instead, or it stops depicting the thing it measures.
-const EDGE_STROKE_PX = 7;
-const EDGE_SELECTED_STROKE_PX = 9;
-const NODE_STROKE_PX = 2;
-const SYMMETRY_LINE_PX = 2;
-const SYMMETRY_LANE_PX = 18;
-const LABEL_STROKE_PX = 3;
-const SYMMETRY_GHOST_PX = 3;
-const SYMMETRY_PAIR_PX = 1.5;
-const DOT_SIZES: TreeDotSizes = { leafPx: 6, branchPx: 7 };
-const NODE_LABEL_PX = 12;
-const NODE_SELECTED_STROKE_PX = 3;
 
 function BpTreeViewportToolbar({
   zoomPercent,
@@ -284,16 +274,45 @@ function BpTreeEdgeLengthEditor({
 export function BpTreePanel({ document }: { document: OristudioBpDocumentState }) {
   const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [dragging, setDragging] = useState<{
-    id: number;
-    start: Point;
-    clientStart: Point;
-    moved: boolean;
-    preview: Map<number, Point>;
-  } | null>(null);
+  // The live drag is deliberately not React state: a pointer sample must not
+  // re-render the drawing. The session writes the moving elements itself.
+  const dragRef = useRef<BpTreeDragSession | null>(null);
   const paperDownRef = useRef<{ clientX: number; clientY: number; point: Point } | null>(null);
-  const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
+  // Where the ghost is drawn follows the cursor and so must not be React state.
+  // Whether it exists at all changes only on selection and pointer enter/leave,
+  // which is rare enough to render.
+  const [ghostArmed, setGhostArmed] = useState(false);
+  const ghostFrameRef = useRef<number | null>(null);
+  const ghostGeometryRef = useRef<BpTreeGhostGeometry | null>(null);
+  // Cached scene lookups, dropped whenever React redraws the canvas.
+  const sceneTargetsRef = useRef<{
+    chrome: BpTreeChromeTarget[];
+    positions: BpTreeSceneTarget[];
+  } | null>(null);
   const scheduleLongPressInspector = useBpLongPressInspector();
+  /**
+   * The canvas's box on screen, cached.
+   *
+   * `getBoundingClientRect` forces a layout of the whole canvas, and a gesture
+   * asks for it on every pointer sample — which is a layout of a thousand
+   * elements per sample, for a box that cannot have moved. The cache is dropped
+   * whenever it genuinely can: React redrew the canvas, the camera moved, the
+   * pane resized, or something scrolled.
+   */
+  const svgRectRef = useRef<DOMRect | null>(null);
+  const forgetSvgRect = useEventCallback(() => {
+    svgRectRef.current = null;
+  });
+  const svgRect = useEventCallback((): DOMRect | null => {
+    const cached = svgRectRef.current;
+    if (cached) return cached;
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    svgRectRef.current = rect;
+    return rect;
+  });
+
   const layers = useSettingsStore((state) => state.bpTreeLayers);
   const setLayer = useSettingsStore((state) => state.setBpTreeLayer);
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
@@ -363,10 +382,17 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     return { parent, children };
   }, [tree.vertices, tree.edges, tree.rootVertexId]);
 
-  // Vertex locations by id — the lookup the drag rule works from.
-  const vertexLocationsById = useMemo(
-    () => new Map(tree.vertices.map((vertex) => [vertex.id, vertex.loc] as const)),
+  // Vertices by id. Everything that resolves one goes through this rather than
+  // scanning the list: an edge lookup inside a render over every edge is where
+  // an O(n) scan quietly becomes O(n²).
+  const vertexById = useMemo(
+    () => new Map(tree.vertices.map((vertex) => [vertex.id, vertex] as const)),
     [tree.vertices]
+  );
+  /** Just the locations, which is the shape the drag rule works from. */
+  const vertexLocationsById = useMemo(
+    () => new Map([...vertexById].map(([id, vertex]) => [id, vertex.loc] as const)),
+    [vertexById]
   );
 
   const subtreeOf = useCallback(
@@ -392,7 +418,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     [selection, document]
   );
   const paperRect = useMemo(() => bpTreePaperRect(tree.sheet), [tree.sheet]);
-  const vertexLocations = useMemo(() => dragging?.preview, [dragging]);
   // Fit to the committed tree bounds only (not the drag preview) so the camera
   // stays put while a flap rotates. Tight padding keeps a unit edge large.
   const worldRect = useMemo(
@@ -424,38 +449,38 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
 
   // Convert a target screen-pixel size into SVG units at the current zoom, so
   // dots/labels keep a constant on-screen size regardless of zoom.
-  const svgPerScreenPx = Math.max(0.02, zoomPercent / 100);
-  const chromePx = (px: number) => px / svgPerScreenPx;
+  //
+  // Read through a ref rather than closed over, so `chromePx` keeps one identity
+  // for the life of the pane. A zoom step must not re-render the canvas: it
+  // changes how thick the drawing is, not what is drawn, and rendering that was
+  // costing a full redraw per wheel tick.
+  const scaleRef = useRef(cameraScale(zoomPercent));
+  const chromePx = useCallback((px: number) => px / scaleRef.current, []);
   // Half the visible snap band, in tree units. A tip landing inside it snaps onto
   // the axis — so this is derived from the band's *drawn* width, keeping what the
   // user sees and what the click does the same thing at every zoom.
   const symmetryAxisTolerance =
-    chromePx(SYMMETRY_LANE_PX) / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
+    SYMMETRY_LANE_PX / cameraScale(zoomPercent) / 2 / bpTreeUnitToSvg(tree.sheet, paperRect);
 
-  const findVertex = useCallback(
-    (id: number) => tree.vertices.find((vertex) => vertex.id === id),
-    [tree.vertices]
-  );
-  const displayLoc = useCallback(
-    (id: number, loc: Point) => vertexLocations?.get(id) ?? loc,
-    [vertexLocations]
-  );
-
-  const symmetryView = useBpTreeSymmetry(tree, paperRect, displayLoc);
+  const findVertex = useCallback((id: number) => vertexById.get(id), [vertexById]);
+  const symmetryView = useBpTreeSymmetry(tree, paperRect);
 
   // Ghost preview of the leaf a click would add (and its mirror), mirroring what
   // addOristudioBpTreeLeafWithSymmetry will do: an on-axis tip is a single centred
   // leaf; otherwise it reflects onto the parent's mirror.
-  const symmetryHoverPreview = useMemo(() => {
-    if (!symmetry.enabled || dragging || !hoverPoint) return null;
+  //
+  // Called from the pointer handler, not from render — the answer changes with
+  // every sample, and re-rendering the pane for it is what used to make hovering
+  // a large tree as expensive as dragging one.
+  const ghostGeometryAt = useEventCallback((hoverPoint: Point): BpTreeGhostGeometry | null => {
+    if (!symmetry.enabled) return null;
     const parentId = addAnchorId;
     if (parentId === null) return null;
     const parent = findVertex(parentId);
     if (!parent) return null;
     const axis = { loc: symmetry.loc, angle: symmetry.angle };
-    const axisTolerance = symmetryAxisTolerance;
     const tip = constrainBpTreePoint(unitLeafLocation(parent.loc, hoverPoint), tree.sheet);
-    const snap = snapPointToSymmetryAxis(tip, axis, axisTolerance);
+    const snap = snapPointToSymmetryAxis(tip, axis, symmetryAxisTolerance);
     const primaryTip = snap.point;
     let mirror: { from: Point; to: Point } | null = null;
     let unresolved = false;
@@ -474,24 +499,120 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         unresolved = true;
       }
     }
+    const toSvg = (loc: Point) => bpTreePointToSvg(loc, tree.sheet, paperRect);
     return {
-      primary: { from: parent.loc, to: primaryTip },
-      mirror,
+      primary: { from: toSvg(parent.loc), to: toSvg(primaryTip) },
+      mirror: mirror && { from: toSvg(mirror.from), to: toSvg(mirror.to) },
       snapped: snap.snapped,
       unresolved,
     };
-  }, [
-    symmetry.enabled,
-    symmetry.loc,
-    symmetry.angle,
-    symmetry.pairs,
-    dragging,
-    hoverPoint,
-    addAnchorId,
-    symmetryAxisTolerance,
-    tree,
-    findVertex,
-  ]);
+  });
+
+  /** Where a vertex is right now: mid-drag if one is running, else committed. */
+  const svgPointOfVertex = useEventCallback((id: number): Point | undefined => {
+    const loc = dragRef.current?.updates.get(id) ?? vertexLocationsById.get(id);
+    return loc && bpTreePointToSvg(loc, tree.sheet, paperRect);
+  });
+
+  // React redrew the canvas, so anything a gesture cached about it is stale.
+  const onSceneRendered = useEventCallback(() => {
+    sceneTargetsRef.current = null;
+    svgRectRef.current = null;
+  });
+
+  /**
+   * Rewrite the counter-scaled chrome for a new camera scale.
+   *
+   * The element lists are read once per rendered scene and reused: a zoom is a
+   * burst of steps, and re-reading the markup on each one turned a zoom into
+   * several passes over the whole canvas.
+   */
+  const publishChromeScale = useEventCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    sceneTargetsRef.current ??= {
+      chrome: collectBpTreeChromeTargets(svg),
+      positions: collectAllBpTreeSceneTargets(svg),
+    };
+    applyBpTreeChromeScale(sceneTargetsRef.current.chrome, chromePx);
+    // Label offsets counter-scale too, so they have to be re-placed even though
+    // nothing moved.
+    applyBpTreeScenePositions(sceneTargetsRef.current.positions, svgPointOfVertex, chromePx);
+    applyBpTreeGhost(svg, ghostGeometryRef.current);
+  });
+
+  useEffect(() => {
+    scaleRef.current = cameraScale(zoomPercent);
+  }, [zoomPercent]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const observer =
+      typeof ResizeObserver === 'undefined' || !container
+        ? null
+        : new ResizeObserver(forgetSvgRect);
+    if (container) observer?.observe(container);
+    window.addEventListener('scroll', forgetSvgRect, { capture: true, passive: true });
+    window.addEventListener('resize', forgetSvgRect, { passive: true });
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('scroll', forgetSvgRect, { capture: true });
+      window.removeEventListener('resize', forgetSvgRect);
+    };
+  }, [forgetSvgRect, containerRef]);
+
+  const onCameraTransformed = useEventCallback(
+    (ref: Parameters<typeof onTransformed>[0], state: { scale: number }) => {
+      // Rounded exactly as `zoomPercent` is, so the scale this writes and the
+      // scale a later render reads back out of it cannot disagree.
+      scaleRef.current = cameraScale(Math.round(state.scale * 100));
+      forgetSvgRect();
+      publishChromeScale();
+      // The toolbar's readout still wants this, and rounding to whole percent
+      // keeps a pan — which does not change scale — from touching React at all.
+      onTransformed(ref, state);
+    }
+  );
+
+  /** Show the ghost where the cursor last put it, coalesced to one frame. */
+  const scheduleGhost = useEventCallback(() => {
+    if (ghostFrameRef.current !== null) return;
+    // See `startBpTreeDrag`: a scheduler that runs synchronously has already
+    // cleared the slot by the time it hands back a handle, and storing it then
+    // would drop every later sample.
+    let ran = false;
+    const handle = requestAnimationFrame(() => {
+      ran = true;
+      ghostFrameRef.current = null;
+      const svg = svgRef.current;
+      if (svg) applyBpTreeGhost(svg, ghostGeometryRef.current);
+    });
+    if (!ran) ghostFrameRef.current = handle;
+  });
+
+  const setGhost = useEventCallback((geometry: BpTreeGhostGeometry | null) => {
+    if (geometry === null && ghostGeometryRef.current === null) return;
+    ghostGeometryRef.current = geometry;
+    // Arming renders the ghost's four elements; the frame below then places
+    // them. Everything after that is writes.
+    setGhostArmed(geometry !== null);
+    scheduleGhost();
+  });
+
+  // The ghost is drawn only once armed, so its first placement has to wait for
+  // that commit. Cheap enough to just re-place it after every one.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (svg && ghostArmed) applyBpTreeGhost(svg, ghostGeometryRef.current);
+  }, [ghostArmed]);
+
+  useEffect(
+    () => () => {
+      if (ghostFrameRef.current !== null) cancelAnimationFrame(ghostFrameRef.current);
+    },
+    []
+  );
+
 
   // Set an edge's length and keep the tree length-faithful: re-place the child
   // vertex at `length` units from its parent along the current direction, and
@@ -527,18 +648,22 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     containerRef.current?.focus();
   }, [clearSelection, containerRef]);
 
-  const eventToTreePoint = useCallback(
-    (event: PointerEvent): Point => {
-      const svg = svgRef.current;
-      if (!svg) return { x: 0, y: 0 };
-      const worldPoint = clientPointToDesignWorld(
-        { x: event.clientX, y: event.clientY },
-        svg.getBoundingClientRect(),
-        worldRect
+  const clientToTreePoint = useCallback(
+    (client: Point): Point => {
+      const rect = svgRect();
+      if (!rect) return { x: 0, y: 0 };
+      return svgToBpTreePoint(
+        clientPointToDesignWorld(client, rect, worldRect),
+        tree.sheet,
+        paperRect
       );
-      return svgToBpTreePoint(worldPoint, tree.sheet, paperRect);
     },
-    [paperRect, tree.sheet, worldRect]
+    [paperRect, tree.sheet, worldRect, svgRect]
+  );
+  const eventToTreePoint = useCallback(
+    (event: PointerEvent): Point =>
+      clientToTreePoint({ x: event.clientX, y: event.clientY }),
+    [clientToTreePoint]
   );
 
   useEffect(() => {
@@ -592,7 +717,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     } else void addOristudioBpTreeLeaf(parentId, loc);
   };
 
-  const onEdgePointerDown = (event: PointerEvent<SVGGElement>, edgeId: number) => {
+  const onEdgePointerDown = useEventCallback((event: PointerEvent<SVGGElement>, edgeId: number) => {
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
     // Clicking an edge selects it — cancel the pending canvas "add leaf" gesture
@@ -605,9 +730,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         : { kind: 'bp-edge', id: edgeId }
     );
     scheduleLongPressInspector(event);
-  };
+  });
 
-  const onVertexPointerDown = (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
+  const onVertexPointerDown = useEventCallback((event: PointerEvent<SVGCircleElement>, vertexId: number) => {
     if (event.button !== 0 || spacePressed) return;
     event.stopPropagation();
     if (event.shiftKey || event.metaKey || event.ctrlKey) {
@@ -628,67 +753,72 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging({
-      id: vertexId,
-      start: vertex.loc,
-      clientStart: { x: event.clientX, y: event.clientY },
-      moved: false,
-      preview: new Map(),
-    });
-  };
-
-  const onVertexPointerMove = (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
-    if (dragging?.id !== vertexId) return;
-    event.stopPropagation();
-    const target = constrainBpTreePoint(eventToTreePoint(event), tree.sheet);
-    setHoverPoint(target);
-    const moved = bpTreeDragUpdates({
+    // The ghost previews where a *click* would put a leaf, which a drag is not.
+    // Clearing it here also means the hover handler has nothing to undo when the
+    // drag ends.
+    setGhost(null);
+    const svg = svgRef.current;
+    if (!svg) return;
+    dragRef.current = startBpTreeDrag({
+      root: svg,
       vertexId,
       parentId: topology.parent.get(vertexId) ?? null,
       vertices: vertexLocationsById,
       subtreeIds: subtreeOf(vertexId),
-      start: dragging.start,
-      target,
+      sheet: tree.sheet,
+      clientStart: { x: event.clientX, y: event.clientY },
+      toTreePoint: (client) => clientToTreePoint(client),
+      toSvgPoint: (loc) => bpTreePointToSvg(loc, tree.sheet, paperRect),
+      chromePx,
     });
-    const preview = new Map<number, Point>();
-    for (const [id, loc] of moved) preview.set(id, constrainBpTreePoint(loc, tree.sheet));
-    const clientMoved = hasPassedDragThreshold(dragging.clientStart, {
-      x: event.clientX,
-      y: event.clientY,
-    });
-    setDragging({
-      id: vertexId,
-      start: dragging.start,
-      clientStart: dragging.clientStart,
-      moved: dragging.moved || clientMoved,
-      preview,
-    });
-  };
+  });
 
-  const finishDrag = (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
-    if (dragging?.id !== vertexId) return;
-    event.stopPropagation();
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    const { moved, preview } = dragging;
-    setDragging(null);
-    if (moved && preview.size > 0) {
-      const updates = [...preview.entries()].map(([id, loc]) => ({ id, loc }));
+  /** Ends a drag if one is running. Answers whether it consumed the pointerup. */
+  const finishDrag = (): boolean => {
+    const session = dragRef.current;
+    if (!session) return false;
+    dragRef.current = null;
+    session.end();
+    // A press on a dot arms the canvas "add leaf" gesture in the capture phase.
+    // Grabbing a dot means this pointerup ends a drag, not a click on the paper,
+    // so disarm it — otherwise releasing without moving would add a leaf.
+    paperDownRef.current = null;
+    if (session.moved && session.updates.size > 0) {
+      const updates = [...session.updates].map(([id, loc]) => ({ id, loc }));
       if (symmetry.enabled) void moveOristudioBpTreeVerticesWithSymmetry(updates, false);
       else void moveOristudioBpTreeVertices(updates, false);
     }
+    return true;
   };
 
+  // Pointer capture retargets the rest of the gesture to the grabbed dot, which
+  // sits inside this container — so the drag listens here rather than on every
+  // dot. One pair of listeners for the pane instead of two per vertex.
   const onCanvasPointerMove = (event: PointerEvent<Element>) => {
+    const session = dragRef.current;
+    if (session) {
+      session.move({ x: event.clientX, y: event.clientY });
+      return;
+    }
     // Track hover across the whole clickable pane — clicks commit anywhere on the
     // canvas (via the container), not just over the content-sized SVG, so the mirror
     // ghost must follow the cursor there too. Skip the toolbar/editor chrome.
     if (isViewportInteractiveTarget(event.target)) {
-      setHoverPoint(null);
+      setGhost(null);
       return;
     }
-    setHoverPoint(eventToTreePoint(event));
+    // Converting to tree space reads layout, so it must not happen for an answer
+    // that is already known to be nothing.
+    if (!symmetry.enabled || addAnchorId === null) {
+      setGhost(null);
+      return;
+    }
+    setGhost(ghostGeometryAt(eventToTreePoint(event)));
+  };
+
+  const onCanvasPointerUp = (event: PointerEvent<Element>) => {
+    if (finishDrag()) return;
+    onCanvasAddPointerUp(event);
   };
 
   return (
@@ -704,8 +834,9 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         onCanvasAddPointerDown(event);
       }}
       onPointerMove={onCanvasPointerMove}
-      onPointerLeave={() => setHoverPoint(null)}
-      onPointerUp={onCanvasAddPointerUp}
+      onPointerLeave={() => setGhost(null)}
+      onPointerUp={onCanvasPointerUp}
+      onPointerCancel={() => finishDrag()}
     >
       <TransformWrapper
         ref={transformRef}
@@ -724,228 +855,28 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
         pinch={VIEWPORT_PINCH_ZOOM}
         doubleClick={{ disabled: true }}
         onInit={onInit}
-        onTransformed={onTransformed}
+        onTransformed={onCameraTransformed}
       >
         <TransformComponent
           wrapperStyle={{ width: '100%', height: '100%' }}
           contentStyle={{ width: 'fit-content', height: 'fit-content' }}
         >
-          <svg
-            ref={svgRef}
-            className="design-canvas bp-tree-canvas"
-            viewBox={viewportRectToViewBox(worldRect)}
-            width={worldRect.width}
-            height={worldRect.height}
-            style={{ width: worldRect.width, height: worldRect.height }}
-            role="img"
-            aria-label={t('panels:bpTree.canvas', 'Box Pleat tree canvas')}
-          >
-            {symmetryView.axisLine && (
-              <>
-                <line
-                  // No counter-scale: this band *is* the snap zone. Its width in
-                  // SVG units defines `axisTolerance`, so it has to scale with the
-                  // drawing — a fixed screen width would show a zone the size of
-                  // which no longer matches where a tip actually snaps.
-                  className="symmetry-snap-lane"
-                  style={{ strokeWidth: chromePx(SYMMETRY_LANE_PX) }}
-                  x1={symmetryView.axisLine.x1}
-                  y1={symmetryView.axisLine.y1}
-                  x2={symmetryView.axisLine.x2}
-                  y2={symmetryView.axisLine.y2}
-                />
-                <line
-                  className="symmetry-line"
-                  style={{ strokeWidth: chromePx(SYMMETRY_LINE_PX) }}
-                  x1={symmetryView.axisLine.x1}
-                  y1={symmetryView.axisLine.y1}
-                  x2={symmetryView.axisLine.x2}
-                  y2={symmetryView.axisLine.y2}
-                />
-              </>
-            )}
-            {symmetryView.pairLines.map((line, index) => (
-              <line
-                key={index}
-                className="symmetry-pair-line"
-                style={{ strokeWidth: chromePx(SYMMETRY_PAIR_PX) }}
-                x1={line.x1}
-                y1={line.y1}
-                x2={line.x2}
-                y2={line.y2}
-              />
-            ))}
-            {symmetryHoverPreview && (
-              <g className="symmetry-ghost">
-                {(() => {
-                  const from = bpTreePointToSvg(symmetryHoverPreview.primary.from, tree.sheet, paperRect);
-                  const to = bpTreePointToSvg(symmetryHoverPreview.primary.to, tree.sheet, paperRect);
-                  return (
-                    <>
-                      <line
-                        className={[
-                          'symmetry-ghost-edge',
-                          symmetryHoverPreview.unresolved ? 'symmetry-ghost-edge--unresolved' : '',
-                        ].join(' ')}
-                        style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX) }}
-                        x1={from.x}
-                        y1={from.y}
-                        x2={to.x}
-                        y2={to.y}
-                      />
-                      <circle
-                        className="symmetry-ghost-node"
-                        data-snapped={symmetryHoverPreview.snapped || undefined}
-                        cx={to.x}
-                        cy={to.y}
-                        r={chromePx(DOT_SIZES.leafPx)}
-                      />
-                    </>
-                  );
-                })()}
-                {symmetryHoverPreview.mirror &&
-                  (() => {
-                    const from = bpTreePointToSvg(symmetryHoverPreview.mirror.from, tree.sheet, paperRect);
-                    const to = bpTreePointToSvg(symmetryHoverPreview.mirror.to, tree.sheet, paperRect);
-                    return (
-                      <>
-                        <line
-                          className="symmetry-ghost-edge"
-                          style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX) }}
-                          x1={from.x}
-                          y1={from.y}
-                          x2={to.x}
-                          y2={to.y}
-                        />
-                        <circle
-                          className="symmetry-ghost-node"
-                          cx={to.x}
-                          cy={to.y}
-                          r={chromePx(DOT_SIZES.leafPx)}
-                        />
-                      </>
-                    );
-                  })()}
-              </g>
-            )}
-            {tree.edges.map((edge) => {
-              const a = findVertex(edge.vertices[0]);
-              const b = findVertex(edge.vertices[1]);
-              if (!a || !b) return null;
-              const p1 = bpTreePointToSvg(displayLoc(a.id, a.loc), tree.sheet, paperRect);
-              const p2 = bpTreePointToSvg(displayLoc(b.id, b.loc), tree.sheet, paperRect);
-              const active = linkedSelection.edges.has(edge.id);
-              return (
-                <g
-                  key={edge.id}
-                  // Intentionally not focusable (no role/tabIndex), matching the
-                  // node dots: the browser draws its own focus ring around the
-                  // group's box — which spans the edge *and* its length label —
-                  // so a click wrapped the edge in a capsule instead of just
-                  // highlighting it. Selection is by click; the tree's keyboard
-                  // actions live on the container.
-                  aria-label={t('panels:bpTree.selectEdge', 'Select BP edge {{id}}, length {{length}}', {
-                    id: edge.id,
-                    length: formatNumber(edge.length, 2),
-                  })}
-                  onPointerDown={(event) => onEdgePointerDown(event, edge.id)}
-                >
-                  <line
-                    className={[
-                      'tree-edge',
-                      'bp-tree-edge',
-                      edge.isLeafEdge ? 'bp-tree-edge--leaf' : 'bp-tree-edge--river',
-                      active ? 'tree-edge--selected' : '',
-                    ].join(' ')}
-                    style={{
-                      strokeWidth: chromePx(active ? EDGE_SELECTED_STROKE_PX : EDGE_STROKE_PX),
-                    }}
-                    x1={p1.x}
-                    y1={p1.y}
-                    x2={p2.x}
-                    y2={p2.y}
-                  />
-                  {layers.labels && edge.isLeafEdge && (
-                    <text
-                      className="edge-label bp-tree-edge-label"
-                      x={(p1.x + p2.x) / 2 + chromePx(6)}
-                      y={(p1.y + p2.y) / 2 - chromePx(6)}
-                      style={{
-                        fontSize: chromePx(NODE_LABEL_PX),
-                        strokeWidth: chromePx(LABEL_STROKE_PX),
-                      }}
-                    >
-                      {formatNumber(edge.length, 2)}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-            {tree.vertices.map((vertex) => {
-              const point = bpTreePointToSvg(displayLoc(vertex.id, vertex.loc), tree.sheet, paperRect);
-              const active = linkedSelection.vertices.has(vertex.id);
-              const dotPx = treeDotPx(DOT_SIZES, vertex.isLeaf, active);
-              const label = bpTreeVertexLabel(vertex);
-              const vertexAriaLabel = vertex.isLeaf
-                ? label
-                  ? t('panels:bpTree.selectLeafVertexWithLabel', 'Select BP leaf vertex {{id}}, {{label}}', {
-                      id: vertex.id,
-                      label,
-                    })
-                  : t('panels:bpTree.selectLeafVertex', 'Select BP leaf vertex {{id}}', { id: vertex.id })
-                : label
-                  ? t('panels:bpTree.selectVertexWithLabel', 'Select BP vertex {{id}}, {{label}}', {
-                      id: vertex.id,
-                      label,
-                    })
-                  : t('panels:bpTree.selectVertex', 'Select BP vertex {{id}}', { id: vertex.id });
-              return (
-                <g key={vertex.id}>
-                  <circle
-                    className={[
-                      'tree-node',
-                      'bp-tree-node',
-                      vertex.isRoot ? 'bp-tree-node--root' : '',
-                      active ? 'tree-node--selected' : '',
-                    ].join(' ')}
-                    data-leaf={vertex.isLeaf || undefined}
-                    // An inline style, not a presentation attribute, and so it
-                    // beats theme.css — which is why the selected ring has to be
-                    // widened here rather than in the stylesheet.
-                    style={{
-                      strokeWidth: chromePx(active ? NODE_SELECTED_STROKE_PX : NODE_STROKE_PX),
-                    }}
-                    cx={point.x}
-                    cy={point.y}
-                    r={chromePx(dotPx)}
-                    // Intentionally not focusable (no role/tabIndex): a focusable
-                    // dot draws its own browser focus ring that competes with the
-                    // selection highlight and steals focus from the name field, so
-                    // typing a name would go nowhere. Selection is by click; the
-                    // tree's keyboard nudge/delete live on the container.
-                    aria-label={vertexAriaLabel}
-                    onPointerDown={(event) => onVertexPointerDown(event, vertex.id)}
-                    onPointerMove={(event) => onVertexPointerMove(event, vertex.id)}
-                    onPointerUp={(event) => finishDrag(event, vertex.id)}
-                    onPointerCancel={(event) => finishDrag(event, vertex.id)}
-                  />
-                  {layers.labels && vertex.isLeaf && label && (
-                    <text
-                      className="node-label bp-tree-node-label"
-                      x={point.x + chromePx(dotPx + 4)}
-                      y={point.y + chromePx(4)}
-                      style={{
-                        fontSize: chromePx(NODE_LABEL_PX),
-                        strokeWidth: chromePx(LABEL_STROKE_PX),
-                      }}
-                    >
-                      {label}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
+          <BpTreeScene
+            svgRef={svgRef}
+            tree={tree}
+            paperRect={paperRect}
+            worldRect={worldRect}
+            layers={layers}
+            selectedVertices={linkedSelection.vertices}
+            selectedEdges={linkedSelection.edges}
+            chromePx={chromePx}
+            symmetryAxisLine={symmetryView.axisLine}
+            symmetryPairs={symmetryView.pairs}
+            ghostArmed={ghostArmed}
+            onRendered={onSceneRendered}
+            onEdgePointerDown={onEdgePointerDown}
+            onVertexPointerDown={onVertexPointerDown}
+          />
         </TransformComponent>
       </TransformWrapper>
       <BpTreeViewportToolbar
