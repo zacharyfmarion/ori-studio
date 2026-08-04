@@ -795,6 +795,12 @@ export function CreasePatternPanel() {
   // that are working preferences — the angle system, Fix Inaccurate's tolerance —
   // are opted into persistence by name; see `lib/cpToolOptionPersistence.ts`.
   const [cpToolOptions, setCpToolOptions] = usePersistedCpToolOptions();
+  // Arming a tool resolves its variant mode (`resolveCpVariantOperation`, via the
+  // tool state), so tool selection needs to read the options — but neither the
+  // document-restore effect nor the rail's select handler may re-run when an
+  // unrelated option changes, so they read the latest through a ref.
+  const cpToolOptionsRef = useRef(cpToolOptions);
+  cpToolOptionsRef.current = cpToolOptions;
   const [cpToolPoints, setCpToolPoints] = useState<Point[]>([]);
   const [cpToolPath, setCpToolPath] = useState<Point[]>([]);
   const [pendingLengthenLineId, setPendingLengthenLineId] = useState<number | null>(null);
@@ -1296,13 +1302,27 @@ export function CreasePatternPanel() {
   );
   const activeCpCommand = useMemo(
     () => {
-      if (activeCpAction?.kind === 'command') return activeCpAction.command;
-      return cpToolState.activeOperationId
+      // The tool state holds the *resolved* operation, which for a merged tool
+      // (Extend Line, Divided Line) is not always its action's own — so it wins.
+      // For every other tool the two name the same command.
+      const resolved = cpToolState.activeOperationId
         ? cpCommandByOperation(cpToolState.activeOperationId)
         : undefined;
+      if (resolved) return resolved;
+      return activeCpAction?.kind === 'command' ? activeCpAction.command : undefined;
     },
     [activeCpAction, cpToolState.activeOperationId]
   );
+  // A merged tool's mode is a tool option, so it can change while the tool is
+  // already armed. Re-resolve rather than making the user reselect the tool.
+  useEffect(() => {
+    setCpToolState((state) =>
+      transitionOristudioCpToolState(state, {
+        type: 'resolveVariant',
+        toolOptions: cpToolOptions,
+      })
+    );
+  }, [cpToolOptions]);
   // Annotations (images, text) select/drag/resize directly — no dedicated tool.
   // They are interactive whenever the active tool isn't mid-draw, or explicitly
   // allows direct entity selection; a drawing tool keeps its clicks on the canvas.
@@ -1461,6 +1481,7 @@ export function CreasePatternPanel() {
             type: 'selectAction',
             action: nextAction,
             editable: true,
+            toolOptions: cpToolOptionsRef.current,
           })
         : state
     );
@@ -1500,6 +1521,7 @@ export function CreasePatternPanel() {
             type: 'selectAction',
             action,
             editable: !!editableCp,
+            toolOptions: cpToolOptionsRef.current,
           })
         );
         // Persist the selection so the tool survives panel remounts (workspace switches).

@@ -4,11 +4,11 @@ import {
   cpVariantHostOperation,
   cpVariantOptionPatch,
   resolveCpVariantOperation,
-} from './toolVariants';
+} from './cpToolVariants';
 import {
   DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
   type OristudioCpToolOptions,
-} from '../../lib/oristudioCpToolSettings';
+} from './oristudioCpToolSettings';
 
 function options(overrides: Partial<OristudioCpToolOptions> = {}): OristudioCpToolOptions {
   return { ...DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, ...overrides };

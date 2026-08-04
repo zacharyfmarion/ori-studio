@@ -1,5 +1,5 @@
-import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
-import type { OristudioCpToolOptions } from '../../lib/oristudioCpToolSettings';
+import type { OristudioCpOperationId } from './oristudioCpCommands';
+import type { OristudioCpToolOptions } from './oristudioCpToolSettings';
 
 /**
  * Tools that are one rail button over several kernel operations.
@@ -7,9 +7,9 @@ import type { OristudioCpToolOptions } from '../../lib/oristudioCpToolSettings';
  * Oriedita ships Extend Line and Lengthen by Same Color as two mouse handlers,
  * and likewise the two divided-line tools, differing only in what happens on
  * commit — the gesture is identical (both lengthen tools share the `lengthen`
- * input model, both divide tools share `drag-line`; see `inputModelRegistry`).
- * Ori Studio presents each pair as a single tool and picks the operation from a
- * tool option.
+ * input model, both divide tools share `drag-line`; see
+ * `cp-workspace/tools/inputModelRegistry`). Ori Studio presents each pair as a
+ * single tool and picks the operation from a tool option.
  *
  * # Why the kernel operations stay separate
  *

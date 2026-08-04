@@ -12,6 +12,7 @@ import {
   IDLE_ORISTUDIO_CP_TOOL_STATE,
   transitionOristudioCpToolState,
 } from './oristudioCpToolState';
+import { DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS } from './oristudioCpToolSettings';
 
 function command(operationId: OristudioCpCommandDefinition['operationId']) {
   const definition = cpCommandByOperation(operationId);
@@ -39,6 +40,7 @@ describe('oristudio CP tool state', () => {
       type: 'selectAction',
       action: action('cp.action.draw-auxiliary-line'),
       editable: true,
+      toolOptions: DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
     });
 
     expect(state).toMatchObject({
@@ -60,6 +62,7 @@ describe('oristudio CP tool state', () => {
       type: 'selectAction',
       action: action('cp.action.draw-crease'),
       editable: true,
+      toolOptions: DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
     });
     const committed = transitionOristudioCpToolState(first, { type: 'commit', keepActive: true });
 
@@ -84,6 +87,7 @@ describe('oristudio CP tool state', () => {
       type: 'selectAction',
       action: action('cp.action.crease-move'),
       editable: true,
+      toolOptions: DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
     });
     const second = transitionOristudioCpToolState(first, { type: 'advanceStep' });
     const beyondLast = transitionOristudioCpToolState(second, { type: 'advanceStep' });
@@ -104,12 +108,14 @@ describe('oristudio CP tool state', () => {
       type: 'selectAction',
       action: action('cp.action.draw-crease'),
       editable: true,
+      toolOptions: DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
     });
     const nextDrawingStep = transitionOristudioCpToolState(drawing, { type: 'advanceStep' });
     const moving = transitionOristudioCpToolState(nextDrawingStep, {
       type: 'selectAction',
       action: action('cp.action.crease-move'),
       editable: true,
+      toolOptions: DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
     });
 
     expect(moving).toMatchObject({
@@ -118,6 +124,75 @@ describe('oristudio CP tool state', () => {
       phase: 'active',
       prompt: 'Move selected creases: Pick source point',
       stepIndex: 0,
+    });
+  });
+
+  // Extend Line and Divided Line are one rail action over two kernel operations
+  // each. The action is the tool identity; the operation is resolved from the
+  // mode option, once, here -- every guard comparing `activeOperationId` against
+  // the command it is about to run stays correct because both are the resolved one.
+  describe('merged tools', () => {
+    it('arms the operation the mode names, not the action own', () => {
+      const same = transitionOristudioCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE, {
+        type: 'selectAction',
+        action: action('cp.action.lengthen-crease'),
+        editable: true,
+        toolOptions: { ...DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, lengthenColorMode: 'same' },
+      });
+      expect(same).toMatchObject({
+        activeActionId: 'cp.action.lengthen-crease',
+        activeOperationId: 'LengthenCreaseSameColor',
+        activeLabel: 'Extend Line',
+      });
+
+      const active = transitionOristudioCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE, {
+        type: 'selectAction',
+        action: action('cp.action.lengthen-crease'),
+        editable: true,
+        toolOptions: { ...DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, lengthenColorMode: 'active' },
+      });
+      expect(active.activeOperationId).toBe('LengthenCrease');
+    });
+
+    it('re-resolves a mode changed while the tool is already armed', () => {
+      const armed = transitionOristudioCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE, {
+        type: 'selectAction',
+        action: action('cp.action.line-segment-division'),
+        editable: true,
+        toolOptions: { ...DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, divideMode: 'count' },
+      });
+      const midGesture = transitionOristudioCpToolState(armed, { type: 'advanceStep' });
+      const switched = transitionOristudioCpToolState(midGesture, {
+        type: 'resolveVariant',
+        toolOptions: { ...DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, divideMode: 'ratio' },
+      });
+
+      expect(switched.activeOperationId).toBe('LineSegmentRatioSet');
+      // The tool did not change, so neither does what has been picked so far.
+      expect(switched.activeActionId).toBe(midGesture.activeActionId);
+      expect(switched.stepIndex).toBe(midGesture.stepIndex);
+      expect(switched.prompt).toBe(midGesture.prompt);
+    });
+
+    it('is identity for an unchanged mode and for an ordinary tool', () => {
+      const drawing = transitionOristudioCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE, {
+        type: 'selectAction',
+        action: action('cp.action.draw-crease'),
+        editable: true,
+        toolOptions: DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
+      });
+      expect(
+        transitionOristudioCpToolState(drawing, {
+          type: 'resolveVariant',
+          toolOptions: { ...DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS, divideMode: 'ratio' },
+        })
+      ).toBe(drawing);
+      expect(
+        transitionOristudioCpToolState(IDLE_ORISTUDIO_CP_TOOL_STATE, {
+          type: 'resolveVariant',
+          toolOptions: DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
+        })
+      ).toBe(IDLE_ORISTUDIO_CP_TOOL_STATE);
     });
   });
 
