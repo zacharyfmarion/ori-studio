@@ -5083,6 +5083,12 @@
   accent-color: var(--accent-primary);
 }
 
+/* The anchor picker is a fixed-size widget, not a stretching control, so its
+   row aligns the label to the picker's first line rather than to a tall cell. */
+.cp-context-panel__field--anchor {
+  align-items: start;
+}
+
 /*
  * Square tool anchor picker: a 3x3 transform-origin grid naming where on the
  * square's bounding box the click lands. Sized to read as one small control

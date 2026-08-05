@@ -2106,7 +2106,11 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "tools:cpContext.squareAnchor": "a4ae750b610e",
+    "tools:cpContext.squareLineType": "5226992c391b",
+    "tools:cpContext.squareOrientation": "e3d11242200f",
+    "tools:cpContext.squareUnit": "4e545960f1bf"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4215,7 +4219,11 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "tools:cpContext.squareAnchor": "a4ae750b610e",
+    "tools:cpContext.squareLineType": "5226992c391b",
+    "tools:cpContext.squareOrientation": "e3d11242200f",
+    "tools:cpContext.squareUnit": "4e545960f1bf"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6353,7 +6361,11 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "tools:cpContext.squareAnchor": "a4ae750b610e",
+    "tools:cpContext.squareLineType": "5226992c391b",
+    "tools:cpContext.squareOrientation": "e3d11242200f",
+    "tools:cpContext.squareUnit": "4e545960f1bf"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8491,7 +8503,11 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "tools:cpContext.squareAnchor": "a4ae750b610e",
+    "tools:cpContext.squareLineType": "5226992c391b",
+    "tools:cpContext.squareOrientation": "e3d11242200f",
+    "tools:cpContext.squareUnit": "4e545960f1bf"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10629,7 +10645,11 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "tools:cpContext.squareAnchor": "a4ae750b610e",
+    "tools:cpContext.squareLineType": "5226992c391b",
+    "tools:cpContext.squareOrientation": "e3d11242200f",
+    "tools:cpContext.squareUnit": "4e545960f1bf"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12767,7 +12787,11 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "tools:cpContext.squareAnchor": "a4ae750b610e",
+    "tools:cpContext.squareLineType": "5226992c391b",
+    "tools:cpContext.squareOrientation": "e3d11242200f",
+    "tools:cpContext.squareUnit": "4e545960f1bf"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14905,7 +14929,11 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "tools:cpContext.squareAnchor": "a4ae750b610e",
+    "tools:cpContext.squareLineType": "5226992c391b",
+    "tools:cpContext.squareOrientation": "e3d11242200f",
+    "tools:cpContext.squareUnit": "4e545960f1bf"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -17014,6 +17042,10 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "tools:cpContext.squareAnchor": "a4ae750b610e",
+    "tools:cpContext.squareLineType": "5226992c391b",
+    "tools:cpContext.squareOrientation": "e3d11242200f",
+    "tools:cpContext.squareUnit": "4e545960f1bf"
   }
 }

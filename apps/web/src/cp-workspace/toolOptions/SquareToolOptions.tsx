@@ -64,8 +64,9 @@ export function SquareToolOptions({
         onChange={(squareSize) => setOptions((current) => ({ ...current, squareSize }))}
       />
 
-      <SegmentedControl
-        aria-label={t('tools:cpContext.squareSizeUnitAria', 'Square size unit')}
+      <SegmentedToolOption
+        label={t('tools:cpContext.squareUnit', 'Unit')}
+        ariaLabel={t('tools:cpContext.squareSizeUnitAria', 'Square size unit')}
         value={options.squareSizeUnit}
         options={[
           {
@@ -82,8 +83,9 @@ export function SquareToolOptions({
         onChange={setSizeUnit}
       />
 
-      <SegmentedControl
-        aria-label={t('tools:cpContext.squareOrientationAria', 'Square orientation')}
+      <SegmentedToolOption
+        label={t('tools:cpContext.squareOrientation', 'Orientation')}
+        ariaLabel={t('tools:cpContext.squareOrientationAria', 'Square orientation')}
         value={options.squareOrientation}
         options={[
           {
@@ -110,8 +112,9 @@ export function SquareToolOptions({
         onChange={(squareAnchor) => setOptions((current) => ({ ...current, squareAnchor }))}
       />
 
-      <SegmentedControl
-        aria-label={t('tools:cpContext.squareLineTypeAria', 'Square line type')}
+      <SegmentedToolOption
+        label={t('tools:cpContext.squareLineType', 'Line type')}
+        ariaLabel={t('tools:cpContext.squareLineTypeAria', 'Square line type')}
         value={options.squareLineType}
         options={[
           {
@@ -137,6 +140,40 @@ export function SquareToolOptions({
 }
 
 /**
+ * A segmented control on the same label-left / control-right row as
+ * `NumericToolOption`.
+ *
+ * A bare full-width toggle reads as a mode switch for the whole group rather
+ * than as one param among several — with three of them stacked, nothing said
+ * which was which. Sharing the field grid puts every param on one column and
+ * makes the answer to "what does this choose?" the text beside it.
+ *
+ * A `div` rather than the `label` element the numeric field uses: a label points
+ * at a single control, and this names a group of buttons. The group carries its
+ * own `aria-label`, so the accessible name does not depend on the visible text.
+ */
+function SegmentedToolOption<T extends string>({
+  label,
+  ariaLabel,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  ariaLabel: string;
+  value: T;
+  options: { value: T; label: string; title?: string }[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="cp-context-panel__field">
+      <span>{label}</span>
+      <SegmentedControl aria-label={ariaLabel} value={value} options={options} onChange={onChange} />
+    </div>
+  );
+}
+
+/**
  * Where on the square's bounding box the click lands, as a 3×3 transform-origin
  * picker.
  *
@@ -156,24 +193,27 @@ function SquareAnchorPicker({
   const { t } = useTranslation(['tools']);
 
   return (
-    <div
-      className="cp-square-anchor"
-      role="radiogroup"
-      aria-label={t('tools:cpContext.squareAnchorAria', 'Square anchor')}
-    >
-      {ORISTUDIO_CP_SQUARE_ANCHORS.map((anchor) => (
-        <button
-          key={anchor}
-          type="button"
-          role="radio"
-          aria-checked={anchor === value}
-          aria-label={squareAnchorLabel(t, anchor)}
-          title={squareAnchorLabel(t, anchor)}
-          data-active={anchor === value || undefined}
-          className="cp-square-anchor__cell"
-          onClick={() => onChange(anchor)}
-        />
-      ))}
+    <div className="cp-context-panel__field cp-context-panel__field--anchor">
+      <span>{t('tools:cpContext.squareAnchor', 'Anchor')}</span>
+      <div
+        className="cp-square-anchor"
+        role="radiogroup"
+        aria-label={t('tools:cpContext.squareAnchorAria', 'Square anchor')}
+      >
+        {ORISTUDIO_CP_SQUARE_ANCHORS.map((anchor) => (
+          <button
+            key={anchor}
+            type="button"
+            role="radio"
+            aria-checked={anchor === value}
+            aria-label={squareAnchorLabel(t, anchor)}
+            title={squareAnchorLabel(t, anchor)}
+            data-active={anchor === value || undefined}
+            className="cp-square-anchor__cell"
+            onClick={() => onChange(anchor)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
