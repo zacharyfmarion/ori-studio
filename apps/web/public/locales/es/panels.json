@@ -38,7 +38,7 @@
     "layerRivers": "Ríos",
     "layers": "Capas",
     "mirrorDraw": "Dibujo simétrico",
-    "mirrorDrawHint": "Al mover, la pareja sigue",
+    "mirrorDrawHint": "Los nodos nuevos obtienen un gemelo",
     "mirrorDrawOn": "Dibujo simétrico (activado)",
     "nextStepper": "Siguiente {{label}}",
     "noValidPattern": "No hay patrón válido",

@@ -646,3 +646,61 @@ describe('BP tree pane — Delete reaches the node delete', () => {
     expect(menu).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * A pairing outlives mirror draw.
+ *
+ * The toggle decides one thing: whether the *next* node is drawn with a twin.
+ * Everything a pair already implies — that it is drawn as a pair, and that moving
+ * one member carries the other — is part of the design and has to survive the
+ * user switching the toggle off. Conflating the two made the whole feature
+ * disappear the moment they did.
+ */
+describe('BP tree pane — pairings survive mirror draw being off', () => {
+  const pairLines = () => container?.querySelectorAll('.symmetry-pair-line').length ?? 0;
+
+  function withPair(symmetryEnabled: boolean) {
+    const body = render(1, symmetryEnabled);
+    act(() => {
+      useWorkspaceStore.setState({
+        oristudioBpSymmetry: {
+          enabled: symmetryEnabled,
+          fold: 'book',
+          angle: 90,
+          loc: { x: 10, y: 10 },
+          pairs: [{ v1: 1, v2: 2 }],
+        },
+      });
+    });
+    return body;
+  }
+
+  it('draws the segment joining a pair with mirror draw off', () => {
+    withPair(false);
+    expect(pairLines()).toBe(1);
+  });
+
+  it('draws it with mirror draw on too', () => {
+    withPair(true);
+    expect(pairLines()).toBe(1);
+  });
+
+  it('commits a drag through the mirrored move whatever the toggle says', () => {
+    const body = withPair(false);
+    const dot = body.querySelector('circle[data-bp-anchor="node"][data-bp-p1="1"]');
+    if (!dot) throw new Error('vertex dot did not render');
+    act(() => {
+      dot.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
+      );
+      body.dispatchEvent(
+        new MouseEvent('pointermove', { bubbles: true, button: 0, clientX: 460, clientY: 360 })
+      );
+      body.dispatchEvent(
+        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 460, clientY: 360 })
+      );
+    });
+    expect(actions.moveOristudioBpTreeVerticesWithSymmetry).toHaveBeenCalledTimes(1);
+    expect(actions.moveOristudioBpTreeVertices).not.toHaveBeenCalled();
+  });
+});

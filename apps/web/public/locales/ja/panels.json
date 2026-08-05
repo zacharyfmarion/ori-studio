@@ -38,7 +38,7 @@
     "layerRivers": "リバー",
     "layers": "レイヤー",
     "mirrorDraw": "ミラー描画",
-    "mirrorDrawHint": "移動でペアも動く",
+    "mirrorDrawHint": "新しいノードに双子ができます",
     "mirrorDrawOn": "ミラー描画（オン）",
     "nextStepper": "次の{{label}}",
     "noValidPattern": "有効なパターンがありません",

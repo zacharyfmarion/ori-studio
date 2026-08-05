@@ -185,14 +185,15 @@ describe('moveOristudioBpLayoutFlapWithSymmetry', () => {
     expect(singleMoves()).toEqual([]);
   });
 
-  it('leaves the partner alone when mirror draw is off', async () => {
+  it('still carries the partner after mirror draw is switched off', async () => {
+    // Mirror draw decides whether a *new* node is drawn with a twin. A pair that
+    // already exists belongs to the design, so moving one member still moves the
+    // other — otherwise the feature would vanish the moment the user stopped
+    // drawing symmetrically.
     setUp({ enabled: false });
     await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(1, { x: 3, y: 9 });
-    // Straight through to the plain single-flap move: the grabbed flap and
-    // nothing else, and not routed via the group call, whose undo entry is
-    // worded for a selection.
-    expect(singleMoves()).toEqual([[1, { x: 3, y: 9 }]]);
-    expect(groupMoves()).toEqual([]);
+    expect(groupMoves()).toEqual([[[1], { x: 3, y: 9 }]]);
+    expect(singleMoves()).toEqual([[2, { x: 11, y: 9 }]]);
   });
 
   it('mirrors where the flap landed, not where it was sent', async () => {
@@ -216,10 +217,6 @@ describe('moveOristudioBpLayoutFlapWithSymmetry', () => {
     setUp({ enabled: true });
     await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(1, { x: 3, y: 9 });
     expect(useWorkspaceStore.getState().projectMessage).toBe('Moved mirrored BP flap');
-
-    setUp({ enabled: false });
-    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(1, { x: 3, y: 9 });
-    expect(useWorkspaceStore.getState().projectMessage).toBe('Moved BP flap');
   });
 
   it('mirrors nothing when the fold has no mirror on this sheet', async () => {

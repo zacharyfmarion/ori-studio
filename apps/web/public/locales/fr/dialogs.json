@@ -25,7 +25,6 @@
     },
     "symmetry": "Symétrie",
     "symmetryInconsistent": "Certaines pointes appariées ne sont pas interchangeables dans l’arbre : les refléter consommera plus de papier.",
-    "symmetryOff": "Le dessin en miroir est désactivé. Activez-le dans l’éditeur BP ou la vue arborescente pour refléter la disposition.",
     "title": "Optimiser la disposition",
     "toTry": "Nombre de dispositions à essayer :",
     "useBasinHopping": "Essayer des variantes de la disposition actuelle",
@@ -134,7 +133,7 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
     "title": "Avertissement"
   },
   "help": {

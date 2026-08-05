@@ -38,7 +38,7 @@
     "layerRivers": "Rivers",
     "layers": "Layers",
     "mirrorDraw": "Mirror draw",
-    "mirrorDrawHint": "Moves carry the partner",
+    "mirrorDrawHint": "New nodes get a twin",
     "mirrorDrawOn": "Mirror draw (on)",
     "nextStepper": "Next {{label}}",
     "noValidPattern": "No valid pattern",

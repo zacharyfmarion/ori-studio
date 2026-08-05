@@ -107,9 +107,16 @@ export function BpOptimizerModal() {
     [t]
   );
 
-  /** What the dialog can say about symmetry right now. */
+  /**
+   * What the dialog can say about symmetry right now.
+   *
+   * Deliberately does not ask whether mirror draw is on. That toggle decides
+   * whether a *new* node is drawn with a twin; whether this design is symmetric
+   * enough to solve symmetrically is a question about the drawing, and the
+   * per-run toggle below is the way to decline it for one run.
+   */
   const symmetry = useMemo(() => {
-    if (!symmetryState.enabled || !tree) return { mode: 'off' as const };
+    if (!tree) return { mode: 'off' as const };
     const resolved = resolveOptimizerSymmetry(tree, symmetryState, {
       fold: symmetryState.fold,
     });
@@ -271,14 +278,7 @@ export function BpOptimizerModal() {
                   {t('dialogs:bpOptimizer.symmetry', 'Symmetry')}
                 </span>
                 <div className="bp-optimizer__control">
-                  {symmetry.mode === 'off' ? (
-                    <p className="bp-optimizer__hint">
-                      {t(
-                        'dialogs:bpOptimizer.symmetryOff',
-                        'Mirror draw is off. Turn it on in the BP Editor or the tree view to mirror the layout.'
-                      )}
-                    </p>
-                  ) : (
+                  {symmetry.mode !== 'off' && (
                     <>
                       <label className="bp-optimizer__check">
                         <Toggle

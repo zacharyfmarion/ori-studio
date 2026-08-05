@@ -176,8 +176,10 @@ export function useBpPackingSymmetry(
     [symmetry.loc, symmetry.angle]
   );
 
+  // Not gated on mirror draw: a move carries the partner whatever the toggle
+  // says, so the mark that says which flap will follow has to as well.
   const partnerIds = useMemo(() => {
-    if (!symmetry.enabled || selectedFlapIds.length === 0) return EMPTY_IDS;
+    if (selectedFlapIds.length === 0) return EMPTY_IDS;
     const selected = new Set(selectedFlapIds);
     const partners = new Set<number>();
     for (const id of selectedFlapIds) {
@@ -186,13 +188,13 @@ export function useBpPackingSymmetry(
       partners.add(partner);
     }
     return partners;
-  }, [symmetry.enabled, symmetry.pairs, selectedFlapIds, tree, treeAxis]);
+  }, [symmetry.pairs, selectedFlapIds, tree, treeAxis]);
 
   const unpairableId = useMemo(() => {
-    if (!symmetry.enabled || selectedFlapIds.length !== 1) return null;
+    if (selectedFlapIds.length !== 1) return null;
     const id = selectedFlapIds[0];
     return explicitBpTreePairId(symmetry.pairs, id) === null ? null : id;
-  }, [symmetry.enabled, symmetry.pairs, selectedFlapIds]);
+  }, [symmetry.pairs, selectedFlapIds]);
 
   return {
     enabled: symmetry.enabled,

@@ -284,11 +284,14 @@ describe('symmetry row', () => {
     } as never);
   }
 
-  it('says so when mirror draw is off, and names both places that turn it on', () => {
+  it('offers symmetry after mirror draw is switched off, because the pairs remain', () => {
+    // Mirror draw decides whether a *new* node is drawn with a twin. Whether the
+    // design is symmetric is a property of the drawing, so a design stays
+    // solvable symmetrically once the user stops drawing that way — and this row
+    // is where they decline it for a single run.
     withTree({ enabled: false });
     renderModal();
-    expect(text()).toContain('Mirror draw is off');
-    expect(text()).toContain('BP Editor');
+    expect(text()).toContain('Use symmetry for this run');
   });
 
   it('says plainly that the toggle applies to this run', () => {

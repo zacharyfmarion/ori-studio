@@ -124,6 +124,25 @@ modal's Symmetry row then mixes a *design* edit (`fold`) with a *run* option
 (`options.respectSymmetry`) in one visual group — separate them with a divider or
 a label so the fold does not read as "this run only". See U6.
 
+### U1b — `enabled` means mirror *draw*, and nothing else
+
+Corrected after the fact: the flag was gating seven separate things, so switching
+it off took the whole feature with it — pairs stopped being drawn, moves stopped
+mirroring, the optimizer stopped offering symmetry. A pairing is design data. The
+toggle decides exactly one thing: whether the **next** node is drawn with a twin.
+
+Everything else keys off the pairing itself:
+
+| Reads the toggle | Reads the pairing |
+| --- | --- |
+| the mirrored add, and its hover ghost | the mirrored move, delete, edge length, flap resize |
+| the axis overlay (it is the draw guide) | the segment joining a pair, and Unpair |
+| the on-axis drag refusal — the only *refusal*, so the toggle has to be the way out | the partner mark in the packing pane |
+| | the optimizer's symmetry resolution (`respectSymmetry` is the per-run opt out) |
+
+`bpMirrorPartnerId` in the store slice is the single question every edit asks, so
+there is one place left that could reintroduce the conflation.
+
 ### U2 — A symmetry popover beside the sheet popover
 
 Put it in the packing pane's viewport toolbar, immediately next to the existing

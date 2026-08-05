@@ -316,7 +316,7 @@ describe('BP tree canvas — the drawing is not rebuilt for nothing', () => {
     });
     drain();
     observer.disconnect();
-    return { touched: touched.size, committed: actions.moveOristudioBpTreeVertices.mock.calls.length };
+    return { touched: touched.size, committed: actions.moveOristudioBpTreeVerticesWithSymmetry.mock.calls.length };
   }
 
   it('touches the same few elements whether the tree is small or large', () => {

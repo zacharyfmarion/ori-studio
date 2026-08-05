@@ -38,7 +38,7 @@
     "layerRivers": "河",
     "layers": "图层",
     "mirrorDraw": "镜像绘制",
-    "mirrorDrawHint": "移动时带上配对方",
+    "mirrorDrawHint": "新建节点会生成对称节点",
     "mirrorDrawOn": "镜像绘制（开）",
     "nextStepper": "下一个 {{label}}",
     "noValidPattern": "无有效图案",

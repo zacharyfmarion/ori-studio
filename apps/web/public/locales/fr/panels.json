@@ -38,7 +38,7 @@
     "layerRivers": "Rivières",
     "layers": "Calques",
     "mirrorDraw": "Dessin en miroir",
-    "mirrorDrawHint": "Un déplacement entraîne le partenaire",
+    "mirrorDrawHint": "Les nouveaux nœuds obtiennent un jumeau",
     "mirrorDrawOn": "Dessin en miroir (activé)",
     "nextStepper": "{{label}} suivant",
     "noValidPattern": "Aucun motif valide",

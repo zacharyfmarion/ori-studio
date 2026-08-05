@@ -38,7 +38,7 @@
     "layerRivers": "Реки",
     "layers": "Слои",
     "mirrorDraw": "Зеркальное рисование",
-    "mirrorDrawHint": "Перемещение тянет пару",
+    "mirrorDrawHint": "У новых узлов появляется двойник",
     "mirrorDrawOn": "Зеркальное рисование (вкл.)",
     "nextStepper": "Следующий {{label}}",
     "noValidPattern": "Нет допустимого паттерна",

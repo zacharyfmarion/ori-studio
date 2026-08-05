@@ -25,7 +25,6 @@
     },
     "symmetry": "对称",
     "symmetryInconsistent": "部分配对的角片在树中并不可互换，镜像它们会占用更多纸张。",
-    "symmetryOff": "镜像绘制已关闭。在 BP 编辑器或树视图中开启后即可镜像布局。",
     "title": "优化布局",
     "toTry": "要尝试的布局数量：",
     "useBasinHopping": "尝试当前布局的变化",

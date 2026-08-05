@@ -25,7 +25,6 @@
     },
     "symmetry": "Simetria",
     "symmetryInconsistent": "Algumas pontas emparelhadas não são intercambiáveis na árvore, então espelhá-las usará mais papel.",
-    "symmetryOff": "O desenho espelhado está desligado. Ative-o no Editor BP ou na visão de árvore para espelhar o layout.",
     "title": "Otimizar o layout",
     "toTry": "Número de layouts a tentar:",
     "useBasinHopping": "Tentar variações do layout atual",

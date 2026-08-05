@@ -60,7 +60,7 @@ export function BpPackingSymmetryMenu({ symmetry }: { symmetry: BpPackingSymmetr
           <div className="symmetry-menu__toggle-row">
             <span className="symmetry-menu__toggle-copy">
               {t('panels:bpPacking.mirrorDraw', 'Mirror draw')}
-              <small>{t('panels:bpPacking.mirrorDrawHint', 'Moves carry the partner')}</small>
+              <small>{t('panels:bpPacking.mirrorDrawHint', 'New nodes get a twin')}</small>
             </span>
             <Toggle
               checked={symmetry.enabled}
@@ -68,31 +68,33 @@ export function BpPackingSymmetryMenu({ symmetry }: { symmetry: BpPackingSymmetr
               aria-label={t('panels:bpPacking.mirrorDraw', 'Mirror draw')}
             />
           </div>
-          {symmetry.enabled && (
-            <>
-              <div className="symmetry-menu__section-label">
-                {t('panels:bpPacking.fold', 'Fold')}
-              </div>
-              <div className="bp-sheet-menu__segment">
-                {SYMMETRY_FOLDS.map((fold) => {
-                  const unavailable = symmetry.foldUnavailable(fold);
-                  return (
-                    <button
-                      key={fold}
-                      type="button"
-                      className={symmetry.fold === fold ? 'is-active' : undefined}
-                      disabled={unavailable !== null}
-                      title={unavailable ?? undefined}
-                      onClick={() => symmetry.setFold(fold)}
-                    >
-                      {symmetryFoldLabel(t, fold)}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="symmetry-menu__status">{symmetry.status}</p>
-            </>
-          )}
+          {/*
+            * Below the toggle rather than behind it: the fold and the status are
+            * facts about the design, not about whether the next node is drawn
+            * with a twin. A design keeps its pairs — and keeps mirroring their
+            * moves — after mirror draw is switched off.
+            */}
+          <div className="symmetry-menu__section-label">
+            {t('panels:bpPacking.fold', 'Fold')}
+          </div>
+          <div className="bp-sheet-menu__segment">
+            {SYMMETRY_FOLDS.map((fold) => {
+              const unavailable = symmetry.foldUnavailable(fold);
+              return (
+                <button
+                  key={fold}
+                  type="button"
+                  className={symmetry.fold === fold ? 'is-active' : undefined}
+                  disabled={unavailable !== null}
+                  title={unavailable ?? undefined}
+                  onClick={() => symmetry.setFold(fold)}
+                >
+                  {symmetryFoldLabel(t, fold)}
+                </button>
+              );
+            })}
+          </div>
+          <p className="symmetry-menu__status">{symmetry.status}</p>
         </div>
       )}
     </div>

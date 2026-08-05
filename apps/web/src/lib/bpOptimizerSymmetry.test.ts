@@ -69,7 +69,6 @@ function bugTree() {
 
 function symmetryState(overrides: Partial<Parameters<typeof resolveOptimizerSymmetry>[1]> = {}) {
   return {
-    enabled: true,
     angle: 90,
     loc: CENTRE,
     pairs: [],
@@ -161,11 +160,13 @@ describe('resolveOptimizerSymmetry', () => {
     expect(offCentre.reason).toContain('centre of the sheet');
   });
 
-  it('is inactive when symmetry is turned off', () => {
-    const result = resolveOptimizerSymmetry(bugTree(), symmetryState({ enabled: false }), {
-      fold: 'book',
-    });
-    expect(result.ok).toBe(false);
+  it('does not ask whether mirror draw is on', () => {
+    // Mirror draw decides whether a *new* node is drawn with a twin. Whether the
+    // design is symmetric is a property of the drawing, and the run's own
+    // `respectSymmetry` option is the per-run opt out — so a design stays
+    // optimizable symmetrically after the user stops drawing that way.
+    const result = resolveOptimizerSymmetry(bugTree(), symmetryState(), { fold: 'book' });
+    expect(result.ok).toBe(true);
   });
 
   it('flags a pairing that is not interchangeable in the tree', () => {

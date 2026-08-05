@@ -318,9 +318,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
   const selection = useWorkspaceStore((state) => state.oristudioBpSelection);
   const clearSelection = useWorkspaceStore((state) => state.clearOristudioBpSelection);
-  const moveOristudioBpTreeVertices = useWorkspaceStore(
-    (state) => state.moveOristudioBpTreeVertices
-  );
   const addOristudioBpTreeLeaf = useWorkspaceStore((state) => state.addOristudioBpTreeLeaf);
   const setOristudioBpTreeEdgeLength = useWorkspaceStore(
     (state) => state.setOristudioBpTreeEdgeLength
@@ -785,8 +782,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     paperDownRef.current = null;
     if (session.moved && session.updates.size > 0) {
       const updates = [...session.updates].map(([id, loc]) => ({ id, loc }));
-      if (symmetry.enabled) void moveOristudioBpTreeVerticesWithSymmetry(updates, false);
-      else void moveOristudioBpTreeVertices(updates, false);
+      // Always the mirrored action: it moves nothing extra when the dragged
+      // vertices have no partners, and a pair must follow whether or not the user
+      // is currently drawing symmetrically.
+      void moveOristudioBpTreeVerticesWithSymmetry(updates, false);
     }
     return true;
   };

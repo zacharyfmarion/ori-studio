@@ -25,7 +25,6 @@
     },
     "symmetry": "Simetría",
     "symmetryInconsistent": "Algunas solapas emparejadas no son intercambiables en el árbol, así que reflejarlas usará más papel.",
-    "symmetryOff": "El dibujo simétrico está desactivado. Actívalo en el Editor BP o en la vista de árbol para reflejar la disposición.",
     "title": "Optimizar el diseño",
     "toTry": "Número de diseños para probar:",
     "useBasinHopping": "Pruebe variaciones de los diseños actuales",

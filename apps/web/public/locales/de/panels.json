@@ -38,7 +38,7 @@
     "layerRivers": "Flüsse",
     "layers": "Ebenen",
     "mirrorDraw": "Spiegelzeichnen",
-    "mirrorDrawHint": "Bewegungen nehmen den Partner mit",
+    "mirrorDrawHint": "Neue Knoten bekommen einen Zwilling",
     "mirrorDrawOn": "Spiegelzeichnen (ein)",
     "nextStepper": "Nächstes {{label}}",
     "noValidPattern": "Kein gültiges Muster",

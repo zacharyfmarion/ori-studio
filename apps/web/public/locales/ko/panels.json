@@ -38,7 +38,7 @@
     "layerRivers": "리버",
     "layers": "레이어",
     "mirrorDraw": "대칭 그리기",
-    "mirrorDrawHint": "이동하면 짝도 따라옵니다",
+    "mirrorDrawHint": "새 노드에 짝이 생깁니다",
     "mirrorDrawOn": "대칭 그리기(켜짐)",
     "nextStepper": "다음 {{label}}",
     "noValidPattern": "유효한 패턴 없음",

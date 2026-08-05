@@ -38,7 +38,7 @@
     "layerRivers": "Rios",
     "layers": "Camadas",
     "mirrorDraw": "Desenho espelhado",
-    "mirrorDrawHint": "Mover leva o par junto",
+    "mirrorDrawHint": "Novos nós ganham um gêmeo",
     "mirrorDrawOn": "Desenho espelhado (ativado)",
     "nextStepper": "Próximo {{label}}",
     "noValidPattern": "Nenhum padrão válido",
