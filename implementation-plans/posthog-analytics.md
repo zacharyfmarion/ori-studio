@@ -310,8 +310,9 @@ Phase 4 — Domain events
 
 Phase 5 — Docs, firewall, CI, verify
 - [x] `AGENTS.md` analytics discipline ("new features ship with an event")
-- [ ] `docs/analytics.md` privacy contract
-- [ ] `vite-env.d.ts` augmentation
-- [ ] absence-firewall verified (unset vars → no capture)
-- [ ] CI/deploy env wired
-- [ ] browser-preview end-to-end verification (events land, opt-out resets, no PII)
+- [x] `docs/analytics.md` privacy contract (scope, event table, never-collect list, safeguards)
+- [x] `vite-env.d.ts` augmentation (done in Phase 1)
+- [x] absence-firewall verified in the preview: DEV console logs "PostHog disabled", zero PostHog network requests
+- [x] CI/deploy env wired (`deploy-web.yml`, Phase 0)
+- [x] browser verification: app loads clean, no console errors, Privacy toggle renders (Settings → Workspace → Privacy)
+- [ ] live event-flow + opt-out-resets-identity verification — needs a real key, so blocked on Phase 0 provisioning (analytics is correctly disabled locally without one)
