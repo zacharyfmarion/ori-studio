@@ -703,8 +703,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
-  const moveOristudioBpLayoutFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlap);
-  const moveOristudioBpLayoutFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlaps);
+  // Every flap move in this pane goes through the mirrored actions, which fall
+  // back to the plain ones when mirror draw is off. Whether a move carries a
+  // partner is the store's question; the pane just moves flaps.
+  const moveFlap = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlapWithSymmetry);
+  const moveFlaps = useWorkspaceStore((state) => state.moveOristudioBpLayoutFlapsWithSymmetry);
   const resizeOristudioBpLayoutFlap = useWorkspaceStore(
     (state) => state.resizeOristudioBpLayoutFlap
   );
@@ -976,15 +979,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       );
       if (constrainedVector.x === 0 && constrainedVector.y === 0) return false;
       const ids = flaps.map((flap) => flap.id);
-      if (ids.length > 1) void moveOristudioBpLayoutFlaps(ids, loc, false);
-      else void moveOristudioBpLayoutFlap(reference.id, loc, false);
+      if (ids.length > 1) void moveFlaps(ids, loc, false);
+      else void moveFlap(reference.id, loc, false);
       return true;
     },
     [
       selection,
       moveOristudioBpDevice,
-      moveOristudioBpLayoutFlap,
-      moveOristudioBpLayoutFlaps,
+      moveFlap,
+      moveFlaps,
       packing.devices,
       packing.flaps,
       packing.sheet,
@@ -992,8 +995,8 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
 
   const dragRequests = useBpPackingDragRequests({
-    moveFlap: moveOristudioBpLayoutFlap,
-    moveFlaps: moveOristudioBpLayoutFlaps,
+    moveFlap,
+    moveFlaps,
     moveDevice: moveOristudioBpDevice,
   });
 
