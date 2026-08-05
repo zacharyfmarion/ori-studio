@@ -108,7 +108,16 @@ const OVERSIZED_PANELS = {
   // composition: mounting the hook and the layer, routing the tool's commit to
   // the review instead of the kernel, and four viewport shortcut cases in the
   // executor every other viewport verb already lives in.
-  'CreasePatternPanel.tsx': 2729,
+  //
+  // 2729 -> 2740: the shared-link loading state. Opening `/s/<id>` by id is the one
+  // provisioning path that waits on the network — up to a minute while KV propagates — and
+  // without this it renders as an ordinary empty editor, which is indistinguishable from
+  // the link having failed. What landed is an import, a store selector and a
+  // `SurfaceLoading` early return: composition, mounting a shared component on a store
+  // flag, the same shape `BpEditorPanel` uses for its own readiness. Extracting eleven
+  // lines of that into a hook or a child would cost more than it saved, which AGENTS.md
+  // names as the wrong trade.
+  'CreasePatternPanel.tsx': 2740,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
@@ -198,7 +207,9 @@ const PANELS_WITH_LEGACY_KEYDOWN = [
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'src/generated'],
+    // `.wrangler` holds the bundles `wrangler pages dev` generates from `functions/` —
+    // build output, and minified, so linting it reports on generated code rather than ours.
+    ignores: ['dist', 'src/generated', '.wrangler'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -87,6 +87,7 @@
     "foldedCase": "折りケース",
     "foldedCasesFound_other": "これまでに {{count}} 件",
     "foldedFigureNeedsCp": "折るには編集可能な展開図を開いてください",
+    "foldedFigureNeedsFlat": "この展開図には完全に折らない折り線が含まれているため、平坦に折りたたんだ形がありません",
     "foldedFigureNeedsOnePattern": "折るパターンを1つ選択してください",
     "foldedFigureSection": "折り上がり図",
     "foldedFrontColor": "表",
@@ -244,13 +245,31 @@
       "startup": "起動"
     }
   },
+  "share": {
+    "author": "作者",
+    "authorPlaceholder": "任意",
+    "backColor": "裏面の色",
+    "create": "リンクを作成",
+    "creating": "リンクを作成中…",
+    "foldedFigure": "折り上がり図を表示",
+    "foldedFigureNeedsFlat": "この展開図には完全に折らない折り線が含まれているため、平坦に折りたたんだ形がありません",
+    "folding": "折りたたみ中…",
+    "frontColor": "表面の色",
+    "linkPreview": "リンクプレビュー",
+    "notPublished": "リンクを作成するまで何も公開されません。",
+    "previewAlt": "共有する展開図のプレビュー",
+    "scope": "このリンクを開いた人には編集可能なコピーが渡されるため、元のデータが変更されることはありません。作成後のリンクは削除も変更もできません。含まれるのは展開図のみで、参考画像・注釈・保存したシミュレーションは含まれません。",
+    "scopeDraft": "先にタイトル・作者・折り上がり図を設定してください。リンクは作成時点のスナップショットで、あとから編集も削除もできないため、変更するには別のリンクを作る必要があります。含まれるのは展開図のみで、参考画像・注釈・保存したシミュレーションは含まれません。",
+    "side": "面",
+    "sideBack": "裏",
+    "sideFront": "表",
+    "title": "タイトル",
+    "titlePlaceholder": "無題の展開図"
+  },
   "shareLink": {
     "close": "共有を閉じる",
     "copied": "コピーしました",
-    "copy": "コピー",
-    "longWarning": "このリンクはブラウザーのアドレスバーでは動作しますが、一部のチャットアプリやメールクライアントはこの長さのリンクを切り詰めます。書き出したファイルを送るほうが確実です。",
-    "scope": "折り線パターンのみが含まれます。参照画像、注釈、保存されたシミュレーションは含まれません。",
-    "summary": "{{creases}} 本の折り線 · {{chars}} 文字",
+    "copy": "リンクをコピー",
     "title": "折り線パターンを共有",
     "url": "共有リンク"
   },

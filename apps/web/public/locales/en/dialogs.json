@@ -92,6 +92,7 @@
     "foldedCasesFound_one": "{{count}} found so far",
     "foldedCasesFound_other": "{{count}} found so far",
     "foldedFigureNeedsCp": "Open an editable crease pattern to fold it",
+    "foldedFigureNeedsFlat": "This pattern has creases that are not full folds, so it has no flat-folded form",
     "foldedFigureNeedsOnePattern": "Select a single pattern to fold",
     "foldedFigureSection": "Folded figure",
     "foldedFrontColor": "Front",
@@ -249,13 +250,31 @@
       "startup": "Startup"
     }
   },
+  "share": {
+    "author": "Author",
+    "authorPlaceholder": "Optional",
+    "backColor": "Back color",
+    "create": "Create link",
+    "creating": "Creating link…",
+    "foldedFigure": "Show folded figure",
+    "foldedFigureNeedsFlat": "This pattern has creases that are not full folds, so it has no flat-folded form",
+    "folding": "Folding…",
+    "frontColor": "Front color",
+    "linkPreview": "Link preview",
+    "notPublished": "Nothing is published until you create the link.",
+    "previewAlt": "Preview of the shared crease pattern",
+    "scope": "Anyone with this link opens their own editable copy — they cannot change your original. Links cannot be deleted or changed once created, and carry the crease pattern only: not reference images, annotations, or saved simulations.",
+    "scopeDraft": "Set the title, author and figure first: a link is a permanent snapshot — it cannot be edited or deleted afterwards, so changes mean creating another one. Carries the crease pattern only — not reference images, annotations, or saved simulations.",
+    "side": "Side",
+    "sideBack": "Back",
+    "sideFront": "Front",
+    "title": "Title",
+    "titlePlaceholder": "Untitled crease pattern"
+  },
   "shareLink": {
     "close": "Close share",
     "copied": "Copied",
-    "copy": "Copy",
-    "longWarning": "This link works in a browser address bar, but some chat apps and email clients cut off links this long. Sending an exported file is more reliable.",
-    "scope": "Carries the crease pattern only — not reference images, annotations, or saved simulations.",
-    "summary": "{{creases}} creases · {{chars}} characters",
+    "copy": "Copy link",
     "title": "Share crease pattern",
     "url": "Share link"
   },

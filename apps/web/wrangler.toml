@@ -1,0 +1,35 @@
+name = "oristudio"
+compatibility_date = "2026-08-03"
+pages_build_output_dir = "./dist"
+
+# Bindings for crease-pattern share links (see
+# implementation-plans/cp-share-links.md).
+#
+# Both buckets carry a lifecycle rule `expire-thumbnails-1y`: objects under `thumbnails/`
+# expire after 365 days. That is what turns unbounded R2 growth into a bounded steady
+# state — storage converges to (share rate x retention) and stops. The crease patterns in
+# KV deliberately carry no TTL: the payload is the artifact and is kept indefinitely, the
+# preview image is packaging and is not. Recreate with:
+#
+#   wrangler r2 bucket lifecycle add <bucket> expire-thumbnails-1y thumbnails/ \
+#     --expire-days 365
+#
+# Rate limiting is a KV counter rather than the platform `ratelimits` binding, because
+# `ratelimits` is not among the bindings Pages Functions supports. See
+# `functions/_lib/cpShare.ts`.
+
+[[kv_namespaces]]
+binding = "SHARE_KV"
+id = "fb0e4645cdce47beb0809d2d945b5bf3"
+
+[[r2_buckets]]
+binding = "SHARE_R2"
+bucket_name = "oristudio-cp-thumbnails"
+
+[[env.preview.kv_namespaces]]
+binding = "SHARE_KV"
+id = "5b08ed1c951c4029822acb39285c4eff"
+
+[[env.preview.r2_buckets]]
+binding = "SHARE_R2"
+bucket_name = "oristudio-cp-thumbnails-preview"

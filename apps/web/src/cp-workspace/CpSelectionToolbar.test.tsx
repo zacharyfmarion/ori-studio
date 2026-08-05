@@ -18,6 +18,15 @@ vi.mock('./cpSegmentationArtifacts', () => ({
   peekCpSegmentationArtifacts: vi.fn(() => ({ fold: makeFold(), simulation_model: null })),
 }));
 
+// Sharing is gated: web-only, and off in dev builds unless VITE_SHARE_API_URL opts in,
+// so a dev build cannot write into the production share namespace by accident. Under
+// test neither holds, so the gate is driven explicitly rather than left to the ambient
+// environment.
+const shareEnabled = vi.hoisted(() => ({ value: true }));
+vi.mock('./share/cpShareService', () => ({
+  isShareEnabled: () => shareEnabled.value,
+}));
+
 function renderToolbar(root: Root, container: HTMLElement): void {
   root.render(
     <TooltipProvider>
@@ -118,6 +127,8 @@ describe('CpSelectionToolbar', () => {
   let root: Root;
 
   beforeEach(() => {
+    // Reset the gate so a test that turns it off cannot leak into later ones.
+    shareEnabled.value = true;
     cpOverlayViewStore.set({
       model: { origin: [0, 0], ex: [1, 0], ey: [0, 1] },
       user: { origin: [0, 0], ex: [1, 0], ey: [0, 1] },
@@ -173,6 +184,18 @@ describe('CpSelectionToolbar', () => {
     // And like every sibling action it dismisses, so the toolbar cannot linger
     // over the modal it just opened.
     expect(document.querySelector('[role="toolbar"]')).toBeNull();
+  });
+
+  it('hides the share button where sharing is unavailable', async () => {
+    // Desktop, and dev builds that have not opted in. Every sibling action still works;
+    // only the share verb disappears.
+    shareEnabled.value = false;
+    seedStore([1, 3, 5, 7, 8]);
+    await act(async () => renderToolbar(root, container));
+    const toolbar = document.querySelector('[role="toolbar"]');
+    expect(toolbar?.querySelectorAll('button').length).toBe(5);
+    expect(document.querySelector('button[aria-label="Create shareable link"]')).toBeNull();
+    expect(document.querySelector('button[aria-label="Fold"]')).not.toBeNull();
   });
 
   it('dismisses itself when an action is invoked', async () => {

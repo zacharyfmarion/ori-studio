@@ -36,6 +36,11 @@
   },
   "shareLink": {
     "invalid": "Dieser Link zum Teilen ist unvollständig oder beschädigt – vermutlich wurde er beim Kopieren abgeschnitten. Bitte lass ihn dir noch einmal schicken.",
+    "notFound": "Dieser Freigabelink ließ sich nicht öffnen. Wenn er gerade erst erstellt wurde, versuche es gleich noch einmal.",
+    "rateLimited": "Zu viele Freigabelinks von dieser Verbindung. Warte ein paar Minuten und versuche es erneut.",
+    "storageFailure": "Der Freigabelink konnte nicht erstellt werden. Prüfe deine Verbindung und versuche es erneut.",
+    "storageQuota": "Die Freigabe ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.",
+    "tooLarge": "Dieses Faltmuster ist zu groß für einen Freigabelink. Exportiere es stattdessen als Datei.",
     "tooNew": "Dieser Link wurde mit einer neueren Version von Ori Studio erstellt. Lade neu, um die aktuelle Version zu erhalten, und öffne ihn dann erneut."
   },
   "worker": {

@@ -56,10 +56,6 @@ const RUNTIME_INJECTED = /^--radix-/u;
 const KNOWN_MISSING: Record<string, number> = {
   '--border-muted': 2,
   '--font-sans': 4,
-  // From main's share-a-CP-as-URL feature (97d709db), caught on merge. Kills
-  // `font-family` on the share-link input, so the base64 payload — the one place
-  // a monospace font actually matters — renders proportional.
-  '--font-mono': 1,
   '--shadow-soft': 1,
   '--surface-base': 1,
   '--surface-raised': 1,

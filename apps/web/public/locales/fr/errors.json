@@ -36,6 +36,11 @@
   },
   "shareLink": {
     "invalid": "Ce lien de partage est incomplet ou endommagé — il a probablement été tronqué lors de la copie. Redemandez-le.",
+    "notFound": "Impossible d'ouvrir ce lien de partage. S'il vient d'être créé, réessayez dans un instant.",
+    "rateLimited": "Trop de liens de partage depuis cette connexion. Patientez quelques minutes, puis réessayez.",
+    "storageFailure": "Impossible de créer le lien de partage. Vérifiez votre connexion et réessayez.",
+    "storageQuota": "Le partage est temporairement indisponible. Veuillez réessayer plus tard.",
+    "tooLarge": "Ce patron de pliage est trop volumineux pour être partagé par lien. Exportez-le plutôt sous forme de fichier.",
     "tooNew": "Ce lien de partage a été créé avec une version plus récente d'Ori Studio. Rechargez pour obtenir la dernière version, puis rouvrez-le."
   },
   "worker": {

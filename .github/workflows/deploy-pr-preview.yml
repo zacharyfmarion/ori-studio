@@ -115,10 +115,17 @@ jobs:
         run: npm run build:web
 
       - name: Deploy preview to Cloudflare Pages
-        run: npx wrangler@4 pages deploy apps/web/dist --project-name=oristudio --branch=pr-${{ github.event.pull_request.number }}
+        working-directory: apps/web
+        run: npx wrangler@4 pages deploy dist --project-name=oristudio --branch=pr-${{ github.event.pull_request.number }}
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      # Also proves the *preview* environment has its own bindings. If `[[env.preview]]` in
+      # wrangler.toml does not apply to a branch deploy, this is where that shows up —
+      # rather than as a preview quietly writing into the production namespace.
+      - name: Verify share endpoints
+        run: node scripts/share-smoke.mjs https://pr-${{ github.event.pull_request.number }}.oristudio.pages.dev
 
   comment:
     name: Publish Preview Comment
