@@ -75,6 +75,13 @@ jobs:
       - name: Unit test web client
         run: npm run test:web --ignore-scripts
 
+      # The simulator package ships its own parity and invariant gates (the
+      # fixture set, upstream parity, the NaN guards) and nothing ran them, so
+      # they protected no release: three of them were failing on a green CI.
+      # The build step above already produced its `dist`.
+      - name: Unit test simulator package
+        run: npm run test:simulator
+
   native-oracle:
     name: Native Rust + C++ oracle
     runs-on: ubuntu-latest
