@@ -312,6 +312,31 @@ upstream parity, NaN guards — provide no release protection today.
 
 Recommend adding `npm run test:simulator` to the `web-client` job.
 
+**Update (2026-08-05, from actually doing it in #203).** The suite was not merely
+unwired — it was **not CI-runnable**, which is a bigger finding than the original
+one. Adding the step turned it red for two reasons, neither related to the change
+under test:
+
+1. **Timeouts.** The fixture suites run the CPU `ReferenceSolver` for hundreds of
+   steps over meshes up to 6.5k vertices. They finish in ~2 s on a dev machine
+   and exceed vitest's 5 s default on a runner.
+2. **The golden traces are not portable.** They compare **bit-exactly**
+   (`if (worst !== 0) throw`), which only holds on the machine that blessed them.
+   `Math.hypot` / `Math.acos` are not identical across libm implementations, and
+   1000 solver steps amplify a last-ulp difference. The runner diverged by ~1e-18
+   on values that are themselves ~1e-17 — cancellation noise, not a solver
+   change. Three traces failed while every other suite in the package passed.
+
+Resolved in #203 by raising the package timeout and skipping the golden traces on
+CI specifically, leaving local behaviour unchanged. They stay the local, exact,
+deliberately-re-blessed oracle they were designed to be.
+
+**Open question for the team:** making the goldens portable means choosing a
+tolerance, which changes what the oracle asserts. A real solver regression moves
+positions by orders of magnitude more than 1e-18, so a small absolute tolerance
+would keep the gate meaningful *and* let it run in CI — but that is a deliberate
+call about someone's designed invariant, not a side effect of wiring up CI.
+
 ### BUG-3 — a valid multi-frame `.fold` file fails to import: `vertices_coords` / `edges_vertices` are required on every frame
 
 **Severity: critical** (interop / file will not open)
