@@ -7,3 +7,13 @@
  * only the accessor knows to tolerate that.
  */
 declare const __APP_COMMIT__: string;
+
+/**
+ * Build-time PostHog config, inlined by Vite from the CI env (see
+ * `.github/workflows/deploy-web.yml`). Optional on purpose: when either is
+ * absent, analytics never initializes (the dev/prod firewall).
+ */
+interface ImportMetaEnv {
+  readonly VITE_PUBLIC_POSTHOG_KEY?: string;
+  readonly VITE_PUBLIC_POSTHOG_HOST?: string;
+}

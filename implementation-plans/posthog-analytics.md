@@ -37,8 +37,10 @@ desktop.
 
 Port the openscad-studio architecture, which is the proven design:
 
-- A `posthog-js` singleton `init()`-ed at module load **before** React renders,
-  passed into `<PostHogProvider client={posthog}>` from `@posthog/react`.
+- A `posthog-js` singleton `init()`-ed at module load **before** React renders.
+  *(As built: we use `posthog-js` only and wrap the singleton in our own
+  `AnalyticsRuntimeProvider` — no `@posthog/react`/`usePostHog`, since every
+  call routes through our `useAnalytics()` context. Fewer deps, same shape.)*
 - A central, dependency-injected **analytics runtime** (`AnalyticsRuntimeProvider`
   + `useAnalytics()` hook + module-level `runtimeAnalytics` singleton for
   non-React callers). Every event funnels through one `track()` wrapper that
@@ -88,7 +90,7 @@ Ori Studio specifics that shape the port:
 
 ## Affected Areas
 
-- `apps/web/package.json` — add `posthog-js`, `@posthog/react`.
+- `apps/web/package.json` — add `posthog-js` (only; no `@posthog/react`).
 - `apps/web/src/analytics/` (new) — `bootstrap.ts`, `runtime.tsx`,
   `stableId.ts`, `bootstrapPolicy.ts`, `events.ts` (taxonomy types), `__tests__/`.
   (No `sanitize.ts` — privacy is masking + `ph-no-capture` + event discipline.)
@@ -147,7 +149,7 @@ we want desktop analytics. **Do not** commit keys.
 Stand up the plumbing so nothing captures until later phases add events, but the
 consent/init/scrub machinery is fully in place and unit-tested.
 
-- `posthog-js` + `@posthog/react` installed.
+- `posthog-js` installed (singleton only; no `@posthog/react`).
 - `analytics/bootstrap.ts`: `initializePostHog(client, options, env)` with the
   exact hardened config — `defaults`, `autocapture`, `capture_pageview: true`,
   `capture_pageleave/dead_clicks/rageclick: false`, `disable_session_recording`,
@@ -159,9 +161,11 @@ consent/init/scrub machinery is fully in place and unit-tested.
   `storageKey(STORAGE_KEYS.analyticsId)`; get-or-create + clear.
 - Privacy: rely on `mask_all_text` / `mask_all_element_attributes` (set in the
   init config above) + `ph-no-capture` (Phase 2) + event discipline. **No**
-  `sanitize.ts` regex module. Optionally a ~10-line `before_send` that strips
-  path-looking values from autocapture URL props (`$current_url`/`$pathname`) on
-  the desktop `file://` surface — skip it if masking already covers this.
+  `sanitize.ts` regex module. *(As built: the optional `before_send` URL net was
+  skipped — neither surface exposes a filesystem path in the URL; web is an
+  `https` origin and Tauri serves via a custom protocol, not `file://`. The one
+  place a path could leak, an error message, is scrubbed in `fingerprintError`
+  instead.)*
 - `analytics/runtime.tsx`: `AnalyticsRuntimeProvider`, `useAnalytics()`,
   `AnalyticsApi` (`track` / `trackError` / `setAnalyticsEnabled`), module-level
   `runtimeAnalytics` singleton + `trackAnalyticsEvent`/`trackAnalyticsError`
@@ -268,18 +272,18 @@ Phase 0 — Provisioning
 - [x] `deploy-web.yml` build step exposes them via `env:` (prod only; previews left unset)
 
 Phase 1 — Core runtime
-- [ ] `posthog-js` + `@posthog/react` added to `apps/web/package.json`
-- [ ] `analytics/bootstrap.ts` (hardened init + key/host guard)
-- [ ] `analytics/stableId.ts` (anonymous UUID in `oristudio:` storage)
-- [ ] masking config + (optional) small `before_send` URL-path net — no `sanitize.ts`
-- [ ] `analytics/runtime.tsx` (provider, hook, singleton, error dedupe, bucketCount)
-- [ ] `analytics/events.ts` (taxonomy union types)
-- [ ] super properties incl. `runtime_surface` from `getRuntimeSurface()`
-- [ ] `main.tsx` provider wiring (init before render)
-- [ ] `settingsStore.analyticsEnabled` + `STORAGE_KEYS` entries
-- [ ] reactive consent-sync effect
-- [ ] unit tests (init gating, consent, dedupe, no-op-when-disabled)
-- [ ] `npm run lint:web` / `typecheck:web` / `test:web` green
+- [x] `posthog-js` added to `apps/web/package.json` (singleton only)
+- [x] `analytics/bootstrap.ts` (hardened init + key/host guard + error helpers)
+- [x] `analytics/stableId.ts` (anonymous UUID in `oristudio:` storage)
+- [x] masking config; no `before_send` net (unneeded); no `sanitize.ts`
+- [x] `analytics/runtime.tsx` (provider, hook, singleton, error dedupe)
+- [x] `analytics/events.ts` (taxonomy types + `bucketCount`) + `index.ts` barrel
+- [x] super properties incl. `runtime_surface` from `getRuntimeSurface()`
+- [x] `main.tsx` provider wiring (init before render)
+- [x] `settingsStore.analyticsEnabled` + `STORAGE_KEYS` entries
+- [x] reactive consent-sync effect
+- [x] unit tests (init gating, consent, dedupe, no-op-when-disabled) — 21 pass
+- [x] `tsc --noEmit` / `eslint` / `vitest` on the analytics surface green
 
 Phase 2 — Bootstrap + settings + consent
 - [ ] `app opened` fired post-platform-init, consent-gated

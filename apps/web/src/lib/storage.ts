@@ -29,6 +29,10 @@ export const STORAGE_KEYS = {
   cpToolHintCollapsed: 'cp-tool-hint-collapsed',
   bpOptimizer: 'bp-optimizer',
   simulatorSettings: 'simulator-settings',
+  /** Whether product analytics is enabled (opt-out preference; default true). */
+  analyticsEnabled: 'analytics-enabled',
+  /** Anonymous, locally-generated stable id used to `identify()` in PostHog. */
+  analyticsId: 'analytics-id',
   layout: 'layout',
   layoutVersion: 'layout-version',
 } as const;
