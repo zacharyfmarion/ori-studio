@@ -8,12 +8,10 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  Copy,
   ImagePlus,
   ListChecks,
   Loader2,
   Origami,
-  Trash2,
 } from 'lucide-react';
 import {
   registerCpActionShortcutExecutor,
@@ -248,16 +246,9 @@ function foldedDisplayStyleLabel(t: TFunction, value: OristudioCpFoldedFigureDis
   }
 }
 
+// Spelled out rather than initialled. Two options no longer need the abbreviation,
+// and the word is its own tooltip.
 function foldedStateLabel(t: TFunction, value: FoldedFigureSide): string {
-  switch (value) {
-    case 'Front0':
-      return t('panels:creasePattern.foldedState.frontShort', 'F');
-    case 'Back1':
-      return t('panels:creasePattern.foldedState.backShort', 'B');
-  }
-}
-
-function foldedStateTitle(t: TFunction, value: FoldedFigureSide): string {
   switch (value) {
     case 'Front0':
       return t('panels:creasePattern.foldedState.front', 'Front');
@@ -275,14 +266,16 @@ const FOLDED_COLOR_FIELDS: Array<{ key: FoldedColorKey; fallback: OristudioCpRgb
   { key: 'line_color', fallback: { red: 0, green: 0, blue: 0 } },
 ];
 
+// Named "… color" rather than "Front" / "Back", which the Side control directly
+// above these rows already uses for the view.
 function foldedColorLabel(t: TFunction, key: FoldedColorKey): string {
   switch (key) {
     case 'front_color':
-      return t('panels:creasePattern.foldedColor.front', 'Front');
+      return t('panels:creasePattern.foldedColor.front', 'Front color');
     case 'back_color':
-      return t('panels:creasePattern.foldedColor.back', 'Back');
+      return t('panels:creasePattern.foldedColor.back', 'Back color');
     case 'line_color':
-      return t('panels:creasePattern.foldedColor.line', 'Line');
+      return t('panels:creasePattern.foldedColor.line', 'Line color');
     default:
       return key;
   }
@@ -511,31 +504,20 @@ function cpCreasesUnderPreviewEndpoints(
 function FoldedFigureMenuButton({
   figures,
   activeFigure,
-  startingFaceId,
-  caseDraft,
-  onStartingFaceIdChange,
-  onCaseDraftChange,
   staleFigureIds,
   onSelectFigure,
   onDisplayStyle,
   onModelUpdate,
   onModelGestureEnd,
-  onFoldToCase,
-  onDuplicate,
-  onDelete,
 }: {
   figures: OristudioCpFoldedFigureEntry[];
   activeFigure: OristudioCpFoldedFigureEntry | null;
-  startingFaceId: number;
-  caseDraft: string;
   /**
    * Figures whose source creases have changed since they were folded. Derived
    * per document revision rather than stamped on the entry — see
    * `lib/foldedFigureStaleness.ts`.
    */
   staleFigureIds: ReadonlySet<string>;
-  onStartingFaceIdChange: (startingFaceId: number) => void;
-  onCaseDraftChange: (draft: string) => void;
   onSelectFigure: (id: string) => void;
   onDisplayStyle: (displayStyle: OristudioCpFoldedFigureDisplayStyle) => void;
   /**
@@ -546,9 +528,6 @@ function FoldedFigureMenuButton({
   onModelUpdate: (update: Partial<OristudioCpFoldedFigureModel>, scope?: string) => void;
   /** End a scoped run of {@link onModelUpdate} changes and record one entry. */
   onModelGestureEnd: (scope: string, label: string) => void;
-  onFoldToCase: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -556,8 +535,6 @@ function FoldedFigureMenuButton({
   const model = activeFigure?.snapshot?.model ?? null;
   const activeReady =
     activeFigure?.status === 'ready' && activeFigure.handle !== null && activeFigure.snapshot !== null;
-  const currentCase = Math.max(foldedFigureCurrentCase(activeFigure), 1);
-  const canJumpCase = activeReady && Number.isFinite(Number(caseDraft));
 
   // Keep any display style already saved on a document selectable even if it is no
   // longer offered as a fresh choice (e.g. legacy Dev/None figures).
@@ -576,11 +553,6 @@ function FoldedFigureMenuButton({
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [open]);
-
-  const changeStartingFace = (value: string) => {
-    const parsed = Number(value);
-    onStartingFaceIdChange(Number.isFinite(parsed) ? Math.max(1, Math.round(parsed)) : 1);
-  };
 
   return (
     <div className="viewport-toolbar__menu-anchor folded-figure-menu" ref={menuRef}>
@@ -633,17 +605,6 @@ function FoldedFigureMenuButton({
             </div>
           )}
           <label className="folded-figure-menu__field">
-            <span>{t('panels:creasePattern.start', 'Start')}</span>
-            <input
-              aria-label={t('panels:creasePattern.startingFace', 'Starting face')}
-              type="number"
-              min={1}
-              step={1}
-              value={startingFaceId}
-              onChange={(event) => changeStartingFace(event.currentTarget.value)}
-            />
-          </label>
-          <label className="folded-figure-menu__field">
             <span>{t('panels:creasePattern.display', 'Display')}</span>
             <select
               aria-label={t('panels:creasePattern.foldedDisplayStyle', 'Folded display style')}
@@ -671,57 +632,33 @@ function FoldedFigureMenuButton({
               options={FOLDED_FIGURE_SIDES.map((value) => ({
                 value,
                 label: foldedStateLabel(t, value),
-                title: foldedStateTitle(t, value),
               }))}
               value={model?.state ?? 'Front0'}
               onChange={(state) => onModelUpdate({ state })}
             />
           </div>
-          <div className="folded-figure-menu__colors">
-            {FOLDED_COLOR_FIELDS.map((field) => (
-              <ColorField
-                key={field.key}
-                label={foldedColorLabel(t, field.key)}
-                value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
-                disabled={!activeReady}
-                onChange={(value) =>
-                  onModelUpdate({ [field.key]: hexToRgbColor(value) }, `color:${field.key}`)
-                }
-                onCommit={() =>
-                  onModelGestureEnd(
-                    `color:${field.key}`,
-                    t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
-                  )
-                }
-              />
-            ))}
-          </div>
-          <label className="folded-figure-menu__field">
-            <span>{t('panels:creasePattern.caseLabel', 'Case')}</span>
-            {/* The field is the control: Enter or blur commits it. A separate
-                "go" button alongside an input the user has already typed into
-                is a second thing to find for no extra ability. */}
-            <div className="folded-figure-menu__case">
-              <input
-                aria-label={t('panels:creasePattern.foldCase', 'Fold case')}
-                type="number"
-                min={1}
-                step={1}
-                value={caseDraft}
-                disabled={!activeReady}
-                onChange={(event) => onCaseDraftChange(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter') return;
-                  event.preventDefault();
-                  if (canJumpCase) onFoldToCase();
-                }}
-                onBlur={() => {
-                  if (canJumpCase) onFoldToCase();
-                }}
-              />
-            </div>
-          </label>
-          <div className="folded-figure-menu__hint">{t('panels:creasePattern.current', 'Current {{count}}', { count: currentCase })}</div>
+          {/* `inline`, not `row`: a dropdown is not an options pane, and the ruled,
+              padded rows a `control-row` draws would not match the fields above. */}
+          {FOLDED_COLOR_FIELDS.map((field) => (
+            <ColorField
+              key={field.key}
+              layout="inline"
+              label={foldedColorLabel(t, field.key)}
+              value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
+              disabled={!activeReady}
+              onChange={(value) =>
+                onModelUpdate({ [field.key]: hexToRgbColor(value) }, `color:${field.key}`)
+              }
+              onCommit={() =>
+                onModelGestureEnd(
+                  `color:${field.key}`,
+                  t('panels:creasePattern.changeFoldedColor', 'Change folded model color')
+                )
+              }
+            />
+          ))}
+          {/* No Case field: stepping through the layer-ordering solutions is
+              "Another solution" on the figure's own toolbar and context menu. */}
           <div className="folded-figure-menu__toggle-row">
             <span>{t('panels:creasePattern.shadow', 'Shadow')}</span>
             <Toggle
@@ -733,27 +670,12 @@ function FoldedFigureMenuButton({
           </div>
           {/* No Color alpha toggle: it only reaches the Transparent display
               style, and transparency is not a supported surface right now. The
-              model keeps `transparency_color` so Oriedita files round-trip. */}
-          <div className="folded-figure-menu__actions">
-            <IconButton
-              size="sm"
-              variant="toolbar"
-              title={t('panels:creasePattern.duplicateFoldedModel', 'Duplicate folded model')}
-              disabled={activeFigure?.handle == null}
-              onClick={() => onDuplicate()}
-            >
-              <Copy size={14} />
-            </IconButton>
-            <IconButton
-              size="sm"
-              variant="toolbar"
-              title={t('panels:creasePattern.deleteFoldedModel', 'Delete folded model')}
-              disabled={!activeFigure}
-              onClick={() => onDelete()}
-            >
-              <Trash2 size={14} />
-            </IconButton>
-          </div>
+              model keeps `transparency_color` so Oriedita files round-trip.
+
+              No Duplicate or Delete either: both act on one figure, and the
+              figure's own toolbar and context menu already carry them — from
+              `foldedFigureActions`, acting on the figure you clicked rather than
+              on whichever happens to be active. */}
         </div>
       )}
     </div>
@@ -1081,10 +1003,6 @@ export function CreasePatternPanel() {
     staleIds: staleFoldedFigureIds,
     actionDeps: foldedFigureActionDeps,
     canFoldSelectedModel,
-    foldStartingFaceId,
-    setFoldStartingFaceId,
-    foldCaseDraft,
-    setFoldCaseDraft,
   } = folded;
 
   // Inline simulation windows: the third canvas-object kind, and the only one
@@ -3146,18 +3064,11 @@ export function CreasePatternPanel() {
                       <FoldedFigureMenuButton
                         figures={oristudioCpFoldedFigures}
                         activeFigure={activeFoldedFigure}
-                        startingFaceId={foldStartingFaceId}
-                        caseDraft={foldCaseDraft}
                         staleFigureIds={staleFoldedFigureIds}
-                        onStartingFaceIdChange={setFoldStartingFaceId}
-                        onCaseDraftChange={setFoldCaseDraft}
                         onSelectFigure={setOristudioCpActiveFoldedFigure}
                         onDisplayStyle={folded.setDisplayStyle}
                         onModelUpdate={folded.updateModel}
                         onModelGestureEnd={folded.endModelGesture}
-                        onFoldToCase={folded.foldToCase}
-                        onDuplicate={folded.duplicate}
-                        onDelete={folded.remove}
                       />
                     </div>
                   </>

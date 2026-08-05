@@ -166,8 +166,6 @@
     "buildingCreasePattern": "正在生成折痕图",
     "canvasDiagnostics_other": "画布诊断：{{count}} 项",
     "case_other": "情形 {{count}}",
-    "caseLabel": "情形",
-    "changeFoldCase": "更改折叠情形",
     "changeFoldedColor": "更改折叠模型颜色",
     "changeFoldedDisplayStyle": "更改折叠显示样式",
     "changeFoldedModel": "更改折叠模型",
@@ -175,8 +173,6 @@
     "couldNotOpenForEditing": "无法打开此折痕图进行编辑。",
     "couldNotOpenForEditingHint": "以只读方式显示。你仍然可以查看、折叠和导出它。",
     "cropImage": "裁剪图像",
-    "current_other": "当前 {{count}}",
-    "deleteFoldedModel": "删除折叠模型",
     "deleteFoldedModelAction": "删除折叠模型",
     "deleteImage": "删除图像",
     "diagnostic": {
@@ -196,10 +192,10 @@
       "warningOther_other": "{{count}} 个 {{label}} 警告"
     },
     "display": "显示",
-    "duplicateFoldedModel": "复制折叠模型",
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
+    "foldModelAction": "折叠模型",
     "foldability": {
       "compose": "{{lead}}：{{tail}}",
       "edgeLineConfiguration": "边界线配置无效",
@@ -220,21 +216,18 @@
         "triangle": "折痕数量不正确（奇数）"
       }
     },
-    "foldCase": "折叠情形",
     "foldedColor": {
-      "back": "背面",
-      "front": "正面",
-      "line": "线条"
+      "back": "背面颜色",
+      "front": "正面颜色",
+      "line": "线条颜色"
     },
     "foldedDisplayStyle": "折叠显示样式",
     "foldedModelControls": "折叠模型控件",
-    "foldedModels": "折叠模型",
     "foldedModelSide": "折叠模型侧面",
+    "foldedModels": "折叠模型",
     "foldedState": {
       "back": "背面",
-      "backShort": "B",
-      "front": "正面",
-      "frontShort": "F"
+      "front": "正面"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -244,7 +237,6 @@
       "transparent": "透明",
       "wire": "线框"
     },
-    "foldModelAction": "折叠模型",
     "inlineSimulation": {
       "addAction": "添加模拟窗口",
       "canvasAriaLabel": "内嵌模拟。拖动可旋转。",
@@ -309,8 +301,6 @@
     "showFoldedModelShadow": "显示折叠模型阴影",
     "side": "侧面",
     "stale": "已过期",
-    "start": "起始",
-    "startingFace": "起始面",
     "viewportControls": "折痕图视口控件"
   },
   "design": {
@@ -333,8 +323,8 @@
     "layerCircles": "圆",
     "layerLabels": "标签",
     "layerPaths": "路径",
-    "layers": "图层",
     "layerSymmetry": "对称",
+    "layers": "图层",
     "legendActivePath": "当前路径",
     "legendScale": "比例 {{value}}",
     "legendTerminal": "端点",
@@ -554,8 +544,8 @@
   "simulatorSegments": {
     "creasePatterns": "折痕图",
     "patternLabel": "折痕图 {{n}}",
-    "patterns": "折痕图",
-    "patternTitle_other": "折痕图 {{n}} — {{count}} 个面"
+    "patternTitle_other": "折痕图 {{n}} — {{count}} 个面",
+    "patterns": "折痕图"
   },
   "simulatorViewControls": {
     "axialStiffness": "拉伸",
@@ -568,18 +558,18 @@
     "colorPaper": "纸张",
     "colorStrain": "应变",
     "creaseLines": "折痕线",
-    "creases": "折痕",
     "creaseStiffness": "折痕",
     "creaseStyle": "样式",
     "creaseStyleColor": "山折 / 谷折",
     "creaseStyleMono": "单色",
     "creaseStyleMonoDashed": "单色虚线",
     "creaseWidth": "粗细",
+    "creases": "折痕",
     "damping": "阻尼",
     "export": "导出",
     "exportHint": "导出图像的页面背景。",
-    "faces": "面",
     "faceStiffness": "面",
+    "faces": "面",
     "hiddenLines": "隐藏线",
     "lighting": "光照",
     "material": "材质",
@@ -606,8 +596,8 @@
     "addText": "添加文本",
     "alignCenter": "居中对齐",
     "alignLeft": "左对齐",
-    "alignment": "对齐",
     "alignRight": "右对齐",
+    "alignment": "对齐",
     "blockBody": "正文",
     "blockHeading": "标题",
     "blockSubheading": "副标题",

@@ -168,8 +168,6 @@
     "canvasDiagnostics_other": "Canvas diagnostics: {{count}}",
     "case_one": "Case {{count}}",
     "case_other": "Case {{count}}",
-    "caseLabel": "Case",
-    "changeFoldCase": "Change fold case",
     "changeFoldedColor": "Change folded model color",
     "changeFoldedDisplayStyle": "Change folded display style",
     "changeFoldedModel": "Change folded model",
@@ -177,9 +175,6 @@
     "couldNotOpenForEditing": "This crease pattern could not be opened for editing.",
     "couldNotOpenForEditingHint": "It is shown read-only. You can still view, fold, and export it.",
     "cropImage": "Crop image",
-    "current_one": "Current {{count}}",
-    "current_other": "Current {{count}}",
-    "deleteFoldedModel": "Delete folded model",
     "deleteFoldedModelAction": "Delete folded model",
     "deleteImage": "Delete image",
     "diagnostic": {
@@ -205,7 +200,6 @@
       "warningOther_other": "{{count}} {{label}} Warnings"
     },
     "display": "Display",
-    "duplicateFoldedModel": "Duplicate folded model",
     "duplicateFoldedModelAction": "Duplicate folded model",
     "flipFoldedModel": "Flip folded model",
     "fold": "Fold",
@@ -229,11 +223,10 @@
         "triangle": "Incorrect (odd) number of folds"
       }
     },
-    "foldCase": "Fold case",
     "foldedColor": {
-      "back": "Back",
-      "front": "Front",
-      "line": "Line"
+      "back": "Back color",
+      "front": "Front color",
+      "line": "Line color"
     },
     "foldedDisplayStyle": "Folded display style",
     "foldedModelControls": "Folded model controls",
@@ -241,9 +234,7 @@
     "foldedModelSide": "Folded model side",
     "foldedState": {
       "back": "Back",
-      "backShort": "B",
-      "front": "Front",
-      "frontShort": "F"
+      "front": "Front"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -320,8 +311,6 @@
     "showFoldedModelShadow": "Show folded model shadow",
     "side": "Side",
     "stale": "Stale",
-    "start": "Start",
-    "startingFace": "Starting face",
     "viewportControls": "Crease pattern viewport controls"
   },
   "design": {

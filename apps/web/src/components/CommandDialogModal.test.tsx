@@ -444,7 +444,7 @@ describe('CommandDialogModal', () => {
     // The overlay states the kernel also has — Both and Transparent — are not
     // views the product offers, here or on the canvas.
     expect(
-      Array.from(sides?.querySelectorAll('button') ?? []).map((button) => button.title)
+      Array.from(sides?.querySelectorAll('button') ?? []).map((button) => button.textContent)
     ).toEqual(['Front', 'Back']);
   });
 

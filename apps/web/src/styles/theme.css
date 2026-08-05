@@ -5875,10 +5875,12 @@
   font-weight: 680;
 }
 
+/* 76px is the widest label the popover carries ("Front color", 71px) plus a
+   little; below that it wraps to two lines and the row grows. */
 .folded-figure-menu__field,
 .folded-figure-menu__toggle-row {
   display: grid;
-  grid-template-columns: 60px minmax(0, 1fr);
+  grid-template-columns: 76px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-height: 28px;
@@ -5915,84 +5917,31 @@
   opacity: 0.55;
 }
 
-.folded-figure-menu__colors {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+/* Sized to its options and parked at the right edge of the field column, where the
+   inputs above it end. Stretching a segmented control to the full row divides the
+   width by however many options there happen to be, so the active segment lands
+   somewhere different each time the set changes — and at two options it reads as a
+   half-filled progress bar rather than a choice. */
+.folded-figure-menu__field--segmented .segmented {
+  justify-self: end;
 }
 
-.folded-figure-menu__color {
+/* The colour rows carry the same label column as the fields around them, so the
+   three swatches line up under the Display select rather than under their own
+   labels. `inline` brings no pane chrome of its own — see ColorField. */
+.folded-figure-menu__panel .color-field--inline {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
   color: var(--text-secondary);
   font-size: 0.72rem;
   font-weight: 700;
 }
 
-.folded-figure-menu__color input[type='color'] {
-  width: 100%;
-  height: 24px;
-  padding: 2px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  cursor: pointer;
-}
-
-.folded-figure-menu__color input[type='color']:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
-.folded-figure-menu__color input[type='color']:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-.folded-figure-menu__color input[type='color']::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.folded-figure-menu__color input[type='color']::-webkit-color-swatch {
-  border: none;
-  border-radius: 2px;
-}
-
-.folded-figure-menu__field--segmented {
-  align-items: stretch;
-}
-
-.folded-figure-menu__field--segmented .segmented {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.folded-figure-menu__field--segmented .segmented__option {
-  padding: 0 6px;
-}
-
-.folded-figure-menu__case {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
-  gap: 4px;
-}
-
-.folded-figure-menu__hint {
-  color: var(--text-tertiary);
-  font-size: 0.65rem;
-  font-weight: 680;
-  text-align: right;
-}
-
-.folded-figure-menu__field--range input {
-  padding: 0;
-}
-
-.folded-figure-menu__actions {
-  display: flex;
+.folded-figure-menu__panel .color-field--inline .color-field__value {
   justify-content: flex-end;
-  gap: 4px;
-  padding-top: 2px;
 }
 
 .design-layer-menu {
