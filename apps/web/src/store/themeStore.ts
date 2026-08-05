@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { track } from '../analytics';
 import {
   applyTheme,
   DEFAULT_DARK_THEME,
@@ -54,6 +55,9 @@ export const useThemeStore = create<ThemeState>()(
           applyTheme(theme);
           saveThemeName(theme.name);
           set({ currentTheme: theme });
+          // Preset theme names are a bounded enum. Init uses applyTheme directly,
+          // so this fires only on a user-driven theme change.
+          track('theme changed', { theme: theme.name });
         },
 
         setThemeByName: (name) => {

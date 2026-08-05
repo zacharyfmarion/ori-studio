@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useWorkspaceViewedEvent } from '../analytics';
 import { useLayoutStore, type DesignLayoutVariant } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { WorkspaceId } from '../workspaces/workspaces';
@@ -29,6 +30,11 @@ export function WorkspaceRoute({ workspace, variant }: WorkspaceRouteProps) {
     layout.activateWorkspace(workspace);
     if (workspace === 'design') layout.ensureDesignLayout();
   }, [workspace, variant]);
+
+  // This route element *is* the view for each workspace, so the "viewed" event
+  // belongs here rather than in the URL-sync subscription. Only Design carries a
+  // variant.
+  useWorkspaceViewedEvent(workspace, workspace === 'design' ? variant : undefined);
 
   return null;
 }

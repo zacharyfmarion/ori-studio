@@ -17,6 +17,8 @@ import {
   type CreaseExportFoldResult,
 } from '../../../lib/creaseExportFold';
 import { hexToRgbColor } from '../../../lib/rgbColor';
+import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
+import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
 import {
@@ -1527,10 +1529,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // Oriedita-sourced `.ori`/`.orh` save-as special cases.
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
     const hasDesign = get().project.nodes.length > 0 || Boolean(get().oristudioBpDocument);
-    if (hasDesign) {
-      return saveNativeWorkspaceProject(fileService, forceSaveAs);
-    }
-    return saveEditableCreasePattern(fileService, forceSaveAs);
+    const result = hasDesign
+      ? await saveNativeWorkspaceProject(fileService, forceSaveAs)
+      : await saveEditableCreasePattern(fileService, forceSaveAs);
+    // Both branches write the native .osf; a falsy result means the user
+    // cancelled the save dialog. `file exported` deliberately skips osf.
+    if (result) track('project saved', { format: 'osf' });
+    return result;
   };
 
   return {
@@ -1674,6 +1679,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // -> circle-packed) so the TreeMaker side panes are correct and no BP
         // Editor pane lingers.
         layout.ensureDesignLayout();
+        // Only real File > New is a "project opened"; the design-method chooser
+        // (preserveEditCanvas) is recorded as `design method chosen` instead.
+        if (!preserveEditCanvas) track('project opened', { source: 'new' });
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -1804,6 +1812,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           });
           return false;
         }
+        // The CP editor's own dispatch seam — invisible to handleMenuAction, so
+        // instrumented here. The resolved operation id already encodes merged-tool
+        // variants (e.g. LengthenCrease vs LengthenCreaseSameColor), so no separate
+        // mode property is needed. No-op when analytics is disabled/absent.
+        track('cp tool used', {
+          operation: operationId,
+          group: cpCommandByOperation(operationId)?.group ?? 'other',
+        });
         const commandDocument = await executeRuntimeOristudioCpCommand(
           operationId,
           validation.payload
@@ -2102,6 +2118,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         } else {
           await loadText(file.text, { filename: file.name, path: file.path });
         }
+        track('project opened', { source: 'file' });
         return true;
       } catch (error) {
         set({ status: 'error', error: annotateLargeSourceError(engineError(error), openedSourceLength) });
@@ -2483,6 +2500,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpShareDraft: { ...get().oristudioCpShareDraft!, url: created.url },
         });
         if (author) rememberAuthor(author);
+        // The published link and its geometry are never sent — only that a share
+        // was created, a bucketed size, and whether it was titled/attributed.
+        track('crease pattern shared', {
+          crease_count_bucket: bucketCount(draft.fold.edges_vertices?.length ?? 0, COUNT_BUCKETS),
+          had_title: Boolean(title),
+          had_author: Boolean(author),
+        });
 
         void (async () => {
           try {
@@ -2672,6 +2696,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         title: example.title,
         filename: example.filename,
       });
+      // The example's id/title is not sent — only that an example was opened.
+      track('project opened', { source: 'example' });
     },
 
     clearProjectMessage: () => set({ projectMessage: null }),
@@ -2720,6 +2746,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // doesn't bounce a freshly-chosen design — a blank TreeMaker tree has no
       // document content for the presence subscription to detect.
       set({ projectEstablished: true });
+      track('design method chosen', { method: target });
       const wasDirty = get().dirty;
       if (target === 'box-pleat') {
         await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });

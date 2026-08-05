@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Copy, Link2, X } from 'lucide-react';
+import { track } from '../../analytics';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { copyToClipboard } from '../../lib/shareLink';
 import {
@@ -181,6 +182,8 @@ export function ShareLinkModal() {
     if (await copyToClipboard(url)) {
       setJustCopied(true);
       window.setTimeout(() => setJustCopied(false), 1500);
+      // Funnel step after `crease pattern shared`. The URL itself is never sent.
+      track('share link copied');
     } else {
       inputRef.current?.select();
     }
@@ -223,6 +226,7 @@ export function ShareLinkModal() {
               </span>
               <input
                 type="text"
+                className="ph-no-capture"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 maxLength={100}
@@ -235,6 +239,7 @@ export function ShareLinkModal() {
               </span>
               <input
                 type="text"
+                className="ph-no-capture"
                 value={author}
                 onChange={(event) => setAuthor(event.target.value)}
                 maxLength={60}
@@ -353,7 +358,7 @@ export function ShareLinkModal() {
                 ref={inputRef}
                 type="text"
                 readOnly
-                className="share-link-modal__url"
+                className="share-link-modal__url ph-no-capture"
                 value={url}
                 aria-label={t('dialogs:shareLink.url', 'Share link')}
                 onFocus={(event) => event.currentTarget.select()}

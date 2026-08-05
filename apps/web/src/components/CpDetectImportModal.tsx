@@ -11,6 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ImagePlus, Loader2, Play, RefreshCw, Upload, X } from 'lucide-react';
+import { track } from '../analytics';
 import type {
   CpDetectFoldResult,
   CpDetectModelManifest,
@@ -182,6 +183,8 @@ export function CpDetectImportModal() {
     if (!rectified) return;
     setBusy('detecting');
     setError(null);
+    // Image→CP funnel start. No image data or filename is ever sent.
+    track('cp detect started');
     try {
       const client = await getCpDetectClient();
       const nextDetection = await client.detectRectifiedFold(rectified.image, {
@@ -190,8 +193,10 @@ export function CpDetectImportModal() {
       });
       setDetection(nextDetection);
       publishDetectionResult(source, nextDetection);
+      track('cp detect completed', { succeeded: true });
     } catch (caught) {
       setError(cpDetectError(caught).message);
+      track('cp detect completed', { succeeded: false });
     } finally {
       setBusy(null);
     }
@@ -216,6 +221,7 @@ export function CpDetectImportModal() {
       ] as const) {
         await useWorkspaceStore.getState().executeOristudioCpCommand(operation).catch(() => false);
       }
+      track('cp detect imported');
       setOpen(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));

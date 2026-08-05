@@ -240,9 +240,11 @@
     },
     "title": "Einstellungen",
     "workspace": {
+      "analytics": "Anonyme Nutzungsstatistiken senden, um Ori Studio zu verbessern",
       "folding": "Falten",
       "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
       "layout": "Layout",
+      "privacy": "Datenschutz",
       "resetButton": "Arbeitsbereichslayout zurücksetzen",
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",
       "resetTitle": "Arbeitsbereichslayout zurücksetzen",

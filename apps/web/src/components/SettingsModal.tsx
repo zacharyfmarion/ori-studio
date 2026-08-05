@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Check, Keyboard, LayoutDashboard, Palette, RotateCcw, X } from 'lucide-react';
+import { useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import {
   shortcutActionLabel,
@@ -164,6 +165,9 @@ function WorkspaceTab() {
   const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
   const foldWarningEnabled = useSettingsStore((state) => state.foldWarningEnabled);
   const setFoldWarningEnabled = useSettingsStore((state) => state.setFoldWarningEnabled);
+  const analyticsEnabled = useSettingsStore((state) => state.analyticsEnabled);
+  const setAnalyticsEnabled = useSettingsStore((state) => state.setAnalyticsEnabled);
+  const analytics = useAnalytics();
 
   return (
     <div className="settings-tab">
@@ -193,6 +197,28 @@ function WorkspaceTab() {
           {t(
             'dialogs:settings.workspace.foldWarning',
             'Warn before folding a crease pattern with flat-foldability errors'
+          )}
+        </label>
+      </section>
+      <section className="settings-section">
+        <h3 className="settings-section__title">
+          {t('dialogs:settings.workspace.privacy', 'Privacy')}
+        </h3>
+        <label className="settings-checkbox">
+          <input
+            type="checkbox"
+            checked={analyticsEnabled}
+            onChange={(event) => {
+              const enabled = event.target.checked;
+              // Persist the preference, then apply it to the analytics client:
+              // opt in/out, (re)identify or reset, and record the change itself.
+              setAnalyticsEnabled(enabled);
+              analytics.setAnalyticsEnabled(enabled, { capturePreferenceChange: true });
+            }}
+          />
+          {t(
+            'dialogs:settings.workspace.analytics',
+            'Send anonymous usage analytics to help improve Ori Studio'
           )}
         </label>
       </section>
