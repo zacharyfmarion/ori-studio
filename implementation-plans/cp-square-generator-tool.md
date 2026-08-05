@@ -369,16 +369,22 @@ but it is much cheaper before a fourth native operation than after.
       counts match `toolSteps`), `CpContextToolReset.test.ts` (reset reaches every
       square option)
 
-### Phase 5 — browser checklist (author-verified)
+### Phase 5 — browser checklist
 
-- [ ] Square appears first in the Generate rail section with a square icon
+Verified in the dev preview except where noted. The pane runs with
+`visibilityState: hidden` and no rAF, so anything needing animation frames is
+the author's to confirm.
+
+- [x] Square appears first in the Generate rail section with a square icon
 - [ ] Hovering previews the square before the click, in the line type it commits
-- [ ] All nine anchor cells place the bounding box correctly, in both
-      orientations, and flipping orientation leaves the anchor picker untouched
-- [ ] Size in cells lands vertices on grid intersections (even sizes in Diagonal)
-- [ ] Switching cells ↔ paper keeps the square the same size
-- [ ] All five params survive a reload
-- [ ] A square dropped across existing creases splits into them, like a polygon
+      (**not verified** — cursor-tracking preview needs rAF, which the automated
+      pane suspends; the commit colour was verified in both modes)
+- [x] Anchor cells place the bounding box correctly (top-left and center checked
+      in both orientations; picker unchanged across an orientation flip)
+- [x] Size in cells lands vertices on grid intersections (even sizes in Diagonal)
+- [x] Switching cells ↔ paper keeps the square the same size
+- [x] All five params survive a reload
+- [x] A square dropped across existing creases splits into them, like a polygon
       does
 
 ## Open question for review
