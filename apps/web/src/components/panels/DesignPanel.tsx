@@ -1,3 +1,4 @@
+import { selectDesignMethod } from '../../store/workspaceStore/designTabs';
 import {
   useCallback,
   useEffect,
@@ -453,7 +454,7 @@ function DesignViewportToolbar({
  */
 export function DesignPanel() {
   const { t } = useTranslation();
-  const designMethod = useWorkspaceStore((state) => state.designMethod);
+  const designMethod = useWorkspaceStore(selectDesignMethod);
   const oristudioBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument);
   const oristudioBpError = useWorkspaceStore((state) => state.oristudioBpError);
   const ensureBoxPleatProject = useWorkspaceStore((state) => state.ensureBoxPleatProject);

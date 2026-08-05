@@ -1,3 +1,4 @@
+import { selectDesignMethod, singleDesignTab } from './designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ConditionKind,
@@ -956,7 +957,7 @@ function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
   useWorkspaceStore.setState({
     project: projectFromSnapshot(snapshot, title),
     // A loaded tree claims the design, exactly as `loadText` does in production.
-    designMethod: 'treemaker',
+    ...singleDesignTab('treemaker'),
     importedCreasePattern: null,
     oristudioCpDocument: null,
     oristudioCpOperationDescriptors: [],
@@ -1664,7 +1665,7 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(emptyOristudioCpSelection());
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
     // A bare CP establishes no design, so the Design workspace keeps the chooser.
-    expect(useWorkspaceStore.getState().designMethod).toBe('none');
+    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
   });
 
   // The compiler catches a per-document field whose *discard value* nobody
@@ -1760,11 +1761,11 @@ describe('workspace store slices', () => {
     useWorkspaceStore.setState({
       oristudioCpDocument: null,
       oristudioBpDocument: null,
-      designMethod: 'treemaker',
+      ...singleDesignTab('treemaker'),
     });
     await useWorkspaceStore.getState().ensureEditCreasePattern();
     expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
-    expect(useWorkspaceStore.getState().designMethod).toBe('none');
+    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
     // The CP editor must report ready (not the initial 'loading_engine'), else
     // `isBusy` disables undo/redo and every engine-gated command on this canvas.
     expect(useWorkspaceStore.getState().status).toBe('crease_pattern_ready');
@@ -1773,9 +1774,9 @@ describe('workspace store slices', () => {
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().initEngine();
     expect(useWorkspaceStore.getState().project.edges.length).toBeGreaterThan(0);
-    useWorkspaceStore.setState({ oristudioCpDocument: null, designMethod: 'treemaker' });
+    useWorkspaceStore.setState({ oristudioCpDocument: null, ...singleDesignTab('treemaker') });
     await useWorkspaceStore.getState().ensureEditCreasePattern();
-    expect(useWorkspaceStore.getState().designMethod).not.toBe('none');
+    expect(selectDesignMethod(useWorkspaceStore.getState())).not.toBe('none');
   });
 
   it('opens native tree projects and keeps Save on the native file path', async () => {
@@ -5362,7 +5363,7 @@ describe('workspace store slices', () => {
       );
       const state = useWorkspaceStore.getState();
       expect(state.oristudioBpDocument).not.toBeNull();
-      expect(state.designMethod).toBe('box-pleat');
+      expect(selectDesignMethod(state)).toBe('box-pleat');
       expect(state.activeEditingContext).toBe('bp-tree');
     });
 
@@ -5551,7 +5552,7 @@ describe('workspace store slices', () => {
       );
       const state = useWorkspaceStore.getState();
       expect(state.oristudioBpDocument).not.toBeNull();
-      expect(state.designMethod).toBe('box-pleat');
+      expect(selectDesignMethod(state)).toBe('box-pleat');
       // The companion crease pattern is restored onto the Edit canvas.
       expect(state.oristudioCpDocument).not.toBeNull();
       // The bundle dispatches its load on the design document, so the BP loader
@@ -5807,7 +5808,7 @@ describe('workspace store slices', () => {
 
       const state = useWorkspaceStore.getState();
       expect(state.oristudioBpDocument).not.toBeNull();
-      expect(state.designMethod).not.toBe('none');
+      expect(selectDesignMethod(state)).not.toBe('none');
       expect(useLayoutStore.getState().activeWorkspace).toBe('design');
       expect(currentWorkspacePath()).toBe('/design/bp');
     });
@@ -5823,7 +5824,7 @@ describe('workspace store slices', () => {
         filename: 'crane.bps',
         path: null,
       });
-      expect(useWorkspaceStore.getState().designMethod).toBe('box-pleat');
+      expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('box-pleat');
       useWorkspaceStore.setState({ dirty: false });
 
       await expect(
@@ -5835,8 +5836,8 @@ describe('workspace store slices', () => {
       ).resolves.toBe(true);
 
       const state = useWorkspaceStore.getState();
-      expect(state.designMethod).toBe('treemaker');
-      expect(state.designMethod).not.toBe('none');
+      expect(selectDesignMethod(state)).toBe('treemaker');
+      expect(selectDesignMethod(state)).not.toBe('none');
       expect(state.oristudioBpDocument).toBeNull();
       expect(currentWorkspacePath()).toBe('/design/treemaker');
     });
@@ -5961,11 +5962,76 @@ describe('workspace store slices', () => {
     });
   });
 
+  describe('design tabs', () => {
+    /**
+     * The tab set is never empty and `activeDesignId` always names one of its
+     * members. Everything downstream — the chooser, the layout variant, routing,
+     * and Phase 3's tab strip — reads the active tab without a null check, so this
+     * has to hold after every action that touches the design, not just at boot.
+     */
+    const expectInvariant = () => {
+      const { designTabs, activeDesignId } = useWorkspaceStore.getState();
+      expect(designTabs.length).toBeGreaterThan(0);
+      expect(designTabs.map((tab) => tab.id)).toContain(activeDesignId);
+    };
+
+    it('starts with exactly one chooser tab', () => {
+      const state = useWorkspaceStore.getState();
+      expect(state.designTabs).toHaveLength(1);
+      expect(state.designTabs[0].kind).toBeNull();
+      expectInvariant();
+    });
+
+    it('holds across every design action', async () => {
+      useWorkspaceStore.getState().startNewDesign();
+      expectInvariant();
+
+      await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+      expectInvariant();
+
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      expectInvariant();
+
+      useWorkspaceStore.getState().applyDesignRoute('treemaker');
+      expectInvariant();
+
+      useWorkspaceStore.getState().startNewDesign();
+      expectInvariant();
+    });
+
+    it('changes the kind of the existing tab rather than replacing it', async () => {
+      // Phase 3 hangs a tab strip off these ids. If picking a method swapped the
+      // tab out, the strip would lose selection, title, and position on every
+      // choice — so identity has to survive a kind change.
+      const before = useWorkspaceStore.getState().designTabs[0];
+
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+
+      const after = useWorkspaceStore.getState().designTabs[0];
+      expect(useWorkspaceStore.getState().designTabs).toHaveLength(1);
+      expect(after.id).toBe(before.id);
+      expect(after.title).toBe(before.title);
+      expect(after.kind).toBe('box-pleat');
+    });
+
+    it('clears only the kind when a crease-pattern-only project is opened', async () => {
+      await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
+      const id = useWorkspaceStore.getState().activeDesignId;
+
+      useWorkspaceStore.getState().startNewDesign();
+
+      // The tab survives; only its method is cleared back to the chooser.
+      expect(useWorkspaceStore.getState().activeDesignId).toBe(id);
+      expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
+      expectInvariant();
+    });
+  });
+
   describe('design method chooser', () => {
     it('startNewDesign enters the Design workspace on the chooser without a document', () => {
       useWorkspaceStore.getState().startNewDesign();
 
-      expect(useWorkspaceStore.getState().designMethod).toBe('none');
+      expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
       expect(useLayoutStore.getState().activeWorkspace).toBe('design');
     });
 
@@ -5975,8 +6041,8 @@ describe('workspace store slices', () => {
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
 
       const state = useWorkspaceStore.getState();
-      expect(state.designMethod).toBe('box-pleat');
-      expect(state.designMethod).not.toBe('none');
+      expect(selectDesignMethod(state)).toBe('box-pleat');
+      expect(selectDesignMethod(state)).not.toBe('none');
       expect(state.oristudioBpDocument).not.toBeNull();
       expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledOnce();
     });
@@ -5989,8 +6055,8 @@ describe('workspace store slices', () => {
 
       // Circle-packed: establishes a tree without touching the Edit canvas.
       await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
-      expect(useWorkspaceStore.getState().designMethod).toBe('treemaker');
-      expect(useWorkspaceStore.getState().designMethod).not.toBe('none');
+      expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('treemaker');
+      expect(selectDesignMethod(useWorkspaceStore.getState())).not.toBe('none');
       expect(useWorkspaceStore.getState().oristudioCpDocument).toBe(editCp);
       // The CP wasm handle must not be released, or the kept document is dead.
       expect(oristudioCpMocks.releaseOristudioCpDocument).not.toHaveBeenCalled();
@@ -6010,23 +6076,23 @@ describe('workspace store slices', () => {
       await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
 
       const state = useWorkspaceStore.getState();
-      expect(state.designMethod).toBe('treemaker');
-      expect(state.designMethod).not.toBe('none');
+      expect(selectDesignMethod(state)).toBe('treemaker');
+      expect(selectDesignMethod(state)).not.toBe('none');
     });
 
     it('creating a TreeMaker project after a Box-pleat design resets the method', async () => {
       useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      expect(useWorkspaceStore.getState().designMethod).toBe('box-pleat');
+      expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('box-pleat');
       expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
 
       // Skip the discard confirmation this test isn't exercising.
       useWorkspaceStore.setState({ dirty: false });
       await useWorkspaceStore.getState().createNewProject();
 
-      expect(useWorkspaceStore.getState().designMethod).toBe('treemaker');
-      expect(useWorkspaceStore.getState().designMethod).not.toBe('none');
+      expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('treemaker');
+      expect(selectDesignMethod(useWorkspaceStore.getState())).not.toBe('none');
       expect(useWorkspaceStore.getState().oristudioBpDocument).toBeNull();
     });
 
@@ -6278,13 +6344,13 @@ describe('workspace store slices', () => {
 
     it('opening a file clears a pending design choice', async () => {
       useWorkspaceStore.getState().startNewDesign();
-      expect(useWorkspaceStore.getState().designMethod).toBe('none');
+      expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
 
       await useWorkspaceStore.getState().loadProjectText('native tree tmd5', {
         filename: 'sample.osf',
       });
 
-      expect(useWorkspaceStore.getState().designMethod).not.toBe('none');
+      expect(selectDesignMethod(useWorkspaceStore.getState())).not.toBe('none');
     });
   });
 });

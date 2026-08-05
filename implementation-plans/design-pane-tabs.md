@@ -243,8 +243,10 @@ undo stack would let the user undo the duplicate into states it never had.
 |---|---|---|---|
 | 0 | **Design-kind registry** — the descriptor above, plus `treemaker` and `box-pleat` implementations built from existing code. No behavior change. | S–M | 3–4 d |
 | 1 | **Document registry** — one owner of handle lifecycle across `engineRuntime` / `oristudioBpRuntime`; `create`/`hydrate`/`serialize`/`free` per document; hot-set cap + LRU eviction. Replaces `let handle` singletons ([engineRuntime.ts:16](../apps/web/src/store/workspaceStore/engineRuntime.ts), [oristudioBpRuntime.ts:38](../apps/web/src/store/workspaceStore/oristudioBpRuntime.ts)). | M | 4–5 d |
-| 2 | **`designs` map at N=1** — delete the flat design fields, add `activeDesign(state)`, migrate ≈291 reference sites (compiler-enumerated). `ParkedState \| LiveState` union so LRU is a state transition. Ships with **no UI change**. | **L — critical path** | 6–8 d |
-| 2b | **Addressed writes** — every async design action captures its document id and writes `designs[id]`, never "the active one". Removes R15 structurally rather than guarding against it. Folds into Phase 2's diff. | S | 1–2 d |
+| 2a | **Design tabs container** — `designTabs[]` + `activeDesignId` replace the `designMethod` scalar; the authoring method moves onto the design. ≥1-tab invariant. No editing state moves. | M | 1–2 d |
+| 2b | **TreeMaker state into the tab** — `project`, tree history, `selection`, `toolMode`, `symmetryAuthoringPairs`, `lastOptimization`, `designViewportFitRequestId`. ~80 sites. | L | 3–4 d |
+| 2c | **Box-Pleat state into the tab** — the nine `oristudioBp*` fields. ~41 sites. | M | 2–3 d |
+| 2d | **Addressed writes** — every async design action captures its document id and writes that design, never "the active one". Removes R15 structurally. Registry starts driving handles. | M | 2–3 d |
 | 3 | **Tab strip** — Radix `Tabs` for roving focus and ARIA; add (opens in NUX), close, inline rename, duplicate, reorder. Order and names write to the document. | M | 3–4 d |
 | 4 | **Intra-tab Gridview** — move `inspector`/`diagnostics`/`conditions`/`bp-editor` into the tab; per-tab pane sizes; active-pane tracking replaces Dockview's `onDidActivePanelChange`. | M | 4–5 d |
 | 5 | **Route collapse** — `/design` only; `/design/treemaker` and `/design/bp` become `redirect()`s; delete `designVariantPath`, `parseWorkspacePath`'s design branches, `pathForWorkspace`'s design special-case ([landing.ts:22](../apps/web/src/routing/landing.ts)). | S | 1–2 d |
@@ -729,6 +731,54 @@ is not yet driving the store** — that is Phase 2's job, and wiring it early wo
 mean building the documents map twice. It is fully covered by tests in the
 meantime.
 
+## Phase 2a notes
+
+### Phase 2 was one phase too big, and the measurement said so
+
+The 291-site figure was a bad basis for planning. Measured properly, non-test
+references are **concentrated in `store/`** — 69 of the `project` reads, 31 of
+`oristudioBpDocument`, 15 of `designMethod` — against ~26 in `components/` and a
+handful elsewhere. Nothing in `cp-workspace/`, `hooks/`, or `lib/` at all.
+
+That makes a field-group-at-a-time migration natural, and each one lands green:
+2a the container, 2b TreeMaker state, 2c Box-Pleat state, 2d addressed writes.
+2a is the piece Phase 3 actually needs — the tab strip wants id, kind, title,
+and order, none of which require the editing state to have moved yet.
+
+### An array, not a map plus an order list
+
+The scope said `designs: Record<id, …>` + `designOrder: string[]`. Implemented as
+a single `designTabs: DesignTab[]` instead: the array order *is* the tab order,
+and maintaining a map and a parallel order list would be a duplicated fact of
+exactly the kind this project keeps removing. Tab counts are small enough that
+linear lookup is irrelevant.
+
+### `editCount` deferred, and probably unnecessary
+
+The plan gave each tab an `editCount` for the close-confirmation predicate.
+Deferred, because TreeMaker edits have no chokepoint to increment it at —
+`api.applyEdit` is called from ~20 places in `editingSlice` directly (BP does
+have one, `runBpTreeMutation`). Adding 20 increment sites for state nothing reads
+yet is the "dead code drifts" trap from Phase 0.
+
+It may not be needed at all: **`historyPast.length > 0` already means "edited
+since load"**, and history becomes per-design in 2b. Phase 3 should try that
+before adding a counter.
+
+### Tab identity survives a method change
+
+Picking a method patches the existing tab's `kind` rather than replacing the tab.
+Asserted directly, because Phase 3 hangs a tab strip off these ids — a swapped
+tab would lose selection, title, and position on every choice.
+
+### `designMethod` is gone, not wrapped
+
+The field is deleted from the store. Reads go through `selectDesignMethod(state)`,
+writes through `withActiveTab(state, { kind })`. A derived selector cannot
+disagree with the tab it describes, which is the same reason
+`open-landing-and-design-state.md` collapsed `pendingDesignChoice` +
+`workflowTarget` into one field in the first place.
+
 ## Affected areas
 
 - `apps/web/src/designKinds/` — **new**: descriptors + registry
@@ -775,8 +825,15 @@ meantime.
   suite 2438/2438, typecheck, lint, i18n, `build:web` clean.
 
   Findings under "Phase 1 notes".
-- [ ] Phase 2 — `designs` map at N=1, `activeDesign()`, ≈291 sites, no UI change, tests green
-- [ ] Phase 2b — addressed writes: capture the document id before the first `await`
+- [x] Phase 2a — design-tab container; `designMethod` deleted; ≥1-tab invariant
+
+  Landed: `store/workspaceStore/designTabs.ts` plus the migration of all ~30
+  `designMethod` sites. 22 new tests. Full suite 2460/2460, typecheck, lint,
+  i18n, `build:web` clean. See "Phase 2a notes".
+
+- [ ] Phase 2b — TreeMaker per-design state into the tab (~80 sites)
+- [ ] Phase 2c — Box-Pleat per-design state into the tab (~41 sites)
+- [ ] Phase 2d — addressed writes: capture the document id before the first `await`
 - [ ] Phase 3 — Radix tab strip (add / close / rename / reorder / duplicate), ≥1 tab invariant
 - [ ] Phase 4 — intra-tab Gridview, panes migrated, active-pane tracking
 - [ ] Phase 5 — `/design` collapse with redirects

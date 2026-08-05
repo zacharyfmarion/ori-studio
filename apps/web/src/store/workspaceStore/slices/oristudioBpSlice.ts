@@ -1,3 +1,4 @@
+import { withActiveTab } from '../designTabs';
 import { getBoxPleatExampleProject } from '../../../examples/catalog';
 import { bpCpToEditorConvention } from '../../../lib/bpCreaseConvention';
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
@@ -151,7 +152,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       : null;
     pendingHistory = null;
     set({
-      designMethod: 'box-pleat',
+      ...withActiveTab(get(), { kind: 'box-pleat' }),
       // Every entry point but the design-method chooser replaces the open
       // document: the Edit canvas, the tree, and everything derived from them.
       // The chooser instead layers a BP design onto the project already being

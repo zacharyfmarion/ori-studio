@@ -1,3 +1,4 @@
+import { singleDesignTab } from '../designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
@@ -114,7 +115,7 @@ describe('symmetry rides the undo stack', () => {
     useWorkspaceStore.setState({
       oristudioBpDocument: bpDocument(),
       activePanelId: 'design',
-      designMethod: 'box-pleat',
+      ...singleDesignTab('box-pleat'),
     });
     expect(useWorkspaceStore.getState().activeEditingContext).toBe('bp-tree');
   });

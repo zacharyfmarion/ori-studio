@@ -1,3 +1,4 @@
+import { selectDesignMethod } from '../store/workspaceStore/designTabs';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -243,7 +244,7 @@ function FixedDockTab(props: IDockviewPanelHeaderProps) {
  */
 function DesignWorkspaceFooter() {
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
-  const designMethod = useWorkspaceStore((state) => state.designMethod);
+  const designMethod = useWorkspaceStore(selectDesignMethod);
 
   if (activeWorkspace !== 'design') return null;
   const variant = designLayoutVariant(designMethod);

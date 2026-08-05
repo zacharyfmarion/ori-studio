@@ -1,3 +1,4 @@
+import { singleDesignTab } from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -72,7 +73,7 @@ function renderPanel(
       project,
       // These exercise the Circle-packed design pane. A fresh store has picked no
       // method, which is the method chooser — so say which pane is under test.
-      designMethod: 'treemaker',
+      ...singleDesignTab('treemaker'),
       engineReady: true,
       ...state,
     },
@@ -121,7 +122,7 @@ function renderDesignPanel(state: Partial<ReturnType<typeof useWorkspaceStore.ge
       ...useWorkspaceStore.getInitialState(),
       // These exercise the Circle-packed design pane. A fresh store has picked no
       // method, which is the method chooser — so say which pane is under test.
-      designMethod: 'treemaker',
+      ...singleDesignTab('treemaker'),
       ...state,
     },
     true
@@ -142,7 +143,7 @@ function renderDesignPanel(state: Partial<ReturnType<typeof useWorkspaceStore.ge
 
 describe('DesignPanel', () => {
   it('shows the tree-editor loading state while the treemaker engine is not ready', () => {
-    renderDesignPanel({ engineReady: false, designMethod: 'treemaker' });
+    renderDesignPanel({ engineReady: false, ...singleDesignTab('treemaker') });
 
     expect(container?.textContent).toContain('Preparing the tree editor');
     // The tree canvas itself does not render until the engine is ready.
@@ -150,7 +151,7 @@ describe('DesignPanel', () => {
   });
 
   it('leaves the Box-pleated method available before the treemaker engine loads', () => {
-    renderDesignPanel({ engineReady: false, designMethod: 'none' });
+    renderDesignPanel({ engineReady: false, ...singleDesignTab(null) });
 
     const button = (label: string) =>
       Array.from(container?.querySelectorAll('button') ?? []).find((element) =>

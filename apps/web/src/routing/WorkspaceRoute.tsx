@@ -1,3 +1,4 @@
+import { selectDesignMethod } from '../store/workspaceStore/designTabs';
 import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useWorkspaceViewedEvent } from '../analytics';
@@ -24,7 +25,7 @@ interface WorkspaceRouteProps {
  * loader, so this element only mounts for real work.
  */
 export function WorkspaceRoute({ workspace, variant }: WorkspaceRouteProps) {
-  const designMethod = useWorkspaceStore((state) => state.designMethod);
+  const designMethod = useWorkspaceStore(selectDesignMethod);
   // Bare `/design` is where the method chooser lives, so it is the one Design
   // route that cannot set a method. Rather than clear one — which is how landing
   // there used to replace a design that had just loaded with the chooser — it

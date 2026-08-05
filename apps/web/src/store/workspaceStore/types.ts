@@ -11,7 +11,7 @@ import type {
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
 import type { DesignLayoutVariant } from '../layoutStore';
-import type { DesignMethod } from './designVariant';
+import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import type { SnapshotEntry } from './snapshotHistory';
@@ -167,14 +167,21 @@ export type PendingSharedCp =
 export interface ProjectSliceState {
   project: TreeProject;
   /**
-   * Which method the Design workspace is authoring with — Circle-packed,
-   * Box-pleated, or `'none'` while the user has yet to pick one and the Design
-   * pane should show its method chooser.
+   * The designs open in the Design workspace, in tab order.
    *
-   * Replaces the `pendingDesignChoice` + `workflowTarget` pair, which could
-   * contradict each other; see {@link DesignMethod}.
+   * **Never empty**, and {@link activeDesignId} always names one of them. Closing
+   * the last tab re-provisions a fresh chooser tab rather than leaving none, which
+   * is what keeps `activeDesignId` a plain `string` and removes "no design open"
+   * as a representable state.
+   *
+   * Replaces the single `designMethod` scalar: the authoring method belongs to the
+   * design, not to the workspace, and a workspace-level field cannot say which of
+   * several open designs it describes. Read the active design's method with
+   * `selectDesignMethod`.
    */
-  designMethod: DesignMethod;
+  designTabs: DesignTab[];
+  /** The tab being authored. Always the id of a member of {@link designTabs}. */
+  activeDesignId: string;
   /**
    * True once the user has created, opened, or chosen a project this session.
    * A fresh page load starts false, so deep-linked workspace routes redirect to

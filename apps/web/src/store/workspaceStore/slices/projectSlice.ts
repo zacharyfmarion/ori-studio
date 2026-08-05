@@ -1,3 +1,4 @@
+import { initialDesignTabs, selectDesignMethod, withActiveTab } from '../designTabs';
 import { getExampleProject } from '../../../examples/catalog';
 import { APP_VERSION } from '../../../constants/release';
 import {
@@ -797,7 +798,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // `setLoadedBpProject`): this file's tree *is* the design now, so a
       // box-pleat design left over from the previous file must not stay loaded
       // and must not keep naming the Design layout variant.
-      designMethod: 'treemaker',
+      ...withActiveTab(get(), { kind: 'treemaker' }),
       oristudioBpDocument: null,
       oristudioBpWorkspace: null,
       // Spread last so a preserved canvas wins over the resets above.
@@ -956,7 +957,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // the previous file's box-pleat design must not stay loaded behind it,
       // which would leave "no method chosen" sitting beside a live design. Same
       // claim `loadText` makes for a tree: an open replaces the project.
-      designMethod: 'none',
+      ...withActiveTab(get(), { kind: null }),
       oristudioBpDocument: null,
       oristudioBpWorkspace: null,
       project: result.project,
@@ -1155,7 +1156,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // Opening a crease pattern makes the CP editor the active view.
       activePanelId: 'crease-pattern',
       // A CP-only project establishes no design; keep the Design chooser.
-      designMethod: 'none',
+      ...withActiveTab(get(), { kind: null }),
       project: { ...result.project, title: nativeDocument.title || result.project.title },
       importedCreasePattern: importedDocument,
       currentFileName: source.filename,
@@ -1197,7 +1198,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
     // Only the Edit-canvas fields: the design has already claimed `project`,
-    // `designMethod`, and `status`.
+    // the design tab's kind, and `status`.
     set(nativeCpEditorState(nativeDocument, checked.documentState, checked.camvResult));
     void get().hydrateOristudioCpInlineSimulations();
   };
@@ -1614,7 +1615,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // 'treemaker'`, which claimed Circle-packed for a project that did not exist;
     // bare `/design` only showed the chooser because the route overwrote the
     // claim on arrival.)
-    designMethod: 'none',
+    ...initialDesignTabs(),
     projectEstablished: false,
     activePanelId: null,
     activeEditingContext: 'treemaker-tree',
@@ -1727,7 +1728,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         set({
           ...projectStateFromSnapshot(snapshot, 'Untitled'),
           activePanelId: 'design',
-          designMethod: 'treemaker',
+          ...withActiveTab(get(), { kind: 'treemaker' }),
           oristudioBpDocument: null,
           oristudioBpWorkspace: null,
           nativeProjectExtensions: {},
@@ -1817,7 +1818,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
           // Creating a bare CP establishes no design, so the Design workspace
           // keeps offering the method chooser (Circle-packed vs Box-pleated).
-          designMethod: 'none',
+          ...withActiveTab(get(), { kind: null }),
           importedCreasePattern: null,
           currentFileName: defaultNativeFilename(documentState.summary.title ?? 'Untitled CP'),
           currentFilePath: null,
@@ -2779,7 +2780,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // until the user picks Circle-packed or Box-pleated. The one caller that
       // legitimately clears the method — everything else only ever sets a real
       // one, so no route or loader can put the chooser over a live design.
-      set({ designMethod: 'none', error: null, projectMessage: null });
+      set({ ...withActiveTab(get(), { kind: null }), error: null, projectMessage: null });
       useLayoutStore.getState().activateWorkspace('design');
       useLayoutStore.getState().ensureDesignLayout();
     },
@@ -2794,7 +2795,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // that had just loaded with the chooser. `/design` now redirects to the
       // active method's sub-route instead, and only `startNewDesign` clears it.
       if (variant === 'nux') return;
-      if (get().designMethod !== variant) set({ designMethod: variant });
+      if (selectDesignMethod(get()) !== variant) set(withActiveTab(get(), { kind: variant }));
     },
 
     chooseDesignMethod: async (target) => {

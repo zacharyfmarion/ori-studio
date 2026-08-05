@@ -1,3 +1,4 @@
+import { withActiveTab } from '../designTabs';
 import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
@@ -1006,7 +1007,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // edits (undo/redo, images, tools) behave identically on this canvas.
           set({
             ...freshEditableCpState(document, priorState),
-            ...(noDesignYet ? { designMethod: 'none' as const } : {}),
+            ...(noDesignYet ? withActiveTab(priorState, { kind: null }) : {}),
           });
         } catch (error) {
           set({ oristudioCpError: engineError(error).message });
