@@ -50,6 +50,10 @@ import {
   type OptimizerSymmetryPayload,
 } from '../../../lib/bpOptimizerSymmetry';
 import {
+  buildMirroredBpFlapMoves,
+  constrainBpFlapMoveToAxis,
+} from '../../../lib/bpPackingSymmetry';
+import {
   reflectPointAcrossSymmetryAxis,
   snapPointToSymmetryAxis,
   type SymmetryAxis,
@@ -916,6 +920,74 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           }),
         { dragging, selection: bpFlapSelection(ids) }
       ),
+
+    moveOristudioBpLayoutFlapWithSymmetry: async (id, loc, dragging = false) =>
+      // Hands off to the single-flap action rather than the group one when there
+      // is no mirror to carry, so mirror draw does not quietly reword an
+      // ordinary move's undo entry from "flap" to "flaps".
+      get().oristudioBpSymmetry.enabled
+        ? get().moveOristudioBpLayoutFlapsWithSymmetry([id], loc, dragging)
+        : get().moveOristudioBpLayoutFlap(id, loc, dragging),
+
+    moveOristudioBpLayoutFlapsWithSymmetry: async (ids, loc, dragging = false) => {
+      const symmetry = get().oristudioBpSymmetry;
+      if (!symmetry.enabled || ids.length === 0) {
+        return get().moveOristudioBpLayoutFlaps(ids, loc, dragging);
+      }
+      const label = ids.length > 1 ? 'Moved mirrored BP flaps' : 'Moved mirrored BP flap';
+      return runBpTreeMutation(
+        label,
+        async (document) => {
+          const before = document.snapshot.packing;
+          // The reference flap is the one the engine measures the group's single
+          // translation from, so it is also the one an on-axis constraint has to
+          // act on: sliding it along the mirror slides the whole group with it.
+          const reference = before.flaps.find((flap) => flap.id === ids[0]);
+          const target = reference
+            ? constrainBpFlapMoveToAxis(reference, loc, before.sheet, symmetry.fold) ?? loc
+            : loc;
+          const moved = await moveRuntimeOristudioBpLayoutFlaps(ids, target, {
+            activeSurface: 'packing',
+            dragging,
+          });
+          // Mirror where the flaps *landed*, not where they were asked to go: the
+          // engine clamps the group's translation against the sheet, and a mirror
+          // built from the request would drift from the drawing by whatever the
+          // clamp took off.
+          const landed = new Map(moved.snapshot.packing.flaps.map((flap) => [flap.id, flap.anchor]));
+          const mirrored = buildMirroredBpFlapMoves({
+            tree: document.snapshot.tree,
+            pairs: symmetry.pairs,
+            treeAxis: { loc: symmetry.loc, angle: symmetry.angle },
+            sheet: before.sheet,
+            fold: symmetry.fold,
+            flaps: before.flaps,
+            moves: ids.flatMap((id) => {
+              const at = landed.get(id);
+              return at ? [{ id, loc: at }] : [];
+            }),
+          });
+          // One call each: a pair moves in opposite directions along the axis
+          // normal, and the group move applies one translation to everything it
+          // is given, so partners cannot ride along with the primaries.
+          //
+          // Nothing checks that a partner lands exactly where it was sent. The
+          // sheet is symmetric about an axis through its centre, so the mirror of
+          // an on-sheet box is on-sheet and the clamp cannot bite; if the engine
+          // ever refused one anyway it would throw, and the mutation would revert
+          // the primary move with it rather than leave a lopsided pair.
+          let next = moved;
+          for (const move of mirrored) {
+            next = await moveRuntimeOristudioBpLayoutFlap(move.id, move.loc, {
+              activeSurface: 'packing',
+              dragging,
+            });
+          }
+          return next;
+        },
+        { dragging, selection: bpFlapSelection(ids) }
+      );
+    },
 
     moveOristudioBpDevice: async (id, index, loc, dragging = false) =>
       runBpTreeMutation(

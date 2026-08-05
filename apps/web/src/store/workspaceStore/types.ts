@@ -958,6 +958,25 @@ export interface OristudioBpSliceActions {
   resizeOristudioBpLayoutFlap: (id: number, width: number, height: number) => Promise<boolean>;
   /** Move a group of BP flaps in the packing. */
   moveOristudioBpLayoutFlaps: (ids: number[], loc: Point, dragging?: boolean) => Promise<boolean>;
+  /**
+   * Move a BP flap, carrying its mirror partner to the reflected position.
+   *
+   * The two sides of a symmetric design are one shape, so a move that left the
+   * partner behind would break the symmetry the user drew — the same reasoning
+   * that already makes a resize and a delete apply to both. Delegates to
+   * {@link moveOristudioBpLayoutFlap} when mirror draw is off.
+   */
+  moveOristudioBpLayoutFlapWithSymmetry: (
+    id: number,
+    loc: Point,
+    dragging?: boolean
+  ) => Promise<boolean>;
+  /** {@link moveOristudioBpLayoutFlapWithSymmetry} for a whole selection. */
+  moveOristudioBpLayoutFlapsWithSymmetry: (
+    ids: number[],
+    loc: Point,
+    dragging?: boolean
+  ) => Promise<boolean>;
   /** Move a BP device handle in the packing. */
   moveOristudioBpDevice: (
     id: string,
