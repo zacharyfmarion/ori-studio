@@ -134,20 +134,45 @@ import still looks clean. Land them together.
 
 ## Checklist
 
-- [ ] Add FOLD fixtures: canonical multi-frame, root-plus-frame, malformed
-      vertex, out-of-range edge, self-parent frame, two-frame cycle
-- [ ] Rust: `#[serde(default)]` on `vertices_coords` / `edges_vertices`
-- [ ] Rust: typed "no usable frame" error replacing the serde-missing-field path
-- [ ] Rust: tests for both multi-frame shapes + the existing single-frame control
-- [ ] Rust: confirm export -> re-import still round-trips with frames preserved
-- [ ] Web: vertex remap in `normalizeFoldObject`, with edges/faces rewritten or
+Landed in [#206](https://github.com/zacharyfmarion/ori-studio/pull/206).
+
+- [x] Tests written first — 7 red (4 Rust, 3 web), each failing for its own reason
+- [x] Rust: `#[serde(default)]` on `vertices_coords` / `edges_vertices`
+- [x] Rust: geometry-frame selection (root, else best-scoring embedded frame),
+      mirroring the web importer's `frameScore` — serde defaults alone would only
+      have turned rejection into a silently empty document
+- [x] Rust: typed "no usable frame" error replacing the serde-missing-field path
+- [x] Rust: tests for both multi-frame shapes + the single-frame control
+- [x] Rust: confirm export -> re-import still round-trips with frames preserved
+- [x] Web: vertex remap in `normalizeFoldObject`, with edges/faces rewritten or
       dropped through it
-- [ ] Web: `sourceEdgeIndices` provenance for `edges_assignment` /
-      `edges_foldAngle` / extension arrays
-- [ ] Web: move the vertex-index invariant into `foldEdgeArrays.ts`
-- [ ] Web: `frame_parent` cycle detection with a typed diagnostic
-- [ ] Web: regression tests asserting the two tables in **Reproductions**
-- [ ] Rebuild and commit the tracked `oristudio-cp-wasm` bridge
-- [ ] Validate: `cargo fmt --check`, `cargo clippy`, `cargo test --workspace`,
-      web lint/typecheck/test
-- [ ] Open draft PR against `main`
+- [x] Web: `sourceEdgeIndices` provenance for `edges_assignment` /
+      `edges_foldAngle`
+- [x] Web: `frame_parent` cycle detection (visited set in the resolver)
+- [x] Web: regression tests asserting the two tables in **Reproductions**
+- [x] Rebuild and commit the tracked `oristudio-cp-wasm` bridge
+- [x] Validate: `cargo fmt --check`, `cargo clippy --workspace --all-targets`,
+      `cargo test --workspace` (131 binaries), web typecheck + 2374 tests
+- [x] Open draft PR against `main`
+
+Deliberately **not** done, and why:
+
+- **Extension arrays in `normalizeFoldObject`.** The plan listed them alongside
+  the standard per-edge arrays, but this function builds its result from an
+  explicit field list and never carries namespaced extensions through at all, so
+  there is nothing to remap. `remapEdgeExtensionArrays` stays correct for the
+  rebuild sites that do carry them.
+- **Moving the vertex-index invariant into `foldEdgeArrays.ts`.** Left in the
+  importer for now and raised in the PR instead. That module's contract is
+  per-*edge* arrays; a vertex remap is a different invariant, and folding it in
+  deserves its own review rather than riding along here.
+- **A typed diagnostic for the frame cycle.** The resolver has no diagnostics
+  channel, and threading one through is only worth doing once warnings are
+  actually surfaced — see the deferred item below.
+
+Still open, tracked to the next piece of work:
+
+- [ ] Surface importer `diagnostics.warnings` in the UI. The importer already
+      records "Some FOLD vertices/edges were ignored…" and nothing reads it, so a
+      *partially* dropped import still looks clean. Now that entries are dropped
+      correctly rather than corruptingly, this is the remaining honesty gap.

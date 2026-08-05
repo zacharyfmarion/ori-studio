@@ -37,11 +37,11 @@ Live status of the fix work. Update this table as each PR moves.
 | 1 | `prepareFoldModel` O(faces x vertices) | high | — (direct fix) | **Fixed** — 1191 ms -> 46 ms | [#203](https://github.com/zacharyfmarion/ori-studio/pull/203) |
 | 2 | CI never runs the simulator tests | high | — (direct fix) | **Fixed** — added to `web-client` | [#203](https://github.com/zacharyfmarion/ori-studio/pull/203) |
 | 4 | Failed CP load replaced by blank doc, error erased | critical | `failed-load-error-surfacing.md` | **Fixed** — 3 store tests | [#204](https://github.com/zacharyfmarion/ori-studio/pull/204) |
-| 3 | Multi-frame `.fold` rejected | critical | `fold-import-integrity.md` | Next | — |
-| 5 | Malformed vertex shifts indices | high | `fold-import-integrity.md` | Next | — |
-| 6 | Invalid edge shifts assignments | medium | `fold-import-integrity.md` | Next | — |
-| 7 | Cyclic `frame_parent` blows the stack | medium | `fold-import-integrity.md` | Next | — |
-| 9 | BP optimizer abort hangs, modal unclosable | critical | `bp-optimizer-cancellation.md` | Queued | — |
+| 3 | Multi-frame `.fold` rejected | critical | `fold-import-integrity.md` | **Fixed** — 4 Rust tests | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
+| 5 | Malformed vertex shifts indices | high | `fold-import-integrity.md` | **Fixed** — vertex remap | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
+| 6 | Invalid edge shifts assignments | medium | `fold-import-integrity.md` | **Fixed** — edge provenance | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
+| 7 | Cyclic `frame_parent` blows the stack | medium | `fold-import-integrity.md` | **Fixed** — visited set | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
+| 9 | BP optimizer abort hangs, modal unclosable | critical | `bp-optimizer-cancellation.md` | **Next** | — |
 | 8 | `.ori` save drops reference images | high | _none yet_ | Not started | — |
 | 10 | `.tmd5`/`.bps` from Welcome hidden by chooser | high | _none yet_ | Not started | — |
 | 11 | Undo history uncapped | high | _none yet_ | Not started | — |
