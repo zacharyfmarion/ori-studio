@@ -244,8 +244,8 @@ undo stack would let the user undo the duplicate into states it never had.
 | 0 | **Design-kind registry** — the descriptor above, plus `treemaker` and `box-pleat` implementations built from existing code. No behavior change. | S–M | 3–4 d |
 | 1 | **Document registry** — one owner of handle lifecycle across `engineRuntime` / `oristudioBpRuntime`; `create`/`hydrate`/`serialize`/`free` per document; hot-set cap + LRU eviction. Replaces `let handle` singletons ([engineRuntime.ts:16](../apps/web/src/store/workspaceStore/engineRuntime.ts), [oristudioBpRuntime.ts:38](../apps/web/src/store/workspaceStore/oristudioBpRuntime.ts)). | M | 4–5 d |
 | 2a | **Design tabs container** — `designTabs[]` + `activeDesignId` replace the `designMethod` scalar; the authoring method moves onto the design. ≥1-tab invariant. No editing state moves. | M | 1–2 d |
-| 2b | **TreeMaker state into the tab** — `project`, tree history, `selection`, `toolMode`, `symmetryAuthoringPairs`, `lastOptimization`, `designViewportFitRequestId`. ~80 sites. | L | 3–4 d |
-| 2c | **Box-Pleat state into the tab** — the nine `oristudioBp*` fields. ~41 sites. | M | 2–3 d |
+| 2b | **TreeMaker state into the tab** — `project`, tree history, `selection`, `toolMode`, `symmetryAuthoringPairs`, `lastOptimization`, `designViewportFitRequestId`, as the `kind: 'treemaker'` arm of a discriminated union (see "Why `kind` is stored"). ~80 sites. | L | 3–4 d |
+| 2c | **Box-Pleat state into the tab** — the nine `oristudioBp*` fields, as the `kind: 'box-pleat'` arm. ~41 sites. | M | 2–3 d |
 | 2d | **Addressed writes** — every async design action captures its document id and writes that design, never "the active one". Removes R15 structurally. Registry starts driving handles. | M | 2–3 d |
 | 3 | **Tab strip** — Radix `Tabs` for roving focus and ARIA; add (opens in NUX), close, inline rename, duplicate, reorder. Order and names write to the document. | M | 3–4 d |
 | 4 | **Intra-tab Gridview** — move `inspector`/`diagnostics`/`conditions`/`bp-editor` into the tab; per-tab pane sizes; active-pane tracking replaces Dockview's `onDidActivePanelChange`. | M | 4–5 d |
@@ -770,6 +770,53 @@ before adding a counter.
 Picking a method patches the existing tab's `kind` rather than replacing the tab.
 Asserted directly, because Phase 3 hangs a tab strip off these ids — a swapped
 tab would lose selection, title, and position on every choice.
+
+### Why `kind` is stored rather than derived — and the constraint it puts on 2b
+
+Reasonable question raised in review: if a tab holds a box-pleat document, why
+record `kind: 'box-pleat'` as well? Could the kind not be read off the content?
+
+For a **saved file** it effectively is: `.osf` records `kind` explicitly per
+document ([nativeProjectFile.ts:73](../apps/web/src/lib/nativeProjectFile.ts)),
+so loading reads it rather than guessing. The problem is in-memory state, and it
+is one case:
+
+**A fresh Circle-packed design has no content.** `createBlankTree` is
+`newDesign()` with zero nodes and zero edges
+([engineRuntime.ts:87](../apps/web/src/store/workspaceStore/engineRuntime.ts)),
+which is why the presence subscription tests `project.edges.length > 0` and its
+comment already says *"a blank TreeMaker design picked from the chooser has no
+document content"*. Derive the kind from content and picking Circle-packed
+bounces straight back to the chooser — the contradiction
+[open-landing-and-design-state.md](open-landing-and-design-state.md) exists to
+prevent.
+
+Two smaller ones: box-pleat creation is async, and the "Preparing the box-pleat
+editor…" state is only expressible because the kind is known before the document
+exists; and the two kinds are asymmetric (box-pleat's create seeds a sample
+project *with* content, TreeMaker's does not), so a derivation rule would need
+per-kind special-casing — the thing the descriptor registry exists to remove.
+
+The kind is a **decision the user made**, and it has to survive the window before
+that decision has produced anything. Derive facts about content; store decisions.
+
+**Constraint this places on 2b/2c.** Storing it does make a contradictory tab
+representable — `kind: 'treemaker'` beside a box-pleat document. Rather than
+guard that with an invariant test, the per-design state moving onto the tab in
+2b/2c must be a **discriminated union keyed on `kind`**:
+
+```ts
+type DesignTabContent =
+  | { kind: null }                                    // chooser
+  | { kind: 'treemaker'; project: TreeProject; … }
+  | { kind: 'box-pleat'; document: OristudioBpDocumentState; … }
+```
+
+Then the contradiction does not compile, and there is nothing to keep in step.
+The read sites need narrowing, but they are being rewritten in those phases
+anyway — and narrowing forces each one to say which kind it assumes, which is
+what makes a third kind safe to add. `{ kind: 'treemaker', project: <empty> }`
+stays valid, so blank designs still work.
 
 ### `designMethod` is gone, not wrapped
 
