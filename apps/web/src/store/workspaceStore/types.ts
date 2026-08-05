@@ -11,6 +11,7 @@ import type {
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
 import type { DesignLayoutVariant } from '../layoutStore';
+import type { DesignMethod } from './designVariant';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import type { SnapshotEntry } from './snapshotHistory';
@@ -165,12 +166,15 @@ export type PendingSharedCp =
 
 export interface ProjectSliceState {
   project: TreeProject;
-  workflowTarget: WorkflowTarget;
   /**
-   * True while the Design workspace is waiting for the user to pick a design
-   * method (Circle-packed vs Box-pleated). Drives the Design pane NUX chooser.
+   * Which method the Design workspace is authoring with — Circle-packed,
+   * Box-pleated, or `'none'` while the user has yet to pick one and the Design
+   * pane should show its method chooser.
+   *
+   * Replaces the `pendingDesignChoice` + `workflowTarget` pair, which could
+   * contradict each other; see {@link DesignMethod}.
    */
-  pendingDesignChoice: boolean;
+  designMethod: DesignMethod;
   /**
    * True once the user has created, opened, or chosen a project this session.
    * A fresh page load starts false, so deep-linked workspace routes redirect to
@@ -359,7 +363,6 @@ export interface ProjectSliceActions {
   loadExampleProject: (id: string) => Promise<void>;
   clearProjectMessage: () => void;
   setActivePanelId: (id: string | null) => void;
-  setWorkflowTarget: (target: WorkflowTarget) => void;
   /** Enter the Design workspace on the method chooser without creating a document. */
   startNewDesign: () => void;
   /** Resolve the Design pane NUX chooser into a concrete design method. */
@@ -846,7 +849,16 @@ export interface OristudioBpSliceActions {
      * — a bare `.bps` cannot carry symmetry — so this is absent for plain
      * Box Pleating Studio files and the design opens with the default.
      */
-    options?: { symmetry?: BpDocumentSymmetry | null }
+    options?: {
+      symmetry?: BpDocumentSymmetry | null;
+      /**
+       * Keep the Edit canvas rather than clearing it. Set by the `.osf` loader
+       * when the bundle also carries a crease pattern to install right after, so
+       * the load never publishes an empty canvas for the Edit surface to
+       * self-provision into and then discard.
+       */
+      preserveEditCanvas?: boolean;
+    }
   ) => Promise<boolean>;
   /** Replace the active BP selection. */
   selectOristudioBp: (selection: OristudioBpSelection) => void;

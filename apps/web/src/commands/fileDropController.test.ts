@@ -4,7 +4,7 @@ import type { ChoiceDialogOptions } from '../store/commandDialogStore';
 const routingMocks = vi.hoisted(() => ({
   navigateTo: vi.fn(),
   currentPath: vi.fn<() => string | null>(() => '/edit'),
-  openedProjectPath: vi.fn(() => '/edit'),
+  currentWorkspacePath: vi.fn(() => '/edit'),
 }));
 
 const dialogMocks = vi.hoisted(() => ({
@@ -21,7 +21,7 @@ vi.mock('../routing/appRouter', () => ({
 }));
 
 vi.mock('../routing/landing', () => ({
-  openedProjectPath: routingMocks.openedProjectPath,
+  currentWorkspacePath: routingMocks.currentWorkspacePath,
 }));
 
 vi.mock('../store/workspaceStore/capabilities', () => ({
@@ -56,7 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   capabilityMocks.importAddEnabled.value = true;
   routingMocks.currentPath.mockReturnValue('/edit');
-  routingMocks.openedProjectPath.mockReturnValue('/edit');
+  routingMocks.currentWorkspacePath.mockReturnValue('/edit');
   dialogMocks.requestChoice.mockResolvedValue(null);
   useCommandDialogStore.setState({ dialog: null });
 

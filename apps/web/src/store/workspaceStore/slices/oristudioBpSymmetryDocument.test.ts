@@ -114,8 +114,7 @@ describe('symmetry rides the undo stack', () => {
     useWorkspaceStore.setState({
       oristudioBpDocument: bpDocument(),
       activePanelId: 'design',
-      workflowTarget: 'box-pleat',
-      pendingDesignChoice: false,
+      designMethod: 'box-pleat',
     });
     expect(useWorkspaceStore.getState().activeEditingContext).toBe('bp-tree');
   });

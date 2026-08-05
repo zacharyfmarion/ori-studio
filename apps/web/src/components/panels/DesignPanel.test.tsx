@@ -70,6 +70,9 @@ function renderPanel(
     {
       ...useWorkspaceStore.getInitialState(),
       project,
+      // These exercise the Circle-packed design pane. A fresh store has picked no
+      // method, which is the method chooser — so say which pane is under test.
+      designMethod: 'treemaker',
       engineReady: true,
       ...state,
     },
@@ -113,7 +116,16 @@ afterEach(() => {
 });
 
 function renderDesignPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
-  useWorkspaceStore.setState({ ...useWorkspaceStore.getInitialState(), ...state }, true);
+  useWorkspaceStore.setState(
+    {
+      ...useWorkspaceStore.getInitialState(),
+      // These exercise the Circle-packed design pane. A fresh store has picked no
+      // method, which is the method chooser — so say which pane is under test.
+      designMethod: 'treemaker',
+      ...state,
+    },
+    true
+  );
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -130,7 +142,7 @@ function renderDesignPanel(state: Partial<ReturnType<typeof useWorkspaceStore.ge
 
 describe('DesignPanel', () => {
   it('shows the tree-editor loading state while the treemaker engine is not ready', () => {
-    renderDesignPanel({ engineReady: false, pendingDesignChoice: false });
+    renderDesignPanel({ engineReady: false, designMethod: 'treemaker' });
 
     expect(container?.textContent).toContain('Preparing the tree editor');
     // The tree canvas itself does not render until the engine is ready.
@@ -138,7 +150,7 @@ describe('DesignPanel', () => {
   });
 
   it('leaves the Box-pleated method available before the treemaker engine loads', () => {
-    renderDesignPanel({ engineReady: false, pendingDesignChoice: true });
+    renderDesignPanel({ engineReady: false, designMethod: 'none' });
 
     const button = (label: string) =>
       Array.from(container?.querySelectorAll('button') ?? []).find((element) =>

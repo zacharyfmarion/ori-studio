@@ -15,7 +15,7 @@ import type { WorkspaceState } from './types';
  * interactive draw → history flow never re-baselined and recorded nothing.
  *
  * Scoped to the CP editor: it deliberately does NOT touch the tree/design fields
- * (`project`, `workflowTarget`, `pendingDesignChoice`), so a caller can seed a
+ * (`project`, `designMethod`), so a caller can seed a
  * canvas without discarding an authored design.
  */
 export function freshEditableCpState(

@@ -1,4 +1,4 @@
-import type { WorkflowTarget } from '../lib/sampleProject';
+import type { DesignMethod } from '../store/workspaceStore/designVariant';
 
 /**
  * The single value that identifies what the user is currently editing. It is
@@ -22,8 +22,7 @@ export type EditingContext =
 
 export interface EditingContextInput {
   activePanelId: string | null;
-  pendingDesignChoice: boolean;
-  workflowTarget: WorkflowTarget;
+  designMethod: DesignMethod;
   hasBpDocument: boolean;
 }
 
@@ -53,8 +52,8 @@ export function resolveEditingContext(input: EditingContextInput): EditingContex
       return 'treemaker-tree';
     case 'design':
     default:
-      if (input.pendingDesignChoice) return 'design-nux';
-      if (input.workflowTarget === 'box-pleat' && input.hasBpDocument) return 'bp-tree';
+      if (input.designMethod === 'none') return 'design-nux';
+      if (input.designMethod === 'box-pleat' && input.hasBpDocument) return 'bp-tree';
       return 'treemaker-tree';
   }
 }

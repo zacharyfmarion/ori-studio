@@ -1006,7 +1006,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // edits (undo/redo, images, tools) behave identically on this canvas.
           set({
             ...freshEditableCpState(document, priorState),
-            ...(noDesignYet ? { pendingDesignChoice: true } : {}),
+            ...(noDesignYet ? { designMethod: 'none' as const } : {}),
           });
         } catch (error) {
           set({ oristudioCpError: engineError(error).message });
