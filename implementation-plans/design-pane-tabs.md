@@ -904,6 +904,30 @@ exists. Same reasoning removed the `toolMode` / `symmetryAuthoringPairs` resets
 from `freshEditableCpState`, whose own docstring already said it "deliberately
 does NOT touch the tree/design fields".
 
+## Sequencing correction: Phase 6 must precede Phase 3
+
+The plan ordered the tab strip (3) before the `.osf` schema (6). That order is
+**unsafe** and should be swapped.
+
+The state layer now supports N designs, and the tab lifecycle actions exist. The
+file format does not: `createNativeProjectFile` still emits at most one document
+per kind under constant ids (`TREE_DOCUMENT_ID`, `BOX_PLEAT_DOCUMENT_ID` —
+[nativeProjectFile.ts:283](../apps/web/src/lib/nativeProjectFile.ts)), and
+`saveNativeWorkspaceProject` still asks "is there *a* tree?" rather than "which
+designs are open?".
+
+So the moment Phase 3 puts a `+` button on screen, a user can open three designs,
+press Save, and silently lose two of them. Nothing warns; the file simply
+contains one. That is the worst class of bug this project could ship, and it is
+purely an ordering artifact.
+
+**Do Phase 6 first.** Nothing in it depends on the tab strip existing — it needs
+`designTabs` and the codec, both of which have landed. Phase 3 then makes visible
+a feature that already round-trips.
+
+Remaining order: **6 → 3 → 4 → 5 → 7 → 8 → 9**, with 2d part 2 (addressed writes,
+BP runtime singletons) foldable into 7.
+
 ## Affected areas
 
 - `apps/web/src/designKinds/` — **new**: descriptors + registry
