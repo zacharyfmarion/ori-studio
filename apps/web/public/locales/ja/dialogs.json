@@ -30,6 +30,11 @@
     "useBasinHopping": "現在のレイアウトのバリエーションを試して",
     "useDimension": "カドの幅と高さを維持する"
   },
+  "closeDesign": {
+    "confirm": "デザインを閉じる",
+    "message": "編集内容は破棄され、元に戻せません。残すには先にプロジェクトを保存してください。",
+    "title": "このデザインを閉じますか？"
+  },
   "closeGuard": {
     "discard": "破棄",
     "message": "現在のプロジェクトに未保存の変更があります。Ori Studio を閉じてこれらを破棄しますか？",

@@ -393,6 +393,15 @@
     "symmetryToolbar": "Sym",
     "viewportControls": "Design-Ansichtssteuerung"
   },
+  "designTabs": {
+    "add": "Neues Design",
+    "close": "Design schließen",
+    "duplicate": "Duplizieren",
+    "label": "Geöffnete Designs",
+    "moveLeft": "Nach links verschieben",
+    "moveRight": "Nach rechts verschieben",
+    "rename": "Umbenennen"
+  },
   "diagnostics": {
     "allConditionsFeasible": "Alle Bedingungen erfüllbar",
     "buildingCreasePattern": "Faltmuster wird erstellt",

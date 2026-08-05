@@ -404,6 +404,15 @@
     "symmetryToolbar": "Simet.",
     "viewportControls": "Controles da viewport do design"
   },
+  "designTabs": {
+    "add": "Novo design",
+    "close": "Fechar o design",
+    "duplicate": "Duplicar",
+    "label": "Designs abertos",
+    "moveLeft": "Mover para a esquerda",
+    "moveRight": "Mover para a direita",
+    "rename": "Renomear"
+  },
   "diagnostics": {
     "allConditionsFeasible": "Todas as condições viáveis",
     "buildingCreasePattern": "Gerando padrão de vincos",

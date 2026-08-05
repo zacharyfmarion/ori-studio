@@ -397,6 +397,16 @@ export interface ProjectSliceActions {
    * none, so `designTabs` is never empty and `activeDesignId` never dangles.
    */
   closeDesignTab: (designId: string) => void;
+  /**
+   * Close a tab, confirming first when the design has been worked on.
+   *
+   * The entry point every user-facing close goes through — the tab strip's ×, its
+   * context menu, and any future shortcut — so the prompt cannot depend on which
+   * one was used. {@link closeDesignTab} stays the unconditional primitive, for
+   * the paths that have already asked (File ▸ New Project) or must not ask at all
+   * (loading a file replaces every tab).
+   */
+  requestCloseDesignTab: (designId: string) => Promise<void>;
   renameDesignTab: (designId: string, title: string) => void;
   /** Move a tab to a new index, for drag-reorder. */
   reorderDesignTab: (designId: string, toIndex: number) => void;

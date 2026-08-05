@@ -393,6 +393,15 @@
     "symmetryToolbar": "Sym",
     "viewportControls": "Design viewport controls"
   },
+  "designTabs": {
+    "add": "New design",
+    "close": "Close design",
+    "duplicate": "Duplicate",
+    "label": "Open designs",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "rename": "Rename"
+  },
   "diagnostics": {
     "allConditionsFeasible": "All conditions feasible",
     "buildingCreasePattern": "Building crease pattern",

@@ -1053,7 +1053,35 @@ BP runtime singletons) foldable into 7.
 - [ ] Phase 2d (part 2) — addressed writes for the ~100 async design actions, and
       the same treatment for `oristudioBpRuntime`'s `activeHandle`/`currentSource`
       singletons (see the audit note under "Remaining risks")
-- [ ] Phase 3 — Radix tab strip (add / close / rename / reorder / duplicate), ≥1 tab invariant
+- [x] Phase 3 — Radix tab strip (add / close / rename / reorder / duplicate), ≥1 tab invariant
+
+  `DesignTabStrip` composes Radix `Tabs` (tablist/tab roles, `aria-selected`,
+  roving tabindex, arrow keys) with the parts Radix does not cover: close
+  buttons, inline rename, drag reorder, and a context menu. 20 component tests.
+  2532 pass.
+
+  - The strip lives in **`WorkspaceShell`, not `DesignPanel`**. A design is not
+    one pane — the box-pleat layout is two design surfaces side by side, and a
+    strip inside one of them would appear to govern only that one.
+  - The dock layout is per design *kind*, so `activateDesignTab` (and every other
+    action that changes which tab is active) calls `ensureDesignLayout`. Without
+    it, switching to a circle-packed tab left the box-pleat panes mounted over
+    it. Five tests cover the five paths.
+  - Close confirmation landed as `requestCloseDesignTab`, keeping
+    `closeDesignTab` as the unconditional primitive for the paths that must not
+    prompt (loading a file replaces every tab). The "touched" predicate is
+    `historyPast.length > 0`, per the Phase 2a note — no `editCount` was needed.
+  - `ContextMenu` gained an optional `onCloseAutoFocus` passthrough. Starting the
+    rename inside `onSelect` does not work: the menu's focus trap is still armed
+    and pulls focus back out of the field, blurring it and ending the rename
+    before a key is pressed. Suppressing the focus return is scoped to the one
+    action that moves focus itself, so keyboard users keep it everywhere else.
+
+  Two engine-wiring bugs found by browser verification, fixed in 2d part 2:
+  **Duplicate silently did nothing** (a freshly created TreeMaker design never
+  entered the document registry, so `serializeDesign` threw and the caller read
+  that as "nothing to copy"), and `initEngine`'s cold-boot sync logged a false
+  `patchTreemakerDesign` error against the chooser tab.
 - [ ] Phase 4 — intra-tab Gridview, panes migrated, active-pane tracking
 - [ ] Phase 5 — `/design` collapse with redirects
 - [x] Phase 6 — `.osf` v8: N designs per file

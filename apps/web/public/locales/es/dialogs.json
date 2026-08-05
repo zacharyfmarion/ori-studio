@@ -30,6 +30,11 @@
     "useBasinHopping": "Pruebe variaciones de los diseños actuales",
     "useDimension": "Mantenga los anchos y altos de las solapas"
   },
+  "closeDesign": {
+    "confirm": "Cerrar el diseño",
+    "message": "Sus ediciones se descartan y no se pueden deshacer. Guarda el proyecto primero para conservarlas.",
+    "title": "¿Cerrar este diseño?"
+  },
   "closeGuard": {
     "discard": "Descartar",
     "message": "El proyecto actual tiene cambios sin guardar. ¿Cerrar Ori Studio y descartarlos?",

@@ -404,6 +404,15 @@
     "symmetryToolbar": "Sym",
     "viewportControls": "Commandes d'affichage de la conception"
   },
+  "designTabs": {
+    "add": "Nouvelle conception",
+    "close": "Fermer la conception",
+    "duplicate": "Dupliquer",
+    "label": "Conceptions ouvertes",
+    "moveLeft": "Déplacer vers la gauche",
+    "moveRight": "Déplacer vers la droite",
+    "rename": "Renommer"
+  },
   "diagnostics": {
     "allConditionsFeasible": "Toutes les conditions sont réalisables",
     "buildingCreasePattern": "Génération du patron de plis",

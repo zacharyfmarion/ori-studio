@@ -448,11 +448,28 @@ function DesignViewportToolbar({
 }
 
 /**
+ * The Design pane, showing exactly one design: the active tab's.
+ *
+ * The tab strip is **not** here. It spans the whole Design workspace, above every
+ * dock panel, so it lives in `WorkspaceShell` — the box-pleat layout has two
+ * design panes and a strip inside one of them would govern only that one.
+ *
+ * Keyed by the active design so switching tabs remounts rather than re-deriving.
+ * Under lazy hydrate only the active design holds a live engine handle, and the
+ * surface's viewport, hover, and drag state all belong to the design it was built
+ * for; carrying them into the next one is how a switch would leak.
+ */
+export function DesignPanel() {
+  const activeDesignId = useWorkspaceStore((state) => state.activeDesignId);
+  return <DesignSurface key={activeDesignId} />;
+}
+
+/**
  * Design pane router. The Design workspace hosts either the NUX method chooser,
  * a Box Pleating design, or the TreeMaker (circle-packed) tree editor. Keeping
  * the branch in a thin wrapper lets each surface own its own hooks.
  */
-export function DesignPanel() {
+function DesignSurface() {
   const { t } = useTranslation();
   const designMethod = useWorkspaceStore(selectDesignMethod);
   const oristudioBpDocument = useWorkspaceStore((state) => selectOristudioBpDocument(state));

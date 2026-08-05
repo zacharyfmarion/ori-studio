@@ -151,6 +151,26 @@ export function selectDesignMethod(state: DesignTabsSlice): DesignMethod {
 }
 
 /**
+ * Whether the user has actually worked on this design — the predicate behind the
+ * close confirmation.
+ *
+ * "Has content" is the obvious test and it is **wrong**. Choosing Box-pleated
+ * runs `createSampleOristudioBpProject`, so a brand-new, untouched box-pleat tab
+ * already holds a full sample tree and is already `dirty`; a content test would
+ * prompt on every close of a tab nobody touched.
+ *
+ * Undo history is the right signal, and it needs no new bookkeeping: it is pushed
+ * by the document's own mutations and not by provisioning, and it lives on the
+ * tab, so it is per-design already. It is also kind-agnostic — a third design
+ * kind inherits the right behaviour with no descriptor field at all.
+ */
+export function isDesignTouched(tab: DesignTab): boolean {
+  if (tab.kind === 'treemaker') return tab.treemaker.historyPast.length > 0;
+  if (tab.kind === 'box-pleat') return tab.boxPleat.historyPast.length > 0;
+  return false;
+}
+
+/**
  * Replace the active tab, returning the field to `set()`.
  *
  * Every write to the active design goes through here, so there is one place that

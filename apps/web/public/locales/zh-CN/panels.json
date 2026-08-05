@@ -382,6 +382,15 @@
     "symmetryToolbar": "对称",
     "viewportControls": "设计视口控件"
   },
+  "designTabs": {
+    "add": "新建设计",
+    "close": "关闭设计",
+    "duplicate": "复制",
+    "label": "打开的设计",
+    "moveLeft": "左移",
+    "moveRight": "右移",
+    "rename": "重命名"
+  },
   "diagnostics": {
     "allConditionsFeasible": "所有条件均可行",
     "buildingCreasePattern": "正在生成折痕图",

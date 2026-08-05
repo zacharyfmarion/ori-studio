@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { MenuBar } from './MenuBar';
 import { DesignAttributionFooter } from './DesignAttributionFooter';
+import { DesignTabStrip } from './panels/DesignTabStrip';
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { FileDropOverlay } from './FileDropOverlay';
 import { panelComponents } from './panels/PanelComponents';
@@ -232,6 +233,21 @@ function FixedDockTab(props: IDockviewPanelHeaderProps) {
 }
 
 /**
+ * The Design workspace's tab strip, spanning the full canvas above every dock
+ * panel.
+ *
+ * It belongs here rather than inside `DesignPanel` because a design is not one
+ * pane: the box-pleat layout is two design surfaces side by side, and a strip
+ * living inside one of them would appear to govern only that one. The tabs own
+ * the whole workspace, so they sit above the whole workspace.
+ */
+function DesignWorkspaceTabs() {
+  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
+  if (activeWorkspace !== 'design') return null;
+  return <DesignTabStrip />;
+}
+
+/**
  * The box-pleat design workspace's attribution bar, spanning the full width
  * below both of its panes (the BP tree editor and the BP packing editor — both
  * are Box Pleating Studio surfaces).
@@ -340,6 +356,9 @@ export function WorkspaceShell() {
           <WorkspaceRail />
         </ErrorBoundary>
         <div className="workspace-shell__canvas file-drop-region" {...dropTargetProps}>
+          <ErrorBoundary surface="shell:design-tabs" variant="strip">
+            <DesignWorkspaceTabs />
+          </ErrorBoundary>
           <ErrorBoundary surface="shell:dockview" variant="pane">
             <DockviewReact
               components={panelComponents}

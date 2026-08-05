@@ -2641,6 +2641,135 @@
   }
 }
 
+/* Design workspace: one tab strip spanning the canvas above every dock panel. */
+.design-tab-strip {
+  display: flex;
+  align-items: stretch;
+  min-height: 32px;
+  padding-right: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.design-tab-strip__root {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+}
+
+.design-tab-strip__list {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.design-tab-strip__list::-webkit-scrollbar {
+  display: none;
+}
+
+.design-tab-strip__add {
+  align-self: center;
+  flex: none;
+}
+
+.design-tab {
+  display: flex;
+  align-items: center;
+  flex: none;
+  max-width: 220px;
+  padding-right: var(--space-1);
+  border-right: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  background: transparent;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.design-tab:hover {
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+/* The active tab reads as continuous with the surface below it: same
+   background, and the strip's bottom border interrupted under it. */
+.design-tab:has(.design-tab__trigger[data-state='active']) {
+  position: relative;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  box-shadow: inset 0 2px 0 var(--accent-primary);
+}
+
+.design-tab--dragging {
+  opacity: 0.6;
+}
+
+.design-tab__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.design-tab__trigger:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.design-tab__title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.design-tab__close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.design-tab__close:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.design-tab__close:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -1px;
+}
+
+.design-tab__name-input {
+  min-width: 0;
+  width: 140px;
+  margin: 0 var(--space-2);
+  padding: 2px var(--space-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.design-tab__name-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
 .design-panel__body,
 .cp-panel__body,
 .simulator-panel__body {

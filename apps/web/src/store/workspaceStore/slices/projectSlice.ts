@@ -4,6 +4,7 @@ import {
   createDesignTab,
   initialDesignTabs,
   installTreemakerDesign,
+  isDesignTouched,
   markActiveTabBoxPleat,
   patchBoxPleatDesign,
   selectDesignMethod,
@@ -150,6 +151,7 @@ import { landingWorkspace } from '../landingWorkspace';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
 import { getRuntimeSurface } from '../../../platform/runtime';
+import i18n from '../../../i18n';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
   blockingExportLoss,
@@ -2893,6 +2895,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const tab = createDesignTab(tabs);
       set({ designTabs: [...tabs, tab], activeDesignId: tab.id });
       useLayoutStore.getState().activateWorkspace('design');
+      useLayoutStore.getState().ensureDesignLayout();
     },
 
     activateDesignTab: (designId) => {
@@ -2904,6 +2907,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // engine work in flight) is left alone by the registry.
       void parkDesign(activeDesignId);
       set({ activeDesignId: designId });
+      // The dock layout is per design *kind* — box-pleat mounts two BP panes,
+      // circle-packed a tree canvas plus tool panes. Switching tabs can switch
+      // kind, so the layout has to follow. No-op when the variant is unchanged.
+      useLayoutStore.getState().ensureDesignLayout();
     },
 
     closeDesignTab: (designId) => {
@@ -2922,6 +2929,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // on the one that took its place.
         const replacement = createDesignTab(designTabs);
         set({ designTabs: [replacement], activeDesignId: replacement.id });
+        useLayoutStore.getState().ensureDesignLayout();
         return;
       }
       const nextActive =
@@ -2930,6 +2938,25 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           : activeDesignId;
       if (nextActive !== activeDesignId) void parkDesign(activeDesignId);
       set({ designTabs: remaining, activeDesignId: nextActive });
+      useLayoutStore.getState().ensureDesignLayout();
+    },
+
+    requestCloseDesignTab: async (designId) => {
+      const tab = get().designTabs.find((candidate) => candidate.id === designId);
+      if (!tab) return;
+      if (isDesignTouched(tab)) {
+        const confirmed = await requestConfirmation({
+          title: i18n.t('dialogs:closeDesign.title', 'Close this design?'),
+          message: i18n.t(
+            'dialogs:closeDesign.message',
+            'Its edits are discarded and cannot be undone. Save the project first to keep them.'
+          ),
+          confirmLabel: i18n.t('dialogs:closeDesign.confirm', 'Close design'),
+          tone: 'danger',
+        });
+        if (!confirmed) return;
+      }
+      get().closeDesignTab(designId);
     },
 
     renameDesignTab: (designId, title) => {
@@ -2972,6 +2999,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // had would be nonsense. `editCount` starts fresh for the same reason.
       void parkDesign(get().activeDesignId);
       set({ designTabs: next, activeDesignId: copy.id, dirty: true });
+      useLayoutStore.getState().ensureDesignLayout();
     },
 
     startNewDesign: () => {

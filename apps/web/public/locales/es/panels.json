@@ -404,6 +404,15 @@
     "symmetryToolbar": "Sim",
     "viewportControls": "Controles de la vista de diseño"
   },
+  "designTabs": {
+    "add": "Nuevo diseño",
+    "close": "Cerrar el diseño",
+    "duplicate": "Duplicar",
+    "label": "Diseños abiertos",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha",
+    "rename": "Cambiar el nombre"
+  },
   "diagnostics": {
     "allConditionsFeasible": "Todas las condiciones son viables",
     "buildingCreasePattern": "Generando patrón de pliegues",

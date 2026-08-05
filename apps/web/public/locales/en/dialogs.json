@@ -30,6 +30,11 @@
     "useBasinHopping": "Try variations of the current layouts",
     "useDimension": "Keep widths and heights of flaps"
   },
+  "closeDesign": {
+    "confirm": "Close design",
+    "message": "Its edits are discarded and cannot be undone. Save the project first to keep them.",
+    "title": "Close this design?"
+  },
   "closeGuard": {
     "discard": "Discard",
     "message": "Your current project has unsaved changes. Close Ori Studio and discard them?",

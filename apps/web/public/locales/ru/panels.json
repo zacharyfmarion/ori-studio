@@ -415,6 +415,15 @@
     "symmetryToolbar": "Сим",
     "viewportControls": "Элементы управления областью просмотра дизайна"
   },
+  "designTabs": {
+    "add": "Новый дизайн",
+    "close": "Закрыть дизайн",
+    "duplicate": "Дублировать",
+    "label": "Открытые дизайны",
+    "moveLeft": "Переместить влево",
+    "moveRight": "Переместить вправо",
+    "rename": "Переименовать"
+  },
   "diagnostics": {
     "allConditionsFeasible": "Все условия выполнимы",
     "buildingCreasePattern": "Построение паттерна складок",

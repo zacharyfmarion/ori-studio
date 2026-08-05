@@ -1,4 +1,4 @@
-import { selectProject, selectSelection, singleDesignTab, singleTreemakerDesignTab } from '../../store/workspaceStore/designTabs';
+import { patchTreemakerDesign, selectProject, selectSelection, singleDesignTab, singleTreemakerDesignTab } from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -193,12 +193,17 @@ describe('DesignPanel', () => {
     const project = selectProject(useWorkspaceStore.getState());
 
     act(() => {
+      const state = useWorkspaceStore.getState();
+      // Patch the design in place rather than reseeding a tab: a new tab is a
+      // new design id, which remounts the surface and throws away the viewport
+      // this is asserting on.
       useWorkspaceStore.setState({
-      ...singleTreemakerDesignTab({
-        project: { ...project, scale: 1 },
-        viewportFitRequestId: 1
-      }),
-        status: 'optimized'});
+        ...patchTreemakerDesign(state, {
+          project: { ...project, scale: 1 },
+          viewportFitRequestId: 1,
+        }),
+        status: 'optimized',
+      });
     });
 
     expect(transformMocks.centerView).not.toHaveBeenCalled();

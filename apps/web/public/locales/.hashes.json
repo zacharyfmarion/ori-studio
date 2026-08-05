@@ -2121,7 +2121,17 @@
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
     "panels:design.paneTitle.tree": "0072e6b93494",
-    "common:capability.startNewProject": "21841fd8741f"
+    "common:capability.startNewProject": "21841fd8741f",
+    "panels:designTabs.add": "2781f2d9058e",
+    "panels:designTabs.close": "5fea810e188c",
+    "panels:designTabs.duplicate": "02cdaabfca80",
+    "panels:designTabs.label": "ad97b0b431a9",
+    "panels:designTabs.moveLeft": "6c94221edd26",
+    "panels:designTabs.moveRight": "8d60decd44f3",
+    "panels:designTabs.rename": "3064d79a295c",
+    "dialogs:closeDesign.confirm": "5fea810e188c",
+    "dialogs:closeDesign.message": "a2e394d2ac45",
+    "dialogs:closeDesign.title": "49c382a73b3f"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4245,7 +4255,17 @@
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
     "panels:design.paneTitle.tree": "0072e6b93494",
-    "common:capability.startNewProject": "21841fd8741f"
+    "common:capability.startNewProject": "21841fd8741f",
+    "panels:designTabs.add": "2781f2d9058e",
+    "panels:designTabs.close": "5fea810e188c",
+    "panels:designTabs.duplicate": "02cdaabfca80",
+    "panels:designTabs.label": "ad97b0b431a9",
+    "panels:designTabs.moveLeft": "6c94221edd26",
+    "panels:designTabs.moveRight": "8d60decd44f3",
+    "panels:designTabs.rename": "3064d79a295c",
+    "dialogs:closeDesign.confirm": "5fea810e188c",
+    "dialogs:closeDesign.message": "a2e394d2ac45",
+    "dialogs:closeDesign.title": "49c382a73b3f"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6398,7 +6418,17 @@
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
     "panels:design.paneTitle.tree": "0072e6b93494",
-    "common:capability.startNewProject": "21841fd8741f"
+    "common:capability.startNewProject": "21841fd8741f",
+    "panels:designTabs.add": "2781f2d9058e",
+    "panels:designTabs.close": "5fea810e188c",
+    "panels:designTabs.duplicate": "02cdaabfca80",
+    "panels:designTabs.label": "ad97b0b431a9",
+    "panels:designTabs.moveLeft": "6c94221edd26",
+    "panels:designTabs.moveRight": "8d60decd44f3",
+    "panels:designTabs.rename": "3064d79a295c",
+    "dialogs:closeDesign.confirm": "5fea810e188c",
+    "dialogs:closeDesign.message": "a2e394d2ac45",
+    "dialogs:closeDesign.title": "49c382a73b3f"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8551,7 +8581,17 @@
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
     "panels:design.paneTitle.tree": "0072e6b93494",
-    "common:capability.startNewProject": "21841fd8741f"
+    "common:capability.startNewProject": "21841fd8741f",
+    "panels:designTabs.add": "2781f2d9058e",
+    "panels:designTabs.close": "5fea810e188c",
+    "panels:designTabs.duplicate": "02cdaabfca80",
+    "panels:designTabs.label": "ad97b0b431a9",
+    "panels:designTabs.moveLeft": "6c94221edd26",
+    "panels:designTabs.moveRight": "8d60decd44f3",
+    "panels:designTabs.rename": "3064d79a295c",
+    "dialogs:closeDesign.confirm": "5fea810e188c",
+    "dialogs:closeDesign.message": "a2e394d2ac45",
+    "dialogs:closeDesign.title": "49c382a73b3f"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10704,7 +10744,17 @@
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
     "panels:design.paneTitle.tree": "0072e6b93494",
-    "common:capability.startNewProject": "21841fd8741f"
+    "common:capability.startNewProject": "21841fd8741f",
+    "panels:designTabs.add": "2781f2d9058e",
+    "panels:designTabs.close": "5fea810e188c",
+    "panels:designTabs.duplicate": "02cdaabfca80",
+    "panels:designTabs.label": "ad97b0b431a9",
+    "panels:designTabs.moveLeft": "6c94221edd26",
+    "panels:designTabs.moveRight": "8d60decd44f3",
+    "panels:designTabs.rename": "3064d79a295c",
+    "dialogs:closeDesign.confirm": "5fea810e188c",
+    "dialogs:closeDesign.message": "a2e394d2ac45",
+    "dialogs:closeDesign.title": "49c382a73b3f"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12857,7 +12907,17 @@
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
     "panels:design.paneTitle.tree": "0072e6b93494",
-    "common:capability.startNewProject": "21841fd8741f"
+    "common:capability.startNewProject": "21841fd8741f",
+    "panels:designTabs.add": "2781f2d9058e",
+    "panels:designTabs.close": "5fea810e188c",
+    "panels:designTabs.duplicate": "02cdaabfca80",
+    "panels:designTabs.label": "ad97b0b431a9",
+    "panels:designTabs.moveLeft": "6c94221edd26",
+    "panels:designTabs.moveRight": "8d60decd44f3",
+    "panels:designTabs.rename": "3064d79a295c",
+    "dialogs:closeDesign.confirm": "5fea810e188c",
+    "dialogs:closeDesign.message": "a2e394d2ac45",
+    "dialogs:closeDesign.title": "49c382a73b3f"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15010,7 +15070,17 @@
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
     "panels:design.paneTitle.tree": "0072e6b93494",
-    "common:capability.startNewProject": "21841fd8741f"
+    "common:capability.startNewProject": "21841fd8741f",
+    "panels:designTabs.add": "2781f2d9058e",
+    "panels:designTabs.close": "5fea810e188c",
+    "panels:designTabs.duplicate": "02cdaabfca80",
+    "panels:designTabs.label": "ad97b0b431a9",
+    "panels:designTabs.moveLeft": "6c94221edd26",
+    "panels:designTabs.moveRight": "8d60decd44f3",
+    "panels:designTabs.rename": "3064d79a295c",
+    "dialogs:closeDesign.confirm": "5fea810e188c",
+    "dialogs:closeDesign.message": "a2e394d2ac45",
+    "dialogs:closeDesign.title": "49c382a73b3f"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -17134,6 +17204,16 @@
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
     "panels:design.paneTitle.tree": "0072e6b93494",
-    "common:capability.startNewProject": "21841fd8741f"
+    "common:capability.startNewProject": "21841fd8741f",
+    "panels:designTabs.add": "2781f2d9058e",
+    "panels:designTabs.close": "5fea810e188c",
+    "panels:designTabs.duplicate": "02cdaabfca80",
+    "panels:designTabs.label": "ad97b0b431a9",
+    "panels:designTabs.moveLeft": "6c94221edd26",
+    "panels:designTabs.moveRight": "8d60decd44f3",
+    "panels:designTabs.rename": "3064d79a295c",
+    "dialogs:closeDesign.confirm": "5fea810e188c",
+    "dialogs:closeDesign.message": "a2e394d2ac45",
+    "dialogs:closeDesign.title": "49c382a73b3f"
   }
 }

@@ -666,14 +666,28 @@
 .workspace-shell__canvas {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  /* Design tab strip, dock canvas, attribution footer. Rows are assigned
+     explicitly rather than by source order because the first and last are
+     conditional — the strip only exists in the Design workspace, the footer only
+     in its box-pleat variant. Auto-placement would slide the dock canvas up into
+     the `auto` row whenever the strip is absent and collapse it. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
 }
 
+.design-tab-strip {
+  grid-row: 1;
+}
+
 .workspace-shell__dockview {
+  grid-row: 2;
   min-width: 0;
   min-height: 0;
+}
+
+.workspace-shell__canvas > .design-attribution {
+  grid-row: 3;
 }
 
 @media (max-width: 680px) {

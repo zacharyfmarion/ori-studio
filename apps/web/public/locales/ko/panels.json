@@ -382,6 +382,15 @@
     "symmetryToolbar": "대칭",
     "viewportControls": "디자인 뷰포트 컨트롤"
   },
+  "designTabs": {
+    "add": "새 디자인",
+    "close": "디자인 닫기",
+    "duplicate": "복제",
+    "label": "열린 디자인",
+    "moveLeft": "왼쪽으로 이동",
+    "moveRight": "오른쪽으로 이동",
+    "rename": "이름 바꾸기"
+  },
   "diagnostics": {
     "allConditionsFeasible": "모든 조건 실현 가능",
     "buildingCreasePattern": "전개도 생성 중",

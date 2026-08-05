@@ -30,6 +30,11 @@
     "useBasinHopping": "Tentar variações do layout atual",
     "useDimension": "Manter as larguras e alturas das abas"
   },
+  "closeDesign": {
+    "confirm": "Fechar o design",
+    "message": "As edições dele são descartadas e não podem ser desfeitas. Salve o projeto antes para mantê-las.",
+    "title": "Fechar este design?"
+  },
   "closeGuard": {
     "discard": "Descartar",
     "message": "Seu projeto atual tem alterações não salvas. Fechar o Ori Studio e descartá-las?",

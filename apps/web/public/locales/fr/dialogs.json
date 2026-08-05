@@ -30,6 +30,11 @@
     "useBasinHopping": "Essayer des variantes de la disposition actuelle",
     "useDimension": "Conserver les largeurs et hauteurs des rabats"
   },
+  "closeDesign": {
+    "confirm": "Fermer la conception",
+    "message": "Ses modifications sont supprimées et ne peuvent pas être annulées. Enregistrez d’abord le projet pour les conserver.",
+    "title": "Fermer cette conception ?"
+  },
   "closeGuard": {
     "discard": "Abandonner",
     "message": "Votre projet actuel comporte des modifications non enregistrées. Fermer Ori Studio et les abandonner ?",
@@ -139,7 +144,7 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {

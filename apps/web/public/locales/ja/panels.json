@@ -382,6 +382,15 @@
     "symmetryToolbar": "対称",
     "viewportControls": "デザインのビューポート操作"
   },
+  "designTabs": {
+    "add": "新規デザイン",
+    "close": "デザインを閉じる",
+    "duplicate": "複製",
+    "label": "開いているデザイン",
+    "moveLeft": "左へ移動",
+    "moveRight": "右へ移動",
+    "rename": "名前を変更"
+  },
   "diagnostics": {
     "allConditionsFeasible": "すべての条件が実行可能",
     "buildingCreasePattern": "展開図を作成中",
