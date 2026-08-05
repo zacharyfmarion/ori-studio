@@ -29,6 +29,7 @@ import {
   SquareDashed,
   Tag,
   TriangleAlert,
+  Unlink,
   Waypoints,
 } from 'lucide-react';
 import type {
@@ -73,6 +74,11 @@ import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
 import { unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { useBpPackingDragRequests } from '../../hooks/useBpPackingDragRequests';
+import {
+  useBpPackingSymmetry,
+  type BpPackingSymmetryView,
+} from '../../hooks/useBpPackingSymmetry';
+import { BpPackingSymmetryMenu } from './BpPackingSymmetryMenu';
 import { type Point } from '../../lib/geometry';
 import {
   isBpPackingLayerVisible,
@@ -326,6 +332,7 @@ function BpPackingViewportToolbar({
   canShrinkSheet,
   sheet,
   setSheet,
+  symmetry,
   zoomIn,
   zoomOut,
   fitToView,
@@ -338,6 +345,7 @@ function BpPackingViewportToolbar({
   canShrinkSheet: boolean;
   sheet: OristudioBpSheet;
   setSheet: (gridType: OristudioBpSheetKind, width: number, height: number) => void;
+  symmetry: BpPackingSymmetryView;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
@@ -444,6 +452,18 @@ function BpPackingViewportToolbar({
           </div>
         )}
       </div>
+      <ViewportToolbarSeparator />
+      <BpPackingSymmetryMenu symmetry={symmetry} />
+      {symmetry.unpairableId !== null && (
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          title={t('panels:bpPacking.unpair', 'Unpair from mirror')}
+          onClick={() => symmetry.unpair(symmetry.unpairableId as number)}
+        >
+          <Unlink size={14} />
+        </IconButton>
+      )}
       <ViewportToolbarSeparator />
       <ViewportLayerMenu
         title={t('panels:bpPacking.layers', 'Layers')}
@@ -844,6 +864,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     () => selectedNudgeDevice(selection, packing.devices),
     [selection, packing.devices]
   );
+  const selectedFlapIds = useMemo(
+    () => nudgeableFlaps.map((flap) => flap.id),
+    [nudgeableFlaps]
+  );
+  const symmetry = useBpPackingSymmetry(tree, packing.sheet, paperRect, selectedFlapIds);
   const packingAlerts = useMemo(
     () => bpPackingAlertDiagnostics(document.snapshot.diagnostics),
     [document.snapshot.diagnostics]
@@ -1442,6 +1467,28 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 ))}
               </g>
             )}
+            {symmetry.axisLine && (
+              // Clipped to the sheet so a diagonal sheet's line stops at the
+              // diamond rather than running out to its bounding square. Named,
+              // because this line is not the tree pane's: switching folds rotates
+              // it here and leaves that one alone.
+              <g className="bp-packing-symmetry" clipPath={`url(#${sheetClipId})`} aria-hidden="true">
+                <line
+                  className="symmetry-line"
+                  x1={symmetry.axisLine.x1}
+                  y1={symmetry.axisLine.y1}
+                  x2={symmetry.axisLine.x2}
+                  y2={symmetry.axisLine.y2}
+                />
+                <text
+                  className="bp-packing-symmetry-label"
+                  x={(symmetry.axisLine.x1 + symmetry.axisLine.x2) / 2}
+                  y={(symmetry.axisLine.y1 + symmetry.axisLine.y2) / 2 - 6}
+                >
+                  {symmetry.axisLabel}
+                </text>
+              </g>
+            )}
             {isDiagonalSheet ? (
               <polygon
                 className="paper-hit-area"
@@ -1549,10 +1596,20 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                     ? bpPackingFlapClearanceRect(flap, packing.sheet, paperRect)
                     : null;
                   const active = linkedSelection.flaps.has(flap.id);
+                  // Marking the partner is what makes a mirrored move legible
+                  // before the drag rather than a surprise during it.
+                  const partner = symmetry.partnerIds.has(flap.id);
                   return (
                     <g
                       key={flap.id}
-                      className={active ? 'bp-packing-flap--selected' : undefined}
+                      className={
+                        [
+                          active ? 'bp-packing-flap--selected' : '',
+                          partner ? 'bp-packing-flap--mirror' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ') || undefined
+                      }
                       aria-hidden="true"
                     >
                       <g clipPath={sheetClipPath}>
@@ -1739,6 +1796,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         setSheet={(gridType, width, height) =>
           void setOristudioBpLayoutSheet(gridType, width, height)
         }
+        symmetry={symmetry}
         zoomIn={zoomIn}
         zoomOut={zoomOut}
         fitToView={() => fitToView()}

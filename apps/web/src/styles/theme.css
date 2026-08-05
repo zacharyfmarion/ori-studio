@@ -6157,6 +6157,23 @@
   cursor: default;
 }
 
+/* Whether the drawing is actually mirrorable, under the fold that decides it. */
+.symmetry-menu__status {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.bp-sheet-menu__segment button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.bp-sheet-menu__segment button:disabled:hover {
+  color: var(--text-secondary);
+}
+
 /* Axis fields: label left, value right, on the preset buttons' border ramp. */
 .symmetry-menu__field {
   display: grid;
@@ -6677,6 +6694,25 @@
   fill: color-mix(in srgb, var(--accent-primary) 24%, var(--bg-canvas));
   stroke: var(--accent-primary);
   stroke-width: 3;
+}
+
+/*
+ * The mirror partner of what is selected: the flap a move would carry along.
+ * Deliberately quieter than a selection and on the axis colour, so it reads as
+ * "this one follows" rather than "this one is also selected".
+ */
+.bp-packing-flap--mirror .bp-packing-flap {
+  stroke: var(--accent-tertiary);
+  stroke-dasharray: 5 4;
+}
+
+.bp-packing-symmetry-label {
+  fill: var(--accent-tertiary);
+  font-size: 11px;
+  text-anchor: middle;
+  opacity: 0.75;
+  pointer-events: none;
+  user-select: none;
 }
 
 .bp-packing-selection-shade {
@@ -7329,6 +7365,15 @@ button.bp-packing-alert:focus-visible {
   font-size: 0.76rem;
   line-height: 1.5;
   text-wrap: pretty;
+}
+
+/* Separates the design-level fold from the per-run toggle above it. */
+.bp-optimizer__field-label {
+  margin-top: 2px;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
 }
 
 .bp-optimizer__hint--warn {

@@ -284,18 +284,22 @@ describe('symmetry row', () => {
     } as never);
   }
 
-  it('says so when symmetry is off', () => {
+  it('says so when mirror draw is off, and names both places that turn it on', () => {
     withTree({ enabled: false });
     renderModal();
-    expect(text()).toContain('Symmetry is off');
+    expect(text()).toContain('Mirror draw is off');
+    expect(text()).toContain('BP Editor');
   });
 
-  it('says plainly that the toggle turns symmetry on', () => {
+  it('says plainly that the toggle applies to this run', () => {
     // "Mirror the layout" read as a description of what the run does rather
-    // than as the switch that enables it.
+    // than as the switch that enables it. It is also the one control in this
+    // row that is *not* saved with the design, which the fold label below it
+    // is there to distinguish.
     withTree();
     renderModal();
-    expect(text()).toContain('Enable symmetry');
+    expect(text()).toContain('Use symmetry for this run');
+    expect(text()).toContain('Fold (saved with the design)');
   });
 
   it('names the fold, which belongs here rather than in the tree view', () => {

@@ -275,7 +275,7 @@ export function BpOptimizerModal() {
                     <p className="bp-optimizer__hint">
                       {t(
                         'dialogs:bpOptimizer.symmetryOff',
-                        'Symmetry is off. Turn it on in the tree view to mirror the layout.'
+                        'Mirror draw is off. Turn it on in the BP Editor or the tree view to mirror the layout.'
                       )}
                     </p>
                   ) : (
@@ -286,8 +286,17 @@ export function BpOptimizerModal() {
                           disabled={symmetry.mode !== 'ready'}
                           onChange={(checked) => setOptions({ respectSymmetry: checked })}
                         />
-                        <span>{t('dialogs:bpOptimizer.enable', 'Enable symmetry')}</span>
+                        <span>{t('dialogs:bpOptimizer.enable', 'Use symmetry for this run')}</span>
                       </label>
+                      {/*
+                        * Unlike the toggle above, the fold is not a per-run choice —
+                        * it is saved with the design and is the same value the BP
+                        * Editor's symmetry menu writes, so a change here moves that
+                        * pane's mirror line too.
+                        */}
+                      <span className="bp-optimizer__field-label">
+                        {t('dialogs:bpOptimizer.designFold', 'Fold (saved with the design)')}
+                      </span>
                       <Select
                         value={symmetryState.fold}
                         onValueChange={(value) =>
