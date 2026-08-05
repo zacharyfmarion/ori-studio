@@ -32,6 +32,7 @@ import {
   getInlineSimulationSource,
   setInlineSimulationSource,
 } from '../../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
+import { nextInlineSimulationId } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
 import { resolveInlineSimulationRegion } from '../../../cp-workspace/inlineSimulation/resolveSimulationRegion';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
 import {
@@ -138,8 +139,6 @@ const MAX_CP_HISTORY = 100;
 // Dedupe concurrent `ensureEditCreasePattern` calls (e.g. React StrictMode
 // double-invoking the seeding effect) so only one blank document is created.
 let ensureEditInFlight: Promise<void> | null = null;
-
-let nextInlineSimulationId = 1;
 
 /**
  * How many times a window's fold has been rebuilt, so each rebuild gets a fresh
@@ -1289,7 +1288,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // pane with nothing to say why.
       if ((fold.faces_vertices?.length ?? 0) === 0) return 'unavailable';
 
-      const id = `inline-sim-${nextInlineSimulationId++}`;
+      // Unique against the windows a file restored as well as the ones this
+      // session made — the id keys this window's fold, so a clash makes two
+      // windows draw one mesh. See `inlineSimulationIds`.
+      const id = nextInlineSimulationId(simulations);
       const modelFrameAngle = uprightFrameAngle('model');
       const simulation = createInlineSimulation({
         id,
