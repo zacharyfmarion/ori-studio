@@ -1,3 +1,4 @@
+import { singleTreemakerDesignTab } from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -233,7 +234,7 @@ function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      project: createSampleProject(),
+      ...singleTreemakerDesignTab({ project: createSampleProject() }),
       status: 'crease_pattern_ready',
       engineReady: true,
       ...state,

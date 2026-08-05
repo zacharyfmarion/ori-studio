@@ -827,6 +827,83 @@ disagree with the tab it describes, which is the same reason
 `open-landing-and-design-state.md` collapsed `pendingDesignChoice` +
 `workflowTarget` into one field in the first place.
 
+## Phase 2b notes
+
+### The compiler is not the backstop I claimed it was
+
+Phase 2a's plan leaned on "delete the flat field and `tsc` enumerates every site".
+That is true for *reads*. It is **false for writes into a slice's returned
+literal**: `WorkspaceSliceCreator<T>` is `StateCreator<…, T>`, and excess-property
+freshness does not survive that contextual typing. Verified rather than assumed —
+adding `zzzBogusKey: 1` to `createEditingSlice`'s return still gives `tsc` exit 0.
+
+So three dead flat fields (`project`, `lastOptimization`,
+`designViewportFitRequestId`) and a whole dead `editingSlice` initial-state block
+survived a clean typecheck. `designTabWrites.test.ts` now asserts at **runtime**
+that no moved field exists at the top level of the assembled store — exact, and
+the only mechanism that will hold for 2c's 41 `oristudioBp*` fields.
+
+### Five bugs, and what found each
+
+| Bug | Found by |
+|---|---|
+| `undoTree`/`redoTree`: two `designTabs` writers in one `set()` — the install silently discarded the restored history | a failing test, then a source scan that found **7 more** |
+| `historyBusy` gates tree, crease-pattern *and* box-pleat undo; moving it onto the TreeMaker arm killed two of the three guards | the parallel audit |
+| `projectStateFromSnapshot` became a full arm reset, but 5 of its call sites are lazy-handle syncs that fire mid-edit | the parallel audit |
+| `initEngine` claimed `kind: 'treemaker'` on the startup chooser tab | the parallel audit |
+| Dead flat fields surviving a clean typecheck | the runtime guard written after the audit |
+
+None of the last four were reachable through the type system. The parallel
+reconnaissance ran against the live worktree and read the half-migrated code,
+which turned out to be far more useful than reading `HEAD` would have been.
+
+### Two `designTabs` writers in one `set()`
+
+The sharpest hazard of this shape. Both spread the same key, so the second wins
+and the first vanishes — legal TypeScript, symptom remote from cause (undo
+appearing to work while its history quietly resets). `projectStateFromSnapshot`
+takes a `design` argument so the per-design fields ride *inside* the install
+rather than beside it. `designTabWrites.test.ts` fails the build on a recurrence.
+
+### `historyBusy`: one guard per surface, not one shared
+
+Three independent undo systems read it. Scoped to the TreeMaker design it broke
+both directions at once — with a design of another kind active the CP and BP
+guards read a frozen `false` and stopped gating, and with a TreeMaker design
+active a CP undo took the *tree's* guard and blocked tree undo. Now
+`historyBusy` (tree), `oristudioCpHistoryBusy`, `oristudioBpHistoryBusy`.
+
+The tree's is still flat rather than on the arm. Harmless — undo only runs
+against the active design, so a workspace-level flag can only over-block — and
+2d should move it onto the arm with addressed writes.
+
+### Install vs sync
+
+`installTreemakerDesign` claims the kind and rebuilds the arm from defaults;
+right for a load or File ▸ New, catastrophic for `ensureTreeHandle`'s lazy
+materialization, which fires during ordinary edits, pastes, condition changes and
+exports. `syncTreemakerProject` patches instead, and omits the fold-artifact and
+`sequence*` resets a real install carries — materializing a cold handle is not a
+document swap. Five call sites repointed.
+
+### `workspaceTitle`, split out of `project.title`
+
+`project.title` was the *tree's* name and the *project's* name at once. Fine when
+a workspace was one tree; incoherent once a project can hold a box-pleat design
+and no tree at all. The tree keeps its title; `workspaceTitle` names the file, the
+save dialog, and the export defaults. Without this, every box-pleat and
+crease-pattern document would have saved as "Untitled".
+
+### A crease pattern is not a design
+
+Opening a bare `.cp` no longer populates a phantom tree. `CreasePatternPanel`'s
+`hasCreasePattern` now names `importedCreasePattern` directly instead of
+inferring it from `project.creases` — which also fixes the case where the CP
+kernel fails to load and the imported document is the only evidence a pattern
+exists. Same reasoning removed the `toolMode` / `symmetryAuthoringPairs` resets
+from `freshEditableCpState`, whose own docstring already said it "deliberately
+does NOT touch the tree/design fields".
+
 ## Affected areas
 
 - `apps/web/src/designKinds/` — **new**: descriptors + registry
@@ -885,7 +962,14 @@ disagree with the tab it describes, which is the same reason
       it, which is the right shape under "tabs are one project". Only the naming
       and the test coverage were missing.
 
-- [ ] Phase 2b — TreeMaker per-design state into the tab (~80 sites)
+- [x] Phase 2b — TreeMaker per-design state into the tab
+
+  Landed: `designContent.ts` (the `kind`-discriminated content union) plus the
+  accessors and writers in `designTabs.ts`. Eight fields moved onto the tab;
+  `workspaceTitle` split out of `project.title`; `historyBusy` split into three
+  per-surface guards. 2477 tests pass, typecheck, lint, i18n, `build:web` clean.
+
+  See "Phase 2b notes" — five real bugs, four of which the compiler could not see.
 
       **Starting point for the next session.** Fields to move, as the
       `kind: 'treemaker'` arm: `project`, `selection`, `toolMode`,

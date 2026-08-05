@@ -1,4 +1,4 @@
-import { selectDesignMethod, singleDesignTab } from './designTabs';
+import { selectDesignMethod, selectDesignViewportFitRequestId, selectHistoryFuture, selectHistoryPast, selectLastOptimization, selectProject, selectSelection, selectSymmetryAuthoringPairs, selectToolMode, singleDesignTab, singleTreemakerDesignTab } from './designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ConditionKind,
@@ -954,10 +954,19 @@ function configureEngine(api: TestEngineApi) {
 }
 
 function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
+  // A loaded tree claims the design, exactly as `loadText` does in production —
+  // `singleTreemakerDesignTab` installs the kind and the tree together.
   useWorkspaceStore.setState({
+      ...singleTreemakerDesignTab({
     project: projectFromSnapshot(snapshot, title),
-    // A loaded tree claims the design, exactly as `loadText` does in production.
-    ...singleDesignTab('treemaker'),
+    lastOptimization: null,
+    viewportFitRequestId: 0,
+    historyPast: [],
+    historyFuture: [],
+    selection: { kind: 'tree' },
+    toolMode: 'select',
+    symmetryAuthoringPairs: []
+      }),
     importedCreasePattern: null,
     oristudioCpDocument: null,
     oristudioCpOperationDescriptors: [],
@@ -973,14 +982,6 @@ function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
     dirty: false,
     engineReady: true,
     error: null,
-    lastOptimization: null,
-    designViewportFitRequestId: 0,
-    historyPast: [],
-    historyFuture: [],
-    historyBusy: false,
-    selection: { kind: 'tree' },
-    toolMode: 'select',
-    symmetryAuthoringPairs: [],
     clipboard: null,
     clipboardPasteCount: 0,
     creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
@@ -992,8 +993,7 @@ function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
     sequencePlan: null,
     sequenceSimulationFocus: { kind: 'whole' },
     sequencePlanning: false,
-    sequenceError: null,
-  });
+    sequenceError: null});
 }
 
 function sampleBpDocument(): import('../../engine/oristudioBpTypes').OristudioBpDocumentState {
@@ -1477,7 +1477,7 @@ describe('workspace store slices', () => {
   it('composes project, history, editing, clipboard, conditions, and crease-pattern state', () => {
     const state = useWorkspaceStore.getState();
 
-    expect(state.project.nodes).toEqual([]);
+    expect(selectProject(state).nodes).toEqual([]);
     expect(state.importedCreasePattern).toBeNull();
     expect(state.oristudioCpDocument).toBeNull();
     expect(state.oristudioCpOperationDescriptors).toEqual([]);
@@ -1486,15 +1486,15 @@ describe('workspace store slices', () => {
     expect(state.oristudioCpHistoryPast).toEqual([]);
     expect(state.oristudioCpHistoryFuture).toEqual([]);
     expect(state.status).toBe('loading_engine');
-    expect(state.selection).toEqual({ kind: 'tree' });
-    expect(state.toolMode).toBe('select');
-    expect(state.symmetryAuthoringPairs).toEqual([]);
+    expect(selectSelection(state)).toEqual({ kind: 'tree' });
+    expect(selectToolMode(state)).toBe('select');
+    expect(selectSymmetryAuthoringPairs(state)).toEqual([]);
     expect(state.creaseColorMode).toBe(DEFAULT_CREASE_COLOR_MODE);
     expect(state.oristudioCpSelection).toEqual(emptyOristudioCpSelection());
     expect(state.oristudioCpViewport).toEqual(DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS);
     expect(state.foldArtifacts).toBeNull();
-    expect(state.designViewportFitRequestId).toBe(0);
-    expect(state.historyPast).toEqual([]);
+    expect(selectDesignViewportFitRequestId(state)).toBe(0);
+    expect(selectHistoryPast(state)).toEqual([]);
     expect(state.clipboard).toBeNull();
     expect(state.projectLoadId).toBe(0);
     expect(state.currentFileName).toBe('Untitled.osf');
@@ -1545,7 +1545,9 @@ describe('workspace store slices', () => {
 
     await useWorkspaceStore.getState().initEngine();
     expect(useWorkspaceStore.getState().engineReady).toBe(true);
-    expect(useWorkspaceStore.getState().project.nodes).toHaveLength(2);
+    // Booting seeds an engine *handle*, not a design: a cold start lands on the
+    // method chooser, so nothing has claimed the tab yet.
+    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
     const initializedLoadId = useWorkspaceStore.getState().projectLoadId;
 
     await useWorkspaceStore.getState().loadProjectText('loaded text', {
@@ -1648,7 +1650,7 @@ describe('workspace store slices', () => {
       dirty: false,
       projectMessage: null,
     });
-    expect(useWorkspaceStore.getState().project.title).toBe('Untitled CP');
+    expect(useWorkspaceStore.getState().workspaceTitle).toBe('Untitled CP');
     expect(useWorkspaceStore.getState().oristudioCpDocument?.summary).toMatchObject({
       is_empty: false,
       line_segments: 4,
@@ -1773,8 +1775,13 @@ describe('workspace store slices', () => {
     // With an authored tree, seeding a blank Edit CP must NOT reset the choice.
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().initEngine();
-    expect(useWorkspaceStore.getState().project.edges.length).toBeGreaterThan(0);
-    useWorkspaceStore.setState({ oristudioCpDocument: null, ...singleDesignTab('treemaker') });
+    // `initEngine` no longer claims a design, so author one explicitly — that is
+    // the precondition under test.
+    loadSnapshotIntoStore(seedSnapshot());
+    expect(selectProject(useWorkspaceStore.getState()).edges.length).toBeGreaterThan(0);
+    // Drop only the Edit canvas: the design seeded above must survive, since the
+    // point of the test is that an existing design suppresses the chooser.
+    useWorkspaceStore.setState({ oristudioCpDocument: null });
     await useWorkspaceStore.getState().ensureEditCreasePattern();
     expect(selectDesignMethod(useWorkspaceStore.getState())).not.toBe('none');
   });
@@ -2041,8 +2048,10 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpOperationDescriptors).toEqual(
       cpOperationDescriptors
     );
-    expect(useWorkspaceStore.getState().project.creases.length).toBeGreaterThan(0);
-    expect(useWorkspaceStore.getState().project.facets.length).toBeGreaterThan(0);
+    // A crease pattern is not a design: opening a bare `.cp` establishes no tree,
+    // so the pattern lives in the CP document rather than in a phantom project.
+    expect(useWorkspaceStore.getState().importedCreasePattern).not.toBeNull();
+    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
     // Simulation faces are inferred in JS (no flat-folding). Derived on demand:
     // a kernel-backed document's artifacts come from the kernel export, so the
     // load leaves the resource stale rather than installing the importer's.
@@ -2181,7 +2190,7 @@ describe('workspace store slices', () => {
     resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
     useWorkspaceStore.setState({ dirty: true });
-    const before = useWorkspaceStore.getState().project;
+    const before = selectProject(useWorkspaceStore.getState());
 
     const unregisterDialogHost = registerCommandDialogHost();
     try {
@@ -2196,7 +2205,7 @@ describe('workspace store slices', () => {
     }
 
     // Refused: the project is untouched.
-    expect(useWorkspaceStore.getState().project).toBe(before);
+    expect(selectProject(useWorkspaceStore.getState())).toBe(before);
     expect(useWorkspaceStore.getState().dirty).toBe(true);
   });
 
@@ -4559,7 +4568,7 @@ describe('workspace store slices', () => {
 
     useWorkspaceStore.getState().toggleOristudioCpLineSelection(2);
     expect(useWorkspaceStore.getState().oristudioCpSelection).toMatchObject({ lines: [2] });
-    expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'tree' });
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'tree' });
 
     useWorkspaceStore.getState().toggleOristudioCpPointSelection(1, true);
     expect(useWorkspaceStore.getState().oristudioCpSelection).toMatchObject({
@@ -4692,29 +4701,29 @@ describe('workspace store slices', () => {
     loadSnapshotIntoStore(api.snapshotState);
 
     await useWorkspaceStore.getState().addNodeAt({ x: 0.75, y: 0.75 }, 1);
-    expect(useWorkspaceStore.getState().project.nodes.map((node) => node.id)).toEqual([1, 2, 3]);
-    expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'node', id: 3 });
+    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.id)).toEqual([1, 2, 3]);
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'node', id: 3 });
     expect(useWorkspaceStore.getState().status).toBe('needs_optimization');
-    expect(useWorkspaceStore.getState().historyPast.at(-1)?.label).toBe('Add node');
+    expect(selectHistoryPast(useWorkspaceStore.getState()).at(-1)?.label).toBe('Add node');
 
     await useWorkspaceStore.getState().moveNode(3, { x: 0.8, y: 0.7 });
-    expect(useWorkspaceStore.getState().project.nodes.find((node) => node.id === 3)?.loc).toEqual({
+    expect(selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 3)?.loc).toEqual({
       x: 0.8,
       y: 0.7,
     });
 
     await useWorkspaceStore.getState().updateNodeLabel(3, 'new tip');
-    expect(useWorkspaceStore.getState().project.nodes.find((node) => node.id === 3)?.label).toBe(
+    expect(selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 3)?.label).toBe(
       'new tip'
     );
 
     await useWorkspaceStore.getState().addEdge(2, 3);
-    expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'edge', id: 3 });
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'edge', id: 3 });
 
     await useWorkspaceStore
       .getState()
       .updateEdge(3, { label: 'span', length: 2, strain: 0.1, stiffness: 4 });
-    expect(useWorkspaceStore.getState().project.edges.find((edge) => edge.id === 3)).toMatchObject({
+    expect(selectProject(useWorkspaceStore.getState()).edges.find((edge) => edge.id === 3)).toMatchObject({
       label: 'span',
       length: 2,
       strain: 0.1,
@@ -4723,36 +4732,36 @@ describe('workspace store slices', () => {
 
     useWorkspaceStore.getState().select({ kind: 'multi', nodes: [1, 2], edges: [], paths: [], creases: [], facets: [], conditions: [] });
     useWorkspaceStore.getState().selectPathBetweenSelectedNodes();
-    expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'path', id: 1 });
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'path', id: 1 });
 
     useWorkspaceStore.getState().selectAll();
-    expect(useWorkspaceStore.getState().selection).toMatchObject({ kind: 'multi', nodes: [1, 2, 3] });
+    expect(selectSelection(useWorkspaceStore.getState())).toMatchObject({ kind: 'multi', nodes: [1, 2, 3] });
     useWorkspaceStore.getState().selectNone();
-    expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'tree' });
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'tree' });
     useWorkspaceStore.getState().setToolMode('node');
-    expect(useWorkspaceStore.getState().toolMode).toBe('node');
+    expect(selectToolMode(useWorkspaceStore.getState())).toBe('node');
 
     await useWorkspaceStore.getState().updatePaper({ width: 2, height: 3 });
-    expect(useWorkspaceStore.getState().project.paper).toMatchObject({ width: 2, height: 3 });
+    expect(selectProject(useWorkspaceStore.getState()).paper).toMatchObject({ width: 2, height: 3 });
 
     await useWorkspaceStore
       .getState()
       .setSymmetry({ hasSymmetry: true, symLoc: { x: 0.25, y: 0.75 }, symAngle: 45 });
-    expect(useWorkspaceStore.getState().project).toMatchObject({
+    expect(selectProject(useWorkspaceStore.getState())).toMatchObject({
       hasSymmetry: true,
       paper: { symLoc: { x: 0.25, y: 0.75 }, symAngle: 45 },
     });
 
     await useWorkspaceStore.getState().addCondition(nodeFixedCondition(2));
-    expect(useWorkspaceStore.getState().project.conditions).toHaveLength(2);
+    expect(selectProject(useWorkspaceStore.getState()).conditions).toHaveLength(2);
     await useWorkspaceStore.getState().deleteCondition(1);
-    expect(useWorkspaceStore.getState().project.conditions.map((condition) => condition.id)).toEqual([2]);
+    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.id)).toEqual([2]);
     await useWorkspaceStore.getState().clearConditions();
-    expect(useWorkspaceStore.getState().project.conditions).toEqual([]);
+    expect(selectProject(useWorkspaceStore.getState()).conditions).toEqual([]);
 
     useWorkspaceStore.getState().selectAll();
     await useWorkspaceStore.getState().deleteSelection();
-    expect(useWorkspaceStore.getState().project.nodes).toEqual([]);
+    expect(selectProject(useWorkspaceStore.getState()).nodes).toEqual([]);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Cleared design');
   });
 
@@ -4783,10 +4792,10 @@ describe('workspace store slices', () => {
     loadSnapshotIntoStore(api.snapshotState);
 
     useWorkspaceStore.getState().selectByIndex('node', 3);
-    expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'node', id: 3 });
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'node', id: 3 });
 
     useWorkspaceStore.getState().selectMovableParts();
-    expect(useWorkspaceStore.getState().selection).toEqual({
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({
       kind: 'multi',
       nodes: [3],
       edges: [1],
@@ -4798,7 +4807,7 @@ describe('workspace store slices', () => {
 
     useWorkspaceStore.getState().select({ kind: 'edge', id: 2 });
     useWorkspaceStore.getState().selectCorridorFacets();
-    expect(useWorkspaceStore.getState().selection).toEqual({
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({
       kind: 'multi',
       nodes: [],
       edges: [],
@@ -4815,14 +4824,14 @@ describe('workspace store slices', () => {
 
     useWorkspaceStore.getState().select({ kind: 'edge', id: 1 });
     await useWorkspaceStore.getState().setSelectedEdgeLengths(2);
-    expect(useWorkspaceStore.getState().project.edges[0].length).toBe(2);
+    expect(selectProject(useWorkspaceStore.getState()).edges[0].length).toBe(2);
 
     await useWorkspaceStore.getState().scaleSelectedEdgeLengths(0.5);
-    expect(useWorkspaceStore.getState().project.edges[0].length).toBe(1);
+    expect(selectProject(useWorkspaceStore.getState()).edges[0].length).toBe(1);
 
     await useWorkspaceStore.getState().splitSelectedEdge(0.4);
-    expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'node', id: 3 });
-    expect(useWorkspaceStore.getState().project.nodes).toHaveLength(3);
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'node', id: 3 });
+    expect(selectProject(useWorkspaceStore.getState()).nodes).toHaveLength(3);
 
     useWorkspaceStore.getState().select({ kind: 'node', id: 2 });
     await useWorkspaceStore.getState().makeSelectedNodeRoot();
@@ -4838,7 +4847,7 @@ describe('workspace store slices', () => {
     expect(api.applyEdit).toHaveBeenCalledWith(1, { type: 'remove_strain', edges: [1] });
     expect(api.applyEdit).toHaveBeenCalledWith(1, { type: 'relieve_strain', edges: [1] });
     expect(api.applyEdit).toHaveBeenCalledWith(1, { type: 'perturb_all_nodes' });
-    expect(useWorkspaceStore.getState().historyPast.at(-1)?.label).toBe('Perturb all nodes');
+    expect(selectHistoryPast(useWorkspaceStore.getState()).at(-1)?.label).toBe('Perturb all nodes');
   });
 
   it('updates conditions and removes conditions scoped to selected parts', async () => {
@@ -4862,27 +4871,27 @@ describe('workspace store slices', () => {
       x_fix_value: 0.2,
       y_fix_value: 0.3,
     });
-    expect(useWorkspaceStore.getState().project.conditions[0].kind).toMatchObject({
+    expect(selectProject(useWorkspaceStore.getState()).conditions[0].kind).toMatchObject({
       y_fixed: true,
       y_fix_value: 0.3,
     });
 
     useWorkspaceStore.getState().select({ kind: 'path', id: 1 });
     await useWorkspaceStore.getState().deleteConditionsForSelectedPaths();
-    expect(useWorkspaceStore.getState().project.conditions.map((condition) => condition.kind.type)).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind.type)).toEqual([
       'node_fixed',
       'edge_length_fixed',
     ]);
 
     useWorkspaceStore.getState().select({ kind: 'node', id: 2 });
     await useWorkspaceStore.getState().deleteConditionsForSelectedNodes();
-    expect(useWorkspaceStore.getState().project.conditions.map((condition) => condition.kind.type)).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind.type)).toEqual([
       'edge_length_fixed',
     ]);
 
     useWorkspaceStore.getState().select({ kind: 'edge', id: 1 });
     await useWorkspaceStore.getState().deleteConditionsForSelectedEdges();
-    expect(useWorkspaceStore.getState().project.conditions).toEqual([]);
+    expect(selectProject(useWorkspaceStore.getState()).conditions).toEqual([]);
   });
 
   it('creates mirrored branches from an axial parent in one history entry', async () => {
@@ -4896,21 +4905,21 @@ describe('workspace store slices', () => {
 
     await useWorkspaceStore.getState().addNodeWithSymmetry({ x: 0.25, y: 0.72 }, 1);
 
-    expect(useWorkspaceStore.getState().project.nodes.map((node) => node.loc)).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.loc)).toEqual([
       { x: 0.5, y: 0.5 },
       { x: 0.25, y: 0.72 },
       { x: 0.75, y: 0.72 },
     ]);
-    expect(useWorkspaceStore.getState().project.edges.map((edge) => edge.nodes)).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).edges.map((edge) => edge.nodes)).toEqual([
       [1, 2],
       [1, 3],
     ]);
-    expect(useWorkspaceStore.getState().project.conditions.map((condition) => condition.kind)).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind)).toEqual([
       { type: 'nodes_paired', node1: 2, node2: 3 },
     ]);
-    expect(useWorkspaceStore.getState().selection).toMatchObject({ kind: 'multi', nodes: [2, 3] });
-    expect(useWorkspaceStore.getState().historyPast).toHaveLength(1);
-    expect(useWorkspaceStore.getState().historyPast[0].label).toBe('Add mirrored branch');
+    expect(selectSelection(useWorkspaceStore.getState())).toMatchObject({ kind: 'multi', nodes: [2, 3] });
+    expect(selectHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
+    expect(selectHistoryPast(useWorkspaceStore.getState())[0].label).toBe('Add mirrored branch');
   });
 
   it('keeps internal mirror links after branching from a mirrored leaf', async () => {
@@ -4932,17 +4941,17 @@ describe('workspace store slices', () => {
 
     await useWorkspaceStore.getState().addNodeWithSymmetry({ x: 0.16, y: 0.7 }, 2);
 
-    expect(useWorkspaceStore.getState().project.conditions.map((condition) => condition.kind)).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind)).toEqual([
       { type: 'nodes_paired', node1: 4, node2: 5 },
     ]);
-    expect(useWorkspaceStore.getState().symmetryAuthoringPairs).toEqual([
+    expect(selectSymmetryAuthoringPairs(useWorkspaceStore.getState())).toEqual([
       { node1: 2, node2: 3 },
       { node1: 4, node2: 5 },
     ]);
 
     await useWorkspaceStore.getState().addNodeWithSymmetry({ x: 0.14, y: 0.3 }, 2);
 
-    const nodeLocs = useWorkspaceStore.getState().project.nodes.map((node) => node.loc);
+    const nodeLocs = selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.loc);
     expect(nodeLocs).toHaveLength(7);
     expect(nodeLocs[0]).toEqual({ x: 0.5, y: 0.5 });
     expect(nodeLocs[1]).toEqual({ x: 0.28, y: 0.5 });
@@ -4952,7 +4961,7 @@ describe('workspace store slices', () => {
     expect(nodeLocs[5]).toEqual({ x: 0.14, y: 0.3 });
     expect(nodeLocs[6]?.x).toBeCloseTo(0.86);
     expect(nodeLocs[6]?.y).toBeCloseTo(0.3);
-    expect(useWorkspaceStore.getState().project.conditions.map((condition) => condition.kind)).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).conditions.map((condition) => condition.kind)).toEqual([
       { type: 'nodes_paired', node1: 4, node2: 5 },
       { type: 'nodes_paired', node1: 6, node2: 7 },
     ]);
@@ -4969,11 +4978,11 @@ describe('workspace store slices', () => {
 
     await useWorkspaceStore.getState().addNodeWithSymmetry({ x: 0.506, y: 0.72 }, 1);
 
-    expect(useWorkspaceStore.getState().project.nodes).toHaveLength(2);
-    expect(useWorkspaceStore.getState().project.nodes[1].loc.x).toBeCloseTo(0.5);
-    expect(useWorkspaceStore.getState().project.nodes[1].loc.y).toBeCloseTo(0.72);
-    expect(useWorkspaceStore.getState().project.edges.map((edge) => edge.nodes)).toEqual([[1, 2]]);
-    expect(useWorkspaceStore.getState().project.conditions).toEqual([]);
+    expect(selectProject(useWorkspaceStore.getState()).nodes).toHaveLength(2);
+    expect(selectProject(useWorkspaceStore.getState()).nodes[1].loc.x).toBeCloseTo(0.5);
+    expect(selectProject(useWorkspaceStore.getState()).nodes[1].loc.y).toBeCloseTo(0.72);
+    expect(selectProject(useWorkspaceStore.getState()).edges.map((edge) => edge.nodes)).toEqual([[1, 2]]);
+    expect(selectProject(useWorkspaceStore.getState()).conditions).toEqual([]);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Added axial node');
   });
 
@@ -4995,16 +5004,16 @@ describe('workspace store slices', () => {
 
     await useWorkspaceStore.getState().moveNodeWithSymmetry(2, { x: 0.3, y: 0.4 });
 
-    expect(useWorkspaceStore.getState().project.nodes.find((node) => node.id === 2)?.loc).toEqual({
+    expect(selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 2)?.loc).toEqual({
       x: 0.3,
       y: 0.4,
     });
-    expect(useWorkspaceStore.getState().project.nodes.find((node) => node.id === 3)?.loc).toEqual({
+    expect(selectProject(useWorkspaceStore.getState()).nodes.find((node) => node.id === 3)?.loc).toEqual({
       x: 0.7,
       y: 0.4,
     });
-    expect(useWorkspaceStore.getState().historyPast).toHaveLength(1);
-    expect(useWorkspaceStore.getState().historyPast[0].label).toBe('Move mirrored nodes');
+    expect(selectHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
+    expect(selectHistoryPast(useWorkspaceStore.getState())[0].label).toBe('Move mirrored nodes');
   });
 
   it('updates mirrored flap edge lengths together', async () => {
@@ -5026,12 +5035,12 @@ describe('workspace store slices', () => {
 
     await useWorkspaceStore.getState().updateEdge(1, { length: 2.5 });
 
-    expect(useWorkspaceStore.getState().project.edges.map((edge) => edge.length)).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).edges.map((edge) => edge.length)).toEqual([
       2.5,
       2.5,
     ]);
-    expect(useWorkspaceStore.getState().historyPast).toHaveLength(1);
-    expect(useWorkspaceStore.getState().historyPast[0].label).toBe('Edit mirrored edges');
+    expect(selectHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
+    expect(selectHistoryPast(useWorkspaceStore.getState())[0].label).toBe('Edit mirrored edges');
   });
 
   it('deletes a selected design node from the canonical engine snapshot', async () => {
@@ -5052,15 +5061,15 @@ describe('workspace store slices', () => {
     await useWorkspaceStore.getState().deleteSelection();
 
     expect(api.applyEdit).toHaveBeenCalledWith(1, { type: 'delete_node', id: 2 });
-    expect(useWorkspaceStore.getState().project.nodes.map((node) => [node.id, node.label])).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => [node.id, node.label])).toEqual([
       [1, 'root'],
       [2, 'right'],
     ]);
-    expect(useWorkspaceStore.getState().project.edges.map((edge) => [edge.id, edge.nodes])).toEqual([
+    expect(selectProject(useWorkspaceStore.getState()).edges.map((edge) => [edge.id, edge.nodes])).toEqual([
       [1, [1, 2]],
     ]);
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'tree' });
     expect(useWorkspaceStore.getState()).toMatchObject({
-      selection: { kind: 'tree' },
       status: 'needs_optimization',
       error: null,
       dirty: true,
@@ -5091,8 +5100,8 @@ describe('workspace store slices', () => {
     });
 
     await useWorkspaceStore.getState().pasteClipboard();
-    expect(useWorkspaceStore.getState().project.nodes.map((node) => node.id)).toEqual([1, 2, 3, 4]);
-    expect(useWorkspaceStore.getState().selection).toMatchObject({
+    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.id)).toEqual([1, 2, 3, 4]);
+    expect(selectSelection(useWorkspaceStore.getState())).toMatchObject({
       kind: 'multi',
       nodes: [3, 4],
     });
@@ -5102,7 +5111,7 @@ describe('workspace store slices', () => {
     const clipboard = useWorkspaceStore.getState().clipboard;
     expect(clipboard?.kind).toBe('tree');
     expect(clipboard?.kind === 'tree' ? clipboard.nodes.map((node) => node.sourceId) : []).toEqual([3, 4]);
-    expect(useWorkspaceStore.getState().project.nodes.map((node) => node.id)).toEqual([1, 2]);
+    expect(selectProject(useWorkspaceStore.getState()).nodes.map((node) => node.id)).toEqual([1, 2]);
   });
 
   it('copies and pastes selected editable CP lines', async () => {
@@ -5193,22 +5202,22 @@ describe('workspace store slices', () => {
     loadSnapshotIntoStore(seedSnapshot());
 
     await useWorkspaceStore.getState().addNodeAt({ x: 0.8, y: 0.8 }, 1);
-    expect(useWorkspaceStore.getState().project.nodes).toHaveLength(3);
-    expect(useWorkspaceStore.getState().historyPast).toHaveLength(1);
+    expect(selectProject(useWorkspaceStore.getState()).nodes).toHaveLength(3);
+    expect(selectHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
 
     await useWorkspaceStore.getState().undo();
-    expect(useWorkspaceStore.getState().project.nodes).toHaveLength(2);
-    expect(useWorkspaceStore.getState().historyFuture).toHaveLength(1);
+    expect(selectProject(useWorkspaceStore.getState()).nodes).toHaveLength(2);
+    expect(selectHistoryFuture(useWorkspaceStore.getState())).toHaveLength(1);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Undid Add node');
 
     await useWorkspaceStore.getState().redo();
-    expect(useWorkspaceStore.getState().project.nodes).toHaveLength(3);
-    expect(useWorkspaceStore.getState().historyPast).toHaveLength(1);
+    expect(selectProject(useWorkspaceStore.getState()).nodes).toHaveLength(3);
+    expect(selectHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Redid Add node');
 
     useWorkspaceStore.getState().clearHistory();
-    expect(useWorkspaceStore.getState().historyPast).toEqual([]);
-    expect(useWorkspaceStore.getState().historyFuture).toEqual([]);
+    expect(selectHistoryPast(useWorkspaceStore.getState())).toEqual([]);
+    expect(selectHistoryFuture(useWorkspaceStore.getState())).toEqual([]);
   });
 
   it('optimizes, builds crease patterns, toggles color mode, and foregrounds Edit', async () => {
@@ -5217,29 +5226,29 @@ describe('workspace store slices', () => {
     const activateWorkspace = vi.fn();
     useLayoutStore.setState({ activateWorkspace });
 
-    const initialFitRequestId = useWorkspaceStore.getState().designViewportFitRequestId;
+    const initialFitRequestId = selectDesignViewportFitRequestId(useWorkspaceStore.getState());
     await useWorkspaceStore.getState().optimizeScale();
     expect(useWorkspaceStore.getState().status).toBe('optimized');
-    expect(useWorkspaceStore.getState().lastOptimization).toMatchObject({ kind: 'scale' });
-    expect(useWorkspaceStore.getState().designViewportFitRequestId).toBe(
+    expect(selectLastOptimization(useWorkspaceStore.getState())).toMatchObject({ kind: 'scale' });
+    expect(selectDesignViewportFitRequestId(useWorkspaceStore.getState())).toBe(
       initialFitRequestId + 1
     );
 
     await useWorkspaceStore.getState().optimizeEdges();
-    expect(useWorkspaceStore.getState().lastOptimization).toMatchObject({ kind: 'edges' });
-    expect(useWorkspaceStore.getState().designViewportFitRequestId).toBe(
+    expect(selectLastOptimization(useWorkspaceStore.getState())).toMatchObject({ kind: 'edges' });
+    expect(selectDesignViewportFitRequestId(useWorkspaceStore.getState())).toBe(
       initialFitRequestId + 1
     );
 
     await useWorkspaceStore.getState().optimizeStrain();
-    expect(useWorkspaceStore.getState().lastOptimization).toMatchObject({ kind: 'strain' });
-    expect(useWorkspaceStore.getState().designViewportFitRequestId).toBe(
+    expect(selectLastOptimization(useWorkspaceStore.getState())).toMatchObject({ kind: 'strain' });
+    expect(selectDesignViewportFitRequestId(useWorkspaceStore.getState())).toBe(
       initialFitRequestId + 1
     );
 
     await useWorkspaceStore.getState().buildCreasePattern();
     expect(useWorkspaceStore.getState().status).toBe('crease_pattern_ready');
-    expect(useWorkspaceStore.getState().project.creases).toHaveLength(1);
+    expect(selectProject(useWorkspaceStore.getState()).creases).toHaveLength(1);
     expect(useWorkspaceStore.getState().foldArtifacts?.fold.vertices_coords).toHaveLength(3);
     expect(useWorkspaceStore.getState().refreshFoldArtifacts).toBeTypeOf('function');
     expect(api.foldArtifacts).toHaveBeenCalledWith(1);
@@ -5347,8 +5356,8 @@ describe('workspace store slices', () => {
     await useWorkspaceStore.getState().buildCreasePattern();
 
     expect(useWorkspaceStore.getState().status).toBe('optimized');
-    expect(useWorkspaceStore.getState().project.creases).toHaveLength(0);
-    expect(useWorkspaceStore.getState().project.facets).toHaveLength(0);
+    expect(selectProject(useWorkspaceStore.getState()).creases).toHaveLength(0);
+    expect(selectProject(useWorkspaceStore.getState()).facets).toHaveLength(0);
     expect(useWorkspaceStore.getState().error).toEqual({
       code: 'invalid_operation',
       message: 'Build CP completed but did not produce drawable crease-pattern geometry.',
@@ -5431,8 +5440,8 @@ describe('workspace store slices', () => {
       expect(state.foldArtifacts).toBeNull();
       expect(state.foldArtifactStatus).toBe('stale');
       expect(state.oristudioCpDocument).toBeNull();
-      expect(state.project.creases).toHaveLength(0);
-      expect(state.project.title).toBe('Sample BP');
+      expect(selectProject(state).creases).toHaveLength(0);
+      expect(state.workspaceTitle).toBe('Sample BP');
     });
 
     it('keeps the live Edit canvas when the design chooser seeds a box-pleat project', async () => {
@@ -5662,7 +5671,7 @@ describe('workspace store slices', () => {
       expect(state.oristudioCpViewport.gridVisible).toBe(false);
       expect(state.oristudioCpViewport.snapToGrid).toBe(false);
       expect(state.oristudioCpViewport.lineWidth).toBe(3);
-      expect(state.toolMode).toBe('select');
+      expect(selectToolMode(state)).toBe('select');
       expect(state.projectLoadId).toBeGreaterThan(projectLoadIdBefore);
       // The saved canvas camera comes back too — rotation is how a hex-pleat
       // design is authored, not a transient way of looking at it.

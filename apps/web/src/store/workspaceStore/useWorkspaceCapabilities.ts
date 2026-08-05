@@ -1,3 +1,4 @@
+import { selectHistoryFuture, selectHistoryPast, selectProject, selectSelection } from './designTabs';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
@@ -9,9 +10,9 @@ export function useWorkspaceCapabilities() {
   const activeEditingContext = useWorkspaceStore((state) => state.activeEditingContext);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const status = useWorkspaceStore((state) => state.status);
-  const edgeCount = useWorkspaceStore((state) => state.project.edges.length);
-  const creaseCount = useWorkspaceStore((state) => state.project.creases.length);
-  const facetCount = useWorkspaceStore((state) => state.project.facets.length);
+  const edgeCount = useWorkspaceStore((state) => selectProject(state).edges.length);
+  const creaseCount = useWorkspaceStore((state) => selectProject(state).creases.length);
+  const facetCount = useWorkspaceStore((state) => selectProject(state).facets.length);
   const hasEditableCreasePattern = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
   const hasImportedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern !== null);
   const hasBoxPleatDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
@@ -29,8 +30,8 @@ export function useWorkspaceCapabilities() {
   const oristudioCpSelectedCircleCount = useWorkspaceStore(
     (state) => state.oristudioCpSelection.circles.length
   );
-  const treeHistoryPastCount = useWorkspaceStore((state) => state.historyPast.length);
-  const treeHistoryFutureCount = useWorkspaceStore((state) => state.historyFuture.length);
+  const treeHistoryPastCount = useWorkspaceStore((state) => selectHistoryPast(state).length);
+  const treeHistoryFutureCount = useWorkspaceStore((state) => selectHistoryFuture(state).length);
   const cpHistoryPastCount = useWorkspaceStore((state) => state.oristudioCpHistoryPast.length);
   const cpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioCpHistoryFuture.length);
   const bpHistoryPastCount = useWorkspaceStore((state) => state.oristudioBpHistoryPast.length);
@@ -44,7 +45,7 @@ export function useWorkspaceCapabilities() {
     );
   });
   const clipboard = useWorkspaceStore((state) => state.clipboard);
-  const selection = useWorkspaceStore((state) => state.selection);
+  const selection = useWorkspaceStore((state) => selectSelection(state));
   const historyPastCount = historyCountForContext(
     activeEditingContext,
     bpHistoryPastCount,

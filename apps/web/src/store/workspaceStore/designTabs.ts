@@ -1,5 +1,15 @@
 import type { DesignKindId } from '../../designKinds';
+import {
+  EMPTY_TREEMAKER_DESIGN,
+  createTreemakerDesignState,
+  type DesignTabContent,
+  type TreemakerDesignState,
+} from './designContent';
 import type { DesignMethod } from './designVariant';
+import type { Selection, ToolMode, TreeProject } from '../../lib/sampleProject';
+import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
+import type { OptimizationReport } from '../../engine/types';
+import type { HistoryEntry } from './types';
 
 /**
  * One design open in the Design workspace.
@@ -13,20 +23,27 @@ import type { DesignMethod } from './designVariant';
  * duplicated fact this refactor exists to remove. Tab counts are small enough
  * that the linear lookups do not matter.
  */
-export interface DesignTab {
+interface DesignTabIdentity {
   /** Stable for the life of the tab; also the document id written to `.osf`. */
   id: string;
-  /**
-   * The authoring method, or `null` while this tab is still showing the chooser.
-   *
-   * A tab with no kind is the NUX state. It is a real tab — it has a position and
-   * a title — which is what lets "close the last tab" re-provision an empty one
-   * instead of leaving the workspace with nothing to render.
-   */
-  kind: DesignKindId | null;
   /** User-editable tab name. */
   title: string;
 }
+
+/**
+ * One design open in the Design workspace: its identity plus what it is
+ * authoring.
+ *
+ * `kind` is `null` while the tab is still showing the chooser. That is a real
+ * tab — it has a position and a title — which is what lets "close the last tab"
+ * re-provision an empty one instead of leaving the workspace with nothing to
+ * render.
+ *
+ * Intersecting with {@link DesignTabContent} rather than carrying a loose `kind`
+ * field is what makes a tab's kind and its content inseparable; see the comment
+ * on that type.
+ */
+export type DesignTab = DesignTabIdentity & DesignTabContent;
 
 export const DEFAULT_DESIGN_TITLE = 'Untitled Design';
 
@@ -74,13 +91,20 @@ export function uniqueDesignTitle(
 
 export function createDesignTab(
   existing: readonly DesignTab[] = [],
-  overrides: Partial<Omit<DesignTab, 'id'>> = {}
+  overrides: { kind?: DesignKindId | null; title?: string } = {}
 ): DesignTab {
-  return {
+  const identity: DesignTabIdentity = {
     id: nextDesignTabId(existing),
-    kind: overrides.kind ?? null,
     title: overrides.title ?? uniqueDesignTitle(existing),
   };
+  return { ...identity, ...contentForKind(overrides.kind ?? null) };
+}
+
+/** A fresh, empty content arm for a kind. */
+function contentForKind(kind: DesignKindId | null): DesignTabContent {
+  if (kind === 'treemaker') return { kind, treemaker: createTreemakerDesignState() };
+  if (kind === 'box-pleat') return { kind };
+  return { kind: null };
 }
 
 /** The state slice these helpers read. Narrow, so tests need not build a store. */
@@ -124,23 +148,187 @@ export function selectDesignMethod(state: DesignTabsSlice): DesignMethod {
 }
 
 /**
- * Apply a patch to the active tab, returning the field to `set()`.
+ * Replace the active tab, returning the field to `set()`.
  *
- * Every write to the active design's identity goes through here, so there is one
- * place that knows how the active tab is located.
+ * Every write to the active design goes through here, so there is one place that
+ * knows how the active tab is located.
  */
-export function withActiveTab(
+function mapActiveTab(
   state: DesignTabsSlice,
-  patch: Partial<Omit<DesignTab, 'id'>>
+  next: (tab: DesignTab) => DesignTab
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return {
     designTabs: state.designTabs.map((tab) =>
-      tab.id === state.activeDesignId ? { ...tab, ...patch } : tab
+      tab.id === state.activeDesignId ? next(tab) : tab
     ),
   };
 }
 
-/** A one-tab workspace authoring `kind`. */
+/**
+ * Rename the active tab.
+ *
+ * Deliberately narrower than a general patch: `kind` is not settable here, because
+ * setting a kind without its content is the state {@link DesignTabContent} exists
+ * to make unrepresentable. Use `installTreemakerDesign` / `markActiveTabBoxPleat` /
+ * `clearActiveDesignContent` instead.
+ */
+export function withActiveTab(
+  state: DesignTabsSlice,
+  patch: { title: string }
+): Pick<DesignTabsSlice, 'designTabs'> {
+  return mapActiveTab(state, (tab) => ({ ...tab, title: patch.title }));
+}
+
+/**
+ * The active design's TreeMaker state, or `null` when the active design is of
+ * another kind.
+ *
+ * The honest accessor — use it where the difference matters: every write, and any
+ * reader that behaves differently for "no tree" than for "an empty tree".
+ */
+export function selectTreemakerDesign(state: DesignTabsSlice): TreemakerDesignState | null {
+  const tab = activeDesignTab(state);
+  return tab.kind === 'treemaker' ? tab.treemaker : null;
+}
+
+/**
+ * The active design's TreeMaker state, falling back to an empty one.
+ *
+ * The **total** accessor, and what most read sites want. It preserves today's
+ * behaviour exactly: before tabs, selecting a box-pleat design left `project` as
+ * an empty `TreeProject` rather than removing it, so every incidental reader —
+ * capability counts, the error boundary, the crease-pattern panel — already copes
+ * with an empty tree and never saw a null.
+ */
+export function selectTreemakerDesignOrEmpty(state: DesignTabsSlice): TreemakerDesignState {
+  return selectTreemakerDesign(state) ?? EMPTY_TREEMAKER_DESIGN;
+}
+
+/**
+ * Field selectors over the active TreeMaker design.
+ *
+ * One per flat field these replaced, so a call site reads almost exactly as it
+ * did — `selectProject(state)` becomes `selectProject(state)` — and the diff stays
+ * reviewable. All total, all falling back to the empty design, all returning the
+ * stored reference so Zustand's `Object.is` comparison behaves as before.
+ */
+export function selectProject(state: DesignTabsSlice): TreeProject {
+  return selectTreemakerDesignOrEmpty(state).project;
+}
+
+export function selectSelection(state: DesignTabsSlice): Selection {
+  return selectTreemakerDesignOrEmpty(state).selection;
+}
+
+export function selectToolMode(state: DesignTabsSlice): ToolMode {
+  return selectTreemakerDesignOrEmpty(state).toolMode;
+}
+
+export function selectSymmetryAuthoringPairs(state: DesignTabsSlice): SymmetryAuthoringPair[] {
+  return selectTreemakerDesignOrEmpty(state).symmetryAuthoringPairs;
+}
+
+export function selectHistoryPast(state: DesignTabsSlice): HistoryEntry[] {
+  return selectTreemakerDesignOrEmpty(state).historyPast;
+}
+
+export function selectHistoryFuture(state: DesignTabsSlice): HistoryEntry[] {
+  return selectTreemakerDesignOrEmpty(state).historyFuture;
+}
+
+export function selectLastOptimization(state: DesignTabsSlice): OptimizationReport | null {
+  return selectTreemakerDesignOrEmpty(state).lastOptimization;
+}
+
+export function selectDesignViewportFitRequestId(state: DesignTabsSlice): number {
+  return selectTreemakerDesignOrEmpty(state).viewportFitRequestId;
+}
+
+/**
+ * Install a TreeMaker design into the active tab: kind *and* content, in one step.
+ *
+ * Load and create paths use this. Because kind and content can never be set
+ * separately, a tab cannot claim a method it has no design for — which is exactly
+ * the contradiction that storing the kind would otherwise make possible.
+ */
+export function installTreemakerDesign(
+  state: DesignTabsSlice,
+  design: Partial<TreemakerDesignState> = {}
+): Pick<DesignTabsSlice, 'designTabs'> {
+  return mapActiveTab(state, (tab) => ({
+    id: tab.id,
+    title: tab.title,
+    kind: 'treemaker',
+    treemaker: createTreemakerDesignState(design),
+  }));
+}
+
+/**
+ * Patch the active tab's existing TreeMaker state.
+ *
+ * Edit paths use this. A no-op when the active design is of another kind:
+ * reaching here means a tree action ran against a design that is not a tree,
+ * which is a routing bug — better surfaced than papered over by installing a tree
+ * the user never asked for.
+ */
+export function patchTreemakerDesign(
+  state: DesignTabsSlice,
+  patch: Partial<TreemakerDesignState>
+): Pick<DesignTabsSlice, 'designTabs'> {
+  const current = selectTreemakerDesign(state);
+  if (!current) {
+    if (import.meta.env.DEV) {
+      console.error(
+        '[ori-studio] patchTreemakerDesign ran while the active design is not TreeMaker; ignoring',
+        patch
+      );
+    }
+    return { designTabs: state.designTabs };
+  }
+  return mapActiveTab(state, (tab) => ({
+    id: tab.id,
+    title: tab.title,
+    kind: 'treemaker',
+    treemaker: { ...current, ...patch },
+  }));
+}
+
+/**
+ * Claim the active tab for a box-pleat design.
+ *
+ * Payload-free until phase 2c moves the `oristudioBp*` fields onto the tab; the
+ * document itself still lives flat on the store for now.
+ */
+export function markActiveTabBoxPleat(
+  state: DesignTabsSlice
+): Pick<DesignTabsSlice, 'designTabs'> {
+  return mapActiveTab(state, (tab) => ({ id: tab.id, title: tab.title, kind: 'box-pleat' }));
+}
+
+/** Clear the active tab back to the chooser, dropping whatever it was authoring. */
+export function clearActiveDesignContent(
+  state: DesignTabsSlice
+): Pick<DesignTabsSlice, 'designTabs'> {
+  // Rebuilt rather than spread-with-undefined so a discarded arm cannot linger on
+  // the object and resurface through a stale cast.
+  return mapActiveTab(state, (tab) => ({ id: tab.id, title: tab.title, kind: null }));
+}
+
+/**
+ * A one-tab workspace holding a TreeMaker design.
+ *
+ * The seed for tests and for any caller that wants "a workspace with this tree in
+ * it" in one expression, rather than building a tab and then patching it.
+ */
+export function singleTreemakerDesignTab(
+  design: Partial<TreemakerDesignState> = {},
+  title?: string
+): DesignTabsSlice {
+  const seeded = singleDesignTab('treemaker', title);
+  return { ...seeded, ...installTreemakerDesign(seeded, design) };
+}
+
+/** A one-tab workspace authoring `kind`. Seeds the initial state and tests. */
 export function singleDesignTab(
   kind: DesignKindId | null = null,
   title?: string

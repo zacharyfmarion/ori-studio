@@ -1,28 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  DEFAULT_DESIGN_TITLE,
-  activeDesignTab,
-  createDesignTab,
-  designMethodOf,
-  initialDesignTabs,
-  nextDesignTabId,
-  resetDesignTabIds,
-  selectDesignMethod,
-  singleDesignTab,
-  uniqueDesignTitle,
-  withActiveTab,
-  type DesignTab,
-} from './designTabs';
+import { DEFAULT_DESIGN_TITLE, clearActiveDesignContent, markActiveTabBoxPleat, activeDesignTab, createDesignTab, designMethodOf, initialDesignTabs, nextDesignTabId, resetDesignTabIds, selectDesignMethod, singleDesignTab, type DesignTab, uniqueDesignTitle, withActiveTab } from './designTabs';
 
 beforeEach(() => {
   resetDesignTabIds();
 });
 
-const tab = (id: string, kind: DesignTab['kind'] = null, title = id): DesignTab => ({
-  id,
-  kind,
-  title,
-});
+const tab = (id: string, kind: DesignTab['kind'] = null, title = id): DesignTab =>
+  // Built through the real constructor so the test cannot fabricate a tab shape
+  // the union forbids — e.g. a kind with no content.
+  ({ ...createDesignTab([], { kind, title }), id });
 
 describe('ids', () => {
   it('are unique and readable', () => {
@@ -118,13 +104,13 @@ describe('design method', () => {
   });
 });
 
-describe('withActiveTab', () => {
+describe('active-tab writes', () => {
   it('patches only the active tab', () => {
     const state = {
       designTabs: [tab('a', 'treemaker'), tab('b', null)],
       activeDesignId: 'b',
     };
-    const next = withActiveTab(state, { kind: 'box-pleat' });
+    const next = markActiveTabBoxPleat(state);
 
     expect(next.designTabs.map((t) => t.kind)).toEqual(['treemaker', 'box-pleat']);
   });
@@ -145,7 +131,7 @@ describe('withActiveTab', () => {
 
   it('does not mutate the input', () => {
     const state = { designTabs: [tab('a', 'treemaker')], activeDesignId: 'a' };
-    withActiveTab(state, { kind: null });
+    clearActiveDesignContent(state);
     expect(state.designTabs[0].kind).toBe('treemaker');
   });
 });

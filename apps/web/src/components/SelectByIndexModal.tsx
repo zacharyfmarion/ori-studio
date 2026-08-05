@@ -1,3 +1,4 @@
+import { selectProject } from '../store/workspaceStore/designTabs';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -57,7 +58,7 @@ export function SelectByIndexModal() {
   const { t } = useTranslation();
   const isOpen = useSelectionUiStore((state) => state.isSelectByIndexOpen);
   const close = useSelectionUiStore((state) => state.closeSelectByIndex);
-  const project = useWorkspaceStore((state) => state.project);
+  const project = useWorkspaceStore((state) => selectProject(state));
   const selectByIndex = useWorkspaceStore((state) => state.selectByIndex);
   const [kind, setKind] = useState<SelectablePartKind>('node');
   const ids = useMemo(() => idsForKind(project, kind), [kind, project]);

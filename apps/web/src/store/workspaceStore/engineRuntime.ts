@@ -1,5 +1,7 @@
 import type { Remote } from 'comlink';
 import { connectEngine, isEngineConnected } from '../../engines/engineHost';
+import { installTreemakerDesign, patchTreemakerDesign, type DesignTabsSlice } from './designTabs';
+import type { TreemakerDesignState } from './designContent';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type {
   OptimizationReport,
@@ -160,9 +162,58 @@ export function nextSelectionForEdit(
   return { kind: 'tree' };
 }
 
-export function projectStateFromSnapshot(snapshot: TreeSnapshot, title?: string) {
+/**
+ * The workspace patch for "a tree snapshot just became the active design".
+ *
+ * Installs the tree onto the active design tab — kind and content together, so a
+ * tab can never claim TreeMaker without a tree — and resets the workspace-level
+ * state derived from it.
+ *
+ * `design` carries any per-design state the caller wants to survive the install
+ * (undo restoring its own history, for instance). It has to be passed *in* rather
+ * than spread over the result afterwards: those fields now live inside
+ * `designTabs`, so a later top-level key would no longer reach them.
+ */
+/**
+ * "The engine had no tree, so here is the snapshot it just built" — patches the
+ * active design, never installs one.
+ *
+ * The distinction matters because {@link projectStateFromSnapshot} *claims the
+ * tab's kind and rebuilds the arm from defaults*. That is right for a load or a
+ * File ▸ New, and wrong for the lazy-handle path: `ensureTreeHandle` materializes
+ * a tree the first time any action needs one, and that can fire during an ordinary
+ * edit, a paste, a condition change, or an export. Installing there would silently
+ * wipe the selection, tool mode, undo stack and symmetry pairs of the design the
+ * user is working on — and, worse, claim `kind: 'treemaker'` on a box-pleat tab,
+ * because exports reach `ensureTreeHandle` too.
+ *
+ * It also deliberately omits the fold-artifact and `sequence*` resets that a real
+ * install carries: materializing a cold handle is not a document swap.
+ */
+export function syncTreemakerProject(
+  state: DesignTabsSlice,
+  snapshot: TreeSnapshot,
+  title?: string
+) {
   return {
-    project: projectFromSnapshot(snapshot, title),
+    ...patchTreemakerDesign(state, { project: projectFromSnapshot(snapshot, title) }),
+    engineReady: true,
+    status: 'ready' as const,
+    error: null,
+  };
+}
+
+export function projectStateFromSnapshot(
+  state: DesignTabsSlice,
+  snapshot: TreeSnapshot,
+  title?: string,
+  design: Partial<TreemakerDesignState> = {}
+) {
+  return {
+    ...installTreemakerDesign(state, {
+      project: projectFromSnapshot(snapshot, title),
+      ...design,
+    }),
     engineReady: true,
     status: 'ready' as const,
     error: null,

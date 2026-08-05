@@ -3,7 +3,6 @@ import type {
   ConditionKind,
   FoldArtifacts,
   FoldDocument,
-  OptimizationReport,
   SequencePlan,
   SequenceTargetState,
   TreeEdit,
@@ -20,7 +19,6 @@ import type {
   CreaseColorMode,
   Selection,
   ToolMode,
-  TreeProject,
   WorkflowTarget,
 } from '../../lib/sampleProject';
 import type {
@@ -30,7 +28,6 @@ import type {
 } from '../../lib/creasePatternViewport';
 import type { SelectablePartKind } from '../../lib/selection';
 import type { SimulatorSettings, SimulatorSettingKey } from '../../lib/simulatorSettings';
-import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
 import type { BpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
@@ -165,7 +162,6 @@ export type PendingSharedCp =
   | { kind: 'id'; shareId: string };
 
 export interface ProjectSliceState {
-  project: TreeProject;
   /**
    * The designs open in the Design workspace, in tab order.
    *
@@ -182,6 +178,16 @@ export interface ProjectSliceState {
   designTabs: DesignTab[];
   /** The tab being authored. Always the id of a member of {@link designTabs}. */
   activeDesignId: string;
+  /**
+   * The project's name — one project, one title, however many designs it holds.
+   *
+   * Split out of `project.title` in phase 2b. That field was doing double duty:
+   * the *tree's* name and the *project's* name. Fine while a workspace was one
+   * tree; incoherent once a project can hold a box-pleat design and no tree at
+   * all, or several designs with different names. The tree keeps its own title;
+   * this is what names the file, the save dialog, and the export defaults.
+   */
+  workspaceTitle: string;
   /**
    * True once the user has created, opened, or chosen a project this session.
    * A fresh page load starts false, so deep-linked workspace routes redirect to
@@ -245,8 +251,6 @@ export interface ProjectSliceState {
   dirty: boolean;
   engineReady: boolean;
   error: WasmErrorEnvelope | null;
-  lastOptimization: OptimizationReport | null;
-  designViewportFitRequestId: number;
 }
 
 export interface ProjectSliceActions {
@@ -390,10 +394,38 @@ export interface HistoryEntry {
   timestamp: string;
 }
 
+/**
+ * Tree undo/redo *stacks* moved onto the active design tab in phase 2b
+ * (`TreemakerDesignState.historyPast` / `historyFuture`), so each design owns its
+ * own history and undo cannot reach across tabs. Read them with
+ * `selectHistoryPast` / `selectHistoryFuture`.
+ *
+ * `historyBusy` deliberately did **not** move. It is a re-entrancy guard shared
+ * by all three history subsystems — tree, crease pattern, and box-pleat — and
+ * scoping it to the TreeMaker design would have left the other two ungated
+ * whenever a design of another kind was active.
+ */
 export interface HistorySliceState {
-  historyPast: HistoryEntry[];
-  historyFuture: HistoryEntry[];
+  /**
+   * Re-entrancy guard for **tree** undo/redo.
+   *
+   * One guard per surface, not one shared by all three. Phase 2b briefly moved a
+   * single `historyBusy` onto the TreeMaker design arm, which broke both
+   * directions at once: with a design of another kind active the crease-pattern
+   * and box-pleat guards read a frozen `false` and stopped gating at all, and
+   * with a TreeMaker design active a crease-pattern undo took the *tree's* guard
+   * and blocked tree undo. Three independent histories need three flags.
+   *
+   * Still flat rather than on the design arm. Harmless today — undo only ever
+   * runs against the active design, so a per-workspace flag can only over-block,
+   * never under-block. Phase 2d should move it onto the arm along with addressed
+   * writes, at which point two designs can have undo in flight independently.
+   */
   historyBusy: boolean;
+  /** Re-entrancy guard for crease-pattern undo/redo. See {@link historyBusy}. */
+  oristudioCpHistoryBusy: boolean;
+  /** Re-entrancy guard for box-pleat undo/redo. See {@link historyBusy}. */
+  oristudioBpHistoryBusy: boolean;
 }
 
 export interface HistorySliceActions {
@@ -406,11 +438,9 @@ export interface HistorySliceActions {
 
 export type HistorySlice = HistorySliceState & HistorySliceActions;
 
-export interface EditingSliceState {
-  selection: Selection;
-  toolMode: ToolMode;
-  symmetryAuthoringPairs: SymmetryAuthoringPair[];
-}
+// Tree selection and authoring mode moved onto the active design tab in phase 2b
+// (`TreemakerDesignState`). Read them with `selectSelection` / `selectToolMode` /
+// `selectSymmetryAuthoringPairs`. The slice is now actions only.
 
 export interface EditingSliceActions {
   addNodeAt: (loc: Point, connectTo?: number) => Promise<void>;
@@ -452,7 +482,7 @@ export interface EditingSliceActions {
   setToolMode: (toolMode: ToolMode) => void;
 }
 
-export type EditingSlice = EditingSliceState & EditingSliceActions;
+export type EditingSlice = EditingSliceActions;
 
 export interface ConditionSliceActions {
   updatePaper: (update: { width?: number; height?: number }) => Promise<void>;

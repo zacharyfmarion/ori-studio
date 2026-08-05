@@ -1,4 +1,4 @@
-import { initialDesignTabs, selectDesignMethod, withActiveTab } from '../designTabs';
+import { clearActiveDesignContent, initialDesignTabs, installTreemakerDesign, markActiveTabBoxPleat, selectDesignMethod, selectProject } from '../designTabs';
 import { getExampleProject } from '../../../examples/catalog';
 import { APP_VERSION } from '../../../constants/release';
 import {
@@ -112,7 +112,7 @@ import {
   type CpSegment,
 } from '../../../lib/creasePatternSegmentation';
 import type { OristudioCpOperationId } from '../../../lib/oristudioCpCommands';
-import { createEmptyProject, DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
+import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
 import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { frameActiveCpDiagnostic } from '../cpDiagnosticFocus';
@@ -145,6 +145,7 @@ import {
   initializeBlankTree,
   loadTreeFromText,
   projectStateFromSnapshot,
+  syncTreemakerProject,
   statusFromSnapshot,
 } from '../engineRuntime';
 import {
@@ -780,30 +781,25 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           ...emptyFoldArtifactResourceState(),
         };
     set({
-      ...projectStateFromSnapshot(snapshot, title),
+      ...projectStateFromSnapshot(get(), snapshot, title),
       projectLoadId: get().projectLoadId + 1,
+      workspaceTitle: title,
       currentFileName: filename,
       currentFilePath: source.path ?? null,
       projectMessage: `Loaded ${filename}`,
-      selection: { kind: 'tree' },
-      toolMode: 'select',
-      symmetryAuthoringPairs: [],
       status: statusFromSnapshot(snapshot),
       dirty: source.dirty ?? false,
-      lastOptimization: null,
-      historyPast: [],
-      historyFuture: [],
       clipboardPasteCount: 0,
       // A tree claims the design the way its siblings do (`createNewProject`,
       // `setLoadedBpProject`): this file's tree *is* the design now, so a
       // box-pleat design left over from the previous file must not stay loaded
-      // and must not keep naming the Design layout variant.
-      ...withActiveTab(get(), { kind: 'treemaker' }),
+      // and must not keep naming the Design layout variant. The tree itself is
+      // installed onto the tab by `projectStateFromSnapshot` above, which is what
+      // claims the kind — setting it again here would be a second source of truth.
       oristudioBpDocument: null,
       oristudioBpWorkspace: null,
       // Spread last so a preserved canvas wins over the resets above.
-      ...editCanvasState,
-    });
+      ...editCanvasState});
   };
 
   const loadCreasePattern = async (
@@ -951,16 +947,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // Loading a document makes its editor the active view, so the derived
       // editing context matches the document without waiting for Dockview to
       // report the activated panel (which never fires in headless tests).
+      workspaceTitle: result.project.title,
       activePanelId: oristudioCpDocument ? 'crease-pattern' : 'design',
       // A bare crease pattern establishes no design, so the Design workspace
       // should still offer the method chooser rather than an empty tree — and
       // the previous file's box-pleat design must not stay loaded behind it,
       // which would leave "no method chosen" sitting beside a live design. Same
       // claim `loadText` makes for a tree: an open replaces the project.
-      ...withActiveTab(get(), { kind: null }),
+      ...clearActiveDesignContent(get()),
       oristudioBpDocument: null,
       oristudioBpWorkspace: null,
-      project: result.project,
       importedCreasePattern: result.document,
       oristudioCpDocument,
       oristudioCpLineage: importedCpLineage(),
@@ -980,11 +976,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       currentFileName: filename,
       currentFilePath: source.path ?? null,
       projectMessage: `Loaded ${filename}`,
-      selection: { kind: 'tree' },
       oristudioCpSelection: emptyOristudioCpSelection(),
       oristudioCpActiveDiagnosticId: null,
       oristudioCpRevision: 0,
-      toolMode: 'select',
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
       oristudioCpCamera: null,
       ...artifactState,
@@ -996,11 +990,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       status: 'crease_pattern_ready',
       dirty: false,
       error: null,
-      lastOptimization: null,
-      historyPast: [],
-      historyFuture: [],
-      clipboardPasteCount: 0,
-    });
+      clipboardPasteCount: 0});
   };
 
   const parseFoldProjection = (text: string): FoldDocument | null => {
@@ -1097,7 +1087,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
     // Null (pre-v7 file, or a malformed camera) leaves the canvas to auto-fit.
     oristudioCpCamera: nativeDocument.viewState.camera ?? null,
-    toolMode: 'select',
+    // No `toolMode` reset here either: this helper is documented as Edit-canvas
+    // fields only, and the tree editor's tool belongs to the design. See the note
+    // in freshCreasePattern.ts.
     // Re-baselines the CP panel and the undo stack against the document just
     // installed (see freshCreasePattern.ts).
     projectLoadId: get().projectLoadId + 1,
@@ -1155,14 +1147,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // which the companion path must not apply — it would unclaim the design.
       // Opening a crease pattern makes the CP editor the active view.
       activePanelId: 'crease-pattern',
+      workspaceTitle: nativeDocument.title || result.project.title,
       // A CP-only project establishes no design; keep the Design chooser.
-      ...withActiveTab(get(), { kind: null }),
-      project: { ...result.project, title: nativeDocument.title || result.project.title },
+      ...clearActiveDesignContent(get()),
       importedCreasePattern: importedDocument,
       currentFileName: source.filename,
       currentFilePath: source.path ?? null,
       projectMessage: `Loaded ${source.filename}`,
-      selection: { kind: 'tree' },
       sequenceTarget: null,
       sequencePlan: null,
       sequenceSimulationFocus: { kind: 'whole' },
@@ -1171,11 +1162,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       status: 'crease_pattern_ready',
       dirty: false,
       error: null,
-      lastOptimization: null,
-      historyPast: [],
-      historyFuture: [],
-      clipboardPasteCount: 0,
-    });
+      clipboardPasteCount: 0});
     // After the document is in place: each restored window needs a fold
     // rebuilt from the creases just loaded, and the artifacts that produces
     // are shared. Not awaited — a window draws nothing until its fold arrives,
@@ -1251,7 +1238,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   const currentTreeTmd5Text = async () => {
     const { api, treeHandle, initializedSnapshot } = await ensureTreeHandle();
     if (initializedSnapshot) {
-      set(projectStateFromSnapshot(initializedSnapshot, get().project.title));
+      set(syncTreemakerProject(get(), initializedSnapshot, selectProject(get()).title));
     }
     return api.saveTmd5(treeHandle);
   };
@@ -1260,7 +1247,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const canOverwriteNative = isNativeProjectFilename(get().currentFileName);
     const suggestedName = canOverwriteNative
       ? get().currentFileName
-      : defaultNativeFilename(get().project.title);
+      : defaultNativeFilename(get().workspaceTitle);
     return {
       suggestedName,
       path: canOverwriteNative ? get().currentFilePath : null,
@@ -1275,25 +1262,25 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // always stays the primary/active document so the single-document loader never
   // drops it when the always-live Edit canvas is the one in focus.
   const saveNativeWorkspaceProject = async (fileService: FileService, forceSaveAs: boolean) => {
-    const hasTree = get().project.nodes.length > 0;
+    const hasTree = selectProject(get()).nodes.length > 0;
     const bpDocument = get().oristudioBpDocument;
     const tmd5Text = hasTree ? await currentTreeTmd5Text() : null;
     const bps = bpDocument ? await exportOristudioBpProjectAsBps() : null;
     const creasePatternCompanion = get().oristudioCpDocument
       ? await currentEditableCreasePatternProjectInput(get().currentFileName, get().currentFilePath)
       : null;
-    const bpTitle = bpDocument?.snapshot?.summary?.title || get().project.title;
+    const bpTitle = bpDocument?.snapshot?.summary?.title || get().workspaceTitle;
     const activeMode = resolveNativeActiveMode(get().activeEditingContext, {
       hasTree,
       hasBoxPleat: Boolean(bpDocument),
     });
     const contents = serializeNativeProjectFile(
       createNativeProjectFile({
-        workspaceTitle: activeMode === 'box-pleat' ? bpTitle : get().project.title,
+        workspaceTitle: activeMode === 'box-pleat' ? bpTitle : get().workspaceTitle,
         filename: get().currentFileName,
         path: get().currentFilePath,
         activeMode,
-        tree: tmd5Text !== null ? { title: get().project.title, tmd5Text } : null,
+        tree: tmd5Text !== null ? { title: selectProject(get()).title, tmd5Text } : null,
         boxPleat:
           bps !== null
             ? { title: bpTitle, bps, symmetry: bpDocumentSymmetry(get().oristudioBpSymmetry) }
@@ -1354,7 +1341,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       title:
         documentState.summary.title ||
         get().importedCreasePattern?.title ||
-        get().project.title,
+        get().workspaceTitle,
       filename,
       path,
       document: documentState.document,
@@ -1597,7 +1584,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // bare crease pattern (no design) saves as a CP project, preserving its
   // Oriedita-sourced `.ori`/`.orh` save-as special cases.
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
-    const hasDesign = get().project.nodes.length > 0 || Boolean(get().oristudioBpDocument);
+    const hasDesign = selectProject(get()).nodes.length > 0 || Boolean(get().oristudioBpDocument);
     const result = hasDesign
       ? await saveNativeWorkspaceProject(fileService, forceSaveAs)
       : await saveEditableCreasePattern(fileService, forceSaveAs);
@@ -1608,7 +1595,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   };
 
   return {
-    project: createEmptyProject(),
     // Nothing has been authored yet, so no method has been chosen — `/design`
     // and the workspace rail both offer the chooser until one is. (The pair this
     // replaced started at `pendingDesignChoice: false` + `workflowTarget:
@@ -1616,6 +1602,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // bare `/design` only showed the chooser because the route overwrote the
     // claim on arrival.)
     ...initialDesignTabs(),
+    workspaceTitle: 'Untitled',
+    historyBusy: false,
+    oristudioCpHistoryBusy: false,
+    oristudioBpHistoryBusy: false,
     projectEstablished: false,
     activePanelId: null,
     activeEditingContext: 'treemaker-tree',
@@ -1640,8 +1630,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     dirty: false,
     engineReady: false,
     error: null,
-    lastOptimization: null,
-    designViewportFitRequestId: 0,
     ...emptyFoldArtifactResourceState(),
 
     initEngine: async () => {
@@ -1662,7 +1650,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         await releaseEditableCreasePattern();
         set({
           ...discardCpDocumentState(),
-          ...projectStateFromSnapshot(snapshot, get().project.title),
+          // `syncTreemakerProject`, not an install: booting the engine seeds a
+          // *handle*, it does not choose a design method. Installing here would
+          // claim `kind: 'treemaker'` on the chooser tab that `initialDesignTabs`
+          // deliberately left empty, so a cold start would land on the tree
+          // editor instead of the "Start a new design" chooser.
+          ...syncTreemakerProject(get(), snapshot, selectProject(get()).title),
+          status: statusFromSnapshot(snapshot),
+          ...emptyFoldArtifactResourceState(),
+          sequenceTarget: null,
+          sequencePlan: null,
+          sequenceSimulationFocus: { kind: 'whole' as const },
+          sequencePlanning: false,
+          sequenceError: null,
           importedCreasePattern: null,
           oristudioCpDocument: null,
           oristudioCpLineage: null,
@@ -1672,17 +1672,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpHistoryPast: [],
           oristudioCpHistoryFuture: [],
           projectLoadId: get().projectLoadId + 1,
-          selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
           oristudioCpRevision: 0,
-          symmetryAuthoringPairs: [],
           dirty: false,
-          lastOptimization: null,
-          ...emptyFoldArtifactResourceState(),
-          historyPast: [],
-          historyFuture: [],
-        });
+          ...emptyFoldArtifactResourceState()});
       } catch (error) {
         set({ status: 'error', error: engineError(error), engineReady: false });
       }
@@ -1726,9 +1720,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               ...emptyFoldArtifactResourceState(),
             };
         set({
-          ...projectStateFromSnapshot(snapshot, 'Untitled'),
+          ...projectStateFromSnapshot(get(), snapshot, 'Untitled'),
           activePanelId: 'design',
-          ...withActiveTab(get(), { kind: 'treemaker' }),
+          workspaceTitle: 'Untitled',
+          // The kind comes with the tree, installed by `projectStateFromSnapshot`.
           oristudioBpDocument: null,
           oristudioBpWorkspace: null,
           nativeProjectExtensions: {},
@@ -1736,16 +1731,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           currentFileName: defaultNativeFilename('Untitled'),
           currentFilePath: null,
           projectMessage: null,
-          selection: { kind: 'tree' },
-          toolMode: 'select',
-          symmetryAuthoringPairs: [],
           dirty: false,
-          lastOptimization: null,
-          historyPast: [],
-          historyFuture: [],
           clipboardPasteCount: 0,
-          ...editCanvasState,
-        });
+          ...editCanvasState});
         const layout = useLayoutStore.getState();
         layout.activateWorkspace('design');
         // Rebuild the Design layout if switching variant (e.g. NUX or box-pleat
@@ -1769,7 +1757,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const snapshot = await createStarterTree(api);
         set({
           ...discardCpDocumentState(),
-          ...projectStateFromSnapshot(snapshot, 'Three terminal flaps'),
+          ...projectStateFromSnapshot(get(), snapshot, 'Three terminal flaps'),
+          workspaceTitle: 'Three terminal flaps',
           importedCreasePattern: null,
           oristudioCpDocument: null,
           oristudioCpLineage: null,
@@ -1781,21 +1770,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           currentFileName: defaultNativeFilename('three-terminal-flaps'),
           currentFilePath: null,
           projectMessage: 'Loaded starter project',
-          selection: { kind: 'tree' },
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
           oristudioCpRevision: 0,
-          toolMode: 'select',
-          symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
           oristudioCpCamera: null,
           ...emptyFoldArtifactResourceState(),
           dirty: false,
-          lastOptimization: null,
-          historyPast: [],
-          historyFuture: [],
-          clipboardPasteCount: 0,
-        });
+          clipboardPasteCount: 0});
         useLayoutStore.getState().activateWorkspace('design');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -1814,24 +1796,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           // projectLoadId bump, fold-artifact invalidation, …) — the same bundle
           // the Edit self-provision uses.
           ...freshEditableCpState(documentState, get()),
-          // File › New additionally discards the whole project back to a bare CP:
-          project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
+          workspaceTitle: documentState.summary.title ?? 'Untitled CP',
           // Creating a bare CP establishes no design, so the Design workspace
           // keeps offering the method chooser (Circle-packed vs Box-pleated).
-          ...withActiveTab(get(), { kind: null }),
+          ...clearActiveDesignContent(get()),
           importedCreasePattern: null,
           currentFileName: defaultNativeFilename(documentState.summary.title ?? 'Untitled CP'),
           currentFilePath: null,
           projectMessage: null,
-          selection: { kind: 'tree' },
           nativeProjectExtensions: {},
           // `status: 'crease_pattern_ready'` comes from `freshEditableCpState`.
           dirty: false,
-          lastOptimization: null,
-          historyPast: [],
-          historyFuture: [],
-          clipboardPasteCount: 0,
-        });
+          clipboardPasteCount: 0});
         useLayoutStore.getState().activateWorkspace('edit');
       } catch (error) {
         set({ status: 'error', error: oristudioCpError(error) });
@@ -2225,7 +2201,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const result = await fileService.saveTextFile({
           title: 'Export TreeMaker 5 Project',
           contents,
-          suggestedName: defaultFilename(get().project.title, 'tmd5'),
+          suggestedName: defaultFilename(get().workspaceTitle, 'tmd5'),
           path: null,
           extensions: ['tmd5'],
         });
@@ -2246,7 +2222,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const result = await fileService.saveTextFile({
           title: 'Export TreeMaker 4 Project',
           contents,
-          suggestedName: defaultFilename(get().project.title, 'tmd4'),
+          suggestedName: defaultFilename(get().workspaceTitle, 'tmd4'),
           path: null,
           extensions: ['tmd4'],
         });
@@ -2269,7 +2245,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           title: 'Export CP Document',
           contents,
           suggestedName: defaultFilename(
-            get().oristudioCpDocument?.summary.title || get().project.title,
+            get().oristudioCpDocument?.summary.title || get().workspaceTitle,
             'cp'
           ),
           path: null,
@@ -2297,7 +2273,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           title: 'Export Box Pleating Studio Project',
           contents,
           suggestedName: defaultFilename(
-            get().oristudioBpDocument?.snapshot?.summary?.title || get().project.title,
+            get().oristudioBpDocument?.snapshot?.summary?.title || get().workspaceTitle,
             'bps'
           ),
           path: null,
@@ -2331,7 +2307,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const result = await fileService.saveTextFile({
           title: 'Export FOLD Document',
           contents,
-          suggestedName: defaultFilename(get().project.title, 'fold'),
+          suggestedName: defaultFilename(get().workspaceTitle, 'fold'),
           path: null,
           extensions: ['fold'],
         });
@@ -2356,7 +2332,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           title: 'Export Oriedita ORI Document',
           contents,
           suggestedName: defaultFilename(
-            get().oristudioCpDocument?.summary.title || get().project.title,
+            get().oristudioCpDocument?.summary.title || get().workspaceTitle,
             'ori'
           ),
           path: null,
@@ -2384,7 +2360,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           title: 'Export Oriedita ORH Document',
           contents,
           suggestedName: defaultFilename(
-            get().oristudioCpDocument?.summary.title || get().project.title,
+            get().oristudioCpDocument?.summary.title || get().workspaceTitle,
             'orh'
           ),
           path: null,
@@ -2415,7 +2391,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const result = await fileService.saveTextFile({
           title: 'Export Crease Pattern SVG',
           contents,
-          suggestedName: defaultFilename(get().project.title, 'svg'),
+          suggestedName: defaultFilename(get().workspaceTitle, 'svg'),
           path: null,
           extensions: ['svg'],
         });
@@ -2444,7 +2420,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const result = await fileService.saveBinaryFile({
           title: 'Export Crease Pattern PNG',
           bytes,
-          suggestedName: defaultFilename(get().project.title, 'png'),
+          suggestedName: defaultFilename(get().workspaceTitle, 'png'),
           path: null,
           extensions: ['png'],
           mimeType: 'image/png',
@@ -2468,7 +2444,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const result = await fileService.saveTextFile({
           title: 'Export Folded FOLD',
           contents,
-          suggestedName: defaultFilename(`${get().project.title} folded`, 'fold'),
+          suggestedName: defaultFilename(`${get().workspaceTitle} folded`, 'fold'),
           path: null,
           extensions: ['fold'],
         });
@@ -2488,8 +2464,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (!geometry) return false;
         const result = await fileService.saveTextFile({
           title: 'Export Folded OBJ',
-          contents: foldedObj(geometry, get().project.title || 'folded'),
-          suggestedName: defaultFilename(`${get().project.title} folded`, 'obj'),
+          contents: foldedObj(geometry, get().workspaceTitle || 'folded'),
+          suggestedName: defaultFilename(`${get().workspaceTitle} folded`, 'obj'),
           path: null,
           extensions: ['obj'],
         });
@@ -2510,7 +2486,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const result = await fileService.saveBinaryFile({
           title: 'Export Folded STL',
           bytes: foldedStl(geometry),
-          suggestedName: defaultFilename(`${get().project.title} folded`, 'stl'),
+          suggestedName: defaultFilename(`${get().workspaceTitle} folded`, 'stl'),
           path: null,
           extensions: ['stl'],
           mimeType: 'model/stl',
@@ -2636,7 +2612,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // id can't drift under a concurrent edit mid-export.
         const foldArtifacts = await ensureCpSegmentationArtifacts(get().oristudioCpDocument?.document);
         if (!foldArtifacts) return false;
-        const patternTitle = `${get().project.title} pattern ${segmentId + 1}`;
+        const patternTitle = `${get().workspaceTitle} pattern ${segmentId + 1}`;
 
         if (isSegmentImageFormat(format)) {
           // Open the export-image modal pre-scoped to this segment.
@@ -2724,7 +2700,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           });
           return false;
         }
-        const name = `${get().project.title} ${figure.title}`;
+        const name = `${get().workspaceTitle} ${figure.title}`;
 
         if (format === 'svg') {
           const contents = serializeFoldedFigureSvg(snapshot);
@@ -2780,7 +2756,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // until the user picks Circle-packed or Box-pleated. The one caller that
       // legitimately clears the method — everything else only ever sets a real
       // one, so no route or loader can put the chooser over a live design.
-      set({ ...withActiveTab(get(), { kind: null }), error: null, projectMessage: null });
+      set({ ...clearActiveDesignContent(get()), error: null, projectMessage: null });
       useLayoutStore.getState().activateWorkspace('design');
       useLayoutStore.getState().ensureDesignLayout();
     },
@@ -2795,7 +2771,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // that had just loaded with the chooser. `/design` now redirects to the
       // active method's sub-route instead, and only `startNewDesign` clears it.
       if (variant === 'nux') return;
-      if (selectDesignMethod(get()) !== variant) set(withActiveTab(get(), { kind: variant }));
+      if (selectDesignMethod(get()) === variant) return;
+      // Installing rather than just naming the kind: a blank circle-packed design
+      // *is* an empty tree, so the route can establish one outright. Box-pleat's
+      // document is still provisioned by the panel (see `ensureBoxPleatProject`).
+      set(
+        variant === 'treemaker'
+          ? installTreemakerDesign(get())
+          : markActiveTabBoxPleat(get())
+      );
     },
 
     chooseDesignMethod: async (target) => {

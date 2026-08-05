@@ -1,4 +1,4 @@
-import { selectDesignMethod } from './designTabs';
+import { selectDesignMethod, selectProject } from './designTabs';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createCreasePatternSlice } from './slices/creasePatternSlice';
@@ -63,7 +63,7 @@ useWorkspaceStore.subscribe((state) => {
     state.oristudioCpDocument !== null ||
     state.importedCreasePattern !== null ||
     state.oristudioBpDocument !== null ||
-    state.project.edges.length > 0;
+    selectProject(state).edges.length > 0;
   if (hasDocument) useWorkspaceStore.setState({ projectEstablished: true });
 });
 

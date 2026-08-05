@@ -1,4 +1,4 @@
-import { withActiveTab } from '../designTabs';
+import { markActiveTabBoxPleat } from '../designTabs';
 import { getBoxPleatExampleProject } from '../../../examples/catalog';
 import { bpCpToEditorConvention } from '../../../lib/bpCreaseConvention';
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
@@ -57,7 +57,6 @@ import {
   type SymmetryAxis,
 } from '../../../lib/symmetryGeometry';
 import { normalizeOrieditaGridSize } from '../../../lib/creasePatternViewport';
-import { createEmptyProject } from '../../../lib/sampleProject';
 import { staleFoldArtifactResourceState } from '../foldArtifactResource';
 import type { SnapshotEntry } from '../snapshotHistory';
 import type { Point } from '../../../lib/geometry';
@@ -151,8 +150,12 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         }
       : null;
     pendingHistory = null;
+    const bpTitle = document.snapshot.summary.title || document.source.filename;
     set({
-      ...withActiveTab(get(), { kind: 'box-pleat' }),
+      ...markActiveTabBoxPleat(get()),
+      // A box-pleat design has no tree, so it cannot borrow `project.title` to
+      // name the project the way a TreeMaker design used to. It names it directly.
+      workspaceTitle: bpTitle,
       // Every entry point but the design-method chooser replaces the open
       // document: the Edit canvas, the tree, and everything derived from them.
       // The chooser instead layers a BP design onto the project already being
@@ -160,10 +163,6 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       ...(options.preserveEditCanvas
         ? {}
         : {
-            project: {
-              ...createEmptyProject(),
-              title: document.snapshot.summary.title || document.source.filename,
-            },
             importedCreasePattern: null,
             oristudioCpDocument: null,
             oristudioCpLineage: null,

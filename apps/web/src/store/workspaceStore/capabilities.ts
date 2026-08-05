@@ -1,3 +1,4 @@
+import { selectHistoryFuture, selectHistoryPast, selectProject, selectSelection } from './designTabs';
 import {
   getWorkspaceCapabilities,
   type WorkspaceCapabilities,
@@ -33,22 +34,22 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     context,
     state.oristudioBpHistoryPast.length,
     state.oristudioCpDocument ? state.oristudioCpHistoryPast.length : 0,
-    state.historyPast.length
+    selectHistoryPast(state).length
   );
   const historyFutureCount = historyCountForContext(
     context,
     state.oristudioBpHistoryFuture.length,
     state.oristudioCpDocument ? state.oristudioCpHistoryFuture.length : 0,
-    state.historyFuture.length
+    selectHistoryFuture(state).length
   );
 
   return {
     activeEditingContext: context,
     engineReady: state.engineReady,
     status: state.status,
-    edgeCount: state.project.edges.length,
-    creaseCount: state.project.creases.length,
-    facetCount: state.project.facets.length,
+    edgeCount: selectProject(state).edges.length,
+    creaseCount: selectProject(state).creases.length,
+    facetCount: selectProject(state).facets.length,
     hasEditableCreasePattern: state.oristudioCpDocument !== null,
     hasImportedCreasePattern: state.importedCreasePattern !== null,
     hasBoxPleatDocument: state.oristudioBpDocument !== null,
@@ -62,7 +63,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,
-    selection: state.selection,
+    selection: selectSelection(state),
   };
 }
 

@@ -1,4 +1,4 @@
-import { singleDesignTab } from '../../store/workspaceStore/designTabs';
+import { selectProject, selectSelection, singleDesignTab, singleTreemakerDesignTab } from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -70,10 +70,9 @@ function renderPanel(
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      project,
       // These exercise the Circle-packed design pane. A fresh store has picked no
       // method, which is the method chooser — so say which pane is under test.
-      ...singleDesignTab('treemaker'),
+      ...singleTreemakerDesignTab({ project }),
       engineReady: true,
       ...state,
     },
@@ -191,14 +190,15 @@ describe('DesignPanel', () => {
 
   it('fits the paper viewport after scale optimization requests a design fit', () => {
     renderPanel();
-    const project = useWorkspaceStore.getState().project;
+    const project = selectProject(useWorkspaceStore.getState());
 
     act(() => {
       useWorkspaceStore.setState({
+      ...singleTreemakerDesignTab({
         project: { ...project, scale: 1 },
-        status: 'optimized',
-        designViewportFitRequestId: 1,
-      });
+        viewportFitRequestId: 1
+      }),
+        status: 'optimized'});
     });
 
     expect(transformMocks.centerView).not.toHaveBeenCalled();
@@ -213,13 +213,14 @@ describe('DesignPanel', () => {
 
   it('does not auto-fit the paper viewport without a design fit request', () => {
     renderPanel();
-    const project = useWorkspaceStore.getState().project;
+    const project = selectProject(useWorkspaceStore.getState());
 
     act(() => {
       useWorkspaceStore.setState({
-        project: { ...project, scale: 1 },
-        status: 'optimized',
-      });
+      ...singleTreemakerDesignTab({
+        project: { ...project, scale: 1 }
+      }),
+        status: 'optimized'});
     });
 
     expect(transformMocks.centerView).not.toHaveBeenCalled();
@@ -236,8 +237,9 @@ describe('DesignPanel', () => {
   /** Applies a `setSymmetry` update to the store, the way the engine would. */
   function stubSetSymmetry() {
     return vi.fn(async (update: Parameters<ReturnType<typeof useWorkspaceStore.getState>['setSymmetry']>[0]) => {
-      const project = useWorkspaceStore.getState().project;
+      const project = selectProject(useWorkspaceStore.getState());
       useWorkspaceStore.setState({
+      ...singleTreemakerDesignTab({
         project: {
           ...project,
           hasSymmetry: update.hasSymmetry ?? project.hasSymmetry,
@@ -246,8 +248,8 @@ describe('DesignPanel', () => {
             symAngle: update.symAngle ?? project.paper.symAngle,
             symLoc: update.symLoc ?? project.paper.symLoc,
           },
-        },
-      });
+        }
+      }),});
     });
   }
 
@@ -269,7 +271,7 @@ describe('DesignPanel', () => {
     });
 
     expect(setSymmetry).toHaveBeenCalledWith(expect.objectContaining({ hasSymmetry: true }));
-    expect(useWorkspaceStore.getState().project.hasSymmetry).toBe(true);
+    expect(selectProject(useWorkspaceStore.getState()).hasSymmetry).toBe(true);
     expect(symmetryToggle()?.getAttribute('aria-pressed')).toBe('true');
     // One toggle: the axis and its snap lane come with symmetry being on.
     expect(container?.querySelector('.symmetry-line')).not.toBeNull();
@@ -281,7 +283,7 @@ describe('DesignPanel', () => {
     });
 
     expect(setSymmetry).toHaveBeenLastCalledWith({ hasSymmetry: false });
-    expect(useWorkspaceStore.getState().project.hasSymmetry).toBe(false);
+    expect(selectProject(useWorkspaceStore.getState()).hasSymmetry).toBe(false);
     expect(container?.querySelector('.symmetry-line')).toBeNull();
   });
 
@@ -343,7 +345,7 @@ describe('DesignPanel', () => {
     act(() => {
       useWorkspaceStore.getState().selectAll();
     });
-    expect(useWorkspaceStore.getState().selection.kind).toBe('multi');
+    expect(selectSelection(useWorkspaceStore.getState()).kind).toBe('multi');
 
     const hitArea = container?.querySelector<SVGRectElement>('.paper-hit-area');
     expect(hitArea).toBeTruthy();
@@ -352,7 +354,7 @@ describe('DesignPanel', () => {
       hitArea?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
     });
 
-    expect(useWorkspaceStore.getState().selection).toEqual({ kind: 'tree' });
+    expect(selectSelection(useWorkspaceStore.getState())).toEqual({ kind: 'tree' });
     expect(addNodeAt).not.toHaveBeenCalled();
   });
 

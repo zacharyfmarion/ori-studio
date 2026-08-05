@@ -1,4 +1,4 @@
-import { withActiveTab } from '../designTabs';
+import { clearActiveDesignContent, patchTreemakerDesign, selectDesignViewportFitRequestId, selectProject } from '../designTabs';
 import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
@@ -73,7 +73,7 @@ import {
   engineError,
   ensureTreeHandle,
   getEngine,
-  projectStateFromSnapshot,
+  syncTreemakerProject,
   type EngineClient,
 } from '../engineRuntime';
 import { fetchCpShareWithRetry } from '../../../cp-workspace/share/cpShareService';
@@ -280,7 +280,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   async function requireActiveTree() {
     const result = await ensureTreeHandle();
     if (result.initializedSnapshot) {
-      set(projectStateFromSnapshot(result.initializedSnapshot, get().project.title));
+      set(syncTreemakerProject(get(), result.initializedSnapshot, selectProject(get()).title));
     }
     return result;
   }
@@ -297,7 +297,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     const state = get();
     if (state.oristudioCpDocument) return true;
     if (state.importedCreasePattern) return false;
-    return state.project.creases.length > 0 || state.project.facets.length > 0;
+    return selectProject(state).creases.length > 0 || selectProject(state).facets.length > 0;
   }
 
   async function confirmReplaceCustomizedGeneratedCp(): Promise<boolean> {
@@ -873,18 +873,19 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       const report = await optimize(api, treeHandle);
       const snapshot = await api.snapshot(treeHandle);
       set({
-        project: projectFromSnapshot(snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+        project: projectFromSnapshot(snapshot, selectProject(get()).title),
+        lastOptimization: report,
+        viewportFitRequestId: options.fitPaperView
+          ? selectDesignViewportFitRequestId(get()) + 1
+          : selectDesignViewportFitRequestId(get())
+      }),
         status: report.is_feasible ? 'optimized' : 'needs_optimization',
         error: null,
-        lastOptimization: report,
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),
         oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
         dirty: true,
-        projectMessage: label,
-        designViewportFitRequestId: options.fitPaperView
-          ? get().designViewportFitRequestId + 1
-          : get().designViewportFitRequestId,
-      });
+        projectMessage: label});
       get().commitHistoryCheckpoint(checkpoint, label);
       track('optimizer run', { kind, succeeded: true, feasible: report.is_feasible });
     } catch (error) {
@@ -1002,12 +1003,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // its method chooser — matching `createNewCreasePattern` — instead of
           // deep-linking to a TreeMaker layout for a design that doesn't exist.
           const noDesignYet =
-            priorState.project.edges.length === 0 && priorState.oristudioBpDocument === null;
+            selectProject(priorState).edges.length === 0 && priorState.oristudioBpDocument === null;
           // Same complete editor state File › New establishes, so interactive
           // edits (undo/redo, images, tools) behave identically on this canvas.
           set({
             ...freshEditableCpState(document, priorState),
-            ...(noDesignYet ? withActiveTab(priorState, { kind: null }) : {}),
+            ...(noDesignYet ? clearActiveDesignContent(priorState) : {}),
           });
         } catch (error) {
           set({ oristudioCpError: engineError(error).message });
@@ -1043,12 +1044,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       try {
         const { api, treeHandle } = await requireActiveTree();
         const snapshot = await api.buildCreasePattern(treeHandle);
-        const project = projectFromSnapshot(snapshot, get().project.title);
+        const project = projectFromSnapshot(snapshot, selectProject(get()).title);
         const hasDrawableCreasePattern = project.creases.length > 0 || project.facets.length > 0;
 
         if (!hasDrawableCreasePattern) {
           set({
-            project,
+            ...patchTreemakerDesign(get(), { project }),
             status:
               project.edges.length === 0
                 ? 'ready'
@@ -1092,7 +1093,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           title: `${project.title || 'Generated'} CP`,
         });
         set({
-          project,
+          ...patchTreemakerDesign(get(), { project }),
           oristudioCpDocument: editableDocument,
           oristudioCpLineage: generatedCpLineage({
             sourceTreeDigest: stableTextDigest(treeText),
@@ -1161,7 +1162,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           foldJson,
           'fold',
           'Sent design to Edit',
-          `${get().project.title || 'design'}.fold`
+          `${selectProject(get()).title || 'design'}.fold`
         );
         set({ status: ok ? 'crease_pattern_ready' : previousStatus });
         if (ok) {
