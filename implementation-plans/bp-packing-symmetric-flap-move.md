@@ -144,7 +144,7 @@ The tree pane keeps its plain toggle rather than gaining the same popover: a tre
 has no fold to choose, because it is not drawn on the paper. That asymmetry is
 the existing design decision, not an oversight.
 
-### U3 — Draw the axis whenever mirror draw is on, and label it
+### U3 — Draw the axis whenever mirror draw is on
 
 **Gate the line on `enabled`, not on pairings existing.** The line is what you
 place the first pair *against*, so a rule that waits for pairs can never let you
@@ -158,12 +158,16 @@ predicate that actually answers "is this design symmetric" is
 off / ready / unusable states. Reuse it for the status line in U2, not for
 hiding the axis.
 
-**Label the line.** The two panes draw genuinely different lines: the tree's is
-always vertical through the tree sheet's centre, the packing pane's is vertical
-*or* 45° through the layout sheet's centre depending on fold × grid type. So
-switching Book → Diagonal visibly rotates the BP Editor's line while the tree's
-does not move at all. Correct, and it will read as a bug unless the axis carries
-its fold name or the popover carries a one-line hint.
+**The two panes draw genuinely different lines**: the tree's is always vertical
+through the tree sheet's centre, the packing pane's is vertical *or* 45° through
+the layout sheet's centre depending on fold × grid type. So switching
+Book → Diagonal visibly rotates the BP Editor's line while the tree's does not
+move at all.
+
+An on-canvas fold name was tried for this and removed: it is redundant beside the
+menu that sets the fold, and the middle of a mirror is where a symmetric design
+puts its central flaps, so any placement is either on top of the geometry or off
+in a corner saying nothing. The naming lives in the symmetry menu.
 
 ### U4 — Disable the fold option, do not reject the drag
 
@@ -365,8 +369,8 @@ exported.
 - [x] Fold writes through the existing `setOristudioBpSymmetry` — assert in a test
       that the modal and the pane read back the same value with no extra state
       (U1).
-- [x] Axis overlay drawn whenever `enabled`, independent of `pairs` (U3), carrying
-      its fold name so a Book → Diagonal switch does not look like a bug.
+- [x] Axis overlay drawn whenever `enabled`, independent of `pairs` (U3). No
+      on-canvas fold name — tried, removed as redundant beside the menu.
 - [x] Diagonal disabled with a reason when the layout sheet is not square (U4).
 - [x] Unpair button and partner highlight in the packing pane (U5).
 - [x] Modal: drop the "turn it on in the tree view" hint, separate the fold from

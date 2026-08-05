@@ -1472,9 +1472,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             )}
             {symmetry.axisLine && (
               // Clipped to the sheet so a diagonal sheet's line stops at the
-              // diamond rather than running out to its bounding square. Named,
-              // because this line is not the tree pane's: switching folds rotates
-              // it here and leaves that one alone.
+              // diamond rather than running out to its bounding square.
               <g className="bp-packing-symmetry" clipPath={`url(#${sheetClipId})`} aria-hidden="true">
                 <line
                   className="symmetry-line"
@@ -1483,15 +1481,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   x2={symmetry.axisLine.x2}
                   y2={symmetry.axisLine.y2}
                 />
-                {symmetry.axisLabelAt && (
-                  <text
-                    className="bp-packing-symmetry-label"
-                    x={symmetry.axisLabelAt.x}
-                    y={symmetry.axisLabelAt.y}
-                  >
-                    {symmetry.axisLabel}
-                  </text>
-                )}
               </g>
             )}
             {isDiagonalSheet ? (

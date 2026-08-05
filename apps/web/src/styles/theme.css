@@ -6706,15 +6706,6 @@
   stroke-dasharray: 5 4;
 }
 
-.bp-packing-symmetry-label {
-  fill: var(--accent-tertiary);
-  font-size: 11px;
-  text-anchor: middle;
-  opacity: 0.75;
-  pointer-events: none;
-  user-select: none;
-}
-
 .bp-packing-selection-shade {
   fill: color-mix(in srgb, var(--accent-primary) 18%, transparent);
   pointer-events: none;

@@ -561,9 +561,8 @@ describe('BP packing pane — the mirror line', () => {
     expect(line?.getAttribute('y1')).not.toBe(line?.getAttribute('y2'));
   });
 
-  it('turns with the fold, and says which fold it is', () => {
+  it('turns with the fold', () => {
     const host = renderPacking();
-    expect(host.querySelector('.bp-packing-symmetry-label')?.textContent).toBe('Book fold');
     act(() => {
       useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
     });
@@ -571,7 +570,6 @@ describe('BP packing pane — the mirror line', () => {
     // A diagonal fold on a rectangular sheet is the main diagonal, so both
     // coordinates now change along the line.
     expect(line?.getAttribute('x1')).not.toBe(line?.getAttribute('x2'));
-    expect(host.querySelector('.bp-packing-symmetry-label')?.textContent).toBe('Diagonal fold');
   });
 
   it('goes away when mirror draw is turned off', () => {
