@@ -154,6 +154,28 @@ are unchanged:
   they are metrically identical, which mirror siblings are and mirrored subtrees
   are not.
 
+- **A new leaf's flap is re-seeded from where the leaf was drawn.** Upstream's
+  `vertexContainer.$addLeaf` seeds the flap from `_findClosestEmptySpot`, which
+  is where the *vertex* is parked at creation, before the caller moves it to the
+  point the user clicked. That spot is chosen against tree-node occupancy, so
+  repositioning the leaf vacates it and the next add picks it again: in Ori
+  Studio's draw-then-place flow every leaf added to a design lands its flap on
+  the same cell.
+
+  The engine path is unchanged — `add_leaf`, `closest_empty_spot` and
+  `create_flap_prototype` are the faithful port. The divergence is additive and
+  lives in the store's add actions (`apps/web/src/lib/bpFlapSeeding.ts`): once
+  the leaf is where the user put it, its flap is moved to the same layout point
+  `create_flap_prototype` would have chosen had it known the final position —
+  through `relative_layout_point`, upstream's own `getRelativePoint`. Under
+  mirror draw the partner's flap is then the *reflection of where the primary's
+  landed*, rather than an independent mapping of the partner's tree position,
+  because the map rounds and two exact tree mirrors can round to positions that
+  are not mirrors.
+
+  Upstream has no draw-then-place add — a new vertex stays where it is parked
+  until dragged — so there is no upstream behaviour here to be faithful to.
+
 - **Mirror-draw state is persisted only in `.osf`.** Which flaps mirror which,
   whether mirror draw is on, and which fold the mirror represents are saved as a
   typed `symmetry` field on the box-pleat document (native schema v6). Nothing

@@ -42,6 +42,7 @@ import {
   mirrorBpTreeVertexId,
   BP_TREE_SYMMETRY_ANGLE,
   BP_TREE_SYMMETRY_TOLERANCE,
+  type SymmetryFold,
 } from '../../../lib/bpTreeSymmetry';
 import {
   optimizerSymmetryAxisForFold,
@@ -53,6 +54,7 @@ import {
   buildMirroredBpFlapMoves,
   constrainBpFlapMoveToAxis,
 } from '../../../lib/bpPackingSymmetry';
+import { seedBpFlapAnchor, seedBpPartnerFlapAnchor } from '../../../lib/bpFlapSeeding';
 import {
   reflectPointAcrossSymmetryAxis,
   snapPointToSymmetryAxis,
@@ -236,6 +238,56 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
    * yet. Only the entry points that mean "make a box-pleat design and show it"
    * call this.
    */
+  const flapAnchor = (document: OristudioBpDocumentState, id: number): Point | null =>
+    document.snapshot.packing.flaps.find((flap) => flap.id === id)?.anchor ?? null;
+
+  /**
+   * Put a freshly added leaf's flap where the leaf was drawn.
+   *
+   * The engine seeds the flap when `add_leaf` runs — from the arbitrary spot it
+   * parked the new vertex at, before the caller repositions it. That spot is
+   * chosen against tree-node occupancy, which repositioning then vacates, so
+   * without this every leaf added to a design lands its flap on the same cell.
+   * The engine path is a faithful upstream port and is left alone; this reseeds
+   * on top of it, inside the same mutation, so it stays one undo entry.
+   */
+  const seedFlapFromDrawing = async (
+    document: OristudioBpDocumentState,
+    leafId: number,
+    treeLoc: Point,
+    fold: SymmetryFold | null,
+    selfMirrored = false
+  ): Promise<OristudioBpDocumentState> => {
+    if (!flapAnchor(document, leafId)) return document;
+    return moveRuntimeOristudioBpLayoutFlap(
+      leafId,
+      seedBpFlapAnchor({
+        treeLoc,
+        treeSheet: document.snapshot.tree.sheet,
+        layoutSheet: document.snapshot.packing.sheet,
+        fold,
+        selfMirrored,
+      }),
+      { activeSurface: document.activeSurface }
+    );
+  };
+
+  /** Put the mirror partner's flap at the reflection of where the primary's landed. */
+  const seedPartnerFlap = async (
+    document: OristudioBpDocumentState,
+    primaryId: number,
+    partnerId: number,
+    fold: SymmetryFold
+  ): Promise<OristudioBpDocumentState> => {
+    const primary = flapAnchor(document, primaryId);
+    if (!primary || !flapAnchor(document, partnerId)) return document;
+    const anchor = seedBpPartnerFlapAnchor(primary, document.snapshot.packing.sheet, fold);
+    if (!anchor) return document;
+    return moveRuntimeOristudioBpLayoutFlap(partnerId, anchor, {
+      activeSurface: document.activeSurface,
+    });
+  };
+
   const showBpDesignWorkspace = () => {
     const layout = useLayoutStore.getState();
     layout.activateWorkspace('design');
@@ -585,6 +637,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           next = await moveRuntimeOristudioBpTreeVertex(created.id, loc, {
             activeSurface: next.activeSurface,
           });
+          next = await seedFlapFromDrawing(next, created.id, loc, null);
         }
         // Selection stays on the parent, not the new leaf: real trees branch like
         // stars, so the common gesture is "give this node another child", and
@@ -644,7 +697,20 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           : { point: undefined as Point | undefined, snapped: false };
         const targetLoc = snap.point ?? loc;
 
-        const primary = await addLeafAt(document, parentId, targetLoc);
+        const added = await addLeafAt(document, parentId, targetLoc);
+        // Seed the flap from where the leaf was *drawn*, and the partner's from
+        // the reflection of where this one landed — see `seedFlapFromDrawing`.
+        const primaryDocument =
+          added.createdId != null && targetLoc
+            ? await seedFlapFromDrawing(
+                added.document,
+                added.createdId,
+                targetLoc,
+                symmetry.fold,
+                snap.snapped
+              )
+            : added.document;
+        const primary = { document: primaryDocument, createdId: added.createdId };
         const mirrorParentId = mirrorBpTreeVertexId(
           tree,
           symmetry.pairs,
@@ -665,6 +731,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           mirrorParentId,
           reflectPointAcrossSymmetryAxis(targetLoc, axis)
         );
+        let next = mirror.document;
         if (mirror.createdId != null) {
           const pairs = addBpTreeSymmetryPair(
             get().oristudioBpSymmetry.pairs,
@@ -672,8 +739,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             mirror.createdId
           );
           set({ oristudioBpSymmetry: { ...get().oristudioBpSymmetry, pairs } });
+          next = await seedPartnerFlap(next, primary.createdId, mirror.createdId, symmetry.fold);
         }
-        return mirror.document;
+        return next;
       }, { selection: { kind: 'bp-vertex', id: parentId } });
     },
 
