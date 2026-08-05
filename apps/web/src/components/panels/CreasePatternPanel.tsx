@@ -196,7 +196,6 @@ import {
   writeCpMeasurePreferences,
 } from '../../cp-workspace/measurePreferences';
 import { ColorField } from '../ui/ColorField';
-import { NumberField } from '../ui/NumberField';
 import { IconButton } from '../ui/IconButton';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -267,14 +266,16 @@ const FOLDED_COLOR_FIELDS: Array<{ key: FoldedColorKey; fallback: OristudioCpRgb
   { key: 'line_color', fallback: { red: 0, green: 0, blue: 0 } },
 ];
 
+// Named "… color" rather than "Front" / "Back", which the Side control directly
+// above these rows already uses for the view.
 function foldedColorLabel(t: TFunction, key: FoldedColorKey): string {
   switch (key) {
     case 'front_color':
-      return t('panels:creasePattern.foldedColor.front', 'Front');
+      return t('panels:creasePattern.foldedColor.front', 'Front color');
     case 'back_color':
-      return t('panels:creasePattern.foldedColor.back', 'Back');
+      return t('panels:creasePattern.foldedColor.back', 'Back color');
     case 'line_color':
-      return t('panels:creasePattern.foldedColor.line', 'Line');
+      return t('panels:creasePattern.foldedColor.line', 'Line color');
     default:
       return key;
   }
@@ -508,7 +509,6 @@ function FoldedFigureMenuButton({
   onDisplayStyle,
   onModelUpdate,
   onModelGestureEnd,
-  onFoldToCase,
 }: {
   figures: OristudioCpFoldedFigureEntry[];
   activeFigure: OristudioCpFoldedFigureEntry | null;
@@ -528,8 +528,6 @@ function FoldedFigureMenuButton({
   onModelUpdate: (update: Partial<OristudioCpFoldedFigureModel>, scope?: string) => void;
   /** End a scoped run of {@link onModelUpdate} changes and record one entry. */
   onModelGestureEnd: (scope: string, label: string) => void;
-  /** Jump the active figure to a layer-ordering solution by number. */
-  onFoldToCase: (caseNumber: number) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -537,7 +535,6 @@ function FoldedFigureMenuButton({
   const model = activeFigure?.snapshot?.model ?? null;
   const activeReady =
     activeFigure?.status === 'ready' && activeFigure.handle !== null && activeFigure.snapshot !== null;
-  const currentCase = Math.max(foldedFigureCurrentCase(activeFigure), 1);
 
   // Keep any display style already saved on a document selectable even if it is no
   // longer offered as a fresh choice (e.g. legacy Dev/None figures).
@@ -660,20 +657,8 @@ function FoldedFigureMenuButton({
               }
             />
           ))}
-          {/* The same stepper the view panel's Line width / Point size rows use. It
-              shows the solution the figure is on and steps to the next, so the
-              separate "Current N" readout the old draft field needed is gone. */}
-          <div className="folded-figure-menu__field">
-            <span>{t('panels:creasePattern.caseLabel', 'Case')}</span>
-            <NumberField
-              label={t('panels:creasePattern.foldCase', 'Fold case')}
-              value={currentCase}
-              min={1}
-              step={1}
-              disabled={!activeReady}
-              onCommit={onFoldToCase}
-            />
-          </div>
+          {/* No Case field: stepping through the layer-ordering solutions is
+              "Another solution" on the figure's own toolbar and context menu. */}
           <div className="folded-figure-menu__toggle-row">
             <span>{t('panels:creasePattern.shadow', 'Shadow')}</span>
             <Toggle
@@ -3084,7 +3069,6 @@ export function CreasePatternPanel() {
                         onDisplayStyle={folded.setDisplayStyle}
                         onModelUpdate={folded.updateModel}
                         onModelGestureEnd={folded.endModelGesture}
-                        onFoldToCase={folded.foldToCase}
                       />
                     </div>
                   </>

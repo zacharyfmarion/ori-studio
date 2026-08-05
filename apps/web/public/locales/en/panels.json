@@ -168,8 +168,6 @@
     "canvasDiagnostics_other": "Canvas diagnostics: {{count}}",
     "case_one": "Case {{count}}",
     "case_other": "Case {{count}}",
-    "caseLabel": "Case",
-    "changeFoldCase": "Change fold case",
     "changeFoldedColor": "Change folded model color",
     "changeFoldedDisplayStyle": "Change folded display style",
     "changeFoldedModel": "Change folded model",
@@ -225,11 +223,10 @@
         "triangle": "Incorrect (odd) number of folds"
       }
     },
-    "foldCase": "Fold case",
     "foldedColor": {
-      "back": "Back",
-      "front": "Front",
-      "line": "Line"
+      "back": "Back color",
+      "front": "Front color",
+      "line": "Line color"
     },
     "foldedDisplayStyle": "Folded display style",
     "foldedModelControls": "Folded model controls",

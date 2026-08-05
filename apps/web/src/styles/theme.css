@@ -5866,10 +5866,12 @@
   font-weight: 680;
 }
 
+/* 76px is the widest label the popover carries ("Front color", 71px) plus a
+   little; below that it wraps to two lines and the row grows. */
 .folded-figure-menu__field,
 .folded-figure-menu__toggle-row {
   display: grid;
-  grid-template-columns: 60px minmax(0, 1fr);
+  grid-template-columns: 76px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-height: 28px;
@@ -5915,12 +5917,12 @@
   justify-self: end;
 }
 
-/* The colour rows carry the same 60px label column as the fields around them, so
-   the three swatches line up under the Display select rather than under their own
+/* The colour rows carry the same label column as the fields around them, so the
+   three swatches line up under the Display select rather than under their own
    labels. `inline` brings no pane chrome of its own — see ColorField. */
 .folded-figure-menu__panel .color-field--inline {
   display: grid;
-  grid-template-columns: 60px minmax(0, 1fr);
+  grid-template-columns: 76px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-height: 28px;

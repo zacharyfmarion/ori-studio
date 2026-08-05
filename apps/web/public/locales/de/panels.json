@@ -168,8 +168,6 @@
     "canvasDiagnostics_other": "Canvas-Diagnosen: {{count}}",
     "case_one": "Fall {{count}}",
     "case_other": "Fall {{count}}",
-    "caseLabel": "Fall",
-    "changeFoldCase": "Faltfall ändern",
     "changeFoldedColor": "Farbe des gefalteten Modells ändern",
     "changeFoldedDisplayStyle": "Faltdarstellung ändern",
     "changeFoldedModel": "Gefaltetes Modell ändern",
@@ -205,6 +203,7 @@
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
+    "foldModelAction": "Modell falten",
     "foldability": {
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Ungültige Anordnung der Randlinien",
@@ -225,16 +224,15 @@
         "triangle": "Falsche (ungerade) Anzahl an Falten"
       }
     },
-    "foldCase": "Faltfall",
     "foldedColor": {
-      "back": "Rückseite",
-      "front": "Vorderseite",
-      "line": "Linie"
+      "back": "Rückseitenfarbe",
+      "front": "Vorderseitenfarbe",
+      "line": "Linienfarbe"
     },
     "foldedDisplayStyle": "Anzeigestil des gefalteten Modells",
     "foldedModelControls": "Steuerung des gefalteten Modells",
-    "foldedModels": "Gefaltete Modelle",
     "foldedModelSide": "Seite des gefalteten Modells",
+    "foldedModels": "Gefaltete Modelle",
     "foldedState": {
       "back": "Rückseite",
       "front": "Vorderseite"
@@ -247,7 +245,6 @@
       "transparent": "Transparent",
       "wire": "Draht"
     },
-    "foldModelAction": "Modell falten",
     "inlineSimulation": {
       "addAction": "Simulationsfenster hinzufügen",
       "canvasAriaLabel": "Eingebettete Simulation. Zum Drehen ziehen.",
@@ -336,8 +333,8 @@
     "layerCircles": "Kreise",
     "layerLabels": "Beschriftungen",
     "layerPaths": "Pfade",
-    "layers": "Ebenen",
     "layerSymmetry": "Symmetrie",
+    "layers": "Ebenen",
     "legendActivePath": "Aktiver Pfad",
     "legendScale": "Maßstab {{value}}",
     "legendTerminal": "Endpunkt",
@@ -561,9 +558,9 @@
   "simulatorSegments": {
     "creasePatterns": "Faltmuster",
     "patternLabel": "Muster {{n}}",
-    "patterns": "Muster",
     "patternTitle_one": "Muster {{n}} — {{count}} Fläche",
-    "patternTitle_other": "Muster {{n}} — {{count}} Flächen"
+    "patternTitle_other": "Muster {{n}} — {{count}} Flächen",
+    "patterns": "Muster"
   },
   "simulatorViewControls": {
     "axialStiffness": "Dehnung",
@@ -576,18 +573,18 @@
     "colorPaper": "Papier",
     "colorStrain": "Dehnung",
     "creaseLines": "Falzlinien",
-    "creases": "Falten",
     "creaseStiffness": "Falz",
     "creaseStyle": "Stil",
     "creaseStyleColor": "Berg / Tal",
     "creaseStyleMono": "Eine Farbe",
     "creaseStyleMonoDashed": "Eine Farbe, gestrichelt",
     "creaseWidth": "Stärke",
+    "creases": "Falten",
     "damping": "Dämpfung",
     "export": "Export",
     "exportHint": "Seitenhintergrund des exportierten Bildes.",
-    "faces": "Flächen",
     "faceStiffness": "Fläche",
+    "faces": "Flächen",
     "hiddenLines": "Verdeckte Linien",
     "lighting": "Beleuchtung",
     "material": "Material",
@@ -614,8 +611,8 @@
     "addText": "Text hinzufügen",
     "alignCenter": "Zentriert",
     "alignLeft": "Linksbündig",
-    "alignment": "Ausrichtung",
     "alignRight": "Rechtsbündig",
+    "alignment": "Ausrichtung",
     "blockBody": "Fließtext",
     "blockHeading": "Überschrift",
     "blockSubheading": "Unterüberschrift",

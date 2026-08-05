@@ -52,9 +52,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   const foldAnotherOristudioCpFigure = useWorkspaceStore(
     (state) => state.foldAnotherOristudioCpFigure
   );
-  const foldOristudioCpFigureToCase = useWorkspaceStore(
-    (state) => state.foldOristudioCpFigureToCase
-  );
   const setOristudioCpFoldedFigurePlacement = useWorkspaceStore(
     (state) => state.setOristudioCpFoldedFigurePlacement
   );
@@ -235,19 +232,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     t,
   ]);
 
-  const handleFoldToCase = useCallback(
-    (objective: number) => {
-      if (!activeFoldedFigure || activeFoldedFigure.status !== 'ready') return;
-      if (!Number.isFinite(objective)) return;
-      const target = Math.max(1, Math.round(objective));
-      const id = activeFoldedFigure.id;
-      runFoldedFigureAction(t('panels:creasePattern.changeFoldCase', 'Change fold case'), () =>
-        foldOristudioCpFigureToCase(id, target)
-      );
-    },
-    [activeFoldedFigure, foldOristudioCpFigureToCase, runFoldedFigureAction, t]
-  );
-
   const handleFoldedDisplayStyle = useCallback(
     (displayStyle: OristudioCpFoldedFigureDisplayStyle) => {
       if (!activeFoldedFigure) return;
@@ -406,7 +390,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     gestureLabel: foldedGestureLabel,
     applyBoxUpdate: handleFoldedFigureBoxUpdate,
     foldModel: handleFoldModel,
-    foldToCase: handleFoldToCase,
     setDisplayStyle: handleFoldedDisplayStyle,
     updateModel: handleFoldedModelUpdate,
     endModelGesture: endFoldedModelGesture,
