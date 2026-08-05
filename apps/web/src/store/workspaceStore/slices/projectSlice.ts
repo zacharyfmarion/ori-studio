@@ -95,6 +95,7 @@ import {
   serializeNativeProjectFile,
   type NativeProjectActiveMode,
 } from '../../../lib/nativeProjectFile';
+import { isProjectFileFormatError } from '../../../lib/projectFileError';
 import { bpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import {
   exportOristudioBpProjectAsBps,
@@ -430,15 +431,21 @@ function selectedLineSelectionFromDocument(
 // (a cheap UTF-16 proxy) to avoid allocating a byte view of a huge file.
 const LARGE_PROJECT_WARN_CHARS = 25 * 1024 * 1024;
 
+// Only for failures we cannot explain. A `ProjectFileFormatError` already names
+// the whole reason the file was rejected (wrong format, unsupported schema
+// version, malformed field), and size had nothing to do with it — appending a
+// memory guess there sends the user to look for a problem that isn't theirs.
 function annotateLargeSourceError(
-  error: ReturnType<typeof engineError>,
+  error: unknown,
   sourceLength: number
 ): ReturnType<typeof engineError> {
-  if (sourceLength < LARGE_PROJECT_WARN_CHARS) return error;
+  const envelope = engineError(error);
+  if (sourceLength < LARGE_PROJECT_WARN_CHARS) return envelope;
+  if (isProjectFileFormatError(error)) return envelope;
   const mb = Math.round(sourceLength / (1024 * 1024));
   return {
-    ...error,
-    message: `${error.message} — this file is very large (~${mb} MB) and may have exceeded available memory. Very large crease patterns can fail to open in the desktop app; the web version has more headroom.`,
+    ...envelope,
+    message: `${envelope.message} — this file is very large (~${mb} MB) and may have exceeded available memory. Very large crease patterns can fail to open in the desktop app; the web version has more headroom.`,
   };
 }
 
@@ -2121,7 +2128,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         track('project opened', { source: 'file' });
         return true;
       } catch (error) {
-        set({ status: 'error', error: annotateLargeSourceError(engineError(error), openedSourceLength) });
+        set({ status: 'error', error: annotateLargeSourceError(error, openedSourceLength) });
         return false;
       }
     },

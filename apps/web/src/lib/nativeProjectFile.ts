@@ -10,6 +10,7 @@ import type {
 } from '../engine/oristudioCpTypes';
 import type { ImportedCreasePatternSource } from './creasePatternImport';
 import type { Point } from './geometry';
+import { ProjectFileFormatError } from './projectFileError';
 import type { CreaseColorMode } from './sampleProject';
 import type { OristudioCpSelection, OristudioCpViewportOptions } from './creasePatternViewport';
 import {
@@ -296,17 +297,23 @@ export function parseNativeProjectFile(text: string): NativeProjectFile {
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Invalid Ori Studio project JSON', {
-      cause: error,
-    });
+    const message = error instanceof Error ? error.message : 'Invalid Ori Studio project JSON';
+    // Malformed JSON is a complete answer; a RangeError ("Invalid string length",
+    // heap exhaustion) is not, so that one stays open to the size annotation.
+    if (error instanceof SyntaxError) {
+      throw new ProjectFileFormatError(message, { cause: error });
+    }
+    throw new Error(message, { cause: error });
   }
   return migrateNativeProjectFile(parsed);
 }
 
 export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
-  if (!isRecord(value)) throw new Error('Ori Studio project must contain a JSON object');
+  if (!isRecord(value)) {
+    throw new ProjectFileFormatError('Ori Studio project must contain a JSON object');
+  }
   if (value.format !== NATIVE_PROJECT_FORMAT) {
-    throw new Error('File is not an Ori Studio project');
+    throw new ProjectFileFormatError('File is not an Ori Studio project');
   }
 
   const minimumReaderSchemaVersion = numberField(value.minimumReaderSchemaVersion);
@@ -314,7 +321,7 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
     minimumReaderSchemaVersion !== null &&
     minimumReaderSchemaVersion > NATIVE_PROJECT_SCHEMA_VERSION
   ) {
-    throw new Error(
+    throw new ProjectFileFormatError(
       `Ori Studio project requires reader schema ${minimumReaderSchemaVersion}, but this app supports ${NATIVE_PROJECT_SCHEMA_VERSION}`
     );
   }
@@ -331,8 +338,10 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   ) {
     return validateV1(value);
   }
-  if (schemaVersion === null) throw new Error('Ori Studio project is missing schemaVersion');
-  throw new Error(`Unsupported Ori Studio project schemaVersion ${schemaVersion}`);
+  if (schemaVersion === null) {
+    throw new ProjectFileFormatError('Ori Studio project is missing schemaVersion');
+  }
+  throw new ProjectFileFormatError(`Unsupported Ori Studio project schemaVersion ${schemaVersion}`);
 }
 
 export function createNativeProjectFile(
@@ -660,7 +669,7 @@ export function activeNativeDocument(file: NativeProjectFile): NativeProjectDocu
   const active =
     file.workspace.documents.find((document) => document.id === file.workspace.activeDocumentId) ??
     file.workspace.documents[0];
-  if (!active) throw new Error('Ori Studio project does not contain any documents');
+  if (!active) throw new ProjectFileFormatError('Ori Studio project does not contain any documents');
   return active;
 }
 
@@ -705,10 +714,12 @@ function validateV1(value: Record<string, unknown>): NativeProjectFileV1 {
   const activeDocumentId = stringField(workspace.activeDocumentId, 'workspace.activeDocumentId');
   const activeMode = stringField(workspace.activeMode, 'workspace.activeMode');
   if (activeMode !== 'tree' && activeMode !== 'crease-pattern' && activeMode !== 'box-pleat') {
-    throw new Error(`Unsupported Ori Studio activeMode ${JSON.stringify(activeMode)}`);
+    throw new ProjectFileFormatError(
+      `Unsupported Ori Studio activeMode ${JSON.stringify(activeMode)}`
+    );
   }
   if (!documents.some((document) => document.id === activeDocumentId)) {
-    throw new Error('Ori Studio project activeDocumentId does not match a document');
+    throw new ProjectFileFormatError('Ori Studio project activeDocumentId does not match a document');
   }
 
   return {
@@ -741,7 +752,9 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
   if (kind === 'treemaker-tree') {
     const tree = recordField(document.tree, 'document.tree');
     const format = stringField(tree.format, 'document.tree.format');
-    if (format !== 'tmd5') throw new Error(`Unsupported tree document format ${format}`);
+    if (format !== 'tmd5') {
+      throw new ProjectFileFormatError(`Unsupported tree document format ${format}`);
+    }
     return {
       id,
       kind,
@@ -759,7 +772,7 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
     const creasePattern = recordField(document.creasePattern, 'document.creasePattern');
     const engine = stringField(creasePattern.engine, 'document.creasePattern.engine');
     if (engine !== 'oristudio-cp') {
-      throw new Error(`Unsupported crease-pattern engine ${JSON.stringify(engine)}`);
+      throw new ProjectFileFormatError(`Unsupported crease-pattern engine ${JSON.stringify(engine)}`);
     }
     const viewState = isRecord(document.viewState) ? document.viewState : {};
     const foldedFigures = validateFoldedFigures(viewState.foldedFigures);
@@ -826,10 +839,12 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
     const project = recordField(document.project, 'document.project');
     const engine = stringField(project.engine, 'document.project.engine');
     if (engine !== 'oristudio-bp') {
-      throw new Error(`Unsupported box-pleat engine ${JSON.stringify(engine)}`);
+      throw new ProjectFileFormatError(`Unsupported box-pleat engine ${JSON.stringify(engine)}`);
     }
     const format = stringField(project.format, 'document.project.format');
-    if (format !== 'bps') throw new Error(`Unsupported box-pleat project format ${format}`);
+    if (format !== 'bps') {
+      throw new ProjectFileFormatError(`Unsupported box-pleat project format ${format}`);
+    }
     return {
       id,
       kind,
@@ -845,7 +860,7 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
     };
   }
 
-  throw new Error(`Unsupported Ori Studio document kind ${JSON.stringify(kind)}`);
+  throw new ProjectFileFormatError(`Unsupported Ori Studio document kind ${JSON.stringify(kind)}`);
 }
 
 function validateActor(value: Record<string, unknown>): NativeProjectActor {
@@ -903,17 +918,17 @@ function validateArtifacts(value: unknown): NativeProjectFileV1['artifacts'] {
 
 function recordField(value: unknown, field: string): Record<string, unknown> {
   if (isRecord(value)) return value;
-  throw new Error(`Ori Studio project field ${field} must be an object`);
+  throw new ProjectFileFormatError(`Ori Studio project field ${field} must be an object`);
 }
 
 function arrayField(value: unknown, field: string): unknown[] {
   if (Array.isArray(value)) return value;
-  throw new Error(`Ori Studio project field ${field} must be an array`);
+  throw new ProjectFileFormatError(`Ori Studio project field ${field} must be an array`);
 }
 
 function stringField(value: unknown, field: string): string {
   if (typeof value === 'string') return value;
-  throw new Error(`Ori Studio project field ${field} must be a string`);
+  throw new ProjectFileFormatError(`Ori Studio project field ${field} must be a string`);
 }
 
 function numberField(value: unknown): number | null {

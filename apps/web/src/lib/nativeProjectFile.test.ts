@@ -14,6 +14,7 @@ import {
   parseNativeProjectFile,
   serializeNativeProjectFile,
 } from './nativeProjectFile';
+import { ProjectFileFormatError } from './projectFileError';
 import { DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS, emptyOristudioCpSelection } from './creasePatternViewport';
 import { importedCpLineage } from './oristudioCpLineage';
 
@@ -770,6 +771,21 @@ describe('native project file', () => {
         })
       )
     ).toThrow(/requires reader schema/i);
+  });
+
+  // Callers use the type to tell "we know exactly why this file is unopenable"
+  // from an opaque failure they are free to speculate about.
+  it('reports definitive rejections as project-format errors', () => {
+    const rejections = [
+      '{"format":"fold"}',
+      '{"format":"oristudio.project","schemaVersion":99}',
+      '{"format":"oristudio.project"}',
+      '{"format":"oristudio.project","schemaVersion":1}',
+      '{ not json',
+    ];
+    for (const text of rejections) {
+      expect(() => parseNativeProjectFile(text)).toThrow(ProjectFileFormatError);
+    }
   });
 
   it('round-trips crease-pattern reference images (superset feature)', () => {
