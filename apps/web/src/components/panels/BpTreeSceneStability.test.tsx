@@ -1,3 +1,4 @@
+import { singleBoxPleatDesignTab } from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -213,20 +214,21 @@ function render(
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      ...actions,
-      oristudioBpDocument: document_,
-      oristudioBpSelection:
+      ...singleBoxPleatDesignTab({
+      document: document_,
+      selection:
         selectedVertexId === null
           ? { kind: 'bp-none' }
           : { kind: 'bp-vertex', id: selectedVertexId },
-      oristudioBpSymmetry: {
+      symmetry: {
         enabled: symmetryEnabled,
         fold: 'book',
         angle: 90,
         loc: { x: 20, y: 20 },
         pairs: [],
-      },
-    },
+      }
+      }),
+      ...actions},
     true
   );
 

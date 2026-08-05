@@ -1,3 +1,4 @@
+import { patchBoxPleatDesign, singleBoxPleatDesignTab } from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -212,20 +213,21 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      ...actions,
-      oristudioBpDocument: document_,
-      oristudioBpSelection:
+      ...singleBoxPleatDesignTab({
+      document: document_,
+      selection:
         selectedVertexId === null
           ? { kind: 'bp-none' }
           : { kind: 'bp-vertex', id: selectedVertexId },
-      oristudioBpSymmetry: {
+      symmetry: {
         enabled: symmetryEnabled,
         fold: 'book',
         angle: 90,
         loc: { x: 10, y: 10 },
         pairs: [],
-      },
-    },
+      }
+      }),
+      ...actions},
     true
   );
 
@@ -370,10 +372,12 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
     useWorkspaceStore.setState(
       {
         ...useWorkspaceStore.getInitialState(),
+        ...singleBoxPleatDesignTab({
+          document: document_,
+          selection: { kind: 'bp-edge', id: 1 },
+          symmetry: { enabled: false, fold: 'book', angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
+        }),
         ...actions,
-        oristudioBpDocument: document_,
-        oristudioBpSelection: { kind: 'bp-edge', id: 1 },
-        oristudioBpSymmetry: { enabled: false, fold: 'book', angle: 90, loc: { x: 10, y: 10 }, pairs: [] },
       },
       true
     );
@@ -565,7 +569,9 @@ describe('BP tree pane — the name field never steals focus', () => {
     // Whatever the add leaves selected, the field must not take focus: while it
     // holds focus the browser undoes the field's text instead of the add.
     act(() => {
-      useWorkspaceStore.setState({ oristudioBpSelection: { kind: 'bp-vertex', id: 2 } });
+      useWorkspaceStore.setState({
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-vertex', id: 2 } 
+      }),});
     });
     const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
     expect(input).toBeTruthy();
@@ -577,7 +583,9 @@ describe('BP tree pane — the name field never steals focus', () => {
     act(() => {
       const dot = container?.querySelectorAll<SVGCircleElement>('.bp-tree-node')[2];
       dot?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
-      useWorkspaceStore.setState({ oristudioBpSelection: { kind: 'bp-vertex', id: 2 } });
+      useWorkspaceStore.setState({
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-vertex', id: 2 } 
+      }),});
     });
     const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
     expect(input).toBeTruthy();

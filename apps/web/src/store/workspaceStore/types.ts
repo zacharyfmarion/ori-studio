@@ -13,7 +13,6 @@ import type { DesignLayoutVariant } from '../layoutStore';
 import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
-import type { SnapshotEntry } from './snapshotHistory';
 import type {
   AppStatus,
   CreaseColorMode,
@@ -67,15 +66,12 @@ import type {
   InlineSimulationRegion,
 } from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import type {
-  OristudioBpDocumentState,
   OristudioBpEditingSurface,
-  OristudioBpPortDescriptor,
   OristudioBpSelection,
   OristudioBpOptimizerOutcome,
   OristudioBpOptimizerProgress,
   OristudioBpOptimizerRunOptions,
   OristudioBpSheetKind,
-  OristudioBpWorkspaceState,
 } from '../../engine/oristudioBpTypes';
 
 export interface OristudioCpHistoryEntry {
@@ -835,29 +831,25 @@ export interface OristudioBpSymmetryState extends BpDocumentSymmetry {
   loc: Point;
 }
 
+/**
+ * What is left of the Box-Pleat slice's state after phase 2c.
+ *
+ * The document, its selection, its undo stacks, its symmetry and its viewport-fit
+ * counter all moved onto the active design tab (`BoxPleatDesignState`) — read
+ * them with `selectOristudioBpDocument` and friends. What stays here is genuinely
+ * workspace-scoped:
+ *
+ * - `oristudioBpError` and `oristudioBpBusy` mirror the singleton BP worker.
+ *   Per-design would be more precise, but the optimizer is a single worker with a
+ *   single cancel token (see R2b in the design-pane-tabs plan), so a per-workspace
+ *   flag matches what is actually true of the engine. Over-blocking, never under.
+ *
+ * `oristudioBpWorkspace` is gone: it was only ever assigned `null`, and the `.bpz`
+ * multi-project loader it was built for had no callers.
+ */
 export interface OristudioBpSliceState {
-  oristudioBpDocument: OristudioBpDocumentState | null;
-  /**
-   * What the user has selected in the BP surfaces. Session state, not document
-   * state — see the doc comment on {@link OristudioBpSelection}. It sits beside
-   * the document rather than inside it so its lifetime is visible, and so
-   * replacing the document after an edit doesn't have to carry it.
-   */
-  oristudioBpSelection: OristudioBpSelection;
-  oristudioBpWorkspace: OristudioBpWorkspaceState | null;
-  oristudioBpPortDescriptors: OristudioBpPortDescriptor[];
   oristudioBpError: string | null;
   oristudioBpBusy: boolean;
-  oristudioBpHistoryPast: SnapshotEntry<BpHistorySnapshot>[];
-  oristudioBpHistoryFuture: SnapshotEntry<BpHistorySnapshot>[];
-  /**
-   * Bumped when something reframes the packing worth re-fitting the camera for.
-   * The packing pane folds this into its `fitKey`, which fits once per distinct
-   * key — so ordinary edits still leave the camera alone, but an optimize (new
-   * sheet size, every flap moved) frames the result.
-   */
-  oristudioBpViewportFitRequestId: number;
-  oristudioBpSymmetry: OristudioBpSymmetryState;
 }
 
 export interface OristudioBpSliceActions {

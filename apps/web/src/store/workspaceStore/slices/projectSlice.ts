@@ -1,4 +1,4 @@
-import { clearActiveDesignContent, initialDesignTabs, installTreemakerDesign, markActiveTabBoxPleat, selectDesignMethod, selectProject } from '../designTabs';
+import { clearActiveDesignContent, initialDesignTabs, installTreemakerDesign, markActiveTabBoxPleat, patchBoxPleatDesign, selectDesignMethod, selectOristudioBpDocument, selectOristudioBpSymmetry, selectProject } from '../designTabs';
 import { getExampleProject } from '../../../examples/catalog';
 import { APP_VERSION } from '../../../constants/release';
 import {
@@ -795,9 +795,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // box-pleat design left over from the previous file must not stay loaded
       // and must not keep naming the Design layout variant. The tree itself is
       // installed onto the tab by `projectStateFromSnapshot` above, which is what
-      // claims the kind — setting it again here would be a second source of truth.
-      oristudioBpDocument: null,
-      oristudioBpWorkspace: null,
+      // claims the kind — setting it again here would be a second source of
+      // truth, and installing a tree replaces the arm outright, so any box-pleat
+      // document the tab held is gone by construction rather than by assignment.
       // Spread last so a preserved canvas wins over the resets above.
       ...editCanvasState});
   };
@@ -955,8 +955,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // which would leave "no method chosen" sitting beside a live design. Same
       // claim `loadText` makes for a tree: an open replaces the project.
       ...clearActiveDesignContent(get()),
-      oristudioBpDocument: null,
-      oristudioBpWorkspace: null,
       importedCreasePattern: result.document,
       oristudioCpDocument,
       oristudioCpLineage: importedCpLineage(),
@@ -1263,7 +1261,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // drops it when the always-live Edit canvas is the one in focus.
   const saveNativeWorkspaceProject = async (fileService: FileService, forceSaveAs: boolean) => {
     const hasTree = selectProject(get()).nodes.length > 0;
-    const bpDocument = get().oristudioBpDocument;
+    const bpDocument = selectOristudioBpDocument(get());
     const tmd5Text = hasTree ? await currentTreeTmd5Text() : null;
     const bps = bpDocument ? await exportOristudioBpProjectAsBps() : null;
     const creasePatternCompanion = get().oristudioCpDocument
@@ -1283,7 +1281,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         tree: tmd5Text !== null ? { title: selectProject(get()).title, tmd5Text } : null,
         boxPleat:
           bps !== null
-            ? { title: bpTitle, bps, symmetry: bpDocumentSymmetry(get().oristudioBpSymmetry) }
+            ? { title: bpTitle, bps, symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get())) }
             : null,
         creasePattern: creasePatternCompanion,
         extensions: get().nativeProjectExtensions,
@@ -1299,7 +1297,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       extensions: [NATIVE_PROJECT_EXTENSION],
     });
     if (!result) return false;
-    const document = get().oristudioBpDocument;
+    const document = selectOristudioBpDocument(get());
     // Soft, non-blocking notice when the file embeds a lot of image data.
     const imageBytes = totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation));
     const savedMessage =
@@ -1315,11 +1313,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       projectMessage: savedMessage,
       ...(document
         ? {
-            oristudioBpDocument: {
-              ...document,
-              dirty: false,
-              source: { ...document.source, filename: result.name, path: result.path },
-            },
+            ...patchBoxPleatDesign(get(), {
+              document: {
+                ...document,
+                dirty: false,
+                source: { ...document.source, filename: result.name, path: result.path },
+              },
+            }),
           }
         : {}),
     });
@@ -1376,7 +1376,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
       lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
-      bpSymmetry: get().oristudioBpSymmetry,
+      bpSymmetry: selectOristudioBpSymmetry(get()),
     });
     if (warnings.length === 0) return true;
 
@@ -1584,7 +1584,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // bare crease pattern (no design) saves as a CP project, preserving its
   // Oriedita-sourced `.ori`/`.orh` save-as special cases.
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
-    const hasDesign = selectProject(get()).nodes.length > 0 || Boolean(get().oristudioBpDocument);
+    const hasDesign = selectProject(get()).nodes.length > 0 || Boolean(selectOristudioBpDocument(get()));
     const result = hasDesign
       ? await saveNativeWorkspaceProject(fileService, forceSaveAs)
       : await saveEditableCreasePattern(fileService, forceSaveAs);
@@ -1720,12 +1720,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               ...emptyFoldArtifactResourceState(),
             };
         set({
+          // Installing a tree replaces the tab's arm outright, so any box-pleat
+          // document it held is gone by construction.
           ...projectStateFromSnapshot(get(), snapshot, 'Untitled'),
           activePanelId: 'design',
           workspaceTitle: 'Untitled',
-          // The kind comes with the tree, installed by `projectStateFromSnapshot`.
-          oristudioBpDocument: null,
-          oristudioBpWorkspace: null,
           nativeProjectExtensions: {},
           projectLoadId: get().projectLoadId + 1,
           currentFileName: defaultNativeFilename('Untitled'),
@@ -2273,7 +2272,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           title: 'Export Box Pleating Studio Project',
           contents,
           suggestedName: defaultFilename(
-            get().oristudioBpDocument?.snapshot?.summary?.title || get().workspaceTitle,
+            selectOristudioBpDocument(get())?.snapshot?.summary?.title || get().workspaceTitle,
             'bps'
           ),
           path: null,

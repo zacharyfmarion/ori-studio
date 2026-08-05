@@ -1,4 +1,4 @@
-import { selectHistoryFuture, selectHistoryPast, selectProject, selectSelection } from './designTabs';
+import { selectHistoryFuture, selectHistoryPast, selectOristudioBpDocument, selectOristudioBpHistoryFuture, selectOristudioBpHistoryPast, selectOristudioBpSelection, selectProject, selectSelection } from './designTabs';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
@@ -15,9 +15,9 @@ export function useWorkspaceCapabilities() {
   const facetCount = useWorkspaceStore((state) => selectProject(state).facets.length);
   const hasEditableCreasePattern = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
   const hasImportedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern !== null);
-  const hasBoxPleatDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
+  const hasBoxPleatDocument = useWorkspaceStore((state) => selectOristudioBpDocument(state) !== null);
   const boxPleatTreeEdgeCount = useWorkspaceStore(
-    (state) => state.oristudioBpDocument?.snapshot?.tree?.edges?.length ?? 0
+    (state) => selectOristudioBpDocument(state)?.snapshot?.tree?.edges?.length ?? 0
   );
   const boxPleatBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
   const hasSimulationModel = useWorkspaceStore((state) => state.foldArtifacts?.simulation_model != null);
@@ -34,11 +34,11 @@ export function useWorkspaceCapabilities() {
   const treeHistoryFutureCount = useWorkspaceStore((state) => selectHistoryFuture(state).length);
   const cpHistoryPastCount = useWorkspaceStore((state) => state.oristudioCpHistoryPast.length);
   const cpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioCpHistoryFuture.length);
-  const bpHistoryPastCount = useWorkspaceStore((state) => state.oristudioBpHistoryPast.length);
-  const bpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioBpHistoryFuture.length);
+  const bpHistoryPastCount = useWorkspaceStore((state) => selectOristudioBpHistoryPast(state).length);
+  const bpHistoryFutureCount = useWorkspaceStore((state) => selectOristudioBpHistoryFuture(state).length);
   const hasDeletableBpSelection = useWorkspaceStore((state) => {
-    const selection = state.oristudioBpSelection;
-    const root = state.oristudioBpDocument?.snapshot?.tree?.rootVertexId;
+    const selection = selectOristudioBpSelection(state);
+    const root = selectOristudioBpDocument(state)?.snapshot?.tree?.rootVertexId;
     return (
       (selection?.kind === 'bp-vertex' && selection.id !== root) ||
       selection?.kind === 'bp-edge'

@@ -1,3 +1,5 @@
+import { patchBoxPleatDesign, singleBoxPleatDesignTab } from '../../store/workspaceStore/designTabs';
+import { selectOristudioBpSelection } from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -246,9 +248,10 @@ function renderPacking() {
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      oristudioBpDocument: document_,
-      oristudioBpSelection: { kind: 'bp-none' },
-    },
+      ...singleBoxPleatDesignTab({
+      document: document_,
+      selection: { kind: 'bp-none' }
+      })},
     true
   );
   container = window.document.createElement('div');
@@ -481,7 +484,7 @@ describe('BP packing pane — a river is grabbed by its contour', () => {
     act(() => {
       contour?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
     });
-    expect(useWorkspaceStore.getState().oristudioBpSelection).toEqual({ kind: 'bp-river', id: 1 });
+    expect(selectOristudioBpSelection(useWorkspaceStore.getState())).toEqual({ kind: 'bp-river', id: 1 });
   });
 });
 
@@ -518,7 +521,9 @@ describe('BP packing pane — nothing in the canvas takes focus', () => {
 describe('BP packing pane — Delete reaches the node delete', () => {
   it('hands Delete to edit.delete', () => {
     renderPacking();
-    useWorkspaceStore.setState({ oristudioBpSelection: { kind: 'bp-vertex', id: 1 } });
+    useWorkspaceStore.setState({
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-vertex', id: 1 } 
+      }),});
     const menu = vi.fn();
     act(() => {
       handleShortcutRuntimeKeyDown(

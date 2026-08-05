@@ -1,4 +1,5 @@
-import { selectDesignMethod, selectDesignViewportFitRequestId, selectHistoryFuture, selectHistoryPast, selectLastOptimization, selectProject, selectSelection, selectSymmetryAuthoringPairs, selectToolMode, singleDesignTab, singleTreemakerDesignTab } from './designTabs';
+import { patchBoxPleatDesign, singleBoxPleatDesignTab } from './designTabs';
+import { selectDesignMethod, selectDesignViewportFitRequestId, selectHistoryFuture, selectHistoryPast, selectLastOptimization, selectOristudioBpDocument, selectOristudioBpHistoryPast, selectOristudioBpSymmetry, selectOristudioBpViewportFitRequestId, selectProject, selectSelection, selectSymmetryAuthoringPairs, selectToolMode, singleDesignTab, singleTreemakerDesignTab } from './designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ConditionKind,
@@ -1762,7 +1763,6 @@ describe('workspace store slices', () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
       oristudioCpDocument: null,
-      oristudioBpDocument: null,
       ...singleDesignTab('treemaker'),
     });
     await useWorkspaceStore.getState().ensureEditCreasePattern();
@@ -5410,7 +5410,7 @@ describe('workspace store slices', () => {
         expect.objectContaining({ filename: 'crane.bps', format: 'bps' })
       );
       const state = useWorkspaceStore.getState();
-      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(state)).not.toBeNull();
       expect(selectDesignMethod(state)).toBe('box-pleat');
       expect(state.activeEditingContext).toBe('bp-tree');
     });
@@ -5599,7 +5599,7 @@ describe('workspace store slices', () => {
         expect.objectContaining({ format: 'bps' })
       );
       const state = useWorkspaceStore.getState();
-      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(state)).not.toBeNull();
       expect(selectDesignMethod(state)).toBe('box-pleat');
       // The companion crease pattern is restored onto the Edit canvas.
       expect(state.oristudioCpDocument).not.toBeNull();
@@ -5666,7 +5666,7 @@ describe('workspace store slices', () => {
       ).resolves.toBe(true);
 
       const state = useWorkspaceStore.getState();
-      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(state)).not.toBeNull();
       expect(state.creaseColorMode).toBe('agrh');
       expect(state.oristudioCpViewport.gridVisible).toBe(false);
       expect(state.oristudioCpViewport.snapToGrid).toBe(false);
@@ -5743,7 +5743,7 @@ describe('workspace store slices', () => {
       // Never null at any point: no gap for the Edit surface to fill.
       expect(presence).toEqual([]);
       expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
-      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(useWorkspaceStore.getState())).not.toBeNull();
     });
 
     it('still discards the open crease pattern for a design with no companion', async () => {
@@ -5776,7 +5776,7 @@ describe('workspace store slices', () => {
       ).resolves.toBe(true);
 
       expect(useWorkspaceStore.getState().oristudioCpDocument).toBeNull();
-      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(useWorkspaceStore.getState())).not.toBeNull();
     });
 
     it('moves the user exactly once when opening a design bundled with a crease pattern', async () => {
@@ -5830,7 +5830,7 @@ describe('workspace store slices', () => {
       // Never design-then-edit: the design installer must not move anyone.
       expect(transitions).toEqual([]);
       expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
-      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(useWorkspaceStore.getState())).not.toBeNull();
       expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
     });
 
@@ -5855,7 +5855,7 @@ describe('workspace store slices', () => {
       await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
 
       const state = useWorkspaceStore.getState();
-      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(state)).not.toBeNull();
       expect(selectDesignMethod(state)).not.toBe('none');
       expect(useLayoutStore.getState().activeWorkspace).toBe('design');
       expect(currentWorkspacePath()).toBe('/design/bp');
@@ -5886,7 +5886,7 @@ describe('workspace store slices', () => {
       const state = useWorkspaceStore.getState();
       expect(selectDesignMethod(state)).toBe('treemaker');
       expect(selectDesignMethod(state)).not.toBe('none');
-      expect(state.oristudioBpDocument).toBeNull();
+      expect(selectOristudioBpDocument(state)).toBeNull();
       expect(currentWorkspacePath()).toBe('/design/treemaker');
     });
 
@@ -5967,7 +5967,7 @@ describe('workspace store slices', () => {
       });
       await expect(useWorkspaceStore.getState().openProject(openService)).resolves.toBe(true);
 
-      const symmetry = useWorkspaceStore.getState().oristudioBpSymmetry;
+      const symmetry = selectOristudioBpSymmetry(useWorkspaceStore.getState());
       expect(symmetry.enabled).toBe(false);
       expect(symmetry.fold).toBe('diagonal');
       expect(symmetry.pairs).toEqual([{ v1: 1, v2: 2 }]);
@@ -5994,7 +5994,7 @@ describe('workspace store slices', () => {
 
       await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
 
-      expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([]);
+      expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([]);
     });
 
     it('opens a plain .bps with default mirror draw, having nowhere to store it', async () => {
@@ -6005,7 +6005,7 @@ describe('workspace store slices', () => {
         .getState()
         .loadOristudioBpProjectFromFile('{"tree":{}}', { filename: 'other.bps', path: null });
 
-      const symmetry = useWorkspaceStore.getState().oristudioBpSymmetry;
+      const symmetry = selectOristudioBpSymmetry(useWorkspaceStore.getState());
       expect(symmetry).toMatchObject({ enabled: true, fold: 'book', pairs: [] });
     });
   });
@@ -6091,7 +6091,7 @@ describe('workspace store slices', () => {
       const state = useWorkspaceStore.getState();
       expect(selectDesignMethod(state)).toBe('box-pleat');
       expect(selectDesignMethod(state)).not.toBe('none');
-      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(state)).not.toBeNull();
       expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledOnce();
     });
 
@@ -6112,7 +6112,7 @@ describe('workspace store slices', () => {
       // Box-pleated: same guarantee via the BP creation path.
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(useWorkspaceStore.getState())).not.toBeNull();
       expect(useWorkspaceStore.getState().oristudioCpDocument).toBe(editCp);
       expect(oristudioCpMocks.releaseOristudioCpDocument).not.toHaveBeenCalled();
     });
@@ -6133,7 +6133,7 @@ describe('workspace store slices', () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
       expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('box-pleat');
-      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+      expect(selectOristudioBpDocument(useWorkspaceStore.getState())).not.toBeNull();
 
       // Skip the discard confirmation this test isn't exercising.
       useWorkspaceStore.setState({ dirty: false });
@@ -6141,14 +6141,16 @@ describe('workspace store slices', () => {
 
       expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('treemaker');
       expect(selectDesignMethod(useWorkspaceStore.getState())).not.toBe('none');
-      expect(useWorkspaceStore.getState().oristudioBpDocument).toBeNull();
+      expect(selectOristudioBpDocument(useWorkspaceStore.getState())).toBeNull();
     });
 
     it('applies an optimizer result as exactly one undoable step', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      const before = useWorkspaceStore.getState().oristudioBpDocument;
-      useWorkspaceStore.setState({ oristudioBpHistoryPast: [], oristudioBpHistoryFuture: [] });
+      const before = selectOristudioBpDocument(useWorkspaceStore.getState());
+      useWorkspaceStore.setState({
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { historyPast: [], historyFuture: [] 
+      }),});
       // The snapshot the history entry must capture is the state *before* the
       // run, so the export mocked here is the pre-optimize project.
       bpMocks.exportOristudioBpProjectAsBps.mockResolvedValueOnce('{"before":"optimize"}');
@@ -6170,14 +6172,14 @@ describe('workspace store slices', () => {
       ).resolves.toBe('applied');
 
       const state = useWorkspaceStore.getState();
-      expect(state.oristudioBpDocument).toBe(optimized);
-      expect(state.oristudioBpDocument).not.toBe(before);
-      expect(state.oristudioBpHistoryPast).toHaveLength(1);
-      expect(state.oristudioBpHistoryPast[0].snapshot.bps).toBe('{"before":"optimize"}');
+      expect(selectOristudioBpDocument(state)).toBe(optimized);
+      expect(selectOristudioBpDocument(state)).not.toBe(before);
+      expect(selectOristudioBpHistoryPast(state)).toHaveLength(1);
+      expect(selectOristudioBpHistoryPast(state)[0].snapshot.bps).toBe('{"before":"optimize"}');
       expect(state.oristudioBpBusy).toBe(false);
       // The sheet resized and every flap moved, so the packing pane is asked to
       // re-fit its camera around the result.
-      expect(state.oristudioBpViewportFitRequestId).toBe(1);
+      expect(selectOristudioBpViewportFitRequestId(state)).toBe(1);
       // `openNew` is never a user choice: the optimizer always replaces in place.
       expect(bpMocks.optimizeOristudioBpLayout).toHaveBeenCalledWith(
         expect.objectContaining({ openNew: false, seed: null }),
@@ -6213,18 +6215,19 @@ describe('workspace store slices', () => {
     it('resolves symmetry from the authoring mode and passes it to the solver', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      const tree = useWorkspaceStore.getState().oristudioBpDocument!.snapshot.tree;
+      const tree = selectOristudioBpDocument(useWorkspaceStore.getState())!.snapshot.tree;
       const leaves = tree.vertices.filter((vertex) => vertex.isLeaf);
       // The blank design has two leaves; pair them across a vertical axis.
       useWorkspaceStore.setState({
-        oristudioBpSymmetry: {
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+        symmetry: {
           enabled: true,
           fold: 'book',
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [{ v1: leaves[0].id, v2: leaves[1].id }],
-        },
-      });
+        }
+      }),});
       bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
         document: sampleBpDocument(),
         eventCount: 0,
@@ -6256,12 +6259,13 @@ describe('workspace store slices', () => {
     it('refuses to run rather than silently dropping an unusable symmetry', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      const document = useWorkspaceStore.getState().oristudioBpDocument!;
+      const document = selectOristudioBpDocument(useWorkspaceStore.getState())!;
       const tree = document.snapshot.tree;
       // A leaf that is neither on the mirror line nor opposite another one has
       // no mirror to give, so the run must say so rather than quietly drop it.
       useWorkspaceStore.setState({
-        oristudioBpDocument: {
+      ...singleBoxPleatDesignTab({
+        document: {
           ...document,
           snapshot: {
             ...document.snapshot,
@@ -6274,14 +6278,14 @@ describe('workspace store slices', () => {
             },
           },
         },
-        oristudioBpSymmetry: {
+        symmetry: {
           enabled: true,
           fold: 'book',
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [],
-        },
-      } as never);
+        }
+      }),} as never);
 
       await expect(
         useWorkspaceStore.getState().optimizeOristudioBpLayout({
@@ -6300,17 +6304,18 @@ describe('workspace store slices', () => {
     it('mirrors in random mode too, since that discards the packing not the tree', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      const tree = useWorkspaceStore.getState().oristudioBpDocument!.snapshot.tree;
+      const tree = selectOristudioBpDocument(useWorkspaceStore.getState())!.snapshot.tree;
       const leaves = tree.vertices.filter((vertex) => vertex.isLeaf).map((vertex) => vertex.id);
       useWorkspaceStore.setState({
-        oristudioBpSymmetry: {
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+        symmetry: {
           enabled: true,
           fold: 'book',
           angle: 90,
           loc: { x: tree.sheet.width / 2, y: tree.sheet.height / 2 },
           pairs: [{ v1: leaves[0], v2: leaves[1] }],
-        },
-      });
+        }
+      }),});
 
       bpMocks.optimizeOristudioBpLayout.mockResolvedValueOnce({
         document: sampleBpDocument(),
@@ -6336,8 +6341,10 @@ describe('workspace store slices', () => {
     it('leaves the document and history untouched when the optimizer is cancelled', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      const before = useWorkspaceStore.getState().oristudioBpDocument;
-      useWorkspaceStore.setState({ oristudioBpHistoryPast: [], oristudioBpHistoryFuture: [] });
+      const before = selectOristudioBpDocument(useWorkspaceStore.getState());
+      useWorkspaceStore.setState({
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { historyPast: [], historyFuture: [] 
+      }),});
       bpMocks.optimizeOristudioBpLayout.mockRejectedValueOnce({
         code: 'optimization_cancelled',
         message: 'Box Pleat optimization cancelled',
@@ -6354,20 +6361,22 @@ describe('workspace store slices', () => {
       ).resolves.toBe('cancelled');
 
       const state = useWorkspaceStore.getState();
-      expect(state.oristudioBpDocument).toBe(before);
-      expect(state.oristudioBpHistoryPast).toHaveLength(0);
+      expect(selectOristudioBpDocument(state)).toBe(before);
+      expect(selectOristudioBpHistoryPast(state)).toHaveLength(0);
       // Aborting is a user action, so nothing is surfaced as a failure.
       expect(state.oristudioBpError).toBeNull();
       expect(state.oristudioBpBusy).toBe(false);
       // Nothing changed on screen, so the camera must stay where the user left it.
-      expect(state.oristudioBpViewportFitRequestId).toBe(0);
+      expect(selectOristudioBpViewportFitRequestId(state)).toBe(0);
     });
 
     it('reports a failed optimizer run without recording history', async () => {
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      const before = useWorkspaceStore.getState().oristudioBpDocument;
-      useWorkspaceStore.setState({ oristudioBpHistoryPast: [], oristudioBpHistoryFuture: [] });
+      const before = selectOristudioBpDocument(useWorkspaceStore.getState());
+      useWorkspaceStore.setState({
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { historyPast: [], historyFuture: [] 
+      }),});
       bpMocks.optimizeOristudioBpLayout.mockRejectedValueOnce({
         code: 'optimization_failed',
         message: 'Solution exceeds maximal sheet size.',
@@ -6384,8 +6393,8 @@ describe('workspace store slices', () => {
       ).resolves.toBe('failed');
 
       const state = useWorkspaceStore.getState();
-      expect(state.oristudioBpDocument).toBe(before);
-      expect(state.oristudioBpHistoryPast).toHaveLength(0);
+      expect(selectOristudioBpDocument(state)).toBe(before);
+      expect(selectOristudioBpHistoryPast(state)).toHaveLength(0);
       expect(state.oristudioBpError).toBe('Solution exceeds maximal sheet size.');
       expect(state.oristudioBpBusy).toBe(false);
     });

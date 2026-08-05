@@ -1,4 +1,4 @@
-import { clearActiveDesignContent, patchTreemakerDesign, selectDesignViewportFitRequestId, selectProject } from '../designTabs';
+import { clearActiveDesignContent, patchTreemakerDesign, selectDesignViewportFitRequestId, selectOristudioBpDocument, selectProject } from '../designTabs';
 import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
@@ -1003,7 +1003,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // its method chooser — matching `createNewCreasePattern` — instead of
           // deep-linking to a TreeMaker layout for a design that doesn't exist.
           const noDesignYet =
-            selectProject(priorState).edges.length === 0 && priorState.oristudioBpDocument === null;
+            selectProject(priorState).edges.length === 0 && selectOristudioBpDocument(priorState) === null;
           // Same complete editor state File › New establishes, so interactive
           // edits (undo/redo, images, tools) behave identically on this canvas.
           set({

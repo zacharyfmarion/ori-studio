@@ -1,4 +1,4 @@
-import { selectDesignMethod, selectDesignViewportFitRequestId, selectProject, selectSelection, selectSymmetryAuthoringPairs } from '../../store/workspaceStore/designTabs';
+import { selectDesignMethod, selectDesignViewportFitRequestId, selectOristudioBpDocument, selectProject, selectSelection, selectSymmetryAuthoringPairs } from '../../store/workspaceStore/designTabs';
 import {
   useCallback,
   useEffect,
@@ -455,7 +455,7 @@ function DesignViewportToolbar({
 export function DesignPanel() {
   const { t } = useTranslation();
   const designMethod = useWorkspaceStore(selectDesignMethod);
-  const oristudioBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument);
+  const oristudioBpDocument = useWorkspaceStore((state) => selectOristudioBpDocument(state));
   const oristudioBpError = useWorkspaceStore((state) => state.oristudioBpError);
   const ensureBoxPleatProject = useWorkspaceStore((state) => state.ensureBoxPleatProject);
 

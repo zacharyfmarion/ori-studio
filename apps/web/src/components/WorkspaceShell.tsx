@@ -1,4 +1,4 @@
-import { selectDesignMethod } from '../store/workspaceStore/designTabs';
+import { selectDesignMethod, selectOristudioBpDocument } from '../store/workspaceStore/designTabs';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -111,7 +111,7 @@ function Toolbar() {
   const activeContext = useWorkspaceStore((state) => state.activeEditingContext);
   const sendBpToEdit = useWorkspaceStore((state) => state.sendOristudioBpToEdit);
   const sendTreeToEdit = useWorkspaceStore((state) => state.sendTreeCreasePatternToEdit);
-  const hasBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
+  const hasBpDocument = useWorkspaceStore((state) => selectOristudioBpDocument(state) !== null);
   const bpBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
   // In a BP design the top action sends the design's crease pattern to the Edit
   // canvas (Import(Add) merge), in place of TreeMaker's Optimize/Build.

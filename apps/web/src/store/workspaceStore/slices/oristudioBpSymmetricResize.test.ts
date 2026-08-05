@@ -1,3 +1,4 @@
+import { singleBoxPleatDesignTab } from '../designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioBpDocumentState, OristudioBpTreeView } from '../../../engine/oristudioBpTypes';
 
@@ -78,14 +79,15 @@ function setUp(options: {
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      oristudioBpDocument: bpDocument(kind),
-      oristudioBpSymmetry: {
+      ...singleBoxPleatDesignTab({
+      document: bpDocument(kind),
+      symmetry: {
         ...AXIS,
         enabled: options.enabled,
         fold: options.fold ?? 'book',
         pairs: options.pairs ?? [],
-      },
-    },
+      }
+      })},
     true
   );
 }

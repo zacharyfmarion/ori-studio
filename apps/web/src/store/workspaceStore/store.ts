@@ -1,4 +1,4 @@
-import { selectDesignMethod, selectProject } from './designTabs';
+import { selectDesignMethod, selectOristudioBpDocument, selectProject } from './designTabs';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createCreasePatternSlice } from './slices/creasePatternSlice';
@@ -45,7 +45,7 @@ useWorkspaceStore.subscribe((state) => {
   const next = resolveEditingContext({
     activePanelId: state.activePanelId,
     designMethod: selectDesignMethod(state),
-    hasBpDocument: state.oristudioBpDocument !== null,
+    hasBpDocument: selectOristudioBpDocument(state) !== null,
   });
   if (next !== state.activeEditingContext) {
     useWorkspaceStore.setState({ activeEditingContext: next });
@@ -62,7 +62,7 @@ useWorkspaceStore.subscribe((state) => {
   const hasDocument =
     state.oristudioCpDocument !== null ||
     state.importedCreasePattern !== null ||
-    state.oristudioBpDocument !== null ||
+    selectOristudioBpDocument(state) !== null ||
     selectProject(state).edges.length > 0;
   if (hasDocument) useWorkspaceStore.setState({ projectEstablished: true });
 });

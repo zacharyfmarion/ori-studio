@@ -15,6 +15,9 @@ import { describe, expect, it } from 'vitest';
  * undo/redo. The compiler found none of them; this test finds all of them.
  */
 const DESIGN_TAB_WRITERS = [
+  'installBoxPleatDesign(',
+  'patchBoxPleatDesign(',
+  'singleBoxPleatDesignTab(',
   'installTreemakerDesign(',
   'patchTreemakerDesign(',
   'clearActiveDesignContent(',
@@ -96,6 +99,14 @@ function setCallBodies(source: string): { body: string; line: number }[] {
  * `createEditingSlice`'s return still typechecks cleanly. Verified, not assumed.
  */
 const MOVED_TO_DESIGN_TAB = [
+  'oristudioBpDocument',
+  'oristudioBpSelection',
+  'oristudioBpHistoryPast',
+  'oristudioBpHistoryFuture',
+  'oristudioBpViewportFitRequestId',
+  'oristudioBpSymmetry',
+  'oristudioBpWorkspace',
+  'oristudioBpPortDescriptors',
   'project',
   'selection',
   'toolMode',
@@ -142,7 +153,11 @@ describe('design-tab writes', () => {
     for (const file of files) {
       const source = readFileSync(file, 'utf8');
       for (const { body, line } of setCallBodies(source)) {
-        const writers = DESIGN_TAB_WRITERS.filter((writer) => body.includes(writer));
+        // Counts occurrences, not distinct helpers: two calls to the *same*
+        // writer in one set() collide exactly as two different ones do.
+        const writers = DESIGN_TAB_WRITERS.flatMap((writer) =>
+          Array.from({ length: body.split(writer).length - 1 }, () => writer)
+        );
         if (writers.length > 1) {
           collisions.push(`${file.replace(STORE_DIR, '.')}:${line} → ${writers.join(' + ')}`);
         }

@@ -1,7 +1,10 @@
 import type { DesignKindId } from '../../designKinds';
 import {
+  EMPTY_BOX_PLEAT_DESIGN,
   EMPTY_TREEMAKER_DESIGN,
+  createBoxPleatDesignState,
   createTreemakerDesignState,
+  type BoxPleatDesignState,
   type DesignTabContent,
   type TreemakerDesignState,
 } from './designContent';
@@ -103,7 +106,7 @@ export function createDesignTab(
 /** A fresh, empty content arm for a kind. */
 function contentForKind(kind: DesignKindId | null): DesignTabContent {
   if (kind === 'treemaker') return { kind, treemaker: createTreemakerDesignState() };
-  if (kind === 'box-pleat') return { kind };
+  if (kind === 'box-pleat') return { kind, boxPleat: createBoxPleatDesignState() };
   return { kind: null };
 }
 
@@ -294,15 +297,101 @@ export function patchTreemakerDesign(
 }
 
 /**
- * Claim the active tab for a box-pleat design.
+ * The active design's Box-Pleat state, or `null` when the active design is of
+ * another kind. The honest accessor; use it for every write.
+ */
+export function selectBoxPleatDesign(state: DesignTabsSlice): BoxPleatDesignState | null {
+  const tab = activeDesignTab(state);
+  return tab.kind === 'box-pleat' ? tab.boxPleat : null;
+}
+
+/** The active design's Box-Pleat state, falling back to an empty one. */
+export function selectBoxPleatDesignOrEmpty(state: DesignTabsSlice): BoxPleatDesignState {
+  return selectBoxPleatDesign(state) ?? EMPTY_BOX_PLEAT_DESIGN;
+}
+
+export function selectOristudioBpDocument(state: DesignTabsSlice) {
+  return selectBoxPleatDesignOrEmpty(state).document;
+}
+
+export function selectOristudioBpSelection(state: DesignTabsSlice) {
+  return selectBoxPleatDesignOrEmpty(state).selection;
+}
+
+export function selectOristudioBpHistoryPast(state: DesignTabsSlice) {
+  return selectBoxPleatDesignOrEmpty(state).historyPast;
+}
+
+export function selectOristudioBpHistoryFuture(state: DesignTabsSlice) {
+  return selectBoxPleatDesignOrEmpty(state).historyFuture;
+}
+
+export function selectOristudioBpViewportFitRequestId(state: DesignTabsSlice) {
+  return selectBoxPleatDesignOrEmpty(state).viewportFitRequestId;
+}
+
+export function selectOristudioBpSymmetry(state: DesignTabsSlice) {
+  return selectBoxPleatDesignOrEmpty(state).symmetry;
+}
+
+/**
+ * Claim the active tab for a box-pleat design: kind *and* content together.
  *
- * Payload-free until phase 2c moves the `oristudioBp*` fields onto the tab; the
- * document itself still lives flat on the store for now.
+ * The content may legitimately have `document: null` — choosing Box-pleated is
+ * asynchronous, and the pane shows a loading state while the worker builds it.
+ * That window is why the kind cannot be derived from content.
+ */
+export function installBoxPleatDesign(
+  state: DesignTabsSlice,
+  design: Partial<BoxPleatDesignState> = {}
+): Pick<DesignTabsSlice, 'designTabs'> {
+  return mapActiveTab(state, (tab) => ({
+    id: tab.id,
+    title: tab.title,
+    kind: 'box-pleat',
+    boxPleat: createBoxPleatDesignState(design),
+  }));
+}
+
+/**
+ * Patch the active tab's existing Box-Pleat state.
+ *
+ * A no-op when the active design is of another kind — see the note on
+ * {@link patchTreemakerDesign}; the same reasoning applies.
+ */
+export function patchBoxPleatDesign(
+  state: DesignTabsSlice,
+  patch: Partial<BoxPleatDesignState>
+): Pick<DesignTabsSlice, 'designTabs'> {
+  const current = selectBoxPleatDesign(state);
+  if (!current) {
+    if (import.meta.env.DEV) {
+      console.error(
+        '[ori-studio] patchBoxPleatDesign ran while the active design is not box-pleat; ignoring',
+        patch
+      );
+    }
+    return { designTabs: state.designTabs };
+  }
+  return mapActiveTab(state, (tab) => ({
+    id: tab.id,
+    title: tab.title,
+    kind: 'box-pleat',
+    boxPleat: { ...current, ...patch },
+  }));
+}
+
+/**
+ * Claim the active tab for box-pleat without a document yet.
+ *
+ * Kept as a named alias of `installBoxPleatDesign()` because the call sites that
+ * use it are saying something specific: the *route* or the chooser has decided
+ * the kind, and provisioning follows.
  */
 export function markActiveTabBoxPleat(
   state: DesignTabsSlice
 ): Pick<DesignTabsSlice, 'designTabs'> {
-  return mapActiveTab(state, (tab) => ({ id: tab.id, title: tab.title, kind: 'box-pleat' }));
+  return installBoxPleatDesign(state);
 }
 
 /** Clear the active tab back to the chooser, dropping whatever it was authoring. */
@@ -326,6 +415,18 @@ export function singleTreemakerDesignTab(
 ): DesignTabsSlice {
   const seeded = singleDesignTab('treemaker', title);
   return { ...seeded, ...installTreemakerDesign(seeded, design) };
+}
+
+/**
+ * A one-tab workspace holding a Box-Pleat design. Companion to
+ * {@link singleTreemakerDesignTab}.
+ */
+export function singleBoxPleatDesignTab(
+  design: Partial<BoxPleatDesignState> = {},
+  title?: string
+): DesignTabsSlice {
+  const seeded = singleDesignTab('box-pleat', title);
+  return { ...seeded, ...installBoxPleatDesign(seeded, design) };
 }
 
 /** A one-tab workspace authoring `kind`. Seeds the initial state and tests. */

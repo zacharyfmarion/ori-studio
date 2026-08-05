@@ -1,3 +1,4 @@
+import { selectOristudioBpSelection, selectOristudioBpSymmetry } from '../../store/workspaceStore/designTabs';
 import {
   useCallback,
   useEffect,
@@ -316,7 +317,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const layers = useSettingsStore((state) => state.bpTreeLayers);
   const setLayer = useSettingsStore((state) => state.setBpTreeLayer);
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
-  const selection = useWorkspaceStore((state) => state.oristudioBpSelection);
+  const selection = useWorkspaceStore((state) => selectOristudioBpSelection(state));
   const clearSelection = useWorkspaceStore((state) => state.clearOristudioBpSelection);
   const moveOristudioBpTreeVertices = useWorkspaceStore(
     (state) => state.moveOristudioBpTreeVertices
@@ -329,7 +330,7 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
   );
-  const symmetry = useWorkspaceStore((state) => state.oristudioBpSymmetry);
+  const symmetry = useWorkspaceStore((state) => selectOristudioBpSymmetry(state));
   const addOristudioBpTreeLeafWithSymmetry = useWorkspaceStore(
     (state) => state.addOristudioBpTreeLeafWithSymmetry
   );

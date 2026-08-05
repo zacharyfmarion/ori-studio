@@ -992,7 +992,26 @@ does NOT touch the tree/design fields".
       Watch for: `saveNativeWorkspaceProject` decides `hasTree` from
       `project.nodes.length > 0`; that becomes a kind check, which is more
       correct but is a behaviour change worth its own test.
-- [ ] Phase 2c — Box-Pleat per-design state into the tab (~41 sites)
+- [x] Phase 2c — Box-Pleat per-design state into the tab
+
+  Landed: `BoxPleatDesignState` as the `kind: 'box-pleat'` arm (document,
+  selection, both undo stacks, symmetry, viewport-fit counter). `oristudioBpError`
+  and `oristudioBpBusy` stay flat — they mirror the singleton BP worker, not a
+  design. `oristudioBpWorkspace` and `oristudioBpPortDescriptors` deleted: both
+  write-only dead state. 2481 tests pass.
+
+  Three cross-design bugs fixed that only tabs make reachable:
+  - `ensureBoxPleatProject` gated on `oristudioBpBusy`, so an optimize running in
+    one design would make a second box-pleat tab give up — and nothing re-ran the
+    effect, leaving it on "Preparing the box-pleat editor…" forever.
+  - `ensureBpInFlight` was one promise for the whole store; now keyed by design.
+  - `pendingHistory` was one closure variable, so a drag begun in design A and
+    released after a tab switch committed A's snapshot onto B's undo stack. Now
+    keyed by design, with the id captured before the first await.
+
+  Also removed seven empty `patchTreemakerDesign(get(), {})` spreads left by the
+  2b codemod — they wrote nothing and logged a DEV error on every box-pleat and
+  crease-pattern undo.
 - [ ] Phase 2d — addressed writes: capture the document id before the first `await`
 - [ ] Phase 3 — Radix tab strip (add / close / rename / reorder / duplicate), ≥1 tab invariant
 - [ ] Phase 4 — intra-tab Gridview, panes migrated, active-pane tracking

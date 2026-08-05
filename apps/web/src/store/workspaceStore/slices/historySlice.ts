@@ -1,4 +1,4 @@
-import { patchTreemakerDesign, selectHistoryFuture, selectHistoryPast, selectProject } from '../designTabs';
+import { patchBoxPleatDesign, patchTreemakerDesign, selectHistoryFuture, selectHistoryPast, selectOristudioBpDocument, selectOristudioBpHistoryFuture, selectOristudioBpHistoryPast, selectOristudioBpSelection, selectOristudioBpSymmetry, selectProject } from '../designTabs';
 import {
   engineError,
   ensureTreeHandle,
@@ -161,11 +161,11 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     ) => { restore: SnapshotEntry<BpHistorySnapshot>; history: SnapshotHistory<BpHistorySnapshot> } | null,
     verb: 'Undid' | 'Redid'
   ): Promise<boolean> => {
-    const document = get().oristudioBpDocument;
+    const document = selectOristudioBpDocument(get());
     if (!document || get().oristudioBpHistoryBusy) return false;
     const history: SnapshotHistory<BpHistorySnapshot> = {
-      past: get().oristudioBpHistoryPast,
-      future: get().oristudioBpHistoryFuture,
+      past: selectOristudioBpHistoryPast(get()),
+      future: selectOristudioBpHistoryFuture(get()),
     };
     set({
       oristudioBpHistoryBusy: true, error: null, oristudioBpError: null });
@@ -174,8 +174,8 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       const current = snapshotEntry(
         {
           bps: currentBps,
-          selection: get().oristudioBpSelection,
-          symmetry: bpDocumentSymmetry(get().oristudioBpSymmetry),
+          selection: selectOristudioBpSelection(get()),
+          symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get())),
         },
         document.history.activeLabel ?? 'edit'
       );
@@ -192,20 +192,20 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       const restored =
         restoredBps === null ? document : await restoreOristudioBpProjectSnapshot(restoredBps);
       set({
-      ...patchTreemakerDesign(get(), {
-        }),
-      oristudioBpHistoryBusy: false,
-        oristudioBpDocument: restored,
+      ...patchBoxPleatDesign(get(), {
+        document: restored,
         // The axis stays derived; only the saved half of symmetry is restored.
-        oristudioBpSymmetry: {
-          ...get().oristudioBpSymmetry,
+        symmetry: {
+          ...selectOristudioBpSymmetry(get()),
           ...step.restore.snapshot.symmetry,
         },
+        historyPast: step.history.past,
+        historyFuture: step.history.future,
         // Restored as presentation — showing what the step touched — not because
         // the selection was stored as part of the document.
-        oristudioBpSelection: step.restore.snapshot.selection,
-        oristudioBpHistoryPast: step.history.past,
-        oristudioBpHistoryFuture: step.history.future,
+        selection: step.restore.snapshot.selection,
+      }),
+      oristudioBpHistoryBusy: false,
         dirty: true,
         error: null,
         oristudioBpError: null,
@@ -214,8 +214,6 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     } catch (error) {
       const normalized = oristudioBpError(error);
       set({
-      ...patchTreemakerDesign(get(), {
-        }),
       oristudioBpHistoryBusy: false,
         status: 'error',
         error: normalized,
@@ -292,8 +290,6 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
         // without reloading the (unchanged) wasm document, so they stay cheap.
         if (previous.overlayOnly) {
           set({
-      ...patchTreemakerDesign(get(), {
-            }),
       oristudioCpHistoryBusy: false,
             oristudioCpAnnotations: previous.annotations,
             oristudioCpSelectedAnnotationId: null,
@@ -336,8 +332,6 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
         // Apply immediately; the always-on CAMV overlay recomputes off the critical
         // path (keeps the previous result until the deferred refresh lands).
         set({
-      ...patchTreemakerDesign(get(), {
-          }),
       oristudioCpHistoryBusy: false,
           ...setRestoredCreasePatternState(
             restored,
@@ -371,8 +365,6 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       } catch (error) {
         const normalized = oristudioCpError(error);
         set({
-      ...patchTreemakerDesign(get(), {
-          }),
       oristudioCpHistoryBusy: false,
           status: 'error',
           error: normalized,
@@ -452,8 +444,6 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       try {
         if (next.overlayOnly) {
           set({
-      ...patchTreemakerDesign(get(), {
-            }),
       oristudioCpHistoryBusy: false,
             oristudioCpAnnotations: next.annotations,
             oristudioCpSelectedAnnotationId: null,
@@ -490,8 +480,6 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           null
         );
         set({
-      ...patchTreemakerDesign(get(), {
-          }),
       oristudioCpHistoryBusy: false,
           ...setRestoredCreasePatternState(restored, next.selection, get().oristudioCpCamvResult),
           oristudioCpAnnotations: next.annotations,
@@ -521,8 +509,6 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       } catch (error) {
         const normalized = oristudioCpError(error);
         set({
-      ...patchTreemakerDesign(get(), {
-          }),
       oristudioCpHistoryBusy: false,
           status: 'error',
           error: normalized,

@@ -1,7 +1,7 @@
+import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   OristudioBpDocumentState,
-  OristudioBpSelection,
 } from '../engine/oristudioBpTypes';
 import type { OristudioCpDocumentState } from '../engine/oristudioCpTypes';
 import type { OristudioCpSelection } from '../lib/creasePatternViewport';
@@ -61,8 +61,9 @@ function createDeps() {
       addLargestStubForSelectedPoly: vi.fn().mockResolvedValue(undefined),
       triangulateTree: vi.fn().mockResolvedValue(undefined),
       activeEditingContext: 'treemaker-tree' as import('../workspaces/editingContext').EditingContext,
-      oristudioBpDocument: null as OristudioBpDocumentState | null,
-      oristudioBpSelection: { kind: 'bp-none' } as OristudioBpSelection,
+      // The BP document and selection are per-design now, so the stub carries a
+      // design tab rather than flat fields.
+      ...singleBoxPleatDesignTab(),
       deleteOristudioBpTreeNode: vi.fn().mockResolvedValue(true),
       oristudioCpDocument: null as OristudioCpDocumentState | null,
       oristudioCpSelection: {
@@ -586,8 +587,7 @@ describe('menu actions', () => {
       it(`deletes the selected vertex from the ${context} pane`, async () => {
         const deps = createDeps();
         deps.workspace.activeEditingContext = context;
-        deps.workspace.oristudioBpDocument = bpDocument();
-        deps.workspace.oristudioBpSelection = { kind: 'bp-vertex', id: 1 };
+        Object.assign(deps.workspace, singleBoxPleatDesignTab({ document: bpDocument(), selection: { kind: 'bp-vertex', id: 1 } }));
 
         await expect(createMenuActionHandler(deps)('edit.delete')).resolves.toBe(true);
 
@@ -598,8 +598,7 @@ describe('menu actions', () => {
     it('deletes the child endpoint of a selected edge', async () => {
       const deps = createDeps();
       deps.workspace.activeEditingContext = 'bp-tree';
-      deps.workspace.oristudioBpDocument = bpDocument();
-      deps.workspace.oristudioBpSelection = { kind: 'bp-edge', id: 1 };
+      Object.assign(deps.workspace, singleBoxPleatDesignTab({ document: bpDocument(), selection: { kind: 'bp-edge', id: 1 } }));
 
       await expect(createMenuActionHandler(deps)('edit.delete')).resolves.toBe(true);
 
@@ -609,8 +608,7 @@ describe('menu actions', () => {
     it('leaves the root alone', async () => {
       const deps = createDeps();
       deps.workspace.activeEditingContext = 'bp-tree';
-      deps.workspace.oristudioBpDocument = bpDocument();
-      deps.workspace.oristudioBpSelection = { kind: 'bp-vertex', id: 0 };
+      Object.assign(deps.workspace, singleBoxPleatDesignTab({ document: bpDocument(), selection: { kind: 'bp-vertex', id: 0 } }));
 
       await expect(createMenuActionHandler(deps)('edit.delete')).resolves.toBe(false);
 

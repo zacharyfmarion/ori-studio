@@ -5,13 +5,18 @@ import {
   activeDesignTab,
   createDesignTab,
   installTreemakerDesign,
+  patchBoxPleatDesign,
   patchTreemakerDesign,
   resetDesignTabIds,
   selectHistoryFuture,
   selectHistoryPast,
+  selectOristudioBpDocument,
+  selectOristudioBpHistoryPast,
+  selectOristudioBpSymmetry,
   selectProject,
   selectSelection,
   selectTreemakerDesign,
+  singleBoxPleatDesignTab,
   singleTreemakerDesignTab,
   type DesignTab,
   type DesignTabsSlice,
@@ -105,6 +110,64 @@ describe('per-design isolation', () => {
 
     expect(selectProject(state).title).toBe('beetle tree');
     expect(selectProject(withActive(state, state.designTabs[0].id)).title).toBe('crane tree');
+  });
+});
+
+describe('per-design isolation: box-pleat', () => {
+  const bpDoc = (title: string) =>
+    ({ snapshot: { summary: { title }, tree: { sheet: { width: 8, height: 8 } } } }) as never;
+
+  function twoBoxPleatDesigns(): DesignTabsSlice {
+    resetDesignTabIds();
+    const first = createDesignTab([], { kind: 'box-pleat', title: 'Crane' });
+    const second = createDesignTab([first], { kind: 'box-pleat', title: 'Beetle' });
+    return { designTabs: [first, second], activeDesignId: first.id };
+  }
+
+  it('gives each design its own document', () => {
+    let state = twoBoxPleatDesigns();
+    const [crane, beetle] = state.designTabs;
+    state = { ...state, ...patchBoxPleatDesign(state, { document: bpDoc('crane') }) };
+
+    expect(selectOristudioBpDocument(state)).not.toBeNull();
+    expect(selectOristudioBpDocument(withActive(state, beetle.id))).toBeNull();
+    expect(selectOristudioBpDocument(withActive(state, crane.id))).not.toBeNull();
+  });
+
+  it('gives each design its own undo stack and symmetry', () => {
+    let state = twoBoxPleatDesigns();
+    const beetle = state.designTabs[1];
+    state = {
+      ...state,
+      ...patchBoxPleatDesign(state, {
+        historyPast: [{ label: 'Moved flap' }] as never,
+        symmetry: { enabled: false, fold: 'diagonal', angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+      }),
+    };
+
+    expect(selectOristudioBpHistoryPast(state)).toHaveLength(1);
+    expect(selectOristudioBpSymmetry(state).fold).toBe('diagonal');
+
+    const onBeetle = withActive(state, beetle.id);
+    expect(selectOristudioBpHistoryPast(onBeetle)).toHaveLength(0);
+    // Untouched designs keep the default: symmetry on, book fold.
+    expect(selectOristudioBpSymmetry(onBeetle).fold).toBe('book');
+    expect(selectOristudioBpSymmetry(onBeetle).enabled).toBe(true);
+  });
+
+  it('lets a tab be box-pleat before its document exists', () => {
+    // The window the async chooser needs: kind claimed, worker still building.
+    // If this were not representable the pane would flash the chooser mid-load.
+    const state = singleBoxPleatDesignTab();
+    expect(activeDesignTab(state).kind).toBe('box-pleat');
+    expect(selectOristudioBpDocument(state)).toBeNull();
+  });
+
+  it('refuses a box-pleat patch against a TreeMaker design', () => {
+    const state = singleTreemakerDesignTab();
+    const next = { ...state, ...patchBoxPleatDesign(state, { document: bpDoc('nope') }) };
+    expect(activeDesignTab(next).kind).toBe('treemaker');
+    expect(selectOristudioBpDocument(next)).toBeNull();
   });
 });
 

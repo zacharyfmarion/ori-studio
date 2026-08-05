@@ -1,4 +1,4 @@
-import { singleDesignTab } from '../designTabs';
+import { patchBoxPleatDesign, selectOristudioBpHistoryPast, selectOristudioBpSymmetry, singleBoxPleatDesignTab } from '../designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import type { OristudioBpDocumentState } from '../../../engine/oristudioBpTypes';
@@ -37,6 +37,13 @@ function bpDocument(): OristudioBpDocumentState {
   } as unknown as OristudioBpDocumentState;
 }
 
+beforeEach(() => {
+  // Symmetry is per-design now, so these need a box-pleat design to be about.
+  // A fresh store holds one chooser tab, and BP writes against that correctly
+  // do nothing.
+  useWorkspaceStore.setState({ ...singleBoxPleatDesignTab({ document: bpDocument() }) });
+});
+
 afterEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
@@ -44,7 +51,7 @@ afterEach(() => {
 describe('symmetry is document state', () => {
   it('starts on, book-fold, with nothing paired', () => {
     expect(defaultBpDocumentSymmetry()).toEqual({ enabled: true, fold: 'book', pairs: [] });
-    const initial = useWorkspaceStore.getInitialState().oristudioBpSymmetry;
+    const initial = selectOristudioBpSymmetry(singleBoxPleatDesignTab());
     expect(initial.enabled).toBe(true);
     expect(initial.fold).toBe('book');
     expect(initial.pairs).toEqual([]);
@@ -59,31 +66,33 @@ describe('symmetry is document state', () => {
   it('marks the project dirty when the fold changes', () => {
     useWorkspaceStore.setState({ dirty: false });
     useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.fold).toBe('diagonal');
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).fold).toBe('diagonal');
     expect(useWorkspaceStore.getState().dirty).toBe(true);
   });
 
   it('marks the project dirty when a pair is broken', () => {
     useWorkspaceStore.setState({
-      dirty: false,
-      oristudioBpSymmetry: {
-        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+      symmetry: {
+        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
         pairs: [{ v1: 1, v2: 2 }],
-      },
-    });
+      }
+      }),
+      dirty: false});
     useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([]);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([]);
     expect(useWorkspaceStore.getState().dirty).toBe(true);
   });
 
   it('leaves the project clean when unpairing a vertex that was not paired', () => {
     useWorkspaceStore.setState({
-      dirty: false,
-      oristudioBpSymmetry: {
-        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+      symmetry: {
+        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
         pairs: [{ v1: 1, v2: 2 }],
-      },
-    });
+      }
+      }),
+      dirty: false});
     useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(9);
     expect(useWorkspaceStore.getState().dirty).toBe(false);
   });
@@ -113,45 +122,46 @@ describe('symmetry rides the undo stack', () => {
     // `activeEditingContext` is derived by a store subscriber, so it has to be
     // steered through its inputs rather than set.
     useWorkspaceStore.setState({
-      oristudioBpDocument: bpDocument(),
+      // One writer: `singleBoxPleatDesignTab` claims the kind *and* the document.
+      ...singleBoxPleatDesignTab({ document: bpDocument() }),
       activePanelId: 'design',
-      ...singleDesignTab('box-pleat'),
     });
     expect(useWorkspaceStore.getState().activeEditingContext).toBe('bp-tree');
   });
 
   it('undoes turning mirror draw off', async () => {
     useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.enabled).toBe(false);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).enabled).toBe(false);
 
     await useWorkspaceStore.getState().undo();
 
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.enabled).toBe(true);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).enabled).toBe(true);
   });
 
   it('undoes a fold change, then redoes it', async () => {
     useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
 
     await useWorkspaceStore.getState().undo();
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.fold).toBe('book');
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).fold).toBe('book');
 
     await useWorkspaceStore.getState().redo();
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.fold).toBe('diagonal');
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).fold).toBe('diagonal');
   });
 
   it('undoes an unpair, putting the pair back', async () => {
     useWorkspaceStore.setState({
-      oristudioBpSymmetry: {
-        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+      symmetry: {
+        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
         pairs: [{ v1: 1, v2: 2 }],
-      },
-    });
+      }
+      }),});
     useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(1);
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([]);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([]);
 
     await useWorkspaceStore.getState().undo();
 
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([{ v1: 1, v2: 2 }]);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([{ v1: 1, v2: 2 }]);
   });
 
   it('does not rebuild the design for a change that only touched symmetry', async () => {
@@ -166,17 +176,18 @@ describe('symmetry rides the undo stack', () => {
 
   it('leaves the derived axis alone when restoring', async () => {
     useWorkspaceStore.setState({
-      oristudioBpSymmetry: {
-        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+      symmetry: {
+        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
         angle: 90,
         loc: { x: 4, y: 4 },
-      },
-    });
+      }
+      }),});
     useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
 
     await useWorkspaceStore.getState().undo();
 
-    const symmetry = useWorkspaceStore.getState().oristudioBpSymmetry;
+    const symmetry = selectOristudioBpSymmetry(useWorkspaceStore.getState());
     expect(symmetry.angle).toBe(90);
     expect(symmetry.loc).toEqual({ x: 4, y: 4 });
   });
@@ -186,11 +197,12 @@ describe('symmetry rides the undo stack', () => {
     // Undo has to bring back both, or the flap returns unpaired.
     runtimeMocks.restoreOristudioBpProjectSnapshot.mockResolvedValue(bpDocument());
     useWorkspaceStore.setState({
-      oristudioBpSymmetry: {
-        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+      symmetry: {
+        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
         pairs: [],
       },
-      oristudioBpHistoryPast: [
+      historyPast: [
         {
           snapshot: {
             bps: '<before/>',
@@ -200,44 +212,47 @@ describe('symmetry rides the undo stack', () => {
           label: 'Delete flap',
           timestamp: '2026-01-01T00:00:00.000Z',
         },
-      ],
-    });
+      ]
+      }),});
 
     await useWorkspaceStore.getState().undo();
 
     expect(runtimeMocks.restoreOristudioBpProjectSnapshot).toHaveBeenCalledWith('<before/>');
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([{ v1: 1, v2: 2 }]);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([{ v1: 1, v2: 2 }]);
   });
 
   it('records nothing when the update changes nothing', () => {
     useWorkspaceStore.setState({ dirty: false });
     useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: true, fold: 'book' });
-    expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toEqual([]);
+    expect(selectOristudioBpHistoryPast(useWorkspaceStore.getState())).toEqual([]);
     expect(useWorkspaceStore.getState().dirty).toBe(false);
   });
 
   it('does not hand the live pairs array to a snapshot', () => {
     useWorkspaceStore.setState({
-      oristudioBpSymmetry: {
-        ...useWorkspaceStore.getState().oristudioBpSymmetry,
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), {
+      symmetry: {
+        ...selectOristudioBpSymmetry(useWorkspaceStore.getState()),
         pairs: [{ v1: 1, v2: 2 }],
-      },
-    });
+      }
+      }),});
     useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
-    const recorded = useWorkspaceStore.getState().oristudioBpHistoryPast.at(-1);
+    const recorded = selectOristudioBpHistoryPast(useWorkspaceStore.getState()).at(-1);
     expect(recorded?.snapshot.symmetry.pairs).not.toBe(
-      useWorkspaceStore.getState().oristudioBpSymmetry.pairs
+      selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs
     );
   });
 
   it('records nothing when unpairing a vertex that was not paired', () => {
     useWorkspaceStore.getState().unpairOristudioBpTreeSymmetry(9);
-    expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toEqual([]);
+    expect(selectOristudioBpHistoryPast(useWorkspaceStore.getState())).toEqual([]);
   });
 
   it('records nothing with no design open', () => {
-    useWorkspaceStore.setState({ oristudioBpDocument: null });
+    useWorkspaceStore.setState({
+      ...singleBoxPleatDesignTab({ document: null 
+      }),});
     useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
-    expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toEqual([]);
+    expect(selectOristudioBpHistoryPast(useWorkspaceStore.getState())).toEqual([]);
   });
 });
