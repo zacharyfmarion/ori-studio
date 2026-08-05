@@ -83,6 +83,7 @@ import {
 } from '../../../cp-workspace/annotations/textAnnotation';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
+import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
 import { discardCpDocumentState } from '../cpDocumentState';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
@@ -1045,7 +1046,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
     documentState: OristudioCpDocumentState,
     camvResult: OristudioCpCommandResult | null
-  ): Partial<WorkspaceState> => ({
+  ): Partial<WorkspaceState> => {
+    // A file is the one place window ids arrive from outside this session, so it
+    // is the one place the allocator has to be told about them. Without it the
+    // next window created is handed an id a restored one already holds, and the
+    // two share a fold. See `inlineSimulationIds`.
+    //
+    // Here rather than at each call site: it is inseparable from installing
+    // `oristudioCpInlineSimulations` below, and this is the only place that does.
+    noteInlineSimulationIds(nativeDocument.creasePattern.inlineSimulations);
+    return {
     // Overridden field-by-field below; spread for the fold side table,
     // which hydration only refills for the incoming windows.
     ...discardCpDocumentState(),
@@ -1086,7 +1096,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // This document becomes the simulator's source, so whatever the previous
     // load left behind must not be simulated in its place.
     ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-  });
+    };
+  };
 
   const loadNativeCreasePattern = async (
     nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
@@ -1179,7 +1190,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
     // Only the Edit-canvas fields: the design has already claimed `project`,
-    // `pendingDesignChoice`, and `status`.
+    // `designMethod`, and `status`.
     set(nativeCpEditorState(nativeDocument, checked.documentState, checked.camvResult));
     void get().hydrateOristudioCpInlineSimulations();
   };
