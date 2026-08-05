@@ -3,12 +3,6 @@
 Adversarial pre-release testing of Ori Studio. Goal: break things before a wider
 audience does.
 
-**This file is the tracker.** Section "Progress tracker" below is the live
-status of the fix work; everything after it is the original audit, kept as the
-evidence each finding rests on.
-
-Last updated: 2026-08-05, after #203–#206 merged.
-
 ## Known tooling limitations (NOT bugs)
 
 These are constraints of the automated browser pane, not product defects. Nothing
@@ -31,90 +25,21 @@ here is reported as a bug.
 | SUSPECT | Plausible defect, not yet confirmed |
 | N/A | Blocked by a tooling limitation above |
 
-## Progress tracker
+## Status
 
-**7 of 22 findings fixed and merged.** All four critical/ship-blocker items
-except #9 are done.
+This file is the **audit**: what was tested, what broke, and the evidence for
+each finding. It is deliberately not a status board — a progress table living
+next to the work it tracks goes stale the moment its own PR merges, which is
+exactly what happened here.
 
-### Merged
+Live fix status is tracked outside the repository, in the author's working copy.
+Per-fix status lives where it does not churn: each `implementation-plans/*.md`
+checklist, and the PR that closed it.
 
-| # | Finding | Sev | Plan | Pinned by | PR |
-| --- | --- | --- | --- | --- | --- |
-| 1 | `prepareFoldModel` O(faces x vertices) — 1191 ms -> 46 ms | high | — | `prepareScaling.test.ts` ratio gate | [#203](https://github.com/zacharyfmarion/ori-studio/pull/203) |
-| 2 | CI never ran the simulator tests | high | — | the CI step itself | [#203](https://github.com/zacharyfmarion/ori-studio/pull/203) |
-| 4 | Failed CP load replaced by a blank doc, error erased | critical | `failed-load-error-surfacing.md` | 3 store tests | [#204](https://github.com/zacharyfmarion/ori-studio/pull/204) |
-| 3 | Spec-valid multi-frame `.fold` rejected | critical | `fold-import-integrity.md` | 7 fixtures, exact segment counts | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
-| 5 | Malformed vertex shifts every later index | high | `fold-import-integrity.md` | vertex-integrity test | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
-| 6 | Invalid edge shifts every later assignment | medium | `fold-import-integrity.md` | assignment-alignment test | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
-| 7 | Cyclic `frame_parent` blows the stack | medium | `fold-import-integrity.md` | cyclic-frame test | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
-
-Measured effect of #3/#5/#6/#7 on a 90-file third-party FOLD corpus: **53 -> 86
-files importing**.
-
-### Next
-
-| # | Finding | Sev | Plan | State |
-| --- | --- | --- | --- | --- |
-| 9 | BP optimizer abort hangs, modal unclosable | critical | `bp-optimizer-cancellation.md` | plan written, reproduced end-to-end, **not started** |
-
-### Not started (no plan yet)
-
-| # | Finding | Sev |
-| --- | --- | --- |
-| 8 | `.ori` save drops reference images | high |
-| 10 | `.tmd5`/`.bps` from Welcome hidden behind the design chooser | high |
-| 11 | Undo history uncapped | high |
-| 12 | Delete/Backspace dead in the Design + 2 BP panes | high |
-| 13 | Per-segment export drops non-flat fold angles | medium |
-| 14 | A failed File > Open leaves the CP permanently uneditable | medium |
-| 15 | BP optimizer spins forever when no candidate packs (`optimizer.rs:1370`) | medium |
-| 16 | Shortcuts fire while a modal is open | medium |
-| 17 | Shortcut conflict detection ignores `global` scope | medium |
-| 18 | Build CP leaves the previous document's overlays behind | medium |
-| 19-22 | see the findings table below | low |
-
-### Carried forward
-
-Deferred deliberately, each with a reason recorded where it belongs:
-
-- **Surface importer `diagnostics.warnings`.** The importer records "Some FOLD
-  vertices/edges were ignored…" and nothing reads it, so a *partially* dropped
-  import still looks clean. Tracked in `fold-import-integrity.md`.
-- **Move the vertex-index remap into `foldEdgeArrays.ts`.** That module's
-  contract is per-*edge* arrays; folding in a vertex invariant deserves its own
-  review. Raised in #206.
-- **Golden-trace portability.** Making them run on CI means choosing a
-  tolerance, which changes what the oracle asserts. See BUG-2 below.
-- **Layout regression coverage.** No harness can catch the CSS collapse today;
-  options are in `failed-load-error-surfacing.md`.
-
-### Regression coverage
-
-Every fix is pinned by a test that was confirmed to **fail without it** — either
-written red first, or verified by swapping the pre-fix code back in.
-
-| # | Pinned by | Confirmed red without the fix |
-| --- | --- | --- |
-| 1 | `tests/prepareScaling.test.ts` — ratio gate, not a wall-clock budget | yes — 30.7x vs a threshold of 12 |
-| 2 | the CI step itself | n/a |
-| 3 | `tests/fixtures/fold-frames/` + `fold_frame_corpus.rs`, exact segment counts | yes — `missing field edges_vertices` |
-| 4 | 3 store tests in `store.test.ts` | yes — written red first |
-| 5 | `creasePatternImport.test.ts` vertex-integrity case | yes — written red first |
-| 6 | `creasePatternImport.test.ts` assignment-alignment case | yes — written red first |
-| 7 | `creasePatternImport.test.ts` cyclic-frame case | yes — written red first |
-
-Two deliberate gaps, both recorded rather than papered over:
-
-- **The CSS half of #4 is browser-verified only.** The web suite runs under
-  jsdom, which has no layout engine, so "collapses to 0x0" cannot be made to
-  fail and then pass. See `failed-load-error-surfacing.md`, "Test
-  infrastructure gap".
-- **The simulator golden traces do not run on CI.** They compare bit-exactly,
-  which is not portable across libm implementations. See BUG-2 below.
-
-Note on #1: raising the package test timeout so the suite could run on CI
-*removed* an accidental gate — the quadratic used to blow vitest's 5s default.
-The ratio test replaces it with a deliberate one.
+Fixed so far: findings 1-7 below, via #203, #204 and #206. Every one is pinned by
+a test confirmed to fail without it — written red first, or verified by swapping
+the pre-fix code back in. Finding 9 (BP optimizer abort) is the remaining
+critical item and has a written plan.
 
 ## 0. Post-merge re-validation (2026-08-05)
 
