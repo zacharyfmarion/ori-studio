@@ -2533,6 +2533,9 @@ describe('workspace store slices', () => {
       path: '/tmp/line.cp',
     });
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2725,6 +2728,9 @@ describe('workspace store slices', () => {
   it('refolds a stale figure in place, keeping its placement and identity', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2769,6 +2775,9 @@ describe('workspace store slices', () => {
   it('keeps the figure when a refold throws', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2799,6 +2808,9 @@ describe('workspace store slices', () => {
   it('keeps the figure when a refold returns nothing drawable', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2829,6 +2841,9 @@ describe('workspace store slices', () => {
   it('refuses to refold a figure whose source creases are gone', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2855,6 +2870,9 @@ describe('workspace store slices', () => {
       path: '/tmp/selected-lines.cp',
     });
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([
         cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Black0' }),
         cpLine({ x: 0, y: 0 }, { x: 0, y: 1 }, { color: 'Red1' }),
@@ -2920,6 +2938,9 @@ describe('workspace store slices', () => {
   it('does not fold editable CP documents without selected foldable lines', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([
         cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Red1' }),
       ]),
@@ -2942,6 +2963,9 @@ describe('workspace store slices', () => {
       path: '/tmp/line.cp',
     });
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -3025,6 +3049,9 @@ describe('workspace store slices', () => {
   it('undoes and redoes a folded figure placement without touching the wasm document', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
     });
     const figure: OristudioCpFoldedFigureEntry = {
@@ -3088,6 +3115,9 @@ describe('workspace store slices', () => {
   function seedFoldedFigureForModelTests(model?: Partial<OristudioCpFoldedFigureModel>) {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
     });
     const snapshot = foldedFigureSnapshot();
@@ -3348,6 +3378,9 @@ describe('workspace store slices', () => {
   it('keeps a deleted folded figure kernel-editable while undo can still reach it', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
     });
     const figure: OristudioCpFoldedFigureEntry = {
@@ -3399,6 +3432,9 @@ describe('workspace store slices', () => {
     function seedWindow() {
       resetStores(seedSnapshot());
       useWorkspaceStore.setState({
+        // Installing a crease pattern focuses the CP editor, as every production
+        // install path does (see `freshEditableCpState`).
+        activePanelId: 'crease-pattern',
         oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
         oristudioCpInlineSimulations: [inlineSimulationFixture()],
         oristudioCpHistoryPast: [],
@@ -3498,6 +3534,9 @@ describe('workspace store slices', () => {
   it('marks the project dirty for folded figure edits so they cannot be lost silently', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
     });
     const figure: OristudioCpFoldedFigureEntry = {
@@ -3844,6 +3883,9 @@ describe('workspace store slices', () => {
       path: '/tmp/line.cp',
     });
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -4452,6 +4494,9 @@ describe('workspace store slices', () => {
     const selection = { ...emptyOristudioCpSelection(), lines: [1] };
     useWorkspaceStore.setState({
       oristudioCpDocument: documentState,
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpSelection: selection,
       status: 'crease_pattern_ready',
       dirty: false,
@@ -5568,6 +5613,9 @@ describe('workspace store slices', () => {
         status: 'ready',
         dirty: false,
         // A crease pattern is already on the always-live canvas.
+        // Installing a crease pattern focuses the CP editor, as every production
+        // install path does (see `freshEditableCpState`).
+        activePanelId: 'crease-pattern',
         oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 0, y: 1 })]),
       });
 
@@ -5610,6 +5658,9 @@ describe('workspace store slices', () => {
         engineReady: true,
         status: 'ready',
         dirty: false,
+        // Installing a crease pattern focuses the CP editor, as every production
+        // install path does (see `freshEditableCpState`).
+        activePanelId: 'crease-pattern',
         oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 0, y: 1 })]),
       });
 

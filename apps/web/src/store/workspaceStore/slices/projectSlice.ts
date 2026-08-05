@@ -1601,11 +1601,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
   return {
     project: createEmptyProject(),
-    // The exact translation of the pair this replaced, whose initial state was
-    // `pendingDesignChoice: false` + `workflowTarget: 'treemaker'`. The paths that
-    // genuinely establish no design — a bare crease pattern, File › New, and
-    // `startNewDesign` — set `'none'` explicitly.
-    designMethod: 'treemaker',
+    // Nothing has been authored yet, so no method has been chosen — `/design`
+    // and the workspace rail both offer the chooser until one is. (The pair this
+    // replaced started at `pendingDesignChoice: false` + `workflowTarget:
+    // 'treemaker'`, which claimed Circle-packed for a project that did not exist;
+    // bare `/design` only showed the chooser because the route overwrote the
+    // claim on arrival.)
+    designMethod: 'none',
     projectEstablished: false,
     activePanelId: null,
     activeEditingContext: 'treemaker-tree',

@@ -70,6 +70,9 @@ function renderPanel(
     {
       ...useWorkspaceStore.getInitialState(),
       project,
+      // These exercise the Circle-packed design pane. A fresh store has picked no
+      // method, which is the method chooser — so say which pane is under test.
+      designMethod: 'treemaker',
       engineReady: true,
       ...state,
     },
@@ -113,7 +116,16 @@ afterEach(() => {
 });
 
 function renderDesignPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
-  useWorkspaceStore.setState({ ...useWorkspaceStore.getInitialState(), ...state }, true);
+  useWorkspaceStore.setState(
+    {
+      ...useWorkspaceStore.getInitialState(),
+      // These exercise the Circle-packed design pane. A fresh store has picked no
+      // method, which is the method chooser — so say which pane is under test.
+      designMethod: 'treemaker',
+      ...state,
+    },
+    true
+  );
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);

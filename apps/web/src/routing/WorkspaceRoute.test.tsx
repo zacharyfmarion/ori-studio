@@ -122,6 +122,18 @@ describe('WorkspaceRoute — bare /design', () => {
     expect(viewedEvents(client)).toEqual([{ workspace: 'design', variant: 'box-pleat' }]);
   });
 
+  it('offers the chooser on a fresh app, which has authored nothing', async () => {
+    // The pair this replaced started at "not pending" + "treemaker", claiming a
+    // method for a project that did not exist; bare `/design` only showed the
+    // chooser because the route overwrote that claim on arrival. Now the state
+    // is honest, so the route does not have to lie to correct it.
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    expect(useWorkspaceStore.getState().designMethod).toBe('none');
+    await act(async () => renderAt(root, DESIGN_PATH));
+    expect(host.querySelector('[data-testid="treemaker"]')).toBeNull();
+    expect(host.querySelector('[data-testid="bp"]')).toBeNull();
+  });
+
   it('reports the chooser when it is genuinely what rendered', async () => {
     useWorkspaceStore.setState({ designMethod: 'none' });
     const client = makeFakeClient();
