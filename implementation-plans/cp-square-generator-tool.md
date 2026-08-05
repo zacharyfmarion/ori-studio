@@ -314,57 +314,57 @@ action's label/tooltip/steps. `i18n:extract`, translate all 8 locales,
 Standalone and reviewable on its own; nothing below depends on landing it first,
 but it is much cheaper before a fourth native operation than after.
 
-- [ ] `OperationOrigin` enum, the `origin` descriptor field, the `native` macro
+- [x] `OperationOrigin` enum, the `origin` descriptor field, the `native` macro
       arm
-- [ ] Retag `CreaseSetLineColor`, `CreaseSetFoldAngle`, `VertexSolveFoldAngles`
-- [ ] Drift guard test (`operations::native::` ⇒ `OriStudio`; `OriStudio` ⇒
+- [x] Retag `CreaseSetLineColor`, `CreaseSetFoldAngle`, `VertexSolveFoldAngles`
+- [x] Drift guard test (`operations::native::` ⇒ `OriStudio`; `OriStudio` ⇒
       `OriStudio*` upstream)
-- [ ] `operations/native/mod.rs` with the doc comment stating the rule
-- [ ] `PORTING.md` section on native operations
-- [ ] Mirror `origin` in `engine/oristudioCpTypes.ts`; `isNativeCpOperation()`
+- [x] `operations/native/mod.rs` with the doc comment stating the rule
+- [x] `PORTING.md` section on native operations
+- [x] Mirror `origin` in `engine/oristudioCpTypes.ts`; `isNativeCpOperation()`
       plus its pinned-set test
 
 ### Phase 1 — kernel
 
-- [ ] `SquareOrientation` / `SquareAnchor` enums and `square_at_anchor` in
+- [x] `SquareOrientation` / `SquareAnchor` enums and `square_at_anchor` in
       `operations/native/square.rs`
-- [ ] Unit tests: both orientations × all nine anchors land the four vertices
+- [x] Unit tests: both orientations × all nine anchors land the four vertices
       where they should; size in model units; invalid extent rejected; the
       diagonal square's vertices land on grid multiples for even extents
-- [ ] `OperationId::SquareGenerate` + `descriptor!(native …)` (`Kernel`, stage 8,
+- [x] `OperationId::SquareGenerate` + `descriptor!(native …)` (`Kernel`, stage 8,
       `UnitTested`)
-- [ ] Payload fields + accessors
-- [ ] Execute branch (1 required point) and preview branch (`points.len() >= 1`)
-- [ ] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+- [x] Payload fields + accessors
+- [x] Execute branch (1 required point) and preview branch (`points.len() >= 1`)
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
       `cargo test --workspace`
 
 ### Phase 2 — bridge
 
-- [ ] Rebuild the wasm bindings and commit the tracked output under
+- [x] Rebuild the wasm bindings and commit the tracked output under
       `apps/web/src/generated/`
-- [ ] `wasm-pack test --node` where the bridge is covered
+- [x] `wasm-pack test --node` where the bridge is covered
 
 ### Phase 3 — registries and params
 
-- [ ] Command definition, action override at `railOrder: 10`, input-model entry
-- [ ] `square` settings group + the five tool options and defaults
+- [x] Command definition, action override at `railOrder: 10`, input-model entry
+- [x] `square` settings group + the five tool options and defaults
       (`squareSize: 4`, `squareSizeUnit: 'grid'`, `squareOrientation: 'normal'`,
       `squareAnchor: 'nw'`, `squareLineType: 'edge'`)
-- [ ] Persistence validators for all five, with tests for the round trip and for
+- [x] Persistence validators for all five, with tests for the round trip and for
       a stored anchor that does not belong to the stored orientation
-- [ ] `squareTool.ts` + unit tests: unit conversion both ways, unit-switch
+- [x] `squareTool.ts` + unit tests: unit conversion both ways, unit-switch
       conversion, anchor resolution per orientation, line-colour resolution
-- [ ] `SquareToolOptions.tsx`, mounted from `CpContextToolPanel`
-- [ ] Payload wiring and the shared `toolPreviewColor` resolver
-- [ ] Lucide `Square` icon registered
+- [x] `SquareToolOptions.tsx`, mounted from `CpContextToolPanel`
+- [x] Payload wiring and the shared `toolPreviewColor` resolver
+- [x] Lucide `Square` icon registered
 
 ### Phase 4 — validation
 
-- [ ] `npx tsc --noEmit` and vitest directly (the npm wrappers regenerate wasm
+- [x] `npx tsc --noEmit` and vitest directly (the npm wrappers regenerate wasm
       nondeterministically)
-- [ ] `npm run lint:web`
-- [ ] `i18n:extract` → translate 8 locales → `i18n:stamp` → `i18n:check`
-- [ ] Registry coverage tests pass: `oristudioCpCommands.test.ts` (one UI command
+- [x] `npm run lint:web`
+- [x] `i18n:extract` → translate 8 locales → `i18n:stamp` → `i18n:check`
+- [x] Registry coverage tests pass: `oristudioCpCommands.test.ts` (one UI command
       per source-mapped operation), `inputModelRegistry.test.ts` (entry present,
       counts match `toolSteps`), `CpContextToolReset.test.ts` (reset reaches every
       square option)
