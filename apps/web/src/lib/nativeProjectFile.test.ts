@@ -14,6 +14,7 @@ import {
   parseNativeProjectFile,
   serializeNativeProjectFile,
 } from './nativeProjectFile';
+import { ProjectFileFormatError } from './projectFileError';
 import { DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS, emptyOristudioCpSelection } from './creasePatternViewport';
 import { importedCpLineage } from './oristudioCpLineage';
 
@@ -770,6 +771,40 @@ describe('native project file', () => {
         })
       )
     ).toThrow(/requires reader schema/i);
+  });
+
+  // Callers use the type to tell "we know exactly why this file is unopenable"
+  // from an opaque failure they are free to speculate about, and the code to
+  // decide which of the three things the user should be told.
+  it('reports definitive rejections as project-format errors, coded by what the user can do', () => {
+    const rejections: [string, string][] = [
+      // Not ours at all.
+      ['{"format":"fold"}', 'project_file_unrecognized'],
+      ['[]', 'project_file_unrecognized'],
+      // Ours, from the future — updating fixes it.
+      ['{"format":"oristudio.project","schemaVersion":99}', 'project_file_too_new'],
+      [
+        `{"format":"oristudio.project","schemaVersion":1,"minimumReaderSchemaVersion":${NATIVE_PROJECT_SCHEMA_VERSION + 1}}`,
+        'project_file_too_new',
+      ],
+      // Ours, but unreadable.
+      ['{"format":"oristudio.project"}', 'project_file_damaged'],
+      ['{"format":"oristudio.project","schemaVersion":0}', 'project_file_damaged'],
+      ['{"format":"oristudio.project","schemaVersion":1}', 'project_file_damaged'],
+      ['{ not json', 'project_file_damaged'],
+    ];
+    for (const [text, code] of rejections) {
+      let thrown: unknown;
+      expect(() => {
+        try {
+          parseNativeProjectFile(text);
+        } catch (error) {
+          thrown = error;
+          throw error;
+        }
+      }).toThrow(ProjectFileFormatError);
+      expect((thrown as ProjectFileFormatError).code, text).toBe(code);
+    }
   });
 
   it('round-trips crease-pattern reference images (superset feature)', () => {

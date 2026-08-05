@@ -111,6 +111,7 @@ import '../../cp-workspace/folded/foldedFigureStalenessDebug';
 import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
 import { foldedFigureCurrentCase } from '../../cp-workspace/folded/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
+import { useWorkspaceErrorText } from '../../hooks/useWorkspaceErrorText';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuRequest } from '../ui/contextMenuTypes';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
@@ -860,7 +861,7 @@ export function CreasePatternPanel() {
 
   const project = useWorkspaceStore((state) => state.project);
   const status = useWorkspaceStore((state) => state.status);
-  const error = useWorkspaceStore((state) => state.error);
+  const errorText = useWorkspaceErrorText();
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
   const activeEditingContext = useWorkspaceStore((state) => state.activeEditingContext);
   const oristudioCpDocument = useWorkspaceStore((state) => state.oristudioCpDocument);
@@ -2559,8 +2560,8 @@ export function CreasePatternPanel() {
       ? t('panels:creasePattern.buildingCreasePattern', 'Building crease pattern')
       : status === 'optimizing'
         ? t('panels:creasePattern.optimizingScale', 'Optimizing scale')
-        : status === 'error' && error
-          ? shortStatus(error.message)
+        : status === 'error' && errorText
+          ? shortStatus(errorText)
           : activeEditingContext === 'crease-pattern'
             ? t('panels:creasePattern.noImportedCreasePattern', 'No imported crease pattern')
             : t('panels:creasePattern.noCreasePattern', 'No crease pattern');
@@ -3212,7 +3213,7 @@ export function CreasePatternPanel() {
               </span>
             ) : (
               <>
-                <span title={status === 'error' ? error?.message : undefined}>{emptyStatusLabel}</span>
+                <span title={status === 'error' ? (errorText ?? undefined) : undefined}>{emptyStatusLabel}</span>
                 <NextDocumentAction />
               </>
             )}

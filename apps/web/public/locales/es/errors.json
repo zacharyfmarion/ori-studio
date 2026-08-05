@@ -34,6 +34,11 @@
   "global": {
     "title": "Algo ha fallado en segundo plano"
   },
+  "projectFile": {
+    "damaged": "No se puede leer este proyecto de Ori Studio. Puede estar dañado o haberse guardado con una versión que esta aplicación no admite.",
+    "tooNew": "Este proyecto se guardó con una versión más reciente de Ori Studio. Actualiza Ori Studio y ábrelo de nuevo.",
+    "unrecognized": "Este archivo no es un proyecto de Ori Studio."
+  },
   "shareLink": {
     "invalid": "Ese enlace para compartir está incompleto o dañado; probablemente se cortó al copiarlo. Pide que te lo envíen de nuevo.",
     "notFound": "No se pudo abrir este enlace. Si acaba de crearse, inténtalo de nuevo en un momento.",

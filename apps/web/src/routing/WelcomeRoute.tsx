@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FileDropOverlay } from '../components/FileDropOverlay';
 import { StartScreen } from '../components/StartScreen';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
+import { useWorkspaceErrorText } from '../hooks/useWorkspaceErrorText';
 import type { DropTargetPolicy } from '../lib/fileDrop';
 import { useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -30,7 +31,7 @@ const WELCOME_DROP_POLICY: DropTargetPolicy = 'open-only';
 export function WelcomeRoute() {
   const navigate = useNavigate();
   const status = useWorkspaceStore((state) => state.status);
-  const error = useWorkspaceStore((state) => state.error);
+  const errorText = useWorkspaceErrorText();
   const createNewCreasePattern = useWorkspaceStore((state) => state.createNewCreasePattern);
   const openProject = useWorkspaceStore((state) => state.openProject);
   const showWelcomeOnStartup = useSettingsStore((state) => state.showWelcomeOnStartup);
@@ -73,7 +74,7 @@ export function WelcomeRoute() {
     >
       <StartScreen
         status={status}
-        errorMessage={error?.message ?? null}
+        errorMessage={errorText}
         onCreateCreasePattern={() => void handleCreateCreasePattern()}
         onCreateDesign={() => void handleCreateDesign()}
         onOpenFile={() => void handleOpenFile()}

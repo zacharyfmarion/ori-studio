@@ -1444,6 +1444,13 @@ function createFileService(
   };
 }
 
+// Past the slice's 25 MB "this may have run out of memory" threshold. Trailing
+// whitespace is ignored by JSON.parse, so this grows the source without
+// building a second copy of a huge document.
+function padToLargeSource(text: string): string {
+  return `${text}${' '.repeat(26 * 1024 * 1024 - text.length)}`;
+}
+
 async function flushAsyncWork() {
   await Promise.resolve();
   await Promise.resolve();
@@ -1806,6 +1813,54 @@ describe('workspace store slices', () => {
         path: '/tmp/native-tree.osf',
         extensions: ['osf'],
       })
+    );
+  });
+
+  // A file we rejected on its own terms already carries the whole reason; the
+  // size hint would send the user chasing a memory problem they do not have.
+  it('does not blame file size for a project the reader definitively rejected', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    const fileService = createFileService({
+      text: padToLargeSource(JSON.stringify({ format: 'oristudio.project', schemaVersion: 99 })),
+      name: 'future.osf',
+      path: '/tmp/future.osf',
+    });
+
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(false);
+
+    const { status, error } = useWorkspaceStore.getState();
+    expect(status).toBe('error');
+    expect(error?.message).toBe('Unsupported Ori Studio project schemaVersion 99');
+    // The code is what the toast layer translates; the message stays raw for
+    // diagnostics and never reaches the user as-is.
+    expect(error?.code).toBe('project_file_too_new');
+  });
+
+  it('still blames file size when a large project fails for an unexplained reason', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    engineMocks.loadTreeFromText.mockRejectedValueOnce(new Error('engine load failed'));
+    const nativeText = serializeNativeProjectFile(
+      createNativeTreeProjectFile({
+        title: 'Native tree',
+        filename: 'legacy.tmd5',
+        path: '/tmp/legacy.tmd5',
+        tmd5Text: 'native tree tmd5',
+        appVersion: '0.1.1',
+        now: new Date('2026-05-26T12:00:00.000Z'),
+      })
+    );
+    const fileService = createFileService({
+      text: padToLargeSource(nativeText),
+      name: 'huge.osf',
+      path: '/tmp/huge.osf',
+    });
+
+    await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(false);
+
+    expect(useWorkspaceStore.getState().error?.message).toMatch(
+      /^engine load failed — this file is very large \(~26 MB\)/
     );
   });
 

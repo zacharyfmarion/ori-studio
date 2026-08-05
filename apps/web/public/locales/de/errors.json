@@ -34,6 +34,11 @@
   "global": {
     "title": "Im Hintergrund ist ein Fehler aufgetreten"
   },
+  "projectFile": {
+    "damaged": "Dieses Ori-Studio-Projekt kann nicht gelesen werden. Möglicherweise ist es beschädigt oder wurde mit einer Version gespeichert, die diese App nicht unterstützt.",
+    "tooNew": "Dieses Projekt wurde mit einer neueren Version von Ori Studio gespeichert. Aktualisiere Ori Studio und öffne es dann erneut.",
+    "unrecognized": "Diese Datei ist kein Ori-Studio-Projekt."
+  },
   "shareLink": {
     "invalid": "Dieser Link zum Teilen ist unvollständig oder beschädigt – vermutlich wurde er beim Kopieren abgeschnitten. Bitte lass ihn dir noch einmal schicken.",
     "notFound": "Dieser Freigabelink ließ sich nicht öffnen. Wenn er gerade erst erstellt wurde, versuche es gleich noch einmal.",

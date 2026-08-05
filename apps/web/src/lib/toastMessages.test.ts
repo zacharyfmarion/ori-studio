@@ -21,6 +21,25 @@ describe('toast message helpers', () => {
     ).toContain("couldn't be folded");
   });
 
+  // The reader's own messages name internal fields; none of that reaches the user.
+  it('replaces project-file rejections with what the user can act on', () => {
+    expect(
+      humanizeError(
+        { code: 'project_file_too_new', message: 'Unsupported Ori Studio project schemaVersion 9' },
+        t
+      )
+    ).toContain('newer version of Ori Studio');
+    expect(
+      humanizeError({ code: 'project_file_unrecognized', message: 'File is not an Ori Studio project' }, t)
+    ).toContain("isn't an Ori Studio project");
+    expect(
+      humanizeError(
+        { code: 'project_file_damaged', message: 'Ori Studio project field workspace must be an object' },
+        t
+      )
+    ).not.toContain('workspace');
+  });
+
   it('falls back to the raw message for unknown codes', () => {
     expect(humanizeError({ code: 'some_other_error', message: 'raw detail' }, t)).toBe('raw detail');
     expect(humanizeError(new Error('boom'), t)).toBe('boom');
