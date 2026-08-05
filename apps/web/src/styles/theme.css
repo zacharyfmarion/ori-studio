@@ -5949,17 +5949,13 @@
   border-radius: 2px;
 }
 
-.folded-figure-menu__field--segmented {
-  align-items: stretch;
-}
-
+/* Sized to its options and parked at the right edge of the field column, where the
+   inputs above it end. Stretching a segmented control to the full row divides the
+   width by however many options there happen to be, so the active segment lands
+   somewhere different each time the set changes — and at two options it reads as a
+   half-filled progress bar rather than a choice. */
 .folded-figure-menu__field--segmented .segmented {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.folded-figure-menu__field--segmented .segmented__option {
-  padding: 0 6px;
+  justify-self: end;
 }
 
 .folded-figure-menu__case {
