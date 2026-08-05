@@ -3,9 +3,6 @@
 Adversarial pre-release testing of Ori Studio. Goal: break things before a wider
 audience does.
 
-Branch: `claude/production-qa-testing-e0357c`
-Dev server: http://localhost:5191 (worktree `origami-simulator-perf-641fd4`)
-
 ## Known tooling limitations (NOT bugs)
 
 These are constraints of the automated browser pane, not product defects. Nothing
@@ -28,29 +25,21 @@ here is reported as a bug.
 | SUSPECT | Plausible defect, not yet confirmed |
 | N/A | Blocked by a tooling limitation above |
 
-## Progress tracker
+## Status
 
-Live status of the fix work. Update this table as each PR moves.
+This file is the **audit**: what was tested, what broke, and the evidence for
+each finding. It is deliberately not a status board — a progress table living
+next to the work it tracks goes stale the moment its own PR merges, which is
+exactly what happened here.
 
-| # | Finding | Sev | Plan | Status | PR |
-| --- | --- | --- | --- | --- | --- |
-| 1 | `prepareFoldModel` O(faces x vertices) | high | — (direct fix) | **Fixed** — 1191 ms -> 46 ms | [#203](https://github.com/zacharyfmarion/ori-studio/pull/203) |
-| 2 | CI never runs the simulator tests | high | — (direct fix) | **Fixed** — added to `web-client` | [#203](https://github.com/zacharyfmarion/ori-studio/pull/203) |
-| 4 | Failed CP load replaced by blank doc, error erased | critical | `failed-load-error-surfacing.md` | **Fixed** — 3 store tests | [#204](https://github.com/zacharyfmarion/ori-studio/pull/204) |
-| 3 | Multi-frame `.fold` rejected | critical | `fold-import-integrity.md` | **Fixed** — 4 Rust tests | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
-| 5 | Malformed vertex shifts indices | high | `fold-import-integrity.md` | **Fixed** — vertex remap | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
-| 6 | Invalid edge shifts assignments | medium | `fold-import-integrity.md` | **Fixed** — edge provenance | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
-| 7 | Cyclic `frame_parent` blows the stack | medium | `fold-import-integrity.md` | **Fixed** — visited set | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
-| 9 | BP optimizer abort hangs, modal unclosable | critical | `bp-optimizer-cancellation.md` | **Next** | — |
-| 8 | `.ori` save drops reference images | high | _none yet_ | Not started | — |
-| 10 | `.tmd5`/`.bps` from Welcome hidden by chooser | high | _none yet_ | Not started | — |
-| 11 | Undo history uncapped | high | _none yet_ | Not started | — |
-| 12 | Delete/Backspace dead in 3 panes | high | _none yet_ | Not started | — |
-| 13-22 | see the findings table below | med/low | _none yet_ | Not started | — |
+Live fix status is tracked outside the repository, in the author's working copy.
+Per-fix status lives where it does not churn: each `implementation-plans/*.md`
+checklist, and the PR that closed it.
 
-Known coverage decision: the CSS half of #4 is **browser-verified only** — the
-web suite runs under jsdom, which has no layout engine. See
-`failed-load-error-surfacing.md`, "Test infrastructure gap".
+Fixed so far: findings 1-7 below, via #203, #204 and #206. Every one is pinned by
+a test confirmed to fail without it — written red first, or verified by swapping
+the pre-fix code back in. Finding 9 (BP optimizer abort) is the remaining
+critical item and has a written plan.
 
 ## 0. Post-merge re-validation (2026-08-05)
 
