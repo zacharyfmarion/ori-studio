@@ -263,9 +263,9 @@ geometry, names, or contents.
 ## Checklist
 
 Phase 0 — Provisioning
-- [ ] New PostHog project created for Ori Studio (not openscad-studio's 342123); key + host obtained
-- [ ] `VITE_PUBLIC_POSTHOG_KEY` / `_HOST` added as repo Actions secrets (or variables)
-- [ ] `deploy-web.yml` build step exposes them via `env:` (prod only; previews left unset)
+- [ ] New PostHog project created for Ori Studio (not openscad-studio's 342123); key + host obtained *(manual — dashboard; MCP can't create projects)*
+- [ ] `VITE_PUBLIC_POSTHOG_KEY` / `_HOST` added as repo Actions secrets (or variables) *(manual — repo settings)*
+- [x] `deploy-web.yml` build step exposes them via `env:` (prod only; previews left unset)
 
 Phase 1 — Core runtime
 - [ ] `posthog-js` + `@posthog/react` added to `apps/web/package.json`

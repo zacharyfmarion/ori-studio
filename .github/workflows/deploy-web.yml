@@ -50,6 +50,13 @@ jobs:
 
       - name: Build web app
         run: npm run build:web
+        env:
+          # PostHog analytics keys are inlined by Vite at build time. Absent =
+          # analytics silently disabled (the dev/prod firewall). Set only here,
+          # on the prod (main) deploy — PR previews intentionally leave these
+          # unset so preview traffic never reaches the production project.
+          VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
+          VITE_PUBLIC_POSTHOG_HOST: ${{ secrets.VITE_PUBLIC_POSTHOG_HOST }}
 
       - name: Deploy to Cloudflare Pages
         run: npx wrangler@4 pages deploy apps/web/dist --project-name=oristudio --branch=main
