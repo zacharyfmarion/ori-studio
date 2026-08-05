@@ -250,9 +250,7 @@
     "foldedModelSide": "Face du modèle plié",
     "foldedState": {
       "back": "Verso",
-      "backShort": "B",
-      "front": "Recto",
-      "frontShort": "F"
+      "front": "Recto"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

@@ -232,9 +232,7 @@
     "foldedModelSide": "折叠模型侧面",
     "foldedState": {
       "back": "背面",
-      "backShort": "B",
-      "front": "正面",
-      "frontShort": "F"
+      "front": "正面"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

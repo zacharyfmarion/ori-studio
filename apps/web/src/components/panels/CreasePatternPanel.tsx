@@ -248,16 +248,9 @@ function foldedDisplayStyleLabel(t: TFunction, value: OristudioCpFoldedFigureDis
   }
 }
 
+// Spelled out rather than initialled. Two options no longer need the abbreviation,
+// and the word is its own tooltip.
 function foldedStateLabel(t: TFunction, value: FoldedFigureSide): string {
-  switch (value) {
-    case 'Front0':
-      return t('panels:creasePattern.foldedState.frontShort', 'F');
-    case 'Back1':
-      return t('panels:creasePattern.foldedState.backShort', 'B');
-  }
-}
-
-function foldedStateTitle(t: TFunction, value: FoldedFigureSide): string {
   switch (value) {
     case 'Front0':
       return t('panels:creasePattern.foldedState.front', 'Front');
@@ -671,7 +664,6 @@ function FoldedFigureMenuButton({
               options={FOLDED_FIGURE_SIDES.map((value) => ({
                 value,
                 label: foldedStateLabel(t, value),
-                title: foldedStateTitle(t, value),
               }))}
               value={model?.state ?? 'Front0'}
               onChange={(state) => onModelUpdate({ state })}

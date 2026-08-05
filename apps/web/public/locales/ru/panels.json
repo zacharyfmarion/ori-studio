@@ -259,9 +259,7 @@
     "foldedModelSide": "Сторона сложенной модели",
     "foldedState": {
       "back": "Изнанка",
-      "backShort": "B",
-      "front": "Лицо",
-      "frontShort": "F"
+      "front": "Лицо"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

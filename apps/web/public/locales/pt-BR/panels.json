@@ -250,9 +250,7 @@
     "foldedModelSide": "Lado do modelo dobrado",
     "foldedState": {
       "back": "Verso",
-      "backShort": "B",
-      "front": "Frente",
-      "frontShort": "F"
+      "front": "Frente"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

@@ -232,9 +232,7 @@
     "foldedModelSide": "접힌 모델 면",
     "foldedState": {
       "back": "뒷면",
-      "backShort": "B",
-      "front": "앞면",
-      "frontShort": "F"
+      "front": "앞면"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

@@ -250,9 +250,7 @@
     "foldedModelSide": "Cara del modelo plegado",
     "foldedState": {
       "back": "Reverso",
-      "backShort": "B",
-      "front": "Anverso",
-      "frontShort": "F"
+      "front": "Anverso"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

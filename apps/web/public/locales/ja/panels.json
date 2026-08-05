@@ -232,9 +232,7 @@
     "foldedModelSide": "折りモデルの面",
     "foldedState": {
       "back": "裏",
-      "backShort": "B",
-      "front": "表",
-      "frontShort": "F"
+      "front": "表"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

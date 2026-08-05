@@ -241,9 +241,7 @@
     "foldedModelSide": "Seite des gefalteten Modells",
     "foldedState": {
       "back": "Rückseite",
-      "backShort": "B",
-      "front": "Vorderseite",
-      "frontShort": "F"
+      "front": "Vorderseite"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

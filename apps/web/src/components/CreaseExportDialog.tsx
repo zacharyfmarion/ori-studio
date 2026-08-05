@@ -66,15 +66,6 @@ function thumbnailStrokes(palette: CreaseExportPalette): Record<string, string> 
 function foldedSideLabel(t: TFunction, value: FoldedFigureSide): string {
   switch (value) {
     case 'Front0':
-      return t('dialogs:export.foldedSideFrontShort', 'F');
-    case 'Back1':
-      return t('dialogs:export.foldedSideBackShort', 'B');
-  }
-}
-
-function foldedSideTitle(t: TFunction, value: FoldedFigureSide): string {
-  switch (value) {
-    case 'Front0':
       return t('dialogs:export.foldedSideFront', 'Front');
     case 'Back1':
       return t('dialogs:export.foldedSideBack', 'Back');
@@ -526,7 +517,6 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                     options={FOLDED_FIGURE_SIDES.map((value) => ({
                       value,
                       label: foldedSideLabel(t, value),
-                      title: foldedSideTitle(t, value),
                     }))}
                   />
                 </div>

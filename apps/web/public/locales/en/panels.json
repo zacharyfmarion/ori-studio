@@ -241,9 +241,7 @@
     "foldedModelSide": "Folded model side",
     "foldedState": {
       "back": "Back",
-      "backShort": "B",
-      "front": "Front",
-      "frontShort": "F"
+      "front": "Front"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
