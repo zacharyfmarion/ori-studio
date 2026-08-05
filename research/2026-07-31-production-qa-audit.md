@@ -34,7 +34,7 @@ Live status of the fix work. Update this table as each PR moves.
 
 | # | Finding | Sev | Plan | Status | PR |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `prepareFoldModel` O(faces x vertices) | high | — (direct fix) | **Fixed** — 1191 ms -> 46 ms | [#203](https://github.com/zacharyfmarion/ori-studio/pull/203) |
+| 1 | `prepareFoldModel` O(faces x vertices) | high | — (direct fix) | **Fixed** — 1191 ms -> 46 ms; pinned by a scaling gate | [#203](https://github.com/zacharyfmarion/ori-studio/pull/203) |
 | 2 | CI never runs the simulator tests | high | — (direct fix) | **Fixed** — added to `web-client` | [#203](https://github.com/zacharyfmarion/ori-studio/pull/203) |
 | 4 | Failed CP load replaced by blank doc, error erased | critical | `failed-load-error-surfacing.md` | **Fixed** — 3 store tests | [#204](https://github.com/zacharyfmarion/ori-studio/pull/204) |
 | 3 | Multi-frame `.fold` rejected | critical | `fold-import-integrity.md` | **Fixed** — 4 Rust tests | [#206](https://github.com/zacharyfmarion/ori-studio/pull/206) |
@@ -48,9 +48,33 @@ Live status of the fix work. Update this table as each PR moves.
 | 12 | Delete/Backspace dead in 3 panes | high | _none yet_ | Not started | — |
 | 13-22 | see the findings table below | med/low | _none yet_ | Not started | — |
 
-Known coverage decision: the CSS half of #4 is **browser-verified only** — the
-web suite runs under jsdom, which has no layout engine. See
-`failed-load-error-surfacing.md`, "Test infrastructure gap".
+### Regression coverage
+
+Every fix is pinned by a test that was confirmed to **fail without it** — either
+written red first, or verified by swapping the pre-fix code back in.
+
+| # | Pinned by | Confirmed red without the fix |
+| --- | --- | --- |
+| 1 | `tests/prepareScaling.test.ts` — ratio gate, not a wall-clock budget | yes — 30.7x vs a threshold of 12 |
+| 2 | the CI step itself | n/a |
+| 3 | `tests/fixtures/fold-frames/` + `fold_frame_corpus.rs`, exact segment counts | yes — `missing field edges_vertices` |
+| 4 | 3 store tests in `store.test.ts` | yes — written red first |
+| 5 | `creasePatternImport.test.ts` vertex-integrity case | yes — written red first |
+| 6 | `creasePatternImport.test.ts` assignment-alignment case | yes — written red first |
+| 7 | `creasePatternImport.test.ts` cyclic-frame case | yes — written red first |
+
+Two deliberate gaps, both recorded rather than papered over:
+
+- **The CSS half of #4 is browser-verified only.** The web suite runs under
+  jsdom, which has no layout engine, so "collapses to 0x0" cannot be made to
+  fail and then pass. See `failed-load-error-surfacing.md`, "Test
+  infrastructure gap".
+- **The simulator golden traces do not run on CI.** They compare bit-exactly,
+  which is not portable across libm implementations. See BUG-2 below.
+
+Note on #1: raising the package test timeout so the suite could run on CI
+*removed* an accidental gate — the quadratic used to blow vitest's 5s default.
+The ratio test replaces it with a deliberate one.
 
 ## 0. Post-merge re-validation (2026-08-05)
 
