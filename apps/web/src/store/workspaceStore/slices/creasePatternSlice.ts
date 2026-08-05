@@ -949,6 +949,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           return;
         }
       }
+      // Having no document because a file was *refused* is not the same as
+      // having none because nothing is open yet, and only the second is a
+      // reason to seed a blank canvas. Seeding on the first replaced the
+      // failure with an empty sheet named after the user's file and cleared the
+      // error on the way through (`freshEditableCpState` ->
+      // `discardCpDocumentState`), so nothing anywhere said the load had failed.
+      //
+      // A share still overrides: it is an explicit request to open something
+      // else, and succeeding at it clears the failure below.
+      if (get().cpLoadFailure && !get().pendingSharedCp) return;
       if (ensureEditInFlight) return ensureEditInFlight;
       ensureEditInFlight = (async () => {
         try {

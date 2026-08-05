@@ -2664,6 +2664,15 @@
 .cp-panel__viewport {
   position: relative;
   display: grid;
+  /* Fill the body's grid area rather than being sized by content. `.cp-panel__body`
+     centres its items and only stretches them under `--with-tools`, which is
+     absent whenever there is no editable document — and in that state nothing
+     here is in flow (the canvas is unmounted; the overlay, toolbar and status
+     readout are all absolutely positioned), so the track collapsed to 0x0 and
+     took the read-only "could not be opened for editing" message down with it,
+     rendering it as a 40x40 box of pure padding. */
+  align-self: stretch;
+  justify-self: stretch;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
