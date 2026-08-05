@@ -151,9 +151,23 @@ Landed in [#206](https://github.com/zacharyfmarion/ori-studio/pull/206).
 - [x] Web: `frame_parent` cycle detection (visited set in the resolver)
 - [x] Web: regression tests asserting the two tables in **Reproductions**
 - [x] Rebuild and commit the tracked `oristudio-cp-wasm` bridge
+- [x] Fixture corpus: 7 shapes under `tests/fixtures/fold-frames`, each asserting
+      an exact segment count (a regression resolving to the wrong frame still
+      returns `Ok`, so only the count catches it), plus an opt-in
+      `FOLD_FRAME_CORPUS_DIR` scan matching the existing corpus harnesses
+- [x] Confirm the fixtures are a real gate by swapping the pre-fix importer back
+      in — both tests fail there
 - [x] Validate: `cargo fmt --check`, `cargo clippy --workspace --all-targets`,
-      `cargo test --workspace` (131 binaries), web typecheck + 2374 tests
-- [x] Open draft PR against `main`
+      `cargo test --workspace` (132 binaries), web typecheck + 2374 tests
+- [x] Open draft PR against `main` — merged
+
+**Measured against a real corpus.** 90 third-party FOLD files: **37 rejected
+before, 86 of 90 importing after.** The dominant failure was a `foldedForm` frame
+omitting `edges_vertices` while the root geometry was complete — crane,
+randlett-flapping-bird, moosers-train, square-twist, the maze and panel families.
+The corpus is referenced, not committed: `tests/corpus/README.md` keeps
+third-party corpus files out of the repository, and this one is GPL-3.0 against a
+GPL-2.0-or-later project.
 
 Deliberately **not** done, and why:
 
