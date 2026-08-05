@@ -1,4 +1,5 @@
 import {
+  activeDesignTab,
   clearActiveDesignContent,
   createDesignTab,
   initialDesignTabs,
@@ -9,6 +10,7 @@ import {
   selectOristudioBpDocument,
   selectOristudioBpSymmetry,
   selectProject,
+  type DesignTab,
 } from '../designTabs';
 import {
   adoptDesign,
@@ -16,6 +18,18 @@ import {
   parkDesign,
   serializeDesign,
 } from '../../../engines/designHandles';
+import { designPayloadFormat } from '../../../lib/nativeProjectDesigns';
+import type { DesignKindId } from '../../../designKinds';
+
+/** Narrow an unknown `viewState` entry before reading it. */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+import type { NativeDesignDocumentV8 } from '../../../lib/nativeProjectDesigns';
+import type { NativeCreasePatternDocumentV1 as NativeCreasePatternDocument } from '../../../lib/nativeProjectFile';
+import { ProjectFileFormatError } from '../../../lib/projectFileError';
+import { createBoxPleatDesignState, createTreemakerDesignState } from '../designContent';
+import { BP_TREE_SYMMETRY_ANGLE, defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
+import type { BpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import { getExampleProject } from '../../../examples/catalog';
 import { APP_VERSION } from '../../../constants/release';
 import {
@@ -105,14 +119,12 @@ import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/
 import { discardCpDocumentState } from '../cpDocumentState';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
-  activeNativeDocument,
   createNativeCreasePatternProjectFile,
   createNativeProjectFile,
   isNativeProjectFilename,
   NATIVE_PROJECT_EXTENSION,
   parseNativeProjectFile,
   serializeNativeProjectFile,
-  type NativeProjectActiveMode,
 } from '../../../lib/nativeProjectFile';
 import { isProjectFileFormatError } from '../../../lib/projectFileError';
 import { bpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
@@ -208,32 +220,11 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpGridMetadata,
 } from '../../../engine/oristudioCpTypes';
-import type { EditingContext } from '../../../workspaces/editingContext';
 
 function nowIso(): string {
   return new Date().toISOString();
 }
 
-/**
- * Which document a saved workspace records as active/primary. A design (tree or
- * box-pleat) always wins over the crease pattern: the Edit canvas is always
- * focusable, and the single-document loader dispatches on the active document,
- * so letting a focused Edit view mark the CP active would drop the design on
- * reload. The editing context only chooses which design is primary when more
- * than one is present.
- */
-function resolveNativeActiveMode(
-  context: EditingContext,
-  present: { hasTree: boolean; hasBoxPleat: boolean }
-): NativeProjectActiveMode {
-  if ((context === 'bp-tree' || context === 'bp-packing') && present.hasBoxPleat) {
-    return 'box-pleat';
-  }
-  if (context === 'treemaker-tree' && present.hasTree) return 'tree';
-  if (present.hasBoxPleat) return 'box-pleat';
-  if (present.hasTree) return 'tree';
-  return 'crease-pattern';
-}
 
 function cpHistoryEntry(
   document: Awaited<ReturnType<typeof loadOristudioCpDocumentFromText>>['document'],
@@ -987,6 +978,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpAnnotations: importedTextAnnotations,
       oristudioCpDocumentExtensions: {},
       nativeProjectExtensions: {},
+    nativeUnknownDesigns: [],
       projectLoadId: get().projectLoadId + 1,
       currentFileName: filename,
       currentFilePath: source.path ?? null,
@@ -1056,7 +1048,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    * a crease pattern alongside a design without unclaiming it.
    */
   const nativeCpEditorState = (
-    nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
+    nativeDocument: NativeCreasePatternDocument,
     documentState: OristudioCpDocumentState,
     camvResult: OristudioCpCommandResult | null
   ): Partial<WorkspaceState> => {
@@ -1115,7 +1107,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   };
 
   const loadNativeCreasePattern = async (
-    nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
+    nativeDocument: NativeCreasePatternDocument,
     source: { filename: string; path?: string | null }
   ) => {
     set({
@@ -1186,7 +1178,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   };
 
   const restoreNativeCreasePatternCompanion = async (
-    nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
+    nativeDocument: NativeCreasePatternDocument,
     source: { filename: string; path?: string | null }
   ) => {
     const nativeSource = {
@@ -1210,44 +1202,138 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     source: { filename: string; path?: string | null }
   ) => {
     const nativeProject = parseNativeProjectFile(text);
-    const nativeDocument = activeNativeDocument(nativeProject);
-    // Retain the file-level extension bag for a lossless save round-trip. Set
-    // early; the document load paths below never touch this field.
-    set({ nativeProjectExtensions: nativeProject.extensions });
-    // Known before anything is installed, and the design installers need it: a
-    // bundle that carries a crease pattern must not publish an empty Edit canvas
-    // on the way to installing it. The Edit surface self-provisions into any gap
-    // it sees, so each such gap cost a blank document built and thrown away.
-    const companion = nativeProject.workspace.documents.find(
-      (document) => document.kind === 'crease-pattern'
-    );
-    const preserveEditCanvas = companion !== undefined;
-    if (nativeDocument.kind === 'treemaker-tree') {
-      await loadText(nativeDocument.tree.text, {
-        title: nativeDocument.title || nativeProject.workspace.title,
-        filename: source.filename,
-        path: source.path ?? null,
-        preserveEditCanvas,
-      });
-      if (companion?.kind === 'crease-pattern') {
-        await restoreNativeCreasePatternCompanion(companion, source);
-      }
-      return;
-    }
-    if (nativeDocument.kind === 'box-pleat') {
-      const loaded = await get().loadOristudioBpProjectFromFile(
-        nativeDocument.project.text,
-        { filename: source.filename, path: source.path ?? null },
-        { symmetry: nativeDocument.symmetry, preserveEditCanvas }
+    const { designs, creasePattern, activeDocumentId } = nativeProject.workspace;
+
+    // Retained for a lossless save round-trip: the file-level extension bag, and
+    // any design whose kind this build could not read.
+    set({
+      nativeProjectExtensions: nativeProject.extensions,
+      nativeUnknownDesigns: nativeProject.workspace.unknownDesigns,
+    });
+
+    // A bundle that carries a crease pattern must not publish an empty Edit
+    // canvas on the way to installing it — the Edit surface self-provisions into
+    // any gap it sees, and each gap cost a blank document built and thrown away.
+    const preserveEditCanvas = creasePattern !== null;
+
+    // Opening a file replaces the whole workspace, so every design the previous
+    // project held is forgotten before the new ones are adopted. Without this the
+    // registry would keep their handles — and, worse, a reopened project reusing
+    // an id would silently inherit the old design's parked text.
+    await Promise.all(get().designTabs.map((tab) => forgetDesign(tab.id)));
+
+    const tabs: DesignTab[] = designs.map((design) => {
+      // Adopted, not hydrated: the design's engine handle is built on first
+      // activation, so opening a twenty-design project costs one hydrate.
+      adoptDesign(design.id, design.payload.text);
+      return createDesignTabFromFile(design);
+    });
+
+    if (tabs.length === 0) {
+      // A crease-pattern-only project establishes no design; the Design workspace
+      // keeps offering its chooser.
+      await loadNativeCreasePattern(
+        creasePattern ??
+          (() => {
+            throw new ProjectFileFormatError(
+              'project_file_damaged',
+              'Ori Studio project contains neither a design nor a crease pattern'
+            );
+          })(),
+        source
       );
-      // Restore the saved CP companion (if any) so the Send-to-Edit result comes
-      // back too. It replaces the canvas the design load was told to keep.
-      if (loaded && companion?.kind === 'crease-pattern') {
-        await restoreNativeCreasePatternCompanion(companion, source);
+      return;
+    }
+
+    const active = tabs.find((tab) => tab.id === activeDocumentId) ?? tabs[0];
+    await installLoadedDesignTabs(tabs, active, nativeProject, source, preserveEditCanvas);
+
+    if (creasePattern) {
+      await restoreNativeCreasePatternCompanion(creasePattern, source);
+    }
+  };
+
+  /**
+   * Turn a file's design document into a tab.
+   *
+   * The kind was validated against the registry at parse time, so an unknown one
+   * never reaches here — it stayed in `unknownDesigns`.
+   */
+  const createDesignTabFromFile = (design: NativeDesignDocumentV8): DesignTab => {
+    const identity = { id: design.id, title: design.title };
+    if (design.payload.kind === 'box-pleat') {
+      const symmetry = isRecord(design.viewState.symmetry)
+        ? (design.viewState.symmetry as unknown as BpDocumentSymmetry)
+        : undefined;
+      return {
+        ...identity,
+        kind: 'box-pleat',
+        boxPleat: createBoxPleatDesignState({
+          symmetry: symmetry
+            ? { ...defaultBpDocumentSymmetry(), ...symmetry, angle: BP_TREE_SYMMETRY_ANGLE, loc: { x: 0, y: 0 } }
+            : undefined,
+        }),
+      };
+    }
+    return { ...identity, kind: 'treemaker', treemaker: createTreemakerDesignState() };
+  };
+
+  /**
+   * Publish the loaded tabs, then materialize the active one.
+   *
+   * Only the active design is hydrated: the rest sit as parked text until the
+   * user visits them, which is what keeps opening a many-design project cheap.
+   */
+  const installLoadedDesignTabs = async (
+    tabs: DesignTab[],
+    active: DesignTab,
+    nativeProject: ReturnType<typeof parseNativeProjectFile>,
+    source: { filename: string; path?: string | null },
+    preserveEditCanvas: boolean
+  ) => {
+    set({
+      designTabs: tabs,
+      activeDesignId: active.id,
+      workspaceTitle: nativeProject.workspace.title,
+      currentFileName: source.filename,
+      currentFilePath: source.path ?? null,
+      projectMessage: `Loaded ${source.filename}`,
+      activePanelId: 'design',
+      dirty: false,
+      error: null,
+      projectEstablished: true,
+    });
+
+    if (active.kind === 'treemaker') {
+      const text = await serializeDesign(active.id, 'treemaker');
+      if (text !== null) {
+        await loadText(text, {
+          title: active.title,
+          filename: source.filename,
+          path: source.path ?? null,
+          preserveEditCanvas,
+        });
+        // `loadText` installs a fresh tab for the tree it loaded; put the file's
+        // own tab set back, with the loaded design in place.
+        set({ designTabs: tabs.map((tab) => (tab.id === active.id ? activeDesignTab(get()) : tab)) });
+        set({ designTabs: get().designTabs.map((tab, index) => ({ ...tab, id: tabs[index].id, title: tabs[index].title })) });
       }
       return;
     }
-    await loadNativeCreasePattern(nativeDocument, source);
+    if (active.kind === 'box-pleat') {
+      const text = await serializeDesign(active.id, 'box-pleat');
+      if (text !== null) {
+        await get().loadOristudioBpProjectFromFile(
+          text,
+          { filename: source.filename, path: source.path ?? null },
+          {
+            symmetry: isRecord(active.boxPleat.symmetry) ? active.boxPleat.symmetry : undefined,
+            preserveEditCanvas,
+          }
+        );
+        set({ designTabs: get().designTabs.length === tabs.length ? get().designTabs : tabs });
+      }
+    }
   };
 
   const currentTreeTmd5Text = async () => {
@@ -1269,37 +1355,71 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     };
   };
 
-  // Serialize every design document the workspace currently holds into one
-  // native `.osf` bundle: a TreeMaker tree (if the tree has nodes), a Box-Pleat
-  // design (if one is loaded), and the Edit crease pattern as a companion (if
-  // present). This is the multi-document path; the workspace container can hold
-  // all three at once. `activeMode` records which view was focused, but a design
-  // always stays the primary/active document so the single-document loader never
-  // drops it when the always-live Edit canvas is the one in focus.
+  /**
+   * Serialize every design tab into one `.osf`, plus the Edit crease pattern.
+   *
+   * Every design goes through its kind's codec — the same `serialize` that
+   * eviction and undo already use — so a design that is currently parked (its
+   * engine handle evicted) saves from its parked text without being rehydrated
+   * first. A tab that has chosen no method contributes nothing; it is a chooser,
+   * not a design.
+   */
   const saveNativeWorkspaceProject = async (fileService: FileService, forceSaveAs: boolean) => {
-    const hasTree = selectProject(get()).nodes.length > 0;
-    const bpDocument = selectOristudioBpDocument(get());
-    const tmd5Text = hasTree ? await currentTreeTmd5Text() : null;
-    const bps = bpDocument ? await exportOristudioBpProjectAsBps() : null;
+    const tabs = get().designTabs;
+    const activeId = get().activeDesignId;
+
+    /**
+     * Serialize the design the user is looking at, straight from the live engine.
+     *
+     * The registry only knows a design it created, adopted, or hydrated, and the
+     * current create paths still build their handle through the engine runtime
+     * directly — so the active design is routinely one the registry has never
+     * seen. Until those paths acquire through the registry (the rest of 2d), the
+     * live export is the source of truth for the active tab, and the registry is
+     * for every other one.
+     */
+    const serializeActiveDesign = async (kind: DesignKindId): Promise<string | null> => {
+      if (kind === 'treemaker') {
+        return selectProject(get()).nodes.length > 0 ? currentTreeTmd5Text() : null;
+      }
+      return selectOristudioBpDocument(get()) ? exportOristudioBpProjectAsBps() : null;
+    };
+
+    const designs = (
+      await Promise.all(
+        tabs.map(async (tab) => {
+          if (tab.kind === null) return null;
+          const text =
+            (await serializeDesign(tab.id, tab.kind)) ??
+            (tab.id === activeId ? await serializeActiveDesign(tab.kind) : null);
+          if (text === null) return null;
+          return {
+            id: tab.id,
+            title: tab.title,
+            kind: tab.kind,
+            text,
+            format: designPayloadFormat(tab.kind),
+            viewState:
+              tab.kind === 'box-pleat'
+                ? { symmetry: bpDocumentSymmetry(tab.boxPleat.symmetry) }
+                : {},
+          };
+        })
+      )
+    ).filter((design): design is NonNullable<typeof design> => design !== null);
+
     const creasePatternCompanion = get().oristudioCpDocument
       ? await currentEditableCreasePatternProjectInput(get().currentFileName, get().currentFilePath)
       : null;
-    const bpTitle = bpDocument?.snapshot?.summary?.title || get().workspaceTitle;
-    const activeMode = resolveNativeActiveMode(get().activeEditingContext, {
-      hasTree,
-      hasBoxPleat: Boolean(bpDocument),
-    });
+
     const contents = serializeNativeProjectFile(
       createNativeProjectFile({
-        workspaceTitle: activeMode === 'box-pleat' ? bpTitle : get().workspaceTitle,
+        workspaceTitle: get().workspaceTitle,
         filename: get().currentFileName,
         path: get().currentFilePath,
-        activeMode,
-        tree: tmd5Text !== null ? { title: selectProject(get()).title, tmd5Text } : null,
-        boxPleat:
-          bps !== null
-            ? { title: bpTitle, bps, symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get())) }
-            : null,
+        designs,
+        activeDesignId: get().activeDesignId,
+        unknownDesigns: get().nativeUnknownDesigns,
         creasePattern: creasePatternCompanion,
         extensions: get().nativeProjectExtensions,
         appVersion: APP_VERSION,
@@ -1635,6 +1755,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     oristudioCpHistoryPast: [],
     oristudioCpHistoryFuture: [],
     nativeProjectExtensions: {},
+    nativeUnknownDesigns: [],
     oristudioCpDocumentExtensions: {},
     projectLoadId: 0,
     currentFilePath: null,

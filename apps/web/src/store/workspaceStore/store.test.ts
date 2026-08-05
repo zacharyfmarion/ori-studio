@@ -43,7 +43,7 @@ import {
   emptyOristudioCpSelection,
 } from '../../lib/creasePatternViewport';
 import {
-  activeNativeDocument,
+  activeNativeDesign,
   createNativeBoxPleatProjectFile,
   createNativeCreasePatternProjectFile,
   createNativeTreeProjectFile,
@@ -1582,9 +1582,8 @@ describe('workspace store slices', () => {
       | SaveTextFileOptions
       | undefined;
     const savedNativeTree = parseNativeProjectFile(savedNativeTreeOptions?.contents ?? '');
-    expect(activeNativeDocument(savedNativeTree)).toMatchObject({
-      kind: 'treemaker-tree',
-      tree: { format: 'tmd5' },
+    expect(activeNativeDesign(savedNativeTree)).toMatchObject({
+      payload: { kind: 'treemaker', format: 'tmd5' },
     });
     expect(useWorkspaceStore.getState().dirty).toBe(false);
 
@@ -2096,8 +2095,7 @@ describe('workspace store slices', () => {
       | SaveTextFileOptions
       | undefined;
     const savedNativeCp = parseNativeProjectFile(savedNativeCpOptions?.contents ?? '');
-    expect(activeNativeDocument(savedNativeCp)).toMatchObject({
-      kind: 'crease-pattern',
+    expect(savedNativeCp.workspace.creasePattern).toMatchObject({
       creasePattern: {
         engine: 'oristudio-cp',
         foldProjection: expect.objectContaining({ frame_classes: ['creasePattern'] }),
@@ -2389,8 +2387,7 @@ describe('workspace store slices', () => {
       | SaveTextFileOptions
       | undefined;
     const savedProject = parseNativeProjectFile(savedOptions?.contents ?? '');
-    expect(activeNativeDocument(savedProject)).toMatchObject({
-      kind: 'crease-pattern',
+    expect(savedProject.workspace.creasePattern).toMatchObject({
       creasePattern: {
         source: {
           format: 'ori',
@@ -5483,11 +5480,10 @@ describe('workspace store slices', () => {
         | undefined;
       expect(options?.extensions).toEqual(['osf']);
       const saved = parseNativeProjectFile(options?.contents ?? '');
-      expect(saved.workspace.activeMode).toBe('box-pleat');
-      const active = activeNativeDocument(saved);
-      expect(active.kind).toBe('box-pleat');
-      if (active.kind !== 'box-pleat') throw new Error('expected box-pleat document');
-      expect(active.project.text).toBe('{"title":"Crane","saved":true}');
+      const active = activeNativeDesign(saved);
+      if (!active) throw new Error('expected a box-pleat design');
+      expect(active.payload.kind).toBe('box-pleat');
+      expect(active.payload.text).toBe('{"title":"Crane","saved":true}');
       expect(useWorkspaceStore.getState().dirty).toBe(false);
     });
 
@@ -5515,14 +5511,11 @@ describe('workspace store slices', () => {
         | SaveTextFileOptions
         | undefined;
       const saved = parseNativeProjectFile(options?.contents ?? '');
-      expect(saved.workspace.activeMode).toBe('box-pleat');
-      expect(saved.workspace.documents.map((document) => document.kind)).toEqual([
-        'box-pleat',
-        'crease-pattern',
-      ]);
-      const active = activeNativeDocument(saved);
-      if (active.kind !== 'box-pleat') throw new Error('expected box-pleat document');
-      expect(active.project.text).toBe('{"design":"kept"}');
+      expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
+      expect(saved.workspace.creasePattern).not.toBeNull();
+      const active = activeNativeDesign(saved);
+      if (!active) throw new Error('expected a box-pleat design');
+      expect(active.payload.text).toBe('{"design":"kept"}');
     });
 
     it('bundles the Edit crease pattern as a companion when saving a box-pleat design', async () => {
@@ -5541,10 +5534,8 @@ describe('workspace store slices', () => {
         | SaveTextFileOptions
         | undefined;
       const saved = parseNativeProjectFile(options?.contents ?? '');
-      expect(saved.workspace.documents.map((document) => document.kind)).toEqual([
-        'box-pleat',
-        'crease-pattern',
-      ]);
+      expect(saved.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
+      expect(saved.workspace.creasePattern).not.toBeNull();
     });
 
     it('exports the active box-pleat design as a .bps file', async () => {

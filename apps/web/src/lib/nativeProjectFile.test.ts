@@ -4,7 +4,7 @@ import type {
   OristudioCpFoldedFigureEntry,
 } from '../engine/oristudioCpTypes';
 import {
-  activeNativeDocument,
+  activeNativeDesign,
   createNativeBoxPleatProjectFile,
   createNativeCreasePatternProjectFile,
   createNativeProjectFile,
@@ -113,6 +113,64 @@ function foldedFigure(): OristudioCpFoldedFigureEntry {
   };
 }
 
+/** Loosely-typed file object, for fixtures that reshape raw JSON. */
+type LegacyShaped = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+/**
+ * Rewrite a v8 file object into the v1–v7 shape, so a fixture that lowers
+ * `schemaVersion` actually looks like a file that version wrote.
+ *
+ * Setting the version alone is not enough: v8 splits the old flat `documents`
+ * array into `designs` + `creasePattern`, so a "v6" file still carrying the new
+ * shape exercises the wrong reader.
+ */
+function asLegacyFile(v8: LegacyShaped, schemaVersion: number): LegacyShaped {
+  const documents: Record<string, unknown>[] = [];
+  for (const design of v8.workspace.designs ?? []) {
+    if (design.payload.kind === 'box-pleat') {
+      documents.push({
+        id: design.id,
+        kind: 'box-pleat',
+        title: design.title,
+        source: null,
+        project: { engine: 'oristudio-bp', format: 'bps', text: design.payload.text },
+        symmetry: design.viewState.symmetry,
+        extensions: design.extensions ?? {},
+      });
+    } else {
+      documents.push({
+        id: design.id,
+        kind: 'treemaker-tree',
+        title: design.title,
+        source: null,
+        tree: { format: 'tmd5', text: design.payload.text },
+        extensions: design.extensions ?? {},
+      });
+    }
+  }
+  if (v8.workspace.creasePattern) documents.push(v8.workspace.creasePattern);
+  const activeMode =
+    documents[0]?.kind === 'box-pleat'
+      ? 'box-pleat'
+      : documents[0]?.kind === 'treemaker-tree'
+        ? 'tree'
+        : 'crease-pattern';
+  return {
+    ...v8,
+    schemaVersion,
+    minimumReaderSchemaVersion: 1,
+    workspace: {
+      id: v8.workspace.id,
+      title: v8.workspace.title,
+      activeDocumentId: documents[0]?.id ?? 'crease-pattern',
+      activeMode,
+      documents,
+      viewState: v8.workspace.viewState ?? {},
+    },
+  };
+}
+
+
 describe('native project file', () => {
   it('serializes and parses tree documents as an Ori Studio project', () => {
     const file = createNativeTreeProjectFile({
@@ -125,15 +183,13 @@ describe('native project file', () => {
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    const document = activeNativeDocument(parsed);
+    const document = activeNativeDesign(parsed);
 
     expect(isNativeProjectFilename('design.osf')).toBe(true);
     expect(parsed.format).toBe('oristudio.project');
-    expect(parsed.workspace.activeMode).toBe('tree');
     expect(document).toMatchObject({
-      kind: 'treemaker-tree',
       title: 'Tree design',
-      tree: { format: 'tmd5', text: 'tm text' },
+      payload: { kind: 'treemaker', format: 'tmd5', text: 'tm text' },
     });
   });
 
@@ -203,11 +259,13 @@ describe('native project file', () => {
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    const document = activeNativeDocument(parsed);
 
-    expect(parsed.workspace.activeMode).toBe('crease-pattern');
-    expect(document.kind).toBe('crease-pattern');
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    // A crease pattern is not a design: v8 stores it in its own field, and the
+    // file holds no design tabs at all.
+    expect(activeNativeDesign(parsed)).toBeNull();
+    expect(parsed.workspace.designs).toEqual([]);
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.creasePattern.document.crease_pattern.line_segments).toHaveLength(1);
     expect(document.creasePattern.document.crease_pattern.line_segments[0].color).toBe('Purple8');
     expect(document.creasePattern.foldProjection?.edges_vertices).toEqual([[0, 1]]);
@@ -252,13 +310,13 @@ describe('native project file', () => {
       now,
     });
     const serialized = JSON.parse(serializeNativeProjectFile(file));
-    const entry = serialized.workspace.documents[0].viewState.foldedFigures[0];
+    const entry = serialized.workspace.creasePattern.viewState.foldedFigures[0];
     delete entry.placement;
     entry.displayOffset = { x: 12, y: -8 };
 
     const parsed = parseNativeProjectFile(JSON.stringify(serialized));
-    const document = activeNativeDocument(parsed);
-    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.viewState.foldedFigures[0].placement).toEqual({
       offset: { x: 12, y: -8 },
       scale: 1,
@@ -286,8 +344,8 @@ describe('native project file', () => {
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    const document = activeNativeDocument(parsed);
-    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.viewState.foldedFigures[0]).toMatchObject({
       sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
       sourceFingerprint: 'fingerprint-1',
@@ -316,14 +374,14 @@ describe('native project file', () => {
       now,
     });
     const serialized = JSON.parse(serializeNativeProjectFile(file));
-    const entry = serialized.workspace.documents[0].viewState.foldedFigures[0];
+    const entry = serialized.workspace.creasePattern.viewState.foldedFigures[0];
     delete entry.sourceBounds;
     delete entry.sourceFingerprint;
     delete entry.sourceLineIds;
 
     const parsed = parseNativeProjectFile(JSON.stringify(serialized));
-    const document = activeNativeDocument(parsed);
-    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.viewState.foldedFigures[0]).toMatchObject({
       sourceBounds: null,
       sourceFingerprint: null,
@@ -350,11 +408,11 @@ describe('native project file', () => {
       now,
     });
     const serialized = JSON.parse(serializeNativeProjectFile(file));
-    serialized.workspace.documents[0].viewState.foldedFigures[0].sourceBounds = { minX: 0 };
+    serialized.workspace.creasePattern.viewState.foldedFigures[0].sourceBounds = { minX: 0 };
 
     const parsed = parseNativeProjectFile(JSON.stringify(serialized));
-    const document = activeNativeDocument(parsed);
-    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.viewState.foldedFigures[0].sourceBounds).toBeNull();
   });
 
@@ -377,11 +435,11 @@ describe('native project file', () => {
       now,
     });
     const serialized = JSON.parse(serializeNativeProjectFile(file));
-    delete serialized.workspace.documents[0].viewState.foldedFigures[0].placement;
+    delete serialized.workspace.creasePattern.viewState.foldedFigures[0].placement;
 
     const parsed = parseNativeProjectFile(JSON.stringify(serialized));
-    const document = activeNativeDocument(parsed);
-    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.viewState.foldedFigures[0].placement).toEqual({
       offset: { x: 0, y: 0 },
       scale: 1,
@@ -408,11 +466,11 @@ describe('native project file', () => {
       now,
     });
     const serialized = JSON.parse(serializeNativeProjectFile(file));
-    serialized.workspace.documents[0].viewState.foldedFigures[0].placement.scale = 0;
+    serialized.workspace.creasePattern.viewState.foldedFigures[0].placement.scale = 0;
 
     const parsed = parseNativeProjectFile(JSON.stringify(serialized));
-    const document = activeNativeDocument(parsed);
-    if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.viewState.foldedFigures[0].placement.scale).toBe(1);
   });
 
@@ -442,10 +500,8 @@ describe('native project file', () => {
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
 
     expect(parsed.schemaVersion).toBe(NATIVE_PROJECT_SCHEMA_VERSION);
-    expect(parsed.workspace.documents.map((document) => document.kind)).toEqual([
-      'treemaker-tree',
-      'crease-pattern',
-    ]);
+    expect(parsed.workspace.designs.map((design) => design.payload.kind)).toEqual(['treemaker']);
+    expect(parsed.workspace.creasePattern).not.toBeNull();
     expect(parsed.workspace.activeDocumentId).toBe('tree');
   });
 
@@ -474,17 +530,13 @@ describe('native project file', () => {
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
 
-    expect(parsed.workspace.activeMode).toBe('box-pleat');
-    expect(parsed.workspace.activeDocumentId).toBe('box-pleat');
-    expect(parsed.workspace.documents.map((document) => document.kind)).toEqual([
-      'box-pleat',
-      'crease-pattern',
-    ]);
-    const active = activeNativeDocument(parsed);
-    expect(active.kind).toBe('box-pleat');
-    if (active.kind !== 'box-pleat') throw new Error('expected box-pleat document');
-    expect(active.project).toEqual({
-      engine: 'oristudio-bp',
+        expect(parsed.workspace.activeDocumentId).toBe('box-pleat');
+    expect(parsed.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
+    expect(parsed.workspace.creasePattern).not.toBeNull();
+    const active = activeNativeDesign(parsed);
+    if (!active) throw new Error('expected a box-pleat design');
+    expect(active.payload).toEqual({
+      kind: 'box-pleat',
       format: 'bps',
       text: '{"title":"Crane","tree":{}}',
     });
@@ -495,9 +547,11 @@ describe('native project file', () => {
       workspaceTitle: 'Multi',
       filename: 'multi.osf',
       path: '/tmp/multi.osf',
-      activeMode: 'tree',
-      tree: { title: 'Multi tree', tmd5Text: 'tmd5-body' },
-      boxPleat: { title: 'Multi bp', bps: '{"tree":{}}' },
+      designs: [
+        { id: 'tree', title: 'Multi tree', kind: 'treemaker', text: 'tmd5-body', format: 'tmd5' },
+        { id: 'box-pleat', title: 'Multi bp', kind: 'box-pleat', text: '{"tree":{}}', format: 'bps' },
+      ],
+      activeDesignId: 'tree',
       creasePattern: {
         title: 'Multi CP',
         document: cpDocument(),
@@ -518,32 +572,158 @@ describe('native project file', () => {
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
 
     // All three documents coexist in the one workspace container.
-    expect(parsed.workspace.documents.map((document) => document.kind)).toEqual([
-      'treemaker-tree',
+    // Two designs and one crease pattern: the designs are tabs, in order; the
+    // crease pattern is not a tab and lives in its own field.
+    expect(parsed.workspace.designs.map((design) => design.payload.kind)).toEqual([
+      'treemaker',
       'box-pleat',
-      'crease-pattern',
     ]);
-    // activeMode selects which document is primary; here the tree.
-    expect(parsed.workspace.activeMode).toBe('tree');
+    expect(parsed.workspace.creasePattern).not.toBeNull();
     expect(parsed.workspace.activeDocumentId).toBe('tree');
-    expect(activeNativeDocument(parsed).kind).toBe('treemaker-tree');
+    expect(activeNativeDesign(parsed)?.payload.kind).toBe('treemaker');
+    // More than one design is not expressible in v1–v7, so the file says so.
+    expect(parsed.minimumReaderSchemaVersion).toBe(8);
   });
 
-  it('points activeDocumentId at the box-pleat design when it is the active mode', () => {
+  it('round-trips many designs of mixed kinds, in tab order', () => {
+    // The capability the whole schema change exists for. v1-v7 could hold at
+    // most one design per kind, under a constant id, so this file was not
+    // expressible at all.
     const file = createNativeProjectFile({
-      workspaceTitle: 'Multi',
-      filename: 'multi.osf',
+      workspaceTitle: 'Menagerie',
+      filename: 'menagerie.osf',
       path: null,
-      activeMode: 'box-pleat',
-      tree: { title: 'Multi tree', tmd5Text: 'tmd5-body' },
-      boxPleat: { title: 'Multi bp', bps: '{"tree":{}}' },
+      designs: [
+        { id: 'd1', title: 'Crane', kind: 'treemaker', text: 'crane-tmd5', format: 'tmd5' },
+        { id: 'd2', title: 'Beetle', kind: 'box-pleat', text: '{"beetle":1}', format: 'bps' },
+        { id: 'd3', title: 'Crane II', kind: 'treemaker', text: 'crane2-tmd5', format: 'tmd5' },
+      ],
+      activeDesignId: 'd2',
       appVersion: '0.1.1',
       now,
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    expect(parsed.workspace.activeDocumentId).toBe('box-pleat');
-    expect(activeNativeDocument(parsed).kind).toBe('box-pleat');
+
+    expect(parsed.workspace.designs.map((design) => [design.id, design.title])).toEqual([
+      ['d1', 'Crane'],
+      ['d2', 'Beetle'],
+      ['d3', 'Crane II'],
+    ]);
+    expect(parsed.workspace.designs.map((design) => design.payload.text)).toEqual([
+      'crane-tmd5',
+      '{"beetle":1}',
+      'crane2-tmd5',
+    ]);
+    expect(parsed.workspace.activeDocumentId).toBe('d2');
+  });
+
+  it('keeps a design of an unrecognized kind rather than destroying it', () => {
+    const file = JSON.parse(
+      serializeNativeProjectFile(
+        createNativeProjectFile({
+          workspaceTitle: 'Future',
+          filename: 'future.osf',
+          path: null,
+          designs: [
+            { id: 'd1', title: 'Crane', kind: 'treemaker', text: 'crane', format: 'tmd5' },
+          ],
+          appVersion: '0.1.1',
+          now,
+        })
+      )
+    );
+    file.workspace.designs.push({
+      id: 'd2',
+      title: 'Woven',
+      payload: { kind: 'weave-o-matic', text: 'opaque', format: 'wv' },
+      viewState: {},
+      extensions: {},
+    });
+
+    const parsed = parseNativeProjectFile(JSON.stringify(file));
+
+    // The tab this build understands opens; the one it does not is held aside
+    // verbatim so the next save cannot silently delete someone else's work.
+    expect(parsed.workspace.designs.map((design) => design.id)).toEqual(['d1']);
+    expect(parsed.workspace.unknownDesigns).toHaveLength(1);
+    expect(parsed.workspace.unknownDesigns[0]).toMatchObject({ id: 'd2' });
+  });
+
+  it('refuses a design that claims the reserved crease-pattern id', () => {
+    const file = JSON.parse(
+      serializeNativeProjectFile(
+        createNativeProjectFile({
+          workspaceTitle: 'Clash',
+          filename: 'clash.osf',
+          path: null,
+          designs: [{ id: 'd1', title: 'Crane', kind: 'treemaker', text: 'c', format: 'tmd5' }],
+          appVersion: '0.1.1',
+          now,
+        })
+      )
+    );
+    file.workspace.designs[0].id = 'crease-pattern';
+
+    expect(() => parseNativeProjectFile(JSON.stringify(file))).toThrow(/reserved id/i);
+  });
+
+  it('migrates a legacy tree-plus-box-pleat file to two tabs, ids intact', () => {
+    const legacy = asLegacyFile(
+      JSON.parse(
+        serializeNativeProjectFile(
+          createNativeProjectFile({
+            workspaceTitle: 'Legacy',
+            filename: 'legacy.osf',
+            path: null,
+            designs: [
+              { id: 'tree', title: 'Legacy tree', kind: 'treemaker', text: 't', format: 'tmd5' },
+              { id: 'box-pleat', title: 'Legacy bp', kind: 'box-pleat', text: '{}', format: 'bps' },
+            ],
+            appVersion: '0.1.1',
+            now,
+          })
+        )
+      ),
+      6
+    );
+
+    const parsed = parseNativeProjectFile(JSON.stringify(legacy));
+
+    // Ids migrate verbatim. Renumbering to `design-N` would look tidier and
+    // would detach each design from the identity anything else recorded for it.
+    expect(parsed.workspace.designs.map((design) => design.id)).toEqual(['tree', 'box-pleat']);
+    expect(parsed.workspace.designs.map((design) => design.payload.kind)).toEqual([
+      'treemaker',
+      'box-pleat',
+    ]);
+    // A legacy file was always readable by the build that wrote it.
+    expect(parsed.minimumReaderSchemaVersion).toBe(1);
+  });
+
+  it('names the active design by id, not by kind', () => {
+    const file = createNativeProjectFile({
+      workspaceTitle: 'Multi',
+      filename: 'multi.osf',
+      path: null,
+      designs: [
+        { id: 'a', title: 'First crane', kind: 'treemaker', text: 'a-body', format: 'tmd5' },
+        { id: 'b', title: 'Second crane', kind: 'treemaker', text: 'b-body', format: 'tmd5' },
+      ],
+      // Two designs of the *same* kind: the question v1–v7's kind-based lookup
+      // could not answer at all.
+      activeDesignId: 'b',
+      appVersion: '0.1.1',
+      now,
+    });
+
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
+    expect(parsed.workspace.activeDocumentId).toBe('b');
+    expect(activeNativeDesign(parsed)?.title).toBe('Second crane');
+    expect(parsed.workspace.designs.map((design) => design.payload.text)).toEqual([
+      'a-body',
+      'b-body',
+    ]);
   });
 
   it('round-trips a box-pleat design with no companion crease pattern', () => {
@@ -557,13 +737,14 @@ describe('native project file', () => {
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    expect(parsed.workspace.documents.map((document) => document.kind)).toEqual(['box-pleat']);
+    expect(parsed.workspace.designs.map((design) => design.payload.kind)).toEqual(['box-pleat']);
   });
 
   describe('canvas camera (schema v7)', () => {
     const camera = { centerX: 12.5, centerY: -40, zoom: 3.25, rotation: Math.PI / 4 };
 
     /** A CP file, optionally carrying a saved camera. */
+
     const cpFileWith = (input: { camera?: typeof camera | null }) =>
       createNativeCreasePatternProjectFile({
         title: 'Rotated CP',
@@ -588,8 +769,8 @@ describe('native project file', () => {
       const parsed = parseNativeProjectFile(
         typeof raw === 'string' ? raw : JSON.stringify(raw)
       );
-      const document = activeNativeDocument(parsed);
-      if (document?.kind !== 'crease-pattern') throw new Error('expected CP document');
+      const document = parsed.workspace.creasePattern;
+      if (!document) throw new Error('expected CP document');
       return document.viewState.camera;
     };
 
@@ -604,8 +785,7 @@ describe('native project file', () => {
     it('opens a v6 file, which predates the camera, with no camera', () => {
       // The migration case: every file written before this feature. It must open
       // and fall back to the auto-fit, not throw.
-      const raw = JSON.parse(serializeNativeProjectFile(cpFileWith({ camera })));
-      raw.schemaVersion = 6;
+      const raw = asLegacyFile(JSON.parse(serializeNativeProjectFile(cpFileWith({ camera }))), 6);
       delete raw.workspace.documents[0].viewState.camera;
       expect(cameraOf(raw)).toBeNull();
     });
@@ -615,34 +795,43 @@ describe('native project file', () => {
       // Zero zoom would divide by zero; an out-of-range one blanks the canvas.
       for (const junk of [null, 42, 'square', [], { zoom: 2 }, { ...camera, zoom: 0 }, { ...camera, rotation: Number.NaN }, { ...camera, zoom: 1e9 }]) {
         const raw = JSON.parse(serializeNativeProjectFile(cpFileWith({ camera })));
-        raw.workspace.documents[0].viewState.camera = junk;
+        raw.workspace.creasePattern.viewState.camera = junk;
         expect(cameraOf(raw)).toBeNull();
       }
     });
   });
 
   describe('box-pleat symmetry (schema v6)', () => {
+    // These cases are about the *legacy* symmetry field, which lived at the top
+    // of a v1–v7 box-pleat document; v8 carries it in the design's view state.
     const bpFile = (symmetry?: Parameters<typeof createNativeBoxPleatProjectFile>[0]['symmetry']) =>
-      JSON.parse(
-        serializeNativeProjectFile(
-          createNativeBoxPleatProjectFile({
-            title: 'Sym',
-            filename: 'sym.osf',
-            path: null,
-            bps: '{"tree":{}}',
-            symmetry,
-            appVersion: '0.1.1',
-            now,
-          })
-        )
+      asLegacyFile(
+        JSON.parse(
+          serializeNativeProjectFile(
+            createNativeBoxPleatProjectFile({
+              title: 'Sym',
+              filename: 'sym.osf',
+              path: null,
+              bps: '{"tree":{}}',
+              symmetry,
+              appVersion: '0.1.1',
+              now,
+            })
+          )
+        ),
+        6
       );
 
     /** The box-pleat document of a parsed file, narrowed. */
     const bpDocumentOf = (raw: unknown) => {
       const parsed = parseNativeProjectFile(JSON.stringify(raw));
-      const document = parsed.workspace.documents[0];
-      if (document.kind !== 'box-pleat') throw new Error('expected a box-pleat document');
-      return document;
+      const document = parsed.workspace.designs[0];
+      if (document?.payload.kind !== 'box-pleat') {
+        throw new Error('expected a box-pleat document');
+      }
+      // Mirror-draw state rides the design's own view state in v8; the legacy
+      // migration lifts it out of the old top-level field.
+      return { ...document, symmetry: document.viewState.symmetry };
     };
 
     it('round-trips what mirrors what, and the fold', () => {
@@ -708,7 +897,9 @@ describe('native project file', () => {
           'nope',
         ],
       };
-      expect(bpDocumentOf(raw).symmetry.pairs).toEqual([{ v1: 1, v2: 5 }]);
+      expect((bpDocumentOf(raw).symmetry as { pairs: unknown }).pairs).toEqual([
+        { v1: 1, v2: 5 },
+      ]);
     });
   });
 
@@ -725,8 +916,12 @@ describe('native project file', () => {
         })
       )
     );
-    file.workspace.documents[0].project.engine = 'somethingElse';
-    expect(() => parseNativeProjectFile(JSON.stringify(file))).toThrow(/Unsupported box-pleat engine/i);
+    // The engine field only exists in the v1–v7 shape; v8 stores a kind id.
+    const legacy = asLegacyFile(file, 6);
+    legacy.workspace.documents[0].project.engine = 'somethingElse';
+    expect(() => parseNativeProjectFile(JSON.stringify(legacy))).toThrow(
+      /Unsupported box-pleat engine/i
+    );
   });
 
   it('defaults missing schema-1 CP lineage during migration', () => {
@@ -747,16 +942,16 @@ describe('native project file', () => {
       appVersion: '0.1.1',
       now,
     });
-    const legacy = JSON.parse(serializeNativeProjectFile(file));
-    legacy.schemaVersion = 1;
+    const legacy = asLegacyFile(JSON.parse(serializeNativeProjectFile(file)), 1);
     delete legacy.workspace.documents[0].creasePattern.lineage;
 
     const parsed = parseNativeProjectFile(JSON.stringify(legacy));
-    const document = activeNativeDocument(parsed);
 
     expect(parsed.schemaVersion).toBe(NATIVE_PROJECT_SCHEMA_VERSION);
-    expect(document.kind).toBe('crease-pattern');
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    // A legacy crease-pattern-only file migrates to zero design tabs.
+    expect(activeNativeDesign(parsed)).toBeNull();
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.creasePattern.lineage).toMatchObject({ kind: 'imported', stale: false });
   });
 
@@ -844,8 +1039,8 @@ describe('native project file', () => {
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    const document = activeNativeDocument(parsed);
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.creasePattern.images).toEqual([image]);
   });
 
@@ -886,8 +1081,8 @@ describe('native project file', () => {
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    const document = activeNativeDocument(parsed);
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.creasePattern.inlineSimulations).toEqual([simulation]);
   });
 
@@ -930,8 +1125,8 @@ describe('native project file', () => {
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    const document = activeNativeDocument(parsed);
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.creasePattern.inlineSimulations[0]?.sourceFingerprint).toBe(
       'cs1:deadbeefdeadbeef'
     );
@@ -960,8 +1155,8 @@ describe('native project file', () => {
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    const document = activeNativeDocument(parsed);
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.viewState.viewport.foldAngleDisplay).toBe('opacity');
   });
 
@@ -987,11 +1182,11 @@ describe('native project file', () => {
       now,
     });
     const raw = JSON.parse(serializeNativeProjectFile(file));
-    for (const doc of raw.workspace.documents) delete doc.viewState?.viewport?.foldAngleDisplay;
+    delete raw.workspace.creasePattern?.viewState?.viewport?.foldAngleDisplay;
 
     const parsed = parseNativeProjectFile(JSON.stringify(raw));
-    const document = activeNativeDocument(parsed);
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.viewState.viewport.foldAngleDisplay).toBeUndefined();
   });
 
@@ -1013,13 +1208,12 @@ describe('native project file', () => {
       appVersion: '0.1.1',
       now,
     });
-    const raw = JSON.parse(serializeNativeProjectFile(file));
-    for (const doc of raw.workspace.documents) delete doc.creasePattern?.inlineSimulations;
-    raw.schemaVersion = 4;
+    const raw = asLegacyFile(JSON.parse(serializeNativeProjectFile(file)), 4);
+    delete raw.workspace.documents[0].creasePattern.inlineSimulations;
 
     const parsed = parseNativeProjectFile(JSON.stringify(raw));
-    const document = activeNativeDocument(parsed);
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.creasePattern.inlineSimulations).toEqual([]);
   });
 
@@ -1041,13 +1235,12 @@ describe('native project file', () => {
       appVersion: '0.1.1',
       now,
     });
-    const legacy = JSON.parse(serializeNativeProjectFile(file));
-    legacy.schemaVersion = 2;
+    const legacy = asLegacyFile(JSON.parse(serializeNativeProjectFile(file)), 2);
     delete legacy.workspace.documents[0].creasePattern.images;
 
     const parsed = parseNativeProjectFile(JSON.stringify(legacy));
-    const document = activeNativeDocument(parsed);
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.creasePattern.images).toEqual([]);
   });
 
@@ -1070,7 +1263,7 @@ describe('native project file', () => {
       now,
     });
     const raw = JSON.parse(serializeNativeProjectFile(file));
-    raw.workspace.documents[0].creasePattern.images = [
+    raw.workspace.creasePattern.creasePattern.images = [
       { id: 'bad', src: '' }, // empty src → dropped
       {
         id: 'good',
@@ -1084,8 +1277,8 @@ describe('native project file', () => {
     ];
 
     const parsed = parseNativeProjectFile(JSON.stringify(raw));
-    const document = activeNativeDocument(parsed);
-    if (document.kind !== 'crease-pattern') throw new Error('expected CP document');
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
     expect(document.creasePattern.images).toHaveLength(1);
     expect(document.creasePattern.images?.[0]?.id).toBe('good');
   });
@@ -1095,7 +1288,7 @@ describe('native project file', () => {
       workspaceTitle: 'CP',
       filename: 'ext.osf',
       path: null,
-      activeMode: 'crease-pattern',
+      designs: [],
       creasePattern: {
         title: 'CP',
         document: cpDocument(),
@@ -1117,8 +1310,7 @@ describe('native project file', () => {
     });
 
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(file));
-    const document = activeNativeDocument(parsed);
     expect(parsed.extensions).toEqual({ futureFileFeature: 'keep-me' });
-    expect(document.extensions).toEqual({ futureDocFeature: { a: 1 } });
+    expect(parsed.workspace.creasePattern?.extensions).toEqual({ futureDocFeature: { a: 1 } });
   });
 });

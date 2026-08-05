@@ -1056,7 +1056,25 @@ BP runtime singletons) foldable into 7.
 - [ ] Phase 3 — Radix tab strip (add / close / rename / reorder / duplicate), ≥1 tab invariant
 - [ ] Phase 4 — intra-tab Gridview, panes migrated, active-pane tracking
 - [ ] Phase 5 — `/design` collapse with redirects
-- [ ] Phase 6 — `.osf` v8, `minimumReaderSchemaVersion: 8`, migration, lineage removed
+- [x] Phase 6 — `.osf` v8: N designs per file
+
+  `workspace.documents` (at most one per kind, constant ids) becomes
+  `workspace.designs` (ordered tabs, real ids) + `workspace.creasePattern` (the
+  one Edit canvas) + `workspace.unknownDesigns` (kinds this build cannot read,
+  kept verbatim). One generic `{kind, text, format}` payload replaces the
+  per-kind `if`-chain, with `kind` matched against the design-kind registry.
+
+  - `minimumReaderSchemaVersion` is 8 **only when the file needs it** — more than
+    one design, or an unknown kind. A single-design file stays readable by older
+    builds, so updating does not strand a user's whole library.
+  - `activeMode` is no longer written: v8 stores `activeDocumentId`, which is the
+    only thing that can name one of two designs of the same kind. It is still
+    *read*, during migration, where it is the sole signal.
+  - Legacy ids migrate verbatim (`tree`, `box-pleat`), not renumbered to
+    `design-N`: the id is the registry key and the file identity.
+  - `crease-pattern` is a reserved id a design tab may not claim.
+
+- [ ] Phase 6b — `OristudioCpLineage` removal (deferred; independent of tabs)
 - [ ] Phase 7 — contexts, capabilities, shortcuts, undo per document
 - [ ] Phase 8 — analytics (no names) + i18n
 - [ ] Phase 9 — stub-kind test, evict/rehydrate equivalence, cross-tab undo isolation

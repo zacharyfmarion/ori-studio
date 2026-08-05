@@ -217,6 +217,15 @@ export interface ProjectSliceState {
    * crease-pattern-document-level respectively; `{}` when none.
    */
   nativeProjectExtensions: Record<string, unknown>;
+  /**
+   * Design documents from the loaded `.osf` whose kind this build does not
+   * recognize, kept verbatim and re-emitted on save.
+   *
+   * A project written by a build with a design kind this one lacks opens, shows
+   * the tabs it understands, and does not destroy the rest the next time the
+   * user presses Save.
+   */
+  nativeUnknownDesigns: unknown[];
   oristudioCpDocumentExtensions: Record<string, unknown>;
   projectLoadId: number;
   currentFilePath: string | null;

@@ -1,4 +1,10 @@
+import { designKindRegistry } from '../designKinds';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
+import {
+  CREASE_PATTERN_DOCUMENT_ID,
+  isReservedDocumentId,
+  type NativeDesignDocumentV8,
+} from './nativeProjectDesigns';
 import { IDENTITY_FOLDED_PLACEMENT } from '../engine/oristudioCpTypes';
 import type {
   FoldedFigurePlacement,
@@ -37,7 +43,7 @@ import type { UserCamera } from '../cp-workspace/renderer/camera';
 export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
 export const NATIVE_PROJECT_EXTENSION = 'osf';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
-export const NATIVE_PROJECT_SCHEMA_VERSION = 7;
+export const NATIVE_PROJECT_SCHEMA_VERSION = 8;
 
 export type NativeProjectDocumentKind = 'treemaker-tree' | 'crease-pattern' | 'box-pleat';
 
@@ -155,16 +161,47 @@ export type NativeProjectDocumentV1 =
 
 export interface NativeProjectFileV1 {
   format: typeof NATIVE_PROJECT_FORMAT;
-  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7;
-  minimumReaderSchemaVersion: 1;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  /**
+   * The oldest reader that can open this file without losing data.
+   *
+   * `1` for anything a v1–v7 build could read losslessly; `8` once the file
+   * holds more than the old format could express. Declarative only in practice —
+   * a v7 build already rejects `schemaVersion: 8` because 8 is not in its
+   * enumerated list — but it is what makes the refusal say *why*.
+   */
+  minimumReaderSchemaVersion: 1 | 8;
   createdBy: NativeProjectActor;
   modifiedBy: NativeProjectActor;
   workspace: {
     id: string;
     title: string;
+    /**
+     * The design tab that was active. Stored, not derived: v1–v7 inferred it
+     * from `activeMode` + document kind, which cannot name one of two designs
+     * of the same kind.
+     */
     activeDocumentId: string;
-    activeMode: NativeProjectActiveMode;
-    documents: NativeProjectDocumentV1[];
+    /**
+     * Legacy focus hint. Read during migration, where it is the only signal for
+     * which design was active; **not written** in v8, where `activeDocumentId`
+     * says it directly and a second source of truth would only drift.
+     */
+    activeMode?: NativeProjectActiveMode;
+    /**
+     * The design tabs, in tab order, plus at most one crease-pattern document
+     * under the reserved id.
+     */
+    designs: NativeDesignDocumentV8[];
+    creasePattern: NativeCreasePatternDocumentV1 | null;
+    /**
+     * Design documents whose `kind` this build does not recognize.
+     *
+     * Kept verbatim and re-emitted on save. A file written by a build with a
+     * design kind this one lacks opens, shows the tabs it understands, and does
+     * not silently destroy the rest on the next save.
+     */
+    unknownDesigns: unknown[];
     viewState: Record<string, unknown>;
   };
   artifacts: {
@@ -176,7 +213,8 @@ export interface NativeProjectFileV1 {
   extensions: Record<string, unknown>;
 }
 
-export type NativeProjectFile = NativeProjectFileV1;
+export type NativeProjectFileV8 = NativeProjectFileV1;
+export type NativeProjectFile = NativeProjectFileV8;
 
 export interface NativeTreeProjectInput {
   title: string;
@@ -257,15 +295,32 @@ export interface NativeBoxPleatProjectInput {
  * is the multi-document path — the single-kind `createNative*ProjectFile`
  * helpers below are thin wrappers over it.
  */
+/** One design tab, ready to write. */
+export interface NativeDesignInput {
+  /** The tab's id. Round-trips, so tab identity survives a save/open cycle. */
+  id: string;
+  title: string;
+  /** Design kind id — validated against the registry on read. */
+  kind: string;
+  /** Codec output. */
+  text: string;
+  /** Dialect label for diagnostics (`tmd5`, `bps`). */
+  format: string;
+  viewState?: Record<string, unknown>;
+  extensions?: Record<string, unknown>;
+}
+
 export interface NativeProjectDocumentsInput {
   /** Workspace-level title (usually the active document's title). */
   workspaceTitle: string;
   filename: string;
   path: string | null;
-  /** Which document the workspace was focused on when saved. */
-  activeMode: NativeProjectActiveMode;
-  tree?: { title: string; tmd5Text: string } | null;
-  boxPleat?: { title: string; bps: string; symmetry?: BpDocumentSymmetry } | null;
+  /** Design tabs, in tab order. */
+  designs: NativeDesignInput[];
+  /** Which design tab was active. */
+  activeDesignId?: string;
+  /** Unrecognized design documents carried forward from a loaded file. */
+  unknownDesigns?: unknown[];
   creasePattern?: Omit<
     NativeCreasePatternProjectInput,
     'appVersion' | 'filename' | 'path' | 'now'
@@ -280,9 +335,17 @@ export interface NativeProjectDocumentsInput {
   now?: Date;
 }
 
-const TREE_DOCUMENT_ID = 'tree';
-const BOX_PLEAT_DOCUMENT_ID = 'box-pleat';
-const CREASE_PATTERN_DOCUMENT_ID = 'crease-pattern';
+/**
+ * v1–v7 document ids, kept as constants because the legacy migration preserves
+ * them **verbatim** as tab ids rather than renumbering to `design-N`.
+ *
+ * Renumbering would look tidier and would be wrong: the id is the registry key
+ * and the `.osf` identity, so rewriting it on open would detach a design from
+ * anything that referenced it. It also means tab ids are not always `design-N`,
+ * which `nextDesignTabId` handles by taking the tabs already present.
+ */
+const LEGACY_TREE_DOCUMENT_ID = 'tree';
+const LEGACY_BOX_PLEAT_DOCUMENT_ID = 'box-pleat';
 
 export function isNativeProjectFilename(filename: string): boolean {
   return /\.osf$/i.test(filename);
@@ -336,6 +399,9 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   }
 
   const schemaVersion = numberField(value.schemaVersion);
+  if (schemaVersion === NATIVE_PROJECT_SCHEMA_VERSION) {
+    return validateV8(value);
+  }
   if (
     schemaVersion === 1 ||
     schemaVersion === 2 ||
@@ -345,7 +411,7 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
     schemaVersion === 6 ||
     schemaVersion === 7
   ) {
-    return validateV1(value);
+    return migrateLegacyToV8(value);
   }
   if (schemaVersion === null) {
     throw new ProjectFileFormatError(
@@ -362,48 +428,29 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   );
 }
 
+/**
+ * Serialize a whole workspace: N design tabs in order, plus the one crease
+ * pattern the Edit canvas holds.
+ *
+ * `minimumReaderSchemaVersion` is 8 only when the file actually needs it — more
+ * than one design, or a design of a kind the old shape could not name. A file a
+ * v1–v7 build could still read losslessly keeps 1, so updating this app does not
+ * strand every project a user has.
+ */
 export function createNativeProjectFile(
   input: NativeProjectDocumentsInput
-): NativeProjectFileV1 {
+): NativeProjectFileV8 {
   const actor = actorFromInput(input);
-  const documents: NativeProjectDocumentV1[] = [];
+  const designs: NativeDesignDocumentV8[] = input.designs.map((design) => ({
+    id: design.id,
+    title: design.title.trim() || 'Untitled Design',
+    payload: { kind: design.kind, text: design.text, format: design.format },
+    viewState: design.viewState ?? {},
+    extensions: design.extensions ?? {},
+  }));
 
-  if (input.tree) {
-    documents.push({
-      id: TREE_DOCUMENT_ID,
-      kind: 'treemaker-tree',
-      title: input.tree.title.trim() || 'Untitled',
-      source: sourceFromFilename(input.filename, input.path),
-      tree: {
-        format: 'tmd5',
-        text: input.tree.tmd5Text,
-      },
-      extensions: {},
-    });
-  }
-
-  if (input.boxPleat) {
-    documents.push({
-      id: BOX_PLEAT_DOCUMENT_ID,
-      kind: 'box-pleat',
-      title: input.boxPleat.title.trim() || 'Untitled',
-      source: sourceFromFilename(input.filename, input.path),
-      project: {
-        engine: 'oristudio-bp',
-        format: 'bps',
-        text: input.boxPleat.bps,
-      },
-      // Projected here, not at the call site: the runtime symmetry state is a
-      // subtype of the persisted one, so handing it over whole typechecks and
-      // then writes the derived axis into the file.
-      symmetry: bpDocumentSymmetry(input.boxPleat.symmetry ?? defaultBpDocumentSymmetry()),
-      extensions: {},
-    });
-  }
-
-  if (input.creasePattern) {
-    documents.push(
-      createNativeCreasePatternDocument(
+  const creasePattern = input.creasePattern
+    ? createNativeCreasePatternDocument(
         {
           ...input.creasePattern,
           filename: input.filename,
@@ -413,21 +460,26 @@ export function createNativeProjectFile(
         },
         CREASE_PATTERN_DOCUMENT_ID
       )
-    );
-  }
+    : null;
+
+  const legacyReadable =
+    designs.length <= 1 && (input.unknownDesigns?.length ?? 0) === 0;
 
   return {
     format: NATIVE_PROJECT_FORMAT,
     schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
-    minimumReaderSchemaVersion: 1,
+    minimumReaderSchemaVersion: legacyReadable ? 1 : 8,
     createdBy: actor,
     modifiedBy: actor,
     workspace: {
       id: 'workspace',
       title: input.workspaceTitle.trim() || 'Untitled',
-      activeDocumentId: activeDocumentIdForMode(input.activeMode, documents),
-      activeMode: input.activeMode,
-      documents,
+      activeDocumentId: input.activeDesignId ?? designs[0]?.id ?? CREASE_PATTERN_DOCUMENT_ID,
+      designs,
+      creasePattern,
+      // Re-emitted verbatim so a design kind this build does not know survives a
+      // round trip through it.
+      unknownDesigns: input.unknownDesigns ?? [],
       viewState: {},
     },
     artifacts: {},
@@ -435,24 +487,20 @@ export function createNativeProjectFile(
   };
 }
 
-/** Resolve which document the file's `activeMode` refers to. */
-function activeDocumentIdForMode(
-  mode: NativeProjectActiveMode,
-  documents: NativeProjectDocumentV1[]
-): string {
-  const kind: NativeProjectDocumentKind =
-    mode === 'tree' ? 'treemaker-tree' : mode === 'box-pleat' ? 'box-pleat' : 'crease-pattern';
-  const match = documents.find((document) => document.kind === kind);
-  return (match ?? documents[0])?.id ?? kind;
-}
-
-export function createNativeTreeProjectFile(input: NativeTreeProjectInput): NativeProjectFileV1 {
+export function createNativeTreeProjectFile(input: NativeTreeProjectInput): NativeProjectFileV8 {
   return createNativeProjectFile({
     workspaceTitle: input.title,
     filename: input.filename,
     path: input.path,
-    activeMode: 'tree',
-    tree: { title: input.title, tmd5Text: input.tmd5Text },
+    designs: [
+      {
+        id: LEGACY_TREE_DOCUMENT_ID,
+        title: input.title,
+        kind: 'treemaker',
+        text: input.tmd5Text,
+        format: 'tmd5',
+      },
+    ],
     creasePattern: input.creasePatternCompanion ?? null,
     appVersion: input.appVersion,
     now: input.now,
@@ -461,13 +509,23 @@ export function createNativeTreeProjectFile(input: NativeTreeProjectInput): Nati
 
 export function createNativeBoxPleatProjectFile(
   input: NativeBoxPleatProjectInput
-): NativeProjectFileV1 {
+): NativeProjectFileV8 {
   return createNativeProjectFile({
     workspaceTitle: input.title,
     filename: input.filename,
     path: input.path,
-    activeMode: 'box-pleat',
-    boxPleat: { title: input.title, bps: input.bps, symmetry: input.symmetry },
+    designs: [
+      {
+        id: LEGACY_BOX_PLEAT_DOCUMENT_ID,
+        title: input.title,
+        kind: 'box-pleat',
+        text: input.bps,
+        format: 'bps',
+        viewState: {
+          symmetry: bpDocumentSymmetry(input.symmetry ?? defaultBpDocumentSymmetry()),
+        },
+      },
+    ],
     creasePattern: input.creasePatternCompanion ?? null,
     appVersion: input.appVersion,
     now: input.now,
@@ -488,11 +546,11 @@ export function createNativeCreasePatternProjectFile(
     workspace: {
       id: 'workspace',
       title,
-      activeDocumentId: 'crease-pattern',
-      activeMode: 'crease-pattern',
-      documents: [
-        createNativeCreasePatternDocument(input, 'crease-pattern'),
-      ],
+      activeDocumentId: CREASE_PATTERN_DOCUMENT_ID,
+      // A crease pattern is not a design: it holds no design tabs at all.
+      designs: [],
+      creasePattern: createNativeCreasePatternDocument(input, CREASE_PATTERN_DOCUMENT_ID),
+      unknownDesigns: [],
       viewState: {},
     },
     artifacts:
@@ -683,17 +741,16 @@ function foldedFigureDisplayStyle(
   return null;
 }
 
-export function activeNativeDocument(file: NativeProjectFile): NativeProjectDocumentV1 {
-  const active =
-    file.workspace.documents.find((document) => document.id === file.workspace.activeDocumentId) ??
-    file.workspace.documents[0];
-  if (!active) {
-    throw new ProjectFileFormatError(
-      'project_file_damaged',
-      'Ori Studio project does not contain any documents'
-    );
-  }
-  return active;
+/**
+ * The design tab a file opens on, or null when it holds only a crease pattern.
+ *
+ * Replaces `activeNativeDocument`, which resolved the active document by *kind*
+ * — a question that has no answer once a file can hold two designs of the same
+ * kind. v8 stores the id.
+ */
+export function activeNativeDesign(file: NativeProjectFile): NativeDesignDocumentV8 | null {
+  const { designs, activeDocumentId } = file.workspace;
+  return designs.find((design) => design.id === activeDocumentId) ?? designs[0] ?? null;
 }
 
 function actorFromInput(input: { appVersion: string; now?: Date }): NativeProjectActor {
@@ -731,7 +788,157 @@ function extensionFormat(filename: string): NativeProjectSource['format'] | null
   return null;
 }
 
-function validateV1(value: Record<string, unknown>): NativeProjectFileV1 {
+/**
+ * Read a v8 file.
+ *
+ * Design documents are validated generically — id, title, and a `{kind, text,
+ * format}` payload — with `kind` matched against the design-kind registry. One
+ * unrecognized kind does not fail the file: it is preserved verbatim in
+ * `unknownDesigns` and re-emitted on save, so a project written by a build with
+ * a design kind this one lacks survives a round trip through it.
+ */
+function validateV8(value: Record<string, unknown>): NativeProjectFileV8 {
+  const workspace = recordField(value.workspace, 'workspace');
+  const knownKinds = new Set(designKindRegistry().ids as string[]);
+
+  const designs: NativeDesignDocumentV8[] = [];
+  const unknownDesigns: unknown[] = [];
+  for (const entry of arrayField(workspace.designs, 'workspace.designs')) {
+    const document = recordField(entry, 'workspace.designs[]');
+    const payload = recordField(document.payload, 'design.payload');
+    const kind = stringField(payload.kind, 'design.payload.kind');
+    if (!knownKinds.has(kind)) {
+      unknownDesigns.push(entry);
+      continue;
+    }
+    const id = stringField(document.id, 'design.id');
+    if (isReservedDocumentId(id)) {
+      throw new ProjectFileFormatError(
+        'project_file_damaged',
+        `Design document may not use the reserved id ${JSON.stringify(id)}`
+      );
+    }
+    designs.push({
+      id,
+      title: stringField(document.title, 'design.title'),
+      payload: {
+        kind,
+        text: stringField(payload.text, 'design.payload.text'),
+        format: typeof payload.format === 'string' ? payload.format : 'unknown',
+      },
+      // Drop-on-malformed, like the crease pattern's viewport and camera: a
+      // corrupt pane layout must open with a default layout, never fail the file.
+      viewState: isRecord(document.viewState) ? document.viewState : {},
+      extensions: isRecord(document.extensions) ? document.extensions : {},
+    });
+  }
+
+  const creasePattern =
+    workspace.creasePattern === null || workspace.creasePattern === undefined
+      ? null
+      : (validateDocumentV1(workspace.creasePattern) as NativeCreasePatternDocumentV1);
+
+  const activeDocumentId = stringField(workspace.activeDocumentId, 'workspace.activeDocumentId');
+
+  return {
+    format: NATIVE_PROJECT_FORMAT,
+    schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
+    minimumReaderSchemaVersion: designs.length > 1 || unknownDesigns.length > 0 ? 8 : 1,
+    createdBy: validateActor(recordField(value.createdBy, 'createdBy')),
+    modifiedBy: validateActor(recordField(value.modifiedBy, 'modifiedBy')),
+    workspace: {
+      id: stringField(workspace.id, 'workspace.id'),
+      title: stringField(workspace.title, 'workspace.title'),
+      // Falls back rather than throwing: an active id naming a design this build
+      // could not read is a legitimate consequence of `unknownDesigns`, not
+      // corruption.
+      activeDocumentId: designs.some((design) => design.id === activeDocumentId)
+        ? activeDocumentId
+        : (designs[0]?.id ?? CREASE_PATTERN_DOCUMENT_ID),
+      designs,
+      creasePattern,
+      unknownDesigns,
+      viewState: isRecord(workspace.viewState) ? workspace.viewState : {},
+    },
+    artifacts: validateArtifacts(value.artifacts),
+    extensions: isRecord(value.extensions) ? value.extensions : {},
+  };
+}
+
+/**
+ * Read a v1–v7 file and lift it into the v8 shape.
+ *
+ * Document ids migrate **verbatim** — a legacy tree becomes a tab with id
+ * `tree`, a box-pleat design a tab with id `box-pleat`. Renumbering them to
+ * `design-N` would look tidier and would detach each design from the identity
+ * anything else recorded for it.
+ */
+function migrateLegacyToV8(value: Record<string, unknown>): NativeProjectFileV8 {
+  const legacy = validateV1(value);
+  const documents = legacy.workspace.documents ?? [];
+
+  const designs: NativeDesignDocumentV8[] = [];
+  for (const document of documents) {
+    if (document.kind === 'treemaker-tree') {
+      designs.push({
+        id: document.id,
+        title: document.title,
+        payload: { kind: 'treemaker', text: document.tree.text, format: document.tree.format },
+        viewState: {},
+        extensions: document.extensions,
+      });
+    } else if (document.kind === 'box-pleat') {
+      designs.push({
+        id: document.id,
+        title: document.title,
+        payload: { kind: 'box-pleat', text: document.project.text, format: document.project.format },
+        // The mirror-draw state was a top-level field on the legacy document;
+        // in v8 it rides the design's own view state.
+        viewState: { symmetry: document.symmetry },
+        extensions: document.extensions,
+      });
+    }
+  }
+
+  const creasePattern =
+    (documents.find((document) => document.kind === 'crease-pattern') as
+      | NativeCreasePatternDocumentV1
+      | undefined) ?? null;
+
+  // `activeMode` is the only signal a legacy file carries for which design was
+  // active, which is why it is still read here and no longer written.
+  const activeKind = legacy.workspace.activeMode === 'box-pleat' ? 'box-pleat' : 'treemaker';
+  const active =
+    designs.find((design) => design.payload.kind === activeKind) ?? designs[0] ?? null;
+
+  return {
+    ...legacy,
+    schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
+    minimumReaderSchemaVersion: 1,
+    workspace: {
+      id: legacy.workspace.id,
+      title: legacy.workspace.title,
+      activeDocumentId: active?.id ?? CREASE_PATTERN_DOCUMENT_ID,
+      designs,
+      creasePattern,
+      unknownDesigns: [],
+      viewState: legacy.workspace.viewState,
+    },
+  };
+}
+
+interface LegacyWorkspaceFile extends Omit<NativeProjectFileV8, 'workspace'> {
+  workspace: {
+    id: string;
+    title: string;
+    activeDocumentId: string;
+    activeMode: NativeProjectActiveMode;
+    documents: NativeProjectDocumentV1[];
+    viewState: Record<string, unknown>;
+  };
+}
+
+function validateV1(value: Record<string, unknown>): LegacyWorkspaceFile {
   const workspace = recordField(value.workspace, 'workspace');
   const documents = arrayField(workspace.documents, 'workspace.documents').map(validateDocumentV1);
   const activeDocumentId = stringField(workspace.activeDocumentId, 'workspace.activeDocumentId');
@@ -765,7 +972,7 @@ function validateV1(value: Record<string, unknown>): NativeProjectFileV1 {
     },
     artifacts: validateArtifacts(value.artifacts),
     extensions: isRecord(value.extensions) ? value.extensions : {},
-  };
+  } as LegacyWorkspaceFile;
 }
 
 function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
