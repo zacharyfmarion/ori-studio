@@ -1,3 +1,4 @@
+import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
 import {
@@ -31,6 +32,7 @@ import {
   getInlineSimulationSource,
   setInlineSimulationSource,
 } from '../../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
+import { nextInlineSimulationId } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
 import { resolveInlineSimulationRegion } from '../../../cp-workspace/inlineSimulation/resolveSimulationRegion';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
 import {
@@ -137,8 +139,6 @@ const MAX_CP_HISTORY = 100;
 // Dedupe concurrent `ensureEditCreasePattern` calls (e.g. React StrictMode
 // double-invoking the seeding effect) so only one blank document is created.
 let ensureEditInFlight: Promise<void> | null = null;
-
-let nextInlineSimulationId = 1;
 
 /**
  * How many times a window's fold has been rebuilt, so each rebuild gets a fresh
@@ -865,6 +865,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     }
     set({ status: 'optimizing', error: null });
     const checkpoint = await get().beginHistoryCheckpoint();
+    // 'optimize.scale' -> 'scale'. Also the analytics `kind`.
+    const kind = capabilityId.replace('optimize.', '');
     try {
       const { api, treeHandle } = await requireActiveTree();
       const report = await optimize(api, treeHandle);
@@ -883,8 +885,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           : get().designViewportFitRequestId,
       });
       get().commitHistoryCheckpoint(checkpoint, label);
+      track('optimizer run', { kind, succeeded: true, feasible: report.is_feasible });
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
+      track('optimizer run', { kind, succeeded: false });
     }
   }
 
@@ -975,7 +979,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 }
               }
               document = await openSharedCpPayload(payload);
+              track('share link opened', {
+                succeeded: true,
+                source: pending.kind === 'payload' ? 'inline' : 'stored',
+              });
             } catch (error) {
+              track('share link opened', { succeeded: false });
               // A bad link should leave a usable editor, not a broken one: tell
               // the user which kind of failure it was (the kernel distinguishes
               // "corrupt" from "made by a newer Ori Studio") and seed the blank
@@ -1118,6 +1127,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           projectMessage: 'Built crease pattern',
         });
         get().commitHistoryCheckpoint(checkpoint, 'Build crease pattern');
+        // The tree→CP core moment. Counts are bucketed; no node/edge geometry.
+        track('crease pattern built', {
+          node_count_bucket: bucketCount(snapshot.summary.nodes, COUNT_BUCKETS),
+          had_conditions: snapshot.summary.conditions > 0,
+        });
         useLayoutStore.getState().activateWorkspace('edit');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -1274,7 +1288,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // pane with nothing to say why.
       if ((fold.faces_vertices?.length ?? 0) === 0) return 'unavailable';
 
-      const id = `inline-sim-${nextInlineSimulationId++}`;
+      // Unique against the windows a file restored as well as the ones this
+      // session made — the id keys this window's fold, so a clash makes two
+      // windows draw one mesh. See `inlineSimulationIds`.
+      const id = nextInlineSimulationId(simulations);
       const modelFrameAngle = uprightFrameAngle('model');
       const simulation = createInlineSimulation({
         id,

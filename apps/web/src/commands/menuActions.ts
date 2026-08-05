@@ -1,3 +1,4 @@
+import { track } from '../analytics';
 import { getFileService, type FileCommand, type FileService } from '../platform/fileService';
 import { useHelpStore } from '../store/helpStore';
 import { useLayoutStore } from '../store/layoutStore';
@@ -667,7 +668,31 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
   };
 }
 
+/**
+ * The command id we send to analytics: the static id, or — for data-driven ids
+ * like `file.openExample:<id>` — just the prefix, so the raw payload never
+ * becomes an unbounded property value.
+ */
+function analyticsCommandId(id: string): string {
+  const colon = id.indexOf(':');
+  return colon === -1 ? id : id.slice(0, colon);
+}
+
+/** The coarse top-level group (first path segment), inherently low-cardinality. */
+function analyticsCommandGroup(id: string): string {
+  return id.split(/[.:]/, 1)[0] || 'other';
+}
+
 export function handleMenuAction(id: string): Promise<boolean> {
+  // The chokepoint for menu bar / command palette / keyboard-mapped actions.
+  // Capturing intent here covers most of the app with one event. Only recognized
+  // ids are recorded, so stray dispatches don't create phantom commands.
+  if (isMenuActionId(id) || id.startsWith(OPEN_EXAMPLE_PREFIX)) {
+    track('command invoked', {
+      command_id: analyticsCommandId(id),
+      command_group: analyticsCommandGroup(id),
+    });
+  }
   return createMenuActionHandler({
     workspace: useWorkspaceStore.getState(),
     layout: useLayoutStore.getState(),

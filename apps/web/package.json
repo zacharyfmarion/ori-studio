@@ -51,6 +51,7 @@
     "lexical": "^0.48.0",
     "lucide-react": "^0.563.0",
     "onnxruntime-web": "^1.26.0",
+    "posthog-js": "^1.411.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-i18next": "^16.6.6",

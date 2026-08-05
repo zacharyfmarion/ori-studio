@@ -245,9 +245,11 @@
     },
     "title": "Paramètres",
     "workspace": {
+      "analytics": "Envoyer des statistiques d'utilisation anonymes pour améliorer Ori Studio",
       "folding": "Pliage",
       "foldWarning": "Avertir avant de plier un patron de plis comportant des erreurs de pliabilité à plat",
       "layout": "Disposition",
+      "privacy": "Confidentialité",
       "resetButton": "Réinitialiser la disposition de l'espace de travail",
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",

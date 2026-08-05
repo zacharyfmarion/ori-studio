@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { track } from '../analytics';
 import i18n from '../i18n';
 import { writeString } from '../lib/storage';
 import {
@@ -55,6 +56,8 @@ export const useLocaleStore = create<LocaleState>()((set) => {
     locale: initial,
     preference: initialPreference,
     setLocale: (preference) => {
+      // The preference is a supported locale code or 'system' — a bounded enum.
+      track('locale changed', { locale: preference });
       if (preference === SYSTEM_LOCALE) {
         persistPreference(SYSTEM_LOCALE);
         set({ preference: SYSTEM_LOCALE });

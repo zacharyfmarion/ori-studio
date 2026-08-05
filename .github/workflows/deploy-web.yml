@@ -50,6 +50,25 @@ jobs:
 
       - name: Build web app
         run: npm run build:web
+        env:
+          # PostHog analytics config is inlined by Vite at build time. Absent =
+          # analytics silently disabled (the dev/prod firewall). Set only here,
+          # on the prod (main) deploy — PR previews intentionally leave these
+          # unset so preview traffic never reaches the production project.
+          #
+          # Only the project key is a secret. The ingestion host is a public URL
+          # that ships in the client bundle either way, so it lives here as a
+          # literal: a missing/misnamed secret resolves to the empty string
+          # silently, and that alone is enough to disable analytics entirely.
+          VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
+          VITE_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
+
+      # `initializePostHog` treats a missing key or host as "disabled" by design,
+      # so a misconfigured prod build deploys green and captures nothing. This is
+      # the only place that difference is observable — assert it here rather than
+      # discovering it in an empty PostHog dashboard weeks later.
+      - name: Verify analytics config was inlined
+        run: node scripts/verify-analytics-build.mjs apps/web/dist
 
       # Run from apps/web so Wrangler discovers `functions/` and `wrangler.toml`, which it
       # resolves relative to its working directory. Deploying `apps/web/dist` from the repo
