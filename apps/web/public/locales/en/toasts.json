@@ -1,6 +1,7 @@
 {
   "creasePattern": {
     "inlineSimulationCap": "Up to {{max}} simulation windows at once. Close one to open another.",
+    "inlineSimulationRegionGone": "That region is no longer in the crease pattern, so this window cannot be rebuilt.",
     "simulateFailed": "That region could not be simulated.",
     "simulateNoRegion": "Select a closed region to simulate."
   },

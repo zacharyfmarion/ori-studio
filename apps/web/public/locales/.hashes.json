@@ -2076,7 +2076,8 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4155,7 +4156,8 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6263,7 +6265,8 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8371,7 +8374,8 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10479,7 +10483,8 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12587,7 +12592,8 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14695,7 +14701,8 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16774,6 +16781,7 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103"
   }
 }

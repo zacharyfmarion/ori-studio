@@ -112,6 +112,53 @@ describe('ring matching', () => {
     expect(ringsMatch(UNIT_SQUARE, shifted)).toBe(false);
   });
 
+  it('ignores vertices that only subdivide an edge', () => {
+    // A rim vertex is wherever something met the border, so a crease ending on
+    // the rim puts one there and editing that crease takes it away — the same
+    // polygon, a different list of points. Observed live on a saved file: a
+    // region's ring went from 52 points to 46 with identical area and every
+    // point of each lying on the other's outline, and the window reported its
+    // region as gone.
+    const subdivided = ring([
+      [0, 0],
+      [4, 0],
+      [7, 0],
+      [10, 0],
+      [10, 10],
+      [5, 10],
+      [0, 10],
+    ]);
+    expect(ringsMatch(UNIT_SQUARE, subdivided)).toBe(true);
+    expect(ringsMatch(subdivided, UNIT_SQUARE)).toBe(true);
+  });
+
+  it('still rejects a ring that a subdivision cannot explain', () => {
+    // The relaxation must not reach a *different* polygon: dropping collinear
+    // points leaves the shape untouched, so a corner that moved still fails.
+    const dented = ring([
+      [0, 0],
+      [4, 0],
+      [7, 1],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+    ]);
+    expect(ringsMatch(UNIT_SQUARE, dented)).toBe(false);
+  });
+
+  it('keeps a degenerate ring comparable', () => {
+    // Every point on one line encloses nothing, so there are no corners to
+    // reduce to. It must not collapse to an empty ring and start matching
+    // everything.
+    const collinear = ring([
+      [0, 0],
+      [5, 0],
+      [10, 0],
+    ]);
+    expect(ringsMatch(collinear, UNIT_SQUARE)).toBe(false);
+    expect(ringsMatch(collinear, collinear)).toBe(true);
+  });
+
   it('matches the same region however its holes changed', () => {
     // Holes are not part of a region's identity. Drawing any interior crease
     // re-infers the faces and can open new pockets: a region traced as one ring
@@ -244,6 +291,26 @@ describe('resolving a window to its region', () => {
 
     // The hint says 1, but region 1 is now a different unit; the boundary wins.
     expect(resolveInlineSimulationSegment(created, segments)?.id).toBe(2);
+  });
+
+  it('finds its region after a rim crease was removed', () => {
+    // The shipped failure. A crease ending on the region's border contributes a
+    // rim vertex; deleting it drops that vertex and leaves the region identical.
+    // Resolution used to return null, which meant the window could never be
+    // rebuilt and came back from a file as a permanently empty frame — while
+    // reading `Out of date`, since the crease change is exactly what makes it
+    // stale.
+    const withRimCrease = ring([
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [6, 10],
+      [0, 10],
+    ]);
+    const created = simulationOver(document, segment(0, [withRimCrease]));
+    const afterDelete = [segment(0, [UNIT_SQUARE])];
+
+    expect(resolveInlineSimulationSegment(created, afterDelete)?.id).toBe(0);
   });
 });
 
