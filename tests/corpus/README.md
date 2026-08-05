@@ -114,3 +114,27 @@ also solved by the JavaScript oracle.
 The corpus harness fails on Rust/JavaScript status mismatches, constraint count
 mismatches, component-size or solution-count mismatches, and first-solution
 `faceOrders` hash mismatches.
+
+## FOLD Frame-Shape Corpus Testing
+
+`file_frames` makes a FOLD document a tree of frames, and the importer has to
+pick the one carrying the crease pattern. The checked-in shapes live in
+`tests/fixtures/fold-frames` (see its README) and always run:
+
+```sh
+cargo test -p oristudio-cp --test fold_frame_corpus
+```
+
+To measure the importer against a larger third-party corpus — which is *not*
+committed, for the usual reason plus a licence one, both noted in that README —
+point the opt-in scan at a local checkout:
+
+```sh
+FOLD_FRAME_CORPUS_DIR=/path/to/fold/files \
+  cargo test -p oristudio-cp --test fold_frame_corpus -- --nocapture
+```
+
+The scan reports per-file import results and a total rather than asserting: a
+real corpus deliberately contains invalid documents (abstract graphs, edge-less
+frames), so a nonzero failure count is information rather than a regression. The
+committed fixtures are the gate.

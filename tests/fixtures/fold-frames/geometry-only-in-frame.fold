@@ -1,0 +1,58 @@
+{
+  "file_spec": 1.1,
+  "file_title": "geometry only in frame",
+  "file_frames": [
+    {
+      "frame_classes": [
+        "creasePattern"
+      ],
+      "vertices_coords": [
+        [
+          0,
+          0
+        ],
+        [
+          400,
+          0
+        ],
+        [
+          400,
+          400
+        ],
+        [
+          0,
+          400
+        ]
+      ],
+      "edges_vertices": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "edges_assignment": [
+        "B",
+        "B",
+        "B",
+        "B",
+        "M"
+      ]
+    }
+  ]
+}
