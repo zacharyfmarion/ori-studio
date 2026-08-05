@@ -34,6 +34,11 @@
   "global": {
     "title": "Une erreur s'est produite en arrière-plan"
   },
+  "projectFile": {
+    "damaged": "Ce projet Ori Studio est illisible. Il est peut-être endommagé, ou enregistré avec une version que cette application ne prend pas en charge.",
+    "tooNew": "Ce projet a été enregistré avec une version plus récente d'Ori Studio. Mettez Ori Studio à jour, puis rouvrez-le.",
+    "unrecognized": "Ce fichier n'est pas un projet Ori Studio."
+  },
   "shareLink": {
     "invalid": "Ce lien de partage est incomplet ou endommagé — il a probablement été tronqué lors de la copie. Redemandez-le.",
     "notFound": "Impossible d'ouvrir ce lien de partage. S'il vient d'être créé, réessayez dans un instant.",

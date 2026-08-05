@@ -1,6 +1,7 @@
 {
   "creasePattern": {
     "inlineSimulationCap": "最多可同时打开 {{max}} 个模拟窗口。请先关闭一个再打开新的。",
+    "inlineSimulationRegionGone": "该区域已不在折痕图中，因此无法重建此窗口。",
     "simulateFailed": "无法模拟该区域。",
     "simulateNoRegion": "请选择一个闭合区域进行模拟。"
   },

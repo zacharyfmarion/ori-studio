@@ -453,8 +453,7 @@ function DesignViewportToolbar({
  */
 export function DesignPanel() {
   const { t } = useTranslation();
-  const pendingDesignChoice = useWorkspaceStore((state) => state.pendingDesignChoice);
-  const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
+  const designMethod = useWorkspaceStore((state) => state.designMethod);
   const oristudioBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument);
   const oristudioBpError = useWorkspaceStore((state) => state.oristudioBpError);
   const ensureBoxPleatProject = useWorkspaceStore((state) => state.ensureBoxPleatProject);
@@ -463,15 +462,15 @@ export function DesignPanel() {
   // document (a direct deep link / reload) seeds a starter project so the surface
   // stands alone, mirroring the Edit canvas. No-op once a document exists.
   useEffect(() => {
-    if (!pendingDesignChoice && workflowTarget === 'box-pleat' && !oristudioBpDocument && !oristudioBpError) {
+    if (designMethod === 'box-pleat' && !oristudioBpDocument && !oristudioBpError) {
       void ensureBoxPleatProject();
     }
-  }, [pendingDesignChoice, workflowTarget, oristudioBpDocument, oristudioBpError, ensureBoxPleatProject]);
+  }, [designMethod, oristudioBpDocument, oristudioBpError, ensureBoxPleatProject]);
 
-  if (pendingDesignChoice) {
+  if (designMethod === 'none') {
     return <DesignMethodChooser />;
   }
-  if (workflowTarget === 'box-pleat') {
+  if (designMethod === 'box-pleat') {
     if (oristudioBpDocument) {
       return (
         <section className="panel-shell design-panel bp-tree-panel">

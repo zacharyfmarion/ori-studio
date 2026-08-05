@@ -1,6 +1,7 @@
 {
   "creasePattern": {
     "inlineSimulationCap": "Hasta {{max}} ventanas de simulación a la vez. Cierra una para abrir otra.",
+    "inlineSimulationRegionGone": "Esa región ya no está en el patrón de pliegues, así que esta ventana no se puede reconstruir.",
     "simulateFailed": "No se pudo simular esa región.",
     "simulateNoRegion": "Selecciona una región cerrada para simular."
   },

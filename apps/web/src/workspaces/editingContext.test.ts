@@ -3,24 +3,23 @@ import { resolveEditingContext, type EditingContextInput } from './editingContex
 
 const base: EditingContextInput = {
   activePanelId: 'design',
-  pendingDesignChoice: false,
-  workflowTarget: 'treemaker',
+  designMethod: 'treemaker',
   hasBpDocument: false,
 };
 
 describe('resolveEditingContext', () => {
   it('maps the design panel by design state', () => {
-    expect(resolveEditingContext({ ...base, pendingDesignChoice: true })).toBe('design-nux');
+    expect(resolveEditingContext({ ...base, designMethod: 'none' })).toBe('design-nux');
     expect(resolveEditingContext(base)).toBe('treemaker-tree');
     expect(
-      resolveEditingContext({ ...base, workflowTarget: 'box-pleat', hasBpDocument: true })
+      resolveEditingContext({ ...base, designMethod: 'box-pleat', hasBpDocument: true })
     ).toBe('bp-tree');
   });
 
   it('treats box-pleat as treemaker until the BP document exists', () => {
     // workflowTarget flips before the document is created; the design panel is
     // still the chooser/empty tree, so it must not resolve to bp-tree yet.
-    expect(resolveEditingContext({ ...base, workflowTarget: 'box-pleat', hasBpDocument: false })).toBe(
+    expect(resolveEditingContext({ ...base, designMethod: 'box-pleat', hasBpDocument: false })).toBe(
       'treemaker-tree'
     );
   });
@@ -53,7 +52,7 @@ describe('resolveEditingContext', () => {
       resolveEditingContext({
         ...base,
         activePanelId: null,
-        workflowTarget: 'box-pleat',
+        designMethod: 'box-pleat',
         hasBpDocument: true,
       })
     ).toBe('bp-tree');

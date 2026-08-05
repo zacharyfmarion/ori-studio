@@ -27,7 +27,11 @@ export function engineError(error: unknown): WasmErrorEnvelope {
     'message' in error &&
     typeof (error as { code: unknown }).code === 'string'
   ) {
-    return error as WasmErrorEnvelope;
+    // Rebuilt rather than passed through: a coded `Error` subclass (see
+    // lib/projectFileError.ts) satisfies this shape too, and the store should
+    // hold a plain envelope, not a live Error with a stack hanging off it.
+    const envelope = error as { code: string; message: unknown };
+    return { code: envelope.code, message: String(envelope.message) };
   }
   return {
     code: 'engine',

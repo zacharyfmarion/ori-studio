@@ -7,7 +7,7 @@ import { BpPackingPanel } from './BpPackingPanel';
 
 export function BpEditorPanel() {
   const { t } = useTranslation();
-  const workflowTarget = useWorkspaceStore((state) => state.workflowTarget);
+  const designMethod = useWorkspaceStore((state) => state.designMethod);
   const document = useWorkspaceStore((state) => state.oristudioBpDocument);
   const oristudioBpError = useWorkspaceStore((state) => state.oristudioBpError);
   const createOristudioBpProject = useWorkspaceStore((state) => state.createOristudioBpProject);
@@ -18,7 +18,7 @@ export function BpEditorPanel() {
   // Box-pleat chosen but the BP worker hasn't produced the document yet: show a
   // loading state (gated on the BP worker) rather than the "open a project"
   // affordance, which only applies once we know there's no project incoming.
-  if (workflowTarget === 'box-pleat' && !document && !oristudioBpError) {
+  if (designMethod === 'box-pleat' && !document && !oristudioBpError) {
     return (
       <section className="panel-shell bp-editor-panel">
         <div className="panel-toolbar">
@@ -31,7 +31,7 @@ export function BpEditorPanel() {
     );
   }
 
-  if (workflowTarget !== 'box-pleat' || !document) {
+  if (designMethod !== 'box-pleat' || !document) {
     return (
       <section className="panel-shell bp-editor-panel">
         <div className="panel-toolbar">

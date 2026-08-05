@@ -118,7 +118,13 @@ const OVERSIZED_PANELS = {
   // lines of that into a hook or a child would cost more than it saved, which AGENTS.md
   // names as the wrong trade.
   //
-  // 2740 -> 2750: the Square generator. Its geometry is in the kernel, its params
+  // 2740 -> 2741: one import. The panel used to read the store's error and render
+  // its raw `message`, which is written for diagnostics and never translated. That
+  // derivation is now `hooks/useWorkspaceErrorText`, shared with the start screen,
+  // so the store selector it replaced left with it and the body is a line shorter
+  // than before. The cap moves for the import alone.
+  //
+  // 2741 -> 2751: the Square generator. Its geometry is in the kernel, its params
   // UI is `toolOptions/SquareToolOptions`, and unit conversion, enum spelling and
   // the payload assembly are in `tools/squareTool` — the first draft assembled
   // the payload here and threaded the grid width down as a prop, and both moved
@@ -127,7 +133,7 @@ const OVERSIZED_PANELS = {
   // already there, and `toolPreviewColor` resolving through the same function the
   // payload does, which is the thing that stops the preview and the commit
   // disagreeing about the line type.
-  'CreasePatternPanel.tsx': 2750,
+  'CreasePatternPanel.tsx': 2751,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

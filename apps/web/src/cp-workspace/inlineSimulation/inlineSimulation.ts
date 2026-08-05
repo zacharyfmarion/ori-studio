@@ -260,20 +260,98 @@ function distanceSq(a: Point, b: Point): number {
 const BOUNDARY_EPSILON = 1e-6;
 
 /**
+ * The ring with consecutive points in the same place collapsed to one, wrap
+ * included.
+ *
+ * A repeat makes its neighbour's collinearity test meaningless — a point is
+ * always exactly on a line that starts at its own position — so a pair of
+ * repeats takes a genuine corner down with it. Uncontrived rings have no
+ * repeats, and every shape checked here is unaffected by this pass; it is here so
+ * that one does not silently cost the reduction, which is what a degenerate ring
+ * falling back to its input amounts to.
+ */
+function withoutRepeatedPoints(ring: readonly Point[]): Point[] {
+  const epsilon = BOUNDARY_EPSILON * BOUNDARY_EPSILON;
+  const points: Point[] = [];
+  for (const point of ring) {
+    const last = points[points.length - 1];
+    if (last && distanceSq(last, point) <= epsilon) continue;
+    points.push(point);
+  }
+  // The ring closes, so the last point neighbours the first.
+  while (points.length > 1 && distanceSq(points[0]!, points[points.length - 1]!) <= epsilon) {
+    points.pop();
+  }
+  return points;
+}
+
+/**
+ * The ring's corners: the same closed loop with vertices that merely subdivide a
+ * straight edge removed.
+ *
+ * A region's rim vertices are wherever something *met* the border — so a crease
+ * ending on the rim puts a vertex there, and editing that crease takes it away
+ * again, leaving the region an identical polygon described by a different list of
+ * points. Comparing the lists directly made that read as a different region:
+ * a window over a 400x400 region whose ring lost 6 of its 52 points reported its
+ * region as gone, which is to say it stopped resolving on exactly the edits
+ * `Rebuild from the current creases` exists to absorb. It could then never be
+ * rebuilt, and reloading the file left it a permanently empty frame.
+ *
+ * Dropping collinear vertices is not a loosening of the test — the polygon is
+ * unchanged, so the guarantee that matters (a window never silently re-points at
+ * a *different* region) is untouched. An L is still not the region in its notch,
+ * and a frame is still not the square inside it.
+ *
+ * Each vertex is judged against its **original** neighbours, so any number of
+ * points strung along one straight edge all drop in a single pass — they are all
+ * on the line their neighbours span.
+ */
+export function ringCorners(ring: readonly Point[]): Point[] {
+  const points = withoutRepeatedPoints(ring);
+  if (points.length < 3) return [...ring];
+  const corners: Point[] = [];
+  const n = points.length;
+  for (let i = 0; i < n; i += 1) {
+    const previous = points[(i - 1 + n) % n]!;
+    const current = points[i]!;
+    const next = points[(i + 1) % n]!;
+    const spanX = next.x - previous.x;
+    const spanY = next.y - previous.y;
+    const span = Math.hypot(spanX, spanY);
+    // Neighbours in the same place say nothing about `current`; keep it rather
+    // than divide by zero.
+    if (span === 0) {
+      corners.push(current);
+      continue;
+    }
+    // Perpendicular distance from the line the neighbours span.
+    const cross = (current.x - previous.x) * spanY - (current.y - previous.y) * spanX;
+    if (Math.abs(cross) / span > BOUNDARY_EPSILON) corners.push(current);
+  }
+  // A ring of no corners is degenerate — every point on one line, so it encloses
+  // nothing. Hand back what we were given rather than an empty loop; the caller's
+  // comparison then fails on the shape rather than on this.
+  return corners.length >= 3 ? corners : [...ring];
+}
+
+/**
  * Whether two rings describe the same closed loop, allowing for a different
- * starting vertex or winding — traversal order is an artifact of how the ring
- * was traced, not of the region.
+ * starting vertex, winding, or subdivision of its edges — all three are
+ * artifacts of how the ring was traced, not of the region.
  */
 export function ringsMatch(a: readonly Point[], b: readonly Point[]): boolean {
-  if (a.length !== b.length || a.length === 0) return a.length === b.length;
-  const n = a.length;
+  const left = ringCorners(a);
+  const right = ringCorners(b);
+  if (left.length !== right.length || left.length === 0) return left.length === right.length;
+  const n = left.length;
   const epsilon = BOUNDARY_EPSILON * BOUNDARY_EPSILON;
   for (const reversed of [false, true]) {
-    const candidate = reversed ? [...b].reverse() : b;
+    const candidate = reversed ? [...right].reverse() : right;
     for (let offset = 0; offset < n; offset += 1) {
       let matched = true;
       for (let i = 0; i < n; i += 1) {
-        if (distanceSq(a[i]!, candidate[(i + offset) % n]!) > epsilon) {
+        if (distanceSq(left[i]!, candidate[(i + offset) % n]!) > epsilon) {
           matched = false;
           break;
         }

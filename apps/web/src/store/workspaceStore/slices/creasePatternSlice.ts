@@ -1006,7 +1006,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // edits (undo/redo, images, tools) behave identically on this canvas.
           set({
             ...freshEditableCpState(document, priorState),
-            ...(noDesignYet ? { pendingDesignChoice: true } : {}),
+            ...(noDesignYet ? { designMethod: 'none' as const } : {}),
           });
         } catch (error) {
           set({ oristudioCpError: engineError(error).message });
@@ -1422,10 +1422,15 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         : null;
       if (!artifacts || !segment) {
         // The region merged, split, or its rim stopped being all-border. Keep
-        // the window and say so rather than silently re-pointing it at whichever
-        // region happens to be nearest — see 0b3b1ea6 for the same rule applied
-        // to a refold that cannot produce a replacement.
-        set({ projectMessage: 'That region no longer exists in the crease pattern' });
+        // the window rather than silently re-pointing it at whichever region
+        // happens to be nearest — see 0b3b1ea6 for the same rule applied to a
+        // refold that cannot produce a replacement.
+        //
+        // Saying so is the caller's job, and used to be attempted here with a
+        // `projectMessage`: a channel many actions write and nothing renders, so
+        // a refresh that could not resolve its region reported the failure to
+        // no one. `useInlineSimulations.refresh` toasts on this `false`, in the
+        // user's language, as `addOristudioCpInlineSimulation`'s outcomes are.
         return false;
       }
 

@@ -1,6 +1,7 @@
 {
   "creasePattern": {
     "inlineSimulationCap": "Até {{max}} janelas de simulação por vez. Feche uma para abrir outra.",
+    "inlineSimulationRegionGone": "Essa região não está mais no padrão de vincos, então esta janela não pode ser reconstruída.",
     "simulateFailed": "Não foi possível simular essa região.",
     "simulateNoRegion": "Selecione uma região fechada para simular."
   },
