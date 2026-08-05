@@ -86,7 +86,19 @@ export function isClassicCrease(segment: OristudioCpLineSegment): boolean {
 }
 
 /**
- * Format a fold angle for display, e.g. `-90°`. Trims trailing zeros.
+ * Decimal places a fold-angle readout keeps.
+ *
+ * Two, because the readout is a badge sitting on the crease itself, competing
+ * for room with its neighbours — a solver's `-70.5288°` is wider than the fact
+ * it carries, and on a dense pattern the extra digits collide into
+ * unreadability. The stored magnitude keeps its full precision either way; this
+ * is a display width, not a rounding of the model.
+ */
+const DISPLAY_DECIMALS = 2;
+
+/**
+ * Format a fold angle for display, e.g. `-90°`. Trims trailing zeros, and
+ * rounds to {@link DISPLAY_DECIMALS} places.
  *
  * Signed, because the sign is what makes the crease colour learnable — a red
  * crease reading `-90°` teaches the convention, where an unsigned `90°` on a red
@@ -97,7 +109,7 @@ export function isClassicCrease(segment: OristudioCpLineSegment): boolean {
  * unfolded mountain and an unfolded valley are the same physical thing.
  */
 export function formatFoldAngle(degrees: number): string {
-  const rounded = Number(degrees.toFixed(4));
+  const rounded = Number(degrees.toFixed(DISPLAY_DECIMALS));
   return `${rounded}°`;
 }
 

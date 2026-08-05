@@ -55,6 +55,40 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:shareLink.tooNew',
         'That share link was made with a newer version of Ori Studio. Reload to get the latest version, then open it again.'
       );
+    // Failures from the share service. Each says what the person can actually do:
+    // wait, shrink the pattern, or nothing at all.
+    // Reached only after the retry window has run out. We genuinely cannot tell "never
+    // existed" from "not propagated yet" — KV takes up to a minute globally — so the copy
+    // does not claim either.
+    case 'not_found':
+      return t(
+        'errors:shareLink.notFound',
+        "Couldn't open this share link. If it was just created, try again in a moment."
+      );
+    case 'rate_limited':
+      return t(
+        'errors:shareLink.rateLimited',
+        'Too many share links from this connection. Wait a few minutes and try again.'
+      );
+    case 'payload_too_large':
+      return t(
+        'errors:shareLink.tooLarge',
+        'This crease pattern is too large to share as a link. Export it as a file instead.'
+      );
+    // Deliberately vague. The quota does reset at a known instant (00:00 UTC), but the
+    // classification behind this code is a regex over the thrown message — naming a time
+    // would send someone away for hours whenever that heuristic misfires on an unrelated
+    // failure. A vague true message beats a precise false one.
+    case 'storage_quota':
+      return t(
+        'errors:shareLink.storageQuota',
+        'Sharing is temporarily unavailable. Please try again later.'
+      );
+    case 'storage_failure':
+      return t(
+        'errors:shareLink.storageFailure',
+        "Couldn't create a share link. Check your connection and try again."
+      );
     case 'worker_oristudio_bp':
     case 'worker_oristudio_bp_optimizer':
       return t(

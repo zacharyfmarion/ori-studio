@@ -44,12 +44,14 @@
     "deleteLineTypeAria": "Delete line type",
     "divideByCount": "Divide by count",
     "divideByRatio": "Divide by ratio",
+    "divideMode": "Divide mode",
     "divider": "Divider",
     "divisionCount": "Division count",
     "dragAcrossCreases": "Drag across creases to apply this action.",
     "erase": "Erase",
     "eraseLineType": "Erase line type",
     "exactForm": "Exact form",
+    "extendColor": "Extend color",
     "filter": "Filter",
     "firstCandidate": "First candidate",
     "fixInaccurate": "Fix inaccurate",
@@ -105,6 +107,14 @@
     "settingCountOne_other": "{{count}} setting",
     "settingCountOther_one": "{{count}} settings",
     "settingCountOther_other": "{{count}} settings",
+    "solveAngles": {
+      "creaseNotInFan": "Pick three different creases that all meet at the same vertex.",
+      "current": "This is what the vertex already does — step to see the alternative.",
+      "family": "These three creases leave one degree of freedom, so this is one of infinitely many answers — pick a different third crease for a definite one.",
+      "notEnoughCreases": "Fewer than three creases meet here, so there are no three angles to solve.",
+      "title": "Fold angles",
+      "unreachable": "These three creases cannot close this vertex at any fold angles — try a different three."
+    },
     "stopOnAuxAria": "Let a suggested crease stop at an auxiliary line",
     "stopOnAuxLabel": "Auxiliary lines",
     "to": "To",
@@ -119,9 +129,27 @@
     "ariaLabel": "Crease pattern tools",
     "openEditableFirst": "Open an editable crease pattern first"
   },
+  "cpToolOption": {
+    "apply": "Apply",
+    "count": "{{index}} of {{total}}",
+    "next": "Next option",
+    "previous": "Previous option"
+  },
+  "divideMode": {
+    "count": "Count",
+    "countTitle": "Divide the line into equal parts",
+    "ratio": "Ratio",
+    "ratioTitle": "Divide the line at a ratio"
+  },
   "foldAngleDisplay": {
     "color": "Color",
     "opacity": "Opacity"
+  },
+  "lengthenColorMode": {
+    "active": "Active",
+    "activeTitle": "Extend in the active line type",
+    "same": "Same",
+    "sameTitle": "Extend each crease in its own line type"
   },
   "lineStyle": {
     "blackOneDot": "Black one-dot",

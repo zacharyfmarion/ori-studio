@@ -39,9 +39,11 @@ describe('oristudioCpToolSettings', () => {
 
   it('maps operations to contextual option groups', () => {
     expect(cpToolSettingGroupsForOperation('LineSegmentDivision')).toEqual([
+      'divide-mode',
       'division-count',
     ]);
     expect(cpToolSettingGroupsForOperation('LineSegmentRatioSet')).toEqual([
+      'divide-mode',
       'division-ratio',
     ]);
     expect(cpToolSettingGroupsForOperation('ReplaceLineTypeSelect')).toEqual([
@@ -76,6 +78,20 @@ describe('oristudioCpToolSettings', () => {
     expect(cpToolSettingGroupsForOperation('Text')).toEqual([]);
     expect(cpToolSettingGroupsForOperation('DisplayLengthBetweenPoints1')).toEqual([
       'measure',
+    ]);
+  });
+
+  // Extend Line is one rail tool over two operations, and the panel follows the
+  // resolved one. That the line-type readout is there in Active mode and gone in
+  // Same mode falls out of `LINE_COLOR_OPERATION_IDS` holding only the first --
+  // nothing in the panel branches on the mode.
+  it('drops the line-type readout for the same-colour lengthen variant', () => {
+    expect(cpToolSettingGroupsForOperation('LengthenCrease')).toEqual([
+      'line-color',
+      'lengthen-color-mode',
+    ]);
+    expect(cpToolSettingGroupsForOperation('LengthenCreaseSameColor')).toEqual([
+      'lengthen-color-mode',
     ]);
   });
 

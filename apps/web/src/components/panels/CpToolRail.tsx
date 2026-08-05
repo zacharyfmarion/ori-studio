@@ -100,9 +100,10 @@ import {
 } from '../../i18n/cpVocab';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import { ProtractorIcon } from '../ui/ProtractorIcon';
+import { SolveFoldAnglesIcon } from '../ui/SolveFoldAnglesIcon';
 
 /** A rail icon: any lucide icon, or a local component with the same props. */
-type CpToolIcon = LucideIcon | typeof ProtractorIcon;
+type CpToolIcon = LucideIcon | typeof ProtractorIcon | typeof SolveFoldAnglesIcon;
 
 const RAIL_GROUPS_STORAGE_KEY = storageKey(STORAGE_KEYS.cpToolRailGroups);
 
@@ -119,6 +120,13 @@ function writeRailGroupOpenState(groupId: string, open: boolean): void {
 
 interface CpToolRailProps {
   activeActionId: OristudioCpActionId | null;
+  /**
+   * The operation the active tool would run. For a merged tool (Extend Line,
+   * Divided Line) this is the variant its mode currently names, not the action's
+   * own — the button draws that variant's glyph, so the mode is readable from
+   * the rail without opening the context panel.
+   */
+  activeOperationId: OristudioCpOperationId | null;
   activeLineColor: OristudioCpLineColor;
   editable: boolean;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
@@ -126,6 +134,7 @@ interface CpToolRailProps {
 
 const LUCIDE_ICONS: Record<string, CpToolIcon> = {
   ProtractorIcon,
+  SolveFoldAnglesIcon,
   AlignJustify,
   BadgeAlert,
   BadgeCheck,
@@ -200,8 +209,25 @@ const LUCIDE_ICONS: Record<string, CpToolIcon> = {
   Wrench,
 };
 
+/** The size every rail icon is drawn at unless it needs an optical correction. */
+const RAIL_ICON_SIZE = 20;
+
+/**
+ * Icons that need a different box to carry the same visual weight.
+ *
+ * Lucide's glyphs are drawn to fill a square, so one size suits all of them. A
+ * local icon whose artwork is a different shape does not match at the same
+ * number: {@link SolveFoldAnglesIcon} is wide and short, so even filling its
+ * viewBox it reads lighter than the blockier glyphs beside it.
+ *
+ * Keyed by the component rather than by name, so an icon that is never rendered
+ * here cannot leave a stale string behind.
+ */
+const RAIL_ICON_SIZES = new Map<CpToolIcon, number>([[SolveFoldAnglesIcon, 23]]);
+
 const ICON_ALIASES: Record<string, string> = {
   angle: 'ProtractorIcon',
+  'angle-solve': 'SolveFoldAnglesIcon',
   compass: 'DraftingCompass',
   divide: 'Divide',
   frame: 'Scan',
@@ -330,6 +356,7 @@ const CP_TOOL_ICON_BY_ACTION = Object.fromEntries(
 
 export const CpToolRail = memo(function CpToolRail({
   activeActionId,
+  activeOperationId,
   activeLineColor,
   editable,
   onSelectAction,
@@ -354,6 +381,7 @@ export const CpToolRail = memo(function CpToolRail({
               group={group}
               actions={actions}
               activeActionId={activeActionId}
+              activeOperationId={activeOperationId}
               activeLineColor={activeLineColor}
               editable={editable}
               onSelectAction={onSelectAction}
@@ -370,6 +398,7 @@ function CpToolRailGroup({
   group,
   actions,
   activeActionId,
+  activeOperationId,
   activeLineColor,
   editable,
   onSelectAction,
@@ -378,6 +407,7 @@ function CpToolRailGroup({
   group: OristudioCpActionGroupDefinition;
   actions: OristudioCpActionDefinition[];
   activeActionId: OristudioCpActionId | null;
+  activeOperationId: OristudioCpOperationId | null;
   activeLineColor: OristudioCpLineColor;
   editable: boolean;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
@@ -413,20 +443,23 @@ function CpToolRailGroup({
       </button>
       {open && (
         <div className="cp-tool-rail__buttons" id={buttonsId} data-group={group.id}>
-          {actions.map((action) => (
-            <CpToolButton
-              key={action.id}
-              action={action}
-              editable={editable}
-              isActive={
-                action.kind === 'line-type'
-                  ? activeLineColor === action.lineColor
-                  : activeActionId === action.id
-              }
-              onSelectAction={onSelectAction}
-              shortcutLabel={shortcutLabelForAction(action.id, shortcutOverrides)}
-            />
-          ))}
+          {actions.map((action) => {
+            const isActive =
+              action.kind === 'line-type'
+                ? activeLineColor === action.lineColor
+                : activeActionId === action.id;
+            return (
+              <CpToolButton
+                key={action.id}
+                action={action}
+                editable={editable}
+                isActive={isActive}
+                glyphOperationId={isActive ? activeOperationId : null}
+                onSelectAction={onSelectAction}
+                shortcutLabel={shortcutLabelForAction(action.id, shortcutOverrides)}
+              />
+            );
+          })}
         </div>
       )}
     </section>
@@ -437,12 +470,15 @@ const CpToolButton = memo(function CpToolButton({
   action,
   editable,
   isActive,
+  glyphOperationId,
   onSelectAction,
   shortcutLabel,
 }: {
   action: OristudioCpActionDefinition;
   editable: boolean;
   isActive: boolean;
+  /** The resolved operation to draw, when this is the active tool; else null. */
+  glyphOperationId: OristudioCpOperationId | null;
   onSelectAction: (action: OristudioCpActionDefinition) => void;
   shortcutLabel?: string;
 }) {
@@ -451,7 +487,11 @@ const CpToolButton = memo(function CpToolButton({
     action.kind === 'command'
       ? (CP_TOOL_ICON_BY_OPERATION[action.operationId] ?? CircleDashed)
       : (CP_TOOL_ICON_BY_ACTION[action.id] ?? CircleDashed);
+  // A merged tool draws the variant it would actually run. Its own glyph is the
+  // fallback, which is what every ordinary tool uses -- their resolved operation
+  // is their own, so the two agree.
   const orieditaGlyph =
+    (glyphOperationId ? ORIEDITA_OPERATION_GLYPHS[glyphOperationId] : undefined) ??
     ORIEDITA_ICON_GLYPHS[action.upstreamAction] ??
     (action.kind === 'command' ? ORIEDITA_OPERATION_GLYPHS[action.operationId] : undefined);
   const available = editable && action.uiStatus === 'ready';
@@ -486,7 +526,7 @@ const CpToolButton = memo(function CpToolButton({
           {orieditaGlyph}
         </span>
       ) : (
-        <Icon size={20} aria-hidden="true" />
+        <Icon size={RAIL_ICON_SIZES.get(Icon) ?? RAIL_ICON_SIZE} aria-hidden="true" />
       )}
     </button>
   );

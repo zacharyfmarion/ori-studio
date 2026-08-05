@@ -48,12 +48,14 @@
     "deleteLineTypeAria": "Excluir tipo de linha",
     "divideByCount": "Dividir por quantidade",
     "divideByRatio": "Dividir por proporção",
+    "divideMode": "Modo de divisão",
     "divider": "Divisor",
     "divisionCount": "Número de divisões",
     "dragAcrossCreases": "Arraste sobre os vincos para aplicar esta ação.",
     "erase": "Apagar",
     "eraseLineType": "Apagar tipo de linha",
     "exactForm": "Forma exata",
+    "extendColor": "Cor da extensão",
     "filter": "Filtro",
     "firstCandidate": "Primeiro candidato",
     "fixInaccurate": "Corrigir imprecisos",
@@ -113,6 +115,14 @@
     "settingCountOther_one": "{{count}} configurações",
     "settingCountOther_many": "{{count}} configurações",
     "settingCountOther_other": "{{count}} configurações",
+    "solveAngles": {
+      "creaseNotInFan": "Escolha três vincos diferentes que se encontrem no mesmo vértice.",
+      "current": "Isto é o que o vértice já faz — avance para ver a alternativa.",
+      "family": "Estes três vincos deixam um grau de liberdade, então esta é uma entre infinitas respostas — escolha outro terceiro vinco para obter uma definida.",
+      "notEnoughCreases": "Menos de três vincos se encontram aqui, então não há três ângulos a resolver.",
+      "title": "Ângulos de dobra",
+      "unreachable": "Estes três vincos não fecham este vértice com nenhum ângulo de dobra — tente outros três."
+    },
     "stopOnAuxAria": "Permite que um vinco sugerido pare em uma linha auxiliar",
     "stopOnAuxLabel": "Linhas auxiliares",
     "to": "Até",
@@ -127,9 +137,27 @@
     "ariaLabel": "Ferramentas de padrão de vincos",
     "openEditableFirst": "Abra primeiro um padrão de vincos editável"
   },
+  "cpToolOption": {
+    "apply": "Aplicar",
+    "count": "{{index}} de {{total}}",
+    "next": "Próxima opção",
+    "previous": "Opção anterior"
+  },
+  "divideMode": {
+    "count": "Quantidade",
+    "countTitle": "Dividir a linha em partes iguais",
+    "ratio": "Proporção",
+    "ratioTitle": "Dividir a linha por uma proporção"
+  },
   "foldAngleDisplay": {
     "color": "Cor",
     "opacity": "Opacidade"
+  },
+  "lengthenColorMode": {
+    "active": "Ativo",
+    "activeTitle": "Estender com o tipo de linha ativo",
+    "same": "Original",
+    "sameTitle": "Estender cada vinco com seu próprio tipo de linha"
   },
   "lineStyle": {
     "blackOneDot": "Preto de um ponto",

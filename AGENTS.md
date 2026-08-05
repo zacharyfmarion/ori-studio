@@ -292,6 +292,38 @@ Match local validation to the affected CI surface before opening a pull request.
 3. Prefer shared command, runtime, store, and file-service patterns.
 4. Avoid pushing product behavior into the Tauri shell unless it is truly native
    shell behavior.
+5. Instrument it (see Analytics below): a new user-facing feature, tool, export
+   format, dialog, or notable flow should ship with the analytics event that lets
+   us tell whether it gets used.
+
+### Analytics
+
+Ori Studio has PostHog product analytics; the browser and desktop builds share
+the same renderer code, so one implementation covers both. All of it lives in
+the central analytics layer (`apps/web/src/analytics/`) — never call
+`posthog.capture` directly.
+
+Treat instrumentation as part of "done" for user-facing work. When you add a
+feature, tool, export format, panel, dialog, or a notable action, add a
+corresponding event so we can measure adoption. Two paths exist and you should
+know which applies:
+
+- Most menu / keyboard / command-palette actions are already captured
+  automatically at the `handleMenuAction` chokepoint
+  (`apps/web/src/commands/menuActions.ts`). If your action dispatches through a
+  `MENU_ACTION_ID`, it is covered — do **not** add a second hand-placed event for
+  the same thing.
+- Add a hand-placed `track(...)` event only for high-signal moments the
+  chokepoint can't express, or when you want structured properties (a build
+  completing, an export by `format`, a funnel step, a bucketed count).
+
+Follow the taxonomy and privacy contract in
+`implementation-plans/posthog-analytics.md` and `docs/analytics.md`: lowercase
+space-separated event names, `snake_case` properties, and **only enums and
+bucketed numbers** as property values. Never send raw user content — text-tool
+text, filenames or paths, geometry / coordinates / measured values, node/edge
+data, or image data. Analytics must be a no-op when the user has opted out;
+never gate product behavior on it.
 
 ### CP detector eval work
 

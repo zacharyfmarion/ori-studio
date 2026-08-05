@@ -25,8 +25,8 @@
       "railLabel": "Transf."
     },
     "color": {
-      "label": "Couleur et attribution",
-      "railLabel": "Couleur"
+      "label": "Couleur, assignation et réparation",
+      "railLabel": "Couleur et correction"
     },
     "annotations": {
       "label": "Cercles, texte et annotations",
@@ -292,8 +292,8 @@
       "disabledReason": "Géré par le moteur d'affichage plutôt que par une commande CP"
     },
     "cp_action_line_segment_division": {
-      "label": "Ligne divisée également",
-      "tooltip": "Diviser la ligne par nombre",
+      "label": "Ligne divisée",
+      "tooltip": "Tracer une ligne divisée par nombre ou par rapport",
       "disabledReason": "Prêt",
       "steps": {
         "0": "Cliquez ou faites glisser pour commencer la ligne à diviser",
@@ -397,6 +397,16 @@
       "steps": {
         "0": "Choisissez le sommet",
         "1": "Choisissez le pli à ajouter"
+      }
+    },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "Résoudre les angles de pliage",
+      "tooltip": "Choisissez trois plis à un sommet et résolvez leurs angles pour que le sommet se ferme, sans rien déplacer",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Choisir le premier pli à modifier",
+        "1": "Choisir le deuxième pli à modifier",
+        "2": "Choisir le troisième pli à modifier"
       }
     },
     "cp_action_foldable_line_input": {
@@ -654,7 +664,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "Prolonger selon la même couleur",
+      "label": "Prolonger la ligne (même couleur)",
       "tooltip": "Prolonger les plis traversés par la ligne guide tout en conservant les couleurs d'origine",
       "disabledReason": "Prêt",
       "steps": {

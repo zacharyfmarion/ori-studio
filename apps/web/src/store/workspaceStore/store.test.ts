@@ -5491,6 +5491,9 @@ describe('workspace store slices', () => {
             foldedFigures: [],
             activeFoldedFigureId: null,
             lineage: importedCpLineage(),
+            // Schema v7. Added on main to the CP-only path only — the third time
+            // these two installers diverged, and the reason they now share one.
+            camera: { centerX: 12, centerY: -4, zoom: 3, rotation: 0.5 },
           },
           appVersion: '0.0.0',
         })
@@ -5502,6 +5505,7 @@ describe('workspace store slices', () => {
         // Non-default values the load must overwrite, not inherit.
         creaseColorMode: 'mvf',
         oristudioCpViewport: { ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS },
+        oristudioCpCamera: null,
       });
       const projectLoadIdBefore = useWorkspaceStore.getState().projectLoadId;
 
@@ -5519,6 +5523,14 @@ describe('workspace store slices', () => {
       expect(state.oristudioCpViewport.lineWidth).toBe(3);
       expect(state.toolMode).toBe('select');
       expect(state.projectLoadId).toBeGreaterThan(projectLoadIdBefore);
+      // The saved canvas camera comes back too — rotation is how a hex-pleat
+      // design is authored, not a transient way of looking at it.
+      expect(state.oristudioCpCamera).toEqual({
+        centerX: 12,
+        centerY: -4,
+        zoom: 3,
+        rotation: 0.5,
+      });
     });
 
     it('never empties the Edit canvas while loading a design bundled with a crease pattern', async () => {

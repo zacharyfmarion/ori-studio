@@ -25,7 +25,10 @@ export type ViewportShortcutId =
   | 'viewport.resetRotation'
   | 'viewport.cancel'
   | 'viewport.delete'
-  | 'viewport.simulateSelectionInline';
+  | 'viewport.simulateSelectionInline'
+  | 'viewport.solveAnglesPrevious'
+  | 'viewport.solveAnglesNext'
+  | 'viewport.solveAnglesApply';
 export type SimulatorShortcutId =
   | 'simulator.playPause'
   | 'simulator.foldForward'
@@ -122,6 +125,11 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
   drawCreaseRestrictedAction: 'SPACE',
   perpendicularDrawAction: 'Y',
   angleBisectorAction: 'B',
+  // Upstream's own binding, kept exactly. Ori Studio merges the two lengthen
+  // tools into one rail tool whose colour mode is a tool param, and a chord
+  // bound to a variant by name arms the merged tool *in that variant's mode* --
+  // so E still means "extend, keeping each crease's colour", and the rail lights
+  // up on Extend Line while it does.
   lengthenCrease2Action: 'E',
   makeFlatFoldableAction: 'T', // flat-foldable line (the rail-visible tool)
   deg2Action: 'R', // radial / angle-restricted snapping (22.5, 30, 15 deg)
@@ -289,6 +297,17 @@ const VIEWPORT_SHORTCUTS: ShortcutDefinition[] = [
   // One definition rather than one per verb: the dispatcher takes the first
   // match in a scope, so a second Delete binding here would be unreachable. The
   // ladder lives in the executor, as it already does for `viewport.cancel`.
+  // Stepping through the fold-angle solutions for a vertex, and applying one.
+  // Scoped to the viewport and *declined* whenever that tool is not holding a
+  // set of answers, so the arrows and Enter fall through to whatever else wants
+  // them — the same decline `viewport.delete` relies on. A container `keydown`
+  // listener would instead go dead the moment the context panel's own buttons
+  // took focus, which is exactly where the user's hands are while stepping.
+  viewportShortcut('viewport.solveAnglesPrevious', 'Previous Fold-Angle Solution', {
+    key: 'arrowleft',
+  }),
+  viewportShortcut('viewport.solveAnglesNext', 'Next Fold-Angle Solution', { key: 'arrowright' }),
+  viewportShortcut('viewport.solveAnglesApply', 'Apply Fold-Angle Solution', { key: 'enter' }),
   viewportShortcut('viewport.delete', 'Delete Selected Object', [
     { key: 'delete' },
     { key: 'backspace' },

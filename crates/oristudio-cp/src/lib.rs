@@ -18,6 +18,7 @@ pub mod model;
 pub mod operations;
 pub mod session;
 pub mod share;
+pub mod solve_fold_angles;
 pub mod solve_spatial;
 
 use serde::{Deserialize, Serialize};
@@ -267,6 +268,24 @@ pub struct CommandPreview {
     /// survive translation, so it is a code rather than English.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unavailable: Option<String>,
+    /// How many *isolated* solutions the active tool found, when it enumerates
+    /// solutions at all.
+    ///
+    /// Only the isolated ones are counted, so a "2 of 3" readout means what it
+    /// says. A rank-deficient triple has a continuous family of answers rather
+    /// than a set of them, and putting a number on infinity would be a fiction —
+    /// `candidate_is_family` marks that case instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_count: Option<usize>,
+    /// Whether the previewed solution is one arbitrary member of a continuous
+    /// family rather than a branch in its own right.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_is_family: Option<bool>,
+    /// Whether the previewed solution is the state the document is already in,
+    /// so the UI can say "this is what you have" rather than offering it as a
+    /// change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_is_current: Option<bool>,
 }
 
 /// Error returned by command dispatch.
@@ -357,6 +376,7 @@ pub enum OperationId {
     CreaseMakeEdge,
     CreaseSetLineColor,
     CreaseSetFoldAngle,
+    VertexSolveFoldAngles,
     BackgroundChangePosition,
     LineSegmentDivision,
     LineSegmentRatioSet,
@@ -687,6 +707,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         CreaseSetFoldAngle,
         "OriStudioSetFoldAngle",
         "operations::color::set_fold_magnitude_for_indices",
+        Kernel,
+        8,
+        UnitTested
+    ),
+    descriptor!(
+        VertexSolveFoldAngles,
+        "OriStudioSolveVertexFoldAngles",
+        "solve_fold_angles::vertex_angle_solutions",
         Kernel,
         8,
         UnitTested
@@ -1668,6 +1696,14 @@ pub fn execute_command(
                 &mut document.crease_pattern,
                 &line_indices,
                 magnitude,
+            )
+        }
+        OperationId::VertexSolveFoldAngles => {
+            let solved = vertex_angle_solutions(document, &command)?;
+            let solution = chosen_angle_solution(&command, &solved)?;
+            operations::color::set_signed_fold_angles(
+                &mut document.crease_pattern,
+                &solution.creases,
             )
         }
         OperationId::CreaseMakeAux => {
@@ -2815,6 +2851,79 @@ fn resolved_completion_destination(
         })
 }
 
+/// The three-angle solve at the vertex under the cursor.
+///
+/// `line_ids` names the creases the user nominated as changeable; the solve
+/// treats their current angles as unknown, so the answer does not depend on what
+/// they currently say. One helper for the commit and the preview, for the same
+/// reason [`vertex_completion_candidates`] is one: a preview that solved
+/// differently from the commit would let the user step to one answer and apply
+/// another.
+fn vertex_angle_solutions(
+    document: &CreasePatternDocument,
+    command: &CreasePatternCommand,
+) -> Result<solve_fold_angles::VertexAngleSolutions> {
+    let chosen = required_line_indices(command)?;
+    // The tool asks for three creases and no vertex click, because three
+    // segments meeting at a point determine that point. A caller that supplies
+    // one anyway wins — which is what keeps the door open for reaching this from
+    // a closure diagnostic, where the vertex is what was marked.
+    let vertex = match command.payload.points.first() {
+        Some(point) => *point,
+        None => solve_fold_angles::shared_vertex(&document.crease_pattern, &chosen).ok_or_else(
+            || CommandError::InvalidInput {
+                operation: command.operation,
+                message: "the chosen creases do not all meet at one point".to_string(),
+            },
+        )?,
+    };
+    Ok(solve_fold_angles::vertex_angle_solutions(
+        &document.crease_pattern,
+        vertex,
+        &chosen,
+        CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+    ))
+}
+
+/// The solution the UI is looking at, from `candidate_index`.
+///
+/// Defaults to the first, which is the nearest to the creases' current angles —
+/// so a caller that never steps still gets the smallest change rather than
+/// whichever branch the algebra emitted first.
+fn chosen_angle_solution(
+    command: &CreasePatternCommand,
+    solved: &solve_fold_angles::VertexAngleSolutions,
+) -> Result<solve_fold_angles::AngleSolution> {
+    let index = command.payload.candidate_index.unwrap_or(0);
+    solved
+        .solutions
+        .get(index)
+        .copied()
+        .ok_or_else(|| CommandError::InvalidInput {
+            operation: command.operation,
+            message: solved.no_solution.map_or_else(
+                || format!("solution {index} is out of range"),
+                |reason| format!("the chosen creases have no solution: {reason:?}"),
+            ),
+        })
+}
+
+/// Why the three-angle solve has nothing to offer, as a stable code.
+///
+/// Same division as [`no_completion_code`], for the same reason: eight locales
+/// are gated in CI and a Rust string literal cannot pass that gate.
+fn no_solution_code(reason: solve_fold_angles::NoSolution) -> String {
+    match reason {
+        solve_fold_angles::NoSolution::BoundaryVertex => "BoundaryVertex",
+        solve_fold_angles::NoSolution::Indeterminate => "Indeterminate",
+        solve_fold_angles::NoSolution::NotEnoughCreases => "NotEnoughCreases",
+        solve_fold_angles::NoSolution::CreaseNotInFan => "CreaseNotInFan",
+        solve_fold_angles::NoSolution::CreasesDoNotMeet => "CreasesDoNotMeet",
+        solve_fold_angles::NoSolution::Unreachable => "AnglesUnreachable",
+    }
+    .to_string()
+}
+
 /// Why the completion tool found nothing, as a stable code.
 ///
 /// A code and not a sentence, for the reason `checks::FlatFoldabilityRule` is:
@@ -3288,6 +3397,74 @@ pub fn preview_command(
                 snapped,
                 active_line_color(&command),
             ));
+        }
+        OperationId::VertexSolveFoldAngles => {
+            // Fewer than three creases picked is the *normal* state for the
+            // first two steps, not a failure — the tool is still collecting, and
+            // it previews nothing until it has something to say.
+            //
+            // **This must not hand back the existing creases.** An earlier
+            // version returned the ones that would complete a solvable triple,
+            // as a "these are pickable" affordance, and the frontend drew them
+            // through the highlight channel — which strokes in the selection
+            // accent, a blue. Every mountain at the vertex therefore read as a
+            // valley for as long as two creases were picked. The affordance is
+            // worth having; a channel whose only vocabulary is repainting the
+            // crease is not the way to show it.
+            // [`solve_fold_angles::solvable_partners`] still computes it, for
+            // whatever surface finally does.
+            let chosen = optional_line_indices(&command)?;
+            if chosen.len() >= 3 {
+                let solved = vertex_angle_solutions(document, &command)?;
+                preview.unavailable = solved.no_solution.map(no_solution_code);
+                preview.candidate_count = Some(solved.isolated_count);
+                if let Ok(solution) = chosen_angle_solution(&command, &solved) {
+                    preview.candidate_is_family = Some(!solution.isolated);
+                    preview.candidate_is_current = Some(solution.is_current);
+                    // The vertex the solve is about, so a UI anchored to it does
+                    // not have to re-derive which endpoint the three creases
+                    // share and risk disagreeing with the solve about it.
+                    if let Some(vertex) =
+                        solve_fold_angles::shared_vertex(&document.crease_pattern, &chosen)
+                    {
+                        preview.points.push(vertex);
+                    }
+                    // The three creases as they would become: same geometry,
+                    // carrying the solved colour and angle, so the ramp and the
+                    // angle badges say what applying would do.
+                    //
+                    // Emitted **in the order the creases were picked**, not in
+                    // the fan order the solver works in, so a caller can zip
+                    // them against its own `line_ids` without matching on
+                    // geometry. Matching would be the alternative and it is a
+                    // worse one: the segments are clones, so it would compare
+                    // endpoints that round-tripped through a serialiser.
+                    for line in &chosen {
+                        let Some((index, degrees)) = solution
+                            .creases
+                            .iter()
+                            .find(|(index, _)| index == line)
+                            .copied()
+                        else {
+                            continue;
+                        };
+                        let Some(segment) = document.crease_pattern.line_segments.get(index) else {
+                            continue;
+                        };
+                        preview.segments.push(
+                            segment
+                                .with_line_color(if degrees < 0.0 {
+                                    LineColor::Red1
+                                } else {
+                                    LineColor::Blue2
+                                })
+                                .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(
+                                    degrees.abs(),
+                                )),
+                        );
+                    }
+                }
+            }
         }
         OperationId::VertexMakeAngularlyFlatFoldable if !points.is_empty() => {
             let candidates = vertex_completion_candidates(document, &command, points[0]);
@@ -4109,6 +4286,300 @@ mod tests {
     use super::*;
     use crate::geometry::{Circle, LineColor, Point, RgbColor};
     use std::collections::HashSet;
+
+    /// A square sheet with `creases` radiating from the origin, and the
+    /// zero-based line indices of those creases.
+    fn document_with_vertex_fan(creases: &[(f64, f64)]) -> (CreasePatternDocument, Vec<usize>) {
+        let mut document = CreasePatternDocument::default();
+        let corners = [
+            (-200.0, -200.0),
+            (200.0, -200.0),
+            (200.0, 200.0),
+            (-200.0, 200.0),
+        ];
+        for index in 0..4 {
+            let (ax, ay) = corners[index];
+            let (bx, by) = corners[(index + 1) % 4];
+            document
+                .crease_pattern
+                .line_segments
+                .push(geometry::LineSegment::with_color(
+                    Point::new(ax, ay),
+                    Point::new(bx, by),
+                    LineColor::Black0,
+                ));
+        }
+        let mut indices = Vec::new();
+        for (theta, rho) in creases {
+            let radians = theta.to_radians();
+            indices.push(document.crease_pattern.line_segments.len());
+            document.crease_pattern.line_segments.push(
+                geometry::LineSegment::with_color(
+                    Point::new(0.0, 0.0),
+                    Point::new(150.0 * radians.cos(), 150.0 * radians.sin()),
+                    if *rho < 0.0 {
+                        LineColor::Red1
+                    } else {
+                        LineColor::Blue2
+                    },
+                )
+                .with_fold_magnitude(geometry::FoldMagnitude::from_degrees(rho.abs())),
+            );
+        }
+        (document, indices)
+    }
+
+    /// `lines` are zero-based document indices, as the solver reports them;
+    /// `line_ids` on the wire are one-based, as every other operation's are.
+    fn solve_command(vertex: Point, lines: &[usize], index: Option<usize>) -> CreasePatternCommand {
+        CreasePatternCommand::new(OperationId::VertexSolveFoldAngles).with_payload(
+            CreasePatternCommandPayload {
+                points: vec![vertex],
+                line_ids: lines.iter().map(|line| line + 1).collect(),
+                candidate_index: index,
+                ..Default::default()
+            },
+        )
+    }
+
+    /// The whole command path: a vertex that does not close, three creases
+    /// nominated, applied — and the checker agrees afterwards.
+    #[test]
+    fn solving_three_fold_angles_closes_the_vertex() {
+        let (mut document, lines) =
+            document_with_vertex_fan(&[(0.0, 90.0), (45.0, 180.0), (90.0, -90.0), (225.0, 30.0)]);
+        let vertex = Point::new(0.0, 0.0);
+        let before = checks_spatial::vertex_closure_residual(&checks_spatial::vertex_fan_at(
+            &document.crease_pattern,
+            vertex,
+        ));
+        assert!(before.to_degrees() > 1.0, "the fixture must start broken");
+
+        let chosen = [lines[0], lines[2], lines[3]];
+        execute_command(&mut document, solve_command(vertex, &chosen, None))
+            .expect("the solve applies");
+
+        let after = checks_spatial::vertex_closure_residual(&checks_spatial::vertex_fan_at(
+            &document.crease_pattern,
+            vertex,
+        ));
+        assert!(
+            after.to_degrees() < CLOSURE_RESIDUAL_BAR_DEGREES,
+            "vertex still off by {} degrees",
+            after.to_degrees()
+        );
+        // Untouched creases keep exactly what they had — the solve changes three
+        // angles and nothing else, and it never moves geometry.
+        let untouched = &document.crease_pattern.line_segments[lines[1]];
+        assert_eq!(untouched.color, LineColor::Blue2);
+        assert_eq!(untouched.fold_magnitude, None);
+        for line in chosen {
+            let segment = &document.crease_pattern.line_segments[line];
+            assert_eq!(segment.a, Point::new(0.0, 0.0));
+        }
+    }
+
+    /// The tool asks for three creases and no vertex click, because three
+    /// segments meeting at a point determine that point. Solving with the vertex
+    /// left out must reach the same answer as solving with it supplied — the
+    /// explicit form is what keeps a closure-diagnostic entry point open.
+    #[test]
+    fn the_vertex_is_derived_from_the_chosen_creases() {
+        let (document, lines) =
+            document_with_vertex_fan(&[(0.0, 90.0), (45.0, 180.0), (90.0, -90.0), (225.0, 30.0)]);
+        let chosen = [lines[0], lines[2], lines[3]];
+        let vertex = Point::new(0.0, 0.0);
+
+        let mut derived = document.clone();
+        execute_command(&mut derived, solve_command(vertex, &chosen, None)).expect("with a point");
+        let mut implied = document.clone();
+        let mut without = solve_command(vertex, &chosen, None);
+        without.payload.points.clear();
+        execute_command(&mut implied, without).expect("without a point");
+        assert_eq!(
+            derived.crease_pattern.line_segments,
+            implied.crease_pattern.line_segments
+        );
+    }
+
+    /// Creases that do not all end at one point have no shared closure condition,
+    /// so there is nothing for the solve to be about.
+    #[test]
+    fn creases_that_do_not_meet_are_refused() {
+        let (mut document, lines) =
+            document_with_vertex_fan(&[(0.0, 90.0), (90.0, -90.0), (225.0, 30.0)]);
+        // A crease somewhere else entirely.
+        let stray = document.crease_pattern.line_segments.len();
+        document
+            .crease_pattern
+            .line_segments
+            .push(geometry::LineSegment::with_color(
+                Point::new(100.0, 100.0),
+                Point::new(150.0, 100.0),
+                LineColor::Blue2,
+            ));
+        let mut command = solve_command(Point::new(0.0, 0.0), &[lines[0], lines[1], stray], None);
+        command.payload.points.clear();
+        assert!(execute_command(&mut document, command).is_err());
+    }
+
+    /// The colour and the magnitude have to land in one step. Closing a vertex
+    /// can require a mountain to become a valley, and a two-operation apply
+    /// would put a crease carrying the new angle with the old direction on the
+    /// undo stack — a fold the solve never proposed.
+    #[test]
+    fn a_solved_crease_changes_direction_and_magnitude_together() {
+        let (mut document, lines) =
+            document_with_vertex_fan(&[(0.0, 90.0), (45.0, 180.0), (90.0, -90.0), (225.0, 30.0)]);
+        let vertex = Point::new(0.0, 0.0);
+        let chosen = [lines[0], lines[2], lines[3]];
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        let expected = solved
+            .solutions
+            .first()
+            .copied()
+            .expect("a solution exists");
+        execute_command(&mut document, solve_command(vertex, &chosen, None))
+            .expect("the solve applies");
+
+        for (slot, (line, degrees)) in expected.creases.iter().enumerate() {
+            let segment = &document.crease_pattern.line_segments[*line];
+            assert_eq!(segment.color, expected.line_color(slot), "line {line}");
+            assert_eq!(
+                segment.fold_magnitude,
+                expected.fold_magnitude(slot),
+                "line {line} at {degrees} degrees"
+            );
+        }
+    }
+
+    /// `candidate_index` picks the branch, and it must pick the same one for the
+    /// preview and for the commit — otherwise the user steps to one answer and
+    /// applies another.
+    #[test]
+    fn the_preview_and_the_commit_agree_on_which_solution_is_chosen() {
+        let (document, lines) =
+            document_with_vertex_fan(&[(0.0, 90.0), (45.0, 180.0), (90.0, -90.0), (225.0, 30.0)]);
+        let vertex = Point::new(0.0, 0.0);
+        let chosen = [lines[0], lines[2], lines[3]];
+        let solved = solve_fold_angles::vertex_angle_solutions(
+            &document.crease_pattern,
+            vertex,
+            &chosen,
+            CLOSURE_RESIDUAL_BAR_DEGREES.to_radians(),
+        );
+        assert!(solved.solutions.len() >= 2, "need a branch to step through");
+
+        for index in 0..solved.solutions.len() {
+            let preview = preview_command(&document, solve_command(vertex, &chosen, Some(index)))
+                .expect("preview succeeds");
+            assert_eq!(preview.segments.len(), 3);
+            assert_eq!(preview.candidate_count, Some(solved.isolated_count));
+            assert_eq!(
+                preview.candidate_is_family,
+                Some(!solved.solutions[index].isolated)
+            );
+
+            let mut applied = document.clone();
+            execute_command(&mut applied, solve_command(vertex, &chosen, Some(index)))
+                .expect("commit succeeds");
+            // Every previewed segment is exactly what the commit wrote.
+            for segment in &preview.segments {
+                assert!(
+                    applied
+                        .crease_pattern
+                        .line_segments
+                        .iter()
+                        .any(|written| written == segment),
+                    "preview showed {segment:?}, which the commit did not write"
+                );
+            }
+        }
+    }
+
+    /// The preview names the vertex and returns the creases in the order they
+    /// were *picked*, not the fan order the solver works in.
+    ///
+    /// Both exist so a UI can render the answer without re-deriving anything.
+    /// The alternative — matching preview segments back to line ids by their
+    /// endpoints — would be comparing coordinates that had round-tripped through
+    /// a serialiser, and re-deriving the vertex would let the window point
+    /// somewhere the solve was not about.
+    #[test]
+    fn the_preview_names_the_vertex_and_keeps_the_pick_order() {
+        let (document, lines) =
+            document_with_vertex_fan(&[(0.0, 90.0), (45.0, 180.0), (90.0, -90.0), (225.0, 30.0)]);
+        let vertex = Point::new(0.0, 0.0);
+        // Deliberately not in fan order: the solver sorts by direction, and the
+        // preview has to undo that.
+        let chosen = [lines[3], lines[0], lines[2]];
+        let mut command = solve_command(vertex, &chosen, None);
+        command.payload.points.clear();
+        let preview = preview_command(&document, command).expect("preview succeeds");
+
+        assert_eq!(preview.points.len(), 1);
+        assert!(preview.points[0].distance(vertex) < 1e-9);
+        assert_eq!(preview.segments.len(), 3);
+        for (segment, line) in preview.segments.iter().zip(chosen) {
+            let original = &document.crease_pattern.line_segments[line];
+            assert_eq!(segment.a, original.a, "row {line} is not the picked crease");
+            assert_eq!(segment.b, original.b, "row {line} is not the picked crease");
+        }
+    }
+
+    /// Before the third pick the tool has nothing to say, and in particular it
+    /// must not hand back the *existing* creases.
+    ///
+    /// It used to: the ones that would complete a solvable triple were returned
+    /// as a "these are pickable" hint, and the frontend drew them in the
+    /// selection accent, so every mountain at the vertex read as a valley for as
+    /// long as two creases were picked. `solvable_partners` still computes the
+    /// same set — it is the *preview channel* that is the wrong way to show it,
+    /// because repainting the crease is all that channel can do.
+    #[test]
+    fn a_partial_pick_previews_nothing() {
+        let (document, lines) = document_with_vertex_fan(&[
+            (0.0, 90.0),
+            (45.0, 180.0),
+            (90.0, -90.0),
+            (225.0, 30.0),
+            (300.0, -60.0),
+        ]);
+        let vertex = Point::new(0.0, 0.0);
+        for picked in 0..3 {
+            let preview =
+                preview_command(&document, solve_command(vertex, &lines[0..picked], None))
+                    .expect("preview succeeds");
+            assert!(
+                preview.segments.is_empty(),
+                "{picked} picks previewed {} segments",
+                preview.segments.len()
+            );
+        }
+    }
+
+    /// "These three cannot close this vertex" is an ordinary answer — 62% of
+    /// randomly chosen triples on a freely-angled vertex — so it has to be said
+    /// rather than left as an empty canvas.
+    #[test]
+    fn an_unsolvable_triple_reports_a_reason_rather_than_nothing() {
+        let (document, lines) =
+            document_with_vertex_fan(&[(0.0, 30.0), (70.0, -110.0), (200.0, 45.0), (300.0, 20.0)]);
+        let vertex = Point::new(0.0, 0.0);
+        let preview = preview_command(
+            &document,
+            solve_command(vertex, &[lines[0], lines[1], lines[2]], None),
+        )
+        .expect("preview succeeds");
+        if preview.segments.is_empty() {
+            assert_eq!(preview.unavailable.as_deref(), Some("AnglesUnreachable"));
+        }
+    }
 
     #[test]
     fn registry_has_no_duplicate_operation_ids() {

@@ -48,12 +48,14 @@
     "deleteLineTypeAria": "Eliminar tipo de línea",
     "divideByCount": "Dividir por cantidad",
     "divideByRatio": "Dividir por proporción",
+    "divideMode": "Modo de división",
     "divider": "Divisor",
     "divisionCount": "Número de divisiones",
     "dragAcrossCreases": "Arrastra sobre los pliegues para aplicar esta acción.",
     "erase": "Borrar",
     "eraseLineType": "Borrar tipo de línea",
     "exactForm": "Forma exacta",
+    "extendColor": "Color de extensión",
     "filter": "Filtro",
     "firstCandidate": "Primer candidato",
     "fixInaccurate": "Corregir imprecisos",
@@ -113,6 +115,14 @@
     "settingCountOther_one": "{{count}} ajustes",
     "settingCountOther_many": "{{count}} ajustes",
     "settingCountOther_other": "{{count}} ajustes",
+    "solveAngles": {
+      "creaseNotInFan": "Elige tres pliegues distintos que coincidan en el mismo vértice.",
+      "current": "Esto es lo que el vértice ya hace: avanza para ver la alternativa.",
+      "family": "Estos tres pliegues dejan un grado de libertad, así que esta es una de infinitas respuestas: elige otro tercer pliegue para obtener una definida.",
+      "notEnoughCreases": "Aquí coinciden menos de tres pliegues, así que no hay tres ángulos que resolver.",
+      "title": "Ángulos de plegado",
+      "unreachable": "Estos tres pliegues no pueden cerrar este vértice con ningún ángulo: prueba con otros tres."
+    },
     "stopOnAuxAria": "Permite que un pliegue sugerido se detenga en una línea auxiliar",
     "stopOnAuxLabel": "Líneas auxiliares",
     "to": "Hasta",
@@ -127,9 +137,27 @@
     "ariaLabel": "Herramientas de patrón de pliegues",
     "openEditableFirst": "Abre primero un patrón de pliegues editable"
   },
+  "cpToolOption": {
+    "apply": "Aplicar",
+    "count": "{{index}} de {{total}}",
+    "next": "Opción siguiente",
+    "previous": "Opción anterior"
+  },
+  "divideMode": {
+    "count": "Cantidad",
+    "countTitle": "Dividir la línea en partes iguales",
+    "ratio": "Proporción",
+    "ratioTitle": "Dividir la línea según una proporción"
+  },
   "foldAngleDisplay": {
     "color": "Color",
     "opacity": "Opacidad"
+  },
+  "lengthenColorMode": {
+    "active": "Activo",
+    "activeTitle": "Extender con el tipo de línea activo",
+    "same": "Original",
+    "sameTitle": "Extender cada pliegue con su propio tipo de línea"
   },
   "lineStyle": {
     "blackOneDot": "Negro de un punto",

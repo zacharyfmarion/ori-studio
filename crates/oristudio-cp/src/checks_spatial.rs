@@ -119,6 +119,22 @@ pub(crate) fn crease_quat(theta: f64, rho: f64) -> Quat {
     )
 }
 
+/// A rotation of `rho` about an arbitrary unit axis.
+///
+/// [`crease_quat`] is this with the axis pinned to the sheet plane. The
+/// three-angle solve needs the general form, because moving the known runs of
+/// creases to one side rotates each unknown's axis *out* of the plane while
+/// leaving its angle alone — see [`crate::solve_fold_angles`].
+pub(crate) fn axis_quat(axis: Vec3, rho: f64) -> Quat {
+    let (sin_half, cos_half) = (rho / 2.0).sin_cos();
+    (
+        cos_half,
+        sin_half * axis[0],
+        sin_half * axis[1],
+        sin_half * axis[2],
+    )
+}
+
 pub(crate) fn quat_mul(a: Quat, b: Quat) -> Quat {
     (
         a.0 * b.0 - a.1 * b.1 - a.2 * b.2 - a.3 * b.3,
@@ -177,7 +193,7 @@ pub(crate) fn quat_rotate(q: Quat, v: Vec3) -> Vec3 {
     ]
 }
 
-fn cross(a: Vec3, b: Vec3) -> Vec3 {
+pub(crate) fn cross(a: Vec3, b: Vec3) -> Vec3 {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -185,11 +201,11 @@ fn cross(a: Vec3, b: Vec3) -> Vec3 {
     ]
 }
 
-fn dot(a: Vec3, b: Vec3) -> f64 {
+pub(crate) fn dot(a: Vec3, b: Vec3) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn norm(a: Vec3) -> f64 {
+pub(crate) fn norm(a: Vec3) -> f64 {
     dot(a, a).sqrt()
 }
 
@@ -568,7 +584,7 @@ pub fn vertex_dof(fan: &VertexFan) -> usize {
 }
 
 /// Rank of the `n x 3` Jacobian by Gaussian elimination with partial pivoting.
-fn jacobian_rank(rows: &[[f64; 3]]) -> usize {
+pub(crate) fn jacobian_rank(rows: &[[f64; 3]]) -> usize {
     // Scale-relative tolerance: a fan drawn at 1e-3 units and one at 1e3 units
     // describe the same vertex, so an absolute pivot floor would report
     // different ranks for the same geometry.
@@ -707,6 +723,85 @@ pub fn vertex_fan_at(model: &CreasePatternModel, point: Point) -> VertexFan {
         }
     }
     vertex_fan(point, &lines, through)
+}
+
+/// [`vertex_fan_at`], plus the document line index each crease came from.
+///
+/// # Why the fan does not simply carry this
+///
+/// [`VertexFan`] is the seam between topology extraction and the closure math,
+/// and everything downstream consumes only `(theta, rho)`. Solvers that *add* a
+/// crease never need to know where the existing ones live — [`crate::solve_spatial`]
+/// is written entirely without it. Solving the angles of creases that already
+/// exist does need it, because the answer has to be written back to specific
+/// segments, and the fan's indices are not the document's: borders and auxiliary
+/// lines are dropped, and the survivors are re-sorted by direction.
+///
+/// So the provenance rides alongside rather than inside, and
+/// `fan_sources_align_with_the_fan` pins `fan.creases[k]` to
+/// `model.line_segments[sources[k]]`.
+pub fn vertex_fan_at_with_sources(
+    model: &CreasePatternModel,
+    point: Point,
+) -> (VertexFan, Vec<usize>) {
+    let mut entries: Vec<(usize, f64, f64)> = Vec::new();
+    let mut unassigned = false;
+    let mut through = false;
+
+    for (index, segment) in model.line_segments.iter().enumerate() {
+        if segment.color == LineColor::Cyan3 {
+            continue;
+        }
+        if !(point.distance(segment.a) < CELL || point.distance(segment.b) < CELL) {
+            if point_on_segment(point, segment) {
+                through = true;
+            }
+            continue;
+        }
+        if segment.color == LineColor::None {
+            unassigned = true;
+            continue;
+        }
+        let Some(rho_degrees) = crease_fold_angle(segment) else {
+            continue;
+        };
+        let other = if point.distance(segment.a) <= point.distance(segment.b) {
+            segment.b
+        } else {
+            segment.a
+        };
+        let (dx, dy) = (other.x - point.x, other.y - point.y);
+        if dx == 0.0 && dy == 0.0 {
+            continue;
+        }
+        entries.push((index, dy.atan2(dx), rho_degrees.to_radians()));
+    }
+
+    // Same comparator as `vertex_fan`, over a stable sort, so a fan built here
+    // and one built there put the same crease at the same position.
+    entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    let sources = entries.iter().map(|(index, _, _)| *index).collect();
+    let creases = entries
+        .iter()
+        .map(|(_, theta, rho)| (*theta, *rho))
+        .collect();
+    let indeterminate = if through {
+        Some(Indeterminate::UnsplitJunction)
+    } else if unassigned {
+        Some(Indeterminate::UnassignedCrease)
+    } else {
+        None
+    };
+
+    (
+        VertexFan {
+            point,
+            creases,
+            indeterminate,
+        },
+        sources,
+    )
 }
 
 /// The lines [`vertex_fan_at`] would gather, for callers that need the segments

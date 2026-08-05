@@ -25,8 +25,8 @@
       "railLabel": "변형"
     },
     "color": {
-      "label": "색상 및 지정",
-      "railLabel": "색상"
+      "label": "색상, 지정 및 수리",
+      "railLabel": "색상 및 수리"
     },
     "annotations": {
       "label": "원, 텍스트, 주석",
@@ -292,8 +292,8 @@
       "disabledReason": "전개도 명령이 아닌 뷰포트 런타임에서 처리됨"
     },
     "cp_action_line_segment_division": {
-      "label": "균등 분할 선",
-      "tooltip": "개수로 선 분할",
+      "label": "분할 선",
+      "tooltip": "개수 또는 비율로 분할된 선 그리기",
       "disabledReason": "준비됨",
       "steps": {
         "0": "클릭하거나 드래그하여 분할할 선 시작",
@@ -397,6 +397,16 @@
       "steps": {
         "0": "정점 선택",
         "1": "추가할 접힘선 선택"
+      }
+    },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "접기 각도 풀기",
+      "tooltip": "한 꼭짓점에서 접선 세 개를 고르면 아무것도 옮기지 않고 꼭짓점이 닫히도록 접기 각도를 풉니다",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "변경할 첫 번째 접선 선택",
+        "1": "변경할 두 번째 접선 선택",
+        "2": "변경할 세 번째 접선 선택"
       }
     },
     "cp_action_foldable_line_input": {
@@ -654,7 +664,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "같은 색상으로 연장",
+      "label": "선 연장(같은 색)",
       "tooltip": "원래 색상을 유지하면서 가이드 선이 가로지르는 접힘선 연장",
       "disabledReason": "준비됨",
       "steps": {

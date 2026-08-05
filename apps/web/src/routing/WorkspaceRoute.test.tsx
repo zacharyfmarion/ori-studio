@@ -1,11 +1,31 @@
-import { act } from 'react';
+import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PostHogClientLike } from '../analytics/bootstrap';
+import { AnalyticsRuntimeProvider } from '../analytics/runtime';
 import { useLayoutStore } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
 import { DESIGN_BP_PATH, DESIGN_PATH, DESIGN_TREEMAKER_PATH } from './paths';
 import { WorkspaceRoute } from './WorkspaceRoute';
+
+function makeFakeClient() {
+  return {
+    init: vi.fn(),
+    register: vi.fn(),
+    opt_in_capturing: vi.fn(),
+    opt_out_capturing: vi.fn(),
+    identify: vi.fn(),
+    capture: vi.fn(),
+    reset: vi.fn(),
+  } satisfies PostHogClientLike;
+}
+
+function viewedEvents(client: ReturnType<typeof makeFakeClient>) {
+  return client.capture.mock.calls
+    .filter((call) => call[0] === 'workspace viewed')
+    .map((call) => call[1]);
+}
 
 /**
  * Bare `/design` is the method chooser. It used to *write* that state, so
@@ -14,7 +34,7 @@ import { WorkspaceRoute } from './WorkspaceRoute';
  * redirects an established design to its own sub-route instead, which is what
  * makes that class of bug unreachable rather than merely unhit.
  */
-function renderAt(root: Root, entry: string): void {
+function renderAt(root: Root, entry: string, client?: PostHogClientLike): void {
   const router = createMemoryRouter(
     [
       { path: DESIGN_PATH, element: <WorkspaceRoute workspace="design" variant="nux" /> },
@@ -33,7 +53,10 @@ function renderAt(root: Root, entry: string): void {
     ],
     { initialEntries: [entry] }
   );
-  root.render(<RouterProvider router={router} />);
+  const tree: ReactNode = <RouterProvider router={router} />;
+  root.render(
+    client ? createElement(AnalyticsRuntimeProvider, { client, children: tree }) : tree
+  );
 }
 
 describe('WorkspaceRoute — bare /design', () => {
@@ -87,5 +110,22 @@ describe('WorkspaceRoute — bare /design', () => {
     useWorkspaceStore.setState({ designMethod: 'none' });
     await act(async () => renderAt(root, DESIGN_BP_PATH));
     expect(useWorkspaceStore.getState().designMethod).toBe('box-pleat');
+  });
+
+  it('reports only the screen the user lands on, not the one redirected through', async () => {
+    // The `workspace viewed` event lives in the view, and a route the user is
+    // passed straight through is not a screen they saw. Reporting `nux` here
+    // would invent a chooser view that never rendered.
+    useWorkspaceStore.setState({ designMethod: 'box-pleat' });
+    const client = makeFakeClient();
+    await act(async () => renderAt(root, DESIGN_PATH, client));
+    expect(viewedEvents(client)).toEqual([{ workspace: 'design', variant: 'box-pleat' }]);
+  });
+
+  it('reports the chooser when it is genuinely what rendered', async () => {
+    useWorkspaceStore.setState({ designMethod: 'none' });
+    const client = makeFakeClient();
+    await act(async () => renderAt(root, DESIGN_PATH, client));
+    expect(viewedEvents(client)).toEqual([{ workspace: 'design', variant: 'nux' }]);
   });
 });

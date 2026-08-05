@@ -7,7 +7,6 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { createPortal } from 'react-dom';
 import {
   Copy,
   ImagePlus,
@@ -42,19 +41,23 @@ import {
   DEFAULT_ORISTUDIO_CP_ACTION_ID,
   cpActionByOperation,
   cpActionById,
-  cpActionByUpstreamMouseMode,
   type OristudioCpActionDefinition,
   type OristudioCpActionId,
   type OristudioCpCommandActionDefinition,
 } from '../../lib/oristudioCpActions';
 import {
-  cpCommandByOperation,
   cpCommandUsesActiveLineColor,
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
 import { forcedAssignmentNotice } from '../../cp-workspace/tools/toolUnavailable';
 import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
+import {
+  cpToolSelectionForMouseMode,
+  cpVariantHostAction,
+  cpVariantModeForNamedAction,
+} from '../../lib/cpToolVariants';
 import { usePersistedCpToolOptions } from '../../cp-workspace/tools/usePersistedCpToolOptions';
+import { useCpToolVariant } from '../../cp-workspace/tools/useCpToolVariant';
 import type { ToolPreviewSegment } from '../../cp-workspace/tools/types';
 import {
   cancelOristudioCpToolState,
@@ -117,6 +120,8 @@ import type { CanvasObjectBoxUpdate } from '../../cp-workspace/CanvasObjectOverl
 import { CpTextAnnotationLayer } from '../../cp-workspace/CpTextAnnotationLayer';
 import { CpMeasureLayer } from '../../cp-workspace/CpMeasureLayer';
 import { CpFoldAngleLayer } from '../../cp-workspace/foldAngle/CpFoldAngleLayer';
+import { useVertexSolve } from '../../cp-workspace/foldAngleSolve/useVertexSolve';
+import { CpToolOptionLayer } from '../../cp-workspace/toolOptions/CpToolOptionLayer';
 import { CpImageInspector } from '../../cp-workspace/CpImageInspector';
 import { CpSelectionToolbar } from '../../cp-workspace/CpSelectionToolbar';
 import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureToolbar';
@@ -130,6 +135,7 @@ import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSim
 import { useBlurOnPressOutside } from '../../cp-workspace/inlineSimulation/useBlurOnPressOutside';
 import { cpOverlayViewStore } from '../../cp-workspace/cpOverlayViewStore';
 import type { CpOverlayViews } from '../../cp-workspace/cpOverlayViewStore';
+import { useCpDocumentCamera } from '../../cp-workspace/camera/useCpDocumentCamera';
 import { isTextAnnotation } from '../../cp-workspace/annotations/annotation';
 import { useCpAnnotations } from '../../cp-workspace/annotations/useCpAnnotations';
 import { CpContextToolPanel, cpLineTypeStatusLabel } from './CpContextToolPanel';
@@ -141,6 +147,7 @@ import {
 } from '../../cp-workspace/diagnostics/geometry';
 import { visibleCpDiagnosticEntries } from '../../cp-workspace/diagnostics/visibleEntries';
 import { cpInputModel } from '../../cp-workspace/tools/inputModelRegistry';
+import { usePickToolSelectionReset } from '../../cp-workspace/tools/usePickToolSelectionReset';
 import { distanceToSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { useCpLineColorInversion } from '../../cp-workspace/lineColor/useCpLineColorInversion';
@@ -161,6 +168,7 @@ import {
   isLengthenCreaseOperation,
   isLineClickSelectionOperation,
   isLineEraseClickTool,
+  isModelAlignedBoxOperation,
   isReflectSelectionOperation,
   isRestrictedDrawOperation,
   isSelectionCircleApplyOperation,
@@ -185,6 +193,7 @@ import {
 } from '../../cp-workspace/measurePreferences';
 import { ColorField } from '../ui/ColorField';
 import { IconButton } from '../ui/IconButton';
+import { SurfaceLoading } from '../ui/SurfaceLoading';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toggle } from '../ui/Toggle';
 import { CpToolRail } from './CpToolRail';
@@ -194,7 +203,6 @@ import {
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
-import { CP_TOOL_OPTIONS_PANE_SLOT_ID } from './cpToolOptionsPortal';
 import type { FoldDocument } from '../../engine/types';
 
 function formatZoom(scale: number): string {
@@ -756,7 +764,6 @@ export function CreasePatternPanel() {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cpViewportRef = useRef<HTMLDivElement | null>(null);
-  const [toolOptionsPortalTarget, setToolOptionsPortalTarget] = useState<HTMLElement | null>(null);
   const zoomPercentRef = useRef(100);
   const [zoomPercent, setZoomPercent] = useState(100);
   // Hand tool: a plain drag pans the canvas instead of running the active
@@ -971,28 +978,13 @@ export function CreasePatternPanel() {
   // `handleCpShortcutAction` routes both to the real fold path.
   const foldShortcutLabel = shortcutLabelForAction('cp.action.folding-estimate', shortcutOverrides);
 
-  useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-
-    const updateTarget = () => {
-      const target = document.getElementById(CP_TOOL_OPTIONS_PANE_SLOT_ID);
-      setToolOptionsPortalTarget((current) => (current === target ? current : target));
-    };
-
-    updateTarget();
-    if (typeof MutationObserver === 'undefined' || !document.body) return undefined;
-
-    const observer = new MutationObserver(updateTarget);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
-
   const editableCp = oristudioCpDocument?.document ?? null;
   const editableCpHandle = oristudioCpDocument?.handle ?? null;
   const editableCpSummary = oristudioCpDocument?.summary ?? null;
   // Why the editable kernel refused this file, recorded by `loadCreasePattern`.
   // Only meaningful in the read-only state below, where there is no document.
   const cpLoadError = useWorkspaceStore((state) => state.oristudioCpError);
+  const openingSharedCp = useWorkspaceStore((state) => state.openingSharedCp);
   const nativeActiveLineColor = useMemo(
     () => activeLineColorFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
@@ -1005,6 +997,8 @@ export function CreasePatternPanel() {
     () => canvasToolOptionsFromOrieditaMetadata(editableCp?.metadata),
     [editableCp?.metadata]
   );
+  // The document's view: what to open at, and where a moved camera is recorded.
+  const documentCamera = useCpDocumentCamera(editableCp?.metadata);
   // Upstream's `calculateLineColor()`: while the modifier is held the crease
   // colour reads inverted everywhere -- rail, preview, committed line -- while
   // `activeCpLineColor` keeps the colour the user actually chose. Every read
@@ -1309,15 +1303,14 @@ export function CreasePatternPanel() {
     () => (cpToolState.activeActionId ? cpActionById(cpToolState.activeActionId) : undefined),
     [cpToolState.activeActionId]
   );
-  const activeCpCommand = useMemo(
-    () => {
-      if (activeCpAction?.kind === 'command') return activeCpAction.command;
-      return cpToolState.activeOperationId
-        ? cpCommandByOperation(cpToolState.activeOperationId)
-        : undefined;
-    },
-    [activeCpAction, cpToolState.activeOperationId]
-  );
+  // Extend Line and Divided Line are one rail button over two kernel operations
+  // each, so which one is armed depends on a tool option as well as the action.
+  const { armTool: armCpTool, activeCommand: activeCpCommand } = useCpToolVariant({
+    toolState: cpToolState,
+    setToolState: setCpToolState,
+    toolOptions: cpToolOptions,
+    activeAction: activeCpAction,
+  });
   // Annotations (images, text) select/drag/resize directly — no dedicated tool.
   // They are interactive whenever the active tool isn't mid-draw, or explicitly
   // allows direct entity selection; a drawing tool keeps its clicks on the canvas.
@@ -1451,6 +1444,23 @@ export function CreasePatternPanel() {
     [effectiveCpLineColor, cpToolOptions, editableCpBounds, editableCpGridWidth, zoomPercent]
   );
 
+  const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
+
+  // The three-angle solve holds its answers for review instead of committing on
+  // the third pick, because closing a vertex generally admits more than one set
+  // of fold angles and there is no basis for the software to choose. All of that
+  // state lives in the hook; the panel mounts it and wires it up.
+  const vertexSolve = useVertexSolve({
+    preview: previewOristudioCpCommand,
+    execute: executeOristudioCpCommand,
+    buildPayload: useCallback(
+      (payload: OristudioCpCommandPayload) =>
+        activeCpCommand ? buildCpCommandPayload(activeCpCommand, payload) : payload,
+      [activeCpCommand, buildCpCommandPayload]
+    ),
+    documentVersion: editableCp?.crease_pattern.line_segments,
+  });
+
   useEffect(() => {
     const documentKey = editableCp
       ? String(editableCpHandle ?? `editable-cp-${projectLoadId}`)
@@ -1465,33 +1475,49 @@ export function CreasePatternPanel() {
     // Prefer the tool the user last selected (persisted across panel remounts),
     // then the document's native mouse mode, then the default tool.
     const persistedToolId = useWorkspaceStore.getState().oristudioCpActiveToolId;
-    const restoredAction =
-      (persistedToolId ? cpActionById(persistedToolId) : undefined) ??
-      (nativeActiveMouseMode ? cpActionByUpstreamMouseMode(nativeActiveMouseMode) : undefined);
+    const persistedAction = persistedToolId ? cpActionById(persistedToolId) : undefined;
+    // A mouse mode belonging to a merged tool's non-host variant resolves to the
+    // action that owns the rail button, plus the mode that runs that variant.
+    // Only consulted when the user has no tool of their own to restore, so the
+    // document never overrides a mode they picked.
+    const nativeSelection =
+      !persistedAction && nativeActiveMouseMode
+        ? cpToolSelectionForMouseMode(nativeActiveMouseMode)
+        : null;
+    const restoredAction = persistedAction ?? nativeSelection?.action;
     const nextAction = isNewDocument ? restoredAction ?? defaultAction : defaultAction;
     if (!nextAction) return;
+    const modeOverrides = isNewDocument ? nativeSelection?.options : undefined;
+    if (modeOverrides) setCpToolOptions((current) => ({ ...current, ...modeOverrides }));
     setCpToolState((state) =>
-      isNewDocument || state.phase === 'idle'
-        ? transitionOristudioCpToolState(state, {
-            type: 'selectAction',
-            action: nextAction,
-            editable: true,
-          })
-        : state
+      isNewDocument || state.phase === 'idle' ? armCpTool(state, nextAction, true, modeOverrides) : state
     );
-  }, [cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId]);
+  }, [armCpTool, cpToolState.phase, editableCp, editableCpHandle, nativeActiveMouseMode, projectLoadId, setCpToolOptions]);
 
 
   const handleCpToolAction = useCallback(
-    (action: OristudioCpActionDefinition) => {
+    /**
+     * `byName` means the caller picked this exact action — a shortcut bound to
+     * "Divided Line (ratio)", a command request naming an operation — so a
+     * merged tool's mode follows the action it named. The rail passes nothing:
+     * its button is the tool, and which mode it runs in is the user's to keep.
+     */
+    (selected: OristudioCpActionDefinition, byName = false) => {
       setPendingLengthenLineId(null);
       // The hand tool and a crease tool are mutually exclusive, so the rail
       // and the toolbar never both read as active.
       setPanToolActive(false);
-      if (action.kind === 'line-type') {
-        setActiveCpLineColor(action.lineColor);
+      if (selected.kind === 'line-type') {
+        setActiveCpLineColor(selected.lineColor);
         return;
       }
+
+      // A caller naming a merged tool's non-host variant ("Divided Line
+      // (ratio)") gets the tool that has the rail button, armed in the mode that
+      // runs the variant it named. Arming the variant itself would light nothing
+      // up, since the rail has no button for it.
+      const modeOverrides = byName ? cpVariantModeForNamedAction(selected) : undefined;
+      const action = cpVariantHostAction(selected);
 
       // Picking a crease/geometry tool deselects the active reference image, so
       // its handles don't linger over the canvas while another tool is active.
@@ -1510,13 +1536,8 @@ export function CreasePatternPanel() {
       // nowhere. Decide before the state writes, not after them.
       const runsImmediately = !!editableCp && isWholeDocumentCpCommand(command);
       if (!runsImmediately) {
-        setCpToolState((state) =>
-          transitionOristudioCpToolState(state, {
-            type: 'selectAction',
-            action,
-            editable: !!editableCp,
-          })
-        );
+        if (modeOverrides) setCpToolOptions((current) => ({ ...current, ...modeOverrides }));
+        setCpToolState((state) => armCpTool(state, action, !!editableCp, modeOverrides));
         // Persist the selection so the tool survives panel remounts (workspace switches).
         useWorkspaceStore.getState().setOristudioCpActiveToolId(action.id);
       }
@@ -1553,10 +1574,12 @@ export function CreasePatternPanel() {
       })();
     },
     [
+      armCpTool,
       buildCpCommandPayload,
       editableCp,
       executeOristudioCpCommand,
       oristudioCpSelection.lines,
+      setCpToolOptions,
       setSelectedAnnotation,
       t,
     ]
@@ -1577,7 +1600,7 @@ export function CreasePatternPanel() {
           return;
         }
       }
-      handleCpToolAction(action);
+      handleCpToolAction(action, true);
     },
     [handleCpToolAction, folded]
   );
@@ -1592,7 +1615,8 @@ export function CreasePatternPanel() {
 
     const action = cpActionByOperation(oristudioCpActionRequest.operationId);
     if (action) {
-      handleCpToolAction(action);
+      // The request names an operation, so a merged tool's mode follows it.
+      handleCpToolAction(action, true);
     }
     clearOristudioCpActionRequest(oristudioCpActionRequest.id);
   }, [clearOristudioCpActionRequest, handleCpToolAction, oristudioCpActionRequest]);
@@ -1827,6 +1851,18 @@ export function CreasePatternPanel() {
       const isLineEntityCommit = pickedLineIds.length > 0 && points.length === 0;
       if (!isLineEntityCommit && points.length === 0) return;
 
+      // The three-angle solve does not apply on its final pick. It hands the
+      // answers to the review state, which applies one when asked.
+      if (command.operationId === 'VertexSolveFoldAngles') {
+        void vertexSolve.begin(pickedLineIds);
+        setCpToolState((state) =>
+          state.activeOperationId === command.operationId
+            ? transitionOristudioCpToolState(state, { type: 'commit', keepActive: true })
+            : state
+        );
+        return;
+      }
+
       // Measure tools are non-mutating: never execute (the kernel has no execute arm
       // by design). Ask the kernel for the exact length/angle at the committed points
       // and show it; then just finalize the tool state. The active *command* is always
@@ -1924,8 +1960,11 @@ export function CreasePatternPanel() {
       oristudioCpSelection.circles,
       oristudioCpSelection.lines,
       t,
+      vertexSolve,
     ]
   );
+
+  usePickToolSelectionReset(activeCpCommand?.operationId);
 
   // Drive the step prompt in lock-step with the inputs a tool has taken: creases for
   // a line-entity tool (Lengthen), placed points for a point-sequence one. Derive the
@@ -2096,10 +2135,20 @@ export function CreasePatternPanel() {
   // Why the tool has nothing to offer for the points placed so far — the
   // vertex-completion solve's "no single crease closes this vertex", which is a
   // real answer and would otherwise show as an empty canvas.
-  const [cpToolUnavailable, setCpToolUnavailable] = useState<string | null>(null);
   // The completion tool determines mountain/valley itself, so the crease can come
   // out the opposite colour to the one selected in the rail. Correct, and worth a
   // word: nothing else in the editor overrides the active line type.
+  // While the solve is in review the three creases-as-they-would-be are the
+  // preview. They ride the same channel as every other tool candidate, so the
+  // fold-angle ramp and the angle badges pick them up with nothing new added.
+  const cpPreviewSegments = useMemo(
+    () =>
+      vertexSolve.segments.length > 0
+        ? [...webglToolPreviewSegments, ...vertexSolve.segments]
+        : webglToolPreviewSegments,
+    [vertexSolve.segments, webglToolPreviewSegments]
+  );
+
   const cpToolForcedAssignment = useMemo(
     () => forcedAssignmentNotice(t, webglToolPreviewSegments, effectiveCpLineColor),
     [t, webglToolPreviewSegments, effectiveCpLineColor]
@@ -2550,6 +2599,13 @@ export function CreasePatternPanel() {
       setPanToolActive(false);
       return;
     }
+    // A fold-angle solve waiting for a choice is an in-progress gesture, and
+    // Escape discards it — leaving the three creases exactly as they were,
+    // because nothing has been applied yet.
+    if (vertexSolve.review) {
+      vertexSolve.cancel();
+      return;
+    }
     // A selection takes priority as long as no gesture is in progress; a second
     // Escape then cancels the tool.
     const gestureInProgress =
@@ -2583,6 +2639,7 @@ export function CreasePatternPanel() {
     editingTextId,
     annotations,
     panToolActive,
+    vertexSolve,
     pendingLengthenLineId,
     pendingSquareBisectorLineIds.length,
   ]);
@@ -2624,6 +2681,22 @@ export function CreasePatternPanel() {
         case 'viewport.simulateSelectionInline':
           void simulateSelectionInline();
           return true;
+        // Declined unless the three-angle solve is holding answers, so the
+        // arrows and Enter stay available to everything else the moment it is
+        // not. Returning `true` unconditionally would swallow them app-wide for
+        // a tool that is almost never in review.
+        case 'viewport.solveAnglesPrevious':
+          if (!vertexSolve.steppable) return false;
+          vertexSolve.step(-1);
+          return true;
+        case 'viewport.solveAnglesNext':
+          if (!vertexSolve.steppable) return false;
+          vertexSolve.step(1);
+          return true;
+        case 'viewport.solveAnglesApply':
+          if (!vertexSolve.review) return false;
+          void vertexSolve.apply();
+          return true;
         case 'viewport.zoomIn':
           cpCamera()?.zoomIn();
           return true;
@@ -2653,6 +2726,7 @@ export function CreasePatternPanel() {
     [
       cancelActiveCpInput,
       simulateSelectionInline,
+      vertexSolve,
       deleteSelectedCanvasObject,
       dropLastMeasurement,
     ]
@@ -2695,6 +2769,19 @@ export function CreasePatternPanel() {
     }
   }, [cpToolState.activeOperationId, cpToolState.phase]);
 
+  // A shared link opened by id is the one provisioning path that waits on the network, and
+  // it can wait up to a minute while KV propagates. Without this it looks like an ordinary
+  // empty editor, which is indistinguishable from the link having failed.
+  if (openingSharedCp && !hasCreasePattern) {
+    return (
+      <section className="panel-shell cp-panel">
+        <SurfaceLoading
+          label={t('panels:creasePattern.openingSharedLink', 'Opening shared crease pattern…')}
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="panel-shell cp-panel">
       <div
@@ -2714,6 +2801,7 @@ export function CreasePatternPanel() {
             {editableCp && (
               <CpToolRail
                 activeActionId={cpToolState.activeActionId}
+                activeOperationId={cpToolState.activeOperationId}
                 activeLineColor={effectiveCpLineColor}
                 editable={!!editableCp}
                 onSelectAction={handleCpToolAction}
@@ -2801,8 +2889,9 @@ export function CreasePatternPanel() {
                   onToolPreviewInput={handleWebglToolPreviewInput}
                   onToolPickProgress={handleWebglToolPickProgress}
                   onToolSnapKind={setCpMeasureSnapKind}
-                  toolCommandPreviewSegments={webglToolPreviewSegments}
+                  toolCommandPreviewSegments={cpPreviewSegments}
                   toolCommandHighlightSegments={webglToolHighlightSegments}
+                  toolReplacedLineIds={vertexSolve.replacedLineIds}
                   toolCommandPreviewPoints={webglToolPreviewPoints}
                   toolPreviewColor={toolPreviewColor}
                   diagnosticMarkers={cpDiagnosticGeometry.markers}
@@ -2813,6 +2902,10 @@ export function CreasePatternPanel() {
                   onRotationChange={setViewRotation}
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
+                  {...documentCamera}
+                  activeToolModelAlignedBox={isModelAlignedBoxOperation(
+                    activeCpCommand?.operationId
+                  )}
                   onEraseBox={(points) => {
                     void executeOristudioCpCommand('LineSegmentDelete', {
                       line_ids: [],
@@ -2876,9 +2969,12 @@ export function CreasePatternPanel() {
                 {webglOverlayView && (
                   <CpFoldAngleLayer
                     lineSegments={editableCp?.crease_pattern.line_segments}
-                    toolCandidates={webglToolPreviewSegments}
+                    toolCandidates={cpPreviewSegments}
                   />
                 )}
+                {/* Subscribes to the camera itself and renders nothing without
+                    an option, so it needs no gate of its own. */}
+                <CpToolOptionLayer option={vertexSolve.option} />
                 {webglOverlayView && (oristudioCpAnnotations.length > 0 || editingTextId) && (
                   <CpTextAnnotationLayer
                     annotations={oristudioCpAnnotations}
@@ -3062,41 +3158,38 @@ export function CreasePatternPanel() {
                   </>
                 )}
               </ViewportToolbar>
-              {editableCp &&
-                activeCpCommand &&
-                toolOptionsPortalTarget &&
-                createPortal(
-                  <CpContextToolPanel
-                    action={activeCpAction}
-                    command={activeCpCommand}
-                    options={cpToolOptions}
-                    setOptions={setCpToolOptions}
-                    activeLineColor={effectiveCpLineColor}
-                    measurements={cpMeasurements}
-                    onHoverMeasurement={setCpHoveredMeasureIndex}
-                    measureUnit={cpMeasurePreferences.unit}
-                    measureAngleUnit={cpMeasurePreferences.angleUnit}
-                    measureScale={cpMeasureScale}
-                    onMeasureUnitChange={setCpMeasureUnit}
-                    onMeasureAngleUnitChange={setCpMeasureAngleUnit}
-                    onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
-                    pendingPointCount={cpToolPoints.length}
-                    selection={oristudioCpSelection}
-                    unavailable={cpToolUnavailable}
-                    toolNotice={cpToolForcedAssignment}
-                    onApply={
-                      cpCommandRequiresContextApply(activeCpCommand)
-                        ? handleApplyActiveContextCommand
-                        : undefined
-                    }
-                    onClearInput={
-                      activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
-                        ? handleClearActiveContextInput
-                        : undefined
-                    }
-                  />,
-                  toolOptionsPortalTarget
-                )}
+              {editableCp && activeCpCommand && (
+                <CpContextToolPanel
+                  container={toolbarContainer}
+                  action={activeCpAction}
+                  command={activeCpCommand}
+                  options={cpToolOptions}
+                  setOptions={setCpToolOptions}
+                  activeLineColor={effectiveCpLineColor}
+                  measurements={cpMeasurements}
+                  onHoverMeasurement={setCpHoveredMeasureIndex}
+                  measureUnit={cpMeasurePreferences.unit}
+                  measureAngleUnit={cpMeasurePreferences.angleUnit}
+                  measureScale={cpMeasureScale}
+                  onMeasureUnitChange={setCpMeasureUnit}
+                  onMeasureAngleUnitChange={setCpMeasureAngleUnit}
+                  onMeasurePaperEdgeMmChange={setCpMeasurePaperEdgeMm}
+                  pendingPointCount={cpToolPoints.length}
+                  selection={oristudioCpSelection}
+                  unavailable={cpToolUnavailable}
+                  toolNotice={cpToolForcedAssignment}
+                  onApply={
+                    cpCommandRequiresContextApply(activeCpCommand)
+                      ? handleApplyActiveContextCommand
+                      : undefined
+                  }
+                  onClearInput={
+                    activeCpCommand.operationId === 'VoronoiCreate' && cpToolPoints.length > 0
+                      ? handleClearActiveContextInput
+                      : undefined
+                  }
+                />
+              )}
               <div className="viewport-status-readout">
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}

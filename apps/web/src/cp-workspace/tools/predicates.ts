@@ -57,6 +57,25 @@ export function isRestrictedDrawOperation(operationId: OpId): boolean {
   return operationId === 'DrawCreaseRestricted';
 }
 
+/**
+ * The one drag-box tool whose box must stay axis-aligned in *model* space, so it
+ * commits two diagonal corners rather than four perimeter ones.
+ *
+ * Every other box tool resolves its region through `required_selection_polygon`,
+ * which reads any number of points as a polygon. The operation frame does not:
+ * its kernel handler reads `points[0]` as the press, the middle points as drags,
+ * and the last as the release, so handing it four perimeter corners would build
+ * a frame spanning an *edge* of the box instead of its diagonal.
+ *
+ * (Upstream's operation frame is screen-space too — `MouseHandlerOperationFrameCreate`
+ * keeps `frame.getP1()` in TV coordinates and only calls `TV2object` to draw —
+ * so this port already diverges under rotation. The tool is hidden-ui-only;
+ * fixing that properly is a kernel change of its own.)
+ */
+export function isModelAlignedBoxOperation(operationId: OpId): boolean {
+  return operationId === 'OperationFrameCreate';
+}
+
 export function isReflectSelectionOperation(operationId: OpId): boolean {
   return operationId === 'DrawCreaseSymmetric';
 }

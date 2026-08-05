@@ -40,12 +40,14 @@
     "deleteLineTypeAria": "선 종류 삭제",
     "divideByCount": "개수로 분할",
     "divideByRatio": "비율로 분할",
+    "divideMode": "분할 방식",
     "divider": "분할기",
     "divisionCount": "분할 개수",
     "dragAcrossCreases": "접힘선을 가로질러 드래그하여 이 작업을 적용합니다.",
     "erase": "지우기",
     "eraseLineType": "선 종류 지우기",
     "exactForm": "정확한 형식",
+    "extendColor": "연장 선 종류",
     "filter": "필터",
     "firstCandidate": "첫 번째 후보",
     "fixInaccurate": "부정확 수정",
@@ -97,6 +99,14 @@
     "seedPressPendingOther_other": "시드 클릭 {{count}}개 대기 중",
     "settingCountOne_other": "설정 {{count}}개",
     "settingCountOther_other": "설정 {{count}}개",
+    "solveAngles": {
+      "creaseNotInFan": "같은 꼭짓점에서 만나는 서로 다른 세 접선을 고르세요.",
+      "current": "이 꼭짓점이 이미 하고 있는 상태입니다. 다음으로 넘겨 다른 해를 확인하세요.",
+      "family": "이 세 접선에는 자유도가 하나 남아 있어 무수히 많은 해 중 하나입니다. 확정된 해를 원하면 다른 세 번째 접선을 고르세요.",
+      "notEnoughCreases": "여기서 만나는 접선이 세 개 미만이라 풀 각도가 없습니다.",
+      "title": "접기 각도",
+      "unreachable": "이 세 접선으로는 어떤 접기 각도로도 이 꼭짓점을 닫을 수 없습니다. 다른 셋을 시도해 보세요."
+    },
     "stopOnAuxAria": "제안된 접힘선이 보조선에서 멈추도록 허용합니다",
     "stopOnAuxLabel": "보조선",
     "to": "끝",
@@ -111,9 +121,27 @@
     "ariaLabel": "전개도 도구",
     "openEditableFirst": "편집 가능한 전개도를 먼저 여세요"
   },
+  "cpToolOption": {
+    "apply": "적용",
+    "count": "{{total}}개 중 {{index}}번째",
+    "next": "다음 옵션",
+    "previous": "이전 옵션"
+  },
+  "divideMode": {
+    "count": "개수",
+    "countTitle": "선을 같은 크기로 분할합니다",
+    "ratio": "비율",
+    "ratioTitle": "선을 비율로 분할합니다"
+  },
   "foldAngleDisplay": {
     "color": "색상",
     "opacity": "불투명도"
+  },
+  "lengthenColorMode": {
+    "active": "현재",
+    "activeTitle": "현재 선 종류로 연장합니다",
+    "same": "원래대로",
+    "sameTitle": "각 접는 선을 원래 선 종류로 연장합니다"
   },
   "lineStyle": {
     "blackOneDot": "검정 1점선",

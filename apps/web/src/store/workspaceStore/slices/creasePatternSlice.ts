@@ -1,3 +1,4 @@
+import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
 import {
@@ -33,7 +34,12 @@ import {
 } from '../../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { resolveInlineSimulationRegion } from '../../../cp-workspace/inlineSimulation/resolveSimulationRegion';
 import { DEFAULT_SIMULATOR_VIEW } from '../../../simulator/SimulatorViewport';
-import { boxAabb } from '../../../cp-workspace/canvasObjects/placeBesideCp';
+import {
+  aabbInFrame,
+  boxAabbInFrame,
+} from '../../../cp-workspace/canvasObjects/placeBesideCp';
+import { uprightRotationForView } from '../../../cp-workspace/annotations/annotationTransform';
+import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
 import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import { cpSelectionSize, cpSvgToModel } from '../../../lib/creasePatternViewport';
 import type { Aabb } from '../../../cp-workspace/picking/lineHitIndex';
@@ -68,6 +74,21 @@ import {
   projectStateFromSnapshot,
   type EngineClient,
 } from '../engineRuntime';
+import { fetchCpShareWithRetry } from '../../../cp-workspace/share/cpShareService';
+
+/**
+ * Opening a shared link over an existing document discards it, so ask first — the same
+ * question File > Open asks, for the same reason.
+ */
+async function confirmDiscardDirtyProject(dirty: boolean): Promise<boolean> {
+  if (!dirty) return true;
+  return requestConfirmation({
+    title: 'Discard unsaved changes?',
+    message: 'Opening this shared crease pattern will replace your current work. Continue and discard it?',
+    confirmLabel: 'Discard',
+    tone: 'danger',
+  });
+}
 import {
   createBlankOristudioCpDocument,
   openSharedCpPayload,
@@ -135,18 +156,26 @@ const inlineSimulationRevisions = new Map<string, number>();
  * the flat pattern uses. It is positive and axis-preserving, so an axis-aligned
  * box stays axis-aligned and the corners are enough.
  */
-function occupiedModelSpace(state: WorkspaceState): Aabb[] {
+function occupiedModelSpace(state: WorkspaceState, frameAngle = 0): Aabb[] {
+  // Measured along the frame's axes, straight from each object's own box, so an
+  // object created upright under this view contributes its exact footprint
+  // rather than a bounding box inflated by its rotation.
   const boxes = [
-    ...state.oristudioCpInlineSimulations.map((simulation) => boxAabb(simulation.box)),
+    ...state.oristudioCpInlineSimulations.map((simulation) =>
+      boxAabbInFrame(simulation.box, frameAngle)
+    ),
     ...state.oristudioCpAnnotations
       .filter((annotation) => !annotation.hidden)
       .map((annotation) =>
-        boxAabb({
-          center: annotation.center,
-          width: annotation.width,
-          height: annotation.height,
-          rotation: annotation.rotation,
-        })
+        boxAabbInFrame(
+          {
+            center: annotation.center,
+            width: annotation.width,
+            height: annotation.height,
+            rotation: annotation.rotation,
+          },
+          frameAngle
+        )
       ),
   ];
   for (const figure of state.oristudioCpFoldedFigures) {
@@ -154,14 +183,29 @@ function occupiedModelSpace(state: WorkspaceState): Aabb[] {
     if (!userAabb) continue;
     const min = cpSvgToModel({ x: userAabb.minX, y: userAabb.minY });
     const max = cpSvgToModel({ x: userAabb.maxX, y: userAabb.maxY });
-    boxes.push({
-      minX: Math.min(min.x, max.x),
-      minY: Math.min(min.y, max.y),
-      maxX: Math.max(min.x, max.x),
-      maxY: Math.max(min.y, max.y),
-    });
+    boxes.push(
+      aabbInFrame(
+        {
+          minX: Math.min(min.x, max.x),
+          minY: Math.min(min.y, max.y),
+          maxX: Math.max(min.x, max.x),
+          maxY: Math.max(min.y, max.y),
+        },
+        frameAngle
+      )
+    );
   }
   return boxes;
+}
+
+/**
+ * The rotation at which a newly created canvas object is upright on screen, in
+ * the given space. Read from the imperative overlay-view store because placement
+ * runs in the store, outside React — the same reason the canvas publishes it
+ * there in the first place.
+ */
+function uprightFrameAngle(space: 'model' | 'user'): number {
+  return uprightRotationForView(cpOverlayViewStore.get()?.[space] ?? null);
 }
 
 function inlineSimulationRevision(id: string): number {
@@ -822,6 +866,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     }
     set({ status: 'optimizing', error: null });
     const checkpoint = await get().beginHistoryCheckpoint();
+    // 'optimize.scale' -> 'scale'. Also the analytics `kind`.
+    const kind = capabilityId.replace('optimize.', '');
     try {
       const { api, treeHandle } = await requireActiveTree();
       const report = await optimize(api, treeHandle);
@@ -840,8 +886,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           : get().designViewportFitRequestId,
       });
       get().commitHistoryCheckpoint(checkpoint, label);
+      track('optimizer run', { kind, succeeded: true, feasible: report.is_feasible });
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
+      track('optimizer run', { kind, succeeded: false });
     }
   }
 
@@ -856,6 +904,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpActiveFoldedFigureId: null,
     oristudioCpFoldsInFlight: 0,
     oristudioCpViewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+    oristudioCpCamera: null,
     oristudioCpAnnotations: [],
     oristudioCpSelectedAnnotationId: null,
     oristudioCpInlineSimulations: [],
@@ -889,15 +938,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     // The Edit workspace's always-live canvas: seed a blank editable CP when the
     // workspace is entered with no crease pattern loaded, so it is never empty.
     ensureEditCreasePattern: async () => {
-      // NOTE for share links: a pending `/s` payload is only consumed below, so
-      // this early return strands it. That is unreachable today because a share
-      // link is always a *full page load* — the address bar, or a click from
-      // another app — which starts with no document. It stops being unreachable
-      // the moment anything navigates to `/s` client-side, and the symptom would
-      // be a link that silently does nothing. If that navigation is ever added,
-      // decide here whether opening a link replaces the open document or lands in
-      // a new tab, rather than letting it fall through.
-      if (get().oristudioCpDocument) return;
+      // A share opened while a document is already loaded replaces it, after the usual
+      // unsaved-changes confirmation. Returning early here instead — which is what this did
+      // while `/s` was assumed to be a full page load only — strands the pending share and
+      // the link silently does nothing, the worst of the three possible behaviours.
+      if (get().oristudioCpDocument) {
+        const pending = get().pendingSharedCp;
+        if (!pending) return;
+        if (!(await confirmDiscardDirtyProject(get().dirty))) {
+          set({ pendingSharedCp: null });
+          return;
+        }
+      }
       if (ensureEditInFlight) return ensureEditInFlight;
       ensureEditInFlight = (async () => {
         try {
@@ -906,12 +958,34 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // canvas, so it happens on this one path rather than a parallel one —
           // and it is consumed inside the in-flight guard, so a StrictMode
           // double-invoke cannot open it twice.
-          const pending = get().pendingSharedCpPayload;
+          const pending = get().pendingSharedCp;
           let document;
           if (pending) {
             try {
-              document = await openSharedCpPayload(pending);
+              // A link normally arrives with its crease pattern already inlined into
+              // the page, so this is pure decode. The `id` shape is the exception —
+              // a hand-typed URL, or one opened inside the ~60s KV takes to propagate
+              // — and is the only path that touches the network.
+              let payload: string;
+              if (pending.kind === 'payload') {
+                payload = pending.payload;
+              } else {
+                // KV needs up to a minute to propagate, and a link is usually opened the
+                // moment it is created — so retry a miss rather than reporting one.
+                set({ openingSharedCp: true });
+                try {
+                  payload = (await fetchCpShareWithRetry(pending.shareId)).payload;
+                } finally {
+                  set({ openingSharedCp: false });
+                }
+              }
+              document = await openSharedCpPayload(payload);
+              track('share link opened', {
+                succeeded: true,
+                source: pending.kind === 'payload' ? 'inline' : 'stored',
+              });
             } catch (error) {
+              track('share link opened', { succeeded: false });
               // A bad link should leave a usable editor, not a broken one: tell
               // the user which kind of failure it was (the kernel distinguishes
               // "corrupt" from "made by a newer Ori Studio") and seed the blank
@@ -942,7 +1016,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // be opened must not be retried on the next mount: the user has
           // already been told, and silently re-running a failing decode would
           // make Edit unusable rather than merely empty.
-          set({ pendingSharedCpPayload: null });
+          set({ pendingSharedCp: null, openingSharedCp: false });
           ensureEditInFlight = null;
         }
       })();
@@ -1054,6 +1128,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           projectMessage: 'Built crease pattern',
         });
         get().commitHistoryCheckpoint(checkpoint, 'Build crease pattern');
+        // The tree→CP core moment. Counts are bucketed; no node/edge geometry.
+        track('crease pattern built', {
+          node_count_bucket: bucketCount(snapshot.summary.nodes, COUNT_BUCKETS),
+          had_conditions: snapshot.summary.conditions > 0,
+        });
         useLayoutStore.getState().activateWorkspace('edit');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -1211,6 +1290,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       if ((fold.faces_vertices?.length ?? 0) === 0) return 'unavailable';
 
       const id = `inline-sim-${nextInlineSimulationId++}`;
+      const modelFrameAngle = uprightFrameAngle('model');
       const simulation = createInlineSimulation({
         id,
         segment,
@@ -1218,7 +1298,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         cpLineIds,
         z: topInlineSimulationZ(simulations) + 1,
         view: DEFAULT_SIMULATOR_VIEW,
-        blockers: occupiedModelSpace(get()),
+        blockers: occupiedModelSpace(get(), modelFrameAngle),
+        frameAngle: modelFrameAngle,
       });
       setInlineSimulationSource(id, { fold, modelKey: `${id}:0` });
 
@@ -1383,6 +1464,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     },
 
     setSequenceSimulationFocus: (sequenceSimulationFocus) => set({ sequenceSimulationFocus }),
+
+    setOristudioCpCamera: (oristudioCpCamera) => set({ oristudioCpCamera }),
 
     setOristudioCpViewportOption: (key, value) =>
       set({ oristudioCpViewport: { ...get().oristudioCpViewport, [key]: value } }),
@@ -1594,9 +1677,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // Park the figure against the creases it was actually folded from, not
         // against the nominal paper square — a pattern can sit anywhere in the
         // sheet, and anchoring to the paper leaves the figure adrift from it.
+        // Folded figures live in SVG user space, so the frame angle is read for
+        // that space rather than the model's.
+        const userFrameAngle = uprightFrameAngle('user');
         const foldedSourceAnchor = cpUserAnchorForLineIds(
           oristudioCpDocument.document,
-          selectedLineIds
+          selectedLineIds,
+          userFrameAngle
         );
         const existing = get().oristudioCpFoldedFigures;
         const folded: OristudioCpFoldedFigureEntry = {
@@ -1621,7 +1708,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   // Park it beside the crease pattern: the kernel folds into
                   // roughly the flat CP's own coordinates, so left alone the
                   // figure covers the pattern it came from.
-                  placement: placeFoldedFigureBesideCp(folded, existing, foldedSourceAnchor),
+                  placement: placeFoldedFigureBesideCp(
+                    folded,
+                    existing,
+                    foldedSourceAnchor,
+                    userFrameAngle
+                  ),
                 }
               : figure
           ),

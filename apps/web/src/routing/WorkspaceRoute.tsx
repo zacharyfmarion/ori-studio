@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
+import { useWorkspaceViewedEvent } from '../analytics';
 import { useLayoutStore, type DesignLayoutVariant } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { designLayoutVariant } from '../store/workspaceStore/designVariant';
@@ -34,15 +35,31 @@ export function WorkspaceRoute({ workspace, variant }: WorkspaceRouteProps) {
       ? designVariantPath(designLayoutVariant(designMethod))
       : null;
 
+  // The view is a child rather than this component's own body so a redirect
+  // never mounts it: it carries the `workspace viewed` event, and a route the
+  // user is passed straight through is not a screen they saw. The destination
+  // mounts its own and reports that instead.
+  return redirectTo ? (
+    <Navigate to={redirectTo} replace />
+  ) : (
+    <WorkspaceView workspace={workspace} variant={variant} />
+  );
+}
+
+function WorkspaceView({ workspace, variant }: WorkspaceRouteProps) {
   useEffect(() => {
-    if (redirectTo) return;
     const layout = useLayoutStore.getState();
     if (workspace === 'design' && variant) {
       useWorkspaceStore.getState().applyDesignRoute(variant);
     }
     layout.activateWorkspace(workspace);
     if (workspace === 'design') layout.ensureDesignLayout();
-  }, [workspace, variant, redirectTo]);
+  }, [workspace, variant]);
 
-  return redirectTo ? <Navigate to={redirectTo} replace /> : null;
+  // This route element *is* the view for each workspace, so the "viewed" event
+  // belongs here rather than in the URL-sync subscription. Only Design carries a
+  // variant.
+  useWorkspaceViewedEvent(workspace, workspace === 'design' ? variant : undefined);
+
+  return null;
 }

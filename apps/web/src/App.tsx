@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { useAppOpenedEvent } from './analytics';
 import { BpOptimizerModal } from './components/BpOptimizerModal';
 import { CommandDialogModal } from './components/CommandDialogModal';
 import { CpDetectImportModal } from './components/CpDetectImportModal';
@@ -48,6 +49,9 @@ export default function App() {
   const toasterTheme = useThemeStore((state) => state.currentTheme.type);
 
   useWelcomeDiscardGuard();
+
+  // Fire `app opened` once per launch (super properties ride along).
+  useAppOpenedEvent();
 
   useEffect(() => startWorkspaceUrlSync(), []);
 

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { track } from '../analytics';
 import { getRuntimeSurface, type RuntimeSurface } from './runtime';
 
 export type FileCommand =
@@ -261,8 +262,43 @@ function mimeTypeFromFilename(filename: string): string {
   return 'application/octet-stream';
 }
 
+/**
+ * Emit `file exported { format }` whenever a save actually writes a file. The
+ * format is the primary extension — never the filename or path. `osf` is a
+ * project save, recorded separately as `project saved`, so it's excluded here.
+ * A null result means the user cancelled the picker; nothing is emitted.
+ */
+function withExportTracking(service: FileService): FileService {
+  const trackExport = (extensions: string[], result: SaveFileResult | null): void => {
+    if (!result) return;
+    const format = extensions[0];
+    if (!format || format === 'osf') return;
+    track('file exported', { format });
+  };
+  // Delegate every member explicitly: `service` is a class instance, so its
+  // methods live on the prototype and a spread (`...service`) would drop them.
+  return {
+    surface: service.surface,
+    supportsNativeDialogs: service.supportsNativeDialogs,
+    openTextFile: (options) => service.openTextFile(options),
+    openBinaryFile: (options) => service.openBinaryFile(options),
+    async saveTextFile(options) {
+      const result = await service.saveTextFile(options);
+      trackExport(options.extensions, result);
+      return result;
+    },
+    async saveBinaryFile(options) {
+      const result = await service.saveBinaryFile(options);
+      trackExport(options.extensions, result);
+      return result;
+    },
+  };
+}
+
 export function createFileService(surface: RuntimeSurface): FileService {
-  return surface === 'desktop' ? new TauriFileService() : new BrowserFileService();
+  return withExportTracking(
+    surface === 'desktop' ? new TauriFileService() : new BrowserFileService()
+  );
 }
 
 /**

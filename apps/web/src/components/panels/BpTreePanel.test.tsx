@@ -165,7 +165,6 @@ function bpDocument(): OristudioBpDocumentState {
         graphics: [],
         validity: 'unknown',
       },
-      creasePattern: null,
       diagnostics: [],
       stale: { packing: false, creasePattern: true, exports: true, reasons: [] },
     },

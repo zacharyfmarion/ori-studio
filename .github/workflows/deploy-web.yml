@@ -50,9 +50,27 @@ jobs:
 
       - name: Build web app
         run: npm run build:web
+        env:
+          # PostHog analytics keys are inlined by Vite at build time. Absent =
+          # analytics silently disabled (the dev/prod firewall). Set only here,
+          # on the prod (main) deploy — PR previews intentionally leave these
+          # unset so preview traffic never reaches the production project.
+          VITE_PUBLIC_POSTHOG_KEY: ${{ secrets.VITE_PUBLIC_POSTHOG_KEY }}
+          VITE_PUBLIC_POSTHOG_HOST: ${{ secrets.VITE_PUBLIC_POSTHOG_HOST }}
 
+      # Run from apps/web so Wrangler discovers `functions/` and `wrangler.toml`, which it
+      # resolves relative to its working directory. Deploying `apps/web/dist` from the repo
+      # root uploads the static assets and silently skips every Pages Function — the deploy
+      # reports success and all the share endpoints 404.
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler@4 pages deploy apps/web/dist --project-name=oristudio --branch=main
+        working-directory: apps/web
+        run: npx wrangler@4 pages deploy dist --project-name=oristudio --branch=main
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      # The deploy above reports success even when it uploads no Functions at all, so
+      # nothing before this point can tell a working share feature from a broken one.
+      # Read-only checks: no writes against the daily free-tier budget, no junk records.
+      - name: Verify share endpoints
+        run: node scripts/share-smoke.mjs https://oristudio.pages.dev

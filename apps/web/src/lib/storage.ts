@@ -26,10 +26,16 @@ export const STORAGE_KEYS = {
   cpToolRailGroups: 'cp-tool-rail-groups',
   cpMeasure: 'cp-measure',
   cpToolOptions: 'cp-tool-options',
+  cpToolHintCollapsed: 'cp-tool-hint-collapsed',
   bpOptimizer: 'bp-optimizer',
   simulatorSettings: 'simulator-settings',
+  /** Whether product analytics is enabled (opt-out preference; default true). */
+  analyticsEnabled: 'analytics-enabled',
+  /** Anonymous, locally-generated stable id used to `identify()` in PostHog. */
+  analyticsId: 'analytics-id',
   layout: 'layout',
   layoutVersion: 'layout-version',
+  shareAuthor: 'share-author',
 } as const;
 
 /** Build a namespaced key: `storageKey('layout', 'design') → 'oristudio:layout:design'`. */

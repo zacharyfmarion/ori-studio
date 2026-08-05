@@ -25,8 +25,8 @@
       "railLabel": "Transform"
     },
     "color": {
-      "label": "Color and assignment",
-      "railLabel": "Color"
+      "label": "Color, assignment, and repair",
+      "railLabel": "Color & Fix"
     },
     "annotations": {
       "label": "Circles, text, and annotations",
@@ -292,8 +292,8 @@
       "disabledReason": "Handled by the viewport runtime instead of a CP command"
     },
     "cp_action_line_segment_division": {
-      "label": "Equally Divided Line",
-      "tooltip": "Divide line by count",
+      "label": "Divided Line",
+      "tooltip": "Draw a line divided by count or ratio",
       "disabledReason": "Ready",
       "steps": {
         "0": "Click or drag to start the line to divide",
@@ -397,6 +397,16 @@
       "steps": {
         "0": "Pick vertex",
         "1": "Pick the crease to add"
+      }
+    },
+    "cp_action_vertex_solve_fold_angles": {
+      "label": "Solve Fold Angles",
+      "tooltip": "Pick three creases at one vertex and solve their fold angles so the vertex closes, without moving anything",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Pick the first crease to change",
+        "1": "Pick the second crease to change",
+        "2": "Pick the third crease to change"
       }
     },
     "cp_action_foldable_line_input": {
@@ -654,7 +664,7 @@
       }
     },
     "cp_action_lengthen_crease_same_color": {
-      "label": "Lengthen by Same Color",
+      "label": "Extend Line (same color)",
       "tooltip": "Extend creases crossed by the guide line while preserving original colors",
       "disabledReason": "Ready",
       "steps": {

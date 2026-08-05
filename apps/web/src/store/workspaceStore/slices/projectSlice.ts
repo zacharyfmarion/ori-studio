@@ -17,6 +17,8 @@ import {
   type CreaseExportFoldResult,
 } from '../../../lib/creaseExportFold';
 import { hexToRgbColor } from '../../../lib/rgbColor';
+import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
+import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
 import {
@@ -24,7 +26,12 @@ import {
   isSegmentImageFormat,
   type SegmentExportFormat,
 } from '../../../lib/creaseSegmentExport';
-import { buildShareUrl, isShareLinkLong } from '../../../lib/shareLink';
+import {
+  createCpShare,
+  MIN_CARD_BYTES,
+  rememberAuthor,
+  uploadCpShareThumbnail,
+} from '../../../cp-workspace/share/cpShareService';
 import {
   renderFoldedFigurePng,
   serializeFoldedFigureSvg,
@@ -166,6 +173,7 @@ import {
 } from '../oristudioCpRuntime';
 import type {
   OristudioCpHistoryEntry,
+  PendingSharedCp,
   ProjectSlice,
   WorkspaceSliceCreator,
   WorkspaceState,
@@ -759,6 +767,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpActiveDiagnosticId: null,
           oristudioCpRevision: 0,
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+          oristudioCpCamera: null,
           ...emptyFoldArtifactResourceState(),
         };
     set({
@@ -968,6 +977,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       oristudioCpRevision: 0,
       toolMode: 'select',
       creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+      oristudioCpCamera: null,
       ...artifactState,
       sequenceTarget: null,
       sequencePlan: null,
@@ -1067,6 +1077,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
       ...nativeDocument.viewState.viewport,
     },
+    // Null (pre-v7 file, or a malformed camera) leaves the canvas to auto-fit.
+    oristudioCpCamera: nativeDocument.viewState.camera ?? null,
     toolMode: 'select',
     // Re-baselines the CP panel and the undo stack against the document just
     // installed (see freshCreasePattern.ts).
@@ -1334,6 +1346,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       creaseColorMode: get().creaseColorMode,
       selection: get().oristudioCpSelection,
       viewport: get().oristudioCpViewport,
+      camera: get().oristudioCpCamera,
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
@@ -1566,10 +1579,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // Oriedita-sourced `.ori`/`.orh` save-as special cases.
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
     const hasDesign = get().project.nodes.length > 0 || Boolean(get().oristudioBpDocument);
-    if (hasDesign) {
-      return saveNativeWorkspaceProject(fileService, forceSaveAs);
-    }
-    return saveEditableCreasePattern(fileService, forceSaveAs);
+    const result = hasDesign
+      ? await saveNativeWorkspaceProject(fileService, forceSaveAs)
+      : await saveEditableCreasePattern(fileService, forceSaveAs);
+    // Both branches write the native .osf; a falsy result means the user
+    // cancelled the save dialog. `file exported` deliberately skips osf.
+    if (result) track('project saved', { format: 'osf' });
+    return result;
   };
 
   return {
@@ -1596,8 +1612,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     currentFilePath: null,
     currentFileName: defaultNativeFilename('Untitled'),
     projectMessage: null,
-    oristudioCpShareLink: null,
-    pendingSharedCpPayload: null,
+    oristudioCpShareDraft: null,
+    pendingSharedCp: null,
+    openingSharedCp: false,
     status: 'loading_engine',
     dirty: false,
     engineReady: false,
@@ -1684,6 +1701,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpRevision: 0,
               oristudioCpDocumentExtensions: {},
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+              oristudioCpCamera: null,
               ...emptyFoldArtifactResourceState(),
             };
         set({
@@ -1713,6 +1731,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // -> circle-packed) so the TreeMaker side panes are correct and no BP
         // Editor pane lingers.
         layout.ensureDesignLayout();
+        // Only real File > New is a "project opened"; the design-method chooser
+        // (preserveEditCanvas) is recorded as `design method chosen` instead.
+        if (!preserveEditCanvas) track('project opened', { source: 'new' });
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -1746,6 +1767,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           toolMode: 'select',
           symmetryAuthoringPairs: [],
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+          oristudioCpCamera: null,
           ...emptyFoldArtifactResourceState(),
           dirty: false,
           lastOptimization: null,
@@ -1841,6 +1863,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           });
           return false;
         }
+        // The CP editor's own dispatch seam — invisible to handleMenuAction, so
+        // instrumented here. The resolved operation id already encodes merged-tool
+        // variants (e.g. LengthenCrease vs LengthenCreaseSameColor), so no separate
+        // mode property is needed. No-op when analytics is disabled/absent.
+        track('cp tool used', {
+          operation: operationId,
+          group: cpCommandByOperation(operationId)?.group ?? 'other',
+        });
         const commandDocument = await executeRuntimeOristudioCpCommand(
           operationId,
           validation.payload
@@ -2139,6 +2169,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           await loadText(file.text, { filename: file.name, path: file.path });
         }
         applyLandingWorkspace();
+        track('project opened', { source: 'file' });
         return true;
       } catch (error) {
         set({ status: 'error', error: annotateLargeSourceError(engineError(error), openedSourceLength) });
@@ -2483,16 +2514,17 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const subFold = buildSegmentSubFold(foldArtifacts, segmentId);
         if (!subFold) return false;
 
+        // Encode now rather than at publish time: the payload is what decides
+        // whether the pattern *can* be shared, and finding out after the user has
+        // composed a preview card would be the wrong moment to fail.
         const payload = await shareFoldFrameAsLink(JSON.stringify(subFold));
-        const url = buildShareUrl(payload);
-        // Deliberately not copied here: the clipboard is the user's, and taking
-        // it over as a side effect of opening a dialog would discard whatever
-        // they had. The modal offers Copy.
         set({
-          oristudioCpShareLink: {
-            url,
-            creaseCount: subFold.edges_vertices?.length ?? 0,
-            long: isShareLinkLong(url),
+          oristudioCpShareDraft: {
+            segmentId,
+            payload,
+            fold: foldArtifacts.fold,
+            segments: segmentFoldDocument(foldArtifacts.fold),
+            url: null,
           },
         });
         return true;
@@ -2502,12 +2534,75 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }
     },
 
-    dismissOristudioCpShareLink: () => set({ oristudioCpShareLink: null }),
+    /**
+     * Publish the drafted share, then upload its preview card.
+     *
+     * The card is deliberately *after* the link and deliberately not awaited for
+     * success: a share link works without an image, so a failed render or upload
+     * must degrade to the generic card rather than to a failed share. The Worker
+     * serves a default when R2 has nothing, so there is no broken-image state.
+     */
+    publishOristudioCpShare: async ({ title, author, renderCard }) => {
+      const draft = get().oristudioCpShareDraft;
+      if (!draft) return false;
+      try {
+        const created = await createCpShare({ payload: draft.payload, title, author });
+        set({
+          oristudioCpShareDraft: { ...get().oristudioCpShareDraft!, url: created.url },
+        });
+        if (author) rememberAuthor(author);
+        // The published link and its geometry are never sent — only that a share
+        // was created, a bucketed size, and whether it was titled/attributed.
+        track('crease pattern shared', {
+          crease_count_bucket: bucketCount(draft.fold.edges_vertices?.length ?? 0, COUNT_BUCKETS),
+          had_title: Boolean(title),
+          had_author: Boolean(author),
+        });
+
+        void (async () => {
+          try {
+            const png = await renderCard();
+            if (!png) return;
+            // Upload is write-once, so a blank card would be permanent. Better to fall back
+            // to the generic one, which the Worker serves whenever R2 has nothing.
+            if (png.byteLength < MIN_CARD_BYTES) {
+              console.warn('[share] preview card looks blank, keeping the default', {
+                bytes: png.byteLength,
+              });
+              return;
+            }
+            await uploadCpShareThumbnail(
+              created.id,
+              new Blob([png as BlobPart], { type: 'image/png' }),
+              created.thumbnailUploadToken
+            );
+          } catch (error) {
+            console.warn('[share] preview card upload failed:', error);
+          }
+        })();
+        return true;
+      } catch (error) {
+        // `CpShareError` already carries the Worker's own `code` and message, and
+        // `engineError` passes any {code, message} through unchanged — so the toast
+        // layer sees `rate_limited` / `storage_quota` and can say the right thing.
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    foldOristudioCpShareFigure: async (settings) => {
+      const draft = get().oristudioCpShareDraft;
+      if (!draft) throw new Error('No share in progress');
+      const segment = draft.segments.find((entry) => entry.id === draft.segmentId) ?? null;
+      return foldExportSegment(get().oristudioCpDocument, draft.fold, segment, settings);
+    },
+
+    dismissOristudioCpShare: () => set({ oristudioCpShareDraft: null }),
 
     // Written only by the `/s` route, read only by `ensureEditCreasePattern`.
-    // Raw and undecoded on purpose: the route captures intent, the Edit surface
+    // Raw and unresolved on purpose: the route captures intent, the Edit surface
     // provisions from it.
-    setPendingSharedCp: (payload: string) => set({ pendingSharedCpPayload: payload }),
+    setPendingSharedCp: (pending: PendingSharedCp) => set({ pendingSharedCp: pending }),
 
     exportOristudioCpSegment: async (
       format: SegmentExportFormat,
@@ -2652,6 +2747,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         title: example.title,
         filename: example.filename,
       });
+      // The example's id/title is not sent — only that an example was opened.
+      track('project opened', { source: 'example' });
     },
 
     clearProjectMessage: () => set({ projectMessage: null }),
@@ -2692,6 +2789,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // doesn't bounce a freshly-chosen design — a blank TreeMaker tree has no
       // document content for the presence subscription to detect.
       set({ projectEstablished: true });
+      track('design method chosen', { method: target });
       const wasDirty = get().dirty;
       if (target === 'box-pleat') {
         await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });
