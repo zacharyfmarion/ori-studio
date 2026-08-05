@@ -34,6 +34,11 @@
   "global": {
     "title": "后台发生了错误"
   },
+  "projectFile": {
+    "damaged": "无法读取该 Ori Studio 项目。文件可能已损坏，或由本应用不支持的版本保存。",
+    "tooNew": "该项目由更新版本的 Ori Studio 保存。请更新 Ori Studio，然后再次打开。",
+    "unrecognized": "该文件不是 Ori Studio 项目。"
+  },
   "shareLink": {
     "invalid": "该共享链接不完整或已损坏，可能在复制时被截断。请重新索取。",
     "notFound": "无法打开此分享链接。如果它是刚创建的，请稍后再试。",

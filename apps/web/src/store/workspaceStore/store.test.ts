@@ -1829,6 +1829,9 @@ describe('workspace store slices', () => {
     const { status, error } = useWorkspaceStore.getState();
     expect(status).toBe('error');
     expect(error?.message).toBe('Unsupported Ori Studio project schemaVersion 99');
+    // The code is what the toast layer translates; the message stays raw for
+    // diagnostics and never reaches the user as-is.
+    expect(error?.code).toBe('project_file_too_new');
   });
 
   it('still blames file size when a large project fails for an unexplained reason', async () => {

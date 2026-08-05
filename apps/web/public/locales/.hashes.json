@@ -2076,7 +2076,10 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "errors:projectFile.damaged": "39e62947e7cc",
+    "errors:projectFile.tooNew": "f206e0a530d2",
+    "errors:projectFile.unrecognized": "7fb954965343"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4155,7 +4158,10 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "errors:projectFile.damaged": "39e62947e7cc",
+    "errors:projectFile.tooNew": "f206e0a530d2",
+    "errors:projectFile.unrecognized": "7fb954965343"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6263,7 +6269,10 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "errors:projectFile.damaged": "39e62947e7cc",
+    "errors:projectFile.tooNew": "f206e0a530d2",
+    "errors:projectFile.unrecognized": "7fb954965343"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8371,7 +8380,10 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "errors:projectFile.damaged": "39e62947e7cc",
+    "errors:projectFile.tooNew": "f206e0a530d2",
+    "errors:projectFile.unrecognized": "7fb954965343"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10479,7 +10491,10 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "errors:projectFile.damaged": "39e62947e7cc",
+    "errors:projectFile.tooNew": "f206e0a530d2",
+    "errors:projectFile.unrecognized": "7fb954965343"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12587,7 +12602,10 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "errors:projectFile.damaged": "39e62947e7cc",
+    "errors:projectFile.tooNew": "f206e0a530d2",
+    "errors:projectFile.unrecognized": "7fb954965343"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14695,7 +14713,10 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "errors:projectFile.damaged": "39e62947e7cc",
+    "errors:projectFile.tooNew": "f206e0a530d2",
+    "errors:projectFile.unrecognized": "7fb954965343"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16774,6 +16795,9 @@
     "errors:shareLink.storageQuota": "b726bcd562ad",
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
-    "dialogs:settings.workspace.privacy": "54a57c3147c4"
+    "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "errors:projectFile.damaged": "39e62947e7cc",
+    "errors:projectFile.tooNew": "f206e0a530d2",
+    "errors:projectFile.unrecognized": "7fb954965343"
   }
 }

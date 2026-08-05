@@ -105,6 +105,21 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:worker.cpDetect',
         'Crease-pattern detection stopped unexpectedly. Try importing the image again.'
       );
+    // Project files we read and rejected (see lib/projectFileError.ts). Their
+    // own messages are precise but internal ("field workspace.documents must be
+    // an array"); all the user can act on is which of these three it is.
+    case 'project_file_too_new':
+      return t(
+        'errors:projectFile.tooNew',
+        'This project was saved by a newer version of Ori Studio. Update Ori Studio, then open it again.'
+      );
+    case 'project_file_unrecognized':
+      return t('errors:projectFile.unrecognized', "This file isn't an Ori Studio project.");
+    case 'project_file_damaged':
+      return t(
+        'errors:projectFile.damaged',
+        "This Ori Studio project can't be read. It may be damaged, or saved by a version this app doesn't support."
+      );
     case 'fold_same_parity':
       return t(
         'errors:fold.sameParity',

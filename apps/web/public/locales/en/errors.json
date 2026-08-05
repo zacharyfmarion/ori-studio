@@ -34,6 +34,11 @@
   "global": {
     "title": "Something went wrong in the background"
   },
+  "projectFile": {
+    "damaged": "This Ori Studio project can't be read. It may be damaged, or saved by a version this app doesn't support.",
+    "tooNew": "This project was saved by a newer version of Ori Studio. Update Ori Studio, then open it again.",
+    "unrecognized": "This file isn't an Ori Studio project."
+  },
   "shareLink": {
     "invalid": "That share link is incomplete or damaged — it was probably cut short when it was copied. Ask for it again.",
     "notFound": "Couldn't open this share link. If it was just created, try again in a moment.",
