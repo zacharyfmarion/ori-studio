@@ -17,6 +17,8 @@ import {
   type CreaseExportFoldResult,
 } from '../../../lib/creaseExportFold';
 import { hexToRgbColor } from '../../../lib/rgbColor';
+import { track } from '../../../analytics';
+import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
 import {
@@ -1793,6 +1795,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           });
           return false;
         }
+        // The CP editor's own dispatch seam — invisible to handleMenuAction, so
+        // instrumented here. The resolved operation id already encodes merged-tool
+        // variants (e.g. LengthenCrease vs LengthenCreaseSameColor), so no separate
+        // mode property is needed. No-op when analytics is disabled/absent.
+        track('cp tool used', {
+          operation: operationId,
+          group: cpCommandByOperation(operationId)?.group ?? 'other',
+        });
         const commandDocument = await executeRuntimeOristudioCpCommand(
           operationId,
           validation.payload

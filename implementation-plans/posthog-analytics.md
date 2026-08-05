@@ -294,10 +294,10 @@ Phase 2 — Bootstrap + settings + consent
 - [x] `ph-no-capture` on `CpTextEditor` content + `ShareLinkModal` URL (detect modal is canvas, covered by masking)
 
 Phase 3 — Both chokepoints + nav
-- [ ] `handleMenuAction` wrapped → `command invoked` (no PII in `command_id`)
-- [ ] `executeOristudioCpCommand` wrapped → `cp tool used` (+ variant mode)
-- [ ] `workspace viewed` off workspace↔URL sync (design variant + `/s` covered)
-- [ ] cardinality guard on data-driven id suffixes
+- [x] `handleMenuAction` wrapped → `command invoked` (recognized ids only; suffix stripped)
+- [x] store `executeOristudioCpCommand` wrapped → `cp tool used` `{ operation, group }` (variant is already in the resolved operation id, so no separate mode prop)
+- [x] `workspace viewed` off workspace↔URL sync incl. Design variant (initial + on change; `/s` is captured by `share link opened` in Phase 4, not as a workspace)
+- [x] cardinality guard: `command_id` strips `:` suffix; `cp` operation ids are a fixed enum
 
 Phase 4 — Domain events
 - [ ] `crease pattern built`, `optimizer run`

@@ -1,3 +1,4 @@
+import { track } from '../analytics';
 import { useLayoutStore } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
@@ -14,6 +15,30 @@ function targetPath(): string {
     return workspacePath('design', deriveDesignVariant(useWorkspaceStore.getState()));
   }
   return workspacePath(workspace);
+}
+
+/**
+ * The last workspace(:variant) we emitted a `workspace viewed` for, so a
+ * transition that doesn't change the semantic screen isn't double-counted.
+ */
+let lastWorkspaceViewed: string | null = null;
+
+/**
+ * Emit `workspace viewed` for the current screen — the useful analytics "screen"
+ * signal on both the browser and memory routers. Suppressed on the welcome
+ * screen; the Design variant (nux/treemaker/box-pleat) rides along, and a
+ * variant switch that keeps the workspace is captured by `design method chosen`.
+ */
+function captureWorkspaceViewed(): void {
+  const path = currentPath();
+  if (path === null || path === WELCOME_PATH || path === '/') return;
+  const workspace = useLayoutStore.getState().activeWorkspace;
+  const variant =
+    workspace === 'design' ? deriveDesignVariant(useWorkspaceStore.getState()) : undefined;
+  const key = variant ? `${workspace}:${variant}` : workspace;
+  if (key === lastWorkspaceViewed) return;
+  lastWorkspaceViewed = key;
+  track('workspace viewed', { workspace, variant });
 }
 
 /**
@@ -35,11 +60,14 @@ function targetPath(): string {
  * UI navigation.
  */
 export function startWorkspaceUrlSync(): () => void {
+  // The screen visible when the sync starts (initial load or a deep link).
+  captureWorkspaceViewed();
   return useLayoutStore.subscribe((state, prev) => {
     if (state.activeWorkspace === prev.activeWorkspace) return;
     const path = currentPath();
     if (path === null || path === WELCOME_PATH || path === '/') return;
     const desired = targetPath();
     if (desired !== path) navigateTo(desired);
+    captureWorkspaceViewed();
   });
 }
