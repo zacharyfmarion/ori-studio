@@ -110,7 +110,10 @@ export function CpTextEditor({ doc, box, container, onChange, onExit, onDelete }
     >
       <RichTextPlugin
         contentEditable={
-          <ContentEditable className="cp-text-editor__content" onBlur={handleBlur} />
+          <ContentEditable
+            className="cp-text-editor__content ph-no-capture"
+            onBlur={handleBlur}
+          />
         }
         placeholder={
           <div className="cp-text-editor__placeholder">

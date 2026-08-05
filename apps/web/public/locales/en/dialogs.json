@@ -239,9 +239,11 @@
     },
     "title": "Settings",
     "workspace": {
+      "analytics": "Send anonymous usage analytics to help improve Ori Studio",
       "folding": "Folding",
       "foldWarning": "Warn before folding a crease pattern with flat-foldability errors",
       "layout": "Layout",
+      "privacy": "Privacy",
       "resetButton": "Reset Workspace Layout",
       "resetMessage": "Restore the default layout for the current workspace?",
       "resetTitle": "Reset Workspace Layout",

@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { track } from './analytics';
 import { BpOptimizerModal } from './components/BpOptimizerModal';
 import { CommandDialogModal } from './components/CommandDialogModal';
 import { CpDetectImportModal } from './components/CpDetectImportModal';
@@ -33,6 +34,12 @@ import { useWorkspaceStore } from './store/workspaceStore';
 import './styles/sonner.css';
 
 /**
+ * Guards the one-shot `app opened` event against StrictMode's dev double-mount.
+ * Module-level so it survives a remount; in prod StrictMode does not re-invoke.
+ */
+let appOpenedCaptured = false;
+
+/**
  * Root layout route. Owns app-wide lifecycle (engine init, window title, close
  * guards, global keyboard, workspace↔URL sync) and the always-mounted overlays,
  * and renders the active route (`/welcome` or a workspace) into the outlet.
@@ -48,6 +55,14 @@ export default function App() {
   const toasterTheme = useThemeStore((state) => state.currentTheme.type);
 
   useWelcomeDiscardGuard();
+
+  // Fire once per app launch. `track` no-ops when analytics is disabled/absent;
+  // super properties (runtime_surface, app_version) ride along automatically.
+  useEffect(() => {
+    if (appOpenedCaptured) return;
+    appOpenedCaptured = true;
+    track('app opened');
+  }, []);
 
   useEffect(() => startWorkspaceUrlSync(), []);
 

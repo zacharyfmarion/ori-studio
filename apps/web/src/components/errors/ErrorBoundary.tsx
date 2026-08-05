@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { trackAnalyticsError } from '../../analytics';
 import { collectErrorContext } from './errorContext';
 import { ErrorFallback, type ErrorFallbackVariant } from './ErrorFallback';
 import type { ErrorReportContext } from '../../lib/errorReport';
@@ -63,6 +64,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.setState({ componentStack, context: collectErrorContext(this.props.surface) });
 
     console.error(`[ori-studio] error boundary "${this.props.surface}" caught`, error);
+
+    // Report to analytics from the single boundary implementation, so every
+    // surface (app, router, panels, overlays) is covered. `surface` is a stable
+    // enum-ish id — safe to send; the domain is inferred from it. No-op when
+    // analytics is disabled or absent.
+    try {
+      trackAnalyticsError({ error, sourceComponent: this.props.surface, handled: true });
+    } catch {
+      // Reporting must never mask the error it was reporting.
+    }
 
     try {
       this.props.onError?.(error, componentStack);

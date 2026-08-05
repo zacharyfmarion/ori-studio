@@ -2051,7 +2051,9 @@
     "tools:lengthenColorMode.active": "92340695899b",
     "tools:lengthenColorMode.activeTitle": "ff20c81a5ba6",
     "tools:lengthenColorMode.same": "2a98b1deb68c",
-    "tools:lengthenColorMode.sameTitle": "ab74b288bce3"
+    "tools:lengthenColorMode.sameTitle": "ab74b288bce3",
+    "dialogs:settings.workspace.analytics": "bda3acc55633",
+    "dialogs:settings.workspace.privacy": "54a57c3147c4"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4105,7 +4107,9 @@
     "tools:lengthenColorMode.active": "92340695899b",
     "tools:lengthenColorMode.activeTitle": "ff20c81a5ba6",
     "tools:lengthenColorMode.same": "2a98b1deb68c",
-    "tools:lengthenColorMode.sameTitle": "ab74b288bce3"
+    "tools:lengthenColorMode.sameTitle": "ab74b288bce3",
+    "dialogs:settings.workspace.analytics": "bda3acc55633",
+    "dialogs:settings.workspace.privacy": "54a57c3147c4"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6188,7 +6192,9 @@
     "tools:lengthenColorMode.active": "92340695899b",
     "tools:lengthenColorMode.activeTitle": "ff20c81a5ba6",
     "tools:lengthenColorMode.same": "2a98b1deb68c",
-    "tools:lengthenColorMode.sameTitle": "ab74b288bce3"
+    "tools:lengthenColorMode.sameTitle": "ab74b288bce3",
+    "dialogs:settings.workspace.analytics": "bda3acc55633",
+    "dialogs:settings.workspace.privacy": "54a57c3147c4"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8271,7 +8277,9 @@
     "tools:lengthenColorMode.active": "92340695899b",
     "tools:lengthenColorMode.activeTitle": "ff20c81a5ba6",
     "tools:lengthenColorMode.same": "2a98b1deb68c",
-    "tools:lengthenColorMode.sameTitle": "ab74b288bce3"
+    "tools:lengthenColorMode.sameTitle": "ab74b288bce3",
+    "dialogs:settings.workspace.analytics": "bda3acc55633",
+    "dialogs:settings.workspace.privacy": "54a57c3147c4"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10354,7 +10362,9 @@
     "tools:lengthenColorMode.active": "92340695899b",
     "tools:lengthenColorMode.activeTitle": "ff20c81a5ba6",
     "tools:lengthenColorMode.same": "2a98b1deb68c",
-    "tools:lengthenColorMode.sameTitle": "ab74b288bce3"
+    "tools:lengthenColorMode.sameTitle": "ab74b288bce3",
+    "dialogs:settings.workspace.analytics": "bda3acc55633",
+    "dialogs:settings.workspace.privacy": "54a57c3147c4"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12437,7 +12447,9 @@
     "tools:lengthenColorMode.active": "92340695899b",
     "tools:lengthenColorMode.activeTitle": "ff20c81a5ba6",
     "tools:lengthenColorMode.same": "2a98b1deb68c",
-    "tools:lengthenColorMode.sameTitle": "ab74b288bce3"
+    "tools:lengthenColorMode.sameTitle": "ab74b288bce3",
+    "dialogs:settings.workspace.analytics": "bda3acc55633",
+    "dialogs:settings.workspace.privacy": "54a57c3147c4"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14520,7 +14532,9 @@
     "tools:lengthenColorMode.active": "92340695899b",
     "tools:lengthenColorMode.activeTitle": "ff20c81a5ba6",
     "tools:lengthenColorMode.same": "2a98b1deb68c",
-    "tools:lengthenColorMode.sameTitle": "ab74b288bce3"
+    "tools:lengthenColorMode.sameTitle": "ab74b288bce3",
+    "dialogs:settings.workspace.analytics": "bda3acc55633",
+    "dialogs:settings.workspace.privacy": "54a57c3147c4"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16574,6 +16588,8 @@
     "tools:lengthenColorMode.active": "92340695899b",
     "tools:lengthenColorMode.activeTitle": "ff20c81a5ba6",
     "tools:lengthenColorMode.same": "2a98b1deb68c",
-    "tools:lengthenColorMode.sameTitle": "ab74b288bce3"
+    "tools:lengthenColorMode.sameTitle": "ab74b288bce3",
+    "dialogs:settings.workspace.analytics": "bda3acc55633",
+    "dialogs:settings.workspace.privacy": "54a57c3147c4"
   }
 }

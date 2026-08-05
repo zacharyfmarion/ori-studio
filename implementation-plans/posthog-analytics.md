@@ -92,8 +92,9 @@ Ori Studio specifics that shape the port:
 
 - `apps/web/package.json` — add `posthog-js` (only; no `@posthog/react`).
 - `apps/web/src/analytics/` (new) — `bootstrap.ts`, `runtime.tsx`,
-  `stableId.ts`, `bootstrapPolicy.ts`, `events.ts` (taxonomy types), `__tests__/`.
-  (No `sanitize.ts` — privacy is masking + `ph-no-capture` + event discipline.)
+  `stableId.ts`, `events.ts` (taxonomy types), `index.ts` (barrel), `__tests__/`.
+  (No `sanitize.ts` — privacy is masking + `ph-no-capture` + event discipline.
+  No `bootstrapPolicy.ts` — gating lives in the runtime singleton's no-op.)
 - `apps/web/src/main.tsx` — init PostHog before render, wrap `<RouterProvider>`
   in `<PostHogProvider>` + `<AnalyticsRuntimeProvider>`.
 - `apps/web/src/App.tsx` — fire `app opened`, wire `ErrorBoundary`→`trackError`,
@@ -286,11 +287,11 @@ Phase 1 — Core runtime
 - [x] `tsc --noEmit` / `eslint` / `vitest` on the analytics surface green
 
 Phase 2 — Bootstrap + settings + consent
-- [ ] `app opened` fired post-platform-init, consent-gated
-- [ ] `ErrorBoundary` → `trackError`
-- [ ] Settings privacy toggle + `analytics preference changed`
-- [ ] i18n strings extracted + translated (8 locales), `i18n:check` green
-- [ ] `ph-no-capture` on sensitive surfaces
+- [x] `app opened` fired once on mount (module-guarded vs StrictMode), runtime-gated
+- [x] shared `ErrorBoundary.componentDidCatch` → `trackAnalyticsError` (covers app/router/panels/overlays via `surface`)
+- [x] Settings → Workspace → Privacy toggle + `analytics preference changed`
+- [x] i18n strings extracted + translated (8 locales) + stamped, `i18n:check` green
+- [x] `ph-no-capture` on `CpTextEditor` content + `ShareLinkModal` URL (detect modal is canvas, covered by masking)
 
 Phase 3 — Both chokepoints + nav
 - [ ] `handleMenuAction` wrapped → `command invoked` (no PII in `command_id`)

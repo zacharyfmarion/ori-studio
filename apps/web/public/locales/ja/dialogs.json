@@ -234,9 +234,11 @@
     },
     "title": "設定",
     "workspace": {
+      "analytics": "Ori Studio の改善に役立てるため、匿名の利用状況データを送信する",
       "folding": "折り",
       "foldWarning": "平坦折りエラーのある展開図を折る前に警告する",
       "layout": "レイアウト",
+      "privacy": "プライバシー",
       "resetButton": "ワークスペースレイアウトをリセット",
       "resetMessage": "現在のワークスペースの既定のレイアウトに戻しますか？",
       "resetTitle": "ワークスペースレイアウトをリセット",

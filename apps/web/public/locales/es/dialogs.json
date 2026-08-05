@@ -244,9 +244,11 @@
     },
     "title": "Configuración",
     "workspace": {
+      "analytics": "Enviar analíticas de uso anónimas para ayudar a mejorar Ori Studio",
       "folding": "Plegado",
       "foldWarning": "Avisar antes de plegar un patrón de pliegues con errores de plegado plano",
       "layout": "Disposición",
+      "privacy": "Privacidad",
       "resetButton": "Restablecer disposición del espacio de trabajo",
       "resetMessage": "¿Restaurar la disposición predeterminada del espacio de trabajo actual?",
       "resetTitle": "Restablecer disposición del espacio de trabajo",

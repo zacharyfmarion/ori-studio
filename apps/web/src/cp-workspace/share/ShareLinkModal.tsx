@@ -80,7 +80,7 @@ export function ShareLinkModal() {
               ref={inputRef}
               type="text"
               readOnly
-              className="share-link-modal__url"
+              className="share-link-modal__url ph-no-capture"
               value={link.url}
               aria-label={t('dialogs:shareLink.url', 'Share link')}
               onFocus={(event) => event.currentTarget.select()}

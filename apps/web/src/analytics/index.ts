@@ -37,5 +37,4 @@ export {
 } from './bootstrap';
 export type { BootstrapOptions, PostHogClientLike, PostHogEnvironment } from './bootstrap';
 
-export { shouldCaptureBootstrapAnalytics } from './bootstrapPolicy';
 export { clearStableId, getOrCreateStableId, peekStableId } from './stableId';

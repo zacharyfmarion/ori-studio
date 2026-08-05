@@ -234,9 +234,11 @@
     },
     "title": "设置",
     "workspace": {
+      "analytics": "发送匿名使用分析数据以帮助改进 Ori Studio",
       "folding": "折叠",
       "foldWarning": "折叠存在平折错误的折痕图之前发出警告",
       "layout": "布局",
+      "privacy": "隐私",
       "resetButton": "重置工作区布局",
       "resetMessage": "为当前工作区恢复默认布局吗？",
       "resetTitle": "重置工作区布局",
