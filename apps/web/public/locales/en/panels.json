@@ -242,12 +242,8 @@
     "foldedState": {
       "back": "Back",
       "backShort": "B",
-      "both": "Both",
-      "bothTitle": "Both",
       "front": "Front",
-      "frontShort": "F",
-      "transparent": "Transparent state",
-      "transparentShort": "T"
+      "frontShort": "F"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

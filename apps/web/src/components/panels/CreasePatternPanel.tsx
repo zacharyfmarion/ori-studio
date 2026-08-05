@@ -115,6 +115,7 @@ import '../../cp-workspace/folded/foldedFigureStalenessDebug';
 import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
 import { foldedFigureCurrentCase } from '../../cp-workspace/folded/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
+import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../../lib/foldedFigureSides';
 import { useWorkspaceErrorText } from '../../hooks/useWorkspaceErrorText';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuRequest } from '../ui/contextMenuTypes';
@@ -247,40 +248,21 @@ function foldedDisplayStyleLabel(t: TFunction, value: OristudioCpFoldedFigureDis
   }
 }
 
-const FOLDED_STATE_OPTIONS: OristudioCpFoldedFigureState[] = [
-  'Front0',
-  'Back1',
-  'Both2',
-  'Transparent3',
-];
-
-function foldedStateLabel(t: TFunction, value: OristudioCpFoldedFigureState): string {
+function foldedStateLabel(t: TFunction, value: FoldedFigureSide): string {
   switch (value) {
     case 'Front0':
       return t('panels:creasePattern.foldedState.frontShort', 'F');
     case 'Back1':
       return t('panels:creasePattern.foldedState.backShort', 'B');
-    case 'Both2':
-      return t('panels:creasePattern.foldedState.both', 'Both');
-    case 'Transparent3':
-      return t('panels:creasePattern.foldedState.transparentShort', 'T');
-    default:
-      return value;
   }
 }
 
-function foldedStateTitle(t: TFunction, value: OristudioCpFoldedFigureState): string {
+function foldedStateTitle(t: TFunction, value: FoldedFigureSide): string {
   switch (value) {
     case 'Front0':
       return t('panels:creasePattern.foldedState.front', 'Front');
     case 'Back1':
       return t('panels:creasePattern.foldedState.back', 'Back');
-    case 'Both2':
-      return t('panels:creasePattern.foldedState.bothTitle', 'Both');
-    case 'Transparent3':
-      return t('panels:creasePattern.foldedState.transparent', 'Transparent state');
-    default:
-      return value;
   }
 }
 
@@ -680,9 +662,13 @@ function FoldedFigureMenuButton({
           </label>
           <div className="folded-figure-menu__field folded-figure-menu__field--segmented">
             <span>{t('panels:creasePattern.side', 'Side')}</span>
-            <SegmentedControl
+            {/* The value is the kernel's full state, not just the two offered
+                sides: a figure loaded from Oriedita in an overlay state keeps
+                rendering as saved, and marks neither side current until one is
+                picked. */}
+            <SegmentedControl<OristudioCpFoldedFigureState>
               aria-label={t('panels:creasePattern.foldedModelSide', 'Folded model side')}
-              options={FOLDED_STATE_OPTIONS.map((value) => ({
+              options={FOLDED_FIGURE_SIDES.map((value) => ({
                 value,
                 label: foldedStateLabel(t, value),
                 title: foldedStateTitle(t, value),

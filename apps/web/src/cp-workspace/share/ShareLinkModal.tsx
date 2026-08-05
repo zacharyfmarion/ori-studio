@@ -24,10 +24,7 @@ import { ColorField } from '../../components/ui/ColorField';
 import { IconButton } from '../../components/ui/IconButton';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Toggle } from '../../components/ui/Toggle';
-import type { OristudioCpFoldedFigureState } from '../../engine/oristudioCpTypes';
-
-/** Only front and back: `Both2` and `Transparent3` exist but are export-dialog territory. */
-type ShareFoldedSide = Extract<OristudioCpFoldedFigureState, 'Front0' | 'Back1'>;
+import type { FoldedFigureSide } from '../../lib/foldedFigureSides';
 
 /**
  * The share modal for one crease pattern.
@@ -57,7 +54,7 @@ export function ShareLinkModal() {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [showFolded, setShowFolded] = useState(false);
-  const [side, setSide] = useState<ShareFoldedSide>('Front0');
+  const [side, setSide] = useState<FoldedFigureSide>('Front0');
   const [frontColor, setFrontColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.frontColor);
   const [backColor, setBackColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.backColor);
   const [publishing, setPublishing] = useState(false);
@@ -288,7 +285,7 @@ export function ShareLinkModal() {
                   <span className="share-link-modal__folded-label">
                     {t('dialogs:share.side', 'Side')}
                   </span>
-                  <SegmentedControl<ShareFoldedSide>
+                  <SegmentedControl<FoldedFigureSide>
                     aria-label={t('dialogs:share.side', 'Side')}
                     value={side}
                     onChange={setSide}

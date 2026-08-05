@@ -260,12 +260,8 @@
     "foldedState": {
       "back": "Изнанка",
       "backShort": "B",
-      "both": "Обе",
-      "bothTitle": "Обе",
       "front": "Лицо",
-      "frontShort": "F",
-      "transparent": "Прозрачное состояние",
-      "transparentShort": "T"
+      "frontShort": "F"
     },
     "foldedStyle": {
       "dev1": "Dev 1",

@@ -194,9 +194,8 @@ export function buildFoldedFigureActions(
       label: t('panels:foldedFigureActions.flip', 'Flip'),
       icon: 'flip',
       disabled: !ready,
-      // Turn the paper over: Front <-> Back. The Both/Transparent overlay states
-      // are view modes, not sides, and live on the viewport toolbar's "Side"
-      // control (see flipFoldedState).
+      // Turn the paper over: Front <-> Back — the same two views the viewport
+      // toolbar's "Side" control offers (see flipFoldedState).
       run: () => deps.flip(figure),
     },
     {

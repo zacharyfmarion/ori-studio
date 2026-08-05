@@ -11,10 +11,8 @@ import {
   IDENTITY_CP_MODEL_TO_FOLD,
   type CpModelToFoldTransform,
 } from './creaseExportFold';
-import type {
-  OristudioCpFoldedFigureState,
-  OristudioCpFoldedRenderSnapshot,
-} from '../engine/oristudioCpTypes';
+import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
+import type { FoldedFigureSide } from './foldedFigureSides';
 import {
   DEFAULT_ORISTUDIO_CP_LINE_STYLE,
   DEFAULT_ORISTUDIO_CP_LINE_WIDTH,
@@ -74,8 +72,8 @@ export type CreaseExportTheme = 'light' | 'dark';
  * folded-figure model, so changing any of them means re-folding.
  */
 export interface CreaseExportFoldedFigureSettings {
-  /** Which surface the figure shows: front, back, both, or see-through. */
-  side: OristudioCpFoldedFigureState;
+  /** Which surface the figure shows. Front and back are the offered views. */
+  side: FoldedFigureSide;
   /** Front / back paper colours, as `#rrggbb`. */
   frontColor: string;
   backColor: string;

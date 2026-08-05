@@ -233,12 +233,8 @@
     "foldedState": {
       "back": "뒷면",
       "backShort": "B",
-      "both": "양쪽",
-      "bothTitle": "양쪽",
       "front": "앞면",
-      "frontShort": "F",
-      "transparent": "투명 상태",
-      "transparentShort": "T"
+      "frontShort": "F"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
