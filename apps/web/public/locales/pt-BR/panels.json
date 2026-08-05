@@ -179,10 +179,6 @@
     "couldNotOpenForEditing": "Não foi possível abrir este padrão de vincos para edição.",
     "couldNotOpenForEditingHint": "Exibido somente leitura. Você ainda pode visualizar, dobrar e exportar.",
     "cropImage": "Recortar imagem",
-    "current_one": "Atual {{count}}",
-    "current_many": "Atual {{count}}",
-    "current_other": "Atual {{count}}",
-    "deleteFoldedModel": "Excluir modelo dobrado",
     "deleteFoldedModelAction": "Excluir modelo dobrado",
     "deleteImage": "Excluir imagem",
     "diagnostic": {
@@ -214,7 +210,6 @@
       "warningOther_other": "{{count}} avisos de {{label}}"
     },
     "display": "Exibição",
-    "duplicateFoldedModel": "Duplicar modelo dobrado",
     "duplicateFoldedModelAction": "Duplicar modelo dobrado",
     "flipFoldedModel": "Virar modelo dobrado",
     "fold": "Dobrar",
@@ -329,8 +324,6 @@
     "showFoldedModelShadow": "Mostrar sombra do modelo dobrado",
     "side": "Lado",
     "stale": "Desatualizado",
-    "start": "Início",
-    "startingFace": "Faceta inicial",
     "viewportControls": "Controles da viewport do padrão de vincos"
   },
   "design": {

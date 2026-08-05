@@ -175,8 +175,6 @@
     "couldNotOpenForEditing": "この展開図は編集用に開けませんでした。",
     "couldNotOpenForEditingHint": "読み取り専用で表示されています。表示、折り、書き出しは引き続き行えます。",
     "cropImage": "画像を切り抜き",
-    "current_other": "現在 {{count}}",
-    "deleteFoldedModel": "折りモデルを削除",
     "deleteFoldedModelAction": "折り上がり図を削除",
     "deleteImage": "画像を削除",
     "diagnostic": {
@@ -196,7 +194,6 @@
       "warningOther_other": "{{label}} 警告 {{count}} 件"
     },
     "display": "表示",
-    "duplicateFoldedModel": "折りモデルを複製",
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
@@ -307,8 +304,6 @@
     "showFoldedModelShadow": "折りモデルの影を表示",
     "side": "面",
     "stale": "要再折り",
-    "start": "開始",
-    "startingFace": "開始面",
     "viewportControls": "展開図のビューポート操作"
   },
   "design": {

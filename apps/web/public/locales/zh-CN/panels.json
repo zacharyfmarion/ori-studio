@@ -175,8 +175,6 @@
     "couldNotOpenForEditing": "无法打开此折痕图进行编辑。",
     "couldNotOpenForEditingHint": "以只读方式显示。你仍然可以查看、折叠和导出它。",
     "cropImage": "裁剪图像",
-    "current_other": "当前 {{count}}",
-    "deleteFoldedModel": "删除折叠模型",
     "deleteFoldedModelAction": "删除折叠模型",
     "deleteImage": "删除图像",
     "diagnostic": {
@@ -196,7 +194,6 @@
       "warningOther_other": "{{count}} 个 {{label}} 警告"
     },
     "display": "显示",
-    "duplicateFoldedModel": "复制折叠模型",
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
@@ -307,8 +304,6 @@
     "showFoldedModelShadow": "显示折叠模型阴影",
     "side": "侧面",
     "stale": "已过期",
-    "start": "起始",
-    "startingFace": "起始面",
     "viewportControls": "折痕图视口控件"
   },
   "design": {

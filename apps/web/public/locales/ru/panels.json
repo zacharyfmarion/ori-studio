@@ -181,11 +181,6 @@
     "couldNotOpenForEditing": "Этот паттерн складок не удалось открыть для редактирования.",
     "couldNotOpenForEditingHint": "Показан только для чтения. Его по-прежнему можно просматривать, складывать и экспортировать.",
     "cropImage": "Обрезать изображение",
-    "current_one": "Текущий {{count}}",
-    "current_few": "Текущий {{count}}",
-    "current_many": "Текущий {{count}}",
-    "current_other": "Текущий {{count}}",
-    "deleteFoldedModel": "Удалить сложенную модель",
     "deleteFoldedModelAction": "Удалить сложенную модель",
     "deleteImage": "Удалить изображение",
     "diagnostic": {
@@ -223,7 +218,6 @@
       "warningOther_other": "{{label}}: {{count}} предупреждения"
     },
     "display": "Отображение",
-    "duplicateFoldedModel": "Дублировать сложенную модель",
     "duplicateFoldedModelAction": "Дублировать сложенную модель",
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
@@ -340,8 +334,6 @@
     "showFoldedModelShadow": "Показывать тень сложенной модели",
     "side": "Сторона",
     "stale": "Устарело",
-    "start": "Старт",
-    "startingFace": "Начальная грань",
     "viewportControls": "Элементы управления областью просмотра паттерна складок"
   },
   "design": {

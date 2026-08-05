@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
@@ -13,9 +13,15 @@ import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
 import { foldedFigureAsTransformable } from '../canvasObjects/transformableObject';
 import type { TransformableCanvasObject } from '../canvasObjects/transformableObject';
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
-import { foldedFigureCurrentCase } from './foldedFigureState';
 import { isFoldedFigureStale } from './foldedFigureStaleness';
 import { foldedFigureFlipState, type FoldedFigureActionDeps } from './foldedFigureActions';
+
+/**
+ * The face folding holds fixed. Oriedita lets this be chosen and the kernel still
+ * takes it per fold, but the product does not offer the choice: the picker was the
+ * only thing that ever set it, so every fold was already from face 1.
+ */
+const FOLD_STARTING_FACE_ID = 1;
 
 export interface UseFoldedFiguresOptions {
   /** The live CP document, for the staleness check. */
@@ -71,10 +77,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     (state) => state.deleteOristudioCpFoldedFigure
   );
   const canFoldSelectedModel = selectedFoldLineIds.length > 0;
-
-  const [foldStartingFaceId, setFoldStartingFaceId] = useState(1);
-
-  const [foldCaseDraft, setFoldCaseDraft] = useState('1');
 
   const activeFoldedFigure = useMemo(
     () =>
@@ -221,32 +223,30 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     if (!canFoldSelectedModel) return;
     runFoldedFigureAction(t('panels:creasePattern.foldModelAction', 'Fold model'), () =>
       foldOristudioCpDocument({
-        startingFaceId: foldStartingFaceId,
+        startingFaceId: FOLD_STARTING_FACE_ID,
         lineIds: selectedFoldLineIds,
       })
     );
   }, [
     canFoldSelectedModel,
     foldOristudioCpDocument,
-    foldStartingFaceId,
     selectedFoldLineIds,
     runFoldedFigureAction,
     t,
   ]);
 
-  const handleFoldToCase = useCallback(() => {
-    if (!activeFoldedFigure || activeFoldedFigure.status !== 'ready') return;
-    const objective = Math.max(1, Math.round(Number(foldCaseDraft)));
-    if (!Number.isFinite(objective)) {
-      setFoldCaseDraft(String(Math.max(foldedFigureCurrentCase(activeFoldedFigure), 1)));
-      return;
-    }
-    setFoldCaseDraft(String(objective));
-    const id = activeFoldedFigure.id;
-    runFoldedFigureAction(t('panels:creasePattern.changeFoldCase', 'Change fold case'), () =>
-      foldOristudioCpFigureToCase(id, objective)
-    );
-  }, [activeFoldedFigure, foldCaseDraft, foldOristudioCpFigureToCase, runFoldedFigureAction, t]);
+  const handleFoldToCase = useCallback(
+    (objective: number) => {
+      if (!activeFoldedFigure || activeFoldedFigure.status !== 'ready') return;
+      if (!Number.isFinite(objective)) return;
+      const target = Math.max(1, Math.round(objective));
+      const id = activeFoldedFigure.id;
+      runFoldedFigureAction(t('panels:creasePattern.changeFoldCase', 'Change fold case'), () =>
+        foldOristudioCpFigureToCase(id, target)
+      );
+    },
+    [activeFoldedFigure, foldOristudioCpFigureToCase, runFoldedFigureAction, t]
+  );
 
   const handleFoldedDisplayStyle = useCallback(
     (displayStyle: OristudioCpFoldedFigureDisplayStyle) => {
@@ -392,9 +392,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     ]
   );
 
-  useEffect(() => {
-    setFoldCaseDraft(String(Math.max(foldedFigureCurrentCase(activeFoldedFigure), 1)));
-  }, [activeFoldedFigure]);
   return {
     figures: oristudioCpFoldedFigures,
     generated: generatedFoldedFigures,
@@ -404,10 +401,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     transformableObjects: foldedFigureObjects,
     actionDeps: foldedFigureActionDeps,
     canFoldSelectedModel,
-    foldStartingFaceId,
-    setFoldStartingFaceId,
-    foldCaseDraft,
-    setFoldCaseDraft,
     beginGesture: beginFoldedFigureGesture,
     commitGesture: commitFoldedFigureGesture,
     gestureLabel: foldedGestureLabel,

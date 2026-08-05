@@ -179,10 +179,6 @@
     "couldNotOpenForEditing": "Ce patron de plis n'a pas pu être ouvert pour modification.",
     "couldNotOpenForEditingHint": "Affiché en lecture seule. Vous pouvez toujours le visualiser, le plier et l’exporter.",
     "cropImage": "Rogner l'image",
-    "current_one": "Actuel {{count}}",
-    "current_many": "Actuel {{count}}",
-    "current_other": "Actuel {{count}}",
-    "deleteFoldedModel": "Supprimer le modèle plié",
     "deleteFoldedModelAction": "Supprimer le modèle plié",
     "deleteImage": "Supprimer l'image",
     "diagnostic": {
@@ -214,7 +210,6 @@
       "warningOther_other": "{{count}} avertissements {{label}}"
     },
     "display": "Affichage",
-    "duplicateFoldedModel": "Dupliquer le modèle plié",
     "duplicateFoldedModelAction": "Dupliquer le modèle plié",
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
@@ -329,8 +324,6 @@
     "showFoldedModelShadow": "Afficher l'ombre du modèle plié",
     "side": "Face",
     "stale": "Obsolète",
-    "start": "Départ",
-    "startingFace": "Face de départ",
     "viewportControls": "Commandes d'affichage du patron de plis"
   },
   "design": {

@@ -177,9 +177,6 @@
     "couldNotOpenForEditing": "Dieses Faltmuster konnte nicht zur Bearbeitung geöffnet werden.",
     "couldNotOpenForEditingHint": "Wird schreibgeschützt angezeigt. Sie können es weiterhin ansehen, falten und exportieren.",
     "cropImage": "Bild zuschneiden",
-    "current_one": "Aktuell {{count}}",
-    "current_other": "Aktuell {{count}}",
-    "deleteFoldedModel": "Gefaltetes Modell löschen",
     "deleteFoldedModelAction": "Gefaltetes Modell löschen",
     "deleteImage": "Bild löschen",
     "diagnostic": {
@@ -205,7 +202,6 @@
       "warningOther_other": "{{count}} {{label}}-Warnungen"
     },
     "display": "Anzeige",
-    "duplicateFoldedModel": "Gefaltetes Modell duplizieren",
     "duplicateFoldedModelAction": "Gefaltetes Modell duplizieren",
     "flipFoldedModel": "Gefaltetes Modell umdrehen",
     "fold": "Falten",
@@ -318,8 +314,6 @@
     "showFoldedModelShadow": "Schatten des gefalteten Modells anzeigen",
     "side": "Seite",
     "stale": "Veraltet",
-    "start": "Start",
-    "startingFace": "Startfläche",
     "viewportControls": "Ansichtssteuerung des Faltmusters"
   },
   "design": {
