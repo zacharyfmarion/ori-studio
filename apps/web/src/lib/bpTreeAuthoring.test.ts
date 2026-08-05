@@ -136,3 +136,101 @@ describe('bpTreeDragUpdates', () => {
     ).toBe(0);
   });
 });
+
+/**
+ * A paired vertex may not be dragged across the mirror.
+ *
+ * Its partner is reflected across the same line, so crossing it swaps the two —
+ * the drawing turns inside out. A drag rotates rigidly about the parent, so the
+ * limit is on the *angle*: sweep from where it is now, which is valid, and stop
+ * at the first held vertex that would reach the line.
+ */
+describe('bpTreeDragUpdates — the mirror is a wall', () => {
+  // Vertical through x = 10, as the BP tree's mirror always is.
+  const axis = { loc: { x: 10, y: 10 }, angle: 90 };
+  // Root at the centre, one leaf a unit to its right.
+  const vertices = new Map<number, Point>([
+    [0, { x: 10, y: 10 }],
+    [1, { x: 11, y: 10 }],
+  ]);
+
+  function drag(target: Point, heldIds: number[]) {
+    return bpTreeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices,
+      subtreeIds: [1],
+      start: { x: 11, y: 10 },
+      target,
+      mirror: heldIds.length > 0 ? { axis, heldIds: new Set(heldIds) } : null,
+    });
+  }
+
+  it('stops a held vertex on the line rather than past it', () => {
+    // Straight across to the far side; the pivot sits on the mirror, so the leaf
+    // can only swing as far as the line itself.
+    const moved = drag({ x: 9, y: 10 }, [1]);
+    expect(moved.get(1)?.x).toBeCloseTo(10, 9);
+  });
+
+  it('lets it swing right up to the line and no further, from either direction', () => {
+    for (const target of [
+      { x: 9, y: 4 },
+      { x: 9, y: 16 },
+    ]) {
+      const moved = drag(target, [1]);
+      expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 - 1e-9);
+    }
+  });
+
+  it('leaves an unheld vertex free to cross', () => {
+    const moved = drag({ x: 9, y: 10 }, []);
+    expect(moved.get(1)?.x).toBeCloseTo(9, 9);
+  });
+
+  it('does not interfere with a rotation that stays on its own side', () => {
+    const held = drag({ x: 10 + Math.SQRT1_2, y: 10 + Math.SQRT1_2 }, [1]);
+    const free = drag({ x: 10 + Math.SQRT1_2, y: 10 + Math.SQRT1_2 }, []);
+    expect(held.get(1)).toEqual(free.get(1));
+  });
+
+  it('never lets a whole subtree cross, not just the grabbed vertex', () => {
+    // The child hangs further out than its parent, so it reaches the mirror
+    // first and is what decides the limit.
+    const deep = new Map<number, Point>([
+      [0, { x: 10, y: 10 }],
+      [1, { x: 12, y: 10 }],
+      [2, { x: 14, y: 10 }],
+    ]);
+    const moved = bpTreeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices: deep,
+      subtreeIds: [1, 2],
+      start: { x: 12, y: 10 },
+      target: { x: 8, y: 11 },
+      mirror: { axis, heldIds: new Set([1, 2]) },
+    });
+    expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 - 1e-9);
+    expect(moved.get(2)!.x).toBeGreaterThanOrEqual(10 - 1e-9);
+  });
+
+  it('leaves a vertex whose circle never meets the mirror unclamped', () => {
+    // Pivot far from the line and a short edge: the leaf cannot reach it however
+    // far it turns, so the clamp must not invent a limit.
+    const offAxis = new Map<number, Point>([
+      [0, { x: 16, y: 10 }],
+      [1, { x: 17, y: 10 }],
+    ]);
+    const moved = bpTreeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices: offAxis,
+      subtreeIds: [1],
+      start: { x: 17, y: 10 },
+      target: { x: 15, y: 10 },
+      mirror: { axis, heldIds: new Set([1]) },
+    });
+    expect(moved.get(1)?.x).toBeCloseTo(15, 9);
+  });
+});

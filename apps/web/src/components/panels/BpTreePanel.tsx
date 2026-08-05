@@ -756,12 +756,16 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     setGhost(null);
     const svg = svgRef.current;
     if (!svg) return;
+    const subtreeIds = subtreeOf(vertexId);
     dragRef.current = startBpTreeDrag({
       root: svg,
       vertexId,
       parentId: topology.parent.get(vertexId) ?? null,
       vertices: vertexLocationsById,
-      subtreeIds: subtreeOf(vertexId),
+      subtreeIds,
+      // A paired vertex may not cross the mirror: it and its partner would swap
+      // sides, which reads as the drawing turning inside out.
+      mirror: symmetryView.dragMirror(subtreeIds),
       sheet: tree.sheet,
       clientStart: { x: event.clientX, y: event.clientY },
       toTreePoint: (client) => clientToTreePoint(client),

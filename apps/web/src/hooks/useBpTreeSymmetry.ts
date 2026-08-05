@@ -4,10 +4,12 @@ import {
   BP_TREE_SYMMETRY_ANGLE,
   BP_TREE_SYMMETRY_TOLERANCE,
   bpTreeSymmetryDefaultLoc,
+  bpTreeMirrorHeldIds,
   explicitBpTreePairId,
   type BpTreeSymmetryPair,
 } from '../lib/bpTreeSymmetry';
 import { symmetrySide } from '../lib/symmetryGeometry';
+import type { BpTreeDragMirror } from '../lib/bpTreeAuthoring';
 import { bpTreePointToSvg, bpTreePaperRect } from '../lib/bpTreeViewport';
 import type { OristudioBpTreeView } from '../engine/oristudioBpTypes';
 import type { Point } from '../lib/geometry';
@@ -64,6 +66,14 @@ export interface BpTreeSymmetryView {
    */
   isOnAxis: (vertexId: number) => boolean;
   unpair: (vertexId: number) => void;
+  /**
+   * What a drag of these vertices may not do: the axis, and which of them are
+   * held in their own half of it.
+   *
+   * Null when none of them is paired, which is the common case and lets the drag
+   * skip the clamp entirely.
+   */
+  dragMirror: (movedIds: readonly number[]) => BpTreeDragMirror | null;
 }
 
 export function useBpTreeSymmetry(
@@ -153,9 +163,19 @@ export function useBpTreeSymmetry(
     [symmetry.enabled, symmetry.loc, symmetry.angle, tree.vertices]
   );
 
+  const dragMirror = useCallback(
+    (movedIds: readonly number[]): BpTreeDragMirror | null => {
+      const axis = { loc: symmetry.loc, angle: symmetry.angle };
+      const heldIds = bpTreeMirrorHeldIds(tree, symmetry.pairs, axis, movedIds);
+      return heldIds.size === 0 ? null : { axis, heldIds };
+    },
+    [symmetry.loc, symmetry.angle, symmetry.pairs, tree]
+  );
+
   return {
     enabled: symmetry.enabled,
     toggle,
+    dragMirror,
     axisLine,
     pairs,
     partnerOf,
