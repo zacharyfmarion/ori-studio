@@ -114,9 +114,24 @@ jobs:
       - name: Build web app
         run: npm run build:web
 
+      # Capture the immutable per-deployment host so the checks below test *this* upload.
+      # The `pr-N` alias is a new hostname on a branch's first deploy and serves
+      # inconsistently for a few seconds after it appears; smoke-testing it failed roughly
+      # one in ten first deploys on builds that were fine.
       - name: Deploy preview to Cloudflare Pages
+        id: deploy
         working-directory: apps/web
-        run: npx wrangler@4 pages deploy dist --project-name=oristudio --branch=pr-${{ github.event.pull_request.number }}
+        run: |
+          # Without pipefail, `tee` would swallow a wrangler failure and this step would
+          # report the missing URL instead of the deploy error that caused it.
+          set -o pipefail
+          npx wrangler@4 pages deploy dist --project-name=oristudio --branch=pr-${{ github.event.pull_request.number }} | tee deploy.log
+          url="$(grep -oE 'https://[0-9a-f]{8}\.oristudio\.pages\.dev' deploy.log | head -1)"
+          if [ -z "$url" ]; then
+            echo "could not read the deployment URL from the wrangler output above" >&2
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -124,8 +139,13 @@ jobs:
       # Also proves the *preview* environment has its own bindings. If `[[env.preview]]` in
       # wrangler.toml does not apply to a branch deploy, this is where that shows up —
       # rather than as a preview quietly writing into the production namespace.
+      #
+      # `--alias` then waits for the URL the PR comment hands out to resolve, which is the
+      # one thing the per-deployment host cannot tell us.
       - name: Verify share endpoints
-        run: node scripts/share-smoke.mjs https://pr-${{ github.event.pull_request.number }}.oristudio.pages.dev
+        run: |
+          node scripts/share-smoke.mjs "${{ steps.deploy.outputs.url }}" \
+            --alias https://pr-${{ github.event.pull_request.number }}.oristudio.pages.dev
 
   comment:
     name: Publish Preview Comment
