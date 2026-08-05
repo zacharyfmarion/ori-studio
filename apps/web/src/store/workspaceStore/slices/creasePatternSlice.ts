@@ -1,3 +1,4 @@
+import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
 import {
@@ -850,6 +851,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     }
     set({ status: 'optimizing', error: null });
     const checkpoint = await get().beginHistoryCheckpoint();
+    // 'optimize.scale' -> 'scale'. Also the analytics `kind`.
+    const kind = capabilityId.replace('optimize.', '');
     try {
       const { api, treeHandle } = await requireActiveTree();
       const report = await optimize(api, treeHandle);
@@ -868,8 +871,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           : get().designViewportFitRequestId,
       });
       get().commitHistoryCheckpoint(checkpoint, label);
+      track('optimizer run', { kind, succeeded: true, feasible: report.is_feasible });
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
+      track('optimizer run', { kind, succeeded: false });
     }
   }
 
@@ -940,7 +945,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           if (pending) {
             try {
               document = await openSharedCpPayload(pending);
+              track('share link opened', { succeeded: true });
             } catch (error) {
+              track('share link opened', { succeeded: false });
               // A bad link should leave a usable editor, not a broken one: tell
               // the user which kind of failure it was (the kernel distinguishes
               // "corrupt" from "made by a newer Ori Studio") and seed the blank
@@ -1083,6 +1090,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           projectMessage: 'Built crease pattern',
         });
         get().commitHistoryCheckpoint(checkpoint, 'Build crease pattern');
+        // The tree→CP core moment. Counts are bucketed; no node/edge geometry.
+        track('crease pattern built', {
+          node_count_bucket: bucketCount(snapshot.summary.nodes, COUNT_BUCKETS),
+          had_conditions: snapshot.summary.conditions > 0,
+        });
         useLayoutStore.getState().activateWorkspace('edit');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });

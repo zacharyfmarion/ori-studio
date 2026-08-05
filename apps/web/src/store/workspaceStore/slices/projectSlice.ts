@@ -17,7 +17,7 @@ import {
   type CreaseExportFoldResult,
 } from '../../../lib/creaseExportFold';
 import { hexToRgbColor } from '../../../lib/rgbColor';
-import { track } from '../../../analytics';
+import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
 import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
@@ -1519,10 +1519,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // Oriedita-sourced `.ori`/`.orh` save-as special cases.
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
     const hasDesign = get().project.nodes.length > 0 || Boolean(get().oristudioBpDocument);
-    if (hasDesign) {
-      return saveNativeWorkspaceProject(fileService, forceSaveAs);
-    }
-    return saveEditableCreasePattern(fileService, forceSaveAs);
+    const result = hasDesign
+      ? await saveNativeWorkspaceProject(fileService, forceSaveAs)
+      : await saveEditableCreasePattern(fileService, forceSaveAs);
+    // Both branches write the native .osf; a falsy result means the user
+    // cancelled the save dialog. `file exported` deliberately skips osf.
+    if (result) track('project saved', { format: 'osf' });
+    return result;
   };
 
   return {
@@ -1665,6 +1668,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // -> circle-packed) so the TreeMaker side panes are correct and no BP
         // Editor pane lingers.
         layout.ensureDesignLayout();
+        // Only real File > New is a "project opened"; the design-method chooser
+        // (preserveEditCanvas) is recorded as `design method chosen` instead.
+        if (!preserveEditCanvas) track('project opened', { source: 'new' });
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
@@ -2101,6 +2107,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         } else {
           await loadText(file.text, { filename: file.name, path: file.path });
         }
+        track('project opened', { source: 'file' });
         return true;
       } catch (error) {
         set({ status: 'error', error: annotateLargeSourceError(engineError(error), openedSourceLength) });
@@ -2450,12 +2457,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // Deliberately not copied here: the clipboard is the user's, and taking
         // it over as a side effect of opening a dialog would discard whatever
         // they had. The modal offers Copy.
+        const creaseCount = subFold.edges_vertices?.length ?? 0;
         set({
           oristudioCpShareLink: {
             url,
-            creaseCount: subFold.edges_vertices?.length ?? 0,
+            creaseCount,
             long: isShareLinkLong(url),
           },
+        });
+        // The link (and thus the geometry it encodes) is never sent — only that a
+        // share was created and a bucketed crease count.
+        track('crease pattern shared', {
+          crease_count_bucket: bucketCount(creaseCount, COUNT_BUCKETS),
         });
         return true;
       } catch (error) {
@@ -2614,6 +2627,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         title: example.title,
         filename: example.filename,
       });
+      // The example's id/title is not sent — only that an example was opened.
+      track('project opened', { source: 'example' });
     },
 
     clearProjectMessage: () => set({ projectMessage: null }),
@@ -2662,6 +2677,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // doesn't bounce a freshly-chosen design — a blank TreeMaker tree has no
       // document content for the presence subscription to detect.
       set({ projectEstablished: true });
+      track('design method chosen', { method: target });
       const wasDirty = get().dirty;
       if (target === 'box-pleat') {
         await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });

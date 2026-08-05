@@ -300,15 +300,13 @@ Phase 3 — Both chokepoints + nav
 - [x] cardinality guard: `command_id` strips `:` suffix; `cp` operation ids are a fixed enum
 
 Phase 4 — Domain events
-- [ ] `crease pattern built`, `optimizer run`
-- [ ] `project opened` (incl. drop) / `project saved` / `file exported` (+ options)
-- [ ] `foldability checked` / `foldability fix applied` / `fold angles solved`
-- [ ] `design method chosen` (NUX)
-- [ ] `bp design action` / `bp optimizer run`
-- [ ] image→CP funnel events
-- [ ] `fold simulation run` / `folded form exported` / fold-warning events
-- [ ] `crease pattern shared` / `share link opened`
-- [ ] `theme changed` / `locale changed`
+- [x] `crease pattern built` `{ node_count_bucket, had_conditions }`; `optimizer run` `{ kind, succeeded, feasible }`
+- [x] `project opened` `{ source: file|example|new }`; `project saved` `{ format: osf }`; `file exported` `{ format }` via a fileService decorator (covers every format, menu- and dialog-driven, on success)
+- [x] `design method chosen` `{ method }` (NUX chooser)
+- [x] image→CP funnel: `cp detect started` / `cp detect completed { succeeded }` / `cp detect imported` (cancel inferred from funnel drop-off)
+- [x] `crease pattern shared` `{ crease_count_bucket }` / `share link opened` `{ succeeded }`
+- [x] `theme changed` `{ theme }` / `locale changed` `{ locale }`
+- [~] Deferred with rationale: `foldability checked/fixed` and `fold angles solved` are already captured as `cp tool used` (operations `Check1..4`/`Fix1/2`/`VertexSolveFoldAngles`); simulator use is captured by `workspace viewed { simulate }` and folded exports by `file exported { obj|stl|fold }`; `bp optimizer run`/`bp design action` — the layout optimizer opens via `command invoked (bp.optimize.layout)`, explicit run/outcome event deferred
 
 Phase 5 — Docs, firewall, CI, verify
 - [x] `AGENTS.md` analytics discipline ("new features ship with an event")
