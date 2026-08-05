@@ -297,8 +297,15 @@ describe('constrainBpFlapMoveToAxis', () => {
     });
   });
 
-  it('leaves an off-axis flap unconstrained', () => {
-    expect(constrainBpFlapMoveToAxis(flap(1, 2, 4, 2, 1), { x: 3, y: 9 }, sheet(), 'book')).toBeNull();
+  it('does not decide for itself which flaps are its own mirror', () => {
+    // It projects whatever it is handed. Asking the geometry instead — is this
+    // box centred on the line? — pinned any flap that merely drifted onto the
+    // mirror, including ones with a distinct partner, and a pinned flap could
+    // not be dragged off again. Who is self-mirrored is the pairing's answer.
+    expect(constrainBpFlapMoveToAxis(flap(1, 2, 4, 2, 1), { x: 3, y: 9 }, sheet(), 'book')).toEqual({
+      x: 7,
+      y: 9,
+    });
   });
 
   it('leaves everything unconstrained when the fold has no mirror here', () => {
@@ -426,5 +433,48 @@ describe('constrainBpFlapGroupToAxisSides', () => {
         pairedIds: paired([1]),
       })
     ).toEqual({ x: 4, y: 4 });
+  });
+});
+
+/**
+ * A paired flap may touch the mirror but never lie on it.
+ *
+ * A unit leaf's flap is 0×0, so for it "near edge on the line" and "the whole
+ * flap on the line" are the same position — and a flap on the line *is* its own
+ * reflection, which makes a pair two flaps at one point.
+ */
+describe('constrainBpFlapGroupToAxisSides — a paired flap may not sit on the mirror', () => {
+  function stop(width: number, height: number, from: number) {
+    return constrainBpFlapGroupToAxisSides({
+      moving: [flap(1, from, 6, width, height)],
+      target: { x: 0, y: 6 },
+      sheet: sheet(),
+      fold: 'book',
+      pairedIds: new Set([1]),
+    }).x;
+  }
+
+  it('lets a flap with width rest its edge on the line', () => {
+    // [8, 11] against its partner's [5, 8]: they touch and do not overlap.
+    expect(stop(3, 2, 12)).toBe(8);
+  });
+
+  it('holds a point flap a grid step off it', () => {
+    // At 8 it would be its own reflection. The grid interval is 1, so the
+    // nearest position that is not is 8.5 — and the pane's rounding takes that
+    // to 9, the neighbouring cell.
+    expect(stop(0, 0, 12)).toBe(8.5);
+  });
+
+  it('applies to a flap with no extent across the axis but plenty along it', () => {
+    // A vertical mirror measures width, not height: a 0×4 flap is a segment
+    // lying along the line, still exactly on top of its own reflection.
+    expect(stop(0, 4, 12)).toBe(8.5);
+  });
+
+  it('pushes a point flap that is already on the line off it', () => {
+    // Reachable from a file, or from before this rule existed. The first drag
+    // asserts the constraint rather than leaving it stranded there.
+    expect(stop(0, 0, 8)).toBe(8.5);
   });
 });

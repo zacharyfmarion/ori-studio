@@ -154,6 +154,10 @@ describe('bpTreeDragUpdates — the mirror is a wall', () => {
     [1, { x: 11, y: 10 }],
   ]);
 
+  // Matches BP_TREE_SYMMETRY_TOLERANCE: the band inside which a vertex already
+  // counts as sitting on the axis.
+  const CLEARANCE = 0.02;
+
   function drag(target: Point, heldIds: number[]) {
     return bpTreeDragUpdates({
       vertexId: 1,
@@ -162,15 +166,19 @@ describe('bpTreeDragUpdates — the mirror is a wall', () => {
       subtreeIds: [1],
       start: { x: 11, y: 10 },
       target,
-      mirror: heldIds.length > 0 ? { axis, heldIds: new Set(heldIds) } : null,
+      mirror:
+        heldIds.length > 0
+          ? { axis, heldIds: new Set(heldIds), clearance: CLEARANCE }
+          : null,
     });
   }
 
-  it('stops a held vertex on the line rather than past it', () => {
-    // Straight across to the far side; the pivot sits on the mirror, so the leaf
-    // can only swing as far as the line itself.
+  it('stops a held vertex short of the line, not on it', () => {
+    // Straight across to the far side. It stops at the clearance band, not at
+    // the line: a vertex *on* the mirror is at the same point as its reflection,
+    // so a pair that reached it would be two nodes stacked on one spot.
     const moved = drag({ x: 9, y: 10 }, [1]);
-    expect(moved.get(1)?.x).toBeCloseTo(10, 9);
+    expect(moved.get(1)?.x).toBeCloseTo(10 + CLEARANCE, 9);
   });
 
   it('lets it swing right up to the line and no further, from either direction', () => {
@@ -179,7 +187,7 @@ describe('bpTreeDragUpdates — the mirror is a wall', () => {
       { x: 9, y: 16 },
     ]) {
       const moved = drag(target, [1]);
-      expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 - 1e-9);
+      expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-9);
     }
   });
 
@@ -209,10 +217,10 @@ describe('bpTreeDragUpdates — the mirror is a wall', () => {
       subtreeIds: [1, 2],
       start: { x: 12, y: 10 },
       target: { x: 8, y: 11 },
-      mirror: { axis, heldIds: new Set([1, 2]) },
+      mirror: { axis, heldIds: new Set([1, 2]), clearance: CLEARANCE },
     });
-    expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 - 1e-9);
-    expect(moved.get(2)!.x).toBeGreaterThanOrEqual(10 - 1e-9);
+    expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-9);
+    expect(moved.get(2)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-9);
   });
 
   it('leaves a vertex whose circle never meets the mirror unclamped', () => {
@@ -229,7 +237,7 @@ describe('bpTreeDragUpdates — the mirror is a wall', () => {
       subtreeIds: [1],
       start: { x: 17, y: 10 },
       target: { x: 15, y: 10 },
-      mirror: { axis, heldIds: new Set([1]) },
+      mirror: { axis, heldIds: new Set([1]), clearance: CLEARANCE },
     });
     expect(moved.get(1)?.x).toBeCloseTo(15, 9);
   });

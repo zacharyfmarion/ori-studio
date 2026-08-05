@@ -167,7 +167,11 @@ export function useBpTreeSymmetry(
     (movedIds: readonly number[]): BpTreeDragMirror | null => {
       const axis = { loc: symmetry.loc, angle: symmetry.angle };
       const heldIds = bpTreeMirrorHeldIds(tree, symmetry.pairs, axis, movedIds);
-      return heldIds.size === 0 ? null : { axis, heldIds };
+      // The same band `symmetrySide` calls "on the axis", so a held vertex can
+      // never be reclassified as its own mirror by getting close enough.
+      return heldIds.size === 0
+        ? null
+        : { axis, heldIds, clearance: BP_TREE_SYMMETRY_TOLERANCE };
     },
     [symmetry.loc, symmetry.angle, symmetry.pairs, tree]
   );

@@ -267,6 +267,29 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   };
 
   /**
+   * Whether a vertex — equivalently its dual flap — is its *own* mirror, sitting
+   * on the tree's mirror line.
+   *
+   * Asked instead of looking at where the flap happens to be on the paper. A
+   * flap that merely drifted onto the paper's mirror is not self-mirrored, and
+   * treating it as such pinned it there with no way back off.
+   */
+  const bpIsSelfMirrored = (vertexId: number): boolean => {
+    const document = get().oristudioBpDocument;
+    if (!document) return false;
+    const symmetry = get().oristudioBpSymmetry;
+    return (
+      mirrorBpTreeVertexId(
+        document.snapshot.tree,
+        symmetry.pairs,
+        { loc: symmetry.loc, angle: symmetry.angle },
+        vertexId,
+        BP_TREE_SYMMETRY_TOLERANCE
+      ) === vertexId
+    );
+  };
+
+  /**
    * Put a freshly added leaf's flap where the leaf was drawn.
    *
    * The engine seeds the flap when `add_leaf` runs — from the arbitrary spot it
@@ -1032,9 +1055,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           // translation from, so it is also the one an on-axis constraint has to
           // act on: sliding it along the mirror slides the whole group with it.
           const reference = before.flaps.find((flap) => flap.id === ids[0]);
-          const onAxis = reference
-            ? constrainBpFlapMoveToAxis(reference, loc, before.sheet, symmetry.fold) ?? loc
-            : loc;
+          const onAxis =
+            reference && bpIsSelfMirrored(reference.id)
+              ? constrainBpFlapMoveToAxis(reference, loc, before.sheet, symmetry.fold) ?? loc
+              : loc;
           // A paired flap stays in its own half: crossing the mirror would put it
           // on top of its own reflection. Only the component across the axis is
           // clamped, so the flap slides along the mirror instead of stopping.

@@ -91,6 +91,16 @@ export interface BpTreeDragMirror {
   /** The line the held vertices may not cross. */
   axis: SymmetryAxis;
   /**
+   * How close a held vertex may come to the line, in tree units.
+   *
+   * Not zero: a vertex *on* the mirror is at the same point as its reflection,
+   * so a pair that reached the line would be two nodes stacked on one spot —
+   * and one that far in also reads as on-axis, which is how the pairing decides
+   * a vertex is its own mirror. Stopping outside that band keeps a pair two
+   * distinct nodes on two distinct sides.
+   */
+  clearance: number;
+  /**
    * Vertices in the dragged subtree that must stay in their own half.
    *
    * A vertex whose partner is being mirrored across the axis cannot cross it:
@@ -130,13 +140,17 @@ function rotationToMirror(
   pivot: Point,
   point: Point,
   axis: SymmetryAxis,
-  direction: 1 | -1
+  direction: 1 | -1,
+  clearance: number
 ): number {
   const radius = Math.hypot(point.x - pivot.x, point.y - pivot.y);
   if (radius < 1e-9) return Number.POSITIVE_INFINITY;
   const normal = axisDirection({ ...axis, angle: axis.angle + 90 });
-  const pivotDistance = (pivot.x - axis.loc.x) * normal.x + (pivot.y - axis.loc.y) * normal.y;
-  const cosine = -pivotDistance / radius;
+  const distanceFromAxis = (p: Point) =>
+    (p.x - axis.loc.x) * normal.x + (p.y - axis.loc.y) * normal.y;
+  // The wall sits `clearance` short of the line, in the half the point is in.
+  const side = distanceFromAxis(point) < 0 ? -1 : 1;
+  const cosine = (side * clearance - distanceFromAxis(pivot)) / radius;
   // The circle stays wholly on one side, so no rotation can take it across.
   if (Math.abs(cosine) > 1) return Number.POSITIVE_INFINITY;
   const half = Math.acos(cosine);
@@ -168,7 +182,10 @@ export function clampRotationToMirror(
   let limit = Math.abs(delta);
   for (const [id, point] of points) {
     if (!mirror.heldIds.has(id)) continue;
-    limit = Math.min(limit, rotationToMirror(pivot, point, mirror.axis, direction));
+    limit = Math.min(
+      limit,
+      rotationToMirror(pivot, point, mirror.axis, direction, mirror.clearance)
+    );
   }
   return direction * limit;
 }

@@ -244,20 +244,34 @@ describe('moveOristudioBpLayoutFlapsWithSymmetry', () => {
     expect(singleMoves()).toEqual([]);
   });
 
-  it('slides a flap that is its own mirror along the axis instead of off it', async () => {
-    // Flap 7 is centred on x = 8 (anchor 7, width 2), so it is its own mirror.
-    const centred = flap(7, 7, 4);
+  /** A document holding one flap, keyed to whichever tree vertex the test wants. */
+  function withOneFlap(id: number, anchorX: number) {
     useWorkspaceStore.setState(
       {
         ...useWorkspaceStore.getInitialState(),
-        oristudioBpDocument: bpDocument([centred]),
+        oristudioBpDocument: bpDocument([flap(id, anchorX, 4)]),
         oristudioBpSymmetry: { ...TREE_AXIS, enabled: true, fold: 'book', pairs: [] },
       },
       true
     );
-    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(7, { x: 2, y: 11 });
+  }
+
+  it('slides a flap that is its own mirror along the axis instead of off it', async () => {
+    // Vertex 0 sits on the tree's mirror line, so its flap is its own mirror.
+    withOneFlap(0, 7);
+    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(0, { x: 2, y: 11 });
     // The drag wanted x = 2; the mirror keeps it at 7 and lets y through.
-    expect(groupMoves()).toEqual([[[7], { x: 7, y: 11 }]]);
+    expect(groupMoves()).toEqual([[[0], { x: 7, y: 11 }]]);
     expect(singleMoves()).toEqual([]);
+  });
+
+  it('does not pin a flap that merely drifted onto the mirror', async () => {
+    // Vertex 7 is not in the tree at all, so this flap is nobody's mirror — it
+    // has just ended up centred on the line. Deciding from that geometry pinned
+    // it there with no way to drag it off again, which is what a user hits after
+    // pushing a flap up against the mirror.
+    withOneFlap(7, 7);
+    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(7, { x: 2, y: 11 });
+    expect(groupMoves()).toEqual([[[7], { x: 2, y: 11 }]]);
   });
 });

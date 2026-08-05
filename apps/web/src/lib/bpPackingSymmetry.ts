@@ -253,6 +253,31 @@ export function bpFlapAxisSide(
   return 0;
 }
 
+/**
+ * How far a paired flap's near edge must stay from the mirror.
+ *
+ * Zero for a box with any extent across the axis: its near edge may sit right on
+ * the line, because the box itself still lies wholly on its own side and only
+ * *touches* its reflection.
+ *
+ * A box with no extent across the axis — a unit leaf's flap is 0×0 — has no such
+ * position. Putting its near edge on the line puts the whole flap on the line,
+ * where it *is* its own reflection and the pair is two flaps at one point. Half a
+ * grid interval is the smallest gap that pushes it to the neighbouring grid
+ * position, on a sheet whose centre falls on a grid line and on one whose centre
+ * falls between two.
+ */
+function minimumAxisClearance(
+  box: FlapBox,
+  sheet: OristudioBpSheet,
+  axis: OptimizerSymmetryAxis,
+  tolerance: number
+): number {
+  const { min, max } = bpFlapAxisSpan({ x: 0, y: 0 }, box, { x: 0, y: 0 }, axis);
+  if (max - min > tolerance) return 0;
+  return Math.max(sheet.grid.interval, 0) / 2;
+}
+
 export interface ConstrainBpFlapGroupInput {
   /** The flaps the gesture moves. The first is the one `target` refers to. */
   moving: readonly OristudioBpFlap[];
@@ -296,8 +321,9 @@ export function constrainBpFlapGroupToAxisSides(input: ConstrainBpFlapGroupInput
     const side = bpFlapAxisSide(flap.anchor, flap, center, axis);
     if (side === 0) continue;
     const { min, max } = bpFlapAxisSpan(flap.anchor, flap, center, axis);
-    if (side > 0) lower = Math.max(lower, -min);
-    else upper = Math.min(upper, -max);
+    const clearance = minimumAxisClearance(flap, sheet, axis, BP_PACKING_SYMMETRY_TOLERANCE);
+    if (side > 0) lower = Math.max(lower, clearance - min);
+    else upper = Math.min(upper, -max - clearance);
   }
   // Every constrained member is currently valid, so 0 always satisfies both
   // bounds and a group spanning both halves simply cannot move across.
@@ -359,8 +385,14 @@ export function buildMirroredBpFlapMoves(input: BuildMirroredBpFlapMovesInput): 
 /**
  * Where a flap that is its own mirror should go instead of `loc`.
  *
- * Returns `null` when the flap is not on the axis, which reads at the call site
- * as "this move needs no constraining".
+ * **Whether it is its own mirror is the caller's answer, not this function's.**
+ * Asking the geometry — is this box centred on the line? — pins any flap that
+ * merely happens to be sitting there, including one with a distinct partner and
+ * one with no partner at all, and a pinned flap cannot be dragged off again. A
+ * flap is its own mirror because its tree vertex is, which is a fact about the
+ * pairing.
+ *
+ * Returns `null` when the fold has no mirror on this sheet.
  */
 export function constrainBpFlapMoveToAxis(
   flap: OristudioBpFlap,
@@ -370,7 +402,5 @@ export function constrainBpFlapMoveToAxis(
 ): Point | null {
   const axis = bpPackingSymmetryAxis(sheet, fold);
   if (!bpPackingSheetSupportsAxis(sheet, axis)) return null;
-  const center = bpPackingSheetCenter(sheet);
-  if (!isBpFlapOnAxis(flap.anchor, flap, center, axis)) return null;
-  return projectBpFlapAnchorOntoAxis(loc, flap, center, axis);
+  return projectBpFlapAnchorOntoAxis(loc, flap, bpPackingSheetCenter(sheet), axis);
 }
