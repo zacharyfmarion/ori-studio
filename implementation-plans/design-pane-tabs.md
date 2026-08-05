@@ -1012,7 +1012,23 @@ does NOT touch the tree/design fields".
   Also removed seven empty `patchTreemakerDesign(get(), {})` spreads left by the
   2b codemod — they wrote nothing and logged a DEV error on every box-pleat and
   crease-pattern undo.
-- [ ] Phase 2d — addressed writes: capture the document id before the first `await`
+- [x] Phase 2d (part 1) — engine handles follow tabs
+
+  Landed: `engines/designHandles.ts` bridges design tabs to the document
+  registry, and `ensureTreeHandle` resolves the active design's handle through it
+  (falling back to the module's blank tree only when no design has claimed one).
+  Tab lifecycle actions added: `addDesignTab`, `activateDesignTab`,
+  `closeDesignTab`, `renameDesignTab`, `reorderDesignTab`, `duplicateDesignTab`.
+  18 lifecycle tests. 2499 pass.
+
+  Bug found by its own test: closing the last tab re-provisioned a replacement
+  seeded from `[]`, so it could reuse the id just forgotten. Ids are registry
+  keys and `.osf` document ids, so a late async write addressed to the closed
+  design would have landed on the tab that replaced it.
+
+- [ ] Phase 2d (part 2) — addressed writes for the ~100 async design actions, and
+      the same treatment for `oristudioBpRuntime`'s `activeHandle`/`currentSource`
+      singletons (see the audit note under "Remaining risks")
 - [ ] Phase 3 — Radix tab strip (add / close / rename / reorder / duplicate), ≥1 tab invariant
 - [ ] Phase 4 — intra-tab Gridview, panes migrated, active-pane tracking
 - [ ] Phase 5 — `/design` collapse with redirects

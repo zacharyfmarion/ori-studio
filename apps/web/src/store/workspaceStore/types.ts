@@ -372,6 +372,27 @@ export interface ProjectSliceActions {
   setActivePanelId: (id: string | null) => void;
   /** Enter the Design workspace on the method chooser without creating a document. */
   startNewDesign: () => void;
+  /**
+   * Open a new design tab, on the method chooser, and make it active.
+   *
+   * Every tab starts the same way — see the "Startup" row of the design-pane-tabs
+   * plan — so this is also what the tab strip's `+` does.
+   */
+  addDesignTab: () => void;
+  /** Make a tab active, parking the outgoing design's engine handle. */
+  activateDesignTab: (designId: string) => void;
+  /**
+   * Close a tab.
+   *
+   * Closing the last one re-provisions a fresh chooser tab rather than leaving
+   * none, so `designTabs` is never empty and `activeDesignId` never dangles.
+   */
+  closeDesignTab: (designId: string) => void;
+  renameDesignTab: (designId: string, title: string) => void;
+  /** Move a tab to a new index, for drag-reorder. */
+  reorderDesignTab: (designId: string, toIndex: number) => void;
+  /** Copy a design into a new tab beside it. Fresh history; nothing inherited. */
+  duplicateDesignTab: (designId: string) => Promise<void>;
   /** Resolve the Design pane NUX chooser into a concrete design method. */
   chooseDesignMethod: (target: WorkflowTarget) => Promise<void>;
   /**

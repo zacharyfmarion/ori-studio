@@ -1,4 +1,10 @@
-import { selectDesignMethod, selectOristudioBpDocument, selectProject } from './designTabs';
+import {
+  activeDesignTab,
+  selectDesignMethod,
+  selectOristudioBpDocument,
+  selectProject,
+} from './designTabs';
+import { registerActiveDesignSource } from './engineRuntime';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createCreasePatternSlice } from './slices/creasePatternSlice';
@@ -29,6 +35,15 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     { name: 'treemaker-workspace' }
   )
 );
+
+// Let the engine runtimes resolve the active design, so a tree handle belongs to
+// the tab that owns it rather than to the module. Registered rather than imported
+// for the same reason as the layout-variant source below: the runtimes sit under
+// the store, and importing it would close a cycle.
+registerActiveDesignSource(() => {
+  const tab = activeDesignTab(useWorkspaceStore.getState());
+  return tab.kind === null ? null : { id: tab.id, kind: tab.kind };
+});
 
 // Let the layout store read the active Design layout variant so it can
 // materialize the NUX chooser, box-pleat split, or TreeMaker layout.

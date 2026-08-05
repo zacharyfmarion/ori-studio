@@ -1,5 +1,6 @@
 import type { Remote } from 'comlink';
 import { connectEngine, isEngineConnected } from '../../engines/engineHost';
+import { acquireDesignHandle } from '../../engines/designHandles';
 import { installTreemakerDesign, patchTreemakerDesign, type DesignTabsSlice } from './designTabs';
 import type { TreemakerDesignState } from './designContent';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
@@ -17,10 +18,29 @@ import { emptyFoldArtifactResourceState } from './foldArtifactResource';
 export type EngineClient = Remote<TreemakerWorkerApi>;
 
 // The worker and its comlink client are owned by `engines/engineHost`, which is
-// what makes "is this engine still alive?" answerable. What remains here is the
-// single-tree state Phase 2 replaces with the documents map.
+// what makes "is this engine still alive?" answerable.
+//
+// `handle` is the *fallback* tree — the one the engine holds before any design
+// tab has claimed a TreeMaker design (cold boot, and the Edit-only flows that
+// reach `ensureTreeHandle` for an export). Once a design is active, its handle
+// comes from `engines/designHandles`, which is what makes two TreeMaker tabs two
+// trees rather than one.
 let handle: number | null = null;
 let blankPromise: Promise<TreeSnapshot> | null = null;
+
+/**
+ * Which design the store is currently showing.
+ *
+ * Registered by the store at init, like `registerDesignVariantSource`, because
+ * this module sits *below* the store and importing it would close a cycle.
+ */
+let readActiveDesign: () => { id: string; kind: string } | null = () => null;
+
+export function registerActiveDesignSource(
+  source: () => { id: string; kind: string } | null
+): void {
+  readActiveDesign = source;
+}
 
 export function engineError(error: unknown): WasmErrorEnvelope {
   if (
@@ -124,6 +144,18 @@ export async function ensureTreeHandle(): Promise<{
   initializedSnapshot?: TreeSnapshot;
 }> {
   const api = await getEngine();
+
+  // A TreeMaker design is active: its handle belongs to it, not to the module.
+  // This is what stops two tabs sharing one tree — and it hydrates a design the
+  // LRU had parked, transparently to every caller.
+  const active = readActiveDesign();
+  if (active && active.kind === 'treemaker') {
+    const designHandle = await acquireDesignHandle(active.id, 'treemaker');
+    if (designHandle !== null) return { api, treeHandle: designHandle };
+  }
+
+  // No design has claimed a tree (cold boot, or an Edit-only flow reaching here
+  // for an export). Fall back to the module's own blank tree.
   let initializedSnapshot: TreeSnapshot | undefined;
   if (handle === null) {
     initializedSnapshot = await initializeBlankTree(api);

@@ -1,4 +1,21 @@
-import { clearActiveDesignContent, initialDesignTabs, installTreemakerDesign, markActiveTabBoxPleat, patchBoxPleatDesign, selectDesignMethod, selectOristudioBpDocument, selectOristudioBpSymmetry, selectProject } from '../designTabs';
+import {
+  clearActiveDesignContent,
+  createDesignTab,
+  initialDesignTabs,
+  installTreemakerDesign,
+  markActiveTabBoxPleat,
+  patchBoxPleatDesign,
+  selectDesignMethod,
+  selectOristudioBpDocument,
+  selectOristudioBpSymmetry,
+  selectProject,
+} from '../designTabs';
+import {
+  adoptDesign,
+  forgetDesign,
+  parkDesign,
+  serializeDesign,
+} from '../../../engines/designHandles';
 import { getExampleProject } from '../../../examples/catalog';
 import { APP_VERSION } from '../../../constants/release';
 import {
@@ -2749,6 +2766,92 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     clearProjectMessage: () => set({ projectMessage: null }),
     setActivePanelId: (id) => set({ activePanelId: id }),
+
+    addDesignTab: () => {
+      const tabs = get().designTabs;
+      const tab = createDesignTab(tabs);
+      set({ designTabs: [...tabs, tab], activeDesignId: tab.id });
+      useLayoutStore.getState().activateWorkspace('design');
+    },
+
+    activateDesignTab: (designId) => {
+      const { activeDesignId, designTabs } = get();
+      if (designId === activeDesignId) return;
+      if (!designTabs.some((tab) => tab.id === designId)) return;
+      // Give the outgoing design's engine handle back before switching. Its text
+      // is kept, so returning to the tab rehydrates it; a pinned design (one with
+      // engine work in flight) is left alone by the registry.
+      void parkDesign(activeDesignId);
+      set({ activeDesignId: designId });
+    },
+
+    closeDesignTab: (designId) => {
+      const { designTabs, activeDesignId } = get();
+      const index = designTabs.findIndex((tab) => tab.id === designId);
+      if (index === -1) return;
+      void forgetDesign(designId);
+      const remaining = designTabs.filter((tab) => tab.id !== designId);
+      if (remaining.length === 0) {
+        // Never zero tabs: closing the last one leaves a fresh chooser in its
+        // place, which is what keeps `activeDesignId` a plain string everywhere.
+        //
+        // Seeded with the tabs being replaced, not `[]`, so the new tab cannot
+        // reuse the id just forgotten. Ids are registry keys and `.osf` document
+        // ids — a late write addressed to the closed design would otherwise land
+        // on the one that took its place.
+        const replacement = createDesignTab(designTabs);
+        set({ designTabs: [replacement], activeDesignId: replacement.id });
+        return;
+      }
+      const nextActive =
+        designId === activeDesignId
+          ? (remaining[index] ?? remaining[remaining.length - 1]).id
+          : activeDesignId;
+      if (nextActive !== activeDesignId) void parkDesign(activeDesignId);
+      set({ designTabs: remaining, activeDesignId: nextActive });
+    },
+
+    renameDesignTab: (designId, title) => {
+      const trimmed = title.trim();
+      if (!trimmed) return;
+      set({
+        designTabs: get().designTabs.map((tab) =>
+          tab.id === designId ? { ...tab, title: trimmed } : tab
+        ),
+      });
+      set({ dirty: true });
+    },
+
+    reorderDesignTab: (designId, toIndex) => {
+      const tabs = get().designTabs;
+      const from = tabs.findIndex((tab) => tab.id === designId);
+      if (from === -1) return;
+      const to = Math.max(0, Math.min(toIndex, tabs.length - 1));
+      if (from === to) return;
+      const next = [...tabs];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      set({ designTabs: next, dirty: true });
+    },
+
+    duplicateDesignTab: async (designId) => {
+      const tabs = get().designTabs;
+      const index = tabs.findIndex((tab) => tab.id === designId);
+      const source = tabs[index];
+      if (!source || source.kind === null) return;
+      // Through the codec, which is the same serialize/hydrate pair that saves a
+      // file and that eviction uses — so a duplicate is exactly a round trip.
+      const text = await serializeDesign(source.id, source.kind);
+      if (text === null) return;
+      const copy = createDesignTab(tabs, { kind: source.kind, title: `${source.title} copy` });
+      adoptDesign(copy.id, text);
+      const next = [...tabs];
+      next.splice(index + 1, 0, copy);
+      // History is deliberately not carried: undoing a copy into states it never
+      // had would be nonsense. `editCount` starts fresh for the same reason.
+      void parkDesign(get().activeDesignId);
+      set({ designTabs: next, activeDesignId: copy.id, dirty: true });
+    },
 
     startNewDesign: () => {
       // Enter the Design workspace on the method chooser; no document is created
