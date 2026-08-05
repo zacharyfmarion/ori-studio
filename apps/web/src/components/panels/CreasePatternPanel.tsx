@@ -3184,7 +3184,6 @@ export function CreasePatternPanel() {
                   options={cpToolOptions}
                   setOptions={setCpToolOptions}
                   activeLineColor={effectiveCpLineColor}
-                  gridWidth={editableCpGridWidth}
                   measurements={cpMeasurements}
                   onHoverMeasurement={setCpHoveredMeasureIndex}
                   measureUnit={cpMeasurePreferences.unit}

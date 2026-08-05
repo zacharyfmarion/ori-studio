@@ -4956,7 +4956,10 @@
   font-weight: 650;
 }
 
-.cp-context-panel__field input,
+/* `.number-field__input` is excluded because a `NumberField` arrives fully
+   styled — 26px tall to match its own step buttons — and this rule's 22px would
+   leave the input a different height from the − / + boxes beside it. */
+.cp-context-panel__field input:not(.number-field__input),
 .cp-context-panel__field select,
 .cp-context-panel__field textarea {
   height: 22px;

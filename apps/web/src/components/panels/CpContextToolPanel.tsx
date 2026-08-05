@@ -47,7 +47,6 @@ import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/crea
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
 import { cpToolUnavailableMessage } from '../../cp-workspace/tools/toolUnavailable';
 import { CpContextToolReset } from './CpContextToolReset';
-import { NumericToolOption } from '../../cp-workspace/toolOptions/NumericToolOption';
 import { SquareToolOptions } from '../../cp-workspace/toolOptions/SquareToolOptions';
 import { CpToolHintWindow } from '../../cp-workspace/toolHint/CpToolHintWindow';
 import { isRestingCpTool } from '../../cp-workspace/toolHint/restingTool';
@@ -147,7 +146,6 @@ export function CpContextToolPanel({
   options,
   setOptions,
   activeLineColor,
-  gridWidth,
   measurements,
   onHoverMeasurement,
   measureUnit,
@@ -173,8 +171,6 @@ export function CpContextToolPanel({
   options: OristudioCpToolOptions;
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
   activeLineColor: OristudioCpLineColor;
-  /** Active grid width in model units, for tool params measured in grid cells. */
-  gridWidth: number | undefined;
   measurements: readonly CpMeasurement[];
   /** Highlight a session measurement on the canvas while its row is hovered. */
   onHoverMeasurement: (index: number | null) => void;
@@ -260,7 +256,6 @@ export function CpContextToolPanel({
           setOptions={setOptions}
           activeLineColor={activeLineColor}
           activeOperationId={command.operationId}
-          gridWidth={gridWidth}
           measurements={measurements}
           onHoverMeasurement={onHoverMeasurement}
           measureUnit={measureUnit}
@@ -361,7 +356,6 @@ function CpContextToolGroup({
   setOptions,
   activeLineColor,
   activeOperationId,
-  gridWidth,
   measurements,
   onHoverMeasurement,
   measureUnit,
@@ -378,7 +372,6 @@ function CpContextToolGroup({
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
   activeLineColor: OristudioCpLineColor;
   activeOperationId: OristudioCpCommandDefinition['operationId'];
-  gridWidth: number | undefined;
   measurements: readonly CpMeasurement[];
   onHoverMeasurement: (index: number | null) => void;
   measureUnit: CpMeasureUnit;
@@ -598,7 +591,7 @@ function CpContextToolGroup({
   }
 
   if (group === 'square') {
-    return <SquareToolOptions options={options} setOptions={setOptions} gridWidth={gridWidth} />;
+    return <SquareToolOptions options={options} setOptions={setOptions} />;
   }
 
   if (group === 'parallel-width') {
@@ -1092,6 +1085,89 @@ function updateCustomCircleColor(
       [field]: Math.round(value),
     },
   }));
+}
+
+/**
+ * The panel's own numeric field: a draft committed on blur, no steppers.
+ *
+ * Predates `components/ui/NumberField`, which does strictly more (− / + steps,
+ * Arrow Up/Down, Escape reverts) and is what the View pane and the Square tool
+ * use. Converging the params below onto it is a worthwhile sweep, and a wider
+ * one than any single tool should make.
+ */
+function NumericToolOption({
+  label,
+  ariaLabel,
+  min,
+  max,
+  step,
+  value,
+  disabled = false,
+  onChange,
+}: {
+  label: string;
+  ariaLabel: string;
+  min?: number;
+  max?: number;
+  step: number;
+  value: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}) {
+  // Edit against a local string draft so the field can be cleared or hold a partial
+  // value while typing; only parse/clamp/commit on blur or Enter. A controlled
+  // number input that committed every keystroke snapped an emptied field back to its
+  // old value (and committed intermediate digits, e.g. backspacing "16" → "1").
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(() => String(value));
+  // Re-sync the draft when the committed value changes from outside — but never
+  // while the user is mid-edit in this field.
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) setDraft(String(value));
+  }, [value]);
+
+  const commit = () => {
+    const parsed = Number.parseFloat(draft);
+    if (Number.isFinite(parsed)) {
+      const clamped = clampToolNumber(parsed, min, max);
+      onChange(clamped);
+      setDraft(String(clamped));
+    } else {
+      // Empty or unparseable: revert to the last committed value.
+      setDraft(String(value));
+    }
+  };
+
+  return (
+    <label className="cp-context-panel__field">
+      <span>{label}</span>
+      <input
+        ref={inputRef}
+        aria-label={ariaLabel}
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={draft}
+        disabled={disabled}
+        onChange={(event) => setDraft(event.currentTarget.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.currentTarget.blur();
+          } else if (event.key === 'Escape') {
+            setDraft(String(value));
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </label>
+  );
+}
+
+function clampToolNumber(value: number, min: number | undefined, max: number | undefined): number {
+  const lowerBounded = min === undefined ? value : Math.max(min, value);
+  return max === undefined ? lowerBounded : Math.min(max, lowerBounded);
 }
 
 function TextToolOption({

@@ -5,8 +5,9 @@
  * AGENTS.md — presentation belongs beside its concern, and five controls is more
  * than a composition site should be holding.
  */
-import type { Dispatch, SetStateAction } from 'react';
+import { useId, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
+import { NumberField } from '../../components/ui/NumberField';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import {
   ORISTUDIO_CP_SQUARE_ANCHORS,
@@ -17,19 +18,17 @@ import {
   type OristudioCpToolOptions,
 } from '../../lib/oristudioCpToolSettings';
 import { convertSquareSize } from '../tools/squareTool';
-import { NumericToolOption } from './NumericToolOption';
+import { useCpGridWidth } from './useCpGridWidth';
 
 export function SquareToolOptions({
   options,
   setOptions,
-  gridWidth,
 }: {
   options: OristudioCpToolOptions;
   setOptions: Dispatch<SetStateAction<OristudioCpToolOptions>>;
-  /** Active grid width in model units, for the cells ↔ paper conversion. */
-  gridWidth: number | undefined;
 }) {
   const { t } = useTranslation(['tools']);
+  const gridWidth = useCpGridWidth();
 
   const setSizeUnit = (squareSizeUnit: OristudioCpSquareSizeUnit) =>
     setOptions((current) =>
@@ -53,15 +52,14 @@ export function SquareToolOptions({
     <div className="cp-context-panel__group">
       <div className="cp-context-panel__group-title">{t('tools:cpContext.square', 'Square')}</div>
 
-      <NumericToolOption
+      <NumberToolOption
         label={t('tools:cpContext.squareSize', 'Size')}
-        ariaLabel={t('tools:cpContext.squareSizeAria', 'Square size')}
         min={0}
         max={1000}
         // Whole cells are the common case; a half-cell square is still typable.
         step={options.squareSizeUnit === 'grid' ? 1 : 0.05}
         value={options.squareSize}
-        onChange={(squareSize) => setOptions((current) => ({ ...current, squareSize }))}
+        onCommit={(squareSize) => setOptions((current) => ({ ...current, squareSize }))}
       />
 
       <SegmentedToolOption
@@ -140,8 +138,51 @@ export function SquareToolOptions({
 }
 
 /**
+ * A number field on the panel's label-left / control-right row.
+ *
+ * `NumberField` is the app's shared numeric control — the one the View pane's
+ * Line width and Point size use — so it brings − / + steppers, Arrow Up/Down
+ * stepping, and an Escape that reverts the draft. The CP tool panel's own
+ * `NumericToolOption` predates it and does less; the rest of the panel's numeric
+ * params could move over too, but that is a wider sweep than one tool.
+ */
+function NumberToolOption({
+  label,
+  min,
+  max,
+  step,
+  value,
+  onCommit,
+}: {
+  label: string;
+  min?: number;
+  max?: number;
+  step: number;
+  value: number;
+  onCommit: (value: number) => void;
+}) {
+  // Two elements rather than a wrapping <label>, so a click on a step button
+  // lands on the button alone — the same reason `NumberRow` splits them.
+  const inputId = useId();
+  return (
+    <div className="cp-context-panel__field">
+      <label htmlFor={inputId}>{label}</label>
+      <NumberField
+        id={inputId}
+        label={label}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onCommit={onCommit}
+      />
+    </div>
+  );
+}
+
+/**
  * A segmented control on the same label-left / control-right row as
- * `NumericToolOption`.
+ * {@link NumberToolOption}.
  *
  * A bare full-width toggle reads as a mode switch for the whole group rather
  * than as one param among several — with three of them stacked, nothing said
