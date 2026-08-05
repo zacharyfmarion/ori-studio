@@ -154,7 +154,17 @@ pub struct FoldDocument {
     pub frame_inherit: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub frame_classes: Vec<String>,
+    // Optional in the FOLD spec, and optional here for a concrete reason:
+    // `file_frames` is a `Vec<FoldDocument>`, so anything mandatory on the root
+    // is mandatory on every embedded frame too. Requiring these rejected the
+    // canonical multi-frame layout (metadata at the root, geometry in
+    // `file_frames[0]`) and any file whose folded-form frame inherits its edges
+    // instead of restating them — with a serde missing-field message rather
+    // than anything a user could act on. Whether a *document* has usable
+    // geometry is a semantic question, answered in `oristudio-cp`'s importer.
+    #[serde(default)]
     pub vertices_coords: Vec<Vec<f64>>,
+    #[serde(default)]
     pub edges_vertices: Vec<[usize; 2]>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub edges_assignment: Vec<Assignment>,

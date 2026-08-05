@@ -43,8 +43,55 @@ pub fn import_fold_file_document_json(input: &str) -> Result<CreasePatternDocume
     import_fold_file_document(&fold)
 }
 
+/// Whether a frame carries geometry this importer can build a document from.
+///
+/// Both arrays, because either alone describes nothing: vertices with no edges
+/// is a point cloud, edges with no vertices cannot be resolved.
+fn has_usable_geometry(frame: &FoldDocument) -> bool {
+    !frame.vertices_coords.is_empty() && !frame.edges_vertices.is_empty()
+}
+
+/// How strongly a frame claims to be *the* crease pattern.
+///
+/// Mirrors the web importer's `frameScore` so a file opens to the same frame in
+/// the kernel and in the read-only view: an explicit `creasePattern` class wins,
+/// then having faces, then the earliest frame.
+fn frame_score(frame: &FoldDocument) -> i32 {
+    let is_crease_frame = frame
+        .frame_classes
+        .iter()
+        .any(|class| class == "creasePattern");
+    let has_faces = !frame.faces_vertices.is_empty();
+    i32::from(is_crease_frame) * 100 + i32::from(has_faces) * 10
+}
+
+/// The frame to import from: the root when it carries geometry, otherwise the
+/// best-scoring embedded frame.
+///
+/// The root is preferred outright rather than scored against the frames. A file
+/// with root geometry *and* a folded-form frame is describing one crease
+/// pattern plus a derived view of it, and the root is the pattern.
+fn geometry_frame(fold: &FoldDocument) -> Option<&FoldDocument> {
+    if has_usable_geometry(fold) {
+        return Some(fold);
+    }
+    fold.file_frames
+        .iter()
+        .filter(|frame| has_usable_geometry(frame))
+        .enumerate()
+        .max_by_key(|(index, frame)| (frame_score(frame), -(*index as i32)))
+        .map(|(_, frame)| frame)
+}
+
 pub fn import_fold_file_document(fold: &FoldDocument) -> Result<CreasePatternDocument> {
-    let model = import_fold_document(fold)?;
+    // Geometry may live on the root or on an embedded frame; `vertices_coords`
+    // and `edges_vertices` are optional per the spec, so "no geometry anywhere"
+    // is a semantic failure to report here rather than a deserialization one.
+    let source = geometry_frame(fold).ok_or_else(|| IoError::InvalidField {
+        field: "file_frames",
+        message: "FOLD document has no frame with both vertices and edges".to_string(),
+    })?;
+    let model = import_fold_document(source)?;
     let mut document = CreasePatternDocument {
         title: fold.frame_title.clone().or_else(|| fold.file_title.clone()),
         crease_pattern: model,
