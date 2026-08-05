@@ -27,6 +27,7 @@ layout, or the file format.
 | Close confirmation | Only when the design has been touched. One-way, no undo |
 | Default tab name | `Untitled Design` |
 | Duplicate a design | Yes — tab context menu |
+| File ▸ New | Replaces **all** tabs — tabs belong to one project. Renamed "New Project" to say so. One workspace-level `dirty`, one prompt covering every tab |
 
 ## Two findings that de-risk the hard parts
 
@@ -878,7 +879,35 @@ disagree with the tab it describes, which is the same reason
   `designMethod` sites. 22 new tests. Full suite 2460/2460, typecheck, lint,
   i18n, `build:web` clean. See "Phase 2a notes".
 
+- [x] File ▸ New renamed to "New Project" + discard-guard coverage
+
+      `dirty` is already workspace-level and `createNewProject` already guards on
+      it, which is the right shape under "tabs are one project". Only the naming
+      and the test coverage were missing.
+
 - [ ] Phase 2b — TreeMaker per-design state into the tab (~80 sites)
+
+      **Starting point for the next session.** Fields to move, as the
+      `kind: 'treemaker'` arm: `project`, `selection`, `toolMode`,
+      `symmetryAuthoringPairs`, `historyPast`/`historyFuture`/`historyBusy`,
+      `lastOptimization`, `designViewportFitRequestId`.
+
+      Two accessors, deliberately different in shape:
+
+      - **Reads are total** — `selectProject(state)` returns the active design's
+        tree, or an empty project when the active design is not a TreeMaker one.
+        That is exactly today's meaning (a BP design already carries an empty
+        `project`), so the ~80 read sites migrate mechanically and behaviour does
+        not move. The union lives in *storage*; readers do not need narrowing.
+      - **Writes are two operations** — `installTreemakerDesign(state, …)` sets
+        the kind and the arm together (load/create paths), and
+        `patchTreemaker(state, …)` updates an existing arm (edit paths, a dev
+        warning + no-op if the active tab is not TreeMaker). Splitting them is
+        what makes "kind without content" unrepresentable.
+
+      Watch for: `saveNativeWorkspaceProject` decides `hasTree` from
+      `project.nodes.length > 0`; that becomes a kind check, which is more
+      correct but is a behaviour change worth its own test.
 - [ ] Phase 2c — Box-Pleat per-design state into the tab (~41 sites)
 - [ ] Phase 2d — addressed writes: capture the document id before the first `await`
 - [ ] Phase 3 — Radix tab strip (add / close / rename / reorder / duplicate), ≥1 tab invariant
