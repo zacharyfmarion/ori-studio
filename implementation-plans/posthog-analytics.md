@@ -287,7 +287,7 @@ Phase 1 — Core runtime
 - [x] `tsc --noEmit` / `eslint` / `vitest` on the analytics surface green
 
 Phase 2 — Bootstrap + settings + consent
-- [x] `app opened` fired once on mount (module-guarded vs StrictMode), runtime-gated
+- [x] `app opened` via a tested `useAppOpenedEvent` hook (module-guarded vs StrictMode), runtime-gated
 - [x] shared `ErrorBoundary.componentDidCatch` → `trackAnalyticsError` (covers app/router/panels/overlays via `surface`)
 - [x] Settings → Workspace → Privacy toggle + `analytics preference changed`
 - [x] i18n strings extracted + translated (8 locales) + stamped, `i18n:check` green
@@ -296,7 +296,7 @@ Phase 2 — Bootstrap + settings + consent
 Phase 3 — Both chokepoints + nav
 - [x] `handleMenuAction` wrapped → `command invoked` (recognized ids only; suffix stripped)
 - [x] store `executeOristudioCpCommand` wrapped → `cp tool used` `{ operation, group }` (variant is already in the resolved operation id, so no separate mode prop)
-- [x] `workspace viewed` off workspace↔URL sync incl. Design variant (initial + on change; `/s` is captured by `share link opened` in Phase 4, not as a workspace)
+- [x] `workspace viewed` via a tested `useWorkspaceViewedEvent` hook in `WorkspaceRoute` (the view component — idiomatic home; keyed on workspace+variant), incl. Design variant (`/s` is captured by `share link opened`, not as a workspace)
 - [x] cardinality guard: `command_id` strips `:` suffix; `cp` operation ids are a fixed enum
 
 Phase 4 — Domain events

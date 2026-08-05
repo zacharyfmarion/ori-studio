@@ -31,6 +31,9 @@ export {
 } from './runtime';
 export type { AnalyticsApi, AnalyticsErrorContext } from './runtime';
 
+export { useAppOpenedEvent } from './useAppOpenedEvent';
+export { useWorkspaceViewedEvent } from './useWorkspaceViewedEvent';
+
 export {
   getBootstrapSharedProperties,
   initializePostHog,
