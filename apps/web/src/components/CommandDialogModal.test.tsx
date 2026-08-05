@@ -410,6 +410,44 @@ describe('CommandDialogModal', () => {
     });
   });
 
+  it('offers only front and back for the folded side', async () => {
+    const rendered = renderModalHost();
+    const fold = exportFold();
+    const segments = segmentFoldDocument(fold);
+    const foldSegment = vi.fn(async () => ({
+      snapshot: foldedSnapshot(),
+      discoveredCases: 1,
+      transform: IDENTITY_CP_MODEL_TO_FOLD,
+    }));
+
+    act(() => {
+      void requestCreasePatternExportOptions({
+        title: 'Export SVG',
+        format: 'svg',
+        fold,
+        segments,
+        initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+        foldSegment,
+        confirmLabel: 'Export SVG',
+      });
+    });
+
+    await act(async () => {
+      (rendered.querySelector('[aria-label="Include folded figure"]') as HTMLButtonElement).click();
+    });
+    act(() => {
+      openSection(rendered, 'Folded figure');
+    });
+
+    const sides = rendered.querySelector('[role="group"][aria-label="Side"]');
+    expect(sides).not.toBeNull();
+    // The overlay states the kernel also has — Both and Transparent — are not
+    // views the product offers, here or on the canvas.
+    expect(
+      Array.from(sides?.querySelectorAll('button') ?? []).map((button) => button.title)
+    ).toEqual(['Front', 'Back']);
+  });
+
   it('disables the folded figure without an editable crease pattern', () => {
     const rendered = renderModalHost();
     const fold = exportFold();

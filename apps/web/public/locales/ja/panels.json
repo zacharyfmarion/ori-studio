@@ -233,12 +233,8 @@
     "foldedState": {
       "back": "裏",
       "backShort": "B",
-      "both": "両面",
-      "bothTitle": "両面",
       "front": "表",
-      "frontShort": "F",
-      "transparent": "透明状態",
-      "transparentShort": "T"
+      "frontShort": "F"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
