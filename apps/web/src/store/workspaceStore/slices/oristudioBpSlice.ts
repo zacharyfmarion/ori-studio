@@ -52,6 +52,7 @@ import {
 } from '../../../lib/bpOptimizerSymmetry';
 import {
   buildMirroredBpFlapMoves,
+  constrainBpFlapGroupToAxisSides,
   constrainBpFlapMoveToAxis,
 } from '../../../lib/bpPackingSymmetry';
 import { seedBpFlapAnchor, seedBpPartnerFlapAnchor } from '../../../lib/bpFlapSeeding';
@@ -1031,9 +1032,23 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           // translation from, so it is also the one an on-axis constraint has to
           // act on: sliding it along the mirror slides the whole group with it.
           const reference = before.flaps.find((flap) => flap.id === ids[0]);
-          const target = reference
+          const onAxis = reference
             ? constrainBpFlapMoveToAxis(reference, loc, before.sheet, symmetry.fold) ?? loc
             : loc;
+          // A paired flap stays in its own half: crossing the mirror would put it
+          // on top of its own reflection. Only the component across the axis is
+          // clamped, so the flap slides along the mirror instead of stopping.
+          const moving = ids.flatMap((id) => {
+            const flap = before.flaps.find((candidate) => candidate.id === id);
+            return flap ? [flap] : [];
+          });
+          const target = constrainBpFlapGroupToAxisSides({
+            moving,
+            target: onAxis,
+            sheet: before.sheet,
+            fold: symmetry.fold,
+            pairedIds: new Set(ids.filter((id) => bpMirrorPartnerId(id) !== null)),
+          });
           const moved = await moveRuntimeOristudioBpLayoutFlaps(ids, target, {
             activeSurface: 'packing',
             dragging,

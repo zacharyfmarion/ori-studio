@@ -188,6 +188,125 @@ export function isBpFlapOnAxis(
   );
 }
 
+/**
+ * The axis normal, unit length, pointing at its positive side.
+ *
+ * Directions match `SymmetryAxis::grid_normal` in
+ * `crates/oristudio-bp/src/optimizer.rs`; normalized here because this one is
+ * used to measure distances rather than to compare a sign.
+ */
+function axisUnitNormal(axis: OptimizerSymmetryAxis): Point {
+  const diagonal = Math.SQRT1_2;
+  switch (axis) {
+    case 'verticalHalf':
+      return { x: 1, y: 0 };
+    case 'horizontalHalf':
+      return { x: 0, y: 1 };
+    case 'mainDiagonal':
+      return { x: diagonal, y: -diagonal };
+    case 'antiDiagonal':
+      return { x: diagonal, y: diagonal };
+  }
+}
+
+/** How far the box's nearest and furthest corners sit from the axis, signed. */
+export function bpFlapAxisSpan(
+  anchor: Point,
+  box: FlapBox,
+  center: Point,
+  axis: OptimizerSymmetryAxis
+): { min: number; max: number } {
+  const normal = axisUnitNormal(axis);
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const corner of [
+    anchor,
+    { x: anchor.x + box.width, y: anchor.y },
+    { x: anchor.x, y: anchor.y + box.height },
+    { x: anchor.x + box.width, y: anchor.y + box.height },
+  ]) {
+    const distance = (corner.x - center.x) * normal.x + (corner.y - center.y) * normal.y;
+    min = Math.min(min, distance);
+    max = Math.max(max, distance);
+  }
+  return { min, max };
+}
+
+/**
+ * Which half of the paper the whole box sits in, or 0 when it straddles the
+ * mirror.
+ *
+ * A box that merely touches the axis counts as being on its own side, so a flap
+ * pushed right up against the mirror by an earlier drag step does not read as
+ * straddling on the next one and get released.
+ */
+export function bpFlapAxisSide(
+  anchor: Point,
+  box: FlapBox,
+  center: Point,
+  axis: OptimizerSymmetryAxis,
+  tolerance = BP_PACKING_SYMMETRY_TOLERANCE
+): -1 | 0 | 1 {
+  const { min, max } = bpFlapAxisSpan(anchor, box, center, axis);
+  if (min >= -tolerance) return 1;
+  if (max <= tolerance) return -1;
+  return 0;
+}
+
+export interface ConstrainBpFlapGroupInput {
+  /** The flaps the gesture moves. The first is the one `target` refers to. */
+  moving: readonly OristudioBpFlap[];
+  /** Where the gesture wants to put the first flap's anchor. */
+  target: Point;
+  sheet: OristudioBpSheet;
+  fold: SymmetryFold;
+  /** Flaps that have a mirror partner, and so may not cross to its half. */
+  pairedIds: ReadonlySet<number>;
+}
+
+/**
+ * Hold a paired flap in its own half of the paper.
+ *
+ * A flap and its partner occupy reflected positions, so a box that crosses the
+ * mirror overlaps its own reflection — not a tight packing but an impossible
+ * one. The gesture is not refused: only the component of the move along the axis
+ * normal is clamped, so the flap slides up against the mirror and keeps moving
+ * freely along it.
+ *
+ * A group moves by one shared translation, so the clamp is the intersection of
+ * every paired member's limit. Members that straddle the axis already (loaded
+ * that way, or left there by a resize) are left out rather than snapped, and
+ * unpaired members never constrain anything.
+ */
+export function constrainBpFlapGroupToAxisSides(input: ConstrainBpFlapGroupInput): Point {
+  const { moving, target, sheet, fold, pairedIds } = input;
+  const reference = moving[0];
+  if (!reference) return target;
+  const axis = bpPackingSymmetryAxis(sheet, fold);
+  if (!bpPackingSheetSupportsAxis(sheet, axis)) return target;
+  const center = bpPackingSheetCenter(sheet);
+  const normal = axisUnitNormal(axis);
+  const vector = { x: target.x - reference.anchor.x, y: target.y - reference.anchor.y };
+  const along = vector.x * normal.x + vector.y * normal.y;
+
+  let lower = Number.NEGATIVE_INFINITY;
+  let upper = Number.POSITIVE_INFINITY;
+  for (const flap of moving) {
+    if (!pairedIds.has(flap.id)) continue;
+    const side = bpFlapAxisSide(flap.anchor, flap, center, axis);
+    if (side === 0) continue;
+    const { min, max } = bpFlapAxisSpan(flap.anchor, flap, center, axis);
+    if (side > 0) lower = Math.max(lower, -min);
+    else upper = Math.min(upper, -max);
+  }
+  // Every constrained member is currently valid, so 0 always satisfies both
+  // bounds and a group spanning both halves simply cannot move across.
+  const clamped = Math.min(Math.max(along, lower), upper);
+  if (clamped === along) return target;
+  const correction = clamped - along;
+  return { x: target.x + correction * normal.x, y: target.y + correction * normal.y };
+}
+
 export interface BuildMirroredBpFlapMovesInput {
   tree: OristudioBpTreeView;
   pairs: BpTreeSymmetryPair[];

@@ -8,6 +8,8 @@ import type {
 import type { OptimizerSymmetryAxis } from './bpOptimizerSymmetry';
 import type { SymmetryAxis } from './symmetryGeometry';
 import {
+  bpFlapAxisSpan,
+  constrainBpFlapGroupToAxisSides,
   bpPackingSheetCenter,
   bpPackingSheetSupportsAxis,
   bpPackingSymmetryAxis,
@@ -304,5 +306,125 @@ describe('constrainBpFlapMoveToAxis', () => {
     expect(
       constrainBpFlapMoveToAxis(centred, { x: 2, y: 11 }, sheet('rectangular', 16, 10), 'diagonal')
     ).toBeNull();
+  });
+});
+
+describe('constrainBpFlapGroupToAxisSides', () => {
+  // The mirror of a 16-wide sheet is x = 8.
+  const paired = (ids: number[]) => new Set(ids);
+
+  it('stops a paired flap before any of it crosses the mirror', () => {
+    // Flap 1 sits at x = 10 and is 3 wide, so its left edge may reach x = 8 and
+    // no further. Dragging it to 6 would put [6, 9] across the axis, and its
+    // partner at [7, 10] — the flap on top of its own reflection.
+    const flap1 = flap(1, 10, 4, 3, 2);
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap1],
+        target: { x: 6, y: 5 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([1]),
+      })
+    ).toEqual({ x: 8, y: 5 });
+  });
+
+  it('lets it slide along the mirror once it is up against it', () => {
+    // Only the component across the axis is clamped, so the drag is not refused:
+    // the y it asked for comes through untouched.
+    const flap1 = flap(1, 8, 4, 3, 2);
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap1],
+        target: { x: 2, y: 13 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([1]),
+      })
+    ).toEqual({ x: 8, y: 13 });
+  });
+
+  it('holds a left-half flap on its own side too', () => {
+    const flap1 = flap(1, 3, 4, 3, 2);
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap1],
+        target: { x: 9, y: 4 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([1]),
+      })
+    ).toEqual({ x: 5, y: 4 });
+  });
+
+  it('leaves an unpaired flap free to cross', () => {
+    const flap1 = flap(1, 10, 4, 3, 2);
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap1],
+        target: { x: 2, y: 4 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([]),
+      })
+    ).toEqual({ x: 2, y: 4 });
+  });
+
+  it('takes the tightest limit across a group', () => {
+    // Both are paired and in the right half; flap 2 is nearer the mirror, so it
+    // is the one that decides how far the shared translation may go.
+    const near = flap(2, 9, 8, 1, 1);
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap(1, 12, 4, 2, 2), near],
+        target: { x: 8, y: 4 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([1, 2]),
+      })
+      // Flap 2 may give up 1 cell, so the reference gives up 1 too: 12 -> 11.
+    ).toEqual({ x: 11, y: 4 });
+  });
+
+  it('will not move a group that spans both halves across the mirror at all', () => {
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap(1, 8, 4, 2, 2), flap(2, 6, 4, 2, 2)],
+        target: { x: 11, y: 9 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([1, 2]),
+      })
+      // The y comes through; the x cannot, because flap 2's right edge is already
+      // on the mirror.
+    ).toEqual({ x: 8, y: 9 });
+  });
+
+  it('clamps against a diagonal mirror on the diagonal, not on x', () => {
+    // Main diagonal through the centre: the box has to stay below y = x.
+    const constrained = constrainBpFlapGroupToAxisSides({
+      moving: [flap(1, 12, 2, 2, 2)],
+      target: { x: 4, y: 10 },
+      sheet: sheet(),
+      fold: 'diagonal',
+      pairedIds: paired([1]),
+    });
+    const span = bpFlapAxisSpan(constrained, { width: 2, height: 2 }, CENTER, 'mainDiagonal');
+    expect(span.min).toBeCloseTo(0, 9);
+  });
+
+  it('leaves a flap that already straddles the mirror alone', () => {
+    // Nothing to preserve — snapping it to one side would be a second, unasked
+    // edit on top of the drag.
+    const straddling = flap(1, 7, 4, 3, 2);
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [straddling],
+        target: { x: 4, y: 4 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([1]),
+      })
+    ).toEqual({ x: 4, y: 4 });
   });
 });
