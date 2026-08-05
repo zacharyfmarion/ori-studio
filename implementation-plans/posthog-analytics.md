@@ -138,11 +138,22 @@ the client bundle) and the ingestion host (`https://us.i.posthog.com`, US region
 Env wiring is **at the GitHub Actions build step**, not Cloudflare Pages
 settings: the web app is built by `npm run build:web` inside the
 `deploy-web.yml` runner and `wrangler pages deploy` only uploads the static
-`apps/web/dist`, so `import.meta.env.VITE_*` is inlined in CI. Add
-`VITE_PUBLIC_POSTHOG_KEY` / `VITE_PUBLIC_POSTHOG_HOST` as repo Actions secrets
-(or variables — they're publishable) and expose them as `env:` on the "Build web
-app" step of `deploy-web.yml` only. **Leave `deploy-pr-preview.yml` unset** so PR
-previews stay analytics-free (absence = disabled = the dev/prod firewall).
+`apps/web/dist`, so `import.meta.env.VITE_*` is inlined in CI. Both are exposed
+as `env:` on the "Build web app" step of `deploy-web.yml` only:
+`VITE_PUBLIC_POSTHOG_KEY` from a repo Actions secret of exactly that name, and
+`VITE_PUBLIC_POSTHOG_HOST` as a literal — it is a public URL that ships in the
+bundle regardless, and holding it in a secret only adds a way to get the name
+wrong. **Leave `deploy-pr-preview.yml` unset** so PR previews stay
+analytics-free (absence = disabled = the dev/prod firewall).
+
+The firewall's blind spot is that a *production* build with an empty var looks
+identical to a correct one — it deploys green and captures nothing. The first
+prod deploy shipped exactly that way, because the secret was created as
+`VITE_POSTHOG_HOST` while the workflow read `VITE_PUBLIC_POSTHOG_HOST`; GitHub
+resolves a missing secret to the empty string, so Vite inlined
+`VITE_PUBLIC_POSTHOG_HOST:""` and Rollup dropped the whole `client.init(...)`
+call as unreachable. `scripts/verify-analytics-build.mjs` now greps the built
+bundle for both values and fails the deploy if either is absent or empty.
 Desktop (Tauri release build) needs the same two vars in its build workflow when
 we want desktop analytics. **Do not** commit keys.
 
@@ -269,8 +280,10 @@ geometry, names, or contents.
 
 Phase 0 — Provisioning
 - [ ] New PostHog project created for Ori Studio (not openscad-studio's 342123); key + host obtained *(manual — dashboard; MCP can't create projects)*
-- [ ] `VITE_PUBLIC_POSTHOG_KEY` / `_HOST` added as repo Actions secrets (or variables) *(manual — repo settings)*
-- [x] `deploy-web.yml` build step exposes them via `env:` (prod only; previews left unset)
+- [x] `VITE_PUBLIC_POSTHOG_KEY` added as a repo Actions secret *(manual — repo settings)*
+- [x] `deploy-web.yml` build step exposes both via `env:` (prod only; previews left unset) — host is a literal, not a secret
+- [x] `scripts/verify-analytics-build.mjs` fails the deploy if either value is missing from the built bundle
+- [ ] Stale `VITE_POSTHOG_HOST` secret deleted from repo settings *(manual — no longer read by any workflow)*
 
 Phase 1 — Core runtime
 - [x] `posthog-js` added to `apps/web/package.json` (singleton only)
