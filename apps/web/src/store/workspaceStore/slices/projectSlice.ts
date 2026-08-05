@@ -81,6 +81,7 @@ import {
 } from '../../../cp-workspace/annotations/textAnnotation';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
+import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
 import { discardCpDocumentState } from '../cpDocumentState';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
@@ -1042,6 +1043,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const importedDocument = originalSource
       ? { ...result.document, source: originalSource }
       : result.document;
+    // A file is the one place window ids arrive from outside this session, so
+    // it is the one place the allocator has to be told about them. Without it
+    // the next window created is handed an id a restored one already holds, and
+    // the two share a fold. See `inlineSimulationIds`.
+    noteInlineSimulationIds(nativeDocument.creasePattern.inlineSimulations);
     set({
       // Overridden field-by-field below; spread for the fold side table,
       // which hydration only refills for the incoming windows.
@@ -1120,6 +1126,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       nativeSource
     );
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
+    // The other install site's reason, verbatim: restored ids have to reach the
+    // allocator before the next window is created.
+    noteInlineSimulationIds(nativeDocument.creasePattern.inlineSimulations);
     set({
       // Overridden field-by-field below; spread for the fold side table,
       // which hydration only refills for the incoming windows.
