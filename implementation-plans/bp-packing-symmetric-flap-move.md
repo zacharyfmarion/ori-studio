@@ -357,52 +357,52 @@ exported.
 
 ### Part 1 — surface the mirror
 
-- [ ] `hooks/useBpPackingSymmetry.ts`: enabled/fold, the axis line in SVG coords,
+- [x] `hooks/useBpPackingSymmetry.ts`: enabled/fold, the axis line in SVG coords,
       paired-flap ids, and the `resolveOptimizerSymmetry` status — store bindings
       live here, not in the panel.
-- [ ] Symmetry popover in the packing toolbar beside the Ruler popover: mirror
+- [x] Symmetry popover in the packing toolbar beside the Ruler popover: mirror
       draw toggle, Book / Diagonal segmented control, status line (U2).
-- [ ] Fold writes through the existing `setOristudioBpSymmetry` — assert in a test
+- [x] Fold writes through the existing `setOristudioBpSymmetry` — assert in a test
       that the modal and the pane read back the same value with no extra state
       (U1).
-- [ ] Axis overlay drawn whenever `enabled`, independent of `pairs` (U3), carrying
+- [x] Axis overlay drawn whenever `enabled`, independent of `pairs` (U3), carrying
       its fold name so a Book → Diagonal switch does not look like a bug.
-- [ ] Diagonal disabled with a reason when the layout sheet is not square (U4).
-- [ ] Unpair button and partner highlight in the packing pane (U5).
-- [ ] Modal: drop the "turn it on in the tree view" hint, separate the fold from
+- [x] Diagonal disabled with a reason when the layout sheet is not square (U4).
+- [x] Unpair button and partner highlight in the packing pane (U5).
+- [x] Modal: drop the "turn it on in the tree view" hint, separate the fold from
       `respectSymmetry` (U6).
-- [ ] No angle/position control anywhere — `angle` and `loc` stay derived.
+- [x] No angle/position control anywhere — `angle` and `loc` stay derived.
 
 ### Part 2 — mirror the move
 
-- [ ] `lib/bpPackingSymmetry.ts`: layout-space axis from `(sheet, fold)`, the four
+- [x] `lib/bpPackingSymmetry.ts`: layout-space axis from `(sheet, fold)`, the four
       mirror maps transcribed from `SymmetryAxis::mirror_grid`, on-axis
       test/projection, non-square-diagonal rejection.
-- [ ] `lib/bpPackingSymmetry.test.ts`: all four axes with a non-square flap;
+- [x] `lib/bpPackingSymmetry.test.ts`: all four axes with a non-square flap;
       anchor size term; round-trip (`mirror(mirror(p)) === p`); on-axis parameter;
       partial mirror; skip-when-partner-is-in-the-set; the D7 guard.
-- [ ] `buildMirroredBpFlapMoves(...)` — primary targets in, partner targets out
+- [x] `buildMirroredBpFlapMoves(...)` — primary targets in, partner targets out
       (D1, D4, D5).
-- [ ] Store: `moveOristudioBpLayoutFlapWithSymmetry` /
+- [x] Store: `moveOristudioBpLayoutFlapWithSymmetry` /
       `moveOristudioBpLayoutFlapsWithSymmetry`, one `runBpTreeMutation` each,
       distinct undo labels, delegating when symmetry is off (D2).
-- [ ] Store: clamp the mirrored target and refuse an asymmetric clamp (D6),
+- [x] Store: clamp the mirrored target and refuse an asymmetric clamp (D6),
       with the test that asserts it never fires on a centred axis.
-- [ ] `oristudioBpSymmetricFlapMove.test.ts`, on the
+- [x] `oristudioBpSymmetricFlapMove.test.ts`, on the
       `oristudioBpSymmetricDelete.test.ts` harness: two runtime calls with the
       right targets, one history entry, no-op with symmetry off, partial mirror,
       explicit pair beats geometric inference, tree sheet ≠ layout sheet.
-- [ ] Panel: route the drag (`useBpPackingDragRequests`) through the symmetric
+- [x] Panel: route the drag (`useBpPackingDragRequests`) through the symmetric
       actions.
-- [ ] Panel: route the arrow-key nudge through them too.
-- [ ] Hook + overlay: mirror axis line in the packing pane, and a visible mark on
+- [x] Panel: route the arrow-key nudge through them too.
+- [x] Hook + overlay: mirror axis line in the packing pane, and a visible mark on
       paired flaps, so the second flap does not move unexplained.
-- [ ] i18n for any new string (`t()` inline default → `npm run i18n:extract` →
+- [x] i18n for any new string (`t()` inline default → `npm run i18n:extract` →
       8 locales → `npm run i18n:stamp` → `npm run i18n:check`).
 - [ ] Decide whether mirror draw needs an adoption event, or whether the toggle is
       the right place for it — a per-sample drag event would violate the taxonomy
       in `docs/analytics.md`.
-- [ ] Validation: `npx tsc --noEmit` + `vitest` in `apps/web`, `npm run lint:web`.
+- [x] Validation: `npx tsc --noEmit` + `vitest` in `apps/web`, `npm run lint:web`.
       No Rust surface is touched, so no `cargo` run is required — say so in the PR.
 - [ ] Browser check (Zach), Part 1: the axis draws on a design with no explicit
       pairs; switching Book ↔ Diagonal rotates the packing line and leaves the

@@ -39,6 +39,9 @@ import type { Point } from '../lib/geometry';
 
 const EMPTY_IDS: ReadonlySet<number> = new Set();
 
+/** How far off the line the fold's name sits, in SVG units. */
+const AXIS_LABEL_OFFSET = 12;
+
 export interface BpPackingSymmetryLine {
   x1: number;
   y1: number;
@@ -62,6 +65,14 @@ export interface BpPackingSymmetryView {
   foldUnavailable: (fold: SymmetryFold) => string | null;
   /** The mirror line across the sheet, in SVG coords. Null when mirror draw is off. */
   axisLine: BpPackingSymmetryLine | null;
+  /**
+   * Where to write the fold's name, in SVG coords.
+   *
+   * Near the end of the line and offset off it, not at the midpoint: the middle
+   * of the mirror is exactly where a symmetric design puts its central flaps, so
+   * a label there is guaranteed to sit on top of them.
+   */
+  axisLabelAt: Point | null;
   /** The fold's name, drawn by the line so a fold switch reads as intended. */
   axisLabel: string;
   /** One line on whether the drawing is actually mirrorable. */
@@ -169,6 +180,19 @@ export function useBpPackingSymmetry(
     return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
   }, [symmetry.enabled, symmetry.fold, sheet, paperRect]);
 
+  const axisLabelAt = useMemo(() => {
+    if (!axisLine) return null;
+    const dx = axisLine.x2 - axisLine.x1;
+    const dy = axisLine.y2 - axisLine.y1;
+    const length = Math.hypot(dx, dy);
+    if (length < 1e-6) return null;
+    const inset = 0.08;
+    return {
+      x: axisLine.x2 - dx * inset - (dy / length) * AXIS_LABEL_OFFSET,
+      y: axisLine.y2 - dy * inset + (dx / length) * AXIS_LABEL_OFFSET,
+    };
+  }, [axisLine]);
+
   const status = useMemo(
     () => foldStatus(t, tree, symmetry, symmetry.fold),
     [t, tree, symmetry]
@@ -204,6 +228,7 @@ export function useBpPackingSymmetry(
     setFold,
     foldUnavailable,
     axisLine,
+    axisLabelAt,
     axisLabel: symmetryFoldLabel(t, symmetry.fold),
     status,
     partnerIds,

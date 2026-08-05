@@ -1483,13 +1483,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                   x2={symmetry.axisLine.x2}
                   y2={symmetry.axisLine.y2}
                 />
-                <text
-                  className="bp-packing-symmetry-label"
-                  x={(symmetry.axisLine.x1 + symmetry.axisLine.x2) / 2}
-                  y={(symmetry.axisLine.y1 + symmetry.axisLine.y2) / 2 - 6}
-                >
-                  {symmetry.axisLabel}
-                </text>
+                {symmetry.axisLabelAt && (
+                  <text
+                    className="bp-packing-symmetry-label"
+                    x={symmetry.axisLabelAt.x}
+                    y={symmetry.axisLabelAt.y}
+                  >
+                    {symmetry.axisLabel}
+                  </text>
+                )}
               </g>
             )}
             {isDiagonalSheet ? (
