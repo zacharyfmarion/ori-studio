@@ -74,6 +74,21 @@ import {
   projectStateFromSnapshot,
   type EngineClient,
 } from '../engineRuntime';
+import { fetchCpShareWithRetry } from '../../../cp-workspace/share/cpShareService';
+
+/**
+ * Opening a shared link over an existing document discards it, so ask first — the same
+ * question File > Open asks, for the same reason.
+ */
+async function confirmDiscardDirtyProject(dirty: boolean): Promise<boolean> {
+  if (!dirty) return true;
+  return requestConfirmation({
+    title: 'Discard unsaved changes?',
+    message: 'Opening this shared crease pattern will replace your current work. Continue and discard it?',
+    confirmLabel: 'Discard',
+    tone: 'danger',
+  });
+}
 import {
   createBlankOristudioCpDocument,
   openSharedCpPayload,
@@ -923,15 +938,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     // The Edit workspace's always-live canvas: seed a blank editable CP when the
     // workspace is entered with no crease pattern loaded, so it is never empty.
     ensureEditCreasePattern: async () => {
-      // NOTE for share links: a pending `/s` payload is only consumed below, so
-      // this early return strands it. That is unreachable today because a share
-      // link is always a *full page load* — the address bar, or a click from
-      // another app — which starts with no document. It stops being unreachable
-      // the moment anything navigates to `/s` client-side, and the symptom would
-      // be a link that silently does nothing. If that navigation is ever added,
-      // decide here whether opening a link replaces the open document or lands in
-      // a new tab, rather than letting it fall through.
-      if (get().oristudioCpDocument) return;
+      // A share opened while a document is already loaded replaces it, after the usual
+      // unsaved-changes confirmation. Returning early here instead — which is what this did
+      // while `/s` was assumed to be a full page load only — strands the pending share and
+      // the link silently does nothing, the worst of the three possible behaviours.
+      if (get().oristudioCpDocument) {
+        const pending = get().pendingSharedCp;
+        if (!pending) return;
+        if (!(await confirmDiscardDirtyProject(get().dirty))) {
+          set({ pendingSharedCp: null });
+          return;
+        }
+      }
       if (ensureEditInFlight) return ensureEditInFlight;
       ensureEditInFlight = (async () => {
         try {
@@ -940,12 +958,32 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // canvas, so it happens on this one path rather than a parallel one —
           // and it is consumed inside the in-flight guard, so a StrictMode
           // double-invoke cannot open it twice.
-          const pending = get().pendingSharedCpPayload;
+          const pending = get().pendingSharedCp;
           let document;
           if (pending) {
             try {
-              document = await openSharedCpPayload(pending);
-              track('share link opened', { succeeded: true });
+              // A link normally arrives with its crease pattern already inlined into
+              // the page, so this is pure decode. The `id` shape is the exception —
+              // a hand-typed URL, or one opened inside the ~60s KV takes to propagate
+              // — and is the only path that touches the network.
+              let payload: string;
+              if (pending.kind === 'payload') {
+                payload = pending.payload;
+              } else {
+                // KV needs up to a minute to propagate, and a link is usually opened the
+                // moment it is created — so retry a miss rather than reporting one.
+                set({ openingSharedCp: true });
+                try {
+                  payload = (await fetchCpShareWithRetry(pending.shareId)).payload;
+                } finally {
+                  set({ openingSharedCp: false });
+                }
+              }
+              document = await openSharedCpPayload(payload);
+              track('share link opened', {
+                succeeded: true,
+                source: pending.kind === 'payload' ? 'inline' : 'stored',
+              });
             } catch (error) {
               track('share link opened', { succeeded: false });
               // A bad link should leave a usable editor, not a broken one: tell
@@ -978,7 +1016,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // be opened must not be retried on the next mount: the user has
           // already been told, and silently re-running a failing decode would
           // make Edit unusable rather than merely empty.
-          set({ pendingSharedCpPayload: null });
+          set({ pendingSharedCp: null, openingSharedCp: false });
           ensureEditInFlight = null;
         }
       })();

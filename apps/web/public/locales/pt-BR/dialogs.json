@@ -97,6 +97,7 @@
     "foldedCasesFound_many": "{{count}} encontrados até agora",
     "foldedCasesFound_other": "{{count}} encontrados até agora",
     "foldedFigureNeedsCp": "Abra um padrão de vincos editável para dobrá-lo",
+    "foldedFigureNeedsFlat": "Este padrão tem vincos que não são dobras completas, portanto não possui forma dobrada plana",
     "foldedFigureNeedsOnePattern": "Selecione um único padrão para dobrar",
     "foldedFigureSection": "Figura dobrada",
     "foldedFrontColor": "Frente",
@@ -256,13 +257,31 @@
       "startup": "Inicialização"
     }
   },
+  "share": {
+    "author": "Autor",
+    "authorPlaceholder": "Opcional",
+    "backColor": "Cor do verso",
+    "create": "Criar link",
+    "creating": "Criando link…",
+    "foldedFigure": "Mostrar figura dobrada",
+    "foldedFigureNeedsFlat": "Este padrão tem vincos que não são dobras completas, portanto não possui forma dobrada plana",
+    "folding": "Dobrando…",
+    "frontColor": "Cor da frente",
+    "linkPreview": "Pré-visualização do link",
+    "notPublished": "Nada é publicado até você criar o link.",
+    "previewAlt": "Pré-visualização do padrão de vincos compartilhado",
+    "scope": "Quem tiver este link abre a própria cópia editável e não consegue alterar o seu original. Os links não podem ser excluídos nem alterados depois de criados e contêm apenas o padrão de vincos: sem imagens de referência, anotações ou simulações salvas.",
+    "scopeDraft": "Defina primeiro o título, o autor e a figura: um link é um instantâneo permanente, não pode ser editado nem excluído depois, então alterações significam criar outro. Contém apenas o padrão de vincos — sem imagens de referência, anotações ou simulações salvas.",
+    "side": "Lado",
+    "sideBack": "Verso",
+    "sideFront": "Frente",
+    "title": "Título",
+    "titlePlaceholder": "Padrão de vincos sem título"
+  },
   "shareLink": {
     "close": "Fechar compartilhamento",
     "copied": "Copiado",
-    "copy": "Copiar",
-    "longWarning": "Este link funciona na barra de endereços do navegador, mas alguns apps de bate-papo e clientes de e-mail cortam links tão longos. Enviar um arquivo exportado é mais confiável.",
-    "scope": "Contém apenas o padrão de vincos — não imagens de referência, anotações ou simulações salvas.",
-    "summary": "{{creases}} vincos · {{chars}} caracteres",
+    "copy": "Copiar link",
     "title": "Compartilhar padrão de vincos",
     "url": "Link de compartilhamento"
   },

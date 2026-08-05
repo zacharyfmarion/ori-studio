@@ -282,6 +282,7 @@
     "noCreasePattern": "展開図がありません",
     "noImportedCreasePattern": "インポートした展開図がありません",
     "none": "なし",
+    "openingSharedLink": "共有された展開図を開いています…",
     "optimizingScale": "スケールを最適化中",
     "preparing": "エディターを準備中…",
     "refoldFoldedModelAction": "折り上がり図を折り直す",

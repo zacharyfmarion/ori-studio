@@ -70,6 +70,15 @@ describe('CpFoldAngleLayer', () => {
     expect(badges.map((b) => b.textContent)).toEqual(['-90°', '90°']);
   });
 
+  it('rounds a solved angle to two decimals', () => {
+    // What a solve actually hands back. A dense pattern puts neighbouring badges
+    // within a few pixels of each other, so the digits past the second are width
+    // the label cannot spend — they push it into its neighbour and both stop
+    // being readable.
+    const badges = render([crease('Red1', 10, deg(70.5288)), crease('Blue2', 20, deg(53.4588))]);
+    expect(badges.map((b) => b.textContent)).toEqual(['-70.53°', '53.46°']);
+  });
+
   it('never prints a negative zero', () => {
     // An unfolded mountain is an unfolded crease. `-0°` would read as a distinct
     // state, and it is not one — the ramp renders it identically to `Blue2+0`.

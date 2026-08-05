@@ -12,6 +12,7 @@ import {
 } from './creasePatternClipboard';
 import { emptyOristudioCpSelection } from './creasePatternViewport';
 import {
+  buildSegmentFold,
   flatPlaneAxes,
   pointInSegment,
   pointOnSegmentBoundary,
@@ -58,6 +59,47 @@ export interface CreaseExportFoldResult {
   discoveredCases: number;
   /** Places the figure's kernel coordinates in the exported fold's space. */
   transform: CpModelToFoldTransform;
+}
+
+/**
+ * Tolerance for calling a fold angle flat. Angles reach FOLD via degrees that have been
+ * through the kernel's own unit conversion, so exact equality would misreport a 180°
+ * crease that arrived as 179.9999999.
+ */
+const FLAT_ANGLE_EPSILON = 1e-6;
+
+function isFlatAngle(angle: number): boolean {
+  return (
+    Math.abs(angle) < FLAT_ANGLE_EPSILON || Math.abs(Math.abs(angle) - 180) < FLAT_ANGLE_EPSILON
+  );
+}
+
+/**
+ * Whether every crease in `fold` is flat — 0° or ±180° — and the pattern can therefore
+ * be folded into a figure at all.
+ *
+ * The layer-order solver assumes a flat-folded model: every face lands in a plane and
+ * ordering them is the whole problem. A crease at any other angle puts faces in 3D, where
+ * the solver's adjacency reasoning does not hold, and it fails with an internal
+ * complaint — `WorkerOverlap(InitialHierarchy(SameParityAdjacentFaces { ... }))` — that
+ * describes its own data structures rather than the user's document.
+ *
+ * So this gates the folded-figure controls rather than letting them fail: an option that
+ * cannot work should not be offered, and "this pattern has partial folds" is a fact the
+ * UI can state before anyone clicks.
+ *
+ * `segment` narrows the check to one pattern, matching what the dialogs actually fold —
+ * a partial fold elsewhere in the document must not disable folding for a region that is
+ * perfectly flat.
+ */
+export function isFlatFoldableFold(fold: FoldDocument, segment?: CpSegment | null): boolean {
+  // Scoping goes through `buildSegmentFold` rather than a second face-to-edge derivation:
+  // it is the same sub-fold the folder is handed, so the check cannot disagree with what
+  // is actually folded.
+  const scoped = segment ? buildSegmentFold(fold, segment) : fold;
+  const angles = scoped.edges_foldAngle;
+  if (!angles) return true;
+  return angles.every((angle) => angle === null || angle === undefined || isFlatAngle(angle));
 }
 
 /**

@@ -1,3 +1,14 @@
+# Cross-origin isolation for the wasm engine (SharedArrayBuffer).
+#
+# These apply to static assets only — Cloudflare Pages does not apply `_headers` to Pages
+# Function responses, so `functions/s/[[shareId]].ts` sets both itself. Changing them here
+# means changing them there too.
+#
+# DO NOT add a `404.html` to this directory. Pages serves it instead of `index.html` for
+# unmatched paths, which is the SPA fallback every share link depends on: `/s/<id>` calls
+# `context.next()` expecting `index.html`, and would render the error page instead. The
+# post-deploy smoke test (scripts/share-smoke.mjs) asserts against exactly this.
+
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp

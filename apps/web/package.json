@@ -23,7 +23,10 @@
     "typecheck": "tsc --noEmit",
     "i18n:extract": "node scripts/i18n/extract.mjs",
     "i18n:stamp": "node scripts/i18n/stamp.mjs",
-    "i18n:check": "node scripts/i18n/check.mjs"
+    "i18n:check": "node scripts/i18n/check.mjs",
+    "typecheck:functions": "tsc --noEmit --project tsconfig.functions.json",
+    "share:build": "VITE_SHARE_API_URL=http://localhost:8788 vite build",
+    "share:dev": "npm run share:build && npx -y wrangler@4 pages dev dist --port 8788 --kv SHARE_KV --r2 SHARE_R2 --persist-to .wrangler/state/share-dev"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",

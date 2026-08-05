@@ -1,0 +1,19 @@
+{
+  "//": "Pages Functions run on workerd, not in a browser, and are typechecked separately from src/. Binding shapes are declared locally in functions/_lib/cpShare.ts rather than pulled from @cloudflare/workers-types — the surface used is small and stable, so this stays dependency-free.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["functions"]
+}

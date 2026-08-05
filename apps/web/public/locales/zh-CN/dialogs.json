@@ -87,6 +87,7 @@
     "foldedCase": "折叠情形",
     "foldedCasesFound_other": "目前找到 {{count}} 个",
     "foldedFigureNeedsCp": "请先打开可编辑的折痕图再折叠",
+    "foldedFigureNeedsFlat": "此折痕图包含非完全折叠的折痕，因此没有平折形态",
     "foldedFigureNeedsOnePattern": "请选择单个折痕图进行折叠",
     "foldedFigureSection": "折叠图",
     "foldedFrontColor": "正面",
@@ -246,13 +247,31 @@
       "startup": "启动"
     }
   },
+  "share": {
+    "author": "作者",
+    "authorPlaceholder": "可选",
+    "backColor": "背面颜色",
+    "create": "创建链接",
+    "creating": "正在创建链接…",
+    "foldedFigure": "显示折叠图形",
+    "foldedFigureNeedsFlat": "此折痕图包含非完全折叠的折痕，因此没有平折形态",
+    "folding": "正在折叠…",
+    "frontColor": "正面颜色",
+    "linkPreview": "链接预览",
+    "notPublished": "在你创建链接之前不会发布任何内容。",
+    "previewAlt": "分享折痕图的预览",
+    "scope": "任何拥有此链接的人都会打开一份可编辑的副本，无法修改你的原始文件。链接创建后无法删除或更改，且仅包含折痕图，不包含参考图片、注释或已保存的模拟。",
+    "scopeDraft": "请先设置标题、作者和折叠图形：链接是永久快照，创建后无法编辑或删除，若要修改就得再建一个。仅包含折痕图，不包含参考图片、注释或已保存的模拟。",
+    "side": "面",
+    "sideBack": "背面",
+    "sideFront": "正面",
+    "title": "标题",
+    "titlePlaceholder": "未命名折痕图"
+  },
   "shareLink": {
     "close": "关闭共享",
     "copied": "已复制",
-    "copy": "复制",
-    "longWarning": "此链接可在浏览器地址栏中使用，但某些聊天应用和邮件客户端会截断这么长的链接。发送导出的文件更为可靠。",
-    "scope": "仅包含折痕图，不包含参考图片、注释或已保存的模拟。",
-    "summary": "{{creases}} 条折痕 · {{chars}} 个字符",
+    "copy": "复制链接",
     "title": "共享折痕图",
     "url": "共享链接"
   },

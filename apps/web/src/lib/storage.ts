@@ -35,6 +35,7 @@ export const STORAGE_KEYS = {
   analyticsId: 'analytics-id',
   layout: 'layout',
   layoutVersion: 'layout-version',
+  shareAuthor: 'share-author',
 } as const;
 
 /** Build a namespaced key: `storageKey('layout', 'design') → 'oristudio:layout:design'`. */

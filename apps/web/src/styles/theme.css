@@ -6,6 +6,10 @@
   --space-5: 20px;
   --space-6: 24px;
 
+  /* The stack already used literally elsewhere in this file; naming it is what makes the
+     `var(--font-mono)` reads resolve instead of being dropped. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
@@ -1299,16 +1303,187 @@
   padding: var(--space-3);
 }
 
-/* Share-link dialog. Wider than the default modal because it shows a URL, and a
-   360px field turns even a short link into an unreadable sliver. */
+/* Share-link dialog: controls on the left, the link preview on its own lit surface to
+   the right. The preview is the thing being judged, so it holds still while the controls
+   beside it change, and it never has to compete with them for width.
+
+   Height-capped and scrolling like the export dialog, because the folded controls plus the
+   preview can exceed a laptop viewport. */
 .share-link-modal {
-  width: min(520px, calc(100vw - var(--space-6)));
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - var(--space-6)));
+  max-height: calc(100vh - var(--space-6));
 }
 
-.share-link-modal__row {
+.share-link-modal__columns {
+  display: grid;
+  grid-template-columns: 296px minmax(0, 1fr);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.share-link-modal__controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.share-link-modal__controls > * {
+  flex: 0 0 auto;
+}
+
+.share-link-modal__divider {
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.share-link-modal__preview-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  background: var(--bg-primary);
+}
+
+/* Section and field micro-labels. Uppercase and small so they read as captions on the
+   controls rather than as content competing with them. */
+.share-link-modal__field-label {
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.share-link-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.share-link-modal__field input {
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+}
+
+.share-link-modal__field input:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.share-link-modal__toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
+.share-link-modal__toggle-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* A plain stack, not a boxed table: three settings under a toggle are a short list,
+   and ruling and boxing them implies a structure they do not have. */
+.share-link-modal__folded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-1);
+}
+
+.share-link-modal__folded-row {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.share-link-modal__folded-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* Deliberately light regardless of theme: this is a mock of someone else's chat client,
+   not part of the app's own surface, and every one of them renders link cards on white. */
+.share-embed {
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-lg, 10px);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+}
+
+.share-embed__image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.share-embed__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.share-embed__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-2) var(--space-3) 11px;
+  background: #ededed;
+}
+
+.share-embed__title {
+  overflow: hidden;
+  color: #1c1c1e;
+  font-size: 0.83rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-embed__host {
+  color: #8e8e93;
+  font-size: 0.73rem;
+}
+
+/* The link is the one thing this dialog exists to produce, so its row gets real padding
+   and a divider rather than floating flush against the columns above it.
+   
+   Scoped through `.share-link-modal` rather than written as a bare `.share-link-modal__footer`,
+   which is what `.export-modal` next door already does: a later `.simple-modal__footer`
+   rule sets `padding: 0` at equal specificity, so a single-class selector here loses on
+   source order no matter what it declares. */
+.share-link-modal .simple-modal__footer {
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Takes the width the URL field will, so the button does not move when the link lands. */
+.share-link-modal__status {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
 }
 
 .share-link-modal__url {
@@ -1318,45 +1493,21 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--bg-primary);
-  color: var(--text-primary);
+  color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  /* The payload is one long unbroken token; without this it stretches the flex
-     row instead of scrolling inside it. */
   text-overflow: ellipsis;
 }
 
-.share-link-modal__meta {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
 .share-link-modal__note {
+  flex: 0 0 auto;
   margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
   color: var(--text-tertiary, var(--text-secondary));
-  font-size: 0.75rem;
-  line-height: 1.5;
+  font-size: 0.7rem;
+  line-height: 1.55;
 }
 
-.share-link-modal__warning {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  border: 1px solid var(--border-warning, var(--border-default));
-  border-radius: var(--radius-md);
-  background: var(--bg-warning-subtle, var(--bg-primary));
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  line-height: 1.5;
-}
-
-.share-link-modal__warning svg {
-  flex: none;
-  margin-top: 1px;
-  color: var(--text-warning, var(--text-secondary));
-}
 
 /* Box-Pleat layout optimizer dialog. Wider than the default modal because its
    option labels are full sentences ("Keep widths and heights of flaps"), which
@@ -7043,12 +7194,38 @@ button.bp-packing-alert:focus-visible {
   min-width: 0;
 }
 
+/* Monospace so digits line up between two swatches being compared. */
+.color-field__hex {
+  color: var(--text-tertiary, var(--text-secondary));
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
 .color-field__input {
-  padding: 2px;
+  padding: 0;
+  overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
   cursor: pointer;
+}
+
+/* `input[type=color]` draws its swatch inside browser-default padding, so the colour
+   floats in a frame instead of being the control. These reach past that and let it fill
+   the whole interior — what a swatch is supposed to look like. */
+.color-field__input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-field__input::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 1px);
+}
+
+.color-field__input::-moz-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 1px);
 }
 
 .color-field__input:focus-visible {
@@ -7085,14 +7262,32 @@ button.bp-packing-alert:focus-visible {
 
 /* Row: a square swatch on the right, so a colour reads as one control in a
    column of sliders and selects rather than as a full-width band. */
-.color-field--row .color-field__value {
+.color-field--row .color-field__value,
+.color-field--inline .color-field__value {
   justify-content: flex-end;
 }
 
-.color-field--row .color-field__input {
+.color-field--row .color-field__input,
+.color-field--inline .color-field__input {
   width: 22px;
   height: 22px;
   flex: 0 0 auto;
+}
+
+/* Inline: the same arrangement with none of the pane chrome. A dialog is not an
+   options pane, and boxing a few controls in ruled rows reads as a table when
+   nothing about them is tabular. */
+.color-field--inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.color-field--inline .control-row__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
 }
 
 /* Only rendered while the colour is overridden, so its absence is the signal

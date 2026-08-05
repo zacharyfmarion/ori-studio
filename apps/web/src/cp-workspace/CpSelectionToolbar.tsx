@@ -19,6 +19,8 @@ import {
 } from './cpSegmentationArtifacts';
 // Registers `__cpToolbarDebug()` in dev builds; no-op in production.
 import { toolbarRenderProbe } from './cpSelectionToolbarDebug';
+import { isShareEnabled } from './share/cpShareService';
+import { getRuntimeSurface } from '../platform/runtime';
 
 // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
 function exportFormatLabel(format: SegmentExportFormat, t: TFunction): string {
@@ -88,6 +90,10 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const exportSegment = useWorkspaceStore((s) => s.exportOristudioCpSegment);
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
   const shareSegment = useWorkspaceStore((s) => s.shareOristudioCpSegment);
+  // Web-only, and off in dev unless opted in: a dev build points at the production share
+  // API unless VITE_SHARE_API_URL says otherwise, and Tauri has no address bar for a
+  // link to land in.
+  const shareEnabled = isShareEnabled(getRuntimeSurface() === 'desktop');
   const clearSelection = useWorkspaceStore((s) => s.clearOristudioCpSelection);
   const simulateSelectionInline = useSimulateSelection();
 
@@ -196,14 +202,16 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
       >
         <Play size={14} />
       </IconButton>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={t('panels:creasePattern.selectionToolbar.share', 'Create shareable link')}
-        onClick={() => runAndDismiss(() => void shareSegment(segmentId))}
-      >
-        <Link2 size={14} />
-      </IconButton>
+      {shareEnabled && (
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          title={t('panels:creasePattern.selectionToolbar.share', 'Create shareable link')}
+          onClick={() => runAndDismiss(() => void shareSegment(segmentId))}
+        >
+          <Link2 size={14} />
+        </IconButton>
+      )}
     </FloatingToolbar>
   );
 }

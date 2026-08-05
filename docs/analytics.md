@@ -96,8 +96,9 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `cp detect started` | — | Image→CP detection begins |
 | `cp detect completed` | `succeeded` | Detection finishes |
 | `cp detect imported` | — | A detected CP is imported |
-| `crease pattern shared` | `crease_count_bucket` | A share link is created |
-| `share link opened` | `succeeded` | A shared link is opened |
+| `crease pattern shared` | `crease_count_bucket`, `had_title`, `had_author` | A share link is published |
+| `share link copied` | — | The share URL is copied |
+| `share link opened` | `succeeded`, `source` | A shared link is opened |
 | `theme changed` | `theme` | The theme is changed |
 | `locale changed` | `locale` | The language is changed |
 

@@ -91,4 +91,18 @@ describe('formatFoldAngle', () => {
     expect(formatFoldAngle(-90)).toBe('-90°');
     expect(formatFoldAngle(45.5)).toBe('45.5°');
   });
+
+  it('rounds to two decimal places', () => {
+    // The angles a solve actually produces, at the width the badge shows them.
+    expect(formatFoldAngle(-70.5288)).toBe('-70.53°');
+    expect(formatFoldAngle(53.4588)).toBe('53.46°');
+    expect(formatFoldAngle(-122.8816)).toBe('-122.88°');
+    expect(formatFoldAngle(114.2369)).toBe('114.24°');
+  });
+
+  it('keeps an unfolded mountain at 0°, not -0°', () => {
+    expect(formatFoldAngle(-0)).toBe('0°');
+    // Rounding a sub-precision mountain must not resurrect the negative zero.
+    expect(formatFoldAngle(-0.001)).toBe('0°');
+  });
 });

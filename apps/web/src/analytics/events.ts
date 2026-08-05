@@ -99,6 +99,7 @@ export const ANALYTICS_EVENTS = {
   foldWarningShown: 'fold warning shown',
   foldWarningAccepted: 'fold warning accepted',
   creasePatternShared: 'crease pattern shared',
+  shareLinkCopied: 'share link copied',
   shareLinkOpened: 'share link opened',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',

@@ -92,6 +92,7 @@
     "foldedCasesFound_one": "Bisher {{count}} gefunden",
     "foldedCasesFound_other": "Bisher {{count}} gefunden",
     "foldedFigureNeedsCp": "Öffne ein bearbeitbares Faltmuster, um es zu falten",
+    "foldedFigureNeedsFlat": "Dieses Faltmuster enthält Falten, die keine vollen Faltungen sind, und hat daher keine flach gefaltete Form",
     "foldedFigureNeedsOnePattern": "Wähle ein einzelnes Muster zum Falten",
     "foldedFigureSection": "Gefaltete Figur",
     "foldedFrontColor": "Vorderseite",
@@ -251,13 +252,31 @@
       "startup": "Start"
     }
   },
+  "share": {
+    "author": "Autor",
+    "authorPlaceholder": "Optional",
+    "backColor": "Rückseitenfarbe",
+    "create": "Link erstellen",
+    "creating": "Link wird erstellt…",
+    "foldedFigure": "Gefaltete Figur anzeigen",
+    "foldedFigureNeedsFlat": "Dieses Faltmuster enthält Falten, die keine vollen Faltungen sind, und hat daher keine flach gefaltete Form",
+    "folding": "Wird gefaltet…",
+    "frontColor": "Vorderseitenfarbe",
+    "linkPreview": "Linkvorschau",
+    "notPublished": "Bis du den Link erstellst, wird nichts veröffentlicht.",
+    "previewAlt": "Vorschau des geteilten Faltmusters",
+    "scope": "Wer diesen Link öffnet, erhält eine eigene bearbeitbare Kopie und kann dein Original nicht verändern. Links lassen sich nach dem Erstellen weder löschen noch ändern und enthalten nur das Faltmuster — keine Referenzbilder, Anmerkungen oder gespeicherten Simulationen.",
+    "scopeDraft": "Lege zuerst Titel, Autor und Figur fest: Ein Link ist eine dauerhafte Momentaufnahme, er lässt sich danach weder bearbeiten noch löschen — Änderungen bedeuten also einen neuen Link. Enthält nur das Faltmuster — keine Referenzbilder, Anmerkungen oder gespeicherten Simulationen.",
+    "side": "Seite",
+    "sideBack": "Rückseite",
+    "sideFront": "Vorderseite",
+    "title": "Titel",
+    "titlePlaceholder": "Unbenanntes Faltmuster"
+  },
   "shareLink": {
     "close": "Teilen schließen",
     "copied": "Kopiert",
-    "copy": "Kopieren",
-    "longWarning": "Dieser Link funktioniert in der Adressleiste eines Browsers, aber manche Chat-Apps und E-Mail-Programme kürzen so lange Links. Eine exportierte Datei zu senden ist zuverlässiger.",
-    "scope": "Enthält nur das Faltmuster – keine Referenzbilder, Anmerkungen oder gespeicherten Simulationen.",
-    "summary": "{{creases}} Falten · {{chars}} Zeichen",
+    "copy": "Link kopieren",
     "title": "Faltmuster teilen",
     "url": "Link zum Teilen"
   },

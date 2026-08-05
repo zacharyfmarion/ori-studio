@@ -26,7 +26,12 @@ import {
   isSegmentImageFormat,
   type SegmentExportFormat,
 } from '../../../lib/creaseSegmentExport';
-import { buildShareUrl, isShareLinkLong } from '../../../lib/shareLink';
+import {
+  createCpShare,
+  MIN_CARD_BYTES,
+  rememberAuthor,
+  uploadCpShareThumbnail,
+} from '../../../cp-workspace/share/cpShareService';
 import {
   renderFoldedFigurePng,
   serializeFoldedFigureSvg,
@@ -165,7 +170,12 @@ import {
   restoreOristudioCpDocumentInPlace,
   setOristudioCpDocumentSource,
 } from '../oristudioCpRuntime';
-import type { OristudioCpHistoryEntry, ProjectSlice, WorkspaceSliceCreator } from '../types';
+import type {
+  OristudioCpHistoryEntry,
+  PendingSharedCp,
+  ProjectSlice,
+  WorkspaceSliceCreator,
+} from '../types';
 import { retainFoldedFigureHandles } from '../../../cp-workspace/folded/foldedFigureHandles';
 import type { FoldDocument } from '../../../engine/types';
 import type {
@@ -1549,8 +1559,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     currentFilePath: null,
     currentFileName: defaultNativeFilename('Untitled'),
     projectMessage: null,
-    oristudioCpShareLink: null,
-    pendingSharedCpPayload: null,
+    oristudioCpShareDraft: null,
+    pendingSharedCp: null,
+    openingSharedCp: false,
     status: 'loading_engine',
     dirty: false,
     engineReady: false,
@@ -2452,23 +2463,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const subFold = buildSegmentSubFold(foldArtifacts, segmentId);
         if (!subFold) return false;
 
+        // Encode now rather than at publish time: the payload is what decides
+        // whether the pattern *can* be shared, and finding out after the user has
+        // composed a preview card would be the wrong moment to fail.
         const payload = await shareFoldFrameAsLink(JSON.stringify(subFold));
-        const url = buildShareUrl(payload);
-        // Deliberately not copied here: the clipboard is the user's, and taking
-        // it over as a side effect of opening a dialog would discard whatever
-        // they had. The modal offers Copy.
-        const creaseCount = subFold.edges_vertices?.length ?? 0;
         set({
-          oristudioCpShareLink: {
-            url,
-            creaseCount,
-            long: isShareLinkLong(url),
+          oristudioCpShareDraft: {
+            segmentId,
+            payload,
+            fold: foldArtifacts.fold,
+            segments: segmentFoldDocument(foldArtifacts.fold),
+            url: null,
           },
-        });
-        // The link (and thus the geometry it encodes) is never sent — only that a
-        // share was created and a bucketed crease count.
-        track('crease pattern shared', {
-          crease_count_bucket: bucketCount(creaseCount, COUNT_BUCKETS),
         });
         return true;
       } catch (error) {
@@ -2477,12 +2483,75 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }
     },
 
-    dismissOristudioCpShareLink: () => set({ oristudioCpShareLink: null }),
+    /**
+     * Publish the drafted share, then upload its preview card.
+     *
+     * The card is deliberately *after* the link and deliberately not awaited for
+     * success: a share link works without an image, so a failed render or upload
+     * must degrade to the generic card rather than to a failed share. The Worker
+     * serves a default when R2 has nothing, so there is no broken-image state.
+     */
+    publishOristudioCpShare: async ({ title, author, renderCard }) => {
+      const draft = get().oristudioCpShareDraft;
+      if (!draft) return false;
+      try {
+        const created = await createCpShare({ payload: draft.payload, title, author });
+        set({
+          oristudioCpShareDraft: { ...get().oristudioCpShareDraft!, url: created.url },
+        });
+        if (author) rememberAuthor(author);
+        // The published link and its geometry are never sent — only that a share
+        // was created, a bucketed size, and whether it was titled/attributed.
+        track('crease pattern shared', {
+          crease_count_bucket: bucketCount(draft.fold.edges_vertices?.length ?? 0, COUNT_BUCKETS),
+          had_title: Boolean(title),
+          had_author: Boolean(author),
+        });
+
+        void (async () => {
+          try {
+            const png = await renderCard();
+            if (!png) return;
+            // Upload is write-once, so a blank card would be permanent. Better to fall back
+            // to the generic one, which the Worker serves whenever R2 has nothing.
+            if (png.byteLength < MIN_CARD_BYTES) {
+              console.warn('[share] preview card looks blank, keeping the default', {
+                bytes: png.byteLength,
+              });
+              return;
+            }
+            await uploadCpShareThumbnail(
+              created.id,
+              new Blob([png as BlobPart], { type: 'image/png' }),
+              created.thumbnailUploadToken
+            );
+          } catch (error) {
+            console.warn('[share] preview card upload failed:', error);
+          }
+        })();
+        return true;
+      } catch (error) {
+        // `CpShareError` already carries the Worker's own `code` and message, and
+        // `engineError` passes any {code, message} through unchanged — so the toast
+        // layer sees `rate_limited` / `storage_quota` and can say the right thing.
+        set({ status: 'error', error: engineError(error) });
+        return false;
+      }
+    },
+
+    foldOristudioCpShareFigure: async (settings) => {
+      const draft = get().oristudioCpShareDraft;
+      if (!draft) throw new Error('No share in progress');
+      const segment = draft.segments.find((entry) => entry.id === draft.segmentId) ?? null;
+      return foldExportSegment(get().oristudioCpDocument, draft.fold, segment, settings);
+    },
+
+    dismissOristudioCpShare: () => set({ oristudioCpShareDraft: null }),
 
     // Written only by the `/s` route, read only by `ensureEditCreasePattern`.
-    // Raw and undecoded on purpose: the route captures intent, the Edit surface
+    // Raw and unresolved on purpose: the route captures intent, the Edit surface
     // provisions from it.
-    setPendingSharedCp: (payload: string) => set({ pendingSharedCpPayload: payload }),
+    setPendingSharedCp: (pending: PendingSharedCp) => set({ pendingSharedCp: pending }),
 
     exportOristudioCpSegment: async (
       format: SegmentExportFormat,

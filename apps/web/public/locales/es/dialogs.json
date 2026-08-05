@@ -97,6 +97,7 @@
     "foldedCasesFound_many": "{{count}} encontrados hasta ahora",
     "foldedCasesFound_other": "{{count}} encontrados hasta ahora",
     "foldedFigureNeedsCp": "Abre un patrón de pliegues editable para plegarlo",
+    "foldedFigureNeedsFlat": "Este patrón tiene pliegues que no son completos, por lo que no tiene una forma plegada plana",
     "foldedFigureNeedsOnePattern": "Selecciona un solo patrón para plegarlo",
     "foldedFigureSection": "Figura plegada",
     "foldedFrontColor": "Anverso",
@@ -256,13 +257,31 @@
       "startup": "Inicio"
     }
   },
+  "share": {
+    "author": "Autor",
+    "authorPlaceholder": "Opcional",
+    "backColor": "Color del reverso",
+    "create": "Crear enlace",
+    "creating": "Creando enlace…",
+    "foldedFigure": "Mostrar figura plegada",
+    "foldedFigureNeedsFlat": "Este patrón tiene pliegues que no son completos, por lo que no tiene una forma plegada plana",
+    "folding": "Plegando…",
+    "frontColor": "Color del anverso",
+    "linkPreview": "Vista previa del enlace",
+    "notPublished": "No se publica nada hasta que crees el enlace.",
+    "previewAlt": "Vista previa del patrón de pliegues compartido",
+    "scope": "Quien tenga este enlace abrirá su propia copia editable y no podrá modificar tu original. Los enlaces no se pueden eliminar ni cambiar una vez creados, e incluyen solo el patrón de pliegues: no las imágenes de referencia, las anotaciones ni las simulaciones guardadas.",
+    "scopeDraft": "Define primero el título, el autor y la figura: un enlace es una instantánea permanente, no se puede editar ni eliminar después, así que cualquier cambio implica crear otro. Incluye solo el patrón de pliegues: no las imágenes de referencia, las anotaciones ni las simulaciones guardadas.",
+    "side": "Cara",
+    "sideBack": "Reverso",
+    "sideFront": "Anverso",
+    "title": "Título",
+    "titlePlaceholder": "Patrón de pliegues sin título"
+  },
   "shareLink": {
     "close": "Cerrar compartir",
     "copied": "Copiado",
-    "copy": "Copiar",
-    "longWarning": "Este enlace funciona en la barra de direcciones del navegador, pero algunas apps de chat y clientes de correo cortan los enlaces tan largos. Enviar un archivo exportado es más fiable.",
-    "scope": "Incluye solo el patrón de pliegues: no las imágenes de referencia, las anotaciones ni las simulaciones guardadas.",
-    "summary": "{{creases}} pliegues · {{chars}} caracteres",
+    "copy": "Copiar enlace",
     "title": "Compartir patrón de pliegues",
     "url": "Enlace para compartir"
   },

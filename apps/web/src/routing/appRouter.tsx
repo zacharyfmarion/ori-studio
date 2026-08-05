@@ -65,10 +65,14 @@ export function createAppRouter(): AppRouter {
       children: [
         { index: true, loader: startupRedirect },
         { path: 'welcome', element: <WelcomeRoute /> },
-        // Share links land here, stash their payload, and redirect to Edit. A
-        // real route (rather than a fragment on `/edit`) so the payload leaves
-        // the URL on arrival and this handling never runs on a normal start.
+        // Share links land here, stash their intent, and redirect to Edit. A real
+        // route (rather than a fragment on `/edit`) so the share leaves the URL on
+        // arrival and this handling never runs on a normal start.
+        //
+        // Both shapes: `/s/<id>` for server-stored links, and bare `/s` for the
+        // original `#<payload>` fragment scheme, which must keep working.
         { path: 's', element: <ShareRoute /> },
+        { path: 's/:shareId', element: <ShareRoute /> },
         {
           element: <WorkspaceShell />,
           children: [

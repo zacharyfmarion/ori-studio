@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Share card size measurement</title>
+    <style>
+      body { font: 13px/1.5 ui-monospace, monospace; margin: 24px; }
+      #status { margin-bottom: 12px; }
+      pre { background: #f4f4f5; padding: 12px; overflow-x: auto; }
+      canvas { border: 1px solid #ddd; max-width: 320px; height: auto; }
+    </style>
+  </head>
+  <body>
+    <div id="status">Loading…</div>
+    <pre id="report"></pre>
+    <canvas id="sample" width="1200" height="630"></canvas>
+    <script type="module">
+      // Mirrors computeShareCardFrame in apps/web/src/lib/creaseExport.ts. Duplicated
+      // rather than imported because this page is served as a static file with no
+      // bundler; the unit tests are what keep the real implementation honest.
+      const CARD_W = 1200;
+      const CARD_H = 630;
+      const PADDING = 48;
+
+      function frameFor(sw, sh) {
+        const boxW = CARD_W - PADDING * 2;
+        const boxH = CARD_H - PADDING * 2;
+        const scale = Math.min(boxW / sw, boxH / sh);
+        const width = sw * scale;
+        const height = sh * scale;
+        return { x: (CARD_W - width) / 2, y: (CARD_H - height) / 2, width, height };
+      }
+
+      async function rasterize(svgUrl, sw, sh, canvas) {
+        const svg = await (await fetch(svgUrl)).text();
+        const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        try {
+          const image = new Image();
+          image.decoding = 'async';
+          await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = () => reject(new Error(`load failed: ${svgUrl}`));
+            image.src = url;
+          });
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, CARD_W, CARD_H);
+          const f = frameFor(sw, sh);
+          ctx.drawImage(image, f.x, f.y, f.width, f.height);
+          const png = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+          return png.size;
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+
+      function percentile(sorted, p) {
+        if (!sorted.length) return 0;
+        return sorted[Math.round((sorted.length - 1) * p)];
+      }
+
+      const status = document.getElementById('status');
+      const report = document.getElementById('report');
+      const canvas = document.getElementById('sample');
+
+      const manifest = await (await fetch('manifest.json')).json();
+      const rows = [];
+      const failures = [];
+
+      // Resume support: rows already measured are skipped, so a dropped tab costs only the
+      // document in flight rather than the whole run.
+      const existing = await (await fetch('rows.jsonl').catch(() => new Response('')))
+        .text()
+        .catch(() => '');
+      const measured = new Set();
+      for (const line of existing.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const row = JSON.parse(line);
+          measured.add(row.svg);
+          rows.push(row);
+        } catch {
+          /* partial line from a mid-write cut; ignore */
+        }
+      }
+
+      for (const [i, entry] of manifest.entries()) {
+        if (measured.has(entry.svg)) continue;
+        try {
+          const bytes = await rasterize(entry.svg, entry.width, entry.height, canvas);
+          const row = { svg: entry.svg, bytes, creases: entry.creases };
+          rows.push(row);
+          await fetch('/row', { method: 'POST', body: JSON.stringify(row) });
+        } catch (error) {
+          failures.push({ svg: entry.svg, message: error.message });
+        }
+        if (i % 10 === 0) {
+          status.textContent = `Rasterizing ${i + 1}/${manifest.length}…`;
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      }
+
+      const sizes = rows.map((r) => r.bytes).sort((a, b) => a - b);
+      const total = sizes.reduce((sum, value) => sum + value, 0);
+      const kb = (bytes) => (bytes / 1000).toFixed(1);
+
+      const result = {
+        documents: rows.length,
+        failures: failures.length,
+        mean_kb: Number(kb(total / rows.length)),
+        p50_kb: Number(kb(percentile(sizes, 0.5))),
+        p90_kb: Number(kb(percentile(sizes, 0.9))),
+        p99_kb: Number(kb(percentile(sizes, 0.99))),
+        max_kb: Number(kb(sizes[sizes.length - 1])),
+        min_kb: Number(kb(sizes[0])),
+        over_512kb: sizes.filter((b) => b > 512 * 1024).length,
+        total_mb: Number((total / 1e6).toFixed(1)),
+      };
+
+      // Size against crease count, to show whether density or resolution dominates.
+      const buckets = [0, 100, 300, 600, 1200, 2500, Infinity];
+      const byCreases = [];
+      for (let b = 0; b < buckets.length - 1; b += 1) {
+        const inBucket = rows.filter(
+          (r) => r.creases >= buckets[b] && r.creases < buckets[b + 1]
+        );
+        if (!inBucket.length) continue;
+        byCreases.push({
+          creases: `${buckets[b]}–${buckets[b + 1] === Infinity ? '∞' : buckets[b + 1]}`,
+          n: inBucket.length,
+          mean_kb: Number(
+            kb(inBucket.reduce((sum, r) => sum + r.bytes, 0) / inBucket.length)
+          ),
+        });
+      }
+
+      status.textContent = `Done: ${rows.length} documents, ${failures.length} failures.`;
+      report.textContent = JSON.stringify({ result, byCreases, failures: failures.slice(0, 5) }, null, 2);
+      window.__SHARE_CARD_RESULT = { result, byCreases };
+    </script>
+  </body>
+</html>
