@@ -54,11 +54,13 @@ const ABSENT_ID = 'aaaaaaaaaa';
 /**
  * How long to keep retrying, and how long to wait between attempts.
  *
- * A deploy is live in seconds; a minute of headroom is for the edge, not for a real failure,
- * which fails identically on every attempt and only costs this long to report. Overridable
- * so a local run against a URL that is simply wrong does not sit there for two minutes.
+ * Sized from a measurement, not a guess: a cold per-deployment host took 22 attempts over
+ * 68s to serve its Functions consistently, while `GET /` answered on the first one. Three
+ * minutes is that with room to spare. A real failure fails identically on every attempt and
+ * only costs this long to report. Overridable so a local run against a URL that is simply
+ * wrong does not sit there for minutes.
  */
-const DEADLINE_MS = Number(process.env.SHARE_SMOKE_TIMEOUT_MS) || 120_000;
+const DEADLINE_MS = Number(process.env.SHARE_SMOKE_TIMEOUT_MS) || 180_000;
 const RETRY_DELAY_MS = 3_000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -153,10 +155,11 @@ async function runChecks(target) {
  * Run the checks until they all pass, or until the deadline.
  *
  * The whole suite is retried rather than gated behind one readiness probe. A single `GET /`
- * proves less than it looks: the static-asset layer answers it before Function routing is
- * consistently live, and on a cold hostname two requests to the *same* route seconds apart
- * can be served by machines that disagree about whether the deployment exists. One-shot
- * checks behind that gate failed ~10% of first deploys on green builds.
+ * proves nothing about Function routing: the static-asset layer answers it while the routes
+ * are still cold, and on a cold hostname two requests to the *same* route seconds apart can
+ * be served by machines that disagree about whether the deployment exists. One-shot checks
+ * behind that gate failed ~10% of first deploys on green builds; the first run of this loop
+ * needed 22 attempts on a deploy that was fine.
  */
 async function smoke(target) {
   const deadline = Date.now() + DEADLINE_MS;
