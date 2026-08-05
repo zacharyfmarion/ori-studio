@@ -1,6 +1,7 @@
 {
   "creasePattern": {
     "inlineSimulationCap": "同時に開けるシミュレーションウィンドウは最大 {{max}} 個です。別のウィンドウを開くには、いずれかを閉じてください。",
+    "inlineSimulationRegionGone": "その領域は展開図に存在しなくなったため、このウィンドウは再構築できません。",
     "simulateFailed": "この領域はシミュレーションできませんでした。",
     "simulateNoRegion": "シミュレーションするには閉じた領域を選択してください。"
   },

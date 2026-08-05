@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
@@ -205,9 +206,27 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
 
   const replay = useCallback(() => setReplayRequest((nonce) => nonce + 1), []);
   const togglePlay = useCallback(() => setPlaying((current) => !current), []);
+
+  /**
+   * Rebuild the window's fold from the creases as they are now.
+   *
+   * The failure is reported here, in the user's language, for the reason
+   * `useSimulateSelection` reports its own: the store's `projectMessage` channel
+   * is written by many callers and rendered by none — `GlobalToasts` subscribes
+   * only to clear it. A refresh that could not resolve its region therefore did
+   * nothing *and said nothing*, which is indistinguishable from a dead button.
+   */
   const refresh = useCallback(
-    (id: string) => void refreshSimulation(id),
-    [refreshSimulation]
+    async (id: string) => {
+      if (await refreshSimulation(id)) return;
+      toast.error(
+        t(
+          'toasts:creasePattern.inlineSimulationRegionGone',
+          'That region is no longer in the crease pattern, so this window cannot be rebuilt.'
+        )
+      );
+    },
+    [refreshSimulation, t]
   );
 
   return {
