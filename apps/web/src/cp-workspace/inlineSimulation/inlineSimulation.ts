@@ -260,6 +260,32 @@ function distanceSq(a: Point, b: Point): number {
 const BOUNDARY_EPSILON = 1e-6;
 
 /**
+ * The ring with consecutive points in the same place collapsed to one, wrap
+ * included.
+ *
+ * A repeat makes its neighbour's collinearity test meaningless — a point is
+ * always exactly on a line that starts at its own position — so a pair of
+ * repeats takes a genuine corner down with it. Uncontrived rings have no
+ * repeats, and every shape checked here is unaffected by this pass; it is here so
+ * that one does not silently cost the reduction, which is what a degenerate ring
+ * falling back to its input amounts to.
+ */
+function withoutRepeatedPoints(ring: readonly Point[]): Point[] {
+  const epsilon = BOUNDARY_EPSILON * BOUNDARY_EPSILON;
+  const points: Point[] = [];
+  for (const point of ring) {
+    const last = points[points.length - 1];
+    if (last && distanceSq(last, point) <= epsilon) continue;
+    points.push(point);
+  }
+  // The ring closes, so the last point neighbours the first.
+  while (points.length > 1 && distanceSq(points[0]!, points[points.length - 1]!) <= epsilon) {
+    points.pop();
+  }
+  return points;
+}
+
+/**
  * The ring's corners: the same closed loop with vertices that merely subdivide a
  * straight edge removed.
  *
@@ -282,13 +308,14 @@ const BOUNDARY_EPSILON = 1e-6;
  * on the line their neighbours span.
  */
 export function ringCorners(ring: readonly Point[]): Point[] {
-  if (ring.length < 3) return [...ring];
+  const points = withoutRepeatedPoints(ring);
+  if (points.length < 3) return [...ring];
   const corners: Point[] = [];
-  const n = ring.length;
+  const n = points.length;
   for (let i = 0; i < n; i += 1) {
-    const previous = ring[(i - 1 + n) % n]!;
-    const current = ring[i]!;
-    const next = ring[(i + 1) % n]!;
+    const previous = points[(i - 1 + n) % n]!;
+    const current = points[i]!;
+    const next = points[(i + 1) % n]!;
     const spanX = next.x - previous.x;
     const spanY = next.y - previous.y;
     const span = Math.hypot(spanX, spanY);
