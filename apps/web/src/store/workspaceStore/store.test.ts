@@ -62,6 +62,7 @@ import {
 } from '../../cp-workspace/folded/foldedFigureHandles';
 import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../../lib/foldAngle';
 import { useLayoutStore } from '../layoutStore';
+import { currentWorkspacePath } from '../../routing/landing';
 import {
   registerCommandDialogHost,
   resolveCommandDialog,
@@ -953,6 +954,8 @@ function configureEngine(api: TestEngineApi) {
 function loadSnapshotIntoStore(snapshot: TreeSnapshot, title = 'Seed project') {
   useWorkspaceStore.setState({
     project: projectFromSnapshot(snapshot, title),
+    // A loaded tree claims the design, exactly as `loadText` does in production.
+    designMethod: 'treemaker',
     importedCreasePattern: null,
     oristudioCpDocument: null,
     oristudioCpOperationDescriptors: [],
@@ -1660,7 +1663,7 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpSelection).toEqual(emptyOristudioCpSelection());
     expect(activateWorkspace).toHaveBeenCalledWith('edit');
     // A bare CP establishes no design, so the Design workspace keeps the chooser.
-    expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+    expect(useWorkspaceStore.getState().designMethod).toBe('none');
   });
 
   // The compiler catches a per-document field whose *discard value* nobody
@@ -1756,11 +1759,11 @@ describe('workspace store slices', () => {
     useWorkspaceStore.setState({
       oristudioCpDocument: null,
       oristudioBpDocument: null,
-      pendingDesignChoice: false,
+      designMethod: 'treemaker',
     });
     await useWorkspaceStore.getState().ensureEditCreasePattern();
     expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
-    expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+    expect(useWorkspaceStore.getState().designMethod).toBe('none');
     // The CP editor must report ready (not the initial 'loading_engine'), else
     // `isBusy` disables undo/redo and every engine-gated command on this canvas.
     expect(useWorkspaceStore.getState().status).toBe('crease_pattern_ready');
@@ -1769,9 +1772,9 @@ describe('workspace store slices', () => {
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().initEngine();
     expect(useWorkspaceStore.getState().project.edges.length).toBeGreaterThan(0);
-    useWorkspaceStore.setState({ oristudioCpDocument: null, pendingDesignChoice: false });
+    useWorkspaceStore.setState({ oristudioCpDocument: null, designMethod: 'treemaker' });
     await useWorkspaceStore.getState().ensureEditCreasePattern();
-    expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+    expect(useWorkspaceStore.getState().designMethod).not.toBe('none');
   });
 
   it('opens native tree projects and keeps Save on the native file path', async () => {
@@ -2585,6 +2588,9 @@ describe('workspace store slices', () => {
       path: '/tmp/line.cp',
     });
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2777,6 +2783,9 @@ describe('workspace store slices', () => {
   it('refolds a stale figure in place, keeping its placement and identity', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2821,6 +2830,9 @@ describe('workspace store slices', () => {
   it('keeps the figure when a refold throws', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2851,6 +2863,9 @@ describe('workspace store slices', () => {
   it('keeps the figure when a refold returns nothing drawable', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2881,6 +2896,9 @@ describe('workspace store slices', () => {
   it('refuses to refold a figure whose source creases are gone', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -2907,6 +2925,9 @@ describe('workspace store slices', () => {
       path: '/tmp/selected-lines.cp',
     });
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([
         cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Black0' }),
         cpLine({ x: 0, y: 0 }, { x: 0, y: 1 }, { color: 'Red1' }),
@@ -2972,6 +2993,9 @@ describe('workspace store slices', () => {
   it('does not fold editable CP documents without selected foldable lines', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([
         cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Red1' }),
       ]),
@@ -2994,6 +3018,9 @@ describe('workspace store slices', () => {
       path: '/tmp/line.cp',
     });
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -3077,6 +3104,9 @@ describe('workspace store slices', () => {
   it('undoes and redoes a folded figure placement without touching the wasm document', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
     });
     const figure: OristudioCpFoldedFigureEntry = {
@@ -3140,6 +3170,9 @@ describe('workspace store slices', () => {
   function seedFoldedFigureForModelTests(model?: Partial<OristudioCpFoldedFigureModel>) {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
     });
     const snapshot = foldedFigureSnapshot();
@@ -3400,6 +3433,9 @@ describe('workspace store slices', () => {
   it('keeps a deleted folded figure kernel-editable while undo can still reach it', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
     });
     const figure: OristudioCpFoldedFigureEntry = {
@@ -3451,6 +3487,9 @@ describe('workspace store slices', () => {
     function seedWindow() {
       resetStores(seedSnapshot());
       useWorkspaceStore.setState({
+        // Installing a crease pattern focuses the CP editor, as every production
+        // install path does (see `freshEditableCpState`).
+        activePanelId: 'crease-pattern',
         oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
         oristudioCpInlineSimulations: [inlineSimulationFixture()],
         oristudioCpHistoryPast: [],
@@ -3550,6 +3589,9 @@ describe('workspace store slices', () => {
   it('marks the project dirty for folded figure edits so they cannot be lost silently', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
     });
     const figure: OristudioCpFoldedFigureEntry = {
@@ -3896,6 +3938,9 @@ describe('workspace store slices', () => {
       path: '/tmp/line.cp',
     });
     useWorkspaceStore.setState({
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
       oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
     });
@@ -4504,6 +4549,9 @@ describe('workspace store slices', () => {
     const selection = { ...emptyOristudioCpSelection(), lines: [1] };
     useWorkspaceStore.setState({
       oristudioCpDocument: documentState,
+      // Installing a crease pattern focuses the CP editor, as every production
+      // install path does (see `freshEditableCpState`).
+      activePanelId: 'crease-pattern',
       oristudioCpSelection: selection,
       status: 'crease_pattern_ready',
       dirty: false,
@@ -5313,7 +5361,7 @@ describe('workspace store slices', () => {
       );
       const state = useWorkspaceStore.getState();
       expect(state.oristudioBpDocument).not.toBeNull();
-      expect(state.workflowTarget).toBe('box-pleat');
+      expect(state.designMethod).toBe('box-pleat');
       expect(state.activeEditingContext).toBe('bp-tree');
     });
 
@@ -5502,9 +5550,294 @@ describe('workspace store slices', () => {
       );
       const state = useWorkspaceStore.getState();
       expect(state.oristudioBpDocument).not.toBeNull();
-      expect(state.workflowTarget).toBe('box-pleat');
+      expect(state.designMethod).toBe('box-pleat');
       // The companion crease pattern is restored onto the Edit canvas.
       expect(state.oristudioCpDocument).not.toBeNull();
+      // The bundle dispatches its load on the design document, so the BP loader
+      // activated Design and the file always opened there — even though the
+      // crease pattern it carries is the surface that was being worked on. One
+      // landing rule now places every format the same way.
+      expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
+      expect(currentWorkspacePath()).toBe('/edit');
+    });
+
+    it('restores the crease-pattern view settings saved alongside a design', async () => {
+      // Regression: the companion installer was a hand-rolled subset of the
+      // CP-only one and silently dropped `creaseColorMode`, the viewport (grid,
+      // snaps, line width), `toolMode`, and the `projectLoadId` bump. None of
+      // those are in localStorage, so reopening a design bundled with an Edit
+      // crease pattern really did revert the crease colours and every grid
+      // setting. Both paths now spread one `nativeCpEditorState`.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          creasePatternCompanion: {
+            title: 'Crane CP',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: null,
+            foldProjection: null,
+            foldArtifacts: null,
+            creaseColorMode: 'agrh',
+            selection: emptyOristudioCpSelection(),
+            viewport: {
+              ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+              gridVisible: false,
+              snapToGrid: false,
+              lineWidth: 3,
+            },
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+            // Schema v7. Added on main to the CP-only path only — the third time
+            // these two installers diverged, and the reason they now share one.
+            camera: { centerX: 12, centerY: -4, zoom: 3, rotation: 0.5 },
+          },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({
+        engineReady: true,
+        status: 'ready',
+        dirty: false,
+        // Non-default values the load must overwrite, not inherit.
+        creaseColorMode: 'mvf',
+        oristudioCpViewport: { ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS },
+        oristudioCpCamera: null,
+      });
+      const projectLoadIdBefore = useWorkspaceStore.getState().projectLoadId;
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+      ).resolves.toBe(true);
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(state.creaseColorMode).toBe('agrh');
+      expect(state.oristudioCpViewport.gridVisible).toBe(false);
+      expect(state.oristudioCpViewport.snapToGrid).toBe(false);
+      expect(state.oristudioCpViewport.lineWidth).toBe(3);
+      expect(state.toolMode).toBe('select');
+      expect(state.projectLoadId).toBeGreaterThan(projectLoadIdBefore);
+      // The saved canvas camera comes back too — rotation is how a hex-pleat
+      // design is authored, not a transient way of looking at it.
+      expect(state.oristudioCpCamera).toEqual({
+        centerX: 12,
+        centerY: -4,
+        zoom: 3,
+        rotation: 0.5,
+      });
+    });
+
+    it('never empties the Edit canvas while loading a design bundled with a crease pattern', async () => {
+      // Regression: the design installer cleared the canvas before the bundle's
+      // crease pattern was restored, so the load published an empty Edit canvas
+      // mid-flight. The Edit surface self-provisions into any gap it sees, so
+      // each gap cost a blank document built and thrown away moments later —
+      // measured at two per open. The bundle knows its companion is coming
+      // before anything is installed, so the design installer is told to keep
+      // the canvas and the companion replaces it directly.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          creasePatternCompanion: {
+            title: 'Crane CP',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: null,
+            foldProjection: null,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+          },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({
+        engineReady: true,
+        status: 'ready',
+        dirty: false,
+        // A crease pattern is already on the always-live canvas.
+        // Installing a crease pattern focuses the CP editor, as every production
+        // install path does (see `freshEditableCpState`).
+        activePanelId: 'crease-pattern',
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 0, y: 1 })]),
+      });
+
+      const presence: boolean[] = [];
+      const unsubscribe = useWorkspaceStore.subscribe((state, previous) => {
+        if ((state.oristudioCpDocument !== null) !== (previous.oristudioCpDocument !== null)) {
+          presence.push(state.oristudioCpDocument !== null);
+        }
+      });
+      try {
+        await expect(
+          useWorkspaceStore
+            .getState()
+            .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+        ).resolves.toBe(true);
+      } finally {
+        unsubscribe();
+      }
+
+      // Never null at any point: no gap for the Edit surface to fill.
+      expect(presence).toEqual([]);
+      expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+    });
+
+    it('still discards the open crease pattern for a design with no companion', async () => {
+      // The other half: the opt-out is scoped to bundles that carry a crease
+      // pattern. A design-only file is not one, so the previous file's canvas
+      // must still go.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({
+        engineReady: true,
+        status: 'ready',
+        dirty: false,
+        // Installing a crease pattern focuses the CP editor, as every production
+        // install path does (see `freshEditableCpState`).
+        activePanelId: 'crease-pattern',
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 0, y: 1 })]),
+      });
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+      ).resolves.toBe(true);
+
+      expect(useWorkspaceStore.getState().oristudioCpDocument).toBeNull();
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+    });
+
+    it('moves the user exactly once when opening a design bundled with a crease pattern', async () => {
+      // Regression: `setLoadedBpProject` both installed the BP document and
+      // called `activateWorkspace('design')`, so the destination was chosen from
+      // a half-installed project — the companion crease pattern that decides on
+      // Edit had not been restored yet. The landing rule then corrected it, and
+      // the two decisions disagreeing showed up as a ~150ms flash of the BP
+      // workspace plus a junk `/design/bp` browser-history entry.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          creasePatternCompanion: {
+            title: 'Crane CP',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: null,
+            foldProjection: null,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+          },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      useLayoutStore.setState({ activeWorkspace: 'edit' });
+
+      const transitions: string[] = [];
+      const unsubscribe = useLayoutStore.subscribe((state, previous) => {
+        if (state.activeWorkspace !== previous.activeWorkspace) {
+          transitions.push(`${previous.activeWorkspace}->${state.activeWorkspace}`);
+        }
+      });
+      try {
+        await expect(
+          useWorkspaceStore
+            .getState()
+            .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+        ).resolves.toBe(true);
+      } finally {
+        unsubscribe();
+      }
+
+      // Never design-then-edit: the design installer must not move anyone.
+      expect(transitions).toEqual([]);
+      expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
+      expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
+      expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
+    });
+
+    it('opens a box-pleat .osf with no crease pattern on the BP design, not the chooser', async () => {
+      // Regression: the landing path was derived from which documents existed,
+      // and returned bare `/design` for anything without a crease pattern. That
+      // is the method-chooser sub-route, so routing there ran
+      // `applyDesignRoute('nux')` and replaced the design that had just loaded
+      // with the chooser — the design stayed in the store, invisible.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      const fileService = createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' });
+
+      await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+      const state = useWorkspaceStore.getState();
+      expect(state.oristudioBpDocument).not.toBeNull();
+      expect(state.designMethod).not.toBe('none');
+      expect(useLayoutStore.getState().activeWorkspace).toBe('design');
+      expect(currentWorkspacePath()).toBe('/design/bp');
+    });
+
+    it('names the TreeMaker variant when a tree replaces a box-pleat design', async () => {
+      // Regression: `loadText` installed a tree without claiming the design
+      // fields, so the previous file's `workflowTarget` and BP document both
+      // survived. Harmless while every design landed on bare `/design`; once the
+      // landing names the variant it would send a freshly-opened tree to
+      // `/design/bp` and show the stale box-pleat design instead.
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
+        filename: 'crane.bps',
+        path: null,
+      });
+      expect(useWorkspaceStore.getState().designMethod).toBe('box-pleat');
+      useWorkspaceStore.setState({ dirty: false });
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .openProject(
+            createFileService({ text: 'tree text', name: 'tree.tmd5', path: '/tmp/tree.tmd5' })
+          )
+      ).resolves.toBe(true);
+
+      const state = useWorkspaceStore.getState();
+      expect(state.designMethod).toBe('treemaker');
+      expect(state.designMethod).not.toBe('none');
+      expect(state.oristudioBpDocument).toBeNull();
+      expect(currentWorkspacePath()).toBe('/design/treemaker');
     });
 
     it('warns before a .bps export drops mirror symmetry, and aborts when refused', async () => {
@@ -5631,7 +5964,7 @@ describe('workspace store slices', () => {
     it('startNewDesign enters the Design workspace on the chooser without a document', () => {
       useWorkspaceStore.getState().startNewDesign();
 
-      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+      expect(useWorkspaceStore.getState().designMethod).toBe('none');
       expect(useLayoutStore.getState().activeWorkspace).toBe('design');
     });
 
@@ -5641,8 +5974,8 @@ describe('workspace store slices', () => {
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
 
       const state = useWorkspaceStore.getState();
-      expect(state.workflowTarget).toBe('box-pleat');
-      expect(state.pendingDesignChoice).toBe(false);
+      expect(state.designMethod).toBe('box-pleat');
+      expect(state.designMethod).not.toBe('none');
       expect(state.oristudioBpDocument).not.toBeNull();
       expect(bpMocks.loadOristudioBpProjectFromText).toHaveBeenCalledOnce();
     });
@@ -5655,8 +5988,8 @@ describe('workspace store slices', () => {
 
       // Circle-packed: establishes a tree without touching the Edit canvas.
       await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
-      expect(useWorkspaceStore.getState().workflowTarget).toBe('treemaker');
-      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+      expect(useWorkspaceStore.getState().designMethod).toBe('treemaker');
+      expect(useWorkspaceStore.getState().designMethod).not.toBe('none');
       expect(useWorkspaceStore.getState().oristudioCpDocument).toBe(editCp);
       // The CP wasm handle must not be released, or the kept document is dead.
       expect(oristudioCpMocks.releaseOristudioCpDocument).not.toHaveBeenCalled();
@@ -5676,23 +6009,23 @@ describe('workspace store slices', () => {
       await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
 
       const state = useWorkspaceStore.getState();
-      expect(state.workflowTarget).toBe('treemaker');
-      expect(state.pendingDesignChoice).toBe(false);
+      expect(state.designMethod).toBe('treemaker');
+      expect(state.designMethod).not.toBe('none');
     });
 
     it('creating a TreeMaker project after a Box-pleat design resets the method', async () => {
       useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
       useWorkspaceStore.getState().startNewDesign();
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
-      expect(useWorkspaceStore.getState().workflowTarget).toBe('box-pleat');
+      expect(useWorkspaceStore.getState().designMethod).toBe('box-pleat');
       expect(useWorkspaceStore.getState().oristudioBpDocument).not.toBeNull();
 
       // Skip the discard confirmation this test isn't exercising.
       useWorkspaceStore.setState({ dirty: false });
       await useWorkspaceStore.getState().createNewProject();
 
-      expect(useWorkspaceStore.getState().workflowTarget).toBe('treemaker');
-      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+      expect(useWorkspaceStore.getState().designMethod).toBe('treemaker');
+      expect(useWorkspaceStore.getState().designMethod).not.toBe('none');
       expect(useWorkspaceStore.getState().oristudioBpDocument).toBeNull();
     });
 
@@ -5944,13 +6277,13 @@ describe('workspace store slices', () => {
 
     it('opening a file clears a pending design choice', async () => {
       useWorkspaceStore.getState().startNewDesign();
-      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(true);
+      expect(useWorkspaceStore.getState().designMethod).toBe('none');
 
       await useWorkspaceStore.getState().loadProjectText('native tree tmd5', {
         filename: 'sample.osf',
       });
 
-      expect(useWorkspaceStore.getState().pendingDesignChoice).toBe(false);
+      expect(useWorkspaceStore.getState().designMethod).not.toBe('none');
     });
   });
 });

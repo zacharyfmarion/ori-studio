@@ -8,11 +8,10 @@
         "vite",
         "apps/web",
         "--port",
-        "5197",
-        "--strictPort"
+        "5191"
       ],
-      "port": 5197,
-      "autoPort": false
+      "port": 5191,
+      "autoPort": true
     },
     {
       "name": "upstream-oracle",

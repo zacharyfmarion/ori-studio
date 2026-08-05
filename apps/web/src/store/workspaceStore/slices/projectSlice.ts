@@ -83,6 +83,7 @@ import {
 } from '../../../cp-workspace/annotations/textAnnotation';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
+import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
 import { discardCpDocumentState } from '../cpDocumentState';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
@@ -115,6 +116,7 @@ import { type WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 import { selectWorkspaceCapabilities } from '../capabilities';
 import { frameActiveCpDiagnostic } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
+import { landingWorkspace } from '../landingWorkspace';
 import { ensureExtension, getFileService, type FileService } from '../../../platform/fileService';
 import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
 import { getRuntimeSurface } from '../../../platform/runtime';
@@ -176,6 +178,7 @@ import type {
   PendingSharedCp,
   ProjectSlice,
   WorkspaceSliceCreator,
+  WorkspaceState,
 } from '../types';
 import { retainFoldedFigureHandles } from '../../../cp-workspace/folded/foldedFigureHandles';
 import type { FoldDocument } from '../../../engine/types';
@@ -742,6 +745,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       filename?: string;
       path?: string | null;
       dirty?: boolean;
+      /**
+       * Keep the Edit canvas rather than clearing it. Set by the `.osf` loader
+       * when the bundle also carries a crease pattern to install right after, so
+       * the load never publishes an empty canvas for the Edit surface to
+       * self-provision into and then discard.
+       */
+      preserveEditCanvas?: boolean;
     } = {}
   ) => {
     set({ status: 'loading_engine', error: null, projectMessage: null });
@@ -750,37 +760,49 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const snapshot = await loadTreeFromText(api, text);
     const filename = source.filename ?? defaultNativeFilename('Untitled');
     const title = source.title ?? basenameWithoutProjectExtension(filename);
+    const editCanvasState = source.preserveEditCanvas
+      ? pickFoldArtifactResourceState(get())
+      : {
+          ...discardCpDocumentState(),
+          importedCreasePattern: null,
+          oristudioCpDocument: null,
+          oristudioCpLineage: null,
+          oristudioCpError: null,
+          oristudioCpCamvResult: null,
+          oristudioCpHistoryPast: [],
+          oristudioCpHistoryFuture: [],
+          oristudioCpSelection: emptyOristudioCpSelection(),
+          oristudioCpActiveDiagnosticId: null,
+          oristudioCpRevision: 0,
+          creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
+          oristudioCpCamera: null,
+          ...emptyFoldArtifactResourceState(),
+        };
     set({
-      ...discardCpDocumentState(),
       ...projectStateFromSnapshot(snapshot, title),
-      importedCreasePattern: null,
-      oristudioCpDocument: null,
-      oristudioCpLineage: null,
-      oristudioCpError: null,
-      oristudioCpCamvResult: null,
-      oristudioCpHistoryPast: [],
-      oristudioCpHistoryFuture: [],
       projectLoadId: get().projectLoadId + 1,
       currentFileName: filename,
       currentFilePath: source.path ?? null,
       projectMessage: `Loaded ${filename}`,
       selection: { kind: 'tree' },
-      oristudioCpSelection: emptyOristudioCpSelection(),
-      oristudioCpActiveDiagnosticId: null,
-      oristudioCpRevision: 0,
       toolMode: 'select',
       symmetryAuthoringPairs: [],
-      creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
-      oristudioCpCamera: null,
-      ...emptyFoldArtifactResourceState(),
       status: statusFromSnapshot(snapshot),
       dirty: source.dirty ?? false,
       lastOptimization: null,
       historyPast: [],
       historyFuture: [],
       clipboardPasteCount: 0,
+      // A tree claims the design the way its siblings do (`createNewProject`,
+      // `setLoadedBpProject`): this file's tree *is* the design now, so a
+      // box-pleat design left over from the previous file must not stay loaded
+      // and must not keep naming the Design layout variant.
+      designMethod: 'treemaker',
+      oristudioBpDocument: null,
+      oristudioBpWorkspace: null,
+      // Spread last so a preserved canvas wins over the resets above.
+      ...editCanvasState,
     });
-    useLayoutStore.getState().activateWorkspace('design');
   };
 
   const loadCreasePattern = async (
@@ -930,8 +952,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // report the activated panel (which never fires in headless tests).
       activePanelId: oristudioCpDocument ? 'crease-pattern' : 'design',
       // A bare crease pattern establishes no design, so the Design workspace
-      // should still offer the method chooser rather than an empty tree.
-      pendingDesignChoice: true,
+      // should still offer the method chooser rather than an empty tree — and
+      // the previous file's box-pleat design must not stay loaded behind it,
+      // which would leave "no method chosen" sitting beside a live design. Same
+      // claim `loadText` makes for a tree: an open replaces the project.
+      designMethod: 'none',
+      oristudioBpDocument: null,
+      oristudioBpWorkspace: null,
       project: result.project,
       importedCreasePattern: result.document,
       oristudioCpDocument,
@@ -973,7 +1000,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       historyFuture: [],
       clipboardPasteCount: 0,
     });
-    useLayoutStore.getState().activateWorkspace('edit');
   };
 
   const parseFoldProjection = (text: string): FoldDocument | null => {
@@ -1003,6 +1029,80 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       ...foldProjection,
       file_title: sourceFold.file_title ?? foldProjection.file_title,
       file_frames: sourceFold.file_frames ?? [],
+    };
+  };
+
+  /**
+   * Every field that restores the Edit canvas from a crease-pattern document in a
+   * saved `.osf`. The single source of truth shared by the CP-only load path and
+   * the bundled-companion path, so the two cannot drift — the same discipline
+   * `freshEditableCpState` applies to the blank-canvas paths.
+   *
+   * Divergence here is exactly what the companion path had lost: it restored the
+   * document and its folded figures but not the saved `creaseColorMode`, viewport
+   * (grid, snaps, line width), `toolMode`, or the `projectLoadId` bump. None of
+   * those live in localStorage, so reopening a design bundled with an Edit crease
+   * pattern silently reverted the crease colours and every grid setting, and left
+   * the CP panel and undo stack without a fresh baseline.
+   *
+   * Scoped to the Edit canvas: it deliberately does NOT touch the design fields
+   * (`project`, `pendingDesignChoice`, `status`, `activePanelId`) so it can install
+   * a crease pattern alongside a design without unclaiming it.
+   */
+  const nativeCpEditorState = (
+    nativeDocument: Extract<ReturnType<typeof activeNativeDocument>, { kind: 'crease-pattern' }>,
+    documentState: OristudioCpDocumentState,
+    camvResult: OristudioCpCommandResult | null
+  ): Partial<WorkspaceState> => {
+    // A file is the one place window ids arrive from outside this session, so it
+    // is the one place the allocator has to be told about them. Without it the
+    // next window created is handed an id a restored one already holds, and the
+    // two share a fold. See `inlineSimulationIds`.
+    //
+    // Here rather than at each call site: it is inseparable from installing
+    // `oristudioCpInlineSimulations` below, and this is the only place that does.
+    noteInlineSimulationIds(nativeDocument.creasePattern.inlineSimulations);
+    return {
+    // Overridden field-by-field below; spread for the fold side table,
+    // which hydration only refills for the incoming windows.
+    ...discardCpDocumentState(),
+    oristudioCpDocument: documentState,
+    oristudioCpLineage: nativeDocument.creasePattern.lineage,
+    oristudioCpAnnotations: [
+      ...nativeDocument.creasePattern.images,
+      ...nativeDocument.creasePattern.textAnnotations,
+    ],
+    oristudioCpSelectedAnnotationId: null,
+    // Placement and provenance only. Each window's fold is rebuilt from the
+    // loaded document by the caller's hydrate, and until then a window has no
+    // mesh to draw.
+    oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
+    oristudioCpFocusedInlineSimulationId: null,
+    oristudioCpDocumentExtensions: nativeDocument.extensions,
+    oristudioCpCamvResult: camvResult,
+    oristudioCpOperationDescriptors: documentState.operationDescriptors,
+    oristudioCpError: null,
+    oristudioCpHistoryPast: [],
+    oristudioCpHistoryFuture: [],
+    oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
+    oristudioCpActiveDiagnosticId: null,
+    oristudioCpRevision: 0,
+    oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
+    oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
+    creaseColorMode: nativeDocument.viewState.creaseColorMode ?? DEFAULT_CREASE_COLOR_MODE,
+    oristudioCpViewport: {
+      ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      ...nativeDocument.viewState.viewport,
+    },
+    // Null (pre-v7 file, or a malformed camera) leaves the canvas to auto-fit.
+    oristudioCpCamera: nativeDocument.viewState.camera ?? null,
+    toolMode: 'select',
+    // Re-baselines the CP panel and the undo stack against the document just
+    // installed (see freshCreasePattern.ts).
+    projectLoadId: get().projectLoadId + 1,
+    // This document becomes the simulator's source, so whatever the previous
+    // load left behind must not be simulated in its place.
+    ...staleFoldArtifactResourceState(get().foldArtifactRevision),
     };
   };
 
@@ -1044,56 +1144,24 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // Simulation faces are inferred in JS (no flat-folding), so multi-pattern
     // documents work.
     const result = parsed;
-    // See the note on the other install site: a kernel-backed document's
-    // artifacts come from the kernel, never from the importer.
-    const artifactState = staleFoldArtifactResourceState(get().foldArtifactRevision);
     const originalSource = importedSourceFromNativeSource(nativeDocument.creasePattern.source);
     const importedDocument = originalSource
       ? { ...result.document, source: originalSource }
       : result.document;
     set({
-      // Overridden field-by-field below; spread for the fold side table,
-      // which hydration only refills for the incoming windows.
-      ...discardCpDocumentState(),
+      ...nativeCpEditorState(nativeDocument, documentState, checked.camvResult),
+      // Everything below is the "this crease pattern is the whole project" part,
+      // which the companion path must not apply — it would unclaim the design.
       // Opening a crease pattern makes the CP editor the active view.
       activePanelId: 'crease-pattern',
       // A CP-only project establishes no design; keep the Design chooser.
-      pendingDesignChoice: true,
+      designMethod: 'none',
       project: { ...result.project, title: nativeDocument.title || result.project.title },
       importedCreasePattern: importedDocument,
-      oristudioCpDocument: documentState,
-      oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
-      oristudioCpSelectedAnnotationId: null,
-      // Placement and provenance only. Each window's fold is rebuilt from the
-      // loaded document below, and until then a window has no mesh to draw.
-      oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
-      oristudioCpFocusedInlineSimulationId: null,
-      oristudioCpDocumentExtensions: nativeDocument.extensions,
-      oristudioCpCamvResult: checked.camvResult,
-      oristudioCpOperationDescriptors: documentState.operationDescriptors,
-      oristudioCpError: null,
-      oristudioCpHistoryPast: [],
-      oristudioCpHistoryFuture: [],
-      projectLoadId: get().projectLoadId + 1,
       currentFileName: source.filename,
       currentFilePath: source.path ?? null,
       projectMessage: `Loaded ${source.filename}`,
       selection: { kind: 'tree' },
-      oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
-      oristudioCpActiveDiagnosticId: null,
-      oristudioCpRevision: 0,
-      oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
-      oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
-      toolMode: 'select',
-      creaseColorMode: nativeDocument.viewState.creaseColorMode ?? DEFAULT_CREASE_COLOR_MODE,
-      oristudioCpViewport: {
-        ...DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
-        ...nativeDocument.viewState.viewport,
-      },
-      // Null (pre-v7 file, or a malformed camera) leaves the canvas to auto-fit.
-      oristudioCpCamera: nativeDocument.viewState.camera ?? null,
-      ...artifactState,
       sequenceTarget: null,
       sequencePlan: null,
       sequenceSimulationFocus: { kind: 'whole' },
@@ -1112,7 +1180,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // are shared. Not awaited — a window draws nothing until its fold arrives,
     // and blocking the open on twenty of them would freeze it for no benefit.
     void get().hydrateOristudioCpInlineSimulations();
-    useLayoutStore.getState().activateWorkspace('edit');
   };
 
   const restoreNativeCreasePatternCompanion = async (
@@ -1129,33 +1196,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       nativeSource
     );
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
-    set({
-      // Overridden field-by-field below; spread for the fold side table,
-      // which hydration only refills for the incoming windows.
-      ...discardCpDocumentState(),
-      oristudioCpDocument: checked.documentState,
-      oristudioCpLineage: nativeDocument.creasePattern.lineage,
-      oristudioCpAnnotations: [...nativeDocument.creasePattern.images, ...nativeDocument.creasePattern.textAnnotations],
-      oristudioCpSelectedAnnotationId: null,
-      // Placement and provenance only. Each window's fold is rebuilt from the
-      // loaded document below, and until then a window has no mesh to draw.
-      oristudioCpInlineSimulations: nativeDocument.creasePattern.inlineSimulations,
-      oristudioCpFocusedInlineSimulationId: null,
-      oristudioCpDocumentExtensions: nativeDocument.extensions,
-      oristudioCpCamvResult: checked.camvResult,
-      oristudioCpOperationDescriptors: checked.documentState.operationDescriptors,
-      oristudioCpError: null,
-      oristudioCpHistoryPast: [],
-      oristudioCpHistoryFuture: [],
-      oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
-      oristudioCpActiveDiagnosticId: null,
-      oristudioCpRevision: 0,
-      oristudioCpFoldedFigures: nativeDocument.viewState.foldedFigures ?? [],
-      oristudioCpActiveFoldedFigureId: nativeDocument.viewState.activeFoldedFigureId ?? null,
-      // The companion becomes the simulator's source, so whatever the design
-      // load left behind must not be simulated in its place.
-      ...staleFoldArtifactResourceState(get().foldArtifactRevision),
-    });
+    // Only the Edit-canvas fields: the design has already claimed `project`,
+    // `designMethod`, and `status`.
+    set(nativeCpEditorState(nativeDocument, checked.documentState, checked.camvResult));
     void get().hydrateOristudioCpInlineSimulations();
   };
 
@@ -1168,15 +1211,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // Retain the file-level extension bag for a lossless save round-trip. Set
     // early; the document load paths below never touch this field.
     set({ nativeProjectExtensions: nativeProject.extensions });
+    // Known before anything is installed, and the design installers need it: a
+    // bundle that carries a crease pattern must not publish an empty Edit canvas
+    // on the way to installing it. The Edit surface self-provisions into any gap
+    // it sees, so each such gap cost a blank document built and thrown away.
+    const companion = nativeProject.workspace.documents.find(
+      (document) => document.kind === 'crease-pattern'
+    );
+    const preserveEditCanvas = companion !== undefined;
     if (nativeDocument.kind === 'treemaker-tree') {
       await loadText(nativeDocument.tree.text, {
         title: nativeDocument.title || nativeProject.workspace.title,
         filename: source.filename,
         path: source.path ?? null,
+        preserveEditCanvas,
       });
-      const companion = nativeProject.workspace.documents.find(
-        (document) => document.kind === 'crease-pattern'
-      );
       if (companion?.kind === 'crease-pattern') {
         await restoreNativeCreasePatternCompanion(companion, source);
       }
@@ -1186,17 +1235,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const loaded = await get().loadOristudioBpProjectFromFile(
         nativeDocument.project.text,
         { filename: source.filename, path: source.path ?? null },
-        { symmetry: nativeDocument.symmetry }
+        { symmetry: nativeDocument.symmetry, preserveEditCanvas }
       );
-      // Loading the BP design clears the Edit canvas; restore the saved CP
-      // companion (if any) so the Send-to-Edit result comes back too.
-      if (loaded) {
-        const companion = nativeProject.workspace.documents.find(
-          (document) => document.kind === 'crease-pattern'
-        );
-        if (companion?.kind === 'crease-pattern') {
-          await restoreNativeCreasePatternCompanion(companion, source);
-        }
+      // Restore the saved CP companion (if any) so the Send-to-Edit result comes
+      // back too. It replaces the canvas the design load was told to keep.
+      if (loaded && companion?.kind === 'crease-pattern') {
+        await restoreNativeCreasePatternCompanion(companion, source);
       }
       return;
     }
@@ -1527,6 +1571,23 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return true;
   };
 
+  // Land every successful open in the same workspace, whatever the file format.
+  // Each format's loader activates a workspace of its own as it installs state,
+  // so without this the landing was whichever loader happened to run last: an
+  // `.osf` holding a design plus an Edit crease pattern dispatches on its design
+  // document and always opened on Design, even when the crease pattern was the
+  // surface being worked on. Applied here so File › Open, the start screen, the
+  // drop handler, and the desktop open-with handler cannot disagree — the latter
+  // three navigate to `currentWorkspacePath()`, which follows this decision
+  // rather than making a second one.
+  const applyLandingWorkspace = () => {
+    if (get().status === 'error') return;
+    const layout = useLayoutStore.getState();
+    layout.activateWorkspace(landingWorkspace(get()));
+    // No-ops outside Design; rebuilds the variant layout when a design landed.
+    layout.ensureDesignLayout();
+  };
+
   // Route a native save/save-as by the documents that exist, NOT by the pane in
   // focus. The Edit crease-pattern canvas is always focusable, so keying off the
   // active view would drop the design whenever the user saved from Edit. If any
@@ -1547,8 +1608,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
   return {
     project: createEmptyProject(),
-    workflowTarget: 'treemaker',
-    pendingDesignChoice: false,
+    // Nothing has been authored yet, so no method has been chosen — `/design`
+    // and the workspace rail both offer the chooser until one is. (The pair this
+    // replaced started at `pendingDesignChoice: false` + `workflowTarget:
+    // 'treemaker'`, which claimed Circle-packed for a project that did not exist;
+    // bare `/design` only showed the chooser because the route overwrote the
+    // claim on arrival.)
+    designMethod: 'none',
     projectEstablished: false,
     activePanelId: null,
     activeEditingContext: 'treemaker-tree',
@@ -1661,8 +1727,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         set({
           ...projectStateFromSnapshot(snapshot, 'Untitled'),
           activePanelId: 'design',
-          workflowTarget: 'treemaker',
-          pendingDesignChoice: false,
+          designMethod: 'treemaker',
           oristudioBpDocument: null,
           oristudioBpWorkspace: null,
           nativeProjectExtensions: {},
@@ -1750,10 +1815,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           ...freshEditableCpState(documentState, get()),
           // File › New additionally discards the whole project back to a bare CP:
           project: { ...createEmptyProject(), title: documentState.summary.title ?? 'Untitled CP' },
-          workflowTarget: 'treemaker',
           // Creating a bare CP establishes no design, so the Design workspace
           // keeps offering the method chooser (Circle-packed vs Box-pleated).
-          pendingDesignChoice: true,
+          designMethod: 'none',
           importedCreasePattern: null,
           currentFileName: defaultNativeFilename(documentState.summary.title ?? 'Untitled CP'),
           currentFilePath: null,
@@ -1774,18 +1838,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     loadProjectText: async (text, source) => {
-      set({ pendingDesignChoice: false });
       try {
         await loadText(text, source);
+        applyLandingWorkspace();
       } catch (error) {
         set({ status: 'error', error: engineError(error), projectMessage: null });
       }
     },
 
     loadCreasePatternText: async (text, source) => {
-      set({ pendingDesignChoice: false });
       try {
         await loadCreasePattern(text, source);
+        applyLandingWorkspace();
       } catch (error) {
         set({ status: 'error', error: engineError(error), projectMessage: null });
       }
@@ -2104,7 +2168,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
         return false;
       }
-      set({ pendingDesignChoice: false });
       let openedSourceLength = 0;
       try {
         const file = await fileService.openTextFile({
@@ -2125,6 +2188,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         } else {
           await loadText(file.text, { filename: file.name, path: file.path });
         }
+        applyLandingWorkspace();
         track('project opened', { source: 'file' });
         return true;
       } catch (error) {
@@ -2709,36 +2773,28 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     clearProjectMessage: () => set({ projectMessage: null }),
     setActivePanelId: (id) => set({ activePanelId: id }),
-    setWorkflowTarget: (target) => {
-      if (get().workflowTarget === target) return;
-      set({ workflowTarget: target });
-      // The Design layout variant follows the method, so rebuild it if needed.
-      useLayoutStore.getState().ensureDesignLayout();
-    },
 
     startNewDesign: () => {
-      // Enter the Design workspace on the NUX chooser; no document is created
-      // until the user picks Circle-packed or Box-pleated.
-      set({ pendingDesignChoice: true, error: null, projectMessage: null });
+      // Enter the Design workspace on the method chooser; no document is created
+      // until the user picks Circle-packed or Box-pleated. The one caller that
+      // legitimately clears the method — everything else only ever sets a real
+      // one, so no route or loader can put the chooser over a live design.
+      set({ designMethod: 'none', error: null, projectMessage: null });
       useLayoutStore.getState().activateWorkspace('design');
       useLayoutStore.getState().ensureDesignLayout();
     },
 
     applyDesignRoute: (variant) => {
-      // Reflect the Design sub-route into the variant fields. Layout rebuild and
-      // document provisioning are the caller's concern (WorkspaceRoute).
-      const state = get();
-      if (variant === 'nux') {
-        if (!state.pendingDesignChoice) set({ pendingDesignChoice: true });
-      } else if (variant === 'box-pleat') {
-        if (state.pendingDesignChoice || state.workflowTarget !== 'box-pleat') {
-          set({ pendingDesignChoice: false, workflowTarget: 'box-pleat' });
-        }
-      } else {
-        if (state.pendingDesignChoice || state.workflowTarget !== 'treemaker') {
-          set({ pendingDesignChoice: false, workflowTarget: 'treemaker' });
-        }
-      }
+      // Reflect a Design sub-route into the method. Layout rebuild and document
+      // provisioning are the caller's concern (WorkspaceRoute).
+      //
+      // `nux` writes nothing: bare `/design` is where the chooser lives, not an
+      // instruction to discard the method. It used to force
+      // `pendingDesignChoice: true`, which is how landing there replaced a design
+      // that had just loaded with the chooser. `/design` now redirects to the
+      // active method's sub-route instead, and only `startNewDesign` clears it.
+      if (variant === 'nux') return;
+      if (get().designMethod !== variant) set({ designMethod: variant });
     },
 
     chooseDesignMethod: async (target) => {

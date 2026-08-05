@@ -2077,6 +2077,7 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
     "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103",
     "errors:projectFile.damaged": "39e62947e7cc",
     "errors:projectFile.tooNew": "f206e0a530d2",
     "errors:projectFile.unrecognized": "7fb954965343"
@@ -4159,6 +4160,7 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
     "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103",
     "errors:projectFile.damaged": "39e62947e7cc",
     "errors:projectFile.tooNew": "f206e0a530d2",
     "errors:projectFile.unrecognized": "7fb954965343"
@@ -6270,6 +6272,7 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
     "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103",
     "errors:projectFile.damaged": "39e62947e7cc",
     "errors:projectFile.tooNew": "f206e0a530d2",
     "errors:projectFile.unrecognized": "7fb954965343"
@@ -8381,6 +8384,7 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
     "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103",
     "errors:projectFile.damaged": "39e62947e7cc",
     "errors:projectFile.tooNew": "f206e0a530d2",
     "errors:projectFile.unrecognized": "7fb954965343"
@@ -10492,6 +10496,7 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
     "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103",
     "errors:projectFile.damaged": "39e62947e7cc",
     "errors:projectFile.tooNew": "f206e0a530d2",
     "errors:projectFile.unrecognized": "7fb954965343"
@@ -12603,6 +12608,7 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
     "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103",
     "errors:projectFile.damaged": "39e62947e7cc",
     "errors:projectFile.tooNew": "f206e0a530d2",
     "errors:projectFile.unrecognized": "7fb954965343"
@@ -14714,6 +14720,7 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
     "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103",
     "errors:projectFile.damaged": "39e62947e7cc",
     "errors:projectFile.tooNew": "f206e0a530d2",
     "errors:projectFile.unrecognized": "7fb954965343"
@@ -16796,6 +16803,7 @@
     "errors:shareLink.tooLarge": "1d76f50c0423",
     "dialogs:settings.workspace.analytics": "bda3acc55633",
     "dialogs:settings.workspace.privacy": "54a57c3147c4",
+    "toasts:creasePattern.inlineSimulationRegionGone": "4736804f6103",
     "errors:projectFile.damaged": "39e62947e7cc",
     "errors:projectFile.tooNew": "f206e0a530d2",
     "errors:projectFile.unrecognized": "7fb954965343"

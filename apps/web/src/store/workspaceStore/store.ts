@@ -10,7 +10,7 @@ import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { createSimulatorSlice } from './slices/simulatorSlice';
 import { registerDesignVariantSource } from '../layoutStore';
 import { resolveEditingContext } from '../../workspaces/editingContext';
-import { deriveDesignVariant } from './designVariant';
+import { designLayoutVariant } from './designVariant';
 import type { WorkspaceState } from './types';
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -31,7 +31,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
 // Let the layout store read the active Design layout variant so it can
 // materialize the NUX chooser, box-pleat split, or TreeMaker layout.
-registerDesignVariantSource(() => deriveDesignVariant(useWorkspaceStore.getState()));
+registerDesignVariantSource(() => designLayoutVariant(useWorkspaceStore.getState().designMethod));
 
 // Keep `activeEditingContext` derived from the active panel + design state. The
 // active panel (`activePanelId`) is the source of truth; every other input
@@ -41,8 +41,7 @@ registerDesignVariantSource(() => deriveDesignVariant(useWorkspaceStore.getState
 useWorkspaceStore.subscribe((state) => {
   const next = resolveEditingContext({
     activePanelId: state.activePanelId,
-    pendingDesignChoice: state.pendingDesignChoice,
-    workflowTarget: state.workflowTarget,
+    designMethod: state.designMethod,
     hasBpDocument: state.oristudioBpDocument !== null,
   });
   if (next !== state.activeEditingContext) {

@@ -1,20 +1,7 @@
 import { useLayoutStore } from '../store/layoutStore';
-import { useWorkspaceStore } from '../store/workspaceStore';
-import { deriveDesignVariant } from '../store/workspaceStore/designVariant';
 import { currentPath, navigateTo } from './appRouter';
-import { WELCOME_PATH, workspacePath } from './paths';
-
-/**
- * The path that matches the current store state: the active workspace, plus the
- * Design layout variant when in Design.
- */
-function targetPath(): string {
-  const workspace = useLayoutStore.getState().activeWorkspace;
-  if (workspace === 'design') {
-    return workspacePath('design', deriveDesignVariant(useWorkspaceStore.getState()));
-  }
-  return workspacePath(workspace);
-}
+import { currentWorkspacePath } from './landing';
+import { WELCOME_PATH } from './paths';
 
 /**
  * Keep the URL in sync with `activeWorkspace` (the store→URL direction).
@@ -39,7 +26,7 @@ export function startWorkspaceUrlSync(): () => void {
     if (state.activeWorkspace === prev.activeWorkspace) return;
     const path = currentPath();
     if (path === null || path === WELCOME_PATH || path === '/') return;
-    const desired = targetPath();
+    const desired = currentWorkspacePath();
     if (desired !== path) navigateTo(desired);
   });
 }

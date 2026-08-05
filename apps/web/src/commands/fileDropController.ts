@@ -9,7 +9,7 @@ import {
 } from '../lib/fileDrop';
 import { createDroppedFileService } from '../platform/fileService';
 import { currentPath, navigateTo } from '../routing/appRouter';
-import { openedProjectPath } from '../routing/landing';
+import { currentWorkspacePath } from '../routing/landing';
 import { EDIT_PATH } from '../routing/paths';
 import { requestChoice, useCommandDialogStore } from '../store/commandDialogStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -193,6 +193,6 @@ export async function handleFileDrop({ files, policy }: FileDropRequest): Promis
     .openProject(fileService, { confirmDiscard });
   if (!opened) return null;
   reportIgnoredFiles(selection);
-  navigateTo(openedProjectPath());
+  navigateTo(currentWorkspacePath());
   return 'opened';
 }
