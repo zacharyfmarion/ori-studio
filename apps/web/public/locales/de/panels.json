@@ -369,6 +369,14 @@
     "newTree": "Neuer Baum",
     "noEditableTree": "Dieses Dokument hat keinen bearbeitbaren Baum.",
     "open": "Öffnen",
+    "paneTitle": {
+      "bpPacking": "BP-Editor",
+      "bpTree": "Baum-Editor",
+      "conditions": "Bedingungen",
+      "diagnostics": "Diagnose",
+      "inspector": "Inspektor",
+      "tree": "Design"
+    },
     "preparingBoxPleatEditor": "Box-Pleating-Editor wird vorbereitet…",
     "preparingTreeEditor": "Baum-Editor wird vorbereitet…",
     "preset": "Voreinstellung",

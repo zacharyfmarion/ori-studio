@@ -358,6 +358,14 @@
     "newTree": "새 트리",
     "noEditableTree": "이 문서에는 편집 가능한 트리가 없습니다.",
     "open": "열기",
+    "paneTitle": {
+      "bpPacking": "BP 편집기",
+      "bpTree": "트리 편집기",
+      "conditions": "조건",
+      "diagnostics": "진단",
+      "inspector": "인스펙터",
+      "tree": "디자인"
+    },
     "preparingBoxPleatEditor": "박스 플리츠 편집기를 준비하는 중…",
     "preparingTreeEditor": "트리 편집기를 준비하는 중…",
     "preset": "프리셋",

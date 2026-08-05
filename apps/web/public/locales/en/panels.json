@@ -369,6 +369,14 @@
     "newTree": "New Tree",
     "noEditableTree": "This document does not have an editable tree.",
     "open": "Open",
+    "paneTitle": {
+      "bpPacking": "BP Editor",
+      "bpTree": "Tree editor",
+      "conditions": "Conditions",
+      "diagnostics": "Diagnostics",
+      "inspector": "Inspector",
+      "tree": "Design"
+    },
     "preparingBoxPleatEditor": "Preparing the box-pleat editor…",
     "preparingTreeEditor": "Preparing the tree editor…",
     "preset": "Preset",

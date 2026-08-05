@@ -358,6 +358,14 @@
     "newTree": "新建树",
     "noEditableTree": "此文档没有可编辑的树。",
     "open": "打开",
+    "paneTitle": {
+      "bpPacking": "BP 编辑器",
+      "bpTree": "树编辑器",
+      "conditions": "条件",
+      "diagnostics": "诊断",
+      "inspector": "检查器",
+      "tree": "设计"
+    },
     "preparingBoxPleatEditor": "正在准备箱形褶皱编辑器…",
     "preparingTreeEditor": "正在准备树编辑器…",
     "preset": "预设",

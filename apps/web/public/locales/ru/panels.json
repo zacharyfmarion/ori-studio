@@ -391,6 +391,14 @@
     "newTree": "Новое дерево",
     "noEditableTree": "Этот документ не имеет редактируемого дерева.",
     "open": "Открыть",
+    "paneTitle": {
+      "bpPacking": "Редактор BP",
+      "bpTree": "Редактор дерева",
+      "conditions": "Условия",
+      "diagnostics": "Диагностика",
+      "inspector": "Инспектор",
+      "tree": "Дизайн"
+    },
     "preparingBoxPleatEditor": "Подготовка редактора коробчатого складывания…",
     "preparingTreeEditor": "Подготовка редактора дерева…",
     "preset": "Предустановка",

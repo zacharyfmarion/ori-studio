@@ -380,6 +380,14 @@
     "newTree": "Nouvel arbre",
     "noEditableTree": "Ce document n'a pas d'arbre modifiable.",
     "open": "Ouvrir",
+    "paneTitle": {
+      "bpPacking": "Éditeur BP",
+      "bpTree": "Éditeur d'arbre",
+      "conditions": "Conditions",
+      "diagnostics": "Diagnostics",
+      "inspector": "Inspecteur",
+      "tree": "Conception"
+    },
     "preparingBoxPleatEditor": "Préparation de l'éditeur de pliage en boîte…",
     "preparingTreeEditor": "Préparation de l'éditeur d'arbre…",
     "preset": "Préréglage",

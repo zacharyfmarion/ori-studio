@@ -358,6 +358,14 @@
     "newTree": "新規ツリー",
     "noEditableTree": "このドキュメントには編集可能なツリーがありません。",
     "open": "開く",
+    "paneTitle": {
+      "bpPacking": "BP エディター",
+      "bpTree": "ツリーエディター",
+      "conditions": "条件",
+      "diagnostics": "診断",
+      "inspector": "インスペクター",
+      "tree": "デザイン"
+    },
     "preparingBoxPleatEditor": "ボックスプリーツエディターを準備中…",
     "preparingTreeEditor": "ツリーエディターを準備中…",
     "preset": "プリセット",

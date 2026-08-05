@@ -2115,7 +2115,13 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "panels:design.paneTitle.bpPacking": "f3365f1f9375",
+    "panels:design.paneTitle.bpTree": "dbc1004a128c",
+    "panels:design.paneTitle.conditions": "97d4be896069",
+    "panels:design.paneTitle.diagnostics": "268f14bbfe11",
+    "panels:design.paneTitle.inspector": "da188e3b1cef",
+    "panels:design.paneTitle.tree": "0072e6b93494"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4233,7 +4239,13 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "panels:design.paneTitle.bpPacking": "f3365f1f9375",
+    "panels:design.paneTitle.bpTree": "dbc1004a128c",
+    "panels:design.paneTitle.conditions": "97d4be896069",
+    "panels:design.paneTitle.diagnostics": "268f14bbfe11",
+    "panels:design.paneTitle.inspector": "da188e3b1cef",
+    "panels:design.paneTitle.tree": "0072e6b93494"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6380,7 +6392,13 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "panels:design.paneTitle.bpPacking": "f3365f1f9375",
+    "panels:design.paneTitle.bpTree": "dbc1004a128c",
+    "panels:design.paneTitle.conditions": "97d4be896069",
+    "panels:design.paneTitle.diagnostics": "268f14bbfe11",
+    "panels:design.paneTitle.inspector": "da188e3b1cef",
+    "panels:design.paneTitle.tree": "0072e6b93494"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8527,7 +8545,13 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "panels:design.paneTitle.bpPacking": "f3365f1f9375",
+    "panels:design.paneTitle.bpTree": "dbc1004a128c",
+    "panels:design.paneTitle.conditions": "97d4be896069",
+    "panels:design.paneTitle.diagnostics": "268f14bbfe11",
+    "panels:design.paneTitle.inspector": "da188e3b1cef",
+    "panels:design.paneTitle.tree": "0072e6b93494"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10674,7 +10698,13 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "panels:design.paneTitle.bpPacking": "f3365f1f9375",
+    "panels:design.paneTitle.bpTree": "dbc1004a128c",
+    "panels:design.paneTitle.conditions": "97d4be896069",
+    "panels:design.paneTitle.diagnostics": "268f14bbfe11",
+    "panels:design.paneTitle.inspector": "da188e3b1cef",
+    "panels:design.paneTitle.tree": "0072e6b93494"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12821,7 +12851,13 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "panels:design.paneTitle.bpPacking": "f3365f1f9375",
+    "panels:design.paneTitle.bpTree": "dbc1004a128c",
+    "panels:design.paneTitle.conditions": "97d4be896069",
+    "panels:design.paneTitle.diagnostics": "268f14bbfe11",
+    "panels:design.paneTitle.inspector": "da188e3b1cef",
+    "panels:design.paneTitle.tree": "0072e6b93494"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14968,7 +15004,13 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "panels:design.paneTitle.bpPacking": "f3365f1f9375",
+    "panels:design.paneTitle.bpTree": "dbc1004a128c",
+    "panels:design.paneTitle.conditions": "97d4be896069",
+    "panels:design.paneTitle.diagnostics": "268f14bbfe11",
+    "panels:design.paneTitle.inspector": "da188e3b1cef",
+    "panels:design.paneTitle.tree": "0072e6b93494"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -17086,6 +17128,12 @@
     "cpVocab:action.cp_action_square_generate.label": "c11092bc0861",
     "cpVocab:action.cp_action_square_generate.tooltip": "236e713fdb2a",
     "cpVocab:action.cp_action_square_generate.disabledReason": "5fa7aac5375c",
-    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f"
+    "cpVocab:action.cp_action_square_generate.steps.0": "2b05445e140f",
+    "panels:design.paneTitle.bpPacking": "f3365f1f9375",
+    "panels:design.paneTitle.bpTree": "dbc1004a128c",
+    "panels:design.paneTitle.conditions": "97d4be896069",
+    "panels:design.paneTitle.diagnostics": "268f14bbfe11",
+    "panels:design.paneTitle.inspector": "da188e3b1cef",
+    "panels:design.paneTitle.tree": "0072e6b93494"
   }
 }

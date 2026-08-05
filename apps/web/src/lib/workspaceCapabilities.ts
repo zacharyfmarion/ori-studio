@@ -1,4 +1,6 @@
 import type { TFunction } from 'i18next';
+import { DESIGN_KINDS, designKindRegistry } from '../designKinds/registry';
+import type { DesignKindDescriptor } from '../designKinds/types';
 import type { AppStatus, Selection } from './sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
 
@@ -822,68 +824,21 @@ export function getWorkspaceCapabilities(
   return maskCapabilitiesForContext(capabilities, input.activeEditingContext);
 }
 
-/**
- * Edit-menu commands that author a TreeMaker tree specifically — the
- * Node/Edge/Strain/Stubs submenus and the tree-only Select items. They are
- * hidden entirely outside `treemaker-tree` context so the Edit menu never
- * surfaces tree operations in the crease-pattern editor, a Box-Pleat design, or
- * simulate. (Undo/redo, clipboard, delete, and Select All/Deselect All are
- * context-agnostic and stay visible.)
- */
-const TREE_ONLY_EDIT_CAPABILITIES = new Set<WorkspaceCapabilityId>([
-  'edit.makeRoot',
-  'edit.splitEdge',
-  'edit.setEdgeLength',
-  'edit.scaleEdgeLengths',
-  'edit.renormalizeToEdge',
-  'edit.renormalizeToUnitScale',
-  'edit.absorbNodes',
-  'edit.absorbRedundantNodes',
-  'edit.absorbEdges',
-  'edit.perturbNodes',
-  'edit.perturbAllNodes',
-  'edit.removeStrain',
-  'edit.removeAllStrain',
-  'edit.relieveStrain',
-  'edit.relieveAllStrain',
-  'edit.addLargestStubForNodes',
-  'edit.addLargestStubForPoly',
-  'edit.triangulateTree',
-  'edit.selectByIndex',
-  'edit.selectMovableParts',
-  'edit.selectCorridorFacets',
-]);
-
-/**
- * TreeMaker/CP-specific commands that make no sense while authoring a Box-Pleat
- * design. Hidden (and disabled) in a BP context so the Design and Crease Pattern
- * menus — and the tree-editing Edit submenus — don't surface TreeMaker actions.
- * File/Edit(undo,redo,clipboard)/View stay available.
- */
-const BP_HIDDEN_CAPABILITIES = new Set<WorkspaceCapabilityId>([
-  ...TREE_ONLY_EDIT_CAPABILITIES,
-  'view.conditions',
-  'file.exportV5',
-  'file.exportV4',
-  'file.exportCp',
-  'file.exportFold',
-  'file.exportOri',
-  'file.exportOrh',
-  'file.exportSvg',
-  'file.exportPng',
-  'file.exportFoldedFold',
-  'file.exportObj',
-  'file.exportStl',
-]);
+// The per-design-kind capability sets that used to live here —
+// `TREE_ONLY_EDIT_CAPABILITIES` and `BP_HIDDEN_CAPABILITIES` — now live on the
+// kinds themselves, in `designKinds/treemaker.ts` and `designKinds/boxPleat.ts`.
+// Masking below reads them from the registry, so a third design kind declares
+// what it owns and hides without touching this file.
 
 // Undo/redo stay in the Edit menu while simulating (rendered inert — the
 // simulate context has no history stack, so the count is zero and they are
 // disabled). Every other `edit.*` command authors the tree and is hidden.
 const SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit.redo']);
 
-function maskCapabilitiesForContext(
+export function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,
-  context: EditingContext
+  context: EditingContext,
+  kinds: readonly DesignKindDescriptor[] = DESIGN_KINDS
 ): WorkspaceCapabilities {
   const masked = { ...capabilities };
   const ids = Object.keys(masked) as WorkspaceCapabilityId[];
@@ -891,17 +846,25 @@ function maskCapabilitiesForContext(
     masked[id] = { ...masked[id], visible: false, enabled: false };
   };
 
-  // Tree authoring only applies while editing a TreeMaker tree; hide those Edit
-  // commands in every other context (CP editor, BP, simulate, the NUX) so the
-  // Node/Edge/Strain/Stubs submenus and tree-only Select items collapse away.
-  if (context !== 'treemaker-tree') {
-    for (const id of TREE_ONLY_EDIT_CAPABILITIES) hide(id);
+  const registry = designKindRegistry(kinds);
+  // The design kind being authored, or null in the contexts no design owns —
+  // the CP editor, simulate, and the method chooser.
+  const activeKind = registry.forContext(context);
+
+  // Each kind's `owned` commands only apply while that kind is being authored;
+  // hide them everywhere else. This is what collapses TreeMaker's
+  // Node/Edge/Strain/Stubs submenus and tree-only Select items away from the CP
+  // editor, a Box-Pleat design, simulate, and the NUX.
+  for (const kind of registry.all) {
+    if (kind === activeKind) continue;
+    for (const id of kind.capabilities.owned) hide(id);
   }
 
   // The Crease Pattern menu operates on the editable crease pattern, so it only
   // belongs to the CP editor. Hide those `cp.*` commands everywhere else so the
   // whole menu collapses in Design/Simulate/BP. `cp.build` is exempt — it lives
-  // in the Design menu and is gated separately by `treeMode`.
+  // in the Design menu and is gated separately by `treeMode`. (A kind that wants
+  // `cp.build` gone too says so in its own `hiddenPrefixes`; box-pleat does.)
   if (context !== 'crease-pattern') {
     for (const id of ids) {
       if (id.startsWith('cp.') && id !== 'cp.build') hide(id);
@@ -922,12 +885,14 @@ function maskCapabilitiesForContext(
     return masked;
   }
 
-  if (context === 'bp-tree' || context === 'bp-packing') {
+  // What the active kind additionally suppresses: commands that exist elsewhere
+  // but make no sense while authoring this kind.
+  if (activeKind) {
+    const { hiddenIds, hiddenPrefixes } = activeKind.capabilities;
     for (const id of ids) {
-      if (id.startsWith('optimize.') || id.startsWith('cp.') || BP_HIDDEN_CAPABILITIES.has(id)) {
-        hide(id);
-      }
+      if (hiddenPrefixes.some((prefix) => id.startsWith(prefix))) hide(id);
     }
+    for (const id of hiddenIds) hide(id);
   }
 
   return masked;
