@@ -972,6 +972,36 @@ export function cpCommandByOperation(
 }
 
 /**
+ * Operations that are Ori Studio originals rather than Oriedita ports — the
+ * frontend's view of the kernel's `OperationOrigin::OriStudio`.
+ *
+ * Derived from the `upstream` prefix rather than hand-listed, so it cannot fall
+ * out of step with the command definitions; `oristudioCpCommands.test.ts` pins
+ * the expected set, so a fourth native tool is a deliberate edit in two places
+ * rather than a silent change here.
+ *
+ * See PORTING.md > "Ori Studio native operations" for what the distinction
+ * obliges. In short: a port owes its upstream, an original owes nothing.
+ */
+const CP_NATIVE_OPERATIONS = new Set<OristudioCpOperationId>(
+  ORISTUDIO_CP_COMMANDS.filter((command) => command.upstream.startsWith('OriStudio')).map(
+    (command) => command.operationId
+  )
+);
+
+/** Whether `operationId` is an Ori Studio original with no Oriedita upstream. */
+export function isNativeCpOperation(
+  operationId: OristudioCpOperationId | null | undefined
+): boolean {
+  return operationId ? CP_NATIVE_OPERATIONS.has(operationId) : false;
+}
+
+/** The Ori Studio originals, sorted, for tests and diagnostics. */
+export function nativeCpOperationIds(): OristudioCpOperationId[] {
+  return [...CP_NATIVE_OPERATIONS].sort();
+}
+
+/**
  * Operations that create creases in the *active* line colour.
  *
  * This is the authoritative answer to "does this tool draw in the crease

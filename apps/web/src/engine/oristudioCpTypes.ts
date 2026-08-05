@@ -13,6 +13,14 @@ export type OristudioCpOperationCategory =
   | 'UiPreviewOnly'
   | 'OutOfScopeUi';
 
+/**
+ * Whether an operation is a port or an Ori Studio original — the kernel's
+ * `OperationOrigin`. `Oriedita` means `upstream` pins a real source element and
+ * the behavior is parity-bound; `OriStudio` means there is no upstream to be in
+ * parity with. See PORTING.md > "Ori Studio native operations".
+ */
+export type OristudioCpOperationOrigin = 'Oriedita' | 'OriStudio';
+
 export interface OristudioCpOperationDescriptor {
   id: OristudioCpOperationId;
   upstream: string;
@@ -20,6 +28,7 @@ export interface OristudioCpOperationDescriptor {
   category: OristudioCpOperationCategory;
   stage: number;
   status: OristudioCpOperationStatus;
+  origin: OristudioCpOperationOrigin;
 }
 
 export interface OristudioCpRgbColor {

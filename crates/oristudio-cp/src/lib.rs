@@ -347,6 +347,22 @@ pub enum OperationCategory {
     OutOfScopeUi,
 }
 
+/// Where an operation's behavior comes from, and therefore what it owes.
+///
+/// The distinction was a naming convention before it was a type: an original
+/// operation was marked only by someone writing `"OriStudio…"` into
+/// [`OperationDescriptor::upstream`], a field documented as a *pinned Oriedita
+/// source element*. Conventions rot; this does not.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum OperationOrigin {
+    /// Ported from Oriedita. `upstream` pins the source element and the behavior
+    /// is parity-bound: change it only against `third_party/oriedita`.
+    Oriedita,
+    /// Ori Studio original. `upstream` names our own action; there is no upstream
+    /// to be in parity with, and no oracle covers it.
+    OriStudio,
+}
+
 /// Identifier for every source-mapped Oriedita non-UI operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -491,14 +507,28 @@ pub struct OperationDescriptor {
     pub target: &'static str,
     /// Source-map category.
     pub category: OperationCategory,
-    /// Planned Oriedita port stage.
+    /// Planned Oriedita port stage. Meaningful only for [`OperationOrigin::Oriedita`].
     pub stage: u8,
     /// Current implementation status.
     pub status: OperationStatus,
+    /// Whether this is a port or an Ori Studio original.
+    pub origin: OperationOrigin,
 }
 
+/// Declare an operation descriptor.
+///
+/// The bare form is a port, which is the overwhelming majority; an Ori Studio
+/// original is written `descriptor!(native Foo, …)`. Leading with the word makes
+/// the one thing a reviewer needs to notice the first token on the line, rather
+/// than a prefix buried in a string three arguments in.
 macro_rules! descriptor {
+    (native $id:ident, $upstream:literal, $target:literal, $category:ident, $stage:literal, $status:ident) => {
+        descriptor!(@build OriStudio, $id, $upstream, $target, $category, $stage, $status)
+    };
     ($id:ident, $upstream:literal, $target:literal, $category:ident, $stage:literal, $status:ident) => {
+        descriptor!(@build Oriedita, $id, $upstream, $target, $category, $stage, $status)
+    };
+    (@build $origin:ident, $id:ident, $upstream:literal, $target:literal, $category:ident, $stage:literal, $status:ident) => {
         OperationDescriptor {
             id: OperationId::$id,
             upstream: $upstream,
@@ -506,6 +536,7 @@ macro_rules! descriptor {
             category: OperationCategory::$category,
             stage: $stage,
             status: OperationStatus::$status,
+            origin: OperationOrigin::$origin,
         }
     };
 }
@@ -696,7 +727,7 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         OracleTested
     ),
     descriptor!(
-        CreaseSetLineColor,
+        native CreaseSetLineColor,
         "OriStudioSetLineColor",
         "operations::color::set_line_color_for_indices",
         Kernel,
@@ -704,7 +735,7 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         UnitTested
     ),
     descriptor!(
-        CreaseSetFoldAngle,
+        native CreaseSetFoldAngle,
         "OriStudioSetFoldAngle",
         "operations::color::set_fold_magnitude_for_indices",
         Kernel,
@@ -712,7 +743,7 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         UnitTested
     ),
     descriptor!(
-        VertexSolveFoldAngles,
+        native VertexSolveFoldAngles,
         "OriStudioSolveVertexFoldAngles",
         "solve_fold_angles::vertex_angle_solutions",
         Kernel,
@@ -4578,6 +4609,42 @@ mod tests {
         .expect("preview succeeds");
         if preview.segments.is_empty() {
             assert_eq!(preview.unavailable.as_deref(), Some("AnglesUnreachable"));
+        }
+    }
+
+    /// The two markers of an Ori Studio original — where its code lives and what
+    /// its descriptor claims — must not drift apart.
+    ///
+    /// The module check is deliberately one-directional. `operations::native::`
+    /// may hold nothing parity-bound, which is what protects new code; the
+    /// converse does not hold yet, because the three originals that predate this
+    /// tag still live in ported modules (`operations::color::…`,
+    /// `solve_fold_angles::…`). Relocating them is its own change.
+    #[test]
+    fn native_operations_are_tagged_and_stay_out_of_ported_modules() {
+        for descriptor in operation_descriptors() {
+            if descriptor.target.starts_with("operations::native::") {
+                assert_eq!(
+                    descriptor.origin,
+                    OperationOrigin::OriStudio,
+                    "{:?} lives in operations::native:: but is tagged as a port",
+                    descriptor.id
+                );
+            }
+            if descriptor.origin == OperationOrigin::OriStudio {
+                assert!(
+                    descriptor.upstream.starts_with("OriStudio"),
+                    "{:?} is an Ori Studio original but its upstream ({}) reads like an Oriedita source element",
+                    descriptor.id,
+                    descriptor.upstream
+                );
+            } else {
+                assert!(
+                    !descriptor.upstream.starts_with("OriStudio"),
+                    "{:?} carries an OriStudio upstream but is tagged as a port",
+                    descriptor.id
+                );
+            }
         }
     }
 

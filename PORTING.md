@@ -79,6 +79,35 @@ are unchanged:
   not touch the parallel test, the intersection solve, or any accepted output,
   and `lengthen_crease_matches_oriedita_oracle` remains the gate.
 
+### Ori Studio native operations
+
+Not every CP operation is a port. Some exist only here — fold-angle editing has
+no Oriedita counterpart at all, because upstream creases are always a full ±180.
+These are **not** divergences from Oriedita and must not be read as ones; there is
+simply nothing upstream to compare them against.
+
+Two markers say so, and a unit test in `crates/oristudio-cp/src/lib.rs`
+(`native_operations_are_tagged_and_stay_out_of_ported_modules`) keeps them from
+drifting apart:
+
+- **`OperationOrigin::OriStudio`** on the operation's registry descriptor, written
+  at the call site as `descriptor!(native Foo, …)`. `OperationOrigin::Oriedita` —
+  the bare form, and the overwhelming majority — means `upstream` pins a real
+  source element and the behavior is parity-bound.
+- **`crates/oristudio-cp/src/operations/native/`**, whose contents are by
+  definition not parity-bound. Anything targeting `operations::native::` must
+  carry the `OriStudio` origin.
+
+Three originals predate the tag and still live in ported modules
+(`CreaseSetLineColor`, `CreaseSetFoldAngle`, `VertexSolveFoldAngles`); they are
+tagged correctly, and relocating them is a separate change. New original
+operations go in `native/`.
+
+A native operation is otherwise entirely ordinary: same dispatch, same payload,
+same preview path, same wasm bridge. The boundary is about provenance and what a
+future porting session owes the upstream, not about how the code runs. Nothing in
+`native/` needs an oracle, and no oracle sweep should expect to find one.
+
 Release caveats:
 
 - Public parity targets TreeMaker 5.0.1's distributable ALM optimizer. CFSQP
