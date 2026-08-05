@@ -318,6 +318,14 @@
         "1": "Choisissez le deuxième sommet"
       }
     },
+    "cp_action_square_generate": {
+      "label": "Carré",
+      "tooltip": "Placer un carré d’une taille définie en un seul clic",
+      "disabledReason": "Prêt",
+      "steps": {
+        "0": "Cliquez pour placer le carré"
+      }
+    },
     "cp_action_crease_advance_type": {
       "label": "Faire avancer le type de pli",
       "tooltip": "Faire avancer les lignes de pliage sélectionnées à travers bord, montagne et vallée",

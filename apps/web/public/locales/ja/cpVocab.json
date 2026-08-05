@@ -318,6 +318,14 @@
         "1": "2 つ目の角を選択"
       }
     },
+    "cp_action_square_generate": {
+      "label": "正方形",
+      "tooltip": "クリック一回で設定サイズの正方形を作成",
+      "disabledReason": "準備完了",
+      "steps": {
+        "0": "クリックして正方形を配置"
+      }
+    },
     "cp_action_crease_advance_type": {
       "label": "折り線の種類を進める",
       "tooltip": "選択した折り線を境界線・山折り・谷折りの順に進めます",

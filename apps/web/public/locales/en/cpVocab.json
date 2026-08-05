@@ -318,6 +318,14 @@
         "1": "Pick second corner"
       }
     },
+    "cp_action_square_generate": {
+      "label": "Square",
+      "tooltip": "Drop a square of a set size in one click",
+      "disabledReason": "Ready",
+      "steps": {
+        "0": "Click to place the square"
+      }
+    },
     "cp_action_crease_advance_type": {
       "label": "Advance crease type",
       "tooltip": "Advance selected folding lines through edge, mountain, and valley",

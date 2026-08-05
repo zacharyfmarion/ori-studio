@@ -123,7 +123,17 @@ const OVERSIZED_PANELS = {
   // derivation is now `hooks/useWorkspaceErrorText`, shared with the start screen,
   // so the store selector it replaced left with it and the body is a line shorter
   // than before. The cap moves for the import alone.
-  'CreasePatternPanel.tsx': 2741,
+  //
+  // 2741 -> 2751: the Square generator. Its geometry is in the kernel, its params
+  // UI is `toolOptions/SquareToolOptions`, and unit conversion, enum spelling and
+  // the payload assembly are in `tools/squareTool` — the first draft assembled
+  // the payload here and threaded the grid width down as a prop, and both moved
+  // out, which is where 14 of the 24 lines went. The ten left are composition and
+  // cannot be anywhere else: a three-line payload branch beside the fifteen
+  // already there, and `toolPreviewColor` resolving through the same function the
+  // payload does, which is the thing that stops the preview and the commit
+  // disagreeing about the line type.
+  'CreasePatternPanel.tsx': 2751,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
@@ -176,7 +186,18 @@ const OVERSIZED_PANELS = {
   // own rather than a rider on whichever feature next trips the cap. Every raise
   // since 1090 has been another group landing in that switch, which is the
   // signal AGENTS.md says to act on — this is now overdue.
-  'CpContextToolPanel.tsx': 1167,
+  //
+  // 1167 -> 1171: the Square tool's group. Four lines — an import and a branch
+  // that returns `<SquareToolOptions />` — because the group's five controls,
+  // its store binding for the grid width, and its unit maths all live in
+  // `cp-workspace/toolOptions/`. There was nothing left to move.
+  //
+  // Which makes it the next instance of exactly what the paragraph above
+  // describes, and it is being recorded rather than fixed: extracting
+  // `CpContextToolGroup` is a ~560-line change that would dwarf the feature
+  // carrying it, and the note above already says it should not ride on whichever
+  // feature next trips the cap. It is filed separately.
+  'CpContextToolPanel.tsx': 1171,
 };
 
 const PANEL_MAX_LINES = 800;

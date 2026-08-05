@@ -4956,7 +4956,10 @@
   font-weight: 650;
 }
 
-.cp-context-panel__field input,
+/* `.number-field__input` is excluded because a `NumberField` arrives fully
+   styled — 26px tall to match its own step buttons — and this rule's 22px would
+   leave the input a different height from the − / + boxes beside it. */
+.cp-context-panel__field input:not(.number-field__input),
 .cp-context-panel__field select,
 .cp-context-panel__field textarea {
   height: 22px;
@@ -5081,6 +5084,52 @@
 
 .cp-context-panel__checkbox input {
   accent-color: var(--accent-primary);
+}
+
+/* The anchor picker is a fixed-size widget, not a stretching control, so its
+   row aligns the label to the picker's first line rather than to a tall cell. */
+.cp-context-panel__field--anchor {
+  align-items: start;
+}
+
+/*
+ * Square tool anchor picker: a 3x3 transform-origin grid naming where on the
+ * square's bounding box the click lands. Sized to read as one small control
+ * rather than nine buttons, so it sits beside the segmented controls above it.
+ */
+.cp-square-anchor {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  width: 54px;
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.cp-square-anchor__cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+}
+
+.cp-square-anchor__cell:hover {
+  border-color: var(--border-default);
+}
+
+.cp-square-anchor__cell[data-active] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+}
+
+.cp-square-anchor__cell:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
 }
 
 .cp-context-panel__readout {

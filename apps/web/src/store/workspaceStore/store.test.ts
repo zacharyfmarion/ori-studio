@@ -216,6 +216,7 @@ const cpOperationDescriptors = [
     category: 'Kernel',
     stage: 7,
     status: 'OracleTested',
+    origin: 'Oriedita',
   },
 ] satisfies OristudioCpOperationDescriptor[];
 

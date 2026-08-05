@@ -178,6 +178,18 @@ pub struct CreasePatternCommandPayload {
     /// Optional number of corners for regular polygon generator commands.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub polygon_corners: Option<usize>,
+    // --- Ori Studio native -------------------------------------------------
+    /// Model-space bounding extent for `SquareGenerate`. The frontend owns the
+    /// unit the user typed (grid cells or paper edges) and converts, exactly as
+    /// it does for `width`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub square_extent: Option<f64>,
+    /// Which way the generated square sits. Defaults to `Normal`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub square_orientation: Option<operations::native::square::SquareOrientation>,
+    /// Where on the square's bounding box `points[0]` lands. Defaults to `TopLeft`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub square_anchor: Option<operations::native::square::SquareAnchor>,
     /// Optional custom color for circle and auxiliary-line recoloring commands.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_circle_color: Option<geometry::RgbColor>,
@@ -347,6 +359,22 @@ pub enum OperationCategory {
     OutOfScopeUi,
 }
 
+/// Where an operation's behavior comes from, and therefore what it owes.
+///
+/// The distinction was a naming convention before it was a type: an original
+/// operation was marked only by someone writing `"OriStudio…"` into
+/// [`OperationDescriptor::upstream`], a field documented as a *pinned Oriedita
+/// source element*. Conventions rot; this does not.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum OperationOrigin {
+    /// Ported from Oriedita. `upstream` pins the source element and the behavior
+    /// is parity-bound: change it only against `third_party/oriedita`.
+    Oriedita,
+    /// Ori Studio original. `upstream` names our own action; there is no upstream
+    /// to be in parity with, and no oracle covers it.
+    OriStudio,
+}
+
 /// Identifier for every source-mapped Oriedita non-UI operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -478,6 +506,10 @@ pub enum OperationId {
     DeleteExtraVertices,
     DeleteExtraVerticesIgnoreColor,
     OrganizeCircles,
+    // Ori Studio originals (see `OperationOrigin`). Appended rather than filed
+    // alongside their thematic neighbours, so this list keeps reading as
+    // Oriedita's source map with our additions visible at the end.
+    SquareGenerate,
 }
 
 /// Source-map descriptor for an Oriedita operation.
@@ -491,14 +523,28 @@ pub struct OperationDescriptor {
     pub target: &'static str,
     /// Source-map category.
     pub category: OperationCategory,
-    /// Planned Oriedita port stage.
+    /// Planned Oriedita port stage. Meaningful only for [`OperationOrigin::Oriedita`].
     pub stage: u8,
     /// Current implementation status.
     pub status: OperationStatus,
+    /// Whether this is a port or an Ori Studio original.
+    pub origin: OperationOrigin,
 }
 
+/// Declare an operation descriptor.
+///
+/// The bare form is a port, which is the overwhelming majority; an Ori Studio
+/// original is written `descriptor!(native Foo, …)`. Leading with the word makes
+/// the one thing a reviewer needs to notice the first token on the line, rather
+/// than a prefix buried in a string three arguments in.
 macro_rules! descriptor {
+    (native $id:ident, $upstream:literal, $target:literal, $category:ident, $stage:literal, $status:ident) => {
+        descriptor!(@build OriStudio, $id, $upstream, $target, $category, $stage, $status)
+    };
     ($id:ident, $upstream:literal, $target:literal, $category:ident, $stage:literal, $status:ident) => {
+        descriptor!(@build Oriedita, $id, $upstream, $target, $category, $stage, $status)
+    };
+    (@build $origin:ident, $id:ident, $upstream:literal, $target:literal, $category:ident, $stage:literal, $status:ident) => {
         OperationDescriptor {
             id: OperationId::$id,
             upstream: $upstream,
@@ -506,6 +552,7 @@ macro_rules! descriptor {
             category: OperationCategory::$category,
             stage: $stage,
             status: OperationStatus::$status,
+            origin: OperationOrigin::$origin,
         }
     };
 }
@@ -696,7 +743,7 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         OracleTested
     ),
     descriptor!(
-        CreaseSetLineColor,
+        native CreaseSetLineColor,
         "OriStudioSetLineColor",
         "operations::color::set_line_color_for_indices",
         Kernel,
@@ -704,7 +751,7 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         UnitTested
     ),
     descriptor!(
-        CreaseSetFoldAngle,
+        native CreaseSetFoldAngle,
         "OriStudioSetFoldAngle",
         "operations::color::set_fold_magnitude_for_indices",
         Kernel,
@@ -712,7 +759,7 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         UnitTested
     ),
     descriptor!(
-        VertexSolveFoldAngles,
+        native VertexSolveFoldAngles,
         "OriStudioSolveVertexFoldAngles",
         "solve_fold_angles::vertex_angle_solutions",
         Kernel,
@@ -1485,6 +1532,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         8,
         OracleTested
     ),
+    descriptor!(
+        native SquareGenerate,
+        "OriStudioSquareGenerate",
+        "operations::native::square::square_at_anchor",
+        Kernel,
+        8,
+        UnitTested
+    ),
 ];
 
 /// Return all source-mapped Oriedita operation descriptors.
@@ -1813,6 +1868,24 @@ pub fn execute_command(
                 polygon_corners(&command),
                 active_line_color(&command),
             )
+        }
+        OperationId::SquareGenerate => {
+            required_points(&command, 1)?;
+            let corners = square_corners_from_command(&command).ok_or_else(|| {
+                CommandError::InvalidInput {
+                    operation: command.operation,
+                    message: "square_extent must be a finite, positive model-space size"
+                        .to_string(),
+                }
+            })?;
+            let color = active_line_color(&command);
+            for edge in operations::native::square::square_edges(&corners, color) {
+                operations::arrangement::add_line_segment_like_worker(
+                    &mut document.crease_pattern,
+                    &edge,
+                );
+            }
+            corners.len()
         }
         OperationId::DrawBlintz
         | OperationId::DrawFishBase
@@ -3186,6 +3259,16 @@ pub fn preview_command(
             );
             preview.segments = model.line_segments;
         }
+        // One point, so the square tracks the cursor from the moment the tool is
+        // picked — which is the whole point of a tool whose result depends on
+        // params you cannot read off the cursor position.
+        OperationId::SquareGenerate if !points.is_empty() => {
+            if let Some(corners) = square_corners_from_command(&command) {
+                preview.segments =
+                    operations::native::square::square_edges(&corners, active_line_color(&command))
+                        .to_vec();
+            }
+        }
         OperationId::DrawBlintz
         | OperationId::DrawFishBase
         | OperationId::DrawDoveBase
@@ -3905,6 +3988,20 @@ fn polygon_corners(command: &CreasePatternCommand) -> usize {
         .unwrap_or(DEFAULT_POLYGON_CORNERS)
 }
 
+/// The square a `SquareGenerate` command describes, or `None` when its extent is
+/// unusable.
+///
+/// One resolver for both the commit and the preview, so the shape the user sees
+/// under the cursor is the shape the click makes.
+fn square_corners_from_command(command: &CreasePatternCommand) -> Option<[geometry::Point; 4]> {
+    operations::native::square::square_corners(
+        *command.payload.points.first()?,
+        command.payload.square_extent?,
+        command.payload.square_orientation.unwrap_or_default(),
+        command.payload.square_anchor.unwrap_or_default(),
+    )
+}
+
 fn default_molecule_for_operation(
     operation: OperationId,
 ) -> Option<operations::generators::DefaultMolecule> {
@@ -4579,6 +4676,140 @@ mod tests {
         if preview.segments.is_empty() {
             assert_eq!(preview.unavailable.as_deref(), Some("AnglesUnreachable"));
         }
+    }
+
+    /// The two markers of an Ori Studio original — where its code lives and what
+    /// its descriptor claims — must not drift apart.
+    ///
+    /// The module check is deliberately one-directional. `operations::native::`
+    /// may hold nothing parity-bound, which is what protects new code; the
+    /// converse does not hold yet, because the three originals that predate this
+    /// tag still live in ported modules (`operations::color::…`,
+    /// `solve_fold_angles::…`). Relocating them is its own change.
+    #[test]
+    fn native_operations_are_tagged_and_stay_out_of_ported_modules() {
+        for descriptor in operation_descriptors() {
+            if descriptor.target.starts_with("operations::native::") {
+                assert_eq!(
+                    descriptor.origin,
+                    OperationOrigin::OriStudio,
+                    "{:?} lives in operations::native:: but is tagged as a port",
+                    descriptor.id
+                );
+            }
+            if descriptor.origin == OperationOrigin::OriStudio {
+                assert!(
+                    descriptor.upstream.starts_with("OriStudio"),
+                    "{:?} is an Ori Studio original but its upstream ({}) reads like an Oriedita source element",
+                    descriptor.id,
+                    descriptor.upstream
+                );
+            } else {
+                assert!(
+                    !descriptor.upstream.starts_with("OriStudio"),
+                    "{:?} carries an OriStudio upstream but is tagged as a port",
+                    descriptor.id
+                );
+            }
+        }
+    }
+
+    fn square_command(
+        anchor_point: Point,
+        extent: Option<f64>,
+        orientation: operations::native::square::SquareOrientation,
+        anchor: operations::native::square::SquareAnchor,
+    ) -> CreasePatternCommand {
+        CreasePatternCommand::new(OperationId::SquareGenerate).with_payload(
+            CreasePatternCommandPayload {
+                points: vec![anchor_point],
+                square_extent: extent,
+                square_orientation: Some(orientation),
+                square_anchor: Some(anchor),
+                line_color: Some(LineColor::Black0),
+                ..CreasePatternCommandPayload::default()
+            },
+        )
+    }
+
+    /// The tool is a one-click stamp, so the preview has to be the answer before
+    /// the click rather than a hint towards it.
+    #[test]
+    fn the_square_preview_is_exactly_what_the_click_commits() {
+        use operations::native::square::{SquareAnchor, SquareOrientation};
+
+        let mut document = CreasePatternDocument::default();
+        let command = square_command(
+            Point::new(-40.0, -40.0),
+            Some(80.0),
+            SquareOrientation::Normal,
+            SquareAnchor::TopLeft,
+        );
+
+        let preview = preview_command(&document, command.clone()).expect("preview succeeds");
+        assert_eq!(preview.segments.len(), 4);
+
+        execute_command(&mut document, command).expect("square commits");
+        let committed = &document.crease_pattern.line_segments;
+        assert_eq!(committed.len(), 4);
+        for edge in &preview.segments {
+            assert!(
+                committed
+                    .iter()
+                    .any(|line| line.a == edge.a && line.b == edge.b && line.color == edge.color),
+                "previewed edge {edge:?} is not among the committed lines"
+            );
+        }
+    }
+
+    #[test]
+    fn a_square_with_no_usable_extent_is_refused_rather_than_drawn() {
+        use operations::native::square::{SquareAnchor, SquareOrientation};
+
+        let mut document = CreasePatternDocument::default();
+        let result = execute_command(
+            &mut document,
+            square_command(
+                Point::origin(),
+                None,
+                SquareOrientation::Normal,
+                SquareAnchor::Center,
+            ),
+        );
+
+        assert!(matches!(result, Err(CommandError::InvalidInput { .. })));
+        assert!(document.crease_pattern.line_segments.is_empty());
+    }
+
+    /// Orientation and anchor are independent inputs, and the dispatch has to
+    /// keep them that way: the same anchor with a different orientation must
+    /// still put the bounding box in the same place.
+    #[test]
+    fn orientation_does_not_move_where_the_anchor_puts_the_square() {
+        use operations::native::square::{SquareAnchor, SquareOrientation};
+
+        let bounds = |orientation| {
+            let document = CreasePatternDocument::default();
+            let preview = preview_command(
+                &document,
+                square_command(
+                    Point::new(10.0, 20.0),
+                    Some(40.0),
+                    orientation,
+                    SquareAnchor::TopLeft,
+                ),
+            )
+            .expect("preview succeeds");
+            let xs: Vec<f64> = preview.segments.iter().map(|line| line.a.x).collect();
+            let ys: Vec<f64> = preview.segments.iter().map(|line| line.a.y).collect();
+            (
+                xs.iter().copied().fold(f64::MAX, f64::min),
+                ys.iter().copied().fold(f64::MAX, f64::min),
+            )
+        };
+
+        assert_eq!(bounds(SquareOrientation::Normal), (10.0, 20.0));
+        assert_eq!(bounds(SquareOrientation::Diagonal), (10.0, 20.0));
     }
 
     #[test]

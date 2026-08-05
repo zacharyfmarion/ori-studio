@@ -318,6 +318,14 @@
         "1": "Escolha o segundo vértice"
       }
     },
+    "cp_action_square_generate": {
+      "label": "Quadrado",
+      "tooltip": "Coloque um quadrado de tamanho definido com um clique",
+      "disabledReason": "Pronto",
+      "steps": {
+        "0": "Clique para posicionar o quadrado"
+      }
+    },
     "cp_action_crease_advance_type": {
       "label": "Avançar tipo de vinco",
       "tooltip": "Avançar as linhas de dobra selecionadas por borda, montanha e vale",

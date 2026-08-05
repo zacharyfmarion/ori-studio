@@ -7,6 +7,8 @@ import {
   cpCommandUsesActiveLineColor,
   cpCommandsForGroup,
   cpRailCommands,
+  isNativeCpOperation,
+  nativeCpOperationIds,
 } from './oristudioCpCommands';
 
 describe('oristudio CP command registry', () => {
@@ -265,5 +267,29 @@ describe('cpCommandUsesActiveLineColor', () => {
     expect(usesColor.length).toBeGreaterThan(drawGrouped.length);
     expect(cpCommandByOperation('DrawCreaseAngleRestricted5')?.group).not.toBe('draw');
     expect(cpCommandUsesActiveLineColor('DrawCreaseAngleRestricted5')).toBe(true);
+  });
+});
+
+describe('Ori Studio native operations', () => {
+  /**
+   * Pinned rather than derived-and-compared-to-itself: the set is what the
+   * kernel's `OperationOrigin::OriStudio` descriptors must agree with, and a
+   * tool becoming native (or a port accidentally acquiring an `OriStudio`
+   * upstream) should be a visible edit here, not a silent shift.
+   */
+  it('are exactly the operations with no Oriedita upstream', () => {
+    expect(nativeCpOperationIds()).toEqual([
+      'CreaseSetFoldAngle',
+      'CreaseSetLineColor',
+      'SquareGenerate',
+      'VertexSolveFoldAngles',
+    ]);
+  });
+
+  it('reports ports as ports', () => {
+    expect(isNativeCpOperation('VertexSolveFoldAngles')).toBe(true);
+    expect(isNativeCpOperation('PolygonSetNoCorners')).toBe(false);
+    expect(isNativeCpOperation('DrawCreaseFree')).toBe(false);
+    expect(isNativeCpOperation(undefined)).toBe(false);
   });
 });

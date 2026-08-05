@@ -299,6 +299,14 @@ const ORIEDITA_RAIL_ACTION_OVERRIDES: Partial<
     upstreamAction: 'drawLineSegmentInternalDivisionRatioAction',
     upstreamMouseMode: 'LINE_SEGMENT_RATIO_SET_28',
   },
+  SquareGenerate: {
+    label: 'Square',
+    // Ori Studio native: Oriedita has no one-click generator at all. First in
+    // Generate, ahead of Regular Polygon — it is the shape people reach for
+    // most and the only one that needs no drawing.
+    upstreamAction: 'squareGenerateAction',
+    railOrder: 10,
+  },
   PolygonSetNoCorners: {
     label: 'Regular Polygon',
     upstreamAction: 'regularPolygonAction',

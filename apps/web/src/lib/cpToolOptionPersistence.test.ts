@@ -144,6 +144,13 @@ describe('cpToolOptionPersistence', () => {
         'fixPrecisionUseBp',
         'foldableLineStopsOnAux',
         'lengthenColorMode',
+        // The Square tool's params, all five. Its whole behaviour is its params,
+        // so a partial restore would be worse than none.
+        'squareAnchor',
+        'squareLineType',
+        'squareOrientation',
+        'squareSize',
+        'squareSizeUnit',
       ].sort()
     );
   });

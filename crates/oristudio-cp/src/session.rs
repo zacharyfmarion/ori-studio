@@ -26,8 +26,8 @@ use crate::model::TextElement;
 use crate::share;
 use crate::{
     CommandError, CreasePatternCommand, CreasePatternCommandPayload, CreasePatternDocument,
-    CreasePatternModel, OperationCategory, OperationDescriptor, OperationId, OperationStatus,
-    execute_command, io, operation_descriptors, operations, preview_command,
+    CreasePatternModel, OperationCategory, OperationDescriptor, OperationId, OperationOrigin,
+    OperationStatus, execute_command, io, operation_descriptors, operations, preview_command,
 };
 
 /// Canonical CP engine command surface — the single source of truth for parity
@@ -173,6 +173,7 @@ pub struct OperationInfo {
     pub category: OperationCategory,
     pub stage: u8,
     pub status: OperationStatus,
+    pub origin: OperationOrigin,
 }
 
 impl From<&'static OperationDescriptor> for OperationInfo {
@@ -184,6 +185,7 @@ impl From<&'static OperationDescriptor> for OperationInfo {
             category: descriptor.category,
             stage: descriptor.stage,
             status: descriptor.status,
+            origin: descriptor.origin,
         }
     }
 }

@@ -39,6 +39,10 @@ import {
   DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
   ORISTUDIO_CP_DIVIDE_MODES,
   ORISTUDIO_CP_LENGTHEN_COLOR_MODES,
+  ORISTUDIO_CP_SQUARE_ANCHORS,
+  ORISTUDIO_CP_SQUARE_LINE_TYPES,
+  ORISTUDIO_CP_SQUARE_ORIENTATIONS,
+  ORISTUDIO_CP_SQUARE_SIZE_UNITS,
   type OristudioCpRatioExpression,
   type OristudioCpToolOptions,
 } from './oristudioCpToolSettings';
@@ -130,6 +134,21 @@ export const PERSISTED_CP_TOOL_OPTIONS: Registry = {
   // the angle-system pair above avoids.
   divisionCount: (value) => integerIn(value, 1, 256),
   divisionRatio: ratioExpression,
+  // Every Square param, as a set. The tool is a one-click stamp whose whole
+  // behaviour *is* its params — a square tool that forgot its size would ask you
+  // to re-specify the thing you picked it for. Restoring a subset would be worse
+  // than restoring none: size without its unit is a number that means something
+  // different, and anchor without orientation puts the square somewhere you did
+  // not leave it.
+  //
+  // `squareSize` is not integer-bounded because a half-cell square is a
+  // legitimate thing to want; the cap is generous for the same reason
+  // `parallelWidth`'s is.
+  squareSize: (value) => finiteIn(value, Number.MIN_VALUE, 1000),
+  squareSizeUnit: oneOf(ORISTUDIO_CP_SQUARE_SIZE_UNITS),
+  squareOrientation: oneOf(ORISTUDIO_CP_SQUARE_ORIENTATIONS),
+  squareAnchor: oneOf(ORISTUDIO_CP_SQUARE_ANCHORS),
+  squareLineType: oneOf(ORISTUDIO_CP_SQUARE_LINE_TYPES),
 };
 
 /** The opted-in keys, for callers that need to reason about the set. */

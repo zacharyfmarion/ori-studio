@@ -47,6 +47,7 @@ import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/crea
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
 import { cpToolUnavailableMessage } from '../../cp-workspace/tools/toolUnavailable';
 import { CpContextToolReset } from './CpContextToolReset';
+import { SquareToolOptions } from '../../cp-workspace/toolOptions/SquareToolOptions';
 import { CpToolHintWindow } from '../../cp-workspace/toolHint/CpToolHintWindow';
 import { isRestingCpTool } from '../../cp-workspace/toolHint/restingTool';
 import { useFoldAngleAvailable } from '../../cp-workspace/foldAngle/useFoldAngleSelection';
@@ -589,6 +590,10 @@ function CpContextToolGroup({
     );
   }
 
+  if (group === 'square') {
+    return <SquareToolOptions options={options} setOptions={setOptions} />;
+  }
+
   if (group === 'parallel-width') {
     return (
       <div className="cp-context-panel__group">
@@ -1082,6 +1087,14 @@ function updateCustomCircleColor(
   }));
 }
 
+/**
+ * The panel's own numeric field: a draft committed on blur, no steppers.
+ *
+ * Predates `components/ui/NumberField`, which does strictly more (− / + steps,
+ * Arrow Up/Down, Escape reverts) and is what the View pane and the Square tool
+ * use. Converging the params below onto it is a worthwhile sweep, and a wider
+ * one than any single tool should make.
+ */
 function NumericToolOption({
   label,
   ariaLabel,
@@ -1150,6 +1163,11 @@ function NumericToolOption({
       />
     </label>
   );
+}
+
+function clampToolNumber(value: number, min: number | undefined, max: number | undefined): number {
+  const lowerBounded = min === undefined ? value : Math.max(min, value);
+  return max === undefined ? lowerBounded : Math.min(max, lowerBounded);
 }
 
 function TextToolOption({
@@ -1268,7 +1286,3 @@ function CheckboxToolOption({
   );
 }
 
-function clampToolNumber(value: number, min: number | undefined, max: number | undefined): number {
-  const lowerBounded = min === undefined ? value : Math.max(min, value);
-  return max === undefined ? lowerBounded : Math.min(max, lowerBounded);
-}
