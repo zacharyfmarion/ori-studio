@@ -318,6 +318,14 @@
         "1": "选取第二个角"
       }
     },
+    "cp_action_square_generate": {
+      "label": "正方形",
+      "tooltip": "一次点击即可放置设定大小的正方形",
+      "disabledReason": "就绪",
+      "steps": {
+        "0": "点击以放置正方形"
+      }
+    },
     "cp_action_crease_advance_type": {
       "label": "递进折痕类型",
       "tooltip": "在边界线、山折和谷折之间递进所选折线",

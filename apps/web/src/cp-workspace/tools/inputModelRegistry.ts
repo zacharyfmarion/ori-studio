@@ -121,6 +121,10 @@ export const CP_INPUT_MODELS: Partial<Record<OristudioCpOperationId, CpInputMode
   ParallelDrawWidth: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'point'] },
   PerpendicularDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'crease'] },
   PolygonSetNoCorners: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
+  // One click and the square is placed. Free point snap, not 'crease': the
+  // anchor is a position on the grid, and pulling it onto a nearby crease would
+  // take a whole-cell square off the lattice it was sized against.
+  SquareGenerate: { model: 'point-sequence', pointCount: 1, snapPerStep: ['point'] },
   SelectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },
   SymmetricDraw: { model: 'point-sequence', pointCount: 2, snapPerStep: ['crease', 'crease'] },
   UnselectLineIntersecting: { model: 'point-sequence', pointCount: 2, snapPerStep: ['point', 'point'] },

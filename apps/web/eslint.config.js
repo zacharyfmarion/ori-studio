@@ -117,7 +117,17 @@ const OVERSIZED_PANELS = {
   // flag, the same shape `BpEditorPanel` uses for its own readiness. Extracting eleven
   // lines of that into a hook or a child would cost more than it saved, which AGENTS.md
   // names as the wrong trade.
-  'CreasePatternPanel.tsx': 2740,
+  //
+  // 2740 -> 2751: the Square generator. Its geometry is in the kernel, its params
+  // UI is `toolOptions/SquareToolOptions`, and unit conversion, enum spelling and
+  // the payload assembly are in `tools/squareTool` — the first draft did assemble
+  // the payload here and it moved out, which is where 13 of the 24 lines went.
+  // The eleven left are composition and cannot be anywhere else: one prop passed
+  // to the context panel, a three-line payload branch beside the fifteen already
+  // there, and `toolPreviewColor` resolving through the same function the payload
+  // does, which is the thing that stops the preview and the commit disagreeing
+  // about the line type.
+  'CreasePatternPanel.tsx': 2751,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

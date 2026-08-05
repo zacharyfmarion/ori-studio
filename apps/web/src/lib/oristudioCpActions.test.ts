@@ -106,6 +106,9 @@ describe('oristudio CP action registry', () => {
         .filter((action) => action.group === 'generators')
         .map((action) => action.label)
     ).toEqual([
+      // Square opens the section: the shape people reach for most, and the one
+      // generator that needs no drawing at all.
+      'Square',
       'Blintz base',
       'Fish base',
       'Dove base',

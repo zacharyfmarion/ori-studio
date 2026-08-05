@@ -50,6 +50,10 @@ import {
   type OristudioCpCommandDefinition,
 } from '../../lib/oristudioCpCommands';
 import { forcedAssignmentNotice } from '../../cp-workspace/tools/toolUnavailable';
+import {
+  resolveCpToolLineColor,
+  squareCommandPayload,
+} from '../../cp-workspace/tools/squareTool';
 import { toolPreviewSegments } from '../../cp-workspace/tools/toolPreviewSegments';
 import {
   cpToolSelectionForMouseMode,
@@ -362,7 +366,10 @@ function cpCommandPayloadDefaults(
   }
 
   if (cpCommandUsesActiveLineColor(operationId)) {
-    payload.line_color = lineColor;
+    // Not `lineColor` directly: Square can override it with its own line-type
+    // param. `toolPreviewColor` resolves through the same function, which is
+    // what stops the preview and the commit disagreeing.
+    payload.line_color = resolveCpToolLineColor(operationId, toolOptions, lineColor);
   }
 
   if (
@@ -405,6 +412,12 @@ function cpCommandPayloadDefaults(
 
   if (operationId === 'PolygonSetNoCorners') {
     payload.polygon_corners = toolOptions.polygonCorners;
+  }
+
+  if (operationId === 'SquareGenerate') {
+    // Units and enum spelling are `squareTool`'s job; the kernel takes model
+    // units and knows nothing about cells or paper edges.
+    Object.assign(payload, squareCommandPayload(toolOptions, gridWidth));
   }
 
   if (operationId === 'CircleChangeColor') {
@@ -1998,13 +2011,18 @@ export function CreasePatternPanel() {
   // only 4 of the 34 crease-drawing operations carry that group, so the other 30
   // (Angle Restricted Line among them) previewed accent-blue and then committed
   // in the crease colour.
-  const toolPreviewColor = useMemo(
-    () =>
-      cpCommandUsesActiveLineColor(activeCpCommand?.operationId)
-        ? resolveCpLineColor(effectiveCpLineColor, mode, document.documentElement)
-        : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const),
-    [activeCpCommand?.operationId, effectiveCpLineColor, mode]
-  );
+  const toolPreviewColor = useMemo(() => {
+    const operationId = activeCpCommand?.operationId;
+    // `resolveCpToolLineColor`, not the active colour directly: Square can
+    // override it, and the payload resolves through the same function.
+    return cpCommandUsesActiveLineColor(operationId)
+      ? resolveCpLineColor(
+          resolveCpToolLineColor(operationId, cpToolOptions, effectiveCpLineColor),
+          mode,
+          document.documentElement
+        )
+      : readCssVarColor(document.documentElement, '--accent-primary', [0.4, 0.6, 1, 1] as const);
+  }, [activeCpCommand?.operationId, cpToolOptions, effectiveCpLineColor, mode]);
 
   // The active tool's WebGL routing from its declarative steps: a drag mode; a
   // click-based `sequence` with a per-step kind (free point vs picked crease); or
@@ -3166,6 +3184,7 @@ export function CreasePatternPanel() {
                   options={cpToolOptions}
                   setOptions={setCpToolOptions}
                   activeLineColor={effectiveCpLineColor}
+                  gridWidth={editableCpGridWidth}
                   measurements={cpMeasurements}
                   onHoverMeasurement={setCpHoveredMeasureIndex}
                   measureUnit={cpMeasurePreferences.unit}

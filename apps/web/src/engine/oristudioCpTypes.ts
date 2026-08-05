@@ -515,10 +515,34 @@ export interface OristudioCpCommandPayload {
   fix_precision_use_bp?: boolean;
   fix_precision_use_22_5?: boolean;
   polygon_corners?: number;
+  // --- Ori Studio native ---
+  /**
+   * Model-space bounding extent for `SquareGenerate`. The frontend owns the unit
+   * the user typed (grid cells or paper edges) and converts, as it does for
+   * `width`.
+   */
+  square_extent?: number;
+  square_orientation?: OristudioCpSquareOrientationPayload;
+  square_anchor?: OristudioCpSquareAnchorPayload;
   custom_circle_color?: OristudioCpRgbColor;
   text_action?: OristudioCpTextCommandAction;
   text_content?: string;
 }
+
+/** The kernel's `SquareOrientation`, as serde serializes it. */
+export type OristudioCpSquareOrientationPayload = 'Normal' | 'Diagonal';
+
+/** The kernel's `SquareAnchor`, as serde serializes it. */
+export type OristudioCpSquareAnchorPayload =
+  | 'TopLeft'
+  | 'TopCenter'
+  | 'TopRight'
+  | 'MiddleLeft'
+  | 'Center'
+  | 'MiddleRight'
+  | 'BottomLeft'
+  | 'BottomCenter'
+  | 'BottomRight';
 
 export type OristudioCpTextCommandAction =
   | 'Create'

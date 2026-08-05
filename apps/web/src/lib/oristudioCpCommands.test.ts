@@ -281,6 +281,7 @@ describe('Ori Studio native operations', () => {
     expect(nativeCpOperationIds()).toEqual([
       'CreaseSetFoldAngle',
       'CreaseSetLineColor',
+      'SquareGenerate',
       'VertexSolveFoldAngles',
     ]);
   });

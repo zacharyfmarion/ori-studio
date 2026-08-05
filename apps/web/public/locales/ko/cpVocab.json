@@ -318,6 +318,14 @@
         "1": "두 번째 꼭짓점 선택"
       }
     },
+    "cp_action_square_generate": {
+      "label": "정사각형",
+      "tooltip": "클릭 한 번으로 설정한 크기의 정사각형 배치",
+      "disabledReason": "준비됨",
+      "steps": {
+        "0": "클릭하여 정사각형 배치"
+      }
+    },
     "cp_action_crease_advance_type": {
       "label": "접힘선 종류 다음으로",
       "tooltip": "선택한 접힘선을 경계, 산, 골 순으로 전환",

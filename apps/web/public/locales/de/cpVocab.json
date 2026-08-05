@@ -318,6 +318,14 @@
         "1": "Zweite Ecke wählen"
       }
     },
+    "cp_action_square_generate": {
+      "label": "Quadrat",
+      "tooltip": "Mit einem Klick ein Quadrat fester Größe setzen",
+      "disabledReason": "Bereit",
+      "steps": {
+        "0": "Klicken, um das Quadrat zu platzieren"
+      }
+    },
     "cp_action_crease_advance_type": {
       "label": "Faltentyp weiterschalten",
       "tooltip": "Ausgewählte Faltlinien durch Rand, Berg und Tal weiterschalten",

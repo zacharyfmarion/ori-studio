@@ -19,6 +19,7 @@ export type OristudioCpToolSettingGroup =
   | 'erase-line-type'
   | 'fix-precision'
   | 'polygon-corners'
+  | 'square'
   | 'parallel-width'
   | 'candidate-choice'
   | 'completion-stops'
@@ -67,6 +68,80 @@ export type OristudioCpDivideMode = 'count' | 'ratio';
 
 export const ORISTUDIO_CP_DIVIDE_MODES: readonly OristudioCpDivideMode[] = ['count', 'ratio'];
 
+/**
+ * Which way the Square tool's square sits: edges along the axes, or the same
+ * square turned 45°.
+ */
+export type OristudioCpSquareOrientation = 'normal' | 'diagonal';
+
+export const ORISTUDIO_CP_SQUARE_ORIENTATIONS: readonly OristudioCpSquareOrientation[] = [
+  'normal',
+  'diagonal',
+];
+
+/**
+ * Where on the square's **bounding box** the click lands — the nine cells of a
+ * transform-origin picker.
+ *
+ * Deliberately about the bounding box rather than about a corner of the square,
+ * which is what keeps it independent of {@link OristudioCpSquareOrientation}:
+ * these nine positions mean the same thing whichever way the square is turned,
+ * so the picker never changes shape when the orientation flips. The square has
+ * four corners either way; all that changes is which cells they land on — the
+ * corner cells when normal, the side cells when diagonal.
+ */
+export type OristudioCpSquareAnchor =
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'middle-left'
+  | 'center'
+  | 'middle-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
+
+/** Row-major, so the array indexes the 3×3 picker directly. */
+export const ORISTUDIO_CP_SQUARE_ANCHORS: readonly OristudioCpSquareAnchor[] = [
+  'top-left',
+  'top-center',
+  'top-right',
+  'middle-left',
+  'center',
+  'middle-right',
+  'bottom-left',
+  'bottom-center',
+  'bottom-right',
+];
+
+/**
+ * What the Square tool's size number is measured in.
+ *
+ * `grid` is grid cells — how a box-pleater states a size, and the unit that puts
+ * corners on grid intersections. `paper` is fractions of the paper edge, for
+ * work that is not on a grid at all.
+ */
+export type OristudioCpSquareSizeUnit = 'grid' | 'paper';
+
+export const ORISTUDIO_CP_SQUARE_SIZE_UNITS: readonly OristudioCpSquareSizeUnit[] = [
+  'grid',
+  'paper',
+];
+
+/**
+ * Whether the Square tool's edges take the active line type or are always Edge.
+ *
+ * Edge by default because a square is usually a boundary, but someone who draws
+ * squares in mountain should get that every time — hence a persisted param
+ * rather than a hardcoded colour.
+ */
+export type OristudioCpSquareLineType = 'edge' | 'active';
+
+export const ORISTUDIO_CP_SQUARE_LINE_TYPES: readonly OristudioCpSquareLineType[] = [
+  'edge',
+  'active',
+];
+
 export interface OristudioCpToolOptions {
   lengthenColorMode: OristudioCpLengthenColorMode;
   divideMode: OristudioCpDivideMode;
@@ -81,6 +156,12 @@ export interface OristudioCpToolOptions {
   fixPrecisionUseBp: boolean;
   fixPrecisionUse22_5: boolean;
   polygonCorners: number;
+  /** Square size, in {@link OristudioCpToolOptions.squareSizeUnit}. */
+  squareSize: number;
+  squareSizeUnit: OristudioCpSquareSizeUnit;
+  squareOrientation: OristudioCpSquareOrientation;
+  squareAnchor: OristudioCpSquareAnchor;
+  squareLineType: OristudioCpSquareLineType;
   parallelWidth: number;
   candidateIndex: number | null;
   /**
@@ -118,6 +199,13 @@ export const DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS: OristudioCpToolOptions = {
   fixPrecisionUseBp: true,
   fixPrecisionUse22_5: true,
   polygonCorners: 5,
+  // Four cells: big enough to see on any grid, small enough not to swamp the
+  // sheet on a coarse one.
+  squareSize: 4,
+  squareSizeUnit: 'grid',
+  squareOrientation: 'normal',
+  squareAnchor: 'top-left',
+  squareLineType: 'edge',
   parallelWidth: 1,
   candidateIndex: null,
   foldableLineStopsOnAux: false,
@@ -227,6 +315,10 @@ const TOOL_SETTING_GROUPS_BY_OPERATION: Partial<
   LineSegmentDivision: ['divide-mode', 'division-count'],
   LineSegmentRatioSet: ['divide-mode', 'division-ratio'],
   PolygonSetNoCorners: ['polygon-corners'],
+  // No 'line-color': the square carries its own line-type param, and offering
+  // the generic crease-colour picker beside it would give one decision two
+  // controls that disagree in Edge mode.
+  SquareGenerate: ['square'],
   ParallelDrawWidth: ['parallel-width'],
   ReplaceLineTypeSelect: ['replace-line-type'],
   DeleteLineTypeSelect: ['delete-line-type'],
@@ -280,6 +372,13 @@ const TOOL_OPTION_KEYS_BY_GROUP: Partial<
   'erase-line-type': ['customLineType'],
   'fix-precision': ['fixPrecision', 'fixPrecisionUseBp', 'fixPrecisionUse22_5'],
   'polygon-corners': ['polygonCorners'],
+  square: [
+    'squareSize',
+    'squareSizeUnit',
+    'squareOrientation',
+    'squareAnchor',
+    'squareLineType',
+  ],
   'parallel-width': ['parallelWidth'],
   'candidate-choice': ['candidateIndex'],
   'completion-stops': ['foldableLineStopsOnAux'],

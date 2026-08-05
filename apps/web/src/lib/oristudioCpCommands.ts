@@ -362,6 +362,12 @@ export const ORISTUDIO_CP_COMMANDS: OristudioCpCommandDefinition[] = [
   ready('PolygonSetNoCorners', 'Regular polygon', 'generators', 'hexagon', 'MouseHandlerPolygonSetNoCorners', {
     toolSteps: ['Pick first corner', 'Pick second corner'],
   }),
+  // Ori Studio native. Regular Polygon with four corners draws one *side* from
+  // two clicks; this drops a whole square of a size the tool already knows.
+  ready('SquareGenerate', 'Square', 'generators', 'square', 'OriStudioSquareGenerate', {
+    toolSteps: ['Click to place the square'],
+    tooltip: 'Drop a square of a set size in one click',
+  }),
   ready('CreaseAdvanceType', 'Advance crease type', 'color', 'list-restart', 'MouseHandlerCreaseAdvanceType', {
     // Not in Oriedita's UI — hide entirely (revisit at end).
     placement: 'hidden-ui-only',
@@ -955,6 +961,10 @@ export const ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS = [
   'DeleteExtraVertices',
   'DeleteExtraVerticesIgnoreColor',
   'OrganizeCircles',
+  // Ori Studio originals — see `isNativeCpOperation`. Appended so this list keeps
+  // reading as Oriedita's source map with our additions visible at the end, which
+  // is the order the kernel's `OperationId` uses too.
+  'SquareGenerate',
 ] as const;
 
 export type OristudioCpOperationId = (typeof ORISTUDIO_CP_SOURCE_MAP_OPERATION_IDS)[number];
@@ -1054,6 +1064,11 @@ const CP_ACTIVE_LINE_COLOR_OPERATIONS = new Set<OristudioCpOperationId>([
   'DrawFrogBase',
   'VoronoiCreate',
   'CircleDrawTangentLine',
+  // Square draws in a colour the user chose, so it belongs here — but *which*
+  // colour is its own tool param (Edge by default), which is why the colour
+  // itself is resolved by `resolveCpToolLineColor` before it reaches either the
+  // payload or the preview. This set answers "does a colour apply", not "which".
+  'SquareGenerate',
 ]);
 
 /** Whether `operationId` draws creases in the active line colour. */

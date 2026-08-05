@@ -318,6 +318,14 @@
         "1": "Elige el segundo vértice"
       }
     },
+    "cp_action_square_generate": {
+      "label": "Cuadrado",
+      "tooltip": "Coloca un cuadrado de un tamaño fijo con un solo clic",
+      "disabledReason": "Listo",
+      "steps": {
+        "0": "Haz clic para colocar el cuadrado"
+      }
+    },
     "cp_action_crease_advance_type": {
       "label": "Avanzar tipo de pliegue",
       "tooltip": "Avanzar las líneas de plegado seleccionadas por borde, monte y valle",
