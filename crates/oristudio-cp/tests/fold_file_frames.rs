@@ -25,12 +25,15 @@ fn imports_a_single_frame_document() {
 
 #[test]
 fn imports_geometry_carried_on_an_embedded_frame() {
-    // The canonical multi-frame layout: metadata at the root, geometry in
-    // `file_frames[0]`. This is what Rabbit Ear emits.
+    // Metadata at the root, geometry in `file_frames[0]`. Legal per the spec —
+    // both arrays are "recommended", not required — but rare in practice: none
+    // of the 90 files in Rabbit Ear's corpus are shaped this way. Kept because
+    // it is the clean statement of "the root need not carry the geometry", and
+    // because relaxing serde without frame selection would import it as a
+    // silently *empty* document rather than an error.
     let text = format!(
         r#"{{
             "file_spec": 1.1,
-            "file_creator": "Rabbit Ear",
             "file_frames": [{{ "frame_classes": ["creasePattern"], {GEOMETRY} }}]
         }}"#
     );
@@ -43,6 +46,12 @@ fn imports_root_geometry_beside_a_frame_that_omits_its_own() {
     // Root geometry is valid and complete; a sibling folded-form frame inherits
     // its edges rather than restating them. Rejecting the whole file because a
     // *sibling* omitted a field is the worst version of this bug.
+    //
+    // This is the shape that actually matters. Measured against Rabbit Ear's
+    // 90-file corpus, 37 files were rejected before this change and the
+    // overwhelming majority were exactly this: a `foldedForm` frame with no
+    // `edges_vertices`. It covers crane, randlett-flapping-bird, moosers-train,
+    // square-twist, the maze and panel families — ordinary, well-formed models.
     let text = format!(
         r#"{{
             "file_spec": 1.1,
