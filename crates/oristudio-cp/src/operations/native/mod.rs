@@ -15,3 +15,5 @@
 //! What this directory does *not* buy is a separate execution path. A native
 //! operation is an ordinary operation that happens to have no upstream: it
 //! dispatches, previews, and crosses the wasm bridge exactly like a ported one.
+
+pub mod square;

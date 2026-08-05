@@ -178,6 +178,18 @@ pub struct CreasePatternCommandPayload {
     /// Optional number of corners for regular polygon generator commands.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub polygon_corners: Option<usize>,
+    // --- Ori Studio native -------------------------------------------------
+    /// Model-space bounding extent for `SquareGenerate`. The frontend owns the
+    /// unit the user typed (grid cells or paper edges) and converts, exactly as
+    /// it does for `width`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub square_extent: Option<f64>,
+    /// Which way the generated square sits. Defaults to `Normal`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub square_orientation: Option<operations::native::square::SquareOrientation>,
+    /// Where on the square's bounding box `points[0]` lands. Defaults to `TopLeft`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub square_anchor: Option<operations::native::square::SquareAnchor>,
     /// Optional custom color for circle and auxiliary-line recoloring commands.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_circle_color: Option<geometry::RgbColor>,
@@ -494,6 +506,10 @@ pub enum OperationId {
     DeleteExtraVertices,
     DeleteExtraVerticesIgnoreColor,
     OrganizeCircles,
+    // Ori Studio originals (see `OperationOrigin`). Appended rather than filed
+    // alongside their thematic neighbours, so this list keeps reading as
+    // Oriedita's source map with our additions visible at the end.
+    SquareGenerate,
 }
 
 /// Source-map descriptor for an Oriedita operation.
@@ -1516,6 +1532,14 @@ const OPERATION_DESCRIPTORS: &[OperationDescriptor] = &[
         8,
         OracleTested
     ),
+    descriptor!(
+        native SquareGenerate,
+        "OriStudioSquareGenerate",
+        "operations::native::square::square_at_anchor",
+        Kernel,
+        8,
+        UnitTested
+    ),
 ];
 
 /// Return all source-mapped Oriedita operation descriptors.
@@ -1844,6 +1868,24 @@ pub fn execute_command(
                 polygon_corners(&command),
                 active_line_color(&command),
             )
+        }
+        OperationId::SquareGenerate => {
+            required_points(&command, 1)?;
+            let corners = square_corners_from_command(&command).ok_or_else(|| {
+                CommandError::InvalidInput {
+                    operation: command.operation,
+                    message: "square_extent must be a finite, positive model-space size"
+                        .to_string(),
+                }
+            })?;
+            let color = active_line_color(&command);
+            for edge in operations::native::square::square_edges(&corners, color) {
+                operations::arrangement::add_line_segment_like_worker(
+                    &mut document.crease_pattern,
+                    &edge,
+                );
+            }
+            corners.len()
         }
         OperationId::DrawBlintz
         | OperationId::DrawFishBase
@@ -3217,6 +3259,16 @@ pub fn preview_command(
             );
             preview.segments = model.line_segments;
         }
+        // One point, so the square tracks the cursor from the moment the tool is
+        // picked — which is the whole point of a tool whose result depends on
+        // params you cannot read off the cursor position.
+        OperationId::SquareGenerate if !points.is_empty() => {
+            if let Some(corners) = square_corners_from_command(&command) {
+                preview.segments =
+                    operations::native::square::square_edges(&corners, active_line_color(&command))
+                        .to_vec();
+            }
+        }
         OperationId::DrawBlintz
         | OperationId::DrawFishBase
         | OperationId::DrawDoveBase
@@ -3936,6 +3988,20 @@ fn polygon_corners(command: &CreasePatternCommand) -> usize {
         .unwrap_or(DEFAULT_POLYGON_CORNERS)
 }
 
+/// The square a `SquareGenerate` command describes, or `None` when its extent is
+/// unusable.
+///
+/// One resolver for both the commit and the preview, so the shape the user sees
+/// under the cursor is the shape the click makes.
+fn square_corners_from_command(command: &CreasePatternCommand) -> Option<[geometry::Point; 4]> {
+    operations::native::square::square_corners(
+        *command.payload.points.first()?,
+        command.payload.square_extent?,
+        command.payload.square_orientation.unwrap_or_default(),
+        command.payload.square_anchor.unwrap_or_default(),
+    )
+}
+
 fn default_molecule_for_operation(
     operation: OperationId,
 ) -> Option<operations::generators::DefaultMolecule> {
@@ -4646,6 +4712,104 @@ mod tests {
                 );
             }
         }
+    }
+
+    fn square_command(
+        anchor_point: Point,
+        extent: Option<f64>,
+        orientation: operations::native::square::SquareOrientation,
+        anchor: operations::native::square::SquareAnchor,
+    ) -> CreasePatternCommand {
+        CreasePatternCommand::new(OperationId::SquareGenerate).with_payload(
+            CreasePatternCommandPayload {
+                points: vec![anchor_point],
+                square_extent: extent,
+                square_orientation: Some(orientation),
+                square_anchor: Some(anchor),
+                line_color: Some(LineColor::Black0),
+                ..CreasePatternCommandPayload::default()
+            },
+        )
+    }
+
+    /// The tool is a one-click stamp, so the preview has to be the answer before
+    /// the click rather than a hint towards it.
+    #[test]
+    fn the_square_preview_is_exactly_what_the_click_commits() {
+        use operations::native::square::{SquareAnchor, SquareOrientation};
+
+        let mut document = CreasePatternDocument::default();
+        let command = square_command(
+            Point::new(-40.0, -40.0),
+            Some(80.0),
+            SquareOrientation::Normal,
+            SquareAnchor::TopLeft,
+        );
+
+        let preview = preview_command(&document, command.clone()).expect("preview succeeds");
+        assert_eq!(preview.segments.len(), 4);
+
+        execute_command(&mut document, command).expect("square commits");
+        let committed = &document.crease_pattern.line_segments;
+        assert_eq!(committed.len(), 4);
+        for edge in &preview.segments {
+            assert!(
+                committed
+                    .iter()
+                    .any(|line| line.a == edge.a && line.b == edge.b && line.color == edge.color),
+                "previewed edge {edge:?} is not among the committed lines"
+            );
+        }
+    }
+
+    #[test]
+    fn a_square_with_no_usable_extent_is_refused_rather_than_drawn() {
+        use operations::native::square::{SquareAnchor, SquareOrientation};
+
+        let mut document = CreasePatternDocument::default();
+        let result = execute_command(
+            &mut document,
+            square_command(
+                Point::origin(),
+                None,
+                SquareOrientation::Normal,
+                SquareAnchor::Center,
+            ),
+        );
+
+        assert!(matches!(result, Err(CommandError::InvalidInput { .. })));
+        assert!(document.crease_pattern.line_segments.is_empty());
+    }
+
+    /// Orientation and anchor are independent inputs, and the dispatch has to
+    /// keep them that way: the same anchor with a different orientation must
+    /// still put the bounding box in the same place.
+    #[test]
+    fn orientation_does_not_move_where_the_anchor_puts_the_square() {
+        use operations::native::square::{SquareAnchor, SquareOrientation};
+
+        let bounds = |orientation| {
+            let document = CreasePatternDocument::default();
+            let preview = preview_command(
+                &document,
+                square_command(
+                    Point::new(10.0, 20.0),
+                    Some(40.0),
+                    orientation,
+                    SquareAnchor::TopLeft,
+                ),
+            )
+            .expect("preview succeeds");
+            let xs: Vec<f64> = preview.segments.iter().map(|line| line.a.x).collect();
+            let ys: Vec<f64> = preview.segments.iter().map(|line| line.a.y).collect();
+            (
+                xs.iter().copied().fold(f64::MAX, f64::min),
+                ys.iter().copied().fold(f64::MAX, f64::min),
+            )
+        };
+
+        assert_eq!(bounds(SquareOrientation::Normal), (10.0, 20.0));
+        assert_eq!(bounds(SquareOrientation::Diagonal), (10.0, 20.0));
     }
 
     #[test]
