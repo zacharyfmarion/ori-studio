@@ -197,10 +197,10 @@ export function getWorkspaceCapabilities(
   const capabilities: WorkspaceCapabilities = {
     'file.new': capability(
       !isBusy,
-      t('common:capability.new', 'New'),
+      t('common:capability.new', 'New Project'),
       isBusy
         ? busyReason(input.status, t)
-        : t('common:capability.chooseNewWorkspace', 'Choose a new Ori Studio workspace')
+        : t('common:capability.startNewProject', 'Start a new Ori Studio project')
     ),
     'file.open': capability(
       !isBusy,

@@ -76,7 +76,7 @@
     "menu:file.exportV4": "2ca380dbf808",
     "menu:file.exportV5": "66d58af943e3",
     "menu:file.importAdd": "4b3fcbb382a7",
-    "menu:file.new": "18fdd549b2ed",
+    "menu:file.new": "6f8d17646237",
     "menu:file.open": "4e0308d33ea0",
     "menu:file.save": "1509f561f241",
     "menu:file.saveAs": "4a3dca5ad873",
@@ -129,7 +129,6 @@
     "common:capability.checkTJunctions": "30f8c616c376",
     "common:capability.checkVertexFoldability": "f68fb2ccee3a",
     "common:capability.checkVertexFoldabilityMarkers": "4a45a2afd647",
-    "common:capability.chooseNewWorkspace": "8376195e188a",
     "common:capability.clearAllEdgeStrain": "0b891c62e76c",
     "common:capability.clearCurrentSelection": "a6621309f071",
     "common:capability.clearSelectedEdgeStrain": "03797b8e74ee",
@@ -194,7 +193,7 @@
     "common:capability.makeValley": "5df84dfa2b04",
     "common:capability.mergeDuplicatesSelectOverlaps": "7454cdc591f8",
     "common:capability.movablePartsRequireTree": "6bcfd0df951f",
-    "common:capability.new": "18fdd549b2ed",
+    "common:capability.new": "6f8d17646237",
     "common:capability.noCreasePatternToExport": "da7395336804",
     "common:capability.nodeEditsRequireTree": "d26027178f90",
     "common:capability.open": "4e0308d33ea0",
@@ -2121,7 +2120,8 @@
     "panels:design.paneTitle.conditions": "97d4be896069",
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
-    "panels:design.paneTitle.tree": "0072e6b93494"
+    "panels:design.paneTitle.tree": "0072e6b93494",
+    "common:capability.startNewProject": "21841fd8741f"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -2200,7 +2200,7 @@
     "menu:file.exportV4": "2ca380dbf808",
     "menu:file.exportV5": "66d58af943e3",
     "menu:file.importAdd": "4b3fcbb382a7",
-    "menu:file.new": "18fdd549b2ed",
+    "menu:file.new": "6f8d17646237",
     "menu:file.open": "4e0308d33ea0",
     "menu:file.save": "1509f561f241",
     "menu:file.saveAs": "4a3dca5ad873",
@@ -2253,7 +2253,6 @@
     "common:capability.checkTJunctions": "30f8c616c376",
     "common:capability.checkVertexFoldability": "f68fb2ccee3a",
     "common:capability.checkVertexFoldabilityMarkers": "4a45a2afd647",
-    "common:capability.chooseNewWorkspace": "8376195e188a",
     "common:capability.clearAllEdgeStrain": "0b891c62e76c",
     "common:capability.clearCurrentSelection": "a6621309f071",
     "common:capability.clearSelectedEdgeStrain": "03797b8e74ee",
@@ -2318,7 +2317,7 @@
     "common:capability.makeValley": "5df84dfa2b04",
     "common:capability.mergeDuplicatesSelectOverlaps": "7454cdc591f8",
     "common:capability.movablePartsRequireTree": "6bcfd0df951f",
-    "common:capability.new": "18fdd549b2ed",
+    "common:capability.new": "6f8d17646237",
     "common:capability.noCreasePatternToExport": "da7395336804",
     "common:capability.nodeEditsRequireTree": "d26027178f90",
     "common:capability.open": "4e0308d33ea0",
@@ -4245,7 +4244,8 @@
     "panels:design.paneTitle.conditions": "97d4be896069",
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
-    "panels:design.paneTitle.tree": "0072e6b93494"
+    "panels:design.paneTitle.tree": "0072e6b93494",
+    "common:capability.startNewProject": "21841fd8741f"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4324,7 +4324,7 @@
     "menu:file.exportV4": "2ca380dbf808",
     "menu:file.exportV5": "66d58af943e3",
     "menu:file.importAdd": "4b3fcbb382a7",
-    "menu:file.new": "18fdd549b2ed",
+    "menu:file.new": "6f8d17646237",
     "menu:file.open": "4e0308d33ea0",
     "menu:file.save": "1509f561f241",
     "menu:file.saveAs": "4a3dca5ad873",
@@ -4377,7 +4377,6 @@
     "common:capability.checkTJunctions": "30f8c616c376",
     "common:capability.checkVertexFoldability": "f68fb2ccee3a",
     "common:capability.checkVertexFoldabilityMarkers": "4a45a2afd647",
-    "common:capability.chooseNewWorkspace": "8376195e188a",
     "common:capability.clearAllEdgeStrain": "0b891c62e76c",
     "common:capability.clearCurrentSelection": "a6621309f071",
     "common:capability.clearSelectedEdgeStrain": "03797b8e74ee",
@@ -4442,7 +4441,7 @@
     "common:capability.makeValley": "5df84dfa2b04",
     "common:capability.mergeDuplicatesSelectOverlaps": "7454cdc591f8",
     "common:capability.movablePartsRequireTree": "6bcfd0df951f",
-    "common:capability.new": "18fdd549b2ed",
+    "common:capability.new": "6f8d17646237",
     "common:capability.noCreasePatternToExport": "da7395336804",
     "common:capability.nodeEditsRequireTree": "d26027178f90",
     "common:capability.open": "4e0308d33ea0",
@@ -6398,7 +6397,8 @@
     "panels:design.paneTitle.conditions": "97d4be896069",
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
-    "panels:design.paneTitle.tree": "0072e6b93494"
+    "panels:design.paneTitle.tree": "0072e6b93494",
+    "common:capability.startNewProject": "21841fd8741f"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6477,7 +6477,7 @@
     "menu:file.exportV4": "2ca380dbf808",
     "menu:file.exportV5": "66d58af943e3",
     "menu:file.importAdd": "4b3fcbb382a7",
-    "menu:file.new": "18fdd549b2ed",
+    "menu:file.new": "6f8d17646237",
     "menu:file.open": "4e0308d33ea0",
     "menu:file.save": "1509f561f241",
     "menu:file.saveAs": "4a3dca5ad873",
@@ -6530,7 +6530,6 @@
     "common:capability.checkTJunctions": "30f8c616c376",
     "common:capability.checkVertexFoldability": "f68fb2ccee3a",
     "common:capability.checkVertexFoldabilityMarkers": "4a45a2afd647",
-    "common:capability.chooseNewWorkspace": "8376195e188a",
     "common:capability.clearAllEdgeStrain": "0b891c62e76c",
     "common:capability.clearCurrentSelection": "a6621309f071",
     "common:capability.clearSelectedEdgeStrain": "03797b8e74ee",
@@ -6595,7 +6594,7 @@
     "common:capability.makeValley": "5df84dfa2b04",
     "common:capability.mergeDuplicatesSelectOverlaps": "7454cdc591f8",
     "common:capability.movablePartsRequireTree": "6bcfd0df951f",
-    "common:capability.new": "18fdd549b2ed",
+    "common:capability.new": "6f8d17646237",
     "common:capability.noCreasePatternToExport": "da7395336804",
     "common:capability.nodeEditsRequireTree": "d26027178f90",
     "common:capability.open": "4e0308d33ea0",
@@ -8551,7 +8550,8 @@
     "panels:design.paneTitle.conditions": "97d4be896069",
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
-    "panels:design.paneTitle.tree": "0072e6b93494"
+    "panels:design.paneTitle.tree": "0072e6b93494",
+    "common:capability.startNewProject": "21841fd8741f"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8630,7 +8630,7 @@
     "menu:file.exportV4": "2ca380dbf808",
     "menu:file.exportV5": "66d58af943e3",
     "menu:file.importAdd": "4b3fcbb382a7",
-    "menu:file.new": "18fdd549b2ed",
+    "menu:file.new": "6f8d17646237",
     "menu:file.open": "4e0308d33ea0",
     "menu:file.save": "1509f561f241",
     "menu:file.saveAs": "4a3dca5ad873",
@@ -8683,7 +8683,6 @@
     "common:capability.checkTJunctions": "30f8c616c376",
     "common:capability.checkVertexFoldability": "f68fb2ccee3a",
     "common:capability.checkVertexFoldabilityMarkers": "4a45a2afd647",
-    "common:capability.chooseNewWorkspace": "8376195e188a",
     "common:capability.clearAllEdgeStrain": "0b891c62e76c",
     "common:capability.clearCurrentSelection": "a6621309f071",
     "common:capability.clearSelectedEdgeStrain": "03797b8e74ee",
@@ -8748,7 +8747,7 @@
     "common:capability.makeValley": "5df84dfa2b04",
     "common:capability.mergeDuplicatesSelectOverlaps": "7454cdc591f8",
     "common:capability.movablePartsRequireTree": "6bcfd0df951f",
-    "common:capability.new": "18fdd549b2ed",
+    "common:capability.new": "6f8d17646237",
     "common:capability.noCreasePatternToExport": "da7395336804",
     "common:capability.nodeEditsRequireTree": "d26027178f90",
     "common:capability.open": "4e0308d33ea0",
@@ -10704,7 +10703,8 @@
     "panels:design.paneTitle.conditions": "97d4be896069",
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
-    "panels:design.paneTitle.tree": "0072e6b93494"
+    "panels:design.paneTitle.tree": "0072e6b93494",
+    "common:capability.startNewProject": "21841fd8741f"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10783,7 +10783,7 @@
     "menu:file.exportV4": "2ca380dbf808",
     "menu:file.exportV5": "66d58af943e3",
     "menu:file.importAdd": "4b3fcbb382a7",
-    "menu:file.new": "18fdd549b2ed",
+    "menu:file.new": "6f8d17646237",
     "menu:file.open": "4e0308d33ea0",
     "menu:file.save": "1509f561f241",
     "menu:file.saveAs": "4a3dca5ad873",
@@ -10836,7 +10836,6 @@
     "common:capability.checkTJunctions": "30f8c616c376",
     "common:capability.checkVertexFoldability": "f68fb2ccee3a",
     "common:capability.checkVertexFoldabilityMarkers": "4a45a2afd647",
-    "common:capability.chooseNewWorkspace": "8376195e188a",
     "common:capability.clearAllEdgeStrain": "0b891c62e76c",
     "common:capability.clearCurrentSelection": "a6621309f071",
     "common:capability.clearSelectedEdgeStrain": "03797b8e74ee",
@@ -10901,7 +10900,7 @@
     "common:capability.makeValley": "5df84dfa2b04",
     "common:capability.mergeDuplicatesSelectOverlaps": "7454cdc591f8",
     "common:capability.movablePartsRequireTree": "6bcfd0df951f",
-    "common:capability.new": "18fdd549b2ed",
+    "common:capability.new": "6f8d17646237",
     "common:capability.noCreasePatternToExport": "da7395336804",
     "common:capability.nodeEditsRequireTree": "d26027178f90",
     "common:capability.open": "4e0308d33ea0",
@@ -12857,7 +12856,8 @@
     "panels:design.paneTitle.conditions": "97d4be896069",
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
-    "panels:design.paneTitle.tree": "0072e6b93494"
+    "panels:design.paneTitle.tree": "0072e6b93494",
+    "common:capability.startNewProject": "21841fd8741f"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12936,7 +12936,7 @@
     "menu:file.exportV4": "2ca380dbf808",
     "menu:file.exportV5": "66d58af943e3",
     "menu:file.importAdd": "4b3fcbb382a7",
-    "menu:file.new": "18fdd549b2ed",
+    "menu:file.new": "6f8d17646237",
     "menu:file.open": "4e0308d33ea0",
     "menu:file.save": "1509f561f241",
     "menu:file.saveAs": "4a3dca5ad873",
@@ -12989,7 +12989,6 @@
     "common:capability.checkTJunctions": "30f8c616c376",
     "common:capability.checkVertexFoldability": "f68fb2ccee3a",
     "common:capability.checkVertexFoldabilityMarkers": "4a45a2afd647",
-    "common:capability.chooseNewWorkspace": "8376195e188a",
     "common:capability.clearAllEdgeStrain": "0b891c62e76c",
     "common:capability.clearCurrentSelection": "a6621309f071",
     "common:capability.clearSelectedEdgeStrain": "03797b8e74ee",
@@ -13054,7 +13053,7 @@
     "common:capability.makeValley": "5df84dfa2b04",
     "common:capability.mergeDuplicatesSelectOverlaps": "7454cdc591f8",
     "common:capability.movablePartsRequireTree": "6bcfd0df951f",
-    "common:capability.new": "18fdd549b2ed",
+    "common:capability.new": "6f8d17646237",
     "common:capability.noCreasePatternToExport": "da7395336804",
     "common:capability.nodeEditsRequireTree": "d26027178f90",
     "common:capability.open": "4e0308d33ea0",
@@ -15010,7 +15009,8 @@
     "panels:design.paneTitle.conditions": "97d4be896069",
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
-    "panels:design.paneTitle.tree": "0072e6b93494"
+    "panels:design.paneTitle.tree": "0072e6b93494",
+    "common:capability.startNewProject": "21841fd8741f"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15089,7 +15089,7 @@
     "menu:file.exportV4": "2ca380dbf808",
     "menu:file.exportV5": "66d58af943e3",
     "menu:file.importAdd": "4b3fcbb382a7",
-    "menu:file.new": "18fdd549b2ed",
+    "menu:file.new": "6f8d17646237",
     "menu:file.open": "4e0308d33ea0",
     "menu:file.save": "1509f561f241",
     "menu:file.saveAs": "4a3dca5ad873",
@@ -15142,7 +15142,6 @@
     "common:capability.checkTJunctions": "30f8c616c376",
     "common:capability.checkVertexFoldability": "f68fb2ccee3a",
     "common:capability.checkVertexFoldabilityMarkers": "4a45a2afd647",
-    "common:capability.chooseNewWorkspace": "8376195e188a",
     "common:capability.clearAllEdgeStrain": "0b891c62e76c",
     "common:capability.clearCurrentSelection": "a6621309f071",
     "common:capability.clearSelectedEdgeStrain": "03797b8e74ee",
@@ -15207,7 +15206,7 @@
     "common:capability.makeValley": "5df84dfa2b04",
     "common:capability.mergeDuplicatesSelectOverlaps": "7454cdc591f8",
     "common:capability.movablePartsRequireTree": "6bcfd0df951f",
-    "common:capability.new": "18fdd549b2ed",
+    "common:capability.new": "6f8d17646237",
     "common:capability.noCreasePatternToExport": "da7395336804",
     "common:capability.nodeEditsRequireTree": "d26027178f90",
     "common:capability.open": "4e0308d33ea0",
@@ -17134,6 +17133,7 @@
     "panels:design.paneTitle.conditions": "97d4be896069",
     "panels:design.paneTitle.diagnostics": "268f14bbfe11",
     "panels:design.paneTitle.inspector": "da188e3b1cef",
-    "panels:design.paneTitle.tree": "0072e6b93494"
+    "panels:design.paneTitle.tree": "0072e6b93494",
+    "common:capability.startNewProject": "21841fd8741f"
   }
 }

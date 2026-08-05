@@ -2175,6 +2175,45 @@ describe('workspace store slices', () => {
     );
   });
 
+  it('prompts before File > New discards unsaved work, and aborts when refused', async () => {
+    // File > New starts a new *project*, and tabs belong to one project — so it
+    // replaces the whole workspace. Nothing may be discarded without asking.
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({ dirty: true });
+    const before = useWorkspaceStore.getState().project;
+
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      const creating = useWorkspaceStore.getState().createNewProject();
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({ type: 'confirm', title: 'Discard unsaved changes?' });
+      if (!dialog) throw new Error('expected a discard confirmation');
+      resolveCommandDialog(dialog.id, false);
+      await creating;
+    } finally {
+      unregisterDialogHost();
+    }
+
+    // Refused: the project is untouched.
+    expect(useWorkspaceStore.getState().project).toBe(before);
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+  });
+
+  it('does not prompt on File > New when there is nothing unsaved', async () => {
+    resetStores(seedSnapshot());
+    loadSnapshotIntoStore(seedSnapshot());
+    useWorkspaceStore.setState({ dirty: false });
+
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      await useWorkspaceStore.getState().createNewProject();
+      expect(useCommandDialogStore.getState().dialog).toBeNull();
+    } finally {
+      unregisterDialogHost();
+    }
+  });
+
   it('prompts before opening over unsaved changes, and aborts when refused', async () => {
     resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
