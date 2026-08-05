@@ -103,6 +103,7 @@ export function createTreemakerDesignKind(
 ): DesignKindDescriptor {
   return {
     id: 'treemaker',
+    engine: 'treemaker',
     osfKind: 'treemaker-tree',
     analyticsId: 'treemaker',
     chooser: {

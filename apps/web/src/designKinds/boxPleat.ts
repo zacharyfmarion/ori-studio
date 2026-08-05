@@ -101,6 +101,7 @@ export function createBoxPleatDesignKind(
 ): DesignKindDescriptor {
   return {
     id: 'box-pleat',
+    engine: 'oristudio-bp',
     osfKind: 'box-pleat',
     analyticsId: 'box-pleat',
     chooser: {

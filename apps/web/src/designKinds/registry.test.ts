@@ -6,6 +6,7 @@ import {
   type WorkspaceCapabilities,
   type WorkspaceCapabilityId,
 } from '../lib/workspaceCapabilities';
+import { ENGINE_IDS } from '../engines/engineHost';
 import type { EditingContext } from '../workspaces/editingContext';
 import { DESIGN_KINDS, designKindRegistry, primaryPane } from './registry';
 import type { DesignKindDescriptor } from './types';
@@ -23,6 +24,7 @@ describe('design kind registry', () => {
     '%s declares a complete descriptor',
     (_id, kind) => {
       expect(kind.osfKind).toBeTruthy();
+      expect(ENGINE_IDS).toContain(kind.engine);
       expect(kind.analyticsId).toBeTruthy();
       expect(kind.panes.length).toBeGreaterThan(0);
       expect(typeof kind.sendToEdit).toBe('function');
@@ -99,6 +101,7 @@ describe('extensibility: a third design kind', () => {
 
   const stubKind: DesignKindDescriptor = {
     id: 'stub' as DesignKindDescriptor['id'],
+    engine: 'treemaker',
     osfKind: 'treemaker-tree',
     analyticsId: 'stub',
     chooser: {

@@ -5,6 +5,7 @@ import type { NativeProjectDocumentKind } from '../lib/nativeProjectFile';
 import type { AppStatus, WorkflowTarget } from '../lib/sampleProject';
 import type { WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import type { EditingContext } from '../workspaces/editingContext';
+import type { EngineId } from '../engines/engineHost';
 
 /**
  * The authoring methods the Design workspace can hold.
@@ -151,6 +152,14 @@ export interface DesignKindChooser {
  */
 export interface DesignKindDescriptor {
   id: DesignKindId;
+  /**
+   * The engine backing this kind's handles.
+   *
+   * Named rather than implied, because engine and kind are not one-to-one: a
+   * later kind may well be built on an existing engine, and the document
+   * registry needs to know which documents a given engine's death invalidates.
+   */
+  engine: EngineId;
   /** Discriminator this kind's document carries in a `.osf` file. */
   osfKind: NativeProjectDocumentKind;
   /** Event property value. An enum, never a user-supplied string. */

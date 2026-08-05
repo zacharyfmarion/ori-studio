@@ -659,6 +659,76 @@ capability masking, pane layout, codec, send-to-edit — is data.
 **R12 gate:** kind literals outside `designKinds/` went 50 → 48. Most of the
 remainder is the store's `designMethod` handling, which Phase 2 owns.
 
+**Gate caveat, found in Phase 1:** the raw grep cannot distinguish a design-kind
+id from an engine id, and the treemaker engine is spelled `'treemaker'` too — so
+`connectEngine('treemaker')` counts against the gate while meaning nothing about
+extensibility. Renaming the engine would be worse (it matches `WorkerName` and the
+crate). Track `'box-pleat'` alone as the clean signal instead: **37** outside
+`designKinds/`, with no id collision.
+
+## Phase 1 notes
+
+### Client ownership: an engine host, not the document registry
+
+Decided before implementing (see the discussion recorded in R2/R14). Ownership
+inverted out of the descriptors, but into `engines/engineHost.ts` rather than the
+document registry, because worker lifetime is not a per-design-kind concern:
+there are six workers and only two back design kinds. The registry consumes the
+host; the Edit canvas uses it directly.
+
+The deciding evidence was that half of it already existed.
+`lib/workerDiagnostics.ts` already enumerates all six workers, already reports
+terminal failure ("a worker that dies … leaves every in-flight call pending
+forever"), and its disposer already exists so *"a replacement worker's listeners
+are the only live ones"* — the code anticipated respawn, but nothing implemented
+it, because no module owned "the worker for engine X".
+
+Scope: the three **persistent** engines. `oristudio-bp-optimizer` stays where it
+is — spawned per run, terminated in a `finally`, so its lifetime is a call rather
+than a session, and modelling it here would make `connect`/`reset` mean two
+things. `simulator` and `cp-detect` are services, not document stores; each is one
+table entry away if that changes.
+
+`attachWorkerDiagnostics` gained an optional owner-observer, so the host can drop
+a dead client *and* the app's existing error toast still fires. One set of
+listeners, two consumers.
+
+### Two bugs the tests found, both real
+
+**`acquire()` consumed the parked text.** Hydrating deleted the serialized copy,
+so a document that had been parked once became unrecoverable again simply by
+being reopened — defeating the entire point of surviving a crash. The parked text
+is now *kept* as the last-known-good snapshot; `park` overwrites it with something
+fresher. Costs the text staying resident for at most `hotLimit` documents.
+
+**`pinned()` pinned too late.** It hydrated first and pinned after, so anything
+running while `acquire` was suspended could evict the very document the pin
+existed to protect. Pins now live in their own map keyed by document id,
+established *before* the hydrate. Pins also block an explicit `park`, not just
+eviction — a tab switch mid-optimize must not serialize a torn state.
+
+Neither would have been caught by review; both came from tests that assert
+*when* the registry serializes and frees, not just that it can.
+
+### `recoverable` is part of the contract
+
+A document created and never parked has no captured text, so an engine crash
+really does lose it. The `parked` event carries `recoverable: false` for that case
+rather than fabricating an empty document to hydrate from. Phase 2 decides what
+the tab does about it.
+
+### Naming
+
+`use()` had to become `acquire()` — `react-hooks/rules-of-hooks` treats any
+function named `use*` as a hook. Better name regardless: it pairs with `park`.
+
+### Not yet load-bearing
+
+The host is wired into all three runtimes, so it is live. The **document registry
+is not yet driving the store** — that is Phase 2's job, and wiring it early would
+mean building the documents map twice. It is fully covered by tests in the
+meantime.
+
 ## Affected areas
 
 - `apps/web/src/designKinds/` — **new**: descriptors + registry
@@ -695,7 +765,16 @@ remainder is the store's `designMethod` handling, which Phase 2 owns.
   2408/2408, typecheck, lint, i18n:check, and `build:web` all clean.
 
   Findings recorded below under "Phase 0 notes".
-- [ ] Phase 1 — document registry, lazy hydrate, LRU evict, pinning for in-flight work
+- [x] Phase 1 — document registry, lazy hydrate, LRU evict, pinning for in-flight work
+
+  Landed: `apps/web/src/engines/engineHost.ts` (client ownership for the three
+  persistent engines, with crash notification) and
+  `apps/web/src/engines/documentRegistry.ts` (acquire / park / pinned / forget,
+  LRU, engine-loss handling). `engineRuntime`, `oristudioCpRuntime`, and
+  `oristudioBpRuntime` now get their clients from the host. 34 new tests. Full
+  suite 2438/2438, typecheck, lint, i18n, `build:web` clean.
+
+  Findings under "Phase 1 notes".
 - [ ] Phase 2 — `designs` map at N=1, `activeDesign()`, ≈291 sites, no UI change, tests green
 - [ ] Phase 2b — addressed writes: capture the document id before the first `await`
 - [ ] Phase 3 — Radix tab strip (add / close / rename / reorder / duplicate), ≥1 tab invariant

@@ -1,3 +1,4 @@
+import { connectEngine, isEngineConnected } from '../../engines/engineHost';
 import { proxy, wrap, type Remote } from 'comlink';
 import {
   oristudioBpProjectStateFromRaw,
@@ -30,8 +31,9 @@ import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 export type OristudioBpClient = Remote<OristudioBpWorkerApi>;
 type OristudioBpOptimizerClient = Remote<OristudioBpOptimizerWorkerApi>;
 
-let worker: Worker | null = null;
-let client: OristudioBpClient | null = null;
+// Worker + comlink client are owned by `engines/engineHost`. The optimizer
+// worker below stays local: it is spawned per run and terminated in a
+// `finally`, so its lifetime is a call, not a session.
 let optimizerWorker: Worker | null = null;
 let optimizerClient: OristudioBpOptimizerClient | null = null;
 let optimizerCancelRequested = false;
@@ -57,13 +59,7 @@ export function oristudioBpError(error: unknown): WasmErrorEnvelope {
 }
 
 export async function getOristudioBpClient(): Promise<OristudioBpClient> {
-  if (client) return client;
-  worker = new Worker(new URL('../../workers/oristudioBpWorker.ts', import.meta.url), {
-    type: 'module',
-  });
-  attachWorkerDiagnostics(worker, 'oristudio-bp');
-  client = wrap<OristudioBpWorkerApi>(worker);
-  return client;
+  return connectEngine('oristudio-bp');
 }
 
 export async function getOristudioBpPortDescriptors(): Promise<OristudioBpPortDescriptor[]> {
@@ -183,7 +179,9 @@ export function cancelActiveOristudioBpOptimizer(): void {
 }
 
 export async function releaseOristudioBpProject(): Promise<void> {
-  if (!client || loadedHandles.size === 0) {
+  // Not connected means there is nothing to free — no engine was ever spawned,
+  // or it died and took its handles with it.
+  if (!isEngineConnected('oristudio-bp') || loadedHandles.size === 0) {
     activeHandle = null;
     loadedHandles = new Set();
     currentSource = null;
@@ -193,7 +191,8 @@ export async function releaseOristudioBpProject(): Promise<void> {
   activeHandle = null;
   loadedHandles = new Set();
   currentSource = null;
-  await Promise.all(staleHandles.map((staleHandle) => client?.freeProject(staleHandle).catch(() => undefined)));
+  const api = await getOristudioBpClient();
+  await Promise.all(staleHandles.map((staleHandle) => api.freeProject(staleHandle).catch(() => undefined)));
 }
 
 export async function createSampleOristudioBpProject(): Promise<OristudioBpDocumentState> {
@@ -677,13 +676,14 @@ export async function cloneOristudioBpProjectHandle(
 }
 
 export async function releaseOristudioBpProjectHandle(handle: number): Promise<void> {
-  if (!client || !loadedHandles.has(handle)) return;
+  if (!isEngineConnected('oristudio-bp') || !loadedHandles.has(handle)) return;
   loadedHandles.delete(handle);
   if (activeHandle === handle) {
     activeHandle = null;
     currentSource = null;
   }
-  await client.freeProject(handle).catch(() => undefined);
+  const api = await getOristudioBpClient();
+  await api.freeProject(handle).catch(() => undefined);
 }
 
 function optimizerProgressFromEvent(event: OristudioBpOptimizerEvent): OristudioBpOptimizerProgress {

@@ -1,4 +1,5 @@
-import { wrap, type Remote } from 'comlink';
+import type { Remote } from 'comlink';
+import { connectEngine, isEngineConnected } from '../../engines/engineHost';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type {
   OptimizationReport,
@@ -10,12 +11,12 @@ import type { Point } from '../../lib/geometry';
 import type { AppStatus, Selection } from '../../lib/sampleProject';
 import type { TreemakerWorkerApi } from '../../workers/treemakerWorker';
 import { emptyFoldArtifactResourceState } from './foldArtifactResource';
-import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
 export type EngineClient = Remote<TreemakerWorkerApi>;
 
-let worker: Worker | null = null;
-let engine: EngineClient | null = null;
+// The worker and its comlink client are owned by `engines/engineHost`, which is
+// what makes "is this engine still alive?" answerable. What remains here is the
+// single-tree state Phase 2 replaces with the documents map.
 let handle: number | null = null;
 let blankPromise: Promise<TreeSnapshot> | null = null;
 
@@ -40,18 +41,16 @@ export function engineError(error: unknown): WasmErrorEnvelope {
 }
 
 export async function getEngine(): Promise<EngineClient> {
-  if (engine) return engine;
-  worker = new Worker(new URL('../../workers/treemakerWorker.ts', import.meta.url), {
-    type: 'module',
-  });
-  attachWorkerDiagnostics(worker, 'treemaker');
-  engine = wrap<TreemakerWorkerApi>(worker);
-  return engine;
+  return connectEngine('treemaker');
 }
 
 async function replaceHandle(nextHandle: number) {
-  if (engine && handle !== null) {
-    await engine.freeTree(handle).catch(() => undefined);
+  if (handle !== null && isEngineConnected('treemaker')) {
+    // Guarded on the engine being connected rather than on a local client
+    // reference: with the host owning the worker, a crash drops the client and
+    // every handle it held, so there is nothing left to free.
+    const api = await connectEngine('treemaker');
+    await api.freeTree(handle).catch(() => undefined);
   }
   handle = nextHandle;
 }
