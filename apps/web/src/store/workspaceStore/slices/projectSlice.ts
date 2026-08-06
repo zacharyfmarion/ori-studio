@@ -1731,7 +1731,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (get().status === 'error') return;
     const layout = useLayoutStore.getState();
     layout.activateWorkspace(landingWorkspace(get()));
-    // No-ops outside Design; rebuilds the variant layout when a design landed.
   };
 
   // Route a native save/save-as by the documents that exist, NOT by the pane in
@@ -1742,7 +1741,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // bare crease pattern (no design) saves as a CP project, preserving its
   // Oriedita-sourced `.ori`/`.orh` save-as special cases.
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
-    const hasDesign = selectProject(get()).nodes.length > 0 || Boolean(selectOristudioBpDocument(get()));
+    // "Is there a design" is a question about the **tabs**, not about the active
+    // one's content. It used to ask whether the active design had nodes or a BP
+    // document, which with tabs means saving from an empty-but-real design tab —
+    // one just created, or one whose engine is still loading — would write a
+    // crease-pattern project and drop every other design in the workspace. A tab
+    // that has chosen a kind *is* a design; only a lone untouched chooser is not.
+    const hasDesign = get().designTabs.some((tab) => tab.kind !== null);
     const result = hasDesign
       ? await saveNativeWorkspaceProject(fileService, forceSaveAs)
       : await saveEditableCreasePattern(fileService, forceSaveAs);
