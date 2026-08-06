@@ -1,33 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bpTreeDragUpdates,
+  treeDragUpdates,
   rotatePointsAround,
   translatePoints,
-  unitLeafLocation,
-} from './bpTreeAuthoring';
-import type { Point } from './geometry';
+  leafLocationAt,
+} from './dragRule';
+import type { Point } from '../lib/geometry';
 
 const near = (a: Point, b: Point, eps = 1e-9) =>
   Math.abs(a.x - b.x) < eps && Math.abs(a.y - b.y) < eps;
 
-describe('unitLeafLocation', () => {
+describe('leafLocationAt', () => {
   it('places a leaf at unit length toward the target', () => {
-    const loc = unitLeafLocation({ x: 10, y: 10 }, { x: 15, y: 10 });
+    const loc = leafLocationAt({ x: 10, y: 10 }, { x: 15, y: 10 });
     expect(near(loc, { x: 11, y: 10 })).toBe(true);
   });
 
   it('normalizes diagonal directions to unit length', () => {
-    const loc = unitLeafLocation({ x: 0, y: 0 }, { x: 3, y: 4 });
+    const loc = leafLocationAt({ x: 0, y: 0 }, { x: 3, y: 4 });
     expect(near(loc, { x: 0.6, y: 0.8 })).toBe(true);
   });
 
   it('falls back to straight up when the target coincides with the parent', () => {
-    const loc = unitLeafLocation({ x: 2, y: 2 }, { x: 2, y: 2 });
+    const loc = leafLocationAt({ x: 2, y: 2 }, { x: 2, y: 2 });
     expect(near(loc, { x: 2, y: 1 })).toBe(true);
   });
 
   it('honors a custom length', () => {
-    const loc = unitLeafLocation({ x: 0, y: 0 }, { x: 1, y: 0 }, 3);
+    const loc = leafLocationAt({ x: 0, y: 0 }, { x: 1, y: 0 }, 3);
     expect(near(loc, { x: 3, y: 0 })).toBe(true);
   });
 });
@@ -67,7 +67,7 @@ describe('translatePoints', () => {
   });
 });
 
-describe('bpTreeDragUpdates', () => {
+describe('treeDragUpdates', () => {
   //   0 (root) --- 1 --- 2
   const vertices = new Map([
     [0, { x: 0, y: 0 }],
@@ -76,7 +76,7 @@ describe('bpTreeDragUpdates', () => {
   ]);
 
   it('moves nothing when the root is dragged', () => {
-    const moved = bpTreeDragUpdates({
+    const moved = treeDragUpdates({
       vertexId: 0,
       parentId: null,
       vertices,
@@ -88,7 +88,7 @@ describe('bpTreeDragUpdates', () => {
   });
 
   it('rotates a vertex and its subtree about its parent, preserving edge lengths', () => {
-    const moved = bpTreeDragUpdates({
+    const moved = treeDragUpdates({
       vertexId: 1,
       parentId: 0,
       vertices,
@@ -112,7 +112,7 @@ describe('bpTreeDragUpdates', () => {
 
   it('moves nothing when the parent is unknown', () => {
     expect(
-      bpTreeDragUpdates({
+      treeDragUpdates({
         vertexId: 1,
         parentId: 99,
         vertices,
@@ -125,7 +125,7 @@ describe('bpTreeDragUpdates', () => {
 
   it('moves nothing when the dragged vertex is missing from its own subtree', () => {
     expect(
-      bpTreeDragUpdates({
+      treeDragUpdates({
         vertexId: 1,
         parentId: 0,
         vertices,
@@ -145,7 +145,7 @@ describe('bpTreeDragUpdates', () => {
  * limit is on the *angle*: sweep from where it is now, which is valid, and stop
  * at the first held vertex that would reach the line.
  */
-describe('bpTreeDragUpdates — the mirror is a wall', () => {
+describe('treeDragUpdates — the mirror is a wall', () => {
   // Vertical through x = 10, as the BP tree's mirror always is.
   const axis = { loc: { x: 10, y: 10 }, angle: 90 };
   // Root at the centre, one leaf a unit to its right.
@@ -159,7 +159,7 @@ describe('bpTreeDragUpdates — the mirror is a wall', () => {
   const CLEARANCE = 0.02;
 
   function drag(target: Point, heldIds: number[]) {
-    return bpTreeDragUpdates({
+    return treeDragUpdates({
       vertexId: 1,
       parentId: 0,
       vertices,
@@ -210,7 +210,7 @@ describe('bpTreeDragUpdates — the mirror is a wall', () => {
       [1, { x: 12, y: 10 }],
       [2, { x: 14, y: 10 }],
     ]);
-    const moved = bpTreeDragUpdates({
+    const moved = treeDragUpdates({
       vertexId: 1,
       parentId: 0,
       vertices: deep,
@@ -230,7 +230,7 @@ describe('bpTreeDragUpdates — the mirror is a wall', () => {
       [0, { x: 16, y: 10 }],
       [1, { x: 17, y: 10 }],
     ]);
-    const moved = bpTreeDragUpdates({
+    const moved = treeDragUpdates({
       vertexId: 1,
       parentId: 0,
       vertices: offAxis,

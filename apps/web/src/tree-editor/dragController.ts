@@ -1,13 +1,11 @@
-import { bpTreeDragUpdates, type BpTreeDragMirror } from './bpTreeAuthoring';
-import { constrainBpTreePoint } from './bpTreeViewport';
-import { hasPassedDragThreshold } from './pointerGesture';
+import { treeDragUpdates, type TreeDragMirror } from './dragRule';
+import { hasPassedDragThreshold } from '../lib/pointerGesture';
 import {
-  applyBpTreeScenePositions,
-  collectBpTreeSceneTargets,
-  type BpTreeSceneTarget,
-} from './bpTreeSceneDom';
-import type { OristudioBpSheet } from '../engine/oristudioBpTypes';
-import type { Point } from './geometry';
+  applyTreeScenePositions,
+  collectTreeSceneTargets,
+  type TreeSceneTarget,
+} from './sceneDom';
+import type { Point } from '../lib/geometry';
 
 /**
  * A tree-vertex drag, run without React.
@@ -17,12 +15,12 @@ import type { Point } from './geometry';
  * for the subtree that actually rotates, so the cost of a drag is set by the size
  * of that subtree rather than by the size of the tree.
  *
- * The drag *rule* stays in {@link bpTreeDragUpdates}, unchanged and shared with
+ * The drag *rule* stays in {@link treeDragUpdates}, unchanged and shared with
  * the commit, so the live preview and the move that lands can't drift apart.
  * This owns only when that rule runs and where its answer is written.
  */
 
-export interface BpTreeDragStart {
+export interface TreeDragStart {
   /** The rendered scene, whose elements this drag will move. */
   root: ParentNode;
   vertexId: number;
@@ -33,8 +31,9 @@ export interface BpTreeDragStart {
   /** The dragged vertex and everything hanging below it. */
   subtreeIds: readonly number[];
   /** Holds paired vertices in their own half of the mirror. Null when none are. */
-  mirror?: BpTreeDragMirror | null;
-  sheet: OristudioBpSheet;
+  mirror?: TreeDragMirror | null;
+  /** The nearest allowed tree point, from the surface's frame. */
+  constrain: (point: Point) => Point;
   clientStart: Point;
   /** Client point to tree space. Owns the camera, so the controller need not. */
   toTreePoint: (client: Point) => Point;
@@ -47,7 +46,7 @@ export interface BpTreeDragStart {
   unschedule?: (handle: number) => void;
 }
 
-export interface BpTreeDragSession {
+export interface TreeDragSession {
   readonly vertexId: number;
   /** Where this drag would leave each moved vertex. Empty until it moves. */
   readonly updates: ReadonlyMap<number, Point>;
@@ -59,14 +58,14 @@ export interface BpTreeDragSession {
   end: () => void;
 }
 
-export function startBpTreeDrag(input: BpTreeDragStart): BpTreeDragSession {
+export function startTreeDrag(input: TreeDragStart): TreeDragSession {
   const {
     root,
     vertexId,
     parentId,
     vertices,
     subtreeIds,
-    sheet,
+    constrain,
     mirror = null,
     clientStart,
     toTreePoint,
@@ -85,7 +84,7 @@ export function startBpTreeDrag(input: BpTreeDragStart): BpTreeDragSession {
   // label is drawn at. Reading the scene before React has committed that would
   // cache the offsets the drag is about to invalidate. It also means a press
   // that never moves does not pay for the scan at all.
-  let targets: BpTreeSceneTarget[] | null = null;
+  let targets: TreeSceneTarget[] | null = null;
 
   let updates: ReadonlyMap<number, Point> = new Map();
   let moved = false;
@@ -100,8 +99,8 @@ export function startBpTreeDrag(input: BpTreeDragStart): BpTreeDragSession {
     const client = pending;
     pending = null;
     if (!client) return;
-    const target = constrainBpTreePoint(toTreePoint(client), sheet);
-    const rotated = bpTreeDragUpdates({
+    const target = constrain(toTreePoint(client));
+    const rotated = treeDragUpdates({
       vertexId,
       parentId,
       vertices,
@@ -111,10 +110,10 @@ export function startBpTreeDrag(input: BpTreeDragStart): BpTreeDragSession {
       mirror,
     });
     const next = new Map<number, Point>();
-    for (const [id, loc] of rotated) next.set(id, constrainBpTreePoint(loc, sheet));
+    for (const [id, loc] of rotated) next.set(id, constrain(loc));
     updates = next;
-    targets ??= collectBpTreeSceneTargets(root, new Set(subtreeIds));
-    applyBpTreeScenePositions(
+    targets ??= collectTreeSceneTargets(root, new Set(subtreeIds));
+    applyTreeScenePositions(
       targets,
       (id) => {
         const loc = locOf(id);

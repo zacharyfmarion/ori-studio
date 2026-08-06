@@ -697,7 +697,7 @@ describe('BP tree pane — pairings survive mirror draw being off', () => {
 
   it('commits a drag through the mirrored move whatever the toggle says', () => {
     const body = withPair(false);
-    const dot = body.querySelector('circle[data-bp-anchor="node"][data-bp-p1="1"]');
+    const dot = body.querySelector('circle[data-tree-anchor="node"][data-tree-p1="1"]');
     if (!dot) throw new Error('vertex dot did not render');
     act(() => {
       dot.dispatchEvent(

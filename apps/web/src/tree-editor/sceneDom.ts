@@ -1,4 +1,4 @@
-import type { Point } from './geometry';
+import type { Point } from '../lib/geometry';
 
 /**
  * The contract between the BP tree scene and the gestures that move it.
@@ -22,12 +22,12 @@ import type { Point } from './geometry';
  * written, not re-rendered. React draws its four elements once when the ghost is
  * armed and then leaves them alone.
  */
-export const BP_TREE_GHOST_PART = 'data-bp-ghost-part';
+export const TREE_GHOST_PART = 'data-tree-ghost-part';
 
-export type BpTreeGhostPart = 'primary-edge' | 'primary-node' | 'mirror-edge' | 'mirror-node';
+export type TreeGhostPart = 'primary-edge' | 'primary-node' | 'mirror-edge' | 'mirror-node';
 
 /** Where the ghost should be drawn, in SVG coordinates. */
-export interface BpTreeGhostGeometry {
+export interface TreeGhostGeometry {
   primary: { from: Point; to: Point };
   /** Absent when the tip snapped to the axis, or when no mirror parent resolves. */
   mirror: { from: Point; to: Point } | null;
@@ -35,16 +35,16 @@ export interface BpTreeGhostGeometry {
   unresolved: boolean;
 }
 
-export const BP_TREE_SCENE_ATTR = {
+export const TREE_SCENE_ATTR = {
   /** Vertex id positioning the element's first point. */
-  p1: 'data-bp-p1',
+  p1: 'data-tree-p1',
   /** Vertex id positioning its second point, for the two-ended shapes. */
-  p2: 'data-bp-p2',
-  /** Which of {@link BpTreeSceneAnchor} this element is. */
-  anchor: 'data-bp-anchor',
+  p2: 'data-tree-p2',
+  /** Which of {@link TreeSceneAnchor} this element is. */
+  anchor: 'data-tree-anchor',
   /** Constant offset from the anchor point, in *screen pixels*. */
-  dx: 'data-bp-dx',
-  dy: 'data-bp-dy',
+  dx: 'data-tree-dx',
+  dy: 'data-tree-dy',
 } as const;
 
 /**
@@ -53,17 +53,17 @@ export const BP_TREE_SCENE_ATTR = {
  * The drawing keeps its proportions as you zoom, which means every stroke
  * width, dot radius and font size is a function of the camera. Rendering that
  * function is what made a zoom step cost a full redraw of the canvas; declaring
- * it lets {@link applyBpTreeChromeScale} rewrite them all directly instead.
+ * it lets {@link applyTreeChromeScale} rewrite them all directly instead.
  *
  * They stay inline styles rather than moving to the stylesheet: SVG presentation
  * attributes lose to any author CSS rule, and theme.css already sets
  * `stroke-width` on these classes, so an attribute here would be silently
  * ignored.
  */
-export const BP_TREE_CHROME_ATTR = {
-  stroke: 'data-bp-stroke-px',
-  radius: 'data-bp-r-px',
-  font: 'data-bp-font-px',
+export const TREE_CHROME_ATTR = {
+  stroke: 'data-tree-stroke-px',
+  radius: 'data-tree-r-px',
+  font: 'data-tree-font-px',
 } as const;
 
 /**
@@ -74,12 +74,12 @@ export const BP_TREE_CHROME_ATTR = {
  * - `edge` / `pair` — a segment from p1 to p2 (`x1`/`y1`/`x2`/`y2`).
  * - `edge-label` — text offset from the midpoint of p1..p2 (`x`/`y`).
  */
-export type BpTreeSceneAnchor = 'node' | 'node-label' | 'edge' | 'edge-label' | 'pair';
+export type TreeSceneAnchor = 'node' | 'node-label' | 'edge' | 'edge-label' | 'pair';
 
 /** One element the writer can move, with its contract already parsed. */
-export interface BpTreeSceneTarget {
+export interface TreeSceneTarget {
   element: SVGElement;
-  anchor: BpTreeSceneAnchor;
+  anchor: TreeSceneAnchor;
   p1: number;
   /** Absent for the one-ended anchors. */
   p2: number | null;
@@ -94,18 +94,18 @@ function readNumber(element: Element, name: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-function readTarget(element: SVGElement): BpTreeSceneTarget | null {
-  const anchor = element.getAttribute(BP_TREE_SCENE_ATTR.anchor) as BpTreeSceneAnchor | null;
+function readTarget(element: SVGElement): TreeSceneTarget | null {
+  const anchor = element.getAttribute(TREE_SCENE_ATTR.anchor) as TreeSceneAnchor | null;
   if (anchor === null) return null;
-  const p1 = readNumber(element, BP_TREE_SCENE_ATTR.p1);
+  const p1 = readNumber(element, TREE_SCENE_ATTR.p1);
   if (p1 === null) return null;
   return {
     element,
     anchor,
     p1,
-    p2: readNumber(element, BP_TREE_SCENE_ATTR.p2),
-    dx: readNumber(element, BP_TREE_SCENE_ATTR.dx) ?? 0,
-    dy: readNumber(element, BP_TREE_SCENE_ATTR.dy) ?? 0,
+    p2: readNumber(element, TREE_SCENE_ATTR.p2),
+    dx: readNumber(element, TREE_SCENE_ATTR.dx) ?? 0,
+    dy: readNumber(element, TREE_SCENE_ATTR.dy) ?? 0,
   };
 }
 
@@ -116,12 +116,12 @@ function readTarget(element: SVGElement): BpTreeSceneTarget | null {
  * the life of the drag, which is what keeps a pointer sample proportional to
  * what moved rather than to the size of the tree.
  */
-export function collectBpTreeSceneTargets(
+export function collectTreeSceneTargets(
   root: ParentNode,
   movingIds: ReadonlySet<number>
-): BpTreeSceneTarget[] {
-  const targets: BpTreeSceneTarget[] = [];
-  for (const element of root.querySelectorAll<SVGElement>(`[${BP_TREE_SCENE_ATTR.anchor}]`)) {
+): TreeSceneTarget[] {
+  const targets: TreeSceneTarget[] = [];
+  for (const element of root.querySelectorAll<SVGElement>(`[${TREE_SCENE_ATTR.anchor}]`)) {
     const target = readTarget(element);
     if (!target) continue;
     if (!movingIds.has(target.p1) && !(target.p2 !== null && movingIds.has(target.p2))) continue;
@@ -131,9 +131,9 @@ export function collectBpTreeSceneTargets(
 }
 
 /** Every positioned element under `root`, moving or not. */
-export function collectAllBpTreeSceneTargets(root: ParentNode): BpTreeSceneTarget[] {
-  const targets: BpTreeSceneTarget[] = [];
-  for (const element of root.querySelectorAll<SVGElement>(`[${BP_TREE_SCENE_ATTR.anchor}]`)) {
+export function collectAllTreeSceneTargets(root: ParentNode): TreeSceneTarget[] {
+  const targets: TreeSceneTarget[] = [];
+  for (const element of root.querySelectorAll<SVGElement>(`[${TREE_SCENE_ATTR.anchor}]`)) {
     const target = readTarget(element);
     if (target) targets.push(target);
   }
@@ -149,8 +149,8 @@ export function collectAllBpTreeSceneTargets(root: ParentNode): BpTreeSceneTarge
  * Label offsets are held in screen pixels and converted here, so the same call
  * re-places them when the camera scale changes and nothing has moved.
  */
-export function applyBpTreeScenePositions(
-  targets: readonly BpTreeSceneTarget[],
+export function applyTreeScenePositions(
+  targets: readonly TreeSceneTarget[],
   pointFor: (vertexId: number) => Point | undefined,
   chromePx: (px: number) => number
 ): void {
@@ -181,8 +181,8 @@ export function applyBpTreeScenePositions(
   }
 }
 
-function ghostPart(root: ParentNode, part: BpTreeGhostPart): SVGElement | null {
-  return root.querySelector<SVGElement>(`[${BP_TREE_GHOST_PART}="${part}"]`);
+function ghostPart(root: ParentNode, part: TreeGhostPart): SVGElement | null {
+  return root.querySelector<SVGElement>(`[${TREE_GHOST_PART}="${part}"]`);
 }
 
 function setSegment(element: SVGElement | null, from: Point, to: Point): void {
@@ -205,7 +205,7 @@ function setShown(element: SVGElement | null, shown: boolean): void {
  * stylesheet keys off. That is what lets the pointer move without the pane
  * rendering.
  */
-export function applyBpTreeGhost(root: ParentNode, geometry: BpTreeGhostGeometry | null): void {
+export function applyTreeGhost(root: ParentNode, geometry: TreeGhostGeometry | null): void {
   const primaryEdge = ghostPart(root, 'primary-edge');
   const primaryNode = ghostPart(root, 'primary-node');
   const mirrorEdge = ghostPart(root, 'mirror-edge');
@@ -235,7 +235,7 @@ export function applyBpTreeGhost(root: ParentNode, geometry: BpTreeGhostGeometry
 }
 
 /** One element's counter-scaled sizes, already parsed out of the markup. */
-export interface BpTreeChromeTarget {
+export interface TreeChromeTarget {
   element: SVGElement;
   strokePx: number | null;
   radiusPx: number | null;
@@ -248,19 +248,19 @@ export interface BpTreeChromeTarget {
  * Collected once per rendered scene and reused across zoom steps — re-reading
  * the markup on each step made a zoom four passes over the whole canvas.
  */
-export function collectBpTreeChromeTargets(root: ParentNode): BpTreeChromeTarget[] {
+export function collectTreeChromeTargets(root: ParentNode): TreeChromeTarget[] {
   const selector = [
-    `[${BP_TREE_CHROME_ATTR.stroke}]`,
-    `[${BP_TREE_CHROME_ATTR.radius}]`,
-    `[${BP_TREE_CHROME_ATTR.font}]`,
+    `[${TREE_CHROME_ATTR.stroke}]`,
+    `[${TREE_CHROME_ATTR.radius}]`,
+    `[${TREE_CHROME_ATTR.font}]`,
   ].join(',');
-  const targets: BpTreeChromeTarget[] = [];
+  const targets: TreeChromeTarget[] = [];
   for (const element of root.querySelectorAll<SVGElement>(selector)) {
     targets.push({
       element,
-      strokePx: readNumber(element, BP_TREE_CHROME_ATTR.stroke),
-      radiusPx: readNumber(element, BP_TREE_CHROME_ATTR.radius),
-      fontPx: readNumber(element, BP_TREE_CHROME_ATTR.font),
+      strokePx: readNumber(element, TREE_CHROME_ATTR.stroke),
+      radiusPx: readNumber(element, TREE_CHROME_ATTR.radius),
+      fontPx: readNumber(element, TREE_CHROME_ATTR.font),
     });
   }
   return targets;
@@ -271,11 +271,11 @@ export function collectBpTreeChromeTargets(root: ParentNode): BpTreeChromeTarget
  *
  * A zoom step changes nothing about *what* is drawn, only how thick it is — so
  * it has no business re-rendering the canvas. Callers pair this with
- * {@link applyBpTreeScenePositions}, which re-places the labels whose offsets
+ * {@link applyTreeScenePositions}, which re-places the labels whose offsets
  * are counter-scaled too.
  */
-export function applyBpTreeChromeScale(
-  targets: readonly BpTreeChromeTarget[],
+export function applyTreeChromeScale(
+  targets: readonly TreeChromeTarget[],
   chromePx: (px: number) => number
 ): void {
   for (const target of targets) {

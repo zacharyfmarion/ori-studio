@@ -1,0 +1,614 @@
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent,
+} from 'react';
+import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
+import { clientPointToDesignWorld } from '../lib/designViewport';
+import { hasPassedDragThreshold } from '../lib/pointerGesture';
+import { type Point } from '../lib/geometry';
+import {
+  reflectPointAcrossSymmetryAxis,
+  snapPointToSymmetryAxis,
+} from '../lib/symmetryGeometry';
+import { setActiveShortcutViewportSurface } from '../keyboard/shortcutRuntime';
+import { useEventCallback } from '../hooks/useEventCallback';
+import {
+  useViewportSurface,
+  VIEWPORT_PINCH_ZOOM,
+  VIEWPORT_WHEEL_ZOOM,
+} from '../hooks/useViewportSurface';
+import { BpNameEditor } from '../components/panels/BpNameEditor';
+import { isViewportInteractiveTarget } from '../components/panels/ViewportToolbar';
+import {
+  applyTreeChromeScale,
+  applyTreeGhost,
+  applyTreeScenePositions,
+  collectAllTreeSceneTargets,
+  collectTreeChromeTargets,
+  type TreeChromeTarget,
+  type TreeGhostGeometry,
+  type TreeSceneTarget,
+} from './sceneDom';
+import { startTreeDrag, type TreeDragSession } from './dragController';
+import { leafLocationAt, translatePoints } from './dragRule';
+import { subtreeIds, treeTopology } from './model';
+import { clampLength } from './lengths';
+import { SYMMETRY_LANE_PX, TreeScene } from './TreeScene';
+import { TreeEditorToolbar } from './TreeEditorToolbar';
+import { TreeEdgeLengthEditor } from './TreeEdgeLengthEditor';
+import { selectedEdge as findSelectedEdge, type TreeEditorHost } from './host';
+
+/** SVG units per screen pixel at a whole-percent zoom, floored so it stays sane. */
+function cameraScale(zoomPercent: number): number {
+  return Math.max(0.02, zoomPercent / 100);
+}
+
+/**
+ * A tree-drawing canvas, driven entirely by its {@link TreeEditorHost}.
+ *
+ * Extracted from the box-pleat tree pane, which had this whole surface welded to
+ * one engine: the model type, the sheet the coordinates were measured against,
+ * eight store actions, a selection union, and a settings slice. None of that was
+ * wrong; all of it was box-pleat. What is left here is the part that is about
+ * *drawing a tree* — hit-testing, the camera, the drag preview, the mirror
+ * ghost, the contextual editors — and the surface answers the rest.
+ */
+export function TreeEditor({ host }: { host: TreeEditorHost }) {
+  const { tree, frame, lengths, copy, symmetry, classPrefix } = host;
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  // The live drag is deliberately not React state: a pointer sample must not
+  // re-render the drawing. The session writes the moving elements itself.
+  const dragRef = useRef<TreeDragSession | null>(null);
+  const paperDownRef = useRef<{ clientX: number; clientY: number; point: Point } | null>(null);
+  // Where the ghost is drawn follows the cursor and so must not be React state.
+  // Whether it exists at all changes only on selection and pointer enter/leave,
+  // which is rare enough to render.
+  const [ghostArmed, setGhostArmed] = useState(false);
+  const ghostFrameRef = useRef<number | null>(null);
+  const ghostGeometryRef = useRef<TreeGhostGeometry | null>(null);
+  // Cached scene lookups, dropped whenever React redraws the canvas.
+  const sceneTargetsRef = useRef<{
+    chrome: TreeChromeTarget[];
+    positions: TreeSceneTarget[];
+  } | null>(null);
+  /**
+   * The canvas's box on screen, cached.
+   *
+   * `getBoundingClientRect` forces a layout of the whole canvas, and a gesture
+   * asks for it on every pointer sample — which is a layout of a thousand
+   * elements per sample, for a box that cannot have moved. The cache is dropped
+   * whenever it genuinely can: React redrew the canvas, the camera moved, the
+   * pane resized, or something scrolled.
+   */
+  const svgRectRef = useRef<DOMRect | null>(null);
+  const forgetSvgRect = useEventCallback(() => {
+    svgRectRef.current = null;
+  });
+  const svgRect = useEventCallback((): DOMRect | null => {
+    const cached = svgRectRef.current;
+    if (cached) return cached;
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    svgRectRef.current = rect;
+    return rect;
+  });
+
+  const selectedVertex = host.selection.vertexId;
+  const selectedEdge = findSelectedEdge(host);
+  // The selected nameable vertex — drives the name editor. On box-pleat only
+  // leaves qualify: internal vertices are rivers, which aren't worth labeling.
+  const selectedNameableVertex = useMemo(() => {
+    if (selectedVertex === null) return null;
+    const vertex = tree.vertices.find((v) => v.id === selectedVertex) ?? null;
+    return vertex && host.isNameable(vertex) ? vertex : null;
+  }, [selectedVertex, tree.vertices, host]);
+
+  // Parent/children maps rooted at the tree root, for subtree-carrying drags.
+  const topology = useMemo(() => treeTopology(tree), [tree]);
+
+  // Vertices by id. Everything that resolves one goes through this rather than
+  // scanning the list: an edge lookup inside a render over every edge is where
+  // an O(n) scan quietly becomes O(n²).
+  const vertexById = useMemo(
+    () => new Map(tree.vertices.map((vertex) => [vertex.id, vertex] as const)),
+    [tree.vertices]
+  );
+  /** Just the locations, which is the shape the drag rule works from. */
+  const vertexLocationsById = useMemo(
+    () => new Map([...vertexById].map(([id, vertex]) => [id, vertex.loc] as const)),
+    [vertexById]
+  );
+
+  const subtreeOf = useCallback((id: number) => subtreeIds(topology, id), [topology]);
+  // The vertex a canvas click attaches a new leaf to. This is exactly the
+  // selected vertex — with no fallback to the root, so a tree opens inert and
+  // clearing the selection disarms adding, and the hover ghost and the click
+  // can't disagree about where the leaf would land.
+  const addAnchorId = selectedVertex;
+
+  const {
+    containerRef,
+    transformRef,
+    zoomPercent,
+    spacePressed,
+    zoomIn,
+    zoomOut,
+    fitToView,
+    setZoomLevel,
+    onInit,
+    onTransformed,
+  } = useViewportSurface({
+    surface: host.surface,
+    worldRect: frame.worldRect,
+    fitKey: host.fitKey,
+    maxFitScale: host.maxFitScale,
+  });
+
+  // Convert a target screen-pixel size into SVG units at the current zoom, so
+  // dots/labels keep a constant on-screen size regardless of zoom.
+  //
+  // Read through a ref rather than closed over, so `chromePx` keeps one identity
+  // for the life of the pane. A zoom step must not re-render the canvas: it
+  // changes how thick the drawing is, not what is drawn, and rendering that was
+  // costing a full redraw per wheel tick.
+  const scaleRef = useRef(cameraScale(zoomPercent));
+  const chromePx = useCallback((px: number) => px / scaleRef.current, []);
+  // Half the visible snap band, in tree units. A tip landing inside it snaps onto
+  // the axis — so this is derived from the band's *drawn* width, keeping what the
+  // user sees and what the click does the same thing at every zoom.
+  const symmetryAxisTolerance =
+    SYMMETRY_LANE_PX / cameraScale(zoomPercent) / 2 / frame.unitSvg;
+
+  const findVertex = useCallback((id: number) => vertexById.get(id), [vertexById]);
+
+  // Ghost preview of the leaf a click would add (and its mirror), mirroring what
+  // the host's mirrored add will do: an on-axis tip is a single centred leaf;
+  // otherwise it reflects onto the parent's mirror.
+  //
+  // Called from the pointer handler, not from render — the answer changes with
+  // every sample, and re-rendering the pane for it is what used to make hovering
+  // a large tree as expensive as dragging one.
+  const ghostGeometryAt = useEventCallback((hoverPoint: Point): TreeGhostGeometry | null => {
+    if (!symmetry?.enabled) return null;
+    const parentId = addAnchorId;
+    if (parentId === null) return null;
+    const parent = findVertex(parentId);
+    if (!parent) return null;
+    const axis = symmetry.axis;
+    const tip = frame.constrain(leafLocationAt(parent.loc, hoverPoint));
+    const snap = snapPointToSymmetryAxis(tip, axis, symmetryAxisTolerance);
+    const primaryTip = snap.point;
+    let mirror: { from: Point; to: Point } | null = null;
+    let unresolved = false;
+    if (!snap.snapped) {
+      const mirrorParentId = symmetry.resolveMirrorOf(parentId);
+      const mirrorParent = mirrorParentId != null ? findVertex(mirrorParentId) : undefined;
+      if (mirrorParent) {
+        mirror = { from: mirrorParent.loc, to: reflectPointAcrossSymmetryAxis(primaryTip, axis) };
+      } else {
+        unresolved = true;
+      }
+    }
+    return {
+      primary: { from: frame.toSvg(parent.loc), to: frame.toSvg(primaryTip) },
+      mirror: mirror && { from: frame.toSvg(mirror.from), to: frame.toSvg(mirror.to) },
+      snapped: snap.snapped,
+      unresolved,
+    };
+  });
+
+  /** Where a vertex sits right now: mid-drag if one is running, else committed. */
+  const svgPointOfVertex = useEventCallback((id: number): Point | undefined => {
+    const loc = dragRef.current?.updates.get(id) ?? vertexLocationsById.get(id);
+    return loc && frame.toSvg(loc);
+  });
+
+  // React redrew the canvas, so anything a gesture cached about it is stale.
+  const onSceneRendered = useEventCallback(() => {
+    sceneTargetsRef.current = null;
+    svgRectRef.current = null;
+  });
+
+  /**
+   * Rewrite the counter-scaled chrome for a new camera scale.
+   *
+   * The element lists are read once per rendered scene and reused: a zoom is a
+   * burst of steps, and re-reading the markup on each one turned a zoom into
+   * several passes over the whole canvas.
+   */
+  const publishChromeScale = useEventCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    sceneTargetsRef.current ??= {
+      chrome: collectTreeChromeTargets(svg),
+      positions: collectAllTreeSceneTargets(svg),
+    };
+    applyTreeChromeScale(sceneTargetsRef.current.chrome, chromePx);
+    // Label offsets counter-scale too, so they have to be re-placed even though
+    // nothing moved.
+    applyTreeScenePositions(sceneTargetsRef.current.positions, svgPointOfVertex, chromePx);
+    applyTreeGhost(svg, ghostGeometryRef.current);
+  });
+
+  useEffect(() => {
+    scaleRef.current = cameraScale(zoomPercent);
+  }, [zoomPercent]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const observer =
+      typeof ResizeObserver === 'undefined' || !container
+        ? null
+        : new ResizeObserver(forgetSvgRect);
+    if (container) observer?.observe(container);
+    window.addEventListener('scroll', forgetSvgRect, { capture: true, passive: true });
+    window.addEventListener('resize', forgetSvgRect, { passive: true });
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('scroll', forgetSvgRect, { capture: true });
+      window.removeEventListener('resize', forgetSvgRect);
+    };
+  }, [forgetSvgRect, containerRef]);
+
+  const onCameraTransformed = useEventCallback(
+    (ref: Parameters<typeof onTransformed>[0], state: { scale: number }) => {
+      // Rounded exactly as `zoomPercent` is, so the scale this writes and the
+      // scale a later render reads back out of it cannot disagree.
+      scaleRef.current = cameraScale(Math.round(state.scale * 100));
+      forgetSvgRect();
+      publishChromeScale();
+      // The toolbar's readout still wants this, and rounding to whole percent
+      // keeps a pan — which does not change scale — from touching React at all.
+      onTransformed(ref, state);
+    }
+  );
+
+  /** Show the ghost where the cursor last put it, coalesced to one frame. */
+  const scheduleGhost = useEventCallback(() => {
+    if (ghostFrameRef.current !== null) return;
+    // See `startTreeDrag`: a scheduler that runs synchronously has already
+    // cleared the slot by the time it hands back a handle, and storing it then
+    // would drop every later sample.
+    let ran = false;
+    const handle = requestAnimationFrame(() => {
+      ran = true;
+      ghostFrameRef.current = null;
+      const svg = svgRef.current;
+      if (svg) applyTreeGhost(svg, ghostGeometryRef.current);
+    });
+    if (!ran) ghostFrameRef.current = handle;
+  });
+
+  const setGhost = useEventCallback((geometry: TreeGhostGeometry | null) => {
+    if (geometry === null && ghostGeometryRef.current === null) return;
+    ghostGeometryRef.current = geometry;
+    // Arming renders the ghost's four elements; the frame below then places
+    // them. Everything after that is writes.
+    setGhostArmed(geometry !== null);
+    scheduleGhost();
+  });
+
+  // The ghost is drawn only once armed, so its first placement has to wait for
+  // that commit. Cheap enough to just re-place it after every one.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (svg && ghostArmed) applyTreeGhost(svg, ghostGeometryRef.current);
+  }, [ghostArmed]);
+
+  useEffect(
+    () => () => {
+      if (ghostFrameRef.current !== null) cancelAnimationFrame(ghostFrameRef.current);
+    },
+    []
+  );
+
+  // Set an edge's length and keep the tree length-faithful: re-place the child
+  // vertex at `length` units from its parent along the current direction, and
+  // translate the child's whole subtree by the same delta so nothing detaches.
+  const setEdgeLength = useEventCallback(async (edgeId: number, length: number) => {
+    const edge = tree.edges.find((candidate) => candidate.id === edgeId);
+    if (!edge) return;
+    const [a, b] = edge.vertices;
+    const childId = topology.parent.get(a) === b ? a : b;
+    const parentId = childId === a ? b : a;
+    const child = findVertex(childId);
+    const parent = findVertex(parentId);
+    if (!child || !parent) {
+      await host.setEdgeLength([{ edgeId, length }], []);
+      return;
+    }
+    const target = leafLocationAt(parent.loc, child.loc, length);
+    const subtreePairs = subtreeOf(childId).flatMap((id) => {
+      const vertex = findVertex(id);
+      return vertex ? [[id, vertex.loc] as const] : [];
+    });
+    const moved = translatePoints(child.loc, target, subtreePairs);
+    const updates = [...moved].map(([id, loc]) => ({ id, loc }));
+    // One call → the host runs length + reposition as a single undo entry.
+    await host.setEdgeLength([{ edgeId, length }], updates);
+  });
+
+  // Escape drops the selection and returns the keyboard to the canvas. Nothing in
+  // the tree stays selected, so the contextual length/name editors close too.
+  const dismissSelection = useCallback(() => {
+    host.clearSelection();
+    containerRef.current?.focus();
+  }, [host, containerRef]);
+
+  const clientToTreePoint = useCallback(
+    (client: Point): Point => {
+      const rect = svgRect();
+      if (!rect) return { x: 0, y: 0 };
+      return frame.fromSvg(clientPointToDesignWorld(client, rect, frame.worldRect));
+    },
+    [frame, svgRect]
+  );
+  const eventToTreePoint = useCallback(
+    (event: PointerEvent): Point => clientToTreePoint({ x: event.clientX, y: event.clientY }),
+    [clientToTreePoint]
+  );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      // The contextual editors fire their own Escape (revert, then clear via
+      // onEscape), so only handle the canvas case here.
+      if (event.key === 'Escape' && !isViewportInteractiveTarget(event.target)) {
+        event.preventDefault();
+        dismissSelection();
+      }
+    };
+
+    container.addEventListener('keydown', onKeyDown);
+    return () => container.removeEventListener('keydown', onKeyDown);
+  }, [dismissSelection, containerRef]);
+
+  const onCanvasAddPointerDown = (event: PointerEvent<Element>) => {
+    if (event.button !== 0 || spacePressed || isViewportInteractiveTarget(event.target)) {
+      paperDownRef.current = null;
+      return;
+    }
+    paperDownRef.current = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      point: frame.constrain(eventToTreePoint(event)),
+    };
+  };
+
+  const onCanvasAddPointerUp = (event: PointerEvent<Element>) => {
+    const down = paperDownRef.current;
+    paperDownRef.current = null;
+    if (!down || event.button !== 0 || spacePressed) return;
+    const dragged = hasPassedDragThreshold(
+      { x: down.clientX, y: down.clientY },
+      { x: event.clientX, y: event.clientY }
+    );
+    if (dragged) return;
+    // A plain click on the canvas adds a leaf to the selected vertex, pointing
+    // toward the click. With nothing selected there's no anchor, so the click
+    // just falls through.
+    const parentId = addAnchorId;
+    if (parentId === null) return;
+    const parent = findVertex(parentId);
+    if (!parent) return;
+    const loc = frame.constrain(leafLocationAt(parent.loc, down.point));
+    void host.addLeaf(parentId, loc, symmetryAxisTolerance);
+  };
+
+  const onEdgePointerDown = useEventCallback((event: PointerEvent<SVGGElement>, edgeId: number) => {
+    if (event.button !== 0 || spacePressed) return;
+    event.stopPropagation();
+    // Clicking an edge selects it — cancel the pending canvas "add leaf" gesture
+    // that the capture-phase handler armed (edges, unlike vertices, don't capture
+    // the pointer, so pointerup would otherwise reach onCanvasAddPointerUp).
+    paperDownRef.current = null;
+    const target = { kind: "edge" as const, id: edgeId };
+    if (event.shiftKey || event.metaKey || event.ctrlKey) host.toggleSelection(target);
+    else host.select(target);
+    host.onLongPress?.(event);
+  });
+
+  const onVertexPointerDown = useEventCallback(
+    (event: PointerEvent<SVGCircleElement>, vertexId: number) => {
+      if (event.button !== 0 || spacePressed) return;
+      event.stopPropagation();
+      const target = { kind: "vertex" as const, id: vertexId };
+      if (event.shiftKey || event.metaKey || event.ctrlKey) {
+        host.toggleSelection(target);
+        return;
+      }
+      host.select(target);
+      host.onLongPress?.(event);
+      const vertex = findVertex(vertexId);
+      if (!vertex) return;
+      // A vertex on the mirror line is its own mirror. Dragging it off would break
+      // that silently, so while mirror draw is on it stays put. Cancel the pending
+      // canvas "add leaf" gesture the capture-phase handler armed: declining the
+      // drag means no pointer capture, so pointerup would otherwise reach the
+      // canvas and read this click as "add a leaf here".
+      if (symmetry?.isOnAxis(vertexId)) {
+        paperDownRef.current = null;
+        return;
+      }
+      event.currentTarget.setPointerCapture(event.pointerId);
+      // The ghost previews where a *click* would put a leaf, which a drag is not.
+      // Clearing it here also means the hover handler has nothing to undo when the
+      // drag ends.
+      setGhost(null);
+      const svg = svgRef.current;
+      if (!svg) return;
+      const ids = subtreeOf(vertexId);
+      dragRef.current = startTreeDrag({
+        root: svg,
+        vertexId,
+        parentId: topology.parent.get(vertexId) ?? null,
+        vertices: vertexLocationsById,
+        subtreeIds: ids,
+        // A paired vertex may not cross the mirror: it and its partner would swap
+        // sides, which reads as the drawing turning inside out.
+        mirror: symmetry?.dragMirror(ids) ?? null,
+        constrain: frame.constrain,
+        clientStart: { x: event.clientX, y: event.clientY },
+        toTreePoint: (client) => clientToTreePoint(client),
+        toSvgPoint: (loc) => frame.toSvg(loc),
+        chromePx,
+      });
+    }
+  );
+
+  /** Ends a drag if one is running. Answers whether it consumed the pointerup. */
+  const finishDrag = (): boolean => {
+    const session = dragRef.current;
+    if (!session) return false;
+    dragRef.current = null;
+    session.end();
+    // A press on a dot arms the canvas "add leaf" gesture in the capture phase.
+    // Grabbing a dot means this pointerup ends a drag, not a click on the paper,
+    // so disarm it — otherwise releasing without moving would add a leaf.
+    paperDownRef.current = null;
+    if (session.moved && session.updates.size > 0) {
+      const updates = [...session.updates].map(([id, loc]) => ({ id, loc }));
+      void host.moveVertices(updates);
+    }
+    return true;
+  };
+
+  // Pointer capture retargets the rest of the gesture to the grabbed dot, which
+  // sits inside this container — so the drag listens here rather than on every
+  // dot. One pair of listeners for the pane instead of two per vertex.
+  const onCanvasPointerMove = (event: PointerEvent<Element>) => {
+    const session = dragRef.current;
+    if (session) {
+      session.move({ x: event.clientX, y: event.clientY });
+      return;
+    }
+    // Track hover across the whole clickable pane — clicks commit anywhere on the
+    // canvas (via the container), not just over the content-sized SVG, so the mirror
+    // ghost must follow the cursor there too. Skip the toolbar/editor chrome.
+    if (isViewportInteractiveTarget(event.target)) {
+      setGhost(null);
+      return;
+    }
+    // Converting to tree space reads layout, so it must not happen for an answer
+    // that is already known to be nothing.
+    if (!symmetry?.enabled || addAnchorId === null) {
+      setGhost(null);
+      return;
+    }
+    setGhost(ghostGeometryAt(eventToTreePoint(event)));
+  };
+
+  const onCanvasPointerUp = (event: PointerEvent<Element>) => {
+    if (finishDrag()) return;
+    onCanvasAddPointerUp(event);
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className={`panel-body design-panel__body ${classPrefix}-panel__body`}
+      data-space-pan={spacePressed || undefined}
+      tabIndex={-1}
+      onPointerDownCapture={(event) => {
+        setActiveShortcutViewportSurface(host.surface);
+        host.onSurfaceFocused?.();
+        if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus();
+        onCanvasAddPointerDown(event);
+      }}
+      onPointerMove={onCanvasPointerMove}
+      onPointerLeave={() => setGhost(null)}
+      onPointerUp={onCanvasPointerUp}
+      onPointerCancel={() => finishDrag()}
+    >
+      <TransformWrapper
+        ref={transformRef}
+        initialScale={1}
+        minScale={0.05}
+        maxScale={30}
+        centerOnInit
+        limitToBounds={false}
+        wheel={VIEWPORT_WHEEL_ZOOM}
+        panning={{
+          velocityDisabled: true,
+          wheelPanning: true,
+          allowMiddleClickPan: true,
+          allowLeftClickPan: spacePressed,
+        }}
+        pinch={VIEWPORT_PINCH_ZOOM}
+        doubleClick={{ disabled: true }}
+        onInit={onInit}
+        onTransformed={onCameraTransformed}
+      >
+        <TransformComponent
+          wrapperStyle={{ width: '100%', height: '100%' }}
+          contentStyle={{ width: 'fit-content', height: 'fit-content' }}
+        >
+          <TreeScene
+            svgRef={svgRef}
+            tree={tree}
+            toSvg={frame.toSvg}
+            worldRect={frame.worldRect}
+            layers={host.layers}
+            selectedVertices={host.selection.vertices}
+            selectedEdges={host.selection.edges}
+            chromePx={chromePx}
+            symmetryAxisLine={symmetry?.axisLine ?? null}
+            symmetryPairs={symmetry?.pairs ?? EMPTY_PAIRS}
+            ghostArmed={ghostArmed}
+            classPrefix={classPrefix}
+            copy={copy}
+            lengths={lengths}
+            labelOf={host.labelOf}
+            onRendered={onSceneRendered}
+            onEdgePointerDown={onEdgePointerDown}
+            onVertexPointerDown={onVertexPointerDown}
+          />
+        </TransformComponent>
+      </TransformWrapper>
+      <TreeEditorToolbar
+        copy={copy}
+        zoomPercent={zoomPercent}
+        layers={host.layers}
+        onLayerChange={host.setLayer}
+        symmetry={symmetry}
+        canUnpair={selectedVertex !== null && (symmetry?.partnerOf(selectedVertex) ?? null) !== null}
+        onUnpair={() => selectedVertex !== null && symmetry?.unpair(selectedVertex)}
+        zoomIn={zoomIn}
+        zoomOut={zoomOut}
+        fitToView={() => fitToView()}
+        setZoomLevel={setZoomLevel}
+      />
+      {selectedEdge && (
+        <TreeEdgeLengthEditor
+          edge={selectedEdge}
+          rule={lengths}
+          copy={copy}
+          onSetLength={(length) =>
+            void setEdgeLength(selectedEdge.id, clampLength(lengths, selectedEdge, length))
+          }
+          onEscape={dismissSelection}
+        />
+      )}
+      {selectedNameableVertex && host.renameVertex && (
+        <BpNameEditor
+          key={selectedNameableVertex.id}
+          title={copy.nameTitle(host.defaultLabelOf(selectedNameableVertex))}
+          name={selectedNameableVertex.name}
+          placeholder={host.defaultLabelOf(selectedNameableVertex)}
+          ariaLabel={copy.nameAria(host.defaultLabelOf(selectedNameableVertex))}
+          onRename={(name) => void host.renameVertex?.(selectedNameableVertex.id, name)}
+          onEscape={dismissSelection}
+        />
+      )}
+    </div>
+  );
+}
+
+const EMPTY_PAIRS: readonly { v1: number; v2: number }[] = [];

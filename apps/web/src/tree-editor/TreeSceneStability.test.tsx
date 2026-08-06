@@ -1,11 +1,11 @@
-import { singleBoxPleatDesignTab } from '../../store/workspaceStore/designTabs';
+import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OristudioBpDocumentState } from '../../engine/oristudioBpTypes';
-import { useWorkspaceStore } from '../../store/workspaceStore';
-import { TooltipProvider } from '../ui/Tooltip';
-import { BpTreePanel } from './BpTreePanel';
+import type { OristudioBpDocumentState } from '../engine/oristudioBpTypes';
+import { useWorkspaceStore } from '../store/workspaceStore';
+import { TooltipProvider } from '../components/ui/Tooltip';
+import { BpTreePanel } from '../components/panels/BpTreePanel';
 
 /**
  * The performance property of the BP tree pane, written as a test so it cannot

@@ -1,5 +1,5 @@
-import { axisDirection, type SymmetryAxis } from './symmetryGeometry';
-import type { Point } from './geometry';
+import { axisDirection, type SymmetryAxis } from '../lib/symmetryGeometry';
+import type { Point } from '../lib/geometry';
 
 /**
  * Geometry for the length-faithful BP tree editor: leaves are added at a fixed
@@ -8,7 +8,7 @@ import type { Point } from './geometry';
  */
 
 /** Location for a new unit-length leaf on `parent`, pointing toward `toward`. */
-export function unitLeafLocation(parent: Point, toward: Point, length = 1): Point {
+export function leafLocationAt(parent: Point, toward: Point, length = 1): Point {
   const dx = toward.x - parent.x;
   const dy = toward.y - parent.y;
   const dist = Math.hypot(dx, dy);
@@ -87,7 +87,7 @@ export function translatePoints(
   return out;
 }
 
-export interface BpTreeDragMirror {
+export interface TreeDragMirror {
   /** The line the held vertices may not cross. */
   axis: SymmetryAxis;
   /**
@@ -111,7 +111,7 @@ export interface BpTreeDragMirror {
   heldIds: ReadonlySet<number>;
 }
 
-export interface BpTreeDragInput {
+export interface TreeDragInput {
   /** The vertex under the cursor. */
   vertexId: number;
   /** Its parent, or null when it is the root. */
@@ -124,7 +124,7 @@ export interface BpTreeDragInput {
   start: Point;
   target: Point;
   /** Absent when nothing in the subtree is paired. */
-  mirror?: BpTreeDragMirror | null;
+  mirror?: TreeDragMirror | null;
 }
 
 /**
@@ -175,7 +175,7 @@ export function clampRotationToMirror(
   delta: number,
   pivot: Point,
   points: Iterable<readonly [number, Point]>,
-  mirror: BpTreeDragMirror
+  mirror: TreeDragMirror
 ): number {
   if (delta === 0) return delta;
   const direction = delta > 0 ? 1 : -1;
@@ -205,7 +205,7 @@ export function clampRotationToMirror(
  * Returns an empty map when the drag can't be resolved (the root, or an unknown
  * parent), which reads at the call site as "this drag moves nothing".
  */
-export function bpTreeDragUpdates(input: BpTreeDragInput): Map<number, Point> {
+export function treeDragUpdates(input: TreeDragInput): Map<number, Point> {
   const { vertexId, parentId, vertices, subtreeIds, start, target } = input;
 
   if (parentId === null) return new Map();

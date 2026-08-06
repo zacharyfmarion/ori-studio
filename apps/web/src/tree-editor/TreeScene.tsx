@@ -1,30 +1,27 @@
 import { memo, useLayoutEffect, type PointerEvent, type Ref } from 'react';
-import { useTranslation } from 'react-i18next';
-import type { OristudioBpTreeView } from '../../engine/oristudioBpTypes';
-import { bpTreePointToSvg, bpTreeVertexLabel } from '../../lib/bpTreeViewport';
-import type { bpTreePaperRect } from '../../lib/bpTreeViewport';
 import {
-  BP_TREE_CHROME_ATTR,
-  BP_TREE_GHOST_PART,
-  BP_TREE_SCENE_ATTR,
-} from '../../lib/bpTreeSceneDom';
-import { formatNumber, type PlotRect, type Point } from '../../lib/geometry';
-import { treeDotPx, type TreeDotSizes } from '../../lib/treeNodeDot';
-import type { BpTreeSymmetryLine } from '../../hooks/useBpTreeSymmetry';
-import type { BpTreeViewLayers } from '../../lib/oristudioBpViewportSettings';
-import { viewportRectToViewBox } from '../../lib/treeViewportPrimitives';
+  TREE_CHROME_ATTR,
+  TREE_GHOST_PART,
+  TREE_SCENE_ATTR,
+} from './sceneDom';
+import type { PlotRect, Point } from '../lib/geometry';
+import { treeDotPx, type TreeDotSizes } from '../lib/treeNodeDot';
+import { viewportRectToViewBox } from '../lib/treeViewportPrimitives';
+import type { TreeEditorCopy, TreeSymmetryLine, TreeSymmetryPair, TreeViewLayers } from './host';
+import type { TreeLengthRule } from './lengths';
+import type { EditableTree, EditableTreeVertex } from './model';
 
 /**
- * The BP tree drawing.
+ * The tree drawing.
  *
  * Split out of the panel and memoized because it is the thing that must *not*
  * re-render while a gesture is running. A drag used to re-derive every vertex
  * and edge on every pointer sample — work proportional to the tree rather than
  * to what moved, which is what made large trees unusable. Now React draws the
- * committed tree and the gesture moves the result in place; see
- * `lib/bpTreeSceneDom.ts` for the contract that lets it.
+ * committed tree and the gesture moves the result in place; see `sceneDom.ts`
+ * for the contract that lets it.
  *
- * So the rule for this component's props: **committed document state only**.
+ * So the rule for this component's props: **committed model state only**.
  * Anything that changes during a gesture belongs on the imperative side.
  */
 
@@ -59,34 +56,34 @@ export const NODE_LABEL_DY_PX = 4;
 export const EDGE_LABEL_DX_PX = 6;
 export const EDGE_LABEL_DY_PX = -6;
 
-export interface BpTreeSceneProps {
+export interface TreeSceneProps {
   svgRef: Ref<SVGSVGElement>;
-  tree: OristudioBpTreeView;
-  paperRect: ReturnType<typeof bpTreePaperRect>;
+  tree: EditableTree;
+  /** Tree space → SVG space, from the surface's frame. */
+  toSvg: (point: Point) => Point;
   worldRect: PlotRect;
-  layers: BpTreeViewLayers;
+  layers: TreeViewLayers;
   /** Vertices drawn as selected, including anything linked to the selection. */
   selectedVertices: ReadonlySet<number>;
   selectedEdges: ReadonlySet<number>;
   /** SVG units per screen pixel, for the counter-scaled chrome. */
   chromePx: (px: number) => number;
-  /**
-   * Live positions during a drag. Transitional: the drag is about to move to
-   * imperative writes, at which point this prop — and the re-render per pointer
-   * sample that comes with it — goes away.
-   */
-  previewLocs?: ReadonlyMap<number, Point> | null;
-  symmetryAxisLine: BpTreeSymmetryLine | null;
-  symmetryPairs: readonly { v1: number; v2: number }[];
+  symmetryAxisLine: TreeSymmetryLine | null;
+  symmetryPairs: readonly TreeSymmetryPair[];
   /**
    * Whether the mirror-draw ghost has anything to preview: mirror draw on, with
    * a vertex to hang the new leaf from, and the pointer over the canvas.
    *
    * A flag, not a position. Where the ghost goes changes with every pointer
-   * sample and is written by {@link applyBpTreeGhost}; whether it exists at all
-   * changes only when the selection or the pointer enters or leaves.
+   * sample and is written by `applyTreeGhost`; whether it exists at all changes
+   * only when the selection or the pointer enters or leaves.
    */
   ghostArmed: boolean;
+  /** Surface-scoped CSS prefix, e.g. `bp-tree` → `.bp-tree-node`. */
+  classPrefix: string;
+  copy: TreeEditorCopy;
+  lengths: TreeLengthRule;
+  labelOf: (vertex: EditableTreeVertex) => string;
   /**
    * Called after every commit of this scene.
    *
@@ -100,47 +97,39 @@ export interface BpTreeSceneProps {
   onVertexPointerDown: (event: PointerEvent<SVGCircleElement>, vertexId: number) => void;
 }
 
-/** Where a vertex sits on screen. Committed position — gestures move the DOM. */
-function svgPointOf(
-  tree: OristudioBpTreeView,
-  paperRect: ReturnType<typeof bpTreePaperRect>,
-  loc: Point
-): Point {
-  return bpTreePointToSvg(loc, tree.sheet, paperRect);
-}
-
-export const BpTreeScene = memo(function BpTreeScene({
+export const TreeScene = memo(function TreeScene({
   svgRef,
   tree,
-  paperRect,
+  toSvg,
   worldRect,
   layers,
   selectedVertices,
   selectedEdges,
   chromePx,
-  previewLocs,
   symmetryAxisLine,
   symmetryPairs,
   ghostArmed,
+  classPrefix,
+  copy,
+  lengths,
+  labelOf,
   onRendered,
   onEdgePointerDown,
   onVertexPointerDown,
-}: BpTreeSceneProps) {
-  const { t } = useTranslation();
+}: TreeSceneProps) {
   useLayoutEffect(onRendered);
   const vertexById = new Map(tree.vertices.map((vertex) => [vertex.id, vertex] as const));
-  const locOf = (id: number, loc: Point) => previewLocs?.get(id) ?? loc;
 
   return (
     <svg
       ref={svgRef}
-      className="design-canvas bp-tree-canvas"
+      className={`design-canvas ${classPrefix}-canvas`}
       viewBox={viewportRectToViewBox(worldRect)}
       width={worldRect.width}
       height={worldRect.height}
       style={{ width: worldRect.width, height: worldRect.height }}
       role="img"
-      aria-label={t('panels:bpTree.canvas', 'Box Pleat tree canvas')}
+      aria-label={copy.canvas}
     >
       {symmetryAxisLine && (
         <>
@@ -151,7 +140,7 @@ export const BpTreeScene = memo(function BpTreeScene({
             // which no longer matches where a tip actually snaps.
             className="symmetry-snap-lane"
             style={{ strokeWidth: chromePx(SYMMETRY_LANE_PX) }}
-            {...{ [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_LANE_PX }}
+            {...{ [TREE_CHROME_ATTR.stroke]: SYMMETRY_LANE_PX }}
             x1={symmetryAxisLine.x1}
             y1={symmetryAxisLine.y1}
             x2={symmetryAxisLine.x2}
@@ -160,7 +149,7 @@ export const BpTreeScene = memo(function BpTreeScene({
           <line
             className="symmetry-line"
             style={{ strokeWidth: chromePx(SYMMETRY_LINE_PX) }}
-            {...{ [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_LINE_PX }}
+            {...{ [TREE_CHROME_ATTR.stroke]: SYMMETRY_LINE_PX }}
             x1={symmetryAxisLine.x1}
             y1={symmetryAxisLine.y1}
             x2={symmetryAxisLine.x2}
@@ -172,22 +161,22 @@ export const BpTreeScene = memo(function BpTreeScene({
         const a = vertexById.get(pair.v1);
         const b = vertexById.get(pair.v2);
         if (!a || !b) return null;
-        const p1 = svgPointOf(tree, paperRect, locOf(a.id, a.loc));
-        const p2 = svgPointOf(tree, paperRect, locOf(b.id, b.loc));
+        const p1 = toSvg(a.loc);
+        const p2 = toSvg(b.loc);
         return (
           <line
             key={`${pair.v1}:${pair.v2}`}
             className="symmetry-pair-line"
             style={{ strokeWidth: chromePx(SYMMETRY_PAIR_PX) }}
-            {...{ [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_PAIR_PX }}
+            {...{ [TREE_CHROME_ATTR.stroke]: SYMMETRY_PAIR_PX }}
             x1={p1.x}
             y1={p1.y}
             x2={p2.x}
             y2={p2.y}
             {...{
-              [BP_TREE_SCENE_ATTR.anchor]: 'pair',
-              [BP_TREE_SCENE_ATTR.p1]: pair.v1,
-              [BP_TREE_SCENE_ATTR.p2]: pair.v2,
+              [TREE_SCENE_ATTR.anchor]: 'pair',
+              [TREE_SCENE_ATTR.p1]: pair.v1,
+              [TREE_SCENE_ATTR.p2]: pair.v2,
             }}
           />
         );
@@ -197,24 +186,24 @@ export const BpTreeScene = memo(function BpTreeScene({
           <line
             className="symmetry-ghost-edge"
             style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX), display: 'none' }}
-            {...{ [BP_TREE_GHOST_PART]: 'primary-edge', [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX }}
+            {...{ [TREE_GHOST_PART]: 'primary-edge', [TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX }}
           />
           <circle
             className="symmetry-ghost-node"
             r={chromePx(DOT_SIZES.leafPx)}
             style={{ display: 'none' }}
-            {...{ [BP_TREE_GHOST_PART]: 'primary-node', [BP_TREE_CHROME_ATTR.radius]: DOT_SIZES.leafPx }}
+            {...{ [TREE_GHOST_PART]: 'primary-node', [TREE_CHROME_ATTR.radius]: DOT_SIZES.leafPx }}
           />
           <line
             className="symmetry-ghost-edge"
             style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX), display: 'none' }}
-            {...{ [BP_TREE_GHOST_PART]: 'mirror-edge', [BP_TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX }}
+            {...{ [TREE_GHOST_PART]: 'mirror-edge', [TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX }}
           />
           <circle
             className="symmetry-ghost-node"
             r={chromePx(DOT_SIZES.leafPx)}
             style={{ display: 'none' }}
-            {...{ [BP_TREE_GHOST_PART]: 'mirror-node', [BP_TREE_CHROME_ATTR.radius]: DOT_SIZES.leafPx }}
+            {...{ [TREE_GHOST_PART]: 'mirror-node', [TREE_CHROME_ATTR.radius]: DOT_SIZES.leafPx }}
           />
         </g>
       )}
@@ -222,8 +211,8 @@ export const BpTreeScene = memo(function BpTreeScene({
         const a = vertexById.get(edge.vertices[0]);
         const b = vertexById.get(edge.vertices[1]);
         if (!a || !b) return null;
-        const p1 = svgPointOf(tree, paperRect, locOf(a.id, a.loc));
-        const p2 = svgPointOf(tree, paperRect, locOf(b.id, b.loc));
+        const p1 = toSvg(a.loc);
+        const p2 = toSvg(b.loc);
         const active = selectedEdges.has(edge.id);
         return (
           <g
@@ -234,17 +223,14 @@ export const BpTreeScene = memo(function BpTreeScene({
             // so a click wrapped the edge in a capsule instead of just
             // highlighting it. Selection is by click; the tree's keyboard
             // actions live on the container.
-            aria-label={t('panels:bpTree.selectEdge', 'Select BP edge {{id}}, length {{length}}', {
-              id: edge.id,
-              length: formatNumber(edge.length, 2),
-            })}
+            aria-label={copy.selectEdge(edge.id, lengths.format(edge.length))}
             onPointerDown={(event) => onEdgePointerDown(event, edge.id)}
           >
             <line
               className={[
                 'tree-edge',
-                'bp-tree-edge',
-                edge.isLeafEdge ? 'bp-tree-edge--leaf' : 'bp-tree-edge--river',
+                `${classPrefix}-edge`,
+                edge.isLeafEdge ? `${classPrefix}-edge--leaf` : `${classPrefix}-edge--river`,
                 active ? 'tree-edge--selected' : '',
               ].join(' ')}
               style={{
@@ -255,15 +241,15 @@ export const BpTreeScene = memo(function BpTreeScene({
               x2={p2.x}
               y2={p2.y}
               {...{
-                [BP_TREE_SCENE_ATTR.anchor]: 'edge',
-                [BP_TREE_SCENE_ATTR.p1]: a.id,
-                [BP_TREE_SCENE_ATTR.p2]: b.id,
-                [BP_TREE_CHROME_ATTR.stroke]: active ? EDGE_SELECTED_STROKE_PX : EDGE_STROKE_PX,
+                [TREE_SCENE_ATTR.anchor]: 'edge',
+                [TREE_SCENE_ATTR.p1]: a.id,
+                [TREE_SCENE_ATTR.p2]: b.id,
+                [TREE_CHROME_ATTR.stroke]: active ? EDGE_SELECTED_STROKE_PX : EDGE_STROKE_PX,
               }}
             />
             {layers.labels && edge.isLeafEdge && (
               <text
-                className="edge-label bp-tree-edge-label"
+                className={`edge-label ${classPrefix}-edge-label`}
                 x={(p1.x + p2.x) / 2 + chromePx(EDGE_LABEL_DX_PX)}
                 y={(p1.y + p2.y) / 2 + chromePx(EDGE_LABEL_DY_PX)}
                 style={{
@@ -271,46 +257,33 @@ export const BpTreeScene = memo(function BpTreeScene({
                   strokeWidth: chromePx(LABEL_STROKE_PX),
                 }}
                 {...{
-                  [BP_TREE_SCENE_ATTR.anchor]: 'edge-label',
-                  [BP_TREE_SCENE_ATTR.p1]: a.id,
-                  [BP_TREE_SCENE_ATTR.p2]: b.id,
-                  [BP_TREE_SCENE_ATTR.dx]: EDGE_LABEL_DX_PX,
-                  [BP_TREE_SCENE_ATTR.dy]: EDGE_LABEL_DY_PX,
-                  [BP_TREE_CHROME_ATTR.font]: NODE_LABEL_PX,
-                  [BP_TREE_CHROME_ATTR.stroke]: LABEL_STROKE_PX,
+                  [TREE_SCENE_ATTR.anchor]: 'edge-label',
+                  [TREE_SCENE_ATTR.p1]: a.id,
+                  [TREE_SCENE_ATTR.p2]: b.id,
+                  [TREE_SCENE_ATTR.dx]: EDGE_LABEL_DX_PX,
+                  [TREE_SCENE_ATTR.dy]: EDGE_LABEL_DY_PX,
+                  [TREE_CHROME_ATTR.font]: NODE_LABEL_PX,
+                  [TREE_CHROME_ATTR.stroke]: LABEL_STROKE_PX,
                 }}
               >
-                {formatNumber(edge.length, 2)}
+                {lengths.format(edge.length)}
               </text>
             )}
           </g>
         );
       })}
       {tree.vertices.map((vertex) => {
-        const point = svgPointOf(tree, paperRect, locOf(vertex.id, vertex.loc));
+        const point = toSvg(vertex.loc);
         const active = selectedVertices.has(vertex.id);
         const dotPx = treeDotPx(DOT_SIZES, vertex.isLeaf, active);
-        const label = bpTreeVertexLabel(vertex);
-        const vertexAriaLabel = vertex.isLeaf
-          ? label
-            ? t('panels:bpTree.selectLeafVertexWithLabel', 'Select BP leaf vertex {{id}}, {{label}}', {
-                id: vertex.id,
-                label,
-              })
-            : t('panels:bpTree.selectLeafVertex', 'Select BP leaf vertex {{id}}', { id: vertex.id })
-          : label
-            ? t('panels:bpTree.selectVertexWithLabel', 'Select BP vertex {{id}}, {{label}}', {
-                id: vertex.id,
-                label,
-              })
-            : t('panels:bpTree.selectVertex', 'Select BP vertex {{id}}', { id: vertex.id });
+        const label = labelOf(vertex);
         return (
           <g key={vertex.id}>
             <circle
               className={[
                 'tree-node',
-                'bp-tree-node',
-                vertex.isRoot ? 'bp-tree-node--root' : '',
+                `${classPrefix}-node`,
+                vertex.isRoot ? `${classPrefix}-node--root` : '',
                 active ? 'tree-node--selected' : '',
               ].join(' ')}
               data-leaf={vertex.isLeaf || undefined}
@@ -328,18 +301,18 @@ export const BpTreeScene = memo(function BpTreeScene({
               // selection highlight and steals focus from the name field, so
               // typing a name would go nowhere. Selection is by click; the
               // tree's keyboard nudge/delete live on the container.
-              aria-label={vertexAriaLabel}
+              aria-label={copy.selectVertex(vertex.id, label, vertex.isLeaf)}
               onPointerDown={(event) => onVertexPointerDown(event, vertex.id)}
               {...{
-                [BP_TREE_SCENE_ATTR.anchor]: 'node',
-                [BP_TREE_SCENE_ATTR.p1]: vertex.id,
-                [BP_TREE_CHROME_ATTR.stroke]: active ? NODE_SELECTED_STROKE_PX : NODE_STROKE_PX,
-                [BP_TREE_CHROME_ATTR.radius]: dotPx,
+                [TREE_SCENE_ATTR.anchor]: 'node',
+                [TREE_SCENE_ATTR.p1]: vertex.id,
+                [TREE_CHROME_ATTR.stroke]: active ? NODE_SELECTED_STROKE_PX : NODE_STROKE_PX,
+                [TREE_CHROME_ATTR.radius]: dotPx,
               }}
             />
             {layers.labels && vertex.isLeaf && label && (
               <text
-                className="node-label bp-tree-node-label"
+                className={`node-label ${classPrefix}-node-label`}
                 x={point.x + chromePx(dotPx + NODE_LABEL_DX_PX)}
                 y={point.y + chromePx(NODE_LABEL_DY_PX)}
                 style={{
@@ -347,12 +320,12 @@ export const BpTreeScene = memo(function BpTreeScene({
                   strokeWidth: chromePx(LABEL_STROKE_PX),
                 }}
                 {...{
-                  [BP_TREE_SCENE_ATTR.anchor]: 'node-label',
-                  [BP_TREE_SCENE_ATTR.p1]: vertex.id,
-                  [BP_TREE_SCENE_ATTR.dx]: dotPx + NODE_LABEL_DX_PX,
-                  [BP_TREE_SCENE_ATTR.dy]: NODE_LABEL_DY_PX,
-                  [BP_TREE_CHROME_ATTR.font]: NODE_LABEL_PX,
-                  [BP_TREE_CHROME_ATTR.stroke]: LABEL_STROKE_PX,
+                  [TREE_SCENE_ATTR.anchor]: 'node-label',
+                  [TREE_SCENE_ATTR.p1]: vertex.id,
+                  [TREE_SCENE_ATTR.dx]: dotPx + NODE_LABEL_DX_PX,
+                  [TREE_SCENE_ATTR.dy]: NODE_LABEL_DY_PX,
+                  [TREE_CHROME_ATTR.font]: NODE_LABEL_PX,
+                  [TREE_CHROME_ATTR.stroke]: LABEL_STROKE_PX,
                 }}
               >
                 {label}
