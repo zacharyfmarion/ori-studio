@@ -947,6 +947,12 @@ export interface OristudioBpSliceActions {
   createOristudioBpProject: (options?: {
     confirmDiscard?: boolean;
     preserveEditCanvas?: boolean;
+    /**
+     * The design to seed, when the caller captured it before an await of its own.
+     * Defaults to the active design, which is right for a user-initiated "new
+     * project" and wrong for a self-provision that had to hydrate first.
+     */
+    designId?: string;
   }) => Promise<boolean>;
   /**
    * Seed a starter box-pleat project when the Design/box-pleat surface is entered

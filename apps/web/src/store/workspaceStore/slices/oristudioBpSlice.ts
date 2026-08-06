@@ -171,7 +171,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           pairs: filterBpTreeSymmetryPairs(document.snapshot.tree, options.symmetry.pairs),
         }
       : null;
-    pendingHistory.clear();
+    // Only this design's open gesture. `clear()` dropped every design's pending
+    // undo entry, so loading a file into one tab silently discarded the undo
+    // step a drag in another tab was still holding open.
+    pendingHistory.delete(options.designId ?? get().activeDesignId);
     const bpTitle = document.snapshot.summary.title || document.source.filename;
     set({
       // Kind and content in one call: loading a `.bps` *is* the design, so the
@@ -532,7 +535,15 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         try {
           // Preserve the always-live Edit canvas; this is a passive seed, not a
           // user-initiated "new project", so it must not prompt to discard.
-          await get().createOristudioBpProject({ preserveEditCanvas: true, confirmDiscard: false });
+          await get().createOristudioBpProject({
+            preserveEditCanvas: true,
+            confirmDiscard: false,
+            // The design that asked, not whichever one the user has since
+            // switched to: seeding a starter over *that* one would replace a
+            // real design with a blank sample, and `confirmDiscard: false`
+            // means it would do so without asking.
+            designId,
+          });
         } finally {
           ensureBpInFlight.delete(designId);
         }
@@ -543,8 +554,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
 
     createOristudioBpProject: async (options = {}) => {
       // Captured before any await, and handed to the install below, so the
-      // document lands on the same design the runtime hands its handle to.
-      const designId = get().activeDesignId;
+      // document lands on the same design the runtime hands its handle to. A
+      // caller that already awaited — `ensureBoxPleatProject` hydrates first —
+      // passes the design it captured *before* that await, because by now the
+      // active one may be a different design entirely.
+      const designId = options.designId ?? get().activeDesignId;
       if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
         return false;
       }

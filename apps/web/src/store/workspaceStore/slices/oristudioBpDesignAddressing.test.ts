@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createDesignTab,
+  patchBoxPleatDesign,
   resetDesignTabIds,
   selectOristudioBpDocument,
   selectOristudioBpHistoryPast,
@@ -38,6 +39,7 @@ const runtimeMocks = vi.hoisted(() => ({
   moveOristudioBpLayoutFlap: vi.fn(),
   exportOristudioBpProjectAsBps: vi.fn(async () => '<bps/>'),
   restoreOristudioBpProjectSnapshot: vi.fn(),
+  loadOristudioBpProjectFromText: vi.fn(),
 }));
 
 vi.mock('../oristudioBpRuntime', async (importOriginal) => {
@@ -47,6 +49,7 @@ vi.mock('../oristudioBpRuntime', async (importOriginal) => {
     moveOristudioBpLayoutFlap: runtimeMocks.moveOristudioBpLayoutFlap,
     exportOristudioBpProjectAsBps: runtimeMocks.exportOristudioBpProjectAsBps,
     restoreOristudioBpProjectSnapshot: runtimeMocks.restoreOristudioBpProjectSnapshot,
+    loadOristudioBpProjectFromText: runtimeMocks.loadOristudioBpProjectFromText,
   };
 });
 
@@ -229,5 +232,80 @@ describe('a BP undo interrupted by a tab switch', () => {
 
     expect(anchorX(ids.first)).toBe(1);
     expect(anchorX(ids.second)).toBe(99);
+  });
+});
+
+/** A document shaped as `setLoadedBpProject` expects one off the loader. */
+function loadedDocument(markerX: number): OristudioBpDocumentState {
+  const base = bpDocument(markerX);
+  return {
+    ...base,
+    source: { filename: 'Untitled.bps', format: 'generated', dirty: false },
+    snapshot: { ...base.snapshot, summary: { title: '' } },
+  } as unknown as OristudioBpDocumentState;
+}
+
+describe('self-provisioning a box-pleat design', () => {
+  it('seeds the design that asked, not the one the user switched to', async () => {
+    // `ensureBoxPleatProject` hydrates before it seeds, because a tab opened from
+    // a file is text until visited. It captured a designId for that await and
+    // then handed off to `createOristudioBpProject`, which captured
+    // `activeDesignId` *again* — after the hydrate. So a click during hydration
+    // sent the starter to the design the user landed on. With
+    // `confirmDiscard: false` it would replace real work with a blank sample and
+    // never ask.
+    const ids = twoDesigns();
+    useWorkspaceStore.setState(patchBoxPleatDesign(store(), { document: null }, ids.first));
+    // The click lands while the design that asked is still hydrating.
+    useWorkspaceStore.setState({
+      hydrateDesignTab: async () => {
+        store().activateDesignTab(ids.second);
+      },
+    });
+    runtimeMocks.loadOristudioBpProjectFromText.mockResolvedValue(loadedDocument(42));
+
+    await store().ensureBoxPleatProject();
+
+    expect(anchorX(ids.first)).toBe(42);
+    expect(anchorX(ids.second)).toBe(99);
+  });
+});
+
+describe('an open gesture in another design', () => {
+  it('survives a project being loaded into this one', async () => {
+    // The pending undo entry is held per design while a drag is in flight, and a
+    // load used to `clear()` the whole map. The count alone would not show it —
+    // settling the gesture just opens a fresh entry — so this pins *which state*
+    // the undo step goes back to, by giving every export a distinct body.
+    const ids = twoDesigns();
+    let exportCount = 0;
+    runtimeMocks.exportOristudioBpProjectAsBps.mockImplementation(async () => {
+      exportCount += 1;
+      return `<bps#${exportCount}/>`;
+    });
+
+    // A drag step in the second design leaves its snapshot open: `<bps#1/>` is
+    // the state to go back to.
+    store().activateDesignTab(ids.second);
+    runtimeMocks.moveOristudioBpLayoutFlap.mockResolvedValue(bpDocument(7));
+    await store().moveOristudioBpLayoutFlap(1, { x: 7, y: 6 }, true);
+
+    // A project is seeded into the *first* design while that gesture is open.
+    runtimeMocks.loadOristudioBpProjectFromText.mockResolvedValue(loadedDocument(42));
+    await store().createOristudioBpProject({
+      designId: ids.first,
+      confirmDiscard: false,
+      preserveEditCanvas: true,
+    });
+
+    // Settle the second design's gesture.
+    store().activateDesignTab(ids.second);
+    runtimeMocks.moveOristudioBpLayoutFlap.mockResolvedValue(bpDocument(8));
+    await store().moveOristudioBpLayoutFlap(1, { x: 8, y: 6 });
+
+    const past = selectOristudioBpHistoryPast(store(), ids.second);
+    expect(past).toHaveLength(1);
+    // Back to before the drag began — not to the middle of it.
+    expect(past[0]?.snapshot.bps).toBe('<bps#1/>');
   });
 });
