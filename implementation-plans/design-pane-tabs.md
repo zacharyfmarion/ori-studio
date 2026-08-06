@@ -1215,7 +1215,29 @@ BP runtime singletons) foldable into 7.
 
 - [ ] Phase 6b — `OristudioCpLineage` removal (deferred; independent of tabs)
 - [ ] Phase 7 — contexts, capabilities, shortcuts, undo per document
-- [ ] Phase 8 — analytics (no names) + i18n
+- [x] Phase 8 — analytics (no names) + i18n
+
+  Five events: `design tab opened` `{ source, open_count_bucket }`,
+  `design tab closed` `{ kind, touched, open_count_bucket }`,
+  `design tab reordered` / `design tab activated` `{ open_count_bucket }`, and
+  `design tab renamed` with **no properties at all**.
+
+  The rename event is the one the privacy contract actually bites on. A tab's
+  title is user-authored text — people name designs after clients, commissions,
+  and children — which puts it in the same class as a filename, so it never
+  leaves the app. A test asserts that across every tab event, not just that one.
+
+  The count is bucketed on a tighter ladder than element counts
+  (`[1, 2, 3, 5, 10]`): the question is "does anyone open more than one, and how
+  many", and `COUNT_BUCKETS` would put every realistic workspace in one bucket.
+
+  `workspace viewed` **stopped** carrying a Design `variant`. A workspace holding
+  a circle-packed design beside a box-pleat one has no single method, and
+  reporting one would be a lie a funnel then gets built on. What is open is what
+  the tab events describe.
+
+  i18n needed nothing new here — the strip's strings and the close-confirmation
+  dialog landed with Phase 3, translated into all eight locales.
 - [x] Phase 9 — stub-kind test, evict/rehydrate equivalence, cross-tab undo isolation
 
   - **Stub kind.** A kind that ships nowhere now gets a working pane layout out of

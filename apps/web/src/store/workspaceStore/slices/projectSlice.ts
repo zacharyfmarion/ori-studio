@@ -49,7 +49,13 @@ import {
   type CreaseExportFoldResult,
 } from '../../../lib/creaseExportFold';
 import { hexToRgbColor } from '../../../lib/rgbColor';
-import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
+import {
+  bucketCount,
+  COUNT_BUCKETS,
+  DESIGN_TAB_COUNT_BUCKETS,
+  track,
+  type DesignTabSource,
+} from '../../../analytics';
 import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
@@ -1746,6 +1752,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return result;
   };
 
+  /**
+   * Report a design tab's lifecycle.
+   *
+   * The tab's **name is never sent** — it is user-authored text, which the
+   * privacy contract puts in the same class as a filename. What is worth knowing
+   * is whether anyone opens more than one design and how many, so the count goes
+   * out bucketed and nothing else does.
+   */
+  const trackDesignTabOpened = (source: DesignTabSource, openCount: number) => {
+    track('design tab opened', {
+      source,
+      open_count_bucket: bucketCount(openCount, DESIGN_TAB_COUNT_BUCKETS),
+    });
+  };
+
   return {
     // Nothing has been authored yet, so no method has been chosen — `/design`
     // and the workspace rail both offer the chooser until one is. (The pair this
@@ -2907,6 +2928,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const tab = createDesignTab(tabs);
       set({ designTabs: [...tabs, tab], activeDesignId: tab.id });
       useLayoutStore.getState().activateWorkspace('design');
+      trackDesignTabOpened('strip', tabs.length + 1);
     },
 
     activateDesignTab: (designId) => {
@@ -2918,15 +2940,20 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // engine work in flight) is left alone by the registry.
       void parkDesign(activeDesignId);
       set({ activeDesignId: designId });
-      // The dock layout is per design *kind* — box-pleat mounts two BP panes,
-      // circle-packed a tree canvas plus tool panes. Switching tabs can switch
-      // kind, so the layout has to follow. No-op when the variant is unchanged.
+      track('design tab activated', {
+        open_count_bucket: bucketCount(designTabs.length, DESIGN_TAB_COUNT_BUCKETS),
+      });
     },
 
     closeDesignTab: (designId) => {
       const { designTabs, activeDesignId } = get();
       const index = designTabs.findIndex((tab) => tab.id === designId);
       if (index === -1) return;
+      track('design tab closed', {
+        kind: designTabs[index].kind ?? 'none',
+        touched: isDesignTouched(designTabs[index]),
+        open_count_bucket: bucketCount(designTabs.length, DESIGN_TAB_COUNT_BUCKETS),
+      });
       void forgetDesign(designId);
       const remaining = designTabs.filter((tab) => tab.id !== designId);
       if (remaining.length === 0) {
@@ -2939,6 +2966,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // on the one that took its place.
         const replacement = createDesignTab(designTabs);
         set({ designTabs: [replacement], activeDesignId: replacement.id });
+        trackDesignTabOpened('replace-last', 1);
         return;
       }
       const nextActive =
@@ -2986,6 +3014,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         ),
       });
       set({ dirty: true });
+      // Deliberately no properties: the new name is exactly the user-authored
+      // text the privacy contract keeps out of analytics.
+      track('design tab renamed', {});
     },
 
     reorderDesignTab: (designId, toIndex) => {
@@ -2998,6 +3029,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const [moved] = next.splice(from, 1);
       next.splice(to, 0, moved);
       set({ designTabs: next, dirty: true });
+      track('design tab reordered', {
+        open_count_bucket: bucketCount(next.length, DESIGN_TAB_COUNT_BUCKETS),
+      });
     },
 
     duplicateDesignTab: async (designId) => {
@@ -3017,6 +3051,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // had would be nonsense. `editCount` starts fresh for the same reason.
       void parkDesign(get().activeDesignId);
       set({ designTabs: next, activeDesignId: copy.id, dirty: true });
+      trackDesignTabOpened('duplicate', next.length);
     },
 
     startNewDesign: () => {
