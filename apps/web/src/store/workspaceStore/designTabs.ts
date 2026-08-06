@@ -301,9 +301,12 @@ export function patchTreemakerDesign(
   const current = selectTreemakerDesign(state);
   if (!current) {
     if (import.meta.env.DEV) {
+      // With a stack: a guard that only says "someone did this" cannot be acted
+      // on, and every one of these is a write landing on the wrong design.
       console.error(
         '[ori-studio] patchTreemakerDesign ran while the active design is not TreeMaker; ignoring',
-        patch
+        patch,
+        new Error('patchTreemakerDesign caller').stack
       );
     }
     return { designTabs: state.designTabs };

@@ -224,6 +224,31 @@ export function createDocumentRegistry(options: DocumentRegistryOptions = {}) {
     parked.set(documentId, text);
   }
 
+  /**
+   * Take ownership of a handle the caller already created.
+   *
+   * The live-handle counterpart of {@link adopt}. Some engine calls build a
+   * document and hand back a handle directly — `newDesign`, `loadTmd` — and a
+   * caller holding one had nowhere to put it. Left outside, the registry would
+   * create a *second*, blank document the first time anything acquired that id:
+   * the real one leaks, the design is silently replaced by an empty one, and
+   * `serialize` throws because nothing is registered under that id at all.
+   *
+   * Replaces whatever the document held, freeing the old handle. The parked text
+   * goes with it — it describes the document being replaced, so keeping it would
+   * make a later crash recover the wrong content rather than none.
+   */
+  async function adoptHandle(document: RegisteredDocument, handle: number): Promise<void> {
+    const existing = hot.get(document.id);
+    hot.set(document.id, { document, handle, touched: (clock += 1) });
+    parked.delete(document.id);
+    if (existing && existing.handle !== handle) {
+      await existing.document.kind.codec.free(existing.handle);
+    }
+    emit({ type: 'hydrated', documentId: document.id, handle });
+    await evictIfNeeded(document.id);
+  }
+
   /** Drop a document entirely — closing its tab. Frees any live handle. */
   async function forget(documentId: string): Promise<void> {
     const entry = hot.get(documentId);
@@ -264,6 +289,7 @@ export function createDocumentRegistry(options: DocumentRegistryOptions = {}) {
     pinned,
     serialize,
     adopt,
+    adoptHandle,
     forget,
     /** Ids with a live handle, most-recently-used last. Diagnostics and tests. */
     hotIds: (): string[] =>

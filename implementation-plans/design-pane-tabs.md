@@ -1053,6 +1053,39 @@ BP runtime singletons) foldable into 7.
 - [ ] Phase 2d (part 2) — addressed writes for the ~100 async design actions, and
       the same treatment for `oristudioBpRuntime`'s `activeHandle`/`currentSource`
       singletons (see the audit note under "Remaining risks")
+
+  **TreeMaker handle ownership landed** (the rest of 2d part 2 is still open).
+  `createBlankTree` / `createStarterTree` / `loadTreeFromText` put their handle in
+  `engineRuntime`'s module `let`, so a design tab's tree never reached the
+  document registry. Nothing caught it: types were fine, 2532 tests passed, and
+  the UI looked right because the store holds its own project snapshot. What
+  broke was everything that goes *through* the registry — Duplicate silently did
+  nothing (`serializeDesign` threw for an id nothing was registered under),
+  switching tabs parked an empty document, and the next `acquire` built a second,
+  blank tree while the real one leaked.
+
+  Three parts to the fix:
+
+  - `documentRegistry.adoptHandle(document, handle)` — the live-handle
+    counterpart of `adopt(id, text)`. A caller that built a document by calling
+    the engine directly had nowhere to put the handle.
+  - Those three creators now claim the tree for the active design, reading the
+    target **before** the first await. Building a tree is a round trip to the
+    worker, and a tab switch during it would otherwise hand the new tree to
+    whichever design the user landed on. `initializeBlankTree` deliberately does
+    *not* claim: booting seeds a handle, it does not choose a design method.
+  - `registerActiveDesignSource` reports a chooser tab too. Filtering out
+    `kind: null` is what caused the bug in the first place — a design created
+    *from* the chooser is the normal path, and the tab is marked TreeMaker only
+    after `createNewProject` returns.
+
+  Also fixed: `syncTreemakerProject` logged a `patchTreemakerDesign` guard error
+  on every cold boot, because `initEngine` runs it against the chooser tab. A tab
+  with no TreeMaker arm has nothing to sync, and that is ordinary rather than a
+  mistake. The guard itself now logs a stack, since one that only says "someone
+  did this" cannot be acted on.
+
+  12 tests, each verified to fail against the old behaviour.
 - [x] Phase 3 — Radix tab strip (add / close / rename / reorder / duplicate), ≥1 tab invariant
 
   `DesignTabStrip` composes Radix `Tabs` (tablist/tab roles, `aria-selected`,

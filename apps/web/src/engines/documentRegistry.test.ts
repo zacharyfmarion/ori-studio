@@ -474,3 +474,90 @@ describe('forget', () => {
     expect(registry.hotIds()).toEqual([]);
   });
 });
+
+describe('adoptHandle', () => {
+  /**
+   * The engine runtimes build documents by calling the engine directly —
+   * `newDesign`, `loadTmd` — and get a live handle back. Before this existed
+   * those handles stayed outside the registry, which is not a tidiness problem:
+   * `serialize` threw for an id nothing was registered under (so Duplicate found
+   * nothing to copy), `park` had nothing to serialize, and the next `acquire`
+   * built a *second*, blank document while the real one leaked.
+   */
+  it('registers a handle the caller already created', async () => {
+    const fake = fakeKind();
+    const registry = makeRegistry();
+    const outside = await fake.kind.codec.create();
+    fake.edit(outside, 'built outside');
+
+    await registry.adoptHandle(doc('a', fake.kind), outside);
+
+    expect(registry.isHot('a')).toBe(true);
+    expect(await registry.serialize(doc('a', fake.kind))).toBe('built outside');
+  });
+
+  it('does not create a second document when the id is next acquired', async () => {
+    const fake = fakeKind();
+    const registry = makeRegistry();
+    const outside = await fake.kind.codec.create();
+    fake.edit(outside, 'built outside');
+    const createsBefore = fake.calls.create;
+
+    await registry.adoptHandle(doc('a', fake.kind), outside);
+
+    expect(await registry.acquire(doc('a', fake.kind))).toBe(outside);
+    expect(fake.calls.create).toBe(createsBefore);
+  });
+
+  it('frees the handle it replaces', async () => {
+    const fake = fakeKind();
+    const registry = makeRegistry();
+    const first = await registry.acquire(doc('a', fake.kind));
+    const replacement = await fake.kind.codec.create();
+
+    await registry.adoptHandle(doc('a', fake.kind), replacement);
+
+    expect(fake.freed).toContain(first);
+    expect(fake.isLive(replacement)).toBe(true);
+  });
+
+  it('drops the parked text of the document it replaces', async () => {
+    const fake = fakeKind();
+    const registry = makeRegistry();
+    const handle = await registry.acquire(doc('a', fake.kind));
+    fake.edit(handle, 'the old document');
+    await registry.park('a');
+
+    const replacement = await fake.kind.codec.create();
+    fake.edit(replacement, 'the new document');
+    await registry.adoptHandle(doc('a', fake.kind), replacement);
+    await registry.park('a');
+
+    // Stale text describes the document that was replaced. Keeping it would make
+    // a later crash recover the wrong content rather than none.
+    expect(await registry.serialize(doc('a', fake.kind))).toBe('the new document');
+  });
+
+  it('counts toward the hot budget', async () => {
+    const fake = fakeKind();
+    const registry = makeRegistry({ hotLimit: 2 });
+    await registry.acquire(doc('a', fake.kind));
+    await registry.acquire(doc('b', fake.kind));
+
+    await registry.adoptHandle(doc('c', fake.kind), await fake.kind.codec.create());
+
+    expect(registry.hotIds()).toEqual(['b', 'c']);
+  });
+
+  it('is idempotent for the handle a document already holds', async () => {
+    const fake = fakeKind();
+    const registry = makeRegistry();
+    const handle = await registry.acquire(doc('a', fake.kind));
+
+    await registry.adoptHandle(doc('a', fake.kind), handle);
+
+    // Freeing here would kill the very handle being adopted.
+    expect(fake.isLive(handle)).toBe(true);
+    expect(registry.handleFor('a')).toBe(handle);
+  });
+});

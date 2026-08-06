@@ -1,7 +1,12 @@
 import type { Remote } from 'comlink';
 import { connectEngine, isEngineConnected } from '../../engines/engineHost';
-import { acquireDesignHandle } from '../../engines/designHandles';
-import { installTreemakerDesign, patchTreemakerDesign, type DesignTabsSlice } from './designTabs';
+import { acquireDesignHandle, adoptDesignHandle } from '../../engines/designHandles';
+import {
+  activeDesignTab,
+  installTreemakerDesign,
+  patchTreemakerDesign,
+  type DesignTabsSlice,
+} from './designTabs';
 import type { TreemakerDesignState } from './designContent';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
 import type {
@@ -33,12 +38,20 @@ let blankPromise: Promise<TreeSnapshot> | null = null;
  *
  * Registered by the store at init, like `registerDesignVariantSource`, because
  * this module sits *below* the store and importing it would close a cycle.
+ *
+ * `kind` is null while the tab is still on the chooser, and that tab is still a
+ * real design with a real id — filtering it out here is what made a design
+ * created *from* the chooser (the normal path) never reach the registry.
+ * Consumers that need a kind check for one; `claimTree` needs only the id.
  */
-let readActiveDesign: () => { id: string; kind: string } | null = () => null;
+export interface ActiveDesignRef {
+  id: string;
+  kind: string | null;
+}
 
-export function registerActiveDesignSource(
-  source: () => { id: string; kind: string } | null
-): void {
+let readActiveDesign: () => ActiveDesignRef | null = () => null;
+
+export function registerActiveDesignSource(source: () => ActiveDesignRef | null): void {
   readActiveDesign = source;
 }
 
@@ -77,7 +90,41 @@ async function replaceHandle(nextHandle: number) {
   handle = nextHandle;
 }
 
-export async function createStarterTree(api: EngineClient): Promise<TreeSnapshot> {
+/**
+ * Snapshot a freshly built tree and give it to whoever owns trees right now.
+ *
+ * A design tab owns it whenever one exists — which is every one of these callers
+ * (File ▸ New, load a `.tmd5`, clear the tree, undo, redo). Leaving the handle in
+ * the module `let` was a real bug rather than a tidiness question: the registry
+ * would build a *second*, blank tree the first time anything acquired that design
+ * id, the real one would leak, and `serializeDesign` would throw because nothing
+ * was registered — which is what made Duplicate silently do nothing and a tab
+ * switch park an empty document.
+ *
+ * The tab's `kind` is deliberately not consulted. `createNewProject` runs *before*
+ * the tab is marked TreeMaker, and the tree it just built belongs to that tab
+ * regardless of what the tab currently says it is.
+ */
+async function claimTree(
+  api: EngineClient,
+  nextHandle: number,
+  target: ActiveDesignRef | null
+): Promise<TreeSnapshot> {
+  try {
+    const snapshot = await api.snapshot(nextHandle);
+    if (target && (await adoptDesignHandle(target.id, 'treemaker', nextHandle))) {
+      return snapshot;
+    }
+    // No design tab (an Edit-only flow, or a test store): the module keeps it.
+    await replaceHandle(nextHandle);
+    return snapshot;
+  } catch (error) {
+    await api.freeTree(nextHandle).catch(() => undefined);
+    throw error;
+  }
+}
+
+async function buildStarterTree(api: EngineClient): Promise<number> {
   const nextHandle = await api.newDesign({ paper_width: 1, paper_height: 1 });
   try {
     await api.applyEdit(nextHandle, {
@@ -97,42 +144,52 @@ export async function createStarterTree(api: EngineClient): Promise<TreeSnapshot
         edge_length: 1,
       });
     }
-    const snapshot = await api.snapshot(nextHandle);
-    await replaceHandle(nextHandle);
-    return snapshot;
+    return nextHandle;
   } catch (error) {
     await api.freeTree(nextHandle).catch(() => undefined);
     throw error;
   }
+}
+
+// The target is read **before** the first await in each of these, not inside
+// `claimTree`. Building a tree takes a round trip to the worker, and a tab switch
+// during it would otherwise hand the new tree to whichever design the user
+// happened to land on.
+export async function createStarterTree(api: EngineClient): Promise<TreeSnapshot> {
+  const target = readActiveDesign();
+  return claimTree(api, await buildStarterTree(api), target);
 }
 
 export async function createBlankTree(api: EngineClient): Promise<TreeSnapshot> {
-  const nextHandle = await api.newDesign({ paper_width: 1, paper_height: 1 });
-  try {
-    const snapshot = await api.snapshot(nextHandle);
-    await replaceHandle(nextHandle);
-    return snapshot;
-  } catch (error) {
-    await api.freeTree(nextHandle).catch(() => undefined);
-    throw error;
-  }
+  const target = readActiveDesign();
+  return claimTree(api, await api.newDesign({ paper_width: 1, paper_height: 1 }), target);
 }
 
 export async function loadTreeFromText(api: EngineClient, text: string): Promise<TreeSnapshot> {
-  const nextHandle = await api.loadTmd(text);
-  try {
-    const snapshot = await api.snapshot(nextHandle);
-    await replaceHandle(nextHandle);
-    return snapshot;
-  } catch (error) {
-    await api.freeTree(nextHandle).catch(() => undefined);
-    throw error;
-  }
+  const target = readActiveDesign();
+  return claimTree(api, await api.loadTmd(text), target);
 }
 
+/**
+ * The engine's fallback tree, created once on boot.
+ *
+ * Explicitly *not* claimed by the active design: booting seeds a handle, it does
+ * not choose a design method, and the startup tab is the chooser. Claiming it
+ * would hand a blank tree to a tab that has not decided what it is.
+ */
 export async function initializeBlankTree(api: EngineClient): Promise<TreeSnapshot> {
   if (handle !== null) return api.snapshot(handle);
-  blankPromise ??= createBlankTree(api).finally(() => {
+  blankPromise ??= (async () => {
+    const nextHandle = await api.newDesign({ paper_width: 1, paper_height: 1 });
+    try {
+      const snapshot = await api.snapshot(nextHandle);
+      await replaceHandle(nextHandle);
+      return snapshot;
+    } catch (error) {
+      await api.freeTree(nextHandle).catch(() => undefined);
+      throw error;
+    }
+  })().finally(() => {
     blankPromise = null;
   });
   return blankPromise;
@@ -227,11 +284,15 @@ export function syncTreemakerProject(
   snapshot: TreeSnapshot,
   title?: string
 ) {
+  const ready = { engineReady: true, status: 'ready' as const, error: null };
+  // A tab that is not TreeMaker has no tree to sync, and that is an ordinary
+  // state rather than a mistake: `initEngine` runs this on a cold boot, where the
+  // startup tab is the chooser. Patching anyway would only trip
+  // `patchTreemakerDesign`'s guard and log an error for a no-op.
+  if (activeDesignTab(state).kind !== 'treemaker') return ready;
   return {
     ...patchTreemakerDesign(state, { project: projectFromSnapshot(snapshot, title) }),
-    engineReady: true,
-    status: 'ready' as const,
-    error: null,
+    ...ready,
   };
 }
 

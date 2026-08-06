@@ -87,6 +87,25 @@ export function adoptDesign(designId: string, text: string): void {
   registry.adopt(designId, text);
 }
 
+/**
+ * Give a design a handle the caller already built.
+ *
+ * The engine runtimes create documents by calling the engine directly and get a
+ * handle back — `newDesign` for a fresh design, `loadTmd` for one read from a
+ * file. That handle has to become the design's, or the registry will build a
+ * second, blank one the moment anything acquires the id.
+ */
+export async function adoptDesignHandle(
+  designId: string,
+  kind: DesignKindId,
+  handle: number
+): Promise<boolean> {
+  const document = documentFor(designId, kind);
+  if (!document) return false;
+  await registry.adoptHandle(document, handle);
+  return true;
+}
+
 /** Whether a design currently holds a live handle. Diagnostics and tests. */
 export function isDesignHot(designId: string): boolean {
   return registry.isHot(designId);
