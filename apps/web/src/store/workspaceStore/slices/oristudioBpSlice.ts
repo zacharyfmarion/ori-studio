@@ -391,8 +391,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // BP worker, so an optimize running in *another* design would otherwise
       // make this one give up — and nothing re-runs the effect when that optimize
       // finishes, leaving the tab on "Preparing the box-pleat editor…" forever.
-      if (selectOristudioBpDocument(get())) return;
       const designId = get().activeDesignId;
+      if (selectOristudioBpDocument(get(), designId)) return;
       const inFlight = ensureBpInFlight.get(designId);
       if (inFlight) return inFlight;
       const started = (async () => {
@@ -600,7 +600,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     addOristudioBpTreeLeafWithSymmetry: async (parentId, loc, axisTolerance) => {
-      const symmetry = selectOristudioBpSymmetry(get());
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
+      const symmetry = selectOristudioBpSymmetry(get(), designId);
       if (!symmetry.enabled) return get().addOristudioBpTreeLeaf(parentId, loc);
       const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
       // Snap-onto-axis zone: the panel passes a tolerance matching the visible axis
@@ -658,13 +662,13 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         );
         if (mirror.createdId != null) {
           const pairs = addBpTreeSymmetryPair(
-            selectOristudioBpSymmetry(get()).pairs,
+            selectOristudioBpSymmetry(get(), designId).pairs,
             primary.createdId,
             mirror.createdId
           );
           set({
-      ...patchBoxPleatDesign(get(), { symmetry: { ...selectOristudioBpSymmetry(get()), pairs } 
-      }),});
+      ...patchBoxPleatDesign(get(), { symmetry: { ...selectOristudioBpSymmetry(get(), designId), pairs } 
+      }, designId),});
         }
         return mirror.document;
       }, { selection: { kind: 'bp-vertex', id: parentId } });
@@ -981,12 +985,16 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       ),
 
     optimizeOristudioBpLayout: async (options, onProgress) => {
-      const document = selectOristudioBpDocument(get());
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
+      const document = selectOristudioBpDocument(get(), designId);
       if (!document) return 'failed';
 
       // Symmetry is resolved here rather than carried in the dialog options,
       // because it is read from the tree as it stands right now.
-      const symmetryState = selectOristudioBpSymmetry(get());
+      const symmetryState = selectOristudioBpSymmetry(get(), designId);
       let symmetry: OptimizerSymmetryPayload | null = null;
       if (options.respectSymmetry && symmetryState.enabled) {
         const resolved = resolveOptimizerSymmetry(document.snapshot.tree, symmetryState, {
@@ -1024,8 +1032,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         // The sheet resized and every flap moved, so the old camera is framing
         // nothing useful. Ask the packing pane to re-fit.
         set({
-      ...patchBoxPleatDesign(get(), { viewportFitRequestId: selectOristudioBpViewportFitRequestId(get()) + 1 
-      }),});
+      ...patchBoxPleatDesign(get(), { viewportFitRequestId: selectOristudioBpViewportFitRequestId(get(), designId) + 1 
+      }, designId),});
         return 'applied';
       }
       return cancelled ? 'cancelled' : 'failed';

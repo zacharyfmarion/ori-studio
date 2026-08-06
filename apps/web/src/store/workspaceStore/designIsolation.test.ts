@@ -13,6 +13,7 @@ import {
   selectOristudioBpDocument,
   selectOristudioBpHistoryPast,
   selectOristudioBpSymmetry,
+  selectOristudioBpViewportFitRequestId,
   selectProject,
   selectSelection,
   selectTreemakerDesign,
@@ -49,6 +50,13 @@ const namedProject = (title: string) => ({ ...createEmptyProject(), title });
 const treemakerOf = (state: DesignTabsSlice, id: string) => {
   const tab = state.designTabs.find((candidate) => candidate.id === id) as DesignTab;
   return tab.kind === 'treemaker' ? tab.treemaker : null;
+};
+
+/** The same, for assertions that only make sense on a TreeMaker design. */
+const treeOf = (state: DesignTabsSlice, id: string) => {
+  const design = treemakerOf(state, id);
+  if (!design) throw new Error(`design ${id} is not TreeMaker`);
+  return design;
 };
 
 describe('per-design isolation', () => {
@@ -243,5 +251,101 @@ describe('kind and content cannot diverge', () => {
       viewportFitRequestId: 0,
     });
     expect(fresh.project.nodes).toEqual([]);
+  });
+});
+
+/**
+ * An async action's result belongs to the design it started in.
+ *
+ * Every engine call is a round trip, and that round trip is exactly the window in
+ * which the user can click another tab. A write that resolves "the active design"
+ * *after* the await lands on whichever tab is showing when the engine answers —
+ * so an optimize started on the crane finishes into the beetle.
+ *
+ * The writers take the id the action captured before its first await; these are
+ * the properties that makes true.
+ */
+describe('addressed writes', () => {
+  it('patches the design named, not the one now active', () => {
+    const state = twoDesigns();
+    const [crane, beetle] = state.designTabs.map((tab) => tab.id);
+
+    // The user switched to the beetle while the engine was working.
+    const switched = withActive(state, beetle);
+    const next = { ...switched, ...patchTreemakerDesign(switched, { project: namedProject('Crane v2') }, crane) };
+
+    expect(treeOf(next, crane).project.title).toBe('Crane v2');
+    expect(treeOf(next, beetle).project.title).not.toBe('Crane v2');
+  });
+
+  it('installs into the design named', () => {
+    const state = twoDesigns();
+    const [crane, beetle] = state.designTabs.map((tab) => tab.id);
+    const switched = withActive(state, beetle);
+
+    const next = {
+      ...switched,
+      ...installTreemakerDesign(switched, { project: namedProject('Loaded') }, crane),
+    };
+
+    expect(treeOf(next, crane).project.title).toBe('Loaded');
+    expect(treeOf(next, beetle).project.title).not.toBe('Loaded');
+  });
+
+  it('reads the design named, not the one now active', () => {
+    // An action also *reads* its design mid-flight — the title it carries into a
+    // snapshot, the selection it filters. Those reads have the same window.
+    const state = twoDesigns();
+    const [crane, beetle] = state.designTabs.map((tab) => tab.id);
+    const seeded = {
+      ...state,
+      ...patchTreemakerDesign(state, { project: namedProject('Crane') }, crane),
+    };
+    const withBeetle = {
+      ...seeded,
+      ...patchTreemakerDesign(seeded, { project: namedProject('Beetle') }, beetle),
+    };
+
+    const switched = withActive(withBeetle, beetle);
+
+    expect(selectProject(switched, crane).title).toBe('Crane');
+    expect(selectProject(switched).title).toBe('Beetle');
+  });
+
+  it('does nothing when the design it was addressed to has been closed', () => {
+    // Closing a tab mid-optimize is allowed. The result has nowhere to go, and
+    // silently landing on a survivor would be worse than dropping it.
+    const state = twoDesigns();
+    const [crane, beetle] = state.designTabs.map((tab) => tab.id);
+    const closed: DesignTabsSlice = {
+      designTabs: state.designTabs.filter((tab) => tab.id !== crane),
+      activeDesignId: beetle,
+    };
+
+    const next = {
+      ...closed,
+      ...patchTreemakerDesign(closed, { project: namedProject('Ghost') }, crane),
+    };
+
+    expect(next.designTabs).toHaveLength(1);
+    expect(treeOf(next, beetle).project.title).not.toBe('Ghost');
+  });
+
+  it('keeps a box-pleat result on its own design', () => {
+    resetDesignTabIds();
+    const first = createDesignTab([], { kind: 'box-pleat', title: 'Kabuto' });
+    const second = createDesignTab([first], { kind: 'box-pleat', title: 'Kabuto 2' });
+    const state: DesignTabsSlice = {
+      designTabs: [first, second],
+      activeDesignId: second.id,
+    };
+
+    const next = {
+      ...state,
+      ...patchBoxPleatDesign(state, { viewportFitRequestId: 7 }, first.id),
+    };
+
+    expect(selectOristudioBpViewportFitRequestId(next, first.id)).toBe(7);
+    expect(selectOristudioBpViewportFitRequestId(next, second.id)).toBe(0);
   });
 });

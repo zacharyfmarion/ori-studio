@@ -1050,9 +1050,30 @@ BP runtime singletons) foldable into 7.
   keys and `.osf` document ids, so a late async write addressed to the closed
   design would have landed on the tab that replaced it.
 
-- [ ] Phase 2d (part 2) — addressed writes for the ~100 async design actions
-      (engine **handle** ownership is done for both kinds; what remains is the
-      store writes those actions make on completion)
+- [x] Phase 2d (part 2) — addressed writes for the async design actions
+
+  Every engine call is a round trip, and that round trip is exactly the window in
+  which the user can click another tab. An action that resolved "the active
+  design" *after* its await wrote into whichever tab was showing when the engine
+  answered — an edit made on the crane landing on the beetle, and the crane
+  silently losing it.
+
+  A scan for "awaits, then writes to the active design" found **24 sites** across
+  `editingSlice`, `oristudioBpSlice`, and `creasePatternSlice`. Each now captures
+  `get().activeDesignId` before its first await and passes it to the writer, which
+  gained an optional trailing `designId` (defaulting to the active tab, which is
+  right for a synchronous action — nothing can move between the read and the
+  write). The field selectors took the same parameter for the same reason: an
+  action also *reads* its design mid-flight, for the title it carries into a
+  snapshot or the selection it filters.
+
+  `mapActiveTab` became `mapDesignTab`, and it is where the reasoning lives so the
+  24 sites can point at one explanation rather than repeat it.
+
+  Tested two ways, because they state different things: unit tests that the
+  *writers* address a design, and store-level tests that drive a real edit through
+  an engine which switches tabs mid-call — which is the only way to state that
+  every *action* passes one. Both verified to fail against the old behaviour.
 
   **Box-pleat handle ownership landed.** `oristudioBpRuntime` held `activeHandle`,
   `loadedHandles`, and `currentSource` as module singletons. Correct while one

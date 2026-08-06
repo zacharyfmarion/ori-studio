@@ -201,20 +201,30 @@ export function isDesignTouched(tab: DesignTab): boolean {
 }
 
 /**
- * Replace the active tab, returning the field to `set()`.
+ * Replace one tab, returning the field to `set()`.
  *
- * Every write to the active design goes through here, so there is one place that
- * knows how the active tab is located.
+ * Every write to a design goes through here, so there is one place that knows how
+ * a tab is located.
+ *
+ * `designId` defaults to the active tab, which is right for a synchronous action:
+ * nothing can move between reading the state and writing it. An **async** action
+ * must pass the id it captured before its first await instead — the engine round
+ * trip is exactly the window in which the user can switch tabs, and defaulting
+ * there would write one design's result into another.
  */
-function mapActiveTab(
+function mapDesignTab(
   state: DesignTabsSlice,
+  designId: string,
   next: (tab: DesignTab) => DesignTab
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return {
-    designTabs: state.designTabs.map((tab) =>
-      tab.id === state.activeDesignId ? next(tab) : tab
-    ),
+    designTabs: state.designTabs.map((tab) => (tab.id === designId ? next(tab) : tab)),
   };
+}
+
+/** The tab an addressed write targets, or null if it has since been closed. */
+function designTabById(state: DesignTabsSlice, designId: string): DesignTab | null {
+  return state.designTabs.find((tab) => tab.id === designId) ?? null;
 }
 
 /**
@@ -229,7 +239,7 @@ export function withActiveTab(
   state: DesignTabsSlice,
   patch: { title: string }
 ): Pick<DesignTabsSlice, 'designTabs'> {
-  return mapActiveTab(state, (tab) => ({ ...tab, title: patch.title }));
+  return mapDesignTab(state, state.activeDesignId, (tab) => ({ ...tab, title: patch.title }));
 }
 
 /** Record a design's pane arrangement. Identity-only, so any kind can use it. */
@@ -238,11 +248,7 @@ export function withDesignPaneLayout(
   designId: string,
   paneLayout: SerializedDockview | null
 ): Pick<DesignTabsSlice, 'designTabs'> {
-  return {
-    designTabs: state.designTabs.map((tab) =>
-      tab.id === designId ? { ...tab, paneLayout } : tab
-    ),
-  };
+  return mapDesignTab(state, designId, (tab) => ({ ...tab, paneLayout }));
 }
 
 /**
@@ -252,9 +258,12 @@ export function withDesignPaneLayout(
  * The honest accessor — use it where the difference matters: every write, and any
  * reader that behaves differently for "no tree" than for "an empty tree".
  */
-export function selectTreemakerDesign(state: DesignTabsSlice): TreemakerDesignState | null {
-  const tab = activeDesignTab(state);
-  return tab.kind === 'treemaker' ? tab.treemaker : null;
+export function selectTreemakerDesign(
+  state: DesignTabsSlice,
+  designId: string = state.activeDesignId
+): TreemakerDesignState | null {
+  const tab = designId === state.activeDesignId ? activeDesignTab(state) : designTabById(state, designId);
+  return tab?.kind === 'treemaker' ? tab.treemaker : null;
 }
 
 /**
@@ -266,8 +275,11 @@ export function selectTreemakerDesign(state: DesignTabsSlice): TreemakerDesignSt
  * capability counts, the error boundary, the crease-pattern panel — already copes
  * with an empty tree and never saw a null.
  */
-export function selectTreemakerDesignOrEmpty(state: DesignTabsSlice): TreemakerDesignState {
-  return selectTreemakerDesign(state) ?? EMPTY_TREEMAKER_DESIGN;
+export function selectTreemakerDesignOrEmpty(
+  state: DesignTabsSlice,
+  designId?: string
+): TreemakerDesignState {
+  return selectTreemakerDesign(state, designId) ?? EMPTY_TREEMAKER_DESIGN;
 }
 
 /**
@@ -278,20 +290,25 @@ export function selectTreemakerDesignOrEmpty(state: DesignTabsSlice): TreemakerD
  * reviewable. All total, all falling back to the empty design, all returning the
  * stored reference so Zustand's `Object.is` comparison behaves as before.
  */
-export function selectProject(state: DesignTabsSlice): TreeProject {
-  return selectTreemakerDesignOrEmpty(state).project;
+/**
+ * The field selectors take an optional design id for the same reason the writers
+ * do: an async action reads its design's own state *after* an await, and the
+ * active tab may no longer be the one it started in.
+ */
+export function selectProject(state: DesignTabsSlice, designId?: string): TreeProject {
+  return selectTreemakerDesignOrEmpty(state, designId).project;
 }
 
-export function selectSelection(state: DesignTabsSlice): Selection {
-  return selectTreemakerDesignOrEmpty(state).selection;
+export function selectSelection(state: DesignTabsSlice, designId?: string): Selection {
+  return selectTreemakerDesignOrEmpty(state, designId).selection;
 }
 
 export function selectToolMode(state: DesignTabsSlice): ToolMode {
   return selectTreemakerDesignOrEmpty(state).toolMode;
 }
 
-export function selectSymmetryAuthoringPairs(state: DesignTabsSlice): SymmetryAuthoringPair[] {
-  return selectTreemakerDesignOrEmpty(state).symmetryAuthoringPairs;
+export function selectSymmetryAuthoringPairs(state: DesignTabsSlice, designId?: string): SymmetryAuthoringPair[] {
+  return selectTreemakerDesignOrEmpty(state, designId).symmetryAuthoringPairs;
 }
 
 export function selectHistoryPast(state: DesignTabsSlice): HistoryEntry[] {
@@ -319,9 +336,10 @@ export function selectDesignViewportFitRequestId(state: DesignTabsSlice): number
  */
 export function installTreemakerDesign(
   state: DesignTabsSlice,
-  design: Partial<TreemakerDesignState> = {}
+  design: Partial<TreemakerDesignState> = {},
+  designId: string = state.activeDesignId
 ): Pick<DesignTabsSlice, 'designTabs'> {
-  return mapActiveTab(state, (tab) => ({
+  return mapDesignTab(state, designId, (tab) => ({
     ...identityOf(tab),
     kind: 'treemaker',
     treemaker: createTreemakerDesignState(design),
@@ -338,22 +356,23 @@ export function installTreemakerDesign(
  */
 export function patchTreemakerDesign(
   state: DesignTabsSlice,
-  patch: Partial<TreemakerDesignState>
+  patch: Partial<TreemakerDesignState>,
+  designId: string = state.activeDesignId
 ): Pick<DesignTabsSlice, 'designTabs'> {
-  const current = selectTreemakerDesign(state);
+  const current = selectTreemakerDesign(state, designId);
   if (!current) {
     if (import.meta.env.DEV) {
       // With a stack: a guard that only says "someone did this" cannot be acted
       // on, and every one of these is a write landing on the wrong design.
       console.error(
-        '[ori-studio] patchTreemakerDesign ran while the active design is not TreeMaker; ignoring',
+        '[ori-studio] patchTreemakerDesign ran against a design that is not TreeMaker; ignoring',
         patch,
         new Error('patchTreemakerDesign caller').stack
       );
     }
     return { designTabs: state.designTabs };
   }
-  return mapActiveTab(state, (tab) => ({
+  return mapDesignTab(state, designId, (tab) => ({
     ...identityOf(tab),
     kind: 'treemaker',
     treemaker: { ...current, ...patch },
@@ -364,18 +383,24 @@ export function patchTreemakerDesign(
  * The active design's Box-Pleat state, or `null` when the active design is of
  * another kind. The honest accessor; use it for every write.
  */
-export function selectBoxPleatDesign(state: DesignTabsSlice): BoxPleatDesignState | null {
-  const tab = activeDesignTab(state);
-  return tab.kind === 'box-pleat' ? tab.boxPleat : null;
+export function selectBoxPleatDesign(
+  state: DesignTabsSlice,
+  designId: string = state.activeDesignId
+): BoxPleatDesignState | null {
+  const tab = designId === state.activeDesignId ? activeDesignTab(state) : designTabById(state, designId);
+  return tab?.kind === 'box-pleat' ? tab.boxPleat : null;
 }
 
 /** The active design's Box-Pleat state, falling back to an empty one. */
-export function selectBoxPleatDesignOrEmpty(state: DesignTabsSlice): BoxPleatDesignState {
-  return selectBoxPleatDesign(state) ?? EMPTY_BOX_PLEAT_DESIGN;
+export function selectBoxPleatDesignOrEmpty(
+  state: DesignTabsSlice,
+  designId?: string
+): BoxPleatDesignState {
+  return selectBoxPleatDesign(state, designId) ?? EMPTY_BOX_PLEAT_DESIGN;
 }
 
-export function selectOristudioBpDocument(state: DesignTabsSlice) {
-  return selectBoxPleatDesignOrEmpty(state).document;
+export function selectOristudioBpDocument(state: DesignTabsSlice, designId?: string) {
+  return selectBoxPleatDesignOrEmpty(state, designId).document;
 }
 
 export function selectOristudioBpSelection(state: DesignTabsSlice) {
@@ -390,12 +415,12 @@ export function selectOristudioBpHistoryFuture(state: DesignTabsSlice) {
   return selectBoxPleatDesignOrEmpty(state).historyFuture;
 }
 
-export function selectOristudioBpViewportFitRequestId(state: DesignTabsSlice) {
-  return selectBoxPleatDesignOrEmpty(state).viewportFitRequestId;
+export function selectOristudioBpViewportFitRequestId(state: DesignTabsSlice, designId?: string) {
+  return selectBoxPleatDesignOrEmpty(state, designId).viewportFitRequestId;
 }
 
-export function selectOristudioBpSymmetry(state: DesignTabsSlice) {
-  return selectBoxPleatDesignOrEmpty(state).symmetry;
+export function selectOristudioBpSymmetry(state: DesignTabsSlice, designId?: string) {
+  return selectBoxPleatDesignOrEmpty(state, designId).symmetry;
 }
 
 /**
@@ -407,9 +432,10 @@ export function selectOristudioBpSymmetry(state: DesignTabsSlice) {
  */
 export function installBoxPleatDesign(
   state: DesignTabsSlice,
-  design: Partial<BoxPleatDesignState> = {}
+  design: Partial<BoxPleatDesignState> = {},
+  designId: string = state.activeDesignId
 ): Pick<DesignTabsSlice, 'designTabs'> {
-  return mapActiveTab(state, (tab) => ({
+  return mapDesignTab(state, designId, (tab) => ({
     ...identityOf(tab),
     kind: 'box-pleat',
     boxPleat: createBoxPleatDesignState(design),
@@ -424,19 +450,21 @@ export function installBoxPleatDesign(
  */
 export function patchBoxPleatDesign(
   state: DesignTabsSlice,
-  patch: Partial<BoxPleatDesignState>
+  patch: Partial<BoxPleatDesignState>,
+  designId: string = state.activeDesignId
 ): Pick<DesignTabsSlice, 'designTabs'> {
-  const current = selectBoxPleatDesign(state);
+  const current = selectBoxPleatDesign(state, designId);
   if (!current) {
     if (import.meta.env.DEV) {
       console.error(
-        '[ori-studio] patchBoxPleatDesign ran while the active design is not box-pleat; ignoring',
-        patch
+        '[ori-studio] patchBoxPleatDesign ran against a design that is not box-pleat; ignoring',
+        patch,
+        new Error('patchBoxPleatDesign caller').stack
       );
     }
     return { designTabs: state.designTabs };
   }
-  return mapActiveTab(state, (tab) => ({
+  return mapDesignTab(state, designId, (tab) => ({
     ...identityOf(tab),
     kind: 'box-pleat',
     boxPleat: { ...current, ...patch },
@@ -451,18 +479,20 @@ export function patchBoxPleatDesign(
  * the kind, and provisioning follows.
  */
 export function markActiveTabBoxPleat(
-  state: DesignTabsSlice
+  state: DesignTabsSlice,
+  designId: string = state.activeDesignId
 ): Pick<DesignTabsSlice, 'designTabs'> {
-  return installBoxPleatDesign(state);
+  return installBoxPleatDesign(state, {}, designId);
 }
 
 /** Clear the active tab back to the chooser, dropping whatever it was authoring. */
 export function clearActiveDesignContent(
-  state: DesignTabsSlice
+  state: DesignTabsSlice,
+  designId: string = state.activeDesignId
 ): Pick<DesignTabsSlice, 'designTabs'> {
   // Rebuilt rather than spread-with-undefined so a discarded arm cannot linger on
   // the object and resurface through a stale cast.
-  return mapActiveTab(state, (tab) => ({ ...identityOf(tab), kind: null }));
+  return mapDesignTab(state, designId, (tab) => ({ ...identityOf(tab), kind: null }));
 }
 
 /**

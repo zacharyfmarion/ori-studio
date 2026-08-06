@@ -1026,6 +1026,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
 
     buildCreasePattern: async () => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       const capability = selectWorkspaceCapabilities(get())['cp.build'];
       if (!capability.enabled) {
         set({
@@ -1044,12 +1048,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       try {
         const { api, treeHandle } = await requireActiveTree();
         const snapshot = await api.buildCreasePattern(treeHandle);
-        const project = projectFromSnapshot(snapshot, selectProject(get()).title);
+        const project = projectFromSnapshot(snapshot, selectProject(get(), designId).title);
         const hasDrawableCreasePattern = project.creases.length > 0 || project.facets.length > 0;
 
         if (!hasDrawableCreasePattern) {
           set({
-            ...patchTreemakerDesign(get(), { project }),
+            ...patchTreemakerDesign(get(), { project }, designId),
             status:
               project.edges.length === 0
                 ? 'ready'
@@ -1093,7 +1097,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           title: `${project.title || 'Generated'} CP`,
         });
         set({
-          ...patchTreemakerDesign(get(), { project }),
+          ...patchTreemakerDesign(get(), { project }, designId),
           oristudioCpDocument: editableDocument,
           oristudioCpLineage: generatedCpLineage({
             sourceTreeDigest: stableTextDigest(treeText),

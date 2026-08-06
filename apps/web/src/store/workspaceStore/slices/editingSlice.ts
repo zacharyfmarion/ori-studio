@@ -107,6 +107,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     // slice's returned literal is contextually typed and loses excess-property
     // checking. `designTabWrites.test.ts` asserts they are gone.
     addNodeAt: async (loc, connectTo) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
@@ -120,7 +124,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         });
         set({
       ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(report.snapshot, selectProject(get()).title),
+          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
           selection: nextSelectionForEdit(
             { type: 'add_node', loc, connect_to: connectTo },
             report.snapshot,
@@ -128,7 +132,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
             report.created_edge
           ),
           lastOptimization: null
-      }),
+      }, designId),
           status: statusAfterEdit(report.snapshot),
           dirty: true,
           error: null,
@@ -140,7 +144,11 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     addNodeWithSymmetry: async (loc, connectTo) => {
-      const project = selectProject(get());
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
+      const project = selectProject(get(), designId);
       if (!project.hasSymmetry) {
         await get().addNodeAt(loc, connectTo);
         return;
@@ -155,12 +163,12 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const parent = connectTo === undefined ? null : project.nodes.find((node) => node.id === connectTo);
         const parentSide = parent ? symmetrySide(parent.loc, axis) : 0;
         const parentPair = parent
-          ? findMirrorNodeId(project, selectSymmetryAuthoringPairs(get()), parent.id)
+          ? findMirrorNodeId(project, selectSymmetryAuthoringPairs(get(), designId), parent.id)
           : null;
         const shouldMirror = Boolean(parent && !snapped.snapped && (parentSide === 0 || parentPair));
         let snapshot: TreeSnapshot | null = null;
-        let selection = selectSelection(get());
-        let authoringPairs = selectSymmetryAuthoringPairs(get());
+        let selection = selectSelection(get(), designId);
+        let authoringPairs = selectSymmetryAuthoringPairs(get(), designId);
         if (parent && parentPair) {
           authoringPairs = addSymmetryAuthoringPair(authoringPairs, parent.id, parentPair);
         }
@@ -219,14 +227,14 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
 
         if (!snapshot) return;
         const addedPair = selection.kind === 'multi' && selection.nodes.length === 2;
-        const nextProject = projectFromSnapshot(snapshot, selectProject(get()).title);
+        const nextProject = projectFromSnapshot(snapshot, selectProject(get(), designId).title);
         set({
       ...patchTreemakerDesign(get(), {
           project: nextProject,
           symmetryAuthoringPairs: filterSymmetryAuthoringPairs(nextProject, authoringPairs),
           lastOptimization: null,
           selection,
-      }),
+      }, designId),
           status: statusAfterEdit(snapshot),
           dirty: true,
           error: null,
@@ -239,6 +247,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     moveNode: async (id, loc) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
@@ -248,10 +260,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const report = await api.applyEdit(treeHandle, edit);
         set({
       ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(report.snapshot, selectProject(get()).title),
+          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
           selection: nextSelectionForEdit(edit, report.snapshot),
           lastOptimization: null
-      }),
+      }, designId),
           status: statusAfterEdit(report.snapshot),
           dirty: true,
           error: null,
@@ -263,9 +275,13 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     moveNodeWithSymmetry: async (id, loc) => {
-      const project = selectProject(get());
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
+      const project = selectProject(get(), designId);
       const pairedNode = project.hasSymmetry
-        ? findMirrorNodeId(project, selectSymmetryAuthoringPairs(get()), id)
+        ? findMirrorNodeId(project, selectSymmetryAuthoringPairs(get(), designId), id)
         : null;
       if (!pairedNode) {
         await get().moveNode(id, loc);
@@ -286,10 +302,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         });
         set({
       ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(pairedReport.snapshot, selectProject(get()).title),
+          project: projectFromSnapshot(pairedReport.snapshot, selectProject(get(), designId).title),
           selection: nextSelectionForEdit(edit, primaryReport.snapshot),
           lastOptimization: null
-      }),
+      }, designId),
           status: statusAfterEdit(pairedReport.snapshot),
           dirty: true,
           error: null,
@@ -301,6 +317,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     addEdge: async (node1, node2) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       if (node1 === node2) return;
       set({ error: null });
@@ -315,12 +335,12 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         });
         set({
       ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(report.snapshot, selectProject(get()).title),
+          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
           selection: report.created_edge
             ? { kind: 'edge', id: report.created_edge }
             : { kind: 'node', id: node2 },
           lastOptimization: null
-      }),
+      }, designId),
           status: statusAfterEdit(report.snapshot),
           dirty: true,
           error: null,
@@ -332,6 +352,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     updateNodeLabel: async (id, label) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
@@ -341,9 +365,9 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const report = await api.applyEdit(treeHandle, edit);
         set({
       ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(report.snapshot, selectProject(get()).title),
+          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
           selection: nextSelectionForEdit(edit, report.snapshot)
-      }),
+      }, designId),
           dirty: true,
           error: null,
           ...staleTreeDerivedArtifacts()});
@@ -354,6 +378,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     updateEdge: async (id, update) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
@@ -361,7 +389,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const { api, treeHandle } = await requireActiveTree();
         const edit: TreeEdit = { type: 'update_edge', id, ...update };
         const report = await api.applyEdit(treeHandle, edit);
-        const mirrorEdge = findMirrorEdgeId(selectProject(get()), selectSymmetryAuthoringPairs(get()), id);
+        const mirrorEdge = findMirrorEdgeId(selectProject(get(), designId), selectSymmetryAuthoringPairs(get(), designId), id);
         const mirrorUpdate = {
           length: update.length,
           stiffness: update.stiffness,
@@ -378,10 +406,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           : report;
         set({
       ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(finalReport.snapshot, selectProject(get()).title),
+          project: projectFromSnapshot(finalReport.snapshot, selectProject(get(), designId).title),
           selection: nextSelectionForEdit(edit, report.snapshot),
           lastOptimization: null
-      }),
+      }, designId),
           status: statusAfterEdit(finalReport.snapshot),
           dirty: true,
           error: null,
@@ -501,8 +529,12 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     deleteSelection: async () => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
-      const selection = selectSelection(get());
+      const selection = selectSelection(get(), designId);
       const nodeIds = selectedNodeIds(selection).sort((a, b) => b - a);
       const edgeIds = selectedEdgeIds(selection).sort((a, b) => b - a);
       if (nodeIds.length === 0 && edgeIds.length === 0) return;
@@ -510,14 +542,14 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       const checkpoint = await get().beginHistoryCheckpoint();
       try {
         const { api, treeHandle } = await requireActiveTree();
-        if (selectionCoversAllNodes(selection, selectProject(get()))) {
+        if (selectionCoversAllNodes(selection, selectProject(get(), designId))) {
           const snapshot = await createBlankTree(api);
           set({
       ...patchTreemakerDesign(get(), {
-            project: projectFromSnapshot(snapshot, selectProject(get()).title),
+            project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
             selection: { kind: 'tree' },
             lastOptimization: null
-      }),
+      }, designId),
             status: statusAfterEdit(snapshot),
             dirty: true,
             error: null,
@@ -539,10 +571,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         if (!snapshot) return;
         set({
       ...patchTreemakerDesign(get(), {
-          project: projectFromSnapshot(snapshot, selectProject(get()).title),
+          project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
           selection: { kind: 'tree' },
           lastOptimization: null
-      }),
+      }, designId),
           status: statusAfterEdit(snapshot),
           dirty: true,
           error: null,
