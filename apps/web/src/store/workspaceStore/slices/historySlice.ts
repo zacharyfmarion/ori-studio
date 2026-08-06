@@ -161,28 +161,30 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     ) => { restore: SnapshotEntry<BpHistorySnapshot>; history: SnapshotHistory<BpHistorySnapshot> } | null,
     verb: 'Undid' | 'Redid'
   ): Promise<boolean> => {
-    const document = selectOristudioBpDocument(get());
+    // Captured before the first await. Restoring a snapshot is a worker round
+    // trip, and a tab switch during it would otherwise write this design's
+    // document over whichever design the user landed on.
+    const designId = get().activeDesignId;
+    const document = selectOristudioBpDocument(get(), designId);
     if (!document || get().oristudioBpHistoryBusy) return false;
     const history: SnapshotHistory<BpHistorySnapshot> = {
-      past: selectOristudioBpHistoryPast(get()),
-      future: selectOristudioBpHistoryFuture(get()),
+      past: selectOristudioBpHistoryPast(get(), designId),
+      future: selectOristudioBpHistoryFuture(get(), designId),
     };
-    set({
-      oristudioBpHistoryBusy: true, error: null, oristudioBpError: null });
+    set({ oristudioBpHistoryBusy: true, error: null, oristudioBpError: null });
     try {
       const currentBps = await exportOristudioBpProjectAsBps();
       const current = snapshotEntry(
         {
           bps: currentBps,
-          selection: selectOristudioBpSelection(get()),
-          symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get())),
+          selection: selectOristudioBpSelection(get(), designId),
+          symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get(), designId)),
         },
         document.history.activeLabel ?? 'edit'
       );
       const step = pick(history, current);
       if (!step) {
-        set({
-      oristudioBpHistoryBusy: false,});
+        set({ oristudioBpHistoryBusy: false });
         return false;
       }
       // A symmetry-only step carries no `bps`, because it did not touch the
@@ -192,20 +194,24 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       const restored =
         restoredBps === null ? document : await restoreOristudioBpProjectSnapshot(restoredBps);
       set({
-      ...patchBoxPleatDesign(get(), {
-        document: restored,
-        // The axis stays derived; only the saved half of symmetry is restored.
-        symmetry: {
-          ...selectOristudioBpSymmetry(get()),
-          ...step.restore.snapshot.symmetry,
-        },
-        historyPast: step.history.past,
-        historyFuture: step.history.future,
-        // Restored as presentation — showing what the step touched — not because
-        // the selection was stored as part of the document.
-        selection: step.restore.snapshot.selection,
-      }),
-      oristudioBpHistoryBusy: false,
+        ...patchBoxPleatDesign(
+          get(),
+          {
+            document: restored,
+            // The axis stays derived; only the saved half of symmetry is restored.
+            symmetry: {
+              ...selectOristudioBpSymmetry(get(), designId),
+              ...step.restore.snapshot.symmetry,
+            },
+            historyPast: step.history.past,
+            historyFuture: step.history.future,
+            // Restored as presentation — showing what the step touched — not
+            // because the selection was stored as part of the document.
+            selection: step.restore.snapshot.selection,
+          },
+          designId
+        ),
+        oristudioBpHistoryBusy: false,
         dirty: true,
         error: null,
         oristudioBpError: null,

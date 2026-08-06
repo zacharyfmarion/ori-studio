@@ -443,16 +443,16 @@ export function selectOristudioBpDocument(state: DesignTabsSlice, designId?: str
   return selectBoxPleatDesignOrEmpty(state, designId).document;
 }
 
-export function selectOristudioBpSelection(state: DesignTabsSlice) {
-  return selectBoxPleatDesignOrEmpty(state).selection;
+export function selectOristudioBpSelection(state: DesignTabsSlice, designId?: string) {
+  return selectBoxPleatDesignOrEmpty(state, designId).selection;
 }
 
-export function selectOristudioBpHistoryPast(state: DesignTabsSlice) {
-  return selectBoxPleatDesignOrEmpty(state).historyPast;
+export function selectOristudioBpHistoryPast(state: DesignTabsSlice, designId?: string) {
+  return selectBoxPleatDesignOrEmpty(state, designId).historyPast;
 }
 
-export function selectOristudioBpHistoryFuture(state: DesignTabsSlice) {
-  return selectBoxPleatDesignOrEmpty(state).historyFuture;
+export function selectOristudioBpHistoryFuture(state: DesignTabsSlice, designId?: string) {
+  return selectBoxPleatDesignOrEmpty(state, designId).historyFuture;
 }
 
 export function selectOristudioBpViewportFitRequestId(state: DesignTabsSlice, designId?: string) {

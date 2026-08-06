@@ -2,7 +2,6 @@ import {
   activeDesignTab,
   createDesignTab,
   initialDesignTabs,
-  installBoxPleatDesign,
   isDesignTouched,
   markDesignTabHydrated,
   patchBoxPleatDesign,
@@ -3116,7 +3115,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           return;
         }
         const document = await refreshOristudioBpProject();
-        if (document) set(installBoxPleatDesign(get(), { document }, designId));
+        // `patch`, not `install`: the tab already claimed box-pleat when the file
+        // was read, and it is holding the mirror-draw state that file restored.
+        // Installing would rebuild the content from defaults and drop it — the
+        // design would come back with its pairs and fold silently reset.
+        if (document) set(patchBoxPleatDesign(get(), { document }, designId));
       })().catch((error: unknown) => {
         // The design is still on disk and still in the registry; leaving the tab
         // empty with an error beats leaving it empty silently.

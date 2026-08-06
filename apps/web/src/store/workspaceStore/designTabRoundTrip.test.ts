@@ -33,6 +33,15 @@ const handles = vi.hoisted(() => ({
   acquireDesignHandle: vi.fn(async (_designId: string, _kind: string) => 1),
 }));
 
+const bpRuntimeMocks = vi.hoisted(() => ({
+  refreshOristudioBpProject: vi.fn(async () => null as unknown),
+}));
+
+vi.mock('./oristudioBpRuntime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./oristudioBpRuntime')>();
+  return { ...actual, refreshOristudioBpProject: bpRuntimeMocks.refreshOristudioBpProject };
+});
+
 vi.mock('../../engines/designHandles', () => ({
   ...handles,
   adoptDesignHandle: vi.fn(async () => true),
@@ -285,6 +294,32 @@ describe('two box-pleat designs with different mirror state', () => {
     });
     return { helmet: helmet.id, mask: mask.id };
   }
+
+  it('keeps that mirror when the background tab is finally opened', async () => {
+    // Opening a file installs only the active design; a background tab is text
+    // until visited. Hydration used to `install` rather than `patch`, which
+    // rebuilds the box-pleat content from defaults — so the mirror the file had
+    // just restored was dropped the moment the user clicked the tab. The design
+    // came back with its pairs gone and mirror draw reset.
+    const ids = twoBoxPleatDesigns();
+    const fileService = recordingFileService();
+    await store().saveProjectAs(fileService);
+    reopenOn(fileService);
+    await store().openProject(fileService);
+    bpRuntimeMocks.refreshOristudioBpProject.mockResolvedValue({
+      activeSurface: 'tree',
+      snapshot: { tree: { vertices: [] }, packing: { flaps: [] } },
+    });
+
+    await store().hydrateDesignTab(ids.helmet);
+
+    const tab = store().designTabs.find((candidate) => candidate.id === ids.helmet);
+    expect(tab?.kind).toBe('box-pleat');
+    const symmetry = tab?.kind === 'box-pleat' ? tab.boxPleat.symmetry : null;
+    expect(symmetry?.pairs).toEqual(BOOK.pairs);
+    expect(symmetry?.fold).toBe(BOOK.fold);
+    expect(symmetry?.enabled).toBe(BOOK.enabled);
+  });
 
   it('gives each design back its own mirror, not the other one\'s', async () => {
     const ids = twoBoxPleatDesigns();

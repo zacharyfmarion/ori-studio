@@ -339,9 +339,14 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     layout.activateWorkspace('design');
   };
 
-  // Replace the active BP document after an edit and mark any generated BP
-  // crease pattern stale (tree/packing edits invalidate a prior CP export).
-  const replaceActiveBpDocument = (
+  // Replace a BP document after an edit and mark any generated BP crease pattern
+  // stale (tree/packing edits invalidate a prior CP export).
+  const replaceBpDocument = (
+    // The design this edit started on. Required rather than defaulted, because
+    // every caller reaches here *after* an await: defaulting to the active design
+    // is precisely the bug, and a caller that has to name the design cannot
+    // forget to.
+    designId: string,
     document: OristudioBpDocumentState,
     message: string,
     history?: { past: SnapshotEntry<BpHistorySnapshot>[]; future: SnapshotEntry<BpHistorySnapshot>[] },
@@ -352,11 +357,15 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     // One design-tab writer: document, selection and history all ride the same
     // patch. Two spreads would write `designTabs` twice and the later would win.
     set({
-      ...patchBoxPleatDesign(get(), {
-        document,
-        ...(selection ? { selection } : {}),
-        ...(history ? { historyPast: history.past, historyFuture: history.future } : {}),
-      }),
+      ...patchBoxPleatDesign(
+        get(),
+        {
+          document,
+          ...(selection ? { selection } : {}),
+          ...(history ? { historyPast: history.past, historyFuture: history.future } : {}),
+        },
+        designId
+      ),
       oristudioBpBusy: false,
       oristudioBpError: null,
       dirty: true,
@@ -438,8 +447,8 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         pendingHistory.set(designId, snapshotEntry(
           {
             bps,
-            selection: selectOristudioBpSelection(get()),
-            symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get())),
+            selection: selectOristudioBpSelection(get(), designId),
+            symmetry: bpDocumentSymmetry(selectOristudioBpSymmetry(get(), designId)),
           },
           message
         ));
@@ -447,29 +456,34 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const nextDocument = await operation(document);
       // Prune ephemeral symmetry pairs to vertices that still exist after the edit,
       // so deletes/reseeds can't leave a dangling pair behind.
-      const symmetry = selectOristudioBpSymmetry(get());
+      const symmetry = selectOristudioBpSymmetry(get(), designId);
       if (symmetry.pairs.length > 0) {
         const prunedPairs = filterBpTreeSymmetryPairs(nextDocument.snapshot.tree, symmetry.pairs);
         if (prunedPairs.length !== symmetry.pairs.length) {
-          set({
-      ...patchBoxPleatDesign(get(), { symmetry: { ...symmetry, pairs: prunedPairs } 
-      }),});
+          set(
+            patchBoxPleatDesign(
+              get(),
+              { symmetry: { ...symmetry, pairs: prunedPairs } },
+              designId
+            )
+          );
         }
       }
       if (options.dragging) {
         // Mid-gesture: apply the document but hold the pending snapshot open.
-        replaceActiveBpDocument(nextDocument, message, undefined, options.selection);
+        replaceBpDocument(designId, nextDocument, message, undefined, options.selection);
       } else {
         const entry = pendingHistory.get(designId);
         pendingHistory.delete(designId);
-        replaceActiveBpDocument(
+        replaceBpDocument(
+          designId,
           nextDocument,
           message,
           entry
             ? recordSnapshot(
                 {
-                  past: selectOristudioBpHistoryPast(get()),
-                  future: selectOristudioBpHistoryFuture(get()),
+                  past: selectOristudioBpHistoryPast(get(), designId),
+                  future: selectOristudioBpHistoryFuture(get(), designId),
                 },
                 entry
               )
