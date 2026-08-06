@@ -21,10 +21,6 @@ export interface ImportedImageSource {
 
 const TRANSPARENT_SOURCE_TYPES = new Set(['image/png', 'image/webp', 'image/gif']);
 
-export function isSupportedImageFile(file: File): boolean {
-  return file.type.startsWith('image/');
-}
-
 function cappedDimensions(width: number, height: number): { width: number; height: number } {
   const longest = Math.max(width, height);
   if (longest <= IMAGE_MAX_DIMENSION) return { width, height };

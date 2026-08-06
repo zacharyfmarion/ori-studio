@@ -21,6 +21,9 @@
     "canvasUnavailable": "Canvas 2D is unavailable",
     "unsupportedImage": "Use a PNG, JPEG, or WebP image."
   },
+  "creasePattern": {
+    "imageNotDecodable": "Ori Studio could not read {{name}} as an image. Try a PNG, JPEG, or WebP."
+  },
   "fileDrop": {
     "dialogOpen": "Finish the open dialog before dropping a file.",
     "imageNotHere": "Drop {{name}} onto the crease pattern to add it as a reference image.",

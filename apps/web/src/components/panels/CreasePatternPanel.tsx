@@ -113,6 +113,7 @@ import '../../cp-workspace/folded/foldedFigureStalenessDebug';
 import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
 import { foldedFigureCurrentCase } from '../../cp-workspace/folded/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
+import { DECODABLE_IMAGE_ACCEPT } from '../../lib/imageFormats';
 import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../../lib/foldedFigureSides';
 import { useWorkspaceErrorText } from '../../hooks/useWorkspaceErrorText';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -3036,7 +3037,11 @@ export function CreasePatternPanel() {
                     <input
                       ref={imageFileInputRef}
                       type="file"
-                      accept="image/*"
+                      // Extensions, not `image/*`: the wildcard resolves through
+                      // the platform's type table, which offers `.ori` as an
+                      // Olympus raw image and lands a crease pattern in a picker
+                      // that can only fail to decode it.
+                      accept={DECODABLE_IMAGE_ACCEPT}
                       style={{ display: 'none' }}
                       onChange={(event) => {
                         const file = event.target.files?.[0];

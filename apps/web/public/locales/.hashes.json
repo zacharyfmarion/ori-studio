@@ -2104,7 +2104,8 @@
     "panels:bpPacking.symmetryNeedsSquare": "1e72588550d8",
     "panels:bpPacking.symmetryReady": "db252864b466",
     "panels:bpPacking.unpair": "b8a31f0f577d",
-    "dialogs:bpOptimizer.designFold": "c87e87cd401c"
+    "dialogs:bpOptimizer.designFold": "c87e87cd401c",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4211,7 +4212,8 @@
     "panels:bpPacking.symmetryNeedsSquare": "1e72588550d8",
     "panels:bpPacking.symmetryReady": "db252864b466",
     "panels:bpPacking.unpair": "b8a31f0f577d",
-    "dialogs:bpOptimizer.designFold": "c87e87cd401c"
+    "dialogs:bpOptimizer.designFold": "c87e87cd401c",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6346,7 +6348,8 @@
     "panels:bpPacking.symmetryNeedsSquare": "1e72588550d8",
     "panels:bpPacking.symmetryReady": "db252864b466",
     "panels:bpPacking.unpair": "b8a31f0f577d",
-    "dialogs:bpOptimizer.designFold": "c87e87cd401c"
+    "dialogs:bpOptimizer.designFold": "c87e87cd401c",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8481,7 +8484,8 @@
     "panels:bpPacking.symmetryNeedsSquare": "1e72588550d8",
     "panels:bpPacking.symmetryReady": "db252864b466",
     "panels:bpPacking.unpair": "b8a31f0f577d",
-    "dialogs:bpOptimizer.designFold": "c87e87cd401c"
+    "dialogs:bpOptimizer.designFold": "c87e87cd401c",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10616,7 +10620,8 @@
     "panels:bpPacking.symmetryNeedsSquare": "1e72588550d8",
     "panels:bpPacking.symmetryReady": "db252864b466",
     "panels:bpPacking.unpair": "b8a31f0f577d",
-    "dialogs:bpOptimizer.designFold": "c87e87cd401c"
+    "dialogs:bpOptimizer.designFold": "c87e87cd401c",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12751,7 +12756,8 @@
     "panels:bpPacking.symmetryNeedsSquare": "1e72588550d8",
     "panels:bpPacking.symmetryReady": "db252864b466",
     "panels:bpPacking.unpair": "b8a31f0f577d",
-    "dialogs:bpOptimizer.designFold": "c87e87cd401c"
+    "dialogs:bpOptimizer.designFold": "c87e87cd401c",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -14886,7 +14892,8 @@
     "panels:bpPacking.symmetryNeedsSquare": "1e72588550d8",
     "panels:bpPacking.symmetryReady": "db252864b466",
     "panels:bpPacking.unpair": "b8a31f0f577d",
-    "dialogs:bpOptimizer.designFold": "c87e87cd401c"
+    "dialogs:bpOptimizer.designFold": "c87e87cd401c",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -16993,6 +17000,7 @@
     "panels:bpPacking.symmetryNeedsSquare": "1e72588550d8",
     "panels:bpPacking.symmetryReady": "db252864b466",
     "panels:bpPacking.unpair": "b8a31f0f577d",
-    "dialogs:bpOptimizer.designFold": "c87e87cd401c"
+    "dialogs:bpOptimizer.designFold": "c87e87cd401c",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
   }
 }

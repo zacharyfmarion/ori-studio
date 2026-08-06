@@ -55,9 +55,34 @@ describe('classifyDroppedFile', () => {
     expect(classifyDroppedFile(file('Design.Cp'))).toEqual({ kind: 'crease-pattern', format: 'cp' });
   });
 
-  it('classifies images by MIME type, whatever the extension', () => {
+  it('classifies images by MIME type, since a photo can carry any extension', () => {
     expect(classifyDroppedFile(file('a.png', 'image/png'))).toEqual({ kind: 'image' });
     expect(classifyDroppedFile(file('scan', 'image/jpeg'))).toEqual({ kind: 'image' });
+    expect(classifyDroppedFile(file('photo.bin', 'image/webp'))).toEqual({ kind: 'image' });
+  });
+
+  // The reported bug: macOS maps `.ori` to the UTI `com.olympus.raw-image`, so
+  // the browser reports an Oriedita crease pattern as an Olympus raw photo. An
+  // extension this app owns has to outrank whatever the platform says.
+  it('keeps an owned extension when the platform calls it an image', () => {
+    expect(classifyDroppedFile(file('design.ori', 'image/x-olympus-orf'))).toEqual({
+      kind: 'crease-pattern',
+      format: 'ori',
+    });
+    expect(classifyDroppedFile(file('design.fold', 'image/x-olympus-orf'))).toEqual({
+      kind: 'crease-pattern',
+      format: 'fold',
+    });
+    expect(classifyDroppedFile(file('design.osf', 'image/png'))).toEqual({ kind: 'project' });
+    expect(classifyDroppedFile(file('design.tmd5', 'image/png'))).toEqual({ kind: 'tree' });
+  });
+
+  // Nothing decodes camera raw, so calling it an image only defers the failure
+  // to `createImageBitmap`, where it surfaces as a console error and nothing else.
+  it('rejects an image type no browser can decode', () => {
+    expect(classifyDroppedFile(file('DSC_0001.orf', 'image/x-olympus-orf'))).toEqual({
+      kind: 'unsupported',
+    });
   });
 
   it('rejects unknown extensions', () => {
@@ -207,6 +232,20 @@ describe('drag-in-flight predicates', () => {
       isImageOnlyDrag(items([
         { kind: 'file', type: 'image/png' },
         { kind: 'file', type: '' },
+      ]))
+    ).toBe(false);
+  });
+
+  // A drag is the one moment the filename cannot be read, so an OS mislabel has
+  // nothing to correct it. A `.ori` arrives here as `image/x-olympus-orf`; if
+  // that counted as an image the workspace target would stand down for a
+  // viewport that can only fail to decode it, and the drop would reach neither.
+  it('does not call a type no browser decodes an image', () => {
+    expect(isImageOnlyDrag(items([{ kind: 'file', type: 'image/x-olympus-orf' }]))).toBe(false);
+    expect(
+      isImageOnlyDrag(items([
+        { kind: 'file', type: 'image/png' },
+        { kind: 'file', type: 'image/x-olympus-orf' },
       ]))
     ).toBe(false);
   });
