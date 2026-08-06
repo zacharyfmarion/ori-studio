@@ -500,6 +500,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
           quantize: (distance, state) => lengths.quantize(distance, state),
         },
         onLength: (length) => {
+          if (host.showEdgeLengths === false) return;
           if (parentEdge && parentId !== null) {
             applyTreeEdgeLabel(svg, vertexId, parentId, lengths.format(length));
           }
@@ -621,6 +622,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
             classPrefix={classPrefix}
             copy={copy}
             lengths={lengths}
+            showEdgeLengths={host.showEdgeLengths ?? true}
             labelOf={host.labelOf}
             onRendered={onSceneRendered}
             onEdgePointerDown={onEdgePointerDown}

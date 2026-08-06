@@ -65,6 +65,7 @@ function createDeps() {
       // design tab rather than flat fields.
       ...singleBoxPleatDesignTab(),
       deleteOristudioBpTreeNode: vi.fn().mockResolvedValue(true),
+      deleteExploriNode: vi.fn().mockResolvedValue(true),
       oristudioCpDocument: null as OristudioCpDocumentState | null,
       oristudioCpSelection: {
         lines: [1, 2],

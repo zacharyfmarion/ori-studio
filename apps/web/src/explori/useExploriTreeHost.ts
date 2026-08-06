@@ -231,6 +231,11 @@ export function useExploriTreeHost(): TreeEditorHost {
       symmetry,
       layers: { labels },
       setLayer: (_layer, visible) => setLabels(visible),
+      // The length here is read out of the drawing rather than authored, so the
+      // number beside every branch is a readout of what the branch already shows
+      // — and a noisy one, since it is a real number that moves on every drag.
+      // Node names, which are authored, still draw.
+      showEdgeLengths: false,
     }),
     [
       tree,

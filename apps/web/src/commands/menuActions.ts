@@ -1,4 +1,9 @@
-import { selectOristudioBpDocument, selectOristudioBpSelection } from '../store/workspaceStore/designTabs';
+import {
+  selectExploriDesign,
+  selectOristudioBpDocument,
+  selectOristudioBpSelection,
+} from '../store/workspaceStore/designTabs';
+import { deletableExploriNodeId } from '../explori/deletion';
 import type { DesignTab } from '../store/workspaceStore/designTabs';
 import { track } from '../analytics';
 import { getFileService, type FileCommand, type FileService } from '../platform/fileService';
@@ -171,6 +176,7 @@ export interface WorkspaceCommands {
   designTabs: DesignTab[];
   activeDesignId: string;
   deleteOristudioBpTreeNode(id: number): Promise<boolean>;
+  deleteExploriNode(id: number): Promise<boolean>;
   oristudioCpDocument: OristudioCpDocumentState | null;
   oristudioCpSelection: OristudioCpSelection;
   setOristudioCpSelection(selection: OristudioCpSelection): void;
@@ -463,6 +469,14 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           );
           if (nodeId === null) return false;
           return deps.workspace.deleteOristudioBpTreeNode(nodeId);
+        }
+        if (deps.workspace.activeEditingContext === 'explori-tree') {
+          const design = selectExploriDesign(deps.workspace);
+          const nodeId = design
+            ? deletableExploriNodeId(design.document, design.selection)
+            : null;
+          if (nodeId === null) return false;
+          return deps.workspace.deleteExploriNode(nodeId);
         }
         if (
           deps.workspace.activeEditingContext === 'crease-pattern' &&

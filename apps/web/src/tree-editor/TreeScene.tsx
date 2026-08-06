@@ -83,6 +83,8 @@ export interface TreeSceneProps {
   classPrefix: string;
   copy: TreeEditorCopy;
   lengths: TreeLengthRule;
+  /** Whether to draw each edge's length beside it. */
+  showEdgeLengths: boolean;
   labelOf: (vertex: EditableTreeVertex) => string;
   /**
    * Called after every commit of this scene.
@@ -112,6 +114,7 @@ export const TreeScene = memo(function TreeScene({
   classPrefix,
   copy,
   lengths,
+  showEdgeLengths,
   labelOf,
   onRendered,
   onEdgePointerDown,
@@ -247,7 +250,7 @@ export const TreeScene = memo(function TreeScene({
                 [TREE_CHROME_ATTR.stroke]: active ? EDGE_SELECTED_STROKE_PX : EDGE_STROKE_PX,
               }}
             />
-            {layers.labels && edge.isLeafEdge && (
+            {showEdgeLengths && layers.labels && edge.isLeafEdge && (
               <text
                 className={`edge-label ${classPrefix}-edge-label`}
                 x={(p1.x + p2.x) / 2 + chromePx(EDGE_LABEL_DX_PX)}

@@ -172,6 +172,16 @@ export interface TreeEditorHost {
 
   layers: TreeViewLayers;
   setLayer(layer: keyof TreeViewLayers, visible: boolean): void;
+  /**
+   * Whether an edge's length is drawn beside it. Defaults to true.
+   *
+   * A surface whose lengths are *authored* wants the number: it is the thing
+   * being set, and the drawing only reflects it. A surface whose lengths are
+   * read back out of the drawing does not — the number is derived, changes with
+   * every drag, and its long decimal says nothing the geometry has not already
+   * said.
+   */
+  showEdgeLengths?: boolean;
 
   /** Fired when a pointer press lands on this surface. */
   onSurfaceFocused?(): void;
