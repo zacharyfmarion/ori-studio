@@ -1495,7 +1495,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       extensions: [NATIVE_PROJECT_EXTENSION],
     });
     if (!result) return false;
-    const document = selectOristudioBpDocument(get());
+    // `activeId`, captured before any of this: saving goes through a file dialog
+    // the user can leave open, and stamping the saved filename onto whichever
+    // design is in front when it returns would mark a *different* design clean
+    // under a name it was never saved as.
+    const document = selectOristudioBpDocument(get(), activeId);
     // Soft, non-blocking notice when the file embeds a lot of image data.
     const imageBytes = totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation));
     const savedMessage =
@@ -1511,13 +1515,17 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       projectMessage: savedMessage,
       ...(document
         ? {
-            ...patchBoxPleatDesign(get(), {
-              document: {
-                ...document,
-                dirty: false,
-                source: { ...document.source, filename: result.name, path: result.path },
+            ...patchBoxPleatDesign(
+              get(),
+              {
+                document: {
+                  ...document,
+                  dirty: false,
+                  source: { ...document.source, filename: result.name, path: result.path },
+                },
               },
-            }),
+              activeId
+            ),
           }
         : {}),
     });

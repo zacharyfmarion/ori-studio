@@ -369,3 +369,59 @@ describe('replacing the project', () => {
     );
   });
 });
+
+/**
+ * Saving goes through a file dialog, and the user can leave one open.
+ *
+ * The save path captures `activeDesignId` before it serializes, but the write
+ * that follows the dialog — stamping the saved filename and path onto the
+ * box-pleat document and clearing its dirty flag — did not use it. Switching
+ * tabs while the dialog was up marked a *different* design clean under a name it
+ * had never been saved as.
+ */
+describe('saving while the user switches tabs', () => {
+  const bpDoc = (filename: string) =>
+    ({
+      activeSurface: 'tree',
+      dirty: true,
+      source: { filename, path: null, format: 'bps' },
+      snapshot: { tree: { vertices: [] }, packing: { flaps: [] }, summary: { title: '' } },
+    }) as never;
+
+  it('stamps the saved name on the design that was saved', async () => {
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    resetDesignTabIds();
+    const saved = createDesignTab([], { kind: 'box-pleat', title: 'Saved' });
+    const other = createDesignTab([saved], { kind: 'box-pleat', title: 'Other' });
+    useWorkspaceStore.setState({
+      designTabs: [
+        { ...saved, kind: 'box-pleat', boxPleat: createBoxPleatDesignState({ document: bpDoc('Saved.bps') }) },
+        { ...other, kind: 'box-pleat', boxPleat: createBoxPleatDesignState({ document: bpDoc('Other.bps') }) },
+      ],
+      activeDesignId: saved.id,
+      workspaceTitle: 'Studio',
+      engineReady: true,
+      status: 'ready',
+    });
+
+    const fileService = recordingFileService();
+    const realSave = fileService.saveTextFile as unknown as (o: SaveTextFileOptions) => Promise<unknown>;
+    (fileService as { saveTextFile: unknown }).saveTextFile = async (options: SaveTextFileOptions) => {
+      // The click lands while the dialog is up.
+      useWorkspaceStore.setState({ activeDesignId: other.id });
+      return realSave(options);
+    };
+
+    await store().saveProjectAs(fileService);
+
+    const docOf = (id: string) => {
+      const tab = store().designTabs.find((candidate) => candidate.id === id);
+      return tab?.kind === 'box-pleat' ? tab.boxPleat.document : null;
+    };
+    expect(docOf(saved.id)?.source.filename).toBe('Untitled.osf');
+    expect(docOf(saved.id)?.dirty).toBe(false);
+    // The design the user switched to was not saved and must still say so.
+    expect(docOf(other.id)?.source.filename).toBe('Other.bps');
+    expect(docOf(other.id)?.dirty).toBe(true);
+  });
+});
