@@ -351,15 +351,23 @@ export function WorkspaceShell() {
           <ErrorBoundary surface="shell:design-tabs" variant="strip">
             <DesignWorkspaceTabs />
           </ErrorBoundary>
-          <ErrorBoundary surface="shell:dockview" variant="pane">
-            <DockviewReact
-              components={panelComponents}
-              defaultTabComponent={FixedDockTab}
-              onReady={onReady}
-              className="dockview-theme-treemaker workspace-shell__dockview"
-              disableFloatingGroups
-            />
-          </ErrorBoundary>
+          {/*
+            The wrapper is load-bearing: it, not dockview's own element, is the
+            canvas grid's item. DockviewReact renders an unnamed div around the
+            element that takes its `className`, so placing the dock by that class
+            targets one level too deep — see the note in App.css.
+          */}
+          <div className="workspace-shell__dock">
+            <ErrorBoundary surface="shell:dockview" variant="pane">
+              <DockviewReact
+                components={panelComponents}
+                defaultTabComponent={FixedDockTab}
+                onReady={onReady}
+                className="dockview-theme-treemaker workspace-shell__dockview"
+                disableFloatingGroups
+              />
+            </ErrorBoundary>
+          </div>
           <DesignWorkspaceFooter />
           <FileDropOverlay visible={isDragActive} policy={WORKSPACE_DROP_POLICY} />
         </div>
