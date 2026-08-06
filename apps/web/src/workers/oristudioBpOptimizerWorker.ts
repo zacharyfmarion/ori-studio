@@ -4,6 +4,7 @@ import init, {
 } from '../generated/oristudio-bp-wasm/oristudio_bp_wasm';
 import type { OristudioBpOptimizerEvent } from '../engine/oristudioBpTypes';
 import type { WasmErrorEnvelope } from '../engine/types';
+import { wasmNullableNumber } from '../engine/wasmArgs';
 
 let ready: Promise<void> | null = null;
 
@@ -43,7 +44,9 @@ const api = {
     seed: number | null,
     onEvent: (event: OristudioBpOptimizerEvent) => void
   ): Promise<unknown> {
-    return call(() => bp_optimizer_solve_report_with_progress(request, seed, onEvent));
+    return call(() =>
+      bp_optimizer_solve_report_with_progress(request, wasmNullableNumber('seed', seed), onEvent)
+    );
   },
 };
 
