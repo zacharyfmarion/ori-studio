@@ -65,6 +65,32 @@ export default defineConfig({
   },
   server: {
     headers: crossOriginIsolationHeaders,
+    /**
+     * ExplOri search, in dev.
+     *
+     * In production `/api/explori/*` is a Pages Function; the dev server has no
+     * Functions, so this stands in for it. It is not a convenience — the
+     * upstream archive sends no CORS headers and answers `OPTIONS` with 501, so
+     * a browser cannot reach it at all without a same-origin hop. Vite proxies
+     * server-side, which is exactly the hop.
+     *
+     * The two differences from the real proxy are worth knowing while
+     * developing against it: nothing is stripped (so a dev response carries the
+     * ~47% pickle the Function drops), and nothing is rate-limited.
+     */
+    proxy: {
+      '/api/explori/query': {
+        target: 'https://225.designorigami.net',
+        changeOrigin: true,
+        rewrite: () => '/api/query',
+      },
+      '/api/explori/tiling': {
+        target: 'https://225.designorigami.net',
+        changeOrigin: true,
+        rewrite: (path: string) =>
+          `/api/fetch_tiling${path.slice(path.indexOf('?') === -1 ? path.length : path.indexOf('?'))}`,
+      },
+    },
   },
   preview: {
     headers: crossOriginIsolationHeaders,

@@ -27,8 +27,21 @@ import {
 
 /** SVG units per tree unit. Same readable scale the box-pleat tree opens at. */
 const UNIT_SVG = 56;
-const CANVAS_SIZE = 720;
 const WORLD_PADDING = 60;
+/**
+ * Smallest span the world may have, in SVG units.
+ *
+ * A one-node tree has no extent at all, and a two-node one has almost none —
+ * without a floor the camera would zoom to absurdity on the first click.
+ */
+const MIN_WORLD_EXTENT = 6 * UNIT_SVG;
+/**
+ * How much the world must grow before the camera reframes, in SVG units.
+ *
+ * Coarse on purpose: a refit is a jump, and one per drawn branch would be worse
+ * than a drawing that briefly overflows.
+ */
+const FIT_STEP = 3 * UNIT_SVG;
 
 function exploriTreeCopy(t: TFunction): TreeEditorCopy {
   return {
@@ -56,21 +69,41 @@ function exploriTreeCopy(t: TFunction): TreeEditorCopy {
   };
 }
 
-/** World bounds that hold the drawing, with room to draw further out. */
+/**
+ * World bounds that hug the drawing.
+ *
+ * Content bounds rather than a fixed box around the origin: a tree grows away
+ * from its root rather than around it, so a box centred on the root puts the
+ * drawing in one corner and leaves the opposite one permanently empty.
+ */
 function worldRectFor(points: readonly Point[], toSvg: (point: Point) => Point): PlotRect {
-  const half = CANVAS_SIZE / 2;
-  let minX = -half;
-  let minY = -half;
-  let maxX = half;
-  let maxY = half;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
   for (const point of points) {
     const svg = toSvg(point);
-    minX = Math.min(minX, svg.x - WORLD_PADDING);
-    minY = Math.min(minY, svg.y - WORLD_PADDING);
-    maxX = Math.max(maxX, svg.x + WORLD_PADDING);
-    maxY = Math.max(maxY, svg.y + WORLD_PADDING);
+    minX = Math.min(minX, svg.x);
+    minY = Math.min(minY, svg.y);
+    maxX = Math.max(maxX, svg.x);
+    maxY = Math.max(maxY, svg.y);
   }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  if (!Number.isFinite(minX)) {
+    minX = 0;
+    minY = 0;
+    maxX = 0;
+    maxY = 0;
+  }
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  const halfWidth = Math.max((maxX - minX) / 2 + WORLD_PADDING, MIN_WORLD_EXTENT / 2);
+  const halfHeight = Math.max((maxY - minY) / 2 + WORLD_PADDING, MIN_WORLD_EXTENT / 2);
+  return {
+    x: centerX - halfWidth,
+    y: centerY - halfHeight,
+    width: halfWidth * 2,
+    height: halfHeight * 2,
+  };
 }
 
 export function useExploriTreeHost(): TreeEditorHost {
@@ -118,9 +151,10 @@ export function useExploriTreeHost(): TreeEditorHost {
 
   const symmetry = useMemo<TreeSymmetryHost>(() => {
     const svgOf = (point: Point) => frame.toSvg(point);
-    const extent = Math.max(frame.worldRect.height, frame.worldRect.width);
-    const top = svgOf({ x: 0, y: extent / UNIT_SVG });
-    const bottom = svgOf({ x: 0, y: -extent / UNIT_SVG });
+    // Clipped to the world the camera frames, so the line ends where the
+    // drawing does rather than running off into space.
+    const top = { x: svgOf({ x: 0, y: 0 }).x, y: frame.worldRect.y };
+    const bottom = { x: top.x, y: frame.worldRect.y + frame.worldRect.height };
     return {
       enabled: document.symmetry.enabled,
       toggle: () => void toggleSymmetry(),
@@ -155,9 +189,16 @@ export function useExploriTreeHost(): TreeEditorHost {
       copy: exploriTreeCopy(t),
       classPrefix: 'explori-tree',
       surface: 'tree',
-      // Refit only when the design changes identity, never on an edit — a tree
-      // being drawn must not have the camera pulled from under it.
-      fitKey: `explori:${document.nodes.length === 1 ? 'empty' : 'drawn'}`,
+      // Refit when the drawing outgrows the frame, not on every edit.
+      //
+      // Box-pleat can key this on the document alone because its world is a
+      // fixed sheet; a search tree has no sheet and grows without bound, so a
+      // camera that fit once would let the drawing wander off the pane. Bucketing
+      // the world's extent refits exactly when it no longer fits, and leaves the
+      // camera alone for every edit that happens within the frame.
+      fitKey: `explori:${Math.round(frame.worldRect.width / FIT_STEP)}x${Math.round(
+        frame.worldRect.height / FIT_STEP
+      )}`,
       selection,
       select: (target) => setSelection(target),
       // Clicking a selected node again clears it, which is what disarms adding.
@@ -195,7 +236,6 @@ export function useExploriTreeHost(): TreeEditorHost {
       tree,
       frame,
       t,
-      document.nodes.length,
       selection,
       setSelection,
       addLeaf,

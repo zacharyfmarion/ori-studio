@@ -445,6 +445,24 @@ export function selectBoxPleatDesignOrEmpty(
 }
 
 /**
+ * Claim a tab for ExplOri, with a fresh empty state.
+ *
+ * The document itself comes from the registry, which mints it through the kind's
+ * codec; this only says what the tab is authoring.
+ */
+export function installExploriDesign(
+  state: DesignTabsSlice,
+  design: Partial<ExploriDesignState> = {},
+  designId: string = state.activeDesignId
+): Pick<DesignTabsSlice, 'designTabs'> {
+  return mapDesignTab(state, designId, (tab) => ({
+    ...identityOf(tab),
+    kind: 'explori',
+    explori: createExploriDesignState(design),
+  }));
+}
+
+/**
  * The active design's ExplOri state, or `null` when the active design is of
  * another kind. The honest accessor; use it for every write.
  */

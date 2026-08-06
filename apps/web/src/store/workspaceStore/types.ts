@@ -1149,6 +1149,7 @@ export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;
  * can hydrate a parked document.
  */
 export interface ExploriSlice {
+  createExploriDesign: () => Promise<boolean>;
   ensureExploriDocument: () => Promise<boolean>;
   setExploriTreeSelection: (selection: TreeSelectionTarget | null) => void;
   addExploriLeaf: (parentId: number, loc: Point, axisTolerance: number) => Promise<boolean>;

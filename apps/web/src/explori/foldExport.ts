@@ -71,7 +71,13 @@ export interface ExploriFoldOptions {
   title?: string;
 }
 
-/** The Edit canvas's paper, in its own units. */
+/**
+ * The Edit canvas's paper, in its own units.
+ *
+ * Centred on the origin, not cornered at it: an empty Edit crease pattern's
+ * border runs from (-200, 200) to (200, 200). A pattern exported into [0, 400]²
+ * lands beside the paper rather than on it.
+ */
 export const EDIT_PAPER_SIZE = 400;
 
 export function exploriCpToFoldObject(
@@ -79,7 +85,10 @@ export function exploriCpToFoldObject(
   options: ExploriFoldOptions = {}
 ): Record<string, unknown> {
   const scale = options.paperSize ?? EDIT_PAPER_SIZE;
-  const vertices = exploriCpVertices(cp).map(([x, y]) => [x * scale, y * scale]);
+  // ExplOri patterns arrive in the unit square; the Edit paper is a square of
+  // `scale` centred on the origin. Half a paper is the whole transform.
+  const half = scale / 2;
+  const vertices = exploriCpVertices(cp).map(([x, y]) => [x * scale - half, y * scale - half]);
   const edgesVertices: [number, number][] = [];
   const edgesAssignment: FoldAssignment[] = [];
   for (const [from, to, lineType] of cp.edges) {

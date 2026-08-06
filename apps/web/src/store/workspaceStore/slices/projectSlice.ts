@@ -3247,6 +3247,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const wasDirty = get().dirty;
       if (target === 'box-pleat') {
         await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });
+      } else if (target === 'explori') {
+        await get().createExploriDesign();
       } else {
         await get().createNewProject({ preserveEditCanvas: true });
       }

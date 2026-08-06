@@ -73,11 +73,16 @@ describe('exact coordinates', () => {
 });
 
 describe('FOLD export', () => {
-  it('scales the unit square onto the Edit canvas paper', () => {
+  it('lands the unit square on the Edit paper, which is centred on the origin', () => {
+    // Not [0, 400]²: an empty Edit crease pattern's border runs from (-200, 200)
+    // to (200, 200), so a cornered export lands *beside* the paper.
     const fold = exploriCpToFoldObject(cp) as { vertices_coords: number[][] };
     const xs = fold.vertices_coords.map(([x]) => x);
-    expect(Math.min(...xs)).toBeCloseTo(0, 9);
-    expect(Math.max(...xs)).toBeCloseTo(EDIT_PAPER_SIZE, 9);
+    const ys = fold.vertices_coords.map(([, y]) => y);
+    expect(Math.min(...xs)).toBeCloseTo(-EDIT_PAPER_SIZE / 2, 9);
+    expect(Math.max(...xs)).toBeCloseTo(EDIT_PAPER_SIZE / 2, 9);
+    expect(Math.min(...ys)).toBeCloseTo(-EDIT_PAPER_SIZE / 2, 9);
+    expect(Math.max(...ys)).toBeCloseTo(EDIT_PAPER_SIZE / 2, 9);
   });
 
   it('keeps every edge, with an assignment each', () => {

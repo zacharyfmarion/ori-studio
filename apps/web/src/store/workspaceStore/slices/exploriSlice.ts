@@ -22,7 +22,7 @@ import {
   removeExploriPair,
 } from '../../../explori/symmetry';
 import type { TreeSelectionTarget, TreeVertexUpdate } from '../../../tree-editor/model';
-import { patchExploriDesign, selectExploriDesign } from '../designTabs';
+import { installExploriDesign, patchExploriDesign, selectExploriDesign } from '../designTabs';
 import type { ExploriSendSource } from '../../../analytics/events';
 import type { ExploriSlice, WorkspaceSliceCreator } from '../types';
 
@@ -41,6 +41,28 @@ import type { ExploriSlice, WorkspaceSliceCreator } from '../types';
 
 const HISTORY_LIMIT = 100;
 
+/**
+ * One in-flight edit per design, queued.
+ *
+ * Every edit reads the document, transforms it, and writes it back — with an
+ * `await` on the handle in between. Two edits started inside that window both
+ * read the *same* base document and the second's write silently discards the
+ * first's, which in the tree editor reads as a click that did nothing. Clicks
+ * are exactly the gesture people repeat quickly, so this is not a rare race.
+ *
+ * Keyed by design, so two designs never wait on each other.
+ */
+const editQueues = new Map<string, Promise<unknown>>();
+
+function queued<T>(designId: string, work: () => Promise<T>): Promise<T> {
+  const previous = editQueues.get(designId) ?? Promise.resolve();
+  const next = previous.then(work, work);
+  // Swallowed on the *queue* only: the caller still sees the rejection, but one
+  // failed edit must not poison every edit behind it.
+  editQueues.set(designId, next.then(undefined, () => undefined));
+  return next;
+}
+
 export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get) => {
   /** Read the design's live document, or null when the design is of another kind. */
   const documentFor = async (designId: string): Promise<{ handle: number; document: ExploriDocument } | null> => {
@@ -58,7 +80,12 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
    * `designId` is taken, not defaulted. Every caller reaches this after an
    * `await` on the handle, which is exactly the window a tab switch lives in.
    */
-  const edit = async (
+  const edit = (
+    designId: string,
+    change: (document: ExploriDocument) => ExploriDocument | null
+  ): Promise<boolean> => queued(designId, () => applyEdit(designId, change));
+
+  const applyEdit = async (
     designId: string,
     change: (document: ExploriDocument) => ExploriDocument | null
   ): Promise<boolean> => {
@@ -82,7 +109,10 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
   };
 
   /** Move through the undo stacks in one direction. */
-  const travel = async (designId: string, direction: 'undo' | 'redo'): Promise<boolean> => {
+  const travel = (designId: string, direction: 'undo' | 'redo'): Promise<boolean> =>
+    queued(designId, () => applyTravel(designId, direction));
+
+  const applyTravel = async (designId: string, direction: 'undo' | 'redo'): Promise<boolean> => {
     const held = await documentFor(designId);
     if (!held) return false;
     const design = selectExploriDesign(get(), designId);
@@ -163,6 +193,19 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
       if (!design || design.document === held.document) return true;
       set(patchExploriDesign(get(), designId, { document: held.document }));
       return true;
+    },
+
+    /**
+     * Claim the active tab for ExplOri and mint its document.
+     *
+     * The tab is claimed *before* the handle is acquired: acquiring goes through
+     * the kind's codec, which the registry only reaches once the design says it
+     * is ExplOri.
+     */
+    createExploriDesign: async () => {
+      const designId = get().activeDesignId;
+      set(installExploriDesign(get(), {}, designId));
+      return get().ensureExploriDocument();
     },
 
     setExploriTreeSelection: (selection: TreeSelectionTarget | null) => {
