@@ -33,13 +33,9 @@ vi.mock('../../engines/designHandles', () => ({
   subscribeToDesignHandles: vi.fn(() => () => undefined),
 }));
 
-const {
-  createBlankTree,
-  createStarterTree,
-  initializeBlankTree,
-  loadTreeFromText,
-  registerActiveDesignSource,
-} = await import('./engineRuntime');
+const { createBlankTree, createStarterTree, initializeBlankTree, loadTreeFromText } =
+  await import('./engineRuntime');
+const { registerActiveDesignSource } = await import('./activeDesignSource');
 
 /** Enough of the worker API for the creation paths, with a settable delay. */
 function fakeEngine() {

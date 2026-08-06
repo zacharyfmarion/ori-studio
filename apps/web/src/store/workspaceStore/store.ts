@@ -4,7 +4,7 @@ import {
   selectOristudioBpDocument,
   selectProject,
 } from './designTabs';
-import { registerActiveDesignSource } from './engineRuntime';
+import { registerActiveDesignSource } from './activeDesignSource';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createCreasePatternSlice } from './slices/creasePatternSlice';

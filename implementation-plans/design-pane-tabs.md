@@ -1050,11 +1050,38 @@ BP runtime singletons) foldable into 7.
   keys and `.osf` document ids, so a late async write addressed to the closed
   design would have landed on the tab that replaced it.
 
-- [ ] Phase 2d (part 2) — addressed writes for the ~100 async design actions, and
-      the same treatment for `oristudioBpRuntime`'s `activeHandle`/`currentSource`
-      singletons (see the audit note under "Remaining risks")
+- [ ] Phase 2d (part 2) — addressed writes for the ~100 async design actions
+      (engine **handle** ownership is done for both kinds; what remains is the
+      store writes those actions make on completion)
 
-  **TreeMaker handle ownership landed** (the rest of 2d part 2 is still open).
+  **Box-pleat handle ownership landed.** `oristudioBpRuntime` held `activeHandle`,
+  `loadedHandles`, and `currentSource` as module singletons. Correct while one
+  box-pleat design could be open; data loss the moment two could — creating the
+  second called `replaceHandles`, which **freed every handle not in the new set**,
+  so the first design's document was destroyed and every later mutation went to
+  whichever document loaded last. Its filename went the same way: one
+  `currentSource` for two designs meant opening the second renamed the first, and
+  an undo in either restored the other's filename.
+
+  Handles now come from the document registry, addressed by design id and read
+  before the first await; `currentSource` became a `Map` keyed the same way. The
+  active-design source moved to `activeDesignSource.ts` so both runtimes read one
+  answer to "which design is this call for".
+
+  Deleted with it: `activateOristudioBpProjectHandle`,
+  `cloneOristudioBpProjectHandle`, `releaseOristudioBpProjectHandle`,
+  `loadOristudioBpWorkspaceFromBytes`, `exportOristudioBpWorkspaceAsBpz`,
+  `replaceHandles`, and their helpers — the `.bpz` multi-project API, which had
+  **no callers** (its store field, `oristudioBpWorkspace`, was already removed for
+  the same reason) and existed only to hand-manage the handle set the registry now
+  owns. Multi-project `.bpz` loading is a better fit for tabs anyway: one tab per
+  project, which was not expressible before.
+
+  10 tests, each verified to fail against the old behaviour. Browser-verified:
+  two box-pleat designs open at once, a flap renamed in one, the other untouched
+  across repeated switches.
+
+  **TreeMaker handle ownership landed** earlier in this branch.
   `createBlankTree` / `createStarterTree` / `loadTreeFromText` put their handle in
   `engineRuntime`'s module `let`, so a design tab's tree never reached the
   document registry. Nothing caught it: types were fine, 2532 tests passed, and

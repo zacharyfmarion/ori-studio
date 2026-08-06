@@ -1,6 +1,7 @@
 import type { Remote } from 'comlink';
 import { connectEngine, isEngineConnected } from '../../engines/engineHost';
 import { acquireDesignHandle, adoptDesignHandle } from '../../engines/designHandles';
+import { readActiveDesign, type ActiveDesignRef } from './activeDesignSource';
 import {
   activeDesignTab,
   installTreemakerDesign,
@@ -32,28 +33,6 @@ export type EngineClient = Remote<TreemakerWorkerApi>;
 // trees rather than one.
 let handle: number | null = null;
 let blankPromise: Promise<TreeSnapshot> | null = null;
-
-/**
- * Which design the store is currently showing.
- *
- * Registered by the store at init, like `registerDesignVariantSource`, because
- * this module sits *below* the store and importing it would close a cycle.
- *
- * `kind` is null while the tab is still on the chooser, and that tab is still a
- * real design with a real id — filtering it out here is what made a design
- * created *from* the chooser (the normal path) never reach the registry.
- * Consumers that need a kind check for one; `claimTree` needs only the id.
- */
-export interface ActiveDesignRef {
-  id: string;
-  kind: string | null;
-}
-
-let readActiveDesign: () => ActiveDesignRef | null = () => null;
-
-export function registerActiveDesignSource(source: () => ActiveDesignRef | null): void {
-  readActiveDesign = source;
-}
 
 export function engineError(error: unknown): WasmErrorEnvelope {
   if (
