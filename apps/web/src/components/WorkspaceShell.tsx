@@ -1,9 +1,10 @@
+import { selectDesignMethod, selectOristudioBpDocument } from '../store/workspaceStore/designTabs';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { DockviewDefaultTab, DockviewReact } from 'dockview';
-import type { DockviewReadyEvent, IDockviewPanelHeaderProps } from 'dockview';
+import { DockviewReact } from 'dockview';
+import type { DockviewReadyEvent } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import {
   Box,
@@ -19,6 +20,8 @@ import {
 } from 'lucide-react';
 import { MenuBar } from './MenuBar';
 import { DesignAttributionFooter } from './DesignAttributionFooter';
+import { DesignTabStrip } from './panels/DesignTabStrip';
+import { FixedDockTab } from './panels/FixedDockTab';
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { FileDropOverlay } from './FileDropOverlay';
 import { panelComponents } from './panels/PanelComponents';
@@ -33,7 +36,6 @@ import { getRuntimeSurface } from '../platform/runtime';
 import { applyDefaultLayout, clearPersistedLayout, useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { designLayoutVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import { pathForWorkspace } from '../routing/landing';
 import { parseWorkspacePath } from '../routing/paths';
@@ -110,7 +112,7 @@ function Toolbar() {
   const activeContext = useWorkspaceStore((state) => state.activeEditingContext);
   const sendBpToEdit = useWorkspaceStore((state) => state.sendOristudioBpToEdit);
   const sendTreeToEdit = useWorkspaceStore((state) => state.sendTreeCreasePatternToEdit);
-  const hasBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument !== null);
+  const hasBpDocument = useWorkspaceStore((state) => selectOristudioBpDocument(state) !== null);
   const bpBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
   // In a BP design the top action sends the design's crease pattern to the Edit
   // canvas (Import(Add) merge), in place of TreeMaker's Optimize/Build.
@@ -226,8 +228,19 @@ function Toolbar() {
   );
 }
 
-function FixedDockTab(props: IDockviewPanelHeaderProps) {
-  return <DockviewDefaultTab {...props} hideClose />;
+/**
+ * The Design workspace's tab strip, spanning the full canvas above every dock
+ * panel.
+ *
+ * It belongs here rather than inside `DesignPanel` because a design is not one
+ * pane: the box-pleat layout is two design surfaces side by side, and a strip
+ * living inside one of them would appear to govern only that one. The tabs own
+ * the whole workspace, so they sit above the whole workspace.
+ */
+function DesignWorkspaceTabs() {
+  const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
+  if (activeWorkspace !== 'design') return null;
+  return <DesignTabStrip />;
 }
 
 /**
@@ -243,11 +256,10 @@ function FixedDockTab(props: IDockviewPanelHeaderProps) {
  */
 function DesignWorkspaceFooter() {
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
-  const designMethod = useWorkspaceStore((state) => state.designMethod);
+  const designMethod = useWorkspaceStore(selectDesignMethod);
 
   if (activeWorkspace !== 'design') return null;
-  const variant = designLayoutVariant(designMethod);
-  if (variant !== 'box-pleat') return null;
+  if (designMethod !== 'box-pleat') return null;
   return <DesignAttributionFooter method="bp" />;
 }
 
@@ -283,13 +295,10 @@ export function WorkspaceShell() {
       const { api } = event;
       setDockviewApi(api);
 
-      // Build for the workspace the URL asks for, not the store default. Set the
-      // active workspace and (for Design) the variant first so the layout is
-      // built once, correctly, with no second rebuild churning the WebGL canvas.
-      const { workspace, variant } = targetRef.current;
-      if (workspace === 'design' && variant) {
-        useWorkspaceStore.getState().applyDesignRoute(variant);
-      }
+      // Build for the workspace the URL asks for, not the store default, so the
+      // layout is built once, correctly, with no second rebuild churning the
+      // WebGL canvas.
+      const { workspace } = targetRef.current;
       useLayoutStore.setState({ activeWorkspace: workspace });
 
       let loaded = false;
@@ -339,15 +348,26 @@ export function WorkspaceShell() {
           <WorkspaceRail />
         </ErrorBoundary>
         <div className="workspace-shell__canvas file-drop-region" {...dropTargetProps}>
-          <ErrorBoundary surface="shell:dockview" variant="pane">
-            <DockviewReact
-              components={panelComponents}
-              defaultTabComponent={FixedDockTab}
-              onReady={onReady}
-              className="dockview-theme-treemaker workspace-shell__dockview"
-              disableFloatingGroups
-            />
+          <ErrorBoundary surface="shell:design-tabs" variant="strip">
+            <DesignWorkspaceTabs />
           </ErrorBoundary>
+          {/*
+            The wrapper is load-bearing: it, not dockview's own element, is the
+            canvas grid's item. DockviewReact renders an unnamed div around the
+            element that takes its `className`, so placing the dock by that class
+            targets one level too deep — see the note in App.css.
+          */}
+          <div className="workspace-shell__dock">
+            <ErrorBoundary surface="shell:dockview" variant="pane">
+              <DockviewReact
+                components={panelComponents}
+                defaultTabComponent={FixedDockTab}
+                onReady={onReady}
+                className="dockview-theme-treemaker workspace-shell__dockview"
+                disableFloatingGroups
+              />
+            </ErrorBoundary>
+          </div>
           <DesignWorkspaceFooter />
           <FileDropOverlay visible={isDragActive} policy={WORKSPACE_DROP_POLICY} />
         </div>

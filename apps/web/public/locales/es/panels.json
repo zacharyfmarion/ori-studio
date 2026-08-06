@@ -366,6 +366,7 @@
         "description": "Esboce un árbol y deje que el empaquetado de círculos/ríos optimice la base, al estilo de TreeMaker.",
         "title": "Empaquetado de círculos"
       },
+      "creating": "Preparando el editor…",
       "groupLabel": "Método de diseño",
       "subtitle": "Elija cómo desea crear este modelo.",
       "title": "Iniciar un nuevo diseño"
@@ -373,6 +374,14 @@
     "newTree": "Nuevo árbol",
     "noEditableTree": "Este documento no tiene un árbol editable.",
     "open": "Abrir",
+    "paneTitle": {
+      "bpPacking": "Editor BP",
+      "bpTree": "Editor de árbol",
+      "conditions": "Condiciones",
+      "diagnostics": "Diagnósticos",
+      "inspector": "Inspector",
+      "tree": "Diseño"
+    },
     "preparingBoxPleatEditor": "Preparando el editor de plegado en caja…",
     "preparingTreeEditor": "Preparando el editor de árbol…",
     "preset": "Predefinido",
@@ -388,6 +397,15 @@
     "symmetryStatusOff": "Desactivada",
     "symmetryToolbar": "Sim",
     "viewportControls": "Controles de la vista de diseño"
+  },
+  "designTabs": {
+    "add": "Nuevo diseño",
+    "close": "Cerrar el diseño",
+    "duplicate": "Duplicar",
+    "label": "Diseños abiertos",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha",
+    "rename": "Cambiar el nombre"
   },
   "diagnostics": {
     "allConditionsFeasible": "Todas las condiciones son viables",

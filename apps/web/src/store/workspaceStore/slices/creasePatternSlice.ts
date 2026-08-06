@@ -1,3 +1,4 @@
+import { patchTreemakerDesign, selectDesignViewportFitRequestId, selectProject } from '../designTabs';
 import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
@@ -72,9 +73,10 @@ import {
   engineError,
   ensureTreeHandle,
   getEngine,
-  projectStateFromSnapshot,
+  syncTreemakerProject,
   type EngineClient,
 } from '../engineRuntime';
+import { withDesignHandle } from '../../../engines/designHandles';
 import { fetchCpShareWithRetry } from '../../../cp-workspace/share/cpShareService';
 
 /**
@@ -279,7 +281,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   async function requireActiveTree() {
     const result = await ensureTreeHandle();
     if (result.initializedSnapshot) {
-      set(projectStateFromSnapshot(result.initializedSnapshot, get().project.title));
+      set(syncTreemakerProject(get(), result.initializedSnapshot, selectProject(get()).title));
     }
     return result;
   }
@@ -296,7 +298,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     const state = get();
     if (state.oristudioCpDocument) return true;
     if (state.importedCreasePattern) return false;
-    return state.project.creases.length > 0 || state.project.facets.length > 0;
+    return selectProject(state).creases.length > 0 || selectProject(state).facets.length > 0;
   }
 
   async function confirmReplaceCustomizedGeneratedCp(): Promise<boolean> {
@@ -863,27 +865,39 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       set({ error: { code: 'invalid_operation', message: capability.reason } });
       return;
     }
+    // Addressed write; see `mapDesignTab`. An optimize is the longest engine call
+    // in the app, so it is the one most likely to outlive a tab switch.
+    const designId = get().activeDesignId;
     set({ status: 'optimizing', error: null });
     const checkpoint = await get().beginHistoryCheckpoint();
     // 'optimize.scale' -> 'scale'. Also the analytics `kind`.
     const kind = capabilityId.replace('optimize.', '');
     try {
-      const { api, treeHandle } = await requireActiveTree();
-      const report = await optimize(api, treeHandle);
-      const snapshot = await api.snapshot(treeHandle);
+      const { api } = await requireActiveTree();
+      // **Pinned** for the whole run. Switching tabs parks the outgoing design,
+      // and parking serializes and *frees* its handle — pulling it out from under
+      // the optimizer mid-call. The registry refuses to park or evict a pinned
+      // document, which is what this API was built for; nothing had called it.
+      const result = await withDesignHandle(designId, 'treemaker', async (treeHandle) => {
+        const report = await optimize(api, treeHandle);
+        return { report, snapshot: await api.snapshot(treeHandle) };
+      });
+      if (!result) return;
+      const { report, snapshot } = result;
       set({
-        project: projectFromSnapshot(snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+        project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
+        lastOptimization: report,
+        viewportFitRequestId: options.fitPaperView
+          ? selectDesignViewportFitRequestId(get(), designId) + 1
+          : selectDesignViewportFitRequestId(get(), designId)
+      }, designId),
         status: report.is_feasible ? 'optimized' : 'needs_optimization',
         error: null,
-        lastOptimization: report,
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),
         oristudioCpLineage: markGeneratedCpLineageStale(get().oristudioCpLineage),
         dirty: true,
-        projectMessage: label,
-        designViewportFitRequestId: options.fitPaperView
-          ? get().designViewportFitRequestId + 1
-          : get().designViewportFitRequestId,
-      });
+        projectMessage: label});
       get().commitHistoryCheckpoint(checkpoint, label);
       track('optimizer run', { kind, succeeded: true, feasible: report.is_feasible });
     } catch (error) {
@@ -1006,18 +1020,21 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             document = await createBlankOristudioCpDocument();
           }
           const priorState = get();
-          // A bare, auto-seeded CP establishes no design. If nothing has been
-          // authored yet (no tree, no BP project), keep the Design workspace on
-          // its method chooser — matching `createNewCreasePattern` — instead of
-          // deep-linking to a TreeMaker layout for a design that doesn't exist.
-          const noDesignYet =
-            priorState.project.edges.length === 0 && priorState.oristudioBpDocument === null;
+          // Deliberately does **not** touch the design tabs. This used to clear
+          // the active design when it had no edges and no BP document — a test
+          // for "nothing authored yet" that a freshly created Circle-packed
+          // design also passes, because a blank tree *is* zero edges. Visiting
+          // Edit therefore threw away the design the user had just made. And
+          // with tabs it asked the wrong question anyway: whether a design exists
+          // is a fact about the tab set, not about the active tab's edge count.
+          //
+          // The case it was written for — a bare auto-seeded CP on a workspace
+          // with no designs at all — needs no clearing: every tab is already on
+          // the chooser, so there is nothing to clear.
+          //
           // Same complete editor state File › New establishes, so interactive
           // edits (undo/redo, images, tools) behave identically on this canvas.
-          set({
-            ...freshEditableCpState(document, priorState),
-            ...(noDesignYet ? { designMethod: 'none' as const } : {}),
-          });
+          set(freshEditableCpState(document, priorState));
         } catch (error) {
           set({ oristudioCpError: engineError(error).message });
         } finally {
@@ -1034,6 +1051,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
 
     buildCreasePattern: async () => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       const capability = selectWorkspaceCapabilities(get())['cp.build'];
       if (!capability.enabled) {
         set({
@@ -1052,12 +1073,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       try {
         const { api, treeHandle } = await requireActiveTree();
         const snapshot = await api.buildCreasePattern(treeHandle);
-        const project = projectFromSnapshot(snapshot, get().project.title);
+        const project = projectFromSnapshot(snapshot, selectProject(get(), designId).title);
         const hasDrawableCreasePattern = project.creases.length > 0 || project.facets.length > 0;
 
         if (!hasDrawableCreasePattern) {
           set({
-            project,
+            ...patchTreemakerDesign(get(), { project }, designId),
             status:
               project.edges.length === 0
                 ? 'ready'
@@ -1101,7 +1122,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           title: `${project.title || 'Generated'} CP`,
         });
         set({
-          project,
+          ...patchTreemakerDesign(get(), { project }, designId),
           oristudioCpDocument: editableDocument,
           oristudioCpLineage: generatedCpLineage({
             sourceTreeDigest: stableTextDigest(treeText),
@@ -1170,7 +1191,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           foldJson,
           'fold',
           'Sent design to Edit',
-          `${get().project.title || 'design'}.fold`
+          `${selectProject(get()).title || 'design'}.fold`
         );
         set({ status: ok ? 'crease_pattern_ready' : previousStatus });
         if (ok) {

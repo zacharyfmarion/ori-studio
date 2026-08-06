@@ -30,6 +30,11 @@
     "useBasinHopping": "Variationen des aktuellen Layouts ausprobieren",
     "useDimension": "Breiten und Höhen der Zipfel beibehalten"
   },
+  "closeDesign": {
+    "confirm": "Design schließen",
+    "message": "Es wird aus dem Projekt entfernt, und das Schließen lässt sich nicht rückgängig machen. Zum Behalten abbrechen und das Projekt zuerst speichern.",
+    "title": "„{{name}}“ schließen?"
+  },
   "closeGuard": {
     "discard": "Verwerfen",
     "message": "Ihr aktuelles Projekt enthält nicht gespeicherte Änderungen. Ori Studio schließen und verwerfen?",

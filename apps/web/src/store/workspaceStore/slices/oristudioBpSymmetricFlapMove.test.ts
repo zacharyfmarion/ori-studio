@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { selectOristudioBpHistoryPast, singleBoxPleatDesignTab } from '../designTabs';
 import type {
   OristudioBpDocumentState,
   OristudioBpFlap,
@@ -97,13 +98,15 @@ function setUp(
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      oristudioBpDocument: bpDocument(FLAPS, layout),
-      oristudioBpSymmetry: {
-        ...TREE_AXIS,
-        enabled: symmetry.enabled,
-        fold: symmetry.fold ?? 'book',
-        pairs: symmetry.pairs ?? [],
-      },
+      ...singleBoxPleatDesignTab({
+        document: bpDocument(FLAPS, layout),
+        symmetry: {
+          ...TREE_AXIS,
+          enabled: symmetry.enabled,
+          fold: symmetry.fold ?? 'book',
+          pairs: symmetry.pairs ?? [],
+        },
+      }),
     },
     true
   );
@@ -210,7 +213,7 @@ describe('moveOristudioBpLayoutFlapWithSymmetry', () => {
   it('records one undo entry for the pair, not two', async () => {
     setUp({ enabled: true });
     await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(1, { x: 3, y: 9 });
-    expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toHaveLength(1);
+    expect(selectOristudioBpHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
   });
 
   it('labels the mirrored move distinctly, so undo reads correctly', async () => {
@@ -249,8 +252,10 @@ describe('moveOristudioBpLayoutFlapsWithSymmetry', () => {
     useWorkspaceStore.setState(
       {
         ...useWorkspaceStore.getInitialState(),
-        oristudioBpDocument: bpDocument([flap(id, anchorX, 4)]),
-        oristudioBpSymmetry: { ...TREE_AXIS, enabled: true, fold: 'book', pairs: [] },
+        ...singleBoxPleatDesignTab({
+          document: bpDocument([flap(id, anchorX, 4)]),
+          symmetry: { ...TREE_AXIS, enabled: true, fold: 'book', pairs: [] },
+        }),
       },
       true
     );

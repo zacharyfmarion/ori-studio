@@ -1,3 +1,4 @@
+import { selectOristudioBpSymmetry } from '../store/workspaceStore/designTabs';
 import { useCallback, useMemo } from 'react';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import {
@@ -80,7 +81,7 @@ export function useBpTreeSymmetry(
   tree: OristudioBpTreeView,
   paperRect: ReturnType<typeof bpTreePaperRect>
 ): BpTreeSymmetryView {
-  const symmetry = useWorkspaceStore((state) => state.oristudioBpSymmetry);
+  const symmetry = useWorkspaceStore((state) => selectOristudioBpSymmetry(state));
   const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
   const unpairOristudioBpTreeSymmetry = useWorkspaceStore(
     (state) => state.unpairOristudioBpTreeSymmetry

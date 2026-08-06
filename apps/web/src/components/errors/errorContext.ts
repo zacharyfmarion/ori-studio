@@ -1,3 +1,4 @@
+import { selectProject } from '../../store/workspaceStore/designTabs';
 import {
   describeCpDocument,
   describeTreeDocument,
@@ -57,7 +58,7 @@ function readDocument(): string {
   // nullness, is what distinguishes "no document" from "an empty tree the user
   // is working on". Reporting the latter as a tree would be a small lie in the
   // one artifact whose whole job is to be accurate.
-  const project = state.project;
+  const project = selectProject(state);
   if (project && (project.nodes.length > 0 || project.edges.length > 0)) {
     const description = describeTreeDocument({
       nodes: project.nodes.length,

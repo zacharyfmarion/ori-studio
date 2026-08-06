@@ -86,13 +86,18 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `analytics preference changed` | `enabled` | The privacy toggle changes |
 | `command invoked` | `command_id`, `command_group` | A menu / keyboard / palette action (recognized ids only; data suffixes stripped) |
 | `cp tool used` | `operation`, `group` | A CP editor operation executes |
-| `workspace viewed` | `workspace`, `variant` | The active workspace (or Design variant) changes |
+| `workspace viewed` | `workspace` | The active workspace changes. Design carries no `variant`: it holds tabs, so it has no single method to name |
 | `crease pattern built` | `node_count_bucket`, `had_conditions` | A tree is compiled to a CP |
 | `optimizer run` | `kind`, `succeeded`, `feasible` | A TreeMaker optimizer runs |
 | `project opened` | `source` (`file`/`example`/`new`) | A project is opened/created |
 | `project saved` | `format` (`osf`) | A project is saved |
 | `file exported` | `format` | An export writes a file |
 | `design method chosen` | `method` (`treemaker`/`box-pleat`) | The NUX design chooser |
+| `design tab opened` | `source` (`strip`/`duplicate`/`file`/`replace-last`), `open_count_bucket` | A design tab is created |
+| `design tab closed` | `kind`, `touched`, `open_count_bucket` | A design tab is closed |
+| `design tab renamed` | — | A design tab is renamed. **No properties**: the new name is user-authored text |
+| `design tab reordered` | `open_count_bucket` | A design tab is dragged or moved to a new position |
+| `design tab activated` | `open_count_bucket` | The user switches to another design tab |
 | `cp detect started` | — | Image→CP detection begins |
 | `cp detect completed` | `succeeded` | Detection finishes |
 | `cp detect imported` | — | A detected CP is imported |

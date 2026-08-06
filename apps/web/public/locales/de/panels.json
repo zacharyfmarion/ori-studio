@@ -356,6 +356,7 @@
         "description": "Skizzieren Sie einen Baum und lassen Sie die Kreis-/Fluss-Packung die Basis im TreeMaker-Stil optimieren.",
         "title": "Kreispackung"
       },
+      "creating": "Editor wird vorbereitet…",
       "groupLabel": "Designmethode",
       "subtitle": "Wählen Sie, wie Sie dieses Modell erstellen möchten.",
       "title": "Ein neues Design beginnen"
@@ -363,6 +364,14 @@
     "newTree": "Neuer Baum",
     "noEditableTree": "Dieses Dokument hat keinen bearbeitbaren Baum.",
     "open": "Öffnen",
+    "paneTitle": {
+      "bpPacking": "BP-Editor",
+      "bpTree": "Baum-Editor",
+      "conditions": "Bedingungen",
+      "diagnostics": "Diagnose",
+      "inspector": "Inspektor",
+      "tree": "Design"
+    },
     "preparingBoxPleatEditor": "Box-Pleating-Editor wird vorbereitet…",
     "preparingTreeEditor": "Baum-Editor wird vorbereitet…",
     "preset": "Voreinstellung",
@@ -378,6 +387,15 @@
     "symmetryStatusOff": "Aus",
     "symmetryToolbar": "Sym",
     "viewportControls": "Design-Ansichtssteuerung"
+  },
+  "designTabs": {
+    "add": "Neues Design",
+    "close": "Design schließen",
+    "duplicate": "Duplizieren",
+    "label": "Geöffnete Designs",
+    "moveLeft": "Nach links verschieben",
+    "moveRight": "Nach rechts verschieben",
+    "rename": "Umbenennen"
   },
   "diagnostics": {
     "allConditionsFeasible": "Alle Bedingungen erfüllbar",

@@ -30,6 +30,11 @@
     "useBasinHopping": "尝试当前布局的变化",
     "useDimension": "保持角片的宽度和高度"
   },
+  "closeDesign": {
+    "confirm": "关闭设计",
+    "message": "它将从项目中移除，且关闭操作无法撤销。若要保留，请取消并先保存项目。",
+    "title": "关闭“{{name}}”？"
+  },
   "closeGuard": {
     "discard": "放弃",
     "message": "您当前的项目有未保存的更改。关闭 Ori Studio 并放弃这些更改吗？",

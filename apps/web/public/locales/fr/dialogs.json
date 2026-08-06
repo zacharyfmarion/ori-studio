@@ -30,6 +30,11 @@
     "useBasinHopping": "Essayer des variantes de la disposition actuelle",
     "useDimension": "Conserver les largeurs et hauteurs des rabats"
   },
+  "closeDesign": {
+    "confirm": "Fermer la conception",
+    "message": "Elle est retirée du projet, et la fermeture est irréversible. Pour la conserver, annulez et enregistrez d’abord le projet.",
+    "title": "Fermer « {{name}} » ?"
+  },
   "closeGuard": {
     "discard": "Abandonner",
     "message": "Votre projet actuel comporte des modifications non enregistrées. Fermer Ori Studio et les abandonner ?",

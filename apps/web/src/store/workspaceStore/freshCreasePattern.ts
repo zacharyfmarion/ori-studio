@@ -14,9 +14,15 @@ import type { WorkspaceState } from './types';
  * `oristudioCpRevision` / `activePanelId` (and the image + tool fields), so the
  * interactive draw → history flow never re-baselined and recorded nothing.
  *
- * Scoped to the CP editor: it deliberately does NOT touch the tree/design fields
- * (`project`, `designMethod`), so a caller can seed a
- * canvas without discarding an authored design.
+ * Scoped to the CP editor: it deliberately does NOT touch the design being
+ * authored, so a caller can seed a canvas without discarding it.
+ *
+ * That was almost true before phase 2b — it also reset `toolMode` and
+ * `symmetryAuthoringPairs`, which are tree-editor state, contradicting the
+ * sentence above. Moving those onto the design tab made the contradiction a type
+ * error, and they are dropped rather than re-scoped: seeding a blank crease
+ * pattern has no business reaching into a design, least of all one the user is
+ * not currently looking at.
  */
 export function freshEditableCpState(
   document: OristudioCpDocumentState,
@@ -46,8 +52,6 @@ export function freshEditableCpState(
     // standing, which is exactly what stops the self-provision erasing it.
     cpLoadFailure: null,
     projectLoadId: previous.projectLoadId + 1,
-    toolMode: 'select',
-    symmetryAuthoringPairs: [],
     creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
     // This blank canvas is now what the Simulate workspace reads, so anything
     // derived from the document it replaces has to go with it.

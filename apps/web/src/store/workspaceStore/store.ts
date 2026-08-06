@@ -1,3 +1,11 @@
+import {
+  activeDesignTab,
+  selectDesignMethod,
+  selectOristudioBpDocument,
+  selectProject,
+} from './designTabs';
+import { registerActiveDesignSource } from './activeDesignSource';
+import { registerDesignPaneLayoutReset } from '../layoutStore';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createCreasePatternSlice } from './slices/creasePatternSlice';
@@ -8,9 +16,7 @@ import { createHistorySlice } from './slices/historySlice';
 import { createProjectSlice } from './slices/projectSlice';
 import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { createSimulatorSlice } from './slices/simulatorSlice';
-import { registerDesignVariantSource } from '../layoutStore';
 import { resolveEditingContext } from '../../workspaces/editingContext';
-import { designLayoutVariant } from './designVariant';
 import type { WorkspaceState } from './types';
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -29,9 +35,27 @@ export const useWorkspaceStore = create<WorkspaceState>()(
   )
 );
 
-// Let the layout store read the active Design layout variant so it can
-// materialize the NUX chooser, box-pleat split, or TreeMaker layout.
-registerDesignVariantSource(() => designLayoutVariant(useWorkspaceStore.getState().designMethod));
+// Let the engine runtimes resolve the active design, so a tree handle belongs to
+// the tab that owns it rather than to the module. Registered rather than imported
+// because the runtimes sit under the store, and importing it would close a cycle.
+//
+// A chooser tab is reported too, `kind: null` and all. It is a real design with a
+// real id, and a tree created *from* the chooser — the normal way one is made —
+// belongs to it. Filtering it out here sent that tree to the module fallback
+// instead, where the registry could not see it: Duplicate found nothing to copy,
+// a tab switch parked nothing, and the next acquire built a second, blank tree.
+registerActiveDesignSource(() => {
+  const tab = activeDesignTab(useWorkspaceStore.getState());
+  return { id: tab.id, kind: tab.kind };
+});
+
+// View ▸ Reset Layout has to reach the active design's own pane arrangement, not
+// just the workspace dock above it. Registered rather than imported: the layout
+// store sits under this one.
+registerDesignPaneLayoutReset(() => {
+  const state = useWorkspaceStore.getState();
+  state.setDesignPaneLayout(state.activeDesignId, null);
+});
 
 // Keep `activeEditingContext` derived from the active panel + design state. The
 // active panel (`activePanelId`) is the source of truth; every other input
@@ -41,8 +65,8 @@ registerDesignVariantSource(() => designLayoutVariant(useWorkspaceStore.getState
 useWorkspaceStore.subscribe((state) => {
   const next = resolveEditingContext({
     activePanelId: state.activePanelId,
-    designMethod: state.designMethod,
-    hasBpDocument: state.oristudioBpDocument !== null,
+    designMethod: selectDesignMethod(state),
+    hasBpDocument: selectOristudioBpDocument(state) !== null,
   });
   if (next !== state.activeEditingContext) {
     useWorkspaceStore.setState({ activeEditingContext: next });
@@ -59,8 +83,8 @@ useWorkspaceStore.subscribe((state) => {
   const hasDocument =
     state.oristudioCpDocument !== null ||
     state.importedCreasePattern !== null ||
-    state.oristudioBpDocument !== null ||
-    state.project.edges.length > 0;
+    selectOristudioBpDocument(state) !== null ||
+    selectProject(state).edges.length > 0;
   if (hasDocument) useWorkspaceStore.setState({ projectEstablished: true });
 });
 

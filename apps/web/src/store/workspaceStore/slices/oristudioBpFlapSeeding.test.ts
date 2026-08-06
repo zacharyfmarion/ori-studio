@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { selectOristudioBpHistoryPast, singleBoxPleatDesignTab } from '../designTabs';
 import type {
   OristudioBpDocumentState,
   OristudioBpFlap,
@@ -137,13 +138,15 @@ function setUp(symmetry: { enabled: boolean; fold?: 'book' | 'diagonal' }) {
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      oristudioBpDocument: engine.document(),
-      oristudioBpSymmetry: {
-        ...TREE_AXIS,
-        enabled: symmetry.enabled,
-        fold: symmetry.fold ?? 'book',
-        pairs: [],
-      },
+      ...singleBoxPleatDesignTab({
+        document: engine.document(),
+        symmetry: {
+          ...TREE_AXIS,
+          enabled: symmetry.enabled,
+          fold: symmetry.fold ?? 'book',
+          pairs: [],
+        },
+      }),
     },
     true
   );
@@ -214,6 +217,6 @@ describe('addOristudioBpTreeLeafWithSymmetry', () => {
   it('records one undo entry for the pair and both seeds', async () => {
     setUp({ enabled: true });
     await useWorkspaceStore.getState().addOristudioBpTreeLeafWithSymmetry(0, { x: 15, y: 5 });
-    expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toHaveLength(1);
+    expect(selectOristudioBpHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
   });
 });

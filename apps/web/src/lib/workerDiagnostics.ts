@@ -52,11 +52,27 @@ function describeWorkerEvent(event: Event): string {
  * Listen for a worker's terminal failures. Returns a disposer; call it when the
  * worker is terminated so a replacement worker's listeners are the only live
  * ones.
+ *
+ * `observe` is for the module that *owns* the worker, as distinct from the app's
+ * single reporting `sink` (registered by `App.tsx` for the error toast). Both
+ * run: the sink tells the user, the observer lets the owner drop its dead client
+ * so the next call spawns a replacement. Two consumers, one set of listeners —
+ * the alternative was a second pair of `error` handlers on every worker.
  */
-export function attachWorkerDiagnostics(worker: Worker, name: WorkerName): () => void {
+export function attachWorkerDiagnostics(
+  worker: Worker,
+  name: WorkerName,
+  observe?: (failure: WorkerFailure) => void
+): () => void {
   const report = (kind: WorkerFailure['kind']) => (event: Event) => {
     const failure: WorkerFailure = { worker: name, kind, message: describeWorkerEvent(event) };
     console.error(`[ori-studio] worker "${name}" ${kind}`, event);
+    try {
+      observe?.(failure);
+    } catch {
+      // An owner that throws while dropping its client must not stop the user
+      // from being told the worker died.
+    }
     try {
       sink?.(failure);
     } catch {

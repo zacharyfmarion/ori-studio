@@ -1,3 +1,4 @@
+import { selectDesignMethod, selectDesignViewportFitRequestId, selectOristudioBpDocument, selectProject, selectSelection, selectSymmetryAuthoringPairs } from '../../store/workspaceStore/designTabs';
 import {
   useCallback,
   useEffect,
@@ -72,7 +73,6 @@ import {
   symmetrySide,
 } from '../../lib/symmetryAuthoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { DesignMethodChooser } from './DesignMethodChooser';
 import { DesignAttributionFooter } from '../DesignAttributionFooter';
 import { BpTreePanel } from './BpTreePanel';
 import { Button } from '../ui/Button';
@@ -447,14 +447,19 @@ function DesignViewportToolbar({
 }
 
 /**
- * Design pane router. The Design workspace hosts either the NUX method chooser,
- * a Box Pleating design, or the TreeMaker (circle-packed) tree editor. Keeping
- * the branch in a thin wrapper lets each surface own its own hooks.
+ * The design canvas: one kind's primary pane, for the tab that declared it.
+ *
+ * Neither the tab strip nor the method chooser is here. The strip spans the whole
+ * Design workspace (see `WorkspaceShell`) and the chooser is the state of a tab
+ * that has *no* kind, so it has no panes at all — `DesignPaneLayout` owns both.
+ *
+ * Remounted per design, because its dock is: two designs never share a viewport,
+ * a hover, or a drag.
  */
 export function DesignPanel() {
   const { t } = useTranslation();
-  const designMethod = useWorkspaceStore((state) => state.designMethod);
-  const oristudioBpDocument = useWorkspaceStore((state) => state.oristudioBpDocument);
+  const designMethod = useWorkspaceStore(selectDesignMethod);
+  const oristudioBpDocument = useWorkspaceStore((state) => selectOristudioBpDocument(state));
   const oristudioBpError = useWorkspaceStore((state) => state.oristudioBpError);
   const ensureBoxPleatProject = useWorkspaceStore((state) => state.ensureBoxPleatProject);
 
@@ -467,9 +472,6 @@ export function DesignPanel() {
     }
   }, [designMethod, oristudioBpDocument, oristudioBpError, ensureBoxPleatProject]);
 
-  if (designMethod === 'none') {
-    return <DesignMethodChooser />;
-  }
   if (designMethod === 'box-pleat') {
     if (oristudioBpDocument) {
       return (
@@ -510,11 +512,11 @@ function TreeMakerDesignPanel() {
   const [spacePressed, setSpacePressed] = useState(false);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const [symmetryModeOverride, setSymmetryModeOverride] = useState<SymmetrySelectValue | null>(null);
-  const project = useWorkspaceStore((state) => state.project);
+  const project = useWorkspaceStore((state) => selectProject(state));
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
-  const selection = useWorkspaceStore((state) => state.selection);
-  const symmetryAuthoringPairs = useWorkspaceStore((state) => state.symmetryAuthoringPairs);
+  const selection = useWorkspaceStore((state) => selectSelection(state));
+  const symmetryAuthoringPairs = useWorkspaceStore((state) => selectSymmetryAuthoringPairs(state));
   const select = useWorkspaceStore((state) => state.select);
   const addNodeAt = useWorkspaceStore((state) => state.addNodeAt);
   const addNodeWithSymmetry = useWorkspaceStore((state) => state.addNodeWithSymmetry);
@@ -523,7 +525,7 @@ function TreeMakerDesignPanel() {
   const setSymmetry = useWorkspaceStore((state) => state.setSymmetry);
   const projectLoadId = useWorkspaceStore((state) => state.projectLoadId);
   const designViewportFitRequestId = useWorkspaceStore(
-    (state) => state.designViewportFitRequestId
+    (state) => selectDesignViewportFitRequestId(state)
   );
   // Symmetry is one decision, so `project.hasSymmetry` is the only thing that
   // says whether node edits mirror. There is no separate mirror-editing mode to

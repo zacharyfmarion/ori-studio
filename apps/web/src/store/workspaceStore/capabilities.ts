@@ -1,3 +1,4 @@
+import { selectHistoryFuture, selectHistoryPast, selectOristudioBpDocument, selectOristudioBpHistoryFuture, selectOristudioBpHistoryPast, selectOristudioBpSelection, selectProject, selectSelection } from './designTabs';
 import {
   getWorkspaceCapabilities,
   type WorkspaceCapabilities,
@@ -22,8 +23,8 @@ export function historyCountForContext(
 
 export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput {
   const context = state.activeEditingContext;
-  const bpSelection = state.oristudioBpSelection;
-  const bpRoot = state.oristudioBpDocument?.snapshot?.tree?.rootVertexId;
+  const bpSelection = selectOristudioBpSelection(state);
+  const bpRoot = selectOristudioBpDocument(state)?.snapshot?.tree?.rootVertexId;
   const hasDeletableBpSelection =
     (bpSelection?.kind === 'bp-vertex' && bpSelection.id !== bpRoot) ||
     bpSelection?.kind === 'bp-edge';
@@ -31,28 +32,28 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
   // BP snapshots, the CP editor's stack, or the TreeMaker tree stack.
   const historyPastCount = historyCountForContext(
     context,
-    state.oristudioBpHistoryPast.length,
+    selectOristudioBpHistoryPast(state).length,
     state.oristudioCpDocument ? state.oristudioCpHistoryPast.length : 0,
-    state.historyPast.length
+    selectHistoryPast(state).length
   );
   const historyFutureCount = historyCountForContext(
     context,
-    state.oristudioBpHistoryFuture.length,
+    selectOristudioBpHistoryFuture(state).length,
     state.oristudioCpDocument ? state.oristudioCpHistoryFuture.length : 0,
-    state.historyFuture.length
+    selectHistoryFuture(state).length
   );
 
   return {
     activeEditingContext: context,
     engineReady: state.engineReady,
     status: state.status,
-    edgeCount: state.project.edges.length,
-    creaseCount: state.project.creases.length,
-    facetCount: state.project.facets.length,
+    edgeCount: selectProject(state).edges.length,
+    creaseCount: selectProject(state).creases.length,
+    facetCount: selectProject(state).facets.length,
     hasEditableCreasePattern: state.oristudioCpDocument !== null,
     hasImportedCreasePattern: state.importedCreasePattern !== null,
-    hasBoxPleatDocument: state.oristudioBpDocument !== null,
-    boxPleatTreeEdgeCount: state.oristudioBpDocument?.snapshot?.tree?.edges?.length ?? 0,
+    hasBoxPleatDocument: selectOristudioBpDocument(state) !== null,
+    boxPleatTreeEdgeCount: selectOristudioBpDocument(state)?.snapshot?.tree?.edges?.length ?? 0,
     boxPleatBusy: state.oristudioBpBusy,
     hasSimulationModel: state.foldArtifacts?.simulation_model != null,
     oristudioCpSelectedLineCount: state.oristudioCpSelection.lines.length,
@@ -62,7 +63,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,
-    selection: state.selection,
+    selection: selectSelection(state),
   };
 }
 

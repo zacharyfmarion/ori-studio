@@ -233,6 +233,23 @@
   opacity: 0.56;
 }
 
+/* The card being created keeps full contrast: it is the one thing still
+   happening, so dimming it with the others would hide the feedback. */
+.design-method-card[data-pending] {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+}
+
+.design-method-card__spinner {
+  animation: surface-loading-spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .design-method-card__spinner {
+    animation: none;
+  }
+}
+
 .design-method-card__icon {
   display: grid;
   width: 42px;
@@ -666,7 +683,35 @@
 .workspace-shell__canvas {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  /* Design tab strip, dock canvas, attribution footer. Rows are assigned
+     explicitly rather than by source order because the first and last are
+     conditional — the strip only exists in the Design workspace, the footer only
+     in its box-pleat variant. Auto-placement would slide the dock canvas up into
+     the `auto` row whenever the strip is absent and collapse it. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.design-tab-strip {
+  grid-row: 1;
+}
+
+/* The dock's grid item is **this wrapper**, never dockview's own element.
+   DockviewReact renders an unnamed div around the element that receives its
+   `className`, so `grid-row` on `.workspace-shell__dockview` lands one level too
+   deep: the unnamed wrapper is what the grid places, it takes `grid-row: auto`,
+   and with no tab strip above it (Edit and Simulate) it auto-places into row 1 —
+   an `auto` row with nothing else in it, so the whole dock collapsed to 0px and
+   both workspaces rendered blank. Owning the grid item is what makes the row
+   assignment independent of how many wrappers the library emits. */
+.workspace-shell__dock {
+  grid-row: 2;
+  /* A single-cell grid rather than a plain block: it stretches dockview's wrapper
+     to fill without needing a height rule on an element we do not control. */
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
 }
@@ -674,6 +719,10 @@
 .workspace-shell__dockview {
   min-width: 0;
   min-height: 0;
+}
+
+.workspace-shell__canvas > .design-attribution {
+  grid-row: 3;
 }
 
 @media (max-width: 680px) {

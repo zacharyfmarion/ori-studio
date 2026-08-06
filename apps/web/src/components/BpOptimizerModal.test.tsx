@@ -1,3 +1,5 @@
+import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
+import { selectOristudioBpSymmetry } from '../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -256,7 +258,8 @@ describe('symmetry row', () => {
   ) {
     const sheet = { kind: sheetKind, width: 20, height: 20, grid: {} };
     useWorkspaceStore.setState({
-      oristudioBpSymmetry: {
+      ...singleBoxPleatDesignTab({
+      symmetry: {
         enabled: true,
         fold: 'book',
         angle: 90,
@@ -264,7 +267,7 @@ describe('symmetry row', () => {
         pairs: [],
         ...symmetry,
       },
-      oristudioBpDocument: {
+      document: {
         snapshot: {
           tree: {
             sheet,
@@ -280,8 +283,9 @@ describe('symmetry row', () => {
             ],
           },
         },
-      },
-    } as never);
+      } as never,
+      }),
+    });
   }
 
   it('offers symmetry after mirror draw is switched off, because the pairs remain', () => {
@@ -324,11 +328,11 @@ describe('symmetry row', () => {
   it('does not touch the tree mirror line when the fold changes', () => {
     withTree();
     renderModal();
-    const before = useWorkspaceStore.getState().oristudioBpSymmetry.angle;
+    const before = selectOristudioBpSymmetry(useWorkspaceStore.getState()).angle;
     act(() => {
       useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
     });
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.angle).toBe(before);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).angle).toBe(before);
   });
 
   it('explains why it cannot mirror instead of blocking the run', () => {

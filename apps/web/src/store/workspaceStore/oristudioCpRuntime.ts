@@ -1,4 +1,5 @@
-import { wrap, type Remote } from 'comlink';
+import { connectEngine, isEngineConnected } from '../../engines/engineHost';
+import type { Remote } from 'comlink';
 import type { FlatText } from '../../cp-workspace/annotations/annotation';
 import type {
   OristudioCpCommandPayload,
@@ -26,14 +27,10 @@ import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport'
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import type { OristudioCpWorkerApi } from '../../workers/oristudioCpWorker';
-import { createOristudioCpNativeClient } from '../../engine/oristudioCpNativeClient';
-import { isDesktopRuntime } from '../../platform/runtime';
-import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 
 export type OristudioCpClient = Remote<OristudioCpWorkerApi>;
 
-let worker: Worker | null = null;
-let client: OristudioCpClient | null = null;
+// Worker + comlink client are owned by `engines/engineHost`.
 let handle: number | null = null;
 let descriptorsPromise: Promise<OristudioCpOperationDescriptor[]> | null = null;
 let currentSource: OristudioCpDocumentState['source'] | null = null;
@@ -61,19 +58,7 @@ export function oristudioCpError(error: unknown): WasmErrorEnvelope {
 }
 
 export async function getOristudioCpClient(): Promise<OristudioCpClient> {
-  if (client) return client;
-  if (isDesktopRuntime()) {
-    // Desktop: native Rust engine via Tauri commands (no wasm worker). The
-    // native client implements the same OristudioCpWorkerApi surface.
-    client = createOristudioCpNativeClient() as unknown as OristudioCpClient;
-    return client;
-  }
-  worker = new Worker(new URL('../../workers/oristudioCpWorker.ts', import.meta.url), {
-    type: 'module',
-  });
-  attachWorkerDiagnostics(worker, 'oristudio-cp');
-  client = wrap<OristudioCpWorkerApi>(worker);
-  return client;
+  return connectEngine('oristudio-cp');
 }
 
 export async function getOristudioCpOperationDescriptors(): Promise<
@@ -85,14 +70,17 @@ export async function getOristudioCpOperationDescriptors(): Promise<
 }
 
 export async function releaseOristudioCpDocument(): Promise<void> {
-  if (!client || handle === null) {
+  // Not connected means there is nothing to free — no engine was ever spawned,
+  // or it died and took its handles with it.
+  if (!isEngineConnected('oristudio-cp') || handle === null) {
     handle = null;
     return;
   }
   const staleHandle = handle;
   handle = null;
   currentSource = null;
-  await client.freeDocument(staleHandle).catch(() => undefined);
+  const api = await getOristudioCpClient();
+  await api.freeDocument(staleHandle).catch(() => undefined);
 }
 
 export async function loadOristudioCpDocumentFromText(

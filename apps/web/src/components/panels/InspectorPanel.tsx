@@ -1,3 +1,4 @@
+import { selectProject, selectSelection } from '../../store/workspaceStore/designTabs';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Activity, Circle, GitBranch, MousePointer2, Square, Waypoints } from 'lucide-react';
@@ -9,8 +10,8 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 
 export function InspectorPanel() {
   const { t } = useTranslation();
-  const project = useWorkspaceStore((state) => state.project);
-  const selection = useWorkspaceStore((state) => state.selection);
+  const project = useWorkspaceStore((state) => selectProject(state));
+  const selection = useWorkspaceStore((state) => selectSelection(state));
   const moveNode = useWorkspaceStore((state) => state.moveNode);
   const updateNodeLabel = useWorkspaceStore((state) => state.updateNodeLabel);
   const updateEdge = useWorkspaceStore((state) => state.updateEdge);

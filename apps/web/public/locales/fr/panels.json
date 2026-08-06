@@ -366,6 +366,7 @@
         "description": "Esquissez un arbre et laissez l'empaquetage cercle/rivière optimiser la base, à la manière de TreeMaker.",
         "title": "Empaquetage de cercles"
       },
+      "creating": "Préparation de l’éditeur…",
       "groupLabel": "Méthode de conception",
       "subtitle": "Choisissez comment créer ce modèle.",
       "title": "Démarrer une nouvelle conception"
@@ -373,6 +374,14 @@
     "newTree": "Nouvel arbre",
     "noEditableTree": "Ce document n'a pas d'arbre modifiable.",
     "open": "Ouvrir",
+    "paneTitle": {
+      "bpPacking": "Éditeur BP",
+      "bpTree": "Éditeur d'arbre",
+      "conditions": "Conditions",
+      "diagnostics": "Diagnostics",
+      "inspector": "Inspecteur",
+      "tree": "Conception"
+    },
     "preparingBoxPleatEditor": "Préparation de l'éditeur de pliage en boîte…",
     "preparingTreeEditor": "Préparation de l'éditeur d'arbre…",
     "preset": "Préréglage",
@@ -388,6 +397,15 @@
     "symmetryStatusOff": "Désactivé",
     "symmetryToolbar": "Sym",
     "viewportControls": "Commandes d'affichage de la conception"
+  },
+  "designTabs": {
+    "add": "Nouvelle conception",
+    "close": "Fermer la conception",
+    "duplicate": "Dupliquer",
+    "label": "Conceptions ouvertes",
+    "moveLeft": "Déplacer vers la gauche",
+    "moveRight": "Déplacer vers la droite",
+    "rename": "Renommer"
   },
   "diagnostics": {
     "allConditionsFeasible": "Toutes les conditions sont réalisables",

@@ -1,33 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DESIGN_BP_PATH,
   DESIGN_PATH,
-  DESIGN_TREEMAKER_PATH,
   EDIT_PATH,
+  LEGACY_DESIGN_PATHS,
   SIMULATE_PATH,
   WELCOME_PATH,
-  designVariantPath,
   parseWorkspacePath,
   workspacePath,
 } from './paths';
 
-describe('designVariantPath', () => {
-  it('maps each design variant to its sub-path', () => {
-    expect(designVariantPath('nux')).toBe(DESIGN_PATH);
-    expect(designVariantPath('treemaker')).toBe(DESIGN_TREEMAKER_PATH);
-    expect(designVariantPath('box-pleat')).toBe(DESIGN_BP_PATH);
-  });
-});
-
 describe('workspacePath', () => {
-  it('returns the design chooser without a variant', () => {
+  it('returns the one design path', () => {
+    // The Design workspace used to have a path per method. With tabs there is no
+    // single method to name: a circle-packed design can sit beside a box-pleat
+    // one, and the URL cannot say which the workspace "is".
     expect(workspacePath('design')).toBe(DESIGN_PATH);
-  });
-
-  it('returns the design sub-path for a variant', () => {
-    expect(workspacePath('design', 'treemaker')).toBe(DESIGN_TREEMAKER_PATH);
-    expect(workspacePath('design', 'box-pleat')).toBe(DESIGN_BP_PATH);
-    expect(workspacePath('design', 'nux')).toBe(DESIGN_PATH);
   });
 
   it('returns the single path for non-design workspaces', () => {
@@ -40,15 +27,16 @@ describe('parseWorkspacePath', () => {
   it('parses each workspace path', () => {
     expect(parseWorkspacePath(EDIT_PATH)).toEqual({ workspace: 'edit' });
     expect(parseWorkspacePath(SIMULATE_PATH)).toEqual({ workspace: 'simulate' });
-    expect(parseWorkspacePath(DESIGN_PATH)).toEqual({ workspace: 'design', variant: 'nux' });
-    expect(parseWorkspacePath(DESIGN_TREEMAKER_PATH)).toEqual({
-      workspace: 'design',
-      variant: 'treemaker',
-    });
-    expect(parseWorkspacePath(DESIGN_BP_PATH)).toEqual({
-      workspace: 'design',
-      variant: 'box-pleat',
-    });
+    expect(parseWorkspacePath(DESIGN_PATH)).toEqual({ workspace: 'design' });
+  });
+
+  it('still resolves the retired design sub-paths', () => {
+    // The router redirects them, but the shell reads the URL to decide which
+    // layout to build on its very first render — before the redirect lands. A
+    // null here would build the Design workspace as Edit for one frame.
+    for (const path of LEGACY_DESIGN_PATHS) {
+      expect(parseWorkspacePath(path)).toEqual({ workspace: 'design' });
+    }
   });
 
   it('returns null for non-workspace paths', () => {
@@ -56,10 +44,9 @@ describe('parseWorkspacePath', () => {
     expect(parseWorkspacePath('/nonsense')).toBeNull();
   });
 
-  it('round-trips with workspacePath for the concrete design variants', () => {
-    for (const variant of ['treemaker', 'box-pleat'] as const) {
-      const parsed = parseWorkspacePath(workspacePath('design', variant));
-      expect(parsed).toEqual({ workspace: 'design', variant });
+  it('round-trips with workspacePath', () => {
+    for (const workspace of ['design', 'edit', 'simulate'] as const) {
+      expect(parseWorkspacePath(workspacePath(workspace))).toEqual({ workspace });
     }
   });
 });

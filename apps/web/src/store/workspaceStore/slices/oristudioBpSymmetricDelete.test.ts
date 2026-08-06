@@ -1,3 +1,5 @@
+import { singleBoxPleatDesignTab } from '../designTabs';
+import { selectOristudioBpHistoryPast } from '../designTabs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioBpDocumentState, OristudioBpTreeView } from '../../../engine/oristudioBpTypes';
 
@@ -75,14 +77,15 @@ function setUp(symmetry: { enabled: boolean; pairs?: { v1: number; v2: number }[
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      oristudioBpDocument: bpDocument(),
-      oristudioBpSymmetry: {
+      ...singleBoxPleatDesignTab({
+      document: bpDocument(),
+      symmetry: {
         ...AXIS,
         enabled: symmetry.enabled,
         fold: 'book',
         pairs: symmetry.pairs ?? [],
-      },
-    },
+      }
+      })},
     true
   );
 }
@@ -151,7 +154,7 @@ describe('deleteOristudioBpTreeNode under symmetry', () => {
   it('records one undo entry for the pair, not two', async () => {
     setUp({ enabled: true });
     await useWorkspaceStore.getState().deleteOristudioBpTreeNode(1);
-    expect(useWorkspaceStore.getState().oristudioBpHistoryPast).toHaveLength(1);
+    expect(selectOristudioBpHistoryPast(useWorkspaceStore.getState())).toHaveLength(1);
   });
 
   it('labels the mirrored delete distinctly, so undo reads correctly', async () => {

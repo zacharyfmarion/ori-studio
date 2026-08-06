@@ -1,3 +1,4 @@
+import { patchTreemakerDesign, selectProject, selectSelection } from '../designTabs';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import { clampPaperPoint, type Point } from '../../../lib/geometry';
 import {
@@ -9,7 +10,7 @@ import { selectedEdgeIds, selectedNodeIds } from '../../../lib/selection';
 import {
   engineError,
   ensureTreeHandle,
-  projectStateFromSnapshot,
+  syncTreemakerProject,
   statusAfterEdit,
 } from '../engineRuntime';
 import { staleFoldArtifactResourceState } from '../foldArtifactResource';
@@ -93,7 +94,7 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
       });
       return;
     }
-    const clipboard = buildClipboardPayload(get().project, get().selection);
+    const clipboard = buildClipboardPayload(selectProject(get()), selectSelection(get()));
     if (!clipboard) return;
     set({
       clipboard,
@@ -148,16 +149,16 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
     try {
       const { api, treeHandle, initializedSnapshot } = await ensureTreeHandle();
       if (initializedSnapshot) {
-        set(projectStateFromSnapshot(initializedSnapshot, get().project.title));
+        set(syncTreemakerProject(get(), initializedSnapshot, selectProject(get()).title));
       }
 
-      const project = get().project;
+      const project = selectProject(get());
       const sourceNodes = clipboard.nodes;
       const sourceNodeIds = new Set(sourceNodes.map((node) => node.sourceId));
       const sourceById = new Map(sourceNodes.map((node) => [node.sourceId, node]));
       const mappedIds = new Map<number, number>();
       const createdFromEdge = new Set<number>();
-      const selection = get().selection;
+      const selection = selectSelection(get());
       const attachTarget =
         selection.kind === 'node'
           ? selection.id
@@ -245,7 +246,8 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
       if (!latestSnapshot) latestSnapshot = await api.snapshot(treeHandle);
       const pastedNodes = Array.from(mappedIds.values()).sort((a, b) => a - b);
       set({
-        project: projectFromSnapshot(latestSnapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+        project: projectFromSnapshot(latestSnapshot, selectProject(get()).title),
         selection:
           pastedNodes.length === 1
             ? { kind: 'node', id: pastedNodes[0] }
@@ -258,14 +260,14 @@ export const createClipboardSlice: WorkspaceSliceCreator<ClipboardSlice> = (set,
                 facets: [],
                 conditions: [],
               },
+        lastOptimization: null
+      }),
         status: statusAfterEdit(latestSnapshot),
         dirty: true,
         error: null,
-        lastOptimization: null,
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),
         clipboardPasteCount: get().clipboardPasteCount + 1,
-        projectMessage: `Pasted ${pastedNodes.length} nodes`,
-      });
+        projectMessage: `Pasted ${pastedNodes.length} nodes`});
       get().commitHistoryCheckpoint(checkpoint, 'Paste');
     } catch (error) {
       set({ status: 'error', error: engineError(error) });

@@ -245,7 +245,17 @@ geometry, names, or contents.
   applied` `{ fix }`; `fold angles solved` `{ committed }` (the new
   Solve-Fold-Angles review/commit flow, `cp-workspace/foldAngleSolve/`).
 - **Design method (NUX)**: `design method chosen`
-  `{ method: 'treemaker'|'box-pleat' }` from the `/design` `nux` chooser.
+  `{ method: 'treemaker'|'box-pleat' }` from the chooser a design tab starts on.
+- **Design tabs**: `design tab opened` `{ source, open_count_bucket }`;
+  `design tab closed` `{ kind, touched, open_count_bucket }`;
+  `design tab reordered` / `design tab activated` `{ open_count_bucket }`;
+  `design tab renamed` with **no properties at all** — the new name is
+  user-authored text, in the same class as a filename. The count is bucketed on a
+  tighter ladder than element counts (`[1, 2, 3, 5, 10]`), because the question is
+  "does anyone open more than one, and how many".
+  `workspace viewed` correspondingly stopped carrying a Design `variant`: a
+  workspace holding a circle-packed design beside a box-pleat one has no single
+  method, and reporting one would be a lie a funnel then gets built on.
 - **Box-pleating**: `bp design action` `{ action }` (author/symmetry/pack);
   `bp optimizer run` `{ succeeded, duration_ms_bucket }` (`BpOptimizerModal`) —
   coarse, no coordinates.

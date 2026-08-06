@@ -16,10 +16,20 @@ export type AnalyticsProperties = Record<string, AnalyticsPropertyValue>;
 // Enum property values
 // ---------------------------------------------------------------------------
 
-/** The three top-level workspaces plus the Design workspace's variants. */
+/** The three top-level workspaces, plus the share screen. */
 export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'share';
+/**
+ * A Design workspace's method, for the events that describe *one* design.
+ *
+ * No longer reported on `workspace viewed`: the workspace can hold a
+ * circle-packed design beside a box-pleat one, so it has no single method, and
+ * claiming one would be a lie a funnel then gets built on.
+ */
 export type DesignVariant = 'nux' | 'treemaker' | 'box-pleat';
 export type DesignMethod = 'treemaker' | 'box-pleat';
+
+/** How a design tab came into being. */
+export type DesignTabSource = 'strip' | 'duplicate' | 'file' | 'replace-last';
 
 /** Where a project came from when it was opened. */
 export type ProjectOpenSource = 'file' | 'example' | 'new' | 'drop' | 'share';
@@ -88,6 +98,11 @@ export const ANALYTICS_EVENTS = {
   foldabilityFixApplied: 'foldability fix applied',
   foldAnglesSolved: 'fold angles solved',
   designMethodChosen: 'design method chosen',
+  designTabOpened: 'design tab opened',
+  designTabClosed: 'design tab closed',
+  designTabRenamed: 'design tab renamed',
+  designTabReordered: 'design tab reordered',
+  designTabActivated: 'design tab activated',
   bpDesignAction: 'bp design action',
   bpOptimizerRun: 'bp optimizer run',
   cpDetectStarted: 'cp detect started',
@@ -128,6 +143,15 @@ export function bucketCount(value: number, thresholds: readonly number[]): strin
 
 /** Default threshold ladder for element counts (nodes, lines, etc.). */
 export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;
+
+/**
+ * Threshold ladder for how many designs are open at once.
+ *
+ * Much tighter than {@link COUNT_BUCKETS}: the question is "does anyone use more
+ * than one, and how many", and a ladder that starts at 1 and 5 answers it. The
+ * element ladder would put every realistic workspace in the same bucket.
+ */
+export const DESIGN_TAB_COUNT_BUCKETS = [1, 2, 3, 5, 10] as const;
 
 /** Default threshold ladder for durations, in milliseconds. */
 export const DURATION_MS_BUCKETS = [50, 100, 250, 500, 1000, 2500, 5000, 10000] as const;

@@ -1,3 +1,4 @@
+import { selectDesignMethod, selectOristudioBpDocument } from '../../store/workspaceStore/designTabs';
 import { BoxSelect, CircleDashed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -7,8 +8,8 @@ import { BpPackingPanel } from './BpPackingPanel';
 
 export function BpEditorPanel() {
   const { t } = useTranslation();
-  const designMethod = useWorkspaceStore((state) => state.designMethod);
-  const document = useWorkspaceStore((state) => state.oristudioBpDocument);
+  const designMethod = useWorkspaceStore(selectDesignMethod);
+  const document = useWorkspaceStore((state) => selectOristudioBpDocument(state));
   const oristudioBpError = useWorkspaceStore((state) => state.oristudioBpError);
   const createOristudioBpProject = useWorkspaceStore((state) => state.createOristudioBpProject);
   const setOristudioBpActiveSurface = useWorkspaceStore(

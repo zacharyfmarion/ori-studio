@@ -2,7 +2,7 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PostHogClientLike } from '../bootstrap';
-import type { DesignVariant, WorkspaceScreen } from '../events';
+import type { WorkspaceScreen } from '../events';
 import { AnalyticsRuntimeProvider } from '../runtime';
 import { useWorkspaceViewedEvent } from '../useWorkspaceViewedEvent';
 
@@ -38,8 +38,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function Probe({ workspace, variant }: { workspace: WorkspaceScreen; variant?: DesignVariant }) {
-  useWorkspaceViewedEvent(workspace, variant);
+function Probe({ workspace }: { workspace: WorkspaceScreen }) {
+  useWorkspaceViewedEvent(workspace);
   return null;
 }
 
@@ -53,25 +53,24 @@ describe('useWorkspaceViewedEvent', () => {
   it('fires `workspace viewed` with the workspace on mount', () => {
     const client = makeFakeClient();
     render(client, createElement(Probe, { workspace: 'edit' }));
-    expect(viewedEvents(client)).toEqual([{ workspace: 'edit', variant: undefined }]);
+    expect(viewedEvents(client)).toEqual([{ workspace: 'edit' }]);
   });
 
-  it('carries the Design variant', () => {
+  it('carries no design method', () => {
+    // The Design workspace holds tabs, and one being circle-packed while another
+    // is box-pleat means there is no single method to report. What designs are
+    // open is reported by the `design tab *` events instead.
     const client = makeFakeClient();
-    render(client, createElement(Probe, { workspace: 'design', variant: 'treemaker' }));
-    expect(viewedEvents(client)).toEqual([{ workspace: 'design', variant: 'treemaker' }]);
+    render(client, createElement(Probe, { workspace: 'design' }));
+    expect(viewedEvents(client)).toEqual([{ workspace: 'design' }]);
   });
 
-  it('refires when the workspace or variant changes, not on an unrelated re-render', () => {
+  it('refires when the workspace changes, not on an unrelated re-render', () => {
     const client = makeFakeClient();
-    render(client, createElement(Probe, { workspace: 'design', variant: 'nux' }));
+    render(client, createElement(Probe, { workspace: 'design' }));
     // Same identity → no new event.
-    render(client, createElement(Probe, { workspace: 'design', variant: 'nux' }));
-    // Variant change → a new event.
-    render(client, createElement(Probe, { workspace: 'design', variant: 'treemaker' }));
-    expect(viewedEvents(client)).toEqual([
-      { workspace: 'design', variant: 'nux' },
-      { workspace: 'design', variant: 'treemaker' },
-    ]);
+    render(client, createElement(Probe, { workspace: 'design' }));
+    render(client, createElement(Probe, { workspace: 'edit' }));
+    expect(viewedEvents(client)).toEqual([{ workspace: 'design' }, { workspace: 'edit' }]);
   });
 });
