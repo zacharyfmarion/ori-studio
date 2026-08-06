@@ -1,26 +1,20 @@
-import { selectDesignMethod } from '../store/workspaceStore/designTabs';
 import { useLayoutStore } from '../store/layoutStore';
-import { useWorkspaceStore } from '../store/workspaceStore';
-import { designLayoutVariant } from '../store/workspaceStore/designVariant';
 import { workspacePath } from './paths';
 import type { WorkspaceId } from '../workspaces/workspaces';
 
 /**
- * The path for `workspace` as the store currently stands. Design resolves to its
- * method sub-route, because bare `/design` is the method-chooser route — routing
- * there replaces a loaded design with the chooser.
+ * The path for `workspace`.
  *
- * The only place a workspace path is derived from state. Everything that needs
- * one goes through here or through {@link currentWorkspacePath}: the workspace
- * rail, the URL sync, and every path that opens a file. They used to derive it
- * three separate ways, and the copy that opening used disagreed with the other
- * two — it asked which documents existed rather than which workspace was showing,
- * so any project with no crease pattern landed on the chooser.
+ * A thin pass-through now that Design has one route: it used to resolve Design to
+ * a method sub-route, because bare `/design` *was* the method-chooser route and
+ * landing there replaced a loaded design with the chooser. The chooser is a state
+ * of a tab, not a route, so there is nothing left to disambiguate.
+ *
+ * Kept as the single place a workspace path is derived, because the callers still
+ * matter: the workspace rail, the URL sync, and every path that opens a file used
+ * to derive it three separate ways and disagree.
  */
 export function pathForWorkspace(workspace: WorkspaceId): string {
-  if (workspace === 'design') {
-    return workspacePath('design', designLayoutVariant(selectDesignMethod(useWorkspaceStore.getState())));
-  }
   return workspacePath(workspace);
 }
 

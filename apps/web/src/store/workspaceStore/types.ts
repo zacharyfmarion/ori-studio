@@ -9,7 +9,7 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
-import type { DesignLayoutVariant } from '../layoutStore';
+import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
@@ -408,18 +408,17 @@ export interface ProjectSliceActions {
    */
   requestCloseDesignTab: (designId: string) => Promise<void>;
   renameDesignTab: (designId: string, title: string) => void;
+  /**
+   * Record how a design's panes are arranged. Written by the design's dock as the
+   * user drags a splitter, and persisted with the design in the `.osf`.
+   */
+  setDesignPaneLayout: (designId: string, paneLayout: SerializedDockview | null) => void;
   /** Move a tab to a new index, for drag-reorder. */
   reorderDesignTab: (designId: string, toIndex: number) => void;
   /** Copy a design into a new tab beside it. Fresh history; nothing inherited. */
   duplicateDesignTab: (designId: string) => Promise<void>;
   /** Resolve the Design pane NUX chooser into a concrete design method. */
   chooseDesignMethod: (target: WorkflowTarget) => Promise<void>;
-  /**
-   * Reflect a Design sub-route (`/design`, `/design/treemaker`, `/design/bp`)
-   * into the design state so the layout variant matches the URL. Sets the
-   * variant fields only; establishing a document is the caller's concern.
-   */
-  applyDesignRoute: (variant: DesignLayoutVariant) => void;
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;

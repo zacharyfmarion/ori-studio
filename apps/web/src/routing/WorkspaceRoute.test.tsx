@@ -1,13 +1,13 @@
-import { selectDesignMethod, singleDesignTab } from '../store/workspaceStore/designTabs';
+import { singleDesignTab } from '../store/workspaceStore/designTabs';
 import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { RouterProvider, createMemoryRouter } from 'react-router-dom';
+import { RouterProvider, createMemoryRouter, redirect } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PostHogClientLike } from '../analytics/bootstrap';
 import { AnalyticsRuntimeProvider } from '../analytics/runtime';
 import { useLayoutStore } from '../store/layoutStore';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
-import { DESIGN_BP_PATH, DESIGN_PATH, DESIGN_TREEMAKER_PATH } from './paths';
+import { DESIGN_PATH, LEGACY_DESIGN_PATHS } from './paths';
 import { WorkspaceRoute } from './WorkspaceRoute';
 
 function makeFakeClient() {
@@ -29,28 +29,23 @@ function viewedEvents(client: ReturnType<typeof makeFakeClient>) {
 }
 
 /**
- * Bare `/design` is the method chooser. It used to *write* that state, so
- * routing there replaced a design that had just loaded with the chooser — and
- * picking a method from it then built a blank project over the open one. It now
- * redirects an established design to its own sub-route instead, which is what
- * makes that class of bug unreachable rather than merely unhit.
+ * The Design workspace has one route.
+ *
+ * It used to have three — `/design` for the chooser, `/design/treemaker` and
+ * `/design/bp` for the two methods — and bare `/design` *wrote* the chooser
+ * state, so routing there replaced a design that had just loaded. That whole
+ * class of bug is gone rather than merely unhit: with tabs a workspace can hold
+ * a circle-packed design beside a box-pleat one, so there is no method for a URL
+ * to name and nothing for a route to apply.
  */
 function renderAt(root: Root, entry: string, client?: PostHogClientLike): void {
   const router = createMemoryRouter(
     [
-      { path: DESIGN_PATH, element: <WorkspaceRoute workspace="design" variant="nux" /> },
       {
-        path: DESIGN_BP_PATH,
-        element: <div data-testid="bp">{<WorkspaceRoute workspace="design" variant="box-pleat" />}</div>,
+        path: DESIGN_PATH,
+        element: <div data-testid="design">{<WorkspaceRoute workspace="design" />}</div>,
       },
-      {
-        path: DESIGN_TREEMAKER_PATH,
-        element: (
-          <div data-testid="treemaker">
-            {<WorkspaceRoute workspace="design" variant="treemaker" />}
-          </div>
-        ),
-      },
+      ...LEGACY_DESIGN_PATHS.map((path) => ({ path, loader: () => redirect(DESIGN_PATH) })),
     ],
     { initialEntries: [entry] }
   );
@@ -60,12 +55,12 @@ function renderAt(root: Root, entry: string, client?: PostHogClientLike): void {
   );
 }
 
-describe('WorkspaceRoute — bare /design', () => {
+describe('WorkspaceRoute — /design', () => {
   let host: HTMLElement;
   let root: Root;
 
   beforeEach(() => {
-    useLayoutStore.setState({ activeWorkspace: 'design', dockviewApi: null });
+    useLayoutStore.setState({ activeWorkspace: 'edit', dockviewApi: null });
     host = document.createElement('div');
     document.body.append(host);
     root = createRoot(host);
@@ -76,69 +71,44 @@ describe('WorkspaceRoute — bare /design', () => {
     host.remove();
   });
 
-  it('sends a box-pleat design on to its own sub-route', async () => {
-    useWorkspaceStore.setState({ ...singleDesignTab('box-pleat') });
-    await act(async () => renderAt(root, DESIGN_PATH));
-    expect(host.querySelector('[data-testid="bp"]')).not.toBeNull();
-    // The design survives: the route no longer clears the method.
-    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('box-pleat');
-  });
-
-  it('sends a TreeMaker design on to its own sub-route', async () => {
-    useWorkspaceStore.setState({ ...singleDesignTab('treemaker') });
-    await act(async () => renderAt(root, DESIGN_PATH));
-    expect(host.querySelector('[data-testid="treemaker"]')).not.toBeNull();
-    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('treemaker');
-  });
-
-  it('shows the chooser when no method has been picked', async () => {
+  it('activates the Design workspace', async () => {
     useWorkspaceStore.setState({ ...singleDesignTab(null) });
     await act(async () => renderAt(root, DESIGN_PATH));
-    expect(host.querySelector('[data-testid="bp"]')).toBeNull();
-    expect(host.querySelector('[data-testid="treemaker"]')).toBeNull();
-    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
+
+    expect(host.querySelector('[data-testid="design"]')).not.toBeNull();
+    expect(useLayoutStore.getState().activeWorkspace).toBe('design');
   });
 
-  it('lets startNewDesign reach the chooser — the one caller that clears the method', async () => {
+  it('leaves an open design alone', async () => {
+    // The old bare-`/design` route cleared the method here, which is how landing
+    // on it replaced a design that had just loaded with the chooser.
     useWorkspaceStore.setState({ ...singleDesignTab('box-pleat') });
-    act(() => useWorkspaceStore.getState().startNewDesign());
-    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
+    const before = useWorkspaceStore.getState().designTabs;
+
     await act(async () => renderAt(root, DESIGN_PATH));
-    expect(host.querySelector('[data-testid="bp"]')).toBeNull();
+
+    expect(useWorkspaceStore.getState().designTabs).toEqual(before);
   });
 
-  it('applies the method a sub-route names', async () => {
-    useWorkspaceStore.setState({ ...singleDesignTab(null) });
-    await act(async () => renderAt(root, DESIGN_BP_PATH));
-    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('box-pleat');
-  });
+  for (const legacy of LEGACY_DESIGN_PATHS) {
+    it(`redirects ${legacy} to the one Design route`, async () => {
+      useWorkspaceStore.setState({ ...singleDesignTab('treemaker') });
+      await act(async () => renderAt(root, legacy));
 
-  it('reports only the screen the user lands on, not the one redirected through', async () => {
-    // The `workspace viewed` event lives in the view, and a route the user is
-    // passed straight through is not a screen they saw. Reporting `nux` here
-    // would invent a chooser view that never rendered.
+      // A bookmark from an older build still lands, and lands on the workspace
+      // rather than on a method it can no longer name.
+      expect(host.querySelector('[data-testid="design"]')).not.toBeNull();
+    });
+  }
+
+  it('reports the workspace it showed, with no method attached', async () => {
+    // A Design workspace holding two kinds has no single variant to report, so
+    // claiming one would be a lie the funnel would then be built on.
     useWorkspaceStore.setState({ ...singleDesignTab('box-pleat') });
     const client = makeFakeClient();
-    await act(async () => renderAt(root, DESIGN_PATH, client));
-    expect(viewedEvents(client)).toEqual([{ workspace: 'design', variant: 'box-pleat' }]);
-  });
 
-  it('offers the chooser on a fresh app, which has authored nothing', async () => {
-    // The pair this replaced started at "not pending" + "treemaker", claiming a
-    // method for a project that did not exist; bare `/design` only showed the
-    // chooser because the route overwrote that claim on arrival. Now the state
-    // is honest, so the route does not have to lie to correct it.
-    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
-    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
-    await act(async () => renderAt(root, DESIGN_PATH));
-    expect(host.querySelector('[data-testid="treemaker"]')).toBeNull();
-    expect(host.querySelector('[data-testid="bp"]')).toBeNull();
-  });
-
-  it('reports the chooser when it is genuinely what rendered', async () => {
-    useWorkspaceStore.setState({ ...singleDesignTab(null) });
-    const client = makeFakeClient();
     await act(async () => renderAt(root, DESIGN_PATH, client));
-    expect(viewedEvents(client)).toEqual([{ workspace: 'design', variant: 'nux' }]);
+
+    expect(viewedEvents(client)).toEqual([{ workspace: 'design', variant: undefined }]);
   });
 });

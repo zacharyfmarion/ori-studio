@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { designKindsForChooser } from '../../designKinds';
 import type { DesignKindDescriptor, DesignKindId } from '../../designKinds';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { DESIGN_BP_PATH, DESIGN_TREEMAKER_PATH } from '../../routing/paths';
 
 /**
  * Design workspace NUX. When no design method has been chosen yet, the Design
@@ -19,11 +17,13 @@ export function DesignMethodChooser() {
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const status = useWorkspaceStore((state) => state.status);
   const chooseDesignMethod = useWorkspaceStore((state) => state.chooseDesignMethod);
-  const navigate = useNavigate();
 
+  // No navigation: picking a method changes what *this tab* is authoring, and the
+  // Design workspace has one route. It used to send the app to `/design/bp` or
+  // `/design/treemaker`, which is exactly the assumption tabs remove — with two
+  // designs open there is no single method for a URL to name.
   const chooseMethod = (target: DesignKindId) => {
     void chooseDesignMethod(target);
-    navigate(target === 'box-pleat' ? DESIGN_BP_PATH : DESIGN_TREEMAKER_PATH);
   };
 
   return (

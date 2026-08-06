@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { DockviewDefaultTab, DockviewReact } from 'dockview';
-import type { DockviewReadyEvent, IDockviewPanelHeaderProps } from 'dockview';
+import { DockviewReact } from 'dockview';
+import type { DockviewReadyEvent } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import {
   Box,
@@ -21,6 +21,7 @@ import {
 import { MenuBar } from './MenuBar';
 import { DesignAttributionFooter } from './DesignAttributionFooter';
 import { DesignTabStrip } from './panels/DesignTabStrip';
+import { FixedDockTab } from './panels/FixedDockTab';
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { FileDropOverlay } from './FileDropOverlay';
 import { panelComponents } from './panels/PanelComponents';
@@ -35,7 +36,6 @@ import { getRuntimeSurface } from '../platform/runtime';
 import { applyDefaultLayout, clearPersistedLayout, useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { designLayoutVariant } from '../store/workspaceStore/designVariant';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import { pathForWorkspace } from '../routing/landing';
 import { parseWorkspacePath } from '../routing/paths';
@@ -228,10 +228,6 @@ function Toolbar() {
   );
 }
 
-function FixedDockTab(props: IDockviewPanelHeaderProps) {
-  return <DockviewDefaultTab {...props} hideClose />;
-}
-
 /**
  * The Design workspace's tab strip, spanning the full canvas above every dock
  * panel.
@@ -263,8 +259,7 @@ function DesignWorkspaceFooter() {
   const designMethod = useWorkspaceStore(selectDesignMethod);
 
   if (activeWorkspace !== 'design') return null;
-  const variant = designLayoutVariant(designMethod);
-  if (variant !== 'box-pleat') return null;
+  if (designMethod !== 'box-pleat') return null;
   return <DesignAttributionFooter method="bp" />;
 }
 
@@ -300,13 +295,10 @@ export function WorkspaceShell() {
       const { api } = event;
       setDockviewApi(api);
 
-      // Build for the workspace the URL asks for, not the store default. Set the
-      // active workspace and (for Design) the variant first so the layout is
-      // built once, correctly, with no second rebuild churning the WebGL canvas.
-      const { workspace, variant } = targetRef.current;
-      if (workspace === 'design' && variant) {
-        useWorkspaceStore.getState().applyDesignRoute(variant);
-      }
+      // Build for the workspace the URL asks for, not the store default, so the
+      // layout is built once, correctly, with no second rebuild churning the
+      // WebGL canvas.
+      const { workspace } = targetRef.current;
       useLayoutStore.setState({ activeWorkspace: workspace });
 
       let loaded = false;

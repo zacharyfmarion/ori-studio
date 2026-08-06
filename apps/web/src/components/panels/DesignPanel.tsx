@@ -73,7 +73,6 @@ import {
   symmetrySide,
 } from '../../lib/symmetryAuthoring';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { DesignMethodChooser } from './DesignMethodChooser';
 import { DesignAttributionFooter } from '../DesignAttributionFooter';
 import { BpTreePanel } from './BpTreePanel';
 import { Button } from '../ui/Button';
@@ -448,28 +447,16 @@ function DesignViewportToolbar({
 }
 
 /**
- * The Design pane, showing exactly one design: the active tab's.
+ * The design canvas: one kind's primary pane, for the tab that declared it.
  *
- * The tab strip is **not** here. It spans the whole Design workspace, above every
- * dock panel, so it lives in `WorkspaceShell` — the box-pleat layout has two
- * design panes and a strip inside one of them would govern only that one.
+ * Neither the tab strip nor the method chooser is here. The strip spans the whole
+ * Design workspace (see `WorkspaceShell`) and the chooser is the state of a tab
+ * that has *no* kind, so it has no panes at all — `DesignPaneLayout` owns both.
  *
- * Keyed by the active design so switching tabs remounts rather than re-deriving.
- * Under lazy hydrate only the active design holds a live engine handle, and the
- * surface's viewport, hover, and drag state all belong to the design it was built
- * for; carrying them into the next one is how a switch would leak.
+ * Remounted per design, because its dock is: two designs never share a viewport,
+ * a hover, or a drag.
  */
 export function DesignPanel() {
-  const activeDesignId = useWorkspaceStore((state) => state.activeDesignId);
-  return <DesignSurface key={activeDesignId} />;
-}
-
-/**
- * Design pane router. The Design workspace hosts either the NUX method chooser,
- * a Box Pleating design, or the TreeMaker (circle-packed) tree editor. Keeping
- * the branch in a thin wrapper lets each surface own its own hooks.
- */
-function DesignSurface() {
   const { t } = useTranslation();
   const designMethod = useWorkspaceStore(selectDesignMethod);
   const oristudioBpDocument = useWorkspaceStore((state) => selectOristudioBpDocument(state));
@@ -485,9 +472,6 @@ function DesignSurface() {
     }
   }, [designMethod, oristudioBpDocument, oristudioBpError, ensureBoxPleatProject]);
 
-  if (designMethod === 'none') {
-    return <DesignMethodChooser />;
-  }
   if (designMethod === 'box-pleat') {
     if (oristudioBpDocument) {
       return (

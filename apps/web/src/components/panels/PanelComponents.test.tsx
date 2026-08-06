@@ -17,6 +17,9 @@ describe('panelComponents', () => {
       'cp-view-controls',
       'crease-pattern',
       'design',
+      // The Design workspace's single dock panel; `design` above is one of the
+      // panes *inside* it, mounted by the active tab's own dock.
+      'design-workspace',
       'diagnostics',
       'inspector',
       'sequence',

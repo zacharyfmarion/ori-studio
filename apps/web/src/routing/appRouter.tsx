@@ -4,7 +4,7 @@ import { RouteErrorElement } from '../components/errors/RouteErrorElement';
 import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
 import { getRuntimeSurface } from '../platform/runtime';
-import { EDIT_PATH, WELCOME_PATH } from './paths';
+import { DESIGN_PATH, EDIT_PATH, LEGACY_DESIGN_PATHS, WELCOME_PATH } from './paths';
 import { ShareRoute } from './ShareRoute';
 import { WelcomeRoute } from './WelcomeRoute';
 import { WorkspaceRoute } from './WorkspaceRoute';
@@ -76,12 +76,14 @@ export function createAppRouter(): AppRouter {
         {
           element: <WorkspaceShell />,
           children: [
-            { path: 'design', element: <WorkspaceRoute workspace="design" variant="nux" /> },
-            {
-              path: 'design/treemaker',
-              element: <WorkspaceRoute workspace="design" variant="treemaker" />,
-            },
-            { path: 'design/bp', element: <WorkspaceRoute workspace="design" variant="box-pleat" /> },
+            { path: 'design', element: <WorkspaceRoute workspace="design" /> },
+            // The retired method sub-routes. A bookmark or a link from an older
+            // build still resolves — to the one Design workspace, which now shows
+            // whichever designs the project has open rather than a single method.
+            ...LEGACY_DESIGN_PATHS.map((path) => ({
+              path: path.slice(1),
+              loader: () => redirect(DESIGN_PATH),
+            })),
             { path: 'edit', element: <WorkspaceRoute workspace="edit" /> },
             { path: 'simulate', element: <WorkspaceRoute workspace="simulate" /> },
           ],

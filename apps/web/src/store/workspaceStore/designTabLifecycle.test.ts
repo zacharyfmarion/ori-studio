@@ -22,7 +22,6 @@ vi.mock('../../engines/designHandles', () => ({
 }));
 
 const { useWorkspaceStore } = await import('../workspaceStore');
-const { useLayoutStore } = await import('../layoutStore');
 const handles = await import('../../engines/designHandles');
 const { DEFAULT_DESIGN_TITLE, resetDesignTabIds, selectDesignMethod } = await import('./designTabs');
 const { createTreemakerDesignState } = await import('./designContent');
@@ -199,7 +198,7 @@ describe('duplicateDesignTab', () => {
   it('copies through the codec and lands beside the original', async () => {
     useWorkspaceStore.setState({
       designTabs: [
-        { id: 'design-1', title: 'Crane', kind: 'treemaker', treemaker: undefined as never },
+        { id: 'design-1', title: 'Crane', paneLayout: null, kind: 'treemaker', treemaker: undefined as never },
       ],
       activeDesignId: 'design-1',
     });
@@ -229,6 +228,7 @@ describe('requestCloseDesignTab', () => {
         {
           id: 'design-1',
           title: 'Crane',
+          paneLayout: null,
           kind: 'treemaker',
           treemaker: createTreemakerDesignState({
             historyPast: [{ text: 'earlier', label: 'edit', timestamp: '2026-01-01T00:00:00.000Z' }],
@@ -275,70 +275,5 @@ describe('requestCloseDesignTab', () => {
     await useWorkspaceStore.getState().requestCloseDesignTab('design-nope');
     expect(dialogMocks.requestConfirmation).not.toHaveBeenCalled();
     expect(tabs()).toHaveLength(1);
-  });
-});
-
-describe('dock layout follows the active tab', () => {
-  /**
-   * The dock layout is per design *kind* — box-pleat mounts two BP panes,
-   * circle-packed a tree canvas plus tool panes — so switching tabs can switch
-   * kind, and the panes have to follow. Missing this leaves a box-pleat layout
-   * over a circle-packed design.
-   */
-  function watchLayout() {
-    const ensure = vi.fn();
-    useLayoutStore.setState({ ensureDesignLayout: ensure });
-    return ensure;
-  }
-
-  it('rebuilds on switch', () => {
-    useWorkspaceStore.getState().addDesignTab();
-    const [first] = tabs().map((tab) => tab.id);
-    const ensure = watchLayout();
-
-    useWorkspaceStore.getState().activateDesignTab(first);
-
-    expect(ensure).toHaveBeenCalled();
-  });
-
-  it('rebuilds when a close changes which tab is active', () => {
-    useWorkspaceStore.getState().addDesignTab();
-    const doomed = activeId();
-    const ensure = watchLayout();
-
-    useWorkspaceStore.getState().closeDesignTab(doomed);
-
-    expect(ensure).toHaveBeenCalled();
-  });
-
-  it('rebuilds for the tab that replaces the last one closed', () => {
-    const only = activeId();
-    const ensure = watchLayout();
-
-    useWorkspaceStore.getState().closeDesignTab(only);
-
-    expect(ensure).toHaveBeenCalled();
-  });
-
-  it('rebuilds for a new tab', () => {
-    const ensure = watchLayout();
-
-    useWorkspaceStore.getState().addDesignTab();
-
-    expect(ensure).toHaveBeenCalled();
-  });
-
-  it('rebuilds for a duplicate', async () => {
-    useWorkspaceStore.setState({
-      designTabs: [
-        { id: 'design-1', title: 'Crane', kind: 'treemaker', treemaker: undefined as never },
-      ],
-      activeDesignId: 'design-1',
-    });
-    const ensure = watchLayout();
-
-    await useWorkspaceStore.getState().duplicateDesignTab('design-1');
-
-    expect(ensure).toHaveBeenCalled();
   });
 });

@@ -45,7 +45,12 @@ describe('titles', () => {
 describe('createDesignTab', () => {
   it('defaults to the chooser state with a default title', () => {
     const created = createDesignTab();
-    expect(created).toEqual({ id: 'design-1', kind: null, title: DEFAULT_DESIGN_TITLE });
+    expect(created).toEqual({
+      id: 'design-1',
+      kind: null,
+      title: DEFAULT_DESIGN_TITLE,
+      paneLayout: null,
+    });
   });
 
   it('takes a kind and title when supplied', () => {

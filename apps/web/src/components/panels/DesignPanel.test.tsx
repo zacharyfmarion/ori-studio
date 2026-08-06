@@ -149,19 +149,6 @@ describe('DesignPanel', () => {
     expect(container?.querySelector('.design-panel__body')).toBeNull();
   });
 
-  it('leaves the Box-pleated method available before the treemaker engine loads', () => {
-    renderDesignPanel({ engineReady: false, ...singleDesignTab(null) });
-
-    const button = (label: string) =>
-      Array.from(container?.querySelectorAll('button') ?? []).find((element) =>
-        element.textContent?.includes(label)
-      );
-    // Box-pleating runs on the BP worker, so it must not wait on the engine…
-    expect(button('Box-pleated')?.disabled).toBe(false);
-    // …while circle-packing genuinely does.
-    expect(button('Circle-packed')?.disabled).toBe(true);
-  });
-
   it('shows a subtle nudge when the design tree is empty', () => {
     renderPanel(createEmptyProject());
 

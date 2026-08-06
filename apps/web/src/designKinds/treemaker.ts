@@ -124,24 +124,28 @@ export function createTreemakerDesignKind(
     panes: [
       {
         id: 'tree',
+        component: 'design',
         title: (t) => t('panels:design.paneTitle.tree', 'Design'),
         placement: { kind: 'primary' },
         editingContext: 'treemaker-tree',
       },
       {
         id: 'inspector',
+        component: 'inspector',
         title: (t) => t('panels:design.paneTitle.inspector', 'Inspector'),
         placement: { kind: 'side', group: 'tools', initialWidth: 320 },
         editingContext: 'treemaker-tree',
       },
       {
         id: 'diagnostics',
+        component: 'diagnostics',
         title: (t) => t('panels:design.paneTitle.diagnostics', 'Diagnostics'),
         placement: { kind: 'side', group: 'tools', inactive: true },
         editingContext: 'treemaker-tree',
       },
       {
         id: 'conditions',
+        component: 'conditions',
         title: (t) => t('panels:design.paneTitle.conditions', 'Conditions'),
         placement: { kind: 'side', group: 'tools', inactive: true },
         editingContext: 'treemaker-tree',

@@ -34,8 +34,13 @@ export interface DesignKindAvailability {
 export type DesignPanePlacement =
   /** The design canvas itself. Exactly one per kind. */
   | { kind: 'primary' }
-  /** A pane splitting off the primary, sized as a fraction of the tab. */
-  | { kind: 'split'; direction: 'right'; initialFraction: number }
+  /**
+   * A peer canvas beside the primary, splitting the tab evenly.
+   *
+   * Its presence is also what gives the primary a tab header: two canvases side
+   * by side need naming, a canvas beside a tool column does not.
+   */
+  | { kind: 'split'; direction: 'right' }
   /**
    * A tool pane docked to one side. Panes sharing a `group` are tabbed together;
    * `inactive` mirrors Dockview's flag for the ones that start unselected.
@@ -56,8 +61,17 @@ export type DesignPanePlacement =
 export type LocalizedCopy<T> = (t: TFunction) => T;
 
 export interface DesignPaneSpec {
-  /** Unique within the kind. Composed with the tab id to form a runtime pane id. */
+  /** Unique within the kind. The stable key for this pane in a saved layout. */
   id: string;
+  /**
+   * Which registered panel component renders this pane, and the id it is mounted
+   * under inside the tab's dock.
+   *
+   * Separate from {@link id} because the two answer different questions: `id` is
+   * kind-scoped (both kinds call their canvas `tree`), while this is app-scoped
+   * and is what `resolveEditingContext` and the capability layer already key on.
+   */
+  component: string;
   /** Pane title. See {@link LocalizedCopy} for why this is a function. */
   title: LocalizedCopy<string>;
   placement: DesignPanePlacement;

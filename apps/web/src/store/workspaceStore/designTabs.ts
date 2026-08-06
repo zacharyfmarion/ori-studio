@@ -13,6 +13,7 @@ import type { Selection, ToolMode, TreeProject } from '../../lib/sampleProject';
 import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
 import type { OptimizationReport } from '../../engine/types';
 import type { HistoryEntry } from './types';
+import type { SerializedDockview } from 'dockview';
 
 /**
  * One design open in the Design workspace.
@@ -31,6 +32,18 @@ interface DesignTabIdentity {
   id: string;
   /** User-editable tab name. */
   title: string;
+  /**
+   * How this design's panes are arranged, as dockview's serialized form.
+   *
+   * Per tab, not per workspace: two designs of the same kind can be laid out
+   * differently, and one of a *different* kind has different panes entirely. It
+   * rides along in the `.osf` (`viewState.paneLayout`) rather than local storage,
+   * so reopening a project restores how it was being looked at.
+   *
+   * Typed loosely on purpose — the store carries it, dockview interprets it, and
+   * `null` means "the kind's default arrangement".
+   */
+  paneLayout: SerializedDockview | null;
 }
 
 /**
@@ -94,13 +107,30 @@ export function uniqueDesignTitle(
 
 export function createDesignTab(
   existing: readonly DesignTab[] = [],
-  overrides: { kind?: DesignKindId | null; title?: string } = {}
+  overrides: {
+    kind?: DesignKindId | null;
+    title?: string;
+    paneLayout?: SerializedDockview | null;
+  } = {}
 ): DesignTab {
   const identity: DesignTabIdentity = {
     id: nextDesignTabId(existing),
     title: overrides.title ?? uniqueDesignTitle(existing),
+    paneLayout: overrides.paneLayout ?? null,
   };
   return { ...identity, ...contentForKind(overrides.kind ?? null) };
+}
+
+/**
+ * A tab's identity, separated from what it is authoring.
+ *
+ * Every writer that swaps a tab's content arm rebuilds the tab, and each one used
+ * to list the identity fields by hand — so adding one (`paneLayout`) would have
+ * silently dropped it on the next method change or install. Spreading this
+ * instead means a new identity field is carried everywhere by construction.
+ */
+function identityOf(tab: DesignTab): DesignTabIdentity {
+  return { id: tab.id, title: tab.title, paneLayout: tab.paneLayout };
 }
 
 /** A fresh, empty content arm for a kind. */
@@ -202,6 +232,19 @@ export function withActiveTab(
   return mapActiveTab(state, (tab) => ({ ...tab, title: patch.title }));
 }
 
+/** Record a design's pane arrangement. Identity-only, so any kind can use it. */
+export function withDesignPaneLayout(
+  state: DesignTabsSlice,
+  designId: string,
+  paneLayout: SerializedDockview | null
+): Pick<DesignTabsSlice, 'designTabs'> {
+  return {
+    designTabs: state.designTabs.map((tab) =>
+      tab.id === designId ? { ...tab, paneLayout } : tab
+    ),
+  };
+}
+
 /**
  * The active design's TreeMaker state, or `null` when the active design is of
  * another kind.
@@ -279,8 +322,7 @@ export function installTreemakerDesign(
   design: Partial<TreemakerDesignState> = {}
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return mapActiveTab(state, (tab) => ({
-    id: tab.id,
-    title: tab.title,
+    ...identityOf(tab),
     kind: 'treemaker',
     treemaker: createTreemakerDesignState(design),
   }));
@@ -312,8 +354,7 @@ export function patchTreemakerDesign(
     return { designTabs: state.designTabs };
   }
   return mapActiveTab(state, (tab) => ({
-    id: tab.id,
-    title: tab.title,
+    ...identityOf(tab),
     kind: 'treemaker',
     treemaker: { ...current, ...patch },
   }));
@@ -369,8 +410,7 @@ export function installBoxPleatDesign(
   design: Partial<BoxPleatDesignState> = {}
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return mapActiveTab(state, (tab) => ({
-    id: tab.id,
-    title: tab.title,
+    ...identityOf(tab),
     kind: 'box-pleat',
     boxPleat: createBoxPleatDesignState(design),
   }));
@@ -397,8 +437,7 @@ export function patchBoxPleatDesign(
     return { designTabs: state.designTabs };
   }
   return mapActiveTab(state, (tab) => ({
-    id: tab.id,
-    title: tab.title,
+    ...identityOf(tab),
     kind: 'box-pleat',
     boxPleat: { ...current, ...patch },
   }));
@@ -423,7 +462,7 @@ export function clearActiveDesignContent(
 ): Pick<DesignTabsSlice, 'designTabs'> {
   // Rebuilt rather than spread-with-undefined so a discarded arm cannot linger on
   // the object and resurface through a stale cast.
-  return mapActiveTab(state, (tab) => ({ id: tab.id, title: tab.title, kind: null }));
+  return mapActiveTab(state, (tab) => ({ ...identityOf(tab), kind: null }));
 }
 
 /**

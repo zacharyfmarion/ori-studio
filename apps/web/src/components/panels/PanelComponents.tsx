@@ -1,6 +1,7 @@
 import type { FC } from 'react';
 import type { IDockviewPanelProps } from 'dockview';
 import { DesignPanel } from './DesignPanel';
+import { DesignPaneLayout } from './DesignPaneLayout';
 import { BpEditorPanel } from './BpEditorPanel';
 import { InspectorPanel } from './InspectorPanel';
 import { CreasePatternPanel } from './CreasePatternPanel';
@@ -13,6 +14,9 @@ import { SequencePanel } from './SequencePanel';
 import { withPanelErrorBoundary } from '../errors/withPanelErrorBoundary';
 
 const panels: Record<string, FC<IDockviewPanelProps>> = {
+  // The Design workspace's single dock panel: a tab strip's worth of designs,
+  // each with its own panes. `design` below is one of *those* panes.
+  'design-workspace': DesignPaneLayout,
   design: DesignPanel,
   'bp-editor': BpEditorPanel,
   inspector: InspectorPanel,

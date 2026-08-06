@@ -223,7 +223,6 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   const showBpDesignWorkspace = () => {
     const layout = useLayoutStore.getState();
     layout.activateWorkspace('design');
-    layout.ensureDesignLayout();
   };
 
   // Replace the active BP document after an edit and mark any generated BP

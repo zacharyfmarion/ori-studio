@@ -121,14 +121,16 @@ export function createBoxPleatDesignKind(
     panes: [
       {
         id: 'tree',
+        component: 'design',
         title: (t) => t('panels:design.paneTitle.bpTree', 'Tree editor'),
         placement: { kind: 'primary' },
         editingContext: 'bp-tree',
       },
       {
         id: 'packing',
+        component: 'bp-editor',
         title: (t) => t('panels:design.paneTitle.bpPacking', 'BP Editor'),
-        placement: { kind: 'split', direction: 'right', initialFraction: 0.5 },
+        placement: { kind: 'split', direction: 'right' },
         editingContext: 'bp-packing',
       },
     ],

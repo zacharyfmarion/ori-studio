@@ -15,9 +15,7 @@ import { createHistorySlice } from './slices/historySlice';
 import { createProjectSlice } from './slices/projectSlice';
 import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { createSimulatorSlice } from './slices/simulatorSlice';
-import { registerDesignVariantSource } from '../layoutStore';
 import { resolveEditingContext } from '../../workspaces/editingContext';
-import { designLayoutVariant } from './designVariant';
 import type { WorkspaceState } from './types';
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -38,8 +36,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
 // Let the engine runtimes resolve the active design, so a tree handle belongs to
 // the tab that owns it rather than to the module. Registered rather than imported
-// for the same reason as the layout-variant source below: the runtimes sit under
-// the store, and importing it would close a cycle.
+// because the runtimes sit under the store, and importing it would close a cycle.
+//
 // A chooser tab is reported too, `kind: null` and all. It is a real design with a
 // real id, and a tree created *from* the chooser — the normal way one is made —
 // belongs to it. Filtering it out here sent that tree to the module fallback
@@ -49,12 +47,6 @@ registerActiveDesignSource(() => {
   const tab = activeDesignTab(useWorkspaceStore.getState());
   return { id: tab.id, kind: tab.kind };
 });
-
-// Let the layout store read the active Design layout variant so it can
-// materialize the NUX chooser, box-pleat split, or TreeMaker layout.
-registerDesignVariantSource(() =>
-  designLayoutVariant(selectDesignMethod(useWorkspaceStore.getState()))
-);
 
 // Keep `activeEditingContext` derived from the active panel + design state. The
 // active panel (`activePanelId`) is the source of truth; every other input

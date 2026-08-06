@@ -5849,15 +5849,16 @@ describe('workspace store slices', () => {
       expect(selectOristudioBpDocument(state)).not.toBeNull();
       expect(selectDesignMethod(state)).not.toBe('none');
       expect(useLayoutStore.getState().activeWorkspace).toBe('design');
-      expect(currentWorkspacePath()).toBe('/design/bp');
+      // One Design route, whatever the design's kind: with tabs the workspace can
+      // hold both kinds at once, so there is nothing for a sub-path to name.
+      expect(currentWorkspacePath()).toBe('/design');
     });
 
-    it('names the TreeMaker variant when a tree replaces a box-pleat design', async () => {
+    it('replaces a box-pleat design outright when a tree is opened', async () => {
       // Regression: `loadText` installed a tree without claiming the design
       // fields, so the previous file's `workflowTarget` and BP document both
-      // survived. Harmless while every design landed on bare `/design`; once the
-      // landing names the variant it would send a freshly-opened tree to
-      // `/design/bp` and show the stale box-pleat design instead.
+      // survived — a tab claiming to author a tree while still holding a
+      // box-pleat document.
       useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
       await useWorkspaceStore.getState().loadOristudioBpProjectFromFile('{"tree":{}}', {
         filename: 'crane.bps',
@@ -5878,7 +5879,6 @@ describe('workspace store slices', () => {
       expect(selectDesignMethod(state)).toBe('treemaker');
       expect(selectDesignMethod(state)).not.toBe('none');
       expect(selectOristudioBpDocument(state)).toBeNull();
-      expect(currentWorkspacePath()).toBe('/design/treemaker');
     });
 
     it('warns before a .bps export drops mirror symmetry, and aborts when refused', async () => {
@@ -6031,7 +6031,9 @@ describe('workspace store slices', () => {
       await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
       expectInvariant();
 
-      useWorkspaceStore.getState().applyDesignRoute('treemaker');
+      await useWorkspaceStore.getState().duplicateDesignTab(
+        useWorkspaceStore.getState().activeDesignId
+      );
       expectInvariant();
 
       useWorkspaceStore.getState().startNewDesign();

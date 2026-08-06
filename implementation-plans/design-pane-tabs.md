@@ -1115,8 +1115,38 @@ BP runtime singletons) foldable into 7.
   entered the document registry, so `serializeDesign` threw and the caller read
   that as "nothing to copy"), and `initEngine`'s cold-boot sync logged a false
   `patchTreemakerDesign` error against the chooser tab.
-- [ ] Phase 4 — intra-tab Gridview, panes migrated, active-pane tracking
-- [ ] Phase 5 — `/design` collapse with redirects
+- [x] Phase 4 — intra-tab dock, panes migrated, active-pane tracking
+- [x] Phase 5 — `/design` collapse with redirects
+
+  Done together, because the design *variant* was one idea wearing two hats: it
+  chose the workspace's dock layout **and** its sub-route, so removing either
+  alone would have left the other describing a workspace that no longer has a
+  single method.
+
+  - `inspector` / `diagnostics` / `conditions` / `bp-editor` moved out of the
+    workspace dock and into `DesignPaneLayout`, a dock owned by the active design
+    tab and keyed by it. The workspace holds one headerless `design-workspace`
+    panel that varies with nothing.
+  - **A nested dock, not the plan's `GridviewReact`.** Gridview gives resizable,
+    serializable panes — what the plan wanted it for — but has no tab group, and
+    Inspector / Diagnostics / Conditions are one tabbed column. Under Gridview
+    they would have become three stacked rows. `disableDnd` is set: a pane
+    dragged out would land in the workspace dock, orphaned from its design, and
+    resizing (the actual ask) does not go through drag-and-drop.
+  - Pane sizes persist **per design**, in `viewState.paneLayout`. A saved layout
+    is restored only if it names exactly the panes the kind declares today, so a
+    box-pleat layout can never be restored into a circle-packed tab.
+  - The chooser moved to `DesignPaneLayout` too: a tab with no kind has no panes,
+    because its kind is what declares them.
+  - Deleted: `DesignLayoutVariant`, `designLayoutVariant`, `designVariantPath`,
+    `registerDesignVariantSource`, `mountedDesignVariant`, `ensureDesignLayout`
+    (and the eight calls Phase 3 had to add), `applyDesignRoute`, and the
+    `design:box-pleat` / `design:nux` layout scopes. `LAYOUT_VERSION` 18.
+  - `activatePanel` now looks in both docks. Callers name a pane, not a dock —
+    making each of them ask which one would have pushed this refactor outward.
+  - `/design/treemaker` and `/design/bp` redirect to `/design`; `parseWorkspacePath`
+    still resolves them, because the shell reads the URL to build its first layout
+    before the redirect lands.
 - [x] Phase 6 — `.osf` v8: N designs per file
 
   `workspace.documents` (at most one per kind, constant ids) becomes

@@ -3,14 +3,12 @@ import {
   clearActiveDesignContent,
   createDesignTab,
   initialDesignTabs,
-  installTreemakerDesign,
   isDesignTouched,
-  markActiveTabBoxPleat,
   patchBoxPleatDesign,
-  selectDesignMethod,
   selectOristudioBpDocument,
   selectOristudioBpSymmetry,
   selectProject,
+  withDesignPaneLayout,
   type DesignTab,
 } from '../designTabs';
 import {
@@ -30,6 +28,7 @@ import type { NativeCreasePatternDocumentV1 as NativeCreasePatternDocument } fro
 import { ProjectFileFormatError } from '../../../lib/projectFileError';
 import { createBoxPleatDesignState, createTreemakerDesignState } from '../designContent';
 import { BP_TREE_SYMMETRY_ANGLE, defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
+import type { SerializedDockview } from 'dockview';
 import type { BpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import { getExampleProject } from '../../../examples/catalog';
 import { APP_VERSION } from '../../../constants/release';
@@ -1262,7 +1261,17 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    * never reaches here — it stayed in `unknownDesigns`.
    */
   const createDesignTabFromFile = (design: NativeDesignDocumentV8): DesignTab => {
-    const identity = { id: design.id, title: design.title };
+    const identity = {
+      id: design.id,
+      title: design.title,
+      // Dropped rather than repaired when malformed, like the crease pattern's
+      // `viewport` and `camera`: a corrupt layout opens with the kind's default,
+      // it never fails the file. The dock also re-checks the shape before
+      // restoring, so a layout written for a different set of panes is ignored.
+      paneLayout: isRecord(design.viewState.paneLayout)
+        ? (design.viewState.paneLayout as unknown as SerializedDockview)
+        : null,
+    };
     if (design.payload.kind === 'box-pleat') {
       const symmetry = isRecord(design.viewState.symmetry)
         ? (design.viewState.symmetry as unknown as BpDocumentSymmetry)
@@ -1401,10 +1410,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             kind: tab.kind,
             text,
             format: designPayloadFormat(tab.kind),
-            viewState:
-              tab.kind === 'box-pleat'
+            viewState: {
+              // How this design was being looked at. Per design rather than per
+              // workspace, so reopening a project restores each tab's own pane
+              // arrangement — including one whose kind lays out differently.
+              ...(tab.paneLayout ? { paneLayout: tab.paneLayout } : {}),
+              ...(tab.kind === 'box-pleat'
                 ? { symmetry: bpDocumentSymmetry(tab.boxPleat.symmetry) }
-                : {},
+                : {}),
+            },
           };
         })
       )
@@ -1712,7 +1726,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const layout = useLayoutStore.getState();
     layout.activateWorkspace(landingWorkspace(get()));
     // No-ops outside Design; rebuilds the variant layout when a design landed.
-    layout.ensureDesignLayout();
   };
 
   // Route a native save/save-as by the documents that exist, NOT by the pane in
@@ -1878,7 +1891,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // Rebuild the Design layout if switching variant (e.g. NUX or box-pleat
         // -> circle-packed) so the TreeMaker side panes are correct and no BP
         // Editor pane lingers.
-        layout.ensureDesignLayout();
         // Only real File > New is a "project opened"; the design-method chooser
         // (preserveEditCanvas) is recorded as `design method chosen` instead.
         if (!preserveEditCanvas) track('project opened', { source: 'new' });
@@ -2895,7 +2907,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const tab = createDesignTab(tabs);
       set({ designTabs: [...tabs, tab], activeDesignId: tab.id });
       useLayoutStore.getState().activateWorkspace('design');
-      useLayoutStore.getState().ensureDesignLayout();
     },
 
     activateDesignTab: (designId) => {
@@ -2910,7 +2921,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // The dock layout is per design *kind* — box-pleat mounts two BP panes,
       // circle-packed a tree canvas plus tool panes. Switching tabs can switch
       // kind, so the layout has to follow. No-op when the variant is unchanged.
-      useLayoutStore.getState().ensureDesignLayout();
     },
 
     closeDesignTab: (designId) => {
@@ -2929,7 +2939,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // on the one that took its place.
         const replacement = createDesignTab(designTabs);
         set({ designTabs: [replacement], activeDesignId: replacement.id });
-        useLayoutStore.getState().ensureDesignLayout();
         return;
       }
       const nextActive =
@@ -2938,7 +2947,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           : activeDesignId;
       if (nextActive !== activeDesignId) void parkDesign(activeDesignId);
       set({ designTabs: remaining, activeDesignId: nextActive });
-      useLayoutStore.getState().ensureDesignLayout();
     },
 
     requestCloseDesignTab: async (designId) => {
@@ -2957,6 +2965,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (!confirmed) return;
       }
       get().closeDesignTab(designId);
+    },
+
+    setDesignPaneLayout: (designId, paneLayout) => {
+      const state = get();
+      if (!state.designTabs.some((tab) => tab.id === designId)) return;
+      set(withDesignPaneLayout(state, designId, paneLayout));
+      // Deliberately **not** `dirty`. How the panes are sized is a view
+      // preference that rides along in the file; marking a project unsaved
+      // because someone dragged a splitter would train people to ignore the
+      // indicator.
     },
 
     renameDesignTab: (designId, title) => {
@@ -2999,7 +3017,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // had would be nonsense. `editCount` starts fresh for the same reason.
       void parkDesign(get().activeDesignId);
       set({ designTabs: next, activeDesignId: copy.id, dirty: true });
-      useLayoutStore.getState().ensureDesignLayout();
     },
 
     startNewDesign: () => {
@@ -3009,29 +3026,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // one, so no route or loader can put the chooser over a live design.
       set({ ...clearActiveDesignContent(get()), error: null, projectMessage: null });
       useLayoutStore.getState().activateWorkspace('design');
-      useLayoutStore.getState().ensureDesignLayout();
     },
 
-    applyDesignRoute: (variant) => {
-      // Reflect a Design sub-route into the method. Layout rebuild and document
-      // provisioning are the caller's concern (WorkspaceRoute).
-      //
-      // `nux` writes nothing: bare `/design` is where the chooser lives, not an
-      // instruction to discard the method. It used to force
-      // `pendingDesignChoice: true`, which is how landing there replaced a design
-      // that had just loaded with the chooser. `/design` now redirects to the
-      // active method's sub-route instead, and only `startNewDesign` clears it.
-      if (variant === 'nux') return;
-      if (selectDesignMethod(get()) === variant) return;
-      // Installing rather than just naming the kind: a blank circle-packed design
-      // *is* an empty tree, so the route can establish one outright. Box-pleat's
-      // document is still provisioned by the panel (see `ensureBoxPleatProject`).
-      set(
-        variant === 'treemaker'
-          ? installTreemakerDesign(get())
-          : markActiveTabBoxPleat(get())
-      );
-    },
 
     chooseDesignMethod: async (target) => {
       // Choosing a design method establishes a design surface but must not touch

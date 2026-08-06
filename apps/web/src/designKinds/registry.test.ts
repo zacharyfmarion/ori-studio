@@ -113,6 +113,7 @@ describe('extensibility: a third design kind', () => {
     panes: [
       {
         id: 'canvas',
+      component: 'design',
         title: () => 'Stub canvas',
         placement: { kind: 'primary' },
         editingContext: STUB_CONTEXT,
