@@ -10,6 +10,51 @@ import {
 } from '../../engine/oristudioBpTypes';
 import { BP_TREE_SYMMETRY_ANGLE, defaultBpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
 import type { SnapshotEntry } from './snapshotHistory';
+import { createExploriDocument, type ExploriDocument } from '../../explori/document';
+import type { ExploriResult } from '../../explori/types';
+import type { TreeSelectionTarget } from '../../tree-editor/model';
+
+/**
+ * The per-design state of an ExplOri (22.5° archive search) design.
+ *
+ * `document` is the authored query and the chosen result — everything a saved
+ * file holds. `results` is the rest of the last result set, which deliberately
+ * is *not* saved: the archive is not versioned, so a design whose meaning
+ * depends on re-running a query is one that can silently become a different
+ * design. See `explori/document.ts`.
+ */
+export interface ExploriDesignState {
+  document: ExploriDocument;
+  selection: TreeSelectionTarget | null;
+  /** The last result set. Session-only; a park or a save drops it. */
+  results: ExploriResult[];
+  /** Set while a query is in flight, so the pane can say so. */
+  searching: boolean;
+  /** The last query's failure, as a message already localized. */
+  error: string | null;
+  /** Which result the detail view is showing, by index into `results`. */
+  detailIndex: number | null;
+  historyPast: string[];
+  historyFuture: string[];
+  viewportFitRequestId: number;
+}
+
+export function createExploriDesignState(
+  overrides: Partial<ExploriDesignState> = {}
+): ExploriDesignState {
+  return {
+    document: createExploriDocument(),
+    selection: { kind: 'vertex', id: 0 },
+    results: [],
+    searching: false,
+    error: null,
+    detailIndex: null,
+    historyPast: [],
+    historyFuture: [],
+    viewportFitRequestId: 0,
+    ...overrides,
+  };
+}
 
 /**
  * The per-design state of a TreeMaker (circle-packed) design.
@@ -115,7 +160,8 @@ export function createBoxPleatDesignState(
 export type DesignTabContent =
   | { kind: null }
   | { kind: 'treemaker'; treemaker: TreemakerDesignState }
-  | { kind: 'box-pleat'; boxPleat: BoxPleatDesignState };
+  | { kind: 'box-pleat'; boxPleat: BoxPleatDesignState }
+  | { kind: 'explori'; explori: ExploriDesignState };
 
 /**
  * An empty tree and an empty TreeMaker design, shared by every read that lands on
@@ -134,3 +180,5 @@ export const EMPTY_TREEMAKER_DESIGN: TreemakerDesignState = Object.freeze(
 export const EMPTY_BOX_PLEAT_DESIGN: BoxPleatDesignState = Object.freeze(
   createBoxPleatDesignState()
 );
+
+export const EMPTY_EXPLORI_DESIGN: ExploriDesignState = Object.freeze(createExploriDesignState());

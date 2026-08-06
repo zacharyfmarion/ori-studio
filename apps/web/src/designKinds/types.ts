@@ -167,13 +167,15 @@ export interface DesignKindChooser {
 export interface DesignKindDescriptor {
   id: DesignKindId;
   /**
-   * The engine backing this kind's handles.
+   * The engine backing this kind's handles, or `null` for a kind with none.
    *
    * Named rather than implied, because engine and kind are not one-to-one: a
    * later kind may well be built on an existing engine, and the document
    * registry needs to know which documents a given engine's death invalidates.
+   * `null` is the honest answer for a kind whose documents are plain data — it
+   * has no engine that can die, so there is nothing to invalidate.
    */
-  engine: EngineId;
+  engine: EngineId | null;
   /** Discriminator this kind's document carries in a `.osf` file. */
   osfKind: NativeProjectDocumentKind;
   /** Event property value. An enum, never a user-supplied string. */

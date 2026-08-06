@@ -45,7 +45,11 @@ export const NATIVE_PROJECT_EXTENSION = 'osf';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
 export const NATIVE_PROJECT_SCHEMA_VERSION = 8;
 
-export type NativeProjectDocumentKind = 'treemaker-tree' | 'crease-pattern' | 'box-pleat';
+export type NativeProjectDocumentKind =
+  | 'treemaker-tree'
+  | 'crease-pattern'
+  | 'box-pleat'
+  | 'explori';
 
 /**
  * Which document the workspace was focused on when saved. This is the file's

@@ -266,7 +266,8 @@ export function createDocumentRegistry(options: DocumentRegistryOptions = {}) {
    */
   const handleEngineLost = (engine: EngineId) => {
     for (const entry of [...hot.values()]) {
-      if (entry.document.kind.engine !== engine) continue;
+      // A kind with no engine has no engine death to survive.
+      if (entry.document.kind.engine === null || entry.document.kind.engine !== engine) continue;
       hot.delete(entry.document.id);
       // Whatever text was captured at the last park stands. A document that was
       // never parked has none, and `recoverable: false` says so rather than

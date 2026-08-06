@@ -7595,3 +7595,272 @@ button.bp-packing-alert:focus-visible {
   line-height: 1.35;
   white-space: normal;
 }
+
+/* ==========================================================================
+   ExplOri — searching the 22.5° archive
+   ========================================================================== */
+
+/*
+ * The tree canvas borrows box-pleat's marks by pointing its own classes at the
+ * same tokens, rather than by wearing box-pleat's class names. The scene emits
+ * both a generic class and a surface-prefixed one for exactly this: shared rules
+ * stay shared, and a surface can restyle its own tree without reaching into
+ * another's.
+ */
+.explori-tree-edge--river,
+.explori-tree-edge--leaf {
+  stroke: var(--tree-edge);
+}
+
+.explori-tree-edge.tree-edge--selected {
+  stroke: var(--accent-primary);
+  stroke-width: 7;
+}
+
+.explori-tree-node--root:not(:hover, .tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-secondary) 45%, var(--bg-canvas));
+}
+
+.explori-tree-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.explori-tree-panel .explori-tree-panel__body {
+  flex: 1;
+  min-height: 0;
+}
+
+.explori-query-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+  flex-wrap: wrap;
+}
+
+.explori-db-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.explori-db-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.explori-db-row__label {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.explori-db-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.explori-results-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.explori-results__status,
+.explori-results__error {
+  margin: 0;
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.explori-results__error {
+  color: var(--status-error, var(--accent-primary));
+}
+
+.explori-results__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/*
+ * Cards size themselves to the pane. The results pane is one half of a design
+ * tab and gets resized constantly, so a fixed column count would be wrong at
+ * every width but one.
+ */
+.explori-results__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.explori-result-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.explori-result-card__open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.explori-result-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border-top: 1px solid var(--border-default);
+  font-size: 10px;
+}
+
+.explori-result-card__id {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.explori-result-card__meta .explori-quality {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Quality is a five-step scale, so it reads as a ramp rather than five labels. */
+.explori-quality {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.explori-quality--great {
+  color: var(--status-success, var(--accent-secondary));
+}
+
+.explori-quality--good {
+  color: var(--accent-secondary);
+}
+
+.explori-quality--poor,
+.explori-quality--terrible {
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+.explori-detail__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 11px;
+}
+
+.explori-detail__title {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.explori-detail__spacer {
+  flex: 1;
+}
+
+.explori-detail__panes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.explori-detail__pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.explori-detail__modes {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.explori-detail__modes label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.explori-figure {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/*
+ * Crease colours match the Edit canvas rather than ExplOri's own palette: a
+ * pattern that is about to be sent there should not change colour on the way.
+ */
+.explori-crease {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.explori-crease--b {
+  stroke: var(--crease-border, var(--text-primary));
+}
+
+.explori-crease--m {
+  stroke: var(--crease-mountain, #d2544c);
+}
+
+.explori-crease--v {
+  stroke: var(--crease-valley, #4c7fd2);
+}
+
+.explori-crease--h,
+.explori-crease--aux,
+.explori-crease--unknown {
+  stroke: var(--crease-aux, #42c9c0);
+}
+
+.explori-facet {
+  fill: var(--text-primary);
+  stroke: var(--border-default);
+  stroke-width: 0.4;
+}
+
+.explori-graph-edge {
+  stroke: var(--tree-edge);
+  stroke-width: 2;
+}
+
+.explori-graph-node {
+  fill: var(--accent-secondary);
+}

@@ -1,5 +1,6 @@
 import type { EditingContext } from '../workspaces/editingContext';
 import { createBoxPleatDesignKind } from './boxPleat';
+import { createExploriDesignKind } from './explori';
 import { createTreemakerDesignKind } from './treemaker';
 import type { DesignKindDescriptor, DesignKindId, DesignPaneSpec } from './types';
 
@@ -29,6 +30,7 @@ const getBoxPleatClient = async () =>
 export const DESIGN_KINDS: readonly DesignKindDescriptor[] = [
   createTreemakerDesignKind(getTreemakerClient),
   createBoxPleatDesignKind(getBoxPleatClient),
+  createExploriDesignKind(),
 ];
 
 /**

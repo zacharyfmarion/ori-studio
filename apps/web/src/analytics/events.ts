@@ -25,8 +25,8 @@ export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'share';
  * circle-packed design beside a box-pleat one, so it has no single method, and
  * claiming one would be a lie a funnel then gets built on.
  */
-export type DesignVariant = 'nux' | 'treemaker' | 'box-pleat';
-export type DesignMethod = 'treemaker' | 'box-pleat';
+export type DesignVariant = 'nux' | 'treemaker' | 'box-pleat' | 'explori';
+export type DesignMethod = 'treemaker' | 'box-pleat' | 'explori';
 
 /** How a design tab came into being. */
 export type DesignTabSource = 'strip' | 'duplicate' | 'file' | 'replace-last';
@@ -116,6 +116,10 @@ export const ANALYTICS_EVENTS = {
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',
   shareLinkOpened: 'share link opened',
+  exploriSearch: 'explori search',
+  exploriSearchFailed: 'explori search failed',
+  exploriResultOpened: 'explori result opened',
+  exploriSentToEdit: 'explori sent to edit',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
 } as const;
@@ -154,4 +158,21 @@ export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;
 export const DESIGN_TAB_COUNT_BUCKETS = [1, 2, 3, 5, 10] as const;
 
 /** Default threshold ladder for durations, in milliseconds. */
+/**
+ * Where a Send to Edit came from.
+ *
+ * The whole reason the quick action exists is the belief that the detail view is
+ * a detour most of the time; this is the property that says whether that is true.
+ */
+export type ExploriSendSource = 'card' | 'detail';
+
+/** Why a search did not produce results. An enum — never the server's prose. */
+export type ExploriFailureReason =
+  | 'network'
+  | 'timeout'
+  | 'upstream_error'
+  | 'invalid_tree'
+  | 'rate_limited'
+  | 'unknown';
+
 export const DURATION_MS_BUCKETS = [50, 100, 250, 500, 1000, 2500, 5000, 10000] as const;

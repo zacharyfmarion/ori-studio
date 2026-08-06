@@ -28,7 +28,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 import type { NativeDesignDocumentV8 } from '../../../lib/nativeProjectDesigns';
 import type { NativeCreasePatternDocumentV1 as NativeCreasePatternDocument } from '../../../lib/nativeProjectFile';
 import { ProjectFileFormatError } from '../../../lib/projectFileError';
-import { createBoxPleatDesignState, createTreemakerDesignState } from '../designContent';
+import { createBoxPleatDesignState,
+  createExploriDesignState, createTreemakerDesignState } from '../designContent';
 import { BP_TREE_SYMMETRY_ANGLE, defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import type { SerializedDockview } from 'dockview';
 import type { BpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
@@ -1326,6 +1327,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             : undefined,
         }),
       };
+    }
+    if (design.payload.kind === 'explori') {
+      // The tree, the query settings and the chosen result all live in the
+      // payload text, so the tab starts empty and the registry hydrates it.
+      return { ...identity, kind: 'explori', explori: createExploriDesignState() };
     }
     return { ...identity, kind: 'treemaker', treemaker: createTreemakerDesignState() };
   };

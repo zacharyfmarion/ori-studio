@@ -12,7 +12,28 @@ import { Trans } from 'react-i18next';
  * `NOTICE` file and the in-app About dialog; this bar is the visible, in-context
  * attribution.
  */
-export function DesignAttributionFooter({ method }: { method: 'tree' | 'bp' }) {
+export function DesignAttributionFooter({ method }: { method: 'tree' | 'bp' | 'explori' }) {
+  if (method === 'explori') {
+    return (
+      <footer className="design-attribution" role="contentinfo">
+        <span className="design-attribution__text">
+          <Trans i18nKey="panels:design.attributionExplori">
+            Searches{' '}
+            <a
+              className="design-attribution__link"
+              href="https://225.designorigami.net/"
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              ExplOri 22.5
+            </a>{' '}
+            by theplantpsychologist · your tree is sent to their server
+          </Trans>
+        </span>
+      </footer>
+    );
+  }
+
   if (method === 'bp') {
     return (
       <footer className="design-attribution" role="contentinfo">

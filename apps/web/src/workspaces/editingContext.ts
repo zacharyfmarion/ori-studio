@@ -15,6 +15,8 @@ export type EditingContext =
   | 'treemaker-tree'
   | 'bp-tree'
   | 'bp-packing'
+  | 'explori-tree'
+  | 'explori-results'
   | 'crease-pattern'
   | 'simulate';
 

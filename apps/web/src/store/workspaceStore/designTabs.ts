@@ -1,12 +1,15 @@
 import type { DesignKindId } from '../../designKinds';
 import {
   EMPTY_BOX_PLEAT_DESIGN,
+  EMPTY_EXPLORI_DESIGN,
   EMPTY_TREEMAKER_DESIGN,
   createBoxPleatDesignState,
+  createExploriDesignState,
   createTreemakerDesignState,
   type BoxPleatDesignState,
   type DesignTabContent,
   type TreemakerDesignState,
+  type ExploriDesignState,
 } from './designContent';
 import type { DesignMethod } from './designVariant';
 import type { Selection, ToolMode, TreeProject } from '../../lib/sampleProject';
@@ -160,6 +163,7 @@ function identityOf(tab: DesignTab): DesignTabIdentity {
 function contentForKind(kind: DesignKindId | null): DesignTabContent {
   if (kind === 'treemaker') return { kind, treemaker: createTreemakerDesignState() };
   if (kind === 'box-pleat') return { kind, boxPleat: createBoxPleatDesignState() };
+  if (kind === 'explori') return { kind, explori: createExploriDesignState() };
   return { kind: null };
 }
 
@@ -220,6 +224,7 @@ export function selectDesignMethod(state: DesignTabsSlice): DesignMethod {
 export function isDesignTouched(tab: DesignTab): boolean {
   if (tab.kind === 'treemaker') return tab.treemaker.historyPast.length > 0;
   if (tab.kind === 'box-pleat') return tab.boxPleat.historyPast.length > 0;
+  if (tab.kind === 'explori') return tab.explori.historyPast.length > 0;
   return false;
 }
 
@@ -437,6 +442,58 @@ export function selectBoxPleatDesignOrEmpty(
   designId?: string
 ): BoxPleatDesignState {
   return selectBoxPleatDesign(state, designId) ?? EMPTY_BOX_PLEAT_DESIGN;
+}
+
+/**
+ * The active design's ExplOri state, or `null` when the active design is of
+ * another kind. The honest accessor; use it for every write.
+ */
+export function selectExploriDesign(
+  state: DesignTabsSlice,
+  designId: string = state.activeDesignId
+): ExploriDesignState | null {
+  const tab =
+    designId === state.activeDesignId ? activeDesignTab(state) : designTabById(state, designId);
+  return tab?.kind === 'explori' ? tab.explori : null;
+}
+
+/** The active design's ExplOri state, falling back to an empty one. */
+export function selectExploriDesignOrEmpty(
+  state: DesignTabsSlice,
+  designId?: string
+): ExploriDesignState {
+  return selectExploriDesign(state, designId) ?? EMPTY_EXPLORI_DESIGN;
+}
+
+/**
+ * Write to one ExplOri design, naming it.
+ *
+ * `designId` is required rather than defaulted, unlike the synchronous helpers:
+ * every ExplOri write worth making happens after an `await` — a query returning,
+ * a document being hydrated — and defaulting to the active design is precisely
+ * the bug that would cause.
+ */
+export function patchExploriDesign(
+  state: DesignTabsSlice,
+  designId: string,
+  patch: Partial<ExploriDesignState>
+): Pick<DesignTabsSlice, 'designTabs'> {
+  const current = selectExploriDesign(state, designId);
+  if (!current) {
+    if (import.meta.env.DEV) {
+      console.error(
+        '[ori-studio] patchExploriDesign ran against a design that is not ExplOri; ignoring',
+        patch,
+        new Error('patchExploriDesign caller').stack
+      );
+    }
+    return { designTabs: state.designTabs };
+  }
+  return mapDesignTab(state, designId, (tab) => ({
+    ...identityOf(tab),
+    kind: 'explori',
+    explori: { ...current, ...patch },
+  }));
 }
 
 export function selectOristudioBpDocument(state: DesignTabsSlice, designId?: string) {

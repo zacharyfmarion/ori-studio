@@ -16,15 +16,16 @@ const t = ((_key: string, defaultValue?: string) =>
   defaultValue ?? _key) as unknown as TFunction;
 
 describe('design kind registry', () => {
-  it('registers both shipped kinds', () => {
-    expect(designKindRegistry().ids).toEqual(['treemaker', 'box-pleat']);
+  it('registers every shipped kind', () => {
+    expect(designKindRegistry().ids).toEqual(['treemaker', 'box-pleat', 'explori']);
   });
 
   it.each(DESIGN_KINDS.map((kind) => [kind.id, kind] as const))(
     '%s declares a complete descriptor',
     (_id, kind) => {
       expect(kind.osfKind).toBeTruthy();
-      expect(ENGINE_IDS).toContain(kind.engine);
+      // A kind may legitimately have no engine: its documents are plain data.
+      if (kind.engine !== null) expect(ENGINE_IDS).toContain(kind.engine);
       expect(kind.analyticsId).toBeTruthy();
       expect(kind.panes.length).toBeGreaterThan(0);
       expect(typeof kind.sendToEdit).toBe('function');
@@ -78,7 +79,7 @@ describe('design kind registry', () => {
 
   it('orders chooser cards by their declared order', () => {
     const order = designKindRegistry().chooserOrder.map((kind) => kind.id);
-    expect(order).toEqual(['treemaker', 'box-pleat']);
+    expect(order).toEqual(['treemaker', 'box-pleat', 'explori']);
   });
 
 });
@@ -105,7 +106,7 @@ describe('extensibility: a third design kind', () => {
     osfKind: 'treemaker-tree',
     analyticsId: 'stub',
     chooser: {
-      order: 2,
+      order: 99,
       copy: () => ({ title: 'Stub', description: 'A design kind that exists only in tests.' }),
       Icon: () => null,
       isAvailable: () => true,
@@ -183,6 +184,7 @@ describe('extensibility: a third design kind', () => {
     expect(designKindRegistry(kinds).chooserOrder.map((kind) => kind.id)).toEqual([
       'treemaker',
       'box-pleat',
+      'explori',
       'stub',
     ]);
   });
