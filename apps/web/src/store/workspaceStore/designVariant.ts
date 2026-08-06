@@ -1,5 +1,4 @@
 import type { WorkflowTarget } from '../../lib/sampleProject';
-import type { DesignLayoutVariant } from '../layoutStore';
 
 /**
  * Which method the Design workspace is authoring with, or `'none'` when the user
@@ -13,11 +12,3 @@ import type { DesignLayoutVariant } from '../layoutStore';
  * three states cannot express that.
  */
 export type DesignMethod = WorkflowTarget | 'none';
-
-/**
- * The Design layout variant for a method. Total, and takes the one field, so it
- * cannot disagree with the state it describes.
- */
-export function designLayoutVariant(method: DesignMethod): DesignLayoutVariant {
-  return method === 'none' ? 'nux' : method;
-}

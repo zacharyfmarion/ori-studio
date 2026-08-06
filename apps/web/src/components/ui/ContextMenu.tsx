@@ -77,6 +77,14 @@ interface ContextMenuProps {
   y: number;
   items: ContextMenuItem[];
   onOpenChange: (open: boolean) => void;
+  /**
+   * Fires once the menu has closed and is about to hand focus back to whatever
+   * held it before. Call `preventDefault()` to keep that from happening — which
+   * an action that moves focus itself (starting an inline edit, opening a
+   * dialog) must do, or the menu's focus trap yanks focus back out from under
+   * it. Leave it unset for the default, correct behaviour.
+   */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /**
@@ -99,7 +107,14 @@ interface ContextMenuProps {
  * body makes `x`/`y` unambiguously viewport coordinates. React portals preserve
  * context, so Radix still wires the trigger to the menu.
  */
-export function ContextMenu({ open, x, y, items, onOpenChange }: ContextMenuProps) {
+export function ContextMenu({
+  open,
+  x,
+  y,
+  items,
+  onOpenChange,
+  onCloseAutoFocus,
+}: ContextMenuProps) {
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
       {createPortal(
@@ -127,6 +142,7 @@ export function ContextMenu({ open, x, y, items, onOpenChange }: ContextMenuProp
           sideOffset={2}
           collisionPadding={8}
           loop
+          onCloseAutoFocus={onCloseAutoFocus}
         >
           {items.map(renderItem)}
         </DropdownMenu.Content>

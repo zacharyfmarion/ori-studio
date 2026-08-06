@@ -1,3 +1,4 @@
+import { patchTreemakerDesign, selectProject, selectSelection, selectSymmetryAuthoringPairs } from '../designTabs';
 import type { TreeEdit, TreeSnapshot } from '../../../engine/types';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import {
@@ -26,7 +27,7 @@ import {
   engineError,
   ensureTreeHandle,
   nextSelectionForEdit,
-  projectStateFromSnapshot,
+  syncTreemakerProject,
   statusAfterEdit,
 } from '../engineRuntime';
 import { staleFoldArtifactResourceState } from '../foldArtifactResource';
@@ -54,7 +55,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
   async function requireActiveTree() {
     const result = await ensureTreeHandle();
     if (result.initializedSnapshot) {
-      set(projectStateFromSnapshot(result.initializedSnapshot, get().project.title));
+      set(syncTreemakerProject(get(), result.initializedSnapshot, selectProject(get()).title));
     }
     return result;
   }
@@ -63,23 +64,24 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     if (rejectReadOnly()) return;
     set({ error: null });
     const checkpoint = await get().beginHistoryCheckpoint();
-    const selectionBeforeEdit = get().selection;
+    const selectionBeforeEdit = selectSelection(get());
     try {
       const { api, treeHandle } = await requireActiveTree();
       const report = await api.applyEdit(treeHandle, edit);
       set({
-        project: projectFromSnapshot(report.snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+        project: projectFromSnapshot(report.snapshot, selectProject(get()).title),
         selection:
           report.created_node !== undefined || report.created_edge !== undefined
             ? nextSelectionForEdit(edit, report.snapshot, report.created_node, report.created_edge)
             : selectionBeforeEdit,
+        lastOptimization: null
+      }),
         status: statusAfterEdit(report.snapshot),
         dirty: true,
         error: null,
-        lastOptimization: null,
         ...staleTreeDerivedArtifacts(),
-        projectMessage: null,
-      });
+        projectMessage: null});
       get().commitHistoryCheckpoint(checkpoint, label);
     } catch (error) {
       set({ status: 'error', error: engineError(error) });
@@ -87,23 +89,28 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
   }
 
   function selectedEdgesOrMessage(): number[] {
-    const edges = selectedEdgeIds(get().selection);
+    const edges = selectedEdgeIds(selectSelection(get()));
     if (edges.length === 0) set({ projectMessage: 'Select one or more edges first' });
     return edges;
   }
 
   function selectedNodesOrMessage(): number[] {
-    const nodes = selectedNodeIds(get().selection);
+    const nodes = selectedNodeIds(selectSelection(get()));
     if (nodes.length === 0) set({ projectMessage: 'Select one or more nodes first' });
     return nodes;
   }
 
   return {
-    selection: { kind: 'tree' },
-    toolMode: 'select',
-    symmetryAuthoringPairs: [],
-
+    // No state of its own: selection, tool mode and symmetry pairs moved onto the
+    // active design tab in phase 2b. Left here they would be inert top-level keys
+    // shadowing the real ones — and the compiler would not say so, because a
+    // slice's returned literal is contextually typed and loses excess-property
+    // checking. `designTabWrites.test.ts` asserts they are gone.
     addNodeAt: async (loc, connectTo) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
@@ -116,19 +123,20 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           edge_length: connectTo === undefined ? undefined : 1,
         });
         set({
-          project: projectFromSnapshot(report.snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
           selection: nextSelectionForEdit(
             { type: 'add_node', loc, connect_to: connectTo },
             report.snapshot,
             report.created_node,
             report.created_edge
           ),
+          lastOptimization: null
+      }, designId),
           status: statusAfterEdit(report.snapshot),
           dirty: true,
           error: null,
-          lastOptimization: null,
-          ...staleTreeDerivedArtifacts(),
-        });
+          ...staleTreeDerivedArtifacts()});
         get().commitHistoryCheckpoint(checkpoint, 'Add node');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -136,7 +144,11 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     addNodeWithSymmetry: async (loc, connectTo) => {
-      const project = get().project;
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
+      const project = selectProject(get(), designId);
       if (!project.hasSymmetry) {
         await get().addNodeAt(loc, connectTo);
         return;
@@ -151,12 +163,12 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const parent = connectTo === undefined ? null : project.nodes.find((node) => node.id === connectTo);
         const parentSide = parent ? symmetrySide(parent.loc, axis) : 0;
         const parentPair = parent
-          ? findMirrorNodeId(project, get().symmetryAuthoringPairs, parent.id)
+          ? findMirrorNodeId(project, selectSymmetryAuthoringPairs(get(), designId), parent.id)
           : null;
         const shouldMirror = Boolean(parent && !snapped.snapped && (parentSide === 0 || parentPair));
         let snapshot: TreeSnapshot | null = null;
-        let selection = get().selection;
-        let authoringPairs = get().symmetryAuthoringPairs;
+        let selection = selectSelection(get(), designId);
+        let authoringPairs = selectSymmetryAuthoringPairs(get(), designId);
         if (parent && parentPair) {
           authoringPairs = addSymmetryAuthoringPair(authoringPairs, parent.id, parentPair);
         }
@@ -215,18 +227,19 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
 
         if (!snapshot) return;
         const addedPair = selection.kind === 'multi' && selection.nodes.length === 2;
-        const nextProject = projectFromSnapshot(snapshot, get().project.title);
+        const nextProject = projectFromSnapshot(snapshot, selectProject(get(), designId).title);
         set({
+      ...patchTreemakerDesign(get(), {
           project: nextProject,
           symmetryAuthoringPairs: filterSymmetryAuthoringPairs(nextProject, authoringPairs),
+          lastOptimization: null,
           selection,
+      }, designId),
           status: statusAfterEdit(snapshot),
           dirty: true,
           error: null,
-          lastOptimization: null,
           ...staleTreeDerivedArtifacts(),
-          projectMessage: addedPair ? 'Added mirrored branch' : snapped.snapped ? 'Added axial node' : null,
-        });
+          projectMessage: addedPair ? 'Added mirrored branch' : snapped.snapped ? 'Added axial node' : null});
         get().commitHistoryCheckpoint(checkpoint, addedPair ? 'Add mirrored branch' : 'Add node');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -234,6 +247,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     moveNode: async (id, loc) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
@@ -242,14 +259,15 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const edit: TreeEdit = { type: 'move_node', id, loc };
         const report = await api.applyEdit(treeHandle, edit);
         set({
-          project: projectFromSnapshot(report.snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
           selection: nextSelectionForEdit(edit, report.snapshot),
+          lastOptimization: null
+      }, designId),
           status: statusAfterEdit(report.snapshot),
           dirty: true,
           error: null,
-          lastOptimization: null,
-          ...staleTreeDerivedArtifacts(),
-        });
+          ...staleTreeDerivedArtifacts()});
         get().commitHistoryCheckpoint(checkpoint, 'Move node');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -257,9 +275,13 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     moveNodeWithSymmetry: async (id, loc) => {
-      const project = get().project;
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
+      const project = selectProject(get(), designId);
       const pairedNode = project.hasSymmetry
-        ? findMirrorNodeId(project, get().symmetryAuthoringPairs, id)
+        ? findMirrorNodeId(project, selectSymmetryAuthoringPairs(get(), designId), id)
         : null;
       if (!pairedNode) {
         await get().moveNode(id, loc);
@@ -279,14 +301,15 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           loc: reflectPointAcrossSymmetryAxis(loc, axis),
         });
         set({
-          project: projectFromSnapshot(pairedReport.snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+          project: projectFromSnapshot(pairedReport.snapshot, selectProject(get(), designId).title),
           selection: nextSelectionForEdit(edit, primaryReport.snapshot),
+          lastOptimization: null
+      }, designId),
           status: statusAfterEdit(pairedReport.snapshot),
           dirty: true,
           error: null,
-          lastOptimization: null,
-          ...staleTreeDerivedArtifacts(),
-        });
+          ...staleTreeDerivedArtifacts()});
         get().commitHistoryCheckpoint(checkpoint, 'Move mirrored nodes');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -294,6 +317,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     addEdge: async (node1, node2) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       if (node1 === node2) return;
       set({ error: null });
@@ -307,16 +334,17 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
           length: 1,
         });
         set({
-          project: projectFromSnapshot(report.snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
           selection: report.created_edge
             ? { kind: 'edge', id: report.created_edge }
             : { kind: 'node', id: node2 },
+          lastOptimization: null
+      }, designId),
           status: statusAfterEdit(report.snapshot),
           dirty: true,
           error: null,
-          lastOptimization: null,
-          ...staleTreeDerivedArtifacts(),
-        });
+          ...staleTreeDerivedArtifacts()});
         get().commitHistoryCheckpoint(checkpoint, 'Add edge');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -324,6 +352,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     updateNodeLabel: async (id, label) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
@@ -332,12 +364,13 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const edit: TreeEdit = { type: 'update_node_label', id, label };
         const report = await api.applyEdit(treeHandle, edit);
         set({
-          project: projectFromSnapshot(report.snapshot, get().project.title),
-          selection: nextSelectionForEdit(edit, report.snapshot),
+      ...patchTreemakerDesign(get(), {
+          project: projectFromSnapshot(report.snapshot, selectProject(get(), designId).title),
+          selection: nextSelectionForEdit(edit, report.snapshot)
+      }, designId),
           dirty: true,
           error: null,
-          ...staleTreeDerivedArtifacts(),
-        });
+          ...staleTreeDerivedArtifacts()});
         get().commitHistoryCheckpoint(checkpoint, 'Rename node');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -345,6 +378,10 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     updateEdge: async (id, update) => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
       set({ error: null });
       const checkpoint = await get().beginHistoryCheckpoint();
@@ -352,7 +389,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         const { api, treeHandle } = await requireActiveTree();
         const edit: TreeEdit = { type: 'update_edge', id, ...update };
         const report = await api.applyEdit(treeHandle, edit);
-        const mirrorEdge = findMirrorEdgeId(get().project, get().symmetryAuthoringPairs, id);
+        const mirrorEdge = findMirrorEdgeId(selectProject(get(), designId), selectSymmetryAuthoringPairs(get(), designId), id);
         const mirrorUpdate = {
           length: update.length,
           stiffness: update.stiffness,
@@ -368,14 +405,15 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
             })
           : report;
         set({
-          project: projectFromSnapshot(finalReport.snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+          project: projectFromSnapshot(finalReport.snapshot, selectProject(get(), designId).title),
           selection: nextSelectionForEdit(edit, report.snapshot),
+          lastOptimization: null
+      }, designId),
           status: statusAfterEdit(finalReport.snapshot),
           dirty: true,
           error: null,
-          lastOptimization: null,
-          ...staleTreeDerivedArtifacts(),
-        });
+          ...staleTreeDerivedArtifacts()});
         get().commitHistoryCheckpoint(checkpoint, shouldUpdateMirror ? 'Edit mirrored edges' : 'Edit edge');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
@@ -383,7 +421,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     makeSelectedNodeRoot: async () => {
-      const nodes = selectedNodeIds(get().selection);
+      const nodes = selectedNodeIds(selectSelection(get()));
       if (nodes.length !== 1) {
         set({ projectMessage: 'Select one node to make root' });
         return;
@@ -392,7 +430,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     splitSelectedEdge: async (distance) => {
-      const edges = selectedEdgeIds(get().selection);
+      const edges = selectedEdgeIds(selectSelection(get()));
       if (edges.length !== 1) {
         set({ projectMessage: 'Select one edge to split' });
         return;
@@ -413,7 +451,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     renormalizeToSelectedEdge: async () => {
-      const edges = selectedEdgeIds(get().selection);
+      const edges = selectedEdgeIds(selectSelection(get()));
       if (edges.length !== 1) {
         set({ projectMessage: 'Select one edge to renormalize' });
         return;
@@ -478,7 +516,7 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     addLargestStubForSelectedPoly: async () => {
-      const facets = selectedFacetIds(get().selection);
+      const facets = selectedFacetIds(selectSelection(get()));
       if (facets.length !== 1) {
         set({ projectMessage: 'Select one generated facet before choosing a stub polygon' });
         return;
@@ -491,8 +529,12 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
     },
 
     deleteSelection: async () => {
+      // Addressed write: this action's result belongs to the design it started
+      // in, not to whichever tab is showing when the engine answers. See
+      // `mapDesignTab`.
+      const designId = get().activeDesignId;
       if (rejectReadOnly()) return;
-      const selection = get().selection;
+      const selection = selectSelection(get(), designId);
       const nodeIds = selectedNodeIds(selection).sort((a, b) => b - a);
       const edgeIds = selectedEdgeIds(selection).sort((a, b) => b - a);
       if (nodeIds.length === 0 && edgeIds.length === 0) return;
@@ -500,18 +542,19 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
       const checkpoint = await get().beginHistoryCheckpoint();
       try {
         const { api, treeHandle } = await requireActiveTree();
-        if (selectionCoversAllNodes(selection, get().project)) {
+        if (selectionCoversAllNodes(selection, selectProject(get(), designId))) {
           const snapshot = await createBlankTree(api);
           set({
-            project: projectFromSnapshot(snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+            project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
             selection: { kind: 'tree' },
+            lastOptimization: null
+      }, designId),
             status: statusAfterEdit(snapshot),
             dirty: true,
             error: null,
-            lastOptimization: null,
             ...staleTreeDerivedArtifacts(),
-            projectMessage: 'Cleared design',
-          });
+            projectMessage: 'Cleared design'});
           get().commitHistoryCheckpoint(checkpoint, 'Clear design');
           return;
         }
@@ -527,54 +570,66 @@ export const createEditingSlice: WorkspaceSliceCreator<EditingSlice> = (set, get
         }
         if (!snapshot) return;
         set({
-          project: projectFromSnapshot(snapshot, get().project.title),
+      ...patchTreemakerDesign(get(), {
+          project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
           selection: { kind: 'tree' },
+          lastOptimization: null
+      }, designId),
           status: statusAfterEdit(snapshot),
           dirty: true,
           error: null,
-          lastOptimization: null,
-          ...staleTreeDerivedArtifacts(),
-        });
+          ...staleTreeDerivedArtifacts()});
         get().commitHistoryCheckpoint(checkpoint, 'Delete selection');
       } catch (error) {
         set({ status: 'error', error: engineError(error) });
       }
     },
 
-    select: (selection) => set({ selection }),
-    selectAll: () => set({ selection: selectEverything(get().project) }),
-    selectNone: () => set({ selection: { kind: 'tree' } }),
+    select: (selection) => set(patchTreemakerDesign(get(), { selection })),
+    selectAll: () => set({
+      ...patchTreemakerDesign(get(), { selection: selectEverything(selectProject(get())) 
+      }),}),
+    selectNone: () => set({
+      ...patchTreemakerDesign(get(), { selection: { kind: 'tree' } 
+      }),}),
     selectByIndex: (kind, id) => {
-      const next = selectionByIndex(get().project, kind, id);
+      const next = selectionByIndex(selectProject(get()), kind, id);
       set({
-        selection: next,
-        projectMessage: next.kind === 'tree' ? `No ${kind} ${id}` : null,
-      });
+      ...patchTreemakerDesign(get(), {
+        selection: next
+      }),
+        projectMessage: next.kind === 'tree' ? `No ${kind} ${id}` : null});
     },
     selectMovableParts: () => {
-      const next = movablePartSelection(get().project);
+      const next = movablePartSelection(selectProject(get()));
       set({
-        selection: next,
-        projectMessage: next.kind === 'tree' ? 'No movable parts' : null,
-      });
+      ...patchTreemakerDesign(get(), {
+        selection: next
+      }),
+        projectMessage: next.kind === 'tree' ? 'No movable parts' : null});
     },
     selectCorridorFacets: () => {
-      const next = corridorFacetSelection(get().project, selectedEdgeIds(get().selection));
+      const next = corridorFacetSelection(selectProject(get()), selectedEdgeIds(selectSelection(get())));
       set({
-        selection: next,
-        projectMessage: next.kind === 'tree' ? 'No corridor facets for selected edges' : null,
-      });
+      ...patchTreemakerDesign(get(), {
+        selection: next
+      }),
+        projectMessage: next.kind === 'tree' ? 'No corridor facets for selected edges' : null});
     },
     selectPathBetweenSelectedNodes: () => {
-      const [a, b] = selectedNodeIds(get().selection);
+      const [a, b] = selectedNodeIds(selectSelection(get()));
       if (a === undefined || b === undefined) return;
-      const path = get().project.paths.find(
+      const path = selectProject(get()).paths.find(
         (candidate) =>
           (candidate.nodes[0] === a && candidate.nodes[1] === b) ||
           (candidate.nodes[0] === b && candidate.nodes[1] === a)
       );
-      if (path) set({ selection: { kind: 'path', id: path.id } });
+      if (path) set({
+      ...patchTreemakerDesign(get(), { selection: { kind: 'path', id: path.id } 
+      }),});
     },
-    setToolMode: (toolMode) => set({ toolMode: !get().importedCreasePattern ? toolMode : 'select' }),
+    setToolMode: (toolMode) => set({
+      ...patchTreemakerDesign(get(), { toolMode: !get().importedCreasePattern ? toolMode : 'select' 
+      }),}),
   };
 };

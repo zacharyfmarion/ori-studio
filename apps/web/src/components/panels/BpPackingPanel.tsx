@@ -1,3 +1,4 @@
+import { selectOristudioBpSelection, selectOristudioBpViewportFitRequestId } from '../../store/workspaceStore/designTabs';
 import {
   useCallback,
   useEffect,
@@ -698,7 +699,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const layers = useSettingsStore((state) => state.bpPackingLayers);
   const setLayer = useSettingsStore((state) => state.setBpPackingLayer);
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
-  const selection = useWorkspaceStore((state) => state.oristudioBpSelection);
+  const selection = useWorkspaceStore((state) => selectOristudioBpSelection(state));
   const clearSelection = useWorkspaceStore((state) => state.clearOristudioBpSelection);
   const setOristudioBpActiveSurface = useWorkspaceStore(
     (state) => state.setOristudioBpActiveSurface
@@ -836,7 +837,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     [displayPacking, layers.outsidePaper]
   );
   const viewportFitRequestId = useWorkspaceStore(
-    (state) => state.oristudioBpViewportFitRequestId
+    (state) => selectOristudioBpViewportFitRequestId(state)
   );
 
   const {

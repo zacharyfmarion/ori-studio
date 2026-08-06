@@ -1,3 +1,5 @@
+import { singleTreemakerDesignTab } from '../../store/workspaceStore/designTabs';
+import type { TreemakerDesignState } from '../../store/workspaceStore/designContent';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -20,11 +22,14 @@ afterEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
 
-function renderInspector(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
+function renderInspector(
+  state: Partial<ReturnType<typeof useWorkspaceStore.getState>> = {},
+  design: Partial<TreemakerDesignState> = {}
+) {
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      project: createSampleProject(),
+      ...singleTreemakerDesignTab({ project: createSampleProject(), ...design }),
       ...state,
     },
     true
@@ -40,9 +45,7 @@ function renderInspector(state: Partial<ReturnType<typeof useWorkspaceStore.getS
 
 describe('InspectorPanel', () => {
   it('shows selected tree node details', () => {
-    const element = renderInspector({
-      selection: { kind: 'node', id: 2 },
-    });
+    const element = renderInspector({}, { selection: { kind: 'node', id: 2 } });
 
     expect(element.textContent).toContain('Node 2');
     expect(element.textContent).toContain('Leaf');
@@ -52,9 +55,7 @@ describe('InspectorPanel', () => {
   });
 
   it('keeps the tree summary design-focused', () => {
-    const element = renderInspector({
-      selection: { kind: 'tree' },
-    });
+    const element = renderInspector({}, { selection: { kind: 'tree' } });
 
     expect(element.textContent).toContain('Tree');
     expect(element.textContent).toContain('Nodes');

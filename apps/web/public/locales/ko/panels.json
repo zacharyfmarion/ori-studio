@@ -346,6 +346,7 @@
         "description": "트리를 스케치하고 TreeMaker 방식으로 원/리버 패킹이 베이스를 최적화하도록 하세요.",
         "title": "원 패킹"
       },
+      "creating": "편집기를 준비하는 중…",
       "groupLabel": "디자인 방식",
       "subtitle": "이 모델을 작성할 방식을 선택하세요.",
       "title": "새 디자인 시작"
@@ -353,6 +354,14 @@
     "newTree": "새 트리",
     "noEditableTree": "이 문서에는 편집 가능한 트리가 없습니다.",
     "open": "열기",
+    "paneTitle": {
+      "bpPacking": "BP 편집기",
+      "bpTree": "트리 편집기",
+      "conditions": "조건",
+      "diagnostics": "진단",
+      "inspector": "인스펙터",
+      "tree": "디자인"
+    },
     "preparingBoxPleatEditor": "박스 플리츠 편집기를 준비하는 중…",
     "preparingTreeEditor": "트리 편집기를 준비하는 중…",
     "preset": "프리셋",
@@ -368,6 +377,15 @@
     "symmetryStatusOff": "꺼짐",
     "symmetryToolbar": "대칭",
     "viewportControls": "디자인 뷰포트 컨트롤"
+  },
+  "designTabs": {
+    "add": "새 디자인",
+    "close": "디자인 닫기",
+    "duplicate": "복제",
+    "label": "열린 디자인",
+    "moveLeft": "왼쪽으로 이동",
+    "moveRight": "오른쪽으로 이동",
+    "rename": "이름 바꾸기"
   },
   "diagnostics": {
     "allConditionsFeasible": "모든 조건 실현 가능",

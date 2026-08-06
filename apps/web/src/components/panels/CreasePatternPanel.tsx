@@ -1,3 +1,4 @@
+import { selectProject } from '../../store/workspaceStore/designTabs';
 import {
   useCallback,
   useEffect,
@@ -780,7 +781,7 @@ export function CreasePatternPanel() {
     textId?: number;
   } | null>(null);
 
-  const project = useWorkspaceStore((state) => state.project);
+  const project = useWorkspaceStore((state) => selectProject(state));
   const status = useWorkspaceStore((state) => state.status);
   const errorText = useWorkspaceErrorText();
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
@@ -1210,8 +1211,12 @@ export function CreasePatternPanel() {
   }, [importedFoldedForms, generatedFoldedFigures, currentTheme]);
   const camvIssuesVisible = oristudioCpViewport.camvIssuesVisible !== false;
   const hasEditableCreasePattern = !!editableCp;
+  // `importedCreasePattern` is named directly rather than inferred from
+  // `project.creases`. A crease pattern is not a design, so a `.cp` opened on its
+  // own no longer populates a tree — and if the CP kernel fails to load it, the
+  // imported document is the only evidence a pattern exists at all.
   const hasCreasePattern =
-    hasEditableCreasePattern || project.creases.length > 0 || project.facets.length > 0;
+    hasEditableCreasePattern || !!importedCreasePattern || project.creases.length > 0 || project.facets.length > 0;
   const editableSelectionSize = cpSelectionSize(oristudioCpSelection);
   const selectedEditableCpLines = useMemo(
     () => selectedCpLineSegments(editableCp, oristudioCpSelection),

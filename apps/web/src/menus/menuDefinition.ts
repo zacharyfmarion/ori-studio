@@ -59,7 +59,7 @@ export function getMenuBarDef(
     {
       label: t('menu:menubar.file', 'File'),
       items: [
-        { type: 'action', id: 'file.new', label: t('menu:file.new', 'New'), shortcut: shortcut('file.new', overrides) },
+        { type: 'action', id: 'file.new', label: t('menu:file.new', 'New Project'), shortcut: shortcut('file.new', overrides) },
         { type: 'action', id: 'file.open', label: t('menu:file.open', 'Open...'), shortcut: shortcut('file.open', overrides) },
         { type: 'action', id: 'file.importAdd', label: t('menu:file.importAdd', 'Import (Add)...') },
         // "Detect CP from Image..." is still experimental — dev builds only.

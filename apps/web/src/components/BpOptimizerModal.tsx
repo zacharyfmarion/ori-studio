@@ -1,3 +1,4 @@
+import { selectOristudioBpDocument, selectOristudioBpSymmetry } from '../store/workspaceStore/designTabs';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -96,9 +97,9 @@ export function BpOptimizerModal() {
   const progress = useBpOptimizerUiStore((state) => state.progress);
   const error = useBpOptimizerUiStore((state) => state.error);
   const optimize = useWorkspaceStore((state) => state.optimizeOristudioBpLayout);
-  const symmetryState = useWorkspaceStore((state) => state.oristudioBpSymmetry);
+  const symmetryState = useWorkspaceStore((state) => selectOristudioBpSymmetry(state));
   const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
-  const tree = useWorkspaceStore((state) => state.oristudioBpDocument?.snapshot.tree ?? null);
+  const tree = useWorkspaceStore((state) => selectOristudioBpDocument(state)?.snapshot.tree ?? null);
   // The fold lives here rather than in the tree view: a tree is not drawn on the
   // paper, so it has no book or diagonal fold of its own. The tree's mirror line
   // stays vertical whatever is chosen here.

@@ -1,28 +1,43 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import { DraftingCompass, Grid3x3 } from 'lucide-react';
+import { designKindsForChooser } from '../../designKinds';
+import type { DesignKindDescriptor, DesignKindId } from '../../designKinds';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { DESIGN_BP_PATH, DESIGN_TREEMAKER_PATH } from '../../routing/paths';
-import type { WorkflowTarget } from '../../lib/sampleProject';
 
 /**
  * Design workspace NUX. When no design method has been chosen yet, the Design
- * pane presents the two authoring methods side by side:
+ * pane presents the registered authoring methods side by side.
  *
- * - Circle-packed → the TreeMaker tree editor (circle/river packing).
- * - Box-pleated   → the Box Pleating Studio tree + packing workflow.
+ * The cards are built from the design-kind registry rather than hardcoded, so a
+ * new kind appears here by registering a descriptor. Each kind supplies its own
+ * copy, icon, ordering, and availability rule — see `designKinds/types.ts`.
  */
 export function DesignMethodChooser() {
   const { t } = useTranslation();
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const status = useWorkspaceStore((state) => state.status);
   const chooseDesignMethod = useWorkspaceStore((state) => state.chooseDesignMethod);
-  const navigate = useNavigate();
+  /**
+   * The method being created, while the engine builds it.
+   *
+   * Creating a design is a cold start of a wasm worker — seconds on a first
+   * visit. Without this the chooser sat there looking untouched, and a second
+   * click started a second creation.
+   */
+  const [pending, setPending] = useState<DesignKindId | null>(null);
 
-  const chooseMethod = (target: WorkflowTarget) => {
-    void chooseDesignMethod(target);
-    navigate(target === 'box-pleat' ? DESIGN_BP_PATH : DESIGN_TREEMAKER_PATH);
+  // No navigation: picking a method changes what *this tab* is authoring, and the
+  // Design workspace has one route. It used to send the app to `/design/bp` or
+  // `/design/treemaker`, which is exactly the assumption tabs remove — with two
+  // designs open there is no single method for a URL to name.
+  const chooseMethod = (target: DesignKindId) => {
+    if (pending) return;
+    setPending(target);
+    // No `finally`: on success this component unmounts (the tab now has a kind),
+    // and clearing state on an unmounted component is a warning for nothing. On
+    // failure the chooser is still here and has to become usable again.
+    void chooseDesignMethod(target).catch(() => setPending(null));
   };
 
   return (
@@ -41,31 +56,15 @@ export function DesignMethodChooser() {
           role="group"
           aria-label={t('panels:design.methodChooser.groupLabel', 'Design method')}
         >
-          <MethodCard
-            method="treemaker"
-            title={t('panels:design.methodChooser.circlePacked.title', 'Circle-packed')}
-            description={t(
-              'panels:design.methodChooser.circlePacked.description',
-              'Sketch a tree and let circle/river packing optimize the base, TreeMaker-style.'
-            )}
-            icon={<DraftingCompass size={22} />}
-            // Circle-packing runs on the treemaker engine — wait for it to load.
-            disabled={!engineReady}
-            onSelect={() => chooseMethod('treemaker')}
-          />
-          <MethodCard
-            method="box-pleat"
-            title={t('panels:design.methodChooser.boxPleated.title', 'Box-pleated')}
-            description={t(
-              'panels:design.methodChooser.boxPleated.description',
-              'Author a tree, then pack flaps and rivers on a grid.'
-            )}
-            icon={<Grid3x3 size={22} />}
-            // Box-pleating runs on the independent BP worker, not the treemaker
-            // engine, so it needn't wait for `engineReady`.
-            disabled={status === 'error'}
-            onSelect={() => chooseMethod('box-pleat')}
-          />
+          {designKindsForChooser().map((kind) => (
+            <MethodCard
+              key={kind.id}
+              kind={kind}
+              disabled={pending !== null || !kind.chooser.isAvailable({ engineReady, status })}
+              pending={pending === kind.id}
+              onSelect={() => chooseMethod(kind.id)}
+            />
+          ))}
         </div>
       </div>
     </section>
@@ -73,26 +72,34 @@ export function DesignMethodChooser() {
 }
 
 interface MethodCardProps {
-  method: WorkflowTarget;
-  title: string;
-  description: string;
-  icon: ReactNode;
+  kind: DesignKindDescriptor;
   disabled: boolean;
+  /** This is the card that was clicked, and its design is being built. */
+  pending: boolean;
   onSelect: () => void;
 }
 
-function MethodCard({ method, title, description, icon, disabled, onSelect }: MethodCardProps) {
+function MethodCard({ kind, disabled, pending, onSelect }: MethodCardProps) {
+  const { t } = useTranslation();
+  const { title, description } = kind.chooser.copy(t);
+  const icon: ReactNode = pending ? <Loader2 size={22} className="design-method-card__spinner" /> : <kind.chooser.Icon size={22} />;
   return (
     <button
       type="button"
       className="design-method-card"
-      data-method={method}
+      data-method={kind.id}
+      data-pending={pending || undefined}
       disabled={disabled}
+      aria-busy={pending}
       onClick={onSelect}
     >
       <span className="design-method-card__icon">{icon}</span>
       <span className="design-method-card__title">{title}</span>
-      <span className="design-method-card__description">{description}</span>
+      <span className="design-method-card__description">
+        {pending
+          ? t('panels:design.methodChooser.creating', 'Preparing the editor…')
+          : description}
+      </span>
     </button>
   );
 }

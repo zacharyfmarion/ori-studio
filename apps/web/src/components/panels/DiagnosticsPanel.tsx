@@ -1,14 +1,15 @@
+import { selectLastOptimization, selectProject } from '../../store/workspaceStore/designTabs';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 
 export function DiagnosticsPanel() {
   const { t } = useTranslation();
-  const project = useWorkspaceStore((state) => state.project);
+  const project = useWorkspaceStore((state) => selectProject(state));
   const status = useWorkspaceStore((state) => state.status);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const error = useWorkspaceStore((state) => state.error);
-  const lastOptimization = useWorkspaceStore((state) => state.lastOptimization);
+  const lastOptimization = useWorkspaceStore((state) => selectLastOptimization(state));
 
   const cpReady = project.creases.length > 0 && project.facets.length > 0;
   const infeasibleConditions = project.conditions.filter((condition) => !condition.isFeasible);

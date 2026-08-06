@@ -1,3 +1,5 @@
+import { selectOristudioBpDocument, selectOristudioBpSelection } from '../store/workspaceStore/designTabs';
+import type { DesignTab } from '../store/workspaceStore/designTabs';
 import { track } from '../analytics';
 import { getFileService, type FileCommand, type FileService } from '../platform/fileService';
 import { useHelpStore } from '../store/helpStore';
@@ -166,8 +168,8 @@ export interface WorkspaceCommands {
   addLargestStubForSelectedPoly(): Promise<void>;
   triangulateTree(): Promise<void>;
   activeEditingContext: EditingContext;
-  oristudioBpDocument: OristudioBpDocumentState | null;
-  oristudioBpSelection: OristudioBpSelection;
+  designTabs: DesignTab[];
+  activeDesignId: string;
   deleteOristudioBpTreeNode(id: number): Promise<boolean>;
   oristudioCpDocument: OristudioCpDocumentState | null;
   oristudioCpSelection: OristudioCpSelection;
@@ -456,8 +458,8 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           deps.workspace.activeEditingContext === 'bp-packing';
         if (bpContext) {
           const nodeId = deletableBpNodeId(
-            deps.workspace.oristudioBpDocument,
-            deps.workspace.oristudioBpSelection
+            selectOristudioBpDocument(deps.workspace),
+            selectOristudioBpSelection(deps.workspace)
           );
           if (nodeId === null) return false;
           return deps.workspace.deleteOristudioBpTreeNode(nodeId);

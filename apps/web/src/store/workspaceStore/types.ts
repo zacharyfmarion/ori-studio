@@ -3,24 +3,21 @@ import type {
   ConditionKind,
   FoldArtifacts,
   FoldDocument,
-  OptimizationReport,
   SequencePlan,
   SequenceTargetState,
   TreeEdit,
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
-import type { DesignLayoutVariant } from '../layoutStore';
-import type { DesignMethod } from './designVariant';
+import type { SerializedDockview } from 'dockview';
+import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
-import type { SnapshotEntry } from './snapshotHistory';
 import type {
   AppStatus,
   CreaseColorMode,
   Selection,
   ToolMode,
-  TreeProject,
   WorkflowTarget,
 } from '../../lib/sampleProject';
 import type {
@@ -30,7 +27,6 @@ import type {
 } from '../../lib/creasePatternViewport';
 import type { SelectablePartKind } from '../../lib/selection';
 import type { SimulatorSettings, SimulatorSettingKey } from '../../lib/simulatorSettings';
-import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
 import type { BpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
 import type { ImportedCreasePatternDocument } from '../../lib/creasePatternImport';
@@ -70,15 +66,12 @@ import type {
   InlineSimulationRegion,
 } from '../../cp-workspace/inlineSimulation/inlineSimulation';
 import type {
-  OristudioBpDocumentState,
   OristudioBpEditingSurface,
-  OristudioBpPortDescriptor,
   OristudioBpSelection,
   OristudioBpOptimizerOutcome,
   OristudioBpOptimizerProgress,
   OristudioBpOptimizerRunOptions,
   OristudioBpSheetKind,
-  OristudioBpWorkspaceState,
 } from '../../engine/oristudioBpTypes';
 
 export interface OristudioCpHistoryEntry {
@@ -179,16 +172,32 @@ export interface CpLoadFailure {
 }
 
 export interface ProjectSliceState {
-  project: TreeProject;
   /**
-   * Which method the Design workspace is authoring with — Circle-packed,
-   * Box-pleated, or `'none'` while the user has yet to pick one and the Design
-   * pane should show its method chooser.
+   * The designs open in the Design workspace, in tab order.
    *
-   * Replaces the `pendingDesignChoice` + `workflowTarget` pair, which could
-   * contradict each other; see {@link DesignMethod}.
+   * **Never empty**, and {@link activeDesignId} always names one of them. Closing
+   * the last tab re-provisions a fresh chooser tab rather than leaving none, which
+   * is what keeps `activeDesignId` a plain `string` and removes "no design open"
+   * as a representable state.
+   *
+   * Replaces the single `designMethod` scalar: the authoring method belongs to the
+   * design, not to the workspace, and a workspace-level field cannot say which of
+   * several open designs it describes. Read the active design's method with
+   * `selectDesignMethod`.
    */
-  designMethod: DesignMethod;
+  designTabs: DesignTab[];
+  /** The tab being authored. Always the id of a member of {@link designTabs}. */
+  activeDesignId: string;
+  /**
+   * The project's name — one project, one title, however many designs it holds.
+   *
+   * Split out of `project.title` in phase 2b. That field was doing double duty:
+   * the *tree's* name and the *project's* name. Fine while a workspace was one
+   * tree; incoherent once a project can hold a box-pleat design and no tree at
+   * all, or several designs with different names. The tree keeps its own title;
+   * this is what names the file, the save dialog, and the export defaults.
+   */
+  workspaceTitle: string;
   /**
    * True once the user has created, opened, or chosen a project this session.
    * A fresh page load starts false, so deep-linked workspace routes redirect to
@@ -237,6 +246,15 @@ export interface ProjectSliceState {
    * crease-pattern-document-level respectively; `{}` when none.
    */
   nativeProjectExtensions: Record<string, unknown>;
+  /**
+   * Design documents from the loaded `.osf` whose kind this build does not
+   * recognize, kept verbatim and re-emitted on save.
+   *
+   * A project written by a build with a design kind this one lacks opens, shows
+   * the tabs it understands, and does not destroy the rest the next time the
+   * user presses Save.
+   */
+  nativeUnknownDesigns: unknown[];
   oristudioCpDocumentExtensions: Record<string, unknown>;
   projectLoadId: number;
   currentFilePath: string | null;
@@ -267,8 +285,6 @@ export interface ProjectSliceState {
   dirty: boolean;
   engineReady: boolean;
   error: WasmErrorEnvelope | null;
-  lastOptimization: OptimizationReport | null;
-  designViewportFitRequestId: number;
 }
 
 export interface ProjectSliceActions {
@@ -394,17 +410,69 @@ export interface ProjectSliceActions {
   setActivePanelId: (id: string | null) => void;
   /** Enter the Design workspace on the method chooser without creating a document. */
   startNewDesign: () => void;
+  /**
+   * Open a new design tab, on the method chooser, and make it active.
+   *
+   * Every tab starts the same way — see the "Startup" row of the design-pane-tabs
+   * plan — so this is also what the tab strip's `+` does.
+   */
+  addDesignTab: () => void;
+  /** Make a tab active, parking the outgoing design's engine handle. */
+  activateDesignTab: (designId: string) => void;
+  /**
+   * Close a tab.
+   *
+   * Closing the last one re-provisions a fresh chooser tab rather than leaving
+   * none, so `designTabs` is never empty and `activeDesignId` never dangles.
+   */
+  closeDesignTab: (designId: string) => void;
+  /**
+   * Close a tab, confirming first when the design has been worked on.
+   *
+   * The entry point every user-facing close goes through — the tab strip's ×, its
+   * context menu, and any future shortcut — so the prompt cannot depend on which
+   * one was used. {@link closeDesignTab} stays the unconditional primitive, for
+   * the paths that have already asked (File ▸ New Project) or must not ask at all
+   * (loading a file replaces every tab).
+   */
+  requestCloseDesignTab: (designId: string) => Promise<void>;
+  renameDesignTab: (designId: string, title: string) => void;
+  /**
+   * Record how a design's panes are arranged. Written by the design's dock as the
+   * user drags a splitter, and persisted with the design in the `.osf`.
+   */
+  setDesignPaneLayout: (designId: string, paneLayout: SerializedDockview | null) => void;
+  /**
+   * Read a design's content back from its serialized text, once.
+   *
+   * Opening a file installs only the active design into the store; the rest are
+   * registry text until visited. The canvas renders the store, so a background
+   * tab has to be filled in before it can be looked at.
+   */
+  hydrateDesignTab: (designId: string) => Promise<void>;
+  /** Move a tab to a new index, for drag-reorder. */
+  reorderDesignTab: (designId: string, toIndex: number) => void;
+  /** Copy a design into a new tab beside it. Fresh history; nothing inherited. */
+  duplicateDesignTab: (designId: string) => Promise<void>;
   /** Resolve the Design pane NUX chooser into a concrete design method. */
   chooseDesignMethod: (target: WorkflowTarget) => Promise<void>;
-  /**
-   * Reflect a Design sub-route (`/design`, `/design/treemaker`, `/design/bp`)
-   * into the design state so the layout variant matches the URL. Sets the
-   * variant fields only; establishing a document is the caller's concern.
-   */
-  applyDesignRoute: (variant: DesignLayoutVariant) => void;
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;
+
+/**
+ * A tree's state captured before an edit, and the design it belongs to.
+ *
+ * The design id rides along because the two halves are separated by the engine
+ * round trip the edit itself makes: capture, edit, commit. A commit that resolved
+ * "the active design" would push the *other* design's undo entry onto whichever
+ * tab the user had switched to — and, because the close prompt keys off undo
+ * depth, would arm it on the wrong design too.
+ */
+export interface TreeHistoryCheckpoint {
+  text: string;
+  designId: string;
+}
 
 export interface HistoryEntry {
   text: string;
@@ -412,15 +480,43 @@ export interface HistoryEntry {
   timestamp: string;
 }
 
+/**
+ * Tree undo/redo *stacks* moved onto the active design tab in phase 2b
+ * (`TreemakerDesignState.historyPast` / `historyFuture`), so each design owns its
+ * own history and undo cannot reach across tabs. Read them with
+ * `selectHistoryPast` / `selectHistoryFuture`.
+ *
+ * `historyBusy` deliberately did **not** move. It is a re-entrancy guard shared
+ * by all three history subsystems — tree, crease pattern, and box-pleat — and
+ * scoping it to the TreeMaker design would have left the other two ungated
+ * whenever a design of another kind was active.
+ */
 export interface HistorySliceState {
-  historyPast: HistoryEntry[];
-  historyFuture: HistoryEntry[];
+  /**
+   * Re-entrancy guard for **tree** undo/redo.
+   *
+   * One guard per surface, not one shared by all three. Phase 2b briefly moved a
+   * single `historyBusy` onto the TreeMaker design arm, which broke both
+   * directions at once: with a design of another kind active the crease-pattern
+   * and box-pleat guards read a frozen `false` and stopped gating at all, and
+   * with a TreeMaker design active a crease-pattern undo took the *tree's* guard
+   * and blocked tree undo. Three independent histories need three flags.
+   *
+   * Still flat rather than on the design arm. Harmless today — undo only ever
+   * runs against the active design, so a per-workspace flag can only over-block,
+   * never under-block. Phase 2d should move it onto the arm along with addressed
+   * writes, at which point two designs can have undo in flight independently.
+   */
   historyBusy: boolean;
+  /** Re-entrancy guard for crease-pattern undo/redo. See {@link historyBusy}. */
+  oristudioCpHistoryBusy: boolean;
+  /** Re-entrancy guard for box-pleat undo/redo. See {@link historyBusy}. */
+  oristudioBpHistoryBusy: boolean;
 }
 
 export interface HistorySliceActions {
-  beginHistoryCheckpoint: () => Promise<string | null>;
-  commitHistoryCheckpoint: (beforeText: string | null, label?: string) => void;
+  beginHistoryCheckpoint: () => Promise<TreeHistoryCheckpoint | null>;
+  commitHistoryCheckpoint: (checkpoint: TreeHistoryCheckpoint | null, label?: string) => void;
   clearHistory: () => void;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
@@ -428,11 +524,9 @@ export interface HistorySliceActions {
 
 export type HistorySlice = HistorySliceState & HistorySliceActions;
 
-export interface EditingSliceState {
-  selection: Selection;
-  toolMode: ToolMode;
-  symmetryAuthoringPairs: SymmetryAuthoringPair[];
-}
+// Tree selection and authoring mode moved onto the active design tab in phase 2b
+// (`TreemakerDesignState`). Read them with `selectSelection` / `selectToolMode` /
+// `selectSymmetryAuthoringPairs`. The slice is now actions only.
 
 export interface EditingSliceActions {
   addNodeAt: (loc: Point, connectTo?: number) => Promise<void>;
@@ -474,7 +568,7 @@ export interface EditingSliceActions {
   setToolMode: (toolMode: ToolMode) => void;
 }
 
-export type EditingSlice = EditingSliceState & EditingSliceActions;
+export type EditingSlice = EditingSliceActions;
 
 export interface ConditionSliceActions {
   updatePaper: (update: { width?: number; height?: number }) => Promise<void>;
@@ -827,29 +921,25 @@ export interface OristudioBpSymmetryState extends BpDocumentSymmetry {
   loc: Point;
 }
 
+/**
+ * What is left of the Box-Pleat slice's state after phase 2c.
+ *
+ * The document, its selection, its undo stacks, its symmetry and its viewport-fit
+ * counter all moved onto the active design tab (`BoxPleatDesignState`) — read
+ * them with `selectOristudioBpDocument` and friends. What stays here is genuinely
+ * workspace-scoped:
+ *
+ * - `oristudioBpError` and `oristudioBpBusy` mirror the singleton BP worker.
+ *   Per-design would be more precise, but the optimizer is a single worker with a
+ *   single cancel token (see R2b in the design-pane-tabs plan), so a per-workspace
+ *   flag matches what is actually true of the engine. Over-blocking, never under.
+ *
+ * `oristudioBpWorkspace` is gone: it was only ever assigned `null`, and the `.bpz`
+ * multi-project loader it was built for had no callers.
+ */
 export interface OristudioBpSliceState {
-  oristudioBpDocument: OristudioBpDocumentState | null;
-  /**
-   * What the user has selected in the BP surfaces. Session state, not document
-   * state — see the doc comment on {@link OristudioBpSelection}. It sits beside
-   * the document rather than inside it so its lifetime is visible, and so
-   * replacing the document after an edit doesn't have to carry it.
-   */
-  oristudioBpSelection: OristudioBpSelection;
-  oristudioBpWorkspace: OristudioBpWorkspaceState | null;
-  oristudioBpPortDescriptors: OristudioBpPortDescriptor[];
   oristudioBpError: string | null;
   oristudioBpBusy: boolean;
-  oristudioBpHistoryPast: SnapshotEntry<BpHistorySnapshot>[];
-  oristudioBpHistoryFuture: SnapshotEntry<BpHistorySnapshot>[];
-  /**
-   * Bumped when something reframes the packing worth re-fitting the camera for.
-   * The packing pane folds this into its `fitKey`, which fits once per distinct
-   * key — so ordinary edits still leave the camera alone, but an optimize (new
-   * sheet size, every flap moved) frames the result.
-   */
-  oristudioBpViewportFitRequestId: number;
-  oristudioBpSymmetry: OristudioBpSymmetryState;
 }
 
 export interface OristudioBpSliceActions {
@@ -857,6 +947,12 @@ export interface OristudioBpSliceActions {
   createOristudioBpProject: (options?: {
     confirmDiscard?: boolean;
     preserveEditCanvas?: boolean;
+    /**
+     * The design to seed, when the caller captured it before an await of its own.
+     * Defaults to the active design, which is right for a user-initiated "new
+     * project" and wrong for a self-provision that had to hydrate first.
+     */
+    designId?: string;
   }) => Promise<boolean>;
   /**
    * Seed a starter box-pleat project when the Design/box-pleat surface is entered

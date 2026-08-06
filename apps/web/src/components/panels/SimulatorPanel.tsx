@@ -1,3 +1,4 @@
+import { selectProject } from '../../store/workspaceStore/designTabs';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -73,7 +74,7 @@ export function SimulatorPanel() {
   const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
 
   const creaseCount = useWorkspaceStore(
-    (state) => state.project.creases.length,
+    (state) => selectProject(state).creases.length,
   );
   // Editable (hand-drawn / imported) crease patterns live in the oristudio CP
   // document, not `project.creases`, so they are a valid simulation source even

@@ -356,6 +356,7 @@
         "description": "Sketch a tree and let circle/river packing optimize the base, TreeMaker-style.",
         "title": "Circle-packed"
       },
+      "creating": "Preparing the editor…",
       "groupLabel": "Design method",
       "subtitle": "Choose how you want to author this model.",
       "title": "Start a new design"
@@ -363,6 +364,14 @@
     "newTree": "New Tree",
     "noEditableTree": "This document does not have an editable tree.",
     "open": "Open",
+    "paneTitle": {
+      "bpPacking": "BP Editor",
+      "bpTree": "Tree editor",
+      "conditions": "Conditions",
+      "diagnostics": "Diagnostics",
+      "inspector": "Inspector",
+      "tree": "Design"
+    },
     "preparingBoxPleatEditor": "Preparing the box-pleat editor…",
     "preparingTreeEditor": "Preparing the tree editor…",
     "preset": "Preset",
@@ -378,6 +387,15 @@
     "symmetryStatusOff": "Off",
     "symmetryToolbar": "Sym",
     "viewportControls": "Design viewport controls"
+  },
+  "designTabs": {
+    "add": "New design",
+    "close": "Close design",
+    "duplicate": "Duplicate",
+    "label": "Open designs",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "rename": "Rename"
   },
   "diagnostics": {
     "allConditionsFeasible": "All conditions feasible",

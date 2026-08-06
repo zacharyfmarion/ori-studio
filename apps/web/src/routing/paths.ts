@@ -1,15 +1,19 @@
-import type { DesignLayoutVariant } from '../store/layoutStore';
 import type { WorkspaceId } from '../workspaces/workspaces';
 
 /**
- * URL routes for the app. Each workspace has its own path; the Design workspace
- * additionally distinguishes its method (NUX chooser vs. TreeMaker vs. BP) as
- * sub-paths. `/welcome` is the start screen and the default landing route.
+ * URL routes for the app. One path per workspace; `/welcome` is the start screen
+ * and the default landing route.
+ *
+ * Design used to have three (`/design`, `/design/treemaker`, `/design/bp`),
+ * because the workspace showed exactly one design and the URL could therefore
+ * name its method. With tabs it cannot: a Design workspace holding a
+ * circle-packed design beside a box-pleat one has no single method to put in a
+ * path. The old sub-paths redirect, so existing links and bookmarks still land.
  */
 export const WELCOME_PATH = '/welcome';
 export const DESIGN_PATH = '/design';
-export const DESIGN_TREEMAKER_PATH = '/design/treemaker';
-export const DESIGN_BP_PATH = '/design/bp';
+/** Retired Design sub-paths, kept so old links redirect rather than 404. */
+export const LEGACY_DESIGN_PATHS = ['/design/treemaker', '/design/bp'] as const;
 export const EDIT_PATH = '/edit';
 export const SIMULATE_PATH = '/simulate';
 /**
@@ -24,26 +28,11 @@ export const SIMULATE_PATH = '/simulate';
  */
 export const SHARE_PATH = '/s';
 
-/** Path for a Design workspace layout variant. */
-export function designVariantPath(variant: DesignLayoutVariant): string {
-  switch (variant) {
-    case 'box-pleat':
-      return DESIGN_BP_PATH;
-    case 'treemaker':
-      return DESIGN_TREEMAKER_PATH;
-    case 'nux':
-      return DESIGN_PATH;
-  }
-}
-
-/**
- * Canonical path for a workspace. For Design, an optional variant selects the
- * sub-path; without one it lands on the method chooser (`/design`).
- */
-export function workspacePath(workspace: WorkspaceId, variant?: DesignLayoutVariant): string {
+/** Canonical path for a workspace. */
+export function workspacePath(workspace: WorkspaceId): string {
   switch (workspace) {
     case 'design':
-      return variant ? designVariantPath(variant) : DESIGN_PATH;
+      return DESIGN_PATH;
     case 'edit':
       return EDIT_PATH;
     case 'simulate':
@@ -52,25 +41,24 @@ export function workspacePath(workspace: WorkspaceId, variant?: DesignLayoutVari
 }
 
 /**
- * Reverse of {@link workspacePath}: the workspace (and Design variant) a path
- * targets, or null for a non-workspace path (e.g. `/welcome`). Lets the shell
- * build the correct initial layout straight from the URL.
+ * Reverse of {@link workspacePath}: the workspace a path targets, or null for a
+ * non-workspace path (e.g. `/welcome`). Lets the shell build the initial layout
+ * straight from the URL.
+ *
+ * The retired Design sub-paths resolve here too, so the shell mounts the right
+ * workspace on the render before the redirect lands.
  */
-export function parseWorkspacePath(
-  pathname: string
-): { workspace: WorkspaceId; variant?: DesignLayoutVariant } | null {
+export function parseWorkspacePath(pathname: string): { workspace: WorkspaceId } | null {
   switch (pathname) {
     case EDIT_PATH:
       return { workspace: 'edit' };
     case SIMULATE_PATH:
       return { workspace: 'simulate' };
     case DESIGN_PATH:
-      return { workspace: 'design', variant: 'nux' };
-    case DESIGN_TREEMAKER_PATH:
-      return { workspace: 'design', variant: 'treemaker' };
-    case DESIGN_BP_PATH:
-      return { workspace: 'design', variant: 'box-pleat' };
+      return { workspace: 'design' };
     default:
-      return null;
+      return LEGACY_DESIGN_PATHS.some((path) => path === pathname)
+        ? { workspace: 'design' }
+        : null;
   }
 }

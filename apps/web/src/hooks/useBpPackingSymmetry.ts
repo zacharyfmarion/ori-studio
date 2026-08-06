@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { selectOristudioBpSymmetry } from '../store/workspaceStore/designTabs';
 import {
   BP_TREE_SYMMETRY_ANGLE,
   bpTreeSymmetryDefaultLoc,
@@ -26,7 +27,7 @@ import type { Point } from '../lib/geometry';
  *
  * The fold — which fold of the paper the mirror becomes — is design state shared
  * with the optimize dialog, so this reads and writes the same
- * `oristudioBpSymmetry` the dialog does. There is no second copy to keep in step:
+ * design's mirror-draw state the dialog does. There is no second copy to keep in step:
  * changing it in either place updates the other.
  *
  * The line this pane draws is *not* the line the tree pane draws. The tree's is
@@ -124,7 +125,7 @@ export function useBpPackingSymmetry(
   selectedFlapIds: readonly number[]
 ): BpPackingSymmetryView {
   const { t } = useTranslation();
-  const symmetry = useWorkspaceStore((state) => state.oristudioBpSymmetry);
+  const symmetry = useWorkspaceStore((state) => selectOristudioBpSymmetry(state));
   const setOristudioBpSymmetry = useWorkspaceStore((state) => state.setOristudioBpSymmetry);
   const unpairOristudioBpTreeSymmetry = useWorkspaceStore(
     (state) => state.unpairOristudioBpTreeSymmetry

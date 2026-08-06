@@ -5,6 +5,7 @@ export {
   ANALYTICS_EVENTS,
   bucketCount,
   COUNT_BUCKETS,
+  DESIGN_TAB_COUNT_BUCKETS,
   DURATION_MS_BUCKETS,
 } from './events';
 export type {
@@ -14,6 +15,7 @@ export type {
   AnalyticsErrorDomain,
   CommandGroup,
   DesignMethod,
+  DesignTabSource,
   DesignVariant,
   ExportFormat,
   FoldedFormExportFormat,

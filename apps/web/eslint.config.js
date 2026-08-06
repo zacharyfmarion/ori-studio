@@ -133,7 +133,13 @@ const OVERSIZED_PANELS = {
   // already there, and `toolPreviewColor` resolving through the same function the
   // payload does, which is the thing that stops the preview and the commit
   // disagreeing about the line type.
-  'CreasePatternPanel.tsx': 2751,
+  //
+  // 2751 -> 2752: one import. Phase 2b moved the tree onto the active design tab,
+  // so the panel reads it through `selectProject` instead of `state.project`. The
+  // body did not grow — `hasCreasePattern` gained a disjunct on the same line,
+  // and gained it because a crease pattern is no longer inferred from a phantom
+  // tree. The cap moves for the import alone.
+  'CreasePatternPanel.tsx': 2752,
   'BpPackingPanel.tsx': 2085,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,

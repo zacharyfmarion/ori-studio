@@ -1,3 +1,4 @@
+import { selectProject, selectSelection } from './store/workspaceStore/designTabs';
 import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet } from 'react-router-dom';
@@ -43,7 +44,7 @@ export default function App() {
   const initEngine = useWorkspaceStore((state) => state.initEngine);
   const openProject = useWorkspaceStore((state) => state.openProject);
   const selectNone = useWorkspaceStore((state) => state.selectNone);
-  const project = useWorkspaceStore((state) => state.project);
+  const project = useWorkspaceStore((state) => selectProject(state));
   const dirty = useWorkspaceStore((state) => state.dirty);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const toasterTheme = useThemeStore((state) => state.currentTheme.type);
@@ -127,7 +128,7 @@ export default function App() {
     return installAppKeyboardListener(
       {
         getActiveEditingContext: () => useWorkspaceStore.getState().activeEditingContext,
-        getSelection: () => useWorkspaceStore.getState().selection,
+        getSelection: () => selectSelection(useWorkspaceStore.getState()),
         handleMenuAction,
         selectNone,
         getShortcutOverrides: () => useShortcutStore.getState().overrides,

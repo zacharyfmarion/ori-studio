@@ -1,3 +1,5 @@
+import { singleTreemakerDesignTab } from '../../store/workspaceStore/designTabs';
+import type { TreemakerDesignState } from '../../store/workspaceStore/designContent';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -20,11 +22,14 @@ afterEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
 
-function renderDiagnosticsPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
+function renderDiagnosticsPanel(
+  state: Partial<ReturnType<typeof useWorkspaceStore.getState>> = {},
+  design: Partial<TreemakerDesignState> = {}
+) {
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      project: createSampleProject(),
+      ...singleTreemakerDesignTab({ project: createSampleProject(), ...design }),
       engineReady: true,
       status: 'optimized',
       ...state,
@@ -42,7 +47,9 @@ function renderDiagnosticsPanel(state: Partial<ReturnType<typeof useWorkspaceSto
 
 describe('DiagnosticsPanel', () => {
   it('summarizes design engine, optimization, conditions, and CP readiness', () => {
-    const view = renderDiagnosticsPanel({
+    const view = renderDiagnosticsPanel(
+      {},
+      {
       lastOptimization: {
         kind: 'scale',
         converged: true,
@@ -51,7 +58,8 @@ describe('DiagnosticsPanel', () => {
         is_feasible: true,
         message: 'Scale optimization complete',
       },
-    });
+      }
+    );
 
     expect(view.textContent).toContain('Nodes');
     expect(view.textContent).toContain('Edges');
@@ -71,7 +79,7 @@ describe('DiagnosticsPanel', () => {
       },
     ];
 
-    const view = renderDiagnosticsPanel({ project });
+    const view = renderDiagnosticsPanel({}, { project });
 
     expect(view.textContent).toContain('1 infeasible condition: 42');
     expect(view.querySelector('.diagnostic-list__item')).toBeNull();

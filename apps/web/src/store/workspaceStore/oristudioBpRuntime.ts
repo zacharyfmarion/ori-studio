@@ -1,3 +1,10 @@
+import { connectEngine } from '../../engines/engineHost';
+import {
+  acquireDesignHandle,
+  adoptDesignHandle,
+  forgetDesign,
+} from '../../engines/designHandles';
+import { readActiveDesign, type ActiveDesignRef } from './activeDesignSource';
 import { proxy, wrap, type Remote } from 'comlink';
 import {
   oristudioBpProjectStateFromRaw,
@@ -16,10 +23,8 @@ import type {
   OristudioBpSelection,
   OristudioBpSheetKind,
   OristudioBpSourceRef,
-  OristudioBpWorkspaceState,
   OristudioBpWasmHistoryNavigationProject,
   OristudioBpWasmOpenedProject,
-  OristudioBpWasmWorkspaceProject,
 } from '../../engine/oristudioBpTypes';
 import type { Point } from '../../lib/geometry';
 import type { WasmErrorEnvelope } from '../../engine/types';
@@ -30,15 +35,27 @@ import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 export type OristudioBpClient = Remote<OristudioBpWorkerApi>;
 type OristudioBpOptimizerClient = Remote<OristudioBpOptimizerWorkerApi>;
 
-let worker: Worker | null = null;
-let client: OristudioBpClient | null = null;
+// Worker + comlink client are owned by `engines/engineHost`. The optimizer
+// worker below stays local: it is spawned per run and terminated in a
+// `finally`, so its lifetime is a call, not a session.
 let optimizerWorker: Worker | null = null;
 let optimizerClient: OristudioBpOptimizerClient | null = null;
 let optimizerCancelRequested = false;
-let activeHandle: number | null = null;
-let loadedHandles = new Set<number>();
 let descriptorsPromise: Promise<OristudioBpPortDescriptor[]> | null = null;
-let currentSource: OristudioBpSourceRef | null = null;
+
+/**
+ * Where a design's document came from — its filename, path, and format.
+ *
+ * Per design, keyed by tab id. It was one module-level `currentSource`, which was
+ * right while one box-pleat design could be open: opening a second one renamed
+ * the first, and an undo in either restored the other's filename (undo reloads
+ * the document and keeps "the current source").
+ *
+ * Handles themselves are *not* here. They belong to the document registry, which
+ * is what makes two box-pleat tabs two documents rather than one — see
+ * {@link activeBpHandle}.
+ */
+const sourceByDesign = new Map<string, OristudioBpSourceRef>();
 
 export function oristudioBpError(error: unknown): WasmErrorEnvelope {
   if (
@@ -57,13 +74,7 @@ export function oristudioBpError(error: unknown): WasmErrorEnvelope {
 }
 
 export async function getOristudioBpClient(): Promise<OristudioBpClient> {
-  if (client) return client;
-  worker = new Worker(new URL('../../workers/oristudioBpWorker.ts', import.meta.url), {
-    type: 'module',
-  });
-  attachWorkerDiagnostics(worker, 'oristudio-bp');
-  client = wrap<OristudioBpWorkerApi>(worker);
-  return client;
+  return connectEngine('oristudio-bp');
 }
 
 export async function getOristudioBpPortDescriptors(): Promise<OristudioBpPortDescriptor[]> {
@@ -166,6 +177,63 @@ const OPTIMIZER_CANCELLED = 'optimization_cancelled';
  * Whether an error is the user aborting the optimizer rather than a real
  * failure. Callers use this to skip the error toast and leave history alone.
  */
+/**
+ * The design these calls operate on, captured **before** any await.
+ *
+ * Every creation path takes a round trip to the worker, and a tab switch during
+ * one must not hand the new document to whichever design the user landed on.
+ */
+function targetDesign(): ActiveDesignRef | null {
+  return readActiveDesign();
+}
+
+/**
+ * The active design's live engine handle, hydrating it if the registry had
+ * parked it.
+ *
+ * The replacement for a module-level `activeHandle`. That singleton was correct
+ * while one box-pleat design could be open and became a data-loss bug the moment
+ * two could: opening a second one *freed* the first's handle, and every mutation
+ * after that went to whichever document was loaded last.
+ */
+async function activeBpHandle(): Promise<number | null> {
+  const active = readActiveDesign();
+  if (!active || active.kind !== 'box-pleat') return null;
+  return acquireDesignHandle(active.id, 'box-pleat');
+}
+
+/** Same, but for the callers that cannot proceed without one. */
+async function requireActiveBpHandle(): Promise<number> {
+  const handle = await activeBpHandle();
+  if (handle === null) throw new Error('No Box Pleat project is loaded');
+  return handle;
+}
+
+/**
+ * Give a freshly built document to `target`, replacing whatever it held.
+ *
+ * Falls back to freeing the handle when no design owns it — an export-only flow,
+ * or a test store — rather than leaking it.
+ */
+async function claimBpProject(
+  api: OristudioBpClient,
+  target: ActiveDesignRef | null,
+  handle: number,
+  source: OristudioBpSourceRef
+): Promise<void> {
+  if (!target) {
+    await api.freeProject(handle).catch(() => undefined);
+    throw new Error('No design tab to hold the Box Pleat project');
+  }
+  await adoptDesignHandle(target.id, 'box-pleat', handle);
+  sourceByDesign.set(target.id, source);
+}
+
+/** The active design's source, or the placeholder a generated project carries. */
+function currentSourceOf(designId: string | null): OristudioBpSourceRef | null {
+  return designId === null ? null : (sourceByDesign.get(designId) ?? null);
+}
+
 export function isOptimizerCancellation(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -182,21 +250,22 @@ export function cancelActiveOristudioBpOptimizer(): void {
   optimizerClient = null;
 }
 
+/**
+ * Drop the active design's box-pleat document.
+ *
+ * Scoped to one design rather than freeing every handle the engine holds: with
+ * tabs, "release the BP project" cannot mean "release everyone's".
+ */
 export async function releaseOristudioBpProject(): Promise<void> {
-  if (!client || loadedHandles.size === 0) {
-    activeHandle = null;
-    loadedHandles = new Set();
-    currentSource = null;
-    return;
-  }
-  const staleHandles = [...loadedHandles];
-  activeHandle = null;
-  loadedHandles = new Set();
-  currentSource = null;
-  await Promise.all(staleHandles.map((staleHandle) => client?.freeProject(staleHandle).catch(() => undefined)));
+  const active = readActiveDesign();
+  if (!active) return;
+  sourceByDesign.delete(active.id);
+  // The registry frees the handle, and knows not to call a dead engine.
+  await forgetDesign(active.id);
 }
 
 export async function createSampleOristudioBpProject(): Promise<OristudioBpDocumentState> {
+  const target = targetDesign();
   const api = await getOristudioBpClient();
   const nextHandle = await api.newSampleProject();
   const source = {
@@ -211,8 +280,7 @@ export async function createSampleOristudioBpProject(): Promise<OristudioBpDocum
       source,
       dirty: true,
     });
-    await replaceHandles(api, [nextHandle], nextHandle);
-    currentSource = source;
+    await claimBpProject(api, target, nextHandle, source);
     return nextState;
   } catch (error) {
     await api.freeProject(nextHandle).catch(() => undefined);
@@ -229,6 +297,7 @@ export async function loadOristudioBpProjectFromText(
     dirty?: boolean;
   }
 ): Promise<OristudioBpDocumentState> {
+  const target = targetDesign();
   const api = await getOristudioBpClient();
   const nextHandle = await api.loadProject(text);
   const nextSource = {
@@ -243,8 +312,7 @@ export async function loadOristudioBpProjectFromText(
       source: nextSource,
       dirty: source.dirty ?? false,
     });
-    await replaceHandles(api, [nextHandle], nextHandle);
-    currentSource = nextSource;
+    await claimBpProject(api, target, nextHandle, nextSource);
     return nextState;
   } catch (error) {
     await api.freeProject(nextHandle).catch(() => undefined);
@@ -260,10 +328,11 @@ export async function loadOristudioBpProjectFromText(
 export async function restoreOristudioBpProjectSnapshot(
   bps: string
 ): Promise<OristudioBpDocumentState> {
+  const source = currentSourceOf(readActiveDesign()?.id ?? null);
   return loadOristudioBpProjectFromText(bps, {
-    filename: currentSource?.filename ?? 'Untitled.bps',
-    path: currentSource?.path ?? null,
-    format: currentSource?.format === 'bps' ? 'bps' : 'generated',
+    filename: source?.filename ?? 'Untitled.bps',
+    path: source?.path ?? null,
+    format: source?.format === 'bps' ? 'bps' : 'generated',
     dirty: true,
   });
 }
@@ -277,6 +346,7 @@ export async function importTreeMakerToOristudioBpProject(
     dirty?: boolean;
   }
 ): Promise<OristudioBpDocumentState> {
+  const target = targetDesign();
   const api = await getOristudioBpClient();
   const nextHandle = await api.importTreeMaker(source.title, text);
   const nextSource = {
@@ -291,8 +361,7 @@ export async function importTreeMakerToOristudioBpProject(
       source: nextSource,
       dirty: source.dirty ?? true,
     });
-    await replaceHandles(api, [nextHandle], nextHandle);
-    currentSource = nextSource;
+    await claimBpProject(api, target, nextHandle, nextSource);
     return nextState;
   } catch (error) {
     await api.freeProject(nextHandle).catch(() => undefined);
@@ -300,62 +369,11 @@ export async function importTreeMakerToOristudioBpProject(
   }
 }
 
-export async function loadOristudioBpWorkspaceFromBytes(
-  bytes: Uint8Array,
-  source: {
-    filename: string;
-    path?: string | null;
-    dirty?: boolean;
-  }
-): Promise<{ workspace: OristudioBpWorkspaceState; activeDocument: OristudioBpDocumentState | null }> {
-  const api = await getOristudioBpClient();
-  const loadedProjects = await api.loadWorkspace(bytes);
-  const handles = loadedProjects.map((project) => project.handle);
-  const workspaceSource = {
-    format: 'bpz',
-    filename: source.filename,
-    path: source.path ?? null,
-  } satisfies OristudioBpSourceRef;
-
-  try {
-    const projects = await Promise.all(
-      loadedProjects.map((project) =>
-        buildWorkspaceProjectState(api, project, workspaceSource, source.dirty ?? false)
-      )
-    );
-    const firstProject = projects[0] ?? null;
-    await replaceHandles(api, handles, firstProject?.handle ?? null);
-    currentSource = firstProject?.source ?? workspaceSource;
-    return {
-      activeDocument: firstProject,
-      workspace: {
-        workflowTarget: 'box-pleat',
-        kind: 'box-pleat-workspace',
-        source: workspaceSource,
-        activeProjectHandle: firstProject?.handle ?? null,
-        projects,
-        dirty: source.dirty ?? false,
-      },
-    };
-  } catch (error) {
-    await Promise.all(handles.map((staleHandle) => api.freeProject(staleHandle).catch(() => undefined)));
-    throw error;
-  }
-}
-
 export async function refreshOristudioBpProject(): Promise<OristudioBpDocumentState | null> {
-  if (activeHandle === null) return null;
+  const handle = await activeBpHandle();
+  if (handle === null) return null;
   const api = await getOristudioBpClient();
-  return buildProjectState(api, {
-    handle: activeHandle,
-    source:
-      currentSource ??
-      ({
-        format: 'generated',
-        filename: 'Untitled.bps',
-        path: null,
-      } satisfies OristudioBpSourceRef),
-  });
+  return buildProjectState(api, { handle, source: currentOrGeneratedSource() });
 }
 
 export async function moveOristudioBpTreeVertex(
@@ -566,12 +584,11 @@ export async function optimizeOristudioBpLayout(
   stateOptions: Pick<OristudioBpMutationOptions, 'activeSurface'> = {},
   onProgress?: (progress: OristudioBpOptimizerProgress) => void
 ): Promise<OristudioBpOptimizerRunSummary> {
-  if (activeHandle === null) {
-    throw new Error('No Box Pleat project is loaded');
-  }
+  const target = targetDesign();
+  const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
   const request = await api.optimizerRequest(
-    activeHandle,
+    handle,
     options.layoutMode,
     options.useBasinHopping,
     options.randomCandidateCount,
@@ -592,11 +609,11 @@ export async function optimizeOristudioBpLayout(
   await api.validateOptimizerPacking(request, solved);
   const result = clampOptimizerResultToMinimumSheet(solved, request);
   if (options.openNew) {
-    const opened = await api.openOptimizerTemplate(activeHandle, request, result);
-    const source = optimizedProjectSource(currentSource);
-    loadedHandles = new Set([...loadedHandles, opened.handle]);
-    activeHandle = opened.handle;
-    currentSource = source;
+    const opened = await api.openOptimizerTemplate(handle, request, result);
+    const source = optimizedProjectSource(currentOrGeneratedSource());
+    // "Open as new" replaces this design's document with the optimized one. The
+    // registry frees the handle it displaces, so the old template cannot leak.
+    await claimBpProject(api, target, opened.handle, source);
     const document = await buildOpenedProjectState(api, opened, source, {
       dirty: true,
       activeSurface: stateOptions.activeSurface ?? 'packing',
@@ -604,9 +621,9 @@ export async function optimizeOristudioBpLayout(
     return { document, eventCount: events.length, openedNew: true };
   }
 
-  const project = await api.replaceWithOptimizerTemplate(activeHandle, request, result);
+  const project = await api.replaceWithOptimizerTemplate(handle, request, result);
   const document = await buildProjectState(api, {
-    handle: activeHandle,
+    handle,
     source: currentOrGeneratedSource(),
     project,
     dirty: true,
@@ -629,61 +646,11 @@ export async function redoOristudioBpProject(): Promise<OristudioBpHistoryNaviga
   return navigateOristudioBpHistory((api, handle) => api.redoProject(handle), 'tree');
 }
 
-export async function notifyOristudioBpProjectSaved(handle = activeHandle): Promise<void> {
+export async function notifyOristudioBpProjectSaved(): Promise<void> {
+  const handle = await activeBpHandle();
   if (handle === null) return;
   const api = await getOristudioBpClient();
   await api.notifyProjectSaved(handle);
-}
-
-export function activateOristudioBpProjectHandle(
-  handle: number | null,
-  source: OristudioBpSourceRef | null
-): void {
-  if (handle !== null && !loadedHandles.has(handle)) {
-    throw new Error('Box Pleat project handle is not loaded');
-  }
-  activeHandle = handle;
-  currentSource = source;
-}
-
-export async function cloneOristudioBpProjectHandle(
-  handle: number,
-  source: OristudioBpSourceRef,
-  options: Pick<OristudioBpStateFromRawInput, 'activeSurface'> = {}
-): Promise<OristudioBpDocumentState> {
-  if (!loadedHandles.has(handle)) {
-    throw new Error('Box Pleat project handle is not loaded');
-  }
-  const api = await getOristudioBpClient();
-  const text = await api.exportBps(handle);
-  const cloneHandle = await api.loadProject(text);
-  const cloneSource = clonedProjectSource(source);
-
-  try {
-    const document = await buildProjectState(api, {
-      handle: cloneHandle,
-      source: cloneSource,
-      dirty: true,
-      activeSurface: options.activeSurface,
-    });
-    loadedHandles = new Set([...loadedHandles, cloneHandle]);
-    activeHandle = cloneHandle;
-    currentSource = cloneSource;
-    return document;
-  } catch (error) {
-    await api.freeProject(cloneHandle).catch(() => undefined);
-    throw error;
-  }
-}
-
-export async function releaseOristudioBpProjectHandle(handle: number): Promise<void> {
-  if (!client || !loadedHandles.has(handle)) return;
-  loadedHandles.delete(handle);
-  if (activeHandle === handle) {
-    activeHandle = null;
-    currentSource = null;
-  }
-  await client.freeProject(handle).catch(() => undefined);
 }
 
 function optimizerProgressFromEvent(event: OristudioBpOptimizerEvent): OristudioBpOptimizerProgress {
@@ -748,22 +715,9 @@ function optimizerProgress(
 }
 
 export async function exportOristudioBpProjectAsBps(): Promise<string> {
-  if (activeHandle === null) {
-    throw new Error('No Box Pleat project is loaded');
-  }
+  const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
-  return api.exportBps(activeHandle);
-}
-
-export async function exportOristudioBpWorkspaceAsBpz(
-  projects: OristudioBpDocumentState[]
-): Promise<Uint8Array> {
-  const api = await getOristudioBpClient();
-  const exportProjects = workspaceExportProjects(projects);
-  if (exportProjects.length === 0) {
-    throw new Error('No Box Pleat projects are loaded');
-  }
-  return api.exportWorkspace(exportProjects);
+  return api.exportBps(handle);
 }
 
 export async function exportOristudioBpProjectAsCp(
@@ -774,12 +728,10 @@ export async function exportOristudioBpProjectAsCp(
     cpScale?: number;
   }
 ): Promise<string> {
-  if (activeHandle === null) {
-    throw new Error('No Box Pleat project is loaded');
-  }
+  const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
   return api.exportCp(
-    activeHandle,
+    handle,
     options.reorient,
     options.includeAuxiliaryHinges,
     options.cpScale ?? 1
@@ -789,32 +741,22 @@ export async function exportOristudioBpProjectAsCp(
 export async function exportOristudioBpProjectAsFold(
   options: Pick<OristudioBpExportOptions, 'reorient' | 'includeAuxiliaryHinges'>
 ): Promise<string> {
-  if (activeHandle === null) {
-    throw new Error('No Box Pleat project is loaded');
-  }
+  const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
-  return api.exportFold(activeHandle, options.reorient, options.includeAuxiliaryHinges);
+  return api.exportFold(handle, options.reorient, options.includeAuxiliaryHinges);
 }
 
+/** Record where the active design's document came from (a save-as, typically). */
 export function setOristudioBpCurrentSource(source: OristudioBpSourceRef | null): void {
-  currentSource = source;
+  const active = readActiveDesign();
+  if (!active) return;
+  if (source === null) sourceByDesign.delete(active.id);
+  else sourceByDesign.set(active.id, source);
 }
 
 /** True for a Box Pleating Studio single-project file (`.bps`). */
 export function isBpProjectFilename(filename: string): boolean {
   return /\.bps$/i.test(filename);
-}
-
-async function replaceHandles(
-  api: OristudioBpClient,
-  nextHandles: number[],
-  nextActiveHandle: number | null
-) {
-  const nextHandleSet = new Set(nextHandles);
-  const staleHandles = [...loadedHandles].filter((staleHandle) => !nextHandleSet.has(staleHandle));
-  loadedHandles = nextHandleSet;
-  activeHandle = nextActiveHandle;
-  await Promise.all(staleHandles.map((staleHandle) => api.freeProject(staleHandle).catch(() => undefined)));
 }
 
 async function buildProjectState(
@@ -837,29 +779,6 @@ async function buildProjectState(
     treeData,
     layoutSnapshot,
     packingValidation,
-  });
-}
-
-async function buildWorkspaceProjectState(
-  api: OristudioBpClient,
-  project: OristudioBpWasmWorkspaceProject,
-  workspaceSource: OristudioBpSourceRef,
-  dirty: boolean
-): Promise<OristudioBpDocumentState> {
-  const source = {
-    format: 'bpz',
-    filename: project.filename,
-    path: workspaceSource.path,
-  } satisfies OristudioBpSourceRef;
-  return oristudioBpProjectStateFromRaw({
-    handle: project.handle,
-    project: project.project,
-    summary: project.summary,
-    treeData: await api.treeData(project.handle).catch(() => null),
-    layoutSnapshot: await api.layoutSnapshot(project.handle).catch(() => null),
-    packingValidation: await api.packingValidation(project.handle).catch(() => null),
-    source,
-    dirty,
   });
 }
 
@@ -888,13 +807,11 @@ async function navigateOristudioBpHistory(
   ) => Promise<OristudioBpWasmHistoryNavigationProject>,
   fallbackSurface: OristudioBpEditingSurface
 ): Promise<OristudioBpHistoryNavigation | null> {
-  if (activeHandle === null) {
-    throw new Error('No Box Pleat project is loaded');
-  }
+  const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
-  const navigated = await operation(api, activeHandle);
+  const navigated = await operation(api, handle);
   const document = await buildProjectState(api, {
-    handle: activeHandle,
+    handle,
     project: navigated.project,
     source: currentOrGeneratedSource(),
     dirty: true,
@@ -915,21 +832,13 @@ async function mutateActiveOristudioBpProject(
   options: OristudioBpMutationOptions,
   operation: (api: OristudioBpClient, handle: number) => Promise<OristudioBpRawProject>
 ): Promise<OristudioBpDocumentState> {
-  if (activeHandle === null) {
-    throw new Error('No Box Pleat project is loaded');
-  }
+  const handle = await requireActiveBpHandle();
   const api = await getOristudioBpClient();
-  const project = await operation(api, activeHandle);
+  const project = await operation(api, handle);
   return buildProjectState(api, {
-    handle: activeHandle,
+    handle,
     project,
-    source:
-      currentSource ??
-      ({
-        format: 'generated',
-        filename: 'Untitled.bps',
-        path: null,
-      } satisfies OristudioBpSourceRef),
+    source: currentOrGeneratedSource(),
     dirty: true,
     activeSurface: options.activeSurface ?? 'tree',
   });
@@ -979,7 +888,7 @@ function optimizerSolveReportParts(report: unknown): { result: unknown; events: 
 
 function currentOrGeneratedSource(): OristudioBpSourceRef {
   return (
-    currentSource ??
+    currentSourceOf(readActiveDesign()?.id ?? null) ??
     ({
       format: 'generated',
       filename: 'Untitled.bps',
@@ -994,15 +903,6 @@ function optimizedProjectSource(source: OristudioBpSourceRef | null): OristudioB
   return {
     format: 'generated',
     filename: `Optimized ${base}.bps`,
-    path: null,
-  };
-}
-
-function clonedProjectSource(source: OristudioBpSourceRef): OristudioBpSourceRef {
-  const base = source.filename.replace(/\.[^.]+$/u, '') || 'Untitled';
-  return {
-    format: 'generated',
-    filename: `Copy of ${base}.bps`,
     path: null,
   };
 }
@@ -1084,40 +984,3 @@ function prefixedNumericTag(tag: string, prefix: string): number | null {
   return Number(value);
 }
 
-function workspaceExportProjects(projects: OristudioBpDocumentState[]) {
-  const names = new Set<string>();
-  return projects.map((project) => {
-    const baseName = uniqueBpWorkspaceFilename(project.snapshot.summary.title, names);
-    return {
-      filename: `${baseName}.bps`,
-      handle: project.handle,
-    };
-  });
-}
-
-function uniqueBpWorkspaceFilename(title: string, names: Set<string>): string {
-  let name = sanitizeBpFilename(title);
-  if (names.has(name)) {
-    let suffix = 1;
-    while (names.has(`${name} (${suffix})`)) suffix += 1;
-    name = `${name} (${suffix})`;
-  }
-  names.add(name);
-  return name;
-}
-
-function sanitizeBpFilename(filename: string): string {
-  const illegal = ['/', '\\', ':', '*', '|', '"', '<', '>', '?'];
-  const replacements = ['\u2215', '\u2216', '\u2236', '\u2217', '\u2223', '\u2033', '\u2039', '\u203a', '\uff1f'];
-  let next = filename;
-  for (let index = 0; index < illegal.length; index += 1) {
-    next = next.replaceAll(illegal[index], replacements[index]);
-  }
-  return next
-    .replace(/\s+/g, ' ')
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1f\x80-\x9f]/g, '')
-    .replace(/^\.*$/, 'project')
-    .replace(/^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i, 'project')
-    .replace(/[. ]+$/, 'project');
-}

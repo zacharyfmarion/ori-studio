@@ -1,3 +1,4 @@
+import { selectProject } from '../store/workspaceStore/designTabs';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -42,7 +43,7 @@ export function useSimulatorViewExport(
         const saved = await saveSimulatorView({
           page,
           format,
-          name: useWorkspaceStore.getState().project.title,
+          name: selectProject(useWorkspaceStore.getState()).title,
         });
         // Null is a dismissed save dialog, which needs no announcement.
         if (saved) {

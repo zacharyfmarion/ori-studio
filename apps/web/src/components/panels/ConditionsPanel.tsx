@@ -1,3 +1,4 @@
+import { selectProject, selectSelection } from '../../store/workspaceStore/designTabs';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -29,9 +30,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 
 export function ConditionsPanel() {
   const { t } = useTranslation();
-  const project = useWorkspaceStore((state) => state.project);
+  const project = useWorkspaceStore((state) => selectProject(state));
   const importedCreasePattern = useWorkspaceStore((state) => state.importedCreasePattern);
-  const selection = useWorkspaceStore((state) => state.selection);
+  const selection = useWorkspaceStore((state) => selectSelection(state));
   const select = useWorkspaceStore((state) => state.select);
   const updatePaper = useWorkspaceStore((state) => state.updatePaper);
   const addCondition = useWorkspaceStore((state) => state.addCondition);

@@ -1,3 +1,5 @@
+import { patchBoxPleatDesign, selectOristudioBpSymmetry, singleBoxPleatDesignTab } from '../../store/workspaceStore/designTabs';
+import { selectOristudioBpSelection } from '../../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -247,9 +249,10 @@ function renderPacking() {
   useWorkspaceStore.setState(
     {
       ...useWorkspaceStore.getInitialState(),
-      oristudioBpDocument: document_,
-      oristudioBpSelection: { kind: 'bp-none' },
-    },
+      ...singleBoxPleatDesignTab({
+      document: document_,
+      selection: { kind: 'bp-none' }
+      })},
     true
   );
   container = window.document.createElement('div');
@@ -482,7 +485,7 @@ describe('BP packing pane — a river is grabbed by its contour', () => {
     act(() => {
       contour?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
     });
-    expect(useWorkspaceStore.getState().oristudioBpSelection).toEqual({ kind: 'bp-river', id: 1 });
+    expect(selectOristudioBpSelection(useWorkspaceStore.getState())).toEqual({ kind: 'bp-river', id: 1 });
   });
 });
 
@@ -519,7 +522,9 @@ describe('BP packing pane — nothing in the canvas takes focus', () => {
 describe('BP packing pane — Delete reaches the node delete', () => {
   it('hands Delete to edit.delete', () => {
     renderPacking();
-    useWorkspaceStore.setState({ oristudioBpSelection: { kind: 'bp-vertex', id: 1 } });
+    useWorkspaceStore.setState({
+      ...patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-vertex', id: 1 } 
+      }),});
     const menu = vi.fn();
     act(() => {
       handleShortcutRuntimeKeyDown(
@@ -550,7 +555,7 @@ describe('BP packing pane — the mirror line', () => {
     // inference does the work — and the line is what you place the first pair
     // against, so waiting for one would mean it could never be drawn.
     const host = renderPacking();
-    expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([]);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([]);
     expect(axis(host)).not.toBeNull();
   });
 
@@ -605,7 +610,9 @@ describe('BP packing pane — moves ask for the mirror', () => {
     const host = renderPacking();
     const { moveFlap } = stubMoves();
     act(() => {
-      useWorkspaceStore.setState({ oristudioBpSelection: { kind: 'bp-flap', id: 5 } });
+      useWorkspaceStore.setState(
+        patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-flap', id: 5 } })
+      );
     });
     const body = host.querySelector('.bp-packing-panel__body');
     act(() => {
@@ -621,9 +628,9 @@ describe('BP packing pane — moves ask for the mirror', () => {
     const host = renderPacking();
     const { moveFlaps } = stubMoves();
     act(() => {
-      useWorkspaceStore.setState({
-        oristudioBpSelection: bpFlapSelection([5, 7]),
-      });
+      useWorkspaceStore.setState(
+        patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: bpFlapSelection([5, 7]) })
+      );
     });
     const body = host.querySelector('.bp-packing-panel__body');
     act(() => {
