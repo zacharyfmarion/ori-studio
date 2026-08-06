@@ -2654,7 +2654,12 @@
 .design-tab-strip__root {
   display: flex;
   min-width: 0;
-  flex: 1;
+  /* Shrinks, never grows. Growing to fill the strip parked the add button
+     against the far edge of the workspace, an inch of empty bar away from the
+     last tab; browsers put it immediately after, and so does this. Shrinking is
+     what keeps it reachable once the tabs overflow — the row scrolls under it
+     rather than pushing it off-screen. */
+  flex: 0 1 auto;
 }
 
 .design-tab-strip__list {
@@ -2672,6 +2677,7 @@
 .design-tab-strip__add {
   align-self: center;
   flex: none;
+  margin-left: var(--space-1);
 }
 
 .design-tab {
