@@ -22,6 +22,7 @@
     "flapRadiusAria": "翼片半径",
     "flapWidth": "W",
     "flapWidthAria": "翼片宽度",
+    "fold": "折叠",
     "grid": "网格",
     "growSheet": "增大网格尺寸",
     "height": "高度",
@@ -36,6 +37,9 @@
     "layerRidges": "脊线",
     "layerRivers": "河",
     "layers": "图层",
+    "mirrorDraw": "镜像绘制",
+    "mirrorDrawHint": "新建节点会生成对称节点",
+    "mirrorDrawOn": "镜像绘制（开）",
     "nextStepper": "下一个 {{label}}",
     "noValidPattern": "无有效图案",
     "nudgeDown": "向下微移 BP 所选内容",
@@ -56,6 +60,11 @@
     "size": "尺寸",
     "stretch": "拉伸 {{id}}",
     "stretchNav": "拉伸 {{id}} 图案导航",
+    "symmetryControls": "盒式褶皱对称控件",
+    "symmetryInconsistent": "每个襟片都有配对，但有些配对在树中不可互换。",
+    "symmetryNeedsSquare": "需要正方形纸张。",
+    "symmetryReady": "每个襟片都有配对。",
+    "unpair": "解除镜像配对",
     "unsupportedOperation": "不支持的 BP 操作",
     "upstreamGap": "上游间隙",
     "viewportControls": "箱形褶皱排布视口控件",
@@ -166,8 +175,6 @@
     "buildingCreasePattern": "正在生成折痕图",
     "canvasDiagnostics_other": "画布诊断：{{count}} 项",
     "case_other": "情形 {{count}}",
-    "caseLabel": "情形",
-    "changeFoldCase": "更改折叠情形",
     "changeFoldedColor": "更改折叠模型颜色",
     "changeFoldedDisplayStyle": "更改折叠显示样式",
     "changeFoldedModel": "更改折叠模型",
@@ -175,8 +182,6 @@
     "couldNotOpenForEditing": "无法打开此折痕图进行编辑。",
     "couldNotOpenForEditingHint": "以只读方式显示。你仍然可以查看、折叠和导出它。",
     "cropImage": "裁剪图像",
-    "current_other": "当前 {{count}}",
-    "deleteFoldedModel": "删除折叠模型",
     "deleteFoldedModelAction": "删除折叠模型",
     "deleteImage": "删除图像",
     "diagnostic": {
@@ -196,7 +201,6 @@
       "warningOther_other": "{{count}} 个 {{label}} 警告"
     },
     "display": "显示",
-    "duplicateFoldedModel": "复制折叠模型",
     "duplicateFoldedModelAction": "复制折叠模型",
     "flipFoldedModel": "翻转折叠模型",
     "fold": "折叠",
@@ -220,11 +224,10 @@
         "triangle": "折痕数量不正确（奇数）"
       }
     },
-    "foldCase": "折叠情形",
     "foldedColor": {
-      "back": "背面",
-      "front": "正面",
-      "line": "线条"
+      "back": "背面颜色",
+      "front": "正面颜色",
+      "line": "线条颜色"
     },
     "foldedDisplayStyle": "折叠显示样式",
     "foldedModelControls": "折叠模型控件",
@@ -232,13 +235,7 @@
     "foldedModelSide": "折叠模型侧面",
     "foldedState": {
       "back": "背面",
-      "backShort": "B",
-      "both": "双面",
-      "bothTitle": "双面",
-      "front": "正面",
-      "frontShort": "F",
-      "transparent": "透明状态",
-      "transparentShort": "T"
+      "front": "正面"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -313,8 +310,6 @@
     "showFoldedModelShadow": "显示折叠模型阴影",
     "side": "侧面",
     "stale": "已过期",
-    "start": "起始",
-    "startingFace": "起始面",
     "viewportControls": "折痕图视口控件"
   },
   "design": {

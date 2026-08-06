@@ -1756,6 +1756,79 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
   });
 
+  it('keeps a refused load visible instead of self-provisioning over it', async () => {
+    // The editable kernel refusing a file is a *result*, not a starting state.
+    // `loadCreasePattern` handles it correctly — read-only import kept, reason
+    // recorded — and then the Edit workspace's self-provisioning replaced all of
+    // it with a blank canvas and a cleared error, so the user saw an empty sheet
+    // named after their file with nothing anywhere saying it had failed.
+    resetStores(seedSnapshot());
+    oristudioCpMocks.loadOristudioCpDocumentFromText
+      .mockReset()
+      .mockRejectedValue(new Error('invalid Oriedita field vertices_coords'));
+
+    await useWorkspaceStore.getState().loadCreasePatternText(editableCpFoldText, {
+      filename: 'MyDesign.fold',
+      path: '/Users/me/MyDesign.fold',
+    });
+
+    const afterLoad = useWorkspaceStore.getState();
+    expect(afterLoad.oristudioCpDocument).toBeNull();
+    expect(afterLoad.oristudioCpError).toContain('vertices_coords');
+    expect(afterLoad.importedCreasePattern).not.toBeNull();
+
+    // The Edit workspace mounts and seeds a blank CP when it has no document.
+    await useWorkspaceStore.getState().ensureEditCreasePattern();
+
+    const afterProvision = useWorkspaceStore.getState();
+    expect(afterProvision.oristudioCpError).toContain('vertices_coords');
+    expect(afterProvision.importedCreasePattern).not.toBeNull();
+    // And it must not have manufactured a blank document to show instead.
+    expect(oristudioCpMocks.createBlankOristudioCpDocument).not.toHaveBeenCalled();
+  });
+
+  it('recovers from a refused load: File > New seeds a canvas again', async () => {
+    // Refusing to self-provision is only safe if something still can. Blocking
+    // it unconditionally would trade a silent blank canvas for a dead end,
+    // which is the worse of the two.
+    resetStores(seedSnapshot());
+    oristudioCpMocks.loadOristudioCpDocumentFromText
+      .mockReset()
+      .mockRejectedValue(new Error('invalid Oriedita field vertices_coords'));
+    await useWorkspaceStore.getState().loadCreasePatternText(editableCpFoldText, {
+      filename: 'MyDesign.fold',
+      path: '/Users/me/MyDesign.fold',
+    });
+    expect(useWorkspaceStore.getState().cpLoadFailure).not.toBeNull();
+
+    await useWorkspaceStore.getState().createNewCreasePattern();
+
+    const state = useWorkspaceStore.getState();
+    expect(state.oristudioCpDocument).not.toBeNull();
+    expect(state.cpLoadFailure).toBeNull();
+    // …and the Edit surface can seed freely again afterwards.
+    useWorkspaceStore.setState({ oristudioCpDocument: null });
+    await useWorkspaceStore.getState().ensureEditCreasePattern();
+    expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
+  });
+
+  it('a stale CP command error does not block seeding a blank canvas', async () => {
+    // `oristudioCpError` carries every kind of CP failure (a command that would
+    // not run, "no document is loaded", a dead kernel), so gating provisioning
+    // on it would let an unrelated error strand the user on an empty workspace.
+    // Only a recorded *load* failure may block.
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: null,
+      oristudioCpError: 'DrawCreaseFree could not be applied',
+      cpLoadFailure: null,
+    });
+
+    await useWorkspaceStore.getState().ensureEditCreasePattern();
+
+    expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
+  });
+
   it('ensureEditCreasePattern never touches the design tabs', async () => {
     // It used to clear the active design when that design had no edges and no BP
     // document — a test for "nothing authored yet" that a *freshly created*

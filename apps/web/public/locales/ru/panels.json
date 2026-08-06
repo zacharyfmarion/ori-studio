@@ -22,6 +22,7 @@
     "flapRadiusAria": "Радиус клапана",
     "flapWidth": "W",
     "flapWidthAria": "Ширина клапана",
+    "fold": "Складка",
     "grid": "Сетка",
     "growSheet": "Увеличить размер сетки",
     "height": "Высота",
@@ -36,6 +37,9 @@
     "layerRidges": "Гребни",
     "layerRivers": "Реки",
     "layers": "Слои",
+    "mirrorDraw": "Зеркальное рисование",
+    "mirrorDrawHint": "У новых узлов появляется двойник",
+    "mirrorDrawOn": "Зеркальное рисование (вкл.)",
     "nextStepper": "Следующий {{label}}",
     "noValidPattern": "Нет допустимого паттерна",
     "nudgeDown": "Сдвинуть выделение BP вниз",
@@ -56,6 +60,11 @@
     "size": "Размер",
     "stretch": "Растяжка {{id}}",
     "stretchNav": "Навигация по паттерну растяжки {{id}}",
+    "symmetryControls": "Элементы управления симметрией Box Pleat",
+    "symmetryInconsistent": "У каждого клапана есть пара, но некоторые пары не взаимозаменяемы в дереве.",
+    "symmetryNeedsSquare": "Нужен квадратный лист.",
+    "symmetryReady": "У каждого клапана есть пара.",
+    "unpair": "Разорвать пару с зеркалом",
     "unsupportedOperation": "Неподдерживаемая операция BP",
     "upstreamGap": "Зазор выше по потоку",
     "viewportControls": "Элементы управления областью просмотра упаковки Box Pleat",
@@ -172,8 +181,6 @@
     "case_few": "Случай {{count}}",
     "case_many": "Случай {{count}}",
     "case_other": "Случай {{count}}",
-    "caseLabel": "Случай",
-    "changeFoldCase": "Изменить вариант складывания",
     "changeFoldedColor": "Изменить цвет сложенной модели",
     "changeFoldedDisplayStyle": "Изменить стиль отображения сложенной формы",
     "changeFoldedModel": "Изменить сложенную модель",
@@ -181,11 +188,6 @@
     "couldNotOpenForEditing": "Этот паттерн складок не удалось открыть для редактирования.",
     "couldNotOpenForEditingHint": "Показан только для чтения. Его по-прежнему можно просматривать, складывать и экспортировать.",
     "cropImage": "Обрезать изображение",
-    "current_one": "Текущий {{count}}",
-    "current_few": "Текущий {{count}}",
-    "current_many": "Текущий {{count}}",
-    "current_other": "Текущий {{count}}",
-    "deleteFoldedModel": "Удалить сложенную модель",
     "deleteFoldedModelAction": "Удалить сложенную модель",
     "deleteImage": "Удалить изображение",
     "diagnostic": {
@@ -223,7 +225,6 @@
       "warningOther_other": "{{label}}: {{count}} предупреждения"
     },
     "display": "Отображение",
-    "duplicateFoldedModel": "Дублировать сложенную модель",
     "duplicateFoldedModelAction": "Дублировать сложенную модель",
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
@@ -247,11 +248,10 @@
         "triangle": "Неверное (нечётное) число складок"
       }
     },
-    "foldCase": "Вариант складывания",
     "foldedColor": {
-      "back": "Изнанка",
-      "front": "Лицо",
-      "line": "Линия"
+      "back": "Цвет изнанки",
+      "front": "Цвет лица",
+      "line": "Цвет линии"
     },
     "foldedDisplayStyle": "Стиль отображения сложенной модели",
     "foldedModelControls": "Элементы управления сложенной моделью",
@@ -259,13 +259,7 @@
     "foldedModelSide": "Сторона сложенной модели",
     "foldedState": {
       "back": "Изнанка",
-      "backShort": "B",
-      "both": "Обе",
-      "bothTitle": "Обе",
-      "front": "Лицо",
-      "frontShort": "F",
-      "transparent": "Прозрачное состояние",
-      "transparentShort": "T"
+      "front": "Лицо"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -346,8 +340,6 @@
     "showFoldedModelShadow": "Показывать тень сложенной модели",
     "side": "Сторона",
     "stale": "Устарело",
-    "start": "Старт",
-    "startingFace": "Начальная грань",
     "viewportControls": "Элементы управления областью просмотра паттерна складок"
   },
   "design": {

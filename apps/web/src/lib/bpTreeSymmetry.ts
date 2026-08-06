@@ -236,6 +236,33 @@ export function buildMirroredBpTreeUpdates(
 }
 
 /**
+ * Of the vertices a gesture moves, the ones that must stay in their own half of
+ * the mirror.
+ *
+ * Exactly the vertices {@link buildMirroredBpTreeUpdates} will reflect: one
+ * whose partner is being moved by the same gesture travels rigidly with it and
+ * is free, and one with no partner has nothing to swap sides with. The two rules
+ * are kept in step deliberately — a vertex whose partner gets mirrored is
+ * precisely the vertex that would turn the drawing inside out by crossing.
+ */
+export function bpTreeMirrorHeldIds(
+  tree: OristudioBpTreeView,
+  pairs: BpTreeSymmetryPair[],
+  axis: SymmetryAxis,
+  movedIds: readonly number[],
+  tolerance = BP_TREE_SYMMETRY_TOLERANCE
+): Set<number> {
+  const moved = new Set(movedIds);
+  const held = new Set<number>();
+  for (const id of movedIds) {
+    const partner = mirrorBpTreeVertexId(tree, pairs, axis, id, tolerance);
+    if (partner === null || partner === id || moved.has(partner)) continue;
+    held.add(id);
+  }
+  return held;
+}
+
+/**
  * The vertices a delete of `vertexId` should remove: the vertex, plus its mirror
  * partner when symmetry is on. The two sides of a symmetric design are one
  * shape, so deleting a flap from one side and leaving its twin behind breaks the

@@ -43,6 +43,7 @@ import {
   mirrorBpTreeVertexId,
   BP_TREE_SYMMETRY_ANGLE,
   BP_TREE_SYMMETRY_TOLERANCE,
+  type SymmetryFold,
 } from '../../../lib/bpTreeSymmetry';
 import {
   optimizerSymmetryAxisForFold,
@@ -50,6 +51,12 @@ import {
   resolveOptimizerSymmetry,
   type OptimizerSymmetryPayload,
 } from '../../../lib/bpOptimizerSymmetry';
+import {
+  buildMirroredBpFlapMoves,
+  constrainBpFlapGroupToAxisSides,
+  constrainBpFlapMoveToAxis,
+} from '../../../lib/bpPackingSymmetry';
+import { seedBpFlapAnchor, seedBpPartnerFlapAnchor } from '../../../lib/bpFlapSeeding';
 import {
   reflectPointAcrossSymmetryAxis,
   snapPointToSymmetryAxis,
@@ -230,6 +237,103 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
    * yet. Only the entry points that mean "make a box-pleat design and show it"
    * call this.
    */
+  const flapAnchor = (document: OristudioBpDocumentState, id: number): Point | null =>
+    document.snapshot.packing.flaps.find((flap) => flap.id === id)?.anchor ?? null;
+
+  /**
+   * The mirror partner of a vertex — equivalently of its dual flap — or null
+   * when it has none, including when it is its own and sits on the mirror line.
+   *
+   * **Pairing does not depend on mirror draw.** That toggle decides one thing:
+   * whether a *new* node is drawn with a twin. A pair, once it exists, is part of
+   * the design, so every edit to an existing one — move, delete, edge length,
+   * flap resize — asks this rather than the flag. Reading the flag here is what
+   * made the whole feature vanish when the user stopped drawing symmetrically.
+   */
+  const bpMirrorPartnerId = (vertexId: number, designId: string): number | null => {
+    const document = selectOristudioBpDocument(get(), designId);
+    if (!document) return null;
+    const symmetry = selectOristudioBpSymmetry(get(), designId);
+    const partner = mirrorBpTreeVertexId(
+      document.snapshot.tree,
+      symmetry.pairs,
+      { loc: symmetry.loc, angle: symmetry.angle },
+      vertexId,
+      BP_TREE_SYMMETRY_TOLERANCE
+    );
+    return partner === null || partner === vertexId ? null : partner;
+  };
+
+  /**
+   * Whether a vertex — equivalently its dual flap — is its *own* mirror, sitting
+   * on the tree's mirror line.
+   *
+   * Asked instead of looking at where the flap happens to be on the paper. A
+   * flap that merely drifted onto the paper's mirror is not self-mirrored, and
+   * treating it as such pinned it there with no way back off.
+   */
+  const bpIsSelfMirrored = (vertexId: number, designId: string): boolean => {
+    const document = selectOristudioBpDocument(get(), designId);
+    if (!document) return false;
+    const symmetry = selectOristudioBpSymmetry(get(), designId);
+    return (
+      mirrorBpTreeVertexId(
+        document.snapshot.tree,
+        symmetry.pairs,
+        { loc: symmetry.loc, angle: symmetry.angle },
+        vertexId,
+        BP_TREE_SYMMETRY_TOLERANCE
+      ) === vertexId
+    );
+  };
+
+  /**
+   * Put a freshly added leaf's flap where the leaf was drawn.
+   *
+   * The engine seeds the flap when `add_leaf` runs — from the arbitrary spot it
+   * parked the new vertex at, before the caller repositions it. That spot is
+   * chosen against tree-node occupancy, which repositioning then vacates, so
+   * without this every leaf added to a design lands its flap on the same cell.
+   * The engine path is a faithful upstream port and is left alone; this reseeds
+   * on top of it, inside the same mutation, so it stays one undo entry.
+   */
+  const seedFlapFromDrawing = async (
+    document: OristudioBpDocumentState,
+    leafId: number,
+    treeLoc: Point,
+    fold: SymmetryFold | null,
+    selfMirrored = false
+  ): Promise<OristudioBpDocumentState> => {
+    if (!flapAnchor(document, leafId)) return document;
+    return moveRuntimeOristudioBpLayoutFlap(
+      leafId,
+      seedBpFlapAnchor({
+        treeLoc,
+        treeSheet: document.snapshot.tree.sheet,
+        layoutSheet: document.snapshot.packing.sheet,
+        fold,
+        selfMirrored,
+      }),
+      { activeSurface: document.activeSurface }
+    );
+  };
+
+  /** Put the mirror partner's flap at the reflection of where the primary's landed. */
+  const seedPartnerFlap = async (
+    document: OristudioBpDocumentState,
+    primaryId: number,
+    partnerId: number,
+    fold: SymmetryFold
+  ): Promise<OristudioBpDocumentState> => {
+    const primary = flapAnchor(document, primaryId);
+    if (!primary || !flapAnchor(document, partnerId)) return document;
+    const anchor = seedBpPartnerFlapAnchor(primary, document.snapshot.packing.sheet, fold);
+    if (!anchor) return document;
+    return moveRuntimeOristudioBpLayoutFlap(partnerId, anchor, {
+      activeSurface: document.activeSurface,
+    });
+  };
+
   const showBpDesignWorkspace = () => {
     const layout = useLayoutStore.getState();
     layout.activateWorkspace('design');
@@ -596,6 +700,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           next = await moveRuntimeOristudioBpTreeVertex(created.id, loc, {
             activeSurface: next.activeSurface,
           });
+          next = await seedFlapFromDrawing(next, created.id, loc, null);
         }
         // Selection stays on the parent, not the new leaf: real trees branch like
         // stars, so the common gesture is "give this node another child", and
@@ -661,7 +766,20 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           : { point: undefined as Point | undefined, snapped: false };
         const targetLoc = snap.point ?? loc;
 
-        const primary = await addLeafAt(document, parentId, targetLoc);
+        const added = await addLeafAt(document, parentId, targetLoc);
+        // Seed the flap from where the leaf was *drawn*, and the partner's from
+        // the reflection of where this one landed — see `seedFlapFromDrawing`.
+        const primaryDocument =
+          added.createdId != null && targetLoc
+            ? await seedFlapFromDrawing(
+                added.document,
+                added.createdId,
+                targetLoc,
+                symmetry.fold,
+                snap.snapped
+              )
+            : added.document;
+        const primary = { document: primaryDocument, createdId: added.createdId };
         const mirrorParentId = mirrorBpTreeVertexId(
           tree,
           symmetry.pairs,
@@ -682,25 +800,30 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           mirrorParentId,
           reflectPointAcrossSymmetryAxis(targetLoc, axis)
         );
+        let next = mirror.document;
         if (mirror.createdId != null) {
           const pairs = addBpTreeSymmetryPair(
             selectOristudioBpSymmetry(get(), designId).pairs,
             primary.createdId,
             mirror.createdId
           );
-          set({
-      ...patchBoxPleatDesign(get(), { symmetry: { ...selectOristudioBpSymmetry(get(), designId), pairs } 
-      }, designId),});
+          set(
+            patchBoxPleatDesign(
+              get(),
+              { symmetry: { ...selectOristudioBpSymmetry(get(), designId), pairs } },
+              designId
+            )
+          );
+          next = await seedPartnerFlap(next, primary.createdId, mirror.createdId, symmetry.fold);
         }
-        return mirror.document;
+        return next;
       }, { selection: { kind: 'bp-vertex', id: parentId } });
     },
 
     moveOristudioBpTreeVerticesWithSymmetry: async (updates, dragging = false) => {
-      const symmetry = selectOristudioBpSymmetry(get());
-      if (!symmetry.enabled || updates.length === 0) {
-        return get().moveOristudioBpTreeVertices(updates, dragging);
-      }
+      const designId = get().activeDesignId;
+      const symmetry = selectOristudioBpSymmetry(get(), designId);
+      if (updates.length === 0) return get().moveOristudioBpTreeVertices(updates, dragging);
       const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
       return runBpTreeMutation(
         'Moved mirrored BP subtree',
@@ -738,7 +861,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const symmetry = selectOristudioBpSymmetry(get());
       const tree = selectOristudioBpDocument(get())?.snapshot.tree;
       const ids =
-        symmetry.enabled && tree
+        tree
           ? bpTreeDeleteIdsWithSymmetry(
               tree,
               symmetry.pairs,
@@ -803,13 +926,16 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     setOristudioBpTreeEdgeLength: async (vertices, length, subtreeUpdates = []) => {
+      const designId = get().activeDesignId;
       // Length edit + length-faithful subtree reposition in one gesture, so it is
       // a single undo entry (the reposition keeps rendered edge length == length).
-      // When symmetry is enabled, the same length is applied to the mirror partner
-      // edge and its subtree is reflected across the axis, so a length edit on one
-      // side updates both sides — reusing the same mirroring the drag path uses.
-      const symmetry = selectOristudioBpSymmetry(get());
-      const label = symmetry.enabled ? 'Set mirrored BP edge length' : 'Set BP edge length';
+      // The same length is applied to the mirror partner edge and its subtree is
+      // reflected across the axis, so a length edit on one side updates both —
+      // reusing the same mirroring the drag path uses.
+      const symmetry = selectOristudioBpSymmetry(get(), designId);
+      const mirrorsEdge =
+        bpMirrorPartnerId(vertices[0], designId) !== null || bpMirrorPartnerId(vertices[1], designId) !== null;
+      const label = mirrorsEdge ? 'Set mirrored BP edge length' : 'Set BP edge length';
       return runBpTreeMutation(label, async (document) => {
         const applyEdge = async (
           next: OristudioBpDocumentState,
@@ -828,7 +954,6 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         };
 
         let next = await applyEdge(document, vertices, subtreeUpdates);
-        if (!symmetry.enabled) return next;
 
         // Resolve the mirror edge from the pre-edit tree so pair inference sees the
         // symmetric configuration. A vertex on the axis mirrors to itself.
@@ -885,36 +1010,31 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       ),
 
     resizeOristudioBpLayoutFlap: async (id, width, height) => {
+      const designId = get().activeDesignId;
       // Discrete commit (not a drag): one solve, one undo entry. The engine
       // no-ops an unchanged size and rejects one that pushes more than one flap
       // corner off the sheet (surfaced as an error by runBpTreeMutation, which
       // leaves the document — and the field's rendered value — unchanged).
       //
-      // Under mirror draw the partner is resized to match, the same way an edge
-      // length edit already mirrors. A pair whose boxes are not mirror images is
-      // rejected outright by the optimizer (`validate_dimensions`), so leaving
-      // the partner behind would quietly break the symmetry the user drew.
-      const symmetry = selectOristudioBpSymmetry(get());
-      const label = symmetry.enabled ? 'Resized mirrored BP flaps' : 'Resized BP flap';
+      // The partner is resized to match, the same way an edge length edit already
+      // mirrors. A pair whose boxes are not mirror images is rejected outright by
+      // the optimizer (`validate_dimensions`), so leaving the partner behind would
+      // quietly break the symmetry the design carries.
+      //
+      // A flap is its tree leaf, so the pairing is resolved on the tree. Resolved
+      // here rather than inside the mutation because the undo entry has to say
+      // whether one flap or two were resized, which is the same question.
+      const symmetry = selectOristudioBpSymmetry(get(), designId);
+      const partnerId = bpMirrorPartnerId(id, designId);
+      const label = partnerId === null ? 'Resized BP flap' : 'Resized mirrored BP flaps';
       return runBpTreeMutation(
         label,
         async (document) => {
           const next = await resizeRuntimeOristudioBpLayoutFlap(id, width, height, {
             activeSurface: 'packing',
           });
-          if (!symmetry.enabled) return next;
-          // A flap is its tree leaf, so the pairing is resolved on the tree —
-          // read from the pre-edit tree, like every other mirrored edit here.
-          const axis: SymmetryAxis = { loc: symmetry.loc, angle: symmetry.angle };
-          const mirrorId = mirrorBpTreeVertexId(
-            document.snapshot.tree,
-            symmetry.pairs,
-            axis,
-            id,
-            BP_TREE_SYMMETRY_TOLERANCE
-          );
-          // No partner, or its own (it sits on the axis): nothing to carry over.
-          if (mirrorId === null || mirrorId === id) return next;
+          if (partnerId === null) return next;
+          const mirrorId = partnerId;
           const swaps = optimizerSymmetryAxisSwapsDimensions(
             optimizerSymmetryAxisForFold(document.snapshot.tree.sheet.kind, symmetry.fold)
           );
@@ -939,6 +1059,93 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           }),
         { dragging, selection: bpFlapSelection(ids) }
       ),
+
+    moveOristudioBpLayoutFlapWithSymmetry: async (id, loc, dragging = false) =>
+      get().moveOristudioBpLayoutFlapsWithSymmetry([id], loc, dragging),
+
+    moveOristudioBpLayoutFlapsWithSymmetry: async (ids, loc, dragging = false) => {
+      const designId = get().activeDesignId;
+      const symmetry = selectOristudioBpSymmetry(get(), designId);
+      if (ids.length === 0) return get().moveOristudioBpLayoutFlaps(ids, loc, dragging);
+      // The undo entry names what happened, not which mode the editor is in: how
+      // many flaps were grabbed, and whether any of them brought a partner.
+      const mirrors = ids.some((id) => bpMirrorPartnerId(id, designId) !== null);
+      const plural = ids.length > 1;
+      const label = mirrors
+        ? plural
+          ? 'Moved mirrored BP flaps'
+          : 'Moved mirrored BP flap'
+        : plural
+          ? 'Moved BP flaps'
+          : 'Moved BP flap';
+      return runBpTreeMutation(
+        label,
+        async (document) => {
+          const before = document.snapshot.packing;
+          // The reference flap is the one the engine measures the group's single
+          // translation from, so it is also the one an on-axis constraint has to
+          // act on: sliding it along the mirror slides the whole group with it.
+          const reference = before.flaps.find((flap) => flap.id === ids[0]);
+          const onAxis =
+            reference && bpIsSelfMirrored(reference.id, designId)
+              ? constrainBpFlapMoveToAxis(reference, loc, before.sheet, symmetry.fold) ?? loc
+              : loc;
+          // A paired flap stays in its own half: crossing the mirror would put it
+          // on top of its own reflection. Only the component across the axis is
+          // clamped, so the flap slides along the mirror instead of stopping.
+          const moving = ids.flatMap((id) => {
+            const flap = before.flaps.find((candidate) => candidate.id === id);
+            return flap ? [flap] : [];
+          });
+          const target = constrainBpFlapGroupToAxisSides({
+            moving,
+            target: onAxis,
+            sheet: before.sheet,
+            fold: symmetry.fold,
+            pairedIds: new Set(ids.filter((id) => bpMirrorPartnerId(id, designId) !== null)),
+          });
+          const moved = await moveRuntimeOristudioBpLayoutFlaps(ids, target, {
+            activeSurface: 'packing',
+            dragging,
+          });
+          // Mirror where the flaps *landed*, not where they were asked to go: the
+          // engine clamps the group's translation against the sheet, and a mirror
+          // built from the request would drift from the drawing by whatever the
+          // clamp took off.
+          const landed = new Map(moved.snapshot.packing.flaps.map((flap) => [flap.id, flap.anchor]));
+          const mirrored = buildMirroredBpFlapMoves({
+            tree: document.snapshot.tree,
+            pairs: symmetry.pairs,
+            treeAxis: { loc: symmetry.loc, angle: symmetry.angle },
+            sheet: before.sheet,
+            fold: symmetry.fold,
+            flaps: before.flaps,
+            moves: ids.flatMap((id) => {
+              const at = landed.get(id);
+              return at ? [{ id, loc: at }] : [];
+            }),
+          });
+          // One call each: a pair moves in opposite directions along the axis
+          // normal, and the group move applies one translation to everything it
+          // is given, so partners cannot ride along with the primaries.
+          //
+          // Nothing checks that a partner lands exactly where it was sent. The
+          // sheet is symmetric about an axis through its centre, so the mirror of
+          // an on-sheet box is on-sheet and the clamp cannot bite; if the engine
+          // ever refused one anyway it would throw, and the mutation would revert
+          // the primary move with it rather than leave a lopsided pair.
+          let next = moved;
+          for (const move of mirrored) {
+            next = await moveRuntimeOristudioBpLayoutFlap(move.id, move.loc, {
+              activeSurface: 'packing',
+              dragging,
+            });
+          }
+          return next;
+        },
+        { dragging, selection: bpFlapSelection(ids) }
+      );
+    },
 
     moveOristudioBpDevice: async (id, index, loc, dragging = false) =>
       runBpTreeMutation(
@@ -1018,7 +1225,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // because it is read from the tree as it stands right now.
       const symmetryState = selectOristudioBpSymmetry(get(), designId);
       let symmetry: OptimizerSymmetryPayload | null = null;
-      if (options.respectSymmetry && symmetryState.enabled) {
+      if (options.respectSymmetry) {
         const resolved = resolveOptimizerSymmetry(document.snapshot.tree, symmetryState, {
           fold: symmetryState.fold,
         });

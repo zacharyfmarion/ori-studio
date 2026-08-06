@@ -322,10 +322,18 @@ function resolveFoldFrames(root: Record<string, unknown>): ResolvedFoldFrame[] {
   const fileFrames = Array.isArray(root.file_frames) ? root.file_frames.filter(isRecord) : [];
   const rawFrames = [root, ...fileFrames];
   const cache = new Map<number, ResolvedFoldFrame>();
+  // Frames whose resolution is in progress. `frame_parent` is an arbitrary index
+  // out of the file, so it can point back into the chain being resolved — and
+  // the cache is only written *after* the recursive call, so nothing stopped a
+  // cycle recursing until the stack overflowed. A frame that would inherit from
+  // one still being built simply does not inherit; the file is malformed, and
+  // dropping the inheritance is the recoverable reading of it.
+  const visiting = new Set<number>();
 
   const build = (index: number): ResolvedFoldFrame => {
     const cached = cache.get(index);
     if (cached) return cached;
+    visiting.add(index);
     const raw = rawFrames[index] ?? {};
     let frame = withoutFileFrames(raw);
     let inherited = false;
@@ -337,13 +345,15 @@ function resolveFoldFrames(root: Record<string, unknown>): ResolvedFoldFrame[] {
       raw.frame_inherit === true &&
       parent !== null &&
       parent >= 0 &&
-      parent < rawFrames.length
+      parent < rawFrames.length &&
+      !visiting.has(parent)
     ) {
       const parentFrame = build(parent);
       frame = { ...parentFrame.frame, ...frame };
       inherited = true;
     }
     const result = { frame, index, inherited, parentIndex: parent };
+    visiting.delete(index);
     cache.set(index, result);
     return result;
   };
@@ -388,25 +398,55 @@ function normalizeFoldObject(
   title: string,
   diagnostics: ImportedCreasePatternDiagnostics
 ): FoldDocument {
-  const rawCoords = arrayField(frame.vertices_coords)
-    .filter(Array.isArray)
-    .map((coord) => coord.map((value) => Number(value)))
-    .filter((coord) => coord.length >= 2 && coord.every(Number.isFinite));
+  // Dropping an entry from either list renumbers everything after it, and every
+  // other array here points *into* those lists — by vertex index (edges, faces)
+  // or by edge position (assignments, fold angles). Filtering without carrying
+  // that provenance is how one malformed vertex used to delete a corner of the
+  // sheet, and one out-of-range edge used to turn later valleys into mountains.
+  //
+  // Same defect class as `foldEdgeArrays.ts`, which owns it for the *rebuild*
+  // sites; this is the import filter, and it also has to remap vertex indices,
+  // which nothing else does.
+  const rawVertices = arrayField(frame.vertices_coords);
+  /** Original vertex index -> index in the filtered list. Absent = dropped. */
+  const vertexRemap = new Map<number, number>();
+  const rawCoords: number[][] = [];
+  rawVertices.forEach((entry, sourceIndex) => {
+    if (!Array.isArray(entry)) return;
+    const coord = entry.map((value) => Number(value));
+    if (coord.length < 2 || !coord.every(Number.isFinite)) return;
+    vertexRemap.set(sourceIndex, rawCoords.length);
+    rawCoords.push(coord);
+  });
   const coords = normalizePoints(rawCoords.map(coordToPoint));
-  const edges = arrayField(frame.edges_vertices)
-    .filter(Array.isArray)
-    .map((edge) => [Number(edge[0]), Number(edge[1])] as [number, number])
-    .filter((edge) => edge.every((vertex) => Number.isInteger(vertex) && vertex >= 0 && vertex < coords.length));
-  const assignments = normalizeAssignments(arrayField(frame.edges_assignment), edges.length);
+
+  const rawEdges = arrayField(frame.edges_vertices);
+  /** Which source edge each surviving edge came from, for the per-edge arrays. */
+  const sourceEdgeIndices: number[] = [];
+  const edges: Array<[number, number]> = [];
+  rawEdges.forEach((entry, sourceIndex) => {
+    if (!Array.isArray(entry)) return;
+    // A lookup miss covers every rejection at once: out of range, negative,
+    // non-integer, or pointing at a vertex this import dropped.
+    const a = vertexRemap.get(Number(entry[0]));
+    const b = vertexRemap.get(Number(entry[1]));
+    if (a === undefined || b === undefined) return;
+    sourceEdgeIndices.push(sourceIndex);
+    edges.push([a, b]);
+  });
+  const assignments = normalizeAssignments(arrayField(frame.edges_assignment), sourceEdgeIndices);
   const faces = arrayField(frame.faces_vertices)
     .filter(Array.isArray)
-    .map((face) => face.map((vertex) => Number(vertex)))
-    .filter((face) => face.length >= 3 && face.every((vertex) => Number.isInteger(vertex) && vertex >= 0 && vertex < coords.length));
+    .map((face) => face.map((vertex) => vertexRemap.get(Number(vertex))))
+    .filter(
+      (face): face is number[] =>
+        face.length >= 3 && face.every((vertex) => vertex !== undefined)
+    );
 
-  if (rawCoords.length !== arrayField(frame.vertices_coords).length) {
+  if (rawCoords.length !== rawVertices.length) {
     diagnostics.warnings.push('Some FOLD vertices were ignored because they were invalid');
   }
-  if (edges.length !== arrayField(frame.edges_vertices).length) {
+  if (edges.length !== rawEdges.length) {
     diagnostics.warnings.push('Some FOLD edges were ignored because they referenced invalid vertices');
   }
 
@@ -422,7 +462,11 @@ function normalizeFoldObject(
     vertices_coords: coords.map((point) => [point.x, point.y]),
     edges_vertices: edges,
     edges_assignment: assignments,
-    edges_foldAngle: normalizeFoldAngles(arrayField(frame.edges_foldAngle), assignments),
+    edges_foldAngle: normalizeFoldAngles(
+      arrayField(frame.edges_foldAngle),
+      assignments,
+      sourceEdgeIndices
+    ),
     edges_faces: [],
     faces_vertices: faces,
     faces_edges: [],
@@ -858,7 +902,13 @@ function statsFromFold(fold: FoldDocument): ImportedCreasePatternStats {
 }
 
 function completeFold(fold: FoldDocument): FoldDocument {
-  const assignments = normalizeAssignments(fold.edges_assignment ?? [], fold.edges_vertices.length);
+  // This fold's arrays are already aligned with its edge list, so provenance is
+  // the identity — unlike `normalizeFoldObject`, which is where entries get
+  // dropped and the mapping stops being 1:1.
+  const assignments = normalizeAssignments(
+    fold.edges_assignment ?? [],
+    fold.edges_vertices.map((_, index) => index)
+  );
   return {
     ...fold,
     frame_classes: fold.frame_classes?.length ? fold.frame_classes : ['creasePattern'],
@@ -873,18 +923,30 @@ function completeFold(fold: FoldDocument): FoldDocument {
   };
 }
 
-function normalizeAssignments(values: unknown[], count: number): FoldAssignment[] {
-  return Array.from({ length: count }, (_, index) => {
-    const value = values[index];
+/**
+ * Per-edge assignments for the *surviving* edges.
+ *
+ * Indexed through `sourceEdgeIndices` rather than positionally: these arrays are
+ * aligned with the edge list as the file wrote it, so once any edge is dropped a
+ * positional read hands every later edge its predecessor's crease type.
+ */
+function normalizeAssignments(values: unknown[], sourceEdgeIndices: number[]): FoldAssignment[] {
+  return sourceEdgeIndices.map((sourceIndex) => {
+    const value = values[sourceIndex];
     return value === 'B' || value === 'M' || value === 'V' || value === 'F' || value === 'U' || value === 'C' || value === 'J'
       ? value
       : 'U';
   });
 }
 
-function normalizeFoldAngles(values: unknown[], assignments: FoldAssignment[]): Array<number | null> {
+/** Fold angles for the surviving edges; same provenance rule as assignments. */
+function normalizeFoldAngles(
+  values: unknown[],
+  assignments: FoldAssignment[],
+  sourceEdgeIndices: number[]
+): Array<number | null> {
   return assignments.map((assignment, index) => {
-    const value = values[index];
+    const value = values[sourceEdgeIndices[index] ?? index];
     return typeof value === 'number' && Number.isFinite(value) ? value : defaultFoldAngle(assignment);
   });
 }

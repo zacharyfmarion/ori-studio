@@ -45,6 +45,12 @@ export function freshEditableCpState(
     oristudioCpDocument: document,
     oristudioCpLineage: blankCpLineage(),
     oristudioCpOperationDescriptors: document.operationDescriptors,
+    // An editable document exists again, so whatever refused the last file is
+    // no longer the reason the canvas is empty. Cleared here rather than in
+    // `discardCpDocumentState` because it describes the *absence* of a
+    // document, not state belonging to one: a discard on its own must leave it
+    // standing, which is exactly what stops the self-provision erasing it.
+    cpLoadFailure: null,
     projectLoadId: previous.projectLoadId + 1,
     creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
     // This blank canvas is now what the Simulate workspace reads, so anything

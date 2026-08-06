@@ -157,6 +157,20 @@ export type PendingSharedCp =
   | { kind: 'payload'; payload: string }
   | { kind: 'id'; shareId: string };
 
+/**
+ * A file the editable kernel would not open, kept so the Edit surface can say so
+ * instead of silently showing a blank canvas in its place.
+ *
+ * `readOnly` records whether the JS importer still managed to parse it. When it
+ * did, the document is genuinely on screen — just not editable — and that is
+ * worth telling the user rather than presenting the same dead end either way.
+ */
+export interface CpLoadFailure {
+  filename: string;
+  reason: string;
+  readOnly: boolean;
+}
+
 export interface ProjectSliceState {
   /**
    * The designs open in the Design workspace, in tab order.
@@ -207,6 +221,21 @@ export interface ProjectSliceState {
   oristudioCpLineage: OristudioCpLineage | null;
   oristudioCpOperationDescriptors: OristudioCpOperationDescriptor[];
   oristudioCpError: string | null;
+  /**
+   * Why the Edit workspace has no editable document, when the reason is that a
+   * file was *refused* rather than that nothing has been opened yet.
+   *
+   * Deliberately separate from `oristudioCpError`, which 50-odd sites use for
+   * any CP failure (a command that would not run, "no document is loaded", a
+   * dead kernel). Gating provisioning on that would let a stale command error
+   * block the blank canvas forever; this field means one specific thing and is
+   * cleared the moment a document exists again.
+   *
+   * Set by the load path, read by `ensureEditCreasePattern` so self-provisioning
+   * cannot paper over a failure, and by the UI so the user is told which file
+   * failed and why.
+   */
+  cpLoadFailure: CpLoadFailure | null;
   oristudioCpCamvResult: OristudioCpCommandResult | null;
   oristudioCpHistoryPast: OristudioCpHistoryEntry[];
   oristudioCpHistoryFuture: OristudioCpHistoryEntry[];
@@ -1019,6 +1048,25 @@ export interface OristudioBpSliceActions {
   resizeOristudioBpLayoutFlap: (id: number, width: number, height: number) => Promise<boolean>;
   /** Move a group of BP flaps in the packing. */
   moveOristudioBpLayoutFlaps: (ids: number[], loc: Point, dragging?: boolean) => Promise<boolean>;
+  /**
+   * Move a BP flap, carrying its mirror partner to the reflected position.
+   *
+   * The two sides of a symmetric design are one shape, so a move that left the
+   * partner behind would break the symmetry the user drew — the same reasoning
+   * that already makes a resize and a delete apply to both. Delegates to
+   * {@link moveOristudioBpLayoutFlap} when mirror draw is off.
+   */
+  moveOristudioBpLayoutFlapWithSymmetry: (
+    id: number,
+    loc: Point,
+    dragging?: boolean
+  ) => Promise<boolean>;
+  /** {@link moveOristudioBpLayoutFlapWithSymmetry} for a whole selection. */
+  moveOristudioBpLayoutFlapsWithSymmetry: (
+    ids: number[],
+    loc: Point,
+    dragging?: boolean
+  ) => Promise<boolean>;
   /** Move a BP device handle in the packing. */
   moveOristudioBpDevice: (
     id: string,

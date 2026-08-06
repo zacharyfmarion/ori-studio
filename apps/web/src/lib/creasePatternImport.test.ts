@@ -370,4 +370,118 @@ describe('non-180 fold angles survive import', () => {
       expect(magnitude).toBeCloseTo(90, 6);
     }
   });
+
+  // Dropping an entry from `vertices_coords` / `edges_vertices` shifts every
+  // index after it, and the arrays that point *into* those lists were not
+  // remapped. Same class as `fold-per-edge-array-integrity.md`, in the import
+  // filter rather than the rebuild sites that plan covered.
+  describe('index integrity when malformed entries are dropped', () => {
+    const source = { format: 'fold' as const, filename: 'x.fold', path: null };
+
+    /** A square (v0,v2,v3,v4) plus one spare vertex at index 1. */
+    const squareWithSpareVertex = (spare: unknown) => ({
+      vertices_coords: [[0, 0], spare, [400, 0], [400, 400], [0, 400]],
+      edges_vertices: [
+        [0, 2],
+        [2, 3],
+        [3, 4],
+        [4, 0],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B'],
+    });
+
+    it('keeps the sheet intact when an unreferenced vertex is malformed', () => {
+      // The spare vertex is referenced by no edge and lies on no edge, so
+      // dropping it must change nothing about the square.
+      const control = parseImportedCreasePattern(
+        JSON.stringify(squareWithSpareVertex([90, 310])),
+        source
+      ).document.fold;
+      expect(control.vertices_coords).toHaveLength(4);
+      expect(control.edges_vertices).toHaveLength(4);
+
+      for (const spare of [[400], ['x', 'y'], [], [1, Number.NaN]]) {
+        const parsed = parseImportedCreasePattern(
+          JSON.stringify(squareWithSpareVertex(spare)),
+          source
+        ).document.fold;
+        expect(parsed.vertices_coords).toHaveLength(4);
+        expect(parsed.edges_vertices).toHaveLength(4);
+        // Same four corners, so the sheet is still a closed quad.
+        expect([...parsed.vertices_coords].sort()).toEqual([...control.vertices_coords].sort());
+      }
+    });
+
+    it('keeps each crease type on its own edge when an edge is dropped', () => {
+      // Distinct assignments so any positional shift is visible. Edge index 1 is
+      // out of range and must be the *only* thing the import loses.
+      const withEdge = (second: number[]) => ({
+        vertices_coords: [
+          [0, 0],
+          [400, 0],
+          [400, 400],
+          [0, 400],
+          [200, 200],
+        ],
+        edges_vertices: [[0, 1], second, [2, 3], [3, 0], [0, 2]],
+        edges_assignment: ['B', 'M', 'V', 'B', 'F'],
+      });
+
+      const typeByEdge = (fold: {
+        edges_vertices: number[][];
+        edges_assignment?: string[];
+      }) =>
+        Object.fromEntries(
+          fold.edges_vertices.map((edge, index) => [
+            [...edge].sort((a, b) => a - b).join('-'),
+            fold.edges_assignment?.[index],
+          ])
+        );
+
+      const control = typeByEdge(parseImportedCreasePattern(
+        JSON.stringify(withEdge([1, 2])), source
+      ).document.fold);
+      const dropped = typeByEdge(parseImportedCreasePattern(
+        JSON.stringify(withEdge([1, 999])), source
+      ).document.fold);
+
+      // Every edge that survived must keep the crease type it had in the control.
+      for (const [edge, assignment] of Object.entries(dropped)) {
+        expect({ edge, assignment }).toEqual({ edge, assignment: control[edge] });
+      }
+    });
+  });
+
+  it('reports a cyclic frame_parent instead of overflowing the stack', () => {
+    const geometry = {
+      vertices_coords: [
+        [0, 0],
+        [400, 0],
+        [400, 400],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 0],
+      ],
+      edges_assignment: ['B', 'B', 'B'],
+    };
+    const source = { format: 'fold' as const, filename: 'cycle.fold', path: null };
+
+    // A frame whose parent is itself, and a two-frame cycle.
+    const selfParent = { ...geometry, file_frames: [{ frame_parent: 1, frame_inherit: true, ...geometry }] };
+    const twoFrameCycle = {
+      ...geometry,
+      file_frames: [
+        { frame_parent: 2, frame_inherit: true, ...geometry },
+        { frame_parent: 1, frame_inherit: true, ...geometry },
+      ],
+    };
+
+    for (const document of [selfParent, twoFrameCycle]) {
+      expect(() => parseImportedCreasePattern(JSON.stringify(document), source)).not.toThrow(
+        /Maximum call stack size exceeded/
+      );
+    }
+  });
 });

@@ -3,7 +3,8 @@
     "abort": "Interrompre",
     "close": "Fermer l'optimisation de la disposition",
     "closeAction": "Fermer",
-    "enable": "Activer la symétrie",
+    "designFold": "Pli (enregistré avec le modèle)",
+    "enable": "Utiliser la symétrie pour ce calcul",
     "failed": "L'optimiseur n'a pas trouvé de disposition.",
     "layout": {
       "random": "Essayer des dispositions aléatoires",
@@ -24,7 +25,6 @@
     },
     "symmetry": "Symétrie",
     "symmetryInconsistent": "Certaines pointes appariées ne sont pas interchangeables dans l’arbre : les refléter consommera plus de papier.",
-    "symmetryOff": "La symétrie est désactivée. Activez-la dans la vue arborescente pour refléter la disposition.",
     "title": "Optimiser la disposition",
     "toTry": "Nombre de dispositions à essayer :",
     "useBasinHopping": "Essayer des variantes de la disposition actuelle",
@@ -108,13 +108,7 @@
     "foldedFrontColor": "Recto",
     "foldedSide": "Face",
     "foldedSideBack": "Verso",
-    "foldedSideBackShort": "B",
-    "foldedSideBoth": "Les deux",
-    "foldedSideBothTitle": "Les deux faces",
     "foldedSideFront": "Recto",
-    "foldedSideFrontShort": "F",
-    "foldedSideTransparent": "Transparent",
-    "foldedSideTransparentShort": "T",
     "folding": "Pliage…",
     "includeFoldedFigure": "Inclure la figure pliée",
     "includeUnassigned": "Inclure les plis plats / non assignés",
@@ -144,7 +138,7 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
     "title": "Avertissement"
   },
   "help": {

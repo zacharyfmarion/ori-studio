@@ -75,8 +75,19 @@ jobs:
       # root uploads the static assets and silently skips every Pages Function — the deploy
       # reports success and all the share endpoints 404.
       - name: Deploy to Cloudflare Pages
+        id: deploy
         working-directory: apps/web
-        run: npx wrangler@4 pages deploy dist --project-name=oristudio --branch=main
+        run: |
+          # Without pipefail, `tee` would swallow a wrangler failure and this step would
+          # report the missing URL instead of the deploy error that caused it.
+          set -o pipefail
+          npx wrangler@4 pages deploy dist --project-name=oristudio --branch=main | tee deploy.log
+          url="$(grep -oE 'https://[0-9a-f]{8}\.oristudio\.pages\.dev' deploy.log | head -1)"
+          if [ -z "$url" ]; then
+            echo "could not read the deployment URL from the wrangler output above" >&2
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -84,5 +95,10 @@ jobs:
       # The deploy above reports success even when it uploads no Functions at all, so
       # nothing before this point can tell a working share feature from a broken one.
       # Read-only checks: no writes against the daily free-tier budget, no junk records.
+      #
+      # Checked against the per-deployment host, not oristudio.pages.dev: the public
+      # hostname keeps serving the previous deployment until this one propagates, so checks
+      # against it can pass green without ever touching the build that was just uploaded.
+      # `--alias` keeps the public hostname covered, as a reachability probe.
       - name: Verify share endpoints
-        run: node scripts/share-smoke.mjs https://oristudio.pages.dev
+        run: node scripts/share-smoke.mjs "${{ steps.deploy.outputs.url }}" --alias https://oristudio.pages.dev

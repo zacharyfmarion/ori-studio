@@ -22,6 +22,7 @@
     "flapRadiusAria": "플랩 반지름",
     "flapWidth": "W",
     "flapWidthAria": "플랩 너비",
+    "fold": "접기",
     "grid": "격자",
     "growSheet": "격자 크기 늘리기",
     "height": "높이",
@@ -36,6 +37,9 @@
     "layerRidges": "능선",
     "layerRivers": "리버",
     "layers": "레이어",
+    "mirrorDraw": "대칭 그리기",
+    "mirrorDrawHint": "새 노드에 짝이 생깁니다",
+    "mirrorDrawOn": "대칭 그리기(켜짐)",
     "nextStepper": "다음 {{label}}",
     "noValidPattern": "유효한 패턴 없음",
     "nudgeDown": "BP 선택 항목 아래로 이동",
@@ -56,6 +60,11 @@
     "size": "크기",
     "stretch": "스트레치 {{id}}",
     "stretchNav": "스트레치 {{id}} 패턴 탐색",
+    "symmetryControls": "박스 플리츠 대칭 컨트롤",
+    "symmetryInconsistent": "모든 플랩에 짝이 있지만 트리에서 교환할 수 없는 짝이 있습니다.",
+    "symmetryNeedsSquare": "정사각형 종이가 필요합니다.",
+    "symmetryReady": "모든 플랩에 짝이 있습니다.",
+    "unpair": "미러 페어 해제",
     "unsupportedOperation": "지원되지 않는 BP 작업",
     "upstreamGap": "업스트림 간격",
     "viewportControls": "박스 플리츠 패킹 뷰포트 컨트롤",
@@ -166,8 +175,6 @@
     "buildingCreasePattern": "전개도 생성 중",
     "canvasDiagnostics_other": "캔버스 진단: {{count}}개",
     "case_other": "케이스 {{count}}",
-    "caseLabel": "케이스",
-    "changeFoldCase": "접기 경우 변경",
     "changeFoldedColor": "접힌 모델 색상 변경",
     "changeFoldedDisplayStyle": "접힌 표시 스타일 변경",
     "changeFoldedModel": "접힌 모델 변경",
@@ -175,8 +182,6 @@
     "couldNotOpenForEditing": "이 전개도를 편집용으로 열 수 없습니다.",
     "couldNotOpenForEditingHint": "읽기 전용으로 표시됩니다. 계속 보기, 접기, 내보내기를 할 수 있습니다.",
     "cropImage": "이미지 자르기",
-    "current_other": "현재 {{count}}",
-    "deleteFoldedModel": "접힌 모델 삭제",
     "deleteFoldedModelAction": "접힌 모델 삭제",
     "deleteImage": "이미지 삭제",
     "diagnostic": {
@@ -196,7 +201,6 @@
       "warningOther_other": "{{label}} 경고 {{count}}개"
     },
     "display": "표시",
-    "duplicateFoldedModel": "접힌 모델 복제",
     "duplicateFoldedModelAction": "접힌 모델 복제",
     "flipFoldedModel": "접힌 모델 뒤집기",
     "fold": "접기",
@@ -220,11 +224,10 @@
         "triangle": "접는 선의 개수가 올바르지 않음(홀수)"
       }
     },
-    "foldCase": "접기 케이스",
     "foldedColor": {
-      "back": "뒷면",
-      "front": "앞면",
-      "line": "선"
+      "back": "뒷면 색",
+      "front": "앞면 색",
+      "line": "선 색"
     },
     "foldedDisplayStyle": "접힌 표시 스타일",
     "foldedModelControls": "접힌 모델 컨트롤",
@@ -232,13 +235,7 @@
     "foldedModelSide": "접힌 모델 면",
     "foldedState": {
       "back": "뒷면",
-      "backShort": "B",
-      "both": "양쪽",
-      "bothTitle": "양쪽",
-      "front": "앞면",
-      "frontShort": "F",
-      "transparent": "투명 상태",
-      "transparentShort": "T"
+      "front": "앞면"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -313,8 +310,6 @@
     "showFoldedModelShadow": "접힌 모델 그림자 표시",
     "side": "면",
     "stale": "오래됨",
-    "start": "시작",
-    "startingFace": "시작 면",
     "viewportControls": "전개도 뷰포트 컨트롤"
   },
   "design": {

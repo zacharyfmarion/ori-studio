@@ -167,9 +167,20 @@ describe('resizeOristudioBpLayoutFlap under symmetry', () => {
     expect(resizes()).toEqual([[0, 2, 2]]);
   });
 
-  it('leaves the partner alone with mirror draw off', async () => {
+  /**
+   * Mirror draw off does not mean symmetry off.
+   *
+   * The toggle decides whether a *new* node is drawn with a twin. A pair that
+   * already exists is part of the design, so editing one member still carries the
+   * other — otherwise the whole feature would vanish the moment the user stopped
+   * drawing symmetrically.
+   */
+  it('still resizes the partner after mirror draw is switched off', async () => {
     setUp({ enabled: false });
     await useWorkspaceStore.getState().resizeOristudioBpLayoutFlap(1, 3, 2);
-    expect(resizes()).toEqual([[1, 3, 2]]);
+    expect(resizes()).toEqual([
+      [1, 3, 2],
+      [2, 3, 2],
+    ]);
   });
 });

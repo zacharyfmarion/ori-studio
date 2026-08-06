@@ -22,6 +22,7 @@
     "flapRadiusAria": "Radio de la solapa",
     "flapWidth": "W",
     "flapWidthAria": "Anchura de la solapa",
+    "fold": "Pliegue",
     "grid": "Cuadrícula",
     "growSheet": "Aumentar el tamaño de la cuadrícula",
     "height": "Altura",
@@ -36,6 +37,9 @@
     "layerRidges": "Crestas",
     "layerRivers": "Ríos",
     "layers": "Capas",
+    "mirrorDraw": "Dibujo simétrico",
+    "mirrorDrawHint": "Los nodos nuevos obtienen un gemelo",
+    "mirrorDrawOn": "Dibujo simétrico (activado)",
     "nextStepper": "Siguiente {{label}}",
     "noValidPattern": "No hay patrón válido",
     "nudgeDown": "Desplazar la selección BP hacia abajo",
@@ -56,6 +60,11 @@
     "size": "Tamaño",
     "stretch": "Estiramiento {{id}}",
     "stretchNav": "Navegación de patrones del estiramiento {{id}}",
+    "symmetryControls": "Controles de simetría de Box Pleat",
+    "symmetryInconsistent": "Cada solapa tiene pareja, pero algunas parejas no son intercambiables en el árbol.",
+    "symmetryNeedsSquare": "Necesita una hoja cuadrada.",
+    "symmetryReady": "Cada solapa tiene pareja.",
+    "unpair": "Desemparejar del espejo",
     "unsupportedOperation": "Operación BP no admitida",
     "upstreamGap": "Hueco anterior",
     "viewportControls": "Controles de la vista de empaquetado de plegado en caja",
@@ -170,8 +179,6 @@
     "case_one": "Caso {{count}}",
     "case_many": "Caso {{count}}",
     "case_other": "Caso {{count}}",
-    "caseLabel": "Caso",
-    "changeFoldCase": "Cambiar caso de plegado",
     "changeFoldedColor": "Cambiar color del modelo plegado",
     "changeFoldedDisplayStyle": "Cambiar estilo de visualización plegada",
     "changeFoldedModel": "Cambiar modelo plegado",
@@ -179,10 +186,6 @@
     "couldNotOpenForEditing": "No se pudo abrir este patrón de pliegues para editarlo.",
     "couldNotOpenForEditingHint": "Se muestra en modo de solo lectura. Aún puedes verlo, plegarlo y exportarlo.",
     "cropImage": "Recortar imagen",
-    "current_one": "Actual {{count}}",
-    "current_many": "Actual {{count}}",
-    "current_other": "Actual {{count}}",
-    "deleteFoldedModel": "Eliminar modelo plegado",
     "deleteFoldedModelAction": "Eliminar modelo plegado",
     "deleteImage": "Eliminar imagen",
     "diagnostic": {
@@ -214,7 +217,6 @@
       "warningOther_other": "{{count}} advertencias de {{label}}"
     },
     "display": "Visualización",
-    "duplicateFoldedModel": "Duplicar modelo plegado",
     "duplicateFoldedModelAction": "Duplicar modelo plegado",
     "flipFoldedModel": "Voltear modelo plegado",
     "fold": "Plegar",
@@ -238,11 +240,10 @@
         "triangle": "Número de pliegues incorrecto (impar)"
       }
     },
-    "foldCase": "Caso de plegado",
     "foldedColor": {
-      "back": "Reverso",
-      "front": "Anverso",
-      "line": "Línea"
+      "back": "Color del reverso",
+      "front": "Color del anverso",
+      "line": "Color de línea"
     },
     "foldedDisplayStyle": "Estilo de visualización del plegado",
     "foldedModelControls": "Controles del modelo plegado",
@@ -250,13 +251,7 @@
     "foldedModelSide": "Cara del modelo plegado",
     "foldedState": {
       "back": "Reverso",
-      "backShort": "B",
-      "both": "Ambos",
-      "bothTitle": "Ambos",
-      "front": "Anverso",
-      "frontShort": "F",
-      "transparent": "Estado transparente",
-      "transparentShort": "T"
+      "front": "Anverso"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -335,8 +330,6 @@
     "showFoldedModelShadow": "Mostrar la sombra del modelo plegado",
     "side": "Cara",
     "stale": "Obsoleto",
-    "start": "Inicio",
-    "startingFace": "Cara inicial",
     "viewportControls": "Controles de la vista del patrón de pliegues"
   },
   "design": {

@@ -32,10 +32,8 @@ import {
   ORISTUDIO_CP_MAX_POINT_SIZE,
 } from '../lib/creasePatternViewport';
 import type { FoldDocument } from '../engine/types';
-import type {
-  OristudioCpFoldedFigureState,
-  OristudioCpFoldedRenderSnapshot,
-} from '../engine/oristudioCpTypes';
+import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
+import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../lib/foldedFigureSides';
 import { cpLineStyleLabel } from '../i18n/enumLabels';
 import { Button } from './ui/Button';
 import { ColorField } from './ui/ColorField';
@@ -63,38 +61,14 @@ function thumbnailStrokes(palette: CreaseExportPalette): Record<string, string> 
   };
 }
 
-const FOLDED_SIDE_OPTIONS: OristudioCpFoldedFigureState[] = [
-  'Front0',
-  'Back1',
-  'Both2',
-  'Transparent3',
-];
-
 // Short labels for the segmented control; the full name is the tooltip. These
 // mirror the folded-figure menu in the crease-pattern panel.
-function foldedSideLabel(t: TFunction, value: OristudioCpFoldedFigureState): string {
-  switch (value) {
-    case 'Front0':
-      return t('dialogs:export.foldedSideFrontShort', 'F');
-    case 'Back1':
-      return t('dialogs:export.foldedSideBackShort', 'B');
-    case 'Both2':
-      return t('dialogs:export.foldedSideBoth', 'Both');
-    default:
-      return t('dialogs:export.foldedSideTransparentShort', 'T');
-  }
-}
-
-function foldedSideTitle(t: TFunction, value: OristudioCpFoldedFigureState): string {
+function foldedSideLabel(t: TFunction, value: FoldedFigureSide): string {
   switch (value) {
     case 'Front0':
       return t('dialogs:export.foldedSideFront', 'Front');
     case 'Back1':
       return t('dialogs:export.foldedSideBack', 'Back');
-    case 'Both2':
-      return t('dialogs:export.foldedSideBothTitle', 'Both sides');
-    default:
-      return t('dialogs:export.foldedSideTransparent', 'Transparent');
   }
 }
 
@@ -536,14 +510,13 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                   <span className="export-modal__label">
                     {t('dialogs:export.foldedSide', 'Side')}
                   </span>
-                  <SegmentedControl<OristudioCpFoldedFigureState>
+                  <SegmentedControl<FoldedFigureSide>
                     aria-label={t('dialogs:export.foldedSide', 'Side')}
                     value={foldedSettings.side}
                     onChange={(side) => patchFolded({ side })}
-                    options={FOLDED_SIDE_OPTIONS.map((value) => ({
+                    options={FOLDED_FIGURE_SIDES.map((value) => ({
                       value,
                       label: foldedSideLabel(t, value),
-                      title: foldedSideTitle(t, value),
                     }))}
                   />
                 </div>

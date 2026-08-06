@@ -22,6 +22,7 @@
     "flapRadiusAria": "Flap radius",
     "flapWidth": "W",
     "flapWidthAria": "Flap width",
+    "fold": "Fold",
     "grid": "Grid",
     "growSheet": "Increase Grid Size",
     "height": "Height",
@@ -36,6 +37,9 @@
     "layerRidges": "Ridges",
     "layerRivers": "Rivers",
     "layers": "Layers",
+    "mirrorDraw": "Mirror draw",
+    "mirrorDrawHint": "New nodes get a twin",
+    "mirrorDrawOn": "Mirror draw (on)",
     "nextStepper": "Next {{label}}",
     "noValidPattern": "No valid pattern",
     "nudgeDown": "Nudge BP selection down",
@@ -56,6 +60,11 @@
     "size": "Size",
     "stretch": "Stretch {{id}}",
     "stretchNav": "Stretch {{id}} pattern navigation",
+    "symmetryControls": "Box Pleat symmetry controls",
+    "symmetryInconsistent": "Every flap has a partner, but some pairs are not interchangeable in the tree.",
+    "symmetryNeedsSquare": "Needs a square sheet.",
+    "symmetryReady": "Every flap has a partner.",
+    "unpair": "Unpair from mirror",
     "unsupportedOperation": "Unsupported BP operation",
     "upstreamGap": "Upstream gap",
     "viewportControls": "Box Pleat packing viewport controls",
@@ -168,8 +177,6 @@
     "canvasDiagnostics_other": "Canvas diagnostics: {{count}}",
     "case_one": "Case {{count}}",
     "case_other": "Case {{count}}",
-    "caseLabel": "Case",
-    "changeFoldCase": "Change fold case",
     "changeFoldedColor": "Change folded model color",
     "changeFoldedDisplayStyle": "Change folded display style",
     "changeFoldedModel": "Change folded model",
@@ -177,9 +184,6 @@
     "couldNotOpenForEditing": "This crease pattern could not be opened for editing.",
     "couldNotOpenForEditingHint": "It is shown read-only. You can still view, fold, and export it.",
     "cropImage": "Crop image",
-    "current_one": "Current {{count}}",
-    "current_other": "Current {{count}}",
-    "deleteFoldedModel": "Delete folded model",
     "deleteFoldedModelAction": "Delete folded model",
     "deleteImage": "Delete image",
     "diagnostic": {
@@ -205,7 +209,6 @@
       "warningOther_other": "{{count}} {{label}} Warnings"
     },
     "display": "Display",
-    "duplicateFoldedModel": "Duplicate folded model",
     "duplicateFoldedModelAction": "Duplicate folded model",
     "flipFoldedModel": "Flip folded model",
     "fold": "Fold",
@@ -229,11 +232,10 @@
         "triangle": "Incorrect (odd) number of folds"
       }
     },
-    "foldCase": "Fold case",
     "foldedColor": {
-      "back": "Back",
-      "front": "Front",
-      "line": "Line"
+      "back": "Back color",
+      "front": "Front color",
+      "line": "Line color"
     },
     "foldedDisplayStyle": "Folded display style",
     "foldedModelControls": "Folded model controls",
@@ -241,13 +243,7 @@
     "foldedModelSide": "Folded model side",
     "foldedState": {
       "back": "Back",
-      "backShort": "B",
-      "both": "Both",
-      "bothTitle": "Both",
-      "front": "Front",
-      "frontShort": "F",
-      "transparent": "Transparent state",
-      "transparentShort": "T"
+      "front": "Front"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -324,8 +320,6 @@
     "showFoldedModelShadow": "Show folded model shadow",
     "side": "Side",
     "stale": "Stale",
-    "start": "Start",
-    "startingFace": "Starting face",
     "viewportControls": "Crease pattern viewport controls"
   },
   "design": {

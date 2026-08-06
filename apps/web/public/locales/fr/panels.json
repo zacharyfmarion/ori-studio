@@ -22,6 +22,7 @@
     "flapRadiusAria": "Rayon du rabat",
     "flapWidth": "W",
     "flapWidthAria": "Largeur du rabat",
+    "fold": "Pli",
     "grid": "Grille",
     "growSheet": "Augmenter la taille de la grille",
     "height": "Hauteur",
@@ -36,6 +37,9 @@
     "layerRidges": "Crêtes",
     "layerRivers": "Rivières",
     "layers": "Calques",
+    "mirrorDraw": "Dessin en miroir",
+    "mirrorDrawHint": "Les nouveaux nœuds obtiennent un jumeau",
+    "mirrorDrawOn": "Dessin en miroir (activé)",
     "nextStepper": "{{label}} suivant",
     "noValidPattern": "Aucun motif valide",
     "nudgeDown": "Déplacer la sélection BP vers le bas",
@@ -56,6 +60,11 @@
     "size": "Taille",
     "stretch": "Étirement {{id}}",
     "stretchNav": "Navigation du motif de l'étirement {{id}}",
+    "symmetryControls": "Contrôles de symétrie Box Pleat",
+    "symmetryInconsistent": "Chaque rabat a un partenaire, mais certaines paires ne sont pas interchangeables dans l’arbre.",
+    "symmetryNeedsSquare": "Nécessite une feuille carrée.",
+    "symmetryReady": "Chaque rabat a un partenaire.",
+    "unpair": "Dissocier du miroir",
     "unsupportedOperation": "Opération BP non prise en charge",
     "upstreamGap": "Espace en amont",
     "viewportControls": "Commandes d'affichage de l'agencement du pliage en boîte",
@@ -170,8 +179,6 @@
     "case_one": "Cas {{count}}",
     "case_many": "Cas {{count}}",
     "case_other": "Cas {{count}}",
-    "caseLabel": "Cas",
-    "changeFoldCase": "Changer le cas de pliage",
     "changeFoldedColor": "Modifier la couleur du modèle plié",
     "changeFoldedDisplayStyle": "Modifier le style d’affichage plié",
     "changeFoldedModel": "Modifier le modèle plié",
@@ -179,10 +186,6 @@
     "couldNotOpenForEditing": "Ce patron de plis n'a pas pu être ouvert pour modification.",
     "couldNotOpenForEditingHint": "Affiché en lecture seule. Vous pouvez toujours le visualiser, le plier et l’exporter.",
     "cropImage": "Rogner l'image",
-    "current_one": "Actuel {{count}}",
-    "current_many": "Actuel {{count}}",
-    "current_other": "Actuel {{count}}",
-    "deleteFoldedModel": "Supprimer le modèle plié",
     "deleteFoldedModelAction": "Supprimer le modèle plié",
     "deleteImage": "Supprimer l'image",
     "diagnostic": {
@@ -214,7 +217,6 @@
       "warningOther_other": "{{count}} avertissements {{label}}"
     },
     "display": "Affichage",
-    "duplicateFoldedModel": "Dupliquer le modèle plié",
     "duplicateFoldedModelAction": "Dupliquer le modèle plié",
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
@@ -238,11 +240,10 @@
         "triangle": "Nombre de plis incorrect (impair)"
       }
     },
-    "foldCase": "Cas de pliage",
     "foldedColor": {
-      "back": "Verso",
-      "front": "Recto",
-      "line": "Ligne"
+      "back": "Couleur du verso",
+      "front": "Couleur du recto",
+      "line": "Couleur de ligne"
     },
     "foldedDisplayStyle": "Style d'affichage du modèle plié",
     "foldedModelControls": "Commandes du modèle plié",
@@ -250,13 +251,7 @@
     "foldedModelSide": "Face du modèle plié",
     "foldedState": {
       "back": "Verso",
-      "backShort": "B",
-      "both": "Les deux",
-      "bothTitle": "Les deux",
-      "front": "Recto",
-      "frontShort": "F",
-      "transparent": "État transparent",
-      "transparentShort": "T"
+      "front": "Recto"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -335,8 +330,6 @@
     "showFoldedModelShadow": "Afficher l'ombre du modèle plié",
     "side": "Face",
     "stale": "Obsolète",
-    "start": "Départ",
-    "startingFace": "Face de départ",
     "viewportControls": "Commandes d'affichage du patron de plis"
   },
   "design": {

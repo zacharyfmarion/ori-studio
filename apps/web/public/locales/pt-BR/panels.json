@@ -22,6 +22,7 @@
     "flapRadiusAria": "Raio da aba",
     "flapWidth": "W",
     "flapWidthAria": "Largura da aba",
+    "fold": "Dobra",
     "grid": "Grade",
     "growSheet": "Aumentar o tamanho da grade",
     "height": "Altura",
@@ -36,6 +37,9 @@
     "layerRidges": "Cristas",
     "layerRivers": "Rios",
     "layers": "Camadas",
+    "mirrorDraw": "Desenho espelhado",
+    "mirrorDrawHint": "Novos nós ganham um gêmeo",
+    "mirrorDrawOn": "Desenho espelhado (ativado)",
     "nextStepper": "Próximo {{label}}",
     "noValidPattern": "Nenhum padrão válido",
     "nudgeDown": "Deslocar seleção BP para baixo",
@@ -56,6 +60,11 @@
     "size": "Tamanho",
     "stretch": "Estiramento {{id}}",
     "stretchNav": "Navegação do padrão do estiramento {{id}}",
+    "symmetryControls": "Controles de simetria do Box Pleat",
+    "symmetryInconsistent": "Cada aba tem um par, mas alguns pares não são intercambiáveis na árvore.",
+    "symmetryNeedsSquare": "Precisa de uma folha quadrada.",
+    "symmetryReady": "Cada aba tem um par.",
+    "unpair": "Desemparelhar do espelho",
     "unsupportedOperation": "Operação BP não suportada",
     "upstreamGap": "Lacuna a montante",
     "viewportControls": "Controles da viewport do empacotamento de dobra em caixa",
@@ -170,8 +179,6 @@
     "case_one": "Caso {{count}}",
     "case_many": "Caso {{count}}",
     "case_other": "Caso {{count}}",
-    "caseLabel": "Caso",
-    "changeFoldCase": "Alterar caso de dobra",
     "changeFoldedColor": "Alterar cor do modelo dobrado",
     "changeFoldedDisplayStyle": "Alterar estilo de exibição dobrada",
     "changeFoldedModel": "Alterar modelo dobrado",
@@ -179,10 +186,6 @@
     "couldNotOpenForEditing": "Não foi possível abrir este padrão de vincos para edição.",
     "couldNotOpenForEditingHint": "Exibido somente leitura. Você ainda pode visualizar, dobrar e exportar.",
     "cropImage": "Recortar imagem",
-    "current_one": "Atual {{count}}",
-    "current_many": "Atual {{count}}",
-    "current_other": "Atual {{count}}",
-    "deleteFoldedModel": "Excluir modelo dobrado",
     "deleteFoldedModelAction": "Excluir modelo dobrado",
     "deleteImage": "Excluir imagem",
     "diagnostic": {
@@ -214,7 +217,6 @@
       "warningOther_other": "{{count}} avisos de {{label}}"
     },
     "display": "Exibição",
-    "duplicateFoldedModel": "Duplicar modelo dobrado",
     "duplicateFoldedModelAction": "Duplicar modelo dobrado",
     "flipFoldedModel": "Virar modelo dobrado",
     "fold": "Dobrar",
@@ -238,11 +240,10 @@
         "triangle": "Número de dobras incorreto (ímpar)"
       }
     },
-    "foldCase": "Caso de dobra",
     "foldedColor": {
-      "back": "Verso",
-      "front": "Frente",
-      "line": "Linha"
+      "back": "Cor do verso",
+      "front": "Cor da frente",
+      "line": "Cor da linha"
     },
     "foldedDisplayStyle": "Estilo de exibição do dobrado",
     "foldedModelControls": "Controles do modelo dobrado",
@@ -250,13 +251,7 @@
     "foldedModelSide": "Lado do modelo dobrado",
     "foldedState": {
       "back": "Verso",
-      "backShort": "B",
-      "both": "Ambos",
-      "bothTitle": "Ambos",
-      "front": "Frente",
-      "frontShort": "F",
-      "transparent": "Estado transparente",
-      "transparentShort": "T"
+      "front": "Frente"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -335,8 +330,6 @@
     "showFoldedModelShadow": "Mostrar sombra do modelo dobrado",
     "side": "Lado",
     "stale": "Desatualizado",
-    "start": "Início",
-    "startingFace": "Faceta inicial",
     "viewportControls": "Controles da viewport do padrão de vincos"
   },
   "design": {

@@ -1003,6 +1003,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         ? oristudioCpDocument.operationDescriptors
         : get().oristudioCpOperationDescriptors,
       oristudioCpError: oristudioCpRuntimeError,
+      // The kernel refusing the file leaves no editable document, which the Edit
+      // surface would otherwise read as "nothing opened yet" and quietly seed a
+      // blank canvas over -- taking the error and the read-only import with it.
+      // Recording *why* there is no document is what stops that.
+      cpLoadFailure: oristudioCpRuntimeError
+        ? { filename, reason: oristudioCpRuntimeError, readOnly: true }
+        : null,
       oristudioCpHistoryPast: [],
       oristudioCpHistoryFuture: [],
       // A non-.osf crease pattern carries no images; its Oriedita text elements
@@ -1112,6 +1119,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     oristudioCpCamvResult: camvResult,
     oristudioCpOperationDescriptors: documentState.operationDescriptors,
     oristudioCpError: null,
+    cpLoadFailure: null,
     oristudioCpHistoryPast: [],
     oristudioCpHistoryFuture: [],
     oristudioCpSelection: nativeDocument.viewState.selection ?? emptyOristudioCpSelection(),
@@ -1846,6 +1854,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     oristudioCpLineage: null,
     oristudioCpOperationDescriptors: [],
     oristudioCpError: null,
+    cpLoadFailure: null,
     oristudioCpCamvResult: null,
     oristudioCpHistoryPast: [],
     oristudioCpHistoryFuture: [],
@@ -2059,7 +2068,20 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         await loadCreasePattern(text, source);
         applyLandingWorkspace();
       } catch (error) {
-        set({ status: 'error', error: engineError(error), projectMessage: null });
+        // Nothing parsed at all, so there is no read-only fallback either --
+        // but the Edit surface still has to be told this is a failure rather
+        // than a fresh start, or it seeds a blank canvas over the error.
+        const message = engineError(error);
+        set({
+          status: 'error',
+          error: message,
+          projectMessage: null,
+          cpLoadFailure: {
+            filename: source.filename,
+            reason: message.message,
+            readOnly: false,
+          },
+        });
       }
     },
 

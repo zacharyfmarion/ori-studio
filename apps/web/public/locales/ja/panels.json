@@ -22,6 +22,7 @@
     "flapRadiusAria": "フラップの半径",
     "flapWidth": "W",
     "flapWidthAria": "フラップの幅",
+    "fold": "折り",
     "grid": "グリッド",
     "growSheet": "グリッドサイズを拡大",
     "height": "高さ",
@@ -36,6 +37,9 @@
     "layerRidges": "リッジ",
     "layerRivers": "リバー",
     "layers": "レイヤー",
+    "mirrorDraw": "ミラー描画",
+    "mirrorDrawHint": "新しいノードに双子ができます",
+    "mirrorDrawOn": "ミラー描画（オン）",
     "nextStepper": "次の{{label}}",
     "noValidPattern": "有効なパターンがありません",
     "nudgeDown": "BP の選択を下に微調整",
@@ -56,6 +60,11 @@
     "size": "サイズ",
     "stretch": "ストレッチ {{id}}",
     "stretchNav": "ストレッチ {{id}} のパターンナビゲーション",
+    "symmetryControls": "ボックスプリーツ対称コントロール",
+    "symmetryInconsistent": "すべてのフラップにペアがありますが、ツリー上で交換できないペアがあります。",
+    "symmetryNeedsSquare": "正方形の用紙が必要です。",
+    "symmetryReady": "すべてのフラップにペアがあります。",
+    "unpair": "ミラーとのペアを解除",
     "unsupportedOperation": "サポートされていない BP 操作",
     "upstreamGap": "上流のギャップ",
     "viewportControls": "ボックスプリーツパッキングのビューポート操作",
@@ -166,8 +175,6 @@
     "buildingCreasePattern": "展開図を作成中",
     "canvasDiagnostics_other": "キャンバス診断: {{count}} 件",
     "case_other": "ケース {{count}}",
-    "caseLabel": "ケース",
-    "changeFoldCase": "折りケースを変更",
     "changeFoldedColor": "折り上がり図の色を変更",
     "changeFoldedDisplayStyle": "折り上がり図の表示スタイルを変更",
     "changeFoldedModel": "折り上がり図を変更",
@@ -175,8 +182,6 @@
     "couldNotOpenForEditing": "この展開図は編集用に開けませんでした。",
     "couldNotOpenForEditingHint": "読み取り専用で表示されています。表示、折り、書き出しは引き続き行えます。",
     "cropImage": "画像を切り抜き",
-    "current_other": "現在 {{count}}",
-    "deleteFoldedModel": "折りモデルを削除",
     "deleteFoldedModelAction": "折り上がり図を削除",
     "deleteImage": "画像を削除",
     "diagnostic": {
@@ -196,7 +201,6 @@
       "warningOther_other": "{{label}} 警告 {{count}} 件"
     },
     "display": "表示",
-    "duplicateFoldedModel": "折りモデルを複製",
     "duplicateFoldedModelAction": "折り上がり図を複製",
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
@@ -220,11 +224,10 @@
         "triangle": "折り線の数が正しくありません（奇数）"
       }
     },
-    "foldCase": "折りケース",
     "foldedColor": {
-      "back": "裏",
-      "front": "表",
-      "line": "線"
+      "back": "裏の色",
+      "front": "表の色",
+      "line": "線の色"
     },
     "foldedDisplayStyle": "折りの表示スタイル",
     "foldedModelControls": "折りモデルの操作",
@@ -232,13 +235,7 @@
     "foldedModelSide": "折りモデルの面",
     "foldedState": {
       "back": "裏",
-      "backShort": "B",
-      "both": "両面",
-      "bothTitle": "両面",
-      "front": "表",
-      "frontShort": "F",
-      "transparent": "透明状態",
-      "transparentShort": "T"
+      "front": "表"
     },
     "foldedStyle": {
       "dev1": "Dev 1",
@@ -313,8 +310,6 @@
     "showFoldedModelShadow": "折りモデルの影を表示",
     "side": "面",
     "stale": "要再折り",
-    "start": "開始",
-    "startingFace": "開始面",
     "viewportControls": "展開図のビューポート操作"
   },
   "design": {

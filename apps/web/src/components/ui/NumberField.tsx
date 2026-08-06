@@ -27,6 +27,7 @@ export function NumberField({
   step = 1,
   suffix,
   steppers = true,
+  disabled = false,
   normalize,
   className,
   onCommit,
@@ -41,6 +42,8 @@ export function NumberField({
   /** Unit shown after the number, inside the field group. */
   suffix?: string;
   steppers?: boolean;
+  /** For a row whose subject is absent — no selection, nothing folded yet. */
+  disabled?: boolean;
   /** Caller's own clamp — applied to typed and stepped values alike. */
   normalize?: (value: number) => number;
   className?: string;
@@ -109,7 +112,7 @@ export function NumberField({
           ? t('common:numberField.increase', 'Increase {{label}}', { label })
           : t('common:numberField.decrease', 'Decrease {{label}}', { label })
       }
-      disabled={stepped(shown, direction) === shown}
+      disabled={disabled || stepped(shown, direction) === shown}
       // Keep focus in the field so stepping does not fire a blur commit of the
       // value that is already there.
       onMouseDown={(event) => event.preventDefault()}
@@ -128,6 +131,7 @@ export function NumberField({
       min={min}
       max={max}
       step={step}
+      disabled={disabled}
       value={draft}
       onChange={(event) => setDraft(event.currentTarget.value)}
       onBlur={commitDraft}

@@ -462,6 +462,12 @@ function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics):
   // One O(edges) index, kept in sync as triangulation appends diagonal edges, so
   // every dedup below is O(1) instead of a linear `findEdge` scan.
   const edgeIndex = buildEdgeIndex(fold.edges_vertices);
+  // Hoisted out of the face loop: the threshold is derived from the bounding
+  // diagonal, and triangulation only ever appends edges and splits faces, never
+  // moves or adds a vertex. Recomputing it per quad made this pass O(faces x
+  // vertices) -- 70% of prepare time on an 80x80 Miura, most of it allocating a
+  // normalised point per vertex per quad.
+  const threshold = degenerateCrossThreshold(fold);
   const nextFaces: number[][] = [];
   const originalFaceCount = fold.faces_vertices.length;
   for (let faceIndex = 0; faceIndex < originalFaceCount; faceIndex += 1) {
@@ -471,7 +477,7 @@ function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics):
       continue;
     }
     if (face.length === 4) {
-      triangulateQuad(fold, face, nextFaces, edgeIndex);
+      triangulateQuad(fold, face, nextFaces, edgeIndex, threshold);
       continue;
     }
 
@@ -686,7 +692,8 @@ function triangulateQuad(
   fold: FoldDocument,
   face: number[],
   nextFaces: number[][],
-  edgeIndex: Map<number, number>
+  edgeIndex: Map<number, number>,
+  threshold: number
 ): void {
   const [v0, v1, v2, v3] = [face[0] ?? 0, face[1] ?? 0, face[2] ?? 0, face[3] ?? 0];
   const across02: [number[], number[]] = [
@@ -710,9 +717,10 @@ function triangulateQuad(
   // angle, so it loses to any alternative -- and a zero-area triangle is what
   // `removeDegenerateGeometry` deletes, stranding the edges that met there on no
   // face at all, which is the whole of the split-crease bug.
-  const chosen = smallestAngleOf(fold, across02) >= smallestAngleOf(fold, across13)
-    ? across02
-    : across13;
+  const chosen =
+    smallestAngleOf(fold, across02, threshold) >= smallestAngleOf(fold, across13, threshold)
+      ? across02
+      : across13;
 
   const [a, b] = chosen === across02 ? [v0, v2] : [v1, v3];
   appendEdgeIfMissing(fold, edgeIndex, a, b);
@@ -724,8 +732,11 @@ function triangulateQuad(
  * usable at all: degenerate, or -- for a non-convex quad -- folded outside the
  * face, which the two triangles' opposing winding gives away.
  */
-function smallestAngleOf(fold: FoldDocument, triangles: [number[], number[]]): number {
-  const threshold = degenerateCrossThreshold(fold);
+function smallestAngleOf(
+  fold: FoldDocument,
+  triangles: [number[], number[]],
+  threshold: number
+): number {
   let smallest = Infinity;
   let winding = 0;
   for (const triangle of triangles) {

@@ -319,9 +319,6 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
   const selectOristudioBp = useWorkspaceStore((state) => state.selectOristudioBp);
   const selection = useWorkspaceStore((state) => selectOristudioBpSelection(state));
   const clearSelection = useWorkspaceStore((state) => state.clearOristudioBpSelection);
-  const moveOristudioBpTreeVertices = useWorkspaceStore(
-    (state) => state.moveOristudioBpTreeVertices
-  );
   const addOristudioBpTreeLeaf = useWorkspaceStore((state) => state.addOristudioBpTreeLeaf);
   const setOristudioBpTreeEdgeLength = useWorkspaceStore(
     (state) => state.setOristudioBpTreeEdgeLength
@@ -760,12 +757,16 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     setGhost(null);
     const svg = svgRef.current;
     if (!svg) return;
+    const subtreeIds = subtreeOf(vertexId);
     dragRef.current = startBpTreeDrag({
       root: svg,
       vertexId,
       parentId: topology.parent.get(vertexId) ?? null,
       vertices: vertexLocationsById,
-      subtreeIds: subtreeOf(vertexId),
+      subtreeIds,
+      // A paired vertex may not cross the mirror: it and its partner would swap
+      // sides, which reads as the drawing turning inside out.
+      mirror: symmetryView.dragMirror(subtreeIds),
       sheet: tree.sheet,
       clientStart: { x: event.clientX, y: event.clientY },
       toTreePoint: (client) => clientToTreePoint(client),
@@ -786,8 +787,10 @@ export function BpTreePanel({ document }: { document: OristudioBpDocumentState }
     paperDownRef.current = null;
     if (session.moved && session.updates.size > 0) {
       const updates = [...session.updates].map(([id, loc]) => ({ id, loc }));
-      if (symmetry.enabled) void moveOristudioBpTreeVerticesWithSymmetry(updates, false);
-      else void moveOristudioBpTreeVertices(updates, false);
+      // Always the mirrored action: it moves nothing extra when the dragged
+      // vertices have no partners, and a pair must follow whether or not the user
+      // is currently drawing symmetrically.
+      void moveOristudioBpTreeVerticesWithSymmetry(updates, false);
     }
     return true;
   };

@@ -1,0 +1,85 @@
+{
+  "file_spec": 1.1,
+  "frame_title": "nested inheritance",
+  "vertices_coords": [
+    [
+      0,
+      0
+    ],
+    [
+      400,
+      0
+    ],
+    [
+      400,
+      400
+    ],
+    [
+      0,
+      400
+    ]
+  ],
+  "edges_vertices": [
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      2,
+      3
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      0,
+      2
+    ]
+  ],
+  "edges_assignment": [
+    "B",
+    "B",
+    "B",
+    "B",
+    "M"
+  ],
+  "file_frames": [
+    {
+      "frame_classes": [
+        "foldedForm"
+      ],
+      "frame_parent": 0,
+      "frame_inherit": true,
+      "vertices_coords": [
+        [
+          0,
+          0
+        ],
+        [
+          400,
+          0
+        ],
+        [
+          400,
+          400
+        ],
+        [
+          0,
+          400
+        ]
+      ]
+    },
+    {
+      "frame_classes": [
+        "foldedForm"
+      ],
+      "frame_parent": 1,
+      "frame_inherit": true
+    }
+  ]
+}

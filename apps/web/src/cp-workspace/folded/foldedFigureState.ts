@@ -4,6 +4,7 @@ import type {
   OristudioCpFoldedFigureState,
   OristudioCpRgbColor,
 } from '../../engine/oristudioCpTypes';
+import type { FoldedFigureSide } from '../../lib/foldedFigureSides';
 
 /**
  * Which layer-ordering solution a figure is showing, 1-based.
@@ -22,17 +23,14 @@ export function foldedFigureCurrentCase(
 
 /**
  * Toggle a folded figure between its front and back — turning the paper over.
- * This is the honest "Flip": Front ↔ Back.
  *
  * `Both` and `Transparent` are overlay view modes (front and back drawn together,
- * opaque or see-through), not sides, so a flip from either resolves to `Back` —
- * the reverse of the default `Front` view. Those overlay states are chosen from
- * the toolbar's "Side" control, which is the full four-way surface; the context
- * menu only offers the common front/back toggle.
+ * opaque or see-through), not sides. The UI does not offer them (see
+ * `FOLDED_FIGURE_SIDES`), but a figure loaded from an Oriedita file can still
+ * arrive in one, and a flip from either resolves to `Back` — the reverse of the
+ * default `Front` view.
  */
-export function flipFoldedState(
-  state: OristudioCpFoldedFigureState
-): OristudioCpFoldedFigureState {
+export function flipFoldedState(state: OristudioCpFoldedFigureState): FoldedFigureSide {
   return state === 'Back1' ? 'Front0' : 'Back1';
 }
 

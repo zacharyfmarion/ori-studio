@@ -137,10 +137,18 @@ describe('deleteOristudioBpTreeNode under symmetry', () => {
     expect(deletedIds()).toEqual([3]);
   });
 
-  it('leaves the partner alone when symmetry is off', async () => {
+  /**
+   * Mirror draw off does not mean symmetry off.
+   *
+   * The toggle decides whether a *new* node is drawn with a twin. A pair that
+   * already exists is part of the design, so editing one member still carries the
+   * other — otherwise the whole feature would vanish the moment the user stopped
+   * drawing symmetrically.
+   */
+  it('still takes the partner after mirror draw is switched off', async () => {
     setUp({ enabled: false });
     await useWorkspaceStore.getState().deleteOristudioBpTreeNode(1);
-    expect(deletedIds()).toEqual([1]);
+    expect(deletedIds()).toEqual([1, 2]);
   });
 
   it('records one undo entry for the pair, not two', async () => {
@@ -154,8 +162,10 @@ describe('deleteOristudioBpTreeNode under symmetry', () => {
     await useWorkspaceStore.getState().deleteOristudioBpTreeNode(1);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Deleted mirrored BP nodes');
 
-    setUp({ enabled: false });
-    await useWorkspaceStore.getState().deleteOristudioBpTreeNode(1);
+    // Node 3 has no counterpart, so this one really is a single delete — the
+    // label follows what happened, not which mode the editor is in.
+    setUp({ enabled: true });
+    await useWorkspaceStore.getState().deleteOristudioBpTreeNode(3);
     expect(useWorkspaceStore.getState().projectMessage).toBe('Deleted BP node');
   });
 });
