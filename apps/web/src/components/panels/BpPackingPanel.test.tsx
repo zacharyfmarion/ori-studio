@@ -6,6 +6,7 @@ import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { DEFAULT_BP_PACKING_VIEW_LAYERS } from '../../lib/oristudioBpViewportSettings';
+import { bpFlapSelection } from '../../lib/oristudioBpSelection';
 import { TooltipProvider } from '../ui/Tooltip';
 import { BpPackingPanel } from './BpPackingPanel';
 
@@ -527,5 +528,109 @@ describe('BP packing pane — Delete reaches the node delete', () => {
       );
     });
     expect(menu).toHaveBeenCalledWith('edit.delete');
+  });
+});
+
+/**
+ * The mirror, made visible and settable in the pane it describes.
+ *
+ * The fold used to be reachable only from the optimize dialog, which meant the
+ * one surface the fold actually decides — where the mirror falls on the paper —
+ * could neither show it nor change it. The line drawn here is also *not* the
+ * tree pane's: that one is always vertical through the tree sheet's centre,
+ * while this one turns with the fold, which is why it is labelled.
+ */
+describe('BP packing pane — the mirror line', () => {
+  function axis(host: Element) {
+    return host.querySelector('.bp-packing-symmetry line.symmetry-line');
+  }
+
+  it('draws whenever mirror draw is on, with no pairs needed', () => {
+    // A design loaded from .bps carries no explicit pairs at all — geometric
+    // inference does the work — and the line is what you place the first pair
+    // against, so waiting for one would mean it could never be drawn.
+    const host = renderPacking();
+    expect(useWorkspaceStore.getState().oristudioBpSymmetry.pairs).toEqual([]);
+    expect(axis(host)).not.toBeNull();
+  });
+
+  it('is a vertical line through the sheet centre under a book fold', () => {
+    const host = renderPacking();
+    const line = axis(host);
+    expect(line?.getAttribute('x1')).toBe(line?.getAttribute('x2'));
+    expect(line?.getAttribute('y1')).not.toBe(line?.getAttribute('y2'));
+  });
+
+  it('turns with the fold', () => {
+    const host = renderPacking();
+    act(() => {
+      useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
+    });
+    const line = axis(host);
+    // A diagonal fold on a rectangular sheet is the main diagonal, so both
+    // coordinates now change along the line.
+    expect(line?.getAttribute('x1')).not.toBe(line?.getAttribute('x2'));
+  });
+
+  it('goes away when mirror draw is turned off', () => {
+    const host = renderPacking();
+    act(() => {
+      useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
+    });
+    expect(axis(host)).toBeNull();
+  });
+});
+
+/**
+ * Every flap move in this pane goes through the mirrored actions.
+ *
+ * There are two call sites — the pointer drag and the arrow-key nudge — and the
+ * nudge is the one that got forgotten the first time symmetry was wired into a
+ * pane, because it is a separate path from the drag rather than a step in it.
+ */
+describe('BP packing pane — moves ask for the mirror', () => {
+  function stubMoves() {
+    const moveFlap = vi.fn(async () => true);
+    const moveFlaps = vi.fn(async () => true);
+    act(() => {
+      useWorkspaceStore.setState({
+        moveOristudioBpLayoutFlapWithSymmetry: moveFlap,
+        moveOristudioBpLayoutFlapsWithSymmetry: moveFlaps,
+      });
+    });
+    return { moveFlap, moveFlaps };
+  }
+
+  it('nudges through the mirrored action, not the plain one', () => {
+    const host = renderPacking();
+    const { moveFlap } = stubMoves();
+    act(() => {
+      useWorkspaceStore.setState({ oristudioBpSelection: { kind: 'bp-flap', id: 5 } });
+    });
+    const body = host.querySelector('.bp-packing-panel__body');
+    act(() => {
+      body?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })
+      );
+    });
+    // The fixture's flap 5 sits at (9, 8); one cell up is (9, 9).
+    expect(moveFlap).toHaveBeenCalledWith(5, { x: 9, y: 9 }, false);
+  });
+
+  it('nudges a multi-flap selection through the mirrored group action', () => {
+    const host = renderPacking();
+    const { moveFlaps } = stubMoves();
+    act(() => {
+      useWorkspaceStore.setState({
+        oristudioBpSelection: bpFlapSelection([5, 7]),
+      });
+    });
+    const body = host.querySelector('.bp-packing-panel__body');
+    act(() => {
+      body?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+      );
+    });
+    expect(moveFlaps).toHaveBeenCalledWith([5, 7], { x: 10, y: 8 }, false);
   });
 });

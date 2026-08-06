@@ -3,7 +3,8 @@
     "abort": "Abbrechen",
     "close": "Layout-Optimierung schließen",
     "closeAction": "Schließen",
-    "enable": "Symmetrie aktivieren",
+    "designFold": "Faltung (wird mit dem Entwurf gespeichert)",
+    "enable": "Symmetrie für diesen Lauf verwenden",
     "failed": "Der Optimierer konnte kein Layout finden.",
     "layout": {
       "random": "Zufällige Layouts ausprobieren",
@@ -24,7 +25,6 @@
     },
     "symmetry": "Symmetrie",
     "symmetryInconsistent": "Einige gepaarte Zipfel sind im Baum nicht austauschbar; sie zu spiegeln verbraucht mehr Papier.",
-    "symmetryOff": "Symmetrie ist aus. Schalte sie in der Baumansicht ein, um das Layout zu spiegeln.",
     "title": "Layout optimieren",
     "toTry": "Anzahl der zu testenden Layouts:",
     "useBasinHopping": "Variationen des aktuellen Layouts ausprobieren",

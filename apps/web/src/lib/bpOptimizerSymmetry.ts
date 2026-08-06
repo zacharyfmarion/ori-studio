@@ -145,12 +145,13 @@ export interface ResolveOptimizerSymmetryOptions {
 
 export function resolveOptimizerSymmetry(
   tree: OristudioBpTreeView,
-  symmetry: { enabled: boolean; angle: number; loc: { x: number; y: number }; pairs: BpTreeSymmetryPair[] },
+  symmetry: { angle: number; loc: { x: number; y: number }; pairs: BpTreeSymmetryPair[] },
   options: ResolveOptimizerSymmetryOptions
 ): OptimizerSymmetryResolution {
-  if (!symmetry.enabled) {
-    return { ok: false, reason: 'Symmetry is not turned on.' };
-  }
+  // Deliberately does not ask whether mirror draw is on. That toggle decides
+  // whether a *new* node is drawn with a twin; whether the design is symmetric is
+  // a property of the drawing, and the run's own `respectSymmetry` option is the
+  // per-run opt out.
 
   // The tree's own mirror line is an authoring aid and is always vertical — a
   // tree is not drawn on the paper. Which fold of the paper that mirror becomes

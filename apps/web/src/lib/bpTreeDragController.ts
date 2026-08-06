@@ -1,4 +1,4 @@
-import { bpTreeDragUpdates } from './bpTreeAuthoring';
+import { bpTreeDragUpdates, type BpTreeDragMirror } from './bpTreeAuthoring';
 import { constrainBpTreePoint } from './bpTreeViewport';
 import { hasPassedDragThreshold } from './pointerGesture';
 import {
@@ -32,6 +32,8 @@ export interface BpTreeDragStart {
   vertices: ReadonlyMap<number, Point>;
   /** The dragged vertex and everything hanging below it. */
   subtreeIds: readonly number[];
+  /** Holds paired vertices in their own half of the mirror. Null when none are. */
+  mirror?: BpTreeDragMirror | null;
   sheet: OristudioBpSheet;
   clientStart: Point;
   /** Client point to tree space. Owns the camera, so the controller need not. */
@@ -65,6 +67,7 @@ export function startBpTreeDrag(input: BpTreeDragStart): BpTreeDragSession {
     vertices,
     subtreeIds,
     sheet,
+    mirror = null,
     clientStart,
     toTreePoint,
     toSvgPoint,
@@ -105,6 +108,7 @@ export function startBpTreeDrag(input: BpTreeDragStart): BpTreeDragSession {
       subtreeIds,
       start,
       target,
+      mirror,
     });
     const next = new Map<number, Point>();
     for (const [id, loc] of rotated) next.set(id, constrainBpTreePoint(loc, sheet));

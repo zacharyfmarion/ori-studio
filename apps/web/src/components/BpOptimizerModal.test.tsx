@@ -284,18 +284,25 @@ describe('symmetry row', () => {
     } as never);
   }
 
-  it('says so when symmetry is off', () => {
+  it('offers symmetry after mirror draw is switched off, because the pairs remain', () => {
+    // Mirror draw decides whether a *new* node is drawn with a twin. Whether the
+    // design is symmetric is a property of the drawing, so a design stays
+    // solvable symmetrically once the user stops drawing that way — and this row
+    // is where they decline it for a single run.
     withTree({ enabled: false });
     renderModal();
-    expect(text()).toContain('Symmetry is off');
+    expect(text()).toContain('Use symmetry for this run');
   });
 
-  it('says plainly that the toggle turns symmetry on', () => {
+  it('says plainly that the toggle applies to this run', () => {
     // "Mirror the layout" read as a description of what the run does rather
-    // than as the switch that enables it.
+    // than as the switch that enables it. It is also the one control in this
+    // row that is *not* saved with the design, which the fold label below it
+    // is there to distinguish.
     withTree();
     renderModal();
-    expect(text()).toContain('Enable symmetry');
+    expect(text()).toContain('Use symmetry for this run');
+    expect(text()).toContain('Fold (saved with the design)');
   });
 
   it('names the fold, which belongs here rather than in the tree view', () => {

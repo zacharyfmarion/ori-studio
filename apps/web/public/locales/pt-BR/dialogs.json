@@ -3,7 +3,8 @@
     "abort": "Abortar",
     "close": "Fechar otimizar o layout",
     "closeAction": "Fechar",
-    "enable": "Ativar simetria",
+    "designFold": "Dobra (salva com o projeto)",
+    "enable": "Usar simetria nesta execução",
     "failed": "O otimizador não encontrou um layout.",
     "layout": {
       "random": "Tentar layouts aleatórios",
@@ -24,7 +25,6 @@
     },
     "symmetry": "Simetria",
     "symmetryInconsistent": "Algumas pontas emparelhadas não são intercambiáveis na árvore, então espelhá-las usará mais papel.",
-    "symmetryOff": "A simetria está desligada. Ative-a na visão de árvore para espelhar o layout.",
     "title": "Otimizar o layout",
     "toTry": "Número de layouts a tentar:",
     "useBasinHopping": "Tentar variações do layout atual",

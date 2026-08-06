@@ -4,10 +4,12 @@ import {
   BP_TREE_SYMMETRY_ANGLE,
   BP_TREE_SYMMETRY_TOLERANCE,
   bpTreeSymmetryDefaultLoc,
+  bpTreeMirrorHeldIds,
   explicitBpTreePairId,
   type BpTreeSymmetryPair,
 } from '../lib/bpTreeSymmetry';
 import { symmetrySide } from '../lib/symmetryGeometry';
+import type { BpTreeDragMirror } from '../lib/bpTreeAuthoring';
 import { bpTreePointToSvg, bpTreePaperRect } from '../lib/bpTreeViewport';
 import type { OristudioBpTreeView } from '../engine/oristudioBpTypes';
 import type { Point } from '../lib/geometry';
@@ -24,9 +26,6 @@ import type { Point } from '../lib/geometry';
  * small interface — the tree and its paper rect in, a view-model out — and the
  * panel is a composition site.
  */
-
-/** Stable empty list, so "mirror draw is off" is a referentially stable prop. */
-const EMPTY_PAIRS: readonly BpTreeSymmetryPair[] = [];
 
 export interface BpTreeSymmetryLine {
   x1: number;
@@ -52,14 +51,29 @@ export interface BpTreeSymmetryView {
   /** The vertex this one is explicitly mirrored with, if any. */
   partnerOf: (vertexId: number) => number | null;
   /**
-   * Whether this vertex sits on the mirror line.
+   * Whether this vertex sits on the mirror line *and* the drag should refuse it.
    *
    * Such a vertex is its own mirror, so moving it off the line quietly costs it
-   * that status — and leaves it with nothing to mirror. The tree view refuses
-   * the drag rather than letting the symmetry break unnoticed.
+   * that status — and leaves it with nothing to mirror. The tree view refuses the
+   * drag rather than letting the symmetry break unnoticed.
+   *
+   * Alone among the answers here this one does key off mirror draw, and
+   * deliberately: it is the only place that *refuses* a gesture, so turning the
+   * toggle off has to be the way to move a centre node. Everything else — the
+   * pairs, their segment, the mirrored move — survives the toggle, because a
+   * pairing is part of the design and the toggle only decides whether the next
+   * node is drawn with a twin.
    */
   isOnAxis: (vertexId: number) => boolean;
   unpair: (vertexId: number) => void;
+  /**
+   * What a drag of these vertices may not do: the axis, and which of them are
+   * held in their own half of it.
+   *
+   * Null when none of them is paired, which is the common case and lets the drag
+   * skip the clamp entirely.
+   */
+  dragMirror: (movedIds: readonly number[]) => BpTreeDragMirror | null;
 }
 
 export function useBpTreeSymmetry(
@@ -127,14 +141,15 @@ export function useBpTreeSymmetry(
     return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
   }, [symmetry.enabled, symmetry.angle, symmetry.loc, tree.sheet, paperRect]);
 
-  const pairs = useMemo(
-    () => (symmetry.enabled ? symmetry.pairs : EMPTY_PAIRS),
-    [symmetry.enabled, symmetry.pairs]
-  );
+  // Not gated on mirror draw. A pairing belongs to the design, so the segment
+  // joining a pair — and the unpair it enables — stay put when the user stops
+  // drawing symmetrically. The toggle only decides whether the *next* node is
+  // drawn with a twin.
+  const pairs = symmetry.pairs;
 
   const partnerOf = useCallback(
-    (vertexId: number) => (symmetry.enabled ? explicitBpTreePairId(symmetry.pairs, vertexId) : null),
-    [symmetry.enabled, symmetry.pairs]
+    (vertexId: number) => explicitBpTreePairId(symmetry.pairs, vertexId),
+    [symmetry.pairs]
   );
 
   const isOnAxis = useCallback(
@@ -148,9 +163,23 @@ export function useBpTreeSymmetry(
     [symmetry.enabled, symmetry.loc, symmetry.angle, tree.vertices]
   );
 
+  const dragMirror = useCallback(
+    (movedIds: readonly number[]): BpTreeDragMirror | null => {
+      const axis = { loc: symmetry.loc, angle: symmetry.angle };
+      const heldIds = bpTreeMirrorHeldIds(tree, symmetry.pairs, axis, movedIds);
+      // The same band `symmetrySide` calls "on the axis", so a held vertex can
+      // never be reclassified as its own mirror by getting close enough.
+      return heldIds.size === 0
+        ? null
+        : { axis, heldIds, clearance: BP_TREE_SYMMETRY_TOLERANCE };
+    },
+    [symmetry.loc, symmetry.angle, symmetry.pairs, tree]
+  );
+
   return {
     enabled: symmetry.enabled,
     toggle,
+    dragMirror,
     axisLine,
     pairs,
     partnerOf,
