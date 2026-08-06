@@ -234,7 +234,6 @@
     "increase": "{{label}} 늘리기"
   },
   "toolbar": {
-    "downloadMac": "Mac용 Ori Studio 다운로드",
     "new": "새로 만들기",
     "open": "열기",
     "optimizeLayout": "최적화",

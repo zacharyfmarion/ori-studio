@@ -7,11 +7,6 @@ describe('platform feature visibility', () => {
     expect(isFeatureVisible('browserDownloads', 'desktop')).toBe(false);
   });
 
-  it('shows the mac download CTA only on web', () => {
-    expect(isFeatureVisible('macDownloadCta', 'web')).toBe(true);
-    expect(isFeatureVisible('macDownloadCta', 'desktop')).toBe(false);
-  });
-
   it('shows native shell features only on desktop', () => {
     expect(isFeatureVisible('nativeFileDialogs', 'desktop')).toBe(true);
     expect(isFeatureVisible('nativeMenus', 'desktop')).toBe(true);
