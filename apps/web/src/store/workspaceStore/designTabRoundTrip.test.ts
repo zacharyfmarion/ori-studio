@@ -238,6 +238,86 @@ describe('visiting a design that was not the active one', () => {
   });
 });
 
+/**
+ * Mirror draw is *design* state, and there is more than one design.
+ *
+ * These two facts arrived from opposite directions — main made a BP design carry
+ * its own mirror line, fold and pairs, while this branch made designs plural — so
+ * nothing yet pinned that they compose. A single shared symmetry would round-trip
+ * through the format's per-design `viewState` and still come back wrong here: both
+ * tabs would read the same value, and the last one written would win.
+ */
+describe('two box-pleat designs with different mirror state', () => {
+  const BOOK = {
+    enabled: true,
+    fold: 'book' as const,
+    angle: 90,
+    loc: { x: 10, y: 10 },
+    pairs: [{ v1: 3, v2: 4 }],
+  };
+  const DIAGONAL = {
+    enabled: false,
+    fold: 'diagonal' as const,
+    angle: 45,
+    loc: { x: 6, y: 6 },
+    pairs: [],
+  };
+
+  function twoBoxPleatDesigns() {
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    resetDesignTabIds();
+    const helmet = createDesignTab([], { kind: 'box-pleat', title: 'Helmet' });
+    const mask = createDesignTab([helmet], { kind: 'box-pleat', title: 'Mask' });
+    // A treemaker design stays active because saving is gated on the active
+    // design being saveable, and a box-pleat design with no document is not.
+    const anchor = createDesignTab([helmet, mask], { kind: 'treemaker', title: 'Anchor' });
+    useWorkspaceStore.setState({
+      designTabs: [
+        { ...helmet, kind: 'box-pleat', boxPleat: createBoxPleatDesignState({ symmetry: BOOK }) },
+        { ...mask, kind: 'box-pleat', boxPleat: createBoxPleatDesignState({ symmetry: DIAGONAL }) },
+        { ...anchor, kind: 'treemaker', treemaker: createTreemakerDesignState() },
+      ],
+      activeDesignId: anchor.id,
+      activeEditingContext: 'treemaker-tree',
+      workspaceTitle: 'Studio',
+      engineReady: true,
+      status: 'ready',
+    });
+    return { helmet: helmet.id, mask: mask.id };
+  }
+
+  it('gives each design back its own mirror, not the other one\'s', async () => {
+    const ids = twoBoxPleatDesigns();
+    const fileService = recordingFileService();
+
+    await store().saveProjectAs(fileService);
+    reopenOn(fileService);
+    await store().openProject(fileService);
+
+    // `angle` and `loc` are deliberately *not* asserted: `setLoadedBpProject`
+    // re-derives the axis from whichever sheet loaded rather than restoring it,
+    // so they are a function of the document and not of the file. What must be
+    // per-design is what the user authored — whether mirror draw is on, which
+    // fold the mirror is, and which nodes are paired.
+    const authoredOf = (id: string) => {
+      const tab = store().designTabs.find((candidate) => candidate.id === id);
+      if (tab?.kind !== 'box-pleat') return null;
+      const { enabled, fold, pairs } = tab.boxPleat.symmetry;
+      return { enabled, fold, pairs };
+    };
+    expect(authoredOf(ids.helmet)).toEqual({
+      enabled: BOOK.enabled,
+      fold: BOOK.fold,
+      pairs: BOOK.pairs,
+    });
+    expect(authoredOf(ids.mask)).toEqual({
+      enabled: DIAGONAL.enabled,
+      fold: DIAGONAL.fold,
+      pairs: DIAGONAL.pairs,
+    });
+  });
+});
+
 describe('replacing the project', () => {
   it('discards every open design when a new one is started', () => {
     const ids = threeDesigns();
