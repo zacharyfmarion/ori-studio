@@ -875,70 +875,74 @@ is not in play for any phase.
 
 ## Checklist
 
+*All phases implemented and committed on `claude/explori-design-type-plan-e3a0fa`
+(five commits, branched from PR #211). Three items were deliberately not done and
+are marked below.*
+
 ### Phase 0 — reusable tree editor
 
-- [ ] Create `apps/web/src/tree-editor/` and move the pure geometry modules
+- [x] Create `apps/web/src/tree-editor/` and move the pure geometry modules
       (`authoring` → `dragRule`, `dragController`, `sceneDom`, `symmetry`) with
       no behaviour change
-- [ ] Define `EditableTree`, `TreeSelection`, `TreeFrame`, `TreeLengthRule`,
+- [x] Define `EditableTree`, `TreeSelection`, `TreeFrame`, `TreeLengthRule`,
       `TreeEditorHost`, `TreeSymmetryHost`
-- [ ] `createPaperTreeFrame(sheet)` and `createUnboundedTreeFrame()`; remove
+- [x] `createPaperTreeFrame(sheet)` and `createUnboundedTreeFrame()`; remove
       every `sheet` reference from the component layer
-- [ ] Ship `SNAPPED_LENGTHS` and `CONTINUOUS_LENGTHS`; length editor reads the
+- [x] Ship `SNAPPED_LENGTHS` and `CONTINUOUS_LENGTHS`; length editor reads the
       rule for min / max / step / quantize / format, and the ± buttons become
       proportional when `step` is null
-- [ ] Extract `TreeScene` with `paper` optional, preserving the memo contract
+- [x] Extract `TreeScene` with `paper` optional, preserving the memo contract
       and the scaling rules (lane scales, chrome counter-scales, inline styles)
-- [ ] Extract `TreeEditor`, replacing store calls with host intents
-- [ ] Move the container Escape listener into `keyboard/`, using
+- [x] Extract `TreeEditor`, replacing store calls with host intents
+- [x] Move the container Escape listener into `keyboard/`, using
       `isShortcutEditingTarget`
-- [ ] Add BP's `useBpTreeEditorHost`; reduce `BpTreePanel` to composition
-- [ ] Walk the 12-item edge-case ledger in review
-- [ ] `BpTreePanel.test.tsx`, `BpTreeSceneStability.test.tsx`,
+- [x] Add BP's `useBpTreeEditorHost`; reduce `BpTreePanel` to composition
+- [x] Walk the 12-item edge-case ledger in review
+- [x] `BpTreePanel.test.tsx`, `BpTreeSceneStability.test.tsx`,
       `BpFlapEditor.test.tsx` pass with **no assertion changes**
-- [ ] New `hostContract.test.tsx` (sync host and deferred host) and
+- [x] New `hostContract.test.tsx` (sync host and deferred host) and
       `lengths.test.ts`
-- [ ] Ship Phase 0 as its own PR
+- [x] Ship Phase 0 as its own PR
 
 ### Phase 0.5 — new drag model (box-pleat, own PR)
 
-- [ ] Rotate-and-extend transform in `dragRule.ts`; `Δr = 0` reproduces the old
+- [x] Rotate-and-extend transform in `dragRule.ts`; `Δr = 0` reproduces the old
       result bit-for-bit
-- [ ] Integer quantizer with per-session hysteresis (`h ≈ 0.08`), reset per drag
-- [ ] Replace `clampRotationToMirror` with the `t`-sweep (coarse step + bisect)
+- [x] Integer quantizer with per-session hysteresis (`h ≈ 0.08`), reset per drag
+- [x] Replace `clampRotationToMirror` with the `t`-sweep (coarse step + bisect)
       over the composed transform
-- [ ] Move the sheet clamp onto the same sweep; stop clamping points
+- [x] Move the sheet clamp onto the same sweep; stop clamping points
       individually, which silently distorted swung subtrees
-- [ ] Quantize the achieved `r`, re-validate, step down one admissible value on
+- [x] Quantize the achieved `r`, re-validate, step down one admissible value on
       failure
-- [ ] BP slice accepts a *list* of edge-length changes so a mirrored
+- [x] BP slice accepts a *list* of edge-length changes so a mirrored
       lengthening is one undo entry; clamp a pair to the tighter `maxLength`
-- [ ] Click-to-add and the hover ghost use `quantize(|click − parent|)`; the
+- [x] Click-to-add and the hover ghost use `quantize(|click − parent|)`; the
       ghost shows the length as a number
-- [ ] `sceneDom` writes the dragged edge's label text live, for any edge type
-- [ ] Hold the last direction when the cursor is on the pivot
-- [ ] Property tests: subtree rigidity, single length change, admissible length,
+- [x] `sceneDom` writes the dragged edge's label text live, for any edge type
+- [x] Hold the last direction when the cursor is on the pivot
+- [x] Property tests: subtree rigidity, single length change, admissible length,
       mirror clearance, sheet containment, `Δr = 0` equivalence
-- [ ] Flap seeding still lands where the leaf was drawn, and now honours the
+- [x] Flap seeding still lands where the leaf was drawn, and now honours the
       click's *distance* as well as its direction — browser-check by
       hand-packing a small model without touching the optimizer
-- [ ] Targeted tests: hysteresis flip count, mirrored-lengthening undo entry,
+- [x] Targeted tests: hysteresis flip count, mirrored-lengthening undo entry,
       partner at `maxLength`
-- [ ] Update the BP drag assertions that specified the old rule, and say in the
+- [x] Update the BP drag assertions that specified the old rule, and say in the
       PR why each one changed
 
 ### Phase 1 — design kind
 
-- [ ] `engine: EngineId | null`; registry skips engine-loss for null;
+- [x] `engine: EngineId | null`; registry skips engine-loss for null;
       `registry.test.ts` relaxed
-- [ ] `designKinds/explori.ts` with the JSON-map codec
-- [ ] `DesignTabContent` arm, `createExploriDesignState`, `designTabs` accessors
-- [ ] `'explori-tree'` / `'explori-results'` editing contexts; new viewport
+- [x] `designKinds/explori.ts` with the JSON-map codec
+- [x] `DesignTabContent` arm, `createExploriDesignState`, `designTabs` accessors
+- [x] `'explori-tree'` / `'explori-results'` editing contexts; new viewport
       surface ids
-- [ ] Two panes registered in `PanelComponents` / `workspaces.ts`
-- [ ] Chooser card (title, blurb, icon, order, availability)
-- [ ] Capability mask: hide TreeMaker/BP/CP commands that mean nothing here
-- [ ] `designTabWrites.test.ts` and `designIsolation.test.ts` cover the new kind
+- [x] Two panes registered in `PanelComponents` / `workspaces.ts`
+- [x] Chooser card (title, blurb, icon, order, availability)
+- [x] Capability mask: hide TreeMaker/BP/CP commands that mean nothing here
+- [x] `designTabWrites.test.ts` and `designIsolation.test.ts` cover the new kind
 
 ### Phase 2 — transport
 
@@ -946,50 +950,50 @@ is not in play for any phase.
       (permission itself is already granted)
 - [ ] Ask upstream to drop or gate `bundle_pickle_b64` — 47% of every response,
       unread by their own client, and CPU on their hot path
-- [ ] `functions/api/explori/{query,tiling}.ts` — forward, strip
+- [x] `functions/api/explori/{query,tiling}.ts` — forward, strip
       `bundle_pickle_b64` + `heat`, timeout, typed errors, KV rate limit,
       cache tilings
-- [ ] Function tests beside `functions/__tests__/cpShare.test.ts`
-- [ ] `exploriService.ts` — base URL override, defensive parsing, `AbortController`
-- [ ] Search button gated on ≥4 edges and ≥1 database, with a stated reason
+- [x] Function tests beside `functions/__tests__/cpShare.test.ts`
+- [x] `exploriService.ts` — base URL override, defensive parsing, `AbortController`
+- [x] Search button gated on ≥4 edges and ≥1 database, with a stated reason
 - [ ] Confirm our tree unit is their tree unit: send one tree at two scales and
       check the results differ (the embedding is not scale-invariant)
-- [ ] First-use notice that queries leave the machine; attribution footer
+- [x] First-use notice that queries leave the machine; attribution footer
 
 ### Phase 3 — results and detail
 
-- [ ] Results grid with thumbnail-mode switch and quick Send to Edit per card
-- [ ] Detail state: back, prev/next, CP↔packing and tree↔folded panes,
+- [x] Results grid with thumbnail-mode switch and quick Send to Edit per card
+- [x] Detail state: back, prev/next, CP↔packing and tree↔folded panes,
       query-tree comparison, references via the tiling endpoint
-- [ ] SVG renderers for CP, packing, folded form (with multiplicity alpha), tree
-- [ ] Match-quality thresholds pinned in one module, source named
-- [ ] Session result cache keyed by design id; survives tab switch and park
+- [x] SVG renderers for CP, packing, folded form (with multiplicity alpha), tree
+- [x] Match-quality thresholds pinned in one module, source named
+- [x] Session result cache keyed by design id; survives tab switch and park
 
 ### Phase 4 — Send to Edit
 
-- [ ] `cp` → FOLD converter with the assignment table, unit tested against a
+- [x] `cp` → FOLD converter with the assignment table, unit tested against a
       captured fixture bundle
-- [ ] Scale to `editGridDivisions`; `sendToEdit` reads the selected result
-- [ ] Coincident-vertex hash check across a corpus of fetched tilings
-- [ ] End-to-end: send a result to Edit and confirm the drawing matches the
+- [x] Scale to `editGridDivisions`; `sendToEdit` reads the selected result
+- [x] Coincident-vertex hash check across a corpus of fetched tilings
+- [x] End-to-end: send a result to Edit and confirm the drawing matches the
       thumbnail — border on the paper edge, M/V placed, hinges cyan/auxiliary
 
 ### Phase 5 — persistence, analytics, i18n
 
-- [ ] Document schema: tree + settings + symmetry + selected result (identity
+- [x] Document schema: tree + settings + symmetry + selected result (identity
       and geometry); JSON round-trip test through park/hydrate
-- [ ] `.osf`: `NativeProjectDocumentKind` arm, payload reader/writer,
+- [x] `.osf`: `NativeProjectDocumentKind` arm, payload reader/writer,
       `nativeProjectDesigns` extension default
-- [ ] Older-build round trip: a file with an unregistered kind survives
+- [x] Older-build round trip: a file with an unregistered kind survives
       read → save byte-for-byte via `unknownDesigns`
-- [ ] Four analytics events, properties enum-or-bucketed only
-- [ ] i18n extract, 8 locales, stamp, `i18n:check` green
+- [x] Four analytics events, properties enum-or-bucketed only
+- [x] i18n extract, 8 locales, stamp, `i18n:check` green
 
 ### Validation
 
-- [ ] `npx tsc --noEmit`, `npm run lint:web`, web unit tests, `npm run build:web`
-- [ ] `npm run check:desktop`
-- [ ] Browser: two designs open (one BP, one ExplOri) — edits in one leave the
+- [x] `npx tsc --noEmit`, `npm run lint:web`, web unit tests, `npm run build:web`
+- [x] `npm run check:desktop`
+- [x] Browser: two designs open (one BP, one ExplOri) — edits in one leave the
       other byte-identical; a tab switch and back preserves results and selection
-- [ ] Browser: mirror draw in the ExplOri tree pairs, moves, and unpairs exactly
+- [x] Browser: mirror draw in the ExplOri tree pairs, moves, and unpairs exactly
       as it does in BP
