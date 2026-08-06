@@ -6055,14 +6055,25 @@ describe('workspace store slices', () => {
       expect(after.kind).toBe('box-pleat');
     });
 
-    it('clears only the kind when a crease-pattern-only project is opened', async () => {
+    it('replaces every design when a new project is started', async () => {
+      // Not "clears the active tab's kind": with tabs, starting a new project
+      // has to discard the ones the user is walking away from. Clearing one left
+      // the others in the strip, pointing at engine documents nothing owned any
+      // more, and the next save wrote them into the new file.
       await useWorkspaceStore.getState().chooseDesignMethod('treemaker');
-      const id = useWorkspaceStore.getState().activeDesignId;
+      useWorkspaceStore.getState().addDesignTab();
+      await useWorkspaceStore.getState().chooseDesignMethod('box-pleat');
+      const before = useWorkspaceStore.getState().designTabs.map((tab) => tab.id);
+      expect(before).toHaveLength(2);
 
       useWorkspaceStore.getState().startNewDesign();
 
-      // The tab survives; only its method is cleared back to the chooser.
-      expect(useWorkspaceStore.getState().activeDesignId).toBe(id);
+      const after = useWorkspaceStore.getState().designTabs;
+      expect(after).toHaveLength(1);
+      expect(after[0].kind).toBeNull();
+      // A fresh id, so a late write addressed to a discarded design cannot land
+      // on the tab that replaced it.
+      expect(before).not.toContain(after[0].id);
       expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
       expectInvariant();
     });

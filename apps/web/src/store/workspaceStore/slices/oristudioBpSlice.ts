@@ -142,6 +142,16 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       preserveEditCanvas?: boolean;
       /** Mirror-draw state the file carried, when it was an `.osf`. */
       symmetry?: BpDocumentSymmetry | null;
+      /**
+       * The design this document belongs to, captured before the engine call
+       * that produced it.
+       *
+       * The runtime half already addresses its handle that way, so without the
+       * same treatment here a tab switch mid-create put the *document* on one tab
+       * and its *engine handle* on another — a design that renders one tree and
+       * edits a different one.
+       */
+      designId?: string;
     } = {}
   ) => {
     // Pairs name vertices by id. The ids are explicit in the `.bps` text so they
@@ -175,7 +185,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           angle: BP_TREE_SYMMETRY_ANGLE,
           loc: bpTreeSymmetryDefaultLoc(document.snapshot.tree.sheet),
         },
-      }),
+      }, options.designId),
       // A box-pleat design has no tree, so it cannot borrow `project.title` to
       // name the project the way a TreeMaker design used to. It names it directly.
       workspaceTitle: bpTitle,
@@ -392,6 +402,11 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // make this one give up — and nothing re-runs the effect when that optimize
       // finishes, leaving the tab on "Preparing the box-pleat editor…" forever.
       const designId = get().activeDesignId;
+      // A tab opened from a file holds only its serialized text until it is
+      // visited, so "no document" here does not mean "empty design" — it can mean
+      // "not read yet". Seeding a starter project over one would replace the
+      // design the user opened with a blank sample and delete its saved text.
+      await get().hydrateDesignTab(designId);
       if (selectOristudioBpDocument(get(), designId)) return;
       const inFlight = ensureBpInFlight.get(designId);
       if (inFlight) return inFlight;
@@ -409,6 +424,9 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     createOristudioBpProject: async (options = {}) => {
+      // Captured before any await, and handed to the install below, so the
+      // document lands on the same design the runtime hands its handle to.
+      const designId = get().activeDesignId;
       if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
         return false;
       }
@@ -424,6 +442,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         });
         setLoadedBpProject(document, 'Created Box Pleat project', {
           preserveEditCanvas: options.preserveEditCanvas,
+          designId,
         });
         // "New Box Pleat" means show it: the BP Editor's empty state offers this
         // while the variant is still TreeMaker, so the layout has to rebuild.
@@ -442,6 +461,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     loadOristudioBpExample: async (id, options = {}) => {
+      const designId = get().activeDesignId;
       const example = getBoxPleatExampleProject(id);
       if (!example) return false;
       if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
@@ -455,7 +475,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             format: 'generated',
             dirty: false,
           });
-        setLoadedBpProject(document, `Loaded ${example.title}`);
+        setLoadedBpProject(document, `Loaded ${example.title}`, { designId });
         showBpDesignWorkspace();
         return true;
       } catch (error) {
@@ -471,6 +491,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     },
 
     loadOristudioBpProjectFromFile: async (text, source, options = {}) => {
+      const designId = get().activeDesignId;
       set({ oristudioBpBusy: true, oristudioBpError: null });
       try {
         // A bare `.bps` carries no crease pattern, so opening one clears the Edit
@@ -487,6 +508,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         setLoadedBpProject(document, `Loaded ${source.filename}`, {
           symmetry: options.symmetry ?? null,
           preserveEditCanvas: options.preserveEditCanvas,
+          designId,
         });
         // No workspace activation: this is a loader. Its callers land once, from
         // the finished project (`applyLandingWorkspace`).

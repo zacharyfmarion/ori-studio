@@ -232,28 +232,32 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
 
     beginHistoryCheckpoint: async () => {
     if (get().activeEditingContext !== 'treemaker-tree') return null;
+    // Captured before the await, and carried through to the commit: the edit
+    // between them is an engine round trip, and the user can switch tabs during
+    // it. See `mapDesignTab`.
+    const designId = get().activeDesignId;
     try {
       const { api, treeHandle } = await ensureTreeHandle();
-      return api.saveTmd5(treeHandle);
+      return { text: await api.saveTmd5(treeHandle), designId };
     } catch {
       return null;
     }
   },
 
-  commitHistoryCheckpoint: (beforeText, label = 'Edit') => {
-    if (!beforeText || get().historyBusy) return;
-    const past = selectHistoryPast(get());
-    if (past.at(-1)?.text === beforeText) {
+  commitHistoryCheckpoint: (checkpoint, label = 'Edit') => {
+    if (!checkpoint || get().historyBusy) return;
+    const { text, designId } = checkpoint;
+    const past = selectHistoryPast(get(), designId);
+    if (past.at(-1)?.text === text) {
       set({
-      ...patchTreemakerDesign(get(), { historyFuture: [] 
-      }),});
+      ...patchTreemakerDesign(get(), { historyFuture: [] }, designId),});
       return;
     }
     set({
       ...patchTreemakerDesign(get(), {
-      historyPast: [...past, historyEntry(beforeText, label)].slice(-MAX_HISTORY),
+      historyPast: [...past, historyEntry(text, label)].slice(-MAX_HISTORY),
       historyFuture: []
-      }),});
+      }, designId),});
   },
 
   clearHistory: () => {

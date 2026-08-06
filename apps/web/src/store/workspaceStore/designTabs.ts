@@ -44,6 +44,20 @@ interface DesignTabIdentity {
    * `null` means "the kind's default arrangement".
    */
   paneLayout: SerializedDockview | null;
+  /**
+   * True while this tab's content exists only as serialized text.
+   *
+   * Opening a file registers every design's text with the document registry but
+   * installs only the **active** design into the store — that is what keeps
+   * opening a twelve-design project cheap. The others therefore hold an *empty*
+   * project until someone reads their text back, and the canvas renders the
+   * store, not the engine. Without this flag a background tab opened blank and
+   * the design looked lost.
+   *
+   * One-shot: cleared the moment hydration starts, so a double activation cannot
+   * run it twice.
+   */
+  pendingHydration: boolean;
 }
 
 /**
@@ -111,12 +125,16 @@ export function createDesignTab(
     kind?: DesignKindId | null;
     title?: string;
     paneLayout?: SerializedDockview | null;
+    pendingHydration?: boolean;
   } = {}
 ): DesignTab {
   const identity: DesignTabIdentity = {
     id: nextDesignTabId(existing),
     title: overrides.title ?? uniqueDesignTitle(existing),
     paneLayout: overrides.paneLayout ?? null,
+    // A tab created here is created *with* its content; only a tab read from a
+    // file starts as text alone.
+    pendingHydration: overrides.pendingHydration ?? false,
   };
   return { ...identity, ...contentForKind(overrides.kind ?? null) };
 }
@@ -130,7 +148,12 @@ export function createDesignTab(
  * instead means a new identity field is carried everywhere by construction.
  */
 function identityOf(tab: DesignTab): DesignTabIdentity {
-  return { id: tab.id, title: tab.title, paneLayout: tab.paneLayout };
+  return {
+    id: tab.id,
+    title: tab.title,
+    paneLayout: tab.paneLayout,
+    pendingHydration: tab.pendingHydration,
+  };
 }
 
 /** A fresh, empty content arm for a kind. */
@@ -242,6 +265,20 @@ export function withActiveTab(
   return mapDesignTab(state, state.activeDesignId, (tab) => ({ ...tab, title: patch.title }));
 }
 
+/**
+ * Mark a design's content as materialized, so hydration never runs twice.
+ *
+ * Cleared *before* the read rather than after: hydration is asynchronous, and a
+ * second activation while the first is in flight would otherwise start it again
+ * and race two installs onto one tab.
+ */
+export function markDesignTabHydrated(
+  state: DesignTabsSlice,
+  designId: string
+): Pick<DesignTabsSlice, 'designTabs'> {
+  return mapDesignTab(state, designId, (tab) => ({ ...tab, pendingHydration: false }));
+}
+
 /** Record a design's pane arrangement. Identity-only, so any kind can use it. */
 export function withDesignPaneLayout(
   state: DesignTabsSlice,
@@ -323,8 +360,11 @@ export function selectLastOptimization(state: DesignTabsSlice): OptimizationRepo
   return selectTreemakerDesignOrEmpty(state).lastOptimization;
 }
 
-export function selectDesignViewportFitRequestId(state: DesignTabsSlice): number {
-  return selectTreemakerDesignOrEmpty(state).viewportFitRequestId;
+export function selectDesignViewportFitRequestId(
+  state: DesignTabsSlice,
+  designId?: string
+): number {
+  return selectTreemakerDesignOrEmpty(state, designId).viewportFitRequestId;
 }
 
 /**
@@ -483,6 +523,23 @@ export function markActiveTabBoxPleat(
   designId: string = state.activeDesignId
 ): Pick<DesignTabsSlice, 'designTabs'> {
   return installBoxPleatDesign(state, {}, designId);
+}
+
+/**
+ * Replace the whole tab set with one empty chooser tab.
+ *
+ * What "this file establishes no design" actually means. `clearActiveDesignContent`
+ * clears **one** tab, which is the same thing only when one tab is open — so
+ * opening a crease-pattern-only project, or starting a new one, left every other
+ * design from the previous project sitting in the strip. Worse, the load had
+ * already forgotten their engine documents, so visiting one showed a design whose
+ * engine was empty, and the next save wrote them into the new file.
+ */
+export function resetDesignTabs(state: DesignTabsSlice): DesignTabsSlice {
+  // Seeded from the tabs being replaced so the new tab cannot reuse an id that
+  // was just forgotten — the same reason `closeDesignTab` does it.
+  const replacement = createDesignTab(state.designTabs);
+  return { designTabs: [replacement], activeDesignId: replacement.id };
 }
 
 /** Clear the active tab back to the chooser, dropping whatever it was authoring. */

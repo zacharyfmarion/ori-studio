@@ -198,7 +198,14 @@ describe('duplicateDesignTab', () => {
   it('copies through the codec and lands beside the original', async () => {
     useWorkspaceStore.setState({
       designTabs: [
-        { id: 'design-1', title: 'Crane', paneLayout: null, kind: 'treemaker', treemaker: undefined as never },
+        {
+          id: 'design-1',
+          title: 'Crane',
+          paneLayout: null,
+          pendingHydration: false,
+          kind: 'treemaker',
+          treemaker: undefined as never,
+        },
       ],
       activeDesignId: 'design-1',
     });
@@ -229,6 +236,7 @@ describe('requestCloseDesignTab', () => {
           id: 'design-1',
           title: 'Crane',
           paneLayout: null,
+          pendingHydration: false,
           kind: 'treemaker',
           treemaker: createTreemakerDesignState({
             historyPast: [{ text: 'earlier', label: 'edit', timestamp: '2026-01-01T00:00:00.000Z' }],

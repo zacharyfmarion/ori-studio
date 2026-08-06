@@ -38,10 +38,12 @@ export function DesignPaneLayout() {
 
   // Registered so `activatePanel('conditions')` and friends still find a design
   // pane now that it lives here rather than in the workspace dock. Cleared on
-  // unmount, so a stale api can never be asked to activate a dead panel.
+  // unmount, so a stale api can never be asked to activate a dead panel — and
+  // the pending save with it, since dockview disposes the api it would call.
   useEffect(
     () => () => {
       useLayoutStore.getState().setDesignPaneApi(null);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
     },
     []
   );
@@ -82,7 +84,11 @@ export function DesignPaneLayout() {
 
   return (
     <DockviewReact
-      key={tab.id}
+      // Keyed by the design **and its kind**. The pane set is chosen once, in
+      // `onReady`, from the kind — so a tab that changes kind in place (the
+      // chooser resolving, a file loading into an open tab) would otherwise keep
+      // the previous kind's panes: a box-pleat design with no BP Editor.
+      key={`${tab.id}:${tab.kind}`}
       components={panelComponents}
       defaultTabComponent={FixedDockTab}
       onReady={onReady}

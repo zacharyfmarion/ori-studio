@@ -1,10 +1,12 @@
 import {
   activeDesignTab,
-  clearActiveDesignContent,
   createDesignTab,
   initialDesignTabs,
+  installBoxPleatDesign,
   isDesignTouched,
+  markDesignTabHydrated,
   patchBoxPleatDesign,
+  resetDesignTabs,
   selectOristudioBpDocument,
   selectOristudioBpSymmetry,
   selectProject,
@@ -12,6 +14,7 @@ import {
   type DesignTab,
 } from '../designTabs';
 import {
+  acquireDesignHandle,
   adoptDesign,
   forgetDesign,
   parkDesign,
@@ -137,6 +140,7 @@ import { bpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import {
   exportOristudioBpProjectAsBps,
   isBpProjectFilename,
+  refreshOristudioBpProject,
 } from '../oristudioBpRuntime';
 import type {
   OristudioCpSelection,
@@ -594,6 +598,16 @@ function defaultCreaseExportOptions(viewport: OristudioCpViewportOptions): Creas
   };
 }
 
+/**
+ * Hydrations currently reading a design's text back into the store, by design id.
+ *
+ * Module-level rather than store state because it is a fact about work in
+ * flight, not about the document — and because a caller has to be able to *await*
+ * it (see `ensureBoxPleatProject`, which must not seed a starter project over a
+ * design that is still arriving).
+ */
+const hydrationInFlight = new Map<string, Promise<void>>();
+
 export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get) => {
   // Reuse the single capability input builder (which is context/BP-aware) rather
   // than a divergent inline copy.
@@ -769,10 +783,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
        * self-provision into and then discard.
        */
       preserveEditCanvas?: boolean;
+      /**
+       * Whether this tree *is* the new project.
+       *
+       * True for a `.tmd5` opened on its own — it replaces the workspace, so every
+       * other design goes with it. False when the `.osf` loader calls this to
+       * install one design out of a set it has already published; resetting there
+       * would throw away the very tabs it just built.
+       */
+      replacesProject?: boolean;
     } = {}
   ) => {
     set({ status: 'loading_engine', error: null, projectMessage: null });
     await releaseEditableCreasePattern();
+    // Before the tree is installed, so the install lands on the tab that survives.
+    if (source.replacesProject !== false) set(discardAllDesigns());
     const api = await getEngine();
     const snapshot = await loadTreeFromText(api, text);
     const filename = source.filename ?? defaultNativeFilename('Untitled');
@@ -969,7 +994,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // the previous file's box-pleat design must not stay loaded behind it,
       // which would leave "no method chosen" sitting beside a live design. Same
       // claim `loadText` makes for a tree: an open replaces the project.
-      ...clearActiveDesignContent(get()),
+      ...discardAllDesigns(),
       importedCreasePattern: result.document,
       oristudioCpDocument,
       oristudioCpLineage: importedCpLineage(),
@@ -1163,7 +1188,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       activePanelId: 'crease-pattern',
       workspaceTitle: nativeDocument.title || result.project.title,
       // A CP-only project establishes no design; keep the Design chooser.
-      ...clearActiveDesignContent(get()),
+      ...discardAllDesigns(),
       importedCreasePattern: importedDocument,
       currentFileName: source.filename,
       currentFilePath: source.path ?? null,
@@ -1277,6 +1302,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       paneLayout: isRecord(design.viewState.paneLayout)
         ? (design.viewState.paneLayout as unknown as SerializedDockview)
         : null,
+      // Only the active design is installed into the store on open; the rest are
+      // registry text until visited. Without this they rendered as empty designs.
+      pendingHydration: true,
     };
     if (design.payload.kind === 'box-pleat') {
       const symmetry = isRecord(design.viewState.symmetry)
@@ -1309,7 +1337,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     preserveEditCanvas: boolean
   ) => {
     set({
-      designTabs: tabs,
+      // The active design is installed below, so it is not pending.
+      designTabs: tabs.map((tab) =>
+        tab.id === active.id ? { ...tab, pendingHydration: false } : tab
+      ),
       activeDesignId: active.id,
       workspaceTitle: nativeProject.workspace.title,
       currentFileName: source.filename,
@@ -1329,6 +1360,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           filename: source.filename,
           path: source.path ?? null,
           preserveEditCanvas,
+          replacesProject: false,
         });
         // `loadText` installs a fresh tab for the tree it loaded; put the file's
         // own tab set back, with the loaded design in place.
@@ -1740,6 +1772,23 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // `.osf` bundling every design plus the Edit crease pattern as a companion; a
   // bare crease pattern (no design) saves as a CP project, preserving its
   // Oriedita-sourced `.ori`/`.orh` save-as special cases.
+  /**
+   * Discard every open design — registry entries and tabs together.
+   *
+   * What "this file / this action establishes no design" means once a workspace
+   * can hold several. Each of these sites used to spread
+   * `clearActiveDesignContent`, which clears **one** tab: identical while one
+   * design could be open, and silently wrong afterwards. Opening a
+   * crease-pattern-only project left the previous project's other designs in the
+   * strip — pointing at engine documents the load had already forgotten — and the
+   * next save wrote them into the new file.
+   */
+  const discardAllDesigns = () => {
+    const state = get();
+    void Promise.all(state.designTabs.map((tab) => forgetDesign(tab.id)));
+    return resetDesignTabs(state);
+  };
+
   const saveActiveProject = async (fileService: FileService, forceSaveAs: boolean) => {
     // "Is there a design" is a question about the **tabs**, not about the active
     // one's content. It used to ask whether the active design had nodes or a BP
@@ -1976,7 +2025,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           workspaceTitle: documentState.summary.title ?? 'Untitled CP',
           // Creating a bare CP establishes no design, so the Design workspace
           // keeps offering the method chooser (Circle-packed vs Box-pleated).
-          ...clearActiveDesignContent(get()),
+          ...discardAllDesigns(),
           importedCreasePattern: null,
           currentFileName: defaultNativeFilename(documentState.summary.title ?? 'Untitled CP'),
           currentFilePath: null,
@@ -2945,6 +2994,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // engine work in flight) is left alone by the registry.
       void parkDesign(activeDesignId);
       set({ activeDesignId: designId });
+      // A tab opened from a file holds only its serialized text until now. The
+      // canvas renders the *store*, so without this the design shows up blank.
+      void get().hydrateDesignTab(designId);
       track('design tab activated', {
         open_count_bucket: bucketCount(designTabs.length, DESIGN_TAB_COUNT_BUCKETS),
       });
@@ -2998,6 +3050,48 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (!confirmed) return;
       }
       get().closeDesignTab(designId);
+    },
+
+    hydrateDesignTab: async (designId) => {
+      // Returning the in-flight promise, rather than just skipping, is what lets
+      // a caller *wait* for the design to arrive. `ensureBoxPleatProject` needs
+      // that: it seeds a starter project when a box-pleat tab has no document,
+      // and an unread tab has no document either — without the wait it would
+      // replace the design the user opened with a blank sample.
+      const running = hydrationInFlight.get(designId);
+      if (running) return running;
+
+      const tab = get().designTabs.find((candidate) => candidate.id === designId);
+      if (!tab || !tab.pendingHydration || tab.kind === null) return;
+      // Cleared before the read, not after: hydration is asynchronous, and a
+      // second activation while it is in flight would otherwise start again and
+      // race two installs onto one tab.
+      set(markDesignTabHydrated(get(), designId));
+      const work = (async () => {
+        if (tab.kind === 'treemaker') {
+          // Through the registry, which already knows how to turn this design's
+          // parked text back into a live handle — rather than loading the text a
+          // second time and displacing the handle it just built.
+          const handle = await acquireDesignHandle(designId, 'treemaker');
+          if (handle === null) return;
+          const api = await getEngine();
+          const snapshot = await api.snapshot(handle);
+          set(projectStateFromSnapshot(get(), snapshot, tab.title, {}, designId));
+          return;
+        }
+        const document = await refreshOristudioBpProject();
+        if (document) set(installBoxPleatDesign(get(), { document }, designId));
+      })().catch((error: unknown) => {
+        // The design is still on disk and still in the registry; leaving the tab
+        // empty with an error beats leaving it empty silently.
+        set({ error: engineError(error) });
+      });
+      hydrationInFlight.set(designId, work);
+      try {
+        await work;
+      } finally {
+        hydrationInFlight.delete(designId);
+      }
     },
 
     setDesignPaneLayout: (designId, paneLayout) => {
@@ -3064,7 +3158,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // until the user picks Circle-packed or Box-pleated. The one caller that
       // legitimately clears the method — everything else only ever sets a real
       // one, so no route or loader can put the chooser over a live design.
-      set({ ...clearActiveDesignContent(get()), error: null, projectMessage: null });
+      set({ ...discardAllDesigns(), error: null, projectMessage: null });
       useLayoutStore.getState().activateWorkspace('design');
     },
 

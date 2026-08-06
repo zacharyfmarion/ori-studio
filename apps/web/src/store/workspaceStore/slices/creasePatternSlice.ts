@@ -76,6 +76,7 @@ import {
   syncTreemakerProject,
   type EngineClient,
 } from '../engineRuntime';
+import { withDesignHandle } from '../../../engines/designHandles';
 import { fetchCpShareWithRetry } from '../../../cp-workspace/share/cpShareService';
 
 /**
@@ -864,22 +865,33 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       set({ error: { code: 'invalid_operation', message: capability.reason } });
       return;
     }
+    // Addressed write; see `mapDesignTab`. An optimize is the longest engine call
+    // in the app, so it is the one most likely to outlive a tab switch.
+    const designId = get().activeDesignId;
     set({ status: 'optimizing', error: null });
     const checkpoint = await get().beginHistoryCheckpoint();
     // 'optimize.scale' -> 'scale'. Also the analytics `kind`.
     const kind = capabilityId.replace('optimize.', '');
     try {
-      const { api, treeHandle } = await requireActiveTree();
-      const report = await optimize(api, treeHandle);
-      const snapshot = await api.snapshot(treeHandle);
+      const { api } = await requireActiveTree();
+      // **Pinned** for the whole run. Switching tabs parks the outgoing design,
+      // and parking serializes and *frees* its handle — pulling it out from under
+      // the optimizer mid-call. The registry refuses to park or evict a pinned
+      // document, which is what this API was built for; nothing had called it.
+      const result = await withDesignHandle(designId, 'treemaker', async (treeHandle) => {
+        const report = await optimize(api, treeHandle);
+        return { report, snapshot: await api.snapshot(treeHandle) };
+      });
+      if (!result) return;
+      const { report, snapshot } = result;
       set({
       ...patchTreemakerDesign(get(), {
-        project: projectFromSnapshot(snapshot, selectProject(get()).title),
+        project: projectFromSnapshot(snapshot, selectProject(get(), designId).title),
         lastOptimization: report,
         viewportFitRequestId: options.fitPaperView
-          ? selectDesignViewportFitRequestId(get()) + 1
-          : selectDesignViewportFitRequestId(get())
-      }),
+          ? selectDesignViewportFitRequestId(get(), designId) + 1
+          : selectDesignViewportFitRequestId(get(), designId)
+      }, designId),
         status: report.is_feasible ? 'optimized' : 'needs_optimization',
         error: null,
         ...staleFoldArtifactResourceState(get().foldArtifactRevision),

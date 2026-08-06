@@ -413,6 +413,14 @@ export interface ProjectSliceActions {
    * user drags a splitter, and persisted with the design in the `.osf`.
    */
   setDesignPaneLayout: (designId: string, paneLayout: SerializedDockview | null) => void;
+  /**
+   * Read a design's content back from its serialized text, once.
+   *
+   * Opening a file installs only the active design into the store; the rest are
+   * registry text until visited. The canvas renders the store, so a background
+   * tab has to be filled in before it can be looked at.
+   */
+  hydrateDesignTab: (designId: string) => Promise<void>;
   /** Move a tab to a new index, for drag-reorder. */
   reorderDesignTab: (designId: string, toIndex: number) => void;
   /** Copy a design into a new tab beside it. Fresh history; nothing inherited. */
@@ -422,6 +430,20 @@ export interface ProjectSliceActions {
 }
 
 export type ProjectSlice = ProjectSliceState & ProjectSliceActions;
+
+/**
+ * A tree's state captured before an edit, and the design it belongs to.
+ *
+ * The design id rides along because the two halves are separated by the engine
+ * round trip the edit itself makes: capture, edit, commit. A commit that resolved
+ * "the active design" would push the *other* design's undo entry onto whichever
+ * tab the user had switched to — and, because the close prompt keys off undo
+ * depth, would arm it on the wrong design too.
+ */
+export interface TreeHistoryCheckpoint {
+  text: string;
+  designId: string;
+}
 
 export interface HistoryEntry {
   text: string;
@@ -464,8 +486,8 @@ export interface HistorySliceState {
 }
 
 export interface HistorySliceActions {
-  beginHistoryCheckpoint: () => Promise<string | null>;
-  commitHistoryCheckpoint: (beforeText: string | null, label?: string) => void;
+  beginHistoryCheckpoint: () => Promise<TreeHistoryCheckpoint | null>;
+  commitHistoryCheckpoint: (checkpoint: TreeHistoryCheckpoint | null, label?: string) => void;
   clearHistory: () => void;
   undo: () => Promise<void>;
   redo: () => Promise<void>;

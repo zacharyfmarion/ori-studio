@@ -50,6 +50,7 @@ describe('createDesignTab', () => {
       kind: null,
       title: DEFAULT_DESIGN_TITLE,
       paneLayout: null,
+      pendingHydration: false,
     });
   });
 

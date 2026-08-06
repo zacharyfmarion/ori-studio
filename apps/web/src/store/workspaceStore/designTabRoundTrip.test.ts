@@ -29,12 +29,12 @@ vi.mock('./engineRuntime', async (importOriginal) => {
 const handles = vi.hoisted(() => ({
   serializeDesign: vi.fn(async (designId: string) => `serialized:${designId}`),
   adoptDesign: vi.fn(),
-  forgetDesign: vi.fn(async () => undefined),
+  forgetDesign: vi.fn(async (_designId: string) => undefined),
+  acquireDesignHandle: vi.fn(async (_designId: string, _kind: string) => 1),
 }));
 
 vi.mock('../../engines/designHandles', () => ({
   ...handles,
-  acquireDesignHandle: vi.fn(async () => 1),
   adoptDesignHandle: vi.fn(async () => true),
   withDesignHandle: vi.fn(),
   parkDesign: vi.fn(async () => undefined),
@@ -187,5 +187,70 @@ describe('saving and reopening a project of several designs', () => {
     await store().openProject(fileService);
 
     expect(store().workspaceTitle).toBe('Studio');
+  });
+});
+
+/**
+ * A design that is only *text* until you look at it.
+ *
+ * Opening a file registers every design with the document registry but installs
+ * only the active one into the store — that is what keeps a twelve-design project
+ * cheap to open. The canvas renders the store, so without a read-back on
+ * activation a background tab showed an empty design and the work looked lost.
+ */
+describe('visiting a design that was not the active one', () => {
+  it('reads its content back from the file', async () => {
+    const ids = threeDesigns();
+    const fileService = recordingFileService();
+    await store().saveProjectAs(fileService);
+    reopenOn(fileService);
+    await store().openProject(fileService);
+
+    // Everything but the active design starts as text alone.
+    const background = store().designTabs.filter((tab) => tab.id !== store().activeDesignId);
+    expect(background.every((tab) => tab.pendingHydration)).toBe(true);
+
+    await store().hydrateDesignTab(ids.crane);
+
+    expect(store().designTabs.find((tab) => tab.id === ids.crane)?.pendingHydration).toBe(false);
+  });
+
+  it('reads it back exactly once, however many times the tab is activated', async () => {
+    const ids = threeDesigns();
+    const fileService = recordingFileService();
+    await store().saveProjectAs(fileService);
+    reopenOn(fileService);
+    await store().openProject(fileService);
+    handles.acquireDesignHandle.mockClear();
+
+    // Two activations racing: the flag is cleared before the read, so the second
+    // finds nothing to do rather than installing over the first.
+    await Promise.all([store().hydrateDesignTab(ids.crane), store().hydrateDesignTab(ids.crane)]);
+
+    expect(handles.acquireDesignHandle.mock.calls.filter(([id]) => id === ids.crane)).toHaveLength(1);
+  });
+
+  it('leaves a design created in this session alone', async () => {
+    // Only a design read from a file is text-first; one made here already has
+    // its content, and re-reading would be a round trip for nothing.
+    threeDesigns();
+    expect(store().designTabs.every((tab) => !tab.pendingHydration)).toBe(true);
+  });
+});
+
+describe('replacing the project', () => {
+  it('discards every open design when a new one is started', () => {
+    const ids = threeDesigns();
+
+    store().startNewDesign();
+
+    expect(store().designTabs).toHaveLength(1);
+    expect(store().designTabs[0].kind).toBeNull();
+    expect([ids.crane, ids.kabuto, ids.beetle]).not.toContain(store().designTabs[0].id);
+    // The engine documents go with them, or the registry leaks a handle per
+    // design for the life of the session.
+    expect(handles.forgetDesign.mock.calls.map(([id]) => id).sort()).toEqual(
+      [ids.crane, ids.kabuto, ids.beetle].sort()
+    );
   });
 });

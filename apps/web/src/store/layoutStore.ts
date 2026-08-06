@@ -17,6 +17,18 @@ import { readJson, readString, removeKey, storageKey, STORAGE_KEYS, writeJson, w
 export const LAYOUT_VERSION = 18;
 
 /**
+ * Drop the active design's saved pane arrangement.
+ *
+ * Registered by the workspace store rather than imported, for the same reason as
+ * the other seams here: this module sits under it. A no-op outside Design.
+ */
+let clearActiveDesignPaneLayout: () => void = () => {};
+
+export function registerDesignPaneLayoutReset(reset: () => void): void {
+  clearActiveDesignPaneLayout = reset;
+}
+
+/**
  * Persisted-layout scope — one per workspace, and nothing else.
  *
  * The Design workspace used to have three (`design`, `design:box-pleat`,
@@ -219,6 +231,11 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   },
   resetLayout: (workspace = get().activeWorkspace) => {
     clearPersistedLayout(workspace);
+    // The design's panes live in the *tab's* dock, which restores the tab's saved
+    // arrangement on every mount — so rebuilding the workspace dock alone puts
+    // the same layout straight back and "Reset Layout" appears to do nothing in
+    // the Design workspace. Dropping the saved arrangement is what reaches it.
+    if (workspace === 'design') clearActiveDesignPaneLayout();
     const { dockviewApi } = get();
     if (!dockviewApi || workspace !== get().activeWorkspace) return;
     dockviewApi.clear();

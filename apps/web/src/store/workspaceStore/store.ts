@@ -5,6 +5,7 @@ import {
   selectProject,
 } from './designTabs';
 import { registerActiveDesignSource } from './activeDesignSource';
+import { registerDesignPaneLayoutReset } from '../layoutStore';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createCreasePatternSlice } from './slices/creasePatternSlice';
@@ -46,6 +47,14 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 registerActiveDesignSource(() => {
   const tab = activeDesignTab(useWorkspaceStore.getState());
   return { id: tab.id, kind: tab.kind };
+});
+
+// View ▸ Reset Layout has to reach the active design's own pane arrangement, not
+// just the workspace dock above it. Registered rather than imported: the layout
+// store sits under this one.
+registerDesignPaneLayoutReset(() => {
+  const state = useWorkspaceStore.getState();
+  state.setDesignPaneLayout(state.activeDesignId, null);
 });
 
 // Keep `activeEditingContext` derived from the active panel + design state. The
