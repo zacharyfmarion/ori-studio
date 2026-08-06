@@ -258,3 +258,68 @@ describe('a third design kind lays out with no code change', () => {
     spy.mockRestore();
   });
 });
+
+/**
+ * Creating a design is a wasm cold start — seconds on a first visit.
+ *
+ * Without feedback the chooser sat there looking untouched, and a second click
+ * started a second creation on the same tab.
+ */
+describe('the chooser while a design is being created', () => {
+  it('marks the chosen card busy and refuses a second click', async () => {
+    let resolveChoice: (() => void) | undefined;
+    const choose = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveChoice = resolve;
+        })
+    );
+    const host = render({
+      ...singleDesignTab(null),
+      engineReady: true,
+      status: 'ready',
+      chooseDesignMethod: choose,
+    });
+    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('.design-method-card'));
+
+    act(() => {
+      cards()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(cards()[0].getAttribute('aria-busy')).toBe('true');
+    expect(cards()[0].textContent).toContain('Preparing the editor');
+    // Every card is out of action, not just the one clicked: a tab authors one
+    // design, so the other choice is not available either.
+    expect(cards().every((card) => card.disabled)).toBe(true);
+
+    act(() => {
+      cards()[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(choose).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveChoice?.();
+    });
+  });
+
+  it('becomes usable again when the creation fails', async () => {
+    const choose = vi.fn(async () => {
+      throw new Error('engine unavailable');
+    });
+    const host = render({
+      ...singleDesignTab(null),
+      engineReady: true,
+      status: 'ready',
+      chooseDesignMethod: choose,
+    });
+    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('.design-method-card'));
+
+    await act(async () => {
+      cards()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    // The chooser is still on screen — leaving it dead would strand the tab.
+    expect(cards()[0].getAttribute('aria-busy')).toBe('false');
+    expect(cards().some((card) => !card.disabled)).toBe(true);
+  });
+});

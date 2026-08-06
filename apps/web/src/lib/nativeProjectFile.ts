@@ -264,6 +264,17 @@ export interface NativeCreasePatternProjectInput {
    * round-trip through an *older* one (forward-compat). Defaults to `{}`.
    */
   extensions?: Record<string, unknown>;
+  /**
+   * Design documents of a kind this build cannot read, carried through verbatim.
+   *
+   * Same forward-compatibility contract as the design writer's: a project saved
+   * by a newer build may hold designs this one has no descriptor for, and
+   * dropping them here would delete a user's work on a round trip through an
+   * older version. Defaults to `[]`.
+   */
+  unknownDesigns?: unknown[];
+  /** File-level extension bag, carried forward for the same reason. */
+  fileExtensions?: Record<string, unknown>;
   appVersion: string;
   now?: Date;
 }
@@ -540,17 +551,22 @@ export function createNativeCreasePatternProjectFile(
   return {
     format: NATIVE_PROJECT_FORMAT,
     schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
-    minimumReaderSchemaVersion: 1,
+    // An unreadable design is exactly the case an older build must refuse, for
+    // the same reason the design writer raises the bar: it cannot round-trip
+    // what it cannot parse.
+    minimumReaderSchemaVersion: (input.unknownDesigns?.length ?? 0) > 0 ? 8 : 1,
     createdBy: actor,
     modifiedBy: actor,
     workspace: {
       id: 'workspace',
       title,
       activeDocumentId: CREASE_PATTERN_DOCUMENT_ID,
-      // A crease pattern is not a design: it holds no design tabs at all.
+      // A crease pattern is not a design: it holds no design tabs at all. Designs
+      // of a kind this build cannot read are a different matter — they are not
+      // "no designs", they are designs it must not touch — so they ride through.
       designs: [],
       creasePattern: createNativeCreasePatternDocument(input, CREASE_PATTERN_DOCUMENT_ID),
-      unknownDesigns: [],
+      unknownDesigns: input.unknownDesigns ?? [],
       viewState: {},
     },
     artifacts:
@@ -562,7 +578,7 @@ export function createNativeCreasePatternProjectFile(
             },
           }
         : {},
-    extensions: {},
+    extensions: input.fileExtensions ?? {},
   };
 }
 

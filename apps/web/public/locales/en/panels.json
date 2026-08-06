@@ -362,6 +362,7 @@
         "description": "Sketch a tree and let circle/river packing optimize the base, TreeMaker-style.",
         "title": "Circle-packed"
       },
+      "creating": "Preparing the editor…",
       "groupLabel": "Design method",
       "subtitle": "Choose how you want to author this model.",
       "title": "Start a new design"

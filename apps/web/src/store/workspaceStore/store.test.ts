@@ -1756,33 +1756,46 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
   });
 
-  it('ensureEditCreasePattern offers the Design chooser only for a design-less bare CP', async () => {
-    // Fresh, design-less project (no tree, no BP): the auto-seeded Edit CP keeps
-    // the Design workspace on its method chooser.
+  it('ensureEditCreasePattern never touches the design tabs', async () => {
+    // It used to clear the active design when that design had no edges and no BP
+    // document — a test for "nothing authored yet" that a *freshly created*
+    // Circle-packed design also passes, because a blank tree is zero edges. So
+    // visiting Edit threw away the design the user had just made.
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
       oristudioCpDocument: null,
       ...singleDesignTab('treemaker'),
     });
+    const before = useWorkspaceStore.getState().designTabs;
+
     await useWorkspaceStore.getState().ensureEditCreasePattern();
+
     expect(useWorkspaceStore.getState().oristudioCpDocument).not.toBeNull();
-    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
+    expect(useWorkspaceStore.getState().designTabs).toEqual(before);
+    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('treemaker');
     // The CP editor must report ready (not the initial 'loading_engine'), else
     // `isBusy` disables undo/redo and every engine-gated command on this canvas.
     expect(useWorkspaceStore.getState().status).toBe('crease_pattern_ready');
 
-    // With an authored tree, seeding a blank Edit CP must NOT reset the choice.
+    // And an authored tree is left alone for the same reason.
     resetStores(seedSnapshot());
     await useWorkspaceStore.getState().initEngine();
-    // `initEngine` no longer claims a design, so author one explicitly — that is
-    // the precondition under test.
     loadSnapshotIntoStore(seedSnapshot());
     expect(selectProject(useWorkspaceStore.getState()).edges.length).toBeGreaterThan(0);
-    // Drop only the Edit canvas: the design seeded above must survive, since the
-    // point of the test is that an existing design suppresses the chooser.
     useWorkspaceStore.setState({ oristudioCpDocument: null });
     await useWorkspaceStore.getState().ensureEditCreasePattern();
     expect(selectDesignMethod(useWorkspaceStore.getState())).not.toBe('none');
+  });
+
+  it('leaves the chooser alone when no design has been started', async () => {
+    // The case the clear was written for. Nothing to clear: a workspace with no
+    // design is already a workspace of chooser tabs.
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({ oristudioCpDocument: null, ...singleDesignTab(null) });
+
+    await useWorkspaceStore.getState().ensureEditCreasePattern();
+
+    expect(selectDesignMethod(useWorkspaceStore.getState())).toBe('none');
   });
 
   it('opens native tree projects and keeps Save on the native file path', async () => {

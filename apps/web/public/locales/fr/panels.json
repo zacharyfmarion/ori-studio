@@ -373,6 +373,7 @@
         "description": "Esquissez un arbre et laissez l'empaquetage cercle/rivière optimiser la base, à la manière de TreeMaker.",
         "title": "Empaquetage de cercles"
       },
+      "creating": "Préparation de l’éditeur…",
       "groupLabel": "Méthode de conception",
       "subtitle": "Choisissez comment créer ce modèle.",
       "title": "Démarrer une nouvelle conception"

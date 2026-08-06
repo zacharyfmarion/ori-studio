@@ -1550,6 +1550,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       textAnnotations: get().oristudioCpAnnotations.filter(isTextAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
+      // Carried through for the same reason the design writer carries them: a
+      // project written by a newer build may hold designs this one has no
+      // descriptor for, and saving over the file must not delete them.
+      unknownDesigns: get().nativeUnknownDesigns,
+      fileExtensions: get().nativeProjectExtensions,
       extensions: get().oristudioCpDocumentExtensions,
       appVersion: APP_VERSION,
     };
@@ -3142,7 +3147,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // file and that eviction uses — so a duplicate is exactly a round trip.
       const text = await serializeDesign(source.id, source.kind);
       if (text === null) return;
-      const copy = createDesignTab(tabs, { kind: source.kind, title: `${source.title} copy` });
+      const copy = createDesignTab(tabs, {
+        kind: source.kind,
+        title: `${source.title} copy`,
+        // The copy exists as *text* — the arm `createDesignTab` gives it is empty,
+        // exactly like a design read from a file. Without this a duplicated
+        // box-pleat design showed the starter project instead of the copy, because
+        // `ensureBoxPleatProject` saw a box-pleat tab with no document and seeded
+        // one.
+        pendingHydration: true,
+      });
       adoptDesign(copy.id, text);
       const next = [...tabs];
       next.splice(index + 1, 0, copy);
@@ -3150,6 +3164,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // had would be nonsense. `editCount` starts fresh for the same reason.
       void parkDesign(get().activeDesignId);
       set({ designTabs: next, activeDesignId: copy.id, dirty: true });
+      void get().hydrateDesignTab(copy.id);
       trackDesignTabOpened('duplicate', next.length);
     },
 

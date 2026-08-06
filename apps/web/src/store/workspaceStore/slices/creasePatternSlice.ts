@@ -1,4 +1,4 @@
-import { clearActiveDesignContent, patchTreemakerDesign, selectDesignViewportFitRequestId, selectOristudioBpDocument, selectProject } from '../designTabs';
+import { patchTreemakerDesign, selectDesignViewportFitRequestId, selectProject } from '../designTabs';
 import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
@@ -1010,18 +1010,21 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             document = await createBlankOristudioCpDocument();
           }
           const priorState = get();
-          // A bare, auto-seeded CP establishes no design. If nothing has been
-          // authored yet (no tree, no BP project), keep the Design workspace on
-          // its method chooser — matching `createNewCreasePattern` — instead of
-          // deep-linking to a TreeMaker layout for a design that doesn't exist.
-          const noDesignYet =
-            selectProject(priorState).edges.length === 0 && selectOristudioBpDocument(priorState) === null;
+          // Deliberately does **not** touch the design tabs. This used to clear
+          // the active design when it had no edges and no BP document — a test
+          // for "nothing authored yet" that a freshly created Circle-packed
+          // design also passes, because a blank tree *is* zero edges. Visiting
+          // Edit therefore threw away the design the user had just made. And
+          // with tabs it asked the wrong question anyway: whether a design exists
+          // is a fact about the tab set, not about the active tab's edge count.
+          //
+          // The case it was written for — a bare auto-seeded CP on a workspace
+          // with no designs at all — needs no clearing: every tab is already on
+          // the chooser, so there is nothing to clear.
+          //
           // Same complete editor state File › New establishes, so interactive
           // edits (undo/redo, images, tools) behave identically on this canvas.
-          set({
-            ...freshEditableCpState(document, priorState),
-            ...(noDesignYet ? clearActiveDesignContent(priorState) : {}),
-          });
+          set(freshEditableCpState(document, priorState));
         } catch (error) {
           set({ oristudioCpError: engineError(error).message });
         } finally {

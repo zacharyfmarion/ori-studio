@@ -373,6 +373,7 @@
         "description": "Esboce un árbol y deje que el empaquetado de círculos/ríos optimice la base, al estilo de TreeMaker.",
         "title": "Empaquetado de círculos"
       },
+      "creating": "Preparando el editor…",
       "groupLabel": "Método de diseño",
       "subtitle": "Elija cómo desea crear este modelo.",
       "title": "Iniciar un nuevo diseño"

@@ -362,6 +362,7 @@
         "description": "Skizzieren Sie einen Baum und lassen Sie die Kreis-/Fluss-Packung die Basis im TreeMaker-Stil optimieren.",
         "title": "Kreispackung"
       },
+      "creating": "Editor wird vorbereitet…",
       "groupLabel": "Designmethode",
       "subtitle": "Wählen Sie, wie Sie dieses Modell erstellen möchten.",
       "title": "Ein neues Design beginnen"

@@ -233,6 +233,23 @@
   opacity: 0.56;
 }
 
+/* The card being created keeps full contrast: it is the one thing still
+   happening, so dimming it with the others would hide the feedback. */
+.design-method-card[data-pending] {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+}
+
+.design-method-card__spinner {
+  animation: surface-loading-spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .design-method-card__spinner {
+    animation: none;
+  }
+}
+
 .design-method-card__icon {
   display: grid;
   width: 42px;

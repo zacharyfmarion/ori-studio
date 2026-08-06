@@ -1314,3 +1314,53 @@ describe('native project file', () => {
     expect(parsed.workspace.creasePattern?.extensions).toEqual({ futureDocFeature: { a: 1 } });
   });
 });
+
+describe('a crease-pattern-only save', () => {
+  const cpInput = (extra: Record<string, unknown> = {}) => ({
+    title: 'CP',
+    filename: 'cp.osf',
+    path: null,
+    document: { title: 'CP', lines: [], vertices: [] } as never,
+    source: null,
+    foldProjection: null,
+    foldArtifacts: null,
+    creaseColorMode: 'mvf' as const,
+    selection: { lines: [], vertices: [] } as never,
+    viewport: {} as never,
+    foldedFigures: [],
+    activeFoldedFigureId: null,
+    lineage: { kind: 'blank' as const, manualEditCount: 0, stale: false },
+    appVersion: '0.0.0',
+    ...extra,
+  });
+
+  it('carries designs of a kind this build cannot read', () => {
+    // "This file holds no designs" and "this file holds designs I cannot parse"
+    // are different claims. Writing the second as the first deletes a user's
+    // work on a round trip through an older build.
+    const unknown = [{ id: 'design-9', title: 'From the future', payload: { kind: 'origamizer' } }];
+
+    const file = createNativeCreasePatternProjectFile(cpInput({ unknownDesigns: unknown }));
+
+    expect(file.workspace.designs).toEqual([]);
+    expect(file.workspace.unknownDesigns).toEqual(unknown);
+  });
+
+  it('raises the reader bar when it carries one', () => {
+    const file = createNativeCreasePatternProjectFile(
+      cpInput({ unknownDesigns: [{ id: 'design-9' }] })
+    );
+    expect(file.minimumReaderSchemaVersion).toBe(8);
+  });
+
+  it('stays openable by older builds when it carries none', () => {
+    expect(createNativeCreasePatternProjectFile(cpInput()).minimumReaderSchemaVersion).toBe(1);
+  });
+
+  it('carries the file-level extension bag forward', () => {
+    const file = createNativeCreasePatternProjectFile(
+      cpInput({ fileExtensions: { futureThing: { a: 1 } } })
+    );
+    expect(file.extensions).toEqual({ futureThing: { a: 1 } });
+  });
+});

@@ -351,6 +351,7 @@
         "description": "勾勒一棵树，让圆/河排布以 TreeMaker 的方式优化基础。",
         "title": "圆排布"
       },
+      "creating": "正在准备编辑器…",
       "groupLabel": "设计方法",
       "subtitle": "选择你想要编写此模型的方式。",
       "title": "开始新设计"
