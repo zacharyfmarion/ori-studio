@@ -1214,7 +1214,37 @@ BP runtime singletons) foldable into 7.
   - `crease-pattern` is a reserved id a design tab may not claim.
 
 - [ ] Phase 6b — `OristudioCpLineage` removal (deferred; independent of tabs)
-- [ ] Phase 7 — contexts, capabilities, shortcuts, undo per document
+- [x] Phase 7 — contexts, capabilities, shortcuts, undo per document
+
+  **Contexts** now come from the kind descriptor. `resolveEditingContext` was a
+  switch listing `inspector`, `diagnostics`, `conditions`, and `bp-editor` by
+  name, so a third design kind could not have contexts without an edit to a
+  shared file. It looks the active pane up in the *active design's* kind instead,
+  which also makes the `design` pane polymorphic for free: both kinds declare one,
+  and the tab decides which context it means.
+
+  Two behaviour changes fell out, both fixes:
+
+  - A box-pleat design whose document is still loading reported `treemaker-tree`,
+    which put TreeMaker's Optimize and Build in a box-pleat design's toolbar for
+    that window. It reports `design-nux` now — neither kind's commands apply when
+    there is nothing to run them on.
+  - `bp-editor` used to resolve to `bp-packing` regardless of the design's kind.
+    Only a box-pleat design has that pane, so the pairing is the only reachable
+    one; a pane the active kind does not declare now falls back to that kind's
+    canvas, which is what stops the menus flickering through the other kind's
+    commands for the one render after a tab switch.
+
+  **Capabilities** were already registry-driven (Phase 0). The remaining
+  `isBpContext` in `getWorkspaceCapabilities` is *enablement* — which commands are
+  usable given BP state — not masking, and turning enablement into descriptor data
+  is a larger change than this phase describes.
+
+  **Shortcuts** needed nothing: only the active tab's dock is mounted, so the
+  existing per-surface executor registration is already per design.
+
+  **Undo/redo per document** landed with Phase 9, which is where the missing
+  addressing was found.
 - [x] Phase 8 — analytics (no names) + i18n
 
   Five events: `design tab opened` `{ source, open_count_bucket }`,
