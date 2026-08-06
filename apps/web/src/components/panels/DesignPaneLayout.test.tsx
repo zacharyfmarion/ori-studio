@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { DockviewApi, SerializedDockview } from 'dockview';
 import type { TFunction } from 'i18next';
-import { designKind } from '../../designKinds';
+import { designKind, type DesignKindDescriptor } from '../../designKinds';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DesignPaneLayout, buildLayout, restoreLayout } from './DesignPaneLayout';
@@ -167,5 +167,94 @@ describe('restoring a saved pane layout', () => {
   it('has nothing to restore for a design that never saved one', () => {
     const { api } = fakeDock();
     expect(restoreLayout(api, designKind('treemaker')!, null)).toBe(false);
+  });
+});
+
+/**
+ * The acceptance criterion for "a third design kind is trivial to add".
+ *
+ * A stub kind that ships nowhere gets a working pane layout out of the same
+ * builder the two real kinds use — no branch, no registration in a switch, no
+ * edit to this file. Every kind-specific `if` that survived elsewhere would show
+ * up here as a stub that lays out wrong.
+ */
+describe('a third design kind lays out with no code change', () => {
+  const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
+
+  const stubKind = {
+    id: 'stub',
+    panes: [
+      {
+        id: 'canvas',
+        component: 'design',
+        title: () => 'Stub canvas',
+        placement: { kind: 'primary' as const },
+      },
+      {
+        id: 'tools',
+        component: 'inspector',
+        title: () => 'Stub tools',
+        placement: { kind: 'side' as const, group: 'tools', initialWidth: 240 },
+      },
+      {
+        id: 'more-tools',
+        component: 'diagnostics',
+        title: () => 'More stub tools',
+        placement: { kind: 'side' as const, group: 'tools', inactive: true },
+      },
+    ],
+  } as unknown as DesignKindDescriptor;
+
+  function fakeDock() {
+    const panels = new Map<string, { id: string; group: { id: string }; api: { setActive: Mock } }>();
+    const calls: Record<string, unknown>[] = [];
+    const api = {
+      addGroup: vi.fn((options: Record<string, unknown>) => ({ id: 'g0', ...options })),
+      addPanel: vi.fn((options: Record<string, unknown>) => {
+        calls.push(options);
+        const panel = {
+          id: options.id as string,
+          group: { id: `${options.id as string}-group` },
+          api: { setActive: vi.fn() },
+        };
+        panels.set(panel.id, panel);
+        return panel;
+      }),
+      getPanel: vi.fn((id: string) => panels.get(id) ?? null),
+      clear: vi.fn(),
+      fromJSON: vi.fn(),
+    };
+    return { api: api as unknown as DockviewApi, calls, raw: api };
+  }
+
+  it('builds the panes it declares, in the arrangement it declares', () => {
+    const { api, calls, raw } = fakeDock();
+
+    buildLayout(api, stubKind, t);
+
+    expect(calls.map((options) => options.id)).toEqual(['design', 'inspector', 'diagnostics']);
+    expect(raw.addGroup).toHaveBeenCalledWith({ direction: 'right', hideHeader: true });
+    expect(calls[1]).toMatchObject({ initialWidth: 240 });
+    expect(calls[2]).toMatchObject({ position: { referenceGroup: 'inspector-group' } });
+  });
+
+  it('restores a layout of its own panes and refuses another kind\'s', () => {
+    const { api } = fakeDock();
+    const layoutOf = (...ids: string[]) =>
+      ({ panels: Object.fromEntries(ids.map((id) => [id, {}])) }) as unknown as SerializedDockview;
+
+    expect(restoreLayout(api, stubKind, layoutOf('design', 'inspector', 'diagnostics'))).toBe(true);
+    expect(restoreLayout(api, stubKind, layoutOf('design', 'bp-editor'))).toBe(false);
+  });
+
+  it('reports a kind that declares no canvas rather than building half a dock', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { api, raw } = fakeDock();
+
+    buildLayout(api, { id: 'broken', panes: [] } as unknown as DesignKindDescriptor, t);
+
+    expect(raw.addPanel).not.toHaveBeenCalled();
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

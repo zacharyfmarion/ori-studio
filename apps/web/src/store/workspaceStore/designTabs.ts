@@ -311,12 +311,12 @@ export function selectSymmetryAuthoringPairs(state: DesignTabsSlice, designId?: 
   return selectTreemakerDesignOrEmpty(state, designId).symmetryAuthoringPairs;
 }
 
-export function selectHistoryPast(state: DesignTabsSlice): HistoryEntry[] {
-  return selectTreemakerDesignOrEmpty(state).historyPast;
+export function selectHistoryPast(state: DesignTabsSlice, designId?: string): HistoryEntry[] {
+  return selectTreemakerDesignOrEmpty(state, designId).historyPast;
 }
 
-export function selectHistoryFuture(state: DesignTabsSlice): HistoryEntry[] {
-  return selectTreemakerDesignOrEmpty(state).historyFuture;
+export function selectHistoryFuture(state: DesignTabsSlice, designId?: string): HistoryEntry[] {
+  return selectTreemakerDesignOrEmpty(state, designId).historyFuture;
 }
 
 export function selectLastOptimization(state: DesignTabsSlice): OptimizationReport | null {

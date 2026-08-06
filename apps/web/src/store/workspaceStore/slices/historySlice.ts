@@ -375,7 +375,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
 
     const undoTree = async () => {
       if (get().activeEditingContext !== 'treemaker-tree') return false;
-      const past = selectHistoryPast(get());
+      // Addressed write: an undo round-trips the tree through `.tmd5`, and the
+      // user can switch tabs while the engine reloads it. See `mapDesignTab`.
+      const designId = get().activeDesignId;
+      const past = selectHistoryPast(get(), designId);
       const previous = past.at(-1);
       if (!previous || get().historyBusy) return false;
       set({
@@ -389,16 +392,22 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
           // The restored history rides *inside* the install rather than beside
           // it: both write `designTabs`, so a sibling spread would simply be
           // overwritten by whichever came second.
-          ...projectStateFromSnapshot(get(), snapshot, selectProject(get()).title, {
-            historyPast: past.slice(0, -1),
-            historyFuture: [
-              historyEntry(current, previous.label),
-              ...selectHistoryFuture(get()),
-            ].slice(0, MAX_HISTORY),
-            selection: { kind: 'tree' },
-            symmetryAuthoringPairs: [],
-            lastOptimization: null,
-          }),
+          ...projectStateFromSnapshot(
+            get(),
+            snapshot,
+            selectProject(get(), designId).title,
+            {
+              historyPast: past.slice(0, -1),
+              historyFuture: [
+                historyEntry(current, previous.label),
+                ...selectHistoryFuture(get(), designId),
+              ].slice(0, MAX_HISTORY),
+              selection: { kind: 'tree' },
+              symmetryAuthoringPairs: [],
+              lastOptimization: null,
+            },
+            designId
+          ),
           historyBusy: false,
           status: statusFromSnapshot(snapshot),
           dirty: true,
@@ -519,7 +528,9 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
 
     const redoTree = async () => {
       if (get().activeEditingContext !== 'treemaker-tree') return false;
-      const future = selectHistoryFuture(get());
+      // Addressed write; see the note in `undoTree`.
+      const designId = get().activeDesignId;
+      const future = selectHistoryFuture(get(), designId);
       const next = future[0];
       if (!next || get().historyBusy) return false;
       set({
@@ -532,15 +543,22 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
         set({
           // See the note in `undoTree`: the history must be installed with the
           // tree, not spread next to it.
-          ...projectStateFromSnapshot(get(), snapshot, selectProject(get()).title, {
-            historyPast: [...selectHistoryPast(get()), historyEntry(current, next.label)].slice(
-              -MAX_HISTORY
-            ),
-            historyFuture: future.slice(1),
-            selection: { kind: 'tree' },
-            symmetryAuthoringPairs: [],
-            lastOptimization: null,
-          }),
+          ...projectStateFromSnapshot(
+            get(),
+            snapshot,
+            selectProject(get(), designId).title,
+            {
+              historyPast: [
+                ...selectHistoryPast(get(), designId),
+                historyEntry(current, next.label),
+              ].slice(-MAX_HISTORY),
+              historyFuture: future.slice(1),
+              selection: { kind: 'tree' },
+              symmetryAuthoringPairs: [],
+              lastOptimization: null,
+            },
+            designId
+          ),
           historyBusy: false,
           status: statusFromSnapshot(snapshot),
           dirty: true,

@@ -279,13 +279,18 @@ export function projectStateFromSnapshot(
   state: DesignTabsSlice,
   snapshot: TreeSnapshot,
   title?: string,
-  design: Partial<TreemakerDesignState> = {}
+  design: Partial<TreemakerDesignState> = {},
+  designId: string = state.activeDesignId
 ) {
   return {
-    ...installTreemakerDesign(state, {
-      project: projectFromSnapshot(snapshot, title),
-      ...design,
-    }),
+    ...installTreemakerDesign(
+      state,
+      {
+        project: projectFromSnapshot(snapshot, title),
+        ...design,
+      },
+      designId
+    ),
     engineReady: true,
     status: 'ready' as const,
     error: null,

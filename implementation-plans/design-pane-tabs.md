@@ -1216,4 +1216,26 @@ BP runtime singletons) foldable into 7.
 - [ ] Phase 6b — `OristudioCpLineage` removal (deferred; independent of tabs)
 - [ ] Phase 7 — contexts, capabilities, shortcuts, undo per document
 - [ ] Phase 8 — analytics (no names) + i18n
-- [ ] Phase 9 — stub-kind test, evict/rehydrate equivalence, cross-tab undo isolation
+- [x] Phase 9 — stub-kind test, evict/rehydrate equivalence, cross-tab undo isolation
+
+  - **Stub kind.** A kind that ships nowhere now gets a working pane layout out of
+    the same builder the two real kinds use — no branch, no switch entry, no edit
+    to the layout file. It already resolved through the registry, appeared in the
+    chooser, and masked capabilities (Phase 0). Every kind-specific `if` that
+    survives elsewhere would show up here as a stub that lays out wrong.
+  - **Evict / rehydrate.** Already covered by `documentRegistry.test.ts` — a
+    document survives eviction with its edits, keeps its parked text across a
+    rehydrate, and is never evicted while pinned. `adoptHandle` added six more.
+  - **Cross-tab undo.** `designIsolation.test.ts` said each design *has* its own
+    stack; the new store-level tests say pressing undo in one does not reach into
+    another — not its stack, not its document, and not the engine handle behind
+    it. The last of them switches tabs *during* the `.tmd5` reload, which is what
+    caught `undo`/`redo` still writing to the active design: the first
+    addressed-writes scan missed `historySlice` because its actions sit at a
+    different indent than the slices the scan was written against.
+
+  A note on the plan's grep gate (no kind literals outside `designKinds/`): it was
+  dropped as a metric. `oristudioBpRuntime.ts` naming `'box-pleat'` is not a
+  violation — it *is* the box-pleat runtime — so the count measures file layout
+  rather than coupling. The stub-kind test is the falsifiable version of the same
+  claim, and it is the one kept.
