@@ -32,8 +32,8 @@
   },
   "closeDesign": {
     "confirm": "Cerrar el diseño",
-    "message": "Sus ediciones se descartan y no se pueden deshacer. Guarda el proyecto primero para conservarlas.",
-    "title": "¿Cerrar este diseño?"
+    "message": "Se quita del proyecto y cerrarlo no se puede deshacer. Para conservarlo, cancela y guarda el proyecto antes.",
+    "title": "¿Cerrar «{{name}}»?"
   },
   "closeGuard": {
     "discard": "Descartar",

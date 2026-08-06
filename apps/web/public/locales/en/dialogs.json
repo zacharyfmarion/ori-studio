@@ -32,8 +32,8 @@
   },
   "closeDesign": {
     "confirm": "Close design",
-    "message": "Its edits are discarded and cannot be undone. Save the project first to keep them.",
-    "title": "Close this design?"
+    "message": "It is removed from the project, and closing cannot be undone. To keep it, cancel and save the project first.",
+    "title": "Close “{{name}}”?"
   },
   "closeGuard": {
     "discard": "Discard",

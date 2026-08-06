@@ -32,8 +32,8 @@
   },
   "closeDesign": {
     "confirm": "Fechar o design",
-    "message": "As edições dele são descartadas e não podem ser desfeitas. Salve o projeto antes para mantê-las.",
-    "title": "Fechar este design?"
+    "message": "Ele é removido do projeto, e fechar não pode ser desfeito. Para mantê-lo, cancele e salve o projeto antes.",
+    "title": "Fechar “{{name}}”?"
   },
   "closeGuard": {
     "discard": "Descartar",

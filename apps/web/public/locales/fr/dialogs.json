@@ -32,8 +32,8 @@
   },
   "closeDesign": {
     "confirm": "Fermer la conception",
-    "message": "Ses modifications sont supprimées et ne peuvent pas être annulées. Enregistrez d’abord le projet pour les conserver.",
-    "title": "Fermer cette conception ?"
+    "message": "Elle est retirée du projet, et la fermeture est irréversible. Pour la conserver, annulez et enregistrez d’abord le projet.",
+    "title": "Fermer « {{name}} » ?"
   },
   "closeGuard": {
     "discard": "Abandonner",
@@ -144,7 +144,7 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {

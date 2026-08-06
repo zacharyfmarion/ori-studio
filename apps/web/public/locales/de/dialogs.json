@@ -32,8 +32,8 @@
   },
   "closeDesign": {
     "confirm": "Design schließen",
-    "message": "Die Bearbeitungen werden verworfen und lassen sich nicht rückgängig machen. Speichere das Projekt zuerst, um sie zu behalten.",
-    "title": "Dieses Design schließen?"
+    "message": "Es wird aus dem Projekt entfernt, und das Schließen lässt sich nicht rückgängig machen. Zum Behalten abbrechen und das Projekt zuerst speichern.",
+    "title": "„{{name}}“ schließen?"
   },
   "closeGuard": {
     "discard": "Verwerfen",

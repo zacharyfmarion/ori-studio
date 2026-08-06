@@ -3042,12 +3042,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     requestCloseDesignTab: async (designId) => {
       const tab = get().designTabs.find((candidate) => candidate.id === designId);
       if (!tab) return;
-      if (isDesignTouched(tab)) {
+      // Anything holding a design asks. This used to ask only when the design had
+      // undo history, which measures "edited *this session*" — and a design
+      // opened from a file starts with an empty stack, so every tab in a freshly
+      // opened project closed silently. Work the user had saved and reopened is
+      // exactly the work most worth a prompt.
+      //
+      // The one exception is a tab that has chosen no kind: it contains nothing,
+      // and a dialog asking whether you are sure about discarding nothing is a
+      // dialog about nothing.
+      if (tab.kind !== null) {
         const confirmed = await requestConfirmation({
-          title: i18n.t('dialogs:closeDesign.title', 'Close this design?'),
+          title: i18n.t('dialogs:closeDesign.title', 'Close “{{name}}”?', { name: tab.title }),
           message: i18n.t(
             'dialogs:closeDesign.message',
-            'Its edits are discarded and cannot be undone. Save the project first to keep them.'
+            'It is removed from the project, and closing cannot be undone. To keep it, cancel and save the project first.'
           ),
           confirmLabel: i18n.t('dialogs:closeDesign.confirm', 'Close design'),
           tone: 'danger',

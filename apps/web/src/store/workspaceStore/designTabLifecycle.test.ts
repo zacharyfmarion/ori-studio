@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const dialogMocks = vi.hoisted(() => ({
-  requestConfirmation: vi.fn<() => Promise<boolean>>(async () => true),
+  requestConfirmation:
+    vi.fn<(options: { title: string; message: string }) => Promise<boolean>>(async () => true),
 }));
 
 vi.mock('../commandDialogStore', async (importOriginal) => {
@@ -228,7 +229,7 @@ describe('duplicateDesignTab', () => {
 });
 
 describe('requestCloseDesignTab', () => {
-  /** A design with undo history — i.e. one the user has actually worked on. */
+  /** A design with undo history — i.e. one the user has worked on this session. */
   function seedTouchedTab() {
     useWorkspaceStore.setState({
       designTabs: [
@@ -247,18 +248,22 @@ describe('requestCloseDesignTab', () => {
     });
   }
 
-  it('closes an untouched design without asking', async () => {
-    useWorkspaceStore.getState().addDesignTab();
-    const doomed = activeId();
-
-    await useWorkspaceStore.getState().requestCloseDesignTab(doomed);
-
-    // A brand-new box-pleat tab is already dirty and full of a sample tree, so
-    // "has content" would prompt here. Undo history is the predicate that does
-    // not.
-    expect(dialogMocks.requestConfirmation).not.toHaveBeenCalled();
-    expect(tabs().some((tab) => tab.id === doomed)).toBe(false);
-  });
+  /** A design straight from a file: real work, empty undo stack. */
+  function seedUntouchedTab() {
+    useWorkspaceStore.setState({
+      designTabs: [
+        {
+          id: 'design-1',
+          title: 'Crane',
+          paneLayout: null,
+          pendingHydration: false,
+          kind: 'treemaker',
+          treemaker: createTreemakerDesignState(),
+        },
+      ],
+      activeDesignId: 'design-1',
+    });
+  }
 
   it('asks before discarding a design that has been edited', async () => {
     seedTouchedTab();
@@ -267,6 +272,42 @@ describe('requestCloseDesignTab', () => {
 
     expect(dialogMocks.requestConfirmation).toHaveBeenCalledTimes(1);
     expect(tabs().some((tab) => tab.id === 'design-1')).toBe(false);
+  });
+
+  it('asks for a design opened from a file, which has no undo history', async () => {
+    // The hole this replaced: the prompt keyed off undo depth, which measures
+    // "edited this session". A design read from a file starts with an empty
+    // stack, so every tab in a freshly opened project closed silently — and work
+    // the user had saved and reopened is exactly what most deserves a prompt.
+    seedUntouchedTab();
+
+    await useWorkspaceStore.getState().requestCloseDesignTab('design-1');
+
+    expect(dialogMocks.requestConfirmation).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the design, so the prompt says which of several is going', async () => {
+    seedUntouchedTab();
+
+    await useWorkspaceStore.getState().requestCloseDesignTab('design-1');
+
+    const options = dialogMocks.requestConfirmation.mock.calls[0]?.[0];
+    expect(options?.title).toContain('Crane');
+    // The copy has to say it is final, because it is: closing frees the design's
+    // engine handle and drops its text, so there is nothing left to restore.
+    expect(options?.message).toContain('cannot be undone');
+  });
+
+  it('closes a tab that has chosen no kind without asking', async () => {
+    // It contains nothing. A dialog asking whether you are sure about discarding
+    // nothing is a dialog about nothing.
+    useWorkspaceStore.getState().addDesignTab();
+    const empty = activeId();
+
+    await useWorkspaceStore.getState().requestCloseDesignTab(empty);
+
+    expect(dialogMocks.requestConfirmation).not.toHaveBeenCalled();
+    expect(tabs().some((tab) => tab.id === empty)).toBe(false);
   });
 
   it('keeps the design when the prompt is declined', async () => {

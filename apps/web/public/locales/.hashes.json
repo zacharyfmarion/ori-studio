@@ -2130,8 +2130,8 @@
     "panels:designTabs.moveRight": "8d60decd44f3",
     "panels:designTabs.rename": "3064d79a295c",
     "dialogs:closeDesign.confirm": "5fea810e188c",
-    "dialogs:closeDesign.message": "a2e394d2ac45",
-    "dialogs:closeDesign.title": "49c382a73b3f",
+    "dialogs:closeDesign.message": "9bde44b58663",
+    "dialogs:closeDesign.title": "05c1a49601fc",
     "panels:design.methodChooser.creating": "15c51339d09f"
   },
   "zh-CN": {
@@ -4265,8 +4265,8 @@
     "panels:designTabs.moveRight": "8d60decd44f3",
     "panels:designTabs.rename": "3064d79a295c",
     "dialogs:closeDesign.confirm": "5fea810e188c",
-    "dialogs:closeDesign.message": "a2e394d2ac45",
-    "dialogs:closeDesign.title": "49c382a73b3f",
+    "dialogs:closeDesign.message": "9bde44b58663",
+    "dialogs:closeDesign.title": "05c1a49601fc",
     "panels:design.methodChooser.creating": "15c51339d09f"
   },
   "es": {
@@ -6429,8 +6429,8 @@
     "panels:designTabs.moveRight": "8d60decd44f3",
     "panels:designTabs.rename": "3064d79a295c",
     "dialogs:closeDesign.confirm": "5fea810e188c",
-    "dialogs:closeDesign.message": "a2e394d2ac45",
-    "dialogs:closeDesign.title": "49c382a73b3f",
+    "dialogs:closeDesign.message": "9bde44b58663",
+    "dialogs:closeDesign.title": "05c1a49601fc",
     "panels:design.methodChooser.creating": "15c51339d09f"
   },
   "fr": {
@@ -8593,8 +8593,8 @@
     "panels:designTabs.moveRight": "8d60decd44f3",
     "panels:designTabs.rename": "3064d79a295c",
     "dialogs:closeDesign.confirm": "5fea810e188c",
-    "dialogs:closeDesign.message": "a2e394d2ac45",
-    "dialogs:closeDesign.title": "49c382a73b3f",
+    "dialogs:closeDesign.message": "9bde44b58663",
+    "dialogs:closeDesign.title": "05c1a49601fc",
     "panels:design.methodChooser.creating": "15c51339d09f"
   },
   "de": {
@@ -10757,8 +10757,8 @@
     "panels:designTabs.moveRight": "8d60decd44f3",
     "panels:designTabs.rename": "3064d79a295c",
     "dialogs:closeDesign.confirm": "5fea810e188c",
-    "dialogs:closeDesign.message": "a2e394d2ac45",
-    "dialogs:closeDesign.title": "49c382a73b3f",
+    "dialogs:closeDesign.message": "9bde44b58663",
+    "dialogs:closeDesign.title": "05c1a49601fc",
     "panels:design.methodChooser.creating": "15c51339d09f"
   },
   "pt-BR": {
@@ -12921,8 +12921,8 @@
     "panels:designTabs.moveRight": "8d60decd44f3",
     "panels:designTabs.rename": "3064d79a295c",
     "dialogs:closeDesign.confirm": "5fea810e188c",
-    "dialogs:closeDesign.message": "a2e394d2ac45",
-    "dialogs:closeDesign.title": "49c382a73b3f",
+    "dialogs:closeDesign.message": "9bde44b58663",
+    "dialogs:closeDesign.title": "05c1a49601fc",
     "panels:design.methodChooser.creating": "15c51339d09f"
   },
   "ru": {
@@ -15085,8 +15085,8 @@
     "panels:designTabs.moveRight": "8d60decd44f3",
     "panels:designTabs.rename": "3064d79a295c",
     "dialogs:closeDesign.confirm": "5fea810e188c",
-    "dialogs:closeDesign.message": "a2e394d2ac45",
-    "dialogs:closeDesign.title": "49c382a73b3f",
+    "dialogs:closeDesign.message": "9bde44b58663",
+    "dialogs:closeDesign.title": "05c1a49601fc",
     "panels:design.methodChooser.creating": "15c51339d09f"
   },
   "ko": {
@@ -17220,8 +17220,8 @@
     "panels:designTabs.moveRight": "8d60decd44f3",
     "panels:designTabs.rename": "3064d79a295c",
     "dialogs:closeDesign.confirm": "5fea810e188c",
-    "dialogs:closeDesign.message": "a2e394d2ac45",
-    "dialogs:closeDesign.title": "49c382a73b3f",
+    "dialogs:closeDesign.message": "9bde44b58663",
+    "dialogs:closeDesign.title": "05c1a49601fc",
     "panels:design.methodChooser.creating": "15c51339d09f"
   }
 }
