@@ -366,8 +366,35 @@ export function isNativeProjectFilename(filename: string): boolean {
   return /\.osf$/i.test(filename);
 }
 
+/**
+ * Write a project file.
+ *
+ * Designs this build could not read are written back **into `workspace.designs`**,
+ * beside the ones it could, rather than left in the `unknownDesigns` field they
+ * were parked in.
+ *
+ * That field is an in-memory distinction — "designs I can open" versus "designs I
+ * am only carrying" — and the reader has no use for it: `validateV8` builds
+ * `unknownDesigns` by scanning `workspace.designs` for kinds it does not know,
+ * and never reads the field itself. Writing them there and only there meant a
+ * design survived exactly one save and then vanished, including for the build
+ * that *could* read it. Merging here makes the file the union it is supposed to
+ * be, and costs nothing for the common case of having none.
+ */
 export function serializeNativeProjectFile(file: NativeProjectFile): string {
-  return `${JSON.stringify(file, null, 2)}\n`;
+  const unknown = 'workspace' in file ? (file.workspace.unknownDesigns ?? []) : [];
+  const written =
+    unknown.length === 0
+      ? file
+      : {
+          ...file,
+          workspace: {
+            ...file.workspace,
+            designs: [...file.workspace.designs, ...unknown],
+            unknownDesigns: [],
+          },
+        };
+  return `${JSON.stringify(written, null, 2)}\n`;
 }
 
 export function parseNativeProjectFile(text: string): NativeProjectFile {
