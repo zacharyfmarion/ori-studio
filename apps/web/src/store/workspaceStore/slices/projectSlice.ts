@@ -2526,6 +2526,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // Box Pleating Studio has no symmetry concept, and its writer rebuilds
         // the project from its own model — so this is where mirror-draw state
         // stops, whatever we did or did not put in the file.
+        // Before the confirm dialog and the export round trip: the suggested
+        // filename should name the design being exported, not whichever one the
+        // user switched to while the confirm was up.
+        const designId = get().activeDesignId;
         const symmetryLoss = guardExportLoss('bps');
         if (symmetryLoss !== true && !(await symmetryLoss)) return false;
         const contents = await exportOristudioBpProjectAsBps();
@@ -2533,7 +2537,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           title: 'Export Box Pleating Studio Project',
           contents,
           suggestedName: defaultFilename(
-            selectOristudioBpDocument(get())?.snapshot?.summary?.title || get().workspaceTitle,
+            selectOristudioBpDocument(get(), designId)?.snapshot?.summary?.title ||
+              get().workspaceTitle,
             'bps'
           ),
           path: null,
