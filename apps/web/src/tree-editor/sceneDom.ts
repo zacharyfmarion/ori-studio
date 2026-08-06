@@ -284,3 +284,29 @@ export function applyTreeChromeScale(
     if (target.fontPx !== null) target.element.style.fontSize = `${chromePx(target.fontPx)}px`;
   }
 }
+
+/**
+ * Rewrite the text of one edge's length label mid-gesture.
+ *
+ * The labels are React output, and a drag does not re-render — so without this
+ * the number the user is setting is the one thing on screen that does not follow
+ * the cursor. Falls back silently when the label is not drawn (labels are a
+ * layer, and only leaf edges carry one).
+ */
+export function applyTreeEdgeLabel(
+  root: ParentNode,
+  p1: number,
+  p2: number,
+  text: string
+): void {
+  const selector =
+    `[${TREE_SCENE_ATTR.anchor}="edge-label"]` +
+    `[${TREE_SCENE_ATTR.p1}="${p1}"][${TREE_SCENE_ATTR.p2}="${p2}"]`;
+  const element =
+    root.querySelector<SVGElement>(selector) ??
+    root.querySelector<SVGElement>(
+      `[${TREE_SCENE_ATTR.anchor}="edge-label"]` +
+        `[${TREE_SCENE_ATTR.p1}="${p2}"][${TREE_SCENE_ATTR.p2}="${p1}"]`
+    );
+  if (element) element.textContent = text;
+}

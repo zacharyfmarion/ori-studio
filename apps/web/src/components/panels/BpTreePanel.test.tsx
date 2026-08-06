@@ -246,6 +246,15 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
   if (!body) throw new Error('BP tree panel body did not render');
   Object.defineProperty(body, 'clientWidth', { configurable: true, value: 900 });
   Object.defineProperty(body, 'clientHeight', { configurable: true, value: 720 });
+  // jsdom measures every element as zero-sized, and a zero-sized canvas maps
+  // *every* client point to the same tree point — so without this a "drag"
+  // travels nowhere and the gestures below would pass against a canvas that
+  // cannot tell one pointer position from another.
+  const canvas = container.querySelector('svg.bp-tree-canvas');
+  if (canvas) {
+    canvas.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 900, height: 720, right: 900, bottom: 720, x: 0, y: 0 }) as DOMRect;
+  }
   return body;
 }
 
@@ -710,7 +719,14 @@ describe('BP tree pane — pairings survive mirror draw being off', () => {
         new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 460, clientY: 360 })
       );
     });
-    expect(actions.moveOristudioBpTreeVerticesWithSymmetry).toHaveBeenCalledTimes(1);
+    // Either mirrored path counts: a drag that also changed the edge's length
+    // commits through `setOristudioBpTreeEdgeLength`, which mirrors the length
+    // onto the partner edge and reflects its subtree. What must never happen is
+    // the *unmirrored* move, whatever the toggle says.
+    const mirrored =
+      actions.moveOristudioBpTreeVerticesWithSymmetry.mock.calls.length +
+      actions.setOristudioBpTreeEdgeLength.mock.calls.length;
+    expect(mirrored).toBe(1);
     expect(actions.moveOristudioBpTreeVertices).not.toHaveBeenCalled();
   });
 });

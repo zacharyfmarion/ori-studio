@@ -67,6 +67,13 @@ describe('translatePoints', () => {
   });
 });
 
+/**
+ * The drag rule sets the dragged edge's **length as well as its direction**, and
+ * carries the subtree rigidly.
+ *
+ * Holding the length fixed reduces it exactly to the rotation-only rule it
+ * replaces, which is why the rotation cases below still read the way they did.
+ */
 describe('treeDragUpdates', () => {
   //   0 (root) --- 1 --- 2
   const vertices = new Map([
@@ -74,6 +81,23 @@ describe('treeDragUpdates', () => {
     [1, { x: 1, y: 0 }],
     [2, { x: 2, y: 0 }],
   ]);
+
+  /** Lengths that never change, so a drag is a pure rotation. */
+  const held = (current: number) => ({
+    current,
+    min: 1,
+    max: null,
+    step: 1,
+    quantize: () => current,
+  });
+  /** Whole grid cells, as box-pleat has. */
+  const snapped = (current: number) => ({
+    current,
+    min: 1,
+    max: null,
+    step: 1,
+    quantize: (distance: number) => Math.round(distance),
+  });
 
   it('moves nothing when the root is dragged', () => {
     const moved = treeDragUpdates({
@@ -83,8 +107,9 @@ describe('treeDragUpdates', () => {
       subtreeIds: [0, 1, 2],
       start: { x: 0, y: 0 },
       target: { x: 3, y: 5 },
+      length: held(1),
     });
-    expect(moved.size).toBe(0);
+    expect(moved.updates.size).toBe(0);
   });
 
   it('rotates a vertex and its subtree about its parent, preserving edge lengths', () => {
@@ -96,18 +121,91 @@ describe('treeDragUpdates', () => {
       start: { x: 1, y: 0 },
       // A quarter turn about the root.
       target: { x: 0, y: 4 },
-    });
+      length: held(1),
+    }).updates;
     const one = moved.get(1);
     const two = moved.get(2);
     expect(one?.x).toBeCloseTo(0);
     expect(one?.y).toBeCloseTo(1);
     expect(two?.x).toBeCloseTo(0);
     expect(two?.y).toBeCloseTo(2);
-    // Untouched: rotation is scoped to the subtree.
+    // Untouched: the move is scoped to the subtree.
     expect(moved.has(0)).toBe(false);
     // Every edge keeps its length — the invariant the whole rule exists for.
     expect(Math.hypot(one!.x - 0, one!.y - 0)).toBeCloseTo(1);
     expect(Math.hypot(two!.x - one!.x, two!.y - one!.y)).toBeCloseTo(1);
+  });
+
+  it('takes the length the cursor distance snaps to, and carries the subtree out', () => {
+    const result = treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices,
+      subtreeIds: [1, 2],
+      start: { x: 1, y: 0 },
+      // Straight out along the same line, past the midpoint between 3 and 4.
+      target: { x: 3.6, y: 0 },
+      length: snapped(1),
+    });
+    expect(result.length).toBe(4);
+    expect(result.updates.get(1)!.x).toBeCloseTo(4);
+    // The child rode out with it, and the edge between them is untouched.
+    expect(result.updates.get(2)!.x).toBeCloseTo(5);
+    expect(
+      Math.hypot(
+        result.updates.get(2)!.x - result.updates.get(1)!.x,
+        result.updates.get(2)!.y - result.updates.get(1)!.y
+      )
+    ).toBeCloseTo(1);
+  });
+
+  it('holds the length while the cursor is nearer the one it already has', () => {
+    const result = treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices,
+      subtreeIds: [1, 2],
+      // Turned a quarter and pulled to 1.4 — nearer 1 than 2, so it only turns.
+      start: { x: 1, y: 0 },
+      target: { x: 0, y: 1.4 },
+      length: snapped(1),
+    });
+    expect(result.length).toBe(1);
+    expect(result.updates.get(1)!.x).toBeCloseTo(0);
+    expect(result.updates.get(1)!.y).toBeCloseTo(1);
+  });
+
+  it('never goes below the floor, however far in the cursor comes', () => {
+    const result = treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices,
+      subtreeIds: [1, 2],
+      start: { x: 1, y: 0 },
+      target: { x: 0.05, y: 0 },
+      length: snapped(1),
+    });
+    expect(result.length).toBe(1);
+  });
+
+  it('stops the gesture at the surface bounds instead of deforming the subtree', () => {
+    const result = treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices,
+      subtreeIds: [1, 2],
+      start: { x: 1, y: 0 },
+      // Wants length 6, but nothing may go past x = 3.
+      target: { x: 6, y: 0 },
+      length: snapped(1),
+      bounds: (point) => point.x <= 3 + 1e-9,
+    });
+    for (const point of result.updates.values()) expect(point.x).toBeLessThanOrEqual(3 + 1e-9);
+    // Rigidity is the point: clamping each vertex onto the wall would have left
+    // the child sitting on top of its parent.
+    const one = result.updates.get(1)!;
+    const two = result.updates.get(2)!;
+    expect(Math.hypot(two.x - one.x, two.y - one.y)).toBeCloseTo(1);
   });
 
   it('moves nothing when the parent is unknown', () => {
@@ -119,7 +217,8 @@ describe('treeDragUpdates', () => {
         subtreeIds: [1, 2],
         start: { x: 1, y: 0 },
         target: { x: 0, y: 1 },
-      }).size
+        length: held(1),
+      }).updates.size
     ).toBe(0);
   });
 
@@ -132,7 +231,8 @@ describe('treeDragUpdates', () => {
         subtreeIds: [2],
         start: { x: 1, y: 0 },
         target: { x: 0, y: 1 },
-      }).size
+        length: held(1),
+      }).updates.size
     ).toBe(0);
   });
 });
@@ -141,9 +241,9 @@ describe('treeDragUpdates', () => {
  * A paired vertex may not be dragged across the mirror.
  *
  * Its partner is reflected across the same line, so crossing it swaps the two —
- * the drawing turns inside out. A drag rotates rigidly about the parent, so the
- * limit is on the *angle*: sweep from where it is now, which is valid, and stop
- * at the first held vertex that would reach the line.
+ * the drawing turns inside out. The gesture is swept from where it is now, which
+ * is valid, toward what the cursor asked for, and stopped at the first held
+ * vertex that would reach the line.
  */
 describe('treeDragUpdates — the mirror is a wall', () => {
   // Vertical through x = 10, as the BP tree's mirror always is.
@@ -158,6 +258,9 @@ describe('treeDragUpdates — the mirror is a wall', () => {
   // counts as sitting on the axis.
   const CLEARANCE = 0.02;
 
+  /** Length held fixed, so these stay tests about the angle alone. */
+  const held = (current: number) => ({ current, min: 1, max: null, step: 1, quantize: () => current });
+
   function drag(target: Point, heldIds: number[]) {
     return treeDragUpdates({
       vertexId: 1,
@@ -166,11 +269,12 @@ describe('treeDragUpdates — the mirror is a wall', () => {
       subtreeIds: [1],
       start: { x: 11, y: 10 },
       target,
+      length: held(1),
       mirror:
         heldIds.length > 0
           ? { axis, heldIds: new Set(heldIds), clearance: CLEARANCE }
           : null,
-    });
+    }).updates;
   }
 
   it('stops a held vertex short of the line, not on it', () => {
@@ -178,7 +282,8 @@ describe('treeDragUpdates — the mirror is a wall', () => {
     // the line: a vertex *on* the mirror is at the same point as its reflection,
     // so a pair that reached it would be two nodes stacked on one spot.
     const moved = drag({ x: 9, y: 10 }, [1]);
-    expect(moved.get(1)?.x).toBeCloseTo(10 + CLEARANCE, 9);
+    expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-6);
+    expect(moved.get(1)!.x).toBeLessThan(10 + CLEARANCE + 0.01);
   });
 
   it('lets it swing right up to the line and no further, from either direction', () => {
@@ -187,7 +292,7 @@ describe('treeDragUpdates — the mirror is a wall', () => {
       { x: 9, y: 16 },
     ]) {
       const moved = drag(target, [1]);
-      expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-9);
+      expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-6);
     }
   });
 
@@ -197,9 +302,9 @@ describe('treeDragUpdates — the mirror is a wall', () => {
   });
 
   it('does not interfere with a rotation that stays on its own side', () => {
-    const held = drag({ x: 10 + Math.SQRT1_2, y: 10 + Math.SQRT1_2 }, [1]);
+    const heldDrag = drag({ x: 10 + Math.SQRT1_2, y: 10 + Math.SQRT1_2 }, [1]);
     const free = drag({ x: 10 + Math.SQRT1_2, y: 10 + Math.SQRT1_2 }, []);
-    expect(held.get(1)).toEqual(free.get(1));
+    expect(heldDrag.get(1)).toEqual(free.get(1));
   });
 
   it('never lets a whole subtree cross, not just the grabbed vertex', () => {
@@ -217,10 +322,35 @@ describe('treeDragUpdates — the mirror is a wall', () => {
       subtreeIds: [1, 2],
       start: { x: 12, y: 10 },
       target: { x: 8, y: 11 },
+      length: held(2),
       mirror: { axis, heldIds: new Set([1, 2]), clearance: CLEARANCE },
+    }).updates;
+    expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-6);
+    expect(moved.get(2)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-6);
+  });
+
+  it('holds a lengthening drag back from the mirror too', () => {
+    // The wall now has two ways to be hit: turning toward it, and simply growing
+    // past it. The sweep covers both because it moves along the whole gesture.
+    const result = treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices: new Map<number, Point>([
+        [0, { x: 10, y: 10 }],
+        [1, { x: 9, y: 10 }],
+      ]),
+      subtreeIds: [1],
+      start: { x: 9, y: 10 },
+      // Straight out to the left, which would take it to x = 4 — but it is held
+      // on its own (left) side and must not be pushed through the axis.
+      target: { x: 4, y: 10 },
+      length: { current: 1, min: 1, max: null, step: 1, quantize: (d) => Math.round(d) },
+      mirror: { axis, heldIds: new Set([1]), clearance: CLEARANCE },
     });
-    expect(moved.get(1)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-9);
-    expect(moved.get(2)!.x).toBeGreaterThanOrEqual(10 + CLEARANCE - 1e-9);
+    // Growing away from the mirror is fine — this one is checking the sweep does
+    // not spuriously refuse it.
+    expect(result.updates.get(1)!.x).toBeLessThanOrEqual(10 - CLEARANCE);
+    expect(result.length).toBe(6);
   });
 
   it('leaves a vertex whose circle never meets the mirror unclamped', () => {
@@ -237,8 +367,9 @@ describe('treeDragUpdates — the mirror is a wall', () => {
       subtreeIds: [1],
       start: { x: 17, y: 10 },
       target: { x: 15, y: 10 },
+      length: held(1),
       mirror: { axis, heldIds: new Set([1]), clearance: CLEARANCE },
-    });
+    }).updates;
     expect(moved.get(1)?.x).toBeCloseTo(15, 9);
   });
 });

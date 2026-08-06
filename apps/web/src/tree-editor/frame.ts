@@ -17,6 +17,14 @@ export interface TreeFrame {
   /** The nearest allowed tree point. Identity on an unbounded frame. */
   constrain(point: Point): Point;
   /**
+   * Whether a tree point is allowed at all.
+   *
+   * The predicate form of {@link constrain}, and the one a drag uses: a gesture
+   * is stopped at the boundary as a whole, rather than each vertex being clamped
+   * onto it, which would silently deform a rigid subtree swung against the edge.
+   */
+  contains(point: Point): boolean;
+  /**
    * SVG units per one tree unit.
    *
    * Drives the camera's opening zoom and converts screen-pixel tolerances into
@@ -49,6 +57,7 @@ export function createUnboundedTreeFrame(options: UnboundedFrameOptions): TreeFr
     toSvg: (point) => ({ x: origin.x + point.x * unitSvg, y: origin.y - point.y * unitSvg }),
     fromSvg: (point) => ({ x: (point.x - origin.x) / unitSvg, y: (origin.y - point.y) / unitSvg }),
     constrain: (point) => point,
+    contains: () => true,
     unitSvg,
     worldRect,
   };

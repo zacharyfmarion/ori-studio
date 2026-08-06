@@ -1,4 +1,5 @@
-import { treeDragUpdates, type TreeDragMirror } from './dragRule';
+import { treeDragUpdates, type TreeDragLengthRule, type TreeDragMirror } from './dragRule';
+import { createQuantizeState, type QuantizeState } from './lengths';
 import { hasPassedDragThreshold } from '../lib/pointerGesture';
 import {
   applyTreeScenePositions,
@@ -32,8 +33,19 @@ export interface TreeDragStart {
   subtreeIds: readonly number[];
   /** Holds paired vertices in their own half of the mirror. Null when none are. */
   mirror?: TreeDragMirror | null;
-  /** The nearest allowed tree point, from the surface's frame. */
-  constrain: (point: Point) => Point;
+  /** Where the gesture may put a vertex. Omit on a surface with no bounds. */
+  bounds?: (point: Point) => boolean;
+  /**
+   * How the dragged edge's length follows the cursor, and its starting value.
+   *
+   * `quantize` takes the per-gesture snapping state this session owns, so the
+   * length does not flicker while the cursor sits on a snap boundary.
+   */
+  length: Omit<TreeDragLengthRule, 'quantize'> & {
+    quantize: (distance: number, state: QuantizeState) => number;
+  };
+  /** Live readout of the dragged edge's length, written straight to the label. */
+  onLength?: (length: number) => void;
   clientStart: Point;
   /** Client point to tree space. Owns the camera, so the controller need not. */
   toTreePoint: (client: Point) => Point;
@@ -50,6 +62,8 @@ export interface TreeDragSession {
   readonly vertexId: number;
   /** Where this drag would leave each moved vertex. Empty until it moves. */
   readonly updates: ReadonlyMap<number, Point>;
+  /** The length the dragged edge would take. */
+  readonly length: number;
   /** Whether the pointer has travelled far enough to be a drag and not a click. */
   readonly moved: boolean;
   /** Record a pointer sample. The DOM is written on the next frame. */
@@ -65,7 +79,9 @@ export function startTreeDrag(input: TreeDragStart): TreeDragSession {
     parentId,
     vertices,
     subtreeIds,
-    constrain,
+    bounds,
+    length,
+    onLength,
     mirror = null,
     clientStart,
     toTreePoint,
@@ -87,6 +103,10 @@ export function startTreeDrag(input: TreeDragStart): TreeDragSession {
   let targets: TreeSceneTarget[] | null = null;
 
   let updates: ReadonlyMap<number, Point> = new Map();
+  let edgeLength = length.current;
+  // Snapping remembers what it last answered, so the length does not flicker
+  // while the cursor sits on a boundary. Per gesture, so it resets with it.
+  const quantizeState = createQuantizeState();
   let moved = false;
   let pending: Point | null = null;
   let frame: number | null = null;
@@ -99,8 +119,8 @@ export function startTreeDrag(input: TreeDragStart): TreeDragSession {
     const client = pending;
     pending = null;
     if (!client) return;
-    const target = constrain(toTreePoint(client));
-    const rotated = treeDragUpdates({
+    const target = toTreePoint(client);
+    const result = treeDragUpdates({
       vertexId,
       parentId,
       vertices,
@@ -108,10 +128,17 @@ export function startTreeDrag(input: TreeDragStart): TreeDragSession {
       start,
       target,
       mirror,
+      bounds,
+      length: {
+        ...length,
+        quantize: (distance) => length.quantize(distance, quantizeState),
+      },
     });
-    const next = new Map<number, Point>();
-    for (const [id, loc] of rotated) next.set(id, constrain(loc));
-    updates = next;
+    updates = result.updates;
+    if (result.length !== edgeLength) {
+      edgeLength = result.length;
+      onLength?.(edgeLength);
+    }
     targets ??= collectTreeSceneTargets(root, new Set(subtreeIds));
     applyTreeScenePositions(
       targets,
@@ -127,6 +154,9 @@ export function startTreeDrag(input: TreeDragStart): TreeDragSession {
     vertexId,
     get updates() {
       return updates;
+    },
+    get length() {
+      return edgeLength;
     },
     get moved() {
       return moved;

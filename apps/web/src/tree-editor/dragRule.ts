@@ -2,12 +2,14 @@ import { axisDirection, type SymmetryAxis } from '../lib/symmetryGeometry';
 import type { Point } from '../lib/geometry';
 
 /**
- * Geometry for the length-faithful BP tree editor: leaves are added at a fixed
- * length from their parent, and dragging rotates a vertex (and its subtree)
- * rigidly around its parent so every edge keeps its length.
+ * Geometry for a length-faithful tree editor.
+ *
+ * The rule everything here serves: **dragging a vertex sets both the direction
+ * and the length of its edge to the parent**, with its subtree carried rigidly,
+ * and the length quantized by whatever the surface says an admissible length is.
  */
 
-/** Location for a new unit-length leaf on `parent`, pointing toward `toward`. */
+/** Location for a new leaf on `parent`, `length` units toward `toward`. */
 export function leafLocationAt(parent: Point, toward: Point, length = 1): Point {
   const dx = toward.x - parent.x;
   const dy = toward.y - parent.y;
@@ -22,8 +24,8 @@ export function leafLocationAt(parent: Point, toward: Point, length = 1): Point 
  * Normalized to (-π, π]: the raw difference of two `atan2` results spans
  * (-2π, 2π), so a drag that crosses the branch cut reports a nearly-full turn in
  * the opposite direction. The rotation it describes is the same either way — but
- * anything that reasons about *how far* the drag has turned, such as
- * {@link clampRotationToMirror}, needs the short way round.
+ * the sweep reasons about *how far* the gesture has turned, and needs the short
+ * way round.
  */
 export function rotationBetween(pivot: Point, from: Point, to: Point): number {
   const oldAngle = Math.atan2(from.y - pivot.y, from.x - pivot.x);
@@ -65,11 +67,6 @@ export function rotatePointsAround(
 function normalizeSignedAngle(angle: number): number {
   const wrapped = ((angle % TAU) + TAU) % TAU;
   return wrapped > Math.PI ? wrapped - TAU : wrapped;
-}
-
-/** To [0, 2π) — how far you travel going one way. */
-function forwardAngle(angle: number): number {
-  return ((angle % TAU) + TAU) % TAU;
 }
 
 const TAU = Math.PI * 2;
@@ -123,107 +120,245 @@ export interface TreeDragInput {
   /** Where the dragged vertex started, and where the cursor wants it. */
   start: Point;
   target: Point;
+  /** How the dragged edge's length follows the cursor. */
+  length: TreeDragLengthRule;
   /** Absent when nothing in the subtree is paired. */
   mirror?: TreeDragMirror | null;
+  /**
+   * Where the gesture is allowed to put a vertex — box-pleat passes its sheet.
+   *
+   * A predicate on the *gesture* rather than a clamp on each point, which is
+   * what keeps the subtree rigid: clamping points individually silently changed
+   * the internal edge lengths of any subtree swung against the sheet edge.
+   */
+  bounds?: (point: Point) => boolean;
 }
 
-/**
- * How far this point may rotate about `pivot` in `direction` before it reaches
- * the mirror, in radians. `Infinity` when its circle never meets the line.
- *
- * A rotating point traces a circle, so its signed distance from the axis is
- * `d(pivot) + r·cos(φ - ψ)` — where ψ is the axis normal's angle. That is zero
- * at two angles, and rotating from a valid start the first one reached is the
- * edge of the half the point is currently in.
- */
-function rotationToMirror(
-  pivot: Point,
-  point: Point,
-  axis: SymmetryAxis,
-  direction: 1 | -1,
-  clearance: number
-): number {
-  const radius = Math.hypot(point.x - pivot.x, point.y - pivot.y);
-  if (radius < 1e-9) return Number.POSITIVE_INFINITY;
-  const normal = axisDirection({ ...axis, angle: axis.angle + 90 });
-  const distanceFromAxis = (p: Point) =>
-    (p.x - axis.loc.x) * normal.x + (p.y - axis.loc.y) * normal.y;
-  // The wall sits `clearance` short of the line, in the half the point is in.
-  const side = distanceFromAxis(point) < 0 ? -1 : 1;
-  const cosine = (side * clearance - distanceFromAxis(pivot)) / radius;
-  // The circle stays wholly on one side, so no rotation can take it across.
-  if (Math.abs(cosine) > 1) return Number.POSITIVE_INFINITY;
-  const half = Math.acos(cosine);
-  const normalAngle = Math.atan2(normal.y, normal.x);
-  const current = Math.atan2(point.y - pivot.y, point.x - pivot.x);
-  return Math.min(
-    forwardAngle(direction * (normalAngle + half - current)),
-    forwardAngle(direction * (normalAngle - half - current))
-  );
+/** How the dragged edge's length follows the cursor. */
+export interface TreeDragLengthRule {
+  /** The edge's committed length, which the gesture starts from. */
+  current: number;
+  min: number;
+  max: number | null;
+  /** Gap between admissible lengths, or null when any length will do. */
+  step: number | null;
+  /** Cursor distance from the pivot → an admissible length. */
+  quantize: (distance: number) => number;
 }
 
-/**
- * Narrow a rotation so no held vertex crosses the mirror.
- *
- * Clamped rather than solved: the rotation is swept from where it is now — which
- * is valid — toward what the cursor asked for, and stopped at the first vertex
- * that would reach the line. That is the "slide until it hits the wall"
- * behaviour a drag wants, and it sidesteps the fact that the set of angles
- * satisfying every held vertex at once can be disconnected.
- */
-export function clampRotationToMirror(
-  delta: number,
+export interface TreeDragResult {
+  /** Every vertex the drag moves, and where to. */
+  updates: Map<number, Point>;
+  /** The length the dragged edge takes. Unchanged when the drag only rotates. */
+  length: number;
+}
+
+const EMPTY_RESULT = (length: number): TreeDragResult => ({ updates: new Map(), length });
+
+/** Rotate about `pivot` by `angle`, then push out along the rotated direction. */
+function rotateAndExtend(
   pivot: Point,
-  points: Iterable<readonly [number, Point]>,
-  mirror: TreeDragMirror
-): number {
-  if (delta === 0) return delta;
-  const direction = delta > 0 ? 1 : -1;
-  let limit = Math.abs(delta);
+  angle: number,
+  extension: number,
+  direction: Point,
+  points: Iterable<readonly [number, Point]>
+): Map<number, Point> {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const dx = extension * direction.x;
+  const dy = extension * direction.y;
+  const out = new Map<number, Point>();
   for (const [id, point] of points) {
-    if (!mirror.heldIds.has(id)) continue;
-    limit = Math.min(
-      limit,
-      rotationToMirror(pivot, point, mirror.axis, direction, mirror.clearance)
-    );
+    const ox = point.x - pivot.x;
+    const oy = point.y - pivot.y;
+    out.set(id, {
+      x: pivot.x + ox * cos - oy * sin + dx,
+      y: pivot.y + ox * sin + oy * cos + dy,
+    });
   }
-  return direction * limit;
+  return out;
 }
 
 /**
- * Every vertex a drag moves, and where to.
+ * The largest `t` in [0, 1] the gesture may reach.
  *
- * The rule this encodes: **dragging a vertex rotates it and its subtree about
- * its parent**, so no edge ever changes length. It is a pure function so the
- * live preview and the committed move are the same computation rather than two
- * copies that can drift apart.
+ * `t = 0` is the committed state and so is valid by construction; the sweep runs
+ * from there toward what the cursor asked for and stops at the first violation.
+ * Coarse steps find the interval, then a bisection narrows it.
+ *
+ * A sweep rather than a solve, because the set of valid (angle, length) pairs is
+ * not convex and can be disconnected — the old rule had one degree of freedom
+ * and an `acos` for the answer; two degrees of freedom do not.
+ */
+function largestValidT(isValid: (t: number) => boolean): number {
+  if (isValid(1)) return 1;
+  const COARSE_STEPS = 16;
+  const BISECTIONS = 10;
+  let low = 0;
+  let high = 1;
+  for (let step = 1; step <= COARSE_STEPS; step += 1) {
+    const t = step / COARSE_STEPS;
+    if (!isValid(t)) {
+      high = t;
+      low = (step - 1) / COARSE_STEPS;
+      break;
+    }
+    low = t;
+  }
+  for (let i = 0; i < BISECTIONS; i += 1) {
+    const mid = (low + high) / 2;
+    if (isValid(mid)) low = mid;
+    else high = mid;
+  }
+  return low;
+}
+
+/**
+ * Every vertex a drag moves, where to, and what it does to the dragged edge.
+ *
+ * The rule this encodes: **dragging a vertex sets both the direction and the
+ * length of its edge to the parent**, and its whole subtree comes along rigidly.
+ * The length is whatever the surface's quantizer makes of the cursor distance —
+ * whole grid cells for box-pleat, the distance itself for a surface with no
+ * grid. So a flap dragged out past the midpoint becomes longer; one swung around
+ * at the same radius just turns.
+ *
+ * Every edge *inside* the subtree keeps its length (a rotation composed with a
+ * translation is an isometry, applied uniformly), and exactly one edge changes:
+ * the one being dragged. With the length held fixed it reduces exactly to the
+ * rotation-only rule this replaces.
+ *
+ * A pure function, so the live preview and the committed move are the same
+ * computation rather than two copies that can drift apart.
  *
  * The root has no parent to rotate about, so it does not move. Sliding it alone
- * would stretch every edge below it, and sliding the tree with it only shifts
- * a drawing the optimizer is free to place anywhere.
- *
- * Returns an empty map when the drag can't be resolved (the root, or an unknown
- * parent), which reads at the call site as "this drag moves nothing".
+ * would stretch every edge below it, and sliding the tree with it only shifts a
+ * drawing the optimizer is free to place anywhere.
  */
-export function treeDragUpdates(input: TreeDragInput): Map<number, Point> {
-  const { vertexId, parentId, vertices, subtreeIds, start, target } = input;
+export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
+  const { vertexId, parentId, vertices, subtreeIds, start, target, length, bounds } = input;
 
-  if (parentId === null) return new Map();
+  if (parentId === null) return EMPTY_RESULT(length.current);
 
   const pivot = vertices.get(parentId);
-  if (!pivot) return new Map();
+  if (!pivot) return EMPTY_RESULT(length.current);
 
   const subtree = subtreeIds.flatMap((id) => {
     const loc = vertices.get(id);
     return loc ? [[id, loc] as const] : [];
   });
-  // The dragged vertex must be in the set it rotates with, or the cursor would
+  // The dragged vertex must be in the set it moves with, or the cursor would
   // pull the subtree while leaving the grabbed vertex behind.
-  if (!subtree.some(([id]) => id === vertexId)) return new Map();
+  if (!subtree.some(([id]) => id === vertexId)) return EMPTY_RESULT(length.current);
 
-  const requested = rotationBetween(pivot, start, target);
-  const delta = input.mirror
-    ? clampRotationToMirror(requested, pivot, subtree, input.mirror)
-    : requested;
-  return rotatePointsBy(pivot, delta, subtree);
+  const startRadius = Math.hypot(start.x - pivot.x, start.y - pivot.y);
+  const startAngle = Math.atan2(start.y - pivot.y, start.x - pivot.x);
+  const cursorRadius = Math.hypot(target.x - pivot.x, target.y - pivot.y);
+
+  // With the cursor on the pivot the direction is noise, so hold the one the
+  // gesture already has rather than snapping somewhere arbitrary.
+  const requestedAngle =
+    cursorRadius < 1e-9
+      ? 0
+      : normalizeSignedAngle(Math.atan2(target.y - pivot.y, target.x - pivot.x) - startAngle);
+  // Quantized **once**, here. Snapping carries hysteresis, and calling it again
+  // from inside the sweep would let a search step move the boundary it is
+  // searching against.
+  const requested = clampToRule(length.quantize(cursorRadius), length);
+  const requestedExtension = requested - startRadius;
+
+  const at = (angle: number, extension: number) => {
+    const direction = { x: Math.cos(startAngle + angle), y: Math.sin(startAngle + angle) };
+    return rotateAndExtend(pivot, angle, extension, direction, subtree);
+  };
+  // Bounds are enforced only on vertices that start inside them. A vertex that
+  // is already outside — a file drawn against a larger sheet, a tree whose
+  // sheet was shrunk under it — was not put there by this gesture, and refusing
+  // to move it would leave it stuck there forever.
+  const bounded = bounds
+    ? subtree.filter(([, point]) => bounds(point)).map(([id]) => id)
+    : [];
+  const isValid = (moved: Map<number, Point>) => {
+    // Finiteness first, and not as paranoia: every other check here is a `<`,
+    // and `NaN < anything` is false — so a degenerate state would sail through
+    // all of them and be committed as valid.
+    for (const point of moved.values()) {
+      if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return false;
+    }
+    if (bounds) {
+      for (const id of bounded) {
+        const point = moved.get(id);
+        if (point && !bounds(point)) return false;
+      }
+    }
+    if (!input.mirror) return true;
+    return heldStaysInPlace(moved, subtree, input.mirror);
+  };
+
+  const t = largestValidT((step) => isValid(at(requestedAngle * step, requestedExtension * step)));
+  const angle = requestedAngle * t;
+  const reached = startRadius + requestedExtension * t;
+
+  // The sweep is continuous but the committed length must be admissible, so the
+  // achieved radius is snapped back onto the rule — and re-checked, because
+  // snapping can push it over the wall the sweep just stopped at. Candidates run
+  // from what the user asked for back toward no change at all; every one of them
+  // is validated, and the last resort is moving nothing, which always is.
+  for (const candidate of lengthCandidates(requested, reached, length)) {
+    const moved = at(angle, candidate - startRadius);
+    if (isValid(moved)) return { updates: moved, length: candidate };
+  }
+  return EMPTY_RESULT(length.current);
+}
+
+function clampToRule(value: number, rule: TreeDragLengthRule): number {
+  return Math.min(rule.max ?? Number.POSITIVE_INFINITY, Math.max(rule.min, value));
+}
+
+/**
+ * Admissible lengths to try, nearest what the cursor asked for first.
+ *
+ * Arithmetic rather than another `quantize` call, so the snap hysteresis is
+ * touched exactly once per pointer sample — by the cursor, which is the only
+ * thing entitled to move it.
+ */
+function lengthCandidates(
+  requested: number,
+  reached: number,
+  rule: TreeDragLengthRule
+): number[] {
+  const candidates: number[] = [];
+  const push = (value: number) => {
+    const clamped = clampToRule(value, rule);
+    if (!candidates.includes(clamped)) candidates.push(clamped);
+  };
+  push(requested);
+  // A stepless rule can stop anywhere, so where the sweep actually reached is
+  // itself admissible and is the best second guess.
+  if (rule.step === null) push(reached);
+  else {
+    const toward = requested > reached ? -rule.step : rule.step;
+    for (let i = 1; i <= 2; i += 1) push(requested + toward * i);
+  }
+  push(rule.current);
+  return candidates;
+}
+
+/** Whether every held vertex is still clear of the mirror, on its own side. */
+function heldStaysInPlace(
+  moved: ReadonlyMap<number, Point>,
+  subtree: readonly (readonly [number, Point])[],
+  mirror: TreeDragMirror
+): boolean {
+  const normal = axisDirection({ ...mirror.axis, angle: mirror.axis.angle + 90 });
+  const signedDistance = (point: Point) =>
+    (point.x - mirror.axis.loc.x) * normal.x + (point.y - mirror.axis.loc.y) * normal.y;
+  for (const [id, origin] of subtree) {
+    if (!mirror.heldIds.has(id)) continue;
+    const next = moved.get(id);
+    if (!next) continue;
+    const side = signedDistance(origin) < 0 ? -1 : 1;
+    if (side * signedDistance(next) < mirror.clearance - 1e-9) return false;
+  }
+  return true;
 }

@@ -120,6 +120,11 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
       toSvg: (point) => bpTreePointToSvg(point, tree.sheet, paperRect),
       fromSvg: (point) => svgToBpTreePoint(point, tree.sheet, paperRect),
       constrain: (point) => constrainBpTreePoint(point, tree.sheet),
+      contains: (point) =>
+        point.x >= 0 &&
+        point.x <= Math.max(0, tree.sheet.width) &&
+        point.y >= 0 &&
+        point.y <= Math.max(0, tree.sheet.height),
       unitSvg: bpTreeUnitToSvg(tree.sheet, paperRect),
       worldRect,
     }),

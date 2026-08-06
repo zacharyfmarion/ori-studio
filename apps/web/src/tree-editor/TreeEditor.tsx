@@ -25,6 +25,7 @@ import { BpNameEditor } from '../components/panels/BpNameEditor';
 import { isViewportInteractiveTarget } from '../components/panels/ViewportToolbar';
 import {
   applyTreeChromeScale,
+  applyTreeEdgeLabel,
   applyTreeGhost,
   applyTreeScenePositions,
   collectAllTreeSceneTargets,
@@ -166,6 +167,37 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
 
   const findVertex = useCallback((id: number) => vertexById.get(id), [vertexById]);
 
+  /**
+   * Where a click would put a new leaf: in the direction of the click, at the
+   * length the click's *distance* quantizes to.
+   *
+   * The distance used to be discarded — every new leaf was one unit long and you
+   * then went and edited the number. Clicking three units out now gives a flap
+   * of three, which is also what makes the seeded position mean what it looks
+   * like. A leaf that does not exist yet has no ceiling of its own, so only the
+   * floor applies.
+   */
+  const newLeafLocation = useEventCallback((parent: Point, toward: Point): Point => {
+    const distance = Math.hypot(toward.x - parent.x, toward.y - parent.y);
+    return leafLocationAt(parent, toward, Math.max(lengths.min, lengths.quantize(distance)));
+  });
+
+  /** The edge joining a vertex to its parent — the one a drag of it resizes. */
+  const parentEdgeOf = useCallback(
+    (vertexId: number) => {
+      const parentId = topology.parent.get(vertexId) ?? null;
+      if (parentId === null) return null;
+      return (
+        tree.edges.find(
+          (edge) =>
+            (edge.vertices[0] === vertexId && edge.vertices[1] === parentId) ||
+            (edge.vertices[1] === vertexId && edge.vertices[0] === parentId)
+        ) ?? null
+      );
+    },
+    [topology, tree.edges]
+  );
+
   // Ghost preview of the leaf a click would add (and its mirror), mirroring what
   // the host's mirrored add will do: an on-axis tip is a single centred leaf;
   // otherwise it reflects onto the parent's mirror.
@@ -180,7 +212,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     const parent = findVertex(parentId);
     if (!parent) return null;
     const axis = symmetry.axis;
-    const tip = frame.constrain(leafLocationAt(parent.loc, hoverPoint));
+    const tip = frame.constrain(newLeafLocation(parent.loc, hoverPoint));
     const snap = snapPointToSymmetryAxis(tip, axis, symmetryAxisTolerance);
     const primaryTip = snap.point;
     let mirror: { from: Point; to: Point } | null = null;
@@ -398,7 +430,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     if (parentId === null) return;
     const parent = findVertex(parentId);
     if (!parent) return;
-    const loc = frame.constrain(leafLocationAt(parent.loc, down.point));
+    const loc = frame.constrain(newLeafLocation(parent.loc, down.point));
     void host.addLeaf(parentId, loc, symmetryAxisTolerance);
   };
 
@@ -445,16 +477,33 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
       const svg = svgRef.current;
       if (!svg) return;
       const ids = subtreeOf(vertexId);
+      const parentEdge = parentEdgeOf(vertexId);
+      const parentId = topology.parent.get(vertexId) ?? null;
       dragRef.current = startTreeDrag({
         root: svg,
         vertexId,
-        parentId: topology.parent.get(vertexId) ?? null,
+        parentId,
         vertices: vertexLocationsById,
         subtreeIds: ids,
         // A paired vertex may not cross the mirror: it and its partner would swap
         // sides, which reads as the drawing turning inside out.
         mirror: symmetry?.dragMirror(ids) ?? null,
-        constrain: frame.constrain,
+        // Stop the *gesture* at the surface's boundary rather than clamping each
+        // vertex onto it, which would deform the subtree it is meant to move
+        // rigidly.
+        bounds: frame.contains,
+        length: {
+          current: parentEdge?.length ?? 1,
+          min: lengths.min,
+          max: parentEdge ? lengths.max(parentEdge) : null,
+          step: lengths.step,
+          quantize: (distance, state) => lengths.quantize(distance, state),
+        },
+        onLength: (length) => {
+          if (parentEdge && parentId !== null) {
+            applyTreeEdgeLabel(svg, vertexId, parentId, lengths.format(length));
+          }
+        },
         clientStart: { x: event.clientX, y: event.clientY },
         toTreePoint: (client) => clientToTreePoint(client),
         toSvgPoint: (loc) => frame.toSvg(loc),
@@ -475,7 +524,14 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     paperDownRef.current = null;
     if (session.moved && session.updates.size > 0) {
       const updates = [...session.updates].map(([id, loc]) => ({ id, loc }));
-      void host.moveVertices(updates);
+      const edge = parentEdgeOf(session.vertexId);
+      // A drag that changed the length commits both halves through one call, so
+      // undo cannot leave a tree whose drawing disagrees with its numbers.
+      if (edge && session.length !== edge.length) {
+        void host.setEdgeLength([{ edgeId: edge.id, length: session.length }], updates);
+      } else {
+        void host.moveVertices(updates);
+      }
     }
     return true;
   };
