@@ -240,6 +240,7 @@
     "title": "Settings",
     "workspace": {
       "analytics": "Send anonymous usage analytics to help improve Ori Studio",
+      "creasePatternCanvas": "Crease pattern canvas",
       "folding": "Folding",
       "foldWarning": "Warn before folding a crease pattern with flat-foldability errors",
       "layout": "Layout",
@@ -248,7 +249,10 @@
       "resetMessage": "Restore the default layout for the current workspace?",
       "resetTitle": "Reset Workspace Layout",
       "showWelcome": "Show welcome screen on startup",
-      "startup": "Startup"
+      "startup": "Startup",
+      "wheelGestureHint": "Pinch and Cmd/Ctrl+scroll always zoom, whichever you choose.",
+      "wheelPans": "Scroll pans, pinch zooms",
+      "wheelZooms": "Scroll zooms"
     }
   },
   "share": {

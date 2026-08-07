@@ -27,6 +27,17 @@ describe('settingsStore', () => {
     expect(useSettingsStore.getState().settingsInitialTab).toBe('workspace');
   });
 
+  it('defaults the crease-pattern canvas to scroll-pans and persists a change', () => {
+    expect(useSettingsStore.getState().cpWheelGesture).toBe('pan');
+
+    useSettingsStore.getState().setCpWheelGesture('zoom');
+    expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
+    expect(localStorage.getItem('oristudio:cp-wheel-gesture')).toBe('zoom');
+
+    useSettingsStore.getState().setCpWheelGesture('pan');
+    expect(localStorage.getItem('oristudio:cp-wheel-gesture')).toBe('pan');
+  });
+
   it('defaults the fold warning to enabled and toggles it', () => {
     expect(useSettingsStore.getState().foldWarningEnabled).toBe(true);
 

@@ -3,6 +3,8 @@ import { createReglRenderer } from './renderer/reglRenderer';
 import type { CpRenderer } from './renderer/CpRenderer';
 import { readCssVarColor } from './renderer/cssColor';
 import { syncHeldModifiersFromEvent } from '../keyboard/heldModifiers';
+import { resolveWheelGesture, type WheelGesturePreference } from '../lib/wheelGesture';
+import { cpCanvasCursor, usePanModifierHeld } from './cpCanvasCursor';
 import {
   cameraZoomForPercent,
   fitUserCamera,
@@ -470,6 +472,11 @@ export interface CreasePatternWebglCanvasProps {
    * The accel-drag pan (Cmd on Apple, Ctrl elsewhere) works regardless.
    */
   panToolActive: boolean;
+  /**
+   * What an *unmodified* scroll or two-finger drag does. Pinch and the accel key
+   * zoom either way, so this only changes the unmodified gesture.
+   */
+  wheelGesture: WheelGesturePreference;
   /** Per-step input kinds for a `sequence` tool (free point vs picked crease). */
   activeToolStepKinds: readonly StepKind[];
   /**
@@ -774,6 +781,7 @@ export function CreasePatternWebglCanvas({
   activeToolInputMode,
   activeToolOperationId,
   panToolActive,
+  wheelGesture,
   activeToolStepKinds,
   activeToolCommitsLoneCandidate,
   activeToolSelectionDistance,
@@ -834,9 +842,13 @@ export function CreasePatternWebglCanvas({
   gridVisible,
 }: CreasePatternWebglCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  // Drives the hand tool's grab/grabbing cursor. State rather than a direct
-  // style write, so a re-render mid-drag cannot clobber it.
+  // Drives the grab/grabbing cursor for every pan gesture — hand tool, middle
+  // button, Cmd+drag. State rather than a direct style write, so a re-render
+  // mid-drag cannot clobber it.
   const [panDragging, setPanDragging] = useState(false);
+  // Cmd held offers a grab before the press, so the pan affordance is visible
+  // rather than something you have to already know about.
+  const panModifierHeld = usePanModifierHeld();
   const rendererRef = useRef<CpRenderer | null>(null);
   const renderNowRef = useRef<() => void>(() => {});
   // Late-bound `buildStrokes` so effects declared before it (the tool-reset
@@ -1248,6 +1260,7 @@ export function CreasePatternWebglCanvas({
     resolveMoveSnap,
     activeToolInputMode,
     panToolActive,
+    wheelGesture,
     activeToolStepKinds,
     activeToolCommitsLoneCandidate,
     activeToolSelectionDistance,
@@ -2557,6 +2570,7 @@ export function CreasePatternWebglCanvas({
         // suppresses the browser's middle-click autoscroll.
         e.preventDefault();
         panning = true;
+        setPanDragging(true);
       } else if (e.metaKey || liveRef.current.panToolActive) {
         // Meta+drag pans, as does a plain drag while the hand tool is on. Folded
         // figures are grabbed through the canvas-object overlay now, which sits
@@ -2572,7 +2586,7 @@ export function CreasePatternWebglCanvas({
         // the pan affordances that work identically everywhere.
         e.preventDefault();
         panning = true;
-        if (liveRef.current.panToolActive) setPanDragging(true);
+        setPanDragging(true);
       } else if (toolMode === 'sequence') {
         // Click-based tool: place a point / pick a crease (no drag). Hover previews.
         e.preventDefault();
@@ -2873,15 +2887,28 @@ export function CreasePatternWebglCanvas({
       textPressStarted = false;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     };
+    // Scroll pans and pinch zooms, Figma-style; the accel key zooms either way,
+    // which is what keeps zoom reachable from a mouse. `resolveWheelGesture`
+    // owns the whole decision — including the fast pinch curve and the
+    // `deltaMode` normalisation this handler used to skip — so nothing here
+    // reads a modifier or a raw delta.
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const cam = cameraRef.current;
       if (!cam) return;
       const ratio = dpr();
-      const rect = canvas.getBoundingClientRect();
-      const cx = (e.clientX - rect.left) * ratio;
-      const cy = (e.clientY - rect.top) * ratio;
-      zoomUserCameraAt(cam, viewportOf(ratio), cx, cy, Math.pow(1.0015, -e.deltaY));
+      const gesture = resolveWheelGesture(e, liveRef.current.wheelGesture);
+      if (gesture.kind === 'pan') {
+        // Negated: `panUserCamera` takes a *drag* delta, and a scroll moves the
+        // content the other way — so the paper follows the fingers.
+        panUserCamera(cam, -gesture.dx * ratio, -gesture.dy * ratio);
+      } else {
+        if (gesture.factor === 1) return;
+        const rect = canvas.getBoundingClientRect();
+        const cx = (e.clientX - rect.left) * ratio;
+        const cy = (e.clientY - rect.top) * ratio;
+        zoomUserCameraAt(cam, viewportOf(ratio), cx, cy, gesture.factor);
+      }
       renderNow();
     };
     // Suppress the browser menu so the right button is free for the erase gesture.
@@ -3206,11 +3233,13 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [activeToolVoronoi, toolCommandPreviewPoints]);
 
+  const cursor = cpCanvasCursor({ panToolActive, panModifierHeld, panDragging });
+
   return (
     <canvas
       ref={canvasRef}
       className={className}
-      style={panToolActive ? { cursor: panDragging ? 'grabbing' : 'grab' } : undefined}
+      style={cursor ? { cursor } : undefined}
       aria-hidden="true"
     />
   );

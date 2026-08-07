@@ -345,6 +345,11 @@ export function CanvasObjectOverlay({
           deltaMode: event.deltaMode,
           clientX: event.clientX,
           clientY: event.clientY,
+          // The modifiers are what tell the canvas pan from zoom, so a copy
+          // without them turns a pinch over a folded figure into a pan.
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          shiftKey: event.shiftKey,
           cancelable: true,
         })
       );

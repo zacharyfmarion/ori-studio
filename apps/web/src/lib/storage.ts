@@ -23,6 +23,8 @@ export const STORAGE_KEYS = {
   locale: 'locale',
   showWelcomeOnStartup: 'show-welcome-on-startup',
   foldWarning: 'fold-warning',
+  /** What an unmodified scroll does on the crease-pattern canvas: pan or zoom. */
+  cpWheelGesture: 'cp-wheel-gesture',
   cpToolRailGroups: 'cp-tool-rail-groups',
   cpMeasure: 'cp-measure',
   cpToolOptions: 'cp-tool-options',

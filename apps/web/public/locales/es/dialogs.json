@@ -245,6 +245,7 @@
     "title": "Configuración",
     "workspace": {
       "analytics": "Enviar analíticas de uso anónimas para ayudar a mejorar Ori Studio",
+      "creasePatternCanvas": "Lienzo del patrón de pliegues",
       "folding": "Plegado",
       "foldWarning": "Avisar antes de plegar un patrón de pliegues con errores de plegado plano",
       "layout": "Disposición",
@@ -253,7 +254,10 @@
       "resetMessage": "¿Restaurar la disposición predeterminada del espacio de trabajo actual?",
       "resetTitle": "Restablecer disposición del espacio de trabajo",
       "showWelcome": "Mostrar la pantalla de bienvenida al iniciar",
-      "startup": "Inicio"
+      "startup": "Inicio",
+      "wheelGestureHint": "El pellizco y Cmd/Ctrl+desplazamiento siempre amplían, elijas lo que elijas.",
+      "wheelPans": "Desplazar mueve, pellizcar amplía",
+      "wheelZooms": "Desplazar amplía"
     }
   },
   "share": {

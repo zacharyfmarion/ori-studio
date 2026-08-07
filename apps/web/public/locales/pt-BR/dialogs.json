@@ -245,6 +245,7 @@
     "title": "Configurações",
     "workspace": {
       "analytics": "Enviar análises de uso anônimas para ajudar a melhorar o Ori Studio",
+      "creasePatternCanvas": "Tela do padrão de vincos",
       "folding": "Dobra",
       "foldWarning": "Avisar antes de dobrar um padrão de vincos com erros de dobradura plana",
       "layout": "Layout",
@@ -253,7 +254,10 @@
       "resetMessage": "Restaurar o layout padrão do workspace atual?",
       "resetTitle": "Redefinir layout do workspace",
       "showWelcome": "Mostrar a tela de boas-vindas ao iniciar",
-      "startup": "Inicialização"
+      "startup": "Inicialização",
+      "wheelGestureHint": "A pinça e Cmd/Ctrl+rolagem sempre ampliam, independentemente da escolha.",
+      "wheelPans": "Rolagem move, pinça amplia",
+      "wheelZooms": "Rolagem amplia"
     }
   },
   "share": {

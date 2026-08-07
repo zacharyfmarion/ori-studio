@@ -10,13 +10,27 @@ import {
   type BpTreeViewLayerKey,
   type BpTreeViewLayers,
 } from '../lib/oristudioBpViewportSettings';
-import { readBoolean, storageKey, STORAGE_KEYS, writeBoolean } from '../lib/storage';
+import {
+  readBoolean,
+  readString,
+  storageKey,
+  STORAGE_KEYS,
+  writeBoolean,
+  writeString,
+} from '../lib/storage';
+import type { WheelGesturePreference } from '../lib/wheelGesture';
 
 export type SettingsTab = 'appearance' | 'shortcuts' | 'workspace';
 
 const SHOW_WELCOME_ON_STARTUP_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup);
 const FOLD_WARNING_KEY = storageKey(STORAGE_KEYS.foldWarning);
 const ANALYTICS_ENABLED_KEY = storageKey(STORAGE_KEYS.analyticsEnabled);
+const CP_WHEEL_GESTURE_KEY = storageKey(STORAGE_KEYS.cpWheelGesture);
+
+/** Anything unrecognised — absent, stale, hand-edited — reads as the default. */
+function readCpWheelGesture(): WheelGesturePreference {
+  return readString(CP_WHEEL_GESTURE_KEY) === 'zoom' ? 'zoom' : 'pan';
+}
 
 interface SettingsState {
   isSettingsOpen: boolean;
@@ -37,6 +51,13 @@ interface SettingsState {
    * a no-op when analytics never initialized (no build-time key).
    */
   analyticsEnabled: boolean;
+  /**
+   * What an *unmodified* scroll or two-finger drag does on the crease-pattern
+   * canvas. `'pan'` is the default and matches Figma; `'zoom'` restores the
+   * behaviour the canvas shipped with. Pinch and the accel key zoom either way,
+   * so this only ever changes the unmodified gesture.
+   */
+  cpWheelGesture: WheelGesturePreference;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -44,6 +65,7 @@ interface SettingsState {
   setShowWelcomeOnStartup: (value: boolean) => void;
   setFoldWarningEnabled: (value: boolean) => void;
   setAnalyticsEnabled: (value: boolean) => void;
+  setCpWheelGesture: (value: WheelGesturePreference) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -56,6 +78,7 @@ export const useSettingsStore = create<SettingsState>()(
       showWelcomeOnStartup: readBoolean(SHOW_WELCOME_ON_STARTUP_KEY, true),
       foldWarningEnabled: readBoolean(FOLD_WARNING_KEY, true),
       analyticsEnabled: readBoolean(ANALYTICS_ENABLED_KEY, true),
+      cpWheelGesture: readCpWheelGesture(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -77,6 +100,10 @@ export const useSettingsStore = create<SettingsState>()(
       setAnalyticsEnabled: (value) => {
         writeBoolean(ANALYTICS_ENABLED_KEY, value);
         set({ analyticsEnabled: value });
+      },
+      setCpWheelGesture: (value) => {
+        writeString(CP_WHEEL_GESTURE_KEY, value);
+        set({ cpWheelGesture: value });
       },
     }),
     { name: 'SettingsStore' }

@@ -159,6 +159,7 @@ import { resolveCpLineColor } from '../../cp-workspace/adapters/cpLineColor';
 import { useCpLineColorInversion } from '../../cp-workspace/lineColor/useCpLineColorInversion';
 import { readCssVarColor } from '../../cp-workspace/renderer/cssColor';
 import { useThemeStore } from '../../store/themeStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import {
   OVERLAY_DASH_PATTERN,
   type FoldedGeometry,
@@ -693,6 +694,7 @@ export function CreasePatternPanel() {
   // Hand tool: a plain drag pans the canvas instead of running the active
   // tool. Accel-drag pan stays available whether or not this is on.
   const [panToolActive, setPanToolActive] = useState(false);
+  const cpWheelGesture = useSettingsStore((state) => state.cpWheelGesture);
   // Mirrors the canvas camera's rotation so the toolbar can show the angle and
   // offer a reset; the camera itself remains the source of truth.
   const [viewRotation, setViewRotation] = useState(0);
@@ -2828,6 +2830,7 @@ export function CreasePatternPanel() {
                   diagnosticWedges={cpDiagnosticGeometry.wedges}
                   operationFrame={cpOperationFrameStrokes}
                   panToolActive={panToolActive}
+                  wheelGesture={cpWheelGesture}
                   onRotationChange={setViewRotation}
                   onZoomPercentChange={handleWebglZoomPercent}
                   onViewChange={handleWebglViewChange}
