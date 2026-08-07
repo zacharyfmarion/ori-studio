@@ -50,6 +50,7 @@
     "nudgeLeft": "BP 선택 항목 왼쪽으로 이동",
     "nudgeRight": "BP 선택 항목 오른쪽으로 이동",
     "nudgeUp": "BP 선택 항목 위로 이동",
+    "onlyOnePattern": "패턴 하나뿐",
     "pattern": "패턴",
     "patternNotFound": "패턴을 찾을 수 없음",
     "patternNotFoundFor": "{{flaps}}의 접힘 패턴이 없습니다",

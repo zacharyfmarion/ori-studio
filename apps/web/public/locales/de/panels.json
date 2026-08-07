@@ -52,6 +52,7 @@
     "nudgeLeft": "BP-Auswahl nach links verschieben",
     "nudgeRight": "BP-Auswahl nach rechts verschieben",
     "nudgeUp": "BP-Auswahl nach oben verschieben",
+    "onlyOnePattern": "Nur ein Muster",
     "pattern": "Muster",
     "patternNotFound": "Muster nicht gefunden",
     "patternNotFoundFor": "Kein Faltmuster für {{flaps}}",

@@ -54,6 +54,7 @@
     "nudgeLeft": "Desplazar la selección BP hacia la izquierda",
     "nudgeRight": "Desplazar la selección BP hacia la derecha",
     "nudgeUp": "Desplazar la selección BP hacia arriba",
+    "onlyOnePattern": "Solo un patrón",
     "pattern": "Patrón",
     "patternNotFound": "Patrón no encontrado",
     "patternNotFoundFor": "Sin patrón de pliegues para {{flaps}}",

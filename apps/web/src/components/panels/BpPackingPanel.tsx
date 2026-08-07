@@ -18,8 +18,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
-  ChevronLeft,
-  ChevronRight,
   Circle,
   CircleDot,
   Grid2X2,
@@ -43,7 +41,6 @@ import type {
   OristudioBpSelection,
   OristudioBpSheet,
   OristudioBpSheetKind,
-  OristudioBpStretch,
 } from '../../engine/oristudioBpTypes';
 import {
   bpFlapSelection,
@@ -74,7 +71,7 @@ import {
 import { useBpPatternNotFoundEvent } from '../../analytics';
 import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
 import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
-import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
+import { bpDefaultFlapLabel, bpFlapLabel, bpFlapLabelList } from '../../lib/bpFlapLabel';
 import { unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { useBpPackingDragRequests } from '../../hooks/useBpPackingDragRequests';
@@ -82,6 +79,7 @@ import {
   useBpPackingSymmetry,
   type BpPackingSymmetryView,
 } from '../../hooks/useBpPackingSymmetry';
+import { BpPackingStretchNav } from './BpPackingStretchNav';
 import { BpPackingSymmetryMenu } from './BpPackingSymmetryMenu';
 import { type Point } from '../../lib/geometry';
 import {
@@ -484,97 +482,6 @@ function BpPackingViewportToolbar({
         onChange={onLayerChange}
       />
     </ViewportToolbar>
-  );
-}
-
-function StretchStepper({
-  label,
-  index,
-  count,
-  onStep,
-}: {
-  label: string;
-  index: number;
-  count: number;
-  onStep: (delta: number) => void;
-}) {
-  const { t } = useTranslation();
-  const disabled = count <= 1;
-  return (
-    <div className="bp-packing-stretch-nav__stepper">
-      <span className="bp-packing-stretch-nav__label">{label}</span>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={t('panels:bpPacking.previousStepper', 'Previous {{label}}', { label: label.toLowerCase() })}
-        disabled={disabled}
-        onClick={() => onStep(-1)}
-      >
-        <ChevronLeft size={14} />
-      </IconButton>
-      <span className="bp-packing-stretch-nav__count">
-        {count > 0 ? `${index + 1}/${count}` : '—'}
-      </span>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={t('panels:bpPacking.nextStepper', 'Next {{label}}', { label: label.toLowerCase() })}
-        disabled={disabled}
-        onClick={() => onStep(1)}
-      >
-        <ChevronRight size={14} />
-      </IconButton>
-    </div>
-  );
-}
-
-/**
- * Contextual control for cycling a stretch's GOPS configuration and pattern —
- * the "pick a valid crease pattern by hand" navigation. Mirrors BP Studio's
- * Stretch.switchConfig/switchPattern (±1 with wraparound).
- */
-function BpPackingStretchNav({
-  stretch,
-  flaps,
-  onSwitchConfig,
-  onSwitchPattern,
-}: {
-  stretch: OristudioBpStretch;
-  flaps: OristudioBpFlap[];
-  onSwitchConfig: (delta: number) => void;
-  onSwitchPattern: (delta: number) => void;
-}) {
-  const { t } = useTranslation();
-  // The flaps, not the raw `"10,12,14,22"` id: the id means nothing on a canvas
-  // that labels its flaps with letters.
-  const name = bpFlapLabelList(bpStretchFlapLabels(stretch, flaps), t);
-  return (
-    <div
-      className="bp-packing-stretch-nav"
-      role="group"
-      aria-label={t('panels:bpPacking.stretchNav', 'Stretch {{id}} pattern navigation', { id: name })}
-    >
-      <span className="bp-packing-stretch-nav__title">
-        {t('panels:bpPacking.stretch', 'Stretch {{id}}', { id: name })}
-      </span>
-      <StretchStepper
-        label={t('panels:bpPacking.config', 'Config')}
-        index={stretch.configIndex ?? 0}
-        count={stretch.configCount ?? 0}
-        onStep={onSwitchConfig}
-      />
-      <StretchStepper
-        label={t('panels:bpPacking.pattern', 'Pattern')}
-        index={stretch.patternIndex ?? 0}
-        count={stretch.patternCount ?? 0}
-        onStep={onSwitchPattern}
-      />
-      {stretch.patternFound === false && (
-        <span className="bp-packing-stretch-nav__warning">
-          {t('panels:bpPacking.noValidPattern', 'No valid pattern')}
-        </span>
-      )}
-    </div>
   );
 }
 
@@ -2209,22 +2116,6 @@ function bpPackingAlertMessage(diagnostic: OristudioBpDiagnostic, t: TFunction):
         'panels:bpPacking.patternNotFoundNoConfig',
         'These flaps overlap in a way Ori Studio cannot crease yet. Move one of them away from the others, or enlarge the sheet.'
       );
-}
-
-function bpStretchFlapLabels(stretch: OristudioBpStretch, flaps: OristudioBpFlap[]): string[] {
-  return stretch.flapIds.map((id) =>
-    bpFlapLabel(id, flaps.find((flap) => flap.id === id)?.name ?? '')
-  );
-}
-
-/** "K, M, O and W" — a readable list for a headline. */
-function bpFlapLabelList(labels: string[], t: TFunction): string {
-  if (labels.length <= 1) return labels[0] ?? '';
-  const last = labels[labels.length - 1];
-  return t('panels:bpPacking.flapLabelList', '{{leading}} and {{last}}', {
-    leading: labels.slice(0, -1).join(', '),
-    last,
-  });
 }
 
 function constrainBpPackingDeviceTarget(

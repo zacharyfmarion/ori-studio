@@ -54,6 +54,7 @@
     "nudgeLeft": "Déplacer la sélection BP vers la gauche",
     "nudgeRight": "Déplacer la sélection BP vers la droite",
     "nudgeUp": "Déplacer la sélection BP vers le haut",
+    "onlyOnePattern": "Un seul motif",
     "pattern": "Motif",
     "patternNotFound": "Motif introuvable",
     "patternNotFoundFor": "Aucun motif de plis pour {{flaps}}",

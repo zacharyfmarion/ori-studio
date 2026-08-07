@@ -192,6 +192,16 @@ Consequences, all free:
   20×20 sheet — drawn unasked it reads as "most of your design is broken". The
   region is revealed on selection instead, where its size is information rather
   than alarm.
+- **The stretch navigator itself.** It rendered both steppers unconditionally,
+  so the common case was `Config 1/1 Pattern 1/1` with four dead arrows, and the
+  patternless case was `Config — Pattern —` beside "No valid pattern": an empty
+  picker. Upstream never shows either — its `Store` gadget is `v-if="size > 1"`
+  and its stretch panel substitutes a sentence when both have one option
+  (`app/vue/panel/stretch.vue`). Matching that is why Config appears to be
+  missing in BP Studio: it exists, it is just hidden whenever there is one
+  configuration, which is nearly always. Ours now does the same, says "Only one
+  pattern" for the settled case, and shows no picker at all when there is no
+  pattern to pick.
 - **Activation.** Clicking the alert selects the stretch, which lights its flaps
   in both the tree and the packing panes and opens the stretch navigator with
   its "No valid pattern" label.
@@ -261,5 +271,7 @@ Consequences, all free:
 - [x] Phase 4: `bp pattern not found` event (bucketed properties only) + hook tests
 - [x] Phase 4: web mapper tests
 - [x] Phase 4: i18n extract / translate / stamp / check
+- [x] Follow-up: a stepper renders only when it has more than one option
+      (upstream's `Store` rule), and the navigator moved to its own component
 - [x] The grey hatched box in the report screenshot: confirmed unrelated and
       expected — a separate UI change, not part of this bug

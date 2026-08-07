@@ -2128,7 +2128,8 @@
     "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
     "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
     "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
-    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91",
+    "panels:bpPacking.onlyOnePattern": "216a9711ccb0"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4259,7 +4260,8 @@
     "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
     "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
     "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
-    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91",
+    "panels:bpPacking.onlyOnePattern": "216a9711ccb0"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6420,7 +6422,8 @@
     "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
     "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
     "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
-    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91",
+    "panels:bpPacking.onlyOnePattern": "216a9711ccb0"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8581,7 +8584,8 @@
     "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
     "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
     "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
-    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91",
+    "panels:bpPacking.onlyOnePattern": "216a9711ccb0"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10742,7 +10746,8 @@
     "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
     "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
     "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
-    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91",
+    "panels:bpPacking.onlyOnePattern": "216a9711ccb0"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12903,7 +12908,8 @@
     "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
     "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
     "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
-    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91",
+    "panels:bpPacking.onlyOnePattern": "216a9711ccb0"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15064,7 +15070,8 @@
     "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
     "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
     "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
-    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91",
+    "panels:bpPacking.onlyOnePattern": "216a9711ccb0"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -17195,6 +17202,7 @@
     "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
     "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
     "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
-    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91",
+    "panels:bpPacking.onlyOnePattern": "216a9711ccb0"
   }
 }

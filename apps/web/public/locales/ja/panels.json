@@ -50,6 +50,7 @@
     "nudgeLeft": "BP の選択を左に微調整",
     "nudgeRight": "BP の選択を右に微調整",
     "nudgeUp": "BP の選択を上に微調整",
+    "onlyOnePattern": "パターンは1つのみ",
     "pattern": "パターン",
     "patternNotFound": "パターンが見つかりません",
     "patternNotFoundFor": "{{flaps}}の折り線パターンがありません",

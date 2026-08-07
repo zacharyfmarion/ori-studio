@@ -52,6 +52,7 @@
     "nudgeLeft": "Nudge BP selection left",
     "nudgeRight": "Nudge BP selection right",
     "nudgeUp": "Nudge BP selection up",
+    "onlyOnePattern": "Only one pattern",
     "pattern": "Pattern",
     "patternNotFound": "Pattern not found",
     "patternNotFoundFor": "No crease pattern for {{flaps}}",

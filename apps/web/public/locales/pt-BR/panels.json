@@ -54,6 +54,7 @@
     "nudgeLeft": "Deslocar seleção BP para a esquerda",
     "nudgeRight": "Deslocar seleção BP para a direita",
     "nudgeUp": "Deslocar seleção BP para cima",
+    "onlyOnePattern": "Apenas um padrão",
     "pattern": "Padrão",
     "patternNotFound": "Padrão não encontrado",
     "patternNotFoundFor": "Sem padrão de vincos para {{flaps}}",

@@ -7135,6 +7135,11 @@ button.bp-packing-alert:focus-visible {
   font-weight: 600;
 }
 
+/* "Only one pattern": a fact about the stretch, not a problem with it. */
+.bp-packing-stretch-nav__note {
+  color: var(--text-tertiary);
+}
+
 .bp-packing-dpad {
   position: absolute;
   right: var(--space-3);

@@ -150,7 +150,15 @@ const OVERSIZED_PANELS = {
   // entry in the layer list and its label case, and the two copy helpers the
   // alert renders through. A canvas layer in the canvas panel is the case
   // AGENTS.md calls "a feature that genuinely belongs in a panel".
-  'BpPackingPanel.tsx': 2095,
+  //
+  // 2095 -> 1996: the stretch navigator moved out, whole. It is a floating
+  // contextual control with no store access — the same shape as `BpFlapEditor`
+  // beside it — so the stepper, the visibility rules and the flap-naming all
+  // left together into `BpPackingStretchNav`, and the two label helpers went to
+  // `lib/bpFlapLabel` where flap labelling already lives. It went out because
+  // hiding a stepper that has nothing to step through is a rule about that
+  // control, not about this panel.
+  'BpPackingPanel.tsx': 1996,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

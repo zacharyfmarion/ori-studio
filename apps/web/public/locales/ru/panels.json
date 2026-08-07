@@ -56,6 +56,7 @@
     "nudgeLeft": "Сдвинуть выделение BP влево",
     "nudgeRight": "Сдвинуть выделение BP вправо",
     "nudgeUp": "Сдвинуть выделение BP вверх",
+    "onlyOnePattern": "Только один паттерн",
     "pattern": "Паттерн",
     "patternNotFound": "Паттерн не найден",
     "patternNotFoundFor": "Нет паттерна складок для {{flaps}}",
