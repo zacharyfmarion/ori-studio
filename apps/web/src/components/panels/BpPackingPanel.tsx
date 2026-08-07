@@ -723,9 +723,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const switchOristudioBpStretchPattern = useWorkspaceStore(
     (state) => state.switchOristudioBpStretchPattern
   );
-  const completeOristudioBpStretch = useWorkspaceStore(
-    (state) => state.completeOristudioBpStretch
-  );
   const setOristudioBpLayoutSheet = useWorkspaceStore(
     (state) => state.setOristudioBpLayoutSheet
   );
@@ -736,26 +733,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   // The stretch whose device/pattern is currently selected. Selecting a device
   // links its stretch (bpLinkedSelection.addDevice -> addStretch), so a single
-  // linked stretch drives the config/pattern navigation controls.
+  // linked stretch drives the config/pattern navigation controls. The snapshot
+  // carries the config/pattern counts for every derived stretch, so no
+  // completion round-trip is needed before the controls work.
   const activeStretch = useMemo(() => {
     const ids = [...linkedSelection.stretches];
     if (ids.length !== 1) return null;
     return packing.stretches.find((stretch) => stretch.id === ids[0]) ?? null;
   }, [linkedSelection, packing.stretches]);
-  // BP Studio computes a stretch's configurations/patterns lazily, on selection
-  // (Stretch.$complete). Our snapshot leaves patternCount null until then, so
-  // complete the selected stretch once to populate its config/pattern counts and
-  // enable the navigation controls. The ref guards against re-completing (and any
-  // resulting effect loop) when completion yields no pattern.
-  const completedStretchesRef = useRef<Set<string>>(new Set());
-  const activeStretchId = activeStretch?.id ?? null;
-  const activeStretchPatternCount = activeStretch?.patternCount ?? null;
-  useEffect(() => {
-    if (activeStretchId === null || activeStretchPatternCount !== null) return;
-    if (completedStretchesRef.current.has(activeStretchId)) return;
-    completedStretchesRef.current.add(activeStretchId);
-    void completeOristudioBpStretch(activeStretchId);
-  }, [activeStretchId, activeStretchPatternCount, completeOristudioBpStretch]);
   // Render the engine's actual recompute, not a partial optimistic overlay.
   // Each drag step drives the engine (dragging=true) and the returned snapshot
   // re-renders, so flaps, creases, junctions, and stretches always move together

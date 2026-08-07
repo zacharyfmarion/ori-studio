@@ -237,9 +237,11 @@ Consequences, all free:
 - [x] Phase 1: `LayoutStretchSnapshot` in `LayoutGraphicsSnapshot`, bool derived
 - [x] Phase 1: `patternless-stretch.sample.json` fixture + engine test
 - [x] Phase 1: wasm bindings rebuilt and committed
-- [ ] Phase 2: `packing.stretches` derived from the engine snapshot, overrides merged
-- [ ] Phase 2: `packing.devices` derived from `deviceGraphics`; devices selectable on load
-- [ ] Phase 2: `stretch.flapIds` / `riverIds` populated; flap→stretch reverse index added
+- [x] Phase 2: `packing.stretches` derived from the engine snapshot
+- [x] Phase 2: `packing.devices` derived from `deviceGraphics`; devices selectable on load
+- [x] Phase 2: `stretch.flapIds` populated from the snapshot
+- [x] Phase 2: lazy `completeStretch`-on-select effect removed (counts now always known)
+- [ ] Phase 2: flap→stretch reverse index (deferred to Phase 3, where it is used)
 - [ ] Phase 3: per-stretch diagnostics with `selection`; alert is a button
 - [ ] Phase 3: copy rewritten in user vocabulary, flaps named, advice included
 - [ ] Phase 3: failing-region canvas layer + Layers toggle

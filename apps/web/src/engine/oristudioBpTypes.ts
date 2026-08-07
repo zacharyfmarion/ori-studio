@@ -165,6 +165,13 @@ export interface OristudioBpInvalidJunction {
   message: string;
 }
 
+export interface OristudioBpRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface OristudioBpStretch {
   id: string;
   flapIds: number[];
@@ -175,6 +182,8 @@ export interface OristudioBpStretch {
   patternIndex: number | null;
   patternCount: number | null;
   patternFound: boolean | null;
+  /** The gap rectangles this stretch has to cover, one per junction. */
+  regions: OristudioBpRect[];
 }
 
 export interface OristudioBpDevice {
@@ -612,7 +621,25 @@ export interface OristudioBpWasmLayoutSnapshot {
   nodeGraphics: OristudioBpWasmGraphicsEntry[];
   deviceGraphics: OristudioBpWasmGraphicsEntry[];
   invalidJunctions: OristudioBpWasmInvalidJunction[];
+  /**
+   * Every stretch the layout has, derived from the tree by the engine. This is
+   * the authoritative set: `design.layout.stretches` only persists the stretches
+   * whose config/pattern selection deviates from the default, and a stretch with
+   * no pattern is never persisted at all (upstream `patternTask` removes it).
+   */
+  stretches: OristudioBpWasmLayoutStretch[];
   patternNotFound: boolean;
+}
+
+export interface OristudioBpWasmLayoutStretch {
+  id: string;
+  flapIds: number[];
+  configurationIndex: number;
+  configurationCount: number;
+  patternIndex: number;
+  patternCount: number;
+  patternFound: boolean;
+  regions: OristudioBpRect[];
 }
 
 export interface OristudioBpWasmCreasePatternSnapshot {
