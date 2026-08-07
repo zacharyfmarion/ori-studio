@@ -92,6 +92,17 @@ export function mirrorExploriNodeId(
  * Exactly the nodes whose partner is *not* also moving: those travel rigidly
  * with the gesture and are free, while one whose partner is being reflected
  * would swap sides with it and turn the drawing inside out.
+ *
+ * A node already *on* the axis is never held, whatever pairing it carries. It
+ * is its own reflection, so "stay clear of the line on your own side" is not a
+ * rule it can obey — and the drag, which pins such a node to the line, would
+ * then be asking for a position this predicate rejects by construction. That
+ * disagreement made a node both pinned and held permanently undraggable: every
+ * sample landed it exactly on the axis, and every sample was refused for being
+ * inside the clearance band. Reachable two ways — a click at a zoom where the
+ * snap lane is narrower than this tolerance, so the node pairs without
+ * snapping; and shrinking a near-vertical branch to the length floor, which no
+ * clearance check guards.
  */
 export function exploriMirrorHeldIds(
   document: ExploriDocument,
@@ -101,6 +112,8 @@ export function exploriMirrorHeldIds(
   const moved = new Set(movedIds);
   const held = new Set<number>();
   for (const id of movedIds) {
+    const loc = document.nodes.find((node) => node.id === id)?.loc;
+    if (loc && symmetrySide(loc, EXPLORI_SYMMETRY_AXIS, tolerance) === 0) continue;
     const partner = mirrorExploriNodeId(document, id, tolerance);
     if (partner === null || partner === id || moved.has(partner)) continue;
     held.add(id);

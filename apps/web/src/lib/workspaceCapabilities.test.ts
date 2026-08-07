@@ -22,6 +22,7 @@ function capabilities({
   oristudioCpSelectedPointCount = 0,
   oristudioCpSelectedCircleCount = 0,
   hasDeletableDesignSelection = false,
+  canSaveDesign = activeEditingContext !== 'crease-pattern',
   historyPastCount = 0,
   historyFutureCount = 0,
   clipboard = null,
@@ -43,6 +44,7 @@ function capabilities({
   oristudioCpSelectedPointCount?: number;
   oristudioCpSelectedCircleCount?: number;
   hasDeletableDesignSelection?: boolean;
+  canSaveDesign?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
@@ -65,6 +67,7 @@ function capabilities({
     oristudioCpSelectedPointCount,
     oristudioCpSelectedCircleCount,
     hasDeletableDesignSelection,
+    canSaveDesign,
     historyPastCount,
     historyFutureCount,
     clipboard,

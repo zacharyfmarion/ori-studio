@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, ScanLine } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -94,9 +94,25 @@ export function ExploriResultsPanel() {
   const selectResult = useWorkspaceStore((state) => state.selectExploriResult);
   const sendToEdit = useWorkspaceStore((state) => state.sendExploriToEdit);
   const [cardMode, setCardMode] = useState<ExploriCardMode>('pair');
+  const backRef = useRef<HTMLButtonElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
 
   const { results, detailIndex, searching, error } = design;
   const detail = detailIndex !== null ? (results[detailIndex] ?? null) : null;
+
+  /**
+   * Opening a result unmounts the grid — including the button that was focused —
+   * and closing it unmounts the detail. Neither moved focus, so it fell to
+   * `document.body` and the next Tab restarted from the top of the page. Focus
+   * follows the swap: onto Back when the detail opens, back onto the grid when
+   * it closes.
+   */
+  useEffect(() => {
+    if (detail) backRef.current?.focus();
+    else if (document.activeElement === document.body) {
+      gridRef.current?.querySelector<HTMLButtonElement>('.explori-result-card__open')?.focus();
+    }
+  }, [detail]);
 
   /**
    * Choose a result and send it straight to Edit.
@@ -128,8 +144,13 @@ export function ExploriResultsPanel() {
     };
     return (
       <section className="panel-shell explori-results-panel explori-results-panel--detail">
+        {/* The query bar lives in the *tree* pane, so a search can fail while a
+            detail is open — and this branch returns before the grid's error
+            line, which left the failure completely invisible. */}
+        {error && <p className="explori-results__error">{error}</p>}
         <header className="explori-detail__header">
           <IconButton
+            ref={backRef}
             size="sm"
             variant="toolbar"
             title={t('panels:explori.backToResults', 'Back to results')}
@@ -253,7 +274,7 @@ export function ExploriResultsPanel() {
               </SelectContent>
             </Select>
           </header>
-          <div className="explori-results__grid" data-mode={cardMode}>
+          <div className="explori-results__grid" data-mode={cardMode} ref={gridRef}>
             {results.map((result, index) => {
               const quality = exploriMatchQuality(result.distance);
               return (

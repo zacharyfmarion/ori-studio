@@ -213,4 +213,15 @@ export interface DesignKindDescriptor {
    * which is where the engine round trips live.
    */
   deletableTarget?(tab: DesignTab): number | null;
+  /**
+   * Whether there is a design here worth writing to a project file.
+   *
+   * Same reason again, on the verb it hurt most: `file.save` and `file.saveAs`
+   * listed the kinds they knew, so an ExplOri design was not merely greyed —
+   * `saveProject` opens by rejecting a disabled capability, so Cmd+S, the Save
+   * button and File ▸ Save all refused, and the work could not be written at
+   * all. Every registered kind has a codec and an `osfKind`, so the file layer
+   * could always store it; only this predicate said otherwise.
+   */
+  isSavable(tab: DesignTab): boolean;
 }

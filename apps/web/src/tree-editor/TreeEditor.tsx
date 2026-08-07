@@ -90,6 +90,8 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
   // The shortcut executor is registered before `dismissSelection` is declared,
   // so it reaches it through a ref rather than closing over it.
   const dismissSelectionRef = useRef<() => void>(() => {});
+  /** Whether Escape has anything to do here — read by the shortcut executor. */
+  const hasDismissableSelection = useRef<() => boolean>(() => false);
   const forgetSvgRect = useEventCallback(() => {
     svgRectRef.current = null;
   });
@@ -194,6 +196,12 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     // — the focus dependence AGENTS.md forbids of any shortcut.
     onViewportShortcut: (id) => {
       if (id !== 'viewport.cancel') return false;
+      // Declined when there is nothing to dismiss. This executor is registered
+      // under the surface id every tree canvas shares, and the runtime is now
+      // asked before anything else — so claiming Escape unconditionally meant a
+      // keyboard user anywhere in the workspace (a result card, the query bar)
+      // pressed Escape and was teleported into this canvas.
+      if (!hasDismissableSelection.current()) return false;
       dismissSelectionRef.current();
       return true;
     },
@@ -466,7 +474,11 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
   // the tree stays selected, so the contextual length/name editors close too.
   const dismissSelection = useEventCallback(() => {
     host.clearSelection();
-    containerRef.current?.focus();
+    // Focus is only *returned* to the canvas, never taken to it: pulling it here
+    // from a result card or the query bar would move the user somewhere they
+    // were not.
+    const container = containerRef.current;
+    if (container && container.contains(document.activeElement)) container.focus();
   });
 
   // Assigned in an effect rather than during render: the executor is registered
@@ -475,6 +487,12 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
   useEffect(() => {
     dismissSelectionRef.current = dismissSelection;
   }, [dismissSelection]);
+
+  const selectionIsEmpty =
+    host.selection.vertexId === null && host.selection.edgeId === null;
+  useEffect(() => {
+    hasDismissableSelection.current = () => !selectionIsEmpty;
+  }, [selectionIsEmpty]);
 
   const clientToTreePoint = useCallback(
     (client: Point): Point => {
@@ -608,7 +626,15 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     // Grabbing a dot means this pointerup ends a drag, not a click on the paper,
     // so disarm it — otherwise releasing without moving would add a leaf.
     paperDownRef.current = null;
-    if (session.moved && session.updates.size > 0) {
+    // `updates` is non-empty even when the rule found no admissible move: it
+    // maps every subtree vertex to the place it already was. Committing that is
+    // a store write and an undo entry for a gesture that changed nothing, so a
+    // move that moves nothing is dropped here rather than recorded.
+    const changed = [...session.updates].filter(([id, loc]) => {
+      const origin = vertexLocationsById.get(id);
+      return !origin || Math.abs(origin.x - loc.x) > 1e-9 || Math.abs(origin.y - loc.y) > 1e-9;
+    });
+    if (session.moved && changed.length > 0) {
       const updates = [...session.updates].map(([id, loc]) => ({ id, loc }));
       const edge = parentEdgeOf(session.vertexId);
       // A drag that changed the length commits both halves through one call, so

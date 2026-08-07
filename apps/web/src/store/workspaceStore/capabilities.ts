@@ -81,6 +81,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     oristudioCpSelectedCircleCount: state.oristudioCpSelection.circles.length,
     hasDeletableDesignSelection:
       activeKind?.deletableTarget?.(activeDesignTab(state)) != null,
+    canSaveDesign: activeKind?.isSavable(activeDesignTab(state)) ?? false,
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,

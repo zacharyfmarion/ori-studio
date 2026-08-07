@@ -513,3 +513,76 @@ describe('treeDragUpdates — a vertex pinned to the mirror slides along it', ()
     });
   });
 });
+
+/**
+ * States the committed drawing can already be in that the rules forbid.
+ *
+ * The mirror clearance and the axis pin were written as if the drawing always
+ * satisfies them. It does not: a vertex can arrive inside the clearance band by
+ * a route that never consults it (the length field, or a click at a zoom where
+ * the snap lane is narrower than the pairing tolerance). When that happened the
+ * gesture was refused on every sample — and refused again next time, so the
+ * vertex was undraggable forever with no cursor feedback.
+ */
+describe('treeDragUpdates — an already-illegal start is escapable', () => {
+  const axis = { loc: { x: 0, y: 0 }, angle: 90 };
+  const CLEARANCE = 0.05;
+
+  const continuous = (current: number) => ({
+    current,
+    min: 0.1,
+    max: null,
+    step: null,
+    quantize: (distance: number) => distance,
+  });
+
+  /** Vertex 1 sits 0.02 from the mirror — inside the clearance band. */
+  const vertices = new Map<number, Point>([
+    [0, { x: -1, y: 0 }],
+    [1, { x: 0.02, y: 1 }],
+  ]);
+
+  function drag(target: Point, options: { pinned?: boolean } = {}) {
+    return treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices,
+      subtreeIds: [1],
+      start: { x: 0.02, y: 1 },
+      target,
+      length: continuous(Math.hypot(1.02, 1)),
+      mirror: { axis, heldIds: new Set([1]), clearance: CLEARANCE },
+      pinToAxis: options.pinned ? axis : null,
+    }).updates;
+  }
+
+  it('moves a held vertex that starts inside the clearance band', () => {
+    // Without the relaxation every sample returned an empty map.
+    expect(drag({ x: 3, y: 2 }).size).toBe(1);
+  });
+
+  it('moves it even when the same vertex is also pinned to the axis', () => {
+    // Both rules at once: the pin puts it exactly on the line, which the
+    // clearance rejects by construction. This was the permanent deadlock.
+    expect(drag({ x: 0.5, y: 3 }, { pinned: true }).size).toBe(1);
+  });
+
+  it('still holds a vertex that starts legally', () => {
+    const legal = treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices: new Map<number, Point>([
+        [0, { x: -1, y: 0 }],
+        [1, { x: 1, y: 1 }],
+      ]),
+      subtreeIds: [1],
+      start: { x: 1, y: 1 },
+      target: { x: -4, y: 1 },
+      length: continuous(Math.hypot(2, 1)),
+      mirror: { axis, heldIds: new Set([1]), clearance: CLEARANCE },
+    }).updates;
+    // Dragged across the mirror, it must stop on its own side.
+    const moved = legal.get(1);
+    if (moved) expect(moved.x).toBeGreaterThanOrEqual(CLEARANCE - 1e-9);
+  });
+});

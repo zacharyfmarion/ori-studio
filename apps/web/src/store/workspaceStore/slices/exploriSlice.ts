@@ -86,6 +86,26 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
     change: (document: ExploriDocument) => ExploriDocument | null
   ): Promise<boolean> => queued(designId, () => applyEdit(designId, change));
 
+  /**
+   * Where a restored `selected` sits in the results now on screen.
+   *
+   * The detail view addresses a result by index, but only the *document* travels
+   * through the history — so after an undo the index and `document.selected`
+   * could name different results, and the pane rendered one while Send to Edit
+   * imported the other. Matched on the tiling's identity rather than by
+   * reference, because the restored value is parsed from text and so is never
+   * the same object as the one in `results`.
+   */
+  const restoredDetailIndex = (
+    results: readonly ExploriResult[],
+    selected: ExploriResult | null
+  ): number | null => {
+    if (!selected) return null;
+    const key = exploriTilingLabel(selected);
+    const index = results.findIndex((result) => exploriTilingLabel(result) === key);
+    return index === -1 ? null : index;
+  };
+
   const applyEdit = async (
     designId: string,
     change: (document: ExploriDocument) => ExploriDocument | null
@@ -97,15 +117,22 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
     replaceExploriDocument(held.handle, next);
     const design = selectExploriDesign(get(), designId);
     if (!design) return false;
-    set(
-      patchExploriDesign(get(), designId, {
+    set({
+      ...patchExploriDesign(get(), designId, {
         document: next,
         historyPast: [...design.historyPast, serializeExploriDocument(held.document)].slice(
           -HISTORY_LIMIT
         ),
         historyFuture: [],
-      })
-    );
+      }),
+      // Every ExplOri mutation passes through here, and none of them used to
+      // mark the project dirty. That was silent in both directions: the
+      // beforeunload guard and `confirmDiscardDirty` both short-circuit on
+      // `!dirty`, so File ▸ New, File ▸ Open and closing the window all threw
+      // the design away without asking, and the window's modified marker never
+      // appeared. Box-pleat sets this on every mutation; so does this now.
+      dirty: true,
+    });
     return true;
   };
 
@@ -124,17 +151,23 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
     const restored = parseExploriDocument(text);
     replaceExploriDocument(held.handle, restored);
     const current = serializeExploriDocument(held.document);
-    set(
-      patchExploriDesign(get(), designId, {
+    set({
+      ...patchExploriDesign(get(), designId, {
         document: restored,
+        // The detail view addresses a result by index into `results`, which the
+        // history does not carry — so restoring a document without re-deriving
+        // the index left the pane showing one result while `document.selected`
+        // named another, and Send to Edit imported the one you could not see.
+        detailIndex: restoredDetailIndex(design.results, restored.selected),
         historyPast:
           direction === 'undo' ? design.historyPast.slice(0, -1) : [...design.historyPast, current],
         historyFuture:
           direction === 'undo'
             ? [...design.historyFuture, current]
             : design.historyFuture.slice(0, -1),
-      })
-    );
+      }),
+      dirty: true,
+    });
     return true;
   };
 

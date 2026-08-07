@@ -187,6 +187,8 @@ export function createBoxPleatDesignKind(
       const childId = parent.get(a) === b ? a : b;
       return childId !== root ? childId : null;
     },
+    // Nothing to write until the worker has produced a document.
+    isSavable: (tab) => tab.kind === 'box-pleat' && tab.boxPleat.document !== null,
     codec: createBoxPleatCodec(getClient),
     sendToEdit: createBoxPleatSendToEdit(getClient),
   };

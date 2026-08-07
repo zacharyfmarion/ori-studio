@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { trimExploriBundle } from '../_lib/explori';
 
 describe('trimming an ExplOri bundle', () => {
@@ -35,5 +35,136 @@ describe('trimming an ExplOri bundle', () => {
   it('passes a non-object through untouched rather than inventing a shape', () => {
     expect(trimExploriBundle(null)).toBeNull();
     expect(trimExploriBundle([1, 2])).toEqual([1, 2]);
+  });
+});
+
+/**
+ * What the query proxy will and will not pass to upstream.
+ *
+ * This endpoint is the only thing between the public internet and one person's
+ * single machine, so these are about what it *refuses*. Every case below reached
+ * that machine before: `db_configs` was checked only for `Array.isArray` and
+ * non-empty, and `tree` was re-serialized whole.
+ *
+ * `callExplori` is stubbed — nothing here contacts upstream.
+ */
+describe('POST /api/explori/query — what reaches upstream', () => {
+  const NODES = [
+    { id: 0, x: 0, y: 0 },
+    { id: 1, x: 1, y: 0 },
+    { id: 2, x: -1, y: 0 },
+    { id: 3, x: 0, y: 1 },
+    { id: 4, x: 0, y: -1 },
+  ];
+  const EDGES = [
+    { u: 0, v: 1, length: 1 },
+    { u: 0, v: 2, length: 1 },
+    { u: 0, v: 3, length: 1 },
+    { u: 0, v: 4, length: 1 },
+  ];
+
+  async function post(body: unknown) {
+    vi.resetModules();
+    const sent: { body?: string } = {};
+    vi.doMock('../_lib/explori', async () => {
+      const actual = await vi.importActual<typeof import('../_lib/explori')>('../_lib/explori');
+      return {
+        ...actual,
+        underRateLimit: async () => true,
+        callExplori: async (_env: unknown, call: { body?: string }) => {
+          sent.body = call.body;
+          return new Response('{}', { status: 200 });
+        },
+      };
+    });
+    const { onRequestPost } = await import('../api/explori/query');
+    const response = await onRequestPost({
+      request: new Request('https://x/api/explori/query', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+      env: {},
+    } as never);
+    return { response, forwarded: sent.body ? JSON.parse(sent.body) : null };
+  }
+
+  const valid = { tree: { nodes: NODES, edges: EDGES }, db_configs: [{ N: 4, symmetry: 'book' }], n: 5 };
+
+  it('forwards a well-formed query, keeping each edge length', async () => {
+    const { response, forwarded } = await post(valid);
+    expect(response.status).toBe(200);
+    // The length is the query signal — upstream weights the graph by it — so
+    // dropping it while rebuilding the body would silently change every result.
+    expect(forwarded.tree.edges).toEqual(EDGES);
+    expect(forwarded.db_configs).toEqual([{ N: 4, symmetry: 'book' }]);
+  });
+
+  it('refuses a symmetry that would escape upstream’s cache path', async () => {
+    // Upstream interpolates this into `db_{N}_{sym}` and `pickle.load`s it.
+    const { response, forwarded } = await post({
+      ...valid,
+      db_configs: [{ N: 4, symmetry: '../../../../tmp/x' }],
+    });
+    expect(response.status).toBe(400);
+    expect(forwarded).toBeNull();
+  });
+
+  it('refuses more databases than the archive holds', async () => {
+    // 5,000 entries in a 2 KB request meant 5,000 index loads on one machine.
+    const { response } = await post({
+      ...valid,
+      db_configs: Array.from({ length: 5000 }, () => ({ N: 4, symmetry: 'none' })),
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it('collapses a repeated database rather than loading it twice', async () => {
+    const { forwarded } = await post({
+      ...valid,
+      db_configs: [
+        { N: 4, symmetry: 'book' },
+        { N: 4, symmetry: 'book' },
+      ],
+    });
+    expect(forwarded.db_configs).toEqual([{ N: 4, symmetry: 'book' }]);
+  });
+
+  it('refuses a branch whose endpoint names no node', async () => {
+    // This raised a KeyError out of upstream's handler thread.
+    const { response } = await post({
+      ...valid,
+      tree: { nodes: NODES, edges: [...EDGES.slice(1), { u: 0, v: 999, length: 1 }] },
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it('drops sibling keys instead of relaying them', async () => {
+    const { forwarded } = await post({
+      ...valid,
+      tree: { ...valid.tree, pad: 'x'.repeat(10_000) },
+      unexpected: 'y'.repeat(10_000),
+    });
+    expect(Object.keys(forwarded)).toEqual(['tree', 'db_configs', 'n']);
+    expect(Object.keys(forwarded.tree)).toEqual(['nodes', 'edges']);
+  });
+
+  it('refuses an oversized body by its declared length', async () => {
+    vi.resetModules();
+    const { onRequestPost } = await import('../api/explori/query');
+    const request = new Request('https://x/api/explori/query', {
+      method: 'POST',
+      body: JSON.stringify(valid),
+      headers: { 'Content-Length': String(1024 * 1024) },
+    });
+    const response = await onRequestPost({ request, env: {} } as never);
+    expect(response.status).toBe(413);
+  });
+
+  it('refuses a non-finite coordinate', async () => {
+    const { response } = await post({
+      ...valid,
+      tree: { nodes: [...NODES.slice(1), { id: 0, x: 'NaN', y: 0 }], edges: EDGES },
+    });
+    expect(response.status).toBe(400);
   });
 });

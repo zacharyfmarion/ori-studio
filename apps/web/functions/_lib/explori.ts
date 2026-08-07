@@ -84,7 +84,16 @@ export function trimExploriBundle(payload: unknown): unknown {
  *
  * Pages Functions do not support the platform `ratelimits` binding, and this is
  * approximate at the window edges — which is fine for its purpose. It is a
- * courtesy brake on our own client, not a security control.
+ * courtesy brake on our own client, not a security control. Specifically it is
+ * **not** a bound on the total load we can put upstream: the counter is per
+ * `CF-Connecting-IP` with no aggregate, the get/put pair is not atomic so a
+ * concurrent burst all reads the same value, and a KV failure fails open.
+ *
+ * Each allowed request costs one write against `SHARE_KV`, the namespace
+ * `cpShare` shares — whose free-plan ceiling of 1,000 writes/day is why share
+ * links are capped at ~500. So callers should validate a request *before*
+ * asking about the limit: a malformed flood then costs no writes at all, and
+ * cannot push share-link creation over that ceiling.
  */
 export async function underRateLimit(
   env: Env,

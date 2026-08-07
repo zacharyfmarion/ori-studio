@@ -30,6 +30,7 @@ import type { NativeCreasePatternDocumentV1 as NativeCreasePatternDocument } fro
 import { ProjectFileFormatError } from '../../../lib/projectFileError';
 import { createBoxPleatDesignState,
   createExploriDesignState, createTreemakerDesignState } from '../designContent';
+import { parseExploriDocument } from '../../../explori/document';
 import { BP_TREE_SYMMETRY_ANGLE, defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import type { SerializedDockview } from 'dockview';
 import type { BpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
@@ -1329,9 +1330,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       };
     }
     if (design.payload.kind === 'explori') {
-      // The tree, the query settings and the chosen result all live in the
-      // payload text, so the tab starts empty and the registry hydrates it.
-      return { ...identity, kind: 'explori', explori: createExploriDesignState() };
+      // The tree and the query settings live in the payload text, so the tab
+      // starts empty and the registry hydrates it. The chosen *result* is the
+      // exception: it is saved whole, deliberately, so a reopened design still
+      // has one without the network — but nothing read it back, because the
+      // results pane derives its detail from `results[detailIndex]` and a fresh
+      // state has neither. Seeding the list with the saved result is what makes
+      // that persistence reachable.
+      const selected = parseExploriDocument(design.payload.text).selected;
+      return {
+        ...identity,
+        kind: 'explori',
+        explori: createExploriDesignState(
+          selected ? { results: [selected], detailIndex: 0 } : {}
+        ),
+      };
     }
     return { ...identity, kind: 'treemaker', treemaker: createTreemakerDesignState() };
   };

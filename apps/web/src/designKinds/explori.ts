@@ -101,6 +101,8 @@ export function createExploriDesignKind(): DesignKindDescriptor {
       tab.kind === 'explori'
         ? deletableExploriNodeId(tab.explori.document, tab.explori.selection)
         : null,
+    // The document is plain JSON and always present.
+    isSavable: () => true,
     codec: createExploriCodec(),
     sendToEdit: createExploriSendToEdit(),
   };

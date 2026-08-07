@@ -282,7 +282,13 @@ export function parseExploriDocument(text: string): ExploriDocument {
     edges,
     nextNodeId: Math.max(...nodes.map((node) => node.id)) + 1,
     nextEdgeId: edges.reduce((highest, edge) => Math.max(highest, edge.id), 0) + 1,
-    dbConfigs: dbConfigs.length > 0 ? dbConfigs : fallback.dbConfigs,
+    // The fallback applies when the field is *absent*, not when it is empty.
+    // "No databases" is a state the UI names and blocks the search on, so
+    // treating it as "unset" re-checked all twelve boxes on every round trip —
+    // and this parse runs on undo, on a tab park/hydrate, and on file reopen, so
+    // merely switching designs silently re-armed the whole archive for the next
+    // search, including the databases the user had deliberately excluded.
+    dbConfigs: Array.isArray(record.dbConfigs) ? dbConfigs : fallback.dbConfigs,
     dbConfigsDirty: record.dbConfigsDirty === true,
     resultLimit:
       typeof record.resultLimit === 'number' && record.resultLimit > 0

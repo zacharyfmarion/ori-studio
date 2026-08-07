@@ -94,3 +94,29 @@ describe('ExplOri — Edit menu verbs are enabled', () => {
     expect(root['edit.delete'].enabled).toBe(false);
   });
 });
+
+/**
+ * Saving.
+ *
+ * `file.save` and `file.saveAs` listed the kinds they knew, so an ExplOri design
+ * failed all three arms. That was not cosmetic: `saveProject` opens by rejecting
+ * a disabled capability, so Cmd+S, the Save button and File ▸ Save all refused —
+ * the design could not be written at all, while the file layer had supported the
+ * `explori` kind since the day it landed.
+ */
+describe('ExplOri — the design can be saved', () => {
+  it('enables Save and Save As', () => {
+    const capabilities = getWorkspaceCapabilities(
+      workspaceCapabilityInput(stateWith(exploriTab()))
+    );
+    expect(capabilities['file.save'].enabled).toBe(true);
+    expect(capabilities['file.saveAs'].enabled).toBe(true);
+  });
+
+  it('offers the project reason, not the crease-pattern kernel excuse', () => {
+    const capabilities = getWorkspaceCapabilities(
+      workspaceCapabilityInput(stateWith(exploriTab()))
+    );
+    expect(capabilities['file.save'].reason).not.toMatch(/crease-pattern kernel/i);
+  });
+});

@@ -273,8 +273,12 @@ export function ViewportSymmetryToggle({
       type="button"
       className="viewport-toolbar__symmetry-button"
       data-active={enabled || undefined}
-      aria-label={title}
       aria-pressed={enabled}
+      // No `aria-label`: it would override the visible "Symmetry" text, so the
+      // accessible name would not contain the label a person can see — a
+      // Label-in-Name failure, and voice control ("click Symmetry") would hit
+      // nothing. `title` remains, as the tooltip it always was, and
+      // `aria-pressed` already conveys which way the toggle is set.
       title={title}
       onClick={onToggle}
     >

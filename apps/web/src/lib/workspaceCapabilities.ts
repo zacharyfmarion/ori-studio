@@ -133,6 +133,14 @@ export interface WorkspaceCapabilityInput {
    * no amount of wiring behind it could run.
    */
   hasDeletableDesignSelection: boolean;
+  /**
+   * Whether the active design kind has something worth writing to a file.
+   *
+   * Also one flag for every kind, and for the same reason: `file.save` listed
+   * the kinds it knew, and `saveProject` opens by rejecting a disabled
+   * capability — so an unlisted kind's work could not be saved at all.
+   */
+  canSaveDesign: boolean;
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -177,7 +185,6 @@ export function getWorkspaceCapabilities(
     input.hasEditableCreasePattern || (creasePatternMode && input.hasImportedCreasePattern);
   const canSaveEditableCreasePattern = creasePatternMode && input.hasEditableCreasePattern;
   // A box-pleat design saves as a native .osf (bundling its companion CP).
-  const canSaveBoxPleat = isBpContext && input.hasBoxPleatDocument;
   const canExportEditableCp = input.hasEditableCreasePattern;
   const canExportCreasePattern = hasCreasePattern && !isBusy;
   const canEditCp = input.hasEditableCreasePattern && !isBusy;
@@ -234,18 +241,18 @@ export function getWorkspaceCapabilities(
         : t('common:capability.detectSquareCpFromImage', 'Detect a square crease pattern from an image')
     ),
     'file.save': capability(
-      (treeMode || canSaveEditableCreasePattern || canSaveBoxPleat) && !isBusy,
+      (input.canSaveDesign || canSaveEditableCreasePattern) && !isBusy,
       t('common:capability.save', 'Save'),
-      treeMode || canSaveBoxPleat
+      input.canSaveDesign
         ? busyOr(t('common:capability.saveProject', 'Save Ori Studio project'), input.status, t)
         : canSaveEditableCreasePattern
           ? busyOr(t('common:capability.saveEditableCpAsProject', 'Save editable crease pattern as an Ori Studio project'), input.status, t)
           : t('common:capability.editableCpKernelUnavailable', 'Editable crease-pattern kernel is unavailable')
     ),
     'file.saveAs': capability(
-      (treeMode || canSaveEditableCreasePattern || canSaveBoxPleat) && !isBusy,
+      (input.canSaveDesign || canSaveEditableCreasePattern) && !isBusy,
       t('common:capability.saveAs', 'Save As...'),
-      treeMode || canSaveBoxPleat
+      input.canSaveDesign
         ? busyOr(t('common:capability.saveProjectAsNewFile', 'Save Ori Studio project as a new file'), input.status, t)
         : canSaveEditableCreasePattern
           ? busyOr(t('common:capability.saveEditableCpAsNewProject', 'Save editable crease pattern as a new Ori Studio project'), input.status, t)

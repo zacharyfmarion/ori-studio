@@ -132,6 +132,7 @@ describe('extensibility: a third design kind', () => {
     },
     history: () => ({ past: 1, future: 1 }),
     deletableTarget: () => 7,
+    isSavable: () => true,
     codec: {
       create: async () => 1,
       hydrate: async () => 2,
@@ -166,6 +167,7 @@ describe('extensibility: a third design kind', () => {
       oristudioCpSelectedPointCount: 0,
       oristudioCpSelectedCircleCount: 0,
       hasDeletableDesignSelection: false,
+      canSaveDesign: true,
       historyPastCount: 0,
       historyFutureCount: 0,
       clipboard: null,
@@ -191,6 +193,7 @@ describe('extensibility: a third design kind', () => {
       oristudioCpSelectedPointCount: 0,
       oristudioCpSelectedCircleCount: 0,
       hasDeletableDesignSelection: false,
+      canSaveDesign: true,
       historyPastCount: 0,
       historyFutureCount: 0,
       clipboard: null,

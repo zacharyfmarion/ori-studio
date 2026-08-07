@@ -294,7 +294,7 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
   const bounded = bounds
     ? subtree.filter(([, point]) => bounds(point)).map(([id]) => id)
     : [];
-  const isValid = (moved: Map<number, Point>) => {
+  const isValid = (moved: Map<number, Point>, enforceMirror = true) => {
     // Finiteness first, and not as paranoia: every other check here is a `<`,
     // and `NaN < anything` is false — so a degenerate state would sail through
     // all of them and be committed as valid.
@@ -307,9 +307,22 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
         if (point && !bounds(point)) return false;
       }
     }
-    if (!input.mirror) return true;
+    if (!input.mirror || !enforceMirror) return true;
     return heldStaysInPlace(moved, subtree, input.mirror);
   };
+
+  /**
+   * The mirror rule is dropped when the committed state already breaks it.
+   *
+   * `largestValidT` sweeps from `t = 0` assuming that point is valid. If a held
+   * vertex starts *inside* the clearance band it is not, so every step of the
+   * sweep failed and the answer was `t = 0` — the gesture refused, and refused
+   * again next time, with no way for the user to drag out of the state. A rule
+   * the current drawing already violates cannot be the thing that decides
+   * whether it may be changed. Bounds and finiteness still apply.
+   */
+  const startsLegal = isValid(at(0, 0));
+  const admissible = (moved: Map<number, Point>) => isValid(moved, startsLegal);
 
   // Pinned to the mirror: one admissible state, not a sweep. Every intermediate
   // step of a sweep is off the line, so there is no "partway" here to fall back
@@ -322,12 +335,12 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
       Math.atan2(pinned.tip.y - pivot.y, pinned.tip.x - pivot.x) - startAngle
     );
     const moved = at(pinnedAngle, pinned.radius - startRadius);
-    return isValid(moved)
+    return admissible(moved)
       ? { updates: moved, length: pinned.radius }
       : EMPTY_RESULT(length.current);
   }
 
-  const t = largestValidT((step) => isValid(at(requestedAngle * step, requestedExtension * step)));
+  const t = largestValidT((step) => admissible(at(requestedAngle * step, requestedExtension * step)));
   const angle = requestedAngle * t;
   const reached = startRadius + requestedExtension * t;
 
@@ -338,7 +351,7 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
   // is validated, and the last resort is moving nothing, which always is.
   for (const candidate of lengthCandidates(requested, reached, length)) {
     const moved = at(angle, candidate - startRadius);
-    if (isValid(moved)) return { updates: moved, length: candidate };
+    if (admissible(moved)) return { updates: moved, length: candidate };
   }
   return EMPTY_RESULT(length.current);
 }
@@ -411,10 +424,16 @@ function lengthCandidates(
     if (!candidates.includes(clamped)) candidates.push(clamped);
   };
   push(requested);
-  // A stepless rule can stop anywhere, so where the sweep actually reached is
-  // itself admissible and is the best second guess.
-  if (rule.step === null) push(reached);
-  else {
+  // Where the sweep actually reached is the best second guess on any rule — it
+  // is the furthest the gesture was allowed to go. On a stepless rule it is
+  // admissible as-is; on a stepped one it has to be quantized first.
+  //
+  // Offering only `requested ± step` and `± 2·step` was not enough: a gesture
+  // cut short by more than two steps found no admissible candidate at all and
+  // fell through to `rule.current`, i.e. the identity — so dragging *further*
+  // moved the flap *less*, and eventually not at all.
+  push(rule.step === null ? reached : Math.round(reached / rule.step) * rule.step);
+  if (rule.step !== null) {
     const toward = requested > reached ? -rule.step : rule.step;
     for (let i = 1; i <= 2; i += 1) push(requested + toward * i);
   }

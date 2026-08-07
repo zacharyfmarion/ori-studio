@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Search, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/Button';
@@ -40,6 +40,7 @@ export function ExploriQueryBar() {
   const setResultLimit = useWorkspaceStore((state) => state.setExploriResultLimit);
   const runQuery = useWorkspaceStore((state) => state.runExploriQuery);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const advancedTriggerRef = useRef<HTMLButtonElement | null>(null);
   const document = design.document;
   const blocker = exploriQueryBlocker(document);
 
@@ -108,9 +109,12 @@ export function ExploriQueryBar() {
             </div>
             <div className="explori-advanced">
               <IconButton
+                ref={advancedTriggerRef}
                 size="sm"
                 variant="toolbar"
                 isActive={advancedOpen}
+                aria-expanded={advancedOpen}
+                aria-haspopup="dialog"
                 title={t('panels:explori.advancedDatabases', 'Choose topology sizes')}
                 onClick={() => setAdvancedOpen((open) => !open)}
               >
@@ -120,7 +124,21 @@ export function ExploriQueryBar() {
                   row it pushed every control — and the drawing above them — up and
                   down each time it opened. */}
               {advancedOpen && (
-                <div className="explori-advanced__popover" role="dialog">
+                <div
+                  className="explori-advanced__popover"
+                  role="dialog"
+                  aria-label={t('panels:explori.advancedDatabases', 'Choose topology sizes')}
+                  // Escape closes it here rather than falling through to the
+                  // shortcut runtime, where the tree canvas would answer and
+                  // pull focus out from under an open popover.
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Escape') return;
+                    event.stopPropagation();
+                    event.preventDefault();
+                    setAdvancedOpen(false);
+                    advancedTriggerRef.current?.focus();
+                  }}
+                >
                   <table className="explori-db-table">
                     <thead>
                       <tr>
