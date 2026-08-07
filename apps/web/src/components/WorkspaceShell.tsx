@@ -9,7 +9,6 @@ import 'dockview/dist/styles/dockview.css';
 import {
   Box,
   DraftingCompass,
-  Download,
   FilePlus,
   FolderOpen,
   PenTool,
@@ -30,8 +29,6 @@ import { IconButton } from './ui/IconButton';
 import { handleMenuAction } from '../commands/menuActions';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
 import type { DropTargetPolicy } from '../lib/fileDrop';
-import { useMacDownloadUrl } from '../hooks/useMacDownloadUrl';
-import { isFeatureVisible } from '../platform/features';
 import { getRuntimeSurface } from '../platform/runtime';
 import { applyDefaultLayout, clearPersistedLayout, useLayoutStore } from '../store/layoutStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -102,10 +99,7 @@ function Toolbar() {
   const { t } = useTranslation();
   const openSettings = useSettingsStore((state) => state.openSettings);
   const capabilities = useWorkspaceCapabilities();
-  const runtimeSurface = getRuntimeSurface();
-  const isDesktop = runtimeSurface === 'desktop';
-  const showDownloadCta = isFeatureVisible('macDownloadCta', runtimeSurface);
-  const downloadUrl = useMacDownloadUrl();
+  const isDesktop = getRuntimeSurface() === 'desktop';
   const optimizeScale = capabilities['optimize.scale'];
   const bpOptimizeLayout = capabilities['bp.optimize.layout'];
   const buildCp = capabilities['cp.build'];
@@ -209,16 +203,6 @@ function Toolbar() {
         )}
         {(optimizeScale.visible || buildCp.visible || isBpContext) && (
           <span className="toolbar__separator" />
-        )}
-        {showDownloadCta && (
-          <IconButton
-            size="sm"
-            title={t('common:toolbar.downloadMac', 'Download Ori Studio for Mac')}
-            tooltipSide="bottom"
-            onClick={() => window.open(downloadUrl, '_blank', 'noreferrer')}
-          >
-            <Download size={15} />
-          </IconButton>
         )}
         <IconButton size="sm" title={t('common:toolbar.settings', 'Settings')} tooltipSide="bottom" onClick={() => openSettings()}>
           <Settings size={15} />

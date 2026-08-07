@@ -234,7 +234,6 @@
     "increase": "Increase {{label}}"
   },
   "toolbar": {
-    "downloadMac": "Download Ori Studio for Mac",
     "new": "New",
     "open": "Open",
     "optimizeLayout": "Optimize",
