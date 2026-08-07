@@ -13,7 +13,7 @@ import {
   FolderOpen,
   PenTool,
   Save,
-  ScanLine,
+  Send,
   Settings,
   Sparkles,
 } from 'lucide-react';
@@ -171,7 +171,7 @@ function Toolbar() {
             }
             onClick={() => void sendTreeToEdit()}
           >
-            <ScanLine size={14} />
+            <Send size={14} />
             {t('common:toolbar.sendToEdit', 'Send to Edit')}
           </Button>
         )}
@@ -197,7 +197,7 @@ function Toolbar() {
             title={t('common:toolbar.sendToEditTooltip', "Send this design's crease pattern to the Edit canvas")}
             onClick={() => void sendBpToEdit()}
           >
-            <ScanLine size={14} />
+            <Send size={14} />
             {t('common:toolbar.sendToEdit', 'Send to Edit')}
           </Button>
         )}

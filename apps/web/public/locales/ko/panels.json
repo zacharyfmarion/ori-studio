@@ -324,7 +324,7 @@
     "viewportControls": "전개도 뷰포트 컨트롤"
   },
   "design": {
-    "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> 기반 · <6>후원하기</6>",
+    "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> 기반",
     "attributionExplori": "theplantpsychologist의 <2>ExplOri 22.5</2>를 검색합니다 · <6>후원하기</6>",
     "attributionTreemaker": "<2>Robert J. Lang's TreeMaker</2> 기반 · GPL-2.0",
     "axis": "축",
@@ -447,7 +447,10 @@
     "nextResult": "다음 결과",
     "nodeNameAria": "노드 {{id}}의 이름",
     "nodeTitle": "노드 {{id}}",
+    "noMatches": "일치하는 전개도가 없습니다",
+    "noMatchesDetail": "아카이브에 이 트리와 비슷한 것이 없습니다. 가지를 조정하거나 더 많은 대칭을 검색해 보세요.",
     "noResultsYet": "트리를 그리고 아카이브를 검색하면 일치하는 전개도가 표시됩니다.",
+    "noResultsYetTitle": "아직 결과가 없습니다",
     "openInExplori": "ExplOri에서 열기",
     "openResult": "결과 {{id}} 열기",
     "previousResult": "이전 결과",
@@ -464,6 +467,7 @@
     "resultPosition": "{{total}}개 중 {{index}}번째",
     "search": "검색",
     "searching": "검색 중…",
+    "searchingDetail": "선택한 데이터베이스의 모든 토폴로지와 트리를 비교하고 있습니다.",
     "searchingStatus": "아카이브 검색 중…",
     "searchSize": "결과 수",
     "selectEdge": "가지 {{id}} 선택, 길이 {{length}}",

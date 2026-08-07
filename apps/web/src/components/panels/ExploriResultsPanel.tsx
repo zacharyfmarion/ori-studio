@@ -1,7 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, ScanLine } from 'lucide-react';
-import { Button } from '../ui/Button';
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  Search,
+  SearchX,
+  Send,
+} from 'lucide-react';
+import { Button, ButtonLink } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import {
@@ -68,6 +77,43 @@ function CardFigure({ result, mode }: { result: ExploriResult; mode: ExploriCard
   );
 }
 
+/**
+ * The pane when it is not showing results: searching, never searched, or
+ * searched and given nothing back.
+ *
+ * One component for all three because they are the same object — an icon, a
+ * line naming the state, and a line saying what to do about it — and three
+ * ad-hoc paragraphs are how they drift apart. It fills the pane rather than
+ * sitting at the top of it: the results half is as tall as the tree half, and a
+ * sentence stranded against the top edge of that reads as a rendering failure.
+ */
+function ExploriResultsStatus({
+  icon,
+  title,
+  detail,
+  busy,
+}: {
+  icon: ReactNode;
+  title: string;
+  detail: string;
+  busy?: boolean;
+}) {
+  return (
+    <div
+      className="explori-results__state"
+      role="status"
+      aria-live="polite"
+      aria-busy={busy || undefined}
+    >
+      <div className="explori-results__state-icon" aria-hidden="true">
+        {icon}
+      </div>
+      <p className="explori-results__state-title">{title}</p>
+      <p className="explori-results__state-detail">{detail}</p>
+    </div>
+  );
+}
+
 /** One detail figure, under the name of what it is. */
 function ExploriDetailFigure({
   result,
@@ -97,7 +143,7 @@ export function ExploriResultsPanel() {
   const backRef = useRef<HTMLButtonElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
 
-  const { results, detailIndex, searching, error } = design;
+  const { results, detailIndex, searching, searched, error } = design;
   const detail = detailIndex !== null ? (results[detailIndex] ?? null) : null;
 
   /**
@@ -129,7 +175,15 @@ export function ExploriResultsPanel() {
   if (searching) {
     return (
       <section className="panel-shell explori-results-panel">
-        <p className="explori-results__status">{t('panels:explori.searchingStatus', 'Searching the archive…')}</p>
+        <ExploriResultsStatus
+          busy
+          icon={<Loader2 size={24} className="explori-results__spinner" />}
+          title={t('panels:explori.searchingStatus', 'Searching the archive…')}
+          detail={t(
+            'panels:explori.searchingDetail',
+            'Comparing your tree against every topology in the databases you chose.'
+          )}
+        />
       </section>
     );
   }
@@ -189,17 +243,18 @@ export function ExploriResultsPanel() {
               <ChevronRight size={16} />
             </IconButton>
           </div>
-          <a
-            className="explori-detail__upstream"
+          <ButtonLink
+            size="sm"
+            variant="secondary"
             href={exploriResultUrl(detail)}
             target="_blank"
             rel="noreferrer noopener"
           >
             <ExternalLink size={14} />
             {t('panels:explori.openInExplori', 'Open in ExplOri')}
-          </a>
+          </ButtonLink>
           <Button size="sm" variant="primary" onClick={() => void sendToEdit('detail')}>
-            <ScanLine size={14} />
+            <Send size={14} />
             {t('common:toolbar.sendToEdit', 'Send to Edit')}
           </Button>
         </header>
@@ -237,12 +292,28 @@ export function ExploriResultsPanel() {
     <section className="panel-shell explori-results-panel">
       {error && <p className="explori-results__error">{error}</p>}
       {results.length === 0 ? (
-        <p className="explori-results__status">
-          {t(
-            'panels:explori.noResultsYet',
-            'Draw a tree and search the archive to see matching crease patterns.'
-          )}
-        </p>
+        /* "Nothing here" is two states, and they ask for different things: one
+           wants you to press Search, the other wants you to change the tree or
+           widen the databases. `searched` is what tells them apart. */
+        searched ? (
+          <ExploriResultsStatus
+            icon={<SearchX size={24} />}
+            title={t('panels:explori.noMatches', 'No matching crease patterns')}
+            detail={t(
+              'panels:explori.noMatchesDetail',
+              'The archive has nothing close to this tree. Try adjusting the branches, or search more symmetries.'
+            )}
+          />
+        ) : (
+          <ExploriResultsStatus
+            icon={<Search size={24} />}
+            title={t('panels:explori.noResultsYetTitle', 'No results yet')}
+            detail={t(
+              'panels:explori.noResultsYet',
+              'Draw a tree and search the archive to see matching crease patterns.'
+            )}
+          />
+        )
       ) : (
         <>
           <header className="explori-results__header">
@@ -299,7 +370,7 @@ export function ExploriResultsPanel() {
                       title={t('panels:explori.quickSendToEdit', 'Send this crease pattern to Edit')}
                       onClick={() => void quickSend(result)}
                     >
-                      <ScanLine size={14} />
+                      <Send size={14} />
                     </IconButton>
                   </div>
                 </article>

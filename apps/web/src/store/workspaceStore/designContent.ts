@@ -30,6 +30,15 @@ export interface ExploriDesignState {
   results: ExploriResult[];
   /** Set while a query is in flight, so the pane can say so. */
   searching: boolean;
+  /**
+   * Whether a query has come back at all this session.
+   *
+   * An empty `results` means two different things — "you have not searched yet"
+   * and "the archive has nothing like this tree" — and the pane has to say which.
+   * Session-only for the same reason `results` is: the set is not saved, so a
+   * reopened design has genuinely not searched.
+   */
+  searched: boolean;
   /** The last query's failure, as a message already localized. */
   error: string | null;
   /** Which result the detail view is showing, by index into `results`. */
@@ -47,6 +56,7 @@ export function createExploriDesignState(
     selection: { kind: 'vertex', id: 0 },
     results: [],
     searching: false,
+    searched: false,
     error: null,
     detailIndex: null,
     historyPast: [],
