@@ -106,17 +106,19 @@ describe('collectExportLossWarnings', () => {
     }
   });
 
-  it('says nothing when the design is symmetric only by default', () => {
-    // Mirror draw is on for every new design, so "on, book, nothing paired" is
-    // exactly what reopening the .bps gives back. Nothing was lost.
+  it('says nothing when the design has the symmetry a fresh open would give', () => {
+    // Reopening the .bps hands back the default, so a design still sitting on it
+    // lost nothing. Written against `defaultBpDocumentSymmetry()` rather than a
+    // literal, so this stays a statement about the default and not about which
+    // value the default currently happens to be.
     const presence = { ...noneElse, images: [], bpSymmetry: defaultBpDocumentSymmetry() };
     expect(collectExportLossWarnings('bps', presence)).toEqual([]);
   });
 
-  it('warns when mirror draw was turned off, or the fold changed, with nothing paired', () => {
+  it('warns when mirror draw was turned on, or the fold changed, with nothing paired', () => {
     for (const bpSymmetry of [
-      { enabled: false, fold: 'book' as const, pairs: [] },
-      { enabled: true, fold: 'diagonal' as const, pairs: [] },
+      { enabled: true, fold: 'book' as const, pairs: [] },
+      { enabled: false, fold: 'diagonal' as const, pairs: [] },
     ]) {
       const warnings = collectExportLossWarnings('bps', { ...noneElse, images: [], bpSymmetry });
       expect(warnings.map((warning) => warning.id)).toEqual(['symmetry']);

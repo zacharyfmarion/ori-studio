@@ -7,10 +7,12 @@ import {
   bpTreeSymmetryDefaultLoc,
   bpTreeMirrorHeldIds,
   explicitBpTreePairId,
+  mirrorBpTreeVertexId,
   type BpTreeSymmetryPair,
 } from '../lib/bpTreeSymmetry';
 import { symmetrySide } from '../lib/symmetryGeometry';
-import type { BpTreeDragMirror } from '../lib/bpTreeAuthoring';
+import type { TreeSymmetryHost, TreeSymmetryLine } from '../tree-editor/host';
+import type { TreeDragMirror } from '../tree-editor/dragRule';
 import { bpTreePointToSvg, bpTreePaperRect } from '../lib/bpTreeViewport';
 import type { OristudioBpTreeView } from '../engine/oristudioBpTypes';
 import type { Point } from '../lib/geometry';
@@ -28,14 +30,9 @@ import type { Point } from '../lib/geometry';
  * panel is a composition site.
  */
 
-export interface BpTreeSymmetryLine {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
+export type BpTreeSymmetryLine = TreeSymmetryLine;
 
-export interface BpTreeSymmetryView {
+export interface BpTreeSymmetryView extends TreeSymmetryHost {
   enabled: boolean;
   toggle: () => void;
   /** The mirror line clipped to the sheet, in SVG coords. */
@@ -74,7 +71,7 @@ export interface BpTreeSymmetryView {
    * Null when none of them is paired, which is the common case and lets the drag
    * skip the clamp entirely.
    */
-  dragMirror: (movedIds: readonly number[]) => BpTreeDragMirror | null;
+  dragMirror: (movedIds: readonly number[]) => TreeDragMirror | null;
 }
 
 export function useBpTreeSymmetry(
@@ -148,6 +145,17 @@ export function useBpTreeSymmetry(
   // drawn with a twin.
   const pairs = symmetry.pairs;
 
+  const axis = useMemo(
+    () => ({ loc: symmetry.loc, angle: symmetry.angle }),
+    [symmetry.loc, symmetry.angle]
+  );
+
+  const resolveMirrorOf = useCallback(
+    (vertexId: number) =>
+      mirrorBpTreeVertexId(tree, symmetry.pairs, axis, vertexId, BP_TREE_SYMMETRY_TOLERANCE),
+    [tree, symmetry.pairs, axis]
+  );
+
   const partnerOf = useCallback(
     (vertexId: number) => explicitBpTreePairId(symmetry.pairs, vertexId),
     [symmetry.pairs]
@@ -165,7 +173,7 @@ export function useBpTreeSymmetry(
   );
 
   const dragMirror = useCallback(
-    (movedIds: readonly number[]): BpTreeDragMirror | null => {
+    (movedIds: readonly number[]): TreeDragMirror | null => {
       const axis = { loc: symmetry.loc, angle: symmetry.angle };
       const heldIds = bpTreeMirrorHeldIds(tree, symmetry.pairs, axis, movedIds);
       // The same band `symmetrySide` calls "on the axis", so a held vertex can
@@ -180,6 +188,8 @@ export function useBpTreeSymmetry(
   return {
     enabled: symmetry.enabled,
     toggle,
+    axis,
+    resolveMirrorOf,
     dragMirror,
     axisLine,
     pairs,

@@ -1,8 +1,10 @@
 import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
-import { selectHistoryFuture, selectHistoryPast, selectOristudioBpDocument, selectOristudioBpHistoryFuture, selectOristudioBpHistoryPast, selectOristudioBpSelection, selectProject, selectSelection } from './designTabs';
+import { selectOristudioBpDocument, selectProject, selectSelection } from './designTabs';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
+import { designKind, designKindForContext } from '../../designKinds';
+import { activeDesignTab } from './designTabs';
 import { historyCountForContext } from './capabilities';
 import { useWorkspaceStore } from './store';
 
@@ -37,33 +39,36 @@ export function useWorkspaceCapabilities() {
   const oristudioCpSelectedCircleCount = useWorkspaceStore(
     (state) => state.oristudioCpSelection.circles.length
   );
-  const treeHistoryPastCount = useWorkspaceStore((state) => selectHistoryPast(state).length);
-  const treeHistoryFutureCount = useWorkspaceStore((state) => selectHistoryFuture(state).length);
   const cpHistoryPastCount = useWorkspaceStore((state) => state.oristudioCpHistoryPast.length);
   const cpHistoryFutureCount = useWorkspaceStore((state) => state.oristudioCpHistoryFuture.length);
-  const bpHistoryPastCount = useWorkspaceStore((state) => selectOristudioBpHistoryPast(state).length);
-  const bpHistoryFutureCount = useWorkspaceStore((state) => selectOristudioBpHistoryFuture(state).length);
-  const hasDeletableBpSelection = useWorkspaceStore((state) => {
-    const selection = selectOristudioBpSelection(state);
-    const root = selectOristudioBpDocument(state)?.snapshot?.tree?.rootVertexId;
-    return (
-      (selection?.kind === 'bp-vertex' && selection.id !== root) ||
-      selection?.kind === 'bp-edge'
-    );
+  // Asked of the active design kind rather than of box-pleat: one flag, every
+  // kind, answered by the descriptor that knows.
+  const hasDeletableDesignSelection = useWorkspaceStore((state) => {
+    const kind = designKindForContext(state.activeEditingContext);
+    return kind?.deletableTarget?.(activeDesignTab(state)) != null;
   });
+  // Every tab, not the focused one — a save writes the whole workspace.
+  const canSaveDesign = useWorkspaceStore((state) =>
+    state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false)
+  );
+  // Subscribed to the tab itself, which is what carries every design kind's
+  // undo stack. An edit replaces the tab object, so this re-renders — the
+  // per-kind history subscriptions this replaced were only ever reading the
+  // same arrays through named selectors.
+  const activeDesign = useWorkspaceStore(activeDesignTab);
   const clipboard = useWorkspaceStore((state) => state.clipboard);
   const selection = useWorkspaceStore((state) => selectSelection(state));
   const historyPastCount = historyCountForContext(
     activeEditingContext,
-    bpHistoryPastCount,
+    activeDesign,
     hasEditableCreasePattern ? cpHistoryPastCount : 0,
-    treeHistoryPastCount
+    'past'
   );
   const historyFutureCount = historyCountForContext(
     activeEditingContext,
-    bpHistoryFutureCount,
+    activeDesign,
     hasEditableCreasePattern ? cpHistoryFutureCount : 0,
-    treeHistoryFutureCount
+    'future'
   );
 
   return useMemo(
@@ -87,7 +92,8 @@ export function useWorkspaceCapabilities() {
           oristudioCpSelectedLineCount,
           oristudioCpSelectedPointCount,
           oristudioCpSelectedCircleCount,
-          hasDeletableBpSelection,
+          hasDeletableDesignSelection,
+      canSaveDesign,
           historyPastCount,
           historyFutureCount,
           clipboard,
@@ -113,7 +119,8 @@ export function useWorkspaceCapabilities() {
       oristudioCpSelectedCircleCount,
       oristudioCpSelectedLineCount,
       oristudioCpSelectedPointCount,
-      hasDeletableBpSelection,
+      hasDeletableDesignSelection,
+      canSaveDesign,
       historyFutureCount,
       historyPastCount,
       selection,

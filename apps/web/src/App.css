@@ -172,7 +172,7 @@
 .design-method-chooser__body {
   display: grid;
   gap: var(--space-5);
-  width: min(100%, 680px);
+  width: min(100%, 940px);
 }
 
 .design-method-chooser__intro {
@@ -194,9 +194,14 @@
   font-size: 0.85rem;
 }
 
+/*
+ * Fits every kind on one row where there is room, rather than a fixed two —
+ * a third card wrapped onto a line of its own and read as an afterthought.
+ * `auto-fit` still wraps when the pane is genuinely too narrow.
+ */
 .design-method-chooser__options {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: var(--space-4);
 }
 

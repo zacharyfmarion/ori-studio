@@ -28,7 +28,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 import type { NativeDesignDocumentV8 } from '../../../lib/nativeProjectDesigns';
 import type { NativeCreasePatternDocumentV1 as NativeCreasePatternDocument } from '../../../lib/nativeProjectFile';
 import { ProjectFileFormatError } from '../../../lib/projectFileError';
-import { createBoxPleatDesignState, createTreemakerDesignState } from '../designContent';
+import { createBoxPleatDesignState,
+  createExploriDesignState, createTreemakerDesignState } from '../designContent';
+import { parseExploriDocument } from '../../../explori/document';
 import { BP_TREE_SYMMETRY_ANGLE, defaultBpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
 import type { SerializedDockview } from 'dockview';
 import type { BpDocumentSymmetry } from '../../../lib/bpTreeSymmetry';
@@ -1325,6 +1327,23 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             ? { ...defaultBpDocumentSymmetry(), ...symmetry, angle: BP_TREE_SYMMETRY_ANGLE, loc: { x: 0, y: 0 } }
             : undefined,
         }),
+      };
+    }
+    if (design.payload.kind === 'explori') {
+      // The tree and the query settings live in the payload text, so the tab
+      // starts empty and the registry hydrates it. The chosen *result* is the
+      // exception: it is saved whole, deliberately, so a reopened design still
+      // has one without the network — but nothing read it back, because the
+      // results pane derives its detail from `results[detailIndex]` and a fresh
+      // state has neither. Seeding the list with the saved result is what makes
+      // that persistence reachable.
+      const selected = parseExploriDocument(design.payload.text).selected;
+      return {
+        ...identity,
+        kind: 'explori',
+        explori: createExploriDesignState(
+          selected ? { results: [selected], detailIndex: 0 } : {}
+        ),
       };
     }
     return { ...identity, kind: 'treemaker', treemaker: createTreemakerDesignState() };
@@ -3241,6 +3260,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       const wasDirty = get().dirty;
       if (target === 'box-pleat') {
         await get().createOristudioBpProject({ confirmDiscard: false, preserveEditCanvas: true });
+      } else if (target === 'explori') {
+        await get().createExploriDesign();
       } else {
         await get().createNewProject({ preserveEditCanvas: true });
       }

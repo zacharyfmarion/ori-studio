@@ -247,6 +247,15 @@ function render(selectedVertexId: number | null, symmetryEnabled = false) {
   if (!body) throw new Error('BP tree panel body did not render');
   Object.defineProperty(body, 'clientWidth', { configurable: true, value: 900 });
   Object.defineProperty(body, 'clientHeight', { configurable: true, value: 720 });
+  // jsdom measures every element as zero-sized, and a zero-sized canvas maps
+  // *every* client point to the same tree point — so without this a "drag"
+  // travels nowhere and the gestures below would pass against a canvas that
+  // cannot tell one pointer position from another.
+  const canvas = container.querySelector('svg.bp-tree-canvas');
+  if (canvas) {
+    canvas.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 900, height: 720, right: 900, bottom: 720, x: 0, y: 0 }) as DOMRect;
+  }
   return body;
 }
 
@@ -304,42 +313,76 @@ describe('BP tree pane — adding is anchored to the selection', () => {
   });
 });
 
-describe('BP tree pane — a vertex on the mirror line is pinned', () => {
-  // The fixture's vertices all sit at x=10, which is the mirror line.
-  function clickVertex(body: HTMLElement, index: number) {
-    const dot = body.querySelectorAll<SVGCircleElement>('.bp-tree-node')[index];
+describe('BP tree pane — a vertex on the mirror line slides along it', () => {
+  // Every vertex in the fixture sits at x = 10, which is the mirror line: the
+  // root at (10,10) with a leaf a unit above and a unit below.
+  //
+  // Such a vertex is its own reflection, and used to be refused a drag entirely
+  // to protect that — which read to the user as a node that could not be
+  // resized. It moves now, but only along the line.
+  function press(body: HTMLElement, to: { clientX: number; clientY: number }) {
+    const dot = body.querySelector('circle[data-tree-anchor="node"][data-tree-p1="1"]');
+    if (!dot) throw new Error('vertex dot did not render');
+    act(() => {
+      dot.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
+      );
+      body.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, button: 0, ...to }));
+      body.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0, ...to }));
+    });
+  }
+
+  /** Every vertex position any of the move paths was asked to commit. */
+  function committedLocations() {
+    type Update = { loc: { x: number; y: number } };
+    const fromMoves = (
+      actions.moveOristudioBpTreeVerticesWithSymmetry.mock.calls as unknown as [Update[]][]
+    ).flatMap((call) => call[0] ?? []);
+    // `setOristudioBpTreeEdgeLength(edgeIds, length, updates)` — the positions
+    // are its third argument, not its second.
+    const fromLengths = (
+      actions.setOristudioBpTreeEdgeLength.mock.calls as unknown as [
+        unknown,
+        unknown,
+        Update[] | undefined,
+      ][]
+    ).flatMap((call) => call[2] ?? []);
+    return [...fromMoves, ...fromLengths].map((update) => update.loc);
+  }
+
+  it('selects it without adding a leaf, mirror or otherwise', () => {
+    const body = render(1, true);
+    const dot = body.querySelectorAll<SVGCircleElement>('.bp-tree-node')[1];
     const at = { clientX: 400, clientY: 300 };
     act(() => {
       dot.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, ...at }));
       dot.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0, ...at }));
     });
-  }
-
-  it('selects it without adding a leaf, mirror or otherwise', () => {
-    const body = render(1, true);
-    clickVertex(body, 1);
     expect(actions.selectOristudioBp).toHaveBeenCalledWith({ kind: 'bp-vertex', id: 1 });
-    // Declining the drag must not let the click fall through to the canvas,
-    // which would add a leaf plus its mirror on top of the vertex.
+    // The press must not fall through to the canvas, which would add a leaf plus
+    // its mirror on top of the vertex.
     expect(actions.addOristudioBpTreeLeafWithSymmetry).not.toHaveBeenCalled();
     expect(actions.addOristudioBpTreeLeaf).not.toHaveBeenCalled();
   });
 
-  it('does not move it', () => {
+  it('moves when dragged along the line', () => {
     const body = render(1, true);
-    const dot = body.querySelectorAll<SVGCircleElement>('.bp-tree-node')[1];
-    act(() => {
-      dot.dispatchEvent(
-        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 400, clientY: 300 })
-      );
-      dot.dispatchEvent(
-        new MouseEvent('pointermove', { bubbles: true, button: 0, clientX: 500, clientY: 300 })
-      );
-      dot.dispatchEvent(
-        new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 500, clientY: 300 })
-      );
-    });
-    expect(actions.moveOristudioBpTreeVerticesWithSymmetry).not.toHaveBeenCalled();
+    press(body, { clientX: 400, clientY: 460 });
+    const mirrored =
+      actions.moveOristudioBpTreeVerticesWithSymmetry.mock.calls.length +
+      actions.setOristudioBpTreeEdgeLength.mock.calls.length;
+    expect(mirrored).toBe(1);
+  });
+
+  it('never leaves the line, however far sideways it is dragged', () => {
+    const body = render(1, true);
+    press(body, { clientX: 900, clientY: 300 });
+    // The invariant the old refusal was protecting, now stated directly: the
+    // gesture may slide the vertex, and may commit nothing at all, but whatever
+    // it commits is still on x = 10.
+    const committed = committedLocations();
+    expect(committed.length).toBeGreaterThan(0);
+    for (const loc of committed) expect(loc.x).toBeCloseTo(10, 9);
     expect(actions.moveOristudioBpTreeVertices).not.toHaveBeenCalled();
   });
 });
@@ -535,10 +578,17 @@ describe('BP tree pane — the drawing keeps its proportions when zoomed', () =>
 });
 
 describe('BP tree pane — Escape', () => {
-  it('clears the selection from the canvas', () => {
-    const body = render(1);
+  it('clears the selection wherever focus happens to be', () => {
+    // Driven through the shortcut runtime, which is where Escape now lives. It
+    // used to be a `keydown` on the pane container, and so did nothing the
+    // moment a name field, the toolbar or a neighbouring pane held focus —
+    // exactly the focus dependence AGENTS.md forbids of a shortcut.
+    render(1);
     act(() => {
-      body.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }));
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }),
+        { context: { activeEditingContext: 'bp-tree' }, menu: vi.fn() }
+      );
     });
     expect(actions.clearOristudioBpSelection).toHaveBeenCalled();
   });
@@ -698,7 +748,7 @@ describe('BP tree pane — pairings survive mirror draw being off', () => {
 
   it('commits a drag through the mirrored move whatever the toggle says', () => {
     const body = withPair(false);
-    const dot = body.querySelector('circle[data-bp-anchor="node"][data-bp-p1="1"]');
+    const dot = body.querySelector('circle[data-tree-anchor="node"][data-tree-p1="1"]');
     if (!dot) throw new Error('vertex dot did not render');
     act(() => {
       dot.dispatchEvent(
@@ -711,7 +761,14 @@ describe('BP tree pane — pairings survive mirror draw being off', () => {
         new MouseEvent('pointerup', { bubbles: true, button: 0, clientX: 460, clientY: 360 })
       );
     });
-    expect(actions.moveOristudioBpTreeVerticesWithSymmetry).toHaveBeenCalledTimes(1);
+    // Either mirrored path counts: a drag that also changed the edge's length
+    // commits through `setOristudioBpTreeEdgeLength`, which mirrors the length
+    // onto the partner edge and reflects its subtree. What must never happen is
+    // the *unmirrored* move, whatever the toggle says.
+    const mirrored =
+      actions.moveOristudioBpTreeVerticesWithSymmetry.mock.calls.length +
+      actions.setOristudioBpTreeEdgeLength.mock.calls.length;
+    expect(mirrored).toBe(1);
     expect(actions.moveOristudioBpTreeVertices).not.toHaveBeenCalled();
   });
 });

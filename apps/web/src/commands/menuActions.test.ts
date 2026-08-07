@@ -67,6 +67,7 @@ function createDeps() {
       // design tab rather than flat fields.
       ...singleBoxPleatDesignTab(),
       deleteOristudioBpTreeNode: vi.fn().mockResolvedValue(true),
+      deleteExploriNode: vi.fn().mockResolvedValue(true),
       oristudioCpDocument: null as OristudioCpDocumentState | null,
       oristudioCpSelection: {
         lines: [1, 2],
@@ -578,7 +579,7 @@ describe('menu actions', () => {
   // arrives here, so this is where "Delete removes the selected BP node" is
   // actually decided -- for both BP panes, since either can hold the selection.
   describe('Delete in the Box Pleating editor', () => {
-    /** `deletableBpNodeId` reads only the tree's root and its edges. */
+    /** The box-pleat kind's `deletableTarget` reads only the tree's root and its edges. */
     function bpDocument() {
       return {
         snapshot: { tree: { rootVertexId: 0, edges: [{ id: 1, vertices: [0, 1] }] } },
@@ -703,7 +704,8 @@ describe('menu actions', () => {
         oristudioCpSelectedLineCount: 0,
         oristudioCpSelectedPointCount: 0,
         oristudioCpSelectedCircleCount: 0,
-        hasDeletableBpSelection: false,
+        hasDeletableDesignSelection: false,
+        canSaveDesign: true,
         historyPastCount: 0,
         historyFutureCount: 0,
         clipboard: null,

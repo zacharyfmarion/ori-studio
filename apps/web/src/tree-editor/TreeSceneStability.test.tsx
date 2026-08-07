@@ -1,11 +1,11 @@
-import { singleBoxPleatDesignTab } from '../../store/workspaceStore/designTabs';
+import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { OristudioBpDocumentState } from '../../engine/oristudioBpTypes';
-import { useWorkspaceStore } from '../../store/workspaceStore';
-import { TooltipProvider } from '../ui/Tooltip';
-import { BpTreePanel } from './BpTreePanel';
+import type { OristudioBpDocumentState } from '../engine/oristudioBpTypes';
+import { useWorkspaceStore } from '../store/workspaceStore';
+import { TooltipProvider } from '../components/ui/Tooltip';
+import { BpTreePanel } from '../components/panels/BpTreePanel';
 
 /**
  * The performance property of the BP tree pane, written as a test so it cannot
@@ -319,7 +319,15 @@ describe('BP tree canvas — the drawing is not rebuilt for nothing', () => {
     });
     drain();
     observer.disconnect();
-    return { touched: touched.size, committed: actions.moveOristudioBpTreeVerticesWithSymmetry.mock.calls.length };
+    // Either commit path counts. A drag that changed the edge's length lands
+    // through `setOristudioBpTreeEdgeLength`, which carries the moves with it so
+    // the length and the geometry are one undo entry.
+    return {
+      touched: touched.size,
+      committed:
+        actions.moveOristudioBpTreeVerticesWithSymmetry.mock.calls.length +
+        actions.setOristudioBpTreeEdgeLength.mock.calls.length,
+    };
   }
 
   it('touches the same few elements whether the tree is small or large', () => {

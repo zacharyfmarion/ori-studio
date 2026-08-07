@@ -18,7 +18,6 @@ import {
   CircleDot,
   FileQuestionMark,
   FileText,
-  FlipHorizontal2,
   FolderOpen,
   Layers,
   Plus,
@@ -80,6 +79,7 @@ import { IconButton } from '../ui/IconButton';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
 import {
   isViewportInteractiveTarget,
+  ViewportSymmetryToggle,
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from './ViewportToolbar';
@@ -201,35 +201,6 @@ interface DesignViewportToolbarProps {
   zoomOut: () => void;
   fitToView: () => void;
   setZoomLevel: (scale: number) => void;
-}
-
-/**
- * Symmetry on/off — one button for one decision. Symmetry on means the project
- * carries a mirror line, the axis is drawn, and node edits reflect across it;
- * off clears all three. Where the line sits lives behind the options button.
- */
-function DesignSymmetryToggle({
-  enabled,
-  onChange,
-}: {
-  enabled: boolean;
-  onChange: (enabled: boolean) => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <button
-      type="button"
-      className="viewport-toolbar__symmetry-button"
-      data-active={enabled ? true : undefined}
-      aria-label={t('panels:design.symmetryButton', 'Design symmetry')}
-      aria-pressed={enabled}
-      onClick={() => onChange(!enabled)}
-    >
-      <FlipHorizontal2 size={14} />
-      <span>{t('panels:design.symmetryToolbar', 'Sym')}</span>
-    </button>
-  );
 }
 
 function DesignSymmetryOptionsButton({
@@ -400,9 +371,11 @@ function DesignViewportToolbar({
       setZoomLevel={setZoomLevel}
     >
       <ViewportToolbarSeparator />
-      <DesignSymmetryToggle
+      <ViewportSymmetryToggle
         enabled={symmetryMode !== 'none'}
-        onChange={onSymmetryEnabledChange}
+        label={t('panels:design.symmetryToolbar', 'Symmetry')}
+        title={t('panels:design.symmetryButton', 'Design symmetry')}
+        onToggle={() => onSymmetryEnabledChange(symmetryMode === 'none')}
       />
       <DesignSymmetryOptionsButton
         symmetryMode={symmetryMode}

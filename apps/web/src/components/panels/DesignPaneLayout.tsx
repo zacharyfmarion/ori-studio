@@ -137,17 +137,21 @@ export function buildLayout(api: DockviewApi, kind: DesignKindDescriptor, t: TFu
     return;
   }
 
-  // The canvas gets a tab header only when it has a *peer* canvas — a `split`
-  // pane — because then the two need naming ("Tree editor" beside "BP Editor").
-  // A tool column labels itself, so a header on the canvas beside one is chrome
-  // for its own sake. This is the rule the two hand-written layouts followed.
-  const headerless = !kind.panes.some((pane) => pane.placement.kind === 'split');
-  const group = headerless ? api.addGroup({ direction: 'right', hideHeader: true }) : undefined;
+  // No tab headers on a design's canvases, split or not.
+  //
+  // The earlier rule gave the primary a header whenever it had a peer canvas, on
+  // the reasoning that two side by side need naming. In use they do not — which
+  // pane is the tree and which the results is obvious from what is drawn in
+  // them — and the header only costs vertical space and reads as a tab that
+  // could be closed or dragged, neither of which it can be. The sash between
+  // them is what was actually wanted, and that belongs to the group boundary
+  // rather than to the header.
+  const group = api.addGroup({ direction: 'right', hideHeader: true });
   api.addPanel({
     id: primary.component,
     component: primary.component,
     title: primary.title(t),
-    ...(group ? { position: { referenceGroup: group } } : {}),
+    position: { referenceGroup: group },
   });
 
   // Grouped side panes are added against the first of their group, so a group's
@@ -170,7 +174,14 @@ function addSecondaryPane(
   const base = { id: pane.component, component: pane.component, title: pane.title(t) };
 
   if (pane.placement.kind === 'split') {
-    api.addPanel({ ...base, position: { referencePanel: primaryId, direction: 'right' } });
+    // Its own header-hidden group, so the sash survives but the tab strip does
+    // not — `hideHeader` is a property of the group, not of the panel.
+    const group = api.addGroup({
+      direction: 'right',
+      referenceGroup: api.getPanel(primaryId)?.group,
+      hideHeader: true,
+    });
+    api.addPanel({ ...base, position: { referenceGroup: group } });
     return;
   }
   if (pane.placement.kind !== 'side') return;

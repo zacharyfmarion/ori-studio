@@ -3,6 +3,8 @@ import type { IDockviewPanelProps } from 'dockview';
 import { DesignPanel } from './DesignPanel';
 import { DesignPaneLayout } from './DesignPaneLayout';
 import { BpEditorPanel } from './BpEditorPanel';
+import { ExploriTreePanel } from './ExploriTreePanel';
+import { ExploriResultsPanel } from './ExploriResultsPanel';
 import { InspectorPanel } from './InspectorPanel';
 import { CreasePatternPanel } from './CreasePatternPanel';
 import { CpViewControlsPanel } from './CpViewControlsPanel';
@@ -19,6 +21,8 @@ const panels: Record<string, FC<IDockviewPanelProps>> = {
   'design-workspace': DesignPaneLayout,
   design: DesignPanel,
   'bp-editor': BpEditorPanel,
+  'explori-tree': ExploriTreePanel,
+  'explori-results': ExploriResultsPanel,
   inspector: InspectorPanel,
   'crease-pattern': CreasePatternPanel,
   'cp-view-controls': CpViewControlsPanel,

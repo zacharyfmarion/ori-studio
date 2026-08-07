@@ -6190,6 +6190,9 @@
 }
 
 /* Symmetry (mirror-draw) menu — shared by the Design tree and the BP tree panels. */
+/* Mirror draw, named rather than abbreviated — see `ViewportSymmetryToggle`.
+   Shared by all three tree canvases; the box-pleating editor's own mirror
+   button is icon-only on purpose and is not this. */
 .viewport-toolbar__symmetry-button {
   display: inline-flex;
   align-items: center;
@@ -7718,4 +7721,516 @@ button.bp-packing-alert:focus-visible {
   font-size: 0.68rem;
   line-height: 1.35;
   white-space: normal;
+}
+
+/* ==========================================================================
+   ExplOri — searching the 22.5° archive
+   ========================================================================== */
+
+/*
+ * The tree canvas borrows box-pleat's marks by pointing its own classes at the
+ * same tokens, rather than by wearing box-pleat's class names. The scene emits
+ * both a generic class and a surface-prefixed one for exactly this: shared rules
+ * stay shared, and a surface can restyle its own tree without reaching into
+ * another's.
+ */
+.explori-tree-edge--river,
+.explori-tree-edge--leaf {
+  stroke: var(--tree-edge);
+}
+
+.explori-tree-edge.tree-edge--selected {
+  stroke: var(--accent-primary);
+  stroke-width: 7;
+}
+
+.explori-tree-node--root:not(:hover, .tree-node--selected) {
+  fill: color-mix(in srgb, var(--accent-secondary) 45%, var(--bg-canvas));
+}
+
+.explori-tree-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.explori-tree-panel .explori-tree-panel__body {
+  flex: 1;
+  min-height: 0;
+}
+
+/*
+ * The surface's primary action, sized like one.
+ *
+ * It began as a thin strip of small grey controls that read as a status bar and
+ * was missed accordingly. Now it is a command strip: captioned fields, a real
+ * button, and enough room around them to be the obvious next thing to do after
+ * drawing a tree.
+ */
+.explori-query-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+}
+
+.explori-query-bar__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.explori-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.explori-field__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.explori-field__control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.explori-query-bar__spacer {
+  flex: 1;
+  min-width: 12px;
+}
+
+.explori-query-bar__search {
+  min-width: 132px;
+  height: 34px;
+}
+
+.explori-query-bar__hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.explori-query-bar__count {
+  width: 62px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One segmented control, so the three read as a set rather than three buttons. */
+.explori-symmetry-group {
+  display: inline-flex;
+  height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.explori-symmetry-toggle {
+  padding: 0 14px;
+  border: none;
+  border-right: 1px solid var(--border-default);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.explori-symmetry-toggle:last-child {
+  border-right: none;
+}
+
+.explori-symmetry-toggle:hover {
+  color: var(--text-primary);
+}
+
+.explori-symmetry-toggle[aria-pressed='true'] {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+/* Anchors the popover to the gear that opens it. */
+.explori-advanced {
+  position: relative;
+  display: inline-flex;
+}
+
+/*
+ * Floated over the canvas rather than inserted into the bar. As a row it pushed
+ * every control — and the drawing above them — up and down each time it opened.
+ */
+.explori-advanced__popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  /* Above the canvas's own viewport toolbar (17), which it opens across. */
+  z-index: 20;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+}
+
+/*
+ * The per-size grid: twelve checkboxes are legible with one set of column
+ * headers and unreadable without them, which is the whole reason this is a
+ * table and not the inline row it started as.
+ */
+.explori-db-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  color: var(--text-secondary);
+  align-self: flex-start;
+}
+
+.explori-db-table th,
+.explori-db-table td {
+  padding: 3px 10px;
+  border: 1px solid var(--border-default);
+  text-align: center;
+  font-weight: 500;
+}
+
+.explori-db-table thead th,
+.explori-db-table tbody th {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.explori-db-table input {
+  cursor: pointer;
+}
+
+.explori-results-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.explori-results__status,
+.explori-results__error {
+  margin: 0;
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.explori-results__error {
+  color: var(--status-error, var(--accent-primary));
+}
+
+.explori-results__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/*
+ * Sized to its content, not to the header. The select trigger is a flex child
+ * and stretched to fill the row, which read as a full-width bar rather than a
+ * control.
+ */
+.explori-results__mode {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 132px;
+}
+
+/*
+ * Cards size themselves to the pane. The results pane is one half of a design
+ * tab and gets resized constantly, so a fixed column count would be wrong at
+ * every width but one.
+ */
+/*
+ * Cards size themselves to the pane, with a floor big enough to read a crease
+ * pattern at. Below about 200px the thumbnails stop being something you can
+ * judge a match from, which is the only reason to look at them.
+ */
+.explori-results__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.explori-result-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+.explori-result-card__open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.explori-result-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-top: 1px solid var(--border-default);
+  font-size: 11px;
+}
+
+.explori-result-card__meta .explori-quality {
+  /* As wide as its words. It used to take `flex: 1` so the send button reached
+     the right edge; the slack belongs to a margin, not to a pill that then read
+     as a progress bar. */
+  margin-right: auto;
+  white-space: nowrap;
+}
+
+/*
+ * Tree beside crease pattern, the default a card opens in: the candidate is
+ * only judgeable next to the tree it claims to match.
+ *
+ * The pair keeps the same footprint as a single figure, so a grid of cards is
+ * one rhythm whichever view it is in — hence the wider track below.
+ */
+.explori-result-card__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.explori-result-card__pair > * {
+  min-width: 0;
+}
+
+.explori-results__grid[data-mode='pair'] {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+/*
+ * Quality as a colour ramp, green through amber to red — upstream's five hues,
+ * worn as a tinted pill.
+ *
+ * Colouring only the good end left the other three as grey text, which is why a
+ * grid of results did not read as a scale: "Poor" and "Distant" looked like the
+ * same non-answer. The pill carries the hue in its text, border and fill so it
+ * survives being small.
+ */
+.explori-quality {
+  --quality-rgb: 122, 123, 132;
+  padding: 2px 7px;
+  border: 1px solid rgb(var(--quality-rgb) / 30%);
+  border-radius: 999px;
+  background: rgb(var(--quality-rgb) / 10%);
+  color: rgb(var(--quality-rgb));
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.explori-quality--great {
+  --quality-rgb: 28 184 112;
+}
+
+.explori-quality--good {
+  --quality-rgb: 92 194 106;
+}
+
+.explori-quality--acceptable {
+  --quality-rgb: 214 180 55;
+}
+
+.explori-quality--poor {
+  --quality-rgb: 237 136 63;
+}
+
+.explori-quality--terrible {
+  --quality-rgb: 236 82 94;
+}
+
+.explori-detail__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* Stepping through results, in the header with the other controls. It used to
+   float over the pane edges, which put two targets on top of the figures. */
+.explori-detail__steps {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.explori-detail__position {
+  padding: 0 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* A link, styled as the quiet sibling of the Send to Edit button beside it. */
+.explori-detail__upstream {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.explori-detail__upstream:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Four figures, two by two. Never one across: the point of the detail is
+   comparing them, and a single column makes that a scroll. */
+.explori-detail__panes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 10px 2px;
+}
+
+.explori-detail__pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+.explori-detail__figure {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-canvas);
+  padding: 4px;
+}
+
+.explori-detail__caption {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.explori-figure {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/*
+ * Crease colours match the Edit canvas rather than ExplOri's own palette: a
+ * pattern that is about to be sent there should not change colour on the way.
+ */
+.explori-crease {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.explori-crease--b {
+  stroke: var(--crease-border, var(--text-primary));
+}
+
+.explori-crease--m {
+  stroke: var(--crease-mountain, #d2544c);
+}
+
+.explori-crease--v {
+  stroke: var(--crease-valley, #4c7fd2);
+}
+
+.explori-crease--h,
+.explori-crease--aux,
+.explori-crease--unknown {
+  stroke: var(--crease-aux, #42c9c0);
+}
+
+.explori-facet {
+  fill: var(--text-primary);
+  stroke: var(--border-default);
+  stroke-width: 0.4;
+}
+
+.explori-graph-edge {
+  stroke: var(--tree-edge);
+  stroke-width: 2;
+}
+
+.explori-graph-node {
+  fill: var(--accent-secondary);
+}
+
+/*
+ * The mirror line, as pane chrome rather than scene content.
+ *
+ * Drawn inside the canvas it was clipped to the canvas's own bounds, so panning
+ * slid its ends into view and it stopped reaching the edges of the pane. Its
+ * width was already a screen-pixel constant — the snap band is a fixed number of
+ * pixels, which `symmetryAxisTolerance` converts back into tree units — so
+ * nothing about it wanted to live in world space. Positioned imperatively with
+ * the camera; see `publishMirrorLine`.
+ */
+.tree-editor-mirror {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tree-editor-mirror .symmetry-snap-lane {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -9px;
+  width: 18px;
+  background: color-mix(in srgb, var(--accent-tertiary) 28%, transparent);
+  opacity: 0.85;
+}
+
+.tree-editor-mirror .symmetry-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  width: 2px;
+  opacity: 0.8;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--accent-tertiary) 0 12px,
+    transparent 12px 20px
+  );
 }

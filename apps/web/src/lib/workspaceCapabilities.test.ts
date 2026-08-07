@@ -23,7 +23,8 @@ function capabilities({
   oristudioCpSelectedLineCount = 0,
   oristudioCpSelectedPointCount = 0,
   oristudioCpSelectedCircleCount = 0,
-  hasDeletableBpSelection = false,
+  hasDeletableDesignSelection = false,
+  canSaveDesign = activeEditingContext !== 'crease-pattern',
   historyPastCount = 0,
   historyFutureCount = 0,
   clipboard = null,
@@ -46,7 +47,8 @@ function capabilities({
   oristudioCpSelectedLineCount?: number;
   oristudioCpSelectedPointCount?: number;
   oristudioCpSelectedCircleCount?: number;
-  hasDeletableBpSelection?: boolean;
+  hasDeletableDesignSelection?: boolean;
+  canSaveDesign?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
@@ -70,7 +72,8 @@ function capabilities({
     oristudioCpSelectedLineCount,
     oristudioCpSelectedPointCount,
     oristudioCpSelectedCircleCount,
-    hasDeletableBpSelection,
+    hasDeletableDesignSelection,
+    canSaveDesign,
     historyPastCount,
     historyFutureCount,
     clipboard,

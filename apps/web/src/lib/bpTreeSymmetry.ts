@@ -107,9 +107,19 @@ export function bpDocumentSymmetry(state: BpDocumentSymmetry): BpDocumentSymmetr
   return { enabled: state.enabled, fold: state.fold, pairs: [...state.pairs] };
 }
 
-/** Mirror draw as a new design starts: on, book fold, nothing paired yet. */
+/**
+ * Mirror draw as a new design starts: off, book fold, nothing paired yet.
+ *
+ * Off, because mirroring is a decision about the model rather than a default
+ * way to draw: starting on means every first stroke silently lays down a second
+ * branch, which has to be noticed and undone by anyone whose subject is not
+ * symmetric. The fold is still `book`, so turning it on needs no second choice.
+ *
+ * Also the answer for a file that predates symmetry, which is the same claim —
+ * nothing in it was ever mirrored.
+ */
 export function defaultBpDocumentSymmetry(): BpDocumentSymmetry {
-  return { enabled: true, fold: 'book', pairs: [] };
+  return { enabled: false, fold: 'book', pairs: [] };
 }
 
 /**

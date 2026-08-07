@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  FlipHorizontal2,
   Hand,
   Layers,
   Maximize2,
@@ -241,6 +242,50 @@ export function ViewportToolbar({
 
 export function ViewportToolbarSeparator() {
   return <span className="viewport-toolbar__separator" />;
+}
+
+/**
+ * Mirror draw, on a tree canvas.
+ *
+ * Named rather than abbreviated: symmetry is a mode the drawing is *in*, and
+ * worth reading at a glance next to the icon-only view controls. Here rather
+ * than in any one pane because there are three tree canvases — box-pleat's,
+ * ExplOri's and circle-packing's — and they had drifted into two components and
+ * two labels ("Mirror draw" and "Sym").
+ *
+ * The box-pleating *editor*'s own mirror button is deliberately not this: it is
+ * the second appearance of the control, in a denser toolbar, and stays an icon.
+ */
+export function ViewportSymmetryToggle({
+  enabled,
+  label,
+  title,
+  onToggle,
+}: {
+  enabled: boolean;
+  label: string;
+  /** Tooltip and accessible name; says which way the toggle would go. */
+  title: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="viewport-toolbar__symmetry-button"
+      data-active={enabled || undefined}
+      aria-pressed={enabled}
+      // No `aria-label`: it would override the visible "Symmetry" text, so the
+      // accessible name would not contain the label a person can see — a
+      // Label-in-Name failure, and voice control ("click Symmetry") would hit
+      // nothing. `title` remains, as the tooltip it always was, and
+      // `aria-pressed` already conveys which way the toggle is set.
+      title={title}
+      onClick={onToggle}
+    >
+      <FlipHorizontal2 size={14} />
+      <span>{label}</span>
+    </button>
+  );
 }
 
 export interface ViewportLayerOption<Key extends string> {

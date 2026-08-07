@@ -59,5 +59,7 @@ export function isReservedDocumentId(id: string): boolean {
 
 /** The payload format label a kind writes. Diagnostics only; never parsed. */
 export function designPayloadFormat(kind: DesignKindId): string {
-  return kind === 'box-pleat' ? 'bps' : 'tmd5';
+  if (kind === 'box-pleat') return 'bps';
+  if (kind === 'explori') return 'json';
+  return 'tmd5';
 }

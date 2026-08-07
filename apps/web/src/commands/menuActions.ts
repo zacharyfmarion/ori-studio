@@ -1,4 +1,5 @@
-import { selectOristudioBpDocument, selectOristudioBpSelection } from '../store/workspaceStore/designTabs';
+import { activeDesignTab } from '../store/workspaceStore/designTabs';
+import { designKindForContext } from '../designKinds';
 import type { DesignTab } from '../store/workspaceStore/designTabs';
 import { track } from '../analytics';
 import { getFileService, type FileCommand, type FileService } from '../platform/fileService';
@@ -22,8 +23,6 @@ import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 import type { EditingContext } from '../workspaces/editingContext';
 import type {
-  OristudioBpDocumentState,
-  OristudioBpSelection,
 } from '../engine/oristudioBpTypes';
 import type { CreaseExportOptions } from '../lib/creaseExport';
 
@@ -175,6 +174,7 @@ export interface WorkspaceCommands {
   designTabs: DesignTab[];
   activeDesignId: string;
   deleteOristudioBpTreeNode(id: number): Promise<boolean>;
+  deleteExploriNode(id: number): Promise<boolean>;
   oristudioCpDocument: OristudioCpDocumentState | null;
   oristudioCpSelection: OristudioCpSelection;
   setOristudioCpSelection(selection: OristudioCpSelection): void;
@@ -281,48 +281,6 @@ const CP_SELECTION_TRANSFORM_ACTIONS: Partial<Record<MenuActionId, CpSelectionTr
 
 export function isMenuActionId(id: string): id is MenuActionId {
   return (MENU_ACTION_IDS as readonly string[]).includes(id);
-}
-
-/**
- * The tree node to delete for the current BP selection: the selected vertex, or
- * the child endpoint of a selected edge. Returns null when nothing deletable is
- * selected or the target is the root (which can't be deleted).
- */
-function deletableBpNodeId(
-  document: OristudioBpDocumentState | null,
-  selection: OristudioBpSelection
-): number | null {
-  if (!document) return null;
-  const tree = document.snapshot.tree;
-  const root = tree.rootVertexId;
-  if (selection.kind === 'bp-vertex') {
-    return selection.id !== root ? selection.id : null;
-  }
-  if (selection.kind === 'bp-edge') {
-    const edge = tree.edges.find((candidate) => candidate.id === selection.id);
-    if (!edge) return null;
-    const parent = new Map<number, number>();
-    const adjacency = new Map<number, number[]>();
-    for (const e of tree.edges) {
-      adjacency.set(e.vertices[0], [...(adjacency.get(e.vertices[0]) ?? []), e.vertices[1]]);
-      adjacency.set(e.vertices[1], [...(adjacency.get(e.vertices[1]) ?? []), e.vertices[0]]);
-    }
-    const queue = [root];
-    const seen = new Set([root]);
-    while (queue.length > 0) {
-      const current = queue.shift() as number;
-      for (const next of adjacency.get(current) ?? []) {
-        if (seen.has(next)) continue;
-        seen.add(next);
-        parent.set(next, current);
-        queue.push(next);
-      }
-    }
-    const [a, b] = edge.vertices;
-    const childId = parent.get(a) === b ? a : b;
-    return childId !== root ? childId : null;
-  }
-  return null;
 }
 
 const OPEN_EXAMPLE_PREFIX = 'file.openExample:';
@@ -457,16 +415,20 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         await deps.workspace.pasteClipboard();
         return true;
       case 'edit.delete': {
-        const bpContext =
-          deps.workspace.activeEditingContext === 'bp-tree' ||
-          deps.workspace.activeEditingContext === 'bp-packing';
-        if (bpContext) {
-          const nodeId = deletableBpNodeId(
-            selectOristudioBpDocument(deps.workspace),
-            selectOristudioBpSelection(deps.workspace)
-          );
-          if (nodeId === null) return false;
-          return deps.workspace.deleteOristudioBpTreeNode(nodeId);
+        // *What* to delete is the design kind's answer, asked once. *How* stays
+        // here, because each kind's delete is a different store action — but the
+        // predicate that used to gate this by naming kinds is gone, which is
+        // what left a registered kind's Delete permanently disabled.
+        const kind = designKindForContext(deps.workspace.activeEditingContext);
+        if (kind?.deletableTarget) {
+          const target = kind.deletableTarget(activeDesignTab(deps.workspace));
+          // A design context owns Delete whether or not it has a target: falling
+          // through to the crease-pattern branch would delete creases from under
+          // a tree pane that simply had nothing selected.
+          if (target === null) return false;
+          if (kind.id === 'box-pleat') return deps.workspace.deleteOristudioBpTreeNode(target);
+          if (kind.id === 'explori') return deps.workspace.deleteExploriNode(target);
+          return false;
         }
         if (
           deps.workspace.activeEditingContext === 'crease-pattern' &&

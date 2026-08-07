@@ -8,6 +8,8 @@ import {
 } from '../lib/workspaceCapabilities';
 import { ENGINE_IDS } from '../engines/engineHost';
 import type { EditingContext } from '../workspaces/editingContext';
+import { historyCountForContext } from '../store/workspaceStore/capabilities';
+import { singleDesignTab } from '../store/workspaceStore/designTabs';
 import { DESIGN_KINDS, designKindRegistry, primaryPane } from './registry';
 import type { DesignKindDescriptor } from './types';
 
@@ -16,15 +18,16 @@ const t = ((_key: string, defaultValue?: string) =>
   defaultValue ?? _key) as unknown as TFunction;
 
 describe('design kind registry', () => {
-  it('registers both shipped kinds', () => {
-    expect(designKindRegistry().ids).toEqual(['treemaker', 'box-pleat']);
+  it('registers every shipped kind', () => {
+    expect(designKindRegistry().ids).toEqual(['treemaker', 'box-pleat', 'explori']);
   });
 
   it.each(DESIGN_KINDS.map((kind) => [kind.id, kind] as const))(
     '%s declares a complete descriptor',
     (_id, kind) => {
       expect(kind.osfKind).toBeTruthy();
-      expect(ENGINE_IDS).toContain(kind.engine);
+      // A kind may legitimately have no engine: its documents are plain data.
+      if (kind.engine !== null) expect(ENGINE_IDS).toContain(kind.engine);
       expect(kind.analyticsId).toBeTruthy();
       expect(kind.panes.length).toBeGreaterThan(0);
       expect(typeof kind.sendToEdit).toBe('function');
@@ -78,7 +81,7 @@ describe('design kind registry', () => {
 
   it('orders chooser cards by their declared order', () => {
     const order = designKindRegistry().chooserOrder.map((kind) => kind.id);
-    expect(order).toEqual(['treemaker', 'box-pleat']);
+    expect(order).toEqual(['treemaker', 'box-pleat', 'explori']);
   });
 
 });
@@ -105,7 +108,7 @@ describe('extensibility: a third design kind', () => {
     osfKind: 'treemaker-tree',
     analyticsId: 'stub',
     chooser: {
-      order: 2,
+      order: 99,
       copy: () => ({ title: 'Stub', description: 'A design kind that exists only in tests.' }),
       Icon: () => null,
       isAvailable: () => true,
@@ -127,6 +130,9 @@ describe('extensibility: a third design kind', () => {
       hiddenIds: ['file.exportSvg'],
       hiddenPrefixes: ['optimize.'],
     },
+    history: () => ({ past: 1, future: 1 }),
+    deletableTarget: () => 7,
+    isSavable: () => true,
     codec: {
       create: async () => 1,
       hydrate: async () => 2,
@@ -142,6 +148,34 @@ describe('extensibility: a third design kind', () => {
   };
 
   const kinds = [...DESIGN_KINDS, stubKind];
+
+  function capabilityInput() {
+    return {
+      activeEditingContext: 'treemaker-tree' as EditingContext,
+      engineReady: true,
+      status: 'ready' as const,
+      edgeCount: 0,
+      creaseCount: 0,
+      facetCount: 0,
+      hasEditableCreasePattern: false,
+      hasImportedCreasePattern: false,
+      hasBoxPleatDocument: false,
+      boxPleatTreeEdgeCount: 0,
+      boxPleatBusy: false,
+      boxPleatCanSubdivide: false,
+      boxPleatCanUnsubdivide: false,
+      hasSimulationModel: false,
+      oristudioCpSelectedLineCount: 0,
+      oristudioCpSelectedPointCount: 0,
+      oristudioCpSelectedCircleCount: 0,
+      hasDeletableDesignSelection: false,
+      canSaveDesign: true,
+      historyPastCount: 0,
+      historyFutureCount: 0,
+      clipboard: null,
+      selection: { kind: 'tree' as const },
+    };
+  }
 
   function allVisibleCapabilities(): WorkspaceCapabilities {
     const real = getWorkspaceCapabilities({
@@ -162,7 +196,8 @@ describe('extensibility: a third design kind', () => {
       oristudioCpSelectedLineCount: 0,
       oristudioCpSelectedPointCount: 0,
       oristudioCpSelectedCircleCount: 0,
-      hasDeletableBpSelection: false,
+      hasDeletableDesignSelection: false,
+      canSaveDesign: true,
       historyPastCount: 0,
       historyFutureCount: 0,
       clipboard: null,
@@ -185,6 +220,7 @@ describe('extensibility: a third design kind', () => {
     expect(designKindRegistry(kinds).chooserOrder.map((kind) => kind.id)).toEqual([
       'treemaker',
       'box-pleat',
+      'explori',
       'stub',
     ]);
   });
@@ -238,5 +274,44 @@ describe('extensibility: a third design kind', () => {
         `context ${context}`
       ).toBe(false);
     }
+  });
+
+  /**
+   * The claim the earlier tests did not make, and which turned out to be false
+   * three separate times.
+   *
+   * Registering a kind gave it a chooser card, a pane layout and a capability
+   * mask — and left its Undo, Redo and Delete *disabled*, because the command
+   * layer decided those by naming the kinds it knew. Each one was found by a
+   * user hitting it. These assert the descriptor is enough.
+   */
+  describe('its Edit commands are live', () => {
+    const tab = { ...singleDesignTab('treemaker', 'Stub').designTabs[0] };
+
+    it('reports its own undo depth to the context that asks', () => {
+      expect(historyCountForContext(STUB_CONTEXT, tab, 0, 'past', kinds)).toBe(1);
+      expect(historyCountForContext(STUB_CONTEXT, tab, 0, 'future', kinds)).toBe(1);
+    });
+
+    it('enables Undo and Redo off that depth', () => {
+      const capabilities = getWorkspaceCapabilities({
+        ...capabilityInput(),
+        activeEditingContext: STUB_CONTEXT,
+        historyPastCount: historyCountForContext(STUB_CONTEXT, tab, 0, 'past', kinds),
+        historyFutureCount: historyCountForContext(STUB_CONTEXT, tab, 0, 'future', kinds),
+      });
+      expect(capabilities['edit.undo'].enabled).toBe(true);
+      expect(capabilities['edit.redo'].enabled).toBe(true);
+    });
+
+    it('enables Delete when it says it has something to delete', () => {
+      expect(stubKind.deletableTarget?.(tab)).toBe(7);
+      const capabilities = getWorkspaceCapabilities({
+        ...capabilityInput(),
+        activeEditingContext: STUB_CONTEXT,
+        hasDeletableDesignSelection: stubKind.deletableTarget?.(tab) != null,
+      });
+      expect(capabilities['edit.delete'].enabled).toBe(true);
+    });
   });
 });

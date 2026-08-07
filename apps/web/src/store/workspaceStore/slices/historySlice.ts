@@ -436,6 +436,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       await navigateBpHistory(undoSnapshot, 'Undid');
       return;
     }
+    if (context === 'explori-tree' || context === 'explori-results') {
+      await get().undoExplori();
+      return;
+    }
     if (context === 'design-nux' || context === 'simulate') return;
 
     if (get().activeEditingContext === 'crease-pattern') {
@@ -585,6 +589,10 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     const context = get().activeEditingContext;
     if (context === 'bp-tree' || context === 'bp-packing') {
       await navigateBpHistory(redoSnapshot, 'Redid');
+      return;
+    }
+    if (context === 'explori-tree' || context === 'explori-results') {
+      await get().redoExplori();
       return;
     }
     if (context === 'design-nux' || context === 'simulate') return;

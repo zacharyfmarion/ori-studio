@@ -278,3 +278,52 @@ describe('app keyboard shortcuts', () => {
     }
   });
 });
+
+/**
+ * Who gets asked about Escape first.
+ *
+ * This used to be: the project-selection deselect, for every context except the
+ * one named in an `!== 'crease-pattern'` test — with the shortcut runtime asked
+ * only afterwards. A surface with a selection of its own therefore had Escape
+ * eaten here, where the *project* selection was empty, so it did nothing at all
+ * and the surface's own `viewport.cancel` was never reached. That is what "Escape
+ * should deselect the node in explori" was.
+ *
+ * The runtime goes first now, and the workspace deselect is the fallback for
+ * whatever nothing claimed. Both halves are asserted, because the fix is only
+ * right if it did not simply swap which one is broken.
+ */
+describe('app keyboard — Escape reaches the surface that owns it', () => {
+  function withViewportExecutor(surface: 'tree', onCancel: () => void) {
+    const cleanup = registerViewportShortcutExecutor(surface, (id) => {
+      if (id !== 'viewport.cancel') return false;
+      onCancel();
+      return true;
+    });
+    cleanups.push(cleanup);
+  }
+
+  it('hands Escape to the viewport surface, not the project deselect', () => {
+    const onCancel = vi.fn();
+    withViewportExecutor('tree', onCancel);
+    // A project selection is present, which is what the old branch keyed on.
+    const actions = createActions(selectEverything(createSampleProject()), {
+      activeEditingContext: 'explori-tree',
+    });
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+
+    expect(handleAppKeyDown(event, actions)).toBe(true);
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(actions.selectNone).not.toHaveBeenCalled();
+  });
+
+  it('still falls back to the project deselect when nothing claims it', () => {
+    const actions = createActions(selectEverything(createSampleProject()), {
+      activeEditingContext: 'explori-tree',
+    });
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+
+    expect(handleAppKeyDown(event, actions)).toBe(true);
+    expect(actions.selectNone).toHaveBeenCalledOnce();
+  });
+});

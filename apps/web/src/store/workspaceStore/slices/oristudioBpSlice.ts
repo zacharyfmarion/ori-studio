@@ -321,6 +321,23 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     );
   };
 
+  /**
+   * The length a leaf drawn at `at` should have, in whole grid cells.
+   *
+   * The engine mints a leaf at a length the caller chooses and the caller then
+   * repositions it. Passing 1 and moving the vertex three cells out is how a
+   * flap came to be *drawn* at three and *labelled* one — the geometry and the
+   * number are two different facts and only one of them was being set.
+   *
+   * Rounded because box-pleat lengths are whole cells, and floored at one
+   * because that is the engine's own minimum. The tree pane already quantizes
+   * the click, so this recovers the length it drew rather than inventing one.
+   */
+  const drawnLeafLength = (parent: Point | undefined, at: Point | undefined): number => {
+    if (!parent || !at) return 1;
+    return Math.max(1, Math.round(Math.hypot(at.x - parent.x, at.y - parent.y)));
+  };
+
   /** Put the mirror partner's flap at the reflection of where the primary's landed. */
   const seedPartnerFlap = async (
     document: OristudioBpDocumentState,
@@ -720,9 +737,12 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     addOristudioBpTreeLeaf: async (parentId, loc) => {
       return runBpTreeMutation('Added BP leaf', async (document) => {
         const before = new Set(document.snapshot.tree.vertices.map((vertex) => vertex.id));
-        let next = await addRuntimeOristudioBpTreeLeaf(parentId, 1, {
-          activeSurface: document.activeSurface,
-        });
+        const parent = document.snapshot.tree.vertices.find((vertex) => vertex.id === parentId);
+        let next = await addRuntimeOristudioBpTreeLeaf(
+          parentId,
+          drawnLeafLength(parent?.loc, loc),
+          { activeSurface: document.activeSurface }
+        );
         const created = next.snapshot.tree.vertices.find((vertex) => !before.has(vertex.id));
         if (created && loc) {
           next = await moveRuntimeOristudioBpTreeVertex(created.id, loc, {
@@ -765,14 +785,15 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // Snap-onto-axis zone: the panel passes a tolerance matching the visible axis
       // band; fall back to the tight geometric tolerance when unset.
       const axisSnapTolerance = axisTolerance ?? BP_TREE_SYMMETRY_TOLERANCE;
-      // Add a unit leaf to `on` and reposition it to `at`; returns the doc + new id.
+      // Add a leaf to `on` at the length `at` implies, then place it there.
       const addLeafAt = async (
         document: OristudioBpDocumentState,
         on: number,
         at: Point | undefined
       ): Promise<{ document: OristudioBpDocumentState; createdId: number | null }> => {
         const before = new Set(document.snapshot.tree.vertices.map((vertex) => vertex.id));
-        let next = await addRuntimeOristudioBpTreeLeaf(on, 1, {
+        const anchor = document.snapshot.tree.vertices.find((vertex) => vertex.id === on);
+        let next = await addRuntimeOristudioBpTreeLeaf(on, drawnLeafLength(anchor?.loc, at), {
           activeSurface: document.activeSurface,
         });
         const created = next.snapshot.tree.vertices.find((vertex) => !before.has(vertex.id));

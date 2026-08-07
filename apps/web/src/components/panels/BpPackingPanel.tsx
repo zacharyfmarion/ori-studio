@@ -73,7 +73,7 @@ import { useBpPatternNotFoundEvent } from '../../analytics';
 import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
 import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
 import { bpDefaultFlapLabel, bpFlapLabel, bpFlapLabelList } from '../../lib/bpFlapLabel';
-import { unitLeafLocation } from '../../lib/bpTreeAuthoring';
+import { leafLocationAt } from '../../tree-editor/dragRule';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { useBpPackingDragRequests } from '../../hooks/useBpPackingDragRequests';
 import {
@@ -709,7 +709,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       if (!leaf || !parent) {
         return setOristudioBpTreeEdgeLength(edge.vertices, length);
       }
-      const target = unitLeafLocation(parent.loc, leaf.loc, length);
+      const target = leafLocationAt(parent.loc, leaf.loc, length);
       return setOristudioBpTreeEdgeLength(edge.vertices, length, [{ id: leafId, loc: target }]);
     },
     [singleSelectedFlap, singleSelectedFlapEdge, tree.vertices, setOristudioBpTreeEdgeLength]

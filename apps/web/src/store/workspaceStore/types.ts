@@ -26,6 +26,9 @@ import type {
   OristudioCpViewportOptions,
 } from '../../lib/creasePatternViewport';
 import type { SelectablePartKind } from '../../lib/selection';
+import type { ExploriSendSource } from '../../analytics/events';
+import type { ExploriDbConfig, ExploriResult } from '../../explori/types';
+import type { TreeSelectionTarget, TreeVertexUpdate } from '../../tree-editor/model';
 import type { SimulatorSettings, SimulatorSettingKey } from '../../lib/simulatorSettings';
 import type { BpDocumentSymmetry } from '../../lib/bpTreeSymmetry';
 import type { FileService } from '../../platform/fileService';
@@ -1138,8 +1141,41 @@ export interface SimulatorSliceActions {
 
 export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;
 
+/**
+ * The ExplOri design's actions.
+ *
+ * Every one is addressed and asynchronous — even the ones that only touch local
+ * JSON — because they all acquire the design's handle first, and that acquire
+ * can hydrate a parked document.
+ */
+export interface ExploriSlice {
+  createExploriDesign: () => Promise<boolean>;
+  ensureExploriDocument: () => Promise<boolean>;
+  setExploriTreeSelection: (selection: TreeSelectionTarget | null) => void;
+  addExploriLeaf: (parentId: number, loc: Point, axisTolerance: number) => Promise<boolean>;
+  moveExploriNodes: (updates: readonly TreeVertexUpdate[]) => Promise<boolean>;
+  deleteExploriNode: (nodeId: number) => Promise<boolean>;
+  renameExploriNode: (nodeId: number, name: string) => Promise<boolean>;
+  setExploriEdgeLength: (
+    edgeId: number,
+    length: number,
+    updates: readonly TreeVertexUpdate[]
+  ) => Promise<boolean>;
+  toggleExploriSymmetry: () => Promise<boolean>;
+  unpairExploriNode: (nodeId: number) => Promise<boolean>;
+  setExploriDbConfigs: (dbConfigs: ExploriDbConfig[]) => Promise<boolean>;
+  setExploriResultLimit: (resultLimit: number) => Promise<boolean>;
+  selectExploriResult: (result: ExploriResult | null, detailIndex: number | null) => Promise<boolean>;
+  runExploriQuery: () => Promise<boolean>;
+  sendExploriToEdit: (source?: ExploriSendSource) => Promise<boolean>;
+  undoExplori: () => Promise<boolean>;
+  redoExplori: () => Promise<boolean>;
+  resetExploriDesign: () => Promise<boolean>;
+}
+
 export type WorkspaceState =
   ProjectSlice &
+  ExploriSlice &
   HistorySlice &
   EditingSlice &
   ClipboardSlice &

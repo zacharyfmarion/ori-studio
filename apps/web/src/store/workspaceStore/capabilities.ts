@@ -1,47 +1,84 @@
 import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
-import { selectHistoryFuture, selectHistoryPast, selectOristudioBpDocument, selectOristudioBpHistoryFuture, selectOristudioBpHistoryPast, selectOristudioBpSelection, selectProject, selectSelection } from './designTabs';
+import {
+  activeDesignTab,
+  selectOristudioBpDocument,
+  selectProject,
+  selectSelection,
+  type DesignTab,
+} from './designTabs';
 import {
   getWorkspaceCapabilities,
   type WorkspaceCapabilities,
   type WorkspaceCapabilityInput,
 } from '../../lib/workspaceCapabilities';
 import i18n from '../../i18n';
+import {
+  designKind,
+  designKindForContext,
+  designKindRegistry,
+  type DesignKindDescriptor,
+} from '../../designKinds';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { WorkspaceState } from './types';
 
 /** The undo/redo count for the active editing context's own history stack. */
+/**
+ * How deep the active context's undo stack is.
+ *
+ * The crease-pattern editor answers for itself — it is a workspace, not a design
+ * kind — and every design kind answers through its descriptor. This used to list
+ * the kinds it knew and return 0 for the rest, which *disabled* Undo and Redo
+ * for a registered kind rather than merely leaving them unwired, and made the
+ * dispatch behind them unreachable. Nothing here should know the kinds.
+ */
 export function historyCountForContext(
   context: EditingContext,
-  bpCount: number,
+  tab: DesignTab,
   cpCount: number,
-  treeCount: number
+  which: 'past' | 'future',
+  /** Parameterized for the same reason the registry is: so a stub kind can
+   *  drive this consumer without mutating global state. */
+  kinds?: readonly DesignKindDescriptor[]
 ): number {
-  if (context === 'bp-tree' || context === 'bp-packing') return bpCount;
   if (context === 'crease-pattern') return cpCount;
-  if (context === 'treemaker-tree') return treeCount;
-  return 0;
+  const kind = kinds ? designKindRegistry(kinds).forContext(context) : designKindForContext(context);
+  if (!kind) return 0;
+  return kind.history(tab)[which];
+}
+
+/**
+ * Whether the workspace holds anything worth writing to a file.
+ *
+ * Asked of *every* tab, not of the focused one. A save writes the whole
+ * workspace — `saveActiveProject` keys off `designTabs.some(tab => tab.kind !==
+ * null)` and its own comment says a lone untouched chooser is the only thing
+ * that is not a design. Asking only the active tab meant clicking "+" for a
+ * second design, or waiting on the box-pleat worker, made everything already
+ * authored unsavable for as long as that tab was focused; and a context no kind
+ * owns at all — the simulator — disabled Save permanently, with a reason about
+ * the crease-pattern kernel that had nothing to do with it.
+ */
+function anyDesignIsSavable(state: WorkspaceState): boolean {
+  return state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false);
 }
 
 export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput {
   const context = state.activeEditingContext;
-  const bpSelection = selectOristudioBpSelection(state);
-  const bpRoot = selectOristudioBpDocument(state)?.snapshot?.tree?.rootVertexId;
-  const hasDeletableBpSelection =
-    (bpSelection?.kind === 'bp-vertex' && bpSelection.id !== bpRoot) ||
-    bpSelection?.kind === 'bp-edge';
-  // The Edit menu's undo/redo count comes from the active context's history:
-  // BP snapshots, the CP editor's stack, or the TreeMaker tree stack.
+  const activeKind = designKindForContext(context);
+  // The Edit menu's undo/redo count comes from the active context's history —
+  // the CP editor's own stack, or whatever the active design kind reports.
+  const tab = activeDesignTab(state);
   const historyPastCount = historyCountForContext(
     context,
-    selectOristudioBpHistoryPast(state).length,
+    tab,
     state.oristudioCpDocument ? state.oristudioCpHistoryPast.length : 0,
-    selectHistoryPast(state).length
+    'past'
   );
   const historyFutureCount = historyCountForContext(
     context,
-    selectOristudioBpHistoryFuture(state).length,
+    tab,
     state.oristudioCpDocument ? state.oristudioCpHistoryFuture.length : 0,
-    selectHistoryFuture(state).length
+    'future'
   );
 
   return {
@@ -62,7 +99,9 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     oristudioCpSelectedLineCount: state.oristudioCpSelection.lines.length,
     oristudioCpSelectedPointCount: state.oristudioCpSelection.points.length,
     oristudioCpSelectedCircleCount: state.oristudioCpSelection.circles.length,
-    hasDeletableBpSelection,
+    hasDeletableDesignSelection:
+      activeKind?.deletableTarget?.(activeDesignTab(state)) != null,
+    canSaveDesign: anyDesignIsSavable(state),
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,

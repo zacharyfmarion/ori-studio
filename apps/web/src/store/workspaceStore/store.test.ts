@@ -6117,14 +6117,16 @@ describe('workspace store slices', () => {
 
     it('opens a plain .bps with default mirror draw, having nowhere to store it', async () => {
       useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
-      useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal', enabled: false });
+      // Set to something distinctive first, so the assertion below is about the
+      // load resetting to the default rather than about nothing having happened.
+      useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal', enabled: true });
 
       await useWorkspaceStore
         .getState()
         .loadOristudioBpProjectFromFile('{"tree":{}}', { filename: 'other.bps', path: null });
 
       const symmetry = selectOristudioBpSymmetry(useWorkspaceStore.getState());
-      expect(symmetry).toMatchObject({ enabled: true, fold: 'book', pairs: [] });
+      expect(symmetry).toMatchObject({ enabled: false, fold: 'book', pairs: [] });
     });
   });
 
