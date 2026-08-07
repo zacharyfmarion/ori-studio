@@ -1689,50 +1689,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 ) : null
               )}
             </g>
-            {layers.devices && (
-              <g className="bp-packing-device-ranges" aria-hidden="true">
-                {displayPacking.devices.map((device) => {
-                  if (!device.range) return null;
-                  const [from, to] = device.range.map((point) =>
-                    bpPackingPointToSvg(point, packing.sheet, paperRect)
-                  );
-                  const position = bpPackingPointToSvg(device.position, packing.sheet, paperRect);
-                  const active =
-                    linkedSelection.devices.has(device.id) ||
-                    linkedSelection.stretches.has(device.stretchId);
-                  const index = deviceIndexFromId(device.id);
-                  return (
-                    <g
-                      key={device.id}
-                      className={active ? 'bp-packing-device-range--selected' : undefined}
-                    >
-                      <line
-                        className="bp-packing-device-range"
-                        x1={from.x}
-                        y1={from.y}
-                        x2={to.x}
-                        y2={to.y}
-                      />
-                      <circle
-                        className="bp-packing-device-position"
-                        cx={position.x}
-                        cy={position.y}
-                        r={Math.max(3, Math.min(7, unit * 0.09))}
-                      />
-                      {layers.labels && (
-                        <text
-                          className="bp-packing-label bp-packing-device-label"
-                          x={position.x + 8}
-                          y={position.y + 4}
-                        >
-                          {index === null ? device.stretchId : `d${index + 1}`}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-              </g>
-            )}
             {marquee?.active && (
               <rect
                 className="bp-packing-marquee"

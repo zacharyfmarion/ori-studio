@@ -6774,33 +6774,6 @@
   stroke-width: 1.5;
 }
 
-.bp-packing-device-ranges {
-  pointer-events: none;
-}
-
-.bp-packing-device-range {
-  stroke: color-mix(in srgb, var(--fold-flat) 72%, transparent);
-  stroke-dasharray: 7 6;
-  stroke-linecap: round;
-  stroke-width: 1.5;
-}
-
-.bp-packing-device-position {
-  fill: var(--fold-flat);
-  stroke: var(--bg-primary);
-  stroke-width: 1.5;
-}
-
-.bp-packing-device-range--selected .bp-packing-device-range {
-  stroke: var(--accent-primary);
-  stroke-width: 2.25;
-}
-
-.bp-packing-device-range--selected .bp-packing-device-position {
-  fill: var(--accent-primary);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent-primary) 38%, transparent));
-}
-
 .bp-packing-primitive-hit-line,
 .bp-packing-primitive-hit-polyline {
   fill: none;
