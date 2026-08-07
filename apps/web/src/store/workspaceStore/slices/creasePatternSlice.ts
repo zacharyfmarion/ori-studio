@@ -52,6 +52,7 @@ import {
   stableTextDigest,
 } from '../../../lib/oristudioCpLineage';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
+import { NEW_FOLDED_FIGURE_SIDE } from '../../../lib/foldedFigureSides';
 import {
   cpUserAnchorForLineIds,
   placeFoldedFigureBesideCp,
@@ -1684,10 +1685,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
 
       try {
+        // A reopened Oriedita file keeps its folded appearance, but not its
+        // saved side -- a new figure always faces front (NEW_FOLDED_FIGURE_SIDE).
+        const savedModel = foldedFigureModelFromOrieditaMetadata(
+          oristudioCpDocument.document.metadata
+        );
         const model =
           options.model ??
-          foldedFigureModelFromOrieditaMetadata(oristudioCpDocument.document.metadata) ??
-          undefined;
+          (savedModel ? { ...savedModel, state: NEW_FOLDED_FIGURE_SIDE } : undefined);
         const result = await withFoldInFlight(() =>
           foldRuntimeOristudioCpDocument(
             options.startingFaceId ?? 1,
