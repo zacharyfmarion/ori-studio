@@ -187,11 +187,22 @@ Consequences, all free:
   the flaps apart or enlarging the sheet usually resolves it. Use
   `configurationCount === 0` to distinguish "no configuration found" from
   "configuration found, no pattern" — different advice.
-- **Canvas affordance.** Draw the failing stretch's junction region in the
-  warning colour on its own layer, reusing the arc-region renderer built in
-  `bp-conflict-visualization-parity.md`. Add a Layers toggle beside "Conflicts".
-- **Activation.** Clicking the alert selects *and* frames the region (the flaps
-  are on opposite edges of the sheet; selection alone is easy to miss).
+- **Canvas affordance.** Mark the failing stretch on its own "No pattern" layer,
+  with a toggle beside "Conflicts". What gets marked is the **flaps**, ringed on
+  their clearance shape: a stretch's own region is the gap *between the flap
+  tips*, which for point flaps at opposite ends of the sheet is a 10×8 box on a
+  20×20 sheet — drawn unasked it reads as "most of your design is broken". The
+  region is revealed on selection instead, where its size is information rather
+  than alarm.
+- **Activation.** Clicking the alert selects the stretch, which lights its flaps
+  in both the tree and the packing panes and opens the stretch navigator with
+  its "No valid pattern" label.
+
+  Camera framing was considered and deliberately left out. `zoomToElement` on a
+  1×5 gap rectangle magnifies until nothing around it is visible, and a
+  scroll-into-view needs viewport math that does not exist on
+  `useViewportSurface` yet. Selection already highlights in both panes, which
+  answers "which ones" without moving the camera under the user.
 - **Placement.** The alert stack currently overlays the contextual flap editor.
   Move it clear of the contextual toolbars, and when more than the current cap
   of 3 alerts exist, show "+N more" rather than silently truncating
@@ -242,10 +253,13 @@ Consequences, all free:
 - [x] Phase 2: `stretch.flapIds` populated from the snapshot
 - [x] Phase 2: lazy `completeStretch`-on-select effect removed (counts now always known)
 - [ ] Phase 2: flap→stretch reverse index (deferred to Phase 3, where it is used)
-- [ ] Phase 3: per-stretch diagnostics with `selection`; alert is a button
-- [ ] Phase 3: copy rewritten in user vocabulary, flaps named, advice included
-- [ ] Phase 3: failing-region canvas layer + Layers toggle
-- [ ] Phase 3: activation selects and frames; alert stack moved clear of contextual toolbars
+- [x] Phase 3: per-stretch diagnostics with `selection`; alert is a button
+- [x] Phase 3: copy rewritten in user vocabulary, flaps named, advice included
+- [x] Phase 3: patternless canvas layer ("No pattern") + Layers toggle
+- [x] Phase 3: stretch navigator titled by flap letters, not the raw id
+- [x] Phase 3: alert stack moved to the bottom-left, clear of the contextual toolbars
+- [x] Phase 3: "+N more" instead of silent truncation
+- [ ] Phase 3: camera framing on activation — **not done deliberately**, see below
 - [ ] Phase 4: analytics event (bucketed properties only)
 - [ ] Phase 4: web mapper tests
 - [ ] Phase 4: i18n extract / translate / stamp / check

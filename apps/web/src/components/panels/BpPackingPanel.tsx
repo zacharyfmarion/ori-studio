@@ -28,6 +28,7 @@ import {
   Route,
   Ruler,
   SquareDashed,
+  SquareDashedBottom,
   Tag,
   TriangleAlert,
   Unlink,
@@ -71,6 +72,7 @@ import {
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
 import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
+import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
 import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
 import { unitLeafLocation } from '../../lib/bpTreeAuthoring';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
@@ -174,6 +176,8 @@ const BP_PACKING_NUDGE_VECTORS: Record<BpPackingNudgeDirection, Point> = {
 
 const BP_DPAD_INITIAL_REPEAT_MS = 750;
 const BP_DPAD_REPEAT_MS = 150;
+/** Alerts shown before the stack collapses into a "+N more" row. */
+const BP_PACKING_ALERT_LIMIT = 3;
 
 const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
   { key: 'grid', icon: <Grid2X2 size={13} /> },
@@ -184,6 +188,7 @@ const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
   { key: 'ridges', icon: <Waypoints size={13} /> },
   { key: 'axisParallels', icon: <Waypoints size={13} /> },
   { key: 'conflicts', icon: <TriangleAlert size={13} /> },
+  { key: 'patternless', icon: <SquareDashedBottom size={13} /> },
   { key: 'labels', icon: <Tag size={13} /> },
   { key: 'outsidePaper', icon: <SquareDashed size={13} /> },
 ];
@@ -207,6 +212,8 @@ function bpPackingLayerLabel(t: TFunction, key: BpPackingViewLayerKey): string {
       return t('panels:bpPacking.layerAxis', 'Axis');
     case 'conflicts':
       return t('panels:bpPacking.layerConflicts', 'Conflicts');
+    case 'patternless':
+      return t('panels:bpPacking.layerPatternless', 'No pattern');
     case 'labels':
       return t('panels:bpPacking.layerLabels', 'Labels');
     case 'outsidePaper':
@@ -527,22 +534,27 @@ function StretchStepper({
  */
 function BpPackingStretchNav({
   stretch,
+  flaps,
   onSwitchConfig,
   onSwitchPattern,
 }: {
   stretch: OristudioBpStretch;
+  flaps: OristudioBpFlap[];
   onSwitchConfig: (delta: number) => void;
   onSwitchPattern: (delta: number) => void;
 }) {
   const { t } = useTranslation();
+  // The flaps, not the raw `"10,12,14,22"` id: the id means nothing on a canvas
+  // that labels its flaps with letters.
+  const name = bpFlapLabelList(bpStretchFlapLabels(stretch, flaps), t);
   return (
     <div
       className="bp-packing-stretch-nav"
       role="group"
-      aria-label={t('panels:bpPacking.stretchNav', 'Stretch {{id}} pattern navigation', { id: stretch.id })}
+      aria-label={t('panels:bpPacking.stretchNav', 'Stretch {{id}} pattern navigation', { id: name })}
     >
       <span className="bp-packing-stretch-nav__title">
-        {t('panels:bpPacking.stretch', 'Stretch {{id}}', { id: stretch.id })}
+        {t('panels:bpPacking.stretch', 'Stretch {{id}}', { id: name })}
       </span>
       <StretchStepper
         label={t('panels:bpPacking.config', 'Config')}
@@ -887,6 +899,11 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       // The stroke is in screen pixels, so it has to be recomputed as you zoom.
       zoomPercent,
     ]
+  );
+  const patternlessVisuals = useMemo(
+    () =>
+      bpPatternlessStretchVisuals(packing, packing.sheet, paperRect, linkedSelection.stretches),
+    [linkedSelection.stretches, packing, paperRect]
   );
   const sheetClipId = useId();
   /**
@@ -1560,6 +1577,46 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 ))}
               </g>
             )}
+            {layers.patternless && patternlessVisuals.length > 0 && (
+              // Outlines only, under the flaps: the geometry the user has to
+              // move must stay readable through the marking.
+              <g className="bp-packing-patternless" clipPath={sheetClipPath} aria-hidden="true">
+                {patternlessVisuals.map((visual) => (
+                  <g
+                    key={visual.id}
+                    className={
+                      visual.active
+                        ? 'bp-packing-patternless-group bp-packing-patternless--selected'
+                        : 'bp-packing-patternless-group'
+                    }
+                  >
+                    {visual.active &&
+                      visual.regions.map((region, index) => (
+                        <rect
+                          key={`${visual.id}:region:${index}`}
+                          className="bp-packing-patternless-region"
+                          x={region.x}
+                          y={region.y}
+                          width={region.width}
+                          height={region.height}
+                        />
+                      ))}
+                    {visual.flaps.map((flap, index) => (
+                      <rect
+                        key={`${visual.id}:flap:${index}`}
+                        className="bp-packing-patternless-flap"
+                        x={flap.x}
+                        y={flap.y}
+                        width={flap.width}
+                        height={flap.height}
+                        rx={flap.radius}
+                        ry={flap.radius}
+                      />
+                    ))}
+                  </g>
+                ))}
+              </g>
+            )}
             {layers.flaps && (
               <g className="bp-packing-flaps">
                 {displayPacking.flaps.map((flap) => {
@@ -1809,6 +1866,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       {activeStretch && (
         <BpPackingStretchNav
           stretch={activeStretch}
+          flaps={packing.flaps}
           onSwitchConfig={(delta) => void switchOristudioBpStretchConfig(activeStretch.id, delta)}
           onSwitchPattern={(delta) => void switchOristudioBpStretchPattern(activeStretch.id, delta)}
         />
@@ -1832,15 +1890,17 @@ function BpPackingAlerts({
 }) {
   const { t } = useTranslation();
   if (diagnostics.length === 0) return null;
+  const shown = diagnostics.slice(0, BP_PACKING_ALERT_LIMIT);
+  const hidden = diagnostics.length - shown.length;
   return (
     <div className="bp-packing-alerts" aria-label={t('panels:bpPacking.warnings', 'Box Pleat packing warnings')}>
-      {diagnostics.slice(0, 3).map((diagnostic) => {
+      {shown.map((diagnostic) => {
         const content = (
           <>
             <TriangleAlert size={14} />
             <span>
               <strong>{bpPackingAlertLabel(diagnostic, t)}</strong>
-              <small>{diagnostic.message}</small>
+              <small>{bpPackingAlertMessage(diagnostic, t)}</small>
             </span>
           </>
         );
@@ -1865,6 +1925,17 @@ function BpPackingAlerts({
           </div>
         );
       })}
+      {hidden > 0 && (
+        // Never truncate silently: a capped list otherwise reads as "that's all
+        // of them".
+        <div className="bp-packing-alert bp-packing-alert--more" role="status">
+          {hidden === 1
+            ? t('panels:bpPacking.moreWarningsOne', '{{count}} more warning', { count: hidden })
+            : t('panels:bpPacking.moreWarningsOther', '{{count}} more warnings', {
+                count: hidden,
+              })}
+        </div>
+      )}
     </div>
   );
 }
@@ -2111,9 +2182,47 @@ function bpPackingAlertDiagnostics(
 }
 
 function bpPackingAlertLabel(diagnostic: OristudioBpDiagnostic, t: TFunction): string {
+  if (diagnostic.detail?.kind === 'patternless-stretch') {
+    // Name the flaps in the headline. "Pattern not found" on its own left the
+    // user with nothing to look for on the canvas.
+    return t('panels:bpPacking.patternNotFoundFor', 'No crease pattern for {{flaps}}', {
+      flaps: bpFlapLabelList(diagnostic.detail.flapLabels, t),
+    });
+  }
   if (diagnostic.kind === 'pattern-not-found') return t('panels:bpPacking.patternNotFound', 'Pattern not found');
   if (diagnostic.kind === 'upstream-gap') return t('panels:bpPacking.upstreamGap', 'Upstream gap');
   return t('panels:bpPacking.unsupportedOperation', 'Unsupported BP operation');
+}
+
+function bpPackingAlertMessage(diagnostic: OristudioBpDiagnostic, t: TFunction): string {
+  if (diagnostic.detail?.kind !== 'patternless-stretch') return diagnostic.message;
+  // The overlap itself is legal in both cases; what differs is how far the
+  // search got, and therefore whether cycling configurations is worth trying.
+  return diagnostic.detail.hasConfiguration
+    ? t(
+        'panels:bpPacking.patternNotFoundWithConfig',
+        'These flaps overlap in a way Ori Studio can lay out but not crease. Try another configuration, move one flap away from the others, or enlarge the sheet.'
+      )
+    : t(
+        'panels:bpPacking.patternNotFoundNoConfig',
+        'These flaps overlap in a way Ori Studio cannot crease yet. Move one of them away from the others, or enlarge the sheet.'
+      );
+}
+
+function bpStretchFlapLabels(stretch: OristudioBpStretch, flaps: OristudioBpFlap[]): string[] {
+  return stretch.flapIds.map((id) =>
+    bpFlapLabel(id, flaps.find((flap) => flap.id === id)?.name ?? '')
+  );
+}
+
+/** "K, M, O and W" — a readable list for a headline. */
+function bpFlapLabelList(labels: string[], t: TFunction): string {
+  if (labels.length <= 1) return labels[0] ?? '';
+  const last = labels[labels.length - 1];
+  return t('panels:bpPacking.flapLabelList', '{{leading}} and {{last}}', {
+    leading: labels.slice(0, -1).join(', '),
+    last,
+  });
 }
 
 function constrainBpPackingDeviceTarget(

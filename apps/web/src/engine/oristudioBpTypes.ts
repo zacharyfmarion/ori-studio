@@ -318,11 +318,29 @@ export type OristudioBpDiagnosticKind =
   | 'optimizer-error'
   | 'export-error';
 
+/**
+ * Structured facts behind a diagnostic, so the render site can localize the
+ * sentence instead of displaying a pre-built English `message`.
+ */
+export type OristudioBpDiagnosticDetail = {
+  kind: 'patternless-stretch';
+  /** Display labels of the flaps in the overlap, e.g. `['K', 'M', 'O', 'W']`. */
+  flapLabels: string[];
+  /**
+   * Whether a layout configuration was found at all. `false` means the search
+   * failed before any pattern was attempted, which needs different advice from
+   * "a configuration exists but yields no pattern".
+   */
+  hasConfiguration: boolean;
+};
+
 export interface OristudioBpDiagnostic {
   id: string;
   kind: OristudioBpDiagnosticKind;
   severity: OristudioBpDiagnosticSeverity;
+  /** English fallback. Prefer `detail` at render sites that can localize. */
   message: string;
+  detail?: OristudioBpDiagnosticDetail;
   commandId?: OristudioBpCommandId;
   capabilityId?: OristudioBpCapabilityId;
   selection?: OristudioBpSelection;

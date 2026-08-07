@@ -2121,7 +2121,14 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
-    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
+    "panels:bpPacking.flapLabelList": "c4a01754b461",
+    "panels:bpPacking.layerPatternless": "d359e2611eb7",
+    "panels:bpPacking.moreWarningsOne_other": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
+    "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
+    "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4245,7 +4252,14 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
-    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
+    "panels:bpPacking.flapLabelList": "c4a01754b461",
+    "panels:bpPacking.layerPatternless": "d359e2611eb7",
+    "panels:bpPacking.moreWarningsOne_other": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
+    "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
+    "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6397,7 +6411,16 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
-    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
+    "panels:bpPacking.flapLabelList": "c4a01754b461",
+    "panels:bpPacking.layerPatternless": "d359e2611eb7",
+    "panels:bpPacking.moreWarningsOne_one": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOne_other": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOther_one": "656a623108e7",
+    "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
+    "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
+    "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8549,7 +8572,16 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
-    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
+    "panels:bpPacking.flapLabelList": "c4a01754b461",
+    "panels:bpPacking.layerPatternless": "d359e2611eb7",
+    "panels:bpPacking.moreWarningsOne_one": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOne_other": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOther_one": "656a623108e7",
+    "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
+    "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
+    "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10701,7 +10733,16 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
-    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
+    "panels:bpPacking.flapLabelList": "c4a01754b461",
+    "panels:bpPacking.layerPatternless": "d359e2611eb7",
+    "panels:bpPacking.moreWarningsOne_one": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOne_other": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOther_one": "656a623108e7",
+    "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
+    "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
+    "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12853,7 +12894,16 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
-    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
+    "panels:bpPacking.flapLabelList": "c4a01754b461",
+    "panels:bpPacking.layerPatternless": "d359e2611eb7",
+    "panels:bpPacking.moreWarningsOne_one": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOne_other": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOther_one": "656a623108e7",
+    "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
+    "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
+    "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15005,7 +15055,16 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
-    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
+    "panels:bpPacking.flapLabelList": "c4a01754b461",
+    "panels:bpPacking.layerPatternless": "d359e2611eb7",
+    "panels:bpPacking.moreWarningsOne_one": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOne_other": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOther_one": "656a623108e7",
+    "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
+    "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
+    "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -17129,6 +17188,13 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
-    "errors:creasePattern.imageNotDecodable": "df832de05fbb"
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
+    "panels:bpPacking.flapLabelList": "c4a01754b461",
+    "panels:bpPacking.layerPatternless": "d359e2611eb7",
+    "panels:bpPacking.moreWarningsOne_other": "1e51267f140b",
+    "panels:bpPacking.moreWarningsOther_other": "656a623108e7",
+    "panels:bpPacking.patternNotFoundFor": "fe78ccd0a89f",
+    "panels:bpPacking.patternNotFoundNoConfig": "96c11295d6bb",
+    "panels:bpPacking.patternNotFoundWithConfig": "142f42be2a91"
   }
 }

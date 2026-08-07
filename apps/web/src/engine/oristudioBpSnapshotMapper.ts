@@ -36,6 +36,7 @@ import type {
   OristudioBpWasmTreeNode,
 } from './oristudioBpTypes';
 import type { Point } from '../lib/geometry';
+import { bpFlapLabel } from '../lib/bpFlapLabel';
 
 const MAX_TREE_HEIGHT = 11_586;
 
@@ -143,28 +144,36 @@ function projectDiagnostics(
       message: project.error.message,
     });
   }
-  if (layoutSnapshot?.patternNotFound) {
-    const patternlessStretches = packing.stretches.filter(
-      (stretch) => stretch.patternFound === false
+  const patternlessStretches = packing.stretches.filter(
+    (stretch) => stretch.patternFound === false
+  );
+  for (const stretch of patternlessStretches) {
+    const flapLabels = stretch.flapIds.map((id) =>
+      bpFlapLabel(id, packing.flaps.find((flap) => flap.id === id)?.name ?? '')
     );
-    if (patternlessStretches.length > 0) {
-      for (const stretch of patternlessStretches) {
-        diagnostics.push({
-          id: `bp-pattern-not-found:${stretch.id}`,
-          kind: 'pattern-not-found',
-          severity: 'warning',
-          message: `Stretch ${stretch.id} did not find the selected pattern.`,
-          selection: { kind: 'bp-stretch', id: stretch.id },
-        });
-      }
-    } else {
-      diagnostics.push({
-        id: 'bp-pattern-not-found',
-        kind: 'pattern-not-found',
-        severity: 'warning',
-        message: 'One or more stretch repositories did not find a selected pattern.',
-      });
-    }
+    diagnostics.push({
+      id: `bp-pattern-not-found:${stretch.id}`,
+      kind: 'pattern-not-found',
+      severity: 'warning',
+      message: `No crease pattern for the overlap of ${flapLabels.join(', ')}.`,
+      detail: {
+        kind: 'patternless-stretch',
+        flapLabels,
+        hasConfiguration: (stretch.configCount ?? 0) > 0,
+      },
+      selection: { kind: 'bp-stretch', id: stretch.id },
+    });
+  }
+  // A snapshot older than the derived stretch list can still report the flag
+  // without naming anyone. Keep one unattached warning for that case rather than
+  // going silent.
+  if (layoutSnapshot?.patternNotFound && patternlessStretches.length === 0) {
+    diagnostics.push({
+      id: 'bp-pattern-not-found',
+      kind: 'pattern-not-found',
+      severity: 'warning',
+      message: 'Some flap overlaps in this design have no crease pattern yet.',
+    });
   }
   if (packingValidation && !packingValidation.valid) {
     for (const [index, error] of packingValidation.errors.entries()) {

@@ -6863,9 +6863,17 @@
   stroke-width: 3;
 }
 
+/*
+ * Bottom-left, not top-left: the contextual toolbars (flap editor, stretch
+ * navigator) are centred at the top and grow with their content, so a top-left
+ * stack collided with them on a narrow pane and covered the controls the
+ * warning is telling you to use. The bottom-left corner is clear — the zoom
+ * toolbar is centred and the d-pad is bottom-right — and the offset lifts the
+ * stack over the zoom toolbar's row.
+ */
 .bp-packing-alerts {
   position: absolute;
-  top: calc(var(--space-3) + 34px);
+  bottom: calc(var(--space-3) + 52px);
   left: var(--space-3);
   z-index: 13;
   display: grid;
@@ -6933,6 +6941,45 @@ button.bp-packing-alert:focus-visible {
   border-color: var(--accent-primary);
   color: var(--text-primary);
   outline: none;
+}
+
+.bp-packing-alert--more {
+  grid-template-columns: minmax(0, 1fr);
+  border-color: var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+}
+
+/*
+ * Flaps whose overlap has no crease pattern. Warning-coloured and dashed so it
+ * reads as "unresolved" next to the solid red conflict fill, which means
+ * something stronger: an overlap that is invalid outright.
+ */
+.bp-packing-patternless {
+  pointer-events: none;
+}
+
+.bp-packing-patternless-flap {
+  fill: none;
+  stroke: var(--status-warning);
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.8;
+}
+
+/* The stretch's whole span, shown only while it is selected. */
+.bp-packing-patternless-region {
+  fill: color-mix(in srgb, var(--status-warning) 7%, transparent);
+  stroke: var(--status-warning);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.7;
+}
+
+.bp-packing-patternless--selected .bp-packing-patternless-flap {
+  opacity: 1;
 }
 
 .bp-tree-edge-editor {
