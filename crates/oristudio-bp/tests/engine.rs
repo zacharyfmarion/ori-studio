@@ -724,6 +724,62 @@ fn project_graphics_snapshot_exports_node_graphics_and_invalid_junctions() {
     assert!(!snapshot.invalid_junctions[0].polygon.is_empty());
 }
 
+const PATTERNLESS_STRETCH_SAMPLE: &str =
+    include_str!("../../../tests/fixtures/bp-studio/patternless-stretch.sample.json");
+
+#[test]
+fn project_graphics_snapshot_names_the_stretches_that_found_no_pattern() {
+    let project: Project = serde_json::from_str(PATTERNLESS_STRETCH_SAMPLE).unwrap();
+    // The fixture persists no stretches at all — a patternless stretch is never
+    // written back (upstream `patternTask` removes it), so the snapshot has to
+    // report the stretch set the tree implies rather than the persisted one.
+    assert!(project.design.layout.stretches.is_empty());
+
+    let snapshot = project_graphics_snapshot(&project).unwrap();
+
+    assert_eq!(snapshot.stretches.len(), 8);
+    assert!(snapshot.pattern_not_found);
+    let patternless = snapshot
+        .stretches
+        .iter()
+        .filter(|stretch| !stretch.pattern_found)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        patternless
+            .iter()
+            .map(|stretch| stretch.id.as_str())
+            .collect::<Vec<_>>(),
+        ["10,12,14,22", "11,13,15,22"]
+    );
+    // Both fail before a configuration is even found, which is the distinction
+    // the UI needs in order to give different advice.
+    assert!(
+        patternless
+            .iter()
+            .all(|stretch| stretch.configuration_count == 0)
+    );
+    assert_eq!(patternless[0].flap_ids, [10, 12, 14, 22]);
+    assert_eq!(patternless[1].flap_ids, [11, 13, 15, 22]);
+    assert!(
+        patternless
+            .iter()
+            .all(|stretch| !stretch.regions.is_empty())
+    );
+    // Every snapshot id must be exactly its flap list, so a consumer can rely on
+    // one or the other without them drifting apart.
+    for stretch in &snapshot.stretches {
+        assert_eq!(stretch.id, layout_stretch_id_for(&stretch.flap_ids));
+    }
+}
+
+fn layout_stretch_id_for(flaps: &[u32]) -> String {
+    flaps
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 #[test]
 fn project_session_completes_active_stretch_repository() {
     let (project, stretch_id) = active_three_leaf_project();

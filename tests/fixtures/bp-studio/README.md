@@ -10,6 +10,11 @@ Fixtures in this directory seed the `oristudio-bp` parity work.
   for browser/UI regression checks.
 - `stretch-workflow.sample.json`: nonzero-dimension BP project with active
   stretch repositories for manual packing and interaction regression checks.
+- `patternless-stretch.sample.json`: 16-flap book-symmetric project whose two
+  four-flap stretches (`10,12,14,22` and `11,13,15,22`) find no configuration,
+  so the layout reports `patternNotFound`. Note `layout.stretches` is empty —
+  patternless stretches are never persisted, which is why the derived stretch
+  set has to come from the engine.
 - `v07.troll.sample.json`: hard-limit migration/check sample.
 - `optimizer-simple-request.json`: deterministic optimizer smoke request based
   on BP Studio's upstream optimizer spec.
