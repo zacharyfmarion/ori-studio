@@ -189,6 +189,33 @@ export function bpTreeGridLines(sheet: OristudioBpSheet, rect = bpTreePaperRect(
   return lines;
 }
 
+/**
+ * The world the box-pleat tree camera frames: the sheet and its margin, and
+ * nothing about what has been drawn on it.
+ *
+ * Fixed on purpose. A world computed from the drawing's own bounds resizes the
+ * SVG under a camera transform that does not, so every added node nudges the
+ * whole drawing on screen — the view moving as a side effect of an edit. The
+ * sheet is the natural fixed extent here, the same role ExplOri's centred square
+ * plays on a surface that has no sheet.
+ */
+export function bpTreeSheetWorldRect(sheet: OristudioBpSheet): PlotRect {
+  const bounds: Bounds = {
+    minX: BP_TREE_BASE_WORLD_RECT.x,
+    minY: BP_TREE_BASE_WORLD_RECT.y,
+    maxX: BP_TREE_BASE_WORLD_RECT.x + BP_TREE_BASE_WORLD_RECT.width,
+    maxY: BP_TREE_BASE_WORLD_RECT.y + BP_TREE_BASE_WORLD_RECT.height,
+  };
+  includeRect(bounds, bpTreeShadowRect(sheet));
+  includeRect(bounds, bpTreePaperRect(sheet));
+  return {
+    x: bounds.minX - WORLD_PADDING,
+    y: bounds.minY - WORLD_PADDING,
+    width: bounds.maxX - bounds.minX + WORLD_PADDING * 2,
+    height: bounds.maxY - bounds.minY + WORLD_PADDING * 2,
+  };
+}
+
 export function getBpTreeWorldRect(
   tree: OristudioBpTreeView,
   options: BpTreeViewportOptions = {}

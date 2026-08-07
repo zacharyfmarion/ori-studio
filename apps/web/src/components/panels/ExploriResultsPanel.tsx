@@ -25,7 +25,7 @@ import { selectExploriDesignOrEmpty } from '../../store/workspaceStore/designTab
  * entire point of the two-pane layout.
  */
 
-const THUMB_SIZE = 220;
+const THUMB_SIZE = 300;
 const DETAIL_SIZE = 400;
 
 function ResultFigure({

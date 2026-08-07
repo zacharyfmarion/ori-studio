@@ -57,7 +57,13 @@ describe('the query payload', () => {
 
   it('refuses locally what the service would refuse anyway', () => {
     expect(exploriQueryBlocker(createExploriDocument())).toBe('too-simple');
-    expect(exploriQueryBlocker(documentWith({ dbConfigs: [] }))).toBe('no-database');
+    // Empty *and* chosen. An empty stored list on a document the user has not
+    // touched is not "no databases" — the selection is still following the
+    // drawing at that point, and following it to a non-empty set.
+    expect(
+      exploriQueryBlocker(documentWith({ dbConfigs: [], dbConfigsDirty: true }))
+    ).toBe('no-database');
+    expect(exploriQueryBlocker(documentWith({ dbConfigs: [] }))).toBeNull();
     expect(exploriQueryBlocker(documentWith())).toBeNull();
   });
 });

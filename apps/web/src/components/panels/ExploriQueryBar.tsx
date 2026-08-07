@@ -3,6 +3,7 @@ import { Search, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { effectiveExploriDbConfigs } from '../../explori/document';
 import { exploriQueryBlocker } from '../../explori/exploriService';
 import {
   EXPLORI_SIZES,
@@ -42,17 +43,20 @@ export function ExploriQueryBar() {
   const document = design.document;
   const blocker = exploriQueryBlocker(document);
 
+  // What a search would actually use — which, until the user chooses for
+  // themselves, follows the drawing rather than the stored value.
+  const configs = effectiveExploriDbConfigs(document);
   const has = (N: number, symmetry: ExploriSymmetry) =>
-    document.dbConfigs.some((config) => config.N === N && config.symmetry === symmetry);
+    configs.some((config) => config.N === N && config.symmetry === symmetry);
   /** A symmetry is "on" when any size of it is being searched. */
   const symmetryOn = (symmetry: ExploriSymmetry) =>
-    document.dbConfigs.some((config) => config.symmetry === symmetry);
+    configs.some((config) => config.symmetry === symmetry);
 
   const commit = (next: ExploriDbConfig[]) => void setDbConfigs(next);
 
   /** Turning a symmetry on searches every size of it; off removes them all. */
   const toggleSymmetry = (symmetry: ExploriSymmetry) => {
-    const without = document.dbConfigs.filter((config) => config.symmetry !== symmetry);
+    const without = configs.filter((config) => config.symmetry !== symmetry);
     commit(
       symmetryOn(symmetry)
         ? without
@@ -63,8 +67,8 @@ export function ExploriQueryBar() {
   const toggleSize = (N: number, symmetry: ExploriSymmetry) =>
     commit(
       has(N, symmetry)
-        ? document.dbConfigs.filter((config) => !(config.N === N && config.symmetry === symmetry))
-        : [...document.dbConfigs, { N, symmetry }]
+        ? configs.filter((config) => !(config.N === N && config.symmetry === symmetry))
+        : [...configs, { N, symmetry }]
     );
 
   const reason =
@@ -102,15 +106,57 @@ export function ExploriQueryBar() {
                 </button>
               ))}
             </div>
-            <IconButton
-              size="sm"
-              variant="toolbar"
-              isActive={advancedOpen}
-              title={t('panels:explori.advancedDatabases', 'Choose topology sizes')}
-              onClick={() => setAdvancedOpen((open) => !open)}
-            >
-              <Settings2 size={15} />
-            </IconButton>
+            <div className="explori-advanced">
+              <IconButton
+                size="sm"
+                variant="toolbar"
+                isActive={advancedOpen}
+                title={t('panels:explori.advancedDatabases', 'Choose topology sizes')}
+                onClick={() => setAdvancedOpen((open) => !open)}
+              >
+                <Settings2 size={15} />
+              </IconButton>
+              {/* Floated over the canvas rather than inserted into the bar: as a
+                  row it pushed every control — and the drawing above them — up and
+                  down each time it opened. */}
+              {advancedOpen && (
+                <div className="explori-advanced__popover" role="dialog">
+                  <table className="explori-db-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">{t('panels:explori.topologySize', 'Size')}</th>
+                        {EXPLORI_SYMMETRIES.map((symmetry) => (
+                          <th key={symmetry} scope="col">
+                            {symmetryLabel(symmetry, t)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {EXPLORI_SIZES.map((size) => (
+                        <tr key={size}>
+                          <th scope="row">{size}</th>
+                          {EXPLORI_SYMMETRIES.map((symmetry) => (
+                            <td key={symmetry}>
+                              <input
+                                type="checkbox"
+                                checked={has(size, symmetry)}
+                                aria-label={t(
+                                  'panels:explori.databaseCell',
+                                  '{{symmetry}}, size {{size}}',
+                                  { symmetry: symmetryLabel(symmetry, t), size }
+                                )}
+                                onChange={() => toggleSize(size, symmetry)}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -151,40 +197,6 @@ export function ExploriQueryBar() {
           not search" is the question the empty state actually raises. */}
       {reason && <p className="explori-query-bar__hint">{reason}</p>}
 
-      {advancedOpen && (
-        <table className="explori-db-table">
-          <thead>
-            <tr>
-              <th scope="col">{t('panels:explori.topologySize', 'Size')}</th>
-              {EXPLORI_SYMMETRIES.map((symmetry) => (
-                <th key={symmetry} scope="col">
-                  {symmetryLabel(symmetry, t)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {EXPLORI_SIZES.map((size) => (
-              <tr key={size}>
-                <th scope="row">{size}</th>
-                {EXPLORI_SYMMETRIES.map((symmetry) => (
-                  <td key={symmetry}>
-                    <input
-                      type="checkbox"
-                      checked={has(size, symmetry)}
-                      aria-label={t('panels:explori.databaseCell', '{{symmetry}}, size {{size}}', {
-                        symmetry: symmetryLabel(symmetry, t),
-                        size,
-                      })}
-                      onChange={() => toggleSize(size, symmetry)}
-                    />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
     </div>
   );
 }

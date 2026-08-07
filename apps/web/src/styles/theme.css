@@ -7736,6 +7736,29 @@ button.bp-packing-alert:focus-visible {
   color: var(--bg-primary);
 }
 
+/* Anchors the popover to the gear that opens it. */
+.explori-advanced {
+  position: relative;
+  display: inline-flex;
+}
+
+/*
+ * Floated over the canvas rather than inserted into the bar. As a row it pushed
+ * every control — and the drawing above them — up and down each time it opened.
+ */
+.explori-advanced__popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  /* Above the canvas's own viewport toolbar (17), which it opens across. */
+  z-index: 20;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+}
+
 /*
  * The per-size grid: twelve checkboxes are legible with one set of column
  * headers and unreadable without them, which is the whole reason this is a
@@ -7813,10 +7836,15 @@ button.bp-packing-alert:focus-visible {
  * tab and gets resized constantly, so a fixed column count would be wrong at
  * every width but one.
  */
+/*
+ * Cards size themselves to the pane, with a floor big enough to read a crease
+ * pattern at. Below about 200px the thumbnails stop being something you can
+ * judge a match from, which is the only reason to look at them.
+ */
 .explori-results__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
 }
 
 .explori-result-card {
@@ -7840,14 +7868,15 @@ button.bp-packing-alert:focus-visible {
 .explori-result-card__meta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 7px;
+  gap: 8px;
+  padding: 7px 9px;
   border-top: 1px solid var(--border-default);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .explori-result-card__id {
   font-variant-numeric: tabular-nums;
+  font-size: 12px;
   color: var(--text-primary);
 }
 
@@ -7861,7 +7890,7 @@ button.bp-packing-alert:focus-visible {
 
 /* Quality is a five-step scale, so it reads as a ramp rather than five labels. */
 .explori-quality {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 

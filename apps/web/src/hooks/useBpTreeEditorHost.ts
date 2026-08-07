@@ -14,7 +14,7 @@ import {
   bpTreeUnitToSvg,
   bpTreeVertexLabel,
   constrainBpTreePoint,
-  getBpTreeWorldRect,
+  bpTreeSheetWorldRect,
   svgToBpTreePoint,
 } from '../lib/bpTreeViewport';
 import { useBpLongPressInspector } from './useBpLongPressInspector';
@@ -108,12 +108,10 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
   const paperRect = useMemo(() => bpTreePaperRect(tree.sheet), [tree.sheet]);
   const symmetryView = useBpTreeSymmetry(tree, paperRect);
 
-  // Fit to the committed tree bounds only (not the drag preview) so the camera
-  // stays put while a flap rotates. Tight padding keeps a unit edge large.
-  const worldRect = useMemo(
-    () => getBpTreeWorldRect(tree, { contentOnly: true, padding: 12 }),
-    [tree]
-  );
+  // The sheet, not the drawing. Fitting to the tree's own bounds meant the SVG
+  // resized on every edit and the view drifted under the camera — adding a node
+  // moved the whole drawing. The sheet is fixed, so nothing an edit does can.
+  const worldRect = useMemo(() => bpTreeSheetWorldRect(tree.sheet), [tree.sheet]);
 
   const frame = useMemo<TreeFrame>(
     () => ({

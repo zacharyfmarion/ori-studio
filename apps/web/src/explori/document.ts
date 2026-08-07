@@ -3,6 +3,7 @@ import type { EditableTree, EditableTreeEdge, EditableTreeVertex } from '../tree
 import type { TreeSymmetryPair } from '../tree-editor/host';
 import type { ExploriDbConfig, ExploriResult, ExploriSymmetry } from './types';
 import { EXPLORI_SIZES, EXPLORI_SYMMETRIES } from './types';
+import { EXPLORI_SYMMETRY_TOLERANCE } from './symmetry';
 
 /**
  * What an ExplOri design *is*, and what a saved one holds.
@@ -41,6 +42,14 @@ export interface ExploriDocument {
   nextNodeId: number;
   nextEdgeId: number;
   dbConfigs: ExploriDbConfig[];
+  /**
+   * Whether the user has chosen the databases themselves.
+   *
+   * Until they do, the selection follows the drawing — see
+   * {@link effectiveExploriDbConfigs}. Once they have, it is theirs and nothing
+   * about the tree may move it.
+   */
+  dbConfigsDirty: boolean;
   resultLimit: number;
   symmetry: { enabled: boolean; pairs: TreeSymmetryPair[] };
   /** The result the user picked, kept whole so it works with the network down. */
@@ -75,6 +84,7 @@ export function createExploriDocument(): ExploriDocument {
     nextNodeId: 1,
     nextEdgeId: 1,
     dbConfigs: [...DEFAULT_DB_CONFIGS],
+    dbConfigsDirty: false,
     resultLimit: DEFAULT_RESULT_LIMIT,
     // Trees drawn for search are nearly always symmetric, and the book
     // databases are the ones people reach for, so mirror draw starts on — as it
@@ -128,6 +138,49 @@ export function exploriEdgeLength(document: ExploriDocument, edge: ExploriTreeEd
   const b = document.nodes.find((node) => node.id === edge.vertices[1]);
   if (!a || !b) return edge.length;
   return Math.hypot(a.loc.x - b.loc.x, a.loc.y - b.loc.y);
+}
+
+/**
+ * Whether the drawing is symmetric about the mirror.
+ *
+ * Every node either sits on the axis or has one at its reflection. Asked of the
+ * *geometry* rather than of the pairing, because a tree drawn symmetrically by
+ * hand — with mirror draw off, or loaded from a file — is symmetric whether or
+ * not anything recorded it as paired.
+ */
+export function exploriTreeIsSymmetric(
+  document: ExploriDocument,
+  tolerance = EXPLORI_SYMMETRY_TOLERANCE
+): boolean {
+  if (document.nodes.length === 0) return true;
+  return document.nodes.every((node) => {
+    if (Math.abs(node.loc.x) <= tolerance) return true;
+    return document.nodes.some(
+      (other) =>
+        other.id !== node.id &&
+        Math.abs(other.loc.x + node.loc.x) <= tolerance &&
+        Math.abs(other.loc.y - node.loc.y) <= tolerance
+    );
+  });
+}
+
+/**
+ * The databases a search actually uses.
+ *
+ * Until the user picks for themselves, this follows the drawing: a symmetric
+ * tree has no business searching the asymmetric archive, and an asymmetric one
+ * needs it. Searching everything by default made every symmetric query — which
+ * is most of them — spend a third of its results on tilings that could not match.
+ *
+ * The moment the user touches the selection it is theirs and this stops
+ * guessing, which is what `dbConfigsDirty` records.
+ */
+export function effectiveExploriDbConfigs(document: ExploriDocument): ExploriDbConfig[] {
+  if (document.dbConfigsDirty) return document.dbConfigs;
+  const symmetries: ExploriSymmetry[] = exploriTreeIsSymmetric(document)
+    ? ['diag', 'book']
+    : [...EXPLORI_SYMMETRIES];
+  return EXPLORI_SIZES.flatMap((N) => symmetries.map((symmetry) => ({ N, symmetry })));
 }
 
 export function serializeExploriDocument(document: ExploriDocument): string {
@@ -230,6 +283,7 @@ export function parseExploriDocument(text: string): ExploriDocument {
     nextNodeId: Math.max(...nodes.map((node) => node.id)) + 1,
     nextEdgeId: edges.reduce((highest, edge) => Math.max(highest, edge.id), 0) + 1,
     dbConfigs: dbConfigs.length > 0 ? dbConfigs : fallback.dbConfigs,
+    dbConfigsDirty: record.dbConfigsDirty === true,
     resultLimit:
       typeof record.resultLimit === 'number' && record.resultLimit > 0
         ? Math.min(50, Math.round(record.resultLimit))

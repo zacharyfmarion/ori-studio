@@ -1,5 +1,5 @@
 import type { ExploriDocument } from './document';
-import { exploriEdgeLength } from './document';
+import { effectiveExploriDbConfigs, exploriEdgeLength } from './document';
 import type {
   ExploriCp,
   ExploriDbConfig,
@@ -92,7 +92,7 @@ export function exploriDbConfigsForQuery(configs: readonly ExploriDbConfig[]): E
 /** Why a search cannot run yet, or null when it can. */
 export function exploriQueryBlocker(document: ExploriDocument): 'too-simple' | 'no-database' | null {
   if (document.edges.length < EXPLORI_MIN_EDGES) return 'too-simple';
-  if (document.dbConfigs.length === 0) return 'no-database';
+  if (effectiveExploriDbConfigs(document).length === 0) return 'no-database';
   return null;
 }
 
@@ -289,7 +289,7 @@ export async function queryExplori(
     '/api/explori/query',
     {
       tree: exploriQueryTree(document),
-      db_configs: exploriDbConfigsForQuery(document.dbConfigs),
+      db_configs: exploriDbConfigsForQuery(effectiveExploriDbConfigs(document)),
       n: document.resultLimit,
     },
     signal

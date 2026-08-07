@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fixture from './__fixtures__/queryResponse.json';
 import {
   createExploriDocument,
+  effectiveExploriDbConfigs,
   exploriEditableTree,
   parseExploriDocument,
   serializeExploriDocument,
@@ -82,5 +83,56 @@ describe('the editable tree it presents', () => {
 
   it('gives every edge no ceiling, because there is no paper to overflow', () => {
     for (const edge of exploriEditableTree(drawn()).edges) expect(edge.maxLength).toBeNull();
+  });
+});
+
+describe('which databases a search uses', () => {
+  const withNodes = (...points: [number, number][]): ExploriDocument => ({
+    ...createExploriDocument(),
+    nodes: [
+      { id: 0, loc: { x: 0, y: 0 }, name: '' },
+      ...points.map(([x, y], index) => ({ id: index + 1, loc: { x, y }, name: '' })),
+    ],
+  });
+  const symmetriesOf = (document: ExploriDocument) =>
+    new Set(effectiveExploriDbConfigs(document).map((config) => config.symmetry));
+
+  it('leaves the asymmetric archive out for a symmetric tree', () => {
+    // Two leaves reflected about x = 0, and one sitting on it.
+    expect(symmetriesOf(withNodes([2, 1], [-2, 1], [0, 3]))).toEqual(new Set(['diag', 'book']));
+  });
+
+  it('includes it for a tree that is not symmetric', () => {
+    expect(symmetriesOf(withNodes([2, 1], [-2, 1], [1.5, -2]))).toEqual(
+      new Set(['diag', 'book', 'none'])
+    );
+  });
+
+  it('reads symmetry off the drawing, not off the recorded pairs', () => {
+    // A tree drawn symmetrically with mirror draw off has no pairs at all, and is
+    // symmetric all the same.
+    const drawn = { ...withNodes([2, 1], [-2, 1]), symmetry: { enabled: false, pairs: [] } };
+    expect(symmetriesOf(drawn)).toEqual(new Set(['diag', 'book']));
+  });
+
+  it('stops guessing once the user has chosen', () => {
+    const chosen: ExploriDocument = {
+      ...withNodes([2, 1], [-2, 1]),
+      dbConfigs: [{ N: 3, symmetry: 'none' }],
+      dbConfigsDirty: true,
+    };
+    // Symmetric drawing, but the choice is theirs and stands.
+    expect(effectiveExploriDbConfigs(chosen)).toEqual([{ N: 3, symmetry: 'none' }]);
+  });
+
+  it('remembers that they chose, across a save', () => {
+    const chosen: ExploriDocument = {
+      ...withNodes([2, 1]),
+      dbConfigs: [{ N: 2, symmetry: 'book' }],
+      dbConfigsDirty: true,
+    };
+    const reopened = parseExploriDocument(serializeExploriDocument(chosen));
+    expect(reopened.dbConfigsDirty).toBe(true);
+    expect(effectiveExploriDbConfigs(reopened)).toEqual([{ N: 2, symmetry: 'book' }]);
   });
 });

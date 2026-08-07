@@ -337,7 +337,9 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
 
     setExploriDbConfigs: async (dbConfigs: ExploriDbConfig[]) => {
       const designId = get().activeDesignId;
-      return edit(designId, (document) => ({ ...document, dbConfigs }));
+      // Choosing marks it chosen: from here the selection is the user's and the
+      // drawing stops deciding it.
+      return edit(designId, (document) => ({ ...document, dbConfigs, dbConfigsDirty: true }));
     },
 
     setExploriResultLimit: async (resultLimit: number) => {
