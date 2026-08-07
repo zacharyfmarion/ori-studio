@@ -7632,61 +7632,94 @@ button.bp-packing-alert:focus-visible {
   min-height: 0;
 }
 
+/*
+ * The surface's primary action, sized like one.
+ *
+ * It began as a thin strip of small grey controls that read as a status bar and
+ * was missed accordingly. Now it is a command strip: captioned fields, a real
+ * button, and enough room around them to be the obvious next thing to do after
+ * drawing a tree.
+ */
 .explori-query-bar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 12px 16px 14px;
   border-top: 1px solid var(--border-default);
   background: var(--bg-secondary);
 }
 
 .explori-query-bar__row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-end;
+  gap: 18px;
   flex-wrap: wrap;
 }
 
-.explori-query-bar__label {
-  font-size: 11px;
+.explori-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.explori-field__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-secondary);
 }
 
-.explori-query-bar__label--count {
-  margin-left: 8px;
+.explori-field__control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .explori-query-bar__spacer {
   flex: 1;
+  min-width: 12px;
+}
+
+.explori-query-bar__search {
+  min-width: 132px;
+  height: 34px;
+}
+
+.explori-query-bar__hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
 .explori-query-bar__count {
-  width: 56px;
-  padding: 3px 6px;
+  width: 62px;
+  height: 30px;
+  padding: 0 8px;
   border: 1px solid var(--border-default);
   border-radius: 6px;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
 /* One segmented control, so the three read as a set rather than three buttons. */
 .explori-symmetry-group {
   display: inline-flex;
+  height: 30px;
   border: 1px solid var(--border-default);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .explori-symmetry-toggle {
-  padding: 4px 10px;
+  padding: 0 14px;
   border: none;
   border-right: 1px solid var(--border-default);
   background: var(--bg-primary);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -7970,4 +8003,47 @@ button.bp-packing-alert:focus-visible {
 
 .explori-graph-node {
   fill: var(--accent-secondary);
+}
+
+/*
+ * The mirror line, as pane chrome rather than scene content.
+ *
+ * Drawn inside the canvas it was clipped to the canvas's own bounds, so panning
+ * slid its ends into view and it stopped reaching the edges of the pane. Its
+ * width was already a screen-pixel constant — the snap band is a fixed number of
+ * pixels, which `symmetryAxisTolerance` converts back into tree units — so
+ * nothing about it wanted to live in world space. Positioned imperatively with
+ * the camera; see `publishMirrorLine`.
+ */
+.tree-editor-mirror {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tree-editor-mirror .symmetry-snap-lane {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -9px;
+  width: 18px;
+  background: color-mix(in srgb, var(--accent-tertiary) 28%, transparent);
+  opacity: 0.85;
+}
+
+.tree-editor-mirror .symmetry-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  width: 2px;
+  opacity: 0.8;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--accent-tertiary) 0 12px,
+    transparent 12px 20px
+  );
 }

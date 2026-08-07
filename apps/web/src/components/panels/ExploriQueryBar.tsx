@@ -77,66 +77,79 @@ export function ExploriQueryBar() {
   return (
     <div className="explori-query-bar">
       <div className="explori-query-bar__row">
-        <span className="explori-query-bar__label">
-          {t('panels:explori.symmetryModes', 'Symmetry')}
-        </span>
-        <div
-          className="explori-symmetry-group"
-          role="group"
-          aria-label={t('panels:explori.symmetryModes', 'Symmetry')}
-        >
-          {EXPLORI_SYMMETRIES.map((symmetry) => (
-            <button
-              key={symmetry}
-              type="button"
-              className="explori-symmetry-toggle"
-              aria-pressed={symmetryOn(symmetry)}
-              onClick={() => toggleSymmetry(symmetry)}
+        {/* Each control captioned rather than labelled inline: the bar is the
+            surface's primary action and reads better as a short command strip
+            than as a sentence of small grey words. */}
+        <div className="explori-field">
+          <span className="explori-field__label">
+            {t('panels:explori.symmetryModes', 'Symmetry')}
+          </span>
+          <div className="explori-field__control">
+            <div
+              className="explori-symmetry-group"
+              role="group"
+              aria-label={t('panels:explori.symmetryModes', 'Symmetry')}
             >
-              {symmetryLabel(symmetry, t)}
-            </button>
-          ))}
+              {EXPLORI_SYMMETRIES.map((symmetry) => (
+                <button
+                  key={symmetry}
+                  type="button"
+                  className="explori-symmetry-toggle"
+                  aria-pressed={symmetryOn(symmetry)}
+                  onClick={() => toggleSymmetry(symmetry)}
+                >
+                  {symmetryLabel(symmetry, t)}
+                </button>
+              ))}
+            </div>
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              isActive={advancedOpen}
+              title={t('panels:explori.advancedDatabases', 'Choose topology sizes')}
+              onClick={() => setAdvancedOpen((open) => !open)}
+            >
+              <Settings2 size={15} />
+            </IconButton>
+          </div>
         </div>
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          isActive={advancedOpen}
-          title={t('panels:explori.advancedDatabases', 'Choose topology sizes')}
-          onClick={() => setAdvancedOpen((open) => !open)}
-        >
-          <Settings2 size={14} />
-        </IconButton>
 
-        <span className="explori-query-bar__label explori-query-bar__label--count">
-          {t('panels:explori.searchSize', 'Results')}
-        </span>
-        <input
-          className="explori-query-bar__count"
-          type="number"
-          min={1}
-          max={50}
-          value={document.resultLimit}
-          aria-label={t('panels:explori.searchSize', 'Results')}
-          onChange={(event) => {
-            const value = Number.parseInt(event.target.value, 10);
-            if (Number.isFinite(value)) void setResultLimit(Math.min(50, Math.max(1, value)));
-          }}
-        />
+        <div className="explori-field">
+          <span className="explori-field__label">
+            {t('panels:explori.searchSize', 'Results')}
+          </span>
+          <input
+            className="explori-query-bar__count"
+            type="number"
+            min={1}
+            max={50}
+            value={document.resultLimit}
+            aria-label={t('panels:explori.searchSize', 'Results')}
+            onChange={(event) => {
+              const value = Number.parseInt(event.target.value, 10);
+              if (Number.isFinite(value)) void setResultLimit(Math.min(50, Math.max(1, value)));
+            }}
+          />
+        </div>
 
         <span className="explori-query-bar__spacer" />
         <Button
-          size="sm"
+          className="explori-query-bar__search"
           variant="primary"
           disabled={blocker !== null || design.searching}
           title={reason}
           onClick={() => void runQuery()}
         >
-          <Search size={14} />
+          <Search size={16} />
           {design.searching
             ? t('panels:explori.searching', 'Searching…')
             : t('panels:explori.search', 'Search')}
         </Button>
       </div>
+
+      {/* Said out loud rather than only as a disabled button, because "why can I
+          not search" is the question the empty state actually raises. */}
+      {reason && <p className="explori-query-bar__hint">{reason}</p>}
 
       {advancedOpen && (
         <table className="explori-db-table">

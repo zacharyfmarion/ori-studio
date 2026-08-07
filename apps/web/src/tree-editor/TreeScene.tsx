@@ -7,7 +7,7 @@ import {
 import type { PlotRect, Point } from '../lib/geometry';
 import { treeDotPx, type TreeDotSizes } from '../lib/treeNodeDot';
 import { viewportRectToViewBox } from '../lib/treeViewportPrimitives';
-import type { TreeEditorCopy, TreeSymmetryLine, TreeSymmetryPair, TreeViewLayers } from './host';
+import type { TreeEditorCopy, TreeSymmetryPair, TreeViewLayers } from './host';
 import type { TreeLengthRule } from './lengths';
 import type { EditableTree, EditableTreeVertex } from './model';
 
@@ -68,7 +68,6 @@ export interface TreeSceneProps {
   selectedEdges: ReadonlySet<number>;
   /** SVG units per screen pixel, for the counter-scaled chrome. */
   chromePx: (px: number) => number;
-  symmetryAxisLine: TreeSymmetryLine | null;
   symmetryPairs: readonly TreeSymmetryPair[];
   /**
    * Whether the mirror-draw ghost has anything to preview: mirror draw on, with
@@ -108,7 +107,6 @@ export const TreeScene = memo(function TreeScene({
   selectedVertices,
   selectedEdges,
   chromePx,
-  symmetryAxisLine,
   symmetryPairs,
   ghostArmed,
   classPrefix,
@@ -134,32 +132,6 @@ export const TreeScene = memo(function TreeScene({
       role="img"
       aria-label={copy.canvas}
     >
-      {symmetryAxisLine && (
-        <>
-          <line
-            // No counter-scale: this band *is* the snap zone. Its width in
-            // SVG units defines `axisTolerance`, so it has to scale with the
-            // drawing — a fixed screen width would show a zone the size of
-            // which no longer matches where a tip actually snaps.
-            className="symmetry-snap-lane"
-            style={{ strokeWidth: chromePx(SYMMETRY_LANE_PX) }}
-            {...{ [TREE_CHROME_ATTR.stroke]: SYMMETRY_LANE_PX }}
-            x1={symmetryAxisLine.x1}
-            y1={symmetryAxisLine.y1}
-            x2={symmetryAxisLine.x2}
-            y2={symmetryAxisLine.y2}
-          />
-          <line
-            className="symmetry-line"
-            style={{ strokeWidth: chromePx(SYMMETRY_LINE_PX) }}
-            {...{ [TREE_CHROME_ATTR.stroke]: SYMMETRY_LINE_PX }}
-            x1={symmetryAxisLine.x1}
-            y1={symmetryAxisLine.y1}
-            x2={symmetryAxisLine.x2}
-            y2={symmetryAxisLine.y2}
-          />
-        </>
-      )}
       {symmetryPairs.map((pair) => {
         const a = vertexById.get(pair.v1);
         const b = vertexById.get(pair.v2);

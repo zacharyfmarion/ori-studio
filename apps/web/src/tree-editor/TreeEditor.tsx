@@ -86,6 +86,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
    * pane resized, or something scrolled.
    */
   const svgRectRef = useRef<DOMRect | null>(null);
+  const mirrorRef = useRef<HTMLDivElement | null>(null);
   const forgetSvgRect = useEventCallback(() => {
     svgRectRef.current = null;
   });
@@ -206,13 +207,25 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
   // every sample, and re-rendering the pane for it is what used to make hovering
   // a large tree as expensive as dragging one.
   const ghostGeometryAt = useEventCallback((hoverPoint: Point): TreeGhostGeometry | null => {
-    if (!symmetry?.enabled) return null;
     const parentId = addAnchorId;
     if (parentId === null) return null;
     const parent = findVertex(parentId);
     if (!parent) return null;
-    const axis = symmetry.axis;
     const tip = frame.constrain(newLeafLocation(parent.loc, hoverPoint));
+
+    // Without a mirror there is still a leaf to preview — where the click would
+    // put it, and how long it would be. The ghost is about the *add*; the mirror
+    // is only the second half of it.
+    if (!symmetry?.enabled) {
+      return {
+        primary: { from: frame.toSvg(parent.loc), to: frame.toSvg(tip) },
+        mirror: null,
+        snapped: false,
+        unresolved: false,
+      };
+    }
+
+    const axis = symmetry.axis;
     const snap = snapPointToSymmetryAxis(tip, axis, symmetryAxisTolerance);
     const primaryTip = snap.point;
     let mirror: { from: Point; to: Point } | null = null;
@@ -253,7 +266,35 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
    * burst of steps, and re-reading the markup on each one turned a zoom into
    * several passes over the whole canvas.
    */
+  /**
+   * Put the mirror line where the axis currently projects to, in pane pixels.
+   *
+   * Chrome rather than scene content, and it has to be: drawn inside the SVG it
+   * was clipped to the SVG's own bounds, so panning slid its ends into view and
+   * the line stopped reaching the edges of the pane. Its width is already a
+   * screen-pixel constant — the snap band is a fixed number of pixels, which is
+   * what `symmetryAxisTolerance` converts back into tree units — so nothing
+   * about it wants to live in world space.
+   */
+  const publishMirrorLine = useEventCallback(() => {
+    const element = mirrorRef.current;
+    if (!element) return;
+    const rect = svgRect();
+    if (!rect || !symmetry?.enabled) {
+      element.style.display = 'none';
+      return;
+    }
+    const container = containerRef.current?.getBoundingClientRect();
+    if (!container) return;
+    // SVG x of the axis → a fraction of the drawn canvas → a pane offset.
+    const axisSvgX = frame.toSvg({ x: symmetry.axis.loc.x, y: 0 }).x;
+    const fraction = (axisSvgX - frame.worldRect.x) / frame.worldRect.width;
+    element.style.display = '';
+    element.style.left = `${rect.left - container.left + fraction * rect.width}px`;
+  });
+
   const publishChromeScale = useEventCallback(() => {
+    publishMirrorLine();
     const svg = svgRef.current;
     if (!svg) return;
     sceneTargetsRef.current ??= {
@@ -331,6 +372,10 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     const svg = svgRef.current;
     if (svg && ghostArmed) applyTreeGhost(svg, ghostGeometryRef.current);
   }, [ghostArmed]);
+
+  // The mirror line is written, not rendered, so every commit that could move it
+  // — a new tree, the toggle, a resize — has to re-place it.
+  useEffect(publishMirrorLine);
 
   useEffect(
     () => () => {
@@ -555,7 +600,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     }
     // Converting to tree space reads layout, so it must not happen for an answer
     // that is already known to be nothing.
-    if (!symmetry?.enabled || addAnchorId === null) {
+    if (addAnchorId === null) {
       setGhost(null);
       return;
     }
@@ -616,7 +661,6 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
             selectedVertices={host.selection.vertices}
             selectedEdges={host.selection.edges}
             chromePx={chromePx}
-            symmetryAxisLine={symmetry?.axisLine ?? null}
             symmetryPairs={symmetry?.pairs ?? EMPTY_PAIRS}
             ghostArmed={ghostArmed}
             classPrefix={classPrefix}
@@ -630,6 +674,12 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
           />
         </TransformComponent>
       </TransformWrapper>
+      {symmetry && (
+        <div ref={mirrorRef} className="tree-editor-mirror" aria-hidden="true">
+          <span className="symmetry-snap-lane" />
+          <span className="symmetry-line" />
+        </div>
+      )}
       <TreeEditorToolbar
         copy={copy}
         zoomPercent={zoomPercent}
