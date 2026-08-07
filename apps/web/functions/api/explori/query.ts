@@ -30,8 +30,22 @@ const MAX_RESULTS = 50;
 const MAX_NODES = 200;
 /** A tree is a tree, not a mesh; this is far above anything a person draws. */
 const MAX_EDGES = 400;
-/** Four sizes x three symmetries is the whole archive. More is not a query. */
-const MAX_DB_CONFIGS = 12;
+/**
+ * A bound on how much of this array we are willing to walk at all.
+ *
+ * Deliberately generous, and *not* an attempt to count what the UI can select.
+ * The real bound on upstream work is the deduplication below: the valid space is
+ * `MAX_N` sizes times three symmetries, so no query can ask for more than 30
+ * distinct indexes however long the array is.
+ *
+ * It was 12 — four sizes times three symmetries, counted off the UI grid — which
+ * rejected a legitimate query outright. The client expands its selection before
+ * sending, because upstream folds `6 book` into `5 book`, so choosing every
+ * symmetry sends 13. Validating against a mental model of the UI rather than
+ * against what the client emits is the mistake; the test for this builds its
+ * payload with the client's own function.
+ */
+const MAX_DB_CONFIG_ENTRIES = 256;
 const SYMMETRIES = new Set(['diag', 'book', 'none']);
 const MIN_N = 1;
 const MAX_N = 10;
@@ -133,7 +147,7 @@ export async function onRequestPost(context: ExploriContext): Promise<Response> 
   if (!Array.isArray(payload.db_configs) || payload.db_configs.length === 0) {
     return errorResponse(400, 'invalid_body', 'Choose at least one database to search.');
   }
-  if (payload.db_configs.length > MAX_DB_CONFIGS) {
+  if (payload.db_configs.length > MAX_DB_CONFIG_ENTRIES) {
     return errorResponse(400, 'invalid_body', 'That is more databases than exist.');
   }
   const dbConfigs: { N: number; symmetry: string }[] = [];

@@ -167,3 +167,89 @@ describe('POST /api/explori/query — what reaches upstream', () => {
     expect(response.status).toBe(400);
   });
 });
+
+/**
+ * The proxy must accept what our own client sends.
+ *
+ * The `db_configs` cap was counted off the UI grid — four sizes times three
+ * symmetries — and the client sends *thirteen* when every symmetry is selected,
+ * because it expands `5 book` into `5 book` + `6 book` to match a fold upstream
+ * does. So the one selection that asks for the whole archive was rejected with
+ * "That is more databases than exist."
+ *
+ * The payload here is built by the client's own functions rather than written
+ * out by hand, which is the only version of this test that would have caught it:
+ * a hand-written fixture would have encoded the same wrong assumption.
+ */
+describe('POST /api/explori/query — accepts what the client actually sends', () => {
+  const NODES = [
+    { id: 0, x: 0, y: 0 },
+    { id: 1, x: 1, y: 0 },
+    { id: 2, x: -1, y: 0 },
+    { id: 3, x: 0, y: 1 },
+    { id: 4, x: 0, y: -1 },
+  ];
+  const EDGES = [
+    { u: 0, v: 1, length: 1 },
+    { u: 0, v: 2, length: 1 },
+    { u: 0, v: 3, length: 1 },
+    { u: 0, v: 4, length: 1 },
+  ];
+
+  async function send(dbConfigs: unknown) {
+    vi.resetModules();
+    const sent: { body?: string } = {};
+    vi.doMock('../_lib/explori', async () => {
+      const actual = await vi.importActual<typeof import('../_lib/explori')>('../_lib/explori');
+      return {
+        ...actual,
+        callExplori: async (_env: unknown, call: { body?: string }) => {
+          sent.body = call.body;
+          return new Response('{}', { status: 200 });
+        },
+      };
+    });
+    const { onRequestPost } = await import('../api/explori/query');
+    const response = await onRequestPost({
+      request: new Request('https://x/api/explori/query', {
+        method: 'POST',
+        body: JSON.stringify({
+          tree: { nodes: NODES, edges: EDGES },
+          db_configs: dbConfigs,
+          n: 5,
+        }),
+      }),
+      env: {},
+    } as never);
+    return { response, forwarded: sent.body ? JSON.parse(sent.body) : null };
+  }
+
+  it('accepts every database the UI can select, expansion included', async () => {
+    const [{ DEFAULT_DB_CONFIGS }, { exploriDbConfigsForQuery }] = await Promise.all([
+      import('../../src/explori/document'),
+      import('../../src/explori/exploriService'),
+    ]);
+    const everything = exploriDbConfigsForQuery(DEFAULT_DB_CONFIGS);
+    // The expansion is the whole point: this is strictly more than the grid.
+    expect(everything.length).toBeGreaterThan(DEFAULT_DB_CONFIGS.length);
+
+    const { response, forwarded } = await send(everything);
+    expect(response.status).toBe(200);
+    expect(forwarded.db_configs).toHaveLength(everything.length);
+  });
+
+  it('still refuses an array long enough to be an attack', async () => {
+    const { response } = await send(
+      Array.from({ length: 5000 }, () => ({ N: 4, symmetry: 'none' }))
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('collapses duplicates, so upstream loads each index once', async () => {
+    // The real bound on upstream work, whatever the array length.
+    const { forwarded } = await send(
+      Array.from({ length: 200 }, (_, i) => ({ N: 2 + (i % 4), symmetry: 'book' }))
+    );
+    expect(forwarded.db_configs).toHaveLength(4);
+  });
+});
