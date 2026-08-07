@@ -144,4 +144,4 @@ right containment until each is decided on its own terms.
 - [x] Mapper tests for the new diagnostic
 - [x] `npm run lint:web`, `tsc --noEmit`, full web vitest, `i18n:check`
 - [x] Browser-verified against `broken_bp_editor_ui.osf`
-- [ ] Draft PR against `main`
+- [x] Draft PR against `main` — https://github.com/zacharyfmarion/ori-studio/pull/218
