@@ -50,8 +50,9 @@ export function BpPackingEmptySpaceLayer({
       <defs>
         {/* Diagonal hatch, laid over the tint. The tint alone reads as "another
             region"; the hatch says "nothing lives here", which is what empty
-            paper is. Hatch only — the region is never outlined, so what you see
-            is the paper going unused, not a box drawn around it. */}
+            paper is. Fills only — neither shape is outlined, because a box drawn
+            around each gap reads as a region of its own rather than as paper
+            going unused. */}
         <pattern
           id={hatchId}
           width="8"
