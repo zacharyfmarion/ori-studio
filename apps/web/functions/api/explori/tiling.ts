@@ -1,16 +1,12 @@
-import { callExplori, errorResponse, withEdgeCache, type ExploriContext } from '../../_lib/explori';
+import { callExplori, errorResponse, type ExploriContext } from '../../_lib/explori';
 
 /**
  * `GET /api/explori/tiling?id&N&sym` — one tiling, by its exact id.
  *
  * The endpoint a saved design reaches for, and the only one that returns folding
- * references. A tiling id is immutable, so the response is cached for a year —
- * in the *edge* cache, not merely with a header. Setting `Cache-Control` alone
- * was not enough: Cloudflare does not cache a Pages Function response on its
- * strength, so that only ever bought the one browser's cache, and every other
- * visitor still reached upstream.
- *
- * There is no rate limiter here, deliberately — see `_lib/explori.ts`.
+ * references. A tiling id is immutable, so the response carries a long
+ * `Cache-Control` and the browser may keep it — but nothing here caches on
+ * anyone's behalf. See `_lib/explori.ts`.
  */
 
 const SYMMETRIES = new Set(['diag', 'book', 'none']);
@@ -34,16 +30,12 @@ export async function onRequestGet(context: ExploriContext): Promise<Response> {
     return errorResponse(400, 'invalid_id', 'That symmetry does not exist.');
   }
 
-  // Keyed on the validated triple rather than the caller's URL, so parameter
-  // order or stray extras cannot mint a second entry for the same tiling.
-  const key = new Request(
-    `${url.origin}${url.pathname}?id=${id}&N=${N}&sym=${encodeURIComponent(symmetry)}`,
-    { method: 'GET' }
-  );
-  return withEdgeCache(context, key, CACHE_SECONDS, () =>
-    callExplori(env, {
-      path: `/api/fetch_tiling?id=${id}&N=${N}&sym=${encodeURIComponent(symmetry)}`,
-      method: 'GET',
-    })
-  , ', immutable');
+  const response = await callExplori(env, {
+    path: `/api/fetch_tiling?id=${id}&N=${N}&sym=${encodeURIComponent(symmetry)}`,
+    method: 'GET',
+  });
+  if (!response.ok) return response;
+  const cacheable = new Response(response.body, response);
+  cacheable.headers.set('Cache-Control', `public, max-age=${CACHE_SECONDS}, immutable`);
+  return cacheable;
 }

@@ -11,26 +11,21 @@
  *   deserialize); `heat` is another ~3.7 KB per result and feeds a normalization
  *   upstream's own results grid has stopped using. Dropping both roughly halves
  *   the bytes we ask a user to download.
- * - **It caches.** Every response is served from the edge cache when we have
- *   already asked upstream the same question. This is the whole of our
- *   load courtesy: it removes requests rather than refusing them.
+ * **Deliberately absent: rate limiting and caching.** Both were here and both
+ * were removed on purpose, so please do not add either back by reflex.
  *
- * **Deliberately absent: a rate limiter.** There was one — a per-IP KV counter —
- * removed on purpose, so please do not re-add one by reflex. It bounded nothing
- * that mattered (per-IP, so no cap on the aggregate load that is the only
- * quantity the archive's server cares about); it was trivially bypassed, since
- * that server is directly reachable without this hop; it failed open exactly
- * when traffic was highest; and it spent a KV write per request from the same
- * 1,000/day budget share links depend on, so a busy day here broke share links
- * for everyone.
+ * Throttling and caching belong to the service that owns the resource. It knows
+ * its capacity and its data's freshness; we know neither, so anything we chose
+ * would be a guess — and our guesses cost real money and real complexity. The
+ * rate limiter was a per-IP KV counter that bounded no aggregate, was bypassable
+ * since the archive is directly reachable without this hop, failed open under
+ * load, and spent a write per request from the same daily budget share links
+ * depend on. The cache that briefly replaced it keyed on hand-drawn coordinates,
+ * so it almost never hit.
  *
- * Throttling is the archive owner's call, not ours: he knows his headroom and we
- * do not, so any number we invented would be a guess. What we owe instead, and
- * what this proxy does, is send nothing pathological (the validation in
- * `query.ts`), send nothing avoidable (the cache), never retry — no path here or
- * in the client does — and stay identifiable through {@link EXPLORI_USER_AGENT},
- * so he can throttle or block Ori Studio as one client, at his own edge, on his
- * own terms.
+ * What is left is what a proxy is actually for: it exists because CORS makes the
+ * direct call impossible, it halves the bytes, it gives one stable error shape,
+ * and it identifies our traffic. That is the whole job.
  *
  * Binding shapes are declared locally rather than pulled from
  * `@cloudflare/workers-types`, matching `cpShare.ts`: the surface used is small
@@ -45,7 +40,6 @@ export interface Env {
 export interface ExploriContext {
   request: Request;
   env: Env;
-  waitUntil?: (promise: Promise<unknown>) => void;
 }
 
 export const DEFAULT_EXPLORI_ORIGIN = 'https://225.designorigami.net';
@@ -87,65 +81,6 @@ export function trimExploriBundle(payload: unknown): unknown {
     });
   }
   return bundle;
-}
-
-/**
- * Serve from the edge cache, or ask upstream and fill it.
- *
- * `caches.default` is edge-local and free — no quota, unlike the KV counter this
- * replaced. It is per-colo rather than global, so a fill in one city does not
- * help another; that still removes the pattern that dominates in practice, which
- * is the same person asking the same thing again.
- *
- * Failures are never cached: a timeout or a 502 must not become what every
- * caller gets for the rest of the TTL.
- */
-export async function withEdgeCache(
-  context: ExploriContext,
-  key: Request,
-  maxAgeSeconds: number,
-  produce: () => Promise<Response>,
-  directives = ''
-): Promise<Response> {
-  // Absent under vitest and `wrangler dev --local`; the endpoint still works
-  // there, it just asks upstream every time.
-  const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
-  if (!cache) return produce();
-
-  const hit = await cache.match(key);
-  if (hit) {
-    const served = new Response(hit.body, hit);
-    served.headers.set('X-Ori-Cache', 'hit');
-    return served;
-  }
-
-  const response = await produce();
-  if (!response.ok) return response;
-
-  const fresh = new Response(response.body, response);
-  fresh.headers.set('Cache-Control', `public, max-age=${maxAgeSeconds}${directives}`);
-  fresh.headers.set('X-Ori-Cache', 'miss');
-  // Backgrounded: filling the cache must not delay an answer we already have.
-  const put = cache.put(key, fresh.clone());
-  if (context.waitUntil) context.waitUntil(put);
-  else await put;
-  return fresh;
-}
-
-/**
- * A cache key for a request whose identity is its *body*.
- *
- * The Cache API keys on a GET URL, so a POST needs a stand-in. The body hashes
- * cleanly because `query.ts` rebuilds it from validated fields in a fixed order
- * before this sees it: two equivalent searches produce byte-identical JSON, and
- * so the same key.
- */
-export async function bodyCacheKey(request: Request, canonicalBody: string): Promise<Request> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalBody));
-  const hex = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-  const url = new URL(request.url);
-  url.search = `?body=${hex}`;
-  return new Request(url.toString(), { method: 'GET' });
 }
 
 export interface UpstreamCall {

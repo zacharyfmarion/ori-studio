@@ -135,13 +135,14 @@ want the proxy regardless, for trimming, caching, a stable error surface, and a
 distinctive `User-Agent` (a browser cannot set that header; a Worker can).
 Fixing CORS would remove a hop we have other reasons to keep.
 
-**Rate limiting was on that list and has been removed from it.** The proxy
-briefly carried a per-IP KV counter; it bounded nothing that mattered, was
-trivially bypassed given the archive is directly reachable without us, and spent
-a KV write per request from the budget share links depend on. Throttling is the
-archive owner's call — he knows his headroom and we do not. What we owe is to
-send nothing pathological, send nothing avoidable (the edge cache), never retry,
-and stay identifiable so he can set his own policy. See `functions/_lib/explori.ts`.
+**Rate limiting and caching were on that list and have been removed from it.**
+The proxy is a pure transform: CORS hop, payload trim, one error shape, a
+distinctive `User-Agent`. Both throttling and caching belong to the service that
+owns the resource — it knows its capacity and its data's freshness, and we know
+neither, so anything we picked was a guess that cost us money and complexity.
+The one guard that stays is request-shape validation, which is not either of
+those: we publish this endpoint, so not publishing an amplifier is ours. See
+`functions/_lib/explori.ts`.
 
 1. **Drop `bundle_pickle_b64`, or gate it behind a request flag.** It is **47% of
    every response** and **their own client never reads it** — no reference to it
@@ -159,12 +160,12 @@ and stay identifiable so he can set his own policy. See `functions/_lib/explori.
    This is a win for them and their own users, not a favour to us.
 2. **Notice before API changes.** Ideally a `schema_version` field in the
    response, so a break is detectable rather than mysterious.
-3. **Etiquette:** what request rate is acceptable, and whether they want us to
-   throttle at our hop at all — we deliberately do not, on the grounds that it
-   is their call and their number. The distinctive `User-Agent` is what makes
-   that exercisable: Ori Studio traffic is one identifiable client in their logs
-   (they already log UA to the sheet), so they can throttle or block it at their
-   own edge.
+3. **Etiquette:** what request rate is acceptable, and whether they want to
+   throttle or cache us — we deliberately do neither, on the grounds that both
+   are theirs to decide. The distinctive `User-Agent` is what makes that
+   exercisable: Ori Studio traffic is one identifiable client in their logs
+   (they already log UA to the sheet), so they can throttle, cache or block it
+   at their own edge.
 4. **`refs` on `/api/query`**, or a flag for it. Today references come only from
    `/api/fetch_tiling`, so opening a result costs a second round trip. Low
    priority — caching by tiling id mostly covers it.
