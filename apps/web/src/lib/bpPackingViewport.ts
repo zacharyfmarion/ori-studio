@@ -1,5 +1,6 @@
 import type {
   OristudioBpArcPoint,
+  OristudioBpCoverageRegion,
   OristudioBpFlap,
   OristudioBpGraphicPrimitive,
   OristudioBpPackingView,
@@ -307,6 +308,35 @@ export function bpArcPathToSvgPath(
 
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+/**
+ * One flap-or-river region as an SVG path `d` in screen space: the outer ring
+ * followed by each hole, every subpath closed.
+ *
+ * Meant to be filled with `fill-rule: evenodd`, which is exact for a single
+ * region because a node's own rings are disjoint and properly nested — an
+ * island sitting inside a hole is enclosed by three rings, so it fills again.
+ * Even-odd across *different* regions is not exact and must not be used: an
+ * invalid packing overlaps them, and the overlap would cancel.
+ */
+export function bpPackingCoveragePath(
+  region: OristudioBpCoverageRegion,
+  sheet: OristudioBpSheet,
+  rect = bpPackingPaperRect(sheet)
+): string {
+  return [region.outer, ...region.holes]
+    .filter((ring) => ring.length > 2)
+    .map((ring) =>
+      ring
+        .map((point, index) => {
+          const { x, y } = bpPackingPointToSvg(point, sheet, rect);
+          return `${index === 0 ? 'M' : 'L'}${round(x)},${round(y)}`;
+        })
+        .join('')
+    )
+    .map((subpath) => `${subpath}Z`)
+    .join('');
 }
 
 export function bpPackingRectToSvg(

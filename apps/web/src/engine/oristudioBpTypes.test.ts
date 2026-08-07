@@ -149,6 +149,7 @@ describe('oristudio BP DTO contract', () => {
             },
           ],
           rivers: [],
+          coverage: [],
           invalidJunctions: [],
           stretches: [],
           devices: [],

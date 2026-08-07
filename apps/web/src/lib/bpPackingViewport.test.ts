@@ -9,6 +9,7 @@ import {
   bpArcPathThickness,
   bpArcPathToSvgPath,
   bpPackingCanResizeFlap,
+  bpPackingCoveragePath,
   bpPackingFlapClearanceRect,
   bpPackingGridLines,
   bpPackingPaperRect,
@@ -383,5 +384,72 @@ describe('getBpPackingWorldRect', () => {
     expect(getBpPackingWorldRect(cornerPacking())).toEqual(
       getBpPackingWorldRect(cornerPacking(), { cropToSheet: false })
     );
+  });
+});
+
+describe('bpPackingCoveragePath', () => {
+  const rect = sheet('rectangular', 10);
+
+  it('closes the outer ring and every hole as its own subpath', () => {
+    const d = bpPackingCoveragePath(
+      {
+        id: 'r1,2:contour:0',
+        outer: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+          { x: 0, y: 10 },
+        ],
+        holes: [
+          [
+            { x: 3, y: 3 },
+            { x: 7, y: 3 },
+            { x: 7, y: 7 },
+            { x: 3, y: 7 },
+          ],
+        ],
+      },
+      rect
+    );
+
+    expect(d.match(/M/g)).toHaveLength(2);
+    expect(d.match(/Z/g)).toHaveLength(2);
+    expect(d.endsWith('Z')).toBe(true);
+  });
+
+  it('maps a ring through the same transform as the rest of the canvas', () => {
+    const paper = bpPackingPaperRect(rect);
+    const corner = bpPackingPointToSvg({ x: 0, y: 0 }, rect, paper);
+    const d = bpPackingCoveragePath(
+      {
+        id: 'f1:contour:0',
+        outer: [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+          { x: 4, y: 4 },
+        ],
+        holes: [],
+      },
+      rect,
+      paper
+    );
+
+    expect(d.startsWith(`M${corner.x},${corner.y}`)).toBe(true);
+  });
+
+  it('drops rings that enclose no area', () => {
+    expect(
+      bpPackingCoveragePath(
+        {
+          id: 'f1:contour:0',
+          outer: [
+            { x: 0, y: 0 },
+            { x: 4, y: 0 },
+          ],
+          holes: [],
+        },
+        rect
+      )
+    ).toBe('');
   });
 });

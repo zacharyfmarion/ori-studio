@@ -29,6 +29,7 @@
     "layerAxis": "Axe",
     "layerClearance": "Cercles",
     "layerConflicts": "Conflits",
+    "layerEmptySpace": "Espace vide",
     "layerFlaps": "Rabats",
     "layerGrid": "Grille",
     "layerHinges": "Charnières",

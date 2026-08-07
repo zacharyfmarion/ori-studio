@@ -29,6 +29,7 @@
     "layerAxis": "軸",
     "layerClearance": "円",
     "layerConflicts": "競合",
+    "layerEmptySpace": "空きスペース",
     "layerFlaps": "フラップ",
     "layerGrid": "グリッド",
     "layerHinges": "ヒンジ",

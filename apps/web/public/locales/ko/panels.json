@@ -29,6 +29,7 @@
     "layerAxis": "축",
     "layerClearance": "원",
     "layerConflicts": "충돌",
+    "layerEmptySpace": "빈 공간",
     "layerFlaps": "플랩",
     "layerGrid": "격자",
     "layerHinges": "힌지",

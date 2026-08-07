@@ -161,6 +161,7 @@ function bpDocument(leafCount: number): OristudioBpDocumentState {
         sheet,
         flaps: [],
         rivers: [],
+        coverage: [],
         invalidJunctions: [],
         stretches: [],
         devices: [],

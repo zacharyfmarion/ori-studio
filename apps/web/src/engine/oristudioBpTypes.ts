@@ -229,10 +229,32 @@ export type OristudioBpGraphicPrimitive =
       text: string;
     };
 
+/**
+ * One closed region of paper taken up by a single flap or river.
+ *
+ * This is a node's contour as the engine drew it (`GraphicsData.contours`): a
+ * leaf's region is its flap, an internal node's is its river band, whose child
+ * subtree is punched out as a hole. The same rings reach the canvas stroked as
+ * the hinge layer; kept as regions here so the paper *not* covered by any of
+ * them can be shaded.
+ *
+ * Regions belonging to different nodes overlap only where the packing is
+ * invalid — that overlap is what makes it invalid — so nothing may assume they
+ * are disjoint. A single node's own regions are always disjoint and properly
+ * nested.
+ */
+export interface OristudioBpCoverageRegion {
+  id: string;
+  outer: Point[];
+  holes: Point[][];
+}
+
 export interface OristudioBpPackingView {
   sheet: OristudioBpSheet;
   flaps: OristudioBpFlap[];
   rivers: OristudioBpRiver[];
+  /** Paper claimed by the flaps and rivers. Empty when there is no layout yet. */
+  coverage: OristudioBpCoverageRegion[];
   invalidJunctions: OristudioBpInvalidJunction[];
   stretches: OristudioBpStretch[];
   devices: OristudioBpDevice[];

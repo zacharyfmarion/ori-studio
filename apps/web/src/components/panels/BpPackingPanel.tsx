@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Blend,
   ChevronLeft,
   ChevronRight,
   Circle,
@@ -97,6 +98,7 @@ import {
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
+import { BpPackingEmptySpaceLayer } from './BpPackingEmptySpaceLayer';
 import { BpFlapEditor } from './BpFlapEditor';
 import {
   isViewportInteractiveTarget,
@@ -185,6 +187,7 @@ const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
   { key: 'axisParallels', icon: <Waypoints size={13} /> },
   { key: 'conflicts', icon: <TriangleAlert size={13} /> },
   { key: 'labels', icon: <Tag size={13} /> },
+  { key: 'emptySpace', icon: <Blend size={13} /> },
   { key: 'outsidePaper', icon: <SquareDashed size={13} /> },
 ];
 
@@ -209,6 +212,8 @@ function bpPackingLayerLabel(t: TFunction, key: BpPackingViewLayerKey): string {
       return t('panels:bpPacking.layerConflicts', 'Conflicts');
     case 'labels':
       return t('panels:bpPacking.layerLabels', 'Labels');
+    case 'emptySpace':
+      return t('panels:bpPacking.layerEmptySpace', 'Empty space');
     case 'outsidePaper':
       return t('panels:bpPacking.layerOutsidePaper', 'Outside paper');
     default:
@@ -1451,6 +1456,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 y={paperRect.y}
                 width={paperRect.width}
                 height={paperRect.height}
+              />
+            )}
+            {/* Under the grid and every crease: shading the paper is a property
+                of the paper, not another thing drawn on it. */}
+            {layers.emptySpace && (
+              <BpPackingEmptySpaceLayer
+                coverage={displayPacking.coverage}
+                sheet={packing.sheet}
+                paperRect={paperRect}
               />
             )}
             {layers.grid && (

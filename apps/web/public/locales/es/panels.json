@@ -29,6 +29,7 @@
     "layerAxis": "Eje",
     "layerClearance": "Círculos",
     "layerConflicts": "Conflictos",
+    "layerEmptySpace": "Espacio vacío",
     "layerFlaps": "Solapas",
     "layerGrid": "Cuadrícula",
     "layerHinges": "Bisagras",

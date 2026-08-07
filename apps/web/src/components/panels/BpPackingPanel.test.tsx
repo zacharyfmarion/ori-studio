@@ -165,6 +165,29 @@ function packingDocument(): OristudioBpDocumentState {
           { id: 7, vertexId: 7, name: '', anchor: { x: 11, y: 6 }, width: 0, height: 0, radius: 1, constrained: true },
         ],
         rivers: [{ id: 1, edgeId: 2, vertices: [0, 2], width: 1, length: 1 }],
+        // Each flap's square of paper: its anchor grown by its radius.
+        coverage: [
+          {
+            id: 'f5:contour:0',
+            outer: [
+              { x: 8, y: 7 },
+              { x: 10, y: 7 },
+              { x: 10, y: 9 },
+              { x: 8, y: 9 },
+            ],
+            holes: [],
+          },
+          {
+            id: 'f7:contour:0',
+            outer: [
+              { x: 10, y: 5 },
+              { x: 12, y: 5 },
+              { x: 12, y: 7 },
+              { x: 10, y: 7 },
+            ],
+            holes: [],
+          },
+        ],
         // The engine's own output for that file, so the rendered geometry is
         // checked against what the engine actually produces.
         invalidJunctions: [
@@ -330,6 +353,35 @@ describe('BP packing pane — the sheet crops what hangs over its edge', () => {
     for (const selector of ['.bp-packing-flap', '.bp-packing-flap-clearance']) {
       expect(isCropped(root, selector), selector).toBe(true);
     }
+  });
+});
+
+describe('BP packing pane — empty space', () => {
+  afterEach(() => {
+    useSettingsStore.setState({ bpPackingLayers: DEFAULT_BP_PACKING_VIEW_LAYERS });
+  });
+
+  it('shades the paper by default, behind the grid and the geometry', () => {
+    expect(DEFAULT_BP_PACKING_VIEW_LAYERS.emptySpace).toBe(true);
+    const root = renderPacking();
+    const shade = root.querySelector('.bp-packing-empty-space');
+    if (!shade) throw new Error('empty-space layer did not render');
+
+    // Painted first, so the grid, the creases and the flaps all stay legible on
+    // top of it — shading the paper is a property of the paper.
+    for (const selector of ['.bp-packing-grid', '.bp-packing-flap']) {
+      const later = root.querySelector(selector);
+      expect(later, selector).not.toBeNull();
+      const order = shade.compareDocumentPosition(later as Node);
+      expect(Boolean(order & Node.DOCUMENT_POSITION_FOLLOWING), selector).toBe(true);
+    }
+  });
+
+  it('stops shading when the layer is turned off', () => {
+    useSettingsStore.setState({
+      bpPackingLayers: { ...DEFAULT_BP_PACKING_VIEW_LAYERS, emptySpace: false },
+    });
+    expect(renderPacking().querySelector('.bp-packing-empty-space')).toBeNull();
   });
 });
 

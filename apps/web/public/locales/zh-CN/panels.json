@@ -29,6 +29,7 @@
     "layerAxis": "轴",
     "layerClearance": "圆",
     "layerConflicts": "冲突",
+    "layerEmptySpace": "空白区域",
     "layerFlaps": "瓣",
     "layerGrid": "网格",
     "layerHinges": "铰线",
