@@ -4509,6 +4509,25 @@
   opacity: 1;
 }
 
+/*
+ * The edge of the drawing area, on every tree surface that has one.
+ *
+ * A faint fill as well as an outline, so the drawable region reads as a surface
+ * the tree sits on rather than as a decorative frame around the pane. The drag
+ * rule stops a gesture at this edge; drawn, that stop is a boundary being
+ * respected, and undrawn it is an editor that appears to have hung.
+ *
+ * Stroke width is counter-scaled by the scene (`BOUNDS_STROKE_PX`), which is why
+ * nothing here sets one — and why the outline is solid: a dash pattern is in user
+ * units, so it alone would go on scaling with the camera while the width it
+ * belongs to did not.
+ */
+.tree-bounds {
+  fill: color-mix(in srgb, var(--bg-canvas-grid) 45%, transparent);
+  stroke: var(--border-default);
+  pointer-events: none;
+}
+
 .symmetry-line {
   stroke: var(--accent-tertiary);
   stroke-width: 2;

@@ -46,6 +46,7 @@ export const SYMMETRY_LANE_PX = 18;
 export const LABEL_STROKE_PX = 3;
 export const SYMMETRY_GHOST_PX = 3;
 export const SYMMETRY_PAIR_PX = 1.5;
+export const BOUNDS_STROKE_PX = 1.5;
 export const DOT_SIZES: TreeDotSizes = { leafPx: 6, branchPx: 7 };
 export const NODE_LABEL_PX = 12;
 export const NODE_SELECTED_STROKE_PX = 3;
@@ -62,6 +63,12 @@ export interface TreeSceneProps {
   /** Tree space → SVG space, from the surface's frame. */
   toSvg: (point: Point) => Point;
   worldRect: PlotRect;
+  /**
+   * Where the surface allows a node to be, drawn so the limit is visible before
+   * it is hit. A drag stops dead at this edge; unmarked, that is indistinguishable
+   * from an editor that has stopped responding.
+   */
+  boundsRect: PlotRect;
   layers: TreeViewLayers;
   /** Vertices drawn as selected, including anything linked to the selection. */
   selectedVertices: ReadonlySet<number>;
@@ -103,6 +110,7 @@ export const TreeScene = memo(function TreeScene({
   tree,
   toSvg,
   worldRect,
+  boundsRect,
   layers,
   selectedVertices,
   selectedEdges,
@@ -132,6 +140,15 @@ export const TreeScene = memo(function TreeScene({
       role="img"
       aria-label={copy.canvas}
     >
+      <rect
+        className={`tree-bounds ${classPrefix}-bounds`}
+        style={{ strokeWidth: chromePx(BOUNDS_STROKE_PX) }}
+        {...{ [TREE_CHROME_ATTR.stroke]: BOUNDS_STROKE_PX }}
+        x={boundsRect.x}
+        y={boundsRect.y}
+        width={boundsRect.width}
+        height={boundsRect.height}
+      />
       {symmetryPairs.map((pair) => {
         const a = vertexById.get(pair.v1);
         const b = vertexById.get(pair.v2);

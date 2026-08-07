@@ -134,6 +134,9 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
         point.y <= Math.max(0, tree.sheet.height),
       unitSvg: bpTreeUnitToSvg(tree.sheet, paperRect),
       worldRect,
+      // The sheet itself. The world pads out past it so the camera has margin;
+      // what a node may not leave is the paper.
+      boundsRect: paperRect,
     }),
     [tree.sheet, paperRect, worldRect]
   );

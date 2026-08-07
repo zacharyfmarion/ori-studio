@@ -230,6 +230,21 @@ describe.each(['sync', 'deferred'] as const)('the editor against a %s surface', 
     expect(body.querySelectorAll('.stub-tree-edge')).toHaveLength(2);
   });
 
+  it('draws the region the host allows, so the limit is visible before it is hit', () => {
+    // A drag is stopped dead at this edge. Undrawn, that stop is indistinguishable
+    // from an editor that has hung — which is what it looked like to a user who
+    // could not tell why the tree refused to grow.
+    const stub = stubHost(mode);
+    const body = mount(stub);
+    const bounds = body.querySelector<SVGRectElement>('.tree-bounds.stub-tree-bounds');
+    expect(bounds).not.toBeNull();
+    const rect = stub.host().frame.boundsRect;
+    expect(Number(bounds!.getAttribute('x'))).toBe(rect.x);
+    expect(Number(bounds!.getAttribute('y'))).toBe(rect.y);
+    expect(Number(bounds!.getAttribute('width'))).toBe(rect.width);
+    expect(Number(bounds!.getAttribute('height'))).toBe(rect.height);
+  });
+
   it('asks the host to add a leaf, and never adds one itself', () => {
     const stub = stubHost(mode);
     const body = mount(stub);
