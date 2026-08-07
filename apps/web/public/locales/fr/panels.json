@@ -348,7 +348,7 @@
     "viewportControls": "Commandes d'affichage du patron de plis"
   },
   "design": {
-    "attributionBoxPleating": "Adapté de <2>Mu-Tsun Tsai's Box Pleating Studio</2> · <6>Faire un don</6>",
+    "attributionBoxPleating": "Adapté de <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
     "attributionExplori": "Interroge <2>ExplOri 22.5</2> de theplantpsychologist · <6>Faire un don</6>",
     "attributionTreemaker": "Adapté de <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Axe",
@@ -475,7 +475,10 @@
     "nextResult": "Résultat suivant",
     "nodeNameAria": "Nom du nœud {{id}}",
     "nodeTitle": "Nœud {{id}}",
+    "noMatches": "Aucun patron correspondant",
+    "noMatchesDetail": "L’archive ne contient rien de proche de cet arbre. Essayez d’ajuster les branches ou d’interroger davantage de symétries.",
     "noResultsYet": "Dessinez un arbre et interrogez l’archive pour voir les patrons correspondants.",
+    "noResultsYetTitle": "Pas encore de résultats",
     "openInExplori": "Ouvrir dans ExplOri",
     "openResult": "Ouvrir le résultat {{id}}",
     "previousResult": "Résultat précédent",
@@ -494,6 +497,7 @@
     "resultPosition": "{{index}} sur {{total}}",
     "search": "Rechercher",
     "searching": "Recherche…",
+    "searchingDetail": "Comparaison de votre arbre avec toutes les topologies des bases choisies.",
     "searchingStatus": "Recherche dans l’archive…",
     "searchSize": "Résultats",
     "selectEdge": "Sélectionner la branche {{id}}, longueur {{length}}",

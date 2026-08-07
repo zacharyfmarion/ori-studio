@@ -360,7 +360,7 @@
     "viewportControls": "Элементы управления областью просмотра паттерна складок"
   },
   "design": {
-    "attributionBoxPleating": "Адаптировано из <2>Mu-Tsun Tsai's Box Pleating Studio</2> · <6>Поддержать</6>",
+    "attributionBoxPleating": "Адаптировано из <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
     "attributionExplori": "Ищет в <2>ExplOri 22.5</2> от theplantpsychologist · <6>Поддержать</6>",
     "attributionTreemaker": "Адаптировано из <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Ось",
@@ -489,7 +489,10 @@
     "nextResult": "Следующий результат",
     "nodeNameAria": "Имя узла {{id}}",
     "nodeTitle": "Узел {{id}}",
+    "noMatches": "Подходящих паттернов складок нет",
+    "noMatchesDetail": "В архиве нет ничего похожего на это дерево. Измените ветви или добавьте симметрии в поиск.",
     "noResultsYet": "Нарисуйте дерево и выполните поиск по архиву, чтобы увидеть подходящие паттерны складок.",
+    "noResultsYetTitle": "Результатов пока нет",
     "openInExplori": "Открыть в ExplOri",
     "openResult": "Открыть результат {{id}}",
     "previousResult": "Предыдущий результат",
@@ -510,6 +513,7 @@
     "resultPosition": "{{index}} из {{total}}",
     "search": "Искать",
     "searching": "Поиск…",
+    "searchingDetail": "Ваше дерево сравнивается со всеми топологиями в выбранных базах.",
     "searchingStatus": "Поиск по архиву…",
     "searchSize": "Результатов",
     "selectEdge": "Выбрать ветвь {{id}}, длина {{length}}",

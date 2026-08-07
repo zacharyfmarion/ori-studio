@@ -324,7 +324,7 @@
     "viewportControls": "折痕图视口控件"
   },
   "design": {
-    "attributionBoxPleating": "改编自 <2>Mu-Tsun Tsai's Box Pleating Studio</2> · <6>捐赠</6>",
+    "attributionBoxPleating": "改编自 <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
     "attributionExplori": "搜索由 theplantpsychologist 制作的 <2>ExplOri 22.5</2> · <6>捐赠</6>",
     "attributionTreemaker": "改编自 <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "轴",
@@ -447,7 +447,10 @@
     "nextResult": "下一个结果",
     "nodeNameAria": "节点 {{id}} 的名称",
     "nodeTitle": "节点 {{id}}",
+    "noMatches": "没有匹配的折痕图",
+    "noMatchesDetail": "存档中没有与该树接近的结果。请调整分支，或搜索更多对称性。",
     "noResultsYet": "绘制一棵树并搜索存档，即可查看匹配的折痕图。",
+    "noResultsYetTitle": "暂无结果",
     "openInExplori": "在 ExplOri 中打开",
     "openResult": "打开结果 {{id}}",
     "previousResult": "上一个结果",
@@ -464,6 +467,7 @@
     "resultPosition": "第 {{index}} / {{total}} 个",
     "search": "搜索",
     "searching": "搜索中…",
+    "searchingDetail": "正在将你的树与所选数据库中的每个拓扑进行比较。",
     "searchingStatus": "正在搜索存档…",
     "searchSize": "数量",
     "selectEdge": "选择分支 {{id}}，长度 {{length}}",

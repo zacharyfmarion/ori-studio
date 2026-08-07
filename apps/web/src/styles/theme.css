@@ -117,6 +117,8 @@
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
+  /* For `ButtonLink`, which is an anchor wearing these classes. */
+  text-decoration: none;
   cursor: pointer;
   transition:
     background-color 0.15s ease,
@@ -6772,33 +6774,6 @@
   stroke-width: 1.5;
 }
 
-.bp-packing-device-ranges {
-  pointer-events: none;
-}
-
-.bp-packing-device-range {
-  stroke: color-mix(in srgb, var(--fold-flat) 72%, transparent);
-  stroke-dasharray: 7 6;
-  stroke-linecap: round;
-  stroke-width: 1.5;
-}
-
-.bp-packing-device-position {
-  fill: var(--fold-flat);
-  stroke: var(--bg-primary);
-  stroke-width: 1.5;
-}
-
-.bp-packing-device-range--selected .bp-packing-device-range {
-  stroke: var(--accent-primary);
-  stroke-width: 2.25;
-}
-
-.bp-packing-device-range--selected .bp-packing-device-position {
-  fill: var(--accent-primary);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent-primary) 38%, transparent));
-}
-
 .bp-packing-primitive-hit-line,
 .bp-packing-primitive-hit-polyline {
   fill: none;
@@ -7925,17 +7900,64 @@ button.bp-packing-alert:focus-visible {
   min-height: 0;
 }
 
-.explori-results__status,
 .explori-results__error {
   margin: 0;
   padding: 12px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--status-error, var(--accent-primary));
   text-align: center;
 }
 
-.explori-results__error {
-  color: var(--status-error, var(--accent-primary));
+/*
+ * The pane with nothing in it: searching, not yet searched, or searched and
+ * empty-handed. Centred in the pane rather than left at the top of it — the
+ * results half is as tall as the tree half beside it, and one grey sentence
+ * against that top edge reads as something that failed to render.
+ */
+.explori-results__state {
+  display: grid;
+  flex: 1 1 auto;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.explori-results__state-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  margin-bottom: var(--space-1);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, var(--border-subtle));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-secondary));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+
+.explori-results__state-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 680;
+}
+
+.explori-results__state-detail {
+  max-width: 34ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+
+/* `surface-loading-spin` is the app's spinner keyframe, defined in App.css
+   beside the surface-wide loading state. Shared rather than copied a third
+   time — main.tsx loads both stylesheets. */
+.explori-results__spinner {
+  animation: surface-loading-spin 0.9s linear infinite;
 }
 
 .explori-results__header {
@@ -7981,6 +8003,21 @@ button.bp-packing-alert:focus-visible {
   border-radius: 6px;
   overflow: hidden;
   background: var(--bg-canvas);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+/*
+ * Lit the same way the start screen's cards are, because they are the same
+ * gesture — a tile you click to go somewhere. `:focus-within` rather than a
+ * rule on the button: the whole card is what visibly responds, and keyboard
+ * focus lands on the open button inside it.
+ */
+.explori-result-card:hover,
+.explori-result-card:focus-within {
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
 }
 
 .explori-result-card__open {
@@ -7990,6 +8027,13 @@ button.bp-packing-alert:focus-visible {
   border: none;
   background: none;
   cursor: pointer;
+}
+
+/* The card carries the focus ring, so the button inside it does not draw a
+   second one on top. */
+.explori-result-card__open:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: -2px;
 }
 
 .explori-result-card__meta {
@@ -8038,9 +8082,15 @@ button.bp-packing-alert:focus-visible {
  * same non-answer. The pill carries the hue in its text, border and fill so it
  * survives being small.
  */
+/* Sized as a `sm` control (28px, see `.ui-control--sm`), because it sits in a
+   row of them — a shorter pill left the detail header's controls on three
+   different baselines. */
 .explori-quality {
   --quality-rgb: 122, 123, 132;
-  padding: 2px 7px;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
   border: 1px solid rgb(var(--quality-rgb) / 30%);
   border-radius: 999px;
   background: rgb(var(--quality-rgb) / 10%);
@@ -8069,11 +8119,30 @@ button.bp-packing-alert:focus-visible {
   --quality-rgb: 236 82 94;
 }
 
+/*
+ * The header stays put while the four figures scroll — the controls it holds
+ * (Back, the step arrows, Send to Edit) are the ones you reach for after
+ * looking at a figure, and they used to scroll away exactly when you had
+ * decided.
+ *
+ * It is outside the scrolling box rather than `sticky` inside it, which is what
+ * lets its rule reach both pane edges: a sticky header is laid out in the
+ * scroll container's content box, so the scrollbar gutter cuts its right end
+ * short. The pane's padding moves onto the header and the figures for the same
+ * reason — inset by the pane, the rule stopped short at *both* ends.
+ */
+.explori-results-panel--detail {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
 .explori-detail__header {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
-  padding-bottom: 8px;
+  padding: 10px 10px 8px;
   border-bottom: 1px solid var(--border-default);
 }
 
@@ -8094,33 +8163,18 @@ button.bp-packing-alert:focus-visible {
   white-space: nowrap;
 }
 
-/* A link, styled as the quiet sibling of the Send to Edit button beside it. */
-.explori-detail__upstream {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 9px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.explori-detail__upstream:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
 /* Four figures, two by two. Never one across: the point of the detail is
-   comparing them, and a single column makes that a scroll. */
+   comparing them, and a single column makes that a scroll.
+   This is also the detail's scrolling box — see the header above. */
 .explori-detail__panes {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
   gap: 14px;
-  padding: 10px 2px;
+  min-height: 0;
+  padding: 18px 12px;
+  overflow-y: auto;
 }
 
 .explori-detail__pane {

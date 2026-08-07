@@ -336,7 +336,7 @@
     "viewportControls": "Ansichtssteuerung des Faltmusters"
   },
   "design": {
-    "attributionBoxPleating": "Adaptiert von <2>Mu-Tsun Tsai's Box Pleating Studio</2> · <6>Spenden</6>",
+    "attributionBoxPleating": "Adaptiert von <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
     "attributionExplori": "Durchsucht <2>ExplOri 22.5</2> von theplantpsychologist · <6>Spenden</6>",
     "attributionTreemaker": "Adaptiert von <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Achse",
@@ -461,7 +461,10 @@
     "nextResult": "Nächstes Ergebnis",
     "nodeNameAria": "Name von Knoten {{id}}",
     "nodeTitle": "Knoten {{id}}",
+    "noMatches": "Keine passenden Faltmuster",
+    "noMatchesDetail": "Das Archiv enthält nichts, das diesem Baum ähnelt. Passe die Zweige an oder durchsuche mehr Symmetrien.",
     "noResultsYet": "Zeichne einen Baum und durchsuche das Archiv, um passende Faltmuster zu sehen.",
+    "noResultsYetTitle": "Noch keine Ergebnisse",
     "openInExplori": "In ExplOri öffnen",
     "openResult": "Ergebnis {{id}} öffnen",
     "previousResult": "Vorheriges Ergebnis",
@@ -478,6 +481,7 @@
     "resultPosition": "{{index}} von {{total}}",
     "search": "Suchen",
     "searching": "Suche läuft…",
+    "searchingDetail": "Dein Baum wird mit jeder Topologie in den gewählten Datenbanken verglichen.",
     "searchingStatus": "Archiv wird durchsucht…",
     "searchSize": "Ergebnisse",
     "selectEdge": "Zweig {{id}} auswählen, Länge {{length}}",

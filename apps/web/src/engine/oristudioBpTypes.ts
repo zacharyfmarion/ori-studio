@@ -190,7 +190,7 @@ export interface OristudioBpDevice {
   id: string;
   stretchId: string;
   position: Point;
-  range: [Point, Point] | null;
+  /** Bounds on how far this device may slide along the stretch axis. */
   rangeScalar: [number, number] | null;
   forward: boolean | null;
 }

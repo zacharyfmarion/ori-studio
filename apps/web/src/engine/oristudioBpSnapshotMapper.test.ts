@@ -205,10 +205,6 @@ describe('oristudioBpProjectStateFromRaw', () => {
         id: '2,3:device:0',
         stretchId: '2,3',
         position: { x: 4.5, y: 4.5 },
-        range: [
-          { x: 2.5, y: 2.5 },
-          { x: 6.5, y: 6.5 },
-        ],
         rangeScalar: [-2, 2],
         forward: true,
       },

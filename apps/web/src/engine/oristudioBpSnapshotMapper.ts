@@ -36,7 +36,6 @@ import type {
   OristudioBpWasmTreeData,
   OristudioBpWasmTreeNode,
 } from './oristudioBpTypes';
-import type { Point } from '../lib/geometry';
 import { bpFlapLabel } from '../lib/bpFlapLabel';
 
 const MAX_TREE_HEIGHT = 11_586;
@@ -591,7 +590,6 @@ function packingDevices(
         id,
         stretchId,
         position,
-        range: deviceRange(position, rangeScalar, forward),
         rangeScalar,
         forward,
       },
@@ -619,25 +617,6 @@ function activePattern(
   const index = configuration?.index ?? null;
   if (index === null) return null;
   return configuration?.patterns?.[index] ?? null;
-}
-
-function deviceRange(
-  location: Point,
-  range: [number, number] | null,
-  forward: boolean | null
-): [Point, Point] | null {
-  if (!range || forward === null) return null;
-  return [
-    deviceLocationAt(location, range[0], forward),
-    deviceLocationAt(location, range[1], forward),
-  ];
-}
-
-function deviceLocationAt(location: Point, dx: number, forward: boolean): Point {
-  return {
-    x: location.x + dx,
-    y: location.y + (forward ? dx : -dx),
-  };
 }
 
 function deviceIdFromGraphicsId(id: string): string {

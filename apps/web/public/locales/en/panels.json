@@ -336,7 +336,7 @@
     "viewportControls": "Crease pattern viewport controls"
   },
   "design": {
-    "attributionBoxPleating": "Adapted from <2>Mu-Tsun Tsai's Box Pleating Studio</2> · <6>Donate</6>",
+    "attributionBoxPleating": "Adapted from <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
     "attributionExplori": "Searches <2>ExplOri 22.5</2> by theplantpsychologist · <6>Donate</6>",
     "attributionTreemaker": "Adapted from <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Axis",
@@ -461,7 +461,10 @@
     "nextResult": "Next result",
     "nodeNameAria": "Name of node {{id}}",
     "nodeTitle": "Node {{id}}",
+    "noMatches": "No matching crease patterns",
+    "noMatchesDetail": "The archive has nothing close to this tree. Try adjusting the branches, or search more symmetries.",
     "noResultsYet": "Draw a tree and search the archive to see matching crease patterns.",
+    "noResultsYetTitle": "No results yet",
     "openInExplori": "Open in ExplOri",
     "openResult": "Open result {{id}}",
     "previousResult": "Previous result",
@@ -478,6 +481,7 @@
     "resultPosition": "{{index}} of {{total}}",
     "search": "Search",
     "searching": "Searching…",
+    "searchingDetail": "Comparing your tree against every topology in the databases you chose.",
     "searchingStatus": "Searching the archive…",
     "searchSize": "Results",
     "selectEdge": "Select branch {{id}}, length {{length}}",
