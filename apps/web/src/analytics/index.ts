@@ -34,6 +34,7 @@ export {
 export type { AnalyticsApi, AnalyticsErrorContext } from './runtime';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';
+export { useBpPatternNotFoundEvent } from './useBpPatternNotFoundEvent';
 export { useWorkspaceViewedEvent } from './useWorkspaceViewedEvent';
 
 export {

@@ -21,6 +21,7 @@ export const BP_PACKING_VIEW_LAYER_KEYS = [
   'ridges',
   'axisParallels',
   'conflicts',
+  'patternless',
   'devices',
   'selectionShade',
   'emptySpace',
@@ -40,6 +41,7 @@ export const DEFAULT_BP_PACKING_VIEW_LAYERS: BpPackingViewLayers = {
   ridges: true,
   axisParallels: true,
   conflicts: true,
+  patternless: true,
   devices: true,
   selectionShade: true,
   // Paper no flap or river claims. Another Ori Studio addition — upstream draws

@@ -11,6 +11,8 @@
  * display-only: nothing here is persisted to `.bps`.
  */
 
+import type { TFunction } from 'i18next';
+
 /** Excel-style letters for a zero-based index: 0→A, 25→Z, 26→AA, 27→AB. */
 export function bpDefaultFlapLabel(id: number): string {
   let index = Number.isFinite(id) ? Math.max(0, Math.trunc(id)) : 0;
@@ -25,4 +27,21 @@ export function bpDefaultFlapLabel(id: number): string {
 /** A flap's display label: its name when set, otherwise its letter default. */
 export function bpFlapLabel(id: number, name: string): string {
   return name.trim() || bpDefaultFlapLabel(id);
+}
+
+/** The display labels of a set of flap ids, in the order given. */
+export function bpFlapLabels(
+  ids: readonly number[],
+  flaps: readonly { id: number; name: string }[]
+): string[] {
+  return ids.map((id) => bpFlapLabel(id, flaps.find((flap) => flap.id === id)?.name ?? ''));
+}
+
+/** "K, M, O and W" — a readable list for a headline. */
+export function bpFlapLabelList(labels: readonly string[], t: TFunction): string {
+  if (labels.length <= 1) return labels[0] ?? '';
+  return t('panels:bpPacking.flapLabelList', '{{leading}} and {{last}}', {
+    leading: labels.slice(0, -1).join(', '),
+    last: labels[labels.length - 1],
+  });
 }

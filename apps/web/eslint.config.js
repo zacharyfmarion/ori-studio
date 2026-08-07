@@ -140,7 +140,38 @@ const OVERSIZED_PANELS = {
   // and gained it because a crease pattern is no longer inferred from a phantom
   // tree. The cap moves for the import alone.
   'CreasePatternPanel.tsx': 2752,
-  'BpPackingPanel.tsx': 2085,
+  // 2085 -> 2095: the "no crease pattern" marking. The warning used to name an
+  // internal class and point at nothing, so this adds the canvas layer that
+  // shows which flaps it means, its Layers toggle, and the alert copy that
+  // names them. The geometry is `lib/bpPatternlessStretches` with its own
+  // tests — it left with the concern rather than staying inlined — and the
+  // stretch set it reads comes from the engine snapshot, not from this file.
+  // What is here is composition: one layer mounted beside `conflicts`, one
+  // entry in the layer list and its label case, and the two copy helpers the
+  // alert renders through. A canvas layer in the canvas panel is the case
+  // AGENTS.md calls "a feature that genuinely belongs in a panel".
+  //
+  // 2095 -> 1996: the stretch navigator moved out, whole. It is a floating
+  // contextual control with no store access — the same shape as `BpFlapEditor`
+  // beside it — so the stepper, the visibility rules and the flap-naming all
+  // left together into `BpPackingStretchNav`, and the two label helpers went to
+  // `lib/bpFlapLabel` where flap labelling already lives. It went out because
+  // hiding a stepper that has nothing to step through is a rule about that
+  // control, not about this panel.
+  //
+  // 1996 -> 2000: the `layout-graphics-error` diagnostic from the flap-grid fix
+  // (#218), meeting this branch in the merge. Four lines: one arm in the alert
+  // predicate and one case in its label switch. Routing a new diagnostic kind to
+  // the alert list it already renders is composition, not behavior — the kind is
+  // raised in `oristudioBpSnapshotMapper`, which is where the judgement lives.
+  //
+  // 2000 -> 2014: the unused-paper shading (#215), meeting this branch in the
+  // merge. The drawing is `BpPackingEmptySpaceLayer` and the geometry is
+  // `lib/bpPackingViewport`, both with their own tests; what lands here is the
+  // layer mounted beside `conflicts` and its entry in the layer list. Same shape
+  // as the patternless layer above it, and the same reasoning: a canvas layer in
+  // the canvas panel is the case AGENTS.md calls a feature that belongs here.
+  'BpPackingPanel.tsx': 2014,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

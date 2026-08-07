@@ -165,6 +165,13 @@ export interface OristudioBpInvalidJunction {
   message: string;
 }
 
+export interface OristudioBpRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface OristudioBpStretch {
   id: string;
   flapIds: number[];
@@ -175,6 +182,8 @@ export interface OristudioBpStretch {
   patternIndex: number | null;
   patternCount: number | null;
   patternFound: boolean | null;
+  /** The gap rectangles this stretch has to cover, one per junction. */
+  regions: OristudioBpRect[];
 }
 
 export interface OristudioBpDevice {
@@ -326,16 +335,36 @@ export type OristudioBpDiagnosticKind =
   | 'stale-crease-pattern'
   | 'invalid-junction'
   | 'pattern-not-found'
+  /** The kernel refused to build the layout, so the pane has nothing to draw. */
+  | 'layout-graphics-error'
   | 'unsupported'
   | 'upstream-gap'
   | 'optimizer-error'
   | 'export-error';
 
+/**
+ * Structured facts behind a diagnostic, so the render site can localize the
+ * sentence instead of displaying a pre-built English `message`.
+ */
+export type OristudioBpDiagnosticDetail = {
+  kind: 'patternless-stretch';
+  /** Display labels of the flaps in the overlap, e.g. `['K', 'M', 'O', 'W']`. */
+  flapLabels: string[];
+  /**
+   * Whether a layout configuration was found at all. `false` means the search
+   * failed before any pattern was attempted, which needs different advice from
+   * "a configuration exists but yields no pattern".
+   */
+  hasConfiguration: boolean;
+};
+
 export interface OristudioBpDiagnostic {
   id: string;
   kind: OristudioBpDiagnosticKind;
   severity: OristudioBpDiagnosticSeverity;
+  /** English fallback. Prefer `detail` at render sites that can localize. */
   message: string;
+  detail?: OristudioBpDiagnosticDetail;
   commandId?: OristudioBpCommandId;
   capabilityId?: OristudioBpCapabilityId;
   selection?: OristudioBpSelection;
@@ -634,7 +663,25 @@ export interface OristudioBpWasmLayoutSnapshot {
   nodeGraphics: OristudioBpWasmGraphicsEntry[];
   deviceGraphics: OristudioBpWasmGraphicsEntry[];
   invalidJunctions: OristudioBpWasmInvalidJunction[];
+  /**
+   * Every stretch the layout has, derived from the tree by the engine. This is
+   * the authoritative set: `design.layout.stretches` only persists the stretches
+   * whose config/pattern selection deviates from the default, and a stretch with
+   * no pattern is never persisted at all (upstream `patternTask` removes it).
+   */
+  stretches: OristudioBpWasmLayoutStretch[];
   patternNotFound: boolean;
+}
+
+export interface OristudioBpWasmLayoutStretch {
+  id: string;
+  flapIds: number[];
+  configurationIndex: number;
+  configurationCount: number;
+  patternIndex: number;
+  patternCount: number;
+  patternFound: boolean;
+  regions: OristudioBpRect[];
 }
 
 export interface OristudioBpWasmCreasePatternSnapshot {

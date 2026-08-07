@@ -98,6 +98,7 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `design tab renamed` | — | A design tab is renamed. **No properties**: the new name is user-authored text |
 | `design tab reordered` | `open_count_bucket` | A design tab is dragged or moved to a new position |
 | `design tab activated` | `open_count_bucket` | The user switches to another design tab |
+| `bp pattern not found` | `stretch_count_bucket`, `max_flap_count_bucket`, `configuration_reach` (`none`/`partial`/`all`) | A BP packing shows flap overlaps with no crease pattern. Stretch ids are flap ids joined with commas, so they are a local change key only and are never sent |
 | `cp detect started` | — | Image→CP detection begins |
 | `cp detect completed` | `succeeded` | Detection finishes |
 | `cp detect imported` | — | A detected CP is imported |

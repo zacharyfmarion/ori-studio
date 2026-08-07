@@ -376,15 +376,38 @@ export function constrainBpPackingFlapTarget(
   };
 }
 
+/**
+ * Round an anchor onto the sheet's grid.
+ *
+ * A flap anchor is a grid position. The BP kernel requires it: an off-grid flap
+ * makes its junction overlap fractional, which fails device generation for the
+ * *whole* design rather than just that flap. Drags and nudges already translate
+ * by whole cells, so an on-grid flap stays on-grid without help — this exists to
+ * bring one back that started off it.
+ */
+export function snapBpPackingAnchorToGrid(anchor: Point, sheet: OristudioBpSheet): Point {
+  const interval = Math.max(sheet.grid.interval, 0);
+  if (interval <= 0) return anchor;
+  return {
+    x: Math.round(anchor.x / interval) * interval,
+    y: Math.round(anchor.y / interval) * interval,
+  };
+}
+
 export function constrainBpPackingFlapGroupTarget(
   flaps: OristudioBpFlap[],
   reference: OristudioBpFlap,
   target: Point,
   sheet: OristudioBpSheet
 ): { loc: Point; vector: Point } {
+  // A group translates rigidly — one vector moves every member — so a correction
+  // that puts the reference back on the grid takes every other member off it.
+  // A lone flap has no such tie, which makes it the one place a design saved
+  // off-grid can come back onto it.
+  const wanted = flaps.length > 1 ? target : snapBpPackingAnchorToGrid(target, sheet);
   const vector = {
-    x: target.x - reference.anchor.x,
-    y: target.y - reference.anchor.y,
+    x: wanted.x - reference.anchor.x,
+    y: wanted.y - reference.anchor.y,
   };
   const fix = flaps.reduce(
     (current, flap) =>

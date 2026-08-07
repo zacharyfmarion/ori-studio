@@ -9,8 +9,9 @@ use crate::layout::graphics::{
     RiverContour, collect_free_corners, node_graphics, repo_device_graphics,
 };
 use crate::layout::{
-    LayoutJunction, LayoutRepository, ValidJunction, active_layout_repositories,
-    create_layout_junctions, create_valid_junctions, group_junctions, uncovered_junction_indices,
+    LayoutConfiguration, LayoutJunction, LayoutRepository, ValidJunction,
+    active_layout_repositories, create_layout_junctions, create_valid_junctions, group_junctions,
+    uncovered_junction_indices,
 };
 use crate::math::geometry::PathPoint;
 use crate::model::{Point, Project};
@@ -51,6 +52,13 @@ pub struct LayoutGraphicsSnapshot {
     pub device_graphics: Vec<GraphicsEntry>,
     #[serde(rename = "invalidJunctions")]
     pub invalid_junctions: Vec<InvalidJunctionSnapshot>,
+    /// Every stretch the layout currently has, derived from the tree. This is
+    /// the authoritative set — `design.layout.stretches` only persists the
+    /// stretches whose config/pattern selection deviates from the default, and
+    /// a stretch with no pattern is never persisted at all (upstream
+    /// `patternTask` removes it), so consumers must not treat the persisted
+    /// list as the set of stretches that exist.
+    pub stretches: Vec<LayoutStretchSnapshot>,
     #[serde(rename = "patternNotFound")]
     pub pattern_not_found: bool,
 }
@@ -68,6 +76,36 @@ pub struct InvalidJunctionSnapshot {
     pub flap_ids: [u32; 2],
     pub narrowness: f64,
     pub polygon: ArcPolygonData,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LayoutStretchSnapshot {
+    pub id: String,
+    #[serde(rename = "flapIds")]
+    pub flap_ids: Vec<u32>,
+    #[serde(rename = "configurationIndex")]
+    pub configuration_index: usize,
+    #[serde(rename = "configurationCount")]
+    pub configuration_count: usize,
+    #[serde(rename = "patternIndex")]
+    pub pattern_index: usize,
+    #[serde(rename = "patternCount")]
+    pub pattern_count: usize,
+    /// `false` when the stretch has no usable pattern. `configuration_count == 0`
+    /// distinguishes "no configuration was found at all" from "a configuration
+    /// exists but yields no pattern" — different advice for the user.
+    #[serde(rename = "patternFound")]
+    pub pattern_found: bool,
+    /// The gap rectangles this stretch has to cover, one per junction.
+    pub regions: Vec<RectSnapshot>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct RectSnapshot {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -146,15 +184,15 @@ pub fn project_graphics_snapshot(project: &Project) -> BpResult<LayoutGraphicsSn
     }
     let tree = BpTree::new(&project.design.tree.edges, &project.design.layout.flaps)?;
     let mut repositories = active_layout_repositories(&tree, &project.design.layout.stretches)?;
-    let mut pattern_not_found = false;
+    let mut stretches = Vec::with_capacity(repositories.len());
     for repo in &mut repositories {
         if repo.configuration().is_none() {
             repo.init_with_tree(&tree)?;
         }
-        if !repo.initialize_selected_pattern_with_tree(&tree)? {
-            pattern_not_found = true;
-        }
+        let pattern_found = repo.initialize_selected_pattern_with_tree(&tree)?;
+        stretches.push(stretch_snapshot(repo, pattern_found));
     }
+    let pattern_not_found = stretches.iter().any(|stretch| !stretch.pattern_found);
 
     let repo_refs = repositories.iter().collect::<Vec<_>>();
     let covered_junctions = covered_junction_map(&tree)?;
@@ -200,8 +238,32 @@ pub fn project_graphics_snapshot(project: &Project) -> BpResult<LayoutGraphicsSn
         node_graphics: node_entries,
         device_graphics: device_entries,
         invalid_junctions: invalid_junctions(&tree)?,
+        stretches,
         pattern_not_found,
     })
+}
+
+fn stretch_snapshot(repo: &LayoutRepository, pattern_found: bool) -> LayoutStretchSnapshot {
+    let configuration = repo.configuration();
+    LayoutStretchSnapshot {
+        id: repo.stretch_id.clone(),
+        flap_ids: repo.flap_ids.clone(),
+        configuration_index: repo.index(),
+        configuration_count: repo.configurations().len(),
+        pattern_index: configuration.map_or(0, LayoutConfiguration::index),
+        pattern_count: configuration.map_or(0, LayoutConfiguration::pattern_count),
+        pattern_found,
+        regions: repo
+            .junction_rects
+            .iter()
+            .map(|rect| RectSnapshot {
+                x: rect.min.x,
+                y: rect.min.y,
+                width: rect.max.x - rect.min.x,
+                height: rect.max.y - rect.min.y,
+            })
+            .collect(),
+    }
 }
 
 fn invalid_junctions(tree: &BpTree) -> BpResult<Vec<InvalidJunctionSnapshot>> {
