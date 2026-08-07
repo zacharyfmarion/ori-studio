@@ -2379,6 +2379,12 @@ describe('workspace store slices', () => {
       })
     );
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledOnce();
+    // The file's own `title` names the project, which is what the window title
+    // and every save/export default read. A crease pattern establishes no tree,
+    // so the tree's title stays at the empty design's default — asserted here so
+    // nobody re-points a project-level read at it (see `useWindowTitle`).
+    expect(useWorkspaceStore.getState().workspaceTitle).toBe('native ori');
+    expect(selectProject(useWorkspaceStore.getState()).title).toBe('Untitled');
     expect(useWorkspaceStore.getState()).toMatchObject({
       currentFileName: 'native.ori',
       currentFilePath: '/tmp/native.ori',

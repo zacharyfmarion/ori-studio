@@ -1,4 +1,3 @@
-import { selectProject } from '../store/workspaceStore/designTabs';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -40,10 +39,15 @@ export function useSimulatorViewExport(
         // Read rather than subscribed: the title matters at the moment of export,
         // and a subscription here would re-render a surface that repaints per
         // solver frame.
+        //
+        // `workspaceTitle`, not the tree's title: the export defaults are named
+        // after the project (see `types.ts`), and what gets simulated is most
+        // often a crease pattern with no tree behind it — where the tree's title
+        // is the empty design's `'Untitled'`. Same slip as `useWindowTitle`.
         const saved = await saveSimulatorView({
           page,
           format,
-          name: selectProject(useWorkspaceStore.getState()).title,
+          name: useWorkspaceStore.getState().workspaceTitle,
         });
         // Null is a dismissed save dialog, which needs no announcement.
         if (saved) {
