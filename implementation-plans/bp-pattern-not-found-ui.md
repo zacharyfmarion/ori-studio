@@ -115,11 +115,9 @@ already-computed facts cross the wasm boundary.
 ### Not the cause
 
 The grey hatched box near the top centre of the sheet in the report screenshot
-is unrelated. The failing stretches are on the left and right of the sheet
-(K/M/O/W and L/N/P/W), and a clean load of this file draws **nothing at all** at
-that location — `invalidJunctions` is `0`, so the Conflicts layer is empty. It
-was most likely a transient hover/selection fill. Worth confirming with the
-author before treating it as a separate bug.
+is unrelated — confirmed by the author as a separate, expected UI change. The
+failing stretches are on the left and right of the sheet (K/M/O/W and L/N/P/W),
+and a clean load of this file drew nothing at that location.
 
 ## Approach
 
@@ -260,7 +258,8 @@ Consequences, all free:
 - [x] Phase 3: alert stack moved to the bottom-left, clear of the contextual toolbars
 - [x] Phase 3: "+N more" instead of silent truncation
 - [ ] Phase 3: camera framing on activation — **not done deliberately**, see below
-- [ ] Phase 4: analytics event (bucketed properties only)
-- [ ] Phase 4: web mapper tests
-- [ ] Phase 4: i18n extract / translate / stamp / check
-- [ ] Confirm with the author what the grey hatched box in the report screenshot was
+- [x] Phase 4: `bp pattern not found` event (bucketed properties only) + hook tests
+- [x] Phase 4: web mapper tests
+- [x] Phase 4: i18n extract / translate / stamp / check
+- [x] The grey hatched box in the report screenshot: confirmed unrelated and
+      expected — a separate UI change, not part of this bug

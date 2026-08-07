@@ -71,6 +71,7 @@ import {
   constrainBpPackingFlapGroupTarget,
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
+import { useBpPatternNotFoundEvent } from '../../analytics';
 import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
 import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
 import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
@@ -900,6 +901,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       zoomPercent,
     ]
   );
+  useBpPatternNotFoundEvent(packing.stretches);
   const patternlessVisuals = useMemo(
     () =>
       bpPatternlessStretchVisuals(packing, packing.sheet, paperRect, linkedSelection.stretches),
