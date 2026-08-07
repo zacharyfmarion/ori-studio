@@ -983,11 +983,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       : readyFoldArtifactResourceState(result.foldArtifacts, artifactRevision);
     set({
       ...discardCpDocumentState(),
-      // Loading a document makes its editor the active view, so the derived
-      // editing context matches the document without waiting for Dockview to
-      // report the activated panel (which never fires in headless tests).
+      // Which pane this load lands on is `applyLandingWorkspace`'s to say, once
+      // it knows what the file turned out to hold.
       workspaceTitle: result.project.title,
-      activePanelId: oristudioCpDocument ? 'crease-pattern' : 'design',
       // A bare crease pattern establishes no design, so the Design workspace
       // should still offer the method chooser rather than an empty tree — and
       // the previous file's box-pleat design must not stay loaded behind it,
@@ -1191,8 +1189,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       ...nativeCpEditorState(nativeDocument, documentState, checked.camvResult),
       // Everything below is the "this crease pattern is the whole project" part,
       // which the companion path must not apply — it would unclaim the design.
-      // Opening a crease pattern makes the CP editor the active view.
-      activePanelId: 'crease-pattern',
       workspaceTitle: nativeDocument.title || result.project.title,
       // A CP-only project establishes no design; keep the Design chooser.
       ...discardAllDesigns(),
@@ -1353,7 +1349,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       currentFileName: source.filename,
       currentFilePath: source.path ?? null,
       projectMessage: `Loaded ${source.filename}`,
-      activePanelId: 'design',
       dirty: false,
       error: null,
       projectEstablished: true,
@@ -1779,10 +1774,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   // drop handler, and the desktop open-with handler cannot disagree — the latter
   // three navigate to `currentWorkspacePath()`, which follows this decision
   // rather than making a second one.
+  // The landing settles the pane as well as the workspace, because
+  // `activateWorkspace` reconciles on every path.
+  //
+  // Each loader used to write `activePanelId` for itself as it installed state —
+  // a guess made before the landing was known. When the guess disagreed with the
+  // landing, nothing corrected it, and an `.osf` carrying a design plus a crease
+  // pattern opened while Edit was already on screen left the pane reading
+  // `design` over the CP canvas: the toolbar offered the BP verbs and every Edit
+  // shortcut resolved to nothing.
   const applyLandingWorkspace = () => {
     if (get().status === 'error') return;
-    const layout = useLayoutStore.getState();
-    layout.activateWorkspace(landingWorkspace(get()));
+    useLayoutStore.getState().activateWorkspace(landingWorkspace(get()));
   };
 
   // Route a native save/save-as by the documents that exist, NOT by the pane in
@@ -1972,7 +1975,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           // Installing a tree replaces the tab's arm outright, so any box-pleat
           // document it held is gone by construction.
           ...projectStateFromSnapshot(get(), snapshot, 'Untitled'),
-          activePanelId: 'design',
           workspaceTitle: 'Untitled',
           nativeProjectExtensions: {},
           projectLoadId: get().projectLoadId + 1,

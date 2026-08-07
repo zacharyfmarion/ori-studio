@@ -5,7 +5,7 @@ import {
   selectProject,
 } from './designTabs';
 import { registerActiveDesignSource } from './activeDesignSource';
-import { registerDesignPaneLayoutReset } from '../layoutStore';
+import { registerActivePanelSink, registerDesignPaneLayoutReset } from '../layoutStore';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { createCreasePatternSlice } from './slices/creasePatternSlice';
@@ -55,6 +55,13 @@ registerActiveDesignSource(() => {
 registerDesignPaneLayoutReset(() => {
   const state = useWorkspaceStore.getState();
   state.setDesignPaneLayout(state.activeDesignId, null);
+});
+
+// The layout store's pull half of the active-pane sync, to pair with the push
+// from Dockview's `onDidActivePanelChange` in `WorkspaceShell`. Same seam, same
+// reason: this store owns the field, that one owns the dock.
+registerActivePanelSink((panelId) => {
+  useWorkspaceStore.setState({ activePanelId: panelId });
 });
 
 // Keep `activeEditingContext` derived from the active panel + design state. The

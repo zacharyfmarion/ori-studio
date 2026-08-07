@@ -1,6 +1,11 @@
 import type { DockviewApi, SerializedDockview } from 'dockview';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LAYOUT_VERSION, applyDefaultLayout, useLayoutStore } from './layoutStore';
+import {
+  LAYOUT_VERSION,
+  applyDefaultLayout,
+  registerActivePanelSink,
+  useLayoutStore,
+} from './layoutStore';
 
 interface MockPanel {
   id: string;
@@ -34,9 +39,16 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
   const groups = new Map<string, MockGroup>();
   const panels = new Map<string, MockPanel>();
   let groupSequence = 0;
+  // Dockview activates a panel as it is added, and `setActive()` moves it. The
+  // real one reports the result as `api.activePanel`; modelled here because
+  // reconciling against it is the point of the no-op-switch test below.
+  let activePanelId: string | null = null;
   const api = {
     groupMap: groups,
     panelMap: panels,
+    get activePanel() {
+      return activePanelId === null ? undefined : panels.get(activePanelId);
+    },
     addGroup: vi.fn((options?: { id?: string; hideHeader?: boolean }) => {
       const id = options?.id ?? `group-${++groupSequence}`;
       const group: MockGroup = { id, hideHeader: options?.hideHeader };
@@ -56,13 +68,21 @@ function createDockviewApi(layout: SerializedDockview = dockviewLayout()) {
         const panel: MockPanel = {
           id: options.id,
           group,
-          api: { setActive: vi.fn() },
+          api: {
+            setActive: vi.fn(() => {
+              activePanelId = options.id;
+            }),
+          },
         };
         panels.set(options.id, panel);
+        activePanelId = options.id;
         return panel;
       }
     ),
-    clear: vi.fn(() => panels.clear()),
+    clear: vi.fn(() => {
+      panels.clear();
+      activePanelId = null;
+    }),
     fromJSON: vi.fn(() => undefined),
     getPanel: vi.fn((id: string) => panels.get(id) ?? null),
     toJSON: vi.fn(() => layout),
@@ -74,6 +94,8 @@ describe('layout store', () => {
   beforeEach(() => {
     localStorage.clear();
     useLayoutStore.setState(initialLayoutState, true);
+    // Module-level seam, so it outlives `setState` and has to be cleared by hand.
+    registerActivePanelSink(() => {});
     vi.restoreAllMocks();
   });
 
@@ -170,6 +192,29 @@ describe('layout store', () => {
       'cp-view-controls',
     ]);
     expect(api.panelMap.get('crease-pattern')?.api.setActive).toHaveBeenCalledOnce();
+  });
+
+  it('reconciles the active panel when the workspace is already active', () => {
+    // Regression: `activateWorkspace` returned early when the workspace was
+    // already the active one, on the assumption that nothing could have drifted.
+    // But `activePanelId` is a cache of what Dockview owns, fed only by
+    // `onDidActivePanelChange` -- an event that reports *changes*. Anything that
+    // writes the field behind Dockview's back (the file loaders did, to name the
+    // pane before a dock exists) leaves a disagreement no event will ever
+    // correct, because from Dockview's side nothing happened.
+    //
+    // A no-op switch is exactly the moment to re-read the dock instead.
+    const reported: Array<string | null> = [];
+    registerActivePanelSink((id) => reported.push(id));
+    const api = createDockviewApi();
+    applyDefaultLayout(api, 'edit');
+    useLayoutStore.getState().setDockviewApi(api);
+    useLayoutStore.setState({ activeWorkspace: 'edit' });
+
+    useLayoutStore.getState().activateWorkspace('edit');
+
+    expect(api.clear).not.toHaveBeenCalled();
+    expect(reported).toEqual(['cp-view-controls']);
   });
 
   it('saves and reloads versioned layouts from local storage', () => {

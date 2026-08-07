@@ -64,6 +64,11 @@ import {
 } from '../../cp-workspace/folded/foldedFigureHandles';
 import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../../lib/foldAngle';
 import { useLayoutStore } from '../layoutStore';
+import { workspaceForPanelId } from '../../workspaces/workspaces';
+import {
+  handleShortcutRuntimeKeyDown,
+  registerCpActionShortcutExecutor,
+} from '../../keyboard/shortcutRuntime';
 import { currentWorkspacePath } from '../../routing/landing';
 import {
   registerCommandDialogHost,
@@ -1635,7 +1640,10 @@ describe('workspace store slices', () => {
 
   it('creates a blank editable CP document', async () => {
     resetStores(seedSnapshot());
-    const activateWorkspace = vi.fn();
+    // A delegating spy, not a stub: `activateWorkspace` is also what settles
+    // which pane is active, so replacing it outright hides the very disagreement
+    // that killed the Edit shortcuts after an open.
+    const activateWorkspace = vi.fn(useLayoutStore.getState().activateWorkspace);
     useLayoutStore.setState({ activateWorkspace });
     useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
 
@@ -2086,7 +2094,10 @@ describe('workspace store slices', () => {
   it('loads CP-only documents and gates tree-only persistence', async () => {
     resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
-    const activateWorkspace = vi.fn();
+    // A delegating spy, not a stub: `activateWorkspace` is also what settles
+    // which pane is active, so replacing it outright hides the very disagreement
+    // that killed the Edit shortcuts after an open.
+    const activateWorkspace = vi.fn(useLayoutStore.getState().activateWorkspace);
     useLayoutStore.setState({ activateWorkspace });
     const cpText = [
       '1 0 0 1 0',
@@ -5347,7 +5358,10 @@ describe('workspace store slices', () => {
   it('optimizes, builds crease patterns, toggles color mode, and foregrounds Edit', async () => {
     const api = resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
-    const activateWorkspace = vi.fn();
+    // A delegating spy, not a stub: `activateWorkspace` is also what settles
+    // which pane is active, so replacing it outright hides the very disagreement
+    // that killed the Edit shortcuts after an open.
+    const activateWorkspace = vi.fn(useLayoutStore.getState().activateWorkspace);
     useLayoutStore.setState({ activateWorkspace });
 
     const initialFitRequestId = selectDesignViewportFitRequestId(useWorkspaceStore.getState());
@@ -5727,6 +5741,211 @@ describe('workspace store slices', () => {
       // landing rule now places every format the same way.
       expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
       expect(currentWorkspacePath()).toBe('/edit');
+    });
+
+    it('lands the .osf on the crease-pattern pane, not just the Edit workspace', async () => {
+      // Regression: every Edit shortcut went dead after opening a `.osf` holding
+      // a design *plus* a crease pattern while Edit was already the workspace on
+      // screen, and the toolbar rendered the BP verbs over the CP canvas.
+      //
+      // The loader wrote `activePanelId: 'design'` speculatively, then the
+      // landing rule computed the real answer -- `edit`, because the file carries
+      // a crease pattern -- and `activateWorkspace('edit')` returned early with
+      // nothing to switch. Dockview's `onDidActivePanelChange` reports *changes*,
+      // so it never fired and never corrected the guess. The landing has to name
+      // the pane, not only the workspace.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          creasePatternCompanion: {
+            title: 'Crane CP',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: null,
+            foldProjection: null,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+          },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      // The user is editing the crease pattern when they open the file, so the
+      // landing has nothing to switch.
+      useLayoutStore.setState({ activeWorkspace: 'edit' });
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+      ).resolves.toBe(true);
+
+      const state = useWorkspaceStore.getState();
+      expect(state.activePanelId).toBe('crease-pattern');
+      expect(state.activeEditingContext).toBe('crease-pattern');
+    });
+
+    it('routes Edit shortcuts after opening a design bundled with a crease pattern', async () => {
+      // The same regression stated as the thing the user actually reported: the
+      // keyboard. `shortcutScopeStackForContext` only pushes the `crease-pattern`
+      // scope when the context says so, so a stale context leaves every CP chord
+      // matching no definition at all -- not even claimed. Asserting the context
+      // alone would not have said which of those two failed.
+      const osf = serializeNativeProjectFile(
+        createNativeBoxPleatProjectFile({
+          title: 'Crane',
+          filename: 'crane.osf',
+          path: '/tmp/crane.osf',
+          bps: '{"title":"Crane"}',
+          creasePatternCompanion: {
+            title: 'Crane CP',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: null,
+            foldProjection: null,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+          },
+          appVersion: '0.0.0',
+        })
+      );
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+      useLayoutStore.setState({ activeWorkspace: 'edit' });
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .openProject(createFileService({ text: osf, name: 'crane.osf', path: '/tmp/crane.osf' }))
+      ).resolves.toBe(true);
+
+      const cpAction = vi.fn();
+      const release = registerCpActionShortcutExecutor(cpAction);
+      try {
+        // `Q` is Select, a crease-pattern tool -- the plainest chord that only
+        // resolves inside the CP scope.
+        const event = new KeyboardEvent('keydown', { key: 'q', cancelable: true });
+        const handled = handleShortcutRuntimeKeyDown(event, {
+          context: {
+            activeEditingContext: useWorkspaceStore.getState().activeEditingContext,
+          },
+          menu: vi.fn(),
+        });
+
+        expect(handled).toBe(true);
+        expect(cpAction).toHaveBeenCalledWith('cp.action.crease-select');
+      } finally {
+        release();
+      }
+    });
+
+    it('leaves the active pane inside the workspace the open landed in', async () => {
+      // The invariant behind both tests above, stated once for every entry point:
+      // whatever writes `activePanelId`, the pane it names has to belong to the
+      // workspace the landing chose. A guess that disagrees is exactly the state
+      // the shortcut runtime and the toolbar read as "you are editing something
+      // else", and nothing downstream can tell it from the truth.
+      //
+      // Table-driven because each loader used to make this decision for itself,
+      // which is how the formats drifted apart in the first place.
+      const cpCompanion = () => ({
+        title: 'Crane CP',
+        document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+        source: null,
+        foldProjection: null,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf' as const,
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [],
+        activeFoldedFigureId: null,
+        lineage: importedCpLineage(),
+      });
+
+      const opens: Array<{ name: string; text: string; from: 'design' | 'edit' }> = [
+        {
+          name: 'bp-with-cp.osf',
+          from: 'edit',
+          text: serializeNativeProjectFile(
+            createNativeBoxPleatProjectFile({
+              title: 'Crane',
+              filename: 'bp-with-cp.osf',
+              path: null,
+              bps: '{"title":"Crane"}',
+              creasePatternCompanion: cpCompanion(),
+              appVersion: '0.0.0',
+            })
+          ),
+        },
+        {
+          name: 'bp-only.osf',
+          from: 'edit',
+          text: serializeNativeProjectFile(
+            createNativeBoxPleatProjectFile({
+              title: 'Crane',
+              filename: 'bp-only.osf',
+              path: null,
+              bps: '{"title":"Crane"}',
+              appVersion: '0.0.0',
+            })
+          ),
+        },
+        {
+          name: 'tree-with-cp.osf',
+          from: 'edit',
+          text: serializeNativeProjectFile(
+            createNativeTreeProjectFile({
+              title: 'Tree',
+              filename: 'tree-with-cp.osf',
+              path: null,
+              tmd5Text: 'native tree tmd5',
+              creasePatternCompanion: cpCompanion(),
+              appVersion: '0.0.0',
+            })
+          ),
+        },
+        {
+          name: 'tree-only.osf',
+          from: 'edit',
+          text: serializeNativeProjectFile(
+            createNativeTreeProjectFile({
+              title: 'Tree',
+              filename: 'tree-only.osf',
+              path: null,
+              tmd5Text: 'native tree tmd5',
+              appVersion: '0.0.0',
+            })
+          ),
+        },
+      ];
+
+      for (const open of opens) {
+        resetStores(seedSnapshot());
+        useWorkspaceStore.setState({ engineReady: true, status: 'ready', dirty: false });
+        useLayoutStore.setState({ activeWorkspace: open.from });
+
+        await expect(
+          useWorkspaceStore
+            .getState()
+            .openProject(createFileService({ text: open.text, name: open.name, path: null }))
+        ).resolves.toBe(true);
+
+        const activePanelId = useWorkspaceStore.getState().activePanelId;
+        expect(
+          activePanelId === null ? null : workspaceForPanelId(activePanelId),
+          `${open.name} left ${activePanelId} active`
+        ).toBe(useLayoutStore.getState().activeWorkspace);
+      }
     });
 
     it('restores the crease-pattern view settings saved alongside a design', async () => {
