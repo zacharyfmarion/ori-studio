@@ -44,6 +44,21 @@ drift apart.
 hosting — ExplOri gets its centred square, box pleating gets its sheet. Purely
 decorative: no pointer events, no strings to localize.
 
+### 3. Counter-scale the dash patterns
+
+Opening the camera far enough out exposed an older bug in the same area. The
+dashed marks in the scene — the mirror-draw preview and the pair line — declare
+their stroke width in screen pixels and counter-scale it, but their
+`stroke-dasharray` sat in theme.css in *user* units. So on zoom-out the width
+grew while the dashes held still, and past roughly 1:2 the dashes were wider
+than they were long: the preview read as a row of squares.
+
+The fix is not to counter-scale the dash at render, which would then go stale on
+the next zoom-without-re-render. It is to put the dash on the chrome contract in
+`sceneDom.ts`, so the same rescaler that already rewrites stroke width, radius
+and font size on every zoom step rewrites the dash too — one mechanism, nothing
+to drift.
+
 ## Affected Areas
 
 - `apps/web/src/tree-editor/frame.ts` — `boundsRect` on `TreeFrame`; the centred
@@ -53,8 +68,10 @@ decorative: no pointer events, no strings to localize.
 - `apps/web/src/explori/useExploriTreeHost.ts` — raise `HALF_EXTENT`, supply
   `fitRect` and `maxFitScale`.
 - `apps/web/src/hooks/useBpTreeEditorHost.ts` — supply `boundsRect` (the sheet).
-- `apps/web/src/styles/theme.css` — bounds styling.
-- Tests: `frame.test.ts`, `hostContract.test.tsx`, a scene test for the rect.
+- `apps/web/src/tree-editor/sceneDom.ts` — dash on the chrome contract.
+- `apps/web/src/styles/theme.css` — bounds styling; dash patterns moved out.
+- Tests: `frame.test.ts`, `hostContract.test.tsx`, `BpTreePanel.test.tsx`,
+  `sceneDom.test.ts`.
 
 ## Checklist
 
@@ -64,6 +81,7 @@ decorative: no pointer events, no strings to localize.
 - [x] Render the bounds rect in `TreeScene`, styled per surface
 - [x] Unit tests for the frame rect and the fit rect
 - [x] Scene test that both surfaces draw their bounds
+- [x] Counter-scale dash patterns through the chrome contract, with tests
 - [x] `npm run lint:web`, `typecheck`, `test:web`
 - [x] Browser check: draw to the edge on both surfaces
 - [x] Draft PR

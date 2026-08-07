@@ -4536,9 +4536,14 @@
   pointer-events: none;
 }
 
+/*
+ * Dash pattern deliberately absent, here and on `.symmetry-ghost-edge`: it is in
+ * screen pixels, which a stylesheet cannot say, so the scene sets it inline
+ * alongside the stroke width it has to stay in proportion with. See
+ * `SYMMETRY_PAIR_DASH_PX`.
+ */
 .symmetry-pair-line {
   stroke: var(--accent-tertiary);
-  stroke-dasharray: 2 6;
   stroke-linecap: round;
   opacity: 0.45;
   pointer-events: none;
@@ -4559,7 +4564,6 @@
 .symmetry-ghost-edge {
   stroke: var(--accent-primary);
   stroke-width: 3;
-  stroke-dasharray: 6 6;
   opacity: 0.72;
 }
 
