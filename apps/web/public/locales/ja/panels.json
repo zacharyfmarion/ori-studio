@@ -37,6 +37,7 @@
     "layerRidges": "リッジ",
     "layerRivers": "リバー",
     "layers": "レイヤー",
+    "layoutGraphicsError": "レイアウトを描画できません",
     "mirrorDraw": "ミラー描画",
     "mirrorDrawHint": "新しいノードに双子ができます",
     "mirrorDrawOn": "ミラー描画（オン）",

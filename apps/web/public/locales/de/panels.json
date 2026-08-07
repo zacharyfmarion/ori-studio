@@ -37,6 +37,7 @@
     "layerRidges": "Grate",
     "layerRivers": "Flüsse",
     "layers": "Ebenen",
+    "layoutGraphicsError": "Layout konnte nicht gezeichnet werden",
     "mirrorDraw": "Spiegelzeichnen",
     "mirrorDrawHint": "Neue Knoten bekommen einen Zwilling",
     "mirrorDrawOn": "Spiegelzeichnen (ein)",

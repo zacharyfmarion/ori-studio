@@ -304,6 +304,8 @@ export type OristudioBpDiagnosticKind =
   | 'stale-crease-pattern'
   | 'invalid-junction'
   | 'pattern-not-found'
+  /** The kernel refused to build the layout, so the pane has nothing to draw. */
+  | 'layout-graphics-error'
   | 'unsupported'
   | 'upstream-gap'
   | 'optimizer-error'

@@ -37,6 +37,7 @@
     "layerRidges": "脊线",
     "layerRivers": "河",
     "layers": "图层",
+    "layoutGraphicsError": "无法绘制布局",
     "mirrorDraw": "镜像绘制",
     "mirrorDrawHint": "新建节点会生成对称节点",
     "mirrorDrawOn": "镜像绘制（开）",
