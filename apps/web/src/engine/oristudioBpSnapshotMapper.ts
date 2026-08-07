@@ -13,7 +13,6 @@ import type {
   OristudioBpProjectSnapshot,
   OristudioBpProjectSummary,
   OristudioBpRawConfiguration,
-  OristudioBpRawDevice,
   OristudioBpRawEdge,
   OristudioBpRawFlap,
   OristudioBpRawPattern,
@@ -37,6 +36,7 @@ import type {
   OristudioBpWasmTreeNode,
 } from './oristudioBpTypes';
 import type { Point } from '../lib/geometry';
+import { bpFlapLabel } from '../lib/bpFlapLabel';
 
 const MAX_TREE_HEIGHT = 11_586;
 
@@ -139,7 +139,9 @@ function projectSummary(
     leafVertices: project.design.tree.nodes.filter((node) => (degrees.get(node.id) ?? 0) <= 1).length,
     flaps: wasmSummary?.layout_flaps ?? project.design.layout.flaps.length,
     rivers: packing.rivers.length,
-    stretches: wasmSummary?.layout_stretches ?? project.design.layout.stretches.length,
+    // The packing view's count, not the persisted one: `layout.stretches` holds
+    // only the stretches with a non-default selection.
+    stretches: packing.stretches.length,
     devices: packing.devices.length,
     invalidJunctions: packing.invalidJunctions.length,
     packingValidity: packing.validity,
@@ -173,28 +175,36 @@ function projectDiagnostics(
       message: `Layout graphics could not be computed: ${layoutError}`,
     });
   }
-  if (layoutSnapshot?.patternNotFound) {
-    const patternlessStretches = packing.stretches.filter(
-      (stretch) => stretch.patternFound === false
+  const patternlessStretches = packing.stretches.filter(
+    (stretch) => stretch.patternFound === false
+  );
+  for (const stretch of patternlessStretches) {
+    const flapLabels = stretch.flapIds.map((id) =>
+      bpFlapLabel(id, packing.flaps.find((flap) => flap.id === id)?.name ?? '')
     );
-    if (patternlessStretches.length > 0) {
-      for (const stretch of patternlessStretches) {
-        diagnostics.push({
-          id: `bp-pattern-not-found:${stretch.id}`,
-          kind: 'pattern-not-found',
-          severity: 'warning',
-          message: `Stretch ${stretch.id} did not find the selected pattern.`,
-          selection: { kind: 'bp-stretch', id: stretch.id },
-        });
-      }
-    } else {
-      diagnostics.push({
-        id: 'bp-pattern-not-found',
-        kind: 'pattern-not-found',
-        severity: 'warning',
-        message: 'One or more stretch repositories did not find a selected pattern.',
-      });
-    }
+    diagnostics.push({
+      id: `bp-pattern-not-found:${stretch.id}`,
+      kind: 'pattern-not-found',
+      severity: 'warning',
+      message: `No crease pattern for the overlap of ${flapLabels.join(', ')}.`,
+      detail: {
+        kind: 'patternless-stretch',
+        flapLabels,
+        hasConfiguration: (stretch.configCount ?? 0) > 0,
+      },
+      selection: { kind: 'bp-stretch', id: stretch.id },
+    });
+  }
+  // A snapshot older than the derived stretch list can still report the flag
+  // without naming anyone. Keep one unattached warning for that case rather than
+  // going silent.
+  if (layoutSnapshot?.patternNotFound && patternlessStretches.length === 0) {
+    diagnostics.push({
+      id: 'bp-pattern-not-found',
+      kind: 'pattern-not-found',
+      severity: 'warning',
+      message: 'Some flap overlaps in this design have no crease pattern yet.',
+    });
   }
   if (packingValidation && !packingValidation.valid) {
     for (const [index, error] of packingValidation.errors.entries()) {
@@ -331,13 +341,8 @@ function packingView(
   const invalidJunctions = (layoutSnapshot?.invalidJunctions ?? []).map((junction) =>
     packingInvalidJunction(junction)
   );
-  const stretches = project.design.layout.stretches.map(packingStretch);
-  const deviceGraphics = new Map(
-    (layoutSnapshot?.deviceGraphics ?? []).map((entry) => [deviceIdFromGraphicsId(entry.id), entry.data])
-  );
-  const devices = project.design.layout.stretches.flatMap((stretch) =>
-    packingDevices(stretch, deviceGraphics)
-  );
+  const stretches = packingStretches(project, layoutSnapshot);
+  const devices = packingDevices(layoutSnapshot);
   const leafCount = tree.vertices.filter((vertex) => vertex.isLeaf).length;
   return {
     sheet: sheet(project.design.layout.sheet),
@@ -494,7 +499,37 @@ function packingFlap(
   };
 }
 
-function packingStretch(stretch: OristudioBpRawStretch): OristudioBpStretch {
+/**
+ * The stretches the layout has — from the engine snapshot when there is one.
+ *
+ * `design.layout.stretches` is *not* the set of stretches: it only persists the
+ * ones whose config/pattern selection deviates from the default, and a stretch
+ * that found no pattern is removed from it entirely (upstream `patternTask`).
+ * Reading it as the set left every stretch, device and pattern-not-found
+ * diagnostic invisible on a freshly opened file. Fall back to it only when no
+ * snapshot has arrived yet, so a document still renders before the engine
+ * responds.
+ */
+function packingStretches(
+  project: OristudioBpRawProject,
+  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null
+): OristudioBpStretch[] {
+  if (!layoutSnapshot) return project.design.layout.stretches.map(persistedStretch);
+  return layoutSnapshot.stretches.map((stretch) => ({
+    id: stretch.id,
+    flapIds: [...stretch.flapIds],
+    riverIds: [],
+    completed: stretch.configurationCount > 0,
+    configIndex: stretch.configurationIndex,
+    configCount: stretch.configurationCount,
+    patternIndex: stretch.patternIndex,
+    patternCount: stretch.patternCount,
+    patternFound: stretch.patternFound,
+    regions: stretch.regions.map((region) => ({ ...region })),
+  }));
+}
+
+function persistedStretch(stretch: OristudioBpRawStretch): OristudioBpStretch {
   const configuration = activeConfiguration(stretch);
   const pattern = activePattern(stretch, configuration);
   const patternCount = configuration?.patterns?.length ?? null;
@@ -508,30 +543,42 @@ function packingStretch(stretch: OristudioBpRawStretch): OristudioBpStretch {
     patternIndex: configuration?.index ?? null,
     patternCount,
     patternFound: pattern ? true : patternCount === null ? null : false,
+    regions: [],
   };
 }
 
+/**
+ * Devices come from the engine's device graphics, which carry the location,
+ * drag range and slash direction for every device of every derived stretch —
+ * everything the selectable model needs, for stretches the project never
+ * persisted.
+ */
 function packingDevices(
-  stretch: OristudioBpRawStretch,
-  deviceGraphics: Map<string, OristudioBpWasmGraphicsData>
+  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null
 ): OristudioBpDevice[] {
-  const configuration = activeConfiguration(stretch);
-  const pattern = activePattern(stretch, configuration);
-  return (pattern?.devices ?? []).map((device, index) => {
-    const id = `${stretch.id}:device:${index}`;
-    const data = deviceGraphics.get(id) ?? null;
-    const position = data?.location ?? devicePosition(device);
-    const forward = data?.forward ?? null;
-    const rangeScalar = data?.range ?? null;
-    return {
-      id,
-      stretchId: stretch.id,
-      position,
-      range: deviceRange(position, rangeScalar, forward),
-      rangeScalar,
-      forward,
-    };
+  return (layoutSnapshot?.deviceGraphics ?? []).flatMap((entry) => {
+    const id = deviceIdFromGraphicsId(entry.id);
+    const stretchId = stretchIdFromDeviceId(id);
+    if (stretchId === null) return [];
+    const position = entry.data.location ?? { x: 0, y: 0 };
+    const forward = entry.data.forward ?? null;
+    const rangeScalar = entry.data.range ?? null;
+    return [
+      {
+        id,
+        stretchId,
+        position,
+        range: deviceRange(position, rangeScalar, forward),
+        rangeScalar,
+        forward,
+      },
+    ];
   });
+}
+
+function stretchIdFromDeviceId(id: string): string | null {
+  const match = /^(.+):device:\d+$/.exec(id);
+  return match ? match[1] : null;
 }
 
 function activeConfiguration(stretch: OristudioBpRawStretch): OristudioBpRawConfiguration | null {
@@ -549,20 +596,6 @@ function activePattern(
   const index = configuration?.index ?? null;
   if (index === null) return null;
   return configuration?.patterns?.[index] ?? null;
-}
-
-function devicePosition(device: OristudioBpRawDevice) {
-  const firstPiece = device.gadgets
-    .flatMap((gadget) =>
-      typeof gadget === 'object' && gadget && 'pieces' in gadget
-        ? (gadget as { pieces?: unknown[] }).pieces ?? []
-        : []
-    )
-    .find((piece): piece is { ox?: number; oy?: number } => typeof piece === 'object' && piece !== null);
-  return {
-    x: typeof firstPiece?.ox === 'number' ? firstPiece.ox : 0,
-    y: typeof firstPiece?.oy === 'number' ? firstPiece.oy : 0,
-  };
 }
 
 function deviceRange(

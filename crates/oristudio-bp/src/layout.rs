@@ -618,10 +618,25 @@ pub fn convert_index(index: usize) -> i64 {
     -(index as i64) - 1
 }
 
+/// The axis-aligned gap between the two flaps a valid junction joins, in layout
+/// coordinates: `[min, max]`. This is the paper the stretch pattern has to
+/// cover, so it is also the region to point a user at when no pattern exists.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct JunctionRect {
+    pub min: Point,
+    pub max: Point,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayoutRepository {
     pub stretch_id: String,
     pub signature: String,
+    /// The flaps this repository spans, ascending. Identical by construction to
+    /// the components of [`Self::stretch_id`] — both come from the same sorted
+    /// junction endpoints (see `group_junctions` / `active_stretch_teams`).
+    pub flap_ids: Vec<NodeId>,
+    /// One entry per junction, in `junctions` order.
+    pub junction_rects: Vec<JunctionRect>,
     pub f: Point,
     pub origin: Point,
     pub quadrants: BTreeMap<QuadrantCode, Quadrant>,
@@ -658,6 +673,16 @@ impl LayoutRepository {
             .iter()
             .map(|junction| junction.to_oriented_json(f))
             .collect::<Vec<_>>();
+        let flap_ids = junctions
+            .iter()
+            .flat_map(|junction| [junction.a, junction.b])
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let junction_rects = junctions
+            .iter()
+            .map(ValidJunction::rect)
+            .collect::<Vec<_>>();
         let stored_repo = prototype.and_then(|prototype| prototype.repo.clone());
         let configurations = stored_repo
             .as_ref()
@@ -673,6 +698,8 @@ impl LayoutRepository {
         let mut repository = Self {
             stretch_id,
             signature,
+            flap_ids,
+            junction_rects,
             f,
             origin,
             quadrants: quadrant_result.map,
@@ -1090,6 +1117,26 @@ impl ValidJunction {
             tip: data.tip,
             geometrically_covered_by: Vec::new(),
         })
+    }
+
+    /// The gap rectangle between the two flaps. `tip` is the corner of flap `a`
+    /// that faces `b` and `s` is the gap's size, so the opposite corner is
+    /// `tip + f * s` — `f` carries the sign of each axis (see `create_junction`).
+    pub fn rect(&self) -> JunctionRect {
+        let other = Point {
+            x: self.tip.x + self.f.x * self.s.x,
+            y: self.tip.y + self.f.y * self.s.y,
+        };
+        JunctionRect {
+            min: Point {
+                x: self.tip.x.min(other.x),
+                y: self.tip.y.min(other.y),
+            },
+            max: Point {
+                x: self.tip.x.max(other.x),
+                y: self.tip.y.max(other.y),
+            },
+        }
     }
 
     pub fn to_json(&self) -> Junction {

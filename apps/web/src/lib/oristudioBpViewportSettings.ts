@@ -21,6 +21,7 @@ export const BP_PACKING_VIEW_LAYER_KEYS = [
   'ridges',
   'axisParallels',
   'conflicts',
+  'patternless',
   'devices',
   'selectionShade',
   'outsidePaper',
@@ -39,6 +40,7 @@ export const DEFAULT_BP_PACKING_VIEW_LAYERS: BpPackingViewLayers = {
   ridges: true,
   axisParallels: true,
   conflicts: true,
+  patternless: true,
   devices: true,
   selectionShade: true,
   // Off by default, which is the cropping Box Pleating Studio does: it masks
