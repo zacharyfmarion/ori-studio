@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioBpDocumentState } from '../../engine/oristudioBpTypes';
 import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
+import { bpTreePointToSvg } from '../../lib/bpTreeViewport';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { BpTreePanel } from './BpTreePanel';
@@ -73,15 +74,17 @@ for (const proto of [Element.prototype] as Element[]) {
   });
 }
 
+const SHEET = {
+  kind: 'rectangular' as const,
+  width: 20,
+  height: 20,
+  grid: { kind: 'rectangular' as const, interval: 1, snap: true },
+};
+
 //   0 (root) ── 1 (leaf)
 //            └─ 2 (leaf)
 function bpDocument(): OristudioBpDocumentState {
-  const sheet = {
-    kind: 'rectangular' as const,
-    width: 20,
-    height: 20,
-    grid: { kind: 'rectangular' as const, interval: 1, snap: true },
-  };
+  const sheet = SHEET;
   const vertex = (id: number, x: number, y: number, isRoot: boolean, isLeaf: boolean) => ({
     id,
     name: '',
@@ -439,6 +442,27 @@ describe('BP tree pane — selecting an edge highlights the edge', () => {
     const selected = container.querySelectorAll('.bp-tree-edge.tree-edge--selected');
     expect(selected).toHaveLength(1);
     expect(selected[0].tagName.toLowerCase()).toBe('line');
+  });
+
+  it('draws the sheet, so the edge a drag stops at is visible', () => {
+    // The sheet is what `frame.contains` enforces here, and until it was drawn
+    // the pane showed nothing at all outside the tree itself — a node dragged to
+    // the paper's edge simply stopped, with no mark to say why.
+    const body = render(null);
+    const bounds = body.querySelector<SVGRectElement>('.tree-bounds.bp-tree-bounds');
+    expect(bounds).not.toBeNull();
+
+    // A corner of the sheet in tree coordinates has to land on a corner of the
+    // drawn rect, or the mark is somewhere the rule is not.
+    const corner = bpTreePointToSvg({ x: 20, y: 0 }, SHEET);
+    expect(Number(bounds!.getAttribute('x')) + Number(bounds!.getAttribute('width'))).toBeCloseTo(
+      corner.x,
+      9
+    );
+    expect(Number(bounds!.getAttribute('y')) + Number(bounds!.getAttribute('height'))).toBeCloseTo(
+      corner.y,
+      9
+    );
   });
 
   it('keeps the whole canvas out of the focus order, so no ring covers it', () => {

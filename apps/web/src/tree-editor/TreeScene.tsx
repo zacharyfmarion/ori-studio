@@ -3,6 +3,7 @@ import {
   TREE_CHROME_ATTR,
   TREE_GHOST_PART,
   TREE_SCENE_ATTR,
+  treeChromeDash,
 } from './sceneDom';
 import type { PlotRect, Point } from '../lib/geometry';
 import { treeDotPx, type TreeDotSizes } from '../lib/treeNodeDot';
@@ -46,6 +47,15 @@ export const SYMMETRY_LANE_PX = 18;
 export const LABEL_STROKE_PX = 3;
 export const SYMMETRY_GHOST_PX = 3;
 export const SYMMETRY_PAIR_PX = 1.5;
+export const BOUNDS_STROKE_PX = 1.5;
+
+// Dash patterns, in screen pixels, for the same reason and by the same mechanism
+// as the widths above — see `treeChromeDash`. They live here rather than in
+// theme.css because a stylesheet cannot express "in screen pixels", and a
+// `stroke-dasharray` rule left there would sit under the inline style doing
+// nothing.
+export const SYMMETRY_GHOST_DASH_PX = [6, 6];
+export const SYMMETRY_PAIR_DASH_PX = [2, 6];
 export const DOT_SIZES: TreeDotSizes = { leafPx: 6, branchPx: 7 };
 export const NODE_LABEL_PX = 12;
 export const NODE_SELECTED_STROKE_PX = 3;
@@ -62,6 +72,12 @@ export interface TreeSceneProps {
   /** Tree space → SVG space, from the surface's frame. */
   toSvg: (point: Point) => Point;
   worldRect: PlotRect;
+  /**
+   * Where the surface allows a node to be, drawn so the limit is visible before
+   * it is hit. A drag stops dead at this edge; unmarked, that is indistinguishable
+   * from an editor that has stopped responding.
+   */
+  boundsRect: PlotRect;
   layers: TreeViewLayers;
   /** Vertices drawn as selected, including anything linked to the selection. */
   selectedVertices: ReadonlySet<number>;
@@ -103,6 +119,7 @@ export const TreeScene = memo(function TreeScene({
   tree,
   toSvg,
   worldRect,
+  boundsRect,
   layers,
   selectedVertices,
   selectedEdges,
@@ -132,6 +149,15 @@ export const TreeScene = memo(function TreeScene({
       role="img"
       aria-label={copy.canvas}
     >
+      <rect
+        className={`tree-bounds ${classPrefix}-bounds`}
+        style={{ strokeWidth: chromePx(BOUNDS_STROKE_PX) }}
+        {...{ [TREE_CHROME_ATTR.stroke]: BOUNDS_STROKE_PX }}
+        x={boundsRect.x}
+        y={boundsRect.y}
+        width={boundsRect.width}
+        height={boundsRect.height}
+      />
       {symmetryPairs.map((pair) => {
         const a = vertexById.get(pair.v1);
         const b = vertexById.get(pair.v2);
@@ -142,8 +168,14 @@ export const TreeScene = memo(function TreeScene({
           <line
             key={`${pair.v1}:${pair.v2}`}
             className="symmetry-pair-line"
-            style={{ strokeWidth: chromePx(SYMMETRY_PAIR_PX) }}
-            {...{ [TREE_CHROME_ATTR.stroke]: SYMMETRY_PAIR_PX }}
+            style={{
+              strokeWidth: chromePx(SYMMETRY_PAIR_PX),
+              strokeDasharray: treeChromeDash(SYMMETRY_PAIR_DASH_PX, chromePx),
+            }}
+            {...{
+              [TREE_CHROME_ATTR.stroke]: SYMMETRY_PAIR_PX,
+              [TREE_CHROME_ATTR.dash]: SYMMETRY_PAIR_DASH_PX.join(' '),
+            }}
             x1={p1.x}
             y1={p1.y}
             x2={p2.x}
@@ -160,8 +192,16 @@ export const TreeScene = memo(function TreeScene({
         <g className="symmetry-ghost">
           <line
             className="symmetry-ghost-edge"
-            style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX), display: 'none' }}
-            {...{ [TREE_GHOST_PART]: 'primary-edge', [TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX }}
+            style={{
+              strokeWidth: chromePx(SYMMETRY_GHOST_PX),
+              strokeDasharray: treeChromeDash(SYMMETRY_GHOST_DASH_PX, chromePx),
+              display: 'none',
+            }}
+            {...{
+              [TREE_GHOST_PART]: 'primary-edge',
+              [TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX,
+              [TREE_CHROME_ATTR.dash]: SYMMETRY_GHOST_DASH_PX.join(' '),
+            }}
           />
           <circle
             className="symmetry-ghost-node"
@@ -171,8 +211,16 @@ export const TreeScene = memo(function TreeScene({
           />
           <line
             className="symmetry-ghost-edge"
-            style={{ strokeWidth: chromePx(SYMMETRY_GHOST_PX), display: 'none' }}
-            {...{ [TREE_GHOST_PART]: 'mirror-edge', [TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX }}
+            style={{
+              strokeWidth: chromePx(SYMMETRY_GHOST_PX),
+              strokeDasharray: treeChromeDash(SYMMETRY_GHOST_DASH_PX, chromePx),
+              display: 'none',
+            }}
+            {...{
+              [TREE_GHOST_PART]: 'mirror-edge',
+              [TREE_CHROME_ATTR.stroke]: SYMMETRY_GHOST_PX,
+              [TREE_CHROME_ATTR.dash]: SYMMETRY_GHOST_DASH_PX.join(' '),
+            }}
           />
           <circle
             className="symmetry-ghost-node"

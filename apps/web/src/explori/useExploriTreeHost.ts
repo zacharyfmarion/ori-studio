@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectExploriDesignOrEmpty } from '../store/workspaceStore/designTabs';
-import { createCenteredTreeFrame } from '../tree-editor/frame';
+import { centeredTreeFitRect, createCenteredTreeFrame } from '../tree-editor/frame';
 import type { TreeEditorCopy, TreeEditorHost, TreeSymmetryHost } from '../tree-editor/host';
 import { CONTINUOUS_LENGTHS } from '../tree-editor/lengths';
 import type { TreeSelectionView } from '../tree-editor/model';
@@ -27,19 +27,32 @@ import {
 /** SVG units per tree unit. Same readable scale the box-pleat tree opens at. */
 const UNIT_SVG = 56;
 /**
- * Half the drawing area, in tree units — a 16-unit square.
+ * Half the drawing area, in tree units — a 48-unit square.
  *
  * Fixed, and that is the point: a world that grew with the drawing resized the
  * SVG under a camera that did not, so every added node shifted the view. The
  * camera fits this once and no edit can move it again.
  *
- * The size is a trade. The fit never zooms past 100% (`getViewportFitScale`
- * caps at 1), so a world *smaller* than the pane would leave the canvas — and
- * with it the mirror line — short of the pane's edges. Bigger fills the view but
- * opens further out. 16 units fills a pane up to ~900px and still opens at a
- * legible ~36px per unit.
+ * Fixed is not the same as small, though it used to be: the fit divided the pane
+ * by the *whole* world, so a generous drawing area bought an opening zoom nobody
+ * wanted, and this was 8. `fitRect` below now sizes the opening zoom from the
+ * drawing instead, which leaves this free to be a ceiling on how big a tree can
+ * get rather than a compromise with the camera. A drag sets an edge's length as
+ * well as its direction, so it is a ceiling on branch length too — 24 is room
+ * for a far bigger tree than the archive holds, and raising it further costs
+ * only SVG element size.
  */
-const HALF_EXTENT = 8;
+const HALF_EXTENT = 24;
+/**
+ * How close the opening camera will get, as a half-width in tree units.
+ *
+ * A one-node tree has no extent to fit, and a two-node one barely more; without
+ * a floor the fit would magnify a stub until the canvas told the user nothing
+ * about the scale they are drawing at. 6 units is roughly the old opening view.
+ */
+const FIT_MIN_HALF_SPAN = 6;
+/** Room left around the outermost node when fitting, in tree units. */
+const FIT_PADDING = 1;
 
 function exploriTreeCopy(t: TFunction): TreeEditorCopy {
   return {
@@ -89,6 +102,20 @@ export function useExploriTreeHost(): TreeEditorHost {
   const frame = useMemo(
     () => createCenteredTreeFrame({ unitSvg: UNIT_SVG, halfExtent: HALF_EXTENT }),
     []
+  );
+
+  // What the camera opens on: the drawing, not the whole drawing area. Recomputed
+  // freely on every edit — `fitKey` is what decides when a fit happens, and it is
+  // constant here, so this cannot pull the camera out from under an edit. It is
+  // read again when the user asks to fit, which is when they want the drawing
+  // framed.
+  const fitRect = useMemo(
+    () =>
+      centeredTreeFitRect(
+        document.nodes.map((node) => node.loc),
+        { unitSvg: UNIT_SVG, minHalfSpan: FIT_MIN_HALF_SPAN, padding: FIT_PADDING }
+      ),
+    [document.nodes]
   );
 
   const selection = useMemo<TreeSelectionView>(() => {
@@ -151,6 +178,7 @@ export function useExploriTreeHost(): TreeEditorHost {
       // Constant, so the camera fits once when the pane opens and never again.
       // No node operation may move the view.
       fitKey: 'explori',
+      fitRect,
       selection,
       select: (target) => setSelection(target),
       // Clicking a selected node again clears it, which is what disarms adding.
@@ -192,6 +220,7 @@ export function useExploriTreeHost(): TreeEditorHost {
     [
       tree,
       frame,
+      fitRect,
       t,
       selection,
       setSelection,

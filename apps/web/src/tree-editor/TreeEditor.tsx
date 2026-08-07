@@ -729,6 +729,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
             tree={tree}
             toSvg={frame.toSvg}
             worldRect={frame.worldRect}
+            boundsRect={frame.boundsRect}
             layers={host.layers}
             selectedVertices={host.selection.vertices}
             selectedEdges={host.selection.edges}

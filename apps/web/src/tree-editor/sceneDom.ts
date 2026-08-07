@@ -64,7 +64,29 @@ export const TREE_CHROME_ATTR = {
   stroke: 'data-tree-stroke-px',
   radius: 'data-tree-r-px',
   font: 'data-tree-font-px',
+  /** Space-separated dash pattern, e.g. `"6 6"`. */
+  dash: 'data-tree-dash-px',
 } as const;
+
+/**
+ * A dash pattern at the current camera scale.
+ *
+ * A dash pattern must counter-scale for the same reason its stroke width does,
+ * and *with* it: `stroke-dasharray` is in user units, so a pattern left in the
+ * stylesheet holds still while the width around it grows on zoom-out. Past
+ * roughly 1:2 the dashes are wider than they are long and the line reads as a
+ * row of squares — which is what the mirror-draw preview looked like once the
+ * camera could open far enough out to show it.
+ *
+ * Shared by the render and by {@link applyTreeChromeScale} so a zoom that does
+ * not re-render cannot leave the two disagreeing.
+ */
+export function treeChromeDash(
+  dashPx: readonly number[],
+  chromePx: (px: number) => number
+): string {
+  return dashPx.map((px) => chromePx(px)).join(' ');
+}
 
 /**
  * How an element's attributes derive from its vertex positions.
@@ -92,6 +114,13 @@ function readNumber(element: Element, name: string): number | null {
   if (raw === null) return null;
   const value = Number.parseFloat(raw);
   return Number.isFinite(value) ? value : null;
+}
+
+function readNumbers(element: Element, name: string): number[] | null {
+  const raw = element.getAttribute(name);
+  if (raw === null) return null;
+  const values = raw.split(/[\s,]+/).filter(Boolean).map(Number.parseFloat);
+  return values.length > 0 && values.every(Number.isFinite) ? values : null;
 }
 
 function readTarget(element: SVGElement): TreeSceneTarget | null {
@@ -240,6 +269,7 @@ export interface TreeChromeTarget {
   strokePx: number | null;
   radiusPx: number | null;
   fontPx: number | null;
+  dashPx: readonly number[] | null;
 }
 
 /**
@@ -253,6 +283,7 @@ export function collectTreeChromeTargets(root: ParentNode): TreeChromeTarget[] {
     `[${TREE_CHROME_ATTR.stroke}]`,
     `[${TREE_CHROME_ATTR.radius}]`,
     `[${TREE_CHROME_ATTR.font}]`,
+    `[${TREE_CHROME_ATTR.dash}]`,
   ].join(',');
   const targets: TreeChromeTarget[] = [];
   for (const element of root.querySelectorAll<SVGElement>(selector)) {
@@ -261,6 +292,7 @@ export function collectTreeChromeTargets(root: ParentNode): TreeChromeTarget[] {
       strokePx: readNumber(element, TREE_CHROME_ATTR.stroke),
       radiusPx: readNumber(element, TREE_CHROME_ATTR.radius),
       fontPx: readNumber(element, TREE_CHROME_ATTR.font),
+      dashPx: readNumbers(element, TREE_CHROME_ATTR.dash),
     });
   }
   return targets;
@@ -282,6 +314,9 @@ export function applyTreeChromeScale(
     if (target.strokePx !== null) target.element.style.strokeWidth = String(chromePx(target.strokePx));
     if (target.radiusPx !== null) target.element.setAttribute('r', String(chromePx(target.radiusPx)));
     if (target.fontPx !== null) target.element.style.fontSize = `${chromePx(target.fontPx)}px`;
+    if (target.dashPx !== null) {
+      target.element.style.strokeDasharray = treeChromeDash(target.dashPx, chromePx);
+    }
   }
 }
 
