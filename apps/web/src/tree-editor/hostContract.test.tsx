@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '../components/ui/Tooltip';
 import { TreeEditor } from './TreeEditor';
-import { createUnboundedTreeFrame } from './frame';
+import { createCenteredTreeFrame } from './frame';
 import { CONTINUOUS_LENGTHS } from './lengths';
 import type { TreeEditorCopy, TreeEditorHost } from './host';
 import type { EditableTree, TreeVertexUpdate } from './model';
@@ -117,11 +117,7 @@ function stubHost(mode: 'sync' | 'deferred') {
 
   const host = (): TreeEditorHost => ({
     tree,
-    frame: createUnboundedTreeFrame({
-      unitSvg: 60,
-      origin: { x: 200, y: 200 },
-      worldRect: { x: 0, y: 0, width: 400, height: 400 },
-    }),
+    frame: createCenteredTreeFrame({ unitSvg: 60, halfExtent: 4 }),
     lengths: CONTINUOUS_LENGTHS,
     copy: COPY,
     classPrefix: 'stub-tree',

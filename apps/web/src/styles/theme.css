@@ -7765,6 +7765,17 @@ button.bp-packing-alert:focus-visible {
 }
 
 /*
+ * Sized to its content, not to the header. The select trigger is a flex child
+ * and stretched to fill the row, which read as a full-width bar rather than a
+ * control.
+ */
+.explori-results__mode {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 132px;
+}
+
+/*
  * Cards size themselves to the pane. The results pane is one half of a design
  * tab and gets resized constantly, so a fixed column count would be wrong at
  * every width but one.

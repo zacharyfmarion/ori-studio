@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import type { PlotRect, Point } from '../lib/geometry';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectExploriDesignOrEmpty } from '../store/workspaceStore/designTabs';
-import { createUnboundedTreeFrame } from '../tree-editor/frame';
+import { createCenteredTreeFrame } from '../tree-editor/frame';
 import type { TreeEditorCopy, TreeEditorHost, TreeSymmetryHost } from '../tree-editor/host';
 import { CONTINUOUS_LENGTHS } from '../tree-editor/lengths';
 import type { TreeSelectionView } from '../tree-editor/model';
@@ -27,21 +26,20 @@ import {
 
 /** SVG units per tree unit. Same readable scale the box-pleat tree opens at. */
 const UNIT_SVG = 56;
-const WORLD_PADDING = 60;
 /**
- * Smallest span the world may have, in SVG units.
+ * Half the drawing area, in tree units — a 16-unit square.
  *
- * A one-node tree has no extent at all, and a two-node one has almost none —
- * without a floor the camera would zoom to absurdity on the first click.
- */
-const MIN_WORLD_EXTENT = 6 * UNIT_SVG;
-/**
- * How much the world must grow before the camera reframes, in SVG units.
+ * Fixed, and that is the point: a world that grew with the drawing resized the
+ * SVG under a camera that did not, so every added node shifted the view. The
+ * camera fits this once and no edit can move it again.
  *
- * Coarse on purpose: a refit is a jump, and one per drawn branch would be worse
- * than a drawing that briefly overflows.
+ * The size is a trade. The fit never zooms past 100% (`getViewportFitScale`
+ * caps at 1), so a world *smaller* than the pane would leave the canvas — and
+ * with it the mirror line — short of the pane's edges. Bigger fills the view but
+ * opens further out. 16 units fills a pane up to ~900px and still opens at a
+ * legible ~36px per unit.
  */
-const FIT_STEP = 3 * UNIT_SVG;
+const HALF_EXTENT = 8;
 
 function exploriTreeCopy(t: TFunction): TreeEditorCopy {
   return {
@@ -69,43 +67,6 @@ function exploriTreeCopy(t: TFunction): TreeEditorCopy {
   };
 }
 
-/**
- * World bounds that hug the drawing.
- *
- * Content bounds rather than a fixed box around the origin: a tree grows away
- * from its root rather than around it, so a box centred on the root puts the
- * drawing in one corner and leaves the opposite one permanently empty.
- */
-function worldRectFor(points: readonly Point[], toSvg: (point: Point) => Point): PlotRect {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const point of points) {
-    const svg = toSvg(point);
-    minX = Math.min(minX, svg.x);
-    minY = Math.min(minY, svg.y);
-    maxX = Math.max(maxX, svg.x);
-    maxY = Math.max(maxY, svg.y);
-  }
-  if (!Number.isFinite(minX)) {
-    minX = 0;
-    minY = 0;
-    maxX = 0;
-    maxY = 0;
-  }
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-  const halfWidth = Math.max((maxX - minX) / 2 + WORLD_PADDING, MIN_WORLD_EXTENT / 2);
-  const halfHeight = Math.max((maxY - minY) / 2 + WORLD_PADDING, MIN_WORLD_EXTENT / 2);
-  return {
-    x: centerX - halfWidth,
-    y: centerY - halfHeight,
-    width: halfWidth * 2,
-    height: halfHeight * 2,
-  };
-}
-
 export function useExploriTreeHost(): TreeEditorHost {
   const { t } = useTranslation();
   const design = useWorkspaceStore((state) => selectExploriDesignOrEmpty(state));
@@ -123,21 +84,11 @@ export function useExploriTreeHost(): TreeEditorHost {
 
   const tree = useMemo(() => exploriEditableTree(document), [document]);
 
-  const frame = useMemo(() => {
-    const origin = { x: 0, y: 0 };
-    const toSvg = (point: Point) => ({
-      x: origin.x + point.x * UNIT_SVG,
-      y: origin.y - point.y * UNIT_SVG,
-    });
-    return createUnboundedTreeFrame({
-      unitSvg: UNIT_SVG,
-      origin,
-      worldRect: worldRectFor(
-        document.nodes.map((node) => node.loc),
-        toSvg
-      ),
-    });
-  }, [document.nodes]);
+  // Built once: it depends on nothing that an edit changes.
+  const frame = useMemo(
+    () => createCenteredTreeFrame({ unitSvg: UNIT_SVG, halfExtent: HALF_EXTENT }),
+    []
+  );
 
   const selection = useMemo<TreeSelectionView>(() => {
     const target = design.selection;
@@ -150,19 +101,20 @@ export function useExploriTreeHost(): TreeEditorHost {
   }, [design.selection]);
 
   const symmetry = useMemo<TreeSymmetryHost>(() => {
-    const svgOf = (point: Point) => frame.toSvg(point);
-    // Clipped to the world the camera frames, so the line ends where the
-    // drawing does rather than running off into space.
-    const top = { x: svgOf({ x: 0, y: 0 }).x, y: frame.worldRect.y };
-    const bottom = { x: top.x, y: frame.worldRect.y + frame.worldRect.height };
+    // Corner to corner of the world, which is fixed — so the line spans the whole
+    // canvas rather than only as far as the drawing happens to reach.
+    const x = frame.toSvg({ x: 0, y: 0 }).x;
+    const top = frame.worldRect.y;
+    const bottom = frame.worldRect.y + frame.worldRect.height;
     return {
       enabled: document.symmetry.enabled,
       toggle: () => void toggleSymmetry(),
       axis: EXPLORI_SYMMETRY_AXIS,
-      // Drawn whether or not the toggle is on: the line is where the pairs
-      // already are, and hiding it would leave the segments joining them
-      // pointing at nothing.
-      axisLine: { x1: top.x, y1: top.y, x2: bottom.x, y2: bottom.y },
+      // Hidden with the toggle, as box-pleat's is: a mirror line drawn while
+      // mirror draw is off describes a rule that is not in force.
+      axisLine: document.symmetry.enabled
+        ? { x1: x, y1: top, x2: x, y2: bottom }
+        : null,
       pairs: document.symmetry.pairs,
       partnerOf: (nodeId) => explicitExploriPairId(document.symmetry.pairs, nodeId),
       resolveMirrorOf: (nodeId) => mirrorExploriNodeId(document, nodeId),
@@ -189,16 +141,9 @@ export function useExploriTreeHost(): TreeEditorHost {
       copy: exploriTreeCopy(t),
       classPrefix: 'explori-tree',
       surface: 'tree',
-      // Refit when the drawing outgrows the frame, not on every edit.
-      //
-      // Box-pleat can key this on the document alone because its world is a
-      // fixed sheet; a search tree has no sheet and grows without bound, so a
-      // camera that fit once would let the drawing wander off the pane. Bucketing
-      // the world's extent refits exactly when it no longer fits, and leaves the
-      // camera alone for every edit that happens within the frame.
-      fitKey: `explori:${Math.round(frame.worldRect.width / FIT_STEP)}x${Math.round(
-        frame.worldRect.height / FIT_STEP
-      )}`,
+      // Constant, so the camera fits once when the pane opens and never again.
+      // No node operation may move the view.
+      fitKey: 'explori',
       selection,
       select: (target) => setSelection(target),
       // Clicking a selected node again clears it, which is what disarms adding.
