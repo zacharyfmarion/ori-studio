@@ -216,6 +216,68 @@ describe('oristudioBpProjectStateFromRaw', () => {
     expect(state.snapshot.summary.stretches).toBe(1);
   });
 
+  it('carries node contours through as the paper flaps and rivers take up', () => {
+    const state = oristudioBpProjectStateFromRaw({
+      handle: 42,
+      project: rawProject,
+      layoutSnapshot: {
+        nodeGraphics: [
+          {
+            id: 'f2',
+            data: {
+              contours: [{ outer: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }] }],
+              ridges: [],
+            },
+          },
+          {
+            id: 'r1,2',
+            data: {
+              contours: [
+                {
+                  outer: [{ x: 3, y: 3 }, { x: 8, y: 3 }, { x: 8, y: 8 }, { x: 3, y: 8 }],
+                  inner: [
+                    [{ x: 4, y: 4 }, { x: 7, y: 4 }, { x: 7, y: 7 }, { x: 4, y: 7 }],
+                    // A degenerate ring encloses no paper, so it cuts nothing.
+                    [{ x: 5, y: 5 }, { x: 6, y: 5 }],
+                  ],
+                },
+              ],
+              ridges: [],
+            },
+          },
+        ],
+        deviceGraphics: [],
+        invalidJunctions: [],
+        stretches: [],
+        patternNotFound: false,
+      },
+      source: { format: 'generated', filename: 'Mapper test.bps', path: null },
+    });
+
+    expect(state.snapshot.packing.coverage).toEqual([
+      {
+        id: 'f2:contour:0',
+        outer: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }],
+        holes: [],
+      },
+      {
+        id: 'r1,2:contour:0',
+        outer: [{ x: 3, y: 3 }, { x: 8, y: 3 }, { x: 8, y: 8 }, { x: 3, y: 8 }],
+        holes: [[{ x: 4, y: 4 }, { x: 7, y: 4 }, { x: 7, y: 7 }, { x: 4, y: 7 }]],
+      },
+    ]);
+  });
+
+  it('reports no coverage when there is no layout to read it from', () => {
+    const state = oristudioBpProjectStateFromRaw({
+      handle: 42,
+      project: rawProject,
+      source: { format: 'generated', filename: 'Mapper test.bps', path: null },
+    });
+
+    expect(state.snapshot.packing.coverage).toEqual([]);
+  });
+
   it('attaches pattern-not-found diagnostics to each failed stretch', () => {
     const state = oristudioBpProjectStateFromRaw({
       handle: 42,

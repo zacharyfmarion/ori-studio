@@ -638,6 +638,48 @@ fn project_session_transforms_layout_sheet_and_scales_edge_lengths() {
 }
 
 #[test]
+fn project_session_unsubdivide_undoes_subdivide_exactly() {
+    // Un-subdivide is ours — Box Pleating Studio only has subdivide — so its ½
+    // scale is the one case upstream's integer snap never sees. Snapped to 1, the
+    // sheet and flaps halve while the tree stays at double length, which reads in
+    // the editor as every flap suddenly conflicting.
+    let mut project = sample_project();
+    project.design.layout.flaps = vec![Flap {
+        id: 1,
+        x: 2.0,
+        y: 2.0,
+        width: 2.0,
+        height: 2.0,
+    }];
+    let mut session = BpProjectSession::new(project).unwrap();
+    let sheet = session.project().design.layout.sheet.clone();
+    let flaps = session.project().design.layout.flaps.clone();
+    let lengths = |session: &BpProjectSession| {
+        session
+            .project()
+            .design
+            .tree
+            .edges
+            .iter()
+            .map(|edge| edge.length)
+            .collect::<Vec<_>>()
+    };
+    let edges = lengths(&session);
+
+    session.subdivide_layout_sheet().unwrap();
+    assert_ne!(session.project().design.layout.sheet, sheet);
+    assert_eq!(
+        lengths(&session),
+        edges.iter().map(|length| length * 2.0).collect::<Vec<_>>()
+    );
+
+    session.unsubdivide_layout_sheet().unwrap();
+    assert_eq!(session.project().design.layout.sheet, sheet);
+    assert_eq!(session.project().design.layout.flaps, flaps);
+    assert_eq!(lengths(&session), edges);
+}
+
+#[test]
 fn project_session_updates_layout_sheet_with_checked_anchor_shifts() {
     let mut project = sample_project();
     // Both tree leaves (1 and 2) must have flaps for a valid design. Leaf 1 is

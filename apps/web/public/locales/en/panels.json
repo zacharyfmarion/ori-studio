@@ -30,6 +30,7 @@
     "layerAxis": "Axis",
     "layerClearance": "Circles",
     "layerConflicts": "Conflicts",
+    "layerEmptySpace": "Empty space",
     "layerFlaps": "Flaps",
     "layerGrid": "Grid",
     "layerHinges": "Hinges",

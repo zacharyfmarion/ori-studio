@@ -156,6 +156,8 @@ describe('extensibility: a third design kind', () => {
       hasBoxPleatDocument: false,
       boxPleatTreeEdgeCount: 0,
       boxPleatBusy: false,
+      boxPleatCanSubdivide: true,
+      boxPleatCanUnsubdivide: false,
       hasSimulationModel: false,
       oristudioCpSelectedLineCount: 0,
       oristudioCpSelectedPointCount: 0,

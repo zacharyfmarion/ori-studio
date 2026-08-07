@@ -4,7 +4,12 @@ import type {
   OristudioBpSheet,
   OristudioBpSheetKind,
 } from '../engine/oristudioBpTypes';
-import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from './bpSheetSize';
+import {
+  BP_MAX_SHEET_SIZE,
+  bpCanSubdivideSheet,
+  bpCanUnsubdivideSheet,
+  bpSteppedSheetSize,
+} from './bpSheetSize';
 
 function sheet(kind: OristudioBpSheetKind, width: number, height = width): OristudioBpSheet {
   return {
@@ -95,5 +100,42 @@ describe('bpSteppedSheetSize', () => {
     });
     // ...but not an 8-unit one, even though it is only 4 units wide in x.
     expect(bpSteppedSheetSize(sheet('diagonal', 8), [flap(0, 0, 4, 4)], false)).toBeNull();
+  });
+});
+
+describe('bpCanSubdivideSheet', () => {
+  it('is limited only by the size ceiling', () => {
+    expect(bpCanSubdivideSheet(sheet('rectangular', 16))).toBe(true);
+    expect(bpCanSubdivideSheet(sheet('rectangular', BP_MAX_SHEET_SIZE / 2))).toBe(true);
+    expect(bpCanSubdivideSheet(sheet('rectangular', BP_MAX_SHEET_SIZE / 2 + 1))).toBe(false);
+  });
+
+  it('refuses when only one dimension would clear the ceiling', () => {
+    expect(bpCanSubdivideSheet(sheet('rectangular', 16, BP_MAX_SHEET_SIZE))).toBe(false);
+  });
+});
+
+describe('bpCanUnsubdivideSheet', () => {
+  it('halves when the dimensions and every flap dot are even', () => {
+    expect(bpCanUnsubdivideSheet(sheet('rectangular', 16), [flap(4, 8)])).toBe(true);
+  });
+
+  it('refuses a dot the coarser grid could not represent', () => {
+    // A flap on an odd line would land between grid lines after halving, which
+    // is why the engine silently declines rather than moving it.
+    expect(bpCanUnsubdivideSheet(sheet('rectangular', 16), [flap(5, 8)])).toBe(false);
+    // Its far corner counts too, not just its anchor.
+    expect(bpCanUnsubdivideSheet(sheet('rectangular', 16), [flap(4, 8, 3, 2)])).toBe(false);
+  });
+
+  it('refuses dimensions that do not halve cleanly or would go under the minimum', () => {
+    expect(bpCanUnsubdivideSheet(sheet('rectangular', 15), [])).toBe(false);
+    expect(bpCanUnsubdivideSheet(sheet('rectangular', 6), [])).toBe(false);
+    expect(bpCanUnsubdivideSheet(sheet('rectangular', 8), [])).toBe(true);
+  });
+
+  it('checks only the one size a diagonal sheet has', () => {
+    expect(bpCanUnsubdivideSheet(sheet('diagonal', 16), [flap(4, 8)])).toBe(true);
+    expect(bpCanUnsubdivideSheet(sheet('diagonal', 10), [])).toBe(false);
   });
 });

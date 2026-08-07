@@ -1,4 +1,5 @@
 import type {
+  OristudioBpCoverageRegion,
   OristudioBpDiagnostic,
   OristudioBpDevice,
   OristudioBpDocumentState,
@@ -348,6 +349,7 @@ function packingView(
     sheet: sheet(project.design.layout.sheet),
     flaps,
     rivers: packingRivers(tree),
+    coverage: packingCoverage(layoutSnapshot),
     invalidJunctions,
     stretches,
     devices,
@@ -366,6 +368,27 @@ function packingRivers(tree: OristudioBpTreeView): OristudioBpRiver[] {
       width: edge.length,
       length: edge.length,
     }));
+}
+
+/**
+ * The paper each flap and river takes up, from the same node contours the hinge
+ * layer is stroked from. Rings of two points or fewer enclose no area and are
+ * dropped, matching the polyline mapping below; the contour index is taken
+ * before that filter so an id still names the ring it came from.
+ */
+function packingCoverage(
+  layoutSnapshot: OristudioBpWasmLayoutSnapshot | null
+): OristudioBpCoverageRegion[] {
+  if (!layoutSnapshot) return [];
+  return layoutSnapshot.nodeGraphics.flatMap((entry) =>
+    entry.data.contours
+      .map((contour, index) => ({
+        id: `${entry.id}:contour:${index}`,
+        outer: contour.outer,
+        holes: (contour.inner ?? []).filter((ring) => ring.length > 2),
+      }))
+      .filter((region) => region.outer.length > 2)
+  );
 }
 
 function packingInvalidJunction(

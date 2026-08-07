@@ -30,6 +30,7 @@
     "layerAxis": "Achse",
     "layerClearance": "Kreise",
     "layerConflicts": "Konflikte",
+    "layerEmptySpace": "Leerraum",
     "layerFlaps": "Klappen",
     "layerGrid": "Raster",
     "layerHinges": "Scharniere",

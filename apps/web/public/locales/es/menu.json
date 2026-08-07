@@ -1,6 +1,8 @@
 {
   "bp": {
-    "optimizeLayout": "Optimizar el diseño…"
+    "optimizeLayout": "Optimizar el diseño…",
+    "subdivide": "Subdividir retícula",
+    "unsubdivide": "Deshacer subdivisión"
   },
   "cp": {
     "advanceCreaseType": "Avanzar tipo de pliegue",

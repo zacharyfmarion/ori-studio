@@ -68,6 +68,8 @@ export type WorkspaceCapabilityId =
   | 'optimize.edges'
   | 'optimize.strain'
   | 'bp.optimize.layout'
+  | 'bp.layout.subdivide'
+  | 'bp.layout.unsubdivide'
   | 'cp.build'
   | 'cp.deleteSelectedLines'
   | 'cp.changeCreaseType'
@@ -120,6 +122,9 @@ export interface WorkspaceCapabilityInput {
   boxPleatTreeEdgeCount: number;
   /** BP engine mutation in flight, including an optimizer run. */
   boxPleatBusy: boolean;
+  /** Whether the engine would take a BP sheet subdivide / un-subdivide. */
+  boxPleatCanSubdivide: boolean;
+  boxPleatCanUnsubdivide: boolean;
   hasSimulationModel: boolean;
   oristudioCpSelectedLineCount: number;
   oristudioCpSelectedPointCount: number;
@@ -159,6 +164,12 @@ export function getWorkspaceCapabilities(
   // `status` machine.
   const canOptimizeBpLayout =
     isBpContext && input.hasBoxPleatDocument && input.boxPleatTreeEdgeCount > 0 && !input.boxPleatBusy;
+  // Doubling and halving the layout grid are gated on the conditions the kernel
+  // enforces, so the menu can say why it is disabled rather than failing after
+  // the click.
+  const canEditBpSheet = isBpContext && input.hasBoxPleatDocument && !input.boxPleatBusy;
+  const canSubdivideBpSheet = canEditBpSheet && input.boxPleatCanSubdivide;
+  const canUnsubdivideBpSheet = canEditBpSheet && input.boxPleatCanUnsubdivide;
   const canBuild =
     treeMode &&
     input.engineReady &&
@@ -617,6 +628,28 @@ export function getWorkspaceCapabilities(
       canOptimizeBpLayout
         ? t('common:capability.bpOptimizeLayoutReason', 'Pack the box-pleat flaps into the smallest sheet')
         : disabledBpOptimizeReason(input, t)
+    ),
+    'bp.layout.subdivide': commandCapability(
+      canSubdivideBpSheet,
+      isBpContext,
+      t('common:capability.bpSubdivide', 'Subdivide Grid'),
+      canSubdivideBpSheet
+        ? t(
+            'common:capability.bpSubdivideReason',
+            'Double the grid and scale the design with it, so every crease keeps its position'
+          )
+        : t('common:capability.bpSubdivideUnavailable', 'The grid cannot be doubled any further')
+    ),
+    'bp.layout.unsubdivide': commandCapability(
+      canUnsubdivideBpSheet,
+      isBpContext,
+      t('common:capability.bpUnsubdivide', 'Un-subdivide Grid'),
+      canUnsubdivideBpSheet
+        ? t('common:capability.bpUnsubdivideReason', 'Halve the grid and scale the design with it')
+        : t(
+            'common:capability.bpUnsubdivideUnavailable',
+            'The grid can only be halved when every flap sits on an even grid line'
+          )
     ),
     'cp.build': commandCapability(
       canBuild,

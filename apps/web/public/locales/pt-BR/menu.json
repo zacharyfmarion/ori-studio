@@ -1,6 +1,8 @@
 {
   "bp": {
-    "optimizeLayout": "Otimizar o layout…"
+    "optimizeLayout": "Otimizar o layout…",
+    "subdivide": "Subdividir grade",
+    "unsubdivide": "Desfazer subdivisão"
   },
   "cp": {
     "advanceCreaseType": "Avançar tipo de vinco",

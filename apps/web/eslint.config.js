@@ -164,7 +164,14 @@ const OVERSIZED_PANELS = {
   // predicate and one case in its label switch. Routing a new diagnostic kind to
   // the alert list it already renders is composition, not behavior — the kind is
   // raised in `oristudioBpSnapshotMapper`, which is where the judgement lives.
-  'BpPackingPanel.tsx': 2000,
+  //
+  // 2000 -> 2014: the unused-paper shading (#215), meeting this branch in the
+  // merge. The drawing is `BpPackingEmptySpaceLayer` and the geometry is
+  // `lib/bpPackingViewport`, both with their own tests; what lands here is the
+  // layer mounted beside `conflicts` and its entry in the layer list. Same shape
+  // as the patternless layer above it, and the same reasoning: a canvas layer in
+  // the canvas panel is the case AGENTS.md calls a feature that belongs here.
+  'BpPackingPanel.tsx': 2014,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

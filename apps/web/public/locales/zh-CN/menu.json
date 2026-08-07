@@ -1,6 +1,8 @@
 {
   "bp": {
-    "optimizeLayout": "优化布局…"
+    "optimizeLayout": "优化布局…",
+    "subdivide": "细分网格",
+    "unsubdivide": "取消细分网格"
   },
   "cp": {
     "advanceCreaseType": "递进折痕类型",
