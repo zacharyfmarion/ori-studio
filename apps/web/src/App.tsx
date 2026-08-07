@@ -1,4 +1,4 @@
-import { selectProject, selectSelection } from './store/workspaceStore/designTabs';
+import { selectSelection } from './store/workspaceStore/designTabs';
 import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet } from 'react-router-dom';
@@ -17,13 +17,13 @@ import { SettingsModal } from './components/SettingsModal';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
+import { useWindowTitle } from './hooks/useWindowTitle';
 import { installHeldModifierTracker } from './keyboard/heldModifiers';
 import { installAppKeyboardListener } from './lib/appKeyboard';
 import { registerWorkerFailureSink, workerErrorCode } from './lib/workerDiagnostics';
 import { useTauriNativeMenu } from './menus/useTauriNativeMenu';
 import { createOpenedPathFileService } from './platform/fileService';
 import { getRuntimeSurface } from './platform/runtime';
-import { applyWindowTitle, formatWindowTitle } from './platform/windowTitle';
 import { navigateTo } from './routing/appRouter';
 import { currentWorkspacePath } from './routing/landing';
 import { startWorkspaceUrlSync } from './routing/workspaceUrlSync';
@@ -44,8 +44,6 @@ export default function App() {
   const initEngine = useWorkspaceStore((state) => state.initEngine);
   const openProject = useWorkspaceStore((state) => state.openProject);
   const selectNone = useWorkspaceStore((state) => state.selectNone);
-  const project = useWorkspaceStore((state) => selectProject(state));
-  const dirty = useWorkspaceStore((state) => state.dirty);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
   const toasterTheme = useThemeStore((state) => state.currentTheme.type);
 
@@ -74,10 +72,7 @@ export default function App() {
     return () => registerWorkerFailureSink(null);
   }, []);
 
-  useEffect(() => {
-    const title = formatWindowTitle({ projectTitle: project.title, dirty });
-    void applyWindowTitle(title);
-  }, [dirty, project.title]);
+  useWindowTitle();
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {

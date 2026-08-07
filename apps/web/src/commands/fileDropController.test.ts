@@ -105,6 +105,22 @@ describe('handleFileDrop', () => {
     expect(openProject).not.toHaveBeenCalled();
   });
 
+  // The reported bug, end to end: macOS types `.ori` as Olympus raw, so the
+  // drop arrived describing itself as a photo. It has to take the same route a
+  // `.fold` does.
+  it('takes a .ori the platform typed as an image down the crease-pattern route', async () => {
+    dialogMocks.requestChoice.mockResolvedValue('import');
+
+    const result = await handleFileDrop({
+      files: [file('design.ori', 'image/x-olympus-orf')],
+      policy: 'open-or-import',
+    });
+
+    expect(result).toBe('imported');
+    expect(importAddCreasePattern).toHaveBeenCalledOnce();
+    expect(storeState().error).toBeNull();
+  });
+
   it('suppresses the second prompt when its own choice covered the discard', async () => {
     useWorkspaceStore.setState({ dirty: true });
     dialogMocks.requestChoice.mockResolvedValue('open');

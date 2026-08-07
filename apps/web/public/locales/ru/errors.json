@@ -21,6 +21,9 @@
     "canvasUnavailable": "Canvas 2D недоступен",
     "unsupportedImage": "Используйте изображение PNG, JPEG или WebP."
   },
+  "creasePattern": {
+    "imageNotDecodable": "Ori Studio не удалось прочитать {{name}} как изображение. Попробуйте PNG, JPEG или WebP."
+  },
   "fileDrop": {
     "dialogOpen": "Завершите работу с открытым диалогом, прежде чем перетаскивать файл.",
     "imageNotHere": "Перетащите {{name}} на паттерн складок, чтобы добавить его как эталонное изображение.",

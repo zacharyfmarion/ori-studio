@@ -2379,6 +2379,12 @@ describe('workspace store slices', () => {
       })
     );
     expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenCalledOnce();
+    // The file's own `title` names the project, which is what the window title
+    // and every save/export default read. A crease pattern establishes no tree,
+    // so the tree's title stays at the empty design's default — asserted here so
+    // nobody re-points a project-level read at it (see `useWindowTitle`).
+    expect(useWorkspaceStore.getState().workspaceTitle).toBe('native ori');
+    expect(selectProject(useWorkspaceStore.getState()).title).toBe('Untitled');
     expect(useWorkspaceStore.getState()).toMatchObject({
       currentFileName: 'native.ori',
       currentFilePath: '/tmp/native.ori',
@@ -3096,7 +3102,7 @@ describe('workspace store slices', () => {
               frontColor: 'ff010203',
               backColor: 'ff040506',
               lineColor: 'ff070809',
-              state: 'TRANSPARENT_3',
+              state: 'BACK_1',
               scale: 2,
               rotation: 90,
             },
@@ -3117,11 +3123,46 @@ describe('workspace store slices', () => {
         line_color: { red: 7, green: 8, blue: 9 },
         scale: 2,
         rotation: 90,
-        state: 'Transparent3',
       }),
       [1]
     );
   });
+
+  // The saved side is the one part of an Oriedita folded model a fresh fold does
+  // not inherit -- upstream resets it (see NEW_FOLDED_FIGURE_SIDE). A file saved
+  // in an overlay state used to hand the fold `Transparent3`, which draws the
+  // front and back over each other and shows no current side in the pickers.
+  it.each(['FRONT_0', 'BACK_1', 'BOTH_2', 'TRANSPARENT_3'])(
+    'folds facing front whatever side the Oriedita file saved (%s)',
+    async (savedState) => {
+      resetStores(seedSnapshot());
+      const documentState = editableCpState([
+        cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Red1' }),
+      ]);
+      useWorkspaceStore.setState({
+        oristudioCpDocument: {
+          ...documentState,
+          document: {
+            ...documentState.document,
+            metadata: {
+              'oriedita:ori:foldedFigureModel': { frontColor: 'ff010203', state: savedState },
+            },
+          },
+        },
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+      });
+
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+
+      expect(oristudioCpMocks.foldOristudioCpDocument).toHaveBeenCalledWith(
+        1,
+        'Order5',
+        // Appearance still carries over; only the side is reset.
+        expect.objectContaining({ front_color: { red: 1, green: 2, blue: 3 }, state: 'Front0' }),
+        [1]
+      );
+    }
+  );
 
   it('does not fold editable CP documents without selected foldable lines', async () => {
     resetStores(seedSnapshot());

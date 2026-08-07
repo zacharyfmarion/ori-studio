@@ -2681,11 +2681,14 @@
 }
 
 .design-tab {
+  --design-tab-close-size: 18px;
+  /* Containing block for the close button, which floats above the trigger
+     rather than sitting beside it — see `.design-tab__close`. */
+  position: relative;
   display: flex;
   align-items: center;
   flex: none;
   max-width: 220px;
-  padding-right: var(--space-1);
   border-right: 1px solid var(--border-subtle);
   color: var(--text-tertiary);
   background: transparent;
@@ -2700,7 +2703,6 @@
 /* The active tab reads as continuous with the surface below it: same
    background, and the strip's bottom border interrupted under it. */
 .design-tab:has(.design-tab__trigger[data-state='active']) {
-  position: relative;
   color: var(--text-primary);
   background: var(--bg-secondary);
   box-shadow: inset 0 2px 0 var(--accent-primary);
@@ -2710,9 +2712,15 @@
   opacity: 0.6;
 }
 
+/* The trigger *is* the tab: it takes the full height and width of its wrapper so
+   that every point of the tab activates it. Sized to its content it left dead
+   strips above, below, and beside the label where a click hit the wrapper and
+   did nothing. */
 .design-tab__trigger {
   display: flex;
   align-items: center;
+  align-self: stretch;
+  flex: 1 1 auto;
   gap: var(--space-2);
   min-width: 0;
   padding: 0 var(--space-1) 0 var(--space-3);
@@ -2722,6 +2730,11 @@
   color: inherit;
   background: transparent;
   cursor: pointer;
+}
+
+/* The close button overlaps the trigger, so the label stops short of it. */
+.design-tab:has(.design-tab__close) .design-tab__trigger {
+  padding-right: calc(var(--design-tab-close-size) + var(--space-2));
 }
 
 .design-tab__trigger:focus-visible {
@@ -2735,12 +2748,19 @@
   text-overflow: ellipsis;
 }
 
+/* Lifted out of the row and floated over the trigger's reserved padding. As a
+   flex sibling it was an 18px box in a 32px tab, so the strips directly above
+   and below it fell through to the wrapper and swallowed the click; the trigger
+   now runs the full height underneath it. */
 .design-tab__close {
+  position: absolute;
+  top: 50%;
+  right: var(--space-1);
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
-  flex: none;
-  width: 18px;
-  height: 18px;
+  width: var(--design-tab-close-size);
+  height: var(--design-tab-close-size);
   border: 0;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
@@ -6198,10 +6218,18 @@
   color: var(--bg-primary);
 }
 
+/* The toolbar is nowrap so its own controls stay on one line, and this dropdown
+   inherits it. Left alone, the status sentence sizes the panel to its full
+   unwrapped width and runs off the edge of the pane. The cap and the break are
+   for the same sentence translated: a locale that compounds words can push the
+   panel past a width no wrapping can pull back. */
 .symmetry-menu__panel {
   min-width: 210px;
+  max-width: min(280px, calc(100vw - var(--space-6)));
   gap: 8px;
   padding: 10px;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .symmetry-menu__header {

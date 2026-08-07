@@ -24,6 +24,7 @@ import {
   type CpGeometryTransport,
 } from '../../engine/oristudioCpGeometry';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
+import { orieditaDocumentTitle } from '../../lib/orieditaDocumentTitle';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import type { OristudioCpWorkerApi } from '../../workers/oristudioCpWorker';
@@ -203,25 +204,11 @@ export async function refreshOristudioCpDocument(
 ): Promise<OristudioCpDocumentState | null> {
   if (handle === null) return null;
   const api = await getOristudioCpClient();
-  const { document, geometry } = await fetchDocumentAndGeometry(api, handle);
-  const summary = await api.summary(handle);
-  const operationDescriptors = await getOristudioCpOperationDescriptors();
-  return {
-    handle,
-    loadSerial: documentLoadSerial,
-    document,
-    geometry,
-    summary,
-    source:
-      currentSource ??
-      ({
-        format: 'cp',
-        filename: document.title ? `${document.title}.cp` : 'Untitled.cp',
-        path: null,
-      } satisfies OristudioCpDocumentState['source']),
-    operationDescriptors,
-    lastCommandResult,
-  };
+  // Shares `buildDocumentState` rather than assembling the same shape again. The
+  // second copy is how the loaded document ended up normalized and every
+  // refreshed one did not — a refresh runs after the always-on CAMV pass, so it
+  // was the copy that actually reached the store.
+  return buildDocumentState(api, handle, currentSource ?? null, lastCommandResult);
 }
 
 export async function restoreOristudioCpDocument(
@@ -565,10 +552,17 @@ async function replaceHandle(api: OristudioCpClient, nextHandle: number) {
   handle = nextHandle;
 }
 
+/**
+ * The single constructor for a CP document state, for both loads and refreshes.
+ *
+ * `source` may be null, which asks for the fallback derived from the document
+ * itself — only `refreshOristudioCpDocument` needs that, and only when nothing
+ * has recorded where the document came from.
+ */
 async function buildDocumentState(
   api: OristudioCpClient,
   documentHandle: number,
-  source: OristudioCpDocumentState['source'],
+  source: OristudioCpDocumentState['source'] | null,
   lastCommandResult: OristudioCpCommandResult | null
 ): Promise<OristudioCpDocumentState> {
   const [{ document, geometry }, summary, operationDescriptors] = await Promise.all([
@@ -576,17 +570,29 @@ async function buildDocumentState(
     api.summary(documentHandle),
     getOristudioCpOperationDescriptors(),
   ]);
+  // The one place a kernel summary becomes app state, so the one place to drop
+  // Oriedita's "no title" placeholder. Every read site downstream already ends in
+  // `|| <filename>`; they just could not tell that `"_"` means empty, and so put
+  // it in the title bar and in export filenames verbatim. `document` below keeps
+  // the raw value, which is what saving round-trips.
+  const title = orieditaDocumentTitle(summary.title);
   return {
     handle: documentHandle,
     loadSerial: documentLoadSerial,
     document,
     geometry,
-    summary,
-    source: {
-      format: source.format,
-      filename: source.filename,
-      path: source.path ?? null,
-    },
+    summary: { ...summary, title },
+    source: source
+      ? {
+          format: source.format,
+          filename: source.filename,
+          path: source.path ?? null,
+        }
+      : ({
+          format: 'cp',
+          filename: title ? `${title}.cp` : 'Untitled.cp',
+          path: null,
+        } satisfies OristudioCpDocumentState['source']),
     operationDescriptors,
     lastCommandResult,
   };

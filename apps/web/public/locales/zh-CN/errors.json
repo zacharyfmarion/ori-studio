@@ -21,6 +21,9 @@
     "canvasUnavailable": "Canvas 2D 不可用",
     "unsupportedImage": "请使用 PNG、JPEG 或 WebP 图像。"
   },
+  "creasePattern": {
+    "imageNotDecodable": "Ori Studio 无法将 {{name}} 读取为图片。请尝试 PNG、JPEG 或 WebP。"
+  },
   "fileDrop": {
     "dialogOpen": "请先完成已打开的对话框，然后再拖放文件。",
     "imageNotHere": "将 {{name}} 拖放到折痕图上，即可添加为参考图片。",

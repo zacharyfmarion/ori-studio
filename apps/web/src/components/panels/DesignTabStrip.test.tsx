@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -322,6 +324,52 @@ describe('drag reorder', () => {
     pointer(window, 'pointermove', 10);
 
     expect(store().designTabs.map((tab) => tab.id)).toEqual(afterDrag);
+  });
+});
+
+/**
+ * A tab that only responds where its label is.
+ *
+ * The trigger was sized to its content inside a 32px tab, so the strips above
+ * and below the text — and the gap beside the close button — hit the wrapper
+ * instead and did nothing. jsdom does no layout, so a rendered click cannot
+ * catch this; what is checkable is the rule the hit area depends on: **the
+ * element carrying `role="tab"` fills its wrapper, and nothing else in the tab
+ * takes flow space away from it except the close button.**
+ */
+describe('the tab hit area', () => {
+  const here = dirname(new URL(import.meta.url).pathname);
+  const themeCss = readFileSync(join(here, '../../styles/theme.css'), 'utf8').replace(
+    /\/\*[\s\S]*?\*\//g,
+    ''
+  );
+
+  /** The declaration block of the rule whose selector is exactly `selector`. */
+  function declarations(selector: string): string {
+    const rule = /([^{}]+)\{([^{}]*)\}/g;
+    let match: RegExpExecArray | null;
+    while ((match = rule.exec(themeCss)) !== null) {
+      if (match[1].trim() === selector) return match[2];
+    }
+    throw new Error(`no rule for ${selector}`);
+  }
+
+  it('stretches the trigger over the whole tab', () => {
+    const trigger = declarations('.design-tab__trigger');
+
+    // Vertically: the tab is taller than a 12px line of text.
+    expect(trigger).toMatch(/align-self:\s*stretch/);
+    // Horizontally: any width the wrapper has and the trigger does not want.
+    expect(trigger).toMatch(/flex:\s*1\b/);
+  });
+
+  it('floats the close button over the trigger instead of beside it', () => {
+    // As a flex sibling the close was an 18px box in a 32px tab, carving dead
+    // strips directly above and below itself. Out of flow, the trigger runs the
+    // full height underneath it and only the button itself is not the tab.
+    expect(declarations('.design-tab__close')).toMatch(/position:\s*absolute/);
+    // Which only lands inside the tab if the tab is its containing block.
+    expect(declarations('.design-tab')).toMatch(/position:\s*relative/);
   });
 });
 

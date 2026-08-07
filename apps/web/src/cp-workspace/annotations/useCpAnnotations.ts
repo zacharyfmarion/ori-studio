@@ -9,9 +9,9 @@ import type { TransformableCanvasObject } from '../canvasObjects/transformableOb
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import { createCpImage } from '../images/cpImage';
 import type { BoxCorners } from '../tools/viewAlignedBox';
-import { importImageFile, isSupportedImageFile } from '../images/cpImageImport';
+import { importImageFile } from '../images/cpImageImport';
 import { cropImage, fitImageModelSize } from '../images/cpImagePlacement';
-import { dragCarriesFiles } from '../../lib/fileDrop';
+import { classifyDroppedFile, dragCarriesFiles } from '../../lib/fileDrop';
 import {
   overlayCssPerModel,
   overlayCssToModel,
@@ -200,6 +200,19 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
         recordAnnotationHistory([...images], t('panels:creasePattern.addImage', 'Add image'));
       } catch (error) {
         console.error('[cp-image] failed to import image', error);
+        // A decode failure used to stop at the console, so picking a file the
+        // browser cannot read looked like the button doing nothing at all.
+        useWorkspaceStore.setState({
+          error: {
+            code: 'invalid_operation',
+            message: t(
+              'errors:creasePattern.imageNotDecodable',
+              'Ori Studio could not read {{name}} as an image. Try a PNG, JPEG, or WebP.',
+              { name: file.name }
+            ),
+          },
+          projectMessage: null,
+        });
       }
     },
     [addAnnotation, recordAnnotationHistory, overlayView, viewportRef, t]
@@ -219,7 +232,14 @@ export function useCpAnnotations({ overlayView, viewportRef }: UseCpAnnotationsO
 
   const handleViewportDrop = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
-      const file = Array.from(event.dataTransfer.files).find(isSupportedImageFile);
+      // Shares the classifier with the workspace drop target rather than testing
+      // the MIME type here. The two must agree on what an image is: when they did
+      // not, a `.ori` (which macOS labels Olympus raw) was claimed here as an
+      // image and stopped from bubbling, so it reached neither handler's file
+      // path and only surfaced as a decode error in the console.
+      const file = Array.from(event.dataTransfer.files).find(
+        (candidate) => classifyDroppedFile(candidate).kind === 'image'
+      );
       // Anything that is not an image bubbles up to the workspace drop target,
       // which opens or imports it.
       if (!file) return;

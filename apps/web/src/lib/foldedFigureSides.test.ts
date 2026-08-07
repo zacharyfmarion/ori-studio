@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CREASE_EXPORT_FOLDED_FIGURE } from './creaseExport';
-import { FOLDED_FIGURE_SIDES, isFoldedFigureSide } from './foldedFigureSides';
+import {
+  FOLDED_FIGURE_SIDES,
+  NEW_FOLDED_FIGURE_SIDE,
+  isFoldedFigureSide,
+} from './foldedFigureSides';
 
 describe('folded figure sides', () => {
   it('offers front and back only', () => {
@@ -19,5 +23,9 @@ describe('folded figure sides', () => {
 
   it('defaults an export to a side the pickers can show', () => {
     expect(isFoldedFigureSide(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.side)).toBe(true);
+  });
+
+  it('starts a new figure on the front, matching upstream FoldedFigure.ip4', () => {
+    expect(NEW_FOLDED_FIGURE_SIDE).toBe('Front0');
   });
 });
