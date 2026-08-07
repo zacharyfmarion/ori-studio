@@ -24,6 +24,7 @@ import type {
   OristudioBpSheetKind,
   OristudioBpSourceRef,
   OristudioBpWasmHistoryNavigationProject,
+  OristudioBpWasmLayoutSnapshot,
   OristudioBpWasmOpenedProject,
 } from '../../engine/oristudioBpTypes';
 import type { Point } from '../../lib/geometry';
@@ -765,11 +766,11 @@ async function buildProjectState(
     project?: OristudioBpStateFromRawInput['project'];
   }
 ): Promise<OristudioBpDocumentState> {
-  const [project, summary, treeData, layoutSnapshot, packingValidation] = await Promise.all([
+  const [project, summary, treeData, layout, packingValidation] = await Promise.all([
     input.project ? Promise.resolve(input.project) : api.snapshot(input.handle),
     api.summary(input.handle).catch(() => null),
     api.treeData(input.handle).catch(() => null),
-    api.layoutSnapshot(input.handle).catch(() => null),
+    layoutSnapshotOrError(api, input.handle),
     api.packingValidation(input.handle).catch(() => null),
   ]);
   return oristudioBpProjectStateFromRaw({
@@ -777,9 +778,30 @@ async function buildProjectState(
     project,
     summary,
     treeData,
-    layoutSnapshot,
+    layoutSnapshot: layout.snapshot,
+    layoutError: layout.error,
     packingValidation,
   });
+}
+
+/**
+ * The layout snapshot, or why there isn't one.
+ *
+ * A failure here stays non-fatal: the tree, the flaps and the sheet are all
+ * still valid and editable, and moving the offending flap back onto legal ground
+ * is exactly how a user recovers. What must not survive is the silence — this
+ * used to be `.catch(() => null)`, which made a kernel refusal indistinguishable
+ * from a design that simply has no layout yet, and drew it as an empty canvas.
+ */
+async function layoutSnapshotOrError(
+  api: OristudioBpClient,
+  handle: number
+): Promise<{ snapshot: OristudioBpWasmLayoutSnapshot | null; error: string | null }> {
+  try {
+    return { snapshot: await api.layoutSnapshot(handle), error: null };
+  } catch (error) {
+    return { snapshot: null, error: oristudioBpError(error).message };
+  }
 }
 
 async function buildOpenedProjectState(
@@ -788,12 +810,14 @@ async function buildOpenedProjectState(
   source: OristudioBpSourceRef,
   options: Pick<OristudioBpStateFromRawInput, 'dirty' | 'activeSurface'>
 ): Promise<OristudioBpDocumentState> {
+  const layout = await layoutSnapshotOrError(api, opened.handle);
   return oristudioBpProjectStateFromRaw({
     handle: opened.handle,
     project: opened.project,
     summary: opened.summary,
     treeData: await api.treeData(opened.handle).catch(() => null),
-    layoutSnapshot: await api.layoutSnapshot(opened.handle).catch(() => null),
+    layoutSnapshot: layout.snapshot,
+    layoutError: layout.error,
     packingValidation: await api.packingValidation(opened.handle).catch(() => null),
     source,
     ...options,

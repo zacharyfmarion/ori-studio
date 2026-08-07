@@ -437,6 +437,118 @@ describe('constrainBpFlapGroupToAxisSides', () => {
 });
 
 /**
+ * The clamp has to stop a flap somewhere the grid actually has.
+ *
+ * A zero-extent flap — every unit leaf's — may not rest *on* the mirror, so the
+ * clamp has to leave a gap. It used to leave half a grid interval unconditionally,
+ * which is a real position only when the sheet centre falls between two grid
+ * lines. On an even sheet, whose centre falls *on* one, it parked the flap at
+ * x = 8.5; the BP kernel then rejected the fractional junction overlap and the
+ * pane lost every crease, river, gadget and conflict region at once.
+ */
+describe('constrainBpFlapGroupToAxisSides keeps flaps on the grid', () => {
+  const paired = (ids: number[]) => new Set(ids);
+
+  it('stops a paired point flap on the grid, not half a cell off it', () => {
+    // The regression: dragging f3 at x = 9 onto the mirror at x = 8. Every one of
+    // these used to land on 8.5.
+    for (const targetX of [8, 7, 5, 0]) {
+      const landed = constrainBpFlapGroupToAxisSides({
+        moving: [flap(3, 9, 11)],
+        target: { x: targetX, y: 11 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([3]),
+      });
+      expect(landed).toEqual({ x: 9, y: 11 });
+    }
+  });
+
+  it('gives up whole cells until the flap is clear', () => {
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap(3, 12, 11)],
+        target: { x: 4, y: 11 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([3]),
+      })
+      // 9 is the closest grid position still strictly off the mirror at x = 8.
+    ).toEqual({ x: 9, y: 11 });
+  });
+
+  it('holds a left-half point flap symmetrically', () => {
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap(4, 4, 11)],
+        target: { x: 12, y: 11 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([4]),
+      })
+    ).toEqual({ x: 7, y: 11 });
+  });
+
+  it('still stops half a cell out when the sheet centre falls between grid lines', () => {
+    // A 15-wide sheet has its mirror at x = 7.5, so x = 8 *is* on the grid and
+    // is half a cell from the axis. Rounding up to a full cell here would
+    // over-constrain the odd sheets the old constant happened to get right.
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap(3, 9, 11)],
+        target: { x: 3, y: 11 },
+        sheet: sheet('rectangular', 15, 15),
+        fold: 'book',
+        pairedIds: paired([3]),
+      })
+    ).toEqual({ x: 8, y: 11 });
+  });
+
+  it('lands a point flap on the lattice against a diagonal mirror too', () => {
+    const landed = constrainBpFlapGroupToAxisSides({
+      moving: [flap(1, 12, 2)],
+      target: { x: 2, y: 12 },
+      sheet: sheet(),
+      fold: 'diagonal',
+      pairedIds: paired([1]),
+    });
+    expect(Number.isInteger(landed.x)).toBe(true);
+    expect(Number.isInteger(landed.y)).toBe(true);
+    // A normal-only correction cannot reach the 1/√2 lattice points — those need
+    // a step along the axis too — so the closest it can stop is the (1, -1) hop
+    // at √2. Under-shooting the mirror is the safe direction to be wrong in.
+    const span = bpFlapAxisSpan(landed, { width: 0, height: 0 }, CENTER, 'mainDiagonal');
+    expect(span.min).toBeCloseTo(Math.SQRT2, 9);
+  });
+
+  it('moves a group of point flaps by whole cells', () => {
+    const landed = constrainBpFlapGroupToAxisSides({
+      moving: [flap(1, 12, 4), flap(2, 10, 8)],
+      target: { x: 6, y: 4 },
+      sheet: sheet(),
+      fold: 'book',
+      pairedIds: paired([1, 2]),
+    });
+    // Flap 2 is nearer the mirror and may give up 1 cell, so the reference does too.
+    expect(landed).toEqual({ x: 11, y: 4 });
+  });
+
+  it('still lets a box with extent rest its near edge on the mirror', () => {
+    // Unchanged behaviour, kept explicit: the strict/non-strict split is the only
+    // difference between the two cases, and this is the non-strict side of it.
+    expect(
+      constrainBpFlapGroupToAxisSides({
+        moving: [flap(1, 10, 4, 3, 2)],
+        target: { x: 6, y: 4 },
+        sheet: sheet(),
+        fold: 'book',
+        pairedIds: paired([1]),
+      })
+    ).toEqual({ x: 8, y: 4 });
+  });
+});
+
+/**
  * A paired flap may touch the mirror but never lie on it.
  *
  * A unit leaf's flap is 0×0, so for it "near edge on the line" and "the whole
@@ -460,21 +572,23 @@ describe('constrainBpFlapGroupToAxisSides — a paired flap may not sit on the m
   });
 
   it('holds a point flap a grid step off it', () => {
-    // At 8 it would be its own reflection. The grid interval is 1, so the
-    // nearest position that is not is 8.5 — and the pane's rounding takes that
-    // to 9, the neighbouring cell.
-    expect(stop(0, 0, 12)).toBe(8.5);
+    // At 8 it would be its own reflection, so it stops at 9 — the nearest
+    // position the grid has that is not on the line. Nothing downstream rounds
+    // this, which is why it has to be a grid position when it leaves here: a
+    // fractional anchor makes the junction overlap fractional, and the kernel
+    // then refuses the whole layout rather than just this flap.
+    expect(stop(0, 0, 12)).toBe(9);
   });
 
   it('applies to a flap with no extent across the axis but plenty along it', () => {
     // A vertical mirror measures width, not height: a 0×4 flap is a segment
     // lying along the line, still exactly on top of its own reflection.
-    expect(stop(0, 4, 12)).toBe(8.5);
+    expect(stop(0, 4, 12)).toBe(9);
   });
 
   it('pushes a point flap that is already on the line off it', () => {
     // Reachable from a file, or from before this rule existed. The first drag
     // asserts the constraint rather than leaving it stranded there.
-    expect(stop(0, 0, 8)).toBe(8.5);
+    expect(stop(0, 0, 8)).toBe(9);
   });
 });

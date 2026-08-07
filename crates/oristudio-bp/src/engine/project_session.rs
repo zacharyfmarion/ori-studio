@@ -1692,9 +1692,19 @@ fn shifted_points(points: &[Point], shift: Option<Point>) -> Vec<Point> {
         .collect()
 }
 
+/// The uniform scale a sheet transform applies, which is what decides whether the
+/// tree lengths and flap radii scale with it.
+///
+/// Upstream snaps this to an integer (`Layout.$transform`), and that is exact for
+/// every transform Box Pleating Studio performs: rotate and flip are 1, subdivide
+/// is 2. Un-subdivide is ours, and its scale is ½ — an integer snap reports 1, so
+/// the sheet halves while the tree stays at double length.
+///
+/// Snapping to the nearest half instead is the same answer for all three upstream
+/// cases and correct for ours.
 fn matrix_scale(matrix: TransformationMatrix) -> f64 {
     let [a, b, c, d, _, _] = matrix;
-    ((a.hypot(c) + b.hypot(d)) / 2.0).round()
+    (((a.hypot(c) + b.hypot(d)) / 2.0) * 2.0).round() / 2.0
 }
 
 fn transform_flap(flap: &Flap, matrix: TransformationMatrix) -> Flap {

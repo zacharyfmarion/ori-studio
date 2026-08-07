@@ -1,6 +1,8 @@
 {
   "bp": {
-    "optimizeLayout": "レイアウトの最適化…"
+    "optimizeLayout": "レイアウトの最適化…",
+    "subdivide": "グリッドを細分化",
+    "unsubdivide": "グリッドの細分化を解除"
   },
   "cp": {
     "advanceCreaseType": "折り線の種類を進める",

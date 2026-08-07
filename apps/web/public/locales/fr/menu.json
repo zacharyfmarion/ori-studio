@@ -1,6 +1,8 @@
 {
   "bp": {
-    "optimizeLayout": "Optimiser la disposition…"
+    "optimizeLayout": "Optimiser la disposition…",
+    "subdivide": "Subdiviser la grille",
+    "unsubdivide": "Annuler la subdivision"
   },
   "cp": {
     "advanceCreaseType": "Avancer le type de pli",

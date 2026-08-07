@@ -69,6 +69,40 @@ function flapsFitSheet(sheet: OristudioBpSheet, flaps: OristudioBpFlap[], size: 
 }
 
 /**
+ * Whether Box Pleating Studio's `subdivide` would take — it doubles the sheet
+ * and scales the whole design with it, so the only limit is the size ceiling
+ * (`BpGrid::can_subdivide`).
+ */
+export function bpCanSubdivideSheet(sheet: OristudioBpSheet): boolean {
+  return sheet.width * 2 <= BP_MAX_SHEET_SIZE && sheet.height * 2 <= BP_MAX_SHEET_SIZE;
+}
+
+/**
+ * Whether `unsubdivide` would take: the dimensions have to halve cleanly and
+ * stay at or above the minimum, *and* every flap dot has to land back on a
+ * whole grid line — otherwise the coarser grid could not represent the design
+ * exactly, and the engine silently declines (`unsubdivide_sheet`).
+ */
+export function bpCanUnsubdivideSheet(
+  sheet: OristudioBpSheet,
+  flaps: OristudioBpFlap[]
+): boolean {
+  const min = minSheetSize(sheet);
+  const halves = (value: number) => value % 2 === 0 && value / 2 >= min;
+  if (sheet.kind === 'diagonal') {
+    if (!halves(sheet.width)) return false;
+  } else if (!halves(sheet.width) || !halves(sheet.height)) {
+    return false;
+  }
+  // Halving is a scale about the sheet's resize centre, which is the origin for
+  // a rectangular grid — so a dot lands on the grid exactly when both of its
+  // coordinates were even.
+  return flaps
+    .flatMap(flapDots)
+    .every((dot) => Number.isInteger(dot.x / 2) && Number.isInteger(dot.y / 2));
+}
+
+/**
  * The sheet size one grid unit larger (`grow`) or smaller, or `null` when the
  * engine would refuse it: either dimension leaving the size bounds, or the
  * flaps no longer fitting the smaller sheet.

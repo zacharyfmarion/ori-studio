@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   OristudioBpArcPath,
+  OristudioBpFlap,
   OristudioBpPackingView,
   OristudioBpSheet,
   OristudioBpSheetKind,
@@ -9,6 +10,7 @@ import {
   bpArcPathThickness,
   bpArcPathToSvgPath,
   bpPackingCanResizeFlap,
+  bpPackingCoveragePath,
   bpPackingFlapClearanceRect,
   bpPackingGridLines,
   bpPackingPaperRect,
@@ -17,7 +19,9 @@ import {
   bpPackingSheetContains,
   bpPackingSheetFrame,
   bpPackingSvgToPoint,
+  constrainBpPackingFlapGroupTarget,
   getBpPackingWorldRect,
+  snapBpPackingAnchorToGrid,
 } from './bpPackingViewport';
 
 function sheet(kind: OristudioBpSheetKind, width: number, height = width): OristudioBpSheet {
@@ -383,5 +387,148 @@ describe('getBpPackingWorldRect', () => {
     expect(getBpPackingWorldRect(cornerPacking())).toEqual(
       getBpPackingWorldRect(cornerPacking(), { cropToSheet: false })
     );
+  });
+});
+
+/**
+ * A flap anchor is a grid position. Drags and nudges translate by whole cells,
+ * so an on-grid flap stays on-grid on its own — but a design saved off-grid (as
+ * the mirror clamp used to produce) has no way back, because the drag carries
+ * the fraction along with it forever. This is that way back.
+ */
+describe('snapBpPackingAnchorToGrid', () => {
+  it('leaves an on-grid anchor exactly alone', () => {
+    const anchor = { x: 11, y: 4 };
+    expect(snapBpPackingAnchorToGrid(anchor, sheet('rectangular', 16))).toEqual(anchor);
+  });
+
+  it('rounds a fractional anchor onto the grid', () => {
+    expect(snapBpPackingAnchorToGrid({ x: 11.5, y: 4.25 }, sheet('rectangular', 16))).toEqual({
+      x: 12,
+      y: 4,
+    });
+  });
+
+  it('leaves the anchor alone when the sheet has no grid to land on', () => {
+    const degenerate = { ...sheet('rectangular', 16), grid: { kind: 'rectangular' as const, interval: 0, snap: true } };
+    expect(snapBpPackingAnchorToGrid({ x: 11.5, y: 4 }, degenerate)).toEqual({ x: 11.5, y: 4 });
+  });
+});
+
+describe('constrainBpPackingFlapGroupTarget grid alignment', () => {
+  const flap = (id: number, x: number, y: number, width = 0, height = 0): OristudioBpFlap => ({
+    id,
+    vertexId: id,
+    name: `f${id}`,
+    anchor: { x, y },
+    width,
+    height,
+    radius: 1,
+    constrained: true,
+  });
+
+  it('brings a lone off-grid flap back onto the grid', () => {
+    // The saved-file case: f3 stuck on 11.5 by the old mirror clamp. Dragging it
+    // one cell left asks for 10.5, and it lands on 11 instead of staying broken.
+    const off = flap(3, 11.5, 11);
+    const { loc } = constrainBpPackingFlapGroupTarget(
+      [off],
+      off,
+      { x: 10.5, y: 11 },
+      sheet('rectangular', 16)
+    );
+    expect(loc).toEqual({ x: 11, y: 11 });
+  });
+
+  it('does not disturb an on-grid drag', () => {
+    const on = flap(3, 11, 11);
+    const { loc, vector } = constrainBpPackingFlapGroupTarget(
+      [on],
+      on,
+      { x: 9, y: 11 },
+      sheet('rectangular', 16)
+    );
+    expect(loc).toEqual({ x: 9, y: 11 });
+    expect(vector).toEqual({ x: -2, y: 0 });
+  });
+
+  it('moves a group rigidly rather than re-aligning its reference', () => {
+    // One vector moves every member, so a correction that puts the reference on
+    // the grid takes an on-grid partner off it. The group keeps its shape.
+    const reference = flap(3, 11.5, 11);
+    const { loc } = constrainBpPackingFlapGroupTarget(
+      [reference, flap(5, 4, 4)],
+      reference,
+      { x: 10.5, y: 11 },
+      sheet('rectangular', 16)
+    );
+    expect(loc).toEqual({ x: 10.5, y: 11 });
+  });
+});
+
+describe('bpPackingCoveragePath', () => {
+  const rect = sheet('rectangular', 10);
+
+  it('closes the outer ring and every hole as its own subpath', () => {
+    const d = bpPackingCoveragePath(
+      {
+        id: 'r1,2:contour:0',
+        outer: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+          { x: 0, y: 10 },
+        ],
+        holes: [
+          [
+            { x: 3, y: 3 },
+            { x: 7, y: 3 },
+            { x: 7, y: 7 },
+            { x: 3, y: 7 },
+          ],
+        ],
+      },
+      rect
+    );
+
+    expect(d.match(/M/g)).toHaveLength(2);
+    expect(d.match(/Z/g)).toHaveLength(2);
+    expect(d.endsWith('Z')).toBe(true);
+  });
+
+  it('maps a ring through the same transform as the rest of the canvas', () => {
+    const paper = bpPackingPaperRect(rect);
+    const corner = bpPackingPointToSvg({ x: 0, y: 0 }, rect, paper);
+    const d = bpPackingCoveragePath(
+      {
+        id: 'f1:contour:0',
+        outer: [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+          { x: 4, y: 4 },
+        ],
+        holes: [],
+      },
+      rect,
+      paper
+    );
+
+    expect(d.startsWith(`M${corner.x},${corner.y}`)).toBe(true);
+  });
+
+  it('drops rings that enclose no area', () => {
+    expect(
+      bpPackingCoveragePath(
+        {
+          id: 'f1:contour:0',
+          outer: [
+            { x: 0, y: 0 },
+            { x: 4, y: 0 },
+          ],
+          holes: [],
+        },
+        rect
+      )
+    ).toBe('');
   });
 });

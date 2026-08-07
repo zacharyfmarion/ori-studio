@@ -105,6 +105,7 @@ export const ANALYTICS_EVENTS = {
   designTabActivated: 'design tab activated',
   bpDesignAction: 'bp design action',
   bpOptimizerRun: 'bp optimizer run',
+  bpPatternNotFound: 'bp pattern not found',
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
   cpDetectImported: 'cp detect imported',
@@ -156,6 +157,15 @@ export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;
  * element ladder would put every realistic workspace in the same bucket.
  */
 export const DESIGN_TAB_COUNT_BUCKETS = [1, 2, 3, 5, 10] as const;
+
+/**
+ * Threshold ladder for how many stretches in one packing found no pattern.
+ *
+ * Tighter than {@link COUNT_BUCKETS} for the same reason as the design-tab
+ * ladder: the interesting question is "one isolated overlap, or a design that is
+ * broadly unsupported", and the element ladder puts both in `<=5`.
+ */
+export const BP_PATTERNLESS_STRETCH_BUCKETS = [1, 2, 4, 8] as const;
 
 /** Default threshold ladder for durations, in milliseconds. */
 /**

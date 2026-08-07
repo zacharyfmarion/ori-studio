@@ -1,6 +1,8 @@
 {
   "bp": {
-    "optimizeLayout": "레이아웃 최적화…"
+    "optimizeLayout": "레이아웃 최적화…",
+    "subdivide": "격자 세분화",
+    "unsubdivide": "격자 세분화 해제"
   },
   "cp": {
     "advanceCreaseType": "접힘선 종류 다음으로",

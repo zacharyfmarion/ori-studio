@@ -638,6 +638,48 @@ fn project_session_transforms_layout_sheet_and_scales_edge_lengths() {
 }
 
 #[test]
+fn project_session_unsubdivide_undoes_subdivide_exactly() {
+    // Un-subdivide is ours — Box Pleating Studio only has subdivide — so its ½
+    // scale is the one case upstream's integer snap never sees. Snapped to 1, the
+    // sheet and flaps halve while the tree stays at double length, which reads in
+    // the editor as every flap suddenly conflicting.
+    let mut project = sample_project();
+    project.design.layout.flaps = vec![Flap {
+        id: 1,
+        x: 2.0,
+        y: 2.0,
+        width: 2.0,
+        height: 2.0,
+    }];
+    let mut session = BpProjectSession::new(project).unwrap();
+    let sheet = session.project().design.layout.sheet.clone();
+    let flaps = session.project().design.layout.flaps.clone();
+    let lengths = |session: &BpProjectSession| {
+        session
+            .project()
+            .design
+            .tree
+            .edges
+            .iter()
+            .map(|edge| edge.length)
+            .collect::<Vec<_>>()
+    };
+    let edges = lengths(&session);
+
+    session.subdivide_layout_sheet().unwrap();
+    assert_ne!(session.project().design.layout.sheet, sheet);
+    assert_eq!(
+        lengths(&session),
+        edges.iter().map(|length| length * 2.0).collect::<Vec<_>>()
+    );
+
+    session.unsubdivide_layout_sheet().unwrap();
+    assert_eq!(session.project().design.layout.sheet, sheet);
+    assert_eq!(session.project().design.layout.flaps, flaps);
+    assert_eq!(lengths(&session), edges);
+}
+
+#[test]
 fn project_session_updates_layout_sheet_with_checked_anchor_shifts() {
     let mut project = sample_project();
     // Both tree leaves (1 and 2) must have flaps for a valid design. Leaf 1 is
@@ -722,6 +764,62 @@ fn project_graphics_snapshot_exports_node_graphics_and_invalid_junctions() {
     assert_eq!(snapshot.invalid_junctions.len(), 1);
     assert_eq!(snapshot.invalid_junctions[0].flap_ids, [1, 2]);
     assert!(!snapshot.invalid_junctions[0].polygon.is_empty());
+}
+
+const PATTERNLESS_STRETCH_SAMPLE: &str =
+    include_str!("../../../tests/fixtures/bp-studio/patternless-stretch.sample.json");
+
+#[test]
+fn project_graphics_snapshot_names_the_stretches_that_found_no_pattern() {
+    let project: Project = serde_json::from_str(PATTERNLESS_STRETCH_SAMPLE).unwrap();
+    // The fixture persists no stretches at all — a patternless stretch is never
+    // written back (upstream `patternTask` removes it), so the snapshot has to
+    // report the stretch set the tree implies rather than the persisted one.
+    assert!(project.design.layout.stretches.is_empty());
+
+    let snapshot = project_graphics_snapshot(&project).unwrap();
+
+    assert_eq!(snapshot.stretches.len(), 8);
+    assert!(snapshot.pattern_not_found);
+    let patternless = snapshot
+        .stretches
+        .iter()
+        .filter(|stretch| !stretch.pattern_found)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        patternless
+            .iter()
+            .map(|stretch| stretch.id.as_str())
+            .collect::<Vec<_>>(),
+        ["10,12,14,22", "11,13,15,22"]
+    );
+    // Both fail before a configuration is even found, which is the distinction
+    // the UI needs in order to give different advice.
+    assert!(
+        patternless
+            .iter()
+            .all(|stretch| stretch.configuration_count == 0)
+    );
+    assert_eq!(patternless[0].flap_ids, [10, 12, 14, 22]);
+    assert_eq!(patternless[1].flap_ids, [11, 13, 15, 22]);
+    assert!(
+        patternless
+            .iter()
+            .all(|stretch| !stretch.regions.is_empty())
+    );
+    // Every snapshot id must be exactly its flap list, so a consumer can rely on
+    // one or the other without them drifting apart.
+    for stretch in &snapshot.stretches {
+        assert_eq!(stretch.id, layout_stretch_id_for(&stretch.flap_ids));
+    }
+}
+
+fn layout_stretch_id_for(flaps: &[u32]) -> String {
+    flaps
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 #[test]

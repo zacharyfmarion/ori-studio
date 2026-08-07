@@ -13,6 +13,8 @@ function createDeps() {
   return {
     workspace: {
       createNewProject: vi.fn().mockResolvedValue(undefined),
+      subdivideOristudioBpLayoutSheet: vi.fn().mockResolvedValue(true),
+      unsubdivideOristudioBpLayoutSheet: vi.fn().mockResolvedValue(true),
       loadExampleProject: vi.fn().mockResolvedValue(undefined),
       openProject: vi.fn().mockResolvedValue(true),
       importAddCreasePattern: vi.fn().mockResolvedValue(true),
@@ -696,6 +698,8 @@ describe('menu actions', () => {
         hasBoxPleatDocument: false,
         boxPleatTreeEdgeCount: 0,
         boxPleatBusy: false,
+        boxPleatCanSubdivide: true,
+        boxPleatCanUnsubdivide: false,
         hasSimulationModel: true,
         oristudioCpSelectedLineCount: 0,
         oristudioCpSelectedPointCount: 0,

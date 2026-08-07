@@ -96,6 +96,7 @@ describe('oristudioBpProjectStateFromRaw', () => {
           polygon: [[{ x: 2, y: 2 }, { x: 2.5, y: 2 }, { x: 2.5, y: 2.5 }]],
         },
       ],
+      stretches: [],
       patternNotFound: true,
     } satisfies OristudioBpWasmLayoutSnapshot;
     const packingValidation = {
@@ -144,46 +145,226 @@ describe('oristudioBpProjectStateFromRaw', () => {
     );
   });
 
-  it('attaches pattern-not-found diagnostics to the failed stretch when available', () => {
+  it('takes the stretch set from the engine, not from the persisted layout', () => {
+    // The project persists nothing: a stretch is only written back when its
+    // config/pattern selection deviates from the default, and one with no
+    // pattern is never written back at all.
+    expect(rawProject.design.layout.stretches).toEqual([]);
+
     const state = oristudioBpProjectStateFromRaw({
       handle: 42,
-      project: {
-        ...rawProject,
-        design: {
-          ...rawProject.design,
-          layout: {
-            ...rawProject.design.layout,
-            stretches: [
-              {
-                id: '2,3',
-                repo: {
-                  index: 0,
-                  configurations: [{ partitions: [], patterns: [], index: 0 }],
-                },
-              },
-            ],
+      project: rawProject,
+      layoutSnapshot: {
+        nodeGraphics: [],
+        deviceGraphics: [
+          {
+            id: 's2,3.0',
+            data: {
+              contours: [],
+              ridges: [],
+              location: { x: 4.5, y: 4.5 },
+              range: [-2, 2],
+              forward: true,
+            },
           },
-        },
+        ],
+        invalidJunctions: [],
+        stretches: [
+          {
+            id: '2,3',
+            flapIds: [2, 3],
+            configurationIndex: 0,
+            configurationCount: 1,
+            patternIndex: 0,
+            patternCount: 2,
+            patternFound: true,
+            regions: [{ x: 1, y: 1, width: 2, height: 2 }],
+          },
+        ],
+        patternNotFound: false,
       },
+      source: { format: 'generated', filename: 'Mapper test.bps', path: null },
+    });
+
+    expect(state.snapshot.packing.stretches).toEqual([
+      {
+        id: '2,3',
+        flapIds: [2, 3],
+        riverIds: [],
+        completed: true,
+        configIndex: 0,
+        configCount: 1,
+        patternIndex: 0,
+        patternCount: 2,
+        patternFound: true,
+        regions: [{ x: 1, y: 1, width: 2, height: 2 }],
+      },
+    ]);
+    expect(state.snapshot.packing.devices).toEqual([
+      {
+        id: '2,3:device:0',
+        stretchId: '2,3',
+        position: { x: 4.5, y: 4.5 },
+        range: [
+          { x: 2.5, y: 2.5 },
+          { x: 6.5, y: 6.5 },
+        ],
+        rangeScalar: [-2, 2],
+        forward: true,
+      },
+    ]);
+    expect(state.snapshot.summary.stretches).toBe(1);
+  });
+
+  it('carries node contours through as the paper flaps and rivers take up', () => {
+    const state = oristudioBpProjectStateFromRaw({
+      handle: 42,
+      project: rawProject,
+      layoutSnapshot: {
+        nodeGraphics: [
+          {
+            id: 'f2',
+            data: {
+              contours: [{ outer: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }] }],
+              ridges: [],
+            },
+          },
+          {
+            id: 'r1,2',
+            data: {
+              contours: [
+                {
+                  outer: [{ x: 3, y: 3 }, { x: 8, y: 3 }, { x: 8, y: 8 }, { x: 3, y: 8 }],
+                  inner: [
+                    [{ x: 4, y: 4 }, { x: 7, y: 4 }, { x: 7, y: 7 }, { x: 4, y: 7 }],
+                    // A degenerate ring encloses no paper, so it cuts nothing.
+                    [{ x: 5, y: 5 }, { x: 6, y: 5 }],
+                  ],
+                },
+              ],
+              ridges: [],
+            },
+          },
+        ],
+        deviceGraphics: [],
+        invalidJunctions: [],
+        stretches: [],
+        patternNotFound: false,
+      },
+      source: { format: 'generated', filename: 'Mapper test.bps', path: null },
+    });
+
+    expect(state.snapshot.packing.coverage).toEqual([
+      {
+        id: 'f2:contour:0',
+        outer: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }],
+        holes: [],
+      },
+      {
+        id: 'r1,2:contour:0',
+        outer: [{ x: 3, y: 3 }, { x: 8, y: 3 }, { x: 8, y: 8 }, { x: 3, y: 8 }],
+        holes: [[{ x: 4, y: 4 }, { x: 7, y: 4 }, { x: 7, y: 7 }, { x: 4, y: 7 }]],
+      },
+    ]);
+  });
+
+  it('reports no coverage when there is no layout to read it from', () => {
+    const state = oristudioBpProjectStateFromRaw({
+      handle: 42,
+      project: rawProject,
+      source: { format: 'generated', filename: 'Mapper test.bps', path: null },
+    });
+
+    expect(state.snapshot.packing.coverage).toEqual([]);
+  });
+
+  it('attaches pattern-not-found diagnostics to each failed stretch', () => {
+    const state = oristudioBpProjectStateFromRaw({
+      handle: 42,
+      project: rawProject,
       layoutSnapshot: {
         nodeGraphics: [],
         deviceGraphics: [],
         invalidJunctions: [],
+        stretches: [
+          {
+            id: '2,3',
+            flapIds: [2, 3],
+            configurationIndex: 0,
+            configurationCount: 1,
+            patternIndex: 0,
+            patternCount: 1,
+            patternFound: true,
+            regions: [],
+          },
+          {
+            id: '2,3,4',
+            flapIds: [2, 3, 4],
+            configurationIndex: 0,
+            configurationCount: 0,
+            patternIndex: 0,
+            patternCount: 0,
+            patternFound: false,
+            regions: [{ x: 0, y: 0, width: 1, height: 1 }],
+          },
+        ],
         patternNotFound: true,
       },
       source: { format: 'generated', filename: 'Mapper test.bps', path: null },
     });
 
-    expect(state.snapshot.packing.stretches[0]).toMatchObject({
-      id: '2,3',
-      patternFound: false,
-    });
     expect(state.snapshot.diagnostics).toEqual([
       expect.objectContaining({
-        id: 'bp-pattern-not-found:2,3',
+        id: 'bp-pattern-not-found:2,3,4',
         kind: 'pattern-not-found',
-        selection: { kind: 'bp-stretch', id: '2,3' },
+        selection: { kind: 'bp-stretch', id: '2,3,4' },
       }),
     ]);
+  });
+});
+
+/**
+ * A refused layout and a design that simply has no layout yet both arrive here
+ * as `layoutSnapshot: null`, and both draw as a canvas with no creases, no
+ * rivers, no gadgets and no conflict regions. Only one of them is healthy, and
+ * telling them apart is the whole point of `layoutError`: without it, a flap the
+ * kernel could not place read as "the BP editor lost its UI".
+ */
+describe('oristudioBpProjectStateFromRaw — a layout the kernel refused', () => {
+  const withLayoutError = (layoutError: string | null) =>
+    oristudioBpProjectStateFromRaw({
+      handle: 7,
+      project: rawProject,
+      layoutSnapshot: null,
+      layoutError,
+      source: { format: 'generated', filename: 'Mapper test.bps', path: null },
+    });
+
+  it('reports the reason the kernel gave as an error diagnostic', () => {
+    const state = withLayoutError('overlap ox must be integral for BP GOPS generation');
+    const diagnostic = state.snapshot.diagnostics.find(
+      (candidate) => candidate.kind === 'layout-graphics-error'
+    );
+    expect(diagnostic).toMatchObject({
+      id: 'bp-layout-graphics-error',
+      severity: 'error',
+    });
+    expect(diagnostic?.message).toContain('overlap ox must be integral');
+  });
+
+  it('marks the packing stale, so it does not read as current', () => {
+    expect(withLayoutError('boom').snapshot.stale.reasons).toContain(
+      'Layout graphics could not be computed for the current packing'
+    );
+  });
+
+  it('says nothing when the layout is merely absent', () => {
+    const state = withLayoutError(null);
+    expect(
+      state.snapshot.diagnostics.some((candidate) => candidate.kind === 'layout-graphics-error')
+    ).toBe(false);
+    expect(state.snapshot.stale.reasons).not.toContain(
+      'Layout graphics could not be computed for the current packing'
+    );
   });
 });

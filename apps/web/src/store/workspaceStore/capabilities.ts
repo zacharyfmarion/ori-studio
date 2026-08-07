@@ -1,3 +1,4 @@
+import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
 import {
   activeDesignTab,
   selectOristudioBpDocument,
@@ -92,6 +93,8 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     hasBoxPleatDocument: selectOristudioBpDocument(state) !== null,
     boxPleatTreeEdgeCount: selectOristudioBpDocument(state)?.snapshot?.tree?.edges?.length ?? 0,
     boxPleatBusy: state.oristudioBpBusy,
+    boxPleatCanSubdivide: bpSheetCanSubdivide(selectOristudioBpDocument(state)),
+    boxPleatCanUnsubdivide: bpSheetCanUnsubdivide(selectOristudioBpDocument(state)),
     hasSimulationModel: state.foldArtifacts?.simulation_model != null,
     oristudioCpSelectedLineCount: state.oristudioCpSelection.lines.length,
     oristudioCpSelectedPointCount: state.oristudioCpSelection.points.length,

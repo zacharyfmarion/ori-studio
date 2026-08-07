@@ -1,3 +1,4 @@
+import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
 import { selectOristudioBpDocument, selectProject, selectSelection } from './designTabs';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +23,12 @@ export function useWorkspaceCapabilities() {
     (state) => selectOristudioBpDocument(state)?.snapshot?.tree?.edges?.length ?? 0
   );
   const boxPleatBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
+  const boxPleatCanSubdivide = useWorkspaceStore((state) =>
+    bpSheetCanSubdivide(selectOristudioBpDocument(state))
+  );
+  const boxPleatCanUnsubdivide = useWorkspaceStore((state) =>
+    bpSheetCanUnsubdivide(selectOristudioBpDocument(state))
+  );
   const hasSimulationModel = useWorkspaceStore((state) => state.foldArtifacts?.simulation_model != null);
   const oristudioCpSelectedLineCount = useWorkspaceStore(
     (state) => state.oristudioCpSelection.lines.length
@@ -79,6 +86,8 @@ export function useWorkspaceCapabilities() {
           hasBoxPleatDocument,
           boxPleatTreeEdgeCount,
           boxPleatBusy,
+          boxPleatCanSubdivide,
+          boxPleatCanUnsubdivide,
           hasSimulationModel,
           oristudioCpSelectedLineCount,
           oristudioCpSelectedPointCount,
@@ -104,6 +113,8 @@ export function useWorkspaceCapabilities() {
       hasBoxPleatDocument,
       boxPleatTreeEdgeCount,
       boxPleatBusy,
+      boxPleatCanSubdivide,
+      boxPleatCanUnsubdivide,
       hasSimulationModel,
       oristudioCpSelectedCircleCount,
       oristudioCpSelectedLineCount,

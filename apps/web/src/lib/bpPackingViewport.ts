@@ -1,5 +1,6 @@
 import type {
   OristudioBpArcPoint,
+  OristudioBpCoverageRegion,
   OristudioBpFlap,
   OristudioBpGraphicPrimitive,
   OristudioBpPackingView,
@@ -309,6 +310,35 @@ function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
 
+/**
+ * One flap-or-river region as an SVG path `d` in screen space: the outer ring
+ * followed by each hole, every subpath closed.
+ *
+ * Meant to be filled with `fill-rule: evenodd`, which is exact for a single
+ * region because a node's own rings are disjoint and properly nested — an
+ * island sitting inside a hole is enclosed by three rings, so it fills again.
+ * Even-odd across *different* regions is not exact and must not be used: an
+ * invalid packing overlaps them, and the overlap would cancel.
+ */
+export function bpPackingCoveragePath(
+  region: OristudioBpCoverageRegion,
+  sheet: OristudioBpSheet,
+  rect = bpPackingPaperRect(sheet)
+): string {
+  return [region.outer, ...region.holes]
+    .filter((ring) => ring.length > 2)
+    .map((ring) =>
+      ring
+        .map((point, index) => {
+          const { x, y } = bpPackingPointToSvg(point, sheet, rect);
+          return `${index === 0 ? 'M' : 'L'}${round(x)},${round(y)}`;
+        })
+        .join('')
+    )
+    .map((subpath) => `${subpath}Z`)
+    .join('');
+}
+
 export function bpPackingRectToSvg(
   rect: { x: number; y: number; width: number; height: number },
   sheet: OristudioBpSheet,
@@ -346,15 +376,38 @@ export function constrainBpPackingFlapTarget(
   };
 }
 
+/**
+ * Round an anchor onto the sheet's grid.
+ *
+ * A flap anchor is a grid position. The BP kernel requires it: an off-grid flap
+ * makes its junction overlap fractional, which fails device generation for the
+ * *whole* design rather than just that flap. Drags and nudges already translate
+ * by whole cells, so an on-grid flap stays on-grid without help — this exists to
+ * bring one back that started off it.
+ */
+export function snapBpPackingAnchorToGrid(anchor: Point, sheet: OristudioBpSheet): Point {
+  const interval = Math.max(sheet.grid.interval, 0);
+  if (interval <= 0) return anchor;
+  return {
+    x: Math.round(anchor.x / interval) * interval,
+    y: Math.round(anchor.y / interval) * interval,
+  };
+}
+
 export function constrainBpPackingFlapGroupTarget(
   flaps: OristudioBpFlap[],
   reference: OristudioBpFlap,
   target: Point,
   sheet: OristudioBpSheet
 ): { loc: Point; vector: Point } {
+  // A group translates rigidly — one vector moves every member — so a correction
+  // that puts the reference back on the grid takes every other member off it.
+  // A lone flap has no such tie, which makes it the one place a design saved
+  // off-grid can come back onto it.
+  const wanted = flaps.length > 1 ? target : snapBpPackingAnchorToGrid(target, sheet);
   const vector = {
-    x: target.x - reference.anchor.x,
-    y: target.y - reference.anchor.y,
+    x: wanted.x - reference.anchor.x,
+    y: wanted.y - reference.anchor.y,
   };
   const fix = flaps.reduce(
     (current, flap) =>

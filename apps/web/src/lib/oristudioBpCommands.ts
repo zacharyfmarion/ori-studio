@@ -580,15 +580,15 @@ export const ORISTUDIO_BP_COMMANDS = [
     phase: 5,
     selectionRequirement: 'BP river',
   },
-  // Ported and reachable through the engine, but no longer surfaced: the sheet
-  // toolbar's +/- buttons step the grid size by one unit instead of doubling and
-  // halving the design (see `bp.layout.growSheet` / `bp.layout.shrinkSheet`).
+  // Doubling and halving the whole design, in the Design menu. Distinct from the
+  // sheet toolbar's +/- buttons, which step the grid size by one unit and rescale
+  // nothing (see `bp.layout.growSheet` / `bp.layout.shrinkSheet`).
   {
     id: 'bp.layout.subdivide',
     capability: 'bp.layout.subdivide',
     label: 'Subdivide BP Sheet',
     group: 'layout',
-    placement: 'hidden-ui-only',
+    placement: 'menu',
     upstream: 'src/client/project/components/sheet.ts:subdivide',
     status: 'ready',
     disabledReason: 'Switch to the BP Editor before subdividing the sheet',
@@ -600,7 +600,7 @@ export const ORISTUDIO_BP_COMMANDS = [
     capability: 'bp.layout.unsubdivide',
     label: 'Un-subdivide BP Sheet',
     group: 'layout',
-    placement: 'hidden-ui-only',
+    placement: 'menu',
     upstream: 'src/client/project/components/sheet.ts:subdivide',
     status: 'ready',
     disabledReason: 'Switch to the BP Editor before un-subdividing the sheet',

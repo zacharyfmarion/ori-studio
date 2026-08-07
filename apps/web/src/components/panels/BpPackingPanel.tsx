@@ -18,8 +18,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
-  ChevronLeft,
-  ChevronRight,
+  Blend,
   Circle,
   CircleDot,
   Grid2X2,
@@ -28,6 +27,7 @@ import {
   Route,
   Ruler,
   SquareDashed,
+  SquareDashedBottom,
   Tag,
   TriangleAlert,
   Unlink,
@@ -42,7 +42,6 @@ import type {
   OristudioBpSelection,
   OristudioBpSheet,
   OristudioBpSheetKind,
-  OristudioBpStretch,
 } from '../../engine/oristudioBpTypes';
 import {
   bpFlapSelection,
@@ -70,8 +69,10 @@ import {
   constrainBpPackingFlapGroupTarget,
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
+import { useBpPatternNotFoundEvent } from '../../analytics';
 import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
-import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
+import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
+import { bpDefaultFlapLabel, bpFlapLabel, bpFlapLabelList } from '../../lib/bpFlapLabel';
 import { leafLocationAt } from '../../tree-editor/dragRule';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { useBpPackingDragRequests } from '../../hooks/useBpPackingDragRequests';
@@ -79,6 +80,7 @@ import {
   useBpPackingSymmetry,
   type BpPackingSymmetryView,
 } from '../../hooks/useBpPackingSymmetry';
+import { BpPackingStretchNav } from './BpPackingStretchNav';
 import { BpPackingSymmetryMenu } from './BpPackingSymmetryMenu';
 import { type Point } from '../../lib/geometry';
 import {
@@ -97,6 +99,7 @@ import {
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
+import { BpPackingEmptySpaceLayer } from './BpPackingEmptySpaceLayer';
 import { BpFlapEditor } from './BpFlapEditor';
 import {
   isViewportInteractiveTarget,
@@ -174,6 +177,8 @@ const BP_PACKING_NUDGE_VECTORS: Record<BpPackingNudgeDirection, Point> = {
 
 const BP_DPAD_INITIAL_REPEAT_MS = 750;
 const BP_DPAD_REPEAT_MS = 150;
+/** Alerts shown before the stack collapses into a "+N more" row. */
+const BP_PACKING_ALERT_LIMIT = 3;
 
 const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
   { key: 'grid', icon: <Grid2X2 size={13} /> },
@@ -184,7 +189,9 @@ const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
   { key: 'ridges', icon: <Waypoints size={13} /> },
   { key: 'axisParallels', icon: <Waypoints size={13} /> },
   { key: 'conflicts', icon: <TriangleAlert size={13} /> },
+  { key: 'patternless', icon: <SquareDashedBottom size={13} /> },
   { key: 'labels', icon: <Tag size={13} /> },
+  { key: 'emptySpace', icon: <Blend size={13} /> },
   { key: 'outsidePaper', icon: <SquareDashed size={13} /> },
 ];
 
@@ -207,8 +214,12 @@ function bpPackingLayerLabel(t: TFunction, key: BpPackingViewLayerKey): string {
       return t('panels:bpPacking.layerAxis', 'Axis');
     case 'conflicts':
       return t('panels:bpPacking.layerConflicts', 'Conflicts');
+    case 'patternless':
+      return t('panels:bpPacking.layerPatternless', 'No pattern');
     case 'labels':
       return t('panels:bpPacking.layerLabels', 'Labels');
+    case 'emptySpace':
+      return t('panels:bpPacking.layerEmptySpace', 'Empty space');
     case 'outsidePaper':
       return t('panels:bpPacking.layerOutsidePaper', 'Outside paper');
     default:
@@ -479,92 +490,6 @@ function BpPackingViewportToolbar({
   );
 }
 
-function StretchStepper({
-  label,
-  index,
-  count,
-  onStep,
-}: {
-  label: string;
-  index: number;
-  count: number;
-  onStep: (delta: number) => void;
-}) {
-  const { t } = useTranslation();
-  const disabled = count <= 1;
-  return (
-    <div className="bp-packing-stretch-nav__stepper">
-      <span className="bp-packing-stretch-nav__label">{label}</span>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={t('panels:bpPacking.previousStepper', 'Previous {{label}}', { label: label.toLowerCase() })}
-        disabled={disabled}
-        onClick={() => onStep(-1)}
-      >
-        <ChevronLeft size={14} />
-      </IconButton>
-      <span className="bp-packing-stretch-nav__count">
-        {count > 0 ? `${index + 1}/${count}` : '—'}
-      </span>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={t('panels:bpPacking.nextStepper', 'Next {{label}}', { label: label.toLowerCase() })}
-        disabled={disabled}
-        onClick={() => onStep(1)}
-      >
-        <ChevronRight size={14} />
-      </IconButton>
-    </div>
-  );
-}
-
-/**
- * Contextual control for cycling a stretch's GOPS configuration and pattern —
- * the "pick a valid crease pattern by hand" navigation. Mirrors BP Studio's
- * Stretch.switchConfig/switchPattern (±1 with wraparound).
- */
-function BpPackingStretchNav({
-  stretch,
-  onSwitchConfig,
-  onSwitchPattern,
-}: {
-  stretch: OristudioBpStretch;
-  onSwitchConfig: (delta: number) => void;
-  onSwitchPattern: (delta: number) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div
-      className="bp-packing-stretch-nav"
-      role="group"
-      aria-label={t('panels:bpPacking.stretchNav', 'Stretch {{id}} pattern navigation', { id: stretch.id })}
-    >
-      <span className="bp-packing-stretch-nav__title">
-        {t('panels:bpPacking.stretch', 'Stretch {{id}}', { id: stretch.id })}
-      </span>
-      <StretchStepper
-        label={t('panels:bpPacking.config', 'Config')}
-        index={stretch.configIndex ?? 0}
-        count={stretch.configCount ?? 0}
-        onStep={onSwitchConfig}
-      />
-      <StretchStepper
-        label={t('panels:bpPacking.pattern', 'Pattern')}
-        index={stretch.patternIndex ?? 0}
-        count={stretch.patternCount ?? 0}
-        onStep={onSwitchPattern}
-      />
-      {stretch.patternFound === false && (
-        <span className="bp-packing-stretch-nav__warning">
-          {t('panels:bpPacking.noValidPattern', 'No valid pattern')}
-        </span>
-      )}
-    </div>
-  );
-}
-
 function BpPackingDPad({
   enabled,
   onNudge,
@@ -723,9 +648,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   const switchOristudioBpStretchPattern = useWorkspaceStore(
     (state) => state.switchOristudioBpStretchPattern
   );
-  const completeOristudioBpStretch = useWorkspaceStore(
-    (state) => state.completeOristudioBpStretch
-  );
   const setOristudioBpLayoutSheet = useWorkspaceStore(
     (state) => state.setOristudioBpLayoutSheet
   );
@@ -736,26 +658,14 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
   // The stretch whose device/pattern is currently selected. Selecting a device
   // links its stretch (bpLinkedSelection.addDevice -> addStretch), so a single
-  // linked stretch drives the config/pattern navigation controls.
+  // linked stretch drives the config/pattern navigation controls. The snapshot
+  // carries the config/pattern counts for every derived stretch, so no
+  // completion round-trip is needed before the controls work.
   const activeStretch = useMemo(() => {
     const ids = [...linkedSelection.stretches];
     if (ids.length !== 1) return null;
     return packing.stretches.find((stretch) => stretch.id === ids[0]) ?? null;
   }, [linkedSelection, packing.stretches]);
-  // BP Studio computes a stretch's configurations/patterns lazily, on selection
-  // (Stretch.$complete). Our snapshot leaves patternCount null until then, so
-  // complete the selected stretch once to populate its config/pattern counts and
-  // enable the navigation controls. The ref guards against re-completing (and any
-  // resulting effect loop) when completion yields no pattern.
-  const completedStretchesRef = useRef<Set<string>>(new Set());
-  const activeStretchId = activeStretch?.id ?? null;
-  const activeStretchPatternCount = activeStretch?.patternCount ?? null;
-  useEffect(() => {
-    if (activeStretchId === null || activeStretchPatternCount !== null) return;
-    if (completedStretchesRef.current.has(activeStretchId)) return;
-    completedStretchesRef.current.add(activeStretchId);
-    void completeOristudioBpStretch(activeStretchId);
-  }, [activeStretchId, activeStretchPatternCount, completeOristudioBpStretch]);
   // Render the engine's actual recompute, not a partial optimistic overlay.
   // Each drag step drives the engine (dragging=true) and the returned snapshot
   // re-renders, so flaps, creases, junctions, and stretches always move together
@@ -902,6 +812,12 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       // The stroke is in screen pixels, so it has to be recomputed as you zoom.
       zoomPercent,
     ]
+  );
+  useBpPatternNotFoundEvent(packing.stretches);
+  const patternlessVisuals = useMemo(
+    () =>
+      bpPatternlessStretchVisuals(packing, packing.sheet, paperRect, linkedSelection.stretches),
+    [linkedSelection.stretches, packing, paperRect]
   );
   const sheetClipId = useId();
   /**
@@ -1453,6 +1369,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 height={paperRect.height}
               />
             )}
+            {/* Under the grid and every crease: shading the paper is a property
+                of the paper, not another thing drawn on it. */}
+            {layers.emptySpace && (
+              <BpPackingEmptySpaceLayer
+                coverage={displayPacking.coverage}
+                sheet={packing.sheet}
+                paperRect={paperRect}
+              />
+            )}
             {layers.grid && (
               <g className="bp-packing-grid" aria-hidden="true">
                 {gridLines.map((line) => (
@@ -1569,6 +1494,46 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                         key={`${visual.junction.id}:${index}`}
                         className="bp-packing-conflict-hit"
                         d={path.d}
+                      />
+                    ))}
+                  </g>
+                ))}
+              </g>
+            )}
+            {layers.patternless && patternlessVisuals.length > 0 && (
+              // Outlines only, under the flaps: the geometry the user has to
+              // move must stay readable through the marking.
+              <g className="bp-packing-patternless" clipPath={sheetClipPath} aria-hidden="true">
+                {patternlessVisuals.map((visual) => (
+                  <g
+                    key={visual.id}
+                    className={
+                      visual.active
+                        ? 'bp-packing-patternless-group bp-packing-patternless--selected'
+                        : 'bp-packing-patternless-group'
+                    }
+                  >
+                    {visual.active &&
+                      visual.regions.map((region, index) => (
+                        <rect
+                          key={`${visual.id}:region:${index}`}
+                          className="bp-packing-patternless-region"
+                          x={region.x}
+                          y={region.y}
+                          width={region.width}
+                          height={region.height}
+                        />
+                      ))}
+                    {visual.flaps.map((flap, index) => (
+                      <rect
+                        key={`${visual.id}:flap:${index}`}
+                        className="bp-packing-patternless-flap"
+                        x={flap.x}
+                        y={flap.y}
+                        width={flap.width}
+                        height={flap.height}
+                        rx={flap.radius}
+                        ry={flap.radius}
                       />
                     ))}
                   </g>
@@ -1824,6 +1789,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       {activeStretch && (
         <BpPackingStretchNav
           stretch={activeStretch}
+          flaps={packing.flaps}
           onSwitchConfig={(delta) => void switchOristudioBpStretchConfig(activeStretch.id, delta)}
           onSwitchPattern={(delta) => void switchOristudioBpStretchPattern(activeStretch.id, delta)}
         />
@@ -1847,15 +1813,17 @@ function BpPackingAlerts({
 }) {
   const { t } = useTranslation();
   if (diagnostics.length === 0) return null;
+  const shown = diagnostics.slice(0, BP_PACKING_ALERT_LIMIT);
+  const hidden = diagnostics.length - shown.length;
   return (
     <div className="bp-packing-alerts" aria-label={t('panels:bpPacking.warnings', 'Box Pleat packing warnings')}>
-      {diagnostics.slice(0, 3).map((diagnostic) => {
+      {shown.map((diagnostic) => {
         const content = (
           <>
             <TriangleAlert size={14} />
             <span>
               <strong>{bpPackingAlertLabel(diagnostic, t)}</strong>
-              <small>{diagnostic.message}</small>
+              <small>{bpPackingAlertMessage(diagnostic, t)}</small>
             </span>
           </>
         );
@@ -1880,6 +1848,17 @@ function BpPackingAlerts({
           </div>
         );
       })}
+      {hidden > 0 && (
+        // Never truncate silently: a capped list otherwise reads as "that's all
+        // of them".
+        <div className="bp-packing-alert bp-packing-alert--more" role="status">
+          {hidden === 1
+            ? t('panels:bpPacking.moreWarningsOne', '{{count}} more warning', { count: hidden })
+            : t('panels:bpPacking.moreWarningsOther', '{{count}} more warnings', {
+                count: hidden,
+              })}
+        </div>
+      )}
     </div>
   );
 }
@@ -2120,15 +2099,41 @@ function bpPackingAlertDiagnostics(
   return diagnostics.filter(
     (diagnostic) =>
       diagnostic.kind === 'pattern-not-found' ||
+      diagnostic.kind === 'layout-graphics-error' ||
       diagnostic.kind === 'unsupported' ||
       diagnostic.kind === 'upstream-gap'
   );
 }
 
 function bpPackingAlertLabel(diagnostic: OristudioBpDiagnostic, t: TFunction): string {
+  if (diagnostic.detail?.kind === 'patternless-stretch') {
+    // Name the flaps in the headline. "Pattern not found" on its own left the
+    // user with nothing to look for on the canvas.
+    return t('panels:bpPacking.patternNotFoundFor', 'No crease pattern for {{flaps}}', {
+      flaps: bpFlapLabelList(diagnostic.detail.flapLabels, t),
+    });
+  }
   if (diagnostic.kind === 'pattern-not-found') return t('panels:bpPacking.patternNotFound', 'Pattern not found');
   if (diagnostic.kind === 'upstream-gap') return t('panels:bpPacking.upstreamGap', 'Upstream gap');
+  if (diagnostic.kind === 'layout-graphics-error') {
+    return t('panels:bpPacking.layoutGraphicsError', 'Layout could not be drawn');
+  }
   return t('panels:bpPacking.unsupportedOperation', 'Unsupported BP operation');
+}
+
+function bpPackingAlertMessage(diagnostic: OristudioBpDiagnostic, t: TFunction): string {
+  if (diagnostic.detail?.kind !== 'patternless-stretch') return diagnostic.message;
+  // The overlap itself is legal in both cases; what differs is how far the
+  // search got, and therefore whether cycling configurations is worth trying.
+  return diagnostic.detail.hasConfiguration
+    ? t(
+        'panels:bpPacking.patternNotFoundWithConfig',
+        'These flaps overlap in a way Ori Studio can lay out but not crease. Try another configuration, move one flap away from the others, or enlarge the sheet.'
+      )
+    : t(
+        'panels:bpPacking.patternNotFoundNoConfig',
+        'These flaps overlap in a way Ori Studio cannot crease yet. Move one of them away from the others, or enlarge the sheet.'
+      );
 }
 
 function constrainBpPackingDeviceTarget(

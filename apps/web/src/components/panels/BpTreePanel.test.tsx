@@ -160,6 +160,7 @@ function bpDocument(): OristudioBpDocumentState {
         sheet,
         flaps: [],
         rivers: [],
+        coverage: [],
         invalidJunctions: [],
         stretches: [],
         devices: [],
