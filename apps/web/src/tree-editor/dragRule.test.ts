@@ -586,3 +586,78 @@ describe('treeDragUpdates — an already-illegal start is escapable', () => {
     if (moved) expect(moved.x).toBeGreaterThanOrEqual(CLEARANCE - 1e-9);
   });
 });
+
+/**
+ * Sliding a pinned node against the edge of the drawing area.
+ *
+ * The pinned path used to validate exactly the radius the cursor asked for and
+ * give up if it failed, reasoning that a slide has no "partway". It has: a slide
+ * is one-dimensional *along the line*, so every shorter radius is still on the
+ * line and still admissible. And because both frames clamp the cursor to their
+ * bounds, a drag toward the edge produces that rejected radius every time — so a
+ * node with anything hanging below it snapped back to where it started instead
+ * of stopping where its subtree met the edge.
+ */
+describe('treeDragUpdates — a pinned slide stops at the edge rather than reverting', () => {
+  const axis = { loc: { x: 0, y: 0 }, angle: 90 };
+  /** Everything must stay within y <= 8, as a sheet or a world rect would say. */
+  const bounds = (point: Point) => point.y <= 8 + 1e-9;
+
+  function slide(target: Point, length: TreeDragLengthRule) {
+    return treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices: new Map<number, Point>([
+        [0, { x: 0, y: 0 }],
+        [1, { x: 0, y: 5 }],
+        // A child hanging above the dragged node: this is what meets the ceiling.
+        [2, { x: 0, y: 6 }],
+      ]),
+      subtreeIds: [1, 2],
+      start: { x: 0, y: 5 },
+      target,
+      length,
+      pinToAxis: axis,
+      bounds,
+    });
+  }
+
+  const continuous: TreeDragLengthRule = {
+    current: 5,
+    min: 0.1,
+    max: null,
+    step: null,
+    quantize: (distance) => distance,
+  };
+  const snapped: TreeDragLengthRule = {
+    current: 5,
+    min: 1,
+    max: null,
+    step: 1,
+    quantize: (distance) => Math.round(distance),
+  };
+
+  it('moves as far as the bound allows instead of reverting', () => {
+    // Asking for y = 7.5 would put the child at 8.5, past the ceiling.
+    const { updates } = slide({ x: 0, y: 7.5 }, continuous);
+    const moved = updates.get(1);
+    expect(moved).toBeDefined();
+    expect(moved!.x).toBeCloseTo(0, 12);
+    // It advanced from 5 and stopped at the wall, rather than snapping back.
+    expect(moved!.y).toBeGreaterThan(5);
+    expect(updates.get(2)!.y).toBeLessThanOrEqual(8 + 1e-9);
+  });
+
+  it('steps back to the last whole length that fits', () => {
+    const { updates, length } = slide({ x: 0, y: 7.6 }, snapped);
+    expect(updates.size).toBeGreaterThan(0);
+    expect(Number.isInteger(length)).toBe(true);
+    expect(updates.get(2)!.y).toBeLessThanOrEqual(8 + 1e-9);
+    expect(updates.get(1)!.x).toBeCloseTo(0, 12);
+  });
+
+  it('still slides freely when nothing is in the way', () => {
+    const { updates } = slide({ x: 0, y: 6.5 }, continuous);
+    expect(updates.get(1)!.y).toBeCloseTo(6.5, 12);
+  });
+});

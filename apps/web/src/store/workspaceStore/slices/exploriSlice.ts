@@ -98,8 +98,15 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
    */
   const restoredDetailIndex = (
     results: readonly ExploriResult[],
-    selected: ExploriResult | null
+    selected: ExploriResult | null,
+    current: number | null
   ): number | null => {
+    // A closed detail stays closed. `detailIndex` does not travel through the
+    // history, and "a result is chosen but the drill-down is shut" is a state two
+    // controls deliberately produce — Back, and a card's quick-send. Deriving the
+    // index from `selected` alone forced the drill-down back open over the grid
+    // the user was looking at.
+    if (current === null) return null;
     if (!selected) return null;
     const key = exploriTilingLabel(selected);
     const index = results.findIndex((result) => exploriTilingLabel(result) === key);
@@ -114,15 +121,21 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
     if (!held) return false;
     const next = change(held.document);
     if (!next) return false;
+    const before = serializeExploriDocument(held.document);
+    const after = serializeExploriDocument(next);
     replaceExploriDocument(held.handle, next);
     const design = selectExploriDesign(get(), designId);
     if (!design) return false;
+    // An edit that changed nothing records nothing. Pressing Back re-selects the
+    // result already selected, which is a no-op document write — and pushing a
+    // history entry for it meant the next Cmd+Z restored a byte-identical
+    // document, so the first undo appeared to do nothing and the edit the user
+    // meant to reach was one step further away.
+    if (before === after) return true;
     set({
       ...patchExploriDesign(get(), designId, {
         document: next,
-        historyPast: [...design.historyPast, serializeExploriDocument(held.document)].slice(
-          -HISTORY_LIMIT
-        ),
+        historyPast: [...design.historyPast, before].slice(-HISTORY_LIMIT),
         historyFuture: [],
       }),
       // Every ExplOri mutation passes through here, and none of them used to
@@ -158,7 +171,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
         // history does not carry — so restoring a document without re-deriving
         // the index left the pane showing one result while `document.selected`
         // named another, and Send to Edit imported the one you could not see.
-        detailIndex: restoredDetailIndex(design.results, restored.selected),
+        detailIndex: restoredDetailIndex(design.results, restored.selected, design.detailIndex),
         historyPast:
           direction === 'undo' ? design.historyPast.slice(0, -1) : [...design.historyPast, current],
         historyFuture:

@@ -488,8 +488,14 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     dismissSelectionRef.current = dismissSelection;
   }, [dismissSelection]);
 
+  // The drawn selection, not the singular one: `vertexId`/`edgeId` are null for
+  // a shift-click multi-select, so keying on them let Escape decline while two
+  // nodes sat visibly selected, with no keyboard way to clear them.
   const selectionIsEmpty =
-    host.selection.vertexId === null && host.selection.edgeId === null;
+    host.selection.vertexId === null &&
+    host.selection.edgeId === null &&
+    host.selection.vertices.size === 0 &&
+    host.selection.edges.size === 0;
   useEffect(() => {
     hasDismissableSelection.current = () => !selectionIsEmpty;
   }, [selectionIsEmpty]);

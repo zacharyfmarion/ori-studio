@@ -2,7 +2,7 @@ import { selectOristudioBpDocument, selectProject, selectSelection } from './des
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
-import { designKindForContext } from '../../designKinds';
+import { designKind, designKindForContext } from '../../designKinds';
 import { activeDesignTab } from './designTabs';
 import { historyCountForContext } from './capabilities';
 import { useWorkspaceStore } from './store';
@@ -40,10 +40,10 @@ export function useWorkspaceCapabilities() {
     const kind = designKindForContext(state.activeEditingContext);
     return kind?.deletableTarget?.(activeDesignTab(state)) != null;
   });
-  const canSaveDesign = useWorkspaceStore((state) => {
-    const kind = designKindForContext(state.activeEditingContext);
-    return kind?.isSavable(activeDesignTab(state)) ?? false;
-  });
+  // Every tab, not the focused one — a save writes the whole workspace.
+  const canSaveDesign = useWorkspaceStore((state) =>
+    state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false)
+  );
   // Subscribed to the tab itself, which is what carries every design kind's
   // undo stack. An edit replaces the tab object, so this re-renders — the
   // per-kind history subscriptions this replaced were only ever reading the

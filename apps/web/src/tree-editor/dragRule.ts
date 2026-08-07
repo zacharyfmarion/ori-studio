@@ -324,20 +324,42 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
   const startsLegal = isValid(at(0, 0));
   const admissible = (moved: Map<number, Point>) => isValid(moved, startsLegal);
 
-  // Pinned to the mirror: one admissible state, not a sweep. Every intermediate
-  // step of a sweep is off the line, so there is no "partway" here to fall back
-  // to — either the slide lands somewhere the gesture may put it, or the vertex
-  // stays where it is.
+  // Pinned to the mirror: a slide, swept like any other gesture.
+  //
+  // It used to validate the single radius the cursor asked for and give up if
+  // that failed, on the reasoning that a slide has no "partway". That was wrong,
+  // and wrong in the direction that hurts: a slide is one-dimensional *along the
+  // line*, so every shorter radius is a partway and is still on the line. And
+  // because both frames clamp the cursor to their bounds, a drag toward the edge
+  // of the canvas lands there every time — so a node with anything hanging below
+  // it snapped back to where it started rather than stopping at the edge.
   if (input.pinToAxis) {
-    const pinned = axisPinnedTip(pivot, target, input.pinToAxis, length);
+    const axis = input.pinToAxis;
+    const pinned = axisPinnedTip(pivot, target, axis, length);
     if (!pinned) return EMPTY_RESULT(length.current);
-    const pinnedAngle = normalizeSignedAngle(
-      Math.atan2(pinned.tip.y - pivot.y, pinned.tip.x - pivot.x) - startAngle
-    );
-    const moved = at(pinnedAngle, pinned.radius - startRadius);
-    return admissible(moved)
-      ? { updates: moved, length: pinned.radius }
-      : EMPTY_RESULT(length.current);
+
+    const slideTo = (radius: number) => {
+      const tip = axisPointAtRadius(pivot, pinned.tip, axis, radius);
+      if (!tip) return null;
+      const angle = normalizeSignedAngle(
+        Math.atan2(tip.y - pivot.y, tip.x - pivot.x) - startAngle
+      );
+      return at(angle, radius - startRadius);
+    };
+    const admissibleAt = (radius: number) => {
+      const moved = slideTo(radius);
+      return moved !== null && admissible(moved) ? moved : null;
+    };
+
+    // Sweep the radius rather than the angle, so every step stays on the line.
+    const span = pinned.radius - startRadius;
+    const reachedT = largestValidT((step) => admissibleAt(startRadius + span * step) !== null);
+    const reachedRadius = startRadius + span * reachedT;
+    for (const candidate of lengthCandidates(pinned.radius, reachedRadius, length)) {
+      const moved = admissibleAt(candidate);
+      if (moved) return { updates: moved, length: candidate };
+    }
+    return EMPTY_RESULT(length.current);
   }
 
   const t = largestValidT((step) => admissible(at(requestedAngle * step, requestedExtension * step)));
@@ -373,6 +395,32 @@ function clampToRule(value: number, rule: TreeDragLengthRule): number {
  * lower than the pivot's own distance from it. There is no nearby answer to give
  * there, and inventing one would move the vertex off the mirror.
  */
+/**
+ * The point on `axis` at `radius` from `pivot`, on the same side as `toward`.
+ *
+ * The slide's parametrization: {@link axisPinnedTip} picks the radius the cursor
+ * asked for, and this walks back along the line when that one is out of bounds.
+ * Null when the circle of that radius does not reach the line at all.
+ */
+function axisPointAtRadius(
+  pivot: Point,
+  toward: Point,
+  axis: SymmetryAxis,
+  radius: number
+): Point | null {
+  const foot = projectOntoSymmetryAxis(pivot, axis);
+  const offset = Math.hypot(foot.x - pivot.x, foot.y - pivot.y);
+  if (radius < offset - 1e-12) return null;
+  const along = Math.sqrt(Math.max(0, radius * radius - offset * offset));
+  const direction = axisDirection(axis);
+  const side =
+    (toward.x - foot.x) * direction.x + (toward.y - foot.y) * direction.y >= 0 ? 1 : -1;
+  return {
+    x: foot.x + side * along * direction.x,
+    y: foot.y + side * along * direction.y,
+  };
+}
+
 export function axisPinnedTip(
   pivot: Point,
   target: Point,

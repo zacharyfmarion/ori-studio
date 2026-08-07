@@ -12,6 +12,7 @@ import {
 } from '../../lib/workspaceCapabilities';
 import i18n from '../../i18n';
 import {
+  designKind,
   designKindForContext,
   designKindRegistry,
   type DesignKindDescriptor,
@@ -42,6 +43,22 @@ export function historyCountForContext(
   const kind = kinds ? designKindRegistry(kinds).forContext(context) : designKindForContext(context);
   if (!kind) return 0;
   return kind.history(tab)[which];
+}
+
+/**
+ * Whether the workspace holds anything worth writing to a file.
+ *
+ * Asked of *every* tab, not of the focused one. A save writes the whole
+ * workspace — `saveActiveProject` keys off `designTabs.some(tab => tab.kind !==
+ * null)` and its own comment says a lone untouched chooser is the only thing
+ * that is not a design. Asking only the active tab meant clicking "+" for a
+ * second design, or waiting on the box-pleat worker, made everything already
+ * authored unsavable for as long as that tab was focused; and a context no kind
+ * owns at all — the simulator — disabled Save permanently, with a reason about
+ * the crease-pattern kernel that had nothing to do with it.
+ */
+function anyDesignIsSavable(state: WorkspaceState): boolean {
+  return state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false);
 }
 
 export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabilityInput {
@@ -81,7 +98,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     oristudioCpSelectedCircleCount: state.oristudioCpSelection.circles.length,
     hasDeletableDesignSelection:
       activeKind?.deletableTarget?.(activeDesignTab(state)) != null,
-    canSaveDesign: activeKind?.isSavable(activeDesignTab(state)) ?? false,
+    canSaveDesign: anyDesignIsSavable(state),
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,

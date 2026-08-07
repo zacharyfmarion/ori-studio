@@ -126,6 +126,12 @@ export function useExploriTreeHost(): TreeEditorHost {
       },
       unpair: (nodeId) => void unpairNode(nodeId),
       dragMirror: (movedIds) => {
+        // Gated on the toggle, like `isOnAxis` above and like the preview and
+        // the commit. Pairings deliberately outlive the toggle, so without this
+        // a node paired while mirror draw was on stayed walled off from the
+        // centre after it was turned off — and turning it off is precisely how
+        // you break a symmetry you no longer want.
+        if (!document.symmetry.enabled) return null;
         const heldIds = exploriMirrorHeldIds(document, movedIds);
         return heldIds.size === 0
           ? null

@@ -120,3 +120,35 @@ describe('ExplOri — the design can be saved', () => {
     expect(capabilities['file.save'].reason).not.toMatch(/crease-pattern kernel/i);
   });
 });
+
+/**
+ * Guards that refused legitimate work.
+ *
+ * A hardening pass added a batch of predicates, and several of them were
+ * calibrated against a mental model of the UI rather than against what the code
+ * actually produces. These are the cases they wrongly turned away.
+ */
+describe('ExplOri — guards that must not over-refuse', () => {
+  it('keeps Save available while a second, empty design tab is focused', () => {
+    // Clicking "+" opens a chooser tab that owns no kind. Asking only the
+    // *focused* tab made every design already authored unsavable — while
+    // `saveActiveProject` would have written them all quite happily.
+    const authored = exploriTab();
+    const chooser = { ...authored, id: 'chooser', kind: null } as unknown as DesignTab;
+    const state = { ...stateWith(authored), designTabs: [authored, chooser] } as WorkspaceState;
+    const capabilities = getWorkspaceCapabilities(workspaceCapabilityInput(state));
+    expect(capabilities['file.save'].enabled).toBe(true);
+  });
+
+  it('keeps Save available from a context no design kind owns', () => {
+    // The simulator, for one. The capability mask deliberately leaves file
+    // operations visible there, and the predicate greyed them anyway.
+    const state = {
+      ...stateWith(exploriTab()),
+      activeEditingContext: 'simulate',
+    } as unknown as WorkspaceState;
+    expect(getWorkspaceCapabilities(workspaceCapabilityInput(state))['file.save'].enabled).toBe(
+      true
+    );
+  });
+});
