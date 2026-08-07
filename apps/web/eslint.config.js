@@ -158,7 +158,13 @@ const OVERSIZED_PANELS = {
   // `lib/bpFlapLabel` where flap labelling already lives. It went out because
   // hiding a stepper that has nothing to step through is a rule about that
   // control, not about this panel.
-  'BpPackingPanel.tsx': 1996,
+  //
+  // 1996 -> 2000: the `layout-graphics-error` diagnostic from the flap-grid fix
+  // (#218), meeting this branch in the merge. Four lines: one arm in the alert
+  // predicate and one case in its label switch. Routing a new diagnostic kind to
+  // the alert list it already renders is composition, not behavior — the kind is
+  // raised in `oristudioBpSnapshotMapper`, which is where the judgement lives.
+  'BpPackingPanel.tsx': 2000,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

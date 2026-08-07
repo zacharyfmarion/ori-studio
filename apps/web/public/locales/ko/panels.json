@@ -39,6 +39,7 @@
     "layerRidges": "능선",
     "layerRivers": "리버",
     "layers": "레이어",
+    "layoutGraphicsError": "레이아웃을 그릴 수 없음",
     "mirrorDraw": "대칭 그리기",
     "mirrorDrawHint": "새 노드에 짝이 생깁니다",
     "mirrorDrawOn": "대칭 그리기(켜짐)",

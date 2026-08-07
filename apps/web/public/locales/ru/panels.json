@@ -39,6 +39,7 @@
     "layerRidges": "Гребни",
     "layerRivers": "Реки",
     "layers": "Слои",
+    "layoutGraphicsError": "Не удалось построить раскладку",
     "mirrorDraw": "Зеркальное рисование",
     "mirrorDrawHint": "У новых узлов появляется двойник",
     "mirrorDrawOn": "Зеркальное рисование (вкл.)",

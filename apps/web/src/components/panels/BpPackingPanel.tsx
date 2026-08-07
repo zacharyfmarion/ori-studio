@@ -2085,6 +2085,7 @@ function bpPackingAlertDiagnostics(
   return diagnostics.filter(
     (diagnostic) =>
       diagnostic.kind === 'pattern-not-found' ||
+      diagnostic.kind === 'layout-graphics-error' ||
       diagnostic.kind === 'unsupported' ||
       diagnostic.kind === 'upstream-gap'
   );
@@ -2100,6 +2101,9 @@ function bpPackingAlertLabel(diagnostic: OristudioBpDiagnostic, t: TFunction): s
   }
   if (diagnostic.kind === 'pattern-not-found') return t('panels:bpPacking.patternNotFound', 'Pattern not found');
   if (diagnostic.kind === 'upstream-gap') return t('panels:bpPacking.upstreamGap', 'Upstream gap');
+  if (diagnostic.kind === 'layout-graphics-error') {
+    return t('panels:bpPacking.layoutGraphicsError', 'Layout could not be drawn');
+  }
   return t('panels:bpPacking.unsupportedOperation', 'Unsupported BP operation');
 }
 

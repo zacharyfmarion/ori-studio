@@ -260,3 +260,49 @@ describe('oristudioBpProjectStateFromRaw', () => {
     ]);
   });
 });
+
+/**
+ * A refused layout and a design that simply has no layout yet both arrive here
+ * as `layoutSnapshot: null`, and both draw as a canvas with no creases, no
+ * rivers, no gadgets and no conflict regions. Only one of them is healthy, and
+ * telling them apart is the whole point of `layoutError`: without it, a flap the
+ * kernel could not place read as "the BP editor lost its UI".
+ */
+describe('oristudioBpProjectStateFromRaw — a layout the kernel refused', () => {
+  const withLayoutError = (layoutError: string | null) =>
+    oristudioBpProjectStateFromRaw({
+      handle: 7,
+      project: rawProject,
+      layoutSnapshot: null,
+      layoutError,
+      source: { format: 'generated', filename: 'Mapper test.bps', path: null },
+    });
+
+  it('reports the reason the kernel gave as an error diagnostic', () => {
+    const state = withLayoutError('overlap ox must be integral for BP GOPS generation');
+    const diagnostic = state.snapshot.diagnostics.find(
+      (candidate) => candidate.kind === 'layout-graphics-error'
+    );
+    expect(diagnostic).toMatchObject({
+      id: 'bp-layout-graphics-error',
+      severity: 'error',
+    });
+    expect(diagnostic?.message).toContain('overlap ox must be integral');
+  });
+
+  it('marks the packing stale, so it does not read as current', () => {
+    expect(withLayoutError('boom').snapshot.stale.reasons).toContain(
+      'Layout graphics could not be computed for the current packing'
+    );
+  });
+
+  it('says nothing when the layout is merely absent', () => {
+    const state = withLayoutError(null);
+    expect(
+      state.snapshot.diagnostics.some((candidate) => candidate.kind === 'layout-graphics-error')
+    ).toBe(false);
+    expect(state.snapshot.stale.reasons).not.toContain(
+      'Layout graphics could not be computed for the current packing'
+    );
+  });
+});

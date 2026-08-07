@@ -39,6 +39,7 @@
     "layerRidges": "Cristas",
     "layerRivers": "Rios",
     "layers": "Camadas",
+    "layoutGraphicsError": "Não foi possível desenhar o layout",
     "mirrorDraw": "Desenho espelhado",
     "mirrorDrawHint": "Novos nós ganham um gêmeo",
     "mirrorDrawOn": "Desenho espelhado (ativado)",

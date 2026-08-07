@@ -39,6 +39,7 @@
     "layerRidges": "Ridges",
     "layerRivers": "Rivers",
     "layers": "Layers",
+    "layoutGraphicsError": "Layout could not be drawn",
     "mirrorDraw": "Mirror draw",
     "mirrorDrawHint": "New nodes get a twin",
     "mirrorDrawOn": "Mirror draw (on)",
