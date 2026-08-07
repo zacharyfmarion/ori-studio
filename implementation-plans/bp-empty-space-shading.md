@@ -4,7 +4,7 @@
 
 Show, in the Box Pleating editor's packing view, which paper is not taken up by
 any flap or river — the paper the design is wasting — as a subtle shading behind
-the geometry, with a Layers toggle to turn it off.
+the geometry, on a Layers toggle.
 
 ## Approach
 
@@ -52,10 +52,12 @@ and nothing needs the engine to change.
   SVG path `d` in screen space, reusing the existing sheet transform.
 - `BpPackingEmptySpaceLayer` renders its own `<mask>` and the shaded sheet shape.
   It is presentation only; the panel mounts it.
-- New `emptySpace` key in `BP_PACKING_VIEW_LAYER_KEYS`, default on, listed in the
-  packing Layers menu next to the other view toggles. It is a settings-only key
-  like `outsidePaper` — it gates no engine layer id, so `isBpPackingLayerVisible`
-  is untouched.
+- New `emptySpace` key in `BP_PACKING_VIEW_LAYER_KEYS`, listed in the packing
+  Layers menu next to the other view toggles. It follows `outsidePaper` twice
+  over: a settings-only key that gates no engine layer id, so
+  `isBpPackingLayerVisible` is untouched; and off by default, because the
+  optimizer routinely leaves paper over, so on a typical design this covers most
+  of the sheet and reads as noise until you go looking for it.
 - Shading renders above the paper and below the grid, so the grid, creases, and
   flaps all stay legible on top of it.
 - With no coverage data at all (a stale packing, or a document whose layout has
@@ -112,7 +114,7 @@ all three upstream cases and correct for this one.
 - [x] Write the plan
 - [x] Carry node contours through the snapshot mapper as coverage regions
 - [x] Add the coverage → SVG path helper with unit tests
-- [x] Add the `emptySpace` view layer key, default on
+- [x] Add the `emptySpace` view layer key, off by default
 - [x] Render the mask-based shading layer in the packing panel
 - [x] Style it as a subtle, theme-adaptive tint
 - [x] Localize the new layer label for all 8 locales

@@ -361,8 +361,17 @@ describe('BP packing pane — empty space', () => {
     useSettingsStore.setState({ bpPackingLayers: DEFAULT_BP_PACKING_VIEW_LAYERS });
   });
 
-  it('shades the paper by default, behind the grid and the geometry', () => {
-    expect(DEFAULT_BP_PACKING_VIEW_LAYERS.emptySpace).toBe(true);
+  it('shades nothing until the layer is turned on', () => {
+    // Off by default: the optimizer routinely leaves paper over, so on a typical
+    // design this covers most of the sheet.
+    expect(DEFAULT_BP_PACKING_VIEW_LAYERS.emptySpace).toBe(false);
+    expect(renderPacking().querySelector('.bp-packing-empty-space')).toBeNull();
+  });
+
+  it('paints behind the grid and the geometry once it is on', () => {
+    useSettingsStore.setState({
+      bpPackingLayers: { ...DEFAULT_BP_PACKING_VIEW_LAYERS, emptySpace: true },
+    });
     const root = renderPacking();
     const shade = root.querySelector('.bp-packing-empty-space');
     if (!shade) throw new Error('empty-space layer did not render');
@@ -375,13 +384,6 @@ describe('BP packing pane — empty space', () => {
       const order = shade.compareDocumentPosition(later as Node);
       expect(Boolean(order & Node.DOCUMENT_POSITION_FOLLOWING), selector).toBe(true);
     }
-  });
-
-  it('stops shading when the layer is turned off', () => {
-    useSettingsStore.setState({
-      bpPackingLayers: { ...DEFAULT_BP_PACKING_VIEW_LAYERS, emptySpace: false },
-    });
-    expect(renderPacking().querySelector('.bp-packing-empty-space')).toBeNull();
   });
 });
 
