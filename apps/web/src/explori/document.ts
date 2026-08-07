@@ -68,7 +68,8 @@ export const DEFAULT_DB_CONFIGS: ExploriDbConfig[] = EXPLORI_SIZES.flatMap((N) =
   EXPLORI_SYMMETRIES.map((symmetry) => ({ N, symmetry }))
 );
 
-export const DEFAULT_RESULT_LIMIT = 8;
+/** As many as upstream asks for by default. */
+export const DEFAULT_RESULT_LIMIT = 5;
 
 /**
  * A fresh design: one root node, nothing else.

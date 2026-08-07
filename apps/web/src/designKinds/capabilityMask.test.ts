@@ -136,7 +136,7 @@ function allVisibleCapabilities(): WorkspaceCapabilities {
     oristudioCpSelectedLineCount: 0,
     oristudioCpSelectedPointCount: 0,
     oristudioCpSelectedCircleCount: 0,
-    hasDeletableBpSelection: false,
+    hasDeletableDesignSelection: false,
     historyPastCount: 0,
     historyFutureCount: 0,
     clipboard: null,

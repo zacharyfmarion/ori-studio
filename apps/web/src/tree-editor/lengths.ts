@@ -77,9 +77,16 @@ export const SNAPPED_LENGTHS: TreeLengthRule = {
   format: (value) => formatNumber(value, 2),
 };
 
-/** Any positive length. Search surfaces, where the drawing *is* the length. */
+/**
+ * Any length, down to a floor a person means.
+ *
+ * The floor is not `1e-3`. A click near its parent would otherwise make a flap a
+ * thousandth of a unit long — a node visually on top of another, in a tree whose
+ * whole purpose is the *ratios* between its edges. A tenth of a unit is the
+ * shortest branch anyone draws on purpose.
+ */
 export const CONTINUOUS_LENGTHS: TreeLengthRule = {
-  min: 1e-3,
+  min: 0.1,
   max: () => null,
   step: null,
   quantize: (distance) => distance,

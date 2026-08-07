@@ -16,25 +16,34 @@ export interface AppKeyboardActions {
 export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActions): boolean {
   if (event.defaultPrevented || isShortcutEditingTarget(event.target)) return false;
 
-  // The crease-pattern viewport owns Escape as `viewport.cancel`, dispatched
-  // through the runtime below: deselecting is only its first rung, above leaving
-  // the hand tool and cancelling the active tool, and only the panel knows which
-  // applies. Other contexts have no such ladder, so a plain deselect is the
-  // whole behaviour.
-  if (event.key === 'Escape' && actions.getActiveEditingContext() !== 'crease-pattern') {
+  // The runtime is asked first, always. It used to be asked second, behind a
+  // branch that handed Escape to the project-selection deselect for every
+  // context except `crease-pattern` — so a surface with its own selection got
+  // Escape swallowed here, saw an empty *project* selection, and did nothing.
+  // Naming the one context that owned `viewport.cancel` is what made every
+  // later one wrong; a surface claims the chord by registering for it.
+  if (
+    handleShortcutRuntimeKeyDown(event, {
+      context: {
+        activeEditingContext: actions.getActiveEditingContext(),
+      },
+      overrides: actions.getShortcutOverrides?.(),
+      menu: actions.handleMenuAction,
+    })
+  ) {
+    return true;
+  }
+
+  // Unclaimed: the workspace-wide deselect, for surfaces that have no selection
+  // of their own and whose Escape means "drop the project selection".
+  if (event.key === 'Escape') {
     if (selectionSize(actions.getSelection()) === 0) return false;
     event.preventDefault();
     actions.selectNone();
     return true;
   }
 
-  return handleShortcutRuntimeKeyDown(event, {
-    context: {
-      activeEditingContext: actions.getActiveEditingContext(),
-    },
-    overrides: actions.getShortcutOverrides?.(),
-    menu: actions.handleMenuAction,
-  });
+  return false;
 }
 
 export function installAppKeyboardListener(

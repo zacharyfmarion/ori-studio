@@ -14,10 +14,11 @@ import { queryExplori, ExploriError } from '../../../explori/exploriService';
 import { exploriMatchQuality } from '../../../explori/matchQuality';
 import { exploriTilingLabel, type ExploriDbConfig, type ExploriResult } from '../../../explori/types';
 import type { Point } from '../../../lib/geometry';
-import { reflectPointAcrossSymmetryAxis, symmetrySide } from '../../../lib/symmetryGeometry';
+import { reflectPointAcrossSymmetryAxis } from '../../../lib/symmetryGeometry';
 import {
   EXPLORI_SYMMETRY_AXIS,
   addExploriPair,
+  exploriLeafPlacement,
   mirrorExploriNodeId,
   removeExploriPair,
 } from '../../../explori/symmetry';
@@ -218,13 +219,15 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
       return edit(designId, (document) => {
         const parent = document.nodes.find((node) => node.id === parentId);
         if (!parent) return null;
-        const onAxis =
-          document.symmetry.enabled &&
-          symmetrySide(loc, EXPLORI_SYMMETRY_AXIS, axisTolerance) === 0;
+        const { placed, onAxis } = exploriLeafPlacement(
+          document.symmetry.enabled,
+          loc,
+          axisTolerance
+        );
         const id = document.nextNodeId;
         let next: ExploriDocument = {
           ...document,
-          nodes: [...document.nodes, { id, loc, name: '' }],
+          nodes: [...document.nodes, { id, loc: placed, name: '' }],
           edges: [
             ...document.edges,
             { id: document.nextEdgeId, vertices: [parentId, id], length: 1 },
@@ -243,7 +246,11 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
               ...next,
               nodes: [
                 ...next.nodes,
-                { id: twinId, loc: reflectPointAcrossSymmetryAxis(loc, EXPLORI_SYMMETRY_AXIS), name: '' },
+                {
+                  id: twinId,
+                  loc: reflectPointAcrossSymmetryAxis(placed, EXPLORI_SYMMETRY_AXIS),
+                  name: '',
+                },
               ],
               edges: [
                 ...next.edges,

@@ -124,7 +124,15 @@ export interface WorkspaceCapabilityInput {
   oristudioCpSelectedLineCount: number;
   oristudioCpSelectedPointCount: number;
   oristudioCpSelectedCircleCount: number;
-  hasDeletableBpSelection: boolean;
+  /**
+   * Whether the active design kind has something Delete would remove.
+   *
+   * One flag for every kind, answered by its descriptor. It used to be
+   * box-pleat's alone, with the other arms of this predicate naming TreeMaker
+   * explicitly — so `edit.delete` was disabled for any kind not on the list, and
+   * no amount of wiring behind it could run.
+   */
+  hasDeletableDesignSelection: boolean;
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -388,8 +396,8 @@ export function getWorkspaceCapabilities(
           : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'edit.delete': capability(
-      (isBpContext && input.hasDeletableBpSelection && !isBusy) ||
-        (!isBpContext && treeMode && !activeCpSurface && hasSelection && !isBusy) ||
+      (input.hasDeletableDesignSelection && !activeCpSurface && !isBusy) ||
+        (treeMode && !activeCpSurface && hasSelection && !isBusy) ||
         (canEditCp &&
           activeCpSurface &&
           (hasSelectedCpLines || hasSelectedCpPoints || hasSelectedCpCircles)),

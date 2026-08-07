@@ -141,6 +141,52 @@ export function createBoxPleatDesignKind(
       hiddenIds: BOX_PLEAT_HIDDEN_CAPABILITIES,
       hiddenPrefixes: ['optimize.', 'cp.'],
     },
+    history: (tab) =>
+      tab.kind === 'box-pleat'
+        ? { past: tab.boxPleat.historyPast.length, future: tab.boxPleat.historyFuture.length }
+        : { past: 0, future: 0 },
+    deletableTarget: (tab) => {
+      if (tab.kind !== 'box-pleat') return null;
+      const tree = tab.boxPleat.document?.snapshot.tree;
+      if (!tree) return null;
+      const selection = tab.boxPleat.selection;
+      const root = tree.rootVertexId;
+      if (selection.kind === 'bp-vertex') {
+        return selection.id !== root ? selection.id : null;
+      }
+      if (selection.kind !== 'bp-edge') return null;
+      const edge = tree.edges.find((candidate) => candidate.id === selection.id);
+      if (!edge) return null;
+      // The endpoint further from the root, found by walking the edges — the
+      // vertex list is not needed and is not always populated (a snapshot built
+      // for a test carries only the topology this question depends on).
+      const adjacency = new Map<number, number[]>();
+      for (const other of tree.edges) {
+        adjacency.set(other.vertices[0], [
+          ...(adjacency.get(other.vertices[0]) ?? []),
+          other.vertices[1],
+        ]);
+        adjacency.set(other.vertices[1], [
+          ...(adjacency.get(other.vertices[1]) ?? []),
+          other.vertices[0],
+        ]);
+      }
+      const parent = new Map<number, number>();
+      const queue = [root];
+      const seen = new Set([root]);
+      while (queue.length > 0) {
+        const current = queue.shift() as number;
+        for (const next of adjacency.get(current as number) ?? []) {
+          if (seen.has(next)) continue;
+          seen.add(next);
+          parent.set(next, current as number);
+          queue.push(next);
+        }
+      }
+      const [a, b] = edge.vertices;
+      const childId = parent.get(a) === b ? a : b;
+      return childId !== root ? childId : null;
+    },
     codec: createBoxPleatCodec(getClient),
     sendToEdit: createBoxPleatSendToEdit(getClient),
   };

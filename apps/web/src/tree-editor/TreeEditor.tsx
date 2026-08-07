@@ -87,6 +87,9 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
    */
   const svgRectRef = useRef<DOMRect | null>(null);
   const mirrorRef = useRef<HTMLDivElement | null>(null);
+  // The shortcut executor is registered before `dismissSelection` is declared,
+  // so it reaches it through a ref rather than closing over it.
+  const dismissSelectionRef = useRef<() => void>(() => {});
   const forgetSvgRect = useEventCallback(() => {
     svgRectRef.current = null;
   });
@@ -146,8 +149,19 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     onTransformed,
   } = useViewportSurface({
     surface: host.surface,
+    // Escape means "nothing selected" here, which also disarms adding. Claimed
+    // through the shortcut registry rather than a `keydown` on the container:
+    // that listener only fired while focus was inside the pane, so Escape did
+    // nothing the moment a name field, the toolbar or a neighbouring pane had it
+    // — the focus dependence AGENTS.md forbids of any shortcut.
+    onViewportShortcut: (id) => {
+      if (id !== 'viewport.cancel') return false;
+      dismissSelectionRef.current();
+      return true;
+    },
     worldRect: frame.worldRect,
     fitKey: host.fitKey,
+    fitRect: host.fitRect,
     maxFitScale: host.maxFitScale,
   });
 
@@ -412,10 +426,17 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
 
   // Escape drops the selection and returns the keyboard to the canvas. Nothing in
   // the tree stays selected, so the contextual length/name editors close too.
-  const dismissSelection = useCallback(() => {
+  const dismissSelection = useEventCallback(() => {
     host.clearSelection();
     containerRef.current?.focus();
-  }, [host, containerRef]);
+  });
+
+  // Assigned in an effect rather than during render: the executor is registered
+  // before `dismissSelection` exists, and a render-time write to a ref is the
+  // thing that makes a component unsafe to re-run.
+  useEffect(() => {
+    dismissSelectionRef.current = dismissSelection;
+  }, [dismissSelection]);
 
   const clientToTreePoint = useCallback(
     (client: Point): Point => {
@@ -429,23 +450,6 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     (event: PointerEvent): Point => clientToTreePoint({ x: event.clientX, y: event.clientY }),
     [clientToTreePoint]
   );
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return undefined;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      // The contextual editors fire their own Escape (revert, then clear via
-      // onEscape), so only handle the canvas case here.
-      if (event.key === 'Escape' && !isViewportInteractiveTarget(event.target)) {
-        event.preventDefault();
-        dismissSelection();
-      }
-    };
-
-    container.addEventListener('keydown', onKeyDown);
-    return () => container.removeEventListener('keydown', onKeyDown);
-  }, [dismissSelection, containerRef]);
 
   const onCanvasAddPointerDown = (event: PointerEvent<Element>) => {
     if (event.button !== 0 || spacePressed || isViewportInteractiveTarget(event.target)) {

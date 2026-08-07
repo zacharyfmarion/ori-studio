@@ -1,6 +1,7 @@
 import { Telescope } from 'lucide-react';
 import { exploriDocument } from '../explori/handles';
 import { createExploriCodec } from '../explori/handles';
+import { deletableExploriNodeId } from '../explori/deletion';
 import { exploriResultToFold } from '../explori/foldExport';
 import { exploriTilingLabel } from '../explori/types';
 import type { WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
@@ -92,6 +93,14 @@ export function createExploriDesignKind(): DesignKindDescriptor {
       hiddenIds: EXPLORI_HIDDEN_CAPABILITIES,
       hiddenPrefixes: ['optimize.', 'cp.', 'bp.'],
     },
+    history: (tab) =>
+      tab.kind === 'explori'
+        ? { past: tab.explori.historyPast.length, future: tab.explori.historyFuture.length }
+        : { past: 0, future: 0 },
+    deletableTarget: (tab) =>
+      tab.kind === 'explori'
+        ? deletableExploriNodeId(tab.explori.document, tab.explori.selection)
+        : null,
     codec: createExploriCodec(),
     sendToEdit: createExploriSendToEdit(),
   };

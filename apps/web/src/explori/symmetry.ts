@@ -1,4 +1,10 @@
-import { reflectPointAcrossSymmetryAxis, symmetrySide, type SymmetryAxis } from '../lib/symmetryGeometry';
+import {
+  reflectPointAcrossSymmetryAxis,
+  snapPointToSymmetryAxis,
+  symmetrySide,
+  type SymmetryAxis,
+} from '../lib/symmetryGeometry';
+import type { Point } from '../lib/geometry';
 import type { TreeSymmetryPair } from '../tree-editor/host';
 import type { ExploriDocument } from './document';
 
@@ -100,4 +106,27 @@ export function exploriMirrorHeldIds(
     held.add(id);
   }
   return held;
+}
+
+/**
+ * Where a clicked leaf lands, and whether it gets a twin.
+ *
+ * One answer to both, because they are one decision: a leaf that snapped onto
+ * the mirror *is* its own reflection, so pairing it with a second node on the
+ * same spot would be a duplicate. Splitting them is how a node ended up beside
+ * the axis with `pairs: []` — the caller tested for "on the axis" to decide the
+ * twin, and never moved the point.
+ *
+ * The snap is `snapPointToSymmetryAxis`, which is also what the editor's hover
+ * ghost previews with. Same function, same tolerance, so the preview and the
+ * commit cannot disagree about where the leaf would go.
+ */
+export function exploriLeafPlacement(
+  symmetryEnabled: boolean,
+  loc: Point,
+  axisTolerance: number
+): { placed: Point; onAxis: boolean } {
+  const snap = snapPointToSymmetryAxis(loc, EXPLORI_SYMMETRY_AXIS, axisTolerance);
+  const onAxis = symmetryEnabled && snap.snapped;
+  return { placed: onAxis ? snap.point : loc, onAxis };
 }

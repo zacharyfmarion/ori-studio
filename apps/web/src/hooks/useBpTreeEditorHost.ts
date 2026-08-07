@@ -15,6 +15,7 @@ import {
   bpTreeVertexLabel,
   constrainBpTreePoint,
   bpTreeSheetWorldRect,
+  getBpTreeWorldRect,
   svgToBpTreePoint,
 } from '../lib/bpTreeViewport';
 import { useBpLongPressInspector } from './useBpLongPressInspector';
@@ -112,6 +113,13 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
   // resized on every edit and the view drifted under the camera — adding a node
   // moved the whole drawing. The sheet is fixed, so nothing an edit does can.
   const worldRect = useMemo(() => bpTreeSheetWorldRect(tree.sheet), [tree.sheet]);
+  // What the camera opens on: the committed tree, not the whole sheet. Read once
+  // per document — `fitKey` is what decides when a fit happens, and it does not
+  // change on an edit, so this cannot pull the camera mid-drawing.
+  const fitRect = useMemo(
+    () => getBpTreeWorldRect(tree, { contentOnly: true, padding: 12 }),
+    [tree]
+  );
 
   const frame = useMemo<TreeFrame>(
     () => ({
@@ -154,6 +162,7 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
       // filling the pane with a tiny tree; the shared surface only zooms further
       // out when the tree no longer fits at that scale.
       maxFitScale: TARGET_UNIT_PX / bpTreeUnitToSvg(tree.sheet),
+      fitRect,
       selection: selectionView,
       select: (target) =>
         selectOristudioBp(
@@ -202,6 +211,7 @@ export function useBpTreeEditorHost(document: OristudioBpDocumentState): TreeEdi
     [
       tree,
       frame,
+      fitRect,
       t,
       document.handle,
       document.source.filename,

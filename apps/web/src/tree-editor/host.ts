@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import type { Point } from '../lib/geometry';
+import type { PlotRect, Point } from '../lib/geometry';
 import type { SymmetryAxis } from '../lib/symmetryGeometry';
 import type { ViewportSurface } from '../keyboard/shortcutRuntime';
 import type { TreeDragMirror } from './dragRule';
@@ -130,6 +130,13 @@ export interface TreeEditorHost {
   fitKey: string;
   /** Cap on the opening zoom, so a small tree is not blown up to fill the pane. */
   maxFitScale?: number;
+  /**
+   * What the opening camera frames, when that is not the whole drawing area.
+   *
+   * The world is fixed so an edit cannot move the view; this is what is worth
+   * looking at inside it, which is usually the drawing.
+   */
+  fitRect?: PlotRect;
 
   selection: TreeSelectionView;
   /** Replace the selection with this one thing. */

@@ -6,6 +6,7 @@ import type { AppStatus, WorkflowTarget } from '../lib/sampleProject';
 import type { WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import type { EditingContext } from '../workspaces/editingContext';
 import type { EngineId } from '../engines/engineHost';
+import type { DesignTab } from '../store/workspaceStore/designTabs';
 
 /**
  * The authoring methods the Design workspace can hold.
@@ -164,6 +165,12 @@ export interface DesignKindChooser {
  * the app is a field this interface is missing — see the stub-kind test in
  * `registry.test.ts`, which is the executable form of that claim.
  */
+/** Undo/redo depth for one design, as the Edit menu needs to enable them. */
+export interface DesignHistoryDepth {
+  past: number;
+  future: number;
+}
+
 export interface DesignKindDescriptor {
   id: DesignKindId;
   /**
@@ -185,4 +192,25 @@ export interface DesignKindDescriptor {
   capabilities: DesignKindCapabilities;
   codec: DesignKindCodec;
   sendToEdit(handle: number, request: SendToEditRequest): Promise<SendToEditPayload>;
+
+  /**
+   * How deep this design's undo stacks are.
+   *
+   * On the descriptor because the command layer kept asking and answering for
+   * itself: `historyCountForContext` listed the kinds it knew and returned 0 for
+   * the rest, so a registered kind's Undo and Redo were *disabled* — not merely
+   * unwired — and the dispatch behind them was unreachable. A kind knows its own
+   * history; nothing else should have to.
+   */
+  history(tab: DesignTab): DesignHistoryDepth;
+
+  /**
+   * What Delete would remove right now, or null when nothing.
+   *
+   * Same reason as {@link history}: `edit.delete`'s enabled predicate listed
+   * kinds, so the command was greyed for anything not on the list. Answering
+   * *what* here is enough to enable it; *how* stays with the store actions,
+   * which is where the engine round trips live.
+   */
+  deletableTarget?(tab: DesignTab): number | null;
 }

@@ -158,6 +158,13 @@ export function createTreemakerDesignKind(
       hiddenIds: [],
       hiddenPrefixes: [],
     },
+    history: (tab) =>
+      tab.kind === 'treemaker'
+        ? { past: tab.treemaker.historyPast.length, future: tab.treemaker.historyFuture.length }
+        : { past: 0, future: 0 },
+    // Delete removes whatever the tree selection holds, which is a set rather
+    // than one node, so there is no single id to name — the selection predicate
+    // stays with the capability layer for this kind.
     codec: createTreemakerCodec(getClient),
     sendToEdit: createTreemakerSendToEdit(getClient),
   };

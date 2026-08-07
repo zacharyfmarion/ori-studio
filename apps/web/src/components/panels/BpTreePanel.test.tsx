@@ -543,10 +543,17 @@ describe('BP tree pane — the drawing keeps its proportions when zoomed', () =>
 });
 
 describe('BP tree pane — Escape', () => {
-  it('clears the selection from the canvas', () => {
-    const body = render(1);
+  it('clears the selection wherever focus happens to be', () => {
+    // Driven through the shortcut runtime, which is where Escape now lives. It
+    // used to be a `keydown` on the pane container, and so did nothing the
+    // moment a name field, the toolbar or a neighbouring pane held focus —
+    // exactly the focus dependence AGENTS.md forbids of a shortcut.
+    render(1);
     act(() => {
-      body.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }));
+      handleShortcutRuntimeKeyDown(
+        new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' }),
+        { context: { activeEditingContext: 'bp-tree' }, menu: vi.fn() }
+      );
     });
     expect(actions.clearOristudioBpSelection).toHaveBeenCalled();
   });

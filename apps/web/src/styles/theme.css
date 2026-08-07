@@ -7888,27 +7888,44 @@ button.bp-packing-alert:focus-visible {
   white-space: nowrap;
 }
 
-/* Quality is a five-step scale, so it reads as a ramp rather than five labels. */
+/*
+ * Quality as a colour ramp, green through amber to red — upstream's five hues,
+ * worn as a tinted pill.
+ *
+ * Colouring only the good end left the other three as grey text, which is why a
+ * grid of results did not read as a scale: "Poor" and "Distant" looked like the
+ * same non-answer. The pill carries the hue in its text, border and fill so it
+ * survives being small.
+ */
 .explori-quality {
+  --quality-rgb: 122, 123, 132;
+  padding: 2px 7px;
+  border: 1px solid rgb(var(--quality-rgb) / 30%);
+  border-radius: 999px;
+  background: rgb(var(--quality-rgb) / 10%);
+  color: rgb(var(--quality-rgb));
   font-size: 11px;
-  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .explori-quality--great {
-  color: var(--status-success, var(--accent-secondary));
+  --quality-rgb: 28 184 112;
 }
 
 .explori-quality--good {
-  color: var(--accent-secondary);
+  --quality-rgb: 92 194 106;
 }
 
-.explori-quality--poor,
+.explori-quality--acceptable {
+  --quality-rgb: 214 180 55;
+}
+
+.explori-quality--poor {
+  --quality-rgb: 237 136 63;
+}
+
 .explori-quality--terrible {
-  color: var(--text-tertiary, var(--text-secondary));
-}
-
-.explori-results-panel--detail {
-  position: relative;
+  --quality-rgb: 236 82 94;
 }
 
 .explori-detail__header {

@@ -94,10 +94,15 @@ preview and the commit disagree — the exact failure the tree pane's own notes
 warn about ("the hover ghost and the click can't disagree about where the leaf
 would land").
 
-Fix: snap in the slice, as box-pleat does, and take the length from the parent
-along the axis rather than from the raw projection — projecting a tip onto the
-axis shortens the edge by its horizontal component, which is how a centred leaf
-ends up shorter than the one the ghost drew.
+Fix: snap in the slice, as box-pleat does, with **the same call the ghost
+previews with** — `snapPointToSymmetryAxis`. An earlier draft of this plan
+proposed a length-preserving snap instead, on the theory that projecting shortens
+the edge. That was wrong twice over: a click only snaps from *inside* the
+tolerance band, so the horizontal component dropped is at most 0.05 units, and a
+second snap function is precisely how the preview and the commit come to disagree
+— which is the bug. The decision now lives in one function,
+`exploriLeafPlacement`, which answers "where does it go" and "does it get a twin"
+together, because they were only ever one question.
 
 While there: `CONTINUOUS_LENGTHS.min` is `1e-3`, so a click near its parent makes
 a flap a thousandth of a unit long. That is not a length anyone means; a floor
@@ -118,16 +123,26 @@ bounds, ExplOri its own, and the two concerns stop being the same number.
 
 ### 5. Escape does not deselect
 
-Characterised: dispatched on the pane container it clears the selection;
-dispatched at the window it does nothing. The listener is a container-scoped
-`keydown`, so it is dead whenever focus is anywhere else — the name field, the
-results pane, the query bar, a toolbar button.
+Two causes, one on top of the other. The container-scoped `keydown` is the one I
+expected: dead whenever focus is anywhere else — the name field, the results
+pane, the query bar, a toolbar button. Moving it into the shortcut registry as
+`viewport.cancel` fixes that, and is the item the Phase 0 plan deferred ("Move
+the container Escape listener into `keyboard/`").
 
-This is the item the Phase 0 plan listed and I deferred ("Move the container
-Escape listener into `keyboard/`"), and it is deferred no longer. It goes in the
-shortcut registry as a viewport shortcut, which is focus-independent by
-construction and is what `AGENTS.md` requires of any keyboard shortcut. Box-pleat
-gets the same fix, since it is the same listener.
+That alone did not fix it, which is how the second cause surfaced. `handleAppKeyDown`
+intercepted Escape **before** the runtime for every context except one:
+
+```ts
+if (event.key === 'Escape' && actions.getActiveEditingContext() !== 'crease-pattern') {
+  if (selectionSize(actions.getSelection()) === 0) return false;   // ← the *project* selection
+```
+
+An ExplOri design's project selection is empty, so this returned `false` and the
+runtime — where `viewport.cancel` lives — was never asked. This is the same root
+cause as the top of this plan wearing different clothes: a hard-coded test naming
+the one context that had the behaviour, which silently made every context added
+afterwards wrong. The runtime is asked first now, and the workspace deselect is
+the fallback for whatever nothing claimed.
 
 ### 6. Result count should default to 5
 
@@ -152,24 +167,31 @@ ramp. Take upstream's five hues, mapped onto our tokens, as a bordered pill.
 - `apps/web/src/store/workspaceStore/slices/exploriSlice.ts` — snap on add
 - `apps/web/src/tree-editor/lengths.ts` — a floor a person means
 - `apps/web/src/hooks/useViewportSurface.ts` + both hosts — `fitRect`
-- `apps/web/src/keyboard/` + `tree-editor/TreeEditor.tsx` — Escape
+- `apps/web/src/hooks/useViewportSurface.ts` + `tree-editor/TreeEditor.tsx`,
+  `lib/appKeyboard.ts` — Escape, both causes
 - `apps/web/src/explori/document.ts` — default of 5
 - `apps/web/src/explori/matchQuality.ts`, `styles/theme.css` — the colour ramp
 
 ## Checklist
 
-- [ ] Descriptor answers `history` and `deletion`; every kind implements them
-- [ ] Capabilities, history slice and menu actions read the descriptor instead of
+- [x] Descriptor answers `history` and `deletion`; every kind implements them
+- [x] Capabilities, history slice and menu actions read the descriptor instead of
       listing kinds
-- [ ] Stub-kind test covers Undo, Redo and Delete — the claim that was false
-- [ ] ExplOri undo/redo and Delete work, with tests that fail against today
-- [ ] A leaf inside the snap lane lands *on* the axis, at the length the ghost
-      drew, and gets no twin; one outside it gets a twin
-- [ ] Continuous lengths floor at a length someone means
-- [ ] `fitRect` separates the fixed world from the framed content; box-pleat
+- [x] Stub-kind test covers Undo, Redo and Delete — the claim that was false
+- [x] ExplOri undo/redo and Delete work, with tests that fail against today
+- [x] A leaf inside the snap lane lands *on* the axis, exactly where the ghost
+      drew it, and gets no twin; one outside it gets a twin
+- [x] Continuous lengths floor at a length someone means
+- [x] `fitRect` separates the fixed world from the framed content; box-pleat
       opens at its old size and still does not drift
-- [ ] Escape deselects from the shortcut registry, on both tree surfaces
-- [ ] Result limit defaults to 5
-- [ ] Match quality is a five-step colour ramp
-- [ ] Lint, typecheck, tests, `i18n:check`
-- [ ] Browser-verify each
+- [x] Escape deselects from the shortcut registry, on both tree surfaces
+- [x] Result limit defaults to 5
+- [x] Match quality is a five-step colour ramp
+- [x] Lint, typecheck, tests, `i18n:check`
+- [x] Browser-verify each — done for everything the automated pane can show:
+      the snap (a click at `x = 0.02` now commits at exactly `x = 0`, with a twin
+      only when off-axis), Undo/Delete enabled in the live capability map (Delete
+      correctly off on the root), and Escape clearing the selection with focus
+      parked on the results pane. Camera framing is **not** verifiable there —
+      the pane runs `visibilityState = hidden` with zero `requestAnimationFrame`,
+      so box-pleat's opening zoom needs a human look.

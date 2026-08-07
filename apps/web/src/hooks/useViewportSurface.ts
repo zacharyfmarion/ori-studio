@@ -53,6 +53,24 @@ export interface UseViewportSurfaceOptions {
   /** The world bounds the camera frames. */
   worldRect: PlotRect;
   /**
+   * What the *opening* camera should frame, when that is not the whole world.
+   *
+   * The two used to be one number, and making the world fixed — which is what
+   * stops the view drifting as the drawing grows — therefore also made the
+   * camera open on the whole sheet, so a starter design appeared bunched up.
+   * They are different questions: the world is the drawing area, this is what is
+   * worth looking at in it. Defaults to the world.
+   */
+  fitRect?: PlotRect;
+  /**
+   * A surface's own answer to a viewport shortcut, asked before the camera's.
+   *
+   * The camera cases below are generic; verbs about *what is selected* belong to
+   * the surface. Returning false declines, which is the protocol the whole scope
+   * runs on — the chord then falls through to the next scope that wants it.
+   */
+  onViewportShortcut?: (id: ViewportShortcutId) => boolean;
+  /**
    * Identity of what is on screen. The camera fits once per distinct key, so a
    * newly opened document is framed but ordinary edits never move the camera.
    */
@@ -101,7 +119,9 @@ export function useViewportSurface({
   surface,
   worldRect,
   fitKey,
+  fitRect,
   maxFitScale,
+  onViewportShortcut,
 }: UseViewportSurfaceOptions): ViewportSurface {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
@@ -117,8 +137,8 @@ export function useViewportSurface({
   const computeFitScale = useCallback(() => {
     const viewport = viewportSizeFromElement(containerRef.current);
     if (!viewport) return 1;
-    return getViewportFitScale(viewport, worldRect, undefined, maxFitScale);
-  }, [worldRect, maxFitScale]);
+    return getViewportFitScale(viewport, fitRect ?? worldRect, undefined, maxFitScale);
+  }, [worldRect, fitRect, maxFitScale]);
 
   const fitToView = useCallback(
     (animationTime = FIT_ANIMATION_MS) => {
@@ -148,6 +168,7 @@ export function useViewportSurface({
   // selected tree node.
   const handleViewportShortcut = useCallback(
     (id: ViewportShortcutId): boolean => {
+      if (onViewportShortcut?.(id)) return true;
       switch (id) {
         case 'viewport.zoomIn':
           zoomIn();
@@ -165,7 +186,7 @@ export function useViewportSurface({
           return false;
       }
     },
-    [zoomIn, zoomOut, fitToView, setActualSize]
+    [zoomIn, zoomOut, fitToView, setActualSize, onViewportShortcut]
   );
 
   useEffect(
