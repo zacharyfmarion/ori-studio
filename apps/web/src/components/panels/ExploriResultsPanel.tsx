@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ChevronLeft, ChevronRight, ScanLine } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import {
   ExploriCpFigure,
   ExploriFoldFigure,
@@ -42,6 +43,40 @@ function ResultFigure({
   return <ExploriCpFigure cp={result.cp} size={size} />;
 }
 
+/** One detail figure with the toggle that chooses what it shows. */
+function ExploriDetailPane({
+  figure,
+  name,
+  value,
+  options,
+  onChange,
+}: {
+  figure: ReactNode;
+  name: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="explori-detail__pane">
+      <div className="explori-detail__figure">{figure}</div>
+      <div className="explori-detail__modes" role="radiogroup">
+        {options.map((option) => (
+          <label key={option.value} className="explori-detail__mode">
+            <input
+              type="radio"
+              name={name}
+              checked={value === option.value}
+              onChange={() => onChange(option.value)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ExploriResultsPanel() {
   const { t } = useTranslation();
   const design = useWorkspaceStore((state) => selectExploriDesignOrEmpty(state));
@@ -54,9 +89,15 @@ export function ExploriResultsPanel() {
   const { results, detailIndex, searching, error } = design;
   const detail = detailIndex !== null ? (results[detailIndex] ?? null) : null;
 
-  /** Choose a result and send it straight to Edit, with no detour. */
-  const quickSend = async (result: ExploriResult, index: number) => {
-    await selectResult(result, index);
+  /**
+   * Choose a result and send it straight to Edit.
+   *
+   * `null` for the detail index, deliberately: passing one is what *opens* the
+   * detail, so a quick send with an index flashed the drill-down on its way past
+   * — the exact detour this action exists to skip.
+   */
+  const quickSend = async (result: ExploriResult) => {
+    await selectResult(result, null);
     await sendToEdit('card');
   };
 
@@ -70,6 +111,12 @@ export function ExploriResultsPanel() {
 
   if (detail) {
     const quality = exploriMatchQuality(detail.distance);
+    const step = (delta: number) => {
+      if (detailIndex === null) return;
+      const next = detailIndex + delta;
+      if (next < 0 || next >= results.length) return;
+      void selectResult(results[next] ?? null, next);
+    };
     return (
       <section className="panel-shell explori-results-panel explori-results-panel--detail">
         <header className="explori-detail__header">
@@ -81,88 +128,66 @@ export function ExploriResultsPanel() {
           >
             <ArrowLeft size={14} />
           </IconButton>
-          <span className="explori-detail__title">{exploriTilingLabel(detail)}</span>
-          <span className={`explori-quality explori-quality--${quality}`}>
-            {exploriMatchQualityLabel(t, quality)}
-          </span>
-          <span className="explori-detail__spacer" />
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={t('panels:explori.previousResult', 'Previous result')}
-            disabled={detailIndex === null || detailIndex <= 0}
-            onClick={() =>
-              detailIndex !== null &&
-              void selectResult(results[detailIndex - 1] ?? null, detailIndex - 1)
-            }
-          >
-            <ChevronLeft size={14} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            variant="toolbar"
-            title={t('panels:explori.nextResult', 'Next result')}
-            disabled={detailIndex === null || detailIndex >= results.length - 1}
-            onClick={() =>
-              detailIndex !== null &&
-              void selectResult(results[detailIndex + 1] ?? null, detailIndex + 1)
-            }
-          >
-            <ChevronRight size={14} />
-          </IconButton>
-          <Button size="sm" variant="primary" onClick={() => void sendToEdit()}>
+          <div className="explori-detail__identity">
+            <span className="explori-detail__title">{exploriTilingLabel(detail)}</span>
+            <span className={`explori-quality explori-quality--${quality}`}>
+              {exploriMatchQualityLabel(t, quality)}
+            </span>
+          </div>
+          <Button size="sm" variant="primary" onClick={() => void sendToEdit('detail')}>
             <ScanLine size={14} />
             {t('common:toolbar.sendToEdit', 'Send to Edit')}
           </Button>
         </header>
+
+        {/* The two figures, each with its own mode toggle underneath — upstream's
+            arrangement, and the reason the drill-down is a pane rather than a
+            modal: the tree you drew stays visible beside the candidate. */}
         <div className="explori-detail__panes">
-          <div className="explori-detail__pane">
-            <ResultFigure result={detail} mode={leftMode} size={DETAIL_SIZE} />
-            <div className="explori-detail__modes" role="group">
-              <label>
-                <input
-                  type="radio"
-                  name="explori-left"
-                  checked={leftMode === 'cp'}
-                  onChange={() => setLeftMode('cp')}
-                />
-                <span>{t('panels:explori.viewCp', 'Crease pattern')}</span>
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="explori-left"
-                  checked={leftMode === 'packing'}
-                  onChange={() => setLeftMode('packing')}
-                />
-                <span>{t('panels:explori.viewPacking', 'Packing')}</span>
-              </label>
-            </div>
-          </div>
-          <div className="explori-detail__pane">
-            <ResultFigure result={detail} mode={rightMode} size={DETAIL_SIZE} />
-            <div className="explori-detail__modes" role="group">
-              <label>
-                <input
-                  type="radio"
-                  name="explori-right"
-                  checked={rightMode === 'tree'}
-                  onChange={() => setRightMode('tree')}
-                />
-                <span>{t('panels:explori.viewTree', 'Tree')}</span>
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="explori-right"
-                  checked={rightMode === 'fold'}
-                  onChange={() => setRightMode('fold')}
-                />
-                <span>{t('panels:explori.viewFold', 'Folded form')}</span>
-              </label>
-            </div>
-          </div>
+          <ExploriDetailPane
+            figure={<ResultFigure result={detail} mode={leftMode} size={DETAIL_SIZE} />}
+            name="explori-left"
+            value={leftMode}
+            options={[
+              { value: 'cp', label: t('panels:explori.viewCp', 'Crease pattern') },
+              { value: 'packing', label: t('panels:explori.viewPacking', 'Packing') },
+            ]}
+            onChange={(value) => setLeftMode(value as 'cp' | 'packing')}
+          />
+          <ExploriDetailPane
+            figure={<ResultFigure result={detail} mode={rightMode} size={DETAIL_SIZE} />}
+            name="explori-right"
+            value={rightMode}
+            options={[
+              { value: 'tree', label: t('panels:explori.viewTree', 'Tree') },
+              { value: 'fold', label: t('panels:explori.viewFold', 'Folded form') },
+            ]}
+            onChange={(value) => setRightMode(value as 'tree' | 'fold')}
+          />
         </div>
+
+        {/* Pinned to the edges of the body, as upstream's chevrons are, so
+            stepping through results is one target that does not move. */}
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          className="explori-detail__step explori-detail__step--prev"
+          title={t('panels:explori.previousResult', 'Previous result')}
+          disabled={detailIndex === null || detailIndex <= 0}
+          onClick={() => step(-1)}
+        >
+          <ChevronLeft size={16} />
+        </IconButton>
+        <IconButton
+          size="sm"
+          variant="toolbar"
+          className="explori-detail__step explori-detail__step--next"
+          title={t('panels:explori.nextResult', 'Next result')}
+          disabled={detailIndex === null || detailIndex >= results.length - 1}
+          onClick={() => step(1)}
+        >
+          <ChevronRight size={16} />
+        </IconButton>
       </section>
     );
   }
@@ -187,17 +212,23 @@ export function ExploriResultsPanel() {
                     count: results.length,
                   })}
             </span>
-            <select
-              className="explori-results__mode"
+            <Select
               value={thumbMode}
-              aria-label={t('panels:explori.thumbnailMode', 'Thumbnail view')}
-              onChange={(event) => setThumbMode(event.target.value as ExploriThumbMode)}
+              onValueChange={(value) => setThumbMode(value as ExploriThumbMode)}
             >
-              <option value="cp">{t('panels:explori.viewCp', 'Crease pattern')}</option>
-              <option value="packing">{t('panels:explori.viewPacking', 'Packing')}</option>
-              <option value="tree">{t('panels:explori.viewTree', 'Tree')}</option>
-              <option value="fold">{t('panels:explori.viewFold', 'Folded form')}</option>
-            </select>
+              <SelectTrigger
+                className="explori-results__mode"
+                aria-label={t('panels:explori.thumbnailMode', 'Thumbnail view')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cp">{t('panels:explori.viewCp', 'Crease pattern')}</SelectItem>
+                <SelectItem value="packing">{t('panels:explori.viewPacking', 'Packing')}</SelectItem>
+                <SelectItem value="tree">{t('panels:explori.viewTree', 'Tree')}</SelectItem>
+                <SelectItem value="fold">{t('panels:explori.viewFold', 'Folded form')}</SelectItem>
+              </SelectContent>
+            </Select>
           </header>
           <div className="explori-results__grid">
             {results.map((result, index) => {
@@ -223,7 +254,7 @@ export function ExploriResultsPanel() {
                       size="sm"
                       variant="toolbar"
                       title={t('panels:explori.quickSendToEdit', 'Send this crease pattern to Edit')}
-                      onClick={() => void quickSend(result, index)}
+                      onClick={() => void quickSend(result)}
                     >
                       <ScanLine size={14} />
                     </IconButton>

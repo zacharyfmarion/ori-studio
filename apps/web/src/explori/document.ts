@@ -2,7 +2,7 @@ import type { Point } from '../lib/geometry';
 import type { EditableTree, EditableTreeEdge, EditableTreeVertex } from '../tree-editor/model';
 import type { TreeSymmetryPair } from '../tree-editor/host';
 import type { ExploriDbConfig, ExploriResult, ExploriSymmetry } from './types';
-import { EXPLORI_SYMMETRIES } from './types';
+import { EXPLORI_SIZES, EXPLORI_SYMMETRIES } from './types';
 
 /**
  * What an ExplOri design *is*, and what a saved one holds.
@@ -47,12 +47,17 @@ export interface ExploriDocument {
   selected: ExploriResult | null;
 }
 
-/** Databases a new design searches: everything the archive has. */
-export const DEFAULT_DB_CONFIGS: ExploriDbConfig[] = [
-  { N: 4, symmetry: 'book' },
-  { N: 4, symmetry: 'diag' },
-  { N: 4, symmetry: 'none' },
-];
+/**
+ * Databases a new design searches: **everything**, as upstream's own defaults do
+ * (every checkbox in its advanced table ships checked).
+ *
+ * It also keeps the query bar honest. A symmetry toggle reads "on" when any size
+ * of it is selected, so a default of one size would show three lit toggles over
+ * a search that was quietly narrower than it looked.
+ */
+export const DEFAULT_DB_CONFIGS: ExploriDbConfig[] = EXPLORI_SIZES.flatMap((N) =>
+  EXPLORI_SYMMETRIES.map((symmetry) => ({ N, symmetry }))
+);
 
 export const DEFAULT_RESULT_LIMIT = 8;
 

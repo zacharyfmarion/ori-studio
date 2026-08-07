@@ -151,14 +151,94 @@ export function ExploriFoldFigure({ fold, size }: { fold: ExploriFold; size: num
   );
 }
 
-export function ExploriGraphFigure({ graph, size }: { graph: ExploriGraph; size: number }) {
-  const positioned = useMemo(() => {
-    const points = new Map<string, [number, number]>();
-    for (const node of graph.nodes) {
-      if (node.pos) points.set(String(node.id), node.pos);
+/**
+ * Where to draw a graph's nodes.
+ *
+ * A tiling's `tree` arrives with **no positions** — upstream serializes it with
+ * no `pos` argument — so there is nothing to place. Upstream's own renderer has
+ * the same hole and falls back to the origin, stacking every node on one point,
+ * so there is nothing to copy here either.
+ *
+ * It does carry `length` on every edge, though, which is a real metric. So the
+ * layout is radial from the graph's root: walk it breadth-first, give each
+ * subtree an angular wedge in proportion to how many leaves it carries, and put
+ * each node at its parent plus `length` along its wedge's bisector. Deterministic,
+ * no iteration, and it draws the tree the lengths actually describe.
+ *
+ * Positions that *are* supplied — `topology` and `solved_tiling` carry them —
+ * are used as they come.
+ */
+export function layoutExploriGraph(graph: ExploriGraph): Map<string, [number, number]> {
+  const supplied = new Map<string, [number, number]>();
+  for (const node of graph.nodes) {
+    if (node.pos) supplied.set(String(node.id), node.pos);
+  }
+  if (supplied.size > 0) return supplied;
+  if (graph.nodes.length === 0) return supplied;
+
+  const adjacency = new Map<string, { id: string; length: number }[]>();
+  for (const node of graph.nodes) adjacency.set(String(node.id), []);
+  for (const edge of graph.edges) {
+    const u = String(edge.u);
+    const v = String(edge.v);
+    const length = edge.length && edge.length > 0 ? edge.length : 1;
+    adjacency.get(u)?.push({ id: v, length });
+    adjacency.get(v)?.push({ id: u, length });
+  }
+
+  // Root at the most-connected node, which for a metric tree is the one the
+  // drawing reads best from — a leaf root would push everything into a fan.
+  const root = [...adjacency.entries()].reduce(
+    (best, entry) => (entry[1].length > (adjacency.get(best)?.length ?? 0) ? entry[0] : best),
+    String(graph.nodes[0].id)
+  );
+
+  // Children first, so a wedge can be sized by the leaves below it.
+  const parent = new Map<string, string | null>([[root, null]]);
+  const order: string[] = [root];
+  for (let i = 0; i < order.length; i += 1) {
+    for (const next of adjacency.get(order[i]) ?? []) {
+      if (parent.has(next.id)) continue;
+      parent.set(next.id, order[i]);
+      order.push(next.id);
     }
-    return points;
-  }, [graph]);
+  }
+  const leafCount = new Map<string, number>();
+  for (let i = order.length - 1; i >= 0; i -= 1) {
+    const id = order[i];
+    const children = (adjacency.get(id) ?? []).filter((edge) => parent.get(edge.id) === id);
+    leafCount.set(
+      id,
+      children.length === 0
+        ? 1
+        : children.reduce((sum, child) => sum + (leafCount.get(child.id) ?? 1), 0)
+    );
+  }
+
+  const points = new Map<string, [number, number]>([[root, [0, 0]]]);
+  const wedge = new Map<string, [number, number]>([[root, [0, Math.PI * 2]]]);
+  for (const id of order) {
+    const [from, to] = wedge.get(id) ?? [0, Math.PI * 2];
+    const children = (adjacency.get(id) ?? []).filter((edge) => parent.get(edge.id) === id);
+    const total = children.reduce((sum, child) => sum + (leafCount.get(child.id) ?? 1), 0) || 1;
+    let cursor = from;
+    for (const child of children) {
+      const span = ((to - from) * (leafCount.get(child.id) ?? 1)) / total;
+      const angle = cursor + span / 2;
+      const origin = points.get(id) ?? [0, 0];
+      points.set(child.id, [
+        origin[0] + Math.cos(angle) * child.length,
+        origin[1] + Math.sin(angle) * child.length,
+      ]);
+      wedge.set(child.id, [cursor, cursor + span]);
+      cursor += span;
+    }
+  }
+  return points;
+}
+
+export function ExploriGraphFigure({ graph, size }: { graph: ExploriGraph; size: number }) {
+  const positioned = useMemo(() => layoutExploriGraph(graph), [graph]);
   const project = useMemo(
     () => projector(boundsOf([...positioned.values()]), size),
     [positioned, size]

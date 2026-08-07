@@ -2129,7 +2129,6 @@
     "panels:design.paneTitle.exploriTree": "b85f5fabf97d",
     "panels:explori.backToResults": "c7ef0e278b1e",
     "panels:explori.canvas": "1471e2f09bb0",
-    "panels:explori.databases": "8a37fba6fa11",
     "panels:explori.decreaseLength": "b2e019b67bc0",
     "panels:explori.edgeLengthGroup": "784ac4c693f8",
     "panels:explori.edgeTitle": "b567fd94ea21",
@@ -2139,7 +2138,7 @@
     "panels:explori.length": "adc95605a1b3",
     "panels:explori.mirrorDraw": "8f7c3e35b263",
     "panels:explori.mirrorDrawOn": "84daba05cd03",
-    "panels:explori.needDatabase": "34ff13cda004",
+    "panels:explori.needDatabase": "0dd25a86f17b",
     "panels:explori.needMoreBranches": "3d93bc5d4527",
     "panels:explori.nextResult": "bf56a193cb9f",
     "panels:explori.noResultsYet": "12e08a16dc2d",
@@ -2172,7 +2171,12 @@
     "panels:explori.viewFold": "bb757cc67233",
     "panels:explori.viewPacking": "e14fc9d661dc",
     "panels:explori.viewTree": "b85f5fabf97d",
-    "panels:explori.viewportControls": "aafa42c75ac1"
+    "panels:explori.viewportControls": "aafa42c75ac1",
+    "panels:explori.advancedDatabases": "afd006264046",
+    "panels:explori.databaseCell": "9c830b64e480",
+    "panels:explori.searchSize": "219c4a6c86a7",
+    "panels:explori.symmetryModes": "cc14de692631",
+    "panels:explori.topologySize": "1af851907331"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4304,7 +4308,6 @@
     "panels:design.paneTitle.exploriTree": "b85f5fabf97d",
     "panels:explori.backToResults": "c7ef0e278b1e",
     "panels:explori.canvas": "1471e2f09bb0",
-    "panels:explori.databases": "8a37fba6fa11",
     "panels:explori.decreaseLength": "b2e019b67bc0",
     "panels:explori.edgeLengthGroup": "784ac4c693f8",
     "panels:explori.edgeTitle": "b567fd94ea21",
@@ -4314,7 +4317,7 @@
     "panels:explori.length": "adc95605a1b3",
     "panels:explori.mirrorDraw": "8f7c3e35b263",
     "panels:explori.mirrorDrawOn": "84daba05cd03",
-    "panels:explori.needDatabase": "34ff13cda004",
+    "panels:explori.needDatabase": "0dd25a86f17b",
     "panels:explori.needMoreBranches": "3d93bc5d4527",
     "panels:explori.nextResult": "bf56a193cb9f",
     "panels:explori.noResultsYet": "12e08a16dc2d",
@@ -4347,7 +4350,12 @@
     "panels:explori.viewFold": "bb757cc67233",
     "panels:explori.viewPacking": "e14fc9d661dc",
     "panels:explori.viewTree": "b85f5fabf97d",
-    "panels:explori.viewportControls": "aafa42c75ac1"
+    "panels:explori.viewportControls": "aafa42c75ac1",
+    "panels:explori.advancedDatabases": "afd006264046",
+    "panels:explori.databaseCell": "9c830b64e480",
+    "panels:explori.searchSize": "219c4a6c86a7",
+    "panels:explori.symmetryModes": "cc14de692631",
+    "panels:explori.topologySize": "1af851907331"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6507,7 +6515,6 @@
     "panels:design.paneTitle.exploriTree": "b85f5fabf97d",
     "panels:explori.backToResults": "c7ef0e278b1e",
     "panels:explori.canvas": "1471e2f09bb0",
-    "panels:explori.databases": "8a37fba6fa11",
     "panels:explori.decreaseLength": "b2e019b67bc0",
     "panels:explori.edgeLengthGroup": "784ac4c693f8",
     "panels:explori.edgeTitle": "b567fd94ea21",
@@ -6517,7 +6524,7 @@
     "panels:explori.length": "adc95605a1b3",
     "panels:explori.mirrorDraw": "8f7c3e35b263",
     "panels:explori.mirrorDrawOn": "84daba05cd03",
-    "panels:explori.needDatabase": "34ff13cda004",
+    "panels:explori.needDatabase": "0dd25a86f17b",
     "panels:explori.needMoreBranches": "3d93bc5d4527",
     "panels:explori.nextResult": "bf56a193cb9f",
     "panels:explori.noResultsYet": "12e08a16dc2d",
@@ -6550,7 +6557,12 @@
     "panels:explori.viewFold": "bb757cc67233",
     "panels:explori.viewPacking": "e14fc9d661dc",
     "panels:explori.viewTree": "b85f5fabf97d",
-    "panels:explori.viewportControls": "aafa42c75ac1"
+    "panels:explori.viewportControls": "aafa42c75ac1",
+    "panels:explori.advancedDatabases": "afd006264046",
+    "panels:explori.databaseCell": "9c830b64e480",
+    "panels:explori.searchSize": "219c4a6c86a7",
+    "panels:explori.symmetryModes": "cc14de692631",
+    "panels:explori.topologySize": "1af851907331"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8710,7 +8722,6 @@
     "panels:design.paneTitle.exploriTree": "b85f5fabf97d",
     "panels:explori.backToResults": "c7ef0e278b1e",
     "panels:explori.canvas": "1471e2f09bb0",
-    "panels:explori.databases": "8a37fba6fa11",
     "panels:explori.decreaseLength": "b2e019b67bc0",
     "panels:explori.edgeLengthGroup": "784ac4c693f8",
     "panels:explori.edgeTitle": "b567fd94ea21",
@@ -8720,7 +8731,7 @@
     "panels:explori.length": "adc95605a1b3",
     "panels:explori.mirrorDraw": "8f7c3e35b263",
     "panels:explori.mirrorDrawOn": "84daba05cd03",
-    "panels:explori.needDatabase": "34ff13cda004",
+    "panels:explori.needDatabase": "0dd25a86f17b",
     "panels:explori.needMoreBranches": "3d93bc5d4527",
     "panels:explori.nextResult": "bf56a193cb9f",
     "panels:explori.noResultsYet": "12e08a16dc2d",
@@ -8753,7 +8764,12 @@
     "panels:explori.viewFold": "bb757cc67233",
     "panels:explori.viewPacking": "e14fc9d661dc",
     "panels:explori.viewTree": "b85f5fabf97d",
-    "panels:explori.viewportControls": "aafa42c75ac1"
+    "panels:explori.viewportControls": "aafa42c75ac1",
+    "panels:explori.advancedDatabases": "afd006264046",
+    "panels:explori.databaseCell": "9c830b64e480",
+    "panels:explori.searchSize": "219c4a6c86a7",
+    "panels:explori.symmetryModes": "cc14de692631",
+    "panels:explori.topologySize": "1af851907331"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10913,7 +10929,6 @@
     "panels:design.paneTitle.exploriTree": "b85f5fabf97d",
     "panels:explori.backToResults": "c7ef0e278b1e",
     "panels:explori.canvas": "1471e2f09bb0",
-    "panels:explori.databases": "8a37fba6fa11",
     "panels:explori.decreaseLength": "b2e019b67bc0",
     "panels:explori.edgeLengthGroup": "784ac4c693f8",
     "panels:explori.edgeTitle": "b567fd94ea21",
@@ -10923,7 +10938,7 @@
     "panels:explori.length": "adc95605a1b3",
     "panels:explori.mirrorDraw": "8f7c3e35b263",
     "panels:explori.mirrorDrawOn": "84daba05cd03",
-    "panels:explori.needDatabase": "34ff13cda004",
+    "panels:explori.needDatabase": "0dd25a86f17b",
     "panels:explori.needMoreBranches": "3d93bc5d4527",
     "panels:explori.nextResult": "bf56a193cb9f",
     "panels:explori.noResultsYet": "12e08a16dc2d",
@@ -10956,7 +10971,12 @@
     "panels:explori.viewFold": "bb757cc67233",
     "panels:explori.viewPacking": "e14fc9d661dc",
     "panels:explori.viewTree": "b85f5fabf97d",
-    "panels:explori.viewportControls": "aafa42c75ac1"
+    "panels:explori.viewportControls": "aafa42c75ac1",
+    "panels:explori.advancedDatabases": "afd006264046",
+    "panels:explori.databaseCell": "9c830b64e480",
+    "panels:explori.searchSize": "219c4a6c86a7",
+    "panels:explori.symmetryModes": "cc14de692631",
+    "panels:explori.topologySize": "1af851907331"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13116,7 +13136,6 @@
     "panels:design.paneTitle.exploriTree": "b85f5fabf97d",
     "panels:explori.backToResults": "c7ef0e278b1e",
     "panels:explori.canvas": "1471e2f09bb0",
-    "panels:explori.databases": "8a37fba6fa11",
     "panels:explori.decreaseLength": "b2e019b67bc0",
     "panels:explori.edgeLengthGroup": "784ac4c693f8",
     "panels:explori.edgeTitle": "b567fd94ea21",
@@ -13126,7 +13145,7 @@
     "panels:explori.length": "adc95605a1b3",
     "panels:explori.mirrorDraw": "8f7c3e35b263",
     "panels:explori.mirrorDrawOn": "84daba05cd03",
-    "panels:explori.needDatabase": "34ff13cda004",
+    "panels:explori.needDatabase": "0dd25a86f17b",
     "panels:explori.needMoreBranches": "3d93bc5d4527",
     "panels:explori.nextResult": "bf56a193cb9f",
     "panels:explori.noResultsYet": "12e08a16dc2d",
@@ -13159,7 +13178,12 @@
     "panels:explori.viewFold": "bb757cc67233",
     "panels:explori.viewPacking": "e14fc9d661dc",
     "panels:explori.viewTree": "b85f5fabf97d",
-    "panels:explori.viewportControls": "aafa42c75ac1"
+    "panels:explori.viewportControls": "aafa42c75ac1",
+    "panels:explori.advancedDatabases": "afd006264046",
+    "panels:explori.databaseCell": "9c830b64e480",
+    "panels:explori.searchSize": "219c4a6c86a7",
+    "panels:explori.symmetryModes": "cc14de692631",
+    "panels:explori.topologySize": "1af851907331"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15319,7 +15343,6 @@
     "panels:design.paneTitle.exploriTree": "b85f5fabf97d",
     "panels:explori.backToResults": "c7ef0e278b1e",
     "panels:explori.canvas": "1471e2f09bb0",
-    "panels:explori.databases": "8a37fba6fa11",
     "panels:explori.decreaseLength": "b2e019b67bc0",
     "panels:explori.edgeLengthGroup": "784ac4c693f8",
     "panels:explori.edgeTitle": "b567fd94ea21",
@@ -15329,7 +15352,7 @@
     "panels:explori.length": "adc95605a1b3",
     "panels:explori.mirrorDraw": "8f7c3e35b263",
     "panels:explori.mirrorDrawOn": "84daba05cd03",
-    "panels:explori.needDatabase": "34ff13cda004",
+    "panels:explori.needDatabase": "0dd25a86f17b",
     "panels:explori.needMoreBranches": "3d93bc5d4527",
     "panels:explori.nextResult": "bf56a193cb9f",
     "panels:explori.noResultsYet": "12e08a16dc2d",
@@ -15362,7 +15385,12 @@
     "panels:explori.viewFold": "bb757cc67233",
     "panels:explori.viewPacking": "e14fc9d661dc",
     "panels:explori.viewTree": "b85f5fabf97d",
-    "panels:explori.viewportControls": "aafa42c75ac1"
+    "panels:explori.viewportControls": "aafa42c75ac1",
+    "panels:explori.advancedDatabases": "afd006264046",
+    "panels:explori.databaseCell": "9c830b64e480",
+    "panels:explori.searchSize": "219c4a6c86a7",
+    "panels:explori.symmetryModes": "cc14de692631",
+    "panels:explori.topologySize": "1af851907331"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -17494,7 +17522,6 @@
     "panels:design.paneTitle.exploriTree": "b85f5fabf97d",
     "panels:explori.backToResults": "c7ef0e278b1e",
     "panels:explori.canvas": "1471e2f09bb0",
-    "panels:explori.databases": "8a37fba6fa11",
     "panels:explori.decreaseLength": "b2e019b67bc0",
     "panels:explori.edgeLengthGroup": "784ac4c693f8",
     "panels:explori.edgeTitle": "b567fd94ea21",
@@ -17504,7 +17531,7 @@
     "panels:explori.length": "adc95605a1b3",
     "panels:explori.mirrorDraw": "8f7c3e35b263",
     "panels:explori.mirrorDrawOn": "84daba05cd03",
-    "panels:explori.needDatabase": "34ff13cda004",
+    "panels:explori.needDatabase": "0dd25a86f17b",
     "panels:explori.needMoreBranches": "3d93bc5d4527",
     "panels:explori.nextResult": "bf56a193cb9f",
     "panels:explori.noResultsYet": "12e08a16dc2d",
@@ -17537,6 +17564,11 @@
     "panels:explori.viewFold": "bb757cc67233",
     "panels:explori.viewPacking": "e14fc9d661dc",
     "panels:explori.viewTree": "b85f5fabf97d",
-    "panels:explori.viewportControls": "aafa42c75ac1"
+    "panels:explori.viewportControls": "aafa42c75ac1",
+    "panels:explori.advancedDatabases": "afd006264046",
+    "panels:explori.databaseCell": "9c830b64e480",
+    "panels:explori.searchSize": "219c4a6c86a7",
+    "panels:explori.symmetryModes": "cc14de692631",
+    "panels:explori.topologySize": "1af851907331"
   }
 }

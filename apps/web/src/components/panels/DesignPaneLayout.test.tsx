@@ -109,15 +109,31 @@ describe('the pane layout a kind declares', () => {
     expect(calls[3]).toMatchObject({ position: { referenceGroup: 'inspector-group' }, inactive: true });
   });
 
-  it('gives box-pleat two headered canvases side by side', () => {
+  it('gives box-pleat two headerless canvases side by side', () => {
     const { api, calls, raw } = fakeDock();
 
     buildLayout(api, designKind('box-pleat')!, t);
 
     expect(calls.map((options) => options.id)).toEqual(['design', 'bp-editor']);
-    // Two peer canvases need naming, so neither group hides its header.
-    expect(raw.addGroup).not.toHaveBeenCalled();
-    expect(calls[1]).toMatchObject({ position: { referencePanel: 'design', direction: 'right' } });
+    // Neither canvas wears a tab header. They used to, on the reasoning that two
+    // side by side need naming — in use they do not, and the header reads as a
+    // tab that could be closed or dragged, which it cannot. `hideHeader` belongs
+    // to the *group*, so each canvas gets its own; the sash between the two
+    // groups is the resize this arrangement exists for.
+    expect(raw.addGroup).toHaveBeenCalledTimes(2);
+    for (const [options] of raw.addGroup.mock.calls) {
+      expect(options).toMatchObject({ hideHeader: true });
+    }
+    expect(calls[1]).toMatchObject({ position: { referenceGroup: expect.anything() } });
+  });
+
+  it('gives the search kind the same headerless pair', () => {
+    const { api, calls, raw } = fakeDock();
+
+    buildLayout(api, designKind('explori')!, t);
+
+    expect(calls.map((options) => options.id)).toEqual(['explori-tree', 'explori-results']);
+    expect(raw.addGroup).toHaveBeenCalledTimes(2);
   });
 });
 

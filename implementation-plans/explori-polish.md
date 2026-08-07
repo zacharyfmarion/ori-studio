@@ -135,16 +135,18 @@ only when the pane genuinely cannot.
 
 ## Checklist
 
-- [ ] Radial layout for result trees, from the graph's own edge lengths
-- [ ] Box-pleat: a snapped click commits the length it drew, as one undo entry,
+*All eight done and browser-verified; see the commit for what each turned up.*
+
+- [x] Radial layout for result trees, from the graph's own edge lengths
+- [x] Box-pleat: a snapped click commits the length it drew, as one undo entry,
       with a store-level regression test
-- [ ] Quick Send to Edit chooses without opening the detail
-- [ ] Query bar: three symmetry toggles, gear → per-size table, result count
-- [ ] Thumbnail mode uses the app's select primitive
-- [ ] Detail view laid out as upstream's: header, actions, two large panes with
+- [x] Quick Send to Edit chooses without opening the detail
+- [x] Query bar: three symmetry toggles, gear → per-size table, result count
+- [x] Thumbnail mode uses the app's select primitive
+- [x] Detail view laid out as upstream's: header, actions, two large panes with
       their own toggles
-- [ ] Design panes drop their tab headers and keep the resize sash — ExplOri and
+- [x] Design panes drop their tab headers and keep the resize sash — ExplOri and
       box-pleat both
-- [ ] Chooser fits three cards on one row
-- [ ] Lint, typecheck, tests, `i18n:check` with translations for any new strings
-- [ ] Browser-verify each of the eight
+- [x] Chooser fits three cards on one row
+- [x] Lint, typecheck, tests, `i18n:check` with translations for any new strings
+- [x] Browser-verify each of the eight

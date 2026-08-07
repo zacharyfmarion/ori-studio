@@ -7634,40 +7634,102 @@ button.bp-packing-alert:focus-visible {
 
 .explori-query-bar {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 8px 12px;
   border-top: 1px solid var(--border-default);
   background: var(--bg-secondary);
-  flex-wrap: wrap;
 }
 
-.explori-db-grid {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.explori-db-row {
+.explori-query-bar__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.explori-query-bar__label {
   font-size: 11px;
   color: var(--text-secondary);
 }
 
-.explori-db-row__label {
+.explori-query-bar__label--count {
+  margin-left: 8px;
+}
+
+.explori-query-bar__spacer {
+  flex: 1;
+}
+
+.explori-query-bar__count {
+  width: 56px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+}
+
+/* One segmented control, so the three read as a set rather than three buttons. */
+.explori-symmetry-group {
+  display: inline-flex;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.explori-symmetry-toggle {
+  padding: 4px 10px;
+  border: none;
+  border-right: 1px solid var(--border-default);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.explori-symmetry-toggle:last-child {
+  border-right: none;
+}
+
+.explori-symmetry-toggle:hover {
   color: var(--text-primary);
 }
 
-.explori-db-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
+.explori-symmetry-toggle[aria-pressed='true'] {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+/*
+ * The per-size grid: twelve checkboxes are legible with one set of column
+ * headers and unreadable without them, which is the whole reason this is a
+ * table and not the inline row it started as.
+ */
+.explori-db-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  color: var(--text-secondary);
+  align-self: flex-start;
+}
+
+.explori-db-table th,
+.explori-db-table td {
+  padding: 3px 10px;
+  border: 1px solid var(--border-default);
+  text-align: center;
+  font-weight: 500;
+}
+
+.explori-db-table thead th,
+.explori-db-table tbody th {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.explori-db-table input {
   cursor: pointer;
 }
 
@@ -7772,48 +7834,82 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-tertiary, var(--text-secondary));
 }
 
+.explori-results-panel--detail {
+  position: relative;
+}
+
 .explori-detail__header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-bottom: 6px;
+  gap: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border-default);
-  font-size: 11px;
+}
+
+.explori-detail__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
 }
 
 .explori-detail__title {
   font-variant-numeric: tabular-nums;
+  font-size: 12px;
   color: var(--text-primary);
 }
 
-.explori-detail__spacer {
-  flex: 1;
+/* Pinned to the pane edges, as upstream's chevrons are: stepping through
+   results should be one target that does not move between results. */
+.explori-detail__step {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.explori-detail__step--prev {
+  left: 2px;
+}
+
+.explori-detail__step--next {
+  right: 2px;
 }
 
 .explori-detail__panes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  padding: 4px 26px;
 }
 
 .explori-detail__pane {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.explori-detail__figure {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-canvas);
+  padding: 4px;
 }
 
 .explori-detail__modes {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
   font-size: 11px;
   color: var(--text-secondary);
 }
 
-.explori-detail__modes label {
+.explori-detail__mode {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   cursor: pointer;
 }
 
