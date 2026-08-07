@@ -93,7 +93,7 @@ describe('resolveWheelGesture', () => {
     });
 
     it('grows monotonically with the delta, below the clamp', () => {
-      // The pinch curve saturates at a deltaY of ~7, so stay under it: above
+      // The pinch curve saturates at a deltaY of ~9, so stay under it: above
       // the clamp every event is worth the same, which is the point of it.
       const factors = [1, 2, 3, 4, 5, 6].map(
         (delta) =>

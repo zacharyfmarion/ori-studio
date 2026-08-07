@@ -126,12 +126,12 @@ Two sensitivities, because the two input streams have different delta scales:
 | Constant | Applies to | Now | Proposed |
 | --- | --- | --- | --- |
 | `WHEEL_ZOOM_SENSITIVITY` | plain scroll in `zoom` mode, and Cmd/Ctrl+scroll | `ln(1.0015) ≈ 0.0015` | unchanged |
-| `PINCH_ZOOM_SENSITIVITY` | pinch (ctrl+wheel from the gesture, not the key) | — (ran on the wheel constant) | **`0.022`** |
+| `PINCH_ZOOM_SENSITIVITY` | pinch (ctrl+wheel from the gesture, not the key) | — (ran on the wheel constant) | **`0.016`** |
 
-`0.022` is 2× the `0.011` the tree and BP panes have used for pinch since they
-got a dedicated handler, and ~15× the effective rate on this canvas today. It is
-a feel judgement, not a measured one — budget one tuning pass, cheap now that it
-is a single exported constant.
+`0.016` is ~11× the effective rate on this canvas today, and close to the
+`0.011` the tree and BP panes have used for pinch since they got a dedicated
+handler. It is a feel judgement, and it took the tuning pass the plan budgeted:
+`0.022` shipped first and read as slightly too aggressive on hardware.
 
 One wrinkle, and the clamp is what resolves it: a browser-synthesised pinch and
 a real Ctrl+scroll are the *same event* on Windows, so they cannot take
@@ -249,9 +249,10 @@ stripped and pan instead of zoom. Forward `ctrlKey`, `metaKey`, and `shiftKey`.
   instrumented, and this is a preference rather than a feature.
   Recommendation: **no new event**. Revisit only to measure how many users
   revert to classic.
-- **Pinch sensitivity `0.022`.** A feel call. If one tuning pass does not settle
-  it, upstream's `zoomSpeed` precedent suggests promoting it to a slider rather
-  than arguing about a constant.
+- **Pinch sensitivity.** Settled at `0.016` after one hardware pass (`0.022`
+  was too aggressive). If it needs a third opinion, upstream's `zoomSpeed`
+  precedent suggests promoting it to a slider rather than arguing about a
+  constant.
 
 ## Checklist
 
@@ -296,8 +297,8 @@ and reading the camera back out of `cpOverlayViewStore`:
 
 Left for a real trackpad (Zach):
 
-- [ ] Pinch *feel* at `0.022` on hardware — the one number that synthetic events
-      cannot judge
+- [x] Pinch *feel* on hardware — the one number synthetic events cannot judge.
+      `0.022` read as slightly too aggressive; settled at `0.016`.
 - [ ] Two-finger drag under a rotated camera (the pan follows the rotated axes
       via `deviceDeltaToUser`; unit maths says it is right, worth one look)
 - [ ] Pinch and Cmd+scroll over a folded figure / reference image, through the

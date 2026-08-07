@@ -50,12 +50,15 @@ const PAGE_DELTA_PX = 800;
  * about the wheel curve should move -- it is what the classic preference has to
  * restore.
  *
- * The pinch figure is ~15x that, because a pinch step is a `deltaY` of single
+ * The pinch figure is ~11x that, because a pinch step is a `deltaY` of single
  * digits rather than 100. Running a pinch on the wheel constant is why the
- * gesture felt dead: 0.45% per event, against a comfortable ~11%.
+ * gesture felt dead: 0.45% per event, against a comfortable ~5%.
+ *
+ * Tuned on hardware, which is the only way this number can be set: 0.022 was
+ * the first pass and read as slightly too aggressive.
  */
 export const WHEEL_ZOOM_SENSITIVITY = Math.log(1.0015);
-export const PINCH_ZOOM_SENSITIVITY = 0.022;
+export const PINCH_ZOOM_SENSITIVITY = 0.016;
 
 /**
  * Ceiling on one event's zoom exponent, so a single coarse event cannot jump
