@@ -7,6 +7,7 @@ import {
   type TreeSceneTarget,
 } from './sceneDom';
 import type { Point } from '../lib/geometry';
+import type { SymmetryAxis } from '../lib/symmetryGeometry';
 
 /**
  * A tree-vertex drag, run without React.
@@ -33,6 +34,20 @@ export interface TreeDragStart {
   subtreeIds: readonly number[];
   /** Holds paired vertices in their own half of the mirror. Null when none are. */
   mirror?: TreeDragMirror | null;
+  /** Slides the dragged vertex along this line instead of swinging it. */
+  pinToAxis?: SymmetryAxis | null;
+  /**
+   * Where a committed move would *also* put vertices: the mirror partners of the
+   * ones being dragged.
+   *
+   * The commit adds these itself, so without them here the partner sat still
+   * through the whole gesture and jumped into place on release. Supplied rather
+   * than derived, because only the surface knows what is paired with what — but
+   * the reflection is the same on both, so neither has to say how.
+   */
+  reflect?: ((updates: ReadonlyMap<number, Point>) => ReadonlyMap<number, Point>) | null;
+  /** Ids `reflect` may return, so their scene elements are collected up front. */
+  reflectedIds?: readonly number[];
   /** Where the gesture may put a vertex. Omit on a surface with no bounds. */
   bounds?: (point: Point) => boolean;
   /**
@@ -83,6 +98,9 @@ export function startTreeDrag(input: TreeDragStart): TreeDragSession {
     length,
     onLength,
     mirror = null,
+    pinToAxis = null,
+    reflect = null,
+    reflectedIds = [],
     clientStart,
     toTreePoint,
     toSvgPoint,
@@ -128,18 +146,30 @@ export function startTreeDrag(input: TreeDragStart): TreeDragSession {
       start,
       target,
       mirror,
+      pinToAxis,
       bounds,
       length: {
         ...length,
         quantize: (distance) => length.quantize(distance, quantizeState),
       },
     });
-    updates = result.updates;
+    // The partner moves with the gesture rather than on release. Merged into the
+    // session's own updates, so what the preview shows is what gets committed —
+    // and re-reflecting at commit is harmless, since a partner already in the
+    // moved set is skipped there.
+    const reflected = reflect?.(result.updates);
+    if (reflected && reflected.size > 0) {
+      const merged = new Map(result.updates);
+      for (const [id, loc] of reflected) merged.set(id, loc);
+      updates = merged;
+    } else {
+      updates = result.updates;
+    }
     if (result.length !== edgeLength) {
       edgeLength = result.length;
       onLength?.(edgeLength);
     }
-    targets ??= collectTreeSceneTargets(root, new Set(subtreeIds));
+    targets ??= collectTreeSceneTargets(root, new Set([...subtreeIds, ...reflectedIds]));
     applyTreeScenePositions(
       targets,
       (id) => {

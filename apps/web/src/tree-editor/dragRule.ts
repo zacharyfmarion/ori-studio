@@ -1,4 +1,8 @@
-import { axisDirection, type SymmetryAxis } from '../lib/symmetryGeometry';
+import {
+  axisDirection,
+  projectOntoSymmetryAxis,
+  type SymmetryAxis,
+} from '../lib/symmetryGeometry';
 import type { Point } from '../lib/geometry';
 
 /**
@@ -132,6 +136,18 @@ export interface TreeDragInput {
    * the internal edge lengths of any subtree swung against the sheet edge.
    */
   bounds?: (point: Point) => boolean;
+  /**
+   * Holds the dragged vertex *on* this line, letting it slide rather than swing.
+   *
+   * A vertex on the mirror is its own reflection, and a rotate-and-extend drag
+   * would take it off the line and break that silently — which is why such a
+   * vertex used to be refused a drag outright. Refusing is too strong: every
+   * point along the line keeps the invariant, so the gesture becomes a slide.
+   *
+   * Null for every vertex that is not on the mirror, which is nearly all of
+   * them.
+   */
+  pinToAxis?: SymmetryAxis | null;
 }
 
 /** How the dragged edge's length follows the cursor. */
@@ -295,6 +311,22 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
     return heldStaysInPlace(moved, subtree, input.mirror);
   };
 
+  // Pinned to the mirror: one admissible state, not a sweep. Every intermediate
+  // step of a sweep is off the line, so there is no "partway" here to fall back
+  // to — either the slide lands somewhere the gesture may put it, or the vertex
+  // stays where it is.
+  if (input.pinToAxis) {
+    const pinned = axisPinnedTip(pivot, target, input.pinToAxis, length);
+    if (!pinned) return EMPTY_RESULT(length.current);
+    const pinnedAngle = normalizeSignedAngle(
+      Math.atan2(pinned.tip.y - pivot.y, pinned.tip.x - pivot.x) - startAngle
+    );
+    const moved = at(pinnedAngle, pinned.radius - startRadius);
+    return isValid(moved)
+      ? { updates: moved, length: pinned.radius }
+      : EMPTY_RESULT(length.current);
+  }
+
   const t = largestValidT((step) => isValid(at(requestedAngle * step, requestedExtension * step)));
   const angle = requestedAngle * t;
   const reached = startRadius + requestedExtension * t;
@@ -313,6 +345,52 @@ export function treeDragUpdates(input: TreeDragInput): TreeDragResult {
 
 function clampToRule(value: number, rule: TreeDragLengthRule): number {
   return Math.min(rule.max ?? Number.POSITIVE_INFINITY, Math.max(rule.min, value));
+}
+
+/**
+ * Where a vertex pinned to the axis goes: on the line, at a radius the length
+ * rule admits, as near the cursor as both of those allow.
+ *
+ * One description that covers both surfaces. With continuous lengths every point
+ * on the line is admissible, so the vertex tracks the cursor's projection. With
+ * whole-number lengths only the radii on the step are, so it steps between them
+ * and the packing engine still gets integers.
+ *
+ * Null when the rule admits no radius that reaches the line at all — a ceiling
+ * lower than the pivot's own distance from it. There is no nearby answer to give
+ * there, and inventing one would move the vertex off the mirror.
+ */
+export function axisPinnedTip(
+  pivot: Point,
+  target: Point,
+  axis: SymmetryAxis,
+  rule: TreeDragLengthRule
+): { tip: Point; radius: number } | null {
+  // The nearest the vertex can ever come to the pivot while staying on the line.
+  const foot = projectOntoSymmetryAxis(pivot, axis);
+  const offset = Math.hypot(foot.x - pivot.x, foot.y - pivot.y);
+
+  const wanted = projectOntoSymmetryAxis(target, axis);
+  let radius = clampToRule(
+    rule.quantize(Math.hypot(wanted.x - pivot.x, wanted.y - pivot.y)),
+    rule
+  );
+  // A radius shorter than that reaches nothing, so walk up to the first
+  // admissible one that does — by whole steps where the rule has them.
+  if (radius < offset) {
+    radius = rule.step === null ? offset : radius + Math.ceil((offset - radius) / rule.step) * rule.step;
+    if (radius > (rule.max ?? Number.POSITIVE_INFINITY)) return null;
+  }
+
+  const along = Math.sqrt(Math.max(0, radius * radius - offset * offset));
+  const direction = axisDirection(axis);
+  // Two intersections, mirrored about the foot; take the one the cursor is on.
+  const side =
+    (wanted.x - foot.x) * direction.x + (wanted.y - foot.y) * direction.y >= 0 ? 1 : -1;
+  return {
+    tip: { x: foot.x + side * along * direction.x, y: foot.y + side * along * direction.y },
+    radius,
+  };
 }
 
 /**

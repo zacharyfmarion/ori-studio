@@ -373,3 +373,142 @@ describe('treeDragUpdates — the mirror is a wall', () => {
     expect(moved.get(1)?.x).toBeCloseTo(15, 9);
   });
 });
+
+/**
+ * A vertex that sits on the mirror line.
+ *
+ * It is its own reflection, so a rotate-and-extend drag would take it off the
+ * line and break that silently — which is why such a vertex used to be refused a
+ * drag outright, and read to the user as a node that could not be resized.
+ * Refusing is too strong: every point *along* the line keeps the invariant. The
+ * gesture becomes a slide, and stays one under either length rule.
+ */
+describe('treeDragUpdates — a vertex pinned to the mirror slides along it', () => {
+  const axis = { loc: { x: 0, y: 0 }, angle: 90 }; // vertical, through the origin
+
+  const continuous = (current: number) => ({
+    current,
+    min: 0.1,
+    max: null,
+    step: null,
+    quantize: (distance: number) => distance,
+  });
+  const snapped = (current: number) => ({
+    current,
+    min: 1,
+    max: null,
+    step: 1,
+    quantize: (distance: number) => Math.round(distance),
+  });
+
+  /** Parent on the axis, child two units up it. */
+  function slideFromAxisParent(target: Point, length: ReturnType<typeof continuous>) {
+    return treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices: new Map<number, Point>([
+        [0, { x: 0, y: 0 }],
+        [1, { x: 0, y: 2 }],
+      ]),
+      subtreeIds: [1],
+      start: { x: 0, y: 2 },
+      target,
+      length,
+      pinToAxis: axis,
+    });
+  }
+
+  it('moves, where it used to refuse to', () => {
+    const { updates } = slideFromAxisParent({ x: 0.6, y: 3.4 }, continuous(2));
+    expect(updates.size).toBe(1);
+  });
+
+  it('tracks the cursor along the line, taking the length from the drawing', () => {
+    const { updates, length } = slideFromAxisParent({ x: 0.6, y: 3.4 }, continuous(2));
+    const moved = updates.get(1)!;
+    expect(moved.x).toBeCloseTo(0, 12); // still on the mirror
+    expect(moved.y).toBeCloseTo(3.4, 12); // at the cursor's height
+    expect(length).toBeCloseTo(3.4, 12);
+  });
+
+  it('steps between whole lengths where the rule has them, still on the line', () => {
+    const { updates, length } = slideFromAxisParent({ x: 0.6, y: 3.4 }, snapped(2));
+    const moved = updates.get(1)!;
+    expect(moved.x).toBeCloseTo(0, 12);
+    expect(length).toBe(3);
+    expect(moved.y).toBeCloseTo(3, 12);
+  });
+
+  it('slides to the other side of the parent when the cursor goes there', () => {
+    const { updates } = slideFromAxisParent({ x: 0, y: -1.5 }, continuous(2));
+    expect(updates.get(1)!.y).toBeCloseTo(-1.5, 12);
+  });
+
+  it('carries the subtree rigidly', () => {
+    const { updates } = treeDragUpdates({
+      vertexId: 1,
+      parentId: 0,
+      vertices: new Map<number, Point>([
+        [0, { x: 0, y: 0 }],
+        [1, { x: 0, y: 2 }],
+        [2, { x: 1, y: 3 }],
+      ]),
+      subtreeIds: [1, 2],
+      start: { x: 0, y: 2 },
+      target: { x: 0, y: 4 },
+      length: continuous(2),
+      pinToAxis: axis,
+    });
+    const one = updates.get(1)!;
+    const two = updates.get(2)!;
+    // The child kept its offset from the vertex it hangs from: a slide up the
+    // line is a translation, so nothing inside the subtree may deform.
+    expect(two.x - one.x).toBeCloseTo(1, 12);
+    expect(two.y - one.y).toBeCloseTo(1, 12);
+  });
+
+  /**
+   * Parent *off* the axis is the case a naive projection gets wrong: the pinned
+   * vertex must land where the circle of an admissible radius meets the line,
+   * which is not the cursor's own projection.
+   */
+  describe('with the parent off the line', () => {
+    function slideFromOffAxisParent(target: Point, length: ReturnType<typeof snapped>) {
+      return treeDragUpdates({
+        vertexId: 1,
+        parentId: 0,
+        vertices: new Map<number, Point>([
+          [0, { x: -3, y: 0 }],
+          [1, { x: 0, y: 4 }],
+        ]),
+        subtreeIds: [1],
+        start: { x: 0, y: 4 },
+        target,
+        length,
+        pinToAxis: axis,
+      });
+    }
+
+    it('lands on the line at exactly the admissible radius', () => {
+      const { updates, length } = slideFromOffAxisParent({ x: 0.5, y: 4.2 }, snapped(5));
+      const moved = updates.get(1)!;
+      expect(moved.x).toBeCloseTo(0, 12);
+      expect(Math.hypot(moved.x + 3, moved.y - 0)).toBeCloseTo(length, 12);
+      expect(Number.isInteger(length)).toBe(true);
+    });
+
+    it('cannot come nearer than the foot of the perpendicular', () => {
+      // The parent is 3 units from the line, so no radius under 3 reaches it.
+      const { length } = slideFromOffAxisParent({ x: 0, y: 0.2 }, snapped(5));
+      expect(length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('moves nothing when no admissible radius reaches the line', () => {
+      const { updates } = slideFromOffAxisParent(
+        { x: 0, y: 1 },
+        { ...snapped(5), max: 2 } // ceiling below the parent's own distance
+      );
+      expect(updates.size).toBe(0);
+    });
+  });
+});

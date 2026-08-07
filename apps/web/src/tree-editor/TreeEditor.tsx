@@ -130,6 +130,44 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
   );
 
   const subtreeOf = useCallback((id: number) => subtreeIds(topology, id), [topology]);
+
+  /**
+   * The partners a drag of these vertices would also move, and where to.
+   *
+   * The commit mirrors the move itself, so this exists only to show it happening
+   * — without it the partner sat still through the gesture and jumped on
+   * release. Written here rather than in either surface's host: which vertex
+   * pairs with which is per-surface and already answered by `resolveMirrorOf`,
+   * but *reflecting across the axis* is the same arithmetic on both.
+   *
+   * A vertex that is its own mirror, or whose partner is being dragged anyway,
+   * contributes nothing: it is already in the moved set.
+   */
+  const mirrorPreviewFor = useCallback(
+    (movedIds: readonly number[]) => {
+      if (!symmetry?.enabled) return { ids: [] as number[], reflect: null };
+      const moved = new Set(movedIds);
+      const pairs = movedIds.flatMap((id) => {
+        const partner = symmetry.resolveMirrorOf(id);
+        return partner === null || partner === id || moved.has(partner)
+          ? []
+          : [[id, partner] as const];
+      });
+      if (pairs.length === 0) return { ids: [] as number[], reflect: null };
+      return {
+        ids: pairs.map(([, partner]) => partner),
+        reflect: (updates: ReadonlyMap<number, Point>) => {
+          const out = new Map<number, Point>();
+          for (const [id, partner] of pairs) {
+            const loc = updates.get(id);
+            if (loc) out.set(partner, reflectPointAcrossSymmetryAxis(loc, symmetry.axis));
+          }
+          return out;
+        },
+      };
+    },
+    [symmetry]
+  );
   // The vertex a canvas click attaches a new leaf to. This is exactly the
   // selected vertex — with no fallback to the root, so a tree opens inert and
   // clearing the selection disarms adding, and the hover ghost and the click
@@ -509,15 +547,6 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
       host.onLongPress?.(event);
       const vertex = findVertex(vertexId);
       if (!vertex) return;
-      // A vertex on the mirror line is its own mirror. Dragging it off would break
-      // that silently, so while mirror draw is on it stays put. Cancel the pending
-      // canvas "add leaf" gesture the capture-phase handler armed: declining the
-      // drag means no pointer capture, so pointerup would otherwise reach the
-      // canvas and read this click as "add a leaf here".
-      if (symmetry?.isOnAxis(vertexId)) {
-        paperDownRef.current = null;
-        return;
-      }
       event.currentTarget.setPointerCapture(event.pointerId);
       // The ghost previews where a *click* would put a leaf, which a drag is not.
       // Clearing it here also means the hover handler has nothing to undo when the
@@ -526,6 +555,7 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
       const svg = svgRef.current;
       if (!svg) return;
       const ids = subtreeOf(vertexId);
+      const mirrorPreview = mirrorPreviewFor(ids);
       const parentEdge = parentEdgeOf(vertexId);
       const parentId = topology.parent.get(vertexId) ?? null;
       dragRef.current = startTreeDrag({
@@ -537,6 +567,12 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
         // A paired vertex may not cross the mirror: it and its partner would swap
         // sides, which reads as the drawing turning inside out.
         mirror: symmetry?.dragMirror(ids) ?? null,
+        // A vertex *on* the mirror is its own reflection, so it slides along the
+        // line rather than swinging off it. It used to be refused a drag for
+        // this, which protected the invariant by making the vertex unusable.
+        pinToAxis: symmetry?.isOnAxis(vertexId) ? symmetry.axis : null,
+        reflect: mirrorPreview.reflect,
+        reflectedIds: mirrorPreview.ids,
         // Stop the *gesture* at the surface's boundary rather than clamping each
         // vertex onto it, which would deform the subtree it is meant to move
         // rigidly.
