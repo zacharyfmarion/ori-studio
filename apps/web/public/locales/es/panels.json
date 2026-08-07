@@ -37,6 +37,7 @@
     "layerRidges": "Crestas",
     "layerRivers": "Ríos",
     "layers": "Capas",
+    "layoutGraphicsError": "No se pudo dibujar la disposición",
     "mirrorDraw": "Dibujo simétrico",
     "mirrorDrawHint": "Los nodos nuevos obtienen un gemelo",
     "mirrorDrawOn": "Dibujo simétrico (activado)",

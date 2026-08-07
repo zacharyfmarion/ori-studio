@@ -37,6 +37,7 @@
     "layerRidges": "Crêtes",
     "layerRivers": "Rivières",
     "layers": "Calques",
+    "layoutGraphicsError": "Impossible de tracer la disposition",
     "mirrorDraw": "Dessin en miroir",
     "mirrorDrawHint": "Les nouveaux nœuds obtiennent un jumeau",
     "mirrorDrawOn": "Dessin en miroir (activé)",

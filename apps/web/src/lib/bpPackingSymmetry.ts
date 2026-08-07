@@ -13,7 +13,7 @@ import {
   type BpTreeSymmetryPair,
   type SymmetryFold,
 } from './bpTreeSymmetry';
-import { bpPackingSheetFrame } from './bpPackingViewport';
+import { bpPackingSheetFrame, snapBpPackingAnchorToGrid } from './bpPackingViewport';
 import type { SymmetryAxis } from './symmetryGeometry';
 import type { Point } from './geometry';
 
@@ -254,28 +254,56 @@ export function bpFlapAxisSide(
 }
 
 /**
- * How far a paired flap's near edge must stay from the mirror.
+ * The smallest displacement *along the axis normal* that takes a flap from one
+ * grid position to another.
  *
- * Zero for a box with any extent across the axis: its near edge may sit right on
- * the line, because the box itself still lies wholly on its own side and only
- * *touches* its reflection.
- *
- * A box with no extent across the axis — a unit leaf's flap is 0×0 — has no such
- * position. Putting its near edge on the line puts the whole flap on the line,
- * where it *is* its own reflection and the pair is two flaps at one point. Half a
- * grid interval is the smallest gap that pushes it to the neighbouring grid
- * position, on a sheet whose centre falls on a grid line and on one whose centre
- * falls between two.
+ * The clamp only ever corrects across the mirror, so this is the quantum it has
+ * to work in. For the perpendicular axes the normal is a grid direction and the
+ * quantum is one cell. For the diagonals it is `interval · √2`, not
+ * `interval / √2`: the nearest lattice point to a diagonal does sit `1/√2` from
+ * it, but reaching it needs a step *along* the axis as well, which a normal-only
+ * correction has no way to make. `√2` along the normal is the (1, -1) move — the
+ * shortest purely perpendicular hop the lattice has.
  */
-function minimumAxisClearance(
-  box: FlapBox,
-  sheet: OristudioBpSheet,
-  axis: OptimizerSymmetryAxis,
+function axisNormalStep(sheet: OristudioBpSheet, axis: OptimizerSymmetryAxis): number {
+  const interval = Math.max(sheet.grid.interval, 0);
+  return optimizerSymmetryAxisSwapsDimensions(axis) ? interval * Math.SQRT2 : interval;
+}
+
+/**
+ * The smallest displacement along the axis normal that leaves this flap clear of
+ * the mirror, in whole grid cells.
+ *
+ * The BP kernel requires flap coordinates on the grid: an off-grid flap makes the
+ * junction overlap fractional, which `single_overlap_devices` rejects outright
+ * and which takes the *whole* layout snapshot down with it, not just that gadget.
+ * So the stopping position cannot be chosen as a distance and assumed to exist —
+ * it has to be solved in the steps the grid actually offers. Doing it that way
+ * also removes the sheet-parity special case: a centre that falls on a grid line
+ * stops a full cell out, a centre that falls between two stops half a cell out,
+ * and neither is written down anywhere.
+ *
+ * `distance` is the flap's near edge, signed along the normal and positive on the
+ * flap's own side. `strict` distinguishes the two cases the mirror has: a box
+ * with extent across the axis may rest its near edge *on* the line, because the
+ * box still lies wholly on its own side and only touches its reflection, while a
+ * box with none — a unit leaf's flap is 0×0 — may not, because a point on the
+ * line *is* its own reflection and the pair becomes two flaps at one spot.
+ */
+function stepsToClearAxis(
+  distance: number,
+  step: number,
+  strict: boolean,
   tolerance: number
 ): number {
-  const { min, max } = bpFlapAxisSpan({ x: 0, y: 0 }, box, { x: 0, y: 0 }, axis);
-  if (max - min > tolerance) return 0;
-  return Math.max(sheet.grid.interval, 0) / 2;
+  // A degenerate sheet has no grid to land on; fall back to the bare geometry,
+  // which puts the near edge on the line.
+  if (step <= 0) return -distance;
+  const steps = -distance / step;
+  const whole = strict
+    ? Math.floor(steps + tolerance) + 1
+    : Math.ceil(steps - tolerance);
+  return whole * step;
 }
 
 export interface ConstrainBpFlapGroupInput {
@@ -314,6 +342,8 @@ export function constrainBpFlapGroupToAxisSides(input: ConstrainBpFlapGroupInput
   const vector = { x: target.x - reference.anchor.x, y: target.y - reference.anchor.y };
   const along = vector.x * normal.x + vector.y * normal.y;
 
+  const step = axisNormalStep(sheet, axis);
+
   let lower = Number.NEGATIVE_INFINITY;
   let upper = Number.POSITIVE_INFINITY;
   for (const flap of moving) {
@@ -321,16 +351,30 @@ export function constrainBpFlapGroupToAxisSides(input: ConstrainBpFlapGroupInput
     const side = bpFlapAxisSide(flap.anchor, flap, center, axis);
     if (side === 0) continue;
     const { min, max } = bpFlapAxisSpan(flap.anchor, flap, center, axis);
-    const clearance = minimumAxisClearance(flap, sheet, axis, BP_PACKING_SYMMETRY_TOLERANCE);
-    if (side > 0) lower = Math.max(lower, clearance - min);
-    else upper = Math.min(upper, -max - clearance);
+    // A flap with no extent across the mirror may not come to rest on it.
+    const strict = max - min <= BP_PACKING_SYMMETRY_TOLERANCE;
+    // The negative side is the positive one reflected, so solve it in the
+    // reflected frame and flip the answer back rather than restating the algebra.
+    if (side > 0) {
+      lower = Math.max(lower, stepsToClearAxis(min, step, strict, BP_PACKING_SYMMETRY_TOLERANCE));
+    } else {
+      upper = Math.min(upper, -stepsToClearAxis(-max, step, strict, BP_PACKING_SYMMETRY_TOLERANCE));
+    }
   }
   // Every constrained member is currently valid, so 0 always satisfies both
   // bounds and a group spanning both halves simply cannot move across.
   const clamped = Math.min(Math.max(along, lower), upper);
   if (clamped === along) return target;
   const correction = clamped - along;
-  return { x: target.x + correction * normal.x, y: target.y + correction * normal.y };
+  // Snapped because the correction is *ours*: having decided to move the flap,
+  // we own where it lands, and the kernel accepts only exact grid coordinates.
+  // The bound is already a whole number of grid steps, so this closes a rounding
+  // gap of ~1e-15 (a diagonal correction routes through √2 · √½, which is not
+  // exactly 1) rather than doing any real moving.
+  return snapBpPackingAnchorToGrid(
+    { x: target.x + correction * normal.x, y: target.y + correction * normal.y },
+    sheet
+  );
 }
 
 export interface BuildMirroredBpFlapMovesInput {

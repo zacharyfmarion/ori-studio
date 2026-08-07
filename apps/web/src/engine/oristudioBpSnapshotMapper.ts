@@ -46,6 +46,17 @@ export interface OristudioBpStateFromRawInput {
   summary?: OristudioBpWasmProjectSummary | null;
   treeData?: OristudioBpWasmTreeData | null;
   layoutSnapshot?: OristudioBpWasmLayoutSnapshot | null;
+  /**
+   * Why the kernel could not produce `layoutSnapshot`, when that is the reason
+   * it is null.
+   *
+   * A missing snapshot and a *refused* one look identical downstream — both
+   * yield no graphics and no conflict regions — but only one of them is a
+   * healthy empty layout. Without this the pane draws a canvas that is bare for
+   * an unsayable reason, which is how an off-grid flap used to read as "all the
+   * creases vanished".
+   */
+  layoutError?: string | null;
   packingValidation?: OristudioBpWasmPackingValidation | null;
   source: OristudioBpSourceRef;
   activeSurface?: OristudioBpDocumentState['activeSurface'];
@@ -67,7 +78,8 @@ export function oristudioBpProjectStateFromRaw(
       input.summary ?? null,
       input.treeData ?? null,
       input.layoutSnapshot ?? null,
-      input.packingValidation ?? null
+      input.packingValidation ?? null,
+      input.layoutError ?? null
     ),
     history: historySummary(input.project),
     optimizer: defaultOptimizerState(),
@@ -81,7 +93,8 @@ export function oristudioBpProjectSnapshotFromRaw(
   wasmSummary: OristudioBpWasmProjectSummary | null = null,
   treeData: OristudioBpWasmTreeData | null = null,
   layoutSnapshot: OristudioBpWasmLayoutSnapshot | null = null,
-  packingValidation: OristudioBpWasmPackingValidation | null = null
+  packingValidation: OristudioBpWasmPackingValidation | null = null,
+  layoutError: string | null = null
 ): OristudioBpProjectSnapshot {
   const tree = treeView(
     project.design.tree.sheet,
@@ -95,12 +108,18 @@ export function oristudioBpProjectSnapshotFromRaw(
     summary: projectSummary(project, packing, wasmSummary),
     tree,
     packing,
-    diagnostics: projectDiagnostics(project, packing, layoutSnapshot, packingValidation),
+    diagnostics: projectDiagnostics(
+      project,
+      packing,
+      layoutSnapshot,
+      packingValidation,
+      layoutError
+    ),
     stale: {
       packing: project.design.layout.flaps.length === 0 && project.design.tree.nodes.length > 0,
       creasePattern: true,
       exports: true,
-      reasons: staleReasons(project, packing, layoutSnapshot, packingValidation),
+      reasons: staleReasons(project, packing, layoutSnapshot, packingValidation, layoutError),
     },
   };
 }
@@ -131,7 +150,8 @@ function projectDiagnostics(
   project: OristudioBpRawProject,
   packing: OristudioBpPackingView,
   layoutSnapshot: OristudioBpWasmLayoutSnapshot | null,
-  packingValidation: OristudioBpWasmPackingValidation | null
+  packingValidation: OristudioBpWasmPackingValidation | null,
+  layoutError: string | null
 ): OristudioBpDiagnostic[] {
   const diagnostics: OristudioBpDiagnostic[] = [];
   if (project.error) {
@@ -140,6 +160,17 @@ function projectDiagnostics(
       kind: 'unsupported',
       severity: 'error',
       message: project.error.message,
+    });
+  }
+  if (layoutError) {
+    // Ranked above the junction conflicts below on purpose: when this fires
+    // there *are* no junction conflicts to report, because the same failure that
+    // took out the creases took out the conflict regions with them.
+    diagnostics.push({
+      id: 'bp-layout-graphics-error',
+      kind: 'layout-graphics-error',
+      severity: 'error',
+      message: `Layout graphics could not be computed: ${layoutError}`,
     });
   }
   if (layoutSnapshot?.patternNotFound) {
@@ -191,11 +222,15 @@ function staleReasons(
   project: OristudioBpRawProject,
   packing: OristudioBpPackingView,
   layoutSnapshot: OristudioBpWasmLayoutSnapshot | null,
-  packingValidation: OristudioBpWasmPackingValidation | null
+  packingValidation: OristudioBpWasmPackingValidation | null,
+  layoutError: string | null
 ): string[] {
   const reasons: string[] = [];
   if (project.design.layout.flaps.length === 0 && project.design.tree.nodes.length > 0) {
     reasons.push('Packing has not been materialized for the current tree');
+  }
+  if (layoutError) {
+    reasons.push('Layout graphics could not be computed for the current packing');
   }
   if (packing.validity === 'invalid') {
     reasons.push('Packing has invalid flap junctions');
