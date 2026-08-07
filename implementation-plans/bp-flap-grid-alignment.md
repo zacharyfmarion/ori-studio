@@ -61,8 +61,12 @@ with a question the grid can answer: **how many whole cells along the axis
 normal until this flap is clear?**
 
 - The perpendicular axes are grid-aligned, so one cell of movement is one cell
-  of distance. The diagonals cut the lattice at 45°, so one cell of movement is
-  `interval / √2` of distance.
+  of distance. The diagonals need `interval · √2`, *not* `interval / √2`: the
+  nearest lattice point to a diagonal does sit `1/√2` from it, but reaching it
+  needs a step *along* the axis as well, which a normal-only correction has no
+  way to make. `√2` is the (1, -1) hop — the shortest purely perpendicular move
+  the lattice has. (Getting this backwards lands the flap on a half-integer,
+  which is the very bug being fixed; the tests catch it.)
 - A box with extent across the mirror may rest its near edge *on* it; a
   zero-extent flap may not, because a point on the mirror **is** its own
   reflection and the pair collapses to two flaps at one spot. That is the only
@@ -89,19 +93,6 @@ flaps, sheet) is still valid and editable, and dragging the offending flap back
 onto legal ground is exactly how a user recovers. What must not survive is the
 *silence*.
 
-## Affected Areas
-
-- `apps/web/src/lib/bpPackingSymmetry.ts` — grid-aligned axis clamp.
-- `apps/web/src/store/workspaceStore/oristudioBpRuntime.ts` — capture the layout
-  snapshot failure instead of discarding it.
-- `apps/web/src/engine/oristudioBpSnapshotMapper.ts` — new diagnostic + stale
-  reason.
-- `apps/web/src/engine/oristudioBpTypes.ts` — `layout-graphics-error` kind.
-- `apps/web/src/components/panels/BpPackingPanel.tsx` — surface it in the pane's
-  alerts.
-- `apps/web/public/locales/*` — one new label string.
-- Tests: `bpPackingSymmetry.test.ts`, `oristudioBpSnapshotMapper.test.ts`.
-
 ### 3. A lone flap can come back onto the grid
 
 Fix 1 stops new off-grid flaps; it cannot rescue a file already saved with one,
@@ -113,6 +104,22 @@ on-grid anchor is a no-op, so this cannot change any healthy gesture.
 Deliberately not done for a group: one vector moves every member, so a correction
 that puts the reference back on the grid takes an on-grid partner off it. A group
 keeps its shape.
+
+## Affected Areas
+
+- `apps/web/src/lib/bpPackingSymmetry.ts` — grid-aligned axis clamp.
+- `apps/web/src/store/workspaceStore/oristudioBpRuntime.ts` — capture the layout
+  snapshot failure instead of discarding it.
+- `apps/web/src/engine/oristudioBpSnapshotMapper.ts` — new diagnostic + stale
+  reason.
+- `apps/web/src/engine/oristudioBpTypes.ts` — `layout-graphics-error` kind.
+- `apps/web/src/components/panels/BpPackingPanel.tsx` — surface it in the pane's
+  alerts.
+- `apps/web/src/lib/bpPackingViewport.ts` — `snapBpPackingAnchorToGrid`, and the
+  single-flap snap in `constrainBpPackingFlapGroupTarget`.
+- `apps/web/public/locales/*` — one new label string.
+- Tests: `bpPackingSymmetry.test.ts`, `bpPackingViewport.test.ts`,
+  `oristudioBpSnapshotMapper.test.ts`.
 
 ## Known follow-ups, deliberately out of scope
 
