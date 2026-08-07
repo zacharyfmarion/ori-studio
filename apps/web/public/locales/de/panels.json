@@ -323,8 +323,8 @@
     "viewportControls": "Ansichtssteuerung des Faltmusters"
   },
   "design": {
-    "attributionBoxPleating": "Adaptiert von <2>Mu-Tsun Tsai's Box Pleating Studio</2> · MIT",
-    "attributionExplori": "Durchsucht <2>ExplOri 22.5</2> von theplantpsychologist · dein Baum wird an dessen Server gesendet",
+    "attributionBoxPleating": "Adaptiert von <2>Mu-Tsun Tsai's Box Pleating Studio</2> · <6>Spenden</6>",
+    "attributionExplori": "Durchsucht <2>ExplOri 22.5</2> von theplantpsychologist · <6>Spenden</6>",
     "attributionTreemaker": "Adaptiert von <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Achse",
     "axisAngle": "Winkel",
@@ -446,9 +446,9 @@
     "needDatabase": "Wähle mindestens eine Symmetrie zum Durchsuchen.",
     "needMoreBranches": "Zeichne mindestens vier Zweige, um zu suchen.",
     "nextResult": "Nächstes Ergebnis",
-    "noResultsYet": "Zeichne einen Baum und durchsuche das Archiv, um passende Faltmuster zu sehen.",
     "nodeNameAria": "Name von Knoten {{id}}",
     "nodeTitle": "Knoten {{id}}",
+    "noResultsYet": "Zeichne einen Baum und durchsuche das Archiv, um passende Faltmuster zu sehen.",
     "openResult": "Ergebnis {{id}} öffnen",
     "previousResult": "Vorheriges Ergebnis",
     "qualityAcceptable": "Brauchbare Übereinstimmung",
@@ -462,9 +462,9 @@
     "resultCountOther_one": "{{count}} Ergebnis",
     "resultCountOther_other": "{{count}} Ergebnisse",
     "search": "Suchen",
-    "searchSize": "Ergebnisse",
     "searching": "Suche läuft…",
     "searchingStatus": "Archiv wird durchsucht…",
+    "searchSize": "Ergebnisse",
     "selectEdge": "Zweig {{id}} auswählen, Länge {{length}}",
     "selectNode": "Knoten {{id}} auswählen",
     "selectNodeWithLabel": "Knoten {{id}} auswählen, {{label}}",
@@ -478,8 +478,8 @@
     "viewCp": "Faltmuster",
     "viewFold": "Gefaltete Form",
     "viewPacking": "Packung",
-    "viewTree": "Baum",
-    "viewportControls": "Ansichtssteuerung des Suchbaums"
+    "viewportControls": "Ansichtssteuerung des Suchbaums",
+    "viewTree": "Baum"
   },
   "foldedFigureActions": {
     "anotherSolution": "Andere Lösung",

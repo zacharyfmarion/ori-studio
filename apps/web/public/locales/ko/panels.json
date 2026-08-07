@@ -313,8 +313,8 @@
     "viewportControls": "전개도 뷰포트 컨트롤"
   },
   "design": {
-    "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> 기반 · MIT",
-    "attributionExplori": "theplantpsychologist의 <2>ExplOri 22.5</2>를 검색합니다 · 트리가 해당 서버로 전송됩니다",
+    "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> 기반 · <6>후원하기</6>",
+    "attributionExplori": "theplantpsychologist의 <2>ExplOri 22.5</2>를 검색합니다 · <6>후원하기</6>",
     "attributionTreemaker": "<2>Robert J. Lang's TreeMaker</2> 기반 · GPL-2.0",
     "axis": "축",
     "axisAngle": "각도",
@@ -434,9 +434,9 @@
     "needDatabase": "검색할 대칭을 하나 이상 선택하세요.",
     "needMoreBranches": "검색하려면 가지를 네 개 이상 그리세요.",
     "nextResult": "다음 결과",
-    "noResultsYet": "트리를 그리고 아카이브를 검색하면 일치하는 전개도가 표시됩니다.",
     "nodeNameAria": "노드 {{id}}의 이름",
     "nodeTitle": "노드 {{id}}",
+    "noResultsYet": "트리를 그리고 아카이브를 검색하면 일치하는 전개도가 표시됩니다.",
     "openResult": "결과 {{id}} 열기",
     "previousResult": "이전 결과",
     "qualityAcceptable": "보통 일치",
@@ -450,9 +450,9 @@
     "resultCountOther_one": "결과 {{count}}개",
     "resultCountOther_other": "결과 {{count}}개",
     "search": "검색",
-    "searchSize": "결과 수",
     "searching": "검색 중…",
     "searchingStatus": "아카이브 검색 중…",
+    "searchSize": "결과 수",
     "selectEdge": "가지 {{id}} 선택, 길이 {{length}}",
     "selectNode": "노드 {{id}} 선택",
     "selectNodeWithLabel": "노드 {{id}} 선택, {{label}}",
@@ -466,8 +466,8 @@
     "viewCp": "전개도",
     "viewFold": "접힌 형태",
     "viewPacking": "패킹",
-    "viewTree": "트리",
-    "viewportControls": "검색 트리 뷰 컨트롤"
+    "viewportControls": "검색 트리 뷰 컨트롤",
+    "viewTree": "트리"
   },
   "foldedFigureActions": {
     "anotherSolution": "다른 해",

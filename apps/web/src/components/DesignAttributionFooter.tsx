@@ -2,7 +2,13 @@ import { Trans } from 'react-i18next';
 
 /**
  * Quiet attribution bar crediting the upstream project a design surface is
- * ported from, with its license.
+ * ported from, and pointing at its donation page where it has one.
+ *
+ * The credit is the point; the SPDX tag is not. Box Pleating Studio and ExplOri
+ * give the space to a donation link instead, because these are two people's
+ * unpaid work and a live link does more for them than the word "MIT" does. The
+ * license obligations are met by `NOTICE` and the About dialog, which carry the
+ * full copyright and permission text — this bar never was where that lived.
  *
  * Placement differs by design method so the bar underlines only the design
  * canvas, never tool panes: box-pleat renders it at the workspace level spanning
@@ -27,7 +33,15 @@ export function DesignAttributionFooter({ method }: { method: 'tree' | 'bp' | 'e
             >
               ExplOri 22.5
             </a>{' '}
-            by theplantpsychologist · your tree is sent to their server
+            by theplantpsychologist ·{' '}
+            <a
+              className="design-attribution__link"
+              href="https://www.paypal.com/paypalme/theplantpsychologist"
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Donate
+            </a>
           </Trans>
         </span>
       </footer>
@@ -48,7 +62,15 @@ export function DesignAttributionFooter({ method }: { method: 'tree' | 'bp' | 'e
             >
               Mu-Tsun Tsai&apos;s Box Pleating Studio
             </a>{' '}
-            · MIT
+            ·{' '}
+            <a
+              className="design-attribution__link"
+              href="https://bpstudio.abstreamace.com/donate.htm"
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Donate
+            </a>
           </Trans>
         </span>
       </footer>
