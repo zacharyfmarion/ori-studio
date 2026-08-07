@@ -21,6 +21,9 @@
     "canvasUnavailable": "Canvas 2D não está disponível",
     "unsupportedImage": "Use uma imagem PNG, JPEG ou WebP."
   },
+  "creasePattern": {
+    "imageNotDecodable": "O Ori Studio não conseguiu ler {{name}} como imagem. Tente PNG, JPEG ou WebP."
+  },
   "fileDrop": {
     "dialogOpen": "Conclua a caixa de diálogo aberta antes de soltar um arquivo.",
     "imageNotHere": "Solte {{name}} sobre o padrão de vincos para adicioná-lo como imagem de referência.",

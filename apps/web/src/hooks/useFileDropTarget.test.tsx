@@ -111,6 +111,18 @@ describe('useFileDropTarget', () => {
     expect(isActive()).toBe(false);
   });
 
+  // macOS types `.ori` as Olympus raw, so this is what an Oriedita crease
+  // pattern looks like in flight — and standing down for it is what sent the
+  // file to an importer that could only fail to decode it.
+  it('activates for a document the platform types as camera raw', () => {
+    render();
+    fire(element('target'), 'dragenter', {
+      types: ['Files'],
+      items: [{ kind: 'file', type: 'image/x-olympus-orf' }],
+    });
+    expect(isActive()).toBe(true);
+  });
+
   it('activates for a mixed drag that includes a document', () => {
     render();
     fire(element('target'), 'dragenter', {
