@@ -26,6 +26,7 @@ export function BpPackingEmptySpaceLayer({
   paperRect: PlotRect;
 }) {
   const maskId = useId();
+  const hatchId = useId();
   const paths = useMemo(
     () =>
       coverage.map((region) => ({
@@ -47,9 +48,22 @@ export function BpPackingEmptySpaceLayer({
   return (
     <g className="bp-packing-empty-space" aria-hidden="true">
       <defs>
+        {/* Diagonal hatch, laid over the tint. The tint alone reads as "another
+            region"; the hatch says "nothing lives here", which is what empty
+            paper is. Hatch only — the region is never outlined, so what you see
+            is the paper going unused, not a box drawn around it. */}
+        <pattern
+          id={hatchId}
+          width="8"
+          height="8"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <line className="bp-packing-empty-space-hatch" x1="0" y1="0" x2="0" y2="8" />
+        </pattern>
         {/* A mask is luminance-keyed, so these two fills are the mask's on and
-            off values and not theme colours. The visible tint is on the shape
-            below, which is the only thing a theme gets to style. */}
+            off values and not theme colours. Everything a theme gets to style is
+            on the shapes below. */}
         <mask id={maskId} maskUnits="userSpaceOnUse">
           <polygon points={sheetPoints} fill="#fff" />
           {paths.map((path) => (
@@ -57,11 +71,17 @@ export function BpPackingEmptySpaceLayer({
           ))}
         </mask>
       </defs>
-      <polygon
-        className="bp-packing-empty-space-fill"
-        points={sheetPoints}
-        mask={`url(#${maskId})`}
-      />
+      {/* Two shapes rather than a tinted pattern tile: a background inside the
+          tile would be rotated with it, and the seams between rotated tiles show
+          as hairlines. Masking the group applies the cut-out to both at once. */}
+      <g mask={`url(#${maskId})`}>
+        <polygon className="bp-packing-empty-space-fill" points={sheetPoints} />
+        <polygon
+          className="bp-packing-empty-space-lines"
+          points={sheetPoints}
+          fill={`url(#${hatchId})`}
+        />
+      </g>
     </g>
   );
 }

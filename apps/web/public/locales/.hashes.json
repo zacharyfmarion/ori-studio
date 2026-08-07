@@ -2122,7 +2122,15 @@
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
     "errors:creasePattern.imageNotDecodable": "df832de05fbb",
-    "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
+    "panels:bpPacking.layerEmptySpace": "83f2da1c4224",
+    "common:capability.bpSubdivide": "5bc9c16a7bc1",
+    "common:capability.bpSubdivideReason": "f1c863f3b4ca",
+    "common:capability.bpSubdivideUnavailable": "c325afd275e2",
+    "common:capability.bpUnsubdivide": "c9118857f23a",
+    "common:capability.bpUnsubdivideReason": "4cacd69fd97c",
+    "common:capability.bpUnsubdivideUnavailable": "f1f4875dc9e6",
+    "menu:bp.subdivide": "5bc9c16a7bc1",
+    "menu:bp.unsubdivide": "c9118857f23a"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4247,7 +4255,15 @@
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
     "errors:creasePattern.imageNotDecodable": "df832de05fbb",
-    "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
+    "panels:bpPacking.layerEmptySpace": "83f2da1c4224",
+    "common:capability.bpSubdivide": "5bc9c16a7bc1",
+    "common:capability.bpSubdivideReason": "f1c863f3b4ca",
+    "common:capability.bpSubdivideUnavailable": "c325afd275e2",
+    "common:capability.bpUnsubdivide": "c9118857f23a",
+    "common:capability.bpUnsubdivideReason": "4cacd69fd97c",
+    "common:capability.bpUnsubdivideUnavailable": "f1f4875dc9e6",
+    "menu:bp.subdivide": "5bc9c16a7bc1",
+    "menu:bp.unsubdivide": "c9118857f23a"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6400,7 +6416,15 @@
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
     "errors:creasePattern.imageNotDecodable": "df832de05fbb",
-    "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
+    "panels:bpPacking.layerEmptySpace": "83f2da1c4224",
+    "common:capability.bpSubdivide": "5bc9c16a7bc1",
+    "common:capability.bpSubdivideReason": "f1c863f3b4ca",
+    "common:capability.bpSubdivideUnavailable": "c325afd275e2",
+    "common:capability.bpUnsubdivide": "c9118857f23a",
+    "common:capability.bpUnsubdivideReason": "4cacd69fd97c",
+    "common:capability.bpUnsubdivideUnavailable": "f1f4875dc9e6",
+    "menu:bp.subdivide": "5bc9c16a7bc1",
+    "menu:bp.unsubdivide": "c9118857f23a"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8553,7 +8577,15 @@
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
     "errors:creasePattern.imageNotDecodable": "df832de05fbb",
-    "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
+    "panels:bpPacking.layerEmptySpace": "83f2da1c4224",
+    "common:capability.bpSubdivide": "5bc9c16a7bc1",
+    "common:capability.bpSubdivideReason": "f1c863f3b4ca",
+    "common:capability.bpSubdivideUnavailable": "c325afd275e2",
+    "common:capability.bpUnsubdivide": "c9118857f23a",
+    "common:capability.bpUnsubdivideReason": "4cacd69fd97c",
+    "common:capability.bpUnsubdivideUnavailable": "f1f4875dc9e6",
+    "menu:bp.subdivide": "5bc9c16a7bc1",
+    "menu:bp.unsubdivide": "c9118857f23a"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10706,7 +10738,15 @@
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
     "errors:creasePattern.imageNotDecodable": "df832de05fbb",
-    "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
+    "panels:bpPacking.layerEmptySpace": "83f2da1c4224",
+    "common:capability.bpSubdivide": "5bc9c16a7bc1",
+    "common:capability.bpSubdivideReason": "f1c863f3b4ca",
+    "common:capability.bpSubdivideUnavailable": "c325afd275e2",
+    "common:capability.bpUnsubdivide": "c9118857f23a",
+    "common:capability.bpUnsubdivideReason": "4cacd69fd97c",
+    "common:capability.bpUnsubdivideUnavailable": "f1f4875dc9e6",
+    "menu:bp.subdivide": "5bc9c16a7bc1",
+    "menu:bp.unsubdivide": "c9118857f23a"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12859,7 +12899,15 @@
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
     "errors:creasePattern.imageNotDecodable": "df832de05fbb",
-    "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
+    "panels:bpPacking.layerEmptySpace": "83f2da1c4224",
+    "common:capability.bpSubdivide": "5bc9c16a7bc1",
+    "common:capability.bpSubdivideReason": "f1c863f3b4ca",
+    "common:capability.bpSubdivideUnavailable": "c325afd275e2",
+    "common:capability.bpUnsubdivide": "c9118857f23a",
+    "common:capability.bpUnsubdivideReason": "4cacd69fd97c",
+    "common:capability.bpUnsubdivideUnavailable": "f1f4875dc9e6",
+    "menu:bp.subdivide": "5bc9c16a7bc1",
+    "menu:bp.unsubdivide": "c9118857f23a"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15012,7 +15060,15 @@
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
     "errors:creasePattern.imageNotDecodable": "df832de05fbb",
-    "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
+    "panels:bpPacking.layerEmptySpace": "83f2da1c4224",
+    "common:capability.bpSubdivide": "5bc9c16a7bc1",
+    "common:capability.bpSubdivideReason": "f1c863f3b4ca",
+    "common:capability.bpSubdivideUnavailable": "c325afd275e2",
+    "common:capability.bpUnsubdivide": "c9118857f23a",
+    "common:capability.bpUnsubdivideReason": "4cacd69fd97c",
+    "common:capability.bpUnsubdivideUnavailable": "f1f4875dc9e6",
+    "menu:bp.subdivide": "5bc9c16a7bc1",
+    "menu:bp.unsubdivide": "c9118857f23a"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -17137,6 +17193,14 @@
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
     "errors:creasePattern.imageNotDecodable": "df832de05fbb",
-    "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
+    "panels:bpPacking.layerEmptySpace": "83f2da1c4224",
+    "common:capability.bpSubdivide": "5bc9c16a7bc1",
+    "common:capability.bpSubdivideReason": "f1c863f3b4ca",
+    "common:capability.bpSubdivideUnavailable": "c325afd275e2",
+    "common:capability.bpUnsubdivide": "c9118857f23a",
+    "common:capability.bpUnsubdivideReason": "4cacd69fd97c",
+    "common:capability.bpUnsubdivideUnavailable": "f1f4875dc9e6",
+    "menu:bp.subdivide": "5bc9c16a7bc1",
+    "menu:bp.unsubdivide": "c9118857f23a"
   }
 }

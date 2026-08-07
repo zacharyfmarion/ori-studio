@@ -1,6 +1,8 @@
 {
   "bp": {
-    "optimizeLayout": "Optimize Layout…"
+    "optimizeLayout": "Optimize Layout…",
+    "subdivide": "Subdivide Grid",
+    "unsubdivide": "Un-subdivide Grid"
   },
   "cp": {
     "advanceCreaseType": "Advance Crease Type",

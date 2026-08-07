@@ -1,6 +1,8 @@
 {
   "bp": {
-    "optimizeLayout": "Оптимизировать раскладку…"
+    "optimizeLayout": "Оптимизировать раскладку…",
+    "subdivide": "Разделить сетку",
+    "unsubdivide": "Отменить разделение"
   },
   "cp": {
     "advanceCreaseType": "Следующий тип складки",

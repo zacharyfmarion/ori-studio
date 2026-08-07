@@ -132,6 +132,8 @@ function allVisibleCapabilities(): WorkspaceCapabilities {
     hasBoxPleatDocument: false,
     boxPleatTreeEdgeCount: 0,
     boxPleatBusy: false,
+    boxPleatCanSubdivide: true,
+    boxPleatCanUnsubdivide: false,
     hasSimulationModel: false,
     oristudioCpSelectedLineCount: 0,
     oristudioCpSelectedPointCount: 0,

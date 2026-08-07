@@ -62,8 +62,40 @@ and nothing needs the engine to change.
   not been computed), nothing is shaded — an unknown layout is not evidence of
   empty paper.
 
+### How it reads
+
+A quiet neutral tint with a diagonal hatch over it, both cut out by the one mask
+so they always mark the same paper. The tint alone reads as "another region";
+the hatch is what says "nothing lives here". The lines take the warning hue —
+a valid packing consumes all its paper (Origami Design Secrets polygon-packing
+rule #4) — while the region itself stays understated.
+
+Neither carries an outline. Outlining each gap draws a box around it, which
+reads as a region of its own rather than as paper going unused.
+
+Two shapes rather than one tinted pattern tile: a background inside the tile
+would be rotated with it, and the seams between rotated tiles show as hairlines.
+
+## Subdivide / un-subdivide the grid
+
+Doubling and halving the layout grid already existed in the kernel with commands
+wired to them, but both were `hidden-ui-only` — reachable from nothing. They go
+in the Design menu, gated on the conditions the kernel enforces so the menu says
+why it is disabled rather than failing after the click: subdivision has a
+ceiling, and halving is only sound when every flap sits on an even grid line.
+
+Un-subdivide did not survive the trip. Its scale is ½, and
+`Layout.$transform`'s integer snap — faithfully ported, and exact for every
+transform Box Pleating Studio itself performs (rotate and flip are 1, subdivide
+is 2) — reports 1 for it. So the sheet and flaps halved while the tree stayed at
+double length, which shows up in the editor as every flap suddenly conflicting.
+Box Pleating Studio has no un-subdivide, so this is ours to get right rather than
+a parity question: `matrix_scale` snaps to the nearest half, the same answer for
+all three upstream cases and correct for this one.
+
 ## Affected Areas
 
+- `crates/oristudio-bp/src/engine/project_session.rs` (+ the tracked wasm bridge)
 - `apps/web/src/engine/oristudioBpTypes.ts`
 - `apps/web/src/engine/oristudioBpSnapshotMapper.ts`
 - `apps/web/src/lib/bpPackingViewport.ts`
@@ -87,3 +119,7 @@ and nothing needs the engine to change.
 - [x] Web lint, typecheck, unit tests, i18n check
 - [x] Verify in the browser
 - [x] Open a draft PR
+- [x] Draw the empty paper as a tint plus a diagonal hatch, never outlined
+- [x] Surface subdivide / un-subdivide in the Design menu, gated on the kernel's rules
+- [x] Fix un-subdivide leaving the tree at double length; rebuild the wasm bridge
+- [x] Merge main

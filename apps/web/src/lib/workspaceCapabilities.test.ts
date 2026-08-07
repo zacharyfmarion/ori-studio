@@ -18,6 +18,8 @@ function capabilities({
   hasBoxPleatDocument = false,
   boxPleatTreeEdgeCount = 0,
   boxPleatBusy = false,
+  boxPleatCanSubdivide = true,
+  boxPleatCanUnsubdivide = false,
   oristudioCpSelectedLineCount = 0,
   oristudioCpSelectedPointCount = 0,
   oristudioCpSelectedCircleCount = 0,
@@ -39,6 +41,8 @@ function capabilities({
   hasBoxPleatDocument?: boolean;
   boxPleatTreeEdgeCount?: number;
   boxPleatBusy?: boolean;
+  boxPleatCanSubdivide?: boolean;
+  boxPleatCanUnsubdivide?: boolean;
   oristudioCpSelectedLineCount?: number;
   oristudioCpSelectedPointCount?: number;
   oristudioCpSelectedCircleCount?: number;
@@ -60,6 +64,8 @@ function capabilities({
     hasBoxPleatDocument,
     boxPleatTreeEdgeCount,
     boxPleatBusy,
+    boxPleatCanSubdivide,
+    boxPleatCanUnsubdivide,
     hasSimulationModel: false,
     oristudioCpSelectedLineCount,
     oristudioCpSelectedPointCount,
@@ -461,6 +467,46 @@ describe('workspace capabilities', () => {
       boxPleatBusy: true,
     });
     expect(busy['bp.optimize.layout'].enabled).toBe(false);
+  });
+
+  it('gates subdivide and un-subdivide on what the kernel would take', () => {
+    const both = capabilities({
+      activeEditingContext: 'bp-packing',
+      hasBoxPleatDocument: true,
+      boxPleatCanSubdivide: true,
+      boxPleatCanUnsubdivide: true,
+    });
+    expect(both['bp.layout.subdivide'].enabled).toBe(true);
+    expect(both['bp.layout.unsubdivide'].enabled).toBe(true);
+
+    // Halving is only sound when every flap sits on an even grid line, so the
+    // menu says why rather than failing after the click.
+    const odd = capabilities({
+      activeEditingContext: 'bp-packing',
+      hasBoxPleatDocument: true,
+      boxPleatCanUnsubdivide: false,
+    });
+    expect(odd['bp.layout.unsubdivide'].visible).toBe(true);
+    expect(odd['bp.layout.unsubdivide'].enabled).toBe(false);
+
+    const ceiling = capabilities({
+      activeEditingContext: 'bp-packing',
+      hasBoxPleatDocument: true,
+      boxPleatCanSubdivide: false,
+    });
+    expect(ceiling['bp.layout.subdivide'].enabled).toBe(false);
+  });
+
+  it('shows the grid subdivision commands only in a Box-Pleat context', () => {
+    const noDocument = capabilities({ activeEditingContext: 'bp-packing' });
+    expect(noDocument['bp.layout.subdivide'].visible).toBe(true);
+    expect(noDocument['bp.layout.subdivide'].enabled).toBe(false);
+
+    for (const context of ['treemaker-tree', 'crease-pattern', 'simulate'] as const) {
+      const other = capabilities({ activeEditingContext: context, hasBoxPleatDocument: true });
+      expect(other['bp.layout.subdivide'].visible).toBe(false);
+      expect(other['bp.layout.unsubdivide'].visible).toBe(false);
+    }
   });
 
   it('hides tree-authoring Edit commands in the crease-pattern context', () => {

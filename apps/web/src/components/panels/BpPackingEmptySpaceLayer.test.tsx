@@ -75,9 +75,32 @@ describe('BpPackingEmptySpaceLayer', () => {
     // cancel under a shared even-odd fill and paint the conflict as empty.
     expect(paths).toHaveLength(2);
     expect(paths.every((path) => path.getAttribute('fill-rule') === 'evenodd')).toBe(true);
-    expect(container.querySelector('.bp-packing-empty-space-fill')?.getAttribute('mask')).toBe(
-      `url(#${container.querySelector('mask')?.id})`
-    );
+    expect(
+      container.querySelector('.bp-packing-empty-space-fill')?.closest('[mask]')?.getAttribute('mask')
+    ).toBe(`url(#${container.querySelector('mask')?.id})`);
+  });
+
+  it('tints the empty paper and hatches it, without outlining it', () => {
+    render(overlapping);
+    const tint = container.querySelector('.bp-packing-empty-space-fill');
+    const lines = container.querySelector('.bp-packing-empty-space-lines');
+    const hatch = container.querySelector('pattern');
+
+    // The tint takes its colour from the stylesheet; only the hatch names a fill.
+    expect(tint?.getAttribute('fill')).toBeNull();
+    expect(lines?.getAttribute('fill')).toBe(`url(#${hatch?.id})`);
+    expect(hatch?.getAttribute('patternTransform')).toBe('rotate(45)');
+
+    // Both are cut out by the one mask, so the tint and the hatch always mark
+    // the same paper.
+    const masked = container.querySelector(`g[mask="url(#${container.querySelector('mask')?.id})"]`);
+    expect(masked?.contains(tint as Node)).toBe(true);
+    expect(masked?.contains(lines as Node)).toBe(true);
+
+    // No outline: a box around each gap reads as a region of its own rather
+    // than as paper going unused.
+    expect(tint?.getAttribute('stroke')).toBeNull();
+    expect(container.querySelector('.bp-packing-empty-space > path')).toBeNull();
   });
 
   it('shades nothing when no layout has been computed', () => {

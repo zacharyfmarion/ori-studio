@@ -1,6 +1,8 @@
 {
   "bp": {
-    "optimizeLayout": "Layout optimieren…"
+    "optimizeLayout": "Layout optimieren…",
+    "subdivide": "Raster unterteilen",
+    "unsubdivide": "Unterteilung aufheben"
   },
   "cp": {
     "advanceCreaseType": "Faltentyp weiterschalten",

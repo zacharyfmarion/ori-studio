@@ -86,6 +86,8 @@ export const MENU_ACTION_IDS = [
   'optimize.edges',
   'optimize.strain',
   'bp.optimize.layout',
+  'bp.layout.subdivide',
+  'bp.layout.unsubdivide',
   'cp.build',
   'cp.deleteSelectedLines',
   'cp.changeCreaseType',
@@ -120,6 +122,8 @@ export type MenuActionId = (typeof MENU_ACTION_IDS)[number];
 
 export interface WorkspaceCommands {
   createNewProject(): Promise<void>;
+  subdivideOristudioBpLayoutSheet(): Promise<boolean>;
+  unsubdivideOristudioBpLayoutSheet(): Promise<boolean>;
   loadExampleProject(id: string): Promise<void>;
   openProject(fileService?: FileService): Promise<boolean>;
   importAddCreasePattern(fileService?: FileService): Promise<boolean>;
@@ -649,6 +653,10 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         // Opens the options dialog; the run itself starts from there.
         deps.openBpOptimizer?.();
         return true;
+      case 'bp.layout.subdivide':
+        return deps.workspace.subdivideOristudioBpLayoutSheet();
+      case 'bp.layout.unsubdivide':
+        return deps.workspace.unsubdivideOristudioBpLayoutSheet();
       case 'cp.build':
         await deps.workspace.buildCreasePattern();
         return true;

@@ -6647,9 +6647,17 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* Paper no flap or river takes up. A neutral text tone rather than a fixed
- * colour, so it stays a quiet tint of the foreground in light and dark themes
- * alike instead of inverting into a bright patch. */
+/* Paper no flap or river takes up: a quiet tint, hatched with diagonals.
+ *
+ * The tint is a neutral text tone rather than a fixed colour, so it stays a
+ * quiet shade of the foreground in light and dark themes alike instead of
+ * inverting into a bright patch. The hatch over it is what says "nothing lives
+ * here" — a valid packing consumes all the paper (Origami Design Secrets
+ * polygon-packing rule #4), so the warning hue is the right register for the
+ * lines even though the region itself stays understated.
+ *
+ * Neither carries an outline, so what you see is paper going unused rather than
+ * a box drawn around it. */
 .bp-packing-empty-space {
   pointer-events: none;
 }
@@ -6657,6 +6665,17 @@
 .bp-packing-empty-space-fill {
   fill: var(--text-secondary);
   fill-opacity: 0.14;
+  stroke: none;
+}
+
+.bp-packing-empty-space-lines {
+  stroke: none;
+}
+
+.bp-packing-empty-space-hatch {
+  stroke: var(--status-warning);
+  stroke-opacity: 0.22;
+  stroke-width: 1;
 }
 
 .bp-packing-grid {
