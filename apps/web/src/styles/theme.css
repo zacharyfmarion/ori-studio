@@ -7100,6 +7100,9 @@ button.bp-packing-alert:focus-visible {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  /* Flap names are user text of any length, so the pill has to be bounded by
+     the pane or it grows past both edges of a centred overlay. */
+  max-width: calc(100% - var(--space-6));
   padding: 6px 10px;
   border-radius: 10px;
   background: var(--bg-elevated);
@@ -7109,13 +7112,21 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-primary);
 }
 
+/* The title is the only part that gives way: the stepper and the status are
+   fixed-size and are what the control is for. The full name stays in the
+   tooltip and in the group's accessible name. */
 .bp-packing-stretch-nav__title {
+  min-width: 3ch;
+  overflow: hidden;
   font-weight: 600;
   color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bp-packing-stretch-nav__stepper {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 4px;
 }
@@ -7131,12 +7142,14 @@ button.bp-packing-alert:focus-visible {
 }
 
 .bp-packing-stretch-nav__warning {
+  flex-shrink: 0;
   color: var(--status-danger);
   font-weight: 600;
 }
 
 /* "Only one pattern": a fact about the stretch, not a problem with it. */
 .bp-packing-stretch-nav__note {
+  flex-shrink: 0;
   color: var(--text-tertiary);
 }
 

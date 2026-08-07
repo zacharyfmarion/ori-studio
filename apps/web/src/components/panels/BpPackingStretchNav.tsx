@@ -79,6 +79,7 @@ export function BpPackingStretchNav({
   // The flaps, not the raw `"10,12,14,22"` id: the id means nothing on a canvas
   // that labels its flaps with letters.
   const name = bpFlapLabelList(bpFlapLabels(stretch.flapIds, flaps), t);
+  const title = t('panels:bpPacking.stretch', 'Stretch {{id}}', { id: name });
   const configCount = stretch.configCount ?? 0;
   const patternCount = stretch.patternCount ?? 0;
   const hasChoice = configCount > 1 || patternCount > 1;
@@ -90,8 +91,10 @@ export function BpPackingStretchNav({
         id: name,
       })}
     >
-      <span className="bp-packing-stretch-nav__title">
-        {t('panels:bpPacking.stretch', 'Stretch {{id}}', { id: name })}
+      {/* A flap can be named anything, so the title is ellipsized in CSS and the
+          full text kept here — the group's accessible name carries it too. */}
+      <span className="bp-packing-stretch-nav__title" title={title}>
+        {title}
       </span>
       {configCount > 1 && (
         <StretchStepper

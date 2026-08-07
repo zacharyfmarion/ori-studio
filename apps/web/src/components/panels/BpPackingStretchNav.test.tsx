@@ -86,6 +86,18 @@ describe('BpPackingStretchNav', () => {
     );
   });
 
+  it('keeps the full title reachable when CSS ellipsizes it', () => {
+    // Flap names are user text of any length; the pill is bounded by the pane,
+    // so the title is truncated visually and has to stay readable on hover and
+    // to assistive tech.
+    render({ flaps: [flap(10, 'left back leg'), flap(12, 'tail blah blah')] });
+    const title = container.querySelector('.bp-packing-stretch-nav__title');
+    expect(title?.getAttribute('title')).toBe('Stretch left back leg and tail blah blah');
+    expect(container.querySelector('.bp-packing-stretch-nav')?.getAttribute('aria-label')).toBe(
+      'Stretch left back leg and tail blah blah pattern navigation'
+    );
+  });
+
   it('shows no stepper when there is one configuration and one pattern', () => {
     // Upstream's rule: its Store gadget is `v-if="size > 1"`, and its stretch
     // panel replaces both steppers with a sentence in this case.
