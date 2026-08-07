@@ -240,6 +240,7 @@
     "title": "Einstellungen",
     "workspace": {
       "analytics": "Anonyme Nutzungsstatistiken senden, um Ori Studio zu verbessern",
+      "creasePatternCanvas": "Faltmuster-Zeichenfläche",
       "folding": "Falten",
       "foldWarning": "Vor dem Falten eines Faltmusters mit Flachfaltbarkeitsfehlern warnen",
       "layout": "Layout",
@@ -248,7 +249,10 @@
       "resetMessage": "Das Standardlayout für den aktuellen Arbeitsbereich wiederherstellen?",
       "resetTitle": "Arbeitsbereichslayout zurücksetzen",
       "showWelcome": "Willkommensbildschirm beim Start anzeigen",
-      "startup": "Start"
+      "startup": "Start",
+      "wheelGestureHint": "Zwei-Finger-Geste und Cmd/Strg+Scrollen zoomen immer, unabhängig von der Auswahl.",
+      "wheelPans": "Scrollen verschiebt, Zwei-Finger-Geste zoomt",
+      "wheelZooms": "Scrollen zoomt"
     }
   },
   "share": {

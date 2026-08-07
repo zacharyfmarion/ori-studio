@@ -167,6 +167,8 @@ function WorkspaceTab() {
   const setFoldWarningEnabled = useSettingsStore((state) => state.setFoldWarningEnabled);
   const analyticsEnabled = useSettingsStore((state) => state.analyticsEnabled);
   const setAnalyticsEnabled = useSettingsStore((state) => state.setAnalyticsEnabled);
+  const cpWheelGesture = useSettingsStore((state) => state.cpWheelGesture);
+  const setCpWheelGesture = useSettingsStore((state) => state.setCpWheelGesture);
   const analytics = useAnalytics();
 
   return (
@@ -221,6 +223,35 @@ function WorkspaceTab() {
             'Send anonymous usage analytics to help improve Ori Studio'
           )}
         </label>
+      </section>
+      <section className="settings-section">
+        <h3 className="settings-section__title">
+          {t('dialogs:settings.workspace.creasePatternCanvas', 'Crease pattern canvas')}
+        </h3>
+        <label className="settings-checkbox">
+          <input
+            type="radio"
+            name="cp-wheel-gesture"
+            checked={cpWheelGesture === 'pan'}
+            onChange={() => setCpWheelGesture('pan')}
+          />
+          {t('dialogs:settings.workspace.wheelPans', 'Scroll pans, pinch zooms')}
+        </label>
+        <label className="settings-checkbox">
+          <input
+            type="radio"
+            name="cp-wheel-gesture"
+            checked={cpWheelGesture === 'zoom'}
+            onChange={() => setCpWheelGesture('zoom')}
+          />
+          {t('dialogs:settings.workspace.wheelZooms', 'Scroll zooms')}
+        </label>
+        <p className="settings-toggle-row__desc">
+          {t(
+            'dialogs:settings.workspace.wheelGestureHint',
+            'Pinch and Cmd/Ctrl+scroll always zoom, whichever you choose.'
+          )}
+        </p>
       </section>
       <section className="settings-section">
         <h3 className="settings-section__title">{t('dialogs:settings.workspace.layout', 'Layout')}</h3>

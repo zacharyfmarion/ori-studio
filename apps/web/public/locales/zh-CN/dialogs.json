@@ -235,6 +235,7 @@
     "title": "设置",
     "workspace": {
       "analytics": "发送匿名使用分析数据以帮助改进 Ori Studio",
+      "creasePatternCanvas": "折痕图画布",
       "folding": "折叠",
       "foldWarning": "折叠存在平折错误的折痕图之前发出警告",
       "layout": "布局",
@@ -243,7 +244,10 @@
       "resetMessage": "为当前工作区恢复默认布局吗？",
       "resetTitle": "重置工作区布局",
       "showWelcome": "启动时显示欢迎屏幕",
-      "startup": "启动"
+      "startup": "启动",
+      "wheelGestureHint": "无论选择哪一项，捏合和 Cmd/Ctrl+滚动始终缩放。",
+      "wheelPans": "滚动平移，捏合缩放",
+      "wheelZooms": "滚动缩放"
     }
   },
   "share": {

@@ -135,6 +135,31 @@ describe('SettingsModal', () => {
     expect(resetLayout).toHaveBeenCalledOnce();
   });
 
+  it('reflects and updates the crease-pattern scroll preference', () => {
+    const rendered = renderModal('workspace');
+
+    const radios = Array.from(
+      rendered.querySelectorAll<HTMLInputElement>('input[name="cp-wheel-gesture"]')
+    );
+    expect(radios).toHaveLength(2);
+    // Scroll-pans is the default, and the pane must open showing that.
+    expect(radios[0].checked).toBe(true);
+    expect(radios[1].checked).toBe(false);
+
+    act(() => {
+      radios[1].click();
+    });
+
+    expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
+    expect(radios[1].checked).toBe(true);
+
+    act(() => {
+      radios[0].click();
+    });
+
+    expect(useSettingsStore.getState().cpWheelGesture).toBe('pan');
+  });
+
   it('captures, clears, and resets shortcuts', async () => {
     const rendered = renderModal('shortcuts');
 

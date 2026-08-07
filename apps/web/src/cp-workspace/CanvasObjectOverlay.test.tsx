@@ -109,3 +109,46 @@ describe('CanvasObjectOverlay body interactivity', () => {
     expect((polygons[1] as SVGPolygonElement).style.pointerEvents).toBe('auto');
   });
 });
+
+describe('CanvasObjectOverlay wheel forwarding', () => {
+  function forwardedWheel(init: WheelEventInit): WheelEvent {
+    render();
+    const canvas = document.createElement('canvas');
+    container?.append(canvas);
+    const received: WheelEvent[] = [];
+    canvas.addEventListener('wheel', (event) => received.push(event as WheelEvent));
+
+    container?.querySelector('svg')?.dispatchEvent(new WheelEvent('wheel', { ...init, cancelable: true }));
+
+    expect(received).toHaveLength(1);
+    return received[0];
+  }
+
+  it('carries the modifiers across, so a pinch over an object still zooms', () => {
+    // The overlay's polygons capture pointer events, so the canvas never sees
+    // the wheel directly. A copy without modifiers made every pinch over a
+    // folded figure or reference image read as an unmodified scroll.
+    const forwarded = forwardedWheel({ deltaY: -4, ctrlKey: true });
+
+    expect(forwarded.ctrlKey).toBe(true);
+    expect(forwarded.deltaY).toBe(-4);
+  });
+
+  // One mount per case: the component forwards to the *first* canvas it finds,
+  // so two `forwardedWheel` calls in one test would both address the first.
+  it('carries the accel modifier too', () => {
+    expect(forwardedWheel({ deltaY: -4, metaKey: true }).metaKey).toBe(true);
+  });
+
+  it('carries the shift modifier too', () => {
+    expect(forwardedWheel({ deltaY: 4, shiftKey: true }).shiftKey).toBe(true);
+  });
+
+  it('preserves the deltas and deltaMode a plain scroll carries', () => {
+    const forwarded = forwardedWheel({ deltaX: 7, deltaY: 3, deltaMode: 1 });
+
+    expect(forwarded.deltaX).toBe(7);
+    expect(forwarded.deltaY).toBe(3);
+    expect(forwarded.deltaMode).toBe(1);
+  });
+});

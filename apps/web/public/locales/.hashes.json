@@ -2233,7 +2233,11 @@
     "panels:explori.noMatches": "9bf76bf453d0",
     "panels:explori.noMatchesDetail": "a385aa2d5bd8",
     "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
-    "panels:explori.searchingDetail": "b454bd6beb53"
+    "panels:explori.searchingDetail": "b454bd6beb53",
+    "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
+    "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
+    "dialogs:settings.workspace.wheelPans": "52cdebf01152",
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4469,7 +4473,11 @@
     "panels:explori.noMatches": "9bf76bf453d0",
     "panels:explori.noMatchesDetail": "a385aa2d5bd8",
     "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
-    "panels:explori.searchingDetail": "b454bd6beb53"
+    "panels:explori.searchingDetail": "b454bd6beb53",
+    "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
+    "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
+    "dialogs:settings.workspace.wheelPans": "52cdebf01152",
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6705,7 +6713,11 @@
     "panels:explori.noMatches": "9bf76bf453d0",
     "panels:explori.noMatchesDetail": "a385aa2d5bd8",
     "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
-    "panels:explori.searchingDetail": "b454bd6beb53"
+    "panels:explori.searchingDetail": "b454bd6beb53",
+    "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
+    "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
+    "dialogs:settings.workspace.wheelPans": "52cdebf01152",
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8911,7 +8923,11 @@
     "panels:explori.noMatches": "9bf76bf453d0",
     "panels:explori.noMatchesDetail": "a385aa2d5bd8",
     "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
-    "panels:explori.searchingDetail": "b454bd6beb53"
+    "panels:explori.searchingDetail": "b454bd6beb53",
+    "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
+    "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
+    "dialogs:settings.workspace.wheelPans": "52cdebf01152",
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11117,7 +11133,11 @@
     "panels:explori.noMatches": "9bf76bf453d0",
     "panels:explori.noMatchesDetail": "a385aa2d5bd8",
     "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
-    "panels:explori.searchingDetail": "b454bd6beb53"
+    "panels:explori.searchingDetail": "b454bd6beb53",
+    "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
+    "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
+    "dialogs:settings.workspace.wheelPans": "52cdebf01152",
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13353,7 +13373,11 @@
     "panels:explori.noMatches": "9bf76bf453d0",
     "panels:explori.noMatchesDetail": "a385aa2d5bd8",
     "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
-    "panels:explori.searchingDetail": "b454bd6beb53"
+    "panels:explori.searchingDetail": "b454bd6beb53",
+    "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
+    "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
+    "dialogs:settings.workspace.wheelPans": "52cdebf01152",
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15589,7 +15613,11 @@
     "panels:explori.noMatches": "9bf76bf453d0",
     "panels:explori.noMatchesDetail": "a385aa2d5bd8",
     "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
-    "panels:explori.searchingDetail": "b454bd6beb53"
+    "panels:explori.searchingDetail": "b454bd6beb53",
+    "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
+    "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
+    "dialogs:settings.workspace.wheelPans": "52cdebf01152",
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -17795,6 +17823,10 @@
     "panels:explori.noMatches": "9bf76bf453d0",
     "panels:explori.noMatchesDetail": "a385aa2d5bd8",
     "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
-    "panels:explori.searchingDetail": "b454bd6beb53"
+    "panels:explori.searchingDetail": "b454bd6beb53",
+    "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
+    "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
+    "dialogs:settings.workspace.wheelPans": "52cdebf01152",
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
   }
 }
