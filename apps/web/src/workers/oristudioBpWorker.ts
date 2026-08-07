@@ -64,6 +64,7 @@ import type {
   OristudioBpWasmPackingValidation,
 } from '../engine/oristudioBpTypes';
 import type { WasmErrorEnvelope } from '../engine/types';
+import { wasmNullableNumber, wasmNumber, wasmString } from '../engine/wasmArgs';
 
 let ready: Promise<void> | null = null;
 
@@ -105,10 +106,10 @@ const api = {
     return call(() => bp_new_sample_project());
   },
   async loadProject(text: string): Promise<number> {
-    return call(() => bp_load_project(text));
+    return call(() => bp_load_project(wasmString('text', text)));
   },
   async importTreeMaker(title: string, text: string): Promise<number> {
-    return call(() => bp_import_treemaker(title, text));
+    return call(() => bp_import_treemaker(wasmString('title', title), wasmString('text', text)));
   },
   async loadWorkspace(bytes: Uint8Array): Promise<OristudioBpWasmWorkspaceProject[]> {
     return call(() => bp_load_workspace(bytes) as OristudioBpWasmWorkspaceProject[]);
@@ -158,10 +159,21 @@ const api = {
     y: number,
     dragging = false
   ): Promise<OristudioBpRawProject> {
-    return call(() => bp_move_tree_vertex(handle, id, x, y, dragging) as OristudioBpRawProject);
+    return call(
+      () =>
+        bp_move_tree_vertex(
+          handle,
+          id,
+          wasmNumber('x', x),
+          wasmNumber('y', y),
+          dragging
+        ) as OristudioBpRawProject
+    );
   },
   async renameTreeVertex(handle: number, id: number, name: string): Promise<OristudioBpRawProject> {
-    return call(() => bp_rename_tree_vertex(handle, id, name) as OristudioBpRawProject);
+    return call(
+      () => bp_rename_tree_vertex(handle, id, wasmString('name', name)) as OristudioBpRawProject
+    );
   },
   async updateTreeEdgeLength(
     handle: number,
@@ -171,11 +183,20 @@ const api = {
     dragging = false
   ): Promise<OristudioBpRawProject> {
     return call(
-      () => bp_update_tree_edge_length(handle, n1, n2, length, dragging) as OristudioBpRawProject
+      () =>
+        bp_update_tree_edge_length(
+          handle,
+          n1,
+          n2,
+          wasmNumber('length', length),
+          dragging
+        ) as OristudioBpRawProject
     );
   },
   async addTreeLeaf(handle: number, at: number, length: number): Promise<OristudioBpRawProject> {
-    return call(() => bp_add_tree_leaf(handle, at, length) as OristudioBpRawProject);
+    return call(
+      () => bp_add_tree_leaf(handle, at, wasmNumber('length', length)) as OristudioBpRawProject
+    );
   },
   async deleteTreeLeaves(handle: number, ids: number[]): Promise<OristudioBpRawProject> {
     return call(() => bp_delete_tree_leaves(handle, ids) as OristudioBpRawProject);
@@ -196,7 +217,16 @@ const api = {
     y: number,
     dragging = false
   ): Promise<OristudioBpRawProject> {
-    return call(() => bp_move_layout_flap(handle, id, x, y, dragging) as OristudioBpRawProject);
+    return call(
+      () =>
+        bp_move_layout_flap(
+          handle,
+          id,
+          wasmNumber('x', x),
+          wasmNumber('y', y),
+          dragging
+        ) as OristudioBpRawProject
+    );
   },
   async moveLayoutFlaps(
     handle: number,
@@ -205,7 +235,16 @@ const api = {
     y: number,
     dragging = false
   ): Promise<OristudioBpRawProject> {
-    return call(() => bp_move_layout_flaps(handle, ids, x, y, dragging) as OristudioBpRawProject);
+    return call(
+      () =>
+        bp_move_layout_flaps(
+          handle,
+          ids,
+          wasmNumber('x', x),
+          wasmNumber('y', y),
+          dragging
+        ) as OristudioBpRawProject
+    );
   },
   async resizeLayoutFlap(
     handle: number,
@@ -213,7 +252,15 @@ const api = {
     width: number,
     height: number
   ): Promise<OristudioBpRawProject> {
-    return call(() => bp_resize_layout_flap(handle, id, width, height) as OristudioBpRawProject);
+    return call(
+      () =>
+        bp_resize_layout_flap(
+          handle,
+          id,
+          wasmNumber('width', width),
+          wasmNumber('height', height)
+        ) as OristudioBpRawProject
+    );
   },
   async subdivideLayoutSheet(handle: number): Promise<OristudioBpRawProject> {
     return call(() => bp_subdivide_layout_sheet(handle) as OristudioBpRawProject);
@@ -234,25 +281,45 @@ const api = {
     height: number
   ): Promise<OristudioBpRawProject> {
     return call(
-      () => bp_update_layout_sheet(handle, gridType, width, height) as OristudioBpRawProject
+      () =>
+        bp_update_layout_sheet(
+          handle,
+          wasmString('gridType', gridType),
+          wasmNumber('width', width),
+          wasmNumber('height', height)
+        ) as OristudioBpRawProject
     );
   },
   async completeStretch(handle: number, id: string): Promise<OristudioBpRawProject> {
-    return call(() => bp_complete_stretch(handle, id) as OristudioBpRawProject);
+    return call(() => bp_complete_stretch(handle, wasmString('id', id)) as OristudioBpRawProject);
   },
   async switchStretchConfig(
     handle: number,
     id: string,
     delta: number
   ): Promise<OristudioBpRawProject> {
-    return call(() => bp_switch_stretch_config(handle, id, delta) as OristudioBpRawProject);
+    return call(
+      () =>
+        bp_switch_stretch_config(
+          handle,
+          wasmString('id', id),
+          wasmNumber('delta', delta)
+        ) as OristudioBpRawProject
+    );
   },
   async switchStretchPattern(
     handle: number,
     id: string,
     delta: number
   ): Promise<OristudioBpRawProject> {
-    return call(() => bp_switch_stretch_pattern(handle, id, delta) as OristudioBpRawProject);
+    return call(
+      () =>
+        bp_switch_stretch_pattern(
+          handle,
+          wasmString('id', id),
+          wasmNumber('delta', delta)
+        ) as OristudioBpRawProject
+    );
   },
   async moveDevice(
     handle: number,
@@ -262,7 +329,17 @@ const api = {
     y: number,
     dragging = false
   ): Promise<OristudioBpRawProject> {
-    return call(() => bp_move_device(handle, id, index, x, y, dragging) as OristudioBpRawProject);
+    return call(
+      () =>
+        bp_move_device(
+          handle,
+          wasmString('id', id),
+          wasmNumber('index', index),
+          wasmNumber('x', x),
+          wasmNumber('y', y),
+          dragging
+        ) as OristudioBpRawProject
+    );
   },
   async exportBps(handle: number): Promise<string> {
     return call(() => bp_export_bps(handle));
@@ -273,7 +350,7 @@ const api = {
     useAuxiliary = false,
     cpScale = 1
   ): Promise<string> {
-    return call(() => bp_export_cp(handle, reorient, useAuxiliary, cpScale));
+    return call(() => bp_export_cp(handle, reorient, useAuxiliary, wasmNumber('cpScale', cpScale)));
   },
   async exportFold(handle: number, reorient = true, useAuxiliary = false): Promise<string> {
     return call(() => bp_export_fold(handle, reorient, useAuxiliary));
@@ -296,11 +373,11 @@ const api = {
     return call(() =>
       bp_optimizer_request(
         handle,
-        layout,
+        wasmString('layout', layout),
         useBasinHopping,
-        randomCandidateCount,
+        wasmNumber('randomCandidateCount', randomCandidateCount),
         useDimension,
-        jitterSeed
+        wasmNumber('jitterSeed', jitterSeed)
       )
     );
   },
@@ -332,17 +409,19 @@ const api = {
     );
   },
   async optimizerSolve(request: unknown, seed: number | null = null): Promise<unknown> {
-    return call(() => bp_optimizer_solve(request, seed));
+    return call(() => bp_optimizer_solve(request, wasmNullableNumber('seed', seed)));
   },
   async optimizerSolveReport(request: unknown, seed: number | null = null): Promise<unknown> {
-    return call(() => bp_optimizer_solve_report(request, seed));
+    return call(() => bp_optimizer_solve_report(request, wasmNullableNumber('seed', seed)));
   },
   async optimizerSolveReportWithProgress(
     request: unknown,
     seed: number | null,
     onEvent: (event: OristudioBpOptimizerEvent) => void
   ): Promise<unknown> {
-    return call(() => bp_optimizer_solve_report_with_progress(request, seed, onEvent));
+    return call(() =>
+      bp_optimizer_solve_report_with_progress(request, wasmNullableNumber('seed', seed), onEvent)
+    );
   },
   async freeProject(handle: number): Promise<void> {
     return call(() => bp_free_project(handle));

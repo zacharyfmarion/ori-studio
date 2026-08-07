@@ -1,3 +1,4 @@
+use oristudio_bp::BpError;
 use oristudio_bp::engine::{
     BpProjectSession, BpSession, DesignUpdateRequest, EngineState, GraphicsData, OrderedRecord,
     Processor, TaskSpec, UpdateResult,
@@ -578,6 +579,48 @@ fn project_session_moves_flap_groups_with_shared_constraints() {
     assert_eq!((first.x, first.y), (2.0, 5.0));
     assert_eq!((second.x, second.y), (6.0, 5.0));
     assert_eq!(session.history().steps().len(), 1);
+}
+
+#[test]
+fn project_session_rejects_non_finite_move_targets() {
+    let mut project = sample_project();
+    project.design.layout.flaps = vec![Flap {
+        id: 1,
+        x: 1.0,
+        y: 1.0,
+        width: 2.0,
+        height: 2.0,
+    }];
+    let mut session = BpProjectSession::new(project).unwrap();
+    let before = session.project().clone();
+
+    // The grid clamps by comparison, so without an explicit check NaN would sail
+    // through it and be written to the model.
+    for bad in [
+        Point {
+            x: f64::NAN,
+            y: 2.0,
+        },
+        Point {
+            x: 2.0,
+            y: f64::INFINITY,
+        },
+    ] {
+        assert!(matches!(
+            session.move_vertex(1, bad, false),
+            Err(BpError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            session.move_flap(1, bad, false),
+            Err(BpError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            session.move_flaps(&[1], bad, false),
+            Err(BpError::InvalidInput(_))
+        ));
+    }
+
+    assert_eq!(session.project(), &before);
 }
 
 #[test]

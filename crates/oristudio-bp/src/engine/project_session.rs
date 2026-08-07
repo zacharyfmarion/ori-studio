@@ -133,6 +133,7 @@ impl BpProjectSession {
         target: Point,
         dragging: bool,
     ) -> BpResult<UpdateModel> {
+        let target = finite_move_target("tree vertex", target)?;
         let grid = BpGrid::new(self.project.design.tree.sheet.clone());
         let next = grid.constrain(target);
         let old = {
@@ -403,6 +404,7 @@ impl BpProjectSession {
         target: Point,
         dragging: bool,
     ) -> BpResult<UpdateModel> {
+        let target = finite_move_target("layout flap", target)?;
         let ids = unique_node_ids(ids);
         let Some(reference_id) = ids.first().copied() else {
             return Err(BpError::InvalidInput(
@@ -1764,6 +1766,22 @@ fn wrapped_index(index: usize, delta: isize, len: usize) -> usize {
 fn unique_node_ids(ids: &[NodeId]) -> Vec<NodeId> {
     let mut seen = BTreeSet::new();
     ids.iter().copied().filter(|id| seen.insert(*id)).collect()
+}
+
+/// Reject a non-finite move target before it reaches the model.
+///
+/// `BpGrid::constrain` clamps by comparison, and every comparison against NaN is
+/// false, so it passes NaN straight through to the vertex or flap. The damage is
+/// not local: moving the root that way leaves every tree coordinate NaN, and
+/// adding a leaf to such a tree never returns.
+fn finite_move_target(what: &str, target: Point) -> BpResult<Point> {
+    if !target.x.is_finite() || !target.y.is_finite() {
+        return Err(BpError::InvalidInput(format!(
+            "BP {what} move target must be finite: {}, {}",
+            target.x, target.y
+        )));
+    }
+    Ok(target)
 }
 
 fn value_from_history<T>(value: &Value, label: &str) -> BpResult<T>
