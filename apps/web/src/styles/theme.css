@@ -6195,10 +6195,18 @@
   color: var(--bg-primary);
 }
 
+/* The toolbar is nowrap so its own controls stay on one line, and this dropdown
+   inherits it. Left alone, the status sentence sizes the panel to its full
+   unwrapped width and runs off the edge of the pane. The cap and the break are
+   for the same sentence translated: a locale that compounds words can push the
+   panel past a width no wrapping can pull back. */
 .symmetry-menu__panel {
   min-width: 210px;
+  max-width: min(280px, calc(100vw - var(--space-6)));
   gap: 8px;
   padding: 10px;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .symmetry-menu__header {
