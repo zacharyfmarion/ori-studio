@@ -77,12 +77,25 @@ export function applyFoldAngleRamp(
  * "this is not flat" categorical, and the ramp within says how shallow — the
  * same two-part shape the midpoint badge uses (classic creases never get one).
  *
+ * The floor is set so a near-flat crease reads as *faint*, matching how little
+ * a few degrees of fold actually shows in the folded model. It is the weaker
+ * half of a deliberate trade: the canvas is an editing surface, so a 5° crease
+ * still has to be findable when you go looking for it. Hit-testing is what makes
+ * that affordable — it is geometric, so a crease stays selectable at full
+ * hit-radius no matter how faint its ink.
+ *
+ * "Perceptible on every canvas" is therefore the bar, not "clearly visible". The
+ * floor used to be 0.4, which cleared that bar so comfortably that the whole
+ * 0–45° band collapsed into ten points of alpha and nothing down there looked
+ * shallow.
+ *
  * Both numbers are measured, not picked, against every bundled theme canvas
  * (`foldAngleOpacity.test.ts`):
  *
- * - at the floor a crease keeps ≥35% of its full-opacity Lab ΔE from the canvas,
- *   and ≥20 ΔE absolute — worst case 38% / 22.2, on `cobalt2` and
- *   `catppuccin-latte` respectively;
+ * - at the floor a crease keeps ≥15% of its full-opacity Lab ΔE from the canvas,
+ *   and ≥10 ΔE absolute — worst case 15.9% / 11.1, on `cobalt2` and
+ *   `catppuccin-latte` respectively. ΔE 11 is roughly 5× the ~2.3 just-noticeable
+ *   difference, so the floor is quiet rather than borderline;
  * - the classic→ceiling step is ≥8 ΔE everywhere — worst case 11.0, on
  *   `gruvbox-light`.
  *
@@ -93,7 +106,7 @@ export function applyFoldAngleRamp(
  * perceptually it is the roomiest. ΔE is the yardstick the hue ramp's own tests
  * already use.
  */
-export const FOLD_ANGLE_MIN_OPACITY = 0.4;
+export const FOLD_ANGLE_MIN_OPACITY = 0.2;
 /** Alpha at |ρ| just under 180°. See {@link FOLD_ANGLE_MIN_OPACITY}. */
 export const FOLD_ANGLE_MAX_OPACITY = 0.8;
 

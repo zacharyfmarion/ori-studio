@@ -159,7 +159,11 @@ describe('the opacity band holds up on every theme canvas', () => {
   // a new preset with an unusual canvas is exactly the change that would
   // silently make shallow creases vanish, and it should fail here instead.
 
-  it('keeps a crease clearly visible at the floor', () => {
+  it('keeps a crease perceptible at the floor', () => {
+    // Perceptible, not prominent. The floor is deliberately faint so a near-flat
+    // crease looks near-flat; what this guards is that it never crosses into
+    // *invisible* on some canvas, because the crease is still editable and you
+    // have to be able to find it.
     for (const { name, bg } of CANVASES) {
       for (const [label, ink] of [
         ['mountain', MOUNTAIN],
@@ -168,10 +172,10 @@ describe('the opacity band holds up on every theme canvas', () => {
         const floored = composite(applyFoldAngleOpacity(ink, 0), bg);
         const full = composite(ink, bg);
         const retention = deltaE(floored, bg) / deltaE(full, bg);
-        // Worst measured: 38% retention (cobalt2 mountain), 22.2 absolute
-        // (catppuccin-latte valley).
-        expect(retention, `${name} ${label} retention`).toBeGreaterThan(0.35);
-        expect(deltaE(floored, bg), `${name} ${label} absolute`).toBeGreaterThan(20);
+        // Worst measured: 15.9% retention (cobalt2 mountain), 11.1 absolute
+        // (catppuccin-latte valley) — about 5x the ~2.3 JND threshold.
+        expect(retention, `${name} ${label} retention`).toBeGreaterThan(0.15);
+        expect(deltaE(floored, bg), `${name} ${label} absolute`).toBeGreaterThan(10);
       }
     }
   });
