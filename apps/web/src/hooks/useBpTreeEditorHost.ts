@@ -48,6 +48,7 @@ function bpTreeCopy(t: TFunction): TreeEditorCopy {
     canvas: t('panels:bpTree.canvas', 'Box Pleat tree canvas'),
     viewportControls: t('panels:bpTree.viewportControls', 'Box Pleat tree viewport controls'),
     mirrorDraw: t('panels:bpTree.mirrorDraw', 'Mirror draw'),
+    symmetry: t('panels:bpTree.symmetry', 'Symmetry'),
     mirrorDrawOn: t('panels:bpTree.mirrorDrawOn', 'Mirror draw (on)'),
     unpair: t('panels:bpTree.unpair', 'Unpair from mirror'),
     layers: t('panels:bpTree.layers', 'Layers'),

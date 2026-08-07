@@ -5538,6 +5538,18 @@
   margin-inline: 1px;
 }
 
+/* Symmetry reads as a named mode rather than a glyph to decode, so the tree
+   canvases spell it out. The icon stays: it is what the button has always been,
+   and it keeps the control recognizable next to the icon-only ones — including
+   the box-pleating editor's, which is deliberately still icon-only. */
+.tree-editor__symmetry-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline: 1px;
+  padding-inline: 8px;
+}
+
 .cp-folded-figure-actions {
   display: inline-flex;
   align-items: center;

@@ -95,6 +95,7 @@
     "selectLeafVertexWithLabel": "BP 葉頂点 {{id}}、{{label}} を選択",
     "selectVertex": "BP 頂点 {{id}} を選択",
     "selectVertexWithLabel": "BP 頂点 {{id}}、{{label}} を選択",
+    "symmetry": "対称",
     "unpair": "ミラーとのペアを解除",
     "viewportControls": "ボックスプリーツツリーのビューポート操作"
   },
@@ -456,6 +457,7 @@
     "selectEdge": "枝 {{id}} を選択、長さ {{length}}",
     "selectNode": "ノード {{id}} を選択",
     "selectNodeWithLabel": "ノード {{id}} を選択、{{label}}",
+    "symmetry": "対称",
     "symmetryBook": "中割り",
     "symmetryDiagonal": "対角",
     "symmetryModes": "対称性",

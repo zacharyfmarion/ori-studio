@@ -862,18 +862,21 @@ describe('native project file', () => {
       ]);
     });
 
-    it('opens a v5 file, which predates symmetry, with mirror draw on', () => {
+    it('opens a v5 file, which predates symmetry, with mirror draw off', () => {
+      // Off is the honest reading: nothing in a file written before symmetry
+      // existed was ever mirrored, so opening it with the mirror on would put
+      // a claim into the design that its author never made.
       const raw = bpFile({ enabled: false, fold: 'diagonal', pairs: [{ v1: 1, v2: 2 }] });
       raw.schemaVersion = 5;
       delete raw.workspace.documents[0].symmetry;
-      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: true, fold: 'book', pairs: [] });
+      expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', pairs: [] });
     });
 
     it('opens rather than refuses when the symmetry block is malformed', () => {
       for (const junk of [null, 42, 'book', [], { pairs: 'nope' }]) {
         const raw = bpFile();
         raw.workspace.documents[0].symmetry = junk;
-        expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: true, fold: 'book', pairs: [] });
+        expect(bpDocumentOf(raw).symmetry).toEqual({ enabled: false, fold: 'book', pairs: [] });
       }
     });
 

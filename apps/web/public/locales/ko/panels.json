@@ -95,6 +95,7 @@
     "selectLeafVertexWithLabel": "BP 리프 정점 {{id}} 선택, {{label}}",
     "selectVertex": "BP 정점 {{id}} 선택",
     "selectVertexWithLabel": "BP 정점 {{id}} 선택, {{label}}",
+    "symmetry": "대칭",
     "unpair": "미러 페어 해제",
     "viewportControls": "박스 플리츠 트리 뷰포트 컨트롤"
   },
@@ -456,6 +457,7 @@
     "selectEdge": "가지 {{id}} 선택, 길이 {{length}}",
     "selectNode": "노드 {{id}} 선택",
     "selectNodeWithLabel": "노드 {{id}} 선택, {{label}}",
+    "symmetry": "대칭",
     "symmetryBook": "책 대칭",
     "symmetryDiagonal": "대각 대칭",
     "symmetryModes": "대칭",

@@ -550,24 +550,37 @@ describe('BP packing pane — the mirror line', () => {
     return host.querySelector('.bp-packing-symmetry line.symmetry-line');
   }
 
+  /**
+   * Mirror draw is off for a new design, so a pane about the mirror has to ask
+   * for it. Turned on here rather than in `renderPacking`, which every other
+   * describe in this file shares and none of them wants a mirror in.
+   */
+  function renderMirrored() {
+    const host = renderPacking();
+    act(() => {
+      useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: true });
+    });
+    return host;
+  }
+
   it('draws whenever mirror draw is on, with no pairs needed', () => {
     // A design loaded from .bps carries no explicit pairs at all — geometric
     // inference does the work — and the line is what you place the first pair
     // against, so waiting for one would mean it could never be drawn.
-    const host = renderPacking();
+    const host = renderMirrored();
     expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).pairs).toEqual([]);
     expect(axis(host)).not.toBeNull();
   });
 
   it('is a vertical line through the sheet centre under a book fold', () => {
-    const host = renderPacking();
+    const host = renderMirrored();
     const line = axis(host);
     expect(line?.getAttribute('x1')).toBe(line?.getAttribute('x2'));
     expect(line?.getAttribute('y1')).not.toBe(line?.getAttribute('y2'));
   });
 
   it('turns with the fold', () => {
-    const host = renderPacking();
+    const host = renderMirrored();
     act(() => {
       useWorkspaceStore.getState().setOristudioBpSymmetry({ fold: 'diagonal' });
     });
@@ -578,7 +591,7 @@ describe('BP packing pane — the mirror line', () => {
   });
 
   it('goes away when mirror draw is turned off', () => {
-    const host = renderPacking();
+    const host = renderMirrored();
     act(() => {
       useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
     });

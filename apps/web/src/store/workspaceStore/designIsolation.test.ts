@@ -149,7 +149,7 @@ describe('per-design isolation: box-pleat', () => {
       ...state,
       ...patchBoxPleatDesign(state, {
         historyPast: [{ label: 'Moved flap' }] as never,
-        symmetry: { enabled: false, fold: 'diagonal', angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
+        symmetry: { enabled: true, fold: 'diagonal', angle: 90, loc: { x: 0, y: 0 }, pairs: [] },
       }),
     };
 
@@ -158,9 +158,9 @@ describe('per-design isolation: box-pleat', () => {
 
     const onBeetle = withActive(state, beetle.id);
     expect(selectOristudioBpHistoryPast(onBeetle)).toHaveLength(0);
-    // Untouched designs keep the default: symmetry on, book fold.
+    // Untouched designs keep the default: mirror draw off, book fold.
     expect(selectOristudioBpSymmetry(onBeetle).fold).toBe('book');
-    expect(selectOristudioBpSymmetry(onBeetle).enabled).toBe(true);
+    expect(selectOristudioBpSymmetry(onBeetle).enabled).toBe(false);
   });
 
   it('lets a tab be box-pleat before its document exists', () => {

@@ -95,6 +95,7 @@
     "selectLeafVertexWithLabel": "Selecionar vértice folha BP {{id}}, {{label}}",
     "selectVertex": "Selecionar vértice BP {{id}}",
     "selectVertexWithLabel": "Selecionar vértice BP {{id}}, {{label}}",
+    "symmetry": "Simetria",
     "unpair": "Desemparelhar do espelho",
     "viewportControls": "Controles da viewport da árvore de dobra em caixa"
   },
@@ -482,6 +483,7 @@
     "selectEdge": "Selecionar o ramo {{id}}, comprimento {{length}}",
     "selectNode": "Selecionar o nó {{id}}",
     "selectNodeWithLabel": "Selecionar o nó {{id}}, {{label}}",
+    "symmetry": "Simetria",
     "symmetryBook": "Livro",
     "symmetryDiagonal": "Diagonal",
     "symmetryModes": "Simetria",

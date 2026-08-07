@@ -94,6 +94,8 @@ export interface TreeViewLayers {
 export interface TreeEditorCopy {
   canvas: string;
   viewportControls: string;
+  /** The toggle's own label. Its tooltip is `mirrorDraw` / `mirrorDrawOn`. */
+  symmetry: string;
   mirrorDraw: string;
   mirrorDrawOn: string;
   unpair: string;

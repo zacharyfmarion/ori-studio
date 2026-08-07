@@ -95,6 +95,7 @@
     "selectLeafVertexWithLabel": "BP-Blattknoten {{id}} auswählen, {{label}}",
     "selectVertex": "BP-Knoten {{id}} auswählen",
     "selectVertexWithLabel": "BP-Knoten {{id}} auswählen, {{label}}",
+    "symmetry": "Symmetrie",
     "unpair": "Spiegelpaar aufheben",
     "viewportControls": "Ansichtssteuerung des Box-Pleating-Baums"
   },
@@ -468,6 +469,7 @@
     "selectEdge": "Zweig {{id}} auswählen, Länge {{length}}",
     "selectNode": "Knoten {{id}} auswählen",
     "selectNodeWithLabel": "Knoten {{id}} auswählen, {{label}}",
+    "symmetry": "Symmetrie",
     "symmetryBook": "Buch",
     "symmetryDiagonal": "Diagonal",
     "symmetryModes": "Symmetrie",

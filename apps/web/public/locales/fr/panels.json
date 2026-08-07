@@ -95,6 +95,7 @@
     "selectLeafVertexWithLabel": "Sélectionner le sommet feuille BP {{id}}, {{label}}",
     "selectVertex": "Sélectionner le sommet BP {{id}}",
     "selectVertexWithLabel": "Sélectionner le sommet BP {{id}}, {{label}}",
+    "symmetry": "Symétrie",
     "unpair": "Dissocier du miroir",
     "viewportControls": "Commandes d'affichage de l'arbre du pliage en boîte"
   },
@@ -482,6 +483,7 @@
     "selectEdge": "Sélectionner la branche {{id}}, longueur {{length}}",
     "selectNode": "Sélectionner le nœud {{id}}",
     "selectNodeWithLabel": "Sélectionner le nœud {{id}}, {{label}}",
+    "symmetry": "Symétrie",
     "symmetryBook": "Livre",
     "symmetryDiagonal": "Diagonale",
     "symmetryModes": "Symétrie",

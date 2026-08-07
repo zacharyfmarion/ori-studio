@@ -2176,7 +2176,9 @@
     "panels:explori.databaseCell": "9c830b64e480",
     "panels:explori.searchSize": "219c4a6c86a7",
     "panels:explori.symmetryModes": "cc14de692631",
-    "panels:explori.topologySize": "1af851907331"
+    "panels:explori.topologySize": "1af851907331",
+    "panels:bpTree.symmetry": "cc14de692631",
+    "panels:explori.symmetry": "cc14de692631"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4355,7 +4357,9 @@
     "panels:explori.databaseCell": "9c830b64e480",
     "panels:explori.searchSize": "219c4a6c86a7",
     "panels:explori.symmetryModes": "cc14de692631",
-    "panels:explori.topologySize": "1af851907331"
+    "panels:explori.topologySize": "1af851907331",
+    "panels:bpTree.symmetry": "cc14de692631",
+    "panels:explori.symmetry": "cc14de692631"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6562,7 +6566,9 @@
     "panels:explori.databaseCell": "9c830b64e480",
     "panels:explori.searchSize": "219c4a6c86a7",
     "panels:explori.symmetryModes": "cc14de692631",
-    "panels:explori.topologySize": "1af851907331"
+    "panels:explori.topologySize": "1af851907331",
+    "panels:bpTree.symmetry": "cc14de692631",
+    "panels:explori.symmetry": "cc14de692631"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8769,7 +8775,9 @@
     "panels:explori.databaseCell": "9c830b64e480",
     "panels:explori.searchSize": "219c4a6c86a7",
     "panels:explori.symmetryModes": "cc14de692631",
-    "panels:explori.topologySize": "1af851907331"
+    "panels:explori.topologySize": "1af851907331",
+    "panels:bpTree.symmetry": "cc14de692631",
+    "panels:explori.symmetry": "cc14de692631"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10976,7 +10984,9 @@
     "panels:explori.databaseCell": "9c830b64e480",
     "panels:explori.searchSize": "219c4a6c86a7",
     "panels:explori.symmetryModes": "cc14de692631",
-    "panels:explori.topologySize": "1af851907331"
+    "panels:explori.topologySize": "1af851907331",
+    "panels:bpTree.symmetry": "cc14de692631",
+    "panels:explori.symmetry": "cc14de692631"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -13183,7 +13193,9 @@
     "panels:explori.databaseCell": "9c830b64e480",
     "panels:explori.searchSize": "219c4a6c86a7",
     "panels:explori.symmetryModes": "cc14de692631",
-    "panels:explori.topologySize": "1af851907331"
+    "panels:explori.topologySize": "1af851907331",
+    "panels:bpTree.symmetry": "cc14de692631",
+    "panels:explori.symmetry": "cc14de692631"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15390,7 +15402,9 @@
     "panels:explori.databaseCell": "9c830b64e480",
     "panels:explori.searchSize": "219c4a6c86a7",
     "panels:explori.symmetryModes": "cc14de692631",
-    "panels:explori.topologySize": "1af851907331"
+    "panels:explori.topologySize": "1af851907331",
+    "panels:bpTree.symmetry": "cc14de692631",
+    "panels:explori.symmetry": "cc14de692631"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -17569,6 +17583,8 @@
     "panels:explori.databaseCell": "9c830b64e480",
     "panels:explori.searchSize": "219c4a6c86a7",
     "panels:explori.symmetryModes": "cc14de692631",
-    "panels:explori.topologySize": "1af851907331"
+    "panels:explori.topologySize": "1af851907331",
+    "panels:bpTree.symmetry": "cc14de692631",
+    "panels:explori.symmetry": "cc14de692631"
   }
 }

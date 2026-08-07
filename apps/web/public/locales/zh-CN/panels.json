@@ -95,6 +95,7 @@
     "selectLeafVertexWithLabel": "选择 BP 叶顶点 {{id}}，{{label}}",
     "selectVertex": "选择 BP 顶点 {{id}}",
     "selectVertexWithLabel": "选择 BP 顶点 {{id}}，{{label}}",
+    "symmetry": "对称",
     "unpair": "解除镜像配对",
     "viewportControls": "箱形褶皱树视口控件"
   },
@@ -456,6 +457,7 @@
     "selectEdge": "选择分支 {{id}}，长度 {{length}}",
     "selectNode": "选择节点 {{id}}",
     "selectNodeWithLabel": "选择节点 {{id}}，{{label}}",
+    "symmetry": "对称",
     "symmetryBook": "书页对称",
     "symmetryDiagonal": "对角对称",
     "symmetryModes": "对称性",

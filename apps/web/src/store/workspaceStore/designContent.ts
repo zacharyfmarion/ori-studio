@@ -136,8 +136,9 @@ export function createBoxPleatDesignState(
     historyPast: [],
     historyFuture: [],
     viewportFitRequestId: 0,
-    // Defaults ON; `loc` is re-centred on the sheet on every document load (see
-    // `setLoadedBpProject`), so this pre-load {0,0} is a placeholder.
+    // Defaults off (see `defaultBpDocumentSymmetry`); `loc` is re-centred on the
+    // sheet on every document load (see `setLoadedBpProject`), so this pre-load
+    // {0,0} is a placeholder.
     symmetry: {
       ...defaultBpDocumentSymmetry(),
       angle: BP_TREE_SYMMETRY_ANGLE,

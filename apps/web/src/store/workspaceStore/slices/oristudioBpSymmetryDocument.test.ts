@@ -49,17 +49,17 @@ afterEach(() => {
 });
 
 describe('symmetry is document state', () => {
-  it('starts on, book-fold, with nothing paired', () => {
-    expect(defaultBpDocumentSymmetry()).toEqual({ enabled: true, fold: 'book', pairs: [] });
+  it('starts off, book-fold, with nothing paired', () => {
+    expect(defaultBpDocumentSymmetry()).toEqual({ enabled: false, fold: 'book', pairs: [] });
     const initial = selectOristudioBpSymmetry(singleBoxPleatDesignTab());
-    expect(initial.enabled).toBe(true);
+    expect(initial.enabled).toBe(false);
     expect(initial.fold).toBe('book');
     expect(initial.pairs).toEqual([]);
   });
 
   it('marks the project dirty when mirror draw is toggled', () => {
     useWorkspaceStore.setState({ dirty: false });
-    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: true });
     expect(useWorkspaceStore.getState().dirty).toBe(true);
   });
 
@@ -129,13 +129,13 @@ describe('symmetry rides the undo stack', () => {
     expect(useWorkspaceStore.getState().activeEditingContext).toBe('bp-tree');
   });
 
-  it('undoes turning mirror draw off', async () => {
-    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: false });
-    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).enabled).toBe(false);
+  it('undoes turning mirror draw on', async () => {
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: true });
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).enabled).toBe(true);
 
     await useWorkspaceStore.getState().undo();
 
-    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).enabled).toBe(true);
+    expect(selectOristudioBpSymmetry(useWorkspaceStore.getState()).enabled).toBe(false);
   });
 
   it('undoes a fold change, then redoes it', async () => {
@@ -223,7 +223,8 @@ describe('symmetry rides the undo stack', () => {
 
   it('records nothing when the update changes nothing', () => {
     useWorkspaceStore.setState({ dirty: false });
-    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled: true, fold: 'book' });
+    const { enabled, fold } = defaultBpDocumentSymmetry();
+    useWorkspaceStore.getState().setOristudioBpSymmetry({ enabled, fold });
     expect(selectOristudioBpHistoryPast(useWorkspaceStore.getState())).toEqual([]);
     expect(useWorkspaceStore.getState().dirty).toBe(false);
   });

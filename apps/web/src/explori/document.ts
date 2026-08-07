@@ -87,10 +87,9 @@ export function createExploriDocument(): ExploriDocument {
     dbConfigs: [...DEFAULT_DB_CONFIGS],
     dbConfigsDirty: false,
     resultLimit: DEFAULT_RESULT_LIMIT,
-    // Trees drawn for search are nearly always symmetric, and the book
-    // databases are the ones people reach for, so mirror draw starts on — as it
-    // does on box-pleat.
-    symmetry: { enabled: true, pairs: [] },
+    // Off, as on box-pleat: mirroring is a claim about the model, and starting
+    // on means the first stroke quietly draws two branches.
+    symmetry: { enabled: false, pairs: [] },
     selected: null,
   };
 }
@@ -290,7 +289,8 @@ export function parseExploriDocument(text: string): ExploriDocument {
         ? Math.min(50, Math.round(record.resultLimit))
         : fallback.resultLimit,
     symmetry: {
-      enabled: typeof symmetry?.enabled === 'boolean' ? symmetry.enabled : true,
+      // A record with no flag predates symmetry, so nothing in it was mirrored.
+      enabled: typeof symmetry?.enabled === 'boolean' ? symmetry.enabled : false,
       pairs,
     },
     // Trusted as-is when present: it is our own serialization of a validated

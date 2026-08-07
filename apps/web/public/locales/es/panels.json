@@ -95,6 +95,7 @@
     "selectLeafVertexWithLabel": "Seleccionar vértice hoja BP {{id}}, {{label}}",
     "selectVertex": "Seleccionar vértice BP {{id}}",
     "selectVertexWithLabel": "Seleccionar vértice BP {{id}}, {{label}}",
+    "symmetry": "Simetría",
     "unpair": "Desemparejar del espejo",
     "viewportControls": "Controles de la vista del árbol de plegado en caja"
   },
@@ -482,6 +483,7 @@
     "selectEdge": "Seleccionar la rama {{id}}, longitud {{length}}",
     "selectNode": "Seleccionar el nodo {{id}}",
     "selectNodeWithLabel": "Seleccionar el nodo {{id}}, {{label}}",
+    "symmetry": "Simetría",
     "symmetryBook": "Libro",
     "symmetryDiagonal": "Diagonal",
     "symmetryModes": "Simetría",

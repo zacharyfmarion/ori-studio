@@ -95,6 +95,7 @@
     "selectLeafVertexWithLabel": "Выбрать концевую вершину BP {{id}}, {{label}}",
     "selectVertex": "Выбрать вершину BP {{id}}",
     "selectVertexWithLabel": "Выбрать вершину BP {{id}}, {{label}}",
+    "symmetry": "Симметрия",
     "unpair": "Разорвать пару с зеркалом",
     "viewportControls": "Элементы управления областью просмотра дерева Box Pleat"
   },
@@ -496,6 +497,7 @@
     "selectEdge": "Выбрать ветвь {{id}}, длина {{length}}",
     "selectNode": "Выбрать узел {{id}}",
     "selectNodeWithLabel": "Выбрать узел {{id}}, {{label}}",
+    "symmetry": "Симметрия",
     "symmetryBook": "Книжная",
     "symmetryDiagonal": "Диагональная",
     "symmetryModes": "Симметрия",

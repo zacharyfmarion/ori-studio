@@ -95,6 +95,7 @@
     "selectLeafVertexWithLabel": "Select BP leaf vertex {{id}}, {{label}}",
     "selectVertex": "Select BP vertex {{id}}",
     "selectVertexWithLabel": "Select BP vertex {{id}}, {{label}}",
+    "symmetry": "Symmetry",
     "unpair": "Unpair from mirror",
     "viewportControls": "Box Pleat tree viewport controls"
   },
@@ -468,6 +469,7 @@
     "selectEdge": "Select branch {{id}}, length {{length}}",
     "selectNode": "Select node {{id}}",
     "selectNodeWithLabel": "Select node {{id}}, {{label}}",
+    "symmetry": "Symmetry",
     "symmetryBook": "Book",
     "symmetryDiagonal": "Diagonal",
     "symmetryModes": "Symmetry",

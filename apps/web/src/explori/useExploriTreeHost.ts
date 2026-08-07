@@ -46,6 +46,7 @@ function exploriTreeCopy(t: TFunction): TreeEditorCopy {
     canvas: t('panels:explori.canvas', 'Search tree canvas'),
     viewportControls: t('panels:explori.viewportControls', 'Search tree viewport controls'),
     mirrorDraw: t('panels:explori.mirrorDraw', 'Mirror draw'),
+    symmetry: t('panels:explori.symmetry', 'Symmetry'),
     mirrorDrawOn: t('panels:explori.mirrorDrawOn', 'Mirror draw (on)'),
     unpair: t('panels:explori.unpair', 'Unpair from mirror'),
     layers: t('panels:explori.layers', 'Layers'),

@@ -54,6 +54,7 @@ const COPY: TreeEditorCopy = {
   canvas: 'Tree canvas',
   viewportControls: 'Tree viewport controls',
   mirrorDraw: 'Mirror draw',
+  symmetry: 'Symmetry',
   mirrorDrawOn: 'Mirror draw (on)',
   unpair: 'Unpair',
   layers: 'Layers',
