@@ -1,8 +1,8 @@
-import { FlipHorizontal2, Tag, Unlink } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { Tag, Unlink } from 'lucide-react';
 import { IconButton } from '../components/ui/IconButton';
 import {
   ViewportLayerMenu,
+  ViewportSymmetryToggle,
   ViewportToolbar,
   ViewportToolbarSeparator,
 } from '../components/panels/ViewportToolbar';
@@ -52,18 +52,12 @@ export function TreeEditorToolbar({
       {symmetry && (
         <>
           <ViewportToolbarSeparator />
-          <Button
-            size="sm"
-            variant="secondary"
-            className="tree-editor__symmetry-toggle"
+          <ViewportSymmetryToggle
+            enabled={symmetry.enabled}
+            label={copy.symmetry}
             title={symmetry.enabled ? copy.mirrorDrawOn : copy.mirrorDraw}
-            aria-pressed={symmetry.enabled}
-            isActive={symmetry.enabled}
-            onClick={symmetry.toggle}
-          >
-            <FlipHorizontal2 size={14} />
-            {copy.symmetry}
-          </Button>
+            onToggle={symmetry.toggle}
+          />
           {canUnpair && (
             <IconButton size="sm" variant="toolbar" title={copy.unpair} onClick={onUnpair}>
               <Unlink size={14} />

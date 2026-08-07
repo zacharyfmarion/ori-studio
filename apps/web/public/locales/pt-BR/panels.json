@@ -403,7 +403,7 @@
     "symmetryStatusCustom": "Eixo personalizado",
     "symmetryStatusDiagonal": "Diagonal",
     "symmetryStatusOff": "Desligado",
-    "symmetryToolbar": "Simet.",
+    "symmetryToolbar": "Simetria",
     "viewportControls": "Controles da viewport do design"
   },
   "designTabs": {
@@ -462,6 +462,7 @@
     "nodeNameAria": "Nome do nó {{id}}",
     "nodeTitle": "Nó {{id}}",
     "noResultsYet": "Desenhe uma árvore e pesquise o acervo para ver padrões de vinco correspondentes.",
+    "openInExplori": "Abrir no ExplOri",
     "openResult": "Abrir o resultado {{id}}",
     "previousResult": "Resultado anterior",
     "qualityAcceptable": "Correspondência aceitável",
@@ -476,6 +477,7 @@
     "resultCountOther_one": "{{count}} resultado",
     "resultCountOther_many": "{{count}} resultados",
     "resultCountOther_other": "{{count}} resultados",
+    "resultPosition": "{{index}} de {{total}}",
     "search": "Pesquisar",
     "searching": "Pesquisando…",
     "searchingStatus": "Pesquisando o acervo…",
@@ -495,7 +497,8 @@
     "viewFold": "Forma dobrada",
     "viewPacking": "Empacotamento",
     "viewportControls": "Controles de visualização da árvore de busca",
-    "viewTree": "Árvore"
+    "viewTree": "Árvore",
+    "viewTreeAndCp": "Árvore e padrão de vincos"
   },
   "foldedFigureActions": {
     "anotherSolution": "Outra solução",

@@ -403,7 +403,7 @@
     "symmetryStatusCustom": "Axe personnalisé",
     "symmetryStatusDiagonal": "Diagonale",
     "symmetryStatusOff": "Désactivé",
-    "symmetryToolbar": "Sym",
+    "symmetryToolbar": "Symétrie",
     "viewportControls": "Commandes d'affichage de la conception"
   },
   "designTabs": {
@@ -462,6 +462,7 @@
     "nodeNameAria": "Nom du nœud {{id}}",
     "nodeTitle": "Nœud {{id}}",
     "noResultsYet": "Dessinez un arbre et interrogez l’archive pour voir les patrons correspondants.",
+    "openInExplori": "Ouvrir dans ExplOri",
     "openResult": "Ouvrir le résultat {{id}}",
     "previousResult": "Résultat précédent",
     "qualityAcceptable": "Correspondance acceptable",
@@ -476,6 +477,7 @@
     "resultCountOther_one": "{{count}} résultat",
     "resultCountOther_many": "{{count}} résultats",
     "resultCountOther_other": "{{count}} résultats",
+    "resultPosition": "{{index}} sur {{total}}",
     "search": "Rechercher",
     "searching": "Recherche…",
     "searchingStatus": "Recherche dans l’archive…",
@@ -495,7 +497,8 @@
     "viewFold": "Forme pliée",
     "viewPacking": "Empilement",
     "viewportControls": "Commandes d’affichage de l’arbre de recherche",
-    "viewTree": "Arbre"
+    "viewTree": "Arbre",
+    "viewTreeAndCp": "Arbre et patron de pliage"
   },
   "foldedFigureActions": {
     "anotherSolution": "Autre solution",

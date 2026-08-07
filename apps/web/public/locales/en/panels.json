@@ -393,7 +393,7 @@
     "symmetryStatusCustom": "Custom axis",
     "symmetryStatusDiagonal": "Diagonal",
     "symmetryStatusOff": "Off",
-    "symmetryToolbar": "Sym",
+    "symmetryToolbar": "Symmetry",
     "viewportControls": "Design viewport controls"
   },
   "designTabs": {
@@ -450,6 +450,7 @@
     "nodeNameAria": "Name of node {{id}}",
     "nodeTitle": "Node {{id}}",
     "noResultsYet": "Draw a tree and search the archive to see matching crease patterns.",
+    "openInExplori": "Open in ExplOri",
     "openResult": "Open result {{id}}",
     "previousResult": "Previous result",
     "qualityAcceptable": "Acceptable match",
@@ -462,6 +463,7 @@
     "resultCountOne_other": "{{count}} result",
     "resultCountOther_one": "{{count}} results",
     "resultCountOther_other": "{{count}} results",
+    "resultPosition": "{{index}} of {{total}}",
     "search": "Search",
     "searching": "Searching…",
     "searchingStatus": "Searching the archive…",
@@ -481,7 +483,8 @@
     "viewFold": "Folded form",
     "viewPacking": "Packing",
     "viewportControls": "Search tree viewport controls",
-    "viewTree": "Tree"
+    "viewTree": "Tree",
+    "viewTreeAndCp": "Tree and crease pattern"
   },
   "foldedFigureActions": {
     "anotherSolution": "Another solution",

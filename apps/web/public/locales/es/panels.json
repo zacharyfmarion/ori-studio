@@ -403,7 +403,7 @@
     "symmetryStatusCustom": "Eje personalizado",
     "symmetryStatusDiagonal": "Diagonal",
     "symmetryStatusOff": "Desactivada",
-    "symmetryToolbar": "Sim",
+    "symmetryToolbar": "Simetría",
     "viewportControls": "Controles de la vista de diseño"
   },
   "designTabs": {
@@ -462,6 +462,7 @@
     "nodeNameAria": "Nombre del nodo {{id}}",
     "nodeTitle": "Nodo {{id}}",
     "noResultsYet": "Dibuja un árbol y busca en el archivo para ver patrones de pliegue coincidentes.",
+    "openInExplori": "Abrir en ExplOri",
     "openResult": "Abrir el resultado {{id}}",
     "previousResult": "Resultado anterior",
     "qualityAcceptable": "Coincidencia aceptable",
@@ -476,6 +477,7 @@
     "resultCountOther_one": "{{count}} resultado",
     "resultCountOther_many": "{{count}} resultados",
     "resultCountOther_other": "{{count}} resultados",
+    "resultPosition": "{{index}} de {{total}}",
     "search": "Buscar",
     "searching": "Buscando…",
     "searchingStatus": "Buscando en el archivo…",
@@ -495,7 +497,8 @@
     "viewFold": "Forma plegada",
     "viewPacking": "Empaquetado",
     "viewportControls": "Controles de vista del árbol de búsqueda",
-    "viewTree": "Árbol"
+    "viewTree": "Árbol",
+    "viewTreeAndCp": "Árbol y patrón de pliegues"
   },
   "foldedFigureActions": {
     "anotherSolution": "Otra solución",

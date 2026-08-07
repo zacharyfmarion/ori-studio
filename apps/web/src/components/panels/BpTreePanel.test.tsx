@@ -333,14 +333,19 @@ describe('BP tree pane — a vertex on the mirror line slides along it', () => {
 
   /** Every vertex position any of the move paths was asked to commit. */
   function committedLocations() {
-    const fromMoves = actions.moveOristudioBpTreeVerticesWithSymmetry.mock.calls.flatMap(
-      (call) => (call[0] as { loc: { x: number; y: number } }[]) ?? []
-    );
+    type Update = { loc: { x: number; y: number } };
+    const fromMoves = (
+      actions.moveOristudioBpTreeVerticesWithSymmetry.mock.calls as unknown as [Update[]][]
+    ).flatMap((call) => call[0] ?? []);
     // `setOristudioBpTreeEdgeLength(edgeIds, length, updates)` — the positions
     // are its third argument, not its second.
-    const fromLengths = actions.setOristudioBpTreeEdgeLength.mock.calls.flatMap(
-      (call) => (call[2] as { loc: { x: number; y: number } }[] | undefined) ?? []
-    );
+    const fromLengths = (
+      actions.setOristudioBpTreeEdgeLength.mock.calls as unknown as [
+        unknown,
+        unknown,
+        Update[] | undefined,
+      ][]
+    ).flatMap((call) => call[2] ?? []);
     return [...fromMoves, ...fromLengths].map((update) => update.loc);
   }
 

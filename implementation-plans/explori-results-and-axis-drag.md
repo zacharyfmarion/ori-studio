@@ -125,15 +125,23 @@ drift.
 
 ## Checklist
 
-- [ ] A vertex on the axis slides along it, keeping both the axis and the length
+- [x] A vertex on the axis slides along it, keeping both the axis and the length
       rule; a test for each of the two length rules
-- [ ] The upstream deep link is built from the label's own parts, with a test
-- [ ] Mirrored partners move during the drag, not on release
-- [ ] One symmetry toggle, used by all three tree toolbars
-- [ ] Result cards show tree and crease pattern together by default
-- [ ] The tiling id is gone from the card and the detail header
-- [ ] The quality pill is as wide as its text
-- [ ] The detail shows all four figures, with no radio groups
-- [ ] Prev/next live in the detail header
-- [ ] Lint, typecheck, tests, `i18n:check`
-- [ ] Browser-verify
+- [x] The upstream deep link is built from the label's own parts, with a test
+- [x] Mirrored partners move during the drag, not on release
+- [x] One symmetry toggle, used by all three tree toolbars
+- [x] Result cards show tree and crease pattern together by default
+- [x] The tiling id is gone from the card and the detail header
+- [x] The quality pill is as wide as its text
+- [x] The detail shows all four figures, with no radio groups
+- [x] Prev/next live in the detail header
+- [x] Lint, typecheck, tests, `i18n:check`
+- [x] Browser-verify — ran a real search against the archive: the grid opens
+      paired, carries no tiling id and the pill is content-width; the detail
+      header reads `Distant match | 1 of 5 | Open in ExplOri | Send to Edit`
+      with four captioned figures and zero radios. The deep link was checked
+      against the live service rather than only its shape (the `/view` page
+      answers 200, and the API it calls with the parsed parameters returns that
+      exact tiling). **Not** verifiable there: anything driven by
+      `requestAnimationFrame` — the pane suspends it — so both drag behaviours
+      are covered by unit tests instead, each shown to fail against the old code

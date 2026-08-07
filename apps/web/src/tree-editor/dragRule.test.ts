@@ -6,6 +6,7 @@ import {
   leafLocationAt,
 } from './dragRule';
 import type { Point } from '../lib/geometry';
+import type { TreeDragLengthRule } from './dragRule';
 
 const near = (a: Point, b: Point, eps = 1e-9) =>
   Math.abs(a.x - b.x) < eps && Math.abs(a.y - b.y) < eps;
@@ -402,7 +403,7 @@ describe('treeDragUpdates — a vertex pinned to the mirror slides along it', ()
   });
 
   /** Parent on the axis, child two units up it. */
-  function slideFromAxisParent(target: Point, length: ReturnType<typeof continuous>) {
+  function slideFromAxisParent(target: Point, length: TreeDragLengthRule) {
     return treeDragUpdates({
       vertexId: 1,
       parentId: 0,
@@ -473,7 +474,7 @@ describe('treeDragUpdates — a vertex pinned to the mirror slides along it', ()
    * which is not the cursor's own projection.
    */
   describe('with the parent off the line', () => {
-    function slideFromOffAxisParent(target: Point, length: ReturnType<typeof snapped>) {
+    function slideFromOffAxisParent(target: Point, length: TreeDragLengthRule) {
       return treeDragUpdates({
         vertexId: 1,
         parentId: 0,

@@ -5538,18 +5538,6 @@
   margin-inline: 1px;
 }
 
-/* Symmetry reads as a named mode rather than a glyph to decode, so the tree
-   canvases spell it out. The icon stays: it is what the button has always been,
-   and it keeps the control recognizable next to the icon-only ones — including
-   the box-pleating editor's, which is deliberately still icon-only. */
-.tree-editor__symmetry-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-inline: 1px;
-  padding-inline: 8px;
-}
-
 .cp-folded-figure-actions {
   display: inline-flex;
   align-items: center;
@@ -6182,6 +6170,9 @@
 }
 
 /* Symmetry (mirror-draw) menu — shared by the Design tree and the BP tree panels. */
+/* Mirror draw, named rather than abbreviated — see `ViewportSymmetryToggle`.
+   Shared by all three tree canvases; the box-pleating editor's own mirror
+   button is icon-only on purpose and is not this. */
 .viewport-toolbar__symmetry-button {
   display: inline-flex;
   align-items: center;
@@ -7886,18 +7877,32 @@ button.bp-packing-alert:focus-visible {
   font-size: 11px;
 }
 
-.explori-result-card__id {
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  color: var(--text-primary);
+.explori-result-card__meta .explori-quality {
+  /* As wide as its words. It used to take `flex: 1` so the send button reached
+     the right edge; the slack belongs to a margin, not to a pill that then read
+     as a progress bar. */
+  margin-right: auto;
+  white-space: nowrap;
 }
 
-.explori-result-card__meta .explori-quality {
-  flex: 1;
+/*
+ * Tree beside crease pattern, the default a card opens in: the candidate is
+ * only judgeable next to the tree it claims to match.
+ *
+ * The pair keeps the same footprint as a single figure, so a grid of cards is
+ * one rhythm whichever view it is in — hence the wider track below.
+ */
+.explori-result-card__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.explori-result-card__pair > * {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.explori-results__grid[data-mode='pair'] {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
 /*
@@ -7948,42 +7953,50 @@ button.bp-packing-alert:focus-visible {
   border-bottom: 1px solid var(--border-default);
 }
 
-.explori-detail__identity {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1;
+/* Stepping through results, in the header with the other controls. It used to
+   float over the pane edges, which put two targets on top of the figures. */
+.explori-detail__steps {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
 }
 
-.explori-detail__title {
+.explori-detail__position {
+  padding: 0 4px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* A link, styled as the quiet sibling of the Send to Edit button beside it. */
+.explori-detail__upstream {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.explori-detail__upstream:hover {
+  background: var(--bg-secondary);
   color: var(--text-primary);
 }
 
-/* Pinned to the pane edges, as upstream's chevrons are: stepping through
-   results should be one target that does not move between results. */
-.explori-detail__step {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
-}
-
-.explori-detail__step--prev {
-  left: 2px;
-}
-
-.explori-detail__step--next {
-  right: 2px;
-}
-
+/* Four figures, two by two. Never one across: the point of the detail is
+   comparing them, and a single column makes that a scroll. */
 .explori-detail__panes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  padding: 4px 26px;
+  padding: 10px 2px;
 }
 
 .explori-detail__pane {
@@ -7991,6 +8004,7 @@ button.bp-packing-alert:focus-visible {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  margin: 0;
 }
 
 .explori-detail__figure {
@@ -8000,19 +8014,10 @@ button.bp-packing-alert:focus-visible {
   padding: 4px;
 }
 
-.explori-detail__modes {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
+.explori-detail__caption {
+  text-align: center;
   font-size: 11px;
   color: var(--text-secondary);
-}
-
-.explori-detail__mode {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
 }
 
 .explori-figure {

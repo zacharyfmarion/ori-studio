@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ChevronLeft, ChevronRight, ScanLine } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, ScanLine } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
@@ -11,7 +11,7 @@ import {
   type ExploriThumbMode,
 } from '../../explori/renderers';
 import { exploriMatchQuality, exploriMatchQualityLabel } from '../../explori/matchQuality';
-import { exploriTilingLabel, type ExploriResult } from '../../explori/types';
+import { exploriResultUrl, exploriTilingLabel, type ExploriResult } from '../../explori/types';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectExploriDesignOrEmpty } from '../../store/workspaceStore/designTabs';
 
@@ -23,10 +23,24 @@ import { selectExploriDesignOrEmpty } from '../../store/workspaceStore/designTab
  * be workspace-scoped and so immediately wrong with several designs open; a
  * modal would cover the tree, and comparing your tree against a candidate is the
  * entire point of the two-pane layout.
+ *
+ * The tiling id (`4b.23841`) names a row in someone else's database. It stays in
+ * the accessible names, the React keys and the exported filename, where it is
+ * the only thing that identifies a result — and is shown nowhere, because to a
+ * person choosing between crease patterns it is noise.
  */
 
 const THUMB_SIZE = 300;
 const DETAIL_SIZE = 400;
+
+/**
+ * What a card shows.
+ *
+ * `pair` is the default and not one of the figures: judging a match means
+ * looking at the candidate *and* the tree it is supposed to match, so the card
+ * shows both and the single views stay behind the dropdown.
+ */
+type ExploriCardMode = ExploriThumbMode | 'pair';
 
 function ResultFigure({
   result,
@@ -43,37 +57,34 @@ function ResultFigure({
   return <ExploriCpFigure cp={result.cp} size={size} />;
 }
 
-/** One detail figure with the toggle that chooses what it shows. */
-function ExploriDetailPane({
-  figure,
-  name,
-  value,
-  options,
-  onChange,
+/** A card's figure, which is either one view or the tree beside the pattern. */
+function CardFigure({ result, mode }: { result: ExploriResult; mode: ExploriCardMode }) {
+  if (mode !== 'pair') return <ResultFigure result={result} mode={mode} size={THUMB_SIZE} />;
+  return (
+    <div className="explori-result-card__pair">
+      <ResultFigure result={result} mode="tree" size={THUMB_SIZE} />
+      <ResultFigure result={result} mode="cp" size={THUMB_SIZE} />
+    </div>
+  );
+}
+
+/** One detail figure, under the name of what it is. */
+function ExploriDetailFigure({
+  result,
+  mode,
+  label,
 }: {
-  figure: ReactNode;
-  name: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
+  result: ExploriResult;
+  mode: ExploriThumbMode;
+  label: string;
 }) {
   return (
-    <div className="explori-detail__pane">
-      <div className="explori-detail__figure">{figure}</div>
-      <div className="explori-detail__modes" role="radiogroup">
-        {options.map((option) => (
-          <label key={option.value} className="explori-detail__mode">
-            <input
-              type="radio"
-              name={name}
-              checked={value === option.value}
-              onChange={() => onChange(option.value)}
-            />
-            <span>{option.label}</span>
-          </label>
-        ))}
+    <figure className="explori-detail__pane">
+      <div className="explori-detail__figure">
+        <ResultFigure result={result} mode={mode} size={DETAIL_SIZE} />
       </div>
-    </div>
+      <figcaption className="explori-detail__caption">{label}</figcaption>
+    </figure>
   );
 }
 
@@ -82,9 +93,7 @@ export function ExploriResultsPanel() {
   const design = useWorkspaceStore((state) => selectExploriDesignOrEmpty(state));
   const selectResult = useWorkspaceStore((state) => state.selectExploriResult);
   const sendToEdit = useWorkspaceStore((state) => state.sendExploriToEdit);
-  const [thumbMode, setThumbMode] = useState<ExploriThumbMode>('cp');
-  const [leftMode, setLeftMode] = useState<'cp' | 'packing'>('cp');
-  const [rightMode, setRightMode] = useState<'tree' | 'fold'>('tree');
+  const [cardMode, setCardMode] = useState<ExploriCardMode>('pair');
 
   const { results, detailIndex, searching, error } = design;
   const detail = detailIndex !== null ? (results[detailIndex] ?? null) : null;
@@ -128,66 +137,77 @@ export function ExploriResultsPanel() {
           >
             <ArrowLeft size={14} />
           </IconButton>
-          <div className="explori-detail__identity">
-            <span className="explori-detail__title">{exploriTilingLabel(detail)}</span>
-            <span className={`explori-quality explori-quality--${quality}`}>
-              {exploriMatchQualityLabel(t, quality)}
+          <span className={`explori-quality explori-quality--${quality}`}>
+            {exploriMatchQualityLabel(t, quality)}
+          </span>
+          {/* Stepping through results sits with the other controls rather than
+              floating over the figures, which is what it used to do. */}
+          <div className="explori-detail__steps">
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title={t('panels:explori.previousResult', 'Previous result')}
+              disabled={detailIndex === null || detailIndex <= 0}
+              onClick={() => step(-1)}
+            >
+              <ChevronLeft size={16} />
+            </IconButton>
+            <span className="explori-detail__position">
+              {t('panels:explori.resultPosition', '{{index}} of {{total}}', {
+                index: (detailIndex ?? 0) + 1,
+                total: results.length,
+              })}
             </span>
+            <IconButton
+              size="sm"
+              variant="toolbar"
+              title={t('panels:explori.nextResult', 'Next result')}
+              disabled={detailIndex === null || detailIndex >= results.length - 1}
+              onClick={() => step(1)}
+            >
+              <ChevronRight size={16} />
+            </IconButton>
           </div>
+          <a
+            className="explori-detail__upstream"
+            href={exploriResultUrl(detail)}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            <ExternalLink size={14} />
+            {t('panels:explori.openInExplori', 'Open in ExplOri')}
+          </a>
           <Button size="sm" variant="primary" onClick={() => void sendToEdit('detail')}>
             <ScanLine size={14} />
             {t('common:toolbar.sendToEdit', 'Send to Edit')}
           </Button>
         </header>
 
-        {/* The two figures, each with its own mode toggle underneath — upstream's
-            arrangement, and the reason the drill-down is a pane rather than a
-            modal: the tree you drew stays visible beside the candidate. */}
+        {/* All four at once. Two of them used to be chosen by a radio group,
+            which was a control standing in for the thing it selected — and there
+            are only four, so they fit. */}
         <div className="explori-detail__panes">
-          <ExploriDetailPane
-            figure={<ResultFigure result={detail} mode={leftMode} size={DETAIL_SIZE} />}
-            name="explori-left"
-            value={leftMode}
-            options={[
-              { value: 'cp', label: t('panels:explori.viewCp', 'Crease pattern') },
-              { value: 'packing', label: t('panels:explori.viewPacking', 'Packing') },
-            ]}
-            onChange={(value) => setLeftMode(value as 'cp' | 'packing')}
+          <ExploriDetailFigure
+            result={detail}
+            mode="cp"
+            label={t('panels:explori.viewCp', 'Crease pattern')}
           />
-          <ExploriDetailPane
-            figure={<ResultFigure result={detail} mode={rightMode} size={DETAIL_SIZE} />}
-            name="explori-right"
-            value={rightMode}
-            options={[
-              { value: 'tree', label: t('panels:explori.viewTree', 'Tree') },
-              { value: 'fold', label: t('panels:explori.viewFold', 'Folded form') },
-            ]}
-            onChange={(value) => setRightMode(value as 'tree' | 'fold')}
+          <ExploriDetailFigure
+            result={detail}
+            mode="packing"
+            label={t('panels:explori.viewPacking', 'Packing')}
+          />
+          <ExploriDetailFigure
+            result={detail}
+            mode="tree"
+            label={t('panels:explori.viewTree', 'Tree')}
+          />
+          <ExploriDetailFigure
+            result={detail}
+            mode="fold"
+            label={t('panels:explori.viewFold', 'Folded form')}
           />
         </div>
-
-        {/* Pinned to the edges of the body, as upstream's chevrons are, so
-            stepping through results is one target that does not move. */}
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          className="explori-detail__step explori-detail__step--prev"
-          title={t('panels:explori.previousResult', 'Previous result')}
-          disabled={detailIndex === null || detailIndex <= 0}
-          onClick={() => step(-1)}
-        >
-          <ChevronLeft size={16} />
-        </IconButton>
-        <IconButton
-          size="sm"
-          variant="toolbar"
-          className="explori-detail__step explori-detail__step--next"
-          title={t('panels:explori.nextResult', 'Next result')}
-          disabled={detailIndex === null || detailIndex >= results.length - 1}
-          onClick={() => step(1)}
-        >
-          <ChevronRight size={16} />
-        </IconButton>
       </section>
     );
   }
@@ -213,8 +233,8 @@ export function ExploriResultsPanel() {
                   })}
             </span>
             <Select
-              value={thumbMode}
-              onValueChange={(value) => setThumbMode(value as ExploriThumbMode)}
+              value={cardMode}
+              onValueChange={(value) => setCardMode(value as ExploriCardMode)}
             >
               <SelectTrigger
                 className="explori-results__mode"
@@ -223,6 +243,9 @@ export function ExploriResultsPanel() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="pair">
+                  {t('panels:explori.viewTreeAndCp', 'Tree and crease pattern')}
+                </SelectItem>
                 <SelectItem value="cp">{t('panels:explori.viewCp', 'Crease pattern')}</SelectItem>
                 <SelectItem value="packing">{t('panels:explori.viewPacking', 'Packing')}</SelectItem>
                 <SelectItem value="tree">{t('panels:explori.viewTree', 'Tree')}</SelectItem>
@@ -230,7 +253,7 @@ export function ExploriResultsPanel() {
               </SelectContent>
             </Select>
           </header>
-          <div className="explori-results__grid">
+          <div className="explori-results__grid" data-mode={cardMode}>
             {results.map((result, index) => {
               const quality = exploriMatchQuality(result.distance);
               return (
@@ -243,10 +266,9 @@ export function ExploriResultsPanel() {
                       id: exploriTilingLabel(result),
                     })}
                   >
-                    <ResultFigure result={result} mode={thumbMode} size={THUMB_SIZE} />
+                    <CardFigure result={result} mode={cardMode} />
                   </button>
                   <div className="explori-result-card__meta">
-                    <span className="explori-result-card__id">{exploriTilingLabel(result)}</span>
                     <span className={`explori-quality explori-quality--${quality}`}>
                       {exploriMatchQualityLabel(t, quality)}
                     </span>

@@ -438,6 +438,7 @@
     "nodeNameAria": "节点 {{id}} 的名称",
     "nodeTitle": "节点 {{id}}",
     "noResultsYet": "绘制一棵树并搜索存档，即可查看匹配的折痕图。",
+    "openInExplori": "在 ExplOri 中打开",
     "openResult": "打开结果 {{id}}",
     "previousResult": "上一个结果",
     "qualityAcceptable": "尚可匹配",
@@ -450,6 +451,7 @@
     "resultCountOne_other": "{{count}} 个结果",
     "resultCountOther_one": "{{count}} 个结果",
     "resultCountOther_other": "{{count}} 个结果",
+    "resultPosition": "第 {{index}} / {{total}} 个",
     "search": "搜索",
     "searching": "搜索中…",
     "searchingStatus": "正在搜索存档…",
@@ -469,7 +471,8 @@
     "viewFold": "折叠形态",
     "viewPacking": "排布",
     "viewportControls": "搜索树视图控件",
-    "viewTree": "树"
+    "viewTree": "树",
+    "viewTreeAndCp": "树与折痕图"
   },
   "foldedFigureActions": {
     "anotherSolution": "另一个解",

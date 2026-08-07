@@ -43,6 +43,21 @@ export function exploriTilingLabel(result: Pick<ExploriResult, 'N' | 'symmetry' 
 }
 
 /**
+ * The result's own page on ExplOri.
+ *
+ * Upstream has no route per result, but its viewer takes one: `view.js` reads
+ * `?id=` and parses it as `^(\d)([nbd])(\d+)$` — the size, the symmetry letter,
+ * the tiling id. Which is {@link exploriTilingLabel} without its dot, so the two
+ * are built from the same parts here rather than composed twice.
+ */
+export function exploriResultUrl(
+  result: Pick<ExploriResult, 'N' | 'symmetry' | 'tilingId'>,
+  origin = 'https://225.designorigami.net'
+): string {
+  return `${origin}/view?id=${result.N}${exploriSymmetryAbbreviation(result.symmetry)}${result.tilingId}`;
+}
+
+/**
  * A crease pattern in exact ℚ(√2) coordinates.
  *
  * Each vertex is eight integers — the numerator and denominator of the four

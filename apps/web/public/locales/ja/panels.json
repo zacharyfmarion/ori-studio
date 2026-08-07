@@ -438,6 +438,7 @@
     "nodeNameAria": "ノード {{id}} の名前",
     "nodeTitle": "ノード {{id}}",
     "noResultsYet": "ツリーを描いてアーカイブを検索すると、一致する展開図が表示されます。",
+    "openInExplori": "ExplOri で開く",
     "openResult": "結果 {{id}} を開く",
     "previousResult": "前の結果",
     "qualityAcceptable": "許容できる一致",
@@ -450,6 +451,7 @@
     "resultCountOne_other": "{{count}} 件の結果",
     "resultCountOther_one": "{{count}} 件の結果",
     "resultCountOther_other": "{{count}} 件の結果",
+    "resultPosition": "{{total}} 件中 {{index}} 件目",
     "search": "検索",
     "searching": "検索中…",
     "searchingStatus": "アーカイブを検索しています…",
@@ -469,7 +471,8 @@
     "viewFold": "折り上がり",
     "viewPacking": "パッキング",
     "viewportControls": "検索ツリーのビュー操作",
-    "viewTree": "ツリー"
+    "viewTree": "ツリー",
+    "viewTreeAndCp": "ツリーと展開図"
   },
   "foldedFigureActions": {
     "anotherSolution": "別の解",

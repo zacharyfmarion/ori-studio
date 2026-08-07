@@ -1962,7 +1962,7 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:design.symmetryToolbar": "cc14de692631",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
     "tools:foldAngleDisplay.opacity": "6062652e10dd",
@@ -2178,7 +2178,10 @@
     "panels:explori.symmetryModes": "cc14de692631",
     "panels:explori.topologySize": "1af851907331",
     "panels:bpTree.symmetry": "cc14de692631",
-    "panels:explori.symmetry": "cc14de692631"
+    "panels:explori.symmetry": "cc14de692631",
+    "panels:explori.openInExplori": "db5adc988040",
+    "panels:explori.resultPosition": "8faa0c3bbb3a",
+    "panels:explori.viewTreeAndCp": "5dee004cc884"
   },
   "zh-CN": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -4143,7 +4146,7 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:design.symmetryToolbar": "cc14de692631",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
     "tools:foldAngleDisplay.opacity": "6062652e10dd",
@@ -4359,7 +4362,10 @@
     "panels:explori.symmetryModes": "cc14de692631",
     "panels:explori.topologySize": "1af851907331",
     "panels:bpTree.symmetry": "cc14de692631",
-    "panels:explori.symmetry": "cc14de692631"
+    "panels:explori.symmetry": "cc14de692631",
+    "panels:explori.openInExplori": "db5adc988040",
+    "panels:explori.resultPosition": "8faa0c3bbb3a",
+    "panels:explori.viewTreeAndCp": "5dee004cc884"
   },
   "es": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -6349,7 +6355,7 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:design.symmetryToolbar": "cc14de692631",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
     "tools:foldAngleDisplay.opacity": "6062652e10dd",
@@ -6568,7 +6574,10 @@
     "panels:explori.symmetryModes": "cc14de692631",
     "panels:explori.topologySize": "1af851907331",
     "panels:bpTree.symmetry": "cc14de692631",
-    "panels:explori.symmetry": "cc14de692631"
+    "panels:explori.symmetry": "cc14de692631",
+    "panels:explori.openInExplori": "db5adc988040",
+    "panels:explori.resultPosition": "8faa0c3bbb3a",
+    "panels:explori.viewTreeAndCp": "5dee004cc884"
   },
   "fr": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -8558,7 +8567,7 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:design.symmetryToolbar": "cc14de692631",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
     "tools:foldAngleDisplay.opacity": "6062652e10dd",
@@ -8777,7 +8786,10 @@
     "panels:explori.symmetryModes": "cc14de692631",
     "panels:explori.topologySize": "1af851907331",
     "panels:bpTree.symmetry": "cc14de692631",
-    "panels:explori.symmetry": "cc14de692631"
+    "panels:explori.symmetry": "cc14de692631",
+    "panels:explori.openInExplori": "db5adc988040",
+    "panels:explori.resultPosition": "8faa0c3bbb3a",
+    "panels:explori.viewTreeAndCp": "5dee004cc884"
   },
   "de": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -10767,7 +10779,7 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:design.symmetryToolbar": "cc14de692631",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
     "tools:foldAngleDisplay.opacity": "6062652e10dd",
@@ -10986,7 +10998,10 @@
     "panels:explori.symmetryModes": "cc14de692631",
     "panels:explori.topologySize": "1af851907331",
     "panels:bpTree.symmetry": "cc14de692631",
-    "panels:explori.symmetry": "cc14de692631"
+    "panels:explori.symmetry": "cc14de692631",
+    "panels:explori.openInExplori": "db5adc988040",
+    "panels:explori.resultPosition": "8faa0c3bbb3a",
+    "panels:explori.viewTreeAndCp": "5dee004cc884"
   },
   "pt-BR": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -12976,7 +12991,7 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:design.symmetryToolbar": "cc14de692631",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
     "tools:foldAngleDisplay.opacity": "6062652e10dd",
@@ -13195,7 +13210,10 @@
     "panels:explori.symmetryModes": "cc14de692631",
     "panels:explori.topologySize": "1af851907331",
     "panels:bpTree.symmetry": "cc14de692631",
-    "panels:explori.symmetry": "cc14de692631"
+    "panels:explori.symmetry": "cc14de692631",
+    "panels:explori.openInExplori": "db5adc988040",
+    "panels:explori.resultPosition": "8faa0c3bbb3a",
+    "panels:explori.viewTreeAndCp": "5dee004cc884"
   },
   "ru": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -15185,7 +15203,7 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:design.symmetryToolbar": "cc14de692631",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
     "tools:foldAngleDisplay.opacity": "6062652e10dd",
@@ -15404,7 +15422,10 @@
     "panels:explori.symmetryModes": "cc14de692631",
     "panels:explori.topologySize": "1af851907331",
     "panels:bpTree.symmetry": "cc14de692631",
-    "panels:explori.symmetry": "cc14de692631"
+    "panels:explori.symmetry": "cc14de692631",
+    "panels:explori.openInExplori": "db5adc988040",
+    "panels:explori.resultPosition": "8faa0c3bbb3a",
+    "panels:explori.viewTreeAndCp": "5dee004cc884"
   },
   "ko": {
     "menu:cp.advanceCreaseType": "141b51485ccc",
@@ -17369,7 +17390,7 @@
     "dialogs:bpOptimizer.useBasinHopping": "b970ca8f5f7d",
     "dialogs:bpOptimizer.useDimension": "c7b9d2838e47",
     "panels:design.symmetryOptions": "db6e12b17a23",
-    "panels:design.symmetryToolbar": "fef5b4ba327f",
+    "panels:design.symmetryToolbar": "cc14de692631",
     "panels:cpViewControls.foldAngleDisplay": "192d0384d265",
     "tools:foldAngleDisplay.color": "6b73191a0a4b",
     "tools:foldAngleDisplay.opacity": "6062652e10dd",
@@ -17585,6 +17606,9 @@
     "panels:explori.symmetryModes": "cc14de692631",
     "panels:explori.topologySize": "1af851907331",
     "panels:bpTree.symmetry": "cc14de692631",
-    "panels:explori.symmetry": "cc14de692631"
+    "panels:explori.symmetry": "cc14de692631",
+    "panels:explori.openInExplori": "db5adc988040",
+    "panels:explori.resultPosition": "8faa0c3bbb3a",
+    "panels:explori.viewTreeAndCp": "5dee004cc884"
   }
 }

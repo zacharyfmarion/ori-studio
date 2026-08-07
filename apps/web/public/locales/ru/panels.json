@@ -413,7 +413,7 @@
     "symmetryStatusCustom": "Своя ось",
     "symmetryStatusDiagonal": "Диагональ",
     "symmetryStatusOff": "Выкл.",
-    "symmetryToolbar": "Сим",
+    "symmetryToolbar": "Симметрия",
     "viewportControls": "Элементы управления областью просмотра дизайна"
   },
   "designTabs": {
@@ -474,6 +474,7 @@
     "nodeNameAria": "Имя узла {{id}}",
     "nodeTitle": "Узел {{id}}",
     "noResultsYet": "Нарисуйте дерево и выполните поиск по архиву, чтобы увидеть подходящие паттерны складок.",
+    "openInExplori": "Открыть в ExplOri",
     "openResult": "Открыть результат {{id}}",
     "previousResult": "Предыдущий результат",
     "qualityAcceptable": "Приемлемое совпадение",
@@ -490,6 +491,7 @@
     "resultCountOther_few": "{{count}} результата",
     "resultCountOther_many": "{{count}} результатов",
     "resultCountOther_other": "{{count}} результатов",
+    "resultPosition": "{{index}} из {{total}}",
     "search": "Искать",
     "searching": "Поиск…",
     "searchingStatus": "Поиск по архиву…",
@@ -509,7 +511,8 @@
     "viewFold": "Сложенная форма",
     "viewPacking": "Упаковка",
     "viewportControls": "Управление видом дерева поиска",
-    "viewTree": "Дерево"
+    "viewTree": "Дерево",
+    "viewTreeAndCp": "Дерево и паттерн складок"
   },
   "foldedFigureActions": {
     "anotherSolution": "Другое решение",
