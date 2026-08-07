@@ -361,17 +361,16 @@ describe('BP packing pane — empty space', () => {
     useSettingsStore.setState({ bpPackingLayers: DEFAULT_BP_PACKING_VIEW_LAYERS });
   });
 
-  it('shades nothing until the layer is turned on', () => {
-    // Off by default: the optimizer routinely leaves paper over, so on a typical
-    // design this covers most of the sheet.
-    expect(DEFAULT_BP_PACKING_VIEW_LAYERS.emptySpace).toBe(false);
+  it('shades nothing once the layer is turned off', () => {
+    useSettingsStore.setState({
+      bpPackingLayers: { ...DEFAULT_BP_PACKING_VIEW_LAYERS, emptySpace: false },
+    });
     expect(renderPacking().querySelector('.bp-packing-empty-space')).toBeNull();
   });
 
-  it('paints behind the grid and the geometry once it is on', () => {
-    useSettingsStore.setState({
-      bpPackingLayers: { ...DEFAULT_BP_PACKING_VIEW_LAYERS, emptySpace: true },
-    });
+  it('paints behind the grid and the geometry by default', () => {
+    // On by default: wasted paper is the thing you are packing against.
+    expect(DEFAULT_BP_PACKING_VIEW_LAYERS.emptySpace).toBe(true);
     const root = renderPacking();
     const shade = root.querySelector('.bp-packing-empty-space');
     if (!shade) throw new Error('empty-space layer did not render');

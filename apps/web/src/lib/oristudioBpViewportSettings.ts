@@ -47,10 +47,9 @@ export const DEFAULT_BP_PACKING_VIEW_LAYERS: BpPackingViewLayers = {
   // Paper no flap or river claims. Another Ori Studio addition — upstream draws
   // the packing but never says what it is wasting.
   //
-  // Off by default, like `outsidePaper`: the optimizer routinely leaves paper
-  // over, so on a typical design this covers most of the sheet and reads as
-  // noise until you go looking for it.
-  emptySpace: false,
+  // On by default: wasted paper is the thing you are packing against, so it is
+  // worth seeing without going looking for it.
+  emptySpace: true,
   // Off by default, which is the cropping Box Pleating Studio does: it masks
   // every geometry layer to the sheet, so a flap pushed past the edge is simply
   // cut off there. Turning this on is an Ori Studio addition — upstream has no
