@@ -348,7 +348,7 @@
     "viewportControls": "Controles da viewport do padrão de vincos"
   },
   "design": {
-    "attributionBoxPleating": "Adaptado de <2>Mu-Tsun Tsai's Box Pleating Studio</2> · <6>Doar</6>",
+    "attributionBoxPleating": "Adaptado de <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
     "attributionExplori": "Pesquisa o <2>ExplOri 22.5</2> de theplantpsychologist · <6>Doar</6>",
     "attributionTreemaker": "Adaptado de <2>Robert J. Lang's TreeMaker</2> · GPL-2.0",
     "axis": "Eixo",
@@ -475,7 +475,10 @@
     "nextResult": "Próximo resultado",
     "nodeNameAria": "Nome do nó {{id}}",
     "nodeTitle": "Nó {{id}}",
+    "noMatches": "Nenhum padrão de vinco correspondente",
+    "noMatchesDetail": "O acervo não tem nada parecido com esta árvore. Tente ajustar os ramos ou pesquisar mais simetrias.",
     "noResultsYet": "Desenhe uma árvore e pesquise o acervo para ver padrões de vinco correspondentes.",
+    "noResultsYetTitle": "Ainda sem resultados",
     "openInExplori": "Abrir no ExplOri",
     "openResult": "Abrir o resultado {{id}}",
     "previousResult": "Resultado anterior",
@@ -494,6 +497,7 @@
     "resultPosition": "{{index}} de {{total}}",
     "search": "Pesquisar",
     "searching": "Pesquisando…",
+    "searchingDetail": "Comparando sua árvore com todas as topologias dos bancos de dados escolhidos.",
     "searchingStatus": "Pesquisando o acervo…",
     "searchSize": "Resultados",
     "selectEdge": "Selecionar o ramo {{id}}, comprimento {{length}}",

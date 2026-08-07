@@ -426,6 +426,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
         set(
           patchExploriDesign(get(), designId, {
             searching: false,
+            searched: true,
             results: response.results,
             detailIndex: null,
             error: null,

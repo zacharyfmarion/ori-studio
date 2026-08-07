@@ -1660,7 +1660,7 @@
     "panels:creasePattern.side": "630ef00b7c4f",
     "panels:creasePattern.stale": "40c9e59c5e15",
     "panels:creasePattern.viewportControls": "0f23cda34f43",
-    "panels:design.attributionBoxPleating": "b1e051e77228",
+    "panels:design.attributionBoxPleating": "68817587182f",
     "panels:design.attributionExplori": "fcc1929d32aa",
     "panels:design.attributionTreemaker": "199324574746",
     "panels:design.axis": "32b73caefac1",
@@ -2229,7 +2229,11 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "panels:explori.noMatches": "9bf76bf453d0",
+    "panels:explori.noMatchesDetail": "a385aa2d5bd8",
+    "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
+    "panels:explori.searchingDetail": "b454bd6beb53"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -3892,7 +3896,7 @@
     "panels:creasePattern.side": "630ef00b7c4f",
     "panels:creasePattern.stale": "40c9e59c5e15",
     "panels:creasePattern.viewportControls": "0f23cda34f43",
-    "panels:design.attributionBoxPleating": "b1e051e77228",
+    "panels:design.attributionBoxPleating": "68817587182f",
     "panels:design.attributionExplori": "fcc1929d32aa",
     "panels:design.attributionTreemaker": "199324574746",
     "panels:design.axis": "32b73caefac1",
@@ -4461,7 +4465,11 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "panels:explori.noMatches": "9bf76bf453d0",
+    "panels:explori.noMatchesDetail": "a385aa2d5bd8",
+    "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
+    "panels:explori.searchingDetail": "b454bd6beb53"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6124,7 +6132,7 @@
     "panels:creasePattern.side": "630ef00b7c4f",
     "panels:creasePattern.stale": "40c9e59c5e15",
     "panels:creasePattern.viewportControls": "0f23cda34f43",
-    "panels:design.attributionBoxPleating": "b1e051e77228",
+    "panels:design.attributionBoxPleating": "68817587182f",
     "panels:design.attributionExplori": "fcc1929d32aa",
     "panels:design.attributionTreemaker": "199324574746",
     "panels:design.axis": "32b73caefac1",
@@ -6693,7 +6701,11 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "panels:explori.noMatches": "9bf76bf453d0",
+    "panels:explori.noMatchesDetail": "a385aa2d5bd8",
+    "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
+    "panels:explori.searchingDetail": "b454bd6beb53"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8339,7 +8351,7 @@
     "panels:creasePattern.side": "630ef00b7c4f",
     "panels:creasePattern.stale": "40c9e59c5e15",
     "panels:creasePattern.viewportControls": "0f23cda34f43",
-    "panels:design.attributionBoxPleating": "b1e051e77228",
+    "panels:design.attributionBoxPleating": "68817587182f",
     "panels:design.attributionExplori": "fcc1929d32aa",
     "panels:design.attributionTreemaker": "199324574746",
     "panels:design.axis": "32b73caefac1",
@@ -8895,7 +8907,11 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "panels:explori.noMatches": "9bf76bf453d0",
+    "panels:explori.noMatchesDetail": "a385aa2d5bd8",
+    "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
+    "panels:explori.searchingDetail": "b454bd6beb53"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -10541,7 +10557,7 @@
     "panels:creasePattern.side": "630ef00b7c4f",
     "panels:creasePattern.stale": "40c9e59c5e15",
     "panels:creasePattern.viewportControls": "0f23cda34f43",
-    "panels:design.attributionBoxPleating": "b1e051e77228",
+    "panels:design.attributionBoxPleating": "68817587182f",
     "panels:design.attributionExplori": "fcc1929d32aa",
     "panels:design.attributionTreemaker": "199324574746",
     "panels:design.axis": "32b73caefac1",
@@ -11097,7 +11113,11 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "panels:explori.noMatches": "9bf76bf453d0",
+    "panels:explori.noMatchesDetail": "a385aa2d5bd8",
+    "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
+    "panels:explori.searchingDetail": "b454bd6beb53"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -12760,7 +12780,7 @@
     "panels:creasePattern.side": "630ef00b7c4f",
     "panels:creasePattern.stale": "40c9e59c5e15",
     "panels:creasePattern.viewportControls": "0f23cda34f43",
-    "panels:design.attributionBoxPleating": "b1e051e77228",
+    "panels:design.attributionBoxPleating": "68817587182f",
     "panels:design.attributionExplori": "fcc1929d32aa",
     "panels:design.attributionTreemaker": "199324574746",
     "panels:design.axis": "32b73caefac1",
@@ -13329,7 +13349,11 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "panels:explori.noMatches": "9bf76bf453d0",
+    "panels:explori.noMatchesDetail": "a385aa2d5bd8",
+    "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
+    "panels:explori.searchingDetail": "b454bd6beb53"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -14992,7 +15016,7 @@
     "panels:creasePattern.side": "630ef00b7c4f",
     "panels:creasePattern.stale": "40c9e59c5e15",
     "panels:creasePattern.viewportControls": "0f23cda34f43",
-    "panels:design.attributionBoxPleating": "b1e051e77228",
+    "panels:design.attributionBoxPleating": "68817587182f",
     "panels:design.attributionExplori": "fcc1929d32aa",
     "panels:design.attributionTreemaker": "199324574746",
     "panels:design.axis": "32b73caefac1",
@@ -15561,7 +15585,11 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "panels:explori.noMatches": "9bf76bf453d0",
+    "panels:explori.noMatchesDetail": "a385aa2d5bd8",
+    "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
+    "panels:explori.searchingDetail": "b454bd6beb53"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -17207,7 +17235,7 @@
     "panels:creasePattern.side": "630ef00b7c4f",
     "panels:creasePattern.stale": "40c9e59c5e15",
     "panels:creasePattern.viewportControls": "0f23cda34f43",
-    "panels:design.attributionBoxPleating": "b1e051e77228",
+    "panels:design.attributionBoxPleating": "68817587182f",
     "panels:design.attributionExplori": "fcc1929d32aa",
     "panels:design.attributionTreemaker": "199324574746",
     "panels:design.axis": "32b73caefac1",
@@ -17763,6 +17791,10 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "panels:explori.noMatches": "9bf76bf453d0",
+    "panels:explori.noMatchesDetail": "a385aa2d5bd8",
+    "panels:explori.noResultsYetTitle": "1e92d7a64a3d",
+    "panels:explori.searchingDetail": "b454bd6beb53"
   }
 }
