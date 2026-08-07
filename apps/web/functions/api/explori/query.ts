@@ -1,7 +1,8 @@
 import {
+  bodyCacheKey,
   callExplori,
   errorResponse,
-  underRateLimit,
+  withEdgeCache,
   type ExploriContext,
 } from '../../_lib/explori';
 
@@ -22,14 +23,21 @@ import {
  * - Edge endpoints naming absent nodes raised a `KeyError` out of upstream's
  *   graph builder and killed the handler thread.
  *
- * Validation runs *before* the rate limiter on purpose: the limiter costs a KV
- * write from a budget the share-link feature shares, so a malformed flood
- * should cost nothing at all.
+ * There is no rate limiter here, deliberately — see `_lib/explori.ts` for why,
+ * and please read that before adding one. The load courtesy this endpoint owes
+ * is the validation below, which stops one request becoming a thousand index
+ * loads, and the cache, which stops us asking the same question twice.
  */
 
-/** A search is ~0.8s of someone else's server. Generous for a person, not a loop. */
-const RATE_LIMIT = 40;
-const RATE_WINDOW_SECONDS = 60;
+/**
+ * How long an identical search is served from the edge.
+ *
+ * A search is ~0.8s of someone else's server, and the archive is a research
+ * dataset that changes rarely — so the staleness this buys is a tiling added in
+ * the last few hours not appearing, against every repeat of a query costing that
+ * server nothing. Short enough that a growing archive surfaces the same day.
+ */
+const CACHE_SECONDS = 6 * 60 * 60;
 
 /** Upstream's own floor, checked here so a doomed query never leaves our edge. */
 const MIN_EDGES = 4;
@@ -166,14 +174,14 @@ export async function onRequestPost(context: ExploriContext): Promise<Response> 
 
   const n = typeof payload.n === 'number' ? Math.min(MAX_RESULTS, Math.max(1, Math.round(payload.n))) : 5;
 
-  if (!(await underRateLimit(env, request, RATE_LIMIT, RATE_WINDOW_SECONDS))) {
-    return errorResponse(429, 'rate_limited', 'Too many searches — try again shortly.');
-  }
+  // Rebuilt from validated parts, never the caller's object — which is also
+  // what makes it a sound cache key: two equivalent searches serialize alike.
+  const canonical = JSON.stringify({ tree: { nodes, edges }, db_configs: dbConfigs, n });
 
-  return callExplori(env, {
-    path: '/api/query',
-    method: 'POST',
-    // Rebuilt from validated parts, never the caller's object.
-    body: JSON.stringify({ tree: { nodes, edges }, db_configs: dbConfigs, n }),
-  });
+  return withEdgeCache(
+    context,
+    await bodyCacheKey(request, canonical),
+    CACHE_SECONDS,
+    () => callExplori(env, { path: '/api/query', method: 'POST', body: canonical })
+  );
 }

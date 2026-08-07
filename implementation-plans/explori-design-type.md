@@ -131,9 +131,17 @@ from the fact that this drives traffic to someone else's server:
 
 Ranked by what it actually buys us. Note that **CORS is not on this list** — an
 earlier draft claimed a CORS fix would let us drop the proxy, which is wrong: we
-want the proxy regardless, for trimming, caching, rate limiting, a stable error
-surface, and a distinctive `User-Agent` (a browser cannot set that header; a
-Worker can). Fixing CORS would remove a hop we have other reasons to keep.
+want the proxy regardless, for trimming, caching, a stable error surface, and a
+distinctive `User-Agent` (a browser cannot set that header; a Worker can).
+Fixing CORS would remove a hop we have other reasons to keep.
+
+**Rate limiting was on that list and has been removed from it.** The proxy
+briefly carried a per-IP KV counter; it bounded nothing that mattered, was
+trivially bypassed given the archive is directly reachable without us, and spent
+a KV write per request from the budget share links depend on. Throttling is the
+archive owner's call — he knows his headroom and we do not. What we owe is to
+send nothing pathological, send nothing avoidable (the edge cache), never retry,
+and stay identifiable so he can set his own policy. See `functions/_lib/explori.ts`.
 
 1. **Drop `bundle_pickle_b64`, or gate it behind a request flag.** It is **47% of
    every response** and **their own client never reads it** — no reference to it
@@ -151,9 +159,12 @@ Worker can). Fixing CORS would remove a hop we have other reasons to keep.
    This is a win for them and their own users, not a favour to us.
 2. **Notice before API changes.** Ideally a `schema_version` field in the
    response, so a break is detectable rather than mysterious.
-3. **Etiquette:** what request rate is acceptable, and whether they want a
-   distinctive `User-Agent` from our proxy so Ori Studio traffic is visible in
-   their logs (they already log UA to the sheet).
+3. **Etiquette:** what request rate is acceptable, and whether they want us to
+   throttle at our hop at all — we deliberately do not, on the grounds that it
+   is their call and their number. The distinctive `User-Agent` is what makes
+   that exercisable: Ori Studio traffic is one identifiable client in their logs
+   (they already log UA to the sheet), so they can throttle or block it at their
+   own edge.
 4. **`refs` on `/api/query`**, or a flag for it. Today references come only from
    `/api/fetch_tiling`, so opening a result costs a second round trip. Low
    priority — caching by tiling id mostly covers it.

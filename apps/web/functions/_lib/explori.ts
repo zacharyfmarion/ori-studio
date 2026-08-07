@@ -11,23 +11,33 @@
  *   deserialize); `heat` is another ~3.7 KB per result and feeds a normalization
  *   upstream's own results grid has stopped using. Dropping both roughly halves
  *   the bytes we ask a user to download.
- * - **It rate-limits us.** The archive runs on one person's server. A bug in our
- *   client must not be able to hammer it.
- * - **It caches tilings.** A tiling id is immutable, so a repeat view or a
- *   reopened saved design need never reach upstream at all.
+ * - **It caches.** Every response is served from the edge cache when we have
+ *   already asked upstream the same question. This is the whole of our
+ *   load courtesy: it removes requests rather than refusing them.
+ *
+ * **Deliberately absent: a rate limiter.** There was one — a per-IP KV counter —
+ * removed on purpose, so please do not re-add one by reflex. It bounded nothing
+ * that mattered (per-IP, so no cap on the aggregate load that is the only
+ * quantity the archive's server cares about); it was trivially bypassed, since
+ * that server is directly reachable without this hop; it failed open exactly
+ * when traffic was highest; and it spent a KV write per request from the same
+ * 1,000/day budget share links depend on, so a busy day here broke share links
+ * for everyone.
+ *
+ * Throttling is the archive owner's call, not ours: he knows his headroom and we
+ * do not, so any number we invented would be a guess. What we owe instead, and
+ * what this proxy does, is send nothing pathological (the validation in
+ * `query.ts`), send nothing avoidable (the cache), never retry — no path here or
+ * in the client does — and stay identifiable through {@link EXPLORI_USER_AGENT},
+ * so he can throttle or block Ori Studio as one client, at his own edge, on his
+ * own terms.
  *
  * Binding shapes are declared locally rather than pulled from
  * `@cloudflare/workers-types`, matching `cpShare.ts`: the surface used is small
  * and stable, so this stays typechecked with no dependency.
  */
 
-export interface ExploriKv {
-  get(key: string): Promise<string | null>;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-}
-
 export interface Env {
-  SHARE_KV: ExploriKv;
   /** Overridable so a staging deploy can point somewhere else. */
   EXPLORI_ORIGIN?: string;
 }
@@ -80,40 +90,62 @@ export function trimExploriBundle(payload: unknown): unknown {
 }
 
 /**
- * A fixed-window counter in KV, the same shape the share endpoints use.
+ * Serve from the edge cache, or ask upstream and fill it.
  *
- * Pages Functions do not support the platform `ratelimits` binding, and this is
- * approximate at the window edges — which is fine for its purpose. It is a
- * courtesy brake on our own client, not a security control. Specifically it is
- * **not** a bound on the total load we can put upstream: the counter is per
- * `CF-Connecting-IP` with no aggregate, the get/put pair is not atomic so a
- * concurrent burst all reads the same value, and a KV failure fails open.
+ * `caches.default` is edge-local and free — no quota, unlike the KV counter this
+ * replaced. It is per-colo rather than global, so a fill in one city does not
+ * help another; that still removes the pattern that dominates in practice, which
+ * is the same person asking the same thing again.
  *
- * Each allowed request costs one write against `SHARE_KV`, the namespace
- * `cpShare` shares — whose free-plan ceiling of 1,000 writes/day is why share
- * links are capped at ~500. So callers should validate a request *before*
- * asking about the limit: a malformed flood then costs no writes at all, and
- * cannot push share-link creation over that ceiling.
+ * Failures are never cached: a timeout or a 502 must not become what every
+ * caller gets for the rest of the TTL.
  */
-export async function underRateLimit(
-  env: Env,
-  request: Request,
-  limit: number,
-  windowSeconds: number
-): Promise<boolean> {
-  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-  const window = Math.floor(Date.now() / 1000 / windowSeconds);
-  const key = `explori:rate:${ip}:${window}`;
-  try {
-    const current = Number.parseInt((await env.SHARE_KV.get(key)) ?? '0', 10) || 0;
-    if (current >= limit) return false;
-    await env.SHARE_KV.put(key, String(current + 1), { expirationTtl: windowSeconds * 2 });
-    return true;
-  } catch {
-    // A KV outage must not take the feature down with it; upstream has its own
-    // limits, and failing open here is the lesser failure.
-    return true;
+export async function withEdgeCache(
+  context: ExploriContext,
+  key: Request,
+  maxAgeSeconds: number,
+  produce: () => Promise<Response>,
+  directives = ''
+): Promise<Response> {
+  // Absent under vitest and `wrangler dev --local`; the endpoint still works
+  // there, it just asks upstream every time.
+  const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
+  if (!cache) return produce();
+
+  const hit = await cache.match(key);
+  if (hit) {
+    const served = new Response(hit.body, hit);
+    served.headers.set('X-Ori-Cache', 'hit');
+    return served;
   }
+
+  const response = await produce();
+  if (!response.ok) return response;
+
+  const fresh = new Response(response.body, response);
+  fresh.headers.set('Cache-Control', `public, max-age=${maxAgeSeconds}${directives}`);
+  fresh.headers.set('X-Ori-Cache', 'miss');
+  // Backgrounded: filling the cache must not delay an answer we already have.
+  const put = cache.put(key, fresh.clone());
+  if (context.waitUntil) context.waitUntil(put);
+  else await put;
+  return fresh;
+}
+
+/**
+ * A cache key for a request whose identity is its *body*.
+ *
+ * The Cache API keys on a GET URL, so a POST needs a stand-in. The body hashes
+ * cleanly because `query.ts` rebuilds it from validated fields in a fixed order
+ * before this sees it: two equivalent searches produce byte-identical JSON, and
+ * so the same key.
+ */
+export async function bodyCacheKey(request: Request, canonicalBody: string): Promise<Request> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalBody));
+  const hex = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  const url = new URL(request.url);
+  url.search = `?body=${hex}`;
+  return new Request(url.toString(), { method: 'GET' });
 }
 
 export interface UpstreamCall {
