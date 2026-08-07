@@ -55,6 +55,21 @@ export function workspaceForPanelId(panelId: string): WorkspaceId | null {
   return WORKSPACE_BY_PANEL_ID[panelId] ?? null;
 }
 
+/**
+ * The pane a workspace is "on" when nothing more specific is known.
+ *
+ * The answer for a workspace that has no dock to ask — a headless test, or the
+ * moment during an open before Dockview has built the layout. Without it, code
+ * that needs to name a pane at that moment has to guess, and a guess that
+ * disagrees with the workspace is what left the Edit shortcuts dead after
+ * opening a design bundled with a crease pattern.
+ */
+export function primaryPanelIdFor(workspace: WorkspaceId): string {
+  const definition = WORKSPACE_DEFINITIONS.find((candidate) => candidate.id === workspace);
+  // Unreachable for a real `WorkspaceId`; `design` is the app's own landing.
+  return definition?.primaryPanelId ?? 'design';
+}
+
 export function workspaceForCommandId(commandId: string): WorkspaceId | null {
   switch (commandId) {
     case 'view.design':

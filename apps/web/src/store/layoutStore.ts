@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { DockviewApi, IDockviewPanel, SerializedDockview } from 'dockview';
 import type { WorkspaceId } from '../workspaces/workspaces';
-import { workspaceForPanelId } from '../workspaces/workspaces';
+import { primaryPanelIdFor, workspaceForPanelId } from '../workspaces/workspaces';
 import { readJson, readString, removeKey, storageKey, STORAGE_KEYS, writeJson, writeString } from '../lib/storage';
 
 // v18: the Design workspace collapsed to one panel — every design pane moved
@@ -26,6 +26,19 @@ let clearActiveDesignPaneLayout: () => void = () => {};
 
 export function registerDesignPaneLayoutReset(reset: () => void): void {
   clearActiveDesignPaneLayout = reset;
+}
+
+/**
+ * Report the dock's active panel to whoever owns `activePanelId`.
+ *
+ * Same seam as above, and for the same reason. Dockview's own
+ * `onDidActivePanelChange` reports *changes*, so it cannot correct a value
+ * written behind its back — this is the pull to pair with that push.
+ */
+let reportActivePanel: (panelId: string | null) => void = () => {};
+
+export function registerActivePanelSink(sink: (panelId: string | null) => void): void {
+  reportActivePanel = sink;
 }
 
 /**
@@ -168,6 +181,12 @@ interface LayoutState {
   setDesignPaneApi: (api: DockviewApi | null) => void;
   setActiveWorkspace: (workspace: WorkspaceId) => void;
   activateWorkspace: (workspace: WorkspaceId) => void;
+  /**
+   * Which pane the active workspace is on, asking the dock and falling back to
+   * the workspace's primary pane. The one place that question is answered, so a
+   * caller can never invent an answer that disagrees with the workspace.
+   */
+  activePanelId: () => string;
   activatePanel: (id: string) => void;
   saveLayout: (workspace?: WorkspaceId) => void;
   loadLayout: (workspace?: WorkspaceId) => SerializedDockview | null;
@@ -181,13 +200,31 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   setDockviewApi: (api) => set({ dockviewApi: api }),
   setDesignPaneApi: (api) => set({ designPaneApi: api }),
   setActiveWorkspace: (workspace) => set({ activeWorkspace: workspace }),
+  /**
+   * Navigate to a workspace, and settle which pane is active in it.
+   *
+   * Every exit reconciles, including the two that do no work: a no-op switch and
+   * a headless call still have to answer "which pane", because `activePanelId`
+   * is a cache of what Dockview owns and `onDidActivePanelChange` reports only
+   * *changes*. Anything that wrote the field behind Dockview's back stays
+   * uncorrected otherwise — which is how opening a design bundled with a crease
+   * pattern, while Edit was already on screen, left the pane reading `design`
+   * and killed every Edit shortcut.
+   *
+   * Reconciling here rather than at the call sites is deliberate: navigating is
+   * what decides the pane, so no caller has to remember to say it.
+   */
   activateWorkspace: (workspace) => {
     const { dockviewApi, activeWorkspace } = get();
     if (!dockviewApi) {
       set({ activeWorkspace: workspace });
+      reportActivePanel(get().activePanelId());
       return;
     }
-    if (workspace === activeWorkspace) return;
+    if (workspace === activeWorkspace) {
+      reportActivePanel(get().activePanelId());
+      return;
+    }
 
     get().saveLayout(activeWorkspace);
     dockviewApi.clear();
@@ -197,6 +234,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     if (saved) {
       try {
         dockviewApi.fromJSON(saved);
+        reportActivePanel(get().activePanelId());
         return;
       } catch (error) {
         console.warn('Failed to restore layout', error);
@@ -205,6 +243,15 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     }
 
     applyDefaultLayout(dockviewApi, workspace);
+    reportActivePanel(get().activePanelId());
+  },
+  activePanelId: () => {
+    const active = get().dockviewApi?.activePanel?.id;
+    // A pane from the outgoing workspace means the dock has not caught up yet
+    // (or never will, on the no-op path). The workspace's own primary pane is
+    // the honest answer for that moment, and the answer headless has always.
+    if (active && workspaceForPanelId(active) === get().activeWorkspace) return active;
+    return primaryPanelIdFor(get().activeWorkspace);
   },
   activatePanel: (id) => {
     const targetWorkspace = workspaceForPanelId(id);

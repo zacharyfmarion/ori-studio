@@ -11,11 +11,15 @@ import type { WorkspaceState } from './types';
  * the Edit surface's self-provision (`ensureEditCreasePattern`), so the two paths
  * can never drift. Divergence here is what broke undo on the self-provisioned
  * canvas: `ensureEditCreasePattern` used to omit `projectLoadId` /
- * `oristudioCpRevision` / `activePanelId` (and the image + tool fields), so the
- * interactive draw → history flow never re-baselined and recorded nothing.
+ * `oristudioCpRevision` (and the image + tool fields), so the interactive
+ * draw → history flow never re-baselined and recorded nothing.
  *
  * Scoped to the CP editor: it deliberately does NOT touch the design being
- * authored, so a caller can seed a canvas without discarding it.
+ * authored, so a caller can seed a canvas without discarding it. Nor does it
+ * name the active pane — seeding a document is not a navigation. The Edit
+ * surface self-provisions in the background, and a canvas appearing there must
+ * not drag the active pane off whatever the user is actually looking at. Callers
+ * that *do* navigate (File › New) say so through the layout store.
  *
  * That was almost true before phase 2b — it also reset `toolMode` and
  * `symmetryAuthoringPairs`, which are tree-editor state, contradicting the
@@ -34,7 +38,6 @@ export function freshEditableCpState(
     // rather than a `Partial` is what makes a newly added per-document field a
     // compile error here instead of state that quietly outlives its document.
     ...discardCpDocumentState(),
-    activePanelId: 'crease-pattern',
     // The CP editor is ready as soon as the document exists (it runs on the CP
     // worker, independent of the treemaker engine). Without this the status stays
     // 'loading_engine' on the self-provision path, so `isBusy` disables undo/redo
