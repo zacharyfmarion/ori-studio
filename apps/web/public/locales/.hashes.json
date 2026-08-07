@@ -2121,6 +2121,7 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
     "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
   },
   "zh-CN": {
@@ -4245,6 +4246,7 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
     "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
   },
   "es": {
@@ -6397,6 +6399,7 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
     "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
   },
   "fr": {
@@ -8549,6 +8552,7 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
     "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
   },
   "de": {
@@ -10701,6 +10705,7 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
     "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
   },
   "pt-BR": {
@@ -12853,6 +12858,7 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
     "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
   },
   "ru": {
@@ -15005,6 +15011,7 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
     "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
   },
   "ko": {
@@ -17129,6 +17136,7 @@
     "dialogs:closeDesign.confirm": "5fea810e188c",
     "dialogs:closeDesign.message": "9bde44b58663",
     "dialogs:closeDesign.title": "05c1a49601fc",
+    "errors:creasePattern.imageNotDecodable": "df832de05fbb",
     "panels:bpPacking.layerEmptySpace": "83f2da1c4224"
   }
 }

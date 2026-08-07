@@ -1,14 +1,18 @@
 import { importedCreasePatternFormat, type ImportedCreasePatternFormat } from './creasePatternImport';
+import { isDecodableImageType } from './imageFormats';
 import { NATIVE_PROJECT_EXTENSION } from './nativeProjectFile';
 
 /**
  * What a dropped file is, and what the app can do with it.
  *
- * Documents are classified by extension rather than MIME type: `.cp`, `.fold`,
- * `.ori`, and `.orh` all report an empty or `application/octet-stream` type, so
- * the extension is the only usable signal — and it is what every other file
- * route in the app keys off too (`isNativeProjectFilename`,
- * `isCreasePatternFilename`, `importedCreasePatternFormat`).
+ * Documents are classified by extension, and the extension wins outright over
+ * the reported MIME type. `File.type` comes from the operating system's
+ * extension table, which does not know which extensions this app owns: macOS
+ * maps `.ori` to `com.olympus.raw-image`, so a browser reports
+ * `image/x-olympus-orf` for an Oriedita crease pattern. The extension is both
+ * the reliable signal and the one every other file route in the app keys off
+ * (`isNativeProjectFilename`, `isCreasePatternFilename`,
+ * `importedCreasePatternFormat`).
  */
 export type DroppedFileKind =
   | { kind: 'project' }
@@ -45,10 +49,8 @@ export function droppedFileExtension(filename: string): string {
 }
 
 export function classifyDroppedFile(file: File): DroppedFileKind {
-  // MIME first for images: it is authoritative for a browser `File`, and it is
-  // the same test the crease-pattern viewport's reference-image drop uses.
-  if (file.type.startsWith('image/')) return { kind: 'image' };
-
+  // Extensions this app owns are settled first, whatever the platform claims the
+  // type is.
   const extension = droppedFileExtension(file.name);
   if (extension === NATIVE_PROJECT_EXTENSION) return { kind: 'project' };
   if (extension === 'bps') return { kind: 'box-pleat' };
@@ -56,6 +58,10 @@ export function classifyDroppedFile(file: File): DroppedFileKind {
   if (CREASE_PATTERN_EXTENSIONS.has(extension)) {
     return { kind: 'crease-pattern', format: importedCreasePatternFormat(file.name) };
   }
+  // Then MIME, which is all there is to go on for an image: a photo can carry
+  // any extension, or none. It must name a format that can actually be decoded —
+  // see `isDecodableImageType`.
+  if (isDecodableImageType(file.type)) return { kind: 'image' };
   // Covers dropped folders too: they arrive as a zero-byte entry with an empty
   // type and no extension, and are refused here before anything tries to read
   // them.
@@ -161,10 +167,19 @@ function fileItems(items: DataTransferItemList | null): DataTransferItem[] {
   return Array.from(items).filter((item) => item.kind === 'file');
 }
 
-/** True when a drag carries only images. */
+/**
+ * True when a drag carries only images.
+ *
+ * Decodability, not the `image/` prefix. A drag is the one moment the filename
+ * cannot be read, so the type is the only signal — which makes it the moment an
+ * OS mislabel does the most damage. Before this test asked about decodability, a
+ * dragged `.ori` read as image-only (macOS calls it Olympus raw), the workspace
+ * target stood down for a viewport that could never decode it, and the file fell
+ * between the two.
+ */
 export function isImageOnlyDrag(items: DataTransferItemList | null): boolean {
   const entries = fileItems(items);
-  return entries.length > 0 && entries.every((item) => item.type.startsWith('image/'));
+  return entries.length > 0 && entries.every((item) => isDecodableImageType(item.type));
 }
 
 /**

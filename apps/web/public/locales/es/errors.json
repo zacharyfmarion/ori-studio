@@ -21,6 +21,9 @@
     "canvasUnavailable": "Canvas 2D no está disponible",
     "unsupportedImage": "Usa una imagen PNG, JPEG o WebP."
   },
+  "creasePattern": {
+    "imageNotDecodable": "Ori Studio no pudo leer {{name}} como imagen. Prueba con PNG, JPEG o WebP."
+  },
   "fileDrop": {
     "dialogOpen": "Termina el diálogo abierto antes de soltar un archivo.",
     "imageNotHere": "Suelta {{name}} sobre el patrón de pliegues para añadirlo como imagen de referencia.",

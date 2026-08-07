@@ -21,6 +21,9 @@
     "canvasUnavailable": "Canvas 2D ist nicht verfügbar",
     "unsupportedImage": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."
   },
+  "creasePattern": {
+    "imageNotDecodable": "Ori Studio konnte {{name}} nicht als Bild lesen. Versuchen Sie PNG, JPEG oder WebP."
+  },
   "fileDrop": {
     "dialogOpen": "Schließen Sie den geöffneten Dialog ab, bevor Sie eine Datei ablegen.",
     "imageNotHere": "Legen Sie {{name}} auf dem Faltmuster ab, um es als Referenzbild hinzuzufügen.",

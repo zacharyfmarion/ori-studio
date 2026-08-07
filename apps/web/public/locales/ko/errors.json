@@ -21,6 +21,9 @@
     "canvasUnavailable": "Canvas 2D를 사용할 수 없습니다",
     "unsupportedImage": "PNG, JPEG 또는 WebP 이미지를 사용하세요."
   },
+  "creasePattern": {
+    "imageNotDecodable": "Ori Studio가 {{name}}을(를) 이미지로 읽지 못했습니다. PNG, JPEG 또는 WebP를 사용해 보세요."
+  },
   "fileDrop": {
     "dialogOpen": "파일을 놓기 전에 열려 있는 대화 상자를 완료하세요.",
     "imageNotHere": "{{name}}을(를) 참조 이미지로 추가하려면 전개도 위에 놓으세요.",
