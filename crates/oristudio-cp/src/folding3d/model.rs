@@ -220,6 +220,25 @@ impl Folded3dRenderModel {
         stride("edge_points", self.edge_points.len(), 6)?;
         stride("edge_fold_degrees", self.edge_fold_degrees.len(), 1)?;
 
+        // A whole number of strides is not the same as **enough** of them, and
+        // the two loops below index by the declared counts unconditionally. The
+        // kernel's own path always agrees, but this type derives `Deserialize`,
+        // so a round-tripped or hand-built model reaches here — and the one check
+        // whose stated job is catching that shape of corruption must not be the
+        // thing that panics on it.
+        records(
+            "face_attr",
+            self.face_count as usize,
+            FOLDED_3D_FACE_ATTR_STRIDE,
+            self.face_attr.len(),
+        )?;
+        records(
+            "cell_attr",
+            self.cell_count as usize,
+            FOLDED_3D_CELL_ATTR_STRIDE,
+            self.cell_attr.len(),
+        )?;
+
         let ring_vertices = self.ring_points.len() / 3;
         for face in 0..self.face_count as usize {
             let base = face * FOLDED_3D_FACE_ATTR_STRIDE;
@@ -281,6 +300,28 @@ fn stride(field: &'static str, len: usize, stride: usize) -> Result<(), RenderMo
     } else {
         Err(RenderModelError::StrideMismatch { field, len, stride })
     }
+}
+
+/// Whether an attribute array holds `count` records of `stride` each.
+fn records(
+    field: &'static str,
+    count: usize,
+    stride: usize,
+    len: usize,
+) -> Result<(), RenderModelError> {
+    if count.saturating_mul(stride) <= len {
+        return Ok(());
+    }
+    // Named as the first record that runs off the end, which is the one a reader
+    // would go looking for.
+    let index = len / stride.max(1);
+    Err(RenderModelError::SliceOutOfRange {
+        field,
+        index,
+        start: index.saturating_mul(stride),
+        len: stride,
+        available: len,
+    })
 }
 
 /// Build the render model for one solution.
@@ -727,6 +768,45 @@ mod tests {
                 start: 0,
                 len: 5,
                 available: 3,
+            })
+        );
+    }
+
+    /// A count that outruns its attribute array is an error, not a panic.
+    ///
+    /// The stride checks pass here — `face_attr` is a whole number of strides —
+    /// and the face loop would then index straight past the end. This type
+    /// derives `Deserialize`, so that is a reachable shape rather than a
+    /// hypothetical one.
+    #[test]
+    fn validate_catches_a_count_its_attributes_cannot_cover() {
+        let model = Folded3dRenderModel {
+            schema_version: FOLDED_3D_RENDER_SCHEMA_VERSION,
+            span: 1.0,
+            face_count: 2,
+            plane_count: 0,
+            cell_count: 0,
+            edge_count: 0,
+            ring_points: vec![0.0; 9],
+            face_attr: vec![0, 0, 3, 1],
+            face_normals: vec![0.0, 0.0, 1.0],
+            plane_frames: Vec::new(),
+            cell_points: Vec::new(),
+            cell_attr: Vec::new(),
+            cell_stack: Vec::new(),
+            edge_points: Vec::new(),
+            edge_attr: Vec::new(),
+            edge_fold_degrees: Vec::new(),
+            undetermined_cells: 0,
+        };
+        assert_eq!(
+            model.validate(),
+            Err(RenderModelError::SliceOutOfRange {
+                field: "face_attr",
+                index: 1,
+                start: FOLDED_3D_FACE_ATTR_STRIDE,
+                len: FOLDED_3D_FACE_ATTR_STRIDE,
+                available: FOLDED_3D_FACE_ATTR_STRIDE,
             })
         );
     }
