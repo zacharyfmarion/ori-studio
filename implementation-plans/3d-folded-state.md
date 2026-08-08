@@ -3136,6 +3136,39 @@ rediscover them:
   `svgRenderer` fixes this with `CREASE_DEPTH_BIAS_NDC`, but every available fix
   is eye-dependent and would void the build hoist. Pinned by the golden; revisit
   with orbit in Phase 10.
+- **A screenshot of a 3D figure.** `scripts/folded-grid-screenshot.mjs` was the
+  one lane with a real animation frame, and it is **already broken**: it waits on
+  `[data-folded-render-pass]` and counts
+  `.cp-generated-folded-figure-primitive`, and no element in `apps/web/src` emits
+  either any more — only a stale CSS rule survives the WebGL migration. It is not
+  in CI, so nothing said so. Repairing it is worth doing and is not Phase 6's;
+  until then the picture is unverified by anything but arithmetic, and the
+  checklist below says what a human has to look at.
+
+#### What a human still has to look at
+
+Nothing here is agent-verifiable: the automated browser pane runs with
+`visibilityState=hidden` and zero animation frames, so a canvas cannot be
+screenshotted or even drawn. Everything the projector *decides* is asserted in
+the tests; what follows is everything that only an eye settles. It becomes
+checkable once Phase 7 makes a 3D figure creatable.
+
+- `hinge_90` shades its two planes differently, and the raised flap reads as
+  rising off the page rather than sinking into it (that is the sign of
+  `DEFAULT_FOLDED_3D_CAMERA.pitch`, and both signs are legal views).
+- `box_90` loses no face and does not shimmer when the figure is dragged.
+- A figure with several solutions visibly changes on "another solution".
+- A `no_layer_order` model reads translucent-red throughout, and a determined one
+  has no red anywhere.
+- Drag, scale and rotate move the figure without distorting it — the placement
+  transform is applied to the projected snapshot, exactly as for a flat figure.
+- Creases stay full width where two planes meet. If they read as hairlines there,
+  that is the crease depth bias noted above and not a new bug.
+- **Not** "SVG/PNG export matches the canvas". It does not, and it does not for a
+  flat figure either: `reglRenderer.ts` reads `style.stroke.width` as a
+  non-scaling screen-space multiplier on dpr while `foldedFigureSvg.ts` reads the
+  identical field as model units and scales it. The 3D figure emits exactly what
+  the flat kernel emits, so it inherits that divergence rather than adding one.
 
 ### Phase 7 — `G` dispatch, verdict UX, i18n
 - [ ] Three-way dispatch replacing `creasePatternSlice.ts:1659-1672`:
