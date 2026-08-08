@@ -1198,12 +1198,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
           title: selectProject(get()).title,
         });
-        const ok = await get().importAddOristudioCpText(
-          payload.text,
-          payload.format,
-          payload.label,
-          payload.filename
-        );
+        const ok = await get().importAddOristudioCpText(payload);
         set({ status: ok ? 'crease_pattern_ready' : previousStatus });
         if (ok) {
           const layout = useLayoutStore.getState();

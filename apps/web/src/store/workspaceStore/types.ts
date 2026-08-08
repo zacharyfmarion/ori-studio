@@ -13,6 +13,7 @@ import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
+import type { SendToEditPayload } from '../../designKinds/types';
 import type {
   AppStatus,
   CreaseColorMode,
@@ -342,13 +343,14 @@ export interface ProjectSliceActions {
     options?: { confirmDiscard?: boolean }
   ) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
-  /** Merge crease-pattern text into the Edit canvas (in-memory Import(Add)). */
-  importAddOristudioCpText: (
-    text: string,
-    format: ImportedCreasePatternFormat,
-    label: string,
-    filename?: string
-  ) => Promise<boolean>;
+  /**
+   * Merge a design's crease pattern into the Edit canvas (in-memory Import(Add)).
+   *
+   * Takes the descriptor's payload whole rather than spreading it: every caller
+   * has one, and the fields travel together — circles are meaningless without
+   * the bounds that place them.
+   */
+  importAddOristudioCpText: (payload: SendToEditPayload) => Promise<boolean>;
   saveProject: (fileService?: FileService) => Promise<boolean>;
   saveProjectAs: (fileService?: FileService) => Promise<boolean>;
   exportV5: (fileService?: FileService) => Promise<boolean>;

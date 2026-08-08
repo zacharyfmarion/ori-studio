@@ -625,7 +625,7 @@ function deviceIdFromGraphicsId(id: string): string {
 }
 
 
-function sheet(raw: OristudioBpRawSheet): OristudioBpSheet {
+export function sheet(raw: OristudioBpRawSheet): OristudioBpSheet {
   const kind = raw.type === 'diag' ? 'diagonal' : 'rectangular';
   return {
     kind,
@@ -652,7 +652,13 @@ function vertexDegrees(edges: OristudioBpRawEdge[]): Map<number, number> {
   return degrees;
 }
 
-function radiusForFlap(id: number, edges: OristudioBpRawEdge[]): number | null {
+/**
+ * A flap's radius: the length of the tree edge that reaches its vertex.
+ *
+ * Exported because "Send to Edit (include circles)" needs the same number from
+ * the raw project, and two spellings of a flap's radius would be one too many.
+ */
+export function radiusForFlap(id: number, edges: OristudioBpRawEdge[]): number | null {
   const edge = edges.find((candidate) => candidate.n1 === id || candidate.n2 === id);
   return edge?.length ?? null;
 }

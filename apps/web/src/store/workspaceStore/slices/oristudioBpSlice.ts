@@ -952,12 +952,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
           title: 'box-pleat',
         });
-        const ok = await get().importAddOristudioCpText(
-          payload.text,
-          payload.format,
-          payload.label,
-          payload.filename
-        );
+        const ok = await get().importAddOristudioCpText(payload);
         set({ oristudioBpBusy: false });
         if (ok) useLayoutStore.getState().activatePanel('crease-pattern');
         return ok;

@@ -1,3 +1,4 @@
+import { leafCirclePaperRadius } from './packingCircles';
 import type { TreeNode, TreeProject } from './sampleProject';
 import {
   clampPaperPoint,
@@ -23,6 +24,8 @@ export const VIEWPORT_FIT_PADDING = 96;
 const NODE_RADIUS = 14;
 const LEAF_NODE_RADIUS = 14;
 const LABEL_HEIGHT = 22;
+/** View-only floor so a tiny flap's circle is still something you can see. */
+const MIN_LEAF_CIRCLE_PX = 22;
 
 export interface DesignViewLayers {
   paths: boolean;
@@ -104,9 +107,25 @@ export function designNodePoint(node: TreeNode, options?: DesignWorldOptions): P
   return paperToSvg(nodeLoc(node, options), DESIGN_PAPER_RECT);
 }
 
+/**
+ * A leaf circle in SVG pixels.
+ *
+ * The radius itself comes from {@link leafCirclePaperRadius}, shared with what
+ * "Send to Edit (include circles)" hands to the Edit canvas — this used to have
+ * its own arithmetic that ignored strain, so a strained design drew one circle
+ * and would have sent a different one.
+ *
+ * What stays here is the part that is genuinely about the view: a floor so a
+ * tiny flap's circle is still visible, and a fallback for a leaf whose edge is
+ * missing.
+ */
 export function leafCircleRadius(project: TreeProject, nodeId: number): number {
-  const incidentEdge = project.edges.find((edge) => edge.nodes.includes(nodeId));
-  return Math.max(22, (incidentEdge?.length ?? 1) * project.scale * DESIGN_PAPER_RECT.width);
+  const paperRadius = leafCirclePaperRadius(nodeId, project.edges, project.scale);
+  const fallback = project.scale * DESIGN_PAPER_RECT.width;
+  return Math.max(
+    MIN_LEAF_CIRCLE_PX,
+    paperRadius > 0 ? paperRadius * DESIGN_PAPER_RECT.width : fallback
+  );
 }
 
 export function getDesignWorldRect(
