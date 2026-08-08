@@ -53,6 +53,7 @@ import {
   coplanarRuns,
   findVisiblePieces,
   outlineOf,
+  projectViewPoint,
   toViewSpace,
   traverseBsp,
   type BspItem,
@@ -444,18 +445,25 @@ function orthographicEye(camera: FoldedFigureCamera): Vec3 {
   ];
 }
 
-/** World point to CP model coordinates. */
+/**
+ * World point to CP model coordinates.
+ *
+ * `projectViewPoint` rather than `projectVertices`, for the same reason the SVG
+ * exporter uses it: the BSP creates *new* points by cutting, and those have to
+ * reach the page through the same projection as the originals rather than a
+ * second copy of it.
+ *
+ * Its `height / 2 - y` is what puts the result in crease-pattern model
+ * coordinates, whose y runs **down** the page — `cpModelToSvg` does not flip it,
+ * while the kernel's rings are counter-clockwise in y-up paper coordinates. With
+ * `width = height = 0` the centring terms vanish and `anchor` places the figure
+ * instead.
+ */
 function project(point: Vec3, uniforms: CameraUniforms, anchor: Point): Point {
   const sim = toSimBasis(point);
   const view = toViewSpace(sim[0], sim[1], sim[2], uniforms);
-  return {
-    // `projectViewPoint` with `width = height = 0` and no perspective, inlined
-    // so the y negation is visible: crease-pattern model y runs **down** the
-    // page (`cpModelToSvg` does not flip it) while the kernel's rings are
-    // counter-clockwise in y-up paper coordinates.
-    x: anchor.x + view[0] * uniforms.scale,
-    y: anchor.y - view[1] * uniforms.scale,
-  };
+  const [x, y] = projectViewPoint(view, uniforms, false);
+  return { x: anchor.x + x, y: anchor.y + y };
 }
 
 /** Depth of a world point: larger is nearer the eye. */
