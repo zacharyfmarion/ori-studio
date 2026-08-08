@@ -1131,6 +1131,12 @@ pub(crate) fn interior_border_segments_in(graph: &FoldGraph) -> Vec<InteriorBord
 
     // One pass over the faces, keyed on the undirected vertex pair: the naive
     // `line_face_border` per line is O(lines x faces).
+    //
+    // Occurrences, where `line_face_border` counted distinct faces. The two
+    // differ only for a ring that traverses one edge twice — a slit cut into the
+    // sheet — and that shape never reaches here: measured, its arrangement does
+    // not trace at all (`include_faces` is false on a square with a slit), and
+    // the empty-faces guard above returns first.
     let mut face_count: HashMap<(usize, usize), usize> = HashMap::new();
     for face in &graph.faces {
         for index in 0..face.len() {
