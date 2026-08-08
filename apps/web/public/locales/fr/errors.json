@@ -17,6 +17,9 @@
     "retry": "Réessayer",
     "stripTitle": "Cette barre d'outils ne fonctionne plus"
   },
+  "cp": {
+    "foldProducedNothing": "Ces plis n’ont aucune forme pliée à plat à dessiner"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D n’est pas disponible",
     "unsupportedImage": "Utilisez une image PNG, JPEG ou WebP."

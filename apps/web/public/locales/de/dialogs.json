@@ -163,6 +163,12 @@
     },
     "closeLabel": "{{title}} schließen"
   },
+  "nonFlatFold": {
+    "message_one": "Eine der ausgewählten Faltlinien faltet sich in einem anderen Winkel als einer vollen Berg- oder Talfalte, daher gibt es keine flache Faltform zu berechnen. Der Simulator kann sie in 3D falten.",
+    "message_other": "{{count}} der ausgewählten Faltlinien falten sich in einem anderen Winkel als einer vollen Berg- oder Talfalte, daher gibt es keine flache Faltform zu berechnen. Der Simulator kann sie in 3D falten.",
+    "simulate": "Simulieren",
+    "title": "Dieses Muster ist nicht flach faltbar"
+  },
   "number": {
     "tooSmall": "Geben Sie eine Zahl größer als {{minimum}} ein."
   },

@@ -17,6 +17,9 @@
     "retry": "重试",
     "stripTitle": "此工具栏已停止工作"
   },
+  "cp": {
+    "foldProducedNothing": "这些折痕没有可绘制的平折成品形状"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D 不可用",
     "unsupportedImage": "请使用 PNG、JPEG 或 WebP 图像。"

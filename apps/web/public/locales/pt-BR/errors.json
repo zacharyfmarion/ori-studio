@@ -17,6 +17,9 @@
     "retry": "Tentar novamente",
     "stripTitle": "Esta barra de ferramentas parou de funcionar"
   },
+  "cp": {
+    "foldProducedNothing": "Estes vincos não têm nenhuma forma dobrada em plano para desenhar"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D não está disponível",
     "unsupportedImage": "Use uma imagem PNG, JPEG ou WebP."

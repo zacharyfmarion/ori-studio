@@ -222,6 +222,7 @@
       "equalMountainValley": "山折りと谷折りの数が同じ",
       "incorrectAngles": "角度が正しくありません",
       "incorrectFoldTypes": "折り線の種類が正しくありません",
+      "interiorBorder": "両側に紙がある輪郭線です。この線沿いの折り畳み可能性は検査されません",
       "littleBigLittle": "角度を入れ子にできません（小-大-小）",
       "notEnoughMountain": "山折りが足りません",
       "notEnoughValley": "谷折りが足りません",

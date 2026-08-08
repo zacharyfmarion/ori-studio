@@ -2237,7 +2237,13 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:creasePattern.foldability.interiorBorder": "f73d5b7e62f7",
+    "dialogs:nonFlatFold.message_one": "5d75e04a2a5d",
+    "dialogs:nonFlatFold.message_other": "19faf5dcba39",
+    "dialogs:nonFlatFold.simulate": "66154a084145",
+    "dialogs:nonFlatFold.title": "fac5a1c23df3",
+    "errors:cp.foldProducedNothing": "450f2578eea3"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4477,7 +4483,13 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:creasePattern.foldability.interiorBorder": "f73d5b7e62f7",
+    "dialogs:nonFlatFold.message_one": "5d75e04a2a5d",
+    "dialogs:nonFlatFold.message_other": "19faf5dcba39",
+    "dialogs:nonFlatFold.simulate": "66154a084145",
+    "dialogs:nonFlatFold.title": "fac5a1c23df3",
+    "errors:cp.foldProducedNothing": "450f2578eea3"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6717,7 +6729,13 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:creasePattern.foldability.interiorBorder": "f73d5b7e62f7",
+    "dialogs:nonFlatFold.message_one": "5d75e04a2a5d",
+    "dialogs:nonFlatFold.message_other": "19faf5dcba39",
+    "dialogs:nonFlatFold.simulate": "66154a084145",
+    "dialogs:nonFlatFold.title": "fac5a1c23df3",
+    "errors:cp.foldProducedNothing": "450f2578eea3"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8927,7 +8945,12 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:creasePattern.foldability.interiorBorder": "f73d5b7e62f7",
+    "dialogs:nonFlatFold.message_other": "19faf5dcba39",
+    "dialogs:nonFlatFold.simulate": "66154a084145",
+    "dialogs:nonFlatFold.title": "fac5a1c23df3",
+    "errors:cp.foldProducedNothing": "450f2578eea3"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11137,7 +11160,12 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:creasePattern.foldability.interiorBorder": "f73d5b7e62f7",
+    "dialogs:nonFlatFold.message_other": "19faf5dcba39",
+    "dialogs:nonFlatFold.simulate": "66154a084145",
+    "dialogs:nonFlatFold.title": "fac5a1c23df3",
+    "errors:cp.foldProducedNothing": "450f2578eea3"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13377,7 +13405,13 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:creasePattern.foldability.interiorBorder": "f73d5b7e62f7",
+    "dialogs:nonFlatFold.message_one": "5d75e04a2a5d",
+    "dialogs:nonFlatFold.message_other": "19faf5dcba39",
+    "dialogs:nonFlatFold.simulate": "66154a084145",
+    "dialogs:nonFlatFold.title": "fac5a1c23df3",
+    "errors:cp.foldProducedNothing": "450f2578eea3"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15617,7 +15651,13 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:creasePattern.foldability.interiorBorder": "f73d5b7e62f7",
+    "dialogs:nonFlatFold.message_one": "5d75e04a2a5d",
+    "dialogs:nonFlatFold.message_other": "19faf5dcba39",
+    "dialogs:nonFlatFold.simulate": "66154a084145",
+    "dialogs:nonFlatFold.title": "fac5a1c23df3",
+    "errors:cp.foldProducedNothing": "450f2578eea3"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -17827,6 +17867,11 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:creasePattern.foldability.interiorBorder": "f73d5b7e62f7",
+    "dialogs:nonFlatFold.message_other": "19faf5dcba39",
+    "dialogs:nonFlatFold.simulate": "66154a084145",
+    "dialogs:nonFlatFold.title": "fac5a1c23df3",
+    "errors:cp.foldProducedNothing": "450f2578eea3"
   }
 }

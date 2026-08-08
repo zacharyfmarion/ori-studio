@@ -222,6 +222,7 @@
       "equalMountainValley": "山折与谷折数量相同",
       "incorrectAngles": "角度不正确",
       "incorrectFoldTypes": "折痕类型不正确",
+      "interiorBorder": "两侧都有纸的边界线 — 不检查沿此线的可折叠性",
       "littleBigLittle": "角度无法嵌套（小-大-小）",
       "notEnoughMountain": "山折数量不足",
       "notEnoughValley": "谷折数量不足",

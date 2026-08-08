@@ -163,6 +163,12 @@
     },
     "closeLabel": "Close {{title}}"
   },
+  "nonFlatFold": {
+    "message_one": "One of the selected creases folds to something other than a full mountain or valley, so there is no flat folded form to compute. The simulator can fold it in 3D.",
+    "message_other": "{{count}} of the selected creases fold to something other than a full mountain or valley, so there is no flat folded form to compute. The simulator can fold it in 3D.",
+    "simulate": "Simulate",
+    "title": "This pattern isn’t flat-folded"
+  },
   "number": {
     "tooSmall": "Enter a number greater than {{minimum}}."
   },

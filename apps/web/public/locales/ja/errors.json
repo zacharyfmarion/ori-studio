@@ -17,6 +17,9 @@
     "retry": "再試行",
     "stripTitle": "このツールバーが停止しました"
   },
+  "cp": {
+    "foldProducedNothing": "これらの折り線には描画できる平坦な折り上がり形状がありません"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D を利用できません",
     "unsupportedImage": "PNG、JPEG、または WebP 画像を使用してください。"

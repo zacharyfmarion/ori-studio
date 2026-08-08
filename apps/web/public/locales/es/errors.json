@@ -17,6 +17,9 @@
     "retry": "Reintentar",
     "stripTitle": "Esta barra de herramientas ha dejado de funcionar"
   },
+  "cp": {
+    "foldProducedNothing": "Estos pliegues no tienen ninguna forma plegada en plano que dibujar"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D no está disponible",
     "unsupportedImage": "Usa una imagen PNG, JPEG o WebP."

@@ -174,6 +174,15 @@ export function foldabilityEntryMessage(
       'Paper passes through itself here'
     );
   }
+  // Also not Oriedita's: an edge drawn inside the sheet rather than around it.
+  // The point of the entry is that the check *cannot see* the vertices on it —
+  // saying "not checked" is the whole message, so it must not read as a defect.
+  if (entry.rule === 'InteriorBorder') {
+    return t(
+      'panels:creasePattern.foldability.interiorBorder',
+      'Edge with paper on both sides — foldability is not checked along it'
+    );
+  }
   if (!isRule(entry.rule) || !isColor(entry.violation_color)) return null;
   return foldabilityViolationMessage(t, entry.rule, entry.violation_color);
 }

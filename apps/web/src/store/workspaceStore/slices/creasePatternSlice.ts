@@ -1,5 +1,6 @@
 import { patchTreemakerDesign, selectDesignViewportFitRequestId, selectProject } from '../designTabs';
-import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
+import { ANALYTICS_EVENTS, bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
+import type { FoldMode, FoldVerdict } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
 import {
@@ -690,6 +691,48 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     renderSnapshot: OristudioCpFoldedFigureEntry['renderSnapshot']
   ): boolean {
     return Boolean(renderSnapshot?.primitives.length || snapshot?.wireframe);
+  }
+
+  /**
+   * The analytics verdict for a fold that produced a drawable figure.
+   *
+   * Reads the kernel's own `outcome` rather than re-deriving it from
+   * `estimation_step`, which cannot tell "no valid layer ordering exists" from
+   * "nobody asked for one". A figure from a build before that field existed
+   * carries no outcome, and `folded` is the honest answer there: it drew.
+   */
+  function foldVerdictForOutcome(
+    snapshot: OristudioCpFoldedFigureEntry['snapshot']
+  ): FoldVerdict {
+    switch (snapshot?.outcome) {
+      case 'NoSolutions':
+        return 'no-solutions';
+      case 'Contradiction':
+        return 'contradiction';
+      default:
+        return 'folded';
+    }
+  }
+
+  /**
+   * Drop a fold in progress and say why.
+   *
+   * The counterpart of {@link restorePreviousFigure} for a *first* fold, which
+   * has no previous figure to put back — only the placeholder entry the list is
+   * already showing. Leaving that behind as a `ready` figure with nothing in it
+   * is the failure this exists to prevent; leaving it behind as a permanently
+   * errored one would just be a different piece of debris on the canvas.
+   */
+  function discardFoldedFigureDraft(figureId: string, message: string): false {
+    set({
+      oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.filter(
+        (candidate) => candidate.id !== figureId
+      ),
+      oristudioCpActiveFoldedFigureId: null,
+      oristudioCpError: message,
+      error: { code: 'invalid_operation', message },
+    });
+    return false;
   }
 
   /**
@@ -1616,14 +1659,48 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const segment = oristudioCpDocument.document.crease_pattern.line_segments[lineId - 1];
         return segment !== undefined && isFoldingCrease(segment.color) && !isClassicCrease(segment);
       });
+
+      // `G` reaches neither analytics chokepoint: `handleCpShortcutAction`
+      // short-circuits to the fold before `handleCpToolAction` (so no
+      // `cp tool used`), and the toolbar button calls the same store action
+      // directly (so no `command invoked`). These are hand-placed for that
+      // reason, and every terminal branch below pairs one `fold completed` with
+      // this one `fold attempted`.
+      const mode: FoldMode = nonClassic.length > 0 ? 'non-classic' : 'flat';
+      track(ANALYTICS_EVENTS.foldAttempted, {
+        mode,
+        crease_count_bucket: bucketCount(selectedLineIds.length, COUNT_BUCKETS),
+        non_classic_count_bucket: bucketCount(nonClassic.length, COUNT_BUCKETS),
+      });
+      const completed = (verdict: FoldVerdict, solutionCount?: number): void => {
+        track(ANALYTICS_EVENTS.foldCompleted, {
+          mode,
+          verdict,
+          solution_count_bucket: bucketCount(solutionCount ?? 0, COUNT_BUCKETS),
+        });
+      };
+
       if (nonClassic.length > 0) {
         const simulate = await requestConfirmation({
-          title: 'This pattern isn’t flat-folded',
-          message: `${nonClassic.length} of the selected creases fold to something other than a full mountain or valley, so there is no flat folded form to compute. The simulator can fold it in 3D.`,
-          confirmLabel: 'Simulate',
-          cancelLabel: 'Cancel',
+          title: i18n.t('dialogs:nonFlatFold.title', 'This pattern isn’t flat-folded'),
+          message: i18n.t('dialogs:nonFlatFold.message', {
+            defaultValue_one:
+              'One of the selected creases folds to something other than a full mountain or valley, so there is no flat folded form to compute. The simulator can fold it in 3D.',
+            defaultValue_other:
+              '{{count}} of the selected creases fold to something other than a full mountain or valley, so there is no flat folded form to compute. The simulator can fold it in 3D.',
+            count: nonClassic.length,
+          }),
+          confirmLabel: i18n.t('dialogs:nonFlatFold.simulate', 'Simulate'),
+          cancelLabel: i18n.t('dialogs:common.cancel', 'Cancel'),
         });
-        if (simulate) await simulateNonFlatRegion(oristudioCpDocument.document, scopedLineIds);
+        if (simulate) {
+          track(ANALYTICS_EVENTS.foldSimulationRun, {
+            source: 'non-flat-intercept',
+            crease_count_bucket: bucketCount(nonClassic.length, COUNT_BUCKETS),
+          });
+          await simulateNonFlatRegion(oristudioCpDocument.document, scopedLineIds);
+        }
+        completed(simulate ? 'simulated' : 'cancelled');
         return false;
       }
 
@@ -1638,10 +1715,19 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         try {
           const camv = await runOristudioCpCheckCommand('CheckCamv');
           hasFlatFoldabilityViolations = (camv.diagnostic_entries?.length ?? 0) > 0;
+          track(ANALYTICS_EVENTS.foldabilityChecked, {
+            source: 'pre-fold',
+            had_violations: hasFlatFoldabilityViolations,
+            violation_count_bucket: bucketCount(
+              camv.diagnostic_entries?.length ?? 0,
+              COUNT_BUCKETS
+            ),
+          });
         } catch {
           // A failed check must not block folding — leave the flag false and fold.
         }
         if (hasFlatFoldabilityViolations) {
+          track(ANALYTICS_EVENTS.foldWarningShown, { source: 'pre-fold' });
           const { confirmed, optionChecked } = await requestConfirmationWithOption({
             title: i18n.t('dialogs:foldWarning.title', 'Warning'),
             message: i18n.t(
@@ -1652,10 +1738,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             confirmLabel: i18n.t('dialogs:common.yes', 'Yes'),
             cancelLabel: i18n.t('dialogs:common.no', 'No'),
           });
+          track(ANALYTICS_EVENTS.foldWarningAccepted, {
+            source: 'pre-fold',
+            accepted: confirmed,
+            suppressed_future_warnings: optionChecked,
+          });
           // Oriedita persists the "don't show again" choice whether the user
           // clicks Yes or No.
           if (optionChecked) settings.setFoldWarningEnabled(false);
-          if (!confirmed) return false;
+          if (!confirmed) {
+            completed('cancelled');
+            return false;
+          }
         }
       }
 
@@ -1710,6 +1804,22 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           figureIndex,
           false
         );
+        // A fold that *returns* has not necessarily produced anything to draw,
+        // and this is the same test the refold path already makes. Without it a
+        // selection the Euler gate rejects lands as a `ready` figure that draws
+        // nothing and says nothing — a placed canvas object with no content, on
+        // the one path where the user has no earlier figure to compare it to.
+        if (!isDrawableFoldResult(result.snapshot, renderSnapshot)) {
+          await freeOristudioCpFoldedFigure(result.handle).catch(() => {});
+          completed('not-drawable', result.snapshot.discovered_fold_cases);
+          return discardFoldedFigureDraft(
+            figureId,
+            i18n.t(
+              'errors:cp.foldProducedNothing',
+              'These creases have no flat folded form to draw'
+            )
+          );
+        }
         // A global layer-ordering contradiction is NOT an error: the estimate
         // still produced a (transparent) figure. Oriedita shows no dialog for
         // this — it highlights the two offending faces red. Carry the pair on
@@ -1772,6 +1882,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           projectMessage: 'Folded model',
         });
         refreshFoldedFigureSelectionMarkers(previousActiveId);
+        completed(
+          contradiction ? 'contradiction' : foldVerdictForOutcome(result.snapshot),
+          result.snapshot.discovered_fold_cases
+        );
         return true;
       } catch (error) {
         const normalized = engineError(error);
@@ -1788,6 +1902,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           oristudioCpError: normalized.message,
           error: normalized,
         });
+        completed('error');
         return false;
       }
     },
@@ -1812,6 +1927,16 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         return false;
       }
 
+      // Read before the call, because the call is what changes it. Exactly the
+      // predicate `buildFoldedFigureActions` labels the verb from, and exactly
+      // the branch `fold_another` takes in the kernel — so the event, the button
+      // and the search agree about which of the two a press was.
+      const cycleDirection =
+        figure.snapshot?.find_another_overlap_valid !== true &&
+        (figure.snapshot?.discovered_fold_cases ?? 0) > 1
+          ? 'wrap'
+          : 'next';
+
       set({
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
           candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate
@@ -1825,6 +1950,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const snapshot = await withFoldInFlight(() =>
           foldRuntimeOristudioCpFigureAnother(handle)
         );
+        track(ANALYTICS_EVENTS.foldSolutionCycled, {
+          direction: cycleDirection,
+          solution_count_bucket: bucketCount(snapshot.discovered_fold_cases, COUNT_BUCKETS),
+        });
         const renderSnapshot = await renderSnapshotForFoldedFigure(
           figure.handle,
           figure.displayStyle,

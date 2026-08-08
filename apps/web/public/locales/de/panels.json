@@ -232,6 +232,7 @@
       "equalMountainValley": "gleich viele Berg- und Talfalten",
       "incorrectAngles": "Falsche Winkel",
       "incorrectFoldTypes": "Falsche Faltentypen",
+      "interiorBorder": "Kante mit Papier auf beiden Seiten – die Faltbarkeit entlang dieser Kante wird nicht geprüft",
       "littleBigLittle": "Winkel lassen sich nicht schachteln (klein-groß-klein)",
       "notEnoughMountain": "nicht genug Bergfalten",
       "notEnoughValley": "nicht genug Talfalten",

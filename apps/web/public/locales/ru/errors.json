@@ -17,6 +17,9 @@
     "retry": "Повторить",
     "stripTitle": "Эта панель инструментов перестала работать"
   },
+  "cp": {
+    "foldProducedNothing": "У этих складок нет плоской сложенной формы, которую можно было бы нарисовать"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D недоступен",
     "unsupportedImage": "Используйте изображение PNG, JPEG или WebP."

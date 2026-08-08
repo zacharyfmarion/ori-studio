@@ -111,6 +111,27 @@ describe('self-intersection', () => {
   });
 });
 
+describe('borders inside the paper', () => {
+  // Also not one of Oriedita's rules, and deliberately not phrased as a defect:
+  // a cut is a legitimate thing to draw. What the entry reports is that the
+  // foldability check declines every vertex touching a border, so its silence
+  // along this edge is not a verdict.
+  it('says the check does not run there, not that something is wrong', () => {
+    const message = cpDiagnosticEntryMessage(
+      t,
+      entry({
+        kind: 'SpatialInteriorBorder',
+        rule: 'InteriorBorder',
+        severity: 'warning',
+        message: 'Border with paper on both sides: the vertices on it are not checked',
+      })
+    );
+
+    expect(message).toBe('Edge with paper on both sides — foldability is not checked along it');
+    expect(message).not.toMatch(/violation|error|invalid/iu);
+  });
+});
+
 describe('entries this table does not speak for', () => {
   it('falls back to the kernel message for spatial closure', () => {
     // This branch's own check, not Oriedita's. Its message is already prose and

@@ -242,6 +242,7 @@
       "equalMountainValley": "igual cantidad de pliegues de montaña y de valle",
       "incorrectAngles": "Ángulos incorrectos",
       "incorrectFoldTypes": "Tipos de pliegue incorrectos",
+      "interiorBorder": "Borde con papel a ambos lados: no se comprueba la plegabilidad a lo largo de él",
       "littleBigLittle": "Los ángulos no pueden anidarse (pequeño-grande-pequeño)",
       "notEnoughMountain": "no hay suficientes pliegues de montaña",
       "notEnoughValley": "no hay suficientes pliegues de valle",

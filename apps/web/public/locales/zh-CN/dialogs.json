@@ -158,6 +158,11 @@
     },
     "closeLabel": "关闭 {{title}}"
   },
+  "nonFlatFold": {
+    "message_other": "所选折痕中有 {{count}} 条的折叠角度不是完整的山折或谷折，因此无法计算平折成品形状。模拟器可以在三维中折叠它。",
+    "simulate": "模拟",
+    "title": "此图案不是平折的"
+  },
   "number": {
     "tooSmall": "请输入大于 {{minimum}} 的数字。"
   },

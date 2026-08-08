@@ -232,6 +232,7 @@
       "equalMountainValley": "equal amount of mountain and valley folds",
       "incorrectAngles": "Incorrect angles",
       "incorrectFoldTypes": "Incorrect fold types",
+      "interiorBorder": "Edge with paper on both sides — foldability is not checked along it",
       "littleBigLittle": "Angles cannot nest (little-big-little)",
       "notEnoughMountain": "not enough mountain folds",
       "notEnoughValley": "not enough valley folds",

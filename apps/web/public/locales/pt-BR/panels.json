@@ -242,6 +242,7 @@
       "equalMountainValley": "quantidade igual de dobras de montanha e de vale",
       "incorrectAngles": "Ângulos incorretos",
       "incorrectFoldTypes": "Tipos de dobra incorretos",
+      "interiorBorder": "Borda com papel dos dois lados — a dobrabilidade não é verificada ao longo dela",
       "littleBigLittle": "Os ângulos não podem se aninhar (pequeno-grande-pequeno)",
       "notEnoughMountain": "não há dobras de montanha suficientes",
       "notEnoughValley": "não há dobras de vale suficientes",

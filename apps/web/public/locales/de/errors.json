@@ -17,6 +17,9 @@
     "retry": "Erneut versuchen",
     "stripTitle": "Diese Symbolleiste funktioniert nicht mehr"
   },
+  "cp": {
+    "foldProducedNothing": "Diese Faltlinien haben keine flache Faltform, die sich zeichnen ließe"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D ist nicht verfügbar",
     "unsupportedImage": "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild."

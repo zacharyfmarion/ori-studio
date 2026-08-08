@@ -17,6 +17,9 @@
     "retry": "다시 시도",
     "stripTitle": "이 도구 모음이 작동을 멈췄습니다"
   },
+  "cp": {
+    "foldProducedNothing": "이 접는 선들에는 그릴 수 있는 평평한 접힘 형태가 없습니다"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D를 사용할 수 없습니다",
     "unsupportedImage": "PNG, JPEG 또는 WebP 이미지를 사용하세요."

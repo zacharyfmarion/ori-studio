@@ -168,6 +168,13 @@
     },
     "closeLabel": "Fermer {{title}}"
   },
+  "nonFlatFold": {
+    "message_one": "L’un des plis sélectionnés se plie selon un angle autre qu’une montagne ou une vallée complète : il n’y a donc pas de forme pliée à plat à calculer. Le simulateur peut le plier en 3D.",
+    "message_many": "{{count}} des plis sélectionnés se plient selon un angle autre qu’une montagne ou une vallée complète : il n’y a donc pas de forme pliée à plat à calculer. Le simulateur peut le plier en 3D.",
+    "message_other": "{{count}} des plis sélectionnés se plient selon un angle autre qu’une montagne ou une vallée complète : il n’y a donc pas de forme pliée à plat à calculer. Le simulateur peut le plier en 3D.",
+    "simulate": "Simuler",
+    "title": "Ce patron n’est pas pliable à plat"
+  },
   "number": {
     "tooSmall": "Saisissez un nombre supérieur à {{minimum}}."
   },

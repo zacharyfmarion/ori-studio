@@ -168,6 +168,13 @@
     },
     "closeLabel": "Fechar {{title}}"
   },
+  "nonFlatFold": {
+    "message_one": "Um dos vincos selecionados dobra em um ângulo diferente de uma montanha ou vale completos, então não há forma dobrada em plano a calcular. O simulador consegue dobrá-lo em 3D.",
+    "message_many": "{{count}} dos vincos selecionados dobram em um ângulo diferente de uma montanha ou vale completos, então não há forma dobrada em plano a calcular. O simulador consegue dobrá-lo em 3D.",
+    "message_other": "{{count}} dos vincos selecionados dobram em um ângulo diferente de uma montanha ou vale completos, então não há forma dobrada em plano a calcular. O simulador consegue dobrá-lo em 3D.",
+    "simulate": "Simular",
+    "title": "Este padrão não é dobrável em plano"
+  },
   "number": {
     "tooSmall": "Insira um número maior que {{minimum}}."
   },

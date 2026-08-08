@@ -138,7 +138,17 @@ const bpMocks = vi.hoisted(() => ({
   optimizeOristudioBpLayout: vi.fn(),
 }));
 
+const analyticsMocks = vi.hoisted(() => ({ track: vi.fn() }));
+
 vi.mock('../../lib/creaseExport', () => exportMocks);
+
+// Folding is the one flow whose events are hand-placed: `G` reaches neither the
+// `handleMenuAction` nor the `executeOristudioCpCommand` chokepoint, so nothing
+// counts a fold unless these call sites do.
+vi.mock('../../analytics', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../analytics')>();
+  return { ...actual, track: analyticsMocks.track };
+});
 
 vi.mock('./engineRuntime', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./engineRuntime')>();
@@ -1203,6 +1213,7 @@ function foldedRenderSnapshot(): OristudioCpFoldedRenderSnapshot {
 function resetStores(snapshot = makeSnapshot()) {
   localStorage.clear();
   savedSnapshots.clear();
+  analyticsMocks.track.mockReset();
   // Handle ownership is module-level; isolate it between tests.
   resetFoldedFigureHandles();
   useWorkspaceStore.setState(initialWorkspaceState, true);
@@ -3043,6 +3054,38 @@ describe('workspace store slices', () => {
     expect(useWorkspaceStore.getState().oristudioCpError).toContain('folded flat');
   });
 
+  // The refold path has made this check since it shipped; the *first* fold never
+  // did, so a selection the kernel's Euler gate rejects came back as a `ready`
+  // figure that drew nothing and said nothing. There is no earlier figure on
+  // this path to compare it against, which is what made it invisible.
+  it('keeps no figure when the first fold produces nothing to draw', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+
+    oristudioCpMocks.foldOristudioCpDocument.mockResolvedValueOnce({
+      handle: 31,
+      snapshot: { ...foldedFigureSnapshot(), wireframe: null, discovered_fold_cases: 0 },
+    });
+    oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockResolvedValueOnce({
+      ...foldedRenderSnapshot(),
+      primitives: [],
+    });
+
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(false);
+
+    // No placeholder left behind, in any status: an empty `ready` figure is the
+    // bug, and a permanently errored one is just different debris.
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toEqual([]);
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+    expect(useWorkspaceStore.getState().oristudioCpError).toBeTruthy();
+    // The handle the fold allocated is freed rather than leaked.
+    expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(31);
+  });
+
   it('refuses to refold a figure whose source creases are gone', async () => {
     resetStores(seedSnapshot());
     useWorkspaceStore.setState({
@@ -3066,6 +3109,199 @@ describe('workspace store slices', () => {
       status: 'ready',
     });
     expect(useWorkspaceStore.getState().oristudioCpError).toContain('gone');
+  });
+
+  /**
+   * The fold events, which are hand-placed because `G` reaches neither
+   * chokepoint: `handleCpShortcutAction` short-circuits to the fold before
+   * `handleCpToolAction` (so no `cp tool used`), and the toolbar button calls
+   * the store action directly (so no `command invoked`).
+   *
+   * The privacy contract (`docs/analytics.md`) allows enums and bucketed
+   * numbers only, which for a fold means: never a crease count, never an angle,
+   * never a residual, never a face index.
+   */
+  describe('fold analytics', () => {
+    const foldEvents = (name: string) =>
+      analyticsMocks.track.mock.calls
+        .filter(([called]) => called === name)
+        .map(([, properties]) => properties);
+
+    /** The dialog once the awaits before it have drained. */
+    async function settledDialog() {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const dialog = useCommandDialogStore.getState().dialog;
+        if (dialog) return dialog;
+        await Promise.resolve();
+      }
+      return null;
+    }
+
+    function seedFlatSquare(lines = [1]) {
+      useWorkspaceStore.setState({
+        activePanelId: 'crease-pattern',
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines },
+      });
+    }
+
+    it('pairs one completion with every attempt, and buckets both counts', async () => {
+      resetStores(seedSnapshot());
+      seedFlatSquare();
+
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+
+      expect(foldEvents('fold attempted')).toEqual([
+        { mode: 'flat', crease_count_bucket: '<=1', non_classic_count_bucket: '<=1' },
+      ]);
+      expect(foldEvents('fold completed')).toEqual([
+        { mode: 'flat', verdict: 'folded', solution_count_bucket: '<=1' },
+      ]);
+    });
+
+    it('reports the pre-fold foldability check and the warning the user answered', async () => {
+      resetStores(seedSnapshot());
+      seedFlatSquare();
+      oristudioCpMocks.runOristudioCpCheckCommand.mockResolvedValueOnce({
+        operation: 'CheckCamv',
+        status: 'OracleTested',
+        diagnostics: [],
+        diagnostic_entries: [
+          { id: 'CheckCamv-1', kind: 'CheckCamv', severity: 'error', message: 'Maekawa' },
+        ],
+      });
+
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+        // The warning opens only after the check resolves, unlike the non-flat
+        // intercept, which fires before any await.
+        const dialog = await settledDialog();
+        if (!dialog) throw new Error('expected the flat-foldability warning');
+        resolveCommandDialog(dialog.id, { confirmed: true, optionChecked: false });
+        await expect(folding).resolves.toBe(true);
+      } finally {
+        unregisterDialogHost();
+      }
+
+      expect(foldEvents('foldability checked')).toEqual([
+        { source: 'pre-fold', had_violations: true, violation_count_bucket: '<=1' },
+      ]);
+      expect(foldEvents('fold warning shown')).toEqual([{ source: 'pre-fold' }]);
+      expect(foldEvents('fold warning accepted')).toEqual([
+        { source: 'pre-fold', accepted: true, suppressed_future_warnings: false },
+      ]);
+    });
+
+    it('separates a simulated non-flat selection from a cancelled one', async () => {
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        oristudioCpDocument: editableCpState([
+          cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Black0' }),
+          cpLine({ x: 1, y: 0 }, { x: 1, y: 1 }, { color: 'Black0' }),
+          cpLine({ x: 1, y: 1 }, { x: 0, y: 1 }, { color: 'Black0' }),
+          cpLine({ x: 0, y: 1 }, { x: 0, y: 0 }, { color: 'Black0' }),
+          cpLine(
+            { x: 0, y: 0 },
+            { x: 1, y: 1 },
+            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+          ),
+        ]),
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1, 2, 3, 4, 5] },
+      });
+
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const folding = useWorkspaceStore.getState().foldOristudioCpDocument();
+        const dialog = useCommandDialogStore.getState().dialog;
+        if (!dialog) throw new Error('expected the non-flat fold confirmation');
+        resolveCommandDialog(dialog.id, false);
+        await expect(folding).resolves.toBe(false);
+      } finally {
+        unregisterDialogHost();
+      }
+
+      // `mode` is what says how big the population a computed 3D fold would
+      // serve actually is. It is decided from the selection, so it is known
+      // before the user answers.
+      expect(foldEvents('fold attempted')).toEqual([
+        { mode: 'non-classic', crease_count_bucket: '<=5', non_classic_count_bucket: '<=1' },
+      ]);
+      expect(foldEvents('fold completed')).toEqual([
+        { mode: 'non-classic', verdict: 'cancelled', solution_count_bucket: '<=1' },
+      ]);
+      expect(foldEvents('fold simulation run')).toEqual([]);
+    });
+
+    it('reports a kernel refusal as a completion, not as silence', async () => {
+      resetStores(seedSnapshot());
+      seedFlatSquare();
+      oristudioCpMocks.foldOristudioCpDocument.mockRejectedValueOnce({
+        code: 'fold_disconnected',
+        message: 'the fold graph is disconnected',
+      });
+
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(false);
+
+      expect(foldEvents('fold completed')).toEqual([
+        { mode: 'flat', verdict: 'error', solution_count_bucket: '<=1' },
+      ]);
+    });
+
+    it('says which way the one solution verb moved', async () => {
+      resetStores(seedSnapshot());
+      seedFlatSquare();
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+
+      await expect(
+        useWorkspaceStore.getState().foldAnotherOristudioCpFigure()
+      ).resolves.toBe(true);
+
+      // The seeded snapshot has another solution waiting, which is exactly the
+      // predicate the button labels itself from.
+      expect(foldEvents('fold solution cycled')).toEqual([
+        { direction: 'next', solution_count_bucket: '<=5' },
+      ]);
+    });
+
+    it('sends no count, angle or geometry as a property value', async () => {
+      // Enums and bucketed numbers only. A raw crease count is the easy mistake
+      // here — it is right there, it looks harmless, and on a distinctive design
+      // it is identifying.
+      const ENUMS = new Set([
+        'flat',
+        'non-classic',
+        'folded',
+        'no-solutions',
+        'contradiction',
+        'not-drawable',
+        'simulated',
+        'cancelled',
+        'error',
+        'next',
+        'wrap',
+        'pre-fold',
+        'non-flat-intercept',
+      ]);
+
+      resetStores(seedSnapshot());
+      seedFlatSquare();
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+      await expect(
+        useWorkspaceStore.getState().foldAnotherOristudioCpFigure()
+      ).resolves.toBe(true);
+
+      const values = analyticsMocks.track.mock.calls
+        .filter(([name]) => String(name).startsWith('fold'))
+        .flatMap(([, properties]) => Object.values(properties ?? {}));
+      expect(values.length).toBeGreaterThan(0);
+      for (const value of values) {
+        const allowed =
+          typeof value === 'boolean' ||
+          (typeof value === 'string' && (ENUMS.has(value) || /^(<=|>)\d+$/u.test(value)));
+        expect(allowed, `unexpected property value: ${String(value)}`).toBe(true);
+      }
+    });
   });
 
   it('passes active editable CP line selection into folded figure folding', async () => {

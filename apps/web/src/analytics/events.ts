@@ -53,6 +53,49 @@ export type FoldedFormExportFormat = 'fold' | 'obj' | 'stl';
 /** TreeMaker optimizer variants. */
 export type OptimizerKind = 'scale' | 'edges' | 'strain';
 
+/**
+ * What a press of `G` was asking for, decided from the selection alone.
+ *
+ * `non-classic` is the selection the flat folder has no answer for — at least
+ * one selected crease carries a fold angle other than a full mountain or
+ * valley. Today that path offers the simulator and stops; it is the population
+ * a computed 3D fold would serve, and this property is the only way to find out
+ * how large it is.
+ */
+export type FoldMode = 'flat' | 'non-classic';
+
+/**
+ * How a fold ended. Every one of these is a terminal branch of
+ * `foldOristudioCpDocument`, so `fold attempted` and `fold completed` pair up
+ * exactly.
+ *
+ * - `folded` — a figure was produced and it draws.
+ * - `no-solutions` — the layer search ran and found no valid ordering.
+ * - `contradiction` — two faces each have to lie above the other. Not an error:
+ *   the transparent development still renders, with the pair highlighted.
+ * - `not-drawable` — the fold returned, and there was nothing to draw.
+ * - `simulated` — the non-flat intercept sent the selection to the simulator.
+ * - `cancelled` — the user declined at the intercept or at the CAMV warning.
+ * - `error` — the kernel refused.
+ */
+export type FoldVerdict =
+  | 'folded'
+  | 'no-solutions'
+  | 'contradiction'
+  | 'not-drawable'
+  | 'simulated'
+  | 'cancelled'
+  | 'error';
+
+/** Which way a press of the one solution verb moved. */
+export type FoldCycleDirection = 'next' | 'wrap';
+
+/** Where a foldability check was run from. */
+export type FoldabilityCheckSource = 'pre-fold';
+
+/** Where a simulator run was started from. */
+export type FoldSimulationSource = 'non-flat-intercept';
+
 /** The coarse group a command id belongs to (derived from its id prefix). */
 export type CommandGroup =
   | 'file'
@@ -114,6 +157,9 @@ export const ANALYTICS_EVENTS = {
   foldedFormExported: 'folded form exported',
   foldWarningShown: 'fold warning shown',
   foldWarningAccepted: 'fold warning accepted',
+  foldAttempted: 'fold attempted',
+  foldCompleted: 'fold completed',
+  foldSolutionCycled: 'fold solution cycled',
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',
   shareLinkOpened: 'share link opened',

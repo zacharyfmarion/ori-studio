@@ -17,6 +17,9 @@
     "retry": "Try again",
     "stripTitle": "This toolbar stopped working"
   },
+  "cp": {
+    "foldProducedNothing": "These creases have no flat folded form to draw"
+  },
   "cpDetectImport": {
     "canvasUnavailable": "Canvas 2D is unavailable",
     "unsupportedImage": "Use a PNG, JPEG, or WebP image."

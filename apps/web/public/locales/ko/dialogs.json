@@ -158,6 +158,11 @@
     },
     "closeLabel": "{{title}} 닫기"
   },
+  "nonFlatFold": {
+    "message_other": "선택한 접는 선 중 {{count}}개가 완전한 산접기나 골접기가 아닌 각도로 접히므로, 계산할 평평한 접힘 형태가 없습니다. 시뮬레이터는 3D로 접을 수 있습니다.",
+    "simulate": "시뮬레이션",
+    "title": "이 패턴은 평평하게 접히지 않습니다"
+  },
   "number": {
     "tooSmall": "{{minimum}}보다 큰 숫자를 입력하세요."
   },

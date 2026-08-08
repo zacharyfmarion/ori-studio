@@ -242,6 +242,7 @@
       "equalMountainValley": "autant de plis montagne que de plis vallée",
       "incorrectAngles": "Angles incorrects",
       "incorrectFoldTypes": "Types de plis incorrects",
+      "interiorBorder": "Bord avec du papier des deux côtés — la pliabilité n’est pas vérifiée le long de ce bord",
       "littleBigLittle": "Les angles ne peuvent pas s'imbriquer (petit-grand-petit)",
       "notEnoughMountain": "pas assez de plis montagne",
       "notEnoughValley": "pas assez de plis vallée",

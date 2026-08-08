@@ -168,6 +168,13 @@
     },
     "closeLabel": "Cerrar {{title}}"
   },
+  "nonFlatFold": {
+    "message_one": "Uno de los pliegues seleccionados se dobla con un ángulo distinto de una montaña o un valle completos, así que no hay forma plegada en plano que calcular. El simulador puede plegarlo en 3D.",
+    "message_many": "{{count}} de los pliegues seleccionados se doblan con un ángulo distinto de una montaña o un valle completos, así que no hay forma plegada en plano que calcular. El simulador puede plegarlo en 3D.",
+    "message_other": "{{count}} de los pliegues seleccionados se doblan con un ángulo distinto de una montaña o un valle completos, así que no hay forma plegada en plano que calcular. El simulador puede plegarlo en 3D.",
+    "simulate": "Simular",
+    "title": "Este patrón no es plegable en plano"
+  },
   "number": {
     "tooSmall": "Introduce un número mayor que {{minimum}}."
   },

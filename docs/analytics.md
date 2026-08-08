@@ -74,6 +74,13 @@ directly**:
   `executeOristudioCpCommand` (`cp tool used`) for CP editor tools. Actions that
   flow through these do **not** get a second hand-placed event.
 
+**Folding is the documented exception**, and it is worth knowing why so nobody
+"deduplicates" it later: `G` reaches neither chokepoint. `handleCpShortcutAction`
+recognizes the fold chord and calls the store action directly, *before*
+`handleCpToolAction` runs, so there is no `cp tool used`; and the toolbar button
+calls the same store action, so there is no `command invoked` either. Every
+`fold *` event is hand-placed for that reason.
+
 ## Tracked events
 
 Every event also carries the super properties `app_version`, `app_commit`,
@@ -99,6 +106,13 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `design tab reordered` | `open_count_bucket` | A design tab is dragged or moved to a new position |
 | `design tab activated` | `open_count_bucket` | The user switches to another design tab |
 | `bp pattern not found` | `stretch_count_bucket`, `max_flap_count_bucket`, `configuration_reach` (`none`/`partial`/`all`) | A BP packing shows flap overlaps with no crease pattern. Stretch ids are flap ids joined with commas, so they are a local change key only and are never sent |
+| `fold attempted` | `mode` (`flat`/`non-classic`), `crease_count_bucket`, `non_classic_count_bucket` | `G`, or the Fold button, on a non-empty foldable selection. `mode` is decided from the selection, before any dialog |
+| `fold completed` | `mode`, `verdict` (`folded`/`no-solutions`/`contradiction`/`not-drawable`/`simulated`/`cancelled`/`error`), `solution_count_bucket` | Every terminal branch of a fold, so it pairs one-to-one with `fold attempted` |
+| `fold solution cycled` | `direction` (`next`/`wrap`), `solution_count_bucket` | The one solution verb on a folded figure |
+| `foldability checked` | `source` (`pre-fold`), `had_violations`, `violation_count_bucket` | The CAMV check a fold runs before folding |
+| `fold warning shown` | `source` (`pre-fold`) | That check found violations and the warning was raised |
+| `fold warning accepted` | `source`, `accepted`, `suppressed_future_warnings` | The user answered that warning |
+| `fold simulation run` | `source` (`non-flat-intercept`), `crease_count_bucket` | A non-flat selection was sent to the simulator instead |
 | `cp detect started` | — | Image→CP detection begins |
 | `cp detect completed` | `succeeded` | Detection finishes |
 | `cp detect imported` | — | A detected CP is imported |

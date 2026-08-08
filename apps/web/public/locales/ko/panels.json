@@ -222,6 +222,7 @@
       "equalMountainValley": "산접기와 골접기 수가 같음",
       "incorrectAngles": "각도가 올바르지 않음",
       "incorrectFoldTypes": "접기 종류가 올바르지 않음",
+      "interiorBorder": "양쪽에 종이가 있는 경계선 — 이 선을 따라서는 접힘 가능성을 검사하지 않습니다",
       "littleBigLittle": "각도를 중첩할 수 없음(작게-크게-작게)",
       "notEnoughMountain": "산접기가 부족함",
       "notEnoughValley": "골접기가 부족함",
