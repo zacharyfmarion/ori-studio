@@ -88,4 +88,4 @@ per-keystroke would spam both.
 - [x] Rebuild the generated bridge
 - [x] Validation: cargo fmt/clippy/test, web lint/typecheck/test
 - [x] Browser verification
-- [x] Draft PR
+- [x] Draft PR — https://github.com/zacharyfmarion/ori-studio/pull/228
