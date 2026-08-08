@@ -253,6 +253,15 @@ pub struct CommandDiagnostic {
     pub segments: Vec<geometry::LineSegment>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rule: Option<String>,
+    /// How far a spatial vertex is from closing, in degrees.
+    ///
+    /// Carried structurally rather than only inside `message`, because the
+    /// sentence around it has to be translated and a Rust string literal cannot
+    /// reach the eight-locale gate. `None` on every diagnostic that is not a
+    /// closure failure, and skipped when serializing, so an all-classic
+    /// `CheckCamv` result is byte-identical to what it was before this existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub residual_degrees: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub violation_color: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2804,6 +2813,7 @@ fn line_pair_diagnostics(
             point: None,
             segments: pair.to_vec(),
             rule: Some(format!("{operation:?}")),
+            residual_degrees: None,
             violation_color: None,
             little_big_little: Vec::new(),
         })
@@ -2822,6 +2832,7 @@ fn point_marker_diagnostics(kind: &str, markers: Vec<LineSegment>) -> Vec<Comman
             point: Some(marker.a),
             segments: vec![marker],
             rule: Some("VertexFlatFoldability".to_string()),
+            residual_degrees: None,
             violation_color: None,
             little_big_little: Vec::new(),
         })
@@ -2858,6 +2869,7 @@ fn flat_foldability_diagnostics(
                 point: Some(violation.point),
                 segments,
                 rule: Some(rule.to_string()),
+                residual_degrees: None,
                 violation_color: Some(violation_color.to_string()),
                 little_big_little,
             }
@@ -3066,6 +3078,7 @@ fn interior_border_diagnostics(
                 .into_iter()
                 .collect(),
             rule: Some("InteriorBorder".to_string()),
+            residual_degrees: None,
             violation_color: None,
             little_big_little: Vec::new(),
         })
@@ -3103,6 +3116,7 @@ fn spatial_closure_diagnostics(
                     point: Some(report.point),
                     segments: Vec::new(),
                     rule: Some("SelfIntersection".to_string()),
+                    residual_degrees: None,
                     violation_color: None,
                     little_big_little: Vec::new(),
                 });
@@ -3114,11 +3128,12 @@ fn spatial_closure_diagnostics(
         // has a unique solution and it is zero, so telling the user their angles
         // disagree would invite an adjustment that cannot help. The link of a
         // vertex is a closed spherical linkage, and a triangle is a rigid truss.
+        // Worded without the degree, so the frontend can translate it with no
+        // second structural field. The residual itself rides on
+        // `residual_degrees`, which is the one number the closure sentence
+        // genuinely needs and cannot be recovered from a formatted string.
         let message = if report.is_rigid() {
-            format!(
-                "Vertex cannot fold: degree {} is rigid, so every crease here must be 0 degrees",
-                report.degree
-            )
+            "Vertex cannot fold: it is rigid, so every crease here must be 0 degrees".to_string()
         } else {
             format!("Creases do not close: {residual_degrees:.4} degrees off")
         };
@@ -3138,6 +3153,11 @@ fn spatial_closure_diagnostics(
                 }
                 .to_string(),
             ),
+            residual_degrees: if report.is_rigid() {
+                None
+            } else {
+                Some(residual_degrees)
+            },
             violation_color: None,
             little_big_little: Vec::new(),
         });
@@ -3224,6 +3244,7 @@ fn flat_foldable_boundary_input_diagnostics(
         point: None,
         segments,
         rule: Some("BoundaryLoop".to_string()),
+        residual_degrees: None,
         violation_color: None,
         little_big_little: Vec::new(),
     }]
@@ -3252,6 +3273,7 @@ fn flat_foldable_boundary_result_diagnostics(
         point: None,
         segments,
         rule: Some("FlatFoldableBoundary".to_string()),
+        residual_degrees: None,
         violation_color: None,
         little_big_little: Vec::new(),
     }]

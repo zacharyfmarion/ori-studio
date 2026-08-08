@@ -522,3 +522,131 @@ fn an_all_classic_annulus_reports_no_interior_border_through_the_dispatch() {
     // The borders are still there; only the dispatch declines to look.
     assert_eq!(interior_border_segments(&classic).len(), 4);
 }
+
+/// The spatial half of `CheckCamv` speaks a fixed, four-word vocabulary of
+/// `rule` codes, and the frontend has a translated sentence for each.
+///
+/// Neither language can see the other's table. The web side has its own
+/// exhaustive switch over the same four literals
+/// (`cp-workspace/diagnostics/foldabilityMessages.ts`, `SPATIAL_RULES`); this is
+/// the other half of that pair. Renaming a code here without renaming it there
+/// ships a blank message in eight locales, which is exactly the failure a gate
+/// on one side alone cannot catch.
+///
+/// Asserted as a *superset containment plus a whitelist*: the corpus of shapes
+/// below need not reach all four, but nothing it reaches may be outside them.
+#[test]
+fn the_spatial_check_emits_only_the_four_rules_the_frontend_words() {
+    use oristudio_cp::{CreasePatternCommand, CreasePatternDocument, OperationId, execute_command};
+
+    const SPATIAL_RULES: [&str; 4] = ["Closure", "Rigid", "SelfIntersection", "InteriorBorder"];
+
+    // Every shape that has ever produced a spatial diagnostic in this suite:
+    // an annulus whose inner ring is an interior border, a vertex whose creases
+    // do not close, and a degree-3 rigid vertex.
+    let mut models = vec![annulus(90.0)];
+
+    let mut open = CreasePatternModel::default();
+    for (theta, rho) in [(0.0_f64, 90.0), (90.0, 90.0), (200.0, 90.0), (300.0, 90.0)] {
+        let radians = theta.to_radians();
+        open.add_line_segment(crease(
+            0.0,
+            0.0,
+            100.0 * radians.cos(),
+            100.0 * radians.sin(),
+            LineColor::Red1,
+            Some(rho),
+        ));
+    }
+    models.push(open);
+
+    let mut rigid = CreasePatternModel::default();
+    for theta in [0.0_f64, 120.0, 240.0] {
+        let radians = theta.to_radians();
+        rigid.add_line_segment(crease(
+            0.0,
+            0.0,
+            100.0 * radians.cos(),
+            100.0 * radians.sin(),
+            LineColor::Red1,
+            Some(45.0),
+        ));
+    }
+    models.push(rigid);
+
+    // A closed but genuinely self-intersecting degree-5 fan — the same fixture
+    // `spherical_simplicity.rs` keeps, so this test reaches all four rules
+    // rather than three. Sector widths sum to 360; the fold angles close.
+    let mut crossing = CreasePatternModel::default();
+    let sectors = [77.7_f64, 75.3, 76.3, 80.9, 49.8];
+    let rhos = [
+        143.2_f64,
+        -144.987_466_057_566,
+        139.510_617_226_054,
+        107.692_082_841_218,
+        70.045_325_473_205,
+    ];
+    let mut theta = 0.0_f64;
+    for (sector, rho) in sectors.iter().zip(rhos) {
+        let radians = theta.to_radians();
+        crossing.add_line_segment(crease(
+            0.0,
+            0.0,
+            100.0 * radians.cos(),
+            100.0 * radians.sin(),
+            if rho >= 0.0 {
+                LineColor::Red1
+            } else {
+                LineColor::Blue2
+            },
+            Some(rho.abs()),
+        ));
+        theta += sector;
+    }
+    models.push(crossing);
+
+    let mut seen: Vec<String> = Vec::new();
+    for model in models {
+        let mut document = CreasePatternDocument {
+            crease_pattern: model,
+            ..CreasePatternDocument::default()
+        };
+        let result = execute_command(
+            &mut document,
+            CreasePatternCommand::new(OperationId::CheckCamv),
+        )
+        .expect("CheckCamv is supported");
+        for entry in result.diagnostic_entries {
+            if !entry.kind.starts_with("Spatial") {
+                continue;
+            }
+            let rule = entry
+                .rule
+                .clone()
+                .expect("a spatial diagnostic names a rule");
+            assert!(
+                SPATIAL_RULES.contains(&rule.as_str()),
+                "{rule} has no sentence on the frontend; add it to SPATIAL_RULES on both sides",
+            );
+            // The closure sentence needs the residual structurally: the frontend
+            // has to word it, and a formatted string cannot be un-formatted.
+            if rule == "Closure" {
+                assert!(
+                    entry.residual_degrees.is_some(),
+                    "a closure failure must carry its residual, not only spell it",
+                );
+            } else {
+                assert!(entry.residual_degrees.is_none());
+            }
+            if !seen.contains(&rule) {
+                seen.push(rule);
+            }
+        }
+    }
+    // All four, not merely "some": a whitelist that nothing reaches asserts
+    // nothing at all.
+    seen.sort();
+    let mut expected = SPATIAL_RULES.map(String::from);
+    expected.sort();
+    assert_eq!(seen, expected);
+}

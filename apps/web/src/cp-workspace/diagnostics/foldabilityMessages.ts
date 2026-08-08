@@ -58,11 +58,37 @@ export const FOLDABILITY_COLORS = [
   'Unknown',
 ] as const;
 
+/**
+ * The `rule` codes the **spatial** half of `CheckCamv` emits.
+ *
+ * A separate vocabulary from Oriedita's five flat rules, and it needs its own
+ * gate: `FOLDABILITY_RULES` is what `foldabilityMessages.test.ts` iterates, and
+ * nothing gated a spatial rule at all — `foldabilityEntryMessage` special-cased
+ * two of them before the `isRule` guard and everything else fell through to the
+ * kernel's raw English message, in all eight locales.
+ *
+ * Paired with a Rust test over the same four literals
+ * (`crates/oristudio-cp/tests/checks_spatial.rs`,
+ * `the_spatial_check_emits_only_the_four_rules_the_frontend_words`). Neither
+ * language can see the other's table, so a rename needs both gates to catch it.
+ */
+export const SPATIAL_RULES = [
+  'Closure',
+  'Rigid',
+  'SelfIntersection',
+  'InteriorBorder',
+] as const;
+
 export type FoldabilityRule = (typeof FOLDABILITY_RULES)[number];
 export type FoldabilityColor = (typeof FOLDABILITY_COLORS)[number];
+export type SpatialRule = (typeof SPATIAL_RULES)[number];
 
 function isRule(value: string | null | undefined): value is FoldabilityRule {
   return FOLDABILITY_RULES.includes(value as FoldabilityRule);
+}
+
+function isSpatialRule(value: string | null | undefined): value is SpatialRule {
+  return SPATIAL_RULES.includes(value as SpatialRule);
 }
 
 function isColor(value: string | null | undefined): value is FoldabilityColor {
@@ -161,28 +187,65 @@ export function foldabilityViolationMessage(
   }
 }
 
+/**
+ * The sentence for a spatial-check rule.
+ *
+ * Exhaustive over {@link SPATIAL_RULES} by construction — the switch has no
+ * default, so adding a code without a sentence is a type error rather than a
+ * blank row.
+ */
+export function spatialRuleMessage(
+  t: TFunction,
+  rule: SpatialRule,
+  entry?: Pick<OristudioCpDiagnosticEntry, 'residual_degrees'>
+): string {
+  // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
+  switch (rule) {
+    // The creases at this vertex cannot all hold at once. The residual is the
+    // one number that makes it actionable — a degree off is a typo, ninety is a
+    // different design — so it is interpolated rather than described.
+    case 'Closure': {
+      const residual = entry?.residual_degrees;
+      return residual == null
+        ? t('panels:creasePattern.foldability.closure', 'The creases here do not close up')
+        : t(
+            'panels:creasePattern.foldability.closureResidual',
+            'The creases here do not close up: {{degrees}}° off',
+            { degrees: Math.round(residual * 100) / 100 }
+          );
+    }
+    // Not a conflict to fix. A degree-1 or developable degree-3 vertex has one
+    // solution and it is zero, so reporting disagreement would invite an
+    // adjustment that cannot help.
+    case 'Rigid':
+      return t(
+        'panels:creasePattern.foldability.rigidVertex',
+        'This vertex is rigid, so every crease here must be flat'
+      );
+    // Not one of Oriedita's rules: this branch's own check, that the paper does
+    // not pass through itself at a vertex whose fold angles do agree.
+    case 'SelfIntersection':
+      return t(
+        'panels:creasePattern.foldability.selfIntersection',
+        'Paper passes through itself here'
+      );
+    // Also not Oriedita's: an edge drawn inside the sheet rather than around it.
+    // The point of the entry is that the check *cannot see* the vertices on it —
+    // saying "not checked" is the whole message, so it must not read as a defect.
+    case 'InteriorBorder':
+      return t(
+        'panels:creasePattern.foldability.interiorBorder',
+        'Edge with paper on both sides — foldability is not checked along it'
+      );
+  }
+}
+
 /** The sentence for a diagnostic entry, or `null` if it is not one of ours. */
 export function foldabilityEntryMessage(
   t: TFunction,
   entry: OristudioCpDiagnosticEntry
 ): string | null {
-  // Not one of Oriedita's rules: this branch's own check, that the paper does
-  // not pass through itself at a vertex whose fold angles do agree.
-  if (entry.rule === 'SelfIntersection') {
-    return t(
-      'panels:creasePattern.foldability.selfIntersection',
-      'Paper passes through itself here'
-    );
-  }
-  // Also not Oriedita's: an edge drawn inside the sheet rather than around it.
-  // The point of the entry is that the check *cannot see* the vertices on it —
-  // saying "not checked" is the whole message, so it must not read as a defect.
-  if (entry.rule === 'InteriorBorder') {
-    return t(
-      'panels:creasePattern.foldability.interiorBorder',
-      'Edge with paper on both sides — foldability is not checked along it'
-    );
-  }
+  if (isSpatialRule(entry.rule)) return spatialRuleMessage(t, entry.rule, entry);
   if (!isRule(entry.rule) || !isColor(entry.violation_color)) return null;
   return foldabilityViolationMessage(t, entry.rule, entry.violation_color);
 }

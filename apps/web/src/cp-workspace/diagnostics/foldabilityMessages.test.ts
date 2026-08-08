@@ -4,9 +4,10 @@ import type { OristudioCpDiagnosticEntry } from '../../engine/oristudioCpTypes';
 import {
   FOLDABILITY_COLORS,
   FOLDABILITY_RULES,
+  SPATIAL_RULES,
   cpDiagnosticEntryMessage,
-  foldabilityEntryMessage,
   foldabilityViolationMessage,
+  spatialRuleMessage,
   type FoldabilityColor,
   type FoldabilityRule,
 } from './foldabilityMessages';
@@ -132,18 +133,47 @@ describe('borders inside the paper', () => {
   });
 });
 
-describe('entries this table does not speak for', () => {
-  it('falls back to the kernel message for spatial closure', () => {
-    // This branch's own check, not Oriedita's. Its message is already prose and
-    // carries a measured residual no lookup table could reproduce.
-    const closure = entry({
-      kind: 'SpatialClosure',
-      rule: 'Closure',
-      message: 'Creases do not close: 53.0000 degrees off',
-    });
-    expect(foldabilityEntryMessage(t, closure)).toBeNull();
-    expect(cpDiagnosticEntryMessage(t, closure)).toBe('Creases do not close: 53.0000 degrees off');
+describe('the spatial rules', () => {
+  // A separate vocabulary from Oriedita's five, with its own gate. The pair on
+  // the kernel side is `the_spatial_check_emits_only_the_four_rules_the_frontend_words`
+  // in `crates/oristudio-cp/tests/checks_spatial.rs`; neither language can see
+  // the other's table, so a rename needs both to catch it.
+  it.each(SPATIAL_RULES)('answers %s with a sentence, not a rule name', (rule) => {
+    const message = spatialRuleMessage(t, rule);
+    expect(message, rule).toBeTruthy();
+    expect(message, rule).not.toContain(rule);
+    expect(message, rule).not.toMatch(/panels:/u);
   });
+
+  it('words a closure failure with its residual, and without one when there is none', () => {
+    // The kernel used to ship this sentence as formatted English in all eight
+    // locales, because the number was only inside the message. It now rides on
+    // `residual_degrees`, which is the whole reason the field exists.
+    expect(
+      cpDiagnosticEntryMessage(
+        t,
+        entry({
+          kind: 'SpatialClosure',
+          rule: 'Closure',
+          residual_degrees: 53.004_9,
+          message: 'Creases do not close: 53.0049 degrees off',
+        })
+      )
+    ).toBe('The creases here do not close up: 53° off');
+    expect(spatialRuleMessage(t, 'Closure')).toBe('The creases here do not close up');
+  });
+
+  it('does not read a rigid vertex as a disagreement to fix', () => {
+    // A degree-1 or developable degree-3 vertex has one solution and it is
+    // zero, so "your angles disagree" would invite an adjustment that cannot
+    // help.
+    const message = spatialRuleMessage(t, 'Rigid');
+    expect(message).toMatch(/rigid/iu);
+    expect(message).not.toMatch(/violation|error|invalid/iu);
+  });
+});
+
+describe('entries this table does not speak for', () => {
 
   it('falls back for overlap and T-junction checks', () => {
     const overlap = entry({

@@ -138,6 +138,14 @@ export interface OristudioCpDiagnosticEntry {
   point?: Point | null;
   segments?: OristudioCpLineSegment[];
   rule?: string | null;
+  /**
+   * How far a spatial vertex is from closing, in degrees.
+   *
+   * Present only on a `Closure` entry. Carried structurally because the sentence
+   * around the number has to be translated, and the kernel's own `message` is
+   * already formatted English — a formatted string cannot be un-formatted.
+   */
+  residual_degrees?: number | null;
   violation_color?: string | null;
   little_big_little?: OristudioCpDiagnosticLittleBigLittleSegment[];
 }
@@ -703,7 +711,17 @@ export interface OristudioCpFold3dStepResult {
   advanced: boolean;
 }
 
-export type OristudioCpFoldedFigureStatus = 'ready' | 'stale' | 'loading' | 'error' | 'unsupported';
+/**
+ * Where a folded figure is in its life.
+ *
+ * There was a fifth arm, `'unsupported'`, with **zero producers** — nothing in
+ * the app ever wrote it, and nothing could: a fold that cannot be computed
+ * produces no figure at all rather than an unsupported one. Deleted rather than
+ * kept as a promise, so an exhaustive switch over this union is a switch over
+ * states that exist. A file carrying the old value still loads: the reader
+ * falls back to `'stale'` for anything it does not recognise.
+ */
+export type OristudioCpFoldedFigureStatus = 'ready' | 'stale' | 'loading' | 'error';
 
 export type OristudioCpFoldedFigureSourceKind =
   | 'generated-from-current-cp'
