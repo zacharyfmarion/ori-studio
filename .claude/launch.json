@@ -8,10 +8,10 @@
         "vite",
         "apps/web",
         "--port",
-        "5223",
+        "5251",
         "--strictPort"
       ],
-      "port": 5223,
+      "port": 5251,
       "autoPort": false
     },
     {

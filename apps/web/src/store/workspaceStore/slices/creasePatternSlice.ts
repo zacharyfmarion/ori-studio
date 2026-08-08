@@ -1171,7 +1171,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
     },
 
-    sendTreeCreasePatternToEdit: async () => {
+    sendTreeCreasePatternToEdit: async (includeCircles = false) => {
       const capability = selectWorkspaceCapabilities(get())['cp.build'];
       if (!capability.enabled) {
         set({ error: { code: 'invalid_operation', message: capability.reason } });
@@ -1197,6 +1197,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           editGridDivisions:
             get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
           title: selectProject(get()).title,
+          includeCircles,
         });
         const ok = await get().importAddOristudioCpText(payload);
         set({ status: ok ? 'crease_pattern_ready' : previousStatus });

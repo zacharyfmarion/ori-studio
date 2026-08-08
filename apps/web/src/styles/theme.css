@@ -147,6 +147,34 @@
   border-radius: var(--radius-lg);
 }
 
+/*
+ * A primary button and its caret sharing one outline. The halves stay separate
+ * buttons (see SplitButton), so the seam is made by flattening the edges that
+ * meet and pulling them together over the doubled border.
+ */
+.ui-split-button {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.ui-split-button__primary {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ui-split-button__caret {
+  margin-left: -1px;
+  padding-left: 6px;
+  padding-right: 6px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* The open caret must not sit under its own menu's shadow as if unpressed. */
+.ui-split-button__caret[data-state='open'] {
+  z-index: 1;
+}
+
 .ui-control--sm {
   height: 28px;
   padding: 0 10px;

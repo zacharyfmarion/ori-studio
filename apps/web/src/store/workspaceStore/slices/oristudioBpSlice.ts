@@ -932,7 +932,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
 
     // Send the BP design's crease pattern to the always-live Edit canvas: export
     // the BP CP and merge it in via Import(Add), then switch to the Edit workspace.
-    sendOristudioBpToEdit: async () => {
+    sendOristudioBpToEdit: async (includeCircles = false) => {
       const bpDocument = selectOristudioBpDocument(get());
       if (!bpDocument) return false;
       const kind = designKind('box-pleat');
@@ -951,6 +951,7 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
           editGridDivisions:
             get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
           title: 'box-pleat',
+          includeCircles,
         });
         const ok = await get().importAddOristudioCpText(payload);
         set({ oristudioBpBusy: false });
