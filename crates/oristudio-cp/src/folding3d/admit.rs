@@ -62,9 +62,20 @@ pub struct Fold3dDiagnostics {
     /// the placement, and the normal grouping it uses is deliberately the
     /// crudest one that can produce it.
     pub separation_bins: [usize; 5],
-    /// Smallest strictly positive separation between parallel planes, in paper
-    /// units. `None` when no normal class held two distinct offsets.
-    pub min_plane_separation: Option<f64>,
+    /// Smallest strictly positive gap between two **consecutive per-face
+    /// offsets** inside one normal class, in paper units. `None` when no normal
+    /// class held two distinct offsets.
+    ///
+    /// **This is not plane separation**, and the difference is nine orders of
+    /// magnitude on real models. It is a gap between the offsets of two *faces*,
+    /// so on a plane holding many faces it reports that plane's own numerical
+    /// jitter rather than the distance to the next plane — `penguin_disconnected`
+    /// measures 4.048e-9 here where the nearest genuinely distinct plane is
+    /// 1.96e-2 of span away. The side condition's real upper bound is
+    /// [`crate::folding3d::PlaneIndex::min_inter_separation_relative`], which is
+    /// computed over the plane partition rather than over a crude normal
+    /// grouping. Renamed from `min_plane_separation` for exactly that reason.
+    pub min_face_offset_gap: Option<f64>,
 }
 
 /// A crease pattern admitted for a 3D fold.
@@ -188,7 +199,7 @@ pub fn admit_with(
     }
 
     // 6. The separation spectrum, measured and reported.
-    let (separation_bins, min_plane_separation) =
+    let (separation_bins, min_face_offset_gap) =
         plane_separations(&placement, tolerances.angle_radians);
 
     Ok(Admission {
@@ -200,7 +211,7 @@ pub fn admit_with(
             worst_closure_residual_degrees,
             local_crossings,
             separation_bins,
-            min_plane_separation,
+            min_face_offset_gap,
         },
         placement,
     })

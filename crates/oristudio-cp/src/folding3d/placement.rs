@@ -205,6 +205,24 @@ pub struct FaceJoin {
 }
 
 /// Faces placed in 3D, and how far the placement disagrees with itself.
+///
+/// # Single component, by construction
+///
+/// Every face has a transform derived along one spanning tree rooted at
+/// [`Placement3d::starting_face`], and `parent` / `parent_line` are `Some` for
+/// every face but that one. This is not an inference from the refusal above it:
+/// [`FoldGraph::face_positions`] returns `Ok` only when its `remaining_faces`
+/// loop reaches zero, and `line_ends` being private makes [`place_with`] the only
+/// construction site in the workspace, so there is no path to a `Placement3d`
+/// that some walk did not build. A disconnected fold graph refuses with
+/// [`Fold3dRefusal::Disconnected`] before a `Placement3d` exists —
+/// `the_refusing_fixtures_refuse_for_the_reason_they_were_chosen_for` is the test
+/// that kills the two mutations which would break it.
+///
+/// What this buys downstream is one thing, and it is a placement-layer
+/// guarantee rather than a census-layer premise: a second component would be
+/// seeded at the identity, land coincident with the first, and manufacture
+/// coplanar overlaps that describe nothing.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Placement3d {
     /// The arrangement's vertices, in unfolded paper coordinates.
@@ -245,9 +263,80 @@ pub struct Placement3d {
     /// — a `Placement3d` a caller assembled by hand would be a placement nothing
     /// had walked.
     line_ends: Vec<(usize, usize)>,
+    /// The signed crease angle the walk actually rotated by, per input segment,
+    /// in **degrees** as [`crease_fold_angle`] reports them.
+    ///
+    /// Private and read through the two accessors below, because the point of
+    /// carrying it is that it is **this** document's angle. The admission gate
+    /// snaps every near-flat crease to an exact full fold in its own copy of the
+    /// segments, so a consumer that re-read `crease_fold_angle` off the caller's
+    /// segments would classify a different document than the one that was placed
+    /// — and would do so on precisely the creases the snap exists for.
+    ///
+    /// Degrees rather than radians because `is_full_fold` has to be an **exact**
+    /// test and `180.0_f64.to_radians()` is not bit-identical to
+    /// [`std::f64::consts::PI`]. `crease_fold_angle` returns exactly `±180.0` for
+    /// a classic crease and for `FoldMagnitude::FULL`, so the degree comparison
+    /// is exact and needs no second tolerance window beside the gate's snap.
+    fold_angle_degrees: Vec<Option<f64>>,
+    /// One face bordering each segment, or `None` for a segment no traced face
+    /// borders. Filled from `joins` so it can never name a face the walk does not
+    /// agree carries the crease.
+    line_face: Vec<Option<usize>>,
 }
 
 impl Placement3d {
+    /// The signed fold angle the walk rotated `line` by, in radians, or `None`
+    /// for a segment that carries no crease.
+    ///
+    /// `line` is an index into the input segments, which is what
+    /// [`FaceJoin::line`] and [`Placement3d::parent_line`] carry.
+    pub fn fold_angle_radians(&self, line: usize) -> Option<f64> {
+        self.fold_angle_degrees
+            .get(line)
+            .copied()
+            .flatten()
+            .map(f64::to_radians)
+    }
+
+    /// Whether `line` is a crease at an exact half-turn, in the document the
+    /// walk placed.
+    ///
+    /// The two faces of such a crease are coplanar by construction, which is what
+    /// [`crate::folding3d::planes`] seeds its topological classes from and what
+    /// makes `census >= full folds` a theorem.
+    pub fn is_full_fold(&self, line: usize) -> bool {
+        self.fold_angle_degrees
+            .get(line)
+            .copied()
+            .flatten()
+            .is_some_and(|degrees| degrees.abs() == 180.0)
+    }
+
+    /// How many input segments are creases at an exact half-turn.
+    pub fn full_fold_creases(&self) -> usize {
+        (0..self.fold_angle_degrees.len())
+            .filter(|&line| self.is_full_fold(line))
+            .count()
+    }
+
+    /// Where a crease's two endpoints land, in world coordinates.
+    ///
+    /// `None` for a segment no traced face borders — it has no placed image at
+    /// all. Every face carrying the crease agrees about the answer, because the
+    /// rotation about the crease fixes it, so the face is chosen here rather than
+    /// by the caller: a caller-supplied face is a way for two consumers to get
+    /// two different lines for one crease.
+    pub fn folded_line_ends(&self, line: usize) -> Option<(Vec3, Vec3)> {
+        let (begin, end) = self.line_ends.get(line).copied()?;
+        let face = (*self.line_face.get(line)?)?;
+        let transform = self.face_transforms.get(face)?;
+        Some((
+            transform.apply(point3(*self.points.get(begin)?)),
+            transform.apply(point3(*self.points.get(end)?)),
+        ))
+    }
+
     /// The dihedral angle across a crease, measured from the two placed faces.
     ///
     /// `atan2` cannot tell `+180` from `-180`, which is itself the precise
@@ -353,9 +442,21 @@ pub(crate) fn place_with(
             // Unreachable: `face_positions` fills both or refuses. Refusing
             // rather than placing the face unmoved keeps that an invariant
             // instead of a silent unfolded slab.
+            //
+            // The counts are the real ones rather than `(len - 1, 1)`. If this
+            // guard ever goes live it is because `face_positions` was weakened,
+            // and the refusal it produces is read for its numbers by everything
+            // downstream — a plausible fabricated split is worse than none.
+            let unreached = (0..rings.len())
+                .filter(|&other| {
+                    other != positions.starting_face
+                        && (positions.next_face[other].is_none()
+                            || positions.associated_line[other].is_none())
+                })
+                .count();
             return Err(Fold3dRefusal::Disconnected {
-                reached: rings.len() - 1,
-                unreached: 1,
+                reached: rings.len().saturating_sub(unreached),
+                unreached,
             });
         };
         let step = crease_step(graph, &rings, &line_ends, face, parent, line, convention)?;
@@ -379,6 +480,13 @@ pub(crate) fn place_with(
         .map(|transform| transform.apply_direction([0.0, 0.0, 1.0]))
         .collect();
 
+    // Read off the graph's own segments, which on the admission path are the
+    // gate's snapped copy — the document that was actually placed. `segments`
+    // and `lines` are built in one loop in `from_segments`, so the index a
+    // `FaceJoin` carries addresses both.
+    let fold_angle_degrees: Vec<Option<f64>> =
+        graph.segments.iter().map(crease_fold_angle).collect();
+
     let mut placement = Placement3d {
         points: graph.points.clone(),
         rings,
@@ -392,8 +500,17 @@ pub(crate) fn place_with(
         joins: Vec::new(),
         loop_gap: LoopGap::EMPTY,
         line_ends,
+        fold_angle_degrees,
+        line_face: Vec::new(),
     };
     placement.joins = face_joins(graph, &placement, &positions);
+    let mut line_face = vec![None; placement.fold_angle_degrees.len()];
+    for join in &placement.joins {
+        if let Some(slot) = line_face.get_mut(join.line) {
+            slot.get_or_insert(join.faces.0);
+        }
+    }
+    placement.line_face = line_face;
     placement.loop_gap = measure_loop_gap(graph, &placement, convention)?;
     Ok(placement)
 }
