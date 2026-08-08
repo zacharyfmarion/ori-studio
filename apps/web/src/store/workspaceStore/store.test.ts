@@ -3356,6 +3356,37 @@ describe('workspace store slices', () => {
       expect(spatial?.snapshot).toBeNull();
     });
 
+    it('simulates the region a verdict names, with the same region rule', async () => {
+      // The 'Simulate instead' a `no_layer_order` verdict offers goes through
+      // the same helper the refusal does, so it inherits the border-enclosed
+      // region constraint and the Simulate-panel fallback rather than getting a
+      // second, looser path of its own.
+      resetStores(seedSnapshot());
+      const activatePanel = vi.fn();
+      useLayoutStore.setState({ activatePanel });
+      useWorkspaceStore.setState({
+        oristudioCpDocument: editableCpState([
+          cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Black0' }),
+          cpLine({ x: 1, y: 0 }, { x: 1, y: 1 }, { color: 'Black0' }),
+          cpLine({ x: 1, y: 1 }, { x: 0, y: 1 }, { color: 'Black0' }),
+          cpLine({ x: 0, y: 1 }, { x: 0, y: 0 }, { color: 'Black0' }),
+          cpLine(
+            { x: 0, y: 0 },
+            { x: 1, y: 1 },
+            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+          ),
+        ]),
+      });
+
+      await useWorkspaceStore.getState().simulateOristudioCpCreaseRegion([1, 2, 3, 4, 5]);
+      expect(useWorkspaceStore.getState().oristudioCpInlineSimulations).toHaveLength(1);
+      expect(activatePanel).not.toHaveBeenCalled();
+
+      // Not one whole region: the panel, not silence.
+      await useWorkspaceStore.getState().simulateOristudioCpCreaseRegion([5]);
+      expect(activatePanel).toHaveBeenCalledWith('simulator');
+    });
+
     it('keeps the old figure and raises no dialog when a refold is refused', async () => {
       const figure = await fold3dFigure();
       oristudioCpMocks.fold3dOristudioCpDocument.mockResolvedValueOnce({
