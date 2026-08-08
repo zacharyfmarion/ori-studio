@@ -54,15 +54,20 @@ export type FoldedFormExportFormat = 'fold' | 'obj' | 'stl';
 export type OptimizerKind = 'scale' | 'edges' | 'strain';
 
 /**
- * What a press of `G` was asking for, decided from the selection alone.
+ * What a press of `G` was asking for, decided from the **scoped** selection
+ * alone — never from the document.
  *
- * `non-classic` is the selection the flat folder has no answer for — at least
- * one selected crease carries a fold angle other than a full mountain or
- * valley. Today that path offers the simulator and stops; it is the population
- * a computed 3D fold would serve, and this property is the only way to find out
- * how large it is.
+ * `spatial` is the selection the flat folder has no answer for: at least one
+ * selected crease carries a fold angle other than a full mountain or valley, so
+ * the fold goes to the computed 3D folder.
+ *
+ * It is the same population the pre-3D builds recorded as `non-classic`, under a
+ * name that was true then and is not now — that value meant "we did not try",
+ * and this one means "we tried the 3D folder". PostHog keeps historical values
+ * regardless of this union, so a dashboard spanning the change has to union the
+ * two deliberately; see `docs/analytics.md`.
  */
-export type FoldMode = 'flat' | 'non-classic';
+export type FoldMode = 'flat' | 'spatial';
 
 /**
  * How a fold ended. Every one of these is a terminal branch of
@@ -74,9 +79,16 @@ export type FoldMode = 'flat' | 'non-classic';
  * - `contradiction` — two faces each have to lie above the other. Not an error:
  *   the transparent development still renders, with the pair highlighted.
  * - `not-drawable` — the fold returned, and there was nothing to draw.
- * - `simulated` — the non-flat intercept sent the selection to the simulator.
- * - `cancelled` — the user declined at the intercept or at the CAMV warning.
+ * - `simulated` — the user accepted the offer to simulate instead.
+ * - `cancelled` — the user declined that offer, or the CAMV warning.
  * - `error` — the kernel refused.
+ *
+ * The last three are `spatial` only, and each says something a placed 3D figure
+ * still is: it drew, and this is what is true about it.
+ *
+ * - `local-crossing` — the paper passes through itself at some vertex.
+ * - `transversal-crossing` — a folded crease passes through a face.
+ * - `no-layer-order` — placed, but no stacking could be computed.
  */
 export type FoldVerdict =
   | 'folded'
@@ -85,7 +97,10 @@ export type FoldVerdict =
   | 'not-drawable'
   | 'simulated'
   | 'cancelled'
-  | 'error';
+  | 'error'
+  | 'local-crossing'
+  | 'transversal-crossing'
+  | 'no-layer-order';
 
 /** Which way a press of the one solution verb moved. */
 export type FoldCycleDirection = 'next' | 'wrap';
@@ -93,8 +108,19 @@ export type FoldCycleDirection = 'next' | 'wrap';
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
 
-/** Where a simulator run was started from. */
-export type FoldSimulationSource = 'non-flat-intercept';
+/**
+ * Where a simulator run was started from.
+ *
+ * A rename rather than an addition: `non-flat-intercept` meant "we never tried
+ * to fold this", and `fold-3d-refused` means "the 3D gate refused it". Unioning
+ * the two across the change would merge two different facts.
+ *
+ * `fold-3d-no-layer-order` is the *verdict* offer — a figure that placed and
+ * drew, whose layers could not be ordered — which is a third thing again.
+ */
+export type FoldSimulationSource =
+  | 'fold-3d-refused'
+  | 'fold-3d-no-layer-order';
 
 /** The coarse group a command id belongs to (derived from its id prefix). */
 export type CommandGroup =

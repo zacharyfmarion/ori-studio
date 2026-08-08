@@ -106,13 +106,13 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `design tab reordered` | `open_count_bucket` | A design tab is dragged or moved to a new position |
 | `design tab activated` | `open_count_bucket` | The user switches to another design tab |
 | `bp pattern not found` | `stretch_count_bucket`, `max_flap_count_bucket`, `configuration_reach` (`none`/`partial`/`all`) | A BP packing shows flap overlaps with no crease pattern. Stretch ids are flap ids joined with commas, so they are a local change key only and are never sent |
-| `fold attempted` | `mode` (`flat`/`non-classic`), `crease_count_bucket`, `non_classic_count_bucket` | `G`, or the Fold button, on a non-empty foldable selection. `mode` is decided from the selection, before any dialog |
-| `fold completed` | `mode`, `verdict` (`folded`/`no-solutions`/`contradiction`/`not-drawable`/`simulated`/`cancelled`/`error`), `solution_count_bucket` | Every terminal branch of a fold, so it pairs one-to-one with `fold attempted` |
+| `fold attempted` | `mode` (`flat`/`spatial`), `crease_count_bucket`, `non_classic_count_bucket` | `G`, or the Fold button, on a non-empty foldable selection. `mode` is decided from the **scoped** selection, before any dialog |
+| `fold completed` | `mode`, `verdict` (`folded`/`no-solutions`/`contradiction`/`not-drawable`/`simulated`/`cancelled`/`error`/`local-crossing`/`transversal-crossing`/`no-layer-order`), `solution_count_bucket`, optional `refusal`, optional `order_reason` | Every terminal branch of a fold, so it pairs one-to-one with `fold attempted`. `refusal` is the kernel's `Fold3dRefusal` code (ten values) and rides on the `simulated`/`cancelled` arms, which is how a refusal keeps its reason without a verdict of its own; `order_reason` is the `Fold3dOrderReason` code (eight values) on `no-layer-order` |
 | `fold solution cycled` | `direction` (`next`/`wrap`), `solution_count_bucket` | The one solution verb on a folded figure |
 | `foldability checked` | `source` (`pre-fold`), `had_violations`, `violation_count_bucket` | The CAMV check a fold runs before folding |
 | `fold warning shown` | `source` (`pre-fold`) | That check found violations and the warning was raised |
 | `fold warning accepted` | `source`, `accepted`, `suppressed_future_warnings` | The user answered that warning |
-| `fold simulation run` | `source` (`non-flat-intercept`), `crease_count_bucket` | A non-flat selection was sent to the simulator instead |
+| `fold simulation run` | `source` (`fold-3d-refused`/`fold-3d-no-layer-order`), `crease_count_bucket` | The simulator was opened instead of a 3D fold — because the fold was refused, or because a placed figure's layers could not be ordered |
 | `cp detect started` | — | Image→CP detection begins |
 | `cp detect completed` | `succeeded` | Detection finishes |
 | `cp detect imported` | — | A detected CP is imported |
@@ -121,6 +121,23 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `share link opened` | `succeeded`, `source` | A shared link is opened |
 | `theme changed` | `theme` | The theme is changed |
 | `locale changed` | `locale` | The language is changed |
+
+### Renamed values, and why a dashboard has to union them deliberately
+
+PostHog keeps whatever a build sent, so a series spanning the 3D-fold change
+carries both the old and the new value. Two renames matter, and in both cases
+merging them silently would merge two different facts:
+
+| Event | Was | Is | What changed |
+| --- | --- | --- | --- |
+| `fold attempted` / `fold completed` | `mode: non-classic` | `mode: spatial` | The same population — a selection carrying a fold angle other than a full mountain or valley. Before, that population was never folded at all: `G` offered the simulator and stopped. Now it is folded in 3D. Union the two to count the population; keep them apart to count what happened to it |
+| `fold simulation run` | `source: non-flat-intercept` | `source: fold-3d-refused` | `non-flat-intercept` meant "we did not try". `fold-3d-refused` means "the 3D gate refused it". A third value, `fold-3d-no-layer-order`, is a *placed* figure whose stacking could not be computed — the user is choosing the simulator over a figure that drew |
+
+**Nothing about a 3D fold's geometry is sent.** Not the closure residual, the
+loop gap, the plane separation, the crossing points, or any face, line, plane or
+component index — all of them are measurements of the user's own design, and
+several would identify a distinctive one outright. What leaves the app is the
+bounded refusal and order-reason codes, and counts already bucketed.
 
 ## Maintenance rules
 

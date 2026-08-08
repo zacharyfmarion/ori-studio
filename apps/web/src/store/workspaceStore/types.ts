@@ -831,6 +831,15 @@ export interface CreasePatternSliceActions {
     id: string,
     patch: Partial<FoldedFigurePlacement>
   ) => void;
+  /**
+   * Open an inline simulation of the region these creases enclose, falling back
+   * to the Simulate panel when they are not one whole region.
+   *
+   * The store-level door onto the same helper the refused 3D fold uses, so a
+   * verdict that offers "simulate instead" reaches exactly the path a refusal
+   * does — including its region constraint and its fallback.
+   */
+  simulateOristudioCpCreaseRegion: (lineIds: readonly number[]) => Promise<void>;
   clearOristudioCpFoldedFigures: () => Promise<void>;
   clearOristudioCpSelection: () => void;
   toggleOristudioCpLineSelection: (id: number, additive?: boolean) => void;
