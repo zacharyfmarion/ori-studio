@@ -42,6 +42,7 @@ import type {
   OristudioBpSelection,
   OristudioBpSheet,
   OristudioBpSheetKind,
+  OristudioBpTreeEdge,
 } from '../../engine/oristudioBpTypes';
 import {
   bpFlapSelection,
@@ -74,7 +75,8 @@ import { useBpPatternNotFoundEvent } from '../../analytics';
 import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
 import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
 import { bpDefaultFlapLabel, bpFlapLabel, bpFlapLabelList } from '../../lib/bpFlapLabel';
-import { leafLocationAt } from '../../tree-editor/dragRule';
+import { edgeLengthRepositions } from '../../tree-editor/dragRule';
+import { treeTopology } from '../../tree-editor/model';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { useBpPackingDragRequests } from '../../hooks/useBpPackingDragRequests';
 import {
@@ -103,6 +105,7 @@ import { IconButton } from '../ui/IconButton';
 import { BpPackingEmptySpaceLayer } from './BpPackingEmptySpaceLayer';
 import { BpPackingRiverBandLayer } from './BpPackingRiverBandLayer';
 import { BpFlapEditor } from './BpFlapEditor';
+import { BpRiverEditor } from './BpRiverEditor';
 import {
   isViewportInteractiveTarget,
   ViewportLayerMenu,
@@ -694,27 +697,40 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       ) ?? null
     );
   }, [singleSelectedFlap, tree.edges]);
+  // The single selected river, and its dual tree edge — a river's width *is*
+  // that edge's length, so both the pill and its commit go through the edge.
+  const singleSelectedRiver = useMemo(() => {
+    const id = selection.kind === 'bp-river' ? selection.id : null;
+    if (id === null) return null;
+    return packing.rivers.find((river) => river.id === id) ?? null;
+  }, [selection, packing.rivers]);
+  const singleSelectedRiverEdge = useMemo(() => {
+    if (!singleSelectedRiver) return null;
+    return tree.edges.find((edge) => edge.id === singleSelectedRiver.edgeId) ?? null;
+  }, [singleSelectedRiver, tree.edges]);
   // Sheet "diameter" caps every dimension (matches BP Studio's flap panel max).
   const flapMaxDimension = Math.max(packing.sheet.width, packing.sheet.height);
-  // Set the flap's radius by changing its leaf edge length, repositioning the
-  // leaf so the tree stays length-faithful (the subtree of a leaf is just the
-  // leaf). Reuses the same single-undo edge-length path as the tree inspector.
+  const topology = useMemo(() => treeTopology(tree), [tree]);
+  // Set a dual edge's length and keep the tree length-faithful — the child moves
+  // out along the direction it already points and carries its subtree. The same
+  // edit for a flap's radius (a leaf edge, whose subtree is the leaf alone) and
+  // a river's width (an internal edge). Reuses the tree pane's single-undo
+  // edge-length path, so the symmetry partner follows for free.
+  const setDualEdgeLength = useCallback(
+    (edge: OristudioBpTreeEdge, length: number): Promise<boolean> =>
+      setOristudioBpTreeEdgeLength(
+        edge.vertices,
+        length,
+        edgeLengthRepositions(tree, topology, edge.id, length)
+      ),
+    [tree, topology, setOristudioBpTreeEdgeLength]
+  );
   const setSelectedFlapRadius = useCallback(
-    (length: number): Promise<boolean> => {
-      if (!singleSelectedFlap || !singleSelectedFlapEdge) return Promise.resolve(false);
-      const edge = singleSelectedFlapEdge;
-      const leafId = singleSelectedFlap.vertexId;
-      const [a, b] = edge.vertices;
-      const parentId = a === leafId ? b : a;
-      const leaf = tree.vertices.find((vertex) => vertex.id === leafId);
-      const parent = tree.vertices.find((vertex) => vertex.id === parentId);
-      if (!leaf || !parent) {
-        return setOristudioBpTreeEdgeLength(edge.vertices, length);
-      }
-      const target = leafLocationAt(parent.loc, leaf.loc, length);
-      return setOristudioBpTreeEdgeLength(edge.vertices, length, [{ id: leafId, loc: target }]);
-    },
-    [singleSelectedFlap, singleSelectedFlapEdge, tree.vertices, setOristudioBpTreeEdgeLength]
+    (length: number): Promise<boolean> =>
+      singleSelectedFlapEdge
+        ? setDualEdgeLength(singleSelectedFlapEdge, length)
+        : Promise.resolve(false),
+    [singleSelectedFlapEdge, setDualEdgeLength]
   );
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
@@ -1759,6 +1775,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             resizeOristudioBpLayoutFlap(singleSelectedFlap.id, width, height)
           }
           onRadius={setSelectedFlapRadius}
+        />
+      )}
+      {singleSelectedRiver && singleSelectedRiverEdge && (
+        <BpRiverEditor
+          key={singleSelectedRiver.id}
+          river={singleSelectedRiver}
+          edge={singleSelectedRiverEdge}
+          onSetWidth={(width) => void setDualEdgeLength(singleSelectedRiverEdge, width)}
+          onEscape={() => selectOristudioBp({ kind: 'bp-none' })}
         />
       )}
       {activeStretch && (

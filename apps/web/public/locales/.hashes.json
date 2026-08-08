@@ -2237,7 +2237,12 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:bpPacking.riverTitle": "886e7dee7a2a",
+    "panels:bpPacking.riverWidth": "3019947b6daf",
+    "panels:bpPacking.riverWidthDecrease": "01277830bd24",
+    "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4477,7 +4482,12 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:bpPacking.riverTitle": "886e7dee7a2a",
+    "panels:bpPacking.riverWidth": "3019947b6daf",
+    "panels:bpPacking.riverWidthDecrease": "01277830bd24",
+    "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6717,7 +6727,12 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:bpPacking.riverTitle": "886e7dee7a2a",
+    "panels:bpPacking.riverWidth": "3019947b6daf",
+    "panels:bpPacking.riverWidthDecrease": "01277830bd24",
+    "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8927,7 +8942,12 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:bpPacking.riverTitle": "886e7dee7a2a",
+    "panels:bpPacking.riverWidth": "3019947b6daf",
+    "panels:bpPacking.riverWidthDecrease": "01277830bd24",
+    "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11137,7 +11157,12 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:bpPacking.riverTitle": "886e7dee7a2a",
+    "panels:bpPacking.riverWidth": "3019947b6daf",
+    "panels:bpPacking.riverWidthDecrease": "01277830bd24",
+    "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13377,7 +13402,12 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:bpPacking.riverTitle": "886e7dee7a2a",
+    "panels:bpPacking.riverWidth": "3019947b6daf",
+    "panels:bpPacking.riverWidthDecrease": "01277830bd24",
+    "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15617,7 +15647,12 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:bpPacking.riverTitle": "886e7dee7a2a",
+    "panels:bpPacking.riverWidth": "3019947b6daf",
+    "panels:bpPacking.riverWidthDecrease": "01277830bd24",
+    "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -17827,6 +17862,11 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "panels:bpPacking.riverTitle": "886e7dee7a2a",
+    "panels:bpPacking.riverWidth": "3019947b6daf",
+    "panels:bpPacking.riverWidthDecrease": "01277830bd24",
+    "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
   }
 }

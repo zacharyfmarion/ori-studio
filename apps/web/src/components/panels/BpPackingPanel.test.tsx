@@ -810,3 +810,39 @@ describe('BP packing pane — moves ask for the mirror', () => {
     expect(moveFlaps).toHaveBeenCalledWith([5, 7], { x: 10, y: 8 }, false);
   });
 });
+
+describe('BP packing pane — a selected river gets a width pill', () => {
+  function selectRiver() {
+    act(() => {
+      useWorkspaceStore.setState(
+        patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-river', id: 1 } })
+      );
+    });
+  }
+
+  it('shows no pill until a river is selected', () => {
+    const host = renderPacking();
+    expect(host.querySelector('.bp-tree-edge-editor')).toBeNull();
+    selectRiver();
+    expect(host.querySelector('.bp-tree-edge-editor')).not.toBeNull();
+  });
+
+  /**
+   * A river's width is its dual edge's length, so the commit goes through the
+   * tree pane's edge-length action — which is also what makes it one undo entry
+   * and what carries the symmetry partner.
+   */
+  it('commits a step through the edge-length action, carrying the subtree', () => {
+    const host = renderPacking();
+    const setEdgeLength = vi.fn(async () => true);
+    act(() => {
+      useWorkspaceStore.setState({ setOristudioBpTreeEdgeLength: setEdgeLength });
+    });
+    selectRiver();
+    const increase = host.querySelectorAll('.bp-tree-edge-editor button')[1] as HTMLButtonElement;
+    act(() => increase.click());
+    // Edge 2 runs from the root (8,8) to vertex 2 at (8,9), length 1. Stepping
+    // to 2 pushes the child out along the direction it already points.
+    expect(setEdgeLength).toHaveBeenCalledWith([0, 2], 2, [{ id: 2, loc: { x: 8, y: 10 } }]);
+  });
+});
