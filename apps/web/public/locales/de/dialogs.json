@@ -131,9 +131,25 @@
     "openDescriptionDirty": "Ersetzt Ihre aktuelle Arbeit und verwirft nicht gespeicherte Änderungen.",
     "openLabel": "Als neue Datei öffnen"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "Die Flächen dieses Musters konnten nicht bestimmt werden. Meist liegt es an Falten, die sich ohne Knotenpunkt kreuzen oder einen Knotenpunkt nicht erreichen.",
+    "flatFoldabilityGeneric": "Ein Knotenpunkt dieses Musters lässt sich nicht falten.",
+    "loopNotClosed": "Das Falten entlang einer Flächenschleife führt nicht zum Ausgangspunkt zurück, daher können diese Winkel nicht alle zugleich gelten.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "Diese Falten umschließen keine Papierfläche zum Falten.",
+    "nonCreaseJoin": "Zwei Flächen treffen entlang einer Kante zusammen, die keine Falte ist.",
+    "simulate": "Simulieren",
+    "simulateTrailer": "Der Simulator kann es näherungsweise falten.",
+    "title": "Dieses Muster lässt sich nicht in 3D falten",
+    "toleranceWindowClosed": "Zwei Flächen liegen zu nah an derselben Ebene, um unterschieden zu werden.",
+    "vertexClosure": "Die Falten an einem Knotenpunkt schließen sich nicht: {{degrees}}° fehlen.",
+    "vertexUnassignedCrease": "Eine Falte an einem Knotenpunkt hat keine Faltung zugewiesen, daher lässt sich dieser Knotenpunkt nicht falten.",
+    "vertexUnsplitJunction": "Falten treffen sich an einem Punkt, der kein Knotenpunkt ist, daher lässt sich dieser Knotenpunkt nicht falten."
+  },
   "foldWarning": {
     "dontShowAgain": "Nicht mehr anzeigen",
     "message": "Fehler bei der Flachfaltbarkeit erkannt. Trotzdem falten?",
+    "spatialMessage": "Fehler beim Falten dieser Falten erkannt. Mit dem Falten fortfahren?",
     "title": "Warnung"
   },
   "help": {
@@ -162,12 +178,6 @@
       }
     },
     "closeLabel": "{{title}} schließen"
-  },
-  "nonFlatFold": {
-    "message_one": "Eine der ausgewählten Faltlinien faltet sich in einem anderen Winkel als einer vollen Berg- oder Talfalte, daher gibt es keine flache Faltform zu berechnen. Der Simulator kann sie in 3D falten.",
-    "message_other": "{{count}} der ausgewählten Faltlinien falten sich in einem anderen Winkel als einer vollen Berg- oder Talfalte, daher gibt es keine flache Faltform zu berechnen. Der Simulator kann sie in 3D falten.",
-    "simulate": "Simulieren",
-    "title": "Dieses Muster ist nicht flach faltbar"
   },
   "number": {
     "tooSmall": "Geben Sie eine Zahl größer als {{minimum}} ein."

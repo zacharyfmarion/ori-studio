@@ -126,9 +126,25 @@
     "openDescriptionDirty": "作業中の内容を置き換え、保存していない変更を破棄します。",
     "openLabel": "新しいファイルとして開く"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "この展開図の面を特定できませんでした。頂点を作らずに交差している折り線や、頂点まで届いていない折り線が主な原因です。",
+    "flatFoldabilityGeneric": "この展開図のある頂点は折ることができません。",
+    "loopNotClosed": "面のループをたどって折ると元の位置に戻らないため、これらの角度をすべて同時に満たせません。",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "これらの折り線は、折るべき紙の面を囲んでいません。",
+    "nonCreaseJoin": "2つの面が、折り線ではない辺で接しています。",
+    "simulate": "シミュレート",
+    "simulateTrailer": "シミュレーターならおおよその形に折れます。",
+    "title": "このパターンは3Dで折れません",
+    "toleranceWindowClosed": "2つの面が同じ平面に近すぎて区別できません。",
+    "vertexClosure": "ある頂点の折り線が閉じません。{{degrees}}° 足りません。",
+    "vertexUnassignedCrease": "ある頂点の折り線に折り方が割り当てられていないため、その頂点を折れません。",
+    "vertexUnsplitJunction": "頂点ではない点で折り線が交わっているため、その頂点を折れません。"
+  },
   "foldWarning": {
     "dontShowAgain": "今後表示しない",
     "message": "平坦折りのエラーが検出されました。折りを続行しますか？",
+    "spatialMessage": "折り方にエラーが見つかりました。折り畳みを続けますか？",
     "title": "警告"
   },
   "help": {
@@ -157,11 +173,6 @@
       }
     },
     "closeLabel": "{{title}}を閉じる"
-  },
-  "nonFlatFold": {
-    "message_other": "選択された折り線のうち {{count}} 本は、山折り・谷折りの完全な180度以外の角度で折られるため、平坦な折り上がり形状を計算できません。シミュレーターなら3Dで折ることができます。",
-    "simulate": "シミュレート",
-    "title": "このパターンは平坦に折り畳まれません"
   },
   "number": {
     "tooSmall": "{{minimum}} より大きい数値を入力してください。"

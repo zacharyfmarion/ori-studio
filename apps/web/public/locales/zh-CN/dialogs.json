@@ -126,9 +126,25 @@
     "openDescriptionDirty": "替换你正在处理的内容，并放弃未保存的更改。",
     "openLabel": "作为新文件打开"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "无法确定此展开图的面。折线交叉却没有顶点，或未连到顶点，通常是原因所在。",
+    "flatFoldabilityGeneric": "此展开图的某个顶点无法折叠。",
+    "loopNotClosed": "沿着面的环路折叠后无法回到起点，因此这些角度无法同时成立。",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "这些折线没有围出可折叠的纸面。",
+    "nonCreaseJoin": "两个面沿着一条并非折线的边相接。",
+    "simulate": "模拟",
+    "simulateTrailer": "模拟器可以近似地折叠它。",
+    "title": "此图案无法折成 3D 形状",
+    "toleranceWindowClosed": "两个面太靠近同一平面，无法区分。",
+    "vertexClosure": "某个顶点的折线无法闭合：还差 {{degrees}}°。",
+    "vertexUnassignedCrease": "某个顶点上的折线未指定折法，因此该顶点无法折叠。",
+    "vertexUnsplitJunction": "折线相交于一个并非顶点的位置，因此该顶点无法折叠。"
+  },
   "foldWarning": {
     "dontShowAgain": "不再显示",
     "message": "检测到平折性错误。是否继续折叠？",
+    "spatialMessage": "检测到这些折线的折叠方式有误。是否继续折叠？",
     "title": "警告"
   },
   "help": {
@@ -157,11 +173,6 @@
       }
     },
     "closeLabel": "关闭 {{title}}"
-  },
-  "nonFlatFold": {
-    "message_other": "所选折痕中有 {{count}} 条的折叠角度不是完整的山折或谷折，因此无法计算平折成品形状。模拟器可以在三维中折叠它。",
-    "simulate": "模拟",
-    "title": "此图案不是平折的"
   },
   "number": {
     "tooSmall": "请输入大于 {{minimum}} 的数字。"

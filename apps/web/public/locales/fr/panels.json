@@ -236,6 +236,8 @@
     "flipFoldedModel": "Retourner le modèle plié",
     "fold": "Plier",
     "foldability": {
+      "closure": "Les plis ne se referment pas ici",
+      "closureResidual": "Les plis ne se referment pas ici : {{degrees}}° d’écart",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Configuration des lignes de bord non valide",
       "edgeLineCount": "Trop ou pas assez de lignes de bord",
@@ -247,6 +249,7 @@
       "notEnoughMountain": "pas assez de plis montagne",
       "notEnoughValley": "pas assez de plis vallée",
       "oddFolds": "Nombre impair de plis",
+      "rigidVertex": "Ce sommet est rigide : tous les plis ici doivent rester plats",
       "selfIntersection": "Le papier se traverse lui-même ici",
       "shape": {
         "circle": "Angles incorrects (théorème de Kawasaki)",
@@ -265,6 +268,10 @@
     "foldedModelControls": "Commandes du modèle plié",
     "foldedModels": "Modèles pliés",
     "foldedModelSide": "Face du modèle plié",
+    "foldedModelStatus": {
+      "error": "Échec",
+      "loading": "Pliage…"
+    },
     "foldedState": {
       "back": "Verso",
       "front": "Recto"
@@ -518,6 +525,23 @@
     "viewportControls": "Commandes d’affichage de l’arbre de recherche",
     "viewTree": "Arbre",
     "viewTreeAndCp": "Arbre et patron de pliage"
+  },
+  "fold3dVerdict": {
+    "localCrossing_one": "Le papier se traverse lui-même en un sommet.",
+    "localCrossing_many": "Le papier se traverse lui-même en {{count}} sommets.",
+    "localCrossing_other": "Le papier se traverse lui-même en {{count}} sommets.",
+    "localCrossingLabel": "Le papier se traverse",
+    "noLayerOrderContradictorySeeds": "Deux faces doivent chacune se placer au-dessus de l’autre : aucun empilement ne peut satisfaire les deux.",
+    "noLayerOrderGeneric": "Les couches de cette figure n’ont pas pu être ordonnées.",
+    "noLayerOrderLabel": "Couches non ordonnées",
+    "noLayerOrderStackTooDeep": "Trop de couches se rejoignent ici pour explorer tous les empilements.",
+    "selectCreases": "Sélectionner les plis",
+    "showIssues": "Afficher les problèmes",
+    "simulateInstead": "Simuler à la place",
+    "transversalCrossing_one": "Un pli plié traverse une face de la figure.",
+    "transversalCrossing_many": "{{count}} plis pliés traversent des faces de la figure.",
+    "transversalCrossing_other": "{{count}} plis pliés traversent des faces de la figure.",
+    "transversalCrossingLabel": "Un pli traverse une face"
   },
   "foldedFigureActions": {
     "anotherSolution": "Autre solution",

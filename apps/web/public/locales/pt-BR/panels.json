@@ -236,6 +236,8 @@
     "flipFoldedModel": "Virar modelo dobrado",
     "fold": "Dobrar",
     "foldability": {
+      "closure": "Os vincos aqui não fecham",
+      "closureResidual": "Os vincos aqui não fecham: {{degrees}}° de diferença",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Configuração inválida das linhas de borda",
       "edgeLineCount": "Linhas de borda demais ou de menos",
@@ -247,6 +249,7 @@
       "notEnoughMountain": "não há dobras de montanha suficientes",
       "notEnoughValley": "não há dobras de vale suficientes",
       "oddFolds": "Número ímpar de dobras",
+      "rigidVertex": "Este vértice é rígido, então todos os vincos aqui devem ficar planos",
       "selfIntersection": "O papel atravessa a si mesmo aqui",
       "shape": {
         "circle": "Ângulos incorretos (teorema de Kawasaki)",
@@ -265,6 +268,10 @@
     "foldedModelControls": "Controles do modelo dobrado",
     "foldedModels": "Modelos dobrados",
     "foldedModelSide": "Lado do modelo dobrado",
+    "foldedModelStatus": {
+      "error": "Falhou",
+      "loading": "Dobrando…"
+    },
     "foldedState": {
       "back": "Verso",
       "front": "Frente"
@@ -518,6 +525,23 @@
     "viewportControls": "Controles de visualização da árvore de busca",
     "viewTree": "Árvore",
     "viewTreeAndCp": "Árvore e padrão de vincos"
+  },
+  "fold3dVerdict": {
+    "localCrossing_one": "O papel atravessa a si mesmo em um vértice.",
+    "localCrossing_many": "O papel atravessa a si mesmo em {{count}} vértices.",
+    "localCrossing_other": "O papel atravessa a si mesmo em {{count}} vértices.",
+    "localCrossingLabel": "O papel atravessa a si mesmo",
+    "noLayerOrderContradictorySeeds": "Duas faces precisam ficar cada uma acima da outra, então nenhum empilhamento satisfaz as duas.",
+    "noLayerOrderGeneric": "Não foi possível ordenar as camadas desta figura.",
+    "noLayerOrderLabel": "Camadas não ordenadas",
+    "noLayerOrderStackTooDeep": "Camadas demais se encontram aqui para testar todos os empilhamentos.",
+    "selectCreases": "Selecionar os vincos",
+    "showIssues": "Mostrar problemas",
+    "simulateInstead": "Simular em vez disso",
+    "transversalCrossing_one": "Um vinco dobrado atravessa uma face da figura.",
+    "transversalCrossing_many": "{{count}} vincos dobrados atravessam faces da figura.",
+    "transversalCrossing_other": "{{count}} vincos dobrados atravessam faces da figura.",
+    "transversalCrossingLabel": "Um vinco corta uma face"
   },
   "foldedFigureActions": {
     "anotherSolution": "Outra solução",

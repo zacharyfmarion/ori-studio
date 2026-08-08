@@ -136,9 +136,25 @@
     "openDescriptionDirty": "Substitui aquilo em que você está trabalhando e descarta as alterações não salvas.",
     "openLabel": "Abrir como novo arquivo"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "Não foi possível determinar as faces deste padrão. A causa habitual são vincos que se cruzam sem um vértice, ou que não chegam até um.",
+    "flatFoldabilityGeneric": "Um vértice deste padrão não pode ser dobrado.",
+    "loopNotClosed": "Dobrar em torno de um laço de faces não retorna ao ponto de partida, então estes ângulos não podem valer todos ao mesmo tempo.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "Estes vincos não delimitam nenhuma face de papel a dobrar.",
+    "nonCreaseJoin": "Duas faces se encontram ao longo de uma aresta que não é um vinco.",
+    "simulate": "Simular",
+    "simulateTrailer": "O simulador pode dobrá-lo de forma aproximada.",
+    "title": "Este padrão não pode ser dobrado em 3D",
+    "toleranceWindowClosed": "Duas faces estão próximas demais do mesmo plano para serem distinguidas.",
+    "vertexClosure": "Os vincos de um vértice não fecham: faltam {{degrees}}° para se encontrarem.",
+    "vertexUnassignedCrease": "Um vinco de um vértice não tem dobra atribuída, então esse vértice não pode ser dobrado.",
+    "vertexUnsplitJunction": "Os vincos se encontram num ponto que não é um vértice, então esse vértice não pode ser dobrado."
+  },
   "foldWarning": {
     "dontShowAgain": "Não mostrar novamente",
     "message": "Foram detectados erros de dobradura plana. Continuar a dobrar?",
+    "spatialMessage": "Foram detectados erros na forma como estes vincos dobram. Continuar a dobrar?",
     "title": "Aviso"
   },
   "help": {
@@ -167,13 +183,6 @@
       }
     },
     "closeLabel": "Fechar {{title}}"
-  },
-  "nonFlatFold": {
-    "message_one": "Um dos vincos selecionados dobra em um ângulo diferente de uma montanha ou vale completos, então não há forma dobrada em plano a calcular. O simulador consegue dobrá-lo em 3D.",
-    "message_many": "{{count}} dos vincos selecionados dobram em um ângulo diferente de uma montanha ou vale completos, então não há forma dobrada em plano a calcular. O simulador consegue dobrá-lo em 3D.",
-    "message_other": "{{count}} dos vincos selecionados dobram em um ângulo diferente de uma montanha ou vale completos, então não há forma dobrada em plano a calcular. O simulador consegue dobrá-lo em 3D.",
-    "simulate": "Simular",
-    "title": "Este padrão não é dobrável em plano"
   },
   "number": {
     "tooSmall": "Insira um número maior que {{minimum}}."

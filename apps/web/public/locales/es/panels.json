@@ -236,6 +236,8 @@
     "flipFoldedModel": "Voltear modelo plegado",
     "fold": "Plegar",
     "foldability": {
+      "closure": "Los pliegues aquí no cierran",
+      "closureResidual": "Los pliegues aquí no cierran: {{degrees}}° de desfase",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Configuración de líneas de borde no válida",
       "edgeLineCount": "Demasiadas o insuficientes líneas de borde",
@@ -247,6 +249,7 @@
       "notEnoughMountain": "no hay suficientes pliegues de montaña",
       "notEnoughValley": "no hay suficientes pliegues de valle",
       "oddFolds": "Número impar de pliegues",
+      "rigidVertex": "Este vértice es rígido, así que todos los pliegues aquí deben quedar planos",
       "selfIntersection": "El papel se atraviesa a sí mismo aquí",
       "shape": {
         "circle": "Ángulos incorrectos (teorema de Kawasaki)",
@@ -265,6 +268,10 @@
     "foldedModelControls": "Controles del modelo plegado",
     "foldedModels": "Modelos plegados",
     "foldedModelSide": "Cara del modelo plegado",
+    "foldedModelStatus": {
+      "error": "Ha fallado",
+      "loading": "Plegando…"
+    },
     "foldedState": {
       "back": "Reverso",
       "front": "Anverso"
@@ -518,6 +525,23 @@
     "viewportControls": "Controles de vista del árbol de búsqueda",
     "viewTree": "Árbol",
     "viewTreeAndCp": "Árbol y patrón de pliegues"
+  },
+  "fold3dVerdict": {
+    "localCrossing_one": "El papel se atraviesa a sí mismo en un vértice.",
+    "localCrossing_many": "El papel se atraviesa a sí mismo en {{count}} vértices.",
+    "localCrossing_other": "El papel se atraviesa a sí mismo en {{count}} vértices.",
+    "localCrossingLabel": "El papel se atraviesa",
+    "noLayerOrderContradictorySeeds": "Dos caras tienen que quedar cada una por encima de la otra, así que ningún apilado satisface ambas.",
+    "noLayerOrderGeneric": "No se han podido ordenar las capas de esta figura.",
+    "noLayerOrderLabel": "Capas sin ordenar",
+    "noLayerOrderStackTooDeep": "Aquí se juntan demasiadas capas para probar todos los apilados.",
+    "selectCreases": "Seleccionar los pliegues",
+    "showIssues": "Mostrar problemas",
+    "simulateInstead": "Simular en su lugar",
+    "transversalCrossing_one": "Un pliegue plegado atraviesa una cara de la figura.",
+    "transversalCrossing_many": "{{count}} pliegues plegados atraviesan caras de la figura.",
+    "transversalCrossing_other": "{{count}} pliegues plegados atraviesan caras de la figura.",
+    "transversalCrossingLabel": "Un pliegue corta una cara"
   },
   "foldedFigureActions": {
     "anotherSolution": "Otra solución",

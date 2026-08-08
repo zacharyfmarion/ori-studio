@@ -246,6 +246,8 @@
     "flipFoldedModel": "Перевернуть сложенную модель",
     "fold": "Сложить",
     "foldability": {
+      "closure": "Складки здесь не смыкаются",
+      "closureResidual": "Складки здесь не смыкаются: расхождение {{degrees}}°",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Недопустимая конфигурация краевых линий",
       "edgeLineCount": "Слишком много или слишком мало краевых линий",
@@ -257,6 +259,7 @@
       "notEnoughMountain": "недостаточно горных складок",
       "notEnoughValley": "недостаточно долинных складок",
       "oddFolds": "Нечётное число складок",
+      "rigidVertex": "Эта вершина жёсткая, поэтому все складки здесь должны быть плоскими",
       "selfIntersection": "Здесь бумага проходит сквозь саму себя",
       "shape": {
         "circle": "Неверные углы (теорема Кавасаки)",
@@ -275,6 +278,10 @@
     "foldedModelControls": "Элементы управления сложенной моделью",
     "foldedModels": "Сложенные модели",
     "foldedModelSide": "Сторона сложенной модели",
+    "foldedModelStatus": {
+      "error": "Ошибка",
+      "loading": "Складывание…"
+    },
     "foldedState": {
       "back": "Изнанка",
       "front": "Лицо"
@@ -534,6 +541,25 @@
     "viewportControls": "Управление видом дерева поиска",
     "viewTree": "Дерево",
     "viewTreeAndCp": "Дерево и паттерн складок"
+  },
+  "fold3dVerdict": {
+    "localCrossing_one": "Бумага проходит сквозь себя в одной вершине.",
+    "localCrossing_many": "Бумага проходит сквозь себя в {{count}} вершинах.",
+    "localCrossing_few": "Бумага проходит сквозь себя в {{count}} вершинах.",
+    "localCrossing_other": "Бумага проходит сквозь себя в {{count}} вершинах.",
+    "localCrossingLabel": "Бумага проходит сквозь себя",
+    "noLayerOrderContradictorySeeds": "Две грани должны быть каждая выше другой, поэтому ни один порядок слоёв не удовлетворяет обоим требованиям.",
+    "noLayerOrderGeneric": "Не удалось упорядочить слои этой фигуры.",
+    "noLayerOrderLabel": "Слои не упорядочены",
+    "noLayerOrderStackTooDeep": "Здесь сходится слишком много слоёв, чтобы перебрать все порядки.",
+    "selectCreases": "Выделить складки",
+    "showIssues": "Показать проблемы",
+    "simulateInstead": "Симулировать вместо этого",
+    "transversalCrossing_one": "Одна сложенная складка проходит сквозь грань фигуры.",
+    "transversalCrossing_many": "{{count}} сложенных складок проходят сквозь грани фигуры.",
+    "transversalCrossing_few": "{{count}} сложенные складки проходят сквозь грани фигуры.",
+    "transversalCrossing_other": "{{count}} сложенных складок проходят сквозь грани фигуры.",
+    "transversalCrossingLabel": "Складка пересекает грань"
   },
   "foldedFigureActions": {
     "anotherSolution": "Другое решение",

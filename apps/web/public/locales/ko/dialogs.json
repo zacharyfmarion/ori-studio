@@ -126,9 +126,25 @@
     "openDescriptionDirty": "작업 중인 내용을 대체하고 저장하지 않은 변경 사항을 버립니다.",
     "openLabel": "새 파일로 열기"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "이 전개도의 면을 확정할 수 없습니다. 꼭짓점 없이 교차하거나 꼭짓점에 닿지 않는 접힘선이 흔한 원인입니다.",
+    "flatFoldabilityGeneric": "이 전개도의 한 꼭짓점은 접을 수 없습니다.",
+    "loopNotClosed": "면들의 고리를 따라 접으면 처음 자리로 돌아오지 않아, 이 각도들이 동시에 성립할 수 없습니다.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "이 접힘선들은 접을 종이 면을 이루지 않습니다.",
+    "nonCreaseJoin": "두 면이 접힘선이 아닌 모서리에서 맞닿아 있습니다.",
+    "simulate": "시뮬레이션",
+    "simulateTrailer": "시뮬레이터로 근사하게 접을 수 있습니다.",
+    "title": "이 패턴은 3D로 접을 수 없습니다",
+    "toleranceWindowClosed": "두 면이 같은 평면에 너무 가까워 구분할 수 없습니다.",
+    "vertexClosure": "한 꼭짓점의 접힘선이 닫히지 않습니다: {{degrees}}° 모자랍니다.",
+    "vertexUnassignedCrease": "한 꼭짓점의 접힘선에 접기가 지정되지 않아 그 꼭짓점을 접을 수 없습니다.",
+    "vertexUnsplitJunction": "접힘선이 꼭짓점이 아닌 지점에서 만나 그 꼭짓점을 접을 수 없습니다."
+  },
   "foldWarning": {
     "dontShowAgain": "다시 표시하지 않음",
     "message": "평평접기 오류가 감지되었습니다. 계속 접으시겠습니까?",
+    "spatialMessage": "이 접힘선들이 접히는 방식에 오류가 있습니다. 계속 접을까요?",
     "title": "경고"
   },
   "help": {
@@ -157,11 +173,6 @@
       }
     },
     "closeLabel": "{{title}} 닫기"
-  },
-  "nonFlatFold": {
-    "message_other": "선택한 접는 선 중 {{count}}개가 완전한 산접기나 골접기가 아닌 각도로 접히므로, 계산할 평평한 접힘 형태가 없습니다. 시뮬레이터는 3D로 접을 수 있습니다.",
-    "simulate": "시뮬레이션",
-    "title": "이 패턴은 평평하게 접히지 않습니다"
   },
   "number": {
     "tooSmall": "{{minimum}}보다 큰 숫자를 입력하세요."

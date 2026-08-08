@@ -749,15 +749,12 @@ function positiveNumber(value: unknown): number | null {
 }
 
 function foldedFigureStatus(value: unknown): OristudioCpFoldedFigureStatus {
-  if (
-    value === 'ready' ||
-    value === 'stale' ||
-    value === 'loading' ||
-    value === 'error' ||
-    value === 'unsupported'
-  ) {
+  if (value === 'ready' || value === 'stale' || value === 'loading' || value === 'error') {
     return value === 'loading' ? 'stale' : value;
   }
+  // Anything else — including the retired `'unsupported'` a much older build
+  // could in principle have written — reads as stale, which is the safe answer:
+  // it offers a refold rather than claiming the figure is current.
   return 'stale';
 }
 

@@ -136,9 +136,25 @@
     "openDescriptionDirty": "Remplace ce sur quoi vous travaillez et abandonne vos modifications non enregistrées.",
     "openLabel": "Ouvrir comme nouveau fichier"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "Les faces de ce patron n’ont pas pu être déterminées. En cause, le plus souvent : des plis qui se croisent sans sommet, ou qui n’atteignent pas un sommet.",
+    "flatFoldabilityGeneric": "Un sommet de ce patron ne peut pas être plié.",
+    "loopNotClosed": "Le pliage autour d’une boucle de faces ne revient pas au point de départ : ces angles ne peuvent pas tenir tous ensemble.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "Ces plis n’enferment aucune face de papier à plier.",
+    "nonCreaseJoin": "Deux faces se rejoignent le long d’une arête qui n’est pas un pli.",
+    "simulate": "Simuler",
+    "simulateTrailer": "Le simulateur peut le plier de façon approximative.",
+    "title": "Ce patron ne peut pas être plié en 3D",
+    "toleranceWindowClosed": "Deux faces sont trop proches du même plan pour être distinguées.",
+    "vertexClosure": "Les plis d’un sommet ne se referment pas : il manque {{degrees}}°.",
+    "vertexUnassignedCrease": "Un pli d’un sommet n’a aucun pliage attribué, ce sommet ne peut donc pas être plié.",
+    "vertexUnsplitJunction": "Des plis se rejoignent en un point qui n’est pas un sommet, ce sommet ne peut donc pas être plié."
+  },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
     "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
     "title": "Avertissement"
   },
   "help": {
@@ -167,13 +183,6 @@
       }
     },
     "closeLabel": "Fermer {{title}}"
-  },
-  "nonFlatFold": {
-    "message_one": "L’un des plis sélectionnés se plie selon un angle autre qu’une montagne ou une vallée complète : il n’y a donc pas de forme pliée à plat à calculer. Le simulateur peut le plier en 3D.",
-    "message_many": "{{count}} des plis sélectionnés se plient selon un angle autre qu’une montagne ou une vallée complète : il n’y a donc pas de forme pliée à plat à calculer. Le simulateur peut le plier en 3D.",
-    "message_other": "{{count}} des plis sélectionnés se plient selon un angle autre qu’une montagne ou une vallée complète : il n’y a donc pas de forme pliée à plat à calculer. Le simulateur peut le plier en 3D.",
-    "simulate": "Simuler",
-    "title": "Ce patron n’est pas pliable à plat"
   },
   "number": {
     "tooSmall": "Saisissez un nombre supérieur à {{minimum}}."

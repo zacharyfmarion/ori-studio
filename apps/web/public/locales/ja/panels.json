@@ -216,6 +216,8 @@
     "flipFoldedModel": "折り上がり図を裏返す",
     "fold": "折る",
     "foldability": {
+      "closure": "ここの折り線が閉じません",
+      "closureResidual": "ここの折り線が閉じません：{{degrees}}° のずれ",
       "compose": "{{lead}}：{{tail}}",
       "edgeLineConfiguration": "外周線の構成が不正です",
       "edgeLineCount": "外周線が多すぎるか足りません",
@@ -227,6 +229,7 @@
       "notEnoughMountain": "山折りが足りません",
       "notEnoughValley": "谷折りが足りません",
       "oddFolds": "折り線の数が奇数です",
+      "rigidVertex": "この頂点は剛体なので、ここの折り線はすべて平坦でなければなりません",
       "selfIntersection": "紙がここで自身を貫通します",
       "shape": {
         "circle": "角度が正しくありません（川崎の定理）",
@@ -245,6 +248,10 @@
     "foldedModelControls": "折りモデルの操作",
     "foldedModels": "折りモデル",
     "foldedModelSide": "折りモデルの面",
+    "foldedModelStatus": {
+      "error": "失敗",
+      "loading": "折り畳み中…"
+    },
     "foldedState": {
       "back": "裏",
       "front": "表"
@@ -488,6 +495,21 @@
     "viewportControls": "検索ツリーのビュー操作",
     "viewTree": "ツリー",
     "viewTreeAndCp": "ツリーと展開図"
+  },
+  "fold3dVerdict": {
+    "localCrossing_other": "{{count}}個の頂点で紙が自分自身を突き抜けています。",
+    "localCrossingLabel": "紙が自己交差",
+    "noLayerOrderContradictorySeeds": "2つの面がそれぞれ相手の上に来る必要があり、どちらの重なり順でも両立できません。",
+    "noLayerOrderGeneric": "この立体の重なり順を決められませんでした。",
+    "noLayerOrderLabel": "重なり順が未決定",
+    "noLayerOrderStackTooDeep": "ここで重なる層が多すぎて、すべての重なり順を調べられません。",
+    "selectCreases": "該当の折り線を選択",
+    "showIssues": "問題を表示",
+    "simulateInstead": "代わりにシミュレート",
+    "transversalCrossing_other": "折り線が{{count}}本、この立体の面を貫通しています。",
+    "transversalCrossingLabel": "折り線が面を貫通",
+    "localCrossing_one": "1つの頂点で紙が自分自身を突き抜けています。",
+    "transversalCrossing_one": "折り線が1本、この立体の面を貫通しています。"
   },
   "foldedFigureActions": {
     "anotherSolution": "別の解",

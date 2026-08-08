@@ -131,9 +131,25 @@
     "openDescriptionDirty": "Replaces what you are working on and discards your unsaved changes.",
     "openLabel": "Open as a new file"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "The faces of this crease pattern could not be worked out. Creases that cross without a vertex, or stop short of one, are the usual cause.",
+    "flatFoldabilityGeneric": "One vertex of this crease pattern cannot fold.",
+    "loopNotClosed": "Folding around a loop of faces does not return to where it started, so these angles cannot all hold at once.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "These creases enclose no piece of paper to fold.",
+    "nonCreaseJoin": "Two faces meet along an edge that is not a crease.",
+    "simulate": "Simulate",
+    "simulateTrailer": "The simulator can fold it approximately.",
+    "title": "This pattern can’t be folded in 3D",
+    "toleranceWindowClosed": "Two faces are too close to the same plane to tell apart.",
+    "vertexClosure": "The creases at one vertex do not close up: they are {{degrees}}° short of meeting.",
+    "vertexUnassignedCrease": "A crease at one vertex has no fold assigned, so the vertex cannot be folded.",
+    "vertexUnsplitJunction": "Creases meet at a point that is not a vertex, so the vertex cannot be folded."
+  },
   "foldWarning": {
     "dontShowAgain": "Don't show this again",
     "message": "Detected errors in flat foldability. Continue to fold?",
+    "spatialMessage": "Detected errors in how these creases fold. Continue to fold?",
     "title": "Warning"
   },
   "help": {
@@ -162,12 +178,6 @@
       }
     },
     "closeLabel": "Close {{title}}"
-  },
-  "nonFlatFold": {
-    "message_one": "One of the selected creases folds to something other than a full mountain or valley, so there is no flat folded form to compute. The simulator can fold it in 3D.",
-    "message_other": "{{count}} of the selected creases fold to something other than a full mountain or valley, so there is no flat folded form to compute. The simulator can fold it in 3D.",
-    "simulate": "Simulate",
-    "title": "This pattern isn’t flat-folded"
   },
   "number": {
     "tooSmall": "Enter a number greater than {{minimum}}."

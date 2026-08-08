@@ -143,6 +143,21 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:fold.disconnected',
         "This selection falls into separate pieces that don't touch, so it can't be folded as one model. Select one piece and fold again."
       );
+    // Both of these mean the *caller* routed a fold to the wrong door, not that
+    // anything is wrong with the crease pattern — `resolveFoldRoute` decides
+    // which folder a selection goes to, and both kernel guards are assertions
+    // it holds. Worded anyway, because unreachable-by-design is not the same as
+    // unreachable, and the alternative is raw Rust English in eight locales.
+    case 'fold_needs_3d':
+      return t(
+        'errors:fold.needs3d',
+        "Some of these creases fold to an angle other than a full mountain or valley, so they have no flat folded form. Try folding again — if it keeps happening, the app and the crease pattern have got out of step."
+      );
+    case 'fold_is_flat':
+      return t(
+        'errors:fold.isFlat',
+        'These creases are all full mountain and valley folds, so they fold flat rather than into a 3D shape.'
+      );
     // A FOLD file we decline to open, rather than one we failed to read. The
     // importer keeps x and y and drops the rest, so a folded model would arrive
     // as its own flat shadow with every crease in the wrong place.

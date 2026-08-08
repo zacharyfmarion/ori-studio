@@ -136,9 +136,25 @@
     "openDescriptionDirty": "Reemplaza aquello en lo que estás trabajando y descarta los cambios sin guardar.",
     "openLabel": "Abrir como archivo nuevo"
   },
+  "fold3dRefused": {
+    "facesUnresolved": "No se han podido determinar las caras de este patrón. La causa habitual son pliegues que se cruzan sin un vértice, o que no llegan a uno.",
+    "flatFoldabilityGeneric": "Un vértice de este patrón no se puede plegar.",
+    "loopNotClosed": "Al plegar alrededor de un bucle de caras no se vuelve al punto de partida, así que estos ángulos no pueden cumplirse todos a la vez.",
+    "message": "{{reason}} {{trailer}}",
+    "noFaces": "Estos pliegues no encierran ninguna cara de papel que plegar.",
+    "nonCreaseJoin": "Dos caras se encuentran a lo largo de una arista que no es un pliegue.",
+    "simulate": "Simular",
+    "simulateTrailer": "El simulador puede plegarlo de forma aproximada.",
+    "title": "Este patrón no se puede plegar en 3D",
+    "toleranceWindowClosed": "Dos caras están demasiado cerca del mismo plano para distinguirlas.",
+    "vertexClosure": "Los pliegues de un vértice no cierran: les faltan {{degrees}}° para encontrarse.",
+    "vertexUnassignedCrease": "Un pliegue de un vértice no tiene asignado ningún plegado, así que ese vértice no se puede plegar.",
+    "vertexUnsplitJunction": "Los pliegues se cruzan en un punto que no es un vértice, así que ese vértice no se puede plegar."
+  },
   "foldWarning": {
     "dontShowAgain": "No volver a mostrar",
     "message": "Se detectaron errores de plegabilidad plana. ¿Continuar con el plegado?",
+    "spatialMessage": "Se han detectado errores en cómo se pliegan estos pliegues. ¿Continuar con el plegado?",
     "title": "Advertencia"
   },
   "help": {
@@ -167,13 +183,6 @@
       }
     },
     "closeLabel": "Cerrar {{title}}"
-  },
-  "nonFlatFold": {
-    "message_one": "Uno de los pliegues seleccionados se dobla con un ángulo distinto de una montaña o un valle completos, así que no hay forma plegada en plano que calcular. El simulador puede plegarlo en 3D.",
-    "message_many": "{{count}} de los pliegues seleccionados se doblan con un ángulo distinto de una montaña o un valle completos, así que no hay forma plegada en plano que calcular. El simulador puede plegarlo en 3D.",
-    "message_other": "{{count}} de los pliegues seleccionados se doblan con un ángulo distinto de una montaña o un valle completos, así que no hay forma plegada en plano que calcular. El simulador puede plegarlo en 3D.",
-    "simulate": "Simular",
-    "title": "Este patrón no es plegable en plano"
   },
   "number": {
     "tooSmall": "Introduce un número mayor que {{minimum}}."

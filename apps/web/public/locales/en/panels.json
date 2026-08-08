@@ -226,6 +226,8 @@
     "flipFoldedModel": "Flip folded model",
     "fold": "Fold",
     "foldability": {
+      "closure": "The creases here do not close up",
+      "closureResidual": "The creases here do not close up: {{degrees}}° off",
       "compose": "{{lead}} — {{tail}}",
       "edgeLineConfiguration": "Invalid configuration of edge lines",
       "edgeLineCount": "Too many or not enough edge lines",
@@ -237,6 +239,7 @@
       "notEnoughMountain": "not enough mountain folds",
       "notEnoughValley": "not enough valley folds",
       "oddFolds": "Odd number of folds",
+      "rigidVertex": "This vertex is rigid, so every crease here must be flat",
       "selfIntersection": "Paper passes through itself here",
       "shape": {
         "circle": "Incorrect angles (Kawasaki's theorem)",
@@ -255,6 +258,10 @@
     "foldedModelControls": "Folded model controls",
     "foldedModels": "Folded models",
     "foldedModelSide": "Folded model side",
+    "foldedModelStatus": {
+      "error": "Failed",
+      "loading": "Folding…"
+    },
     "foldedState": {
       "back": "Back",
       "front": "Front"
@@ -502,6 +509,21 @@
     "viewportControls": "Search tree viewport controls",
     "viewTree": "Tree",
     "viewTreeAndCp": "Tree and crease pattern"
+  },
+  "fold3dVerdict": {
+    "localCrossing_one": "The paper passes through itself at one vertex.",
+    "localCrossing_other": "The paper passes through itself at {{count}} vertices.",
+    "localCrossingLabel": "Passes through itself",
+    "noLayerOrderContradictorySeeds": "Two faces each have to be above the other, so no stacking can satisfy both.",
+    "noLayerOrderGeneric": "The layers of this figure could not be put in order.",
+    "noLayerOrderLabel": "Layers not ordered",
+    "noLayerOrderStackTooDeep": "Too many layers meet here to search every stacking.",
+    "selectCreases": "Select the creases",
+    "showIssues": "Show issues",
+    "simulateInstead": "Simulate instead",
+    "transversalCrossing_one": "One folded crease passes through a face of the figure.",
+    "transversalCrossing_other": "{{count}} folded creases pass through faces of the figure.",
+    "transversalCrossingLabel": "Crease cuts a face"
   },
   "foldedFigureActions": {
     "anotherSolution": "Another solution",
