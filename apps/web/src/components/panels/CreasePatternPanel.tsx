@@ -1098,10 +1098,25 @@ export function CreasePatternPanel() {
         return;
       }
       if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.focus(id);
-      else if (isFoldedFigureId(id)) setOristudioCpActiveFoldedFigure(id);
-      else setSelectedAnnotation(id);
+      else if (isFoldedFigureId(id)) {
+        // Second press on an already-selected figure focuses it, handing its
+        // interior to the camera. The simulator's rule, and the reason the first
+        // press must not do it: someone who only wanted to nudge the figure would
+        // otherwise never get a move gesture at all.
+        //
+        // A no-op on a flat figure — the store refuses it — so no check here.
+        if (id === activeFoldedFigure?.id) folded.orbit.focus(id);
+        else setOristudioCpActiveFoldedFigure(id);
+      } else setSelectedAnnotation(id);
     },
-    [isFoldedFigureId, inlineSimulations, setSelectedAnnotation, setOristudioCpActiveFoldedFigure]
+    [
+      activeFoldedFigure,
+      folded.orbit,
+      isFoldedFigureId,
+      inlineSimulations,
+      setSelectedAnnotation,
+      setOristudioCpActiveFoldedFigure,
+    ]
   );
 
   // Gesture dispatch: the overlay reports box updates by id, and the id decides
@@ -2773,6 +2788,7 @@ export function CreasePatternPanel() {
                   framingKey={`${projectLoadId}:${editableCpHandle ?? 'none'}`}
                   modelToSvg={editableModelToSvg}
                   svgToModel={editableSvgToModel}
+                  foldedOrbit={folded.orbit}
                   selectedLineIds={oristudioCpSelection.lines}
                   selectedPointIds={oristudioCpSelection.points}
                   selectedCircleIds={oristudioCpSelection.circles}

@@ -344,6 +344,25 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     commitFoldedFigureGesture(t('panels:creasePattern.orbitFoldedForm', 'Turn folded form'));
   }, [commitFoldedFigureGesture, t]);
 
+  const foldedOrbit = useMemo(
+    () => ({
+      focusedId: oristudioCpFocusedFoldedFigureId,
+      focus: focusOristudioCpFoldedFigure,
+      claimsPress: orbitClaimsPress,
+      begin: beginOrbit,
+      advance: advanceOrbit,
+      commit: commitOrbit,
+    }),
+    [
+      advanceOrbit,
+      beginOrbit,
+      commitOrbit,
+      focusOristudioCpFoldedFigure,
+      orbitClaimsPress,
+      oristudioCpFocusedFoldedFigureId,
+    ]
+  );
+
   const handleFoldedFigureBoxUpdate = useCallback(
     (id: string, patch: CanvasObjectBoxUpdate) => {
       const figure = useWorkspaceStore
@@ -602,15 +621,13 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
      * The orbit gesture, for the canvas to consult on a press that fell through
      * an inert body. `claimsPress` first; the other three only mean anything
      * once it has said yes.
+     *
+     * Memoised because it is passed straight through as a canvas prop, and the
+     * canvas is the most render-sensitive surface in the app — a fresh object
+     * every render would defeat memoising it later, at the point where someone
+     * is memoising it precisely because it got slow.
      */
-    orbit: {
-      focusedId: oristudioCpFocusedFoldedFigureId,
-      focus: focusOristudioCpFoldedFigure,
-      claimsPress: orbitClaimsPress,
-      begin: beginOrbit,
-      advance: advanceOrbit,
-      commit: commitOrbit,
-    },
+    orbit: foldedOrbit,
     actionDeps: foldedFigureActionDeps,
     canFoldSelectedModel,
     beginGesture: beginFoldedFigureGesture,

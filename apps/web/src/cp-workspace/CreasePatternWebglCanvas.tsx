@@ -403,6 +403,24 @@ export interface CreasePatternWebglCanvasProps {
   /** User → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
   svgToModel: (point: ModelPoint) => ModelPoint;
   /**
+   * Turning a focused 3D folded figure.
+   *
+   * A folded figure has no element of its own — it is drawn into this surface —
+   * so when the canvas-object overlay makes a focused figure's body inert the
+   * press lands here instead, and this is how the canvas asks whether it was
+   * meant for the figure's camera. `claimsPress` takes a point in **user**
+   * space, which is where a folded figure's box lives.
+   *
+   * The decision and the maths are in `folded/foldedFigureOrbitGesture`; nothing
+   * here does more than route.
+   */
+  foldedOrbit?: {
+    claimsPress: (point: ModelPoint) => boolean;
+    begin: (point: ModelPoint) => boolean;
+    advance: (point: ModelPoint) => void;
+    commit: () => void;
+  } | null;
+  /**
    * Reference images (superset layer), drawn above the grid and below the
    * creases. Placement is in model coordinates.
    */
@@ -771,6 +789,7 @@ export function CreasePatternWebglCanvas({
   framingKey,
   modelToSvg,
   svgToModel,
+  foldedOrbit,
   selectedLineIds,
   selectedPointIds,
   selectedCircleIds,
@@ -1236,6 +1255,7 @@ export function CreasePatternWebglCanvas({
   const live = {
     modelToSvg,
     svgToModel,
+    foldedOrbit,
     lineWidth,
     grid,
     gridVisible,
@@ -1626,6 +1646,22 @@ export function CreasePatternWebglCanvas({
     const clientToModel = (clientX: number, clientY: number): ModelPoint | null => {
       const userPt = clientToUser(clientX, clientY);
       return userPt ? liveRef.current.svgToModel(userPt) : null;
+    };
+
+    /**
+     * The user-space point a press should orbit at, or null if it should not.
+     *
+     * User space rather than model space because that is where a folded
+     * figure's transformable box lives, and the box consulted is the same one
+     * the overlay made inert — deriving a second notion of "inside the figure"
+     * here is how the two would drift into a band that neither moves nor turns.
+     */
+    const orbitPressPoint = (clientX: number, clientY: number): ModelPoint | null => {
+      const orbit = liveRef.current.foldedOrbit;
+      if (!orbit) return null;
+      const user = clientToUser(clientX, clientY);
+      if (!user || !orbit.claimsPress(user)) return null;
+      return user;
     };
 
     // Topmost folded figure whose pick box contains the cursor (draw order:
@@ -2541,6 +2577,9 @@ export function CreasePatternWebglCanvas({
       );
       renderNow();
     };
+    // Turning a focused 3D folded figure. The overlay has made its body inert,
+    // so its presses arrive here instead of moving it.
+    let orbiting = false;
     // Active selection move-drag: press point (model) and running delta (model).
     let movingSelection = false;
     let moveStart: ModelPoint | null = null;
@@ -2554,6 +2593,7 @@ export function CreasePatternWebglCanvas({
       lastY = pressY = e.clientY;
       moved = false;
       const toolMode = liveRef.current.activeToolInputMode;
+      const orbitPoint = orbitPressPoint(e.clientX, e.clientY);
       if (e.button === 2) {
         // Right button: universal erase gesture, overrides any active tool — including
         // a crease draw waiting on its second click, whose parked start it abandons.
@@ -2571,6 +2611,14 @@ export function CreasePatternWebglCanvas({
         e.preventDefault();
         panning = true;
         setPanDragging(true);
+      } else if (orbitPoint) {
+        // A focused 3D folded figure turns instead of anything else happening.
+        // Above the tool branches because a tool must not draw through a figure
+        // the user is turning, and below the right/middle-button ones because
+        // erase and pan are unclaimable by design — the same precedence the
+        // overlay gives a focused simulation window.
+        e.preventDefault();
+        orbiting = liveRef.current.foldedOrbit?.begin(orbitPoint) ?? false;
       } else if (e.metaKey || liveRef.current.panToolActive) {
         // Meta+drag pans, as does a plain drag while the hand tool is on. Folded
         // figures are grabbed through the canvas-object overlay now, which sits
@@ -2668,7 +2716,13 @@ export function CreasePatternWebglCanvas({
       ) {
         moved = true;
       }
-      if (erasing) {
+      if (orbiting) {
+        // The pointer is captured, so a drag that leaves the figure keeps
+        // turning it — the same as dragging a scrollbar past its track, and what
+        // any orbit that stopped at the object's edge would get wrong.
+        const user = clientToUser(e.clientX, e.clientY);
+        if (user) liveRef.current.foldedOrbit?.advance(user);
+      } else if (erasing) {
         feedErase('move', e.clientX, e.clientY);
       } else if (drawing) {
         feedTool('move', e.clientX, e.clientY);
@@ -2756,6 +2810,18 @@ export function CreasePatternWebglCanvas({
     };
     const onPointerUp = (e: PointerEvent) => {
       const cancelled = e.type === 'pointercancel';
+      if (orbiting) {
+        // Handled before `cpPointerReleaseRoute` rather than as a case in it:
+        // orbit is claimed in the first branch of pointerdown, so no tool, erase
+        // or pan can be in flight alongside it, and the route function exists to
+        // arbitrate exactly the modes that can overlap. A cancel still commits —
+        // the camera has already been written on every move, so the choice is
+        // between one undo entry and a turn the user cannot undo at all.
+        orbiting = false;
+        liveRef.current.foldedOrbit?.commit();
+        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+        return;
+      }
       // Which handler owns this release. The precedence rule (erase and pan outrank
       // the active tool) lives in one pure, unit-tested function rather than in the
       // guards of each branch below, where a mode that forgot to exclude an
