@@ -224,16 +224,22 @@ unwired, and neither is what was asked for. Worth their own change:
   highlights its dual edge in the tree pane via `bpLinkedSelection`; what is
   missing is the explicit "take me there" verb.
 
-### Analytics
+### Analytics — not taken, deliberately
 
-The `bp design action` event name is already in the taxonomy
-(`analytics/events.ts:106`) and has **no emitter today** — and the adjacent flap
-resize/radius work shipped with no event either. Fire one hand-placed
-`track(EVENTS.bpDesignAction, { action: 'river_width' })` on a committed width
-change: enum-only property, no geometry, no measured value, per
-`docs/analytics.md`. If we take it, the flap-resize call site should get the
-same treatment in the same change so the two adjacent verbs are not measured
-differently.
+The plan proposed a hand-placed `bp design action { action: 'river_width' }`.
+On implementation that turned out to be the wrong call, so it was not shipped:
+
+- The event is **already deferred by a recorded decision**
+  (`posthog-analytics.md:332`), and its documented shape is
+  `{ action }` over `author | symmetry | pack` — a coarse bucket, not one value
+  per verb.
+- It has no emitter at all today, and every other BP authoring verb — flap move,
+  flap resize, flap radius, leaf add, edge length — is silent. One emitter on
+  river width would make a metric labelled "authoring" that only ever fires for
+  one edit, which reads as a fact about authoring and is not one.
+
+The thing worth doing is instrumenting BP authoring **as a set**, which is its
+own change against the deferred decision rather than a rider on this one.
 
 ## Affected Areas
 
@@ -289,21 +295,24 @@ gestures cannot be verified there):
 
 ## Checklist
 
-- [ ] A1 — extract `bpRiverIdFromGraphicsId` into `lib/bpPackingRivers.ts` + tests
-- [ ] A2 — `BpPackingRiverBandLayer` + `.bp-packing-river-band` styles
-- [ ] A3 — mount under the graphics group, gated on `layers.rivers` /
+- [x] A1 — extract `bpRiverIdFromGraphicsId` into `lib/bpPackingRivers.ts` + tests
+- [x] A2 — `BpPackingRiverBandLayer` + `.bp-packing-river-band` styles
+- [x] A3 — mount under the graphics group, gated on `layers.rivers` /
       `layers.selectionShade`
-- [ ] A4 — closed hinge contours lose the filled hit area (devices keep it)
-- [ ] A5 — panel tests: band selects, hole does not, selected class, non-focusable
-- [ ] B1 — `TreeEdgeLengthEditor` takes strings, not `TreeEditorCopy`
-- [ ] B2 — extract `edgeLengthRepositions` + tests; collapse flap radius onto it
-- [ ] B3 — `BpRiverEditor` pill, wired to `setOristudioBpTreeEdgeLength` + tests
-- [ ] B4 — confirm an arrow press in the field does not nudge the selection
-- [ ] Drop the duplicate `OristudioBpRiver.length`; fold
+- [x] A4 — closed hinge contours lose the filled hit area (devices keep it)
+- [x] A5 — panel tests: band selects, hole is punched out, selected class,
+      paint order, non-focusable
+- [x] B1 — `TreeEdgeLengthEditor` takes strings, not `TreeEditorCopy`
+- [x] B2 — extract `edgeLengthRepositions` + tests; collapse flap radius onto it
+- [x] B3 — `BpRiverEditor` pill, wired to `setOristudioBpTreeEdgeLength` + tests
+- [x] B4 — an arrow press in the field cannot nudge: the container listener
+      bails on `input` targets (`isViewportInteractiveTarget`), and a river
+      selection has nothing nudgeable in the first place
+- [x] Drop the duplicate `OristudioBpRiver.length`; fold
       `bp.layout.updateRiverLength` into `updateRiverWidth`
-- [ ] Analytics: `bp design action` / `action: 'river_width'` (and the same for
-      flap resize)
-- [ ] i18n: extract, translate 8 locales, stamp, check
-- [ ] Raise the `BpPackingPanel.tsx` line cap with a reason, if it fires
-- [ ] Lint / typecheck / unit tests green
+- [x] Analytics — **not taken**, see the section above for why
+- [x] i18n: extract, translate 8 locales, stamp, check
+- [x] The `BpPackingPanel.tsx` line cap did not fire — the two mounts landed
+      within it, because the flap-radius geometry left the file at the same time
+- [x] Lint / typecheck / unit tests green (2991 tests)
 - [ ] Hand the browser checklist to Zach

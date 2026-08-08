@@ -528,6 +528,10 @@ export const ORISTUDIO_BP_COMMANDS = [
     phase: 5,
     selectionRequirement: 'BP flap',
   },
+  // One command, not two: upstream's river panel has a single number field,
+  // labelled Width and bound to the dual edge's length (`River.length` is a
+  // proxy for `Edge.length`). `bp.layout.updateRiverLength` used to sit here as
+  // its twin and named the same edit.
   {
     id: 'bp.layout.updateRiverWidth',
     capability: 'bp.layout.updateRiverWidth',
@@ -538,19 +542,6 @@ export const ORISTUDIO_BP_COMMANDS = [
     status: 'ready',
     disabledReason: 'Select a BP river first',
     tooltip: 'Update selected BP river width',
-    phase: 5,
-    selectionRequirement: 'BP river',
-  },
-  {
-    id: 'bp.layout.updateRiverLength',
-    capability: 'bp.layout.updateRiverLength',
-    label: 'Set BP River Length',
-    group: 'layout',
-    placement: 'inspector',
-    upstream: 'src/client/project/components/layout/river.ts',
-    status: 'ready',
-    disabledReason: 'Select a BP river first',
-    tooltip: 'Update selected BP river length',
     phase: 5,
     selectionRequirement: 'BP river',
   },
