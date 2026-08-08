@@ -69,6 +69,12 @@ const COVERAGE: &[(&str, &str)] = &[
          corpus, reported not gated",
     ),
     (
+        "corpus_boundary_reports_every_model",
+        "the engine boundary over every model in the corpus: the render model \
+         validates, every face is drawn by some cell, and the snapshot agrees \
+         with it",
+    ),
+    (
         "corpus_landmarks_are_where_the_harness_expects_them",
         "the harness is reading the corpus and not an empty directory",
     ),
@@ -848,6 +854,130 @@ fn corpus_ordering_reports_every_model() {
         single_component * 2 >= rechecked,
         "only {single_component} of {rechecked} models are a single component; the note in \
          folding3d::order about the decomposition coming from propagation needs re-measuring"
+    );
+}
+
+/// The engine boundary over every model in the corpus.
+///
+/// One question that no smaller test can answer: does the render model's
+/// coverage postcondition — every face is drawn by some cell — hold on real
+/// paper, or only on the five committed fixtures? A renderer that draws cells
+/// and silently loses a face is precisely the plausible-picture failure this
+/// feature exists to prevent, so it is checked where the models are.
+#[test]
+fn corpus_boundary_reports_every_model() {
+    use oristudio_cp::folding::FoldedFigureModel;
+    use oristudio_cp::folding3d::session::{Fold3dSession, Fold3dSessionError};
+    use std::collections::{BTreeMap, BTreeSet};
+
+    struct Row {
+        faces: usize,
+        planes: usize,
+        cells: usize,
+        undetermined_cells: usize,
+        edges: usize,
+        ring_bytes: usize,
+        verdict: String,
+    }
+
+    let Some(root) = corpus("corpus_boundary_reports_every_model") else {
+        return;
+    };
+
+    let mut names: BTreeSet<String> = BTreeSet::new();
+    let mut rows: BTreeMap<String, Row> = BTreeMap::new();
+    let mut refusals: BTreeMap<String, String> = BTreeMap::new();
+    let mut failures: Vec<String> = Vec::new();
+    let mut widest = 0usize;
+
+    for path in measurable_files(&root) {
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if !names.insert(name.clone()) {
+            continue;
+        }
+        let Ok(model) = read_fold(&path)
+            .and_then(|fold| import_fold_document(&fold).map_err(|error| format!("{error:?}")))
+        else {
+            continue;
+        };
+        match Fold3dSession::new(&model.line_segments, 1, FoldedFigureModel::default()) {
+            Ok(session) => {
+                let snapshot = session.snapshot();
+                let render = session.render_model();
+                if let Err(error) = render.validate() {
+                    failures.push(format!("{name}: render model does not validate: {error}"));
+                }
+                let mut drawn = vec![false; render.face_count as usize];
+                for &face in &render.cell_stack {
+                    if let Some(slot) = drawn.get_mut(face as usize) {
+                        *slot = true;
+                    }
+                }
+                let lost = drawn.iter().filter(|seen| !**seen).count();
+                if lost > 0 {
+                    failures.push(format!("{name}: {lost} faces are in no cell stack"));
+                }
+                if render.cell_count as usize != snapshot.census.cell_count {
+                    failures.push(format!(
+                        "{name}: snapshot and render model disagree on cells"
+                    ));
+                }
+                widest = widest.max(render.ring_points.len() * 8);
+                rows.insert(
+                    name,
+                    Row {
+                        faces: render.face_count as usize,
+                        planes: render.plane_count as usize,
+                        cells: render.cell_count as usize,
+                        undetermined_cells: render.undetermined_cells as usize,
+                        edges: render.edge_count as usize,
+                        ring_bytes: render.ring_points.len() * 8,
+                        verdict: format!("{:?}", snapshot.verdict),
+                    },
+                );
+            }
+            Err(Fold3dSessionError::Refused(refusal)) => {
+                refusals.insert(name, format!("{refusal:?}"));
+            }
+            Err(error) => failures.push(format!("{name}: {error}")),
+        }
+    }
+
+    println!(
+        "{:<44} {:>6} {:>6} {:>6} {:>6} {:>7} {:>9}  verdict",
+        "model", "faces", "planes", "cells", "undet", "edges", "ring B"
+    );
+    for (name, row) in &rows {
+        println!(
+            "{:<44} {:>6} {:>6} {:>6} {:>6} {:>7} {:>9}  {}",
+            name,
+            row.faces,
+            row.planes,
+            row.cells,
+            row.undetermined_cells,
+            row.edges,
+            row.ring_bytes,
+            row.verdict
+        );
+    }
+    println!("placed {}, refused {}", rows.len(), refusals.len());
+    println!("widest face-ring payload: {widest} bytes");
+
+    assert!(
+        rows.len() >= 18,
+        "only {} models placed, so the coverage check below means nothing",
+        rows.len()
+    );
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    // The payload the frontend workflow sizes against. A regression that made
+    // the geometry nested rather than flat would not fail any assertion above,
+    // so the number is printed and only its order of magnitude is pinned.
+    assert!(
+        widest < 4 * 1024 * 1024,
+        "the widest face-ring payload grew to {widest} bytes"
     );
 }
 

@@ -152,30 +152,39 @@ pub fn census_placement(
 /// and nothing here can decide it.
 pub fn census(admission: &Admission) -> Result<Fold3dCensus, Fold3dRefusal> {
     let (index, census) = census_placement(&admission.placement, admission.diagnostics.tolerances);
-    match index.first_alarm() {
+    match tolerance_refusal(&index, admission.placement.span) {
+        Some(refusal) => Err(refusal),
         None => Ok(census),
-        Some(alarm) => {
-            let (faces, normal_radians, offset) = match alarm {
-                ToleranceAlarm::TopologySpansPlanes {
-                    faces,
-                    normal_radians,
-                    offset,
-                }
-                | ToleranceAlarm::ClusterNotTransitive {
-                    faces,
-                    normal_radians,
-                    offset,
-                    ..
-                } => (faces, normal_radians, offset),
-            };
-            Err(Fold3dRefusal::ToleranceWindowClosed {
-                faces,
-                normal_radians,
-                offset_relative: offset / admission.placement.span,
-                min_inter_separation: index.min_inter_separation_relative,
-            })
-        }
     }
+}
+
+/// The refusal a plane partition's alarms amount to, or `None` if it raised
+/// none.
+///
+/// Extracted so the engine boundary applies the *same* mapping without paying
+/// for a second `plane_index` — two callers deriving one refusal from one alarm
+/// set is exactly how the two would come to disagree about which faces to name.
+pub fn tolerance_refusal(index: &PlaneIndex, span: f64) -> Option<Fold3dRefusal> {
+    let alarm = index.first_alarm()?;
+    let (faces, normal_radians, offset) = match alarm {
+        ToleranceAlarm::TopologySpansPlanes {
+            faces,
+            normal_radians,
+            offset,
+        }
+        | ToleranceAlarm::ClusterNotTransitive {
+            faces,
+            normal_radians,
+            offset,
+            ..
+        } => (faces, normal_radians, offset),
+    };
+    Some(Fold3dRefusal::ToleranceWindowClosed {
+        faces,
+        normal_radians,
+        offset_relative: offset / span,
+        min_inter_separation: index.min_inter_separation_relative,
+    })
 }
 
 fn census_with_index(

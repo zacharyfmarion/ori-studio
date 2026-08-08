@@ -4,7 +4,7 @@
 //! no upstream implementation of any of this to be faithful to and nothing here
 //! is a divergence. See PORTING.md's Ori Studio native section.
 //!
-//! Five pieces, in the order they run:
+//! Eight pieces, in the order they run:
 //!
 //! - [`placement`] walks the shipped dual-graph spanning tree and composes one
 //!   rigid rotation per crease. Everything topological — the arrangement, the
@@ -23,6 +23,13 @@
 //!   the two implementations of the count cannot disagree about the primitive.
 //! - [`census`] counts the coplanar-overlap pairs — the ordering variables — and
 //!   detects where creases fold onto one line across a plane boundary.
+//! - [`cells`] cuts each plane into the arrangement cells the ordering search
+//!   consumes, and [`constraints`] and [`order`] decide which face is above
+//!   which, per constraint component.
+//! - [`model`] repacks the answer as view-independent geometry, [`snapshot`]
+//!   as scalars, and [`wire`] gives every enum a stable code.
+//! - [`session`] is the only place those are composed, and is what a handle
+//!   holds.
 //!
 //! # Residuals in, verdict once
 //!
@@ -42,20 +49,28 @@ pub mod admit;
 pub mod cells;
 pub mod census;
 pub mod constraints;
+pub mod model;
 pub mod order;
 pub mod overlap;
 pub mod placement;
 pub mod planes;
+pub mod session;
+pub mod snapshot;
+pub mod wire;
 
 pub use admit::{Admission, Fold3dDiagnostics, Fold3dOutcome, admit, admit_with};
 pub use cells::{Cell, CellError, CellIndex, cell_index};
 pub use census::{
     CoplanarPair, Fold3dCensus, FoldedLineGroup, FoldedLineIndex, census, census_placement,
-    folded_line_index,
+    folded_line_index, tolerance_refusal,
 };
 pub use constraints::{
     Coupling, Fold3dConstraints, Fold3dCrossing, Fold3dSeed, Interleaving, SeedKind,
     build_constraints, initial_hierarchy_3d, interleavings,
+};
+pub use model::{
+    FOLDED_3D_CELL_ATTR_STRIDE, FOLDED_3D_EDGE_ATTR_STRIDE, FOLDED_3D_FACE_ATTR_STRIDE,
+    FOLDED_3D_PLANE_FRAME_STRIDE, Folded3dRenderModel, RenderModelError,
 };
 pub use order::{
     Advance, Fold3dOrderEnumerator, Fold3dOrderError, Fold3dOrdering, OrderVariable,
@@ -63,6 +78,13 @@ pub use order::{
 };
 pub use placement::{LoopGap, Placement3d, Rigid, place_segments};
 pub use planes::{Plane3d, PlaneId, PlaneIndex, ToleranceAlarm, plane_index};
+pub use session::{Fold3dSession, Fold3dSessionError};
+pub use snapshot::{
+    Fold3dCensusSummary, Fold3dDiagnosticsSummary, Fold3dPlaneSummary, Fold3dSnapshot,
+};
+pub use wire::{
+    Fold3dCrossingWire, Fold3dOrderWire, Fold3dRefusalWire, Fold3dTolerancesWire, Fold3dVerdict,
+};
 
 use crate::checks::FlatFoldabilityRule;
 use crate::checks_spatial::Indeterminate;

@@ -59,7 +59,7 @@ use crate::folding::{
     WorkerOverlapEnumerator, WorkerOverlapSearchError, validate_initial_hierarchy,
 };
 use crate::folding3d::Fold3dTolerances;
-use crate::folding3d::cells::{CellError, cell_index};
+use crate::folding3d::cells::{CellError, CellIndex, cell_index};
 use crate::folding3d::census::{Fold3dCensus, census_placement, folded_line_index};
 use crate::folding3d::constraints::{
     Coupling, Fold3dCrossing, Fold3dSeed, SeedKind, build_constraints,
@@ -246,7 +246,24 @@ impl Fold3dOrderEnumerator {
         census: &Fold3dCensus,
         tolerances: Fold3dTolerances,
     ) -> Result<Self, Fold3dOrderError> {
-        let plan = plan(placement, index, census, tolerances)?;
+        let cells = cell_index(index, census, placement.span, tolerances)?;
+        Self::with_cells(placement, index, census, &cells, tolerances)
+    }
+
+    /// Same, over a cell decomposition the caller already has.
+    ///
+    /// The arrangement tracing is the expensive half of this phase and the
+    /// render model needs the same cells, so the engine boundary builds them
+    /// once and hands them to both. Two `cell_index` calls would also be two
+    /// chances to disagree about which faces share a cell.
+    pub fn with_cells(
+        placement: &Placement3d,
+        index: &PlaneIndex,
+        census: &Fold3dCensus,
+        cells: &CellIndex,
+        tolerances: Fold3dTolerances,
+    ) -> Result<Self, Fold3dOrderError> {
+        let plan = plan(placement, index, census, cells, tolerances)?;
         let mut components = Vec::with_capacity(plan.components.len());
         for (position, component) in plan.components.into_iter().enumerate() {
             components.push(ComponentSolver::new(position, component)?);
@@ -523,9 +540,9 @@ fn plan(
     placement: &Placement3d,
     index: &PlaneIndex,
     census: &Fold3dCensus,
+    cells: &CellIndex,
     tolerances: Fold3dTolerances,
 ) -> Result<Plan, Fold3dOrderError> {
-    let cells = cell_index(index, census, placement.span, tolerances)?;
     let lines = folded_line_index(placement, index, tolerances);
     let constraints = build_constraints(placement, index, &lines, tolerances);
 

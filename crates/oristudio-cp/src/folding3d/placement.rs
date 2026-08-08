@@ -320,6 +320,26 @@ impl Placement3d {
             .count()
     }
 
+    /// How many input segments the walk was given.
+    ///
+    /// The domain of every `line` index this type takes or returns.
+    pub fn segment_count(&self) -> usize {
+        self.fold_angle_degrees.len()
+    }
+
+    /// A segment's endpoints as **arrangement vertex indices**, into
+    /// [`Placement3d::points`].
+    ///
+    /// The key a consumer needs to match an input segment against a face's ring
+    /// edge, which is how the render model finds the fold angle for the edge it
+    /// is about to stroke. [`Placement3d::folded_line_ends`] answers the same
+    /// question in world coordinates; this one answers it in the arrangement's
+    /// own numbering, and neither is derivable from the other without a
+    /// tolerance.
+    pub fn line_vertex_ends(&self, line: usize) -> Option<(usize, usize)> {
+        self.line_ends.get(line).copied()
+    }
+
     /// Where a crease's two endpoints land, in world coordinates.
     ///
     /// `None` for a segment no traced face borders — it has no placed image at
