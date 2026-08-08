@@ -560,15 +560,26 @@ impl BpProjectSession {
         self.apply_layout_sheet_transform(grid.to_sheet(), flip_sheet(&grid, horizontal))
     }
 
+    /// Resize the layout sheet, and/or change its grid type.
+    ///
+    /// A dimension of `None` keeps whatever the session's own sheet has right
+    /// now. Box Pleating Studio has no combined setter — `RectangularGrid`
+    /// exposes independent `width` / `height` accessors and its sheet panel
+    /// binds one field to each — so a caller editing one dimension must be able
+    /// to say only that. Resolving the other dimension in the caller means
+    /// resolving it against a snapshot, and two edits issued back to back then
+    /// undo each other.
     pub fn update_layout_sheet(
         &mut self,
         grid_type: GridType,
-        width: f64,
-        height: f64,
+        width: Option<f64>,
+        height: Option<f64>,
     ) -> BpResult<UpdateModel> {
-        if !width.is_finite() || !height.is_finite() {
+        if width.is_some_and(|value| !value.is_finite())
+            || height.is_some_and(|value| !value.is_finite())
+        {
             return Err(BpError::InvalidInput(format!(
-                "BP layout sheet dimensions must be finite: {width} x {height}"
+                "BP layout sheet dimensions must be finite: {width:?} x {height:?}"
             )));
         }
 
@@ -580,11 +591,15 @@ impl BpProjectSession {
                 let BpGrid::Rectangular(mut grid) = current else {
                     unreachable!("grid type checked above")
                 };
-                if let Some(resize) = grid.set_width_checked(width, &anchors) {
+                if let Some(width) = width
+                    && let Some(resize) = grid.set_width_checked(width, &anchors)
+                {
                     shift = combine_shift(shift, resize.shift);
                 }
                 let shifted = shifted_points(&anchors, shift);
-                if let Some(resize) = grid.set_height_checked(height, &shifted) {
+                if let Some(height) = height
+                    && let Some(resize) = grid.set_height_checked(height, &shifted)
+                {
                     shift = combine_shift(shift, resize.shift);
                 }
                 BpGrid::Rectangular(grid)
@@ -593,7 +608,10 @@ impl BpProjectSession {
                 let BpGrid::Diagonal(mut grid) = current else {
                     unreachable!("grid type checked above")
                 };
-                if let Some(resize) = grid.set_size_checked(width, &anchors) {
+                // A diagonal sheet is square, so either field drives its size.
+                if let Some(size) = width.or(height)
+                    && let Some(resize) = grid.set_size_checked(size, &anchors)
+                {
                     shift = combine_shift(shift, resize.shift);
                 }
                 BpGrid::Diagonal(grid)

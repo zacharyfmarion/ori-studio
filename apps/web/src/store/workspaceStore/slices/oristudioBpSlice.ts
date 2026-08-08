@@ -1327,6 +1327,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       }), dirty: true });
     },
 
+    // `null` dimensions travel through to the engine, which fills them from its
+    // own sheet. Resolving them here would resolve them against a document read
+    // before this mutation's `.bps` export await, which a resize issued moments
+    // earlier may already have superseded.
     setOristudioBpLayoutSheet: async (gridType, width, height) =>
       runBpTreeMutation('Resized BP sheet', () =>
         updateRuntimeOristudioBpLayoutSheet(gridType, width, height, {

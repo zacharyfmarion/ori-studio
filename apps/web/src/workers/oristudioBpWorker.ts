@@ -227,11 +227,12 @@ const api = {
   async flipLayoutSheet(handle: number, horizontal: boolean): Promise<OristudioBpRawProject> {
     return call(() => bp_flip_layout_sheet(handle, horizontal) as OristudioBpRawProject);
   },
+  /** A `null` dimension keeps whatever the engine session's sheet has now. */
   async updateLayoutSheet(
     handle: number,
     gridType: 'rectangular' | 'diagonal',
-    width: number,
-    height: number
+    width: number | null,
+    height: number | null
   ): Promise<OristudioBpRawProject> {
     return call(
       () => bp_update_layout_sheet(handle, gridType, width, height) as OristudioBpRawProject
