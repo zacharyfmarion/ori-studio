@@ -43,6 +43,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { basename } from 'node:path';
 
 const USAGE =
   'usage: osf-fold-projection.mjs <input.osf|input.fold> ' +
@@ -99,7 +100,7 @@ const EDGE_ARRAYS = [
 const FACE_ARRAYS = ['faces_edges', 'faces_faces'];
 
 /** Keep one connected component, renumbering vertices, edges and faces. */
-function selectComponent(fold, index) {
+export function selectComponent(fold, index) {
   const vertices = fold.vertices_coords ?? [];
   const edges = fold.edges_vertices ?? [];
   const faces = fold.faces_vertices ?? [];
@@ -200,9 +201,11 @@ function main(argv) {
   );
 }
 
-try {
-  main(process.argv.slice(2));
-} catch (error) {
-  process.stderr.write(`${error.message}\n`);
-  process.exit(1);
+if (process.argv[1] && import.meta.url.endsWith(basename(process.argv[1]))) {
+  try {
+    main(process.argv.slice(2));
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exit(1);
+  }
 }
