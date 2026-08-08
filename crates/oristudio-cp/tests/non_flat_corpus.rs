@@ -32,6 +32,7 @@
 //! And a mis-set path must not read as a skip: a variable that points at
 //! nothing, or at a directory holding no measurable file, **fails**.
 
+use oristudio_cp::CLOSURE_RESIDUAL_BAR_DEGREES;
 use oristudio_cp::checks_spatial::dispatched_camv;
 use oristudio_cp::io::fold::import_fold_document;
 use std::path::{Path, PathBuf};
@@ -39,7 +40,6 @@ use treemaker_fold::FoldDocument;
 
 const CORPUS_ENV: &str = "ORISTUDIO_NON_FLAT_CORPUS_DIR";
 const REQUIRE_ENV: &str = "ORISTUDIO_NON_FLAT_CORPUS_REQUIRED";
-const CLOSURE_BAR_DEGREES: f64 = 1e-6;
 
 /// Every test in this file, with what it covers, so a skip can say what was
 /// lost rather than that something was.
@@ -276,7 +276,9 @@ fn corpus_scan_reports_every_model() {
         for report in &dispatched.spatial {
             let crossing = report.link.is_some_and(|link| link.self_intersects());
             match report.residual {
-                Some(residual) if residual.to_degrees() > CLOSURE_BAR_DEGREES => file_closure += 1,
+                Some(residual) if residual.to_degrees() > CLOSURE_RESIDUAL_BAR_DEGREES => {
+                    file_closure += 1
+                }
                 Some(_) => file_self_int += usize::from(crossing),
                 None => {}
             }
@@ -363,7 +365,7 @@ fn corpus_landmarks_are_where_the_harness_expects_them() {
             .filter(|report| {
                 report
                     .residual
-                    .is_some_and(|residual| residual.to_degrees() > CLOSURE_BAR_DEGREES)
+                    .is_some_and(|residual| residual.to_degrees() > CLOSURE_RESIDUAL_BAR_DEGREES)
             })
             .count();
         assert_eq!(failures, *closure, "{relative}: closure failures");

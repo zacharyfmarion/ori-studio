@@ -46,8 +46,6 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use treemaker_fold::FoldDocument;
 
-const CLOSURE_BAR_DEGREES: f64 = 1e-6;
-
 type V3 = [f64; 3];
 /// `x -> r * x + t`.
 #[derive(Clone, Copy, Debug)]
@@ -707,7 +705,7 @@ impl Row {
             && self.faces > 0
             && self.reached == self.faces
             && self.indeterminate == 0
-            && self.loop_gap_rotation.to_degrees() <= CLOSURE_BAR_DEGREES
+            && self.loop_gap_rotation.to_degrees() <= crate::CLOSURE_RESIDUAL_BAR_DEGREES
     }
 }
 
@@ -727,7 +725,7 @@ fn measure_model(name: &str, model: &CreasePatternModel) -> Row {
         let crossing = report.link.is_some_and(|link| link.self_intersects());
         match report.residual {
             None => indeterminate += 1,
-            Some(residual) if residual.to_degrees() <= CLOSURE_BAR_DEGREES => {
+            Some(residual) if residual.to_degrees() <= crate::CLOSURE_RESIDUAL_BAR_DEGREES => {
                 self_int += usize::from(crossing);
             }
             Some(_) => closure += 1,
@@ -1094,10 +1092,11 @@ fn spike_a_focus() {
         .filter_map(|report| report.residual)
         .fold(0.0_f64, f64::max);
     println!(
-        "camv: {} flat violations, {} spatial reports, worst closure residual {:.3e} deg (bar {CLOSURE_BAR_DEGREES:.0e})",
+        "camv: {} flat violations, {} spatial reports, worst closure residual {:.3e} deg (bar {bar:.0e})",
         dispatched.flat.len(),
         dispatched.spatial.len(),
-        worst_residual.to_degrees()
+        worst_residual.to_degrees(),
+        bar = crate::CLOSURE_RESIDUAL_BAR_DEGREES,
     );
 
     let mut cycles = vertex_cycles(&graph);

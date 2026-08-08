@@ -38,6 +38,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 
+use oristudio_cp::CLOSURE_RESIDUAL_BAR_DEGREES;
 use oristudio_cp::checks_spatial::{
     dispatched_camv, incident_lines_at, vertex_closure_residual, vertex_fan_at,
 };
@@ -52,9 +53,6 @@ use treemaker_fold::{Assignment, FoldDocument};
 /// Same convention as `ORIEDITA_FOLDED_CORPUS_DIR` / `TREEMAKER_CORPUS_DIR` /
 /// `FOLD_FRAME_CORPUS_DIR`; see `tests/corpus/README.md`.
 const CORPUS_ENV: &str = "ORISTUDIO_NON_FLAT_CORPUS_DIR";
-
-/// Mirrors the private bar in `lib.rs` (`CLOSURE_RESIDUAL_BAR_DEGREES`).
-const CLOSURE_BAR_DEGREES: f64 = 1e-6;
 
 // --- linear algebra ---------------------------------------------------------
 
@@ -1070,7 +1068,9 @@ fn measure(path: &Path, sign: f64) -> Result<Row, String> {
     for report in &dispatched.spatial {
         let crossing = report.link.is_some_and(|link| link.self_intersects());
         match report.residual {
-            Some(residual) if residual.to_degrees() > CLOSURE_BAR_DEGREES => closure_failures += 1,
+            Some(residual) if residual.to_degrees() > CLOSURE_RESIDUAL_BAR_DEGREES => {
+                closure_failures += 1
+            }
             // Spherical simplicity, which shipped after this harness was first
             // written: a link that crosses at a vertex whose closure passed is
             // a local self-intersection and the product reports it.
@@ -1102,7 +1102,7 @@ fn measure(path: &Path, sign: f64) -> Result<Row, String> {
         }
         let residual = vertex_closure_residual(&fan).to_degrees();
         worst_residual = worst_residual.max(residual);
-        if residual > CLOSURE_BAR_DEGREES {
+        if residual > CLOSURE_RESIDUAL_BAR_DEGREES {
             all_regime_failures += 1;
         }
     }

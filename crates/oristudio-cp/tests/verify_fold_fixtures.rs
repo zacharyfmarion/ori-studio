@@ -16,18 +16,16 @@
 //! against a file whose answer is recorded. The recorded answers are in that
 //! directory's README, and the table below is the same table.
 
+use oristudio_cp::CLOSURE_RESIDUAL_BAR_DEGREES;
 use oristudio_cp::checks_spatial::{dispatched_camv, spatial_vertex_reports};
 use oristudio_cp::io::fold::import_fold_document;
 use oristudio_cp::model::is_classic_crease;
 use std::path::{Path, PathBuf};
 use treemaker_fold::FoldDocument;
 
-/// The closure bar from `lib.rs`, duplicated because it is private there.
-///
-/// Asserting an order of magnitude of headroom matters: a fixture sitting just
-/// under the bar would be one rounding change away from reporting a closure
-/// failure instead of the thing it exists to demonstrate.
-const CLOSURE_BAR_DEGREES: f64 = 1e-6;
+// Fixtures are held to a tenth of `CLOSURE_RESIDUAL_BAR_DEGREES` rather than to
+// the bar itself: one sitting just under it would be a rounding change away from
+// reporting a closure failure instead of the thing it exists to demonstrate.
 
 fn fixture_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")
@@ -67,8 +65,8 @@ fn shipped_fold_fixtures_behave_as_documented() {
             .expect("fixture vertex must be determinate")
             .to_degrees();
         assert!(
-            residual < CLOSURE_BAR_DEGREES / 10.0,
-            "{name}: closes at {residual} degrees, too near the {CLOSURE_BAR_DEGREES} bar \
+            residual < CLOSURE_RESIDUAL_BAR_DEGREES / 10.0,
+            "{name}: closes at {residual} degrees, too near the {CLOSURE_RESIDUAL_BAR_DEGREES} bar \
              for a fixture — any drift would turn it into a closure failure"
         );
 
@@ -328,7 +326,7 @@ fn fold_angle_3d_fixtures_reach_their_recorded_verdicts() {
         for report in &dispatched.spatial {
             let crossing = report.link.is_some_and(|link| link.self_intersects());
             match report.residual {
-                Some(residual) if residual.to_degrees() > CLOSURE_BAR_DEGREES => {
+                Some(residual) if residual.to_degrees() > CLOSURE_RESIDUAL_BAR_DEGREES => {
                     closure_failures += 1;
                 }
                 Some(_) => self_intersections += usize::from(crossing),
