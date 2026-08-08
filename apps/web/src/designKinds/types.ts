@@ -115,6 +115,29 @@ export interface SendToEditRequest {
   editGridDivisions: number;
   /** The design's title, used for the merge label and filename. */
   title: string;
+  /**
+   * Also carry the design's packing circles into the Edit document.
+   *
+   * A kind with no packing — an ExplOri result is an archive lookup, so it has
+   * neither circles nor a scale to derive them from — ignores this rather than
+   * failing, and returns a payload with no {@link SendToEditPayload.circles}.
+   */
+  includeCircles?: boolean;
+}
+
+/**
+ * One packing circle, in the coordinate space of {@link SendToEditPayload.text}
+ * — the numbers as they would appear in the exported file.
+ *
+ * Deliberately *not* pre-transformed into the Edit document's space: a loader may
+ * move the geometry (the FOLD importer normalizes onto the ±200 box; `.cp` does
+ * not), and only the kernel knows which happened. The mapping is recovered there
+ * from {@link SendToEditPayload.circleSourceBounds}.
+ */
+export interface SendToEditCircle {
+  cx: number;
+  cy: number;
+  r: number;
 }
 
 /** Crease-pattern text ready to hand to `importAddOristudioCpText`. */
@@ -124,6 +147,18 @@ export interface SendToEditPayload {
   /** Undo label for the merge. */
   label: string;
   filename: string;
+  /**
+   * Packing circles to place alongside the creases. Absent unless
+   * {@link SendToEditRequest.includeCircles} was asked for, and absent for a kind
+   * that has no packing.
+   */
+  circles?: readonly SendToEditCircle[];
+  /**
+   * `[minX, minY, maxX, maxY]` of the geometry in {@link text}, which is what
+   * lets the kernel recover whatever transform the loader applied. Required
+   * whenever {@link circles} is non-empty.
+   */
+  circleSourceBounds?: readonly [number, number, number, number];
 }
 
 /**

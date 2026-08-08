@@ -27,6 +27,7 @@ import type { CpGeometryTransport } from './oristudioCpGeometry';
 import type { WasmErrorEnvelope } from './types';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 import type { OristudioCpWorkerApi } from '../workers/oristudioCpWorker';
+import type { SendToEditCircle } from '../designKinds/types';
 import type { FlatText } from '../cp-workspace/annotations/annotation';
 
 function normalizeError(error: unknown): WasmErrorEnvelope {
@@ -362,6 +363,25 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     },
     async setTexts(handle: number, texts: FlatText[]): Promise<void> {
       return setTextsNative(handle, texts);
+    },
+    async placeCircles(
+      handle: number,
+      sourceBounds: readonly [number, number, number, number],
+      circles: readonly SendToEditCircle[]
+    ): Promise<void> {
+      const coords = new Array<number>(circles.length * 2);
+      const radii = new Array<number>(circles.length);
+      for (let i = 0; i < circles.length; i += 1) {
+        coords[i * 2] = circles[i].cx;
+        coords[i * 2 + 1] = circles[i].cy;
+        radii[i] = circles[i].r;
+      }
+      return call('cp_place_circles', {
+        handle,
+        sourceBounds: [...sourceBounds],
+        coords,
+        radii,
+      });
     },
     async freeDocument(handle: number): Promise<void> {
       return call('cp_free_document', { handle });

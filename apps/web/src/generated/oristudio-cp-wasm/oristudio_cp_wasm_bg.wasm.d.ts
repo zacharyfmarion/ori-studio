@@ -32,6 +32,7 @@ export const load_fold_file: (a: number, b: number) => [number, number, number];
 export const load_orh: (a: number, b: number) => [number, number, number];
 export const load_ori: (a: number, b: number, c: number) => [number, number, number];
 export const load_share_link: (a: number, b: number) => [number, number, number];
+export const place_circles: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
 export const preview_cp_command: (a: number, b: any, c: any) => [number, number, number];
 export const replace_line_segments: (a: number, b: any, c: any) => [number, number, number];
 export const restore_document: (a: number, b: any) => [number, number];
