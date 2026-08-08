@@ -54,8 +54,8 @@ pub use census::{
     folded_line_index,
 };
 pub use constraints::{
-    Coupling, Fold3dConstraints, Fold3dCrossing, Fold3dSeed, SeedKind, build_constraints,
-    initial_hierarchy_3d, interleavings,
+    Coupling, Fold3dConstraints, Fold3dCrossing, Fold3dSeed, Interleaving, SeedKind,
+    build_constraints, initial_hierarchy_3d, interleavings,
 };
 pub use order::{
     Advance, Fold3dOrderEnumerator, Fold3dOrderError, Fold3dOrdering, OrderVariable,

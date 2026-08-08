@@ -192,6 +192,11 @@ pub struct Fold3dOrdering {
     pub crossings: Vec<Fold3dCrossing>,
     pub crossing_count: usize,
     pub variables: Vec<OrderVariable>,
+    /// Which component each variable belongs to, aligned with `variables` and
+    /// indexing `component_sizes` — so "the largest component" is answerable
+    /// without re-deriving the constraint graph, which is what the odometer's
+    /// first-press invariant has to be stated against.
+    pub component_of: Vec<usize>,
     /// Cross-plane couplings the constraints carried.
     pub couplings: usize,
     /// 1-based, and equal to `discovered_cases` on a forward step.
@@ -226,6 +231,7 @@ pub fn order_placement(
 pub struct Fold3dOrderEnumerator {
     components: Vec<ComponentSolver>,
     variables: Vec<OrderVariable>,
+    component_of: Vec<usize>,
     crossings: Vec<Fold3dCrossing>,
     crossing_count: usize,
     couplings: usize,
@@ -248,6 +254,7 @@ impl Fold3dOrderEnumerator {
         let mut out = Self {
             components,
             variables: plan.variables,
+            component_of: plan.component_of,
             crossings: plan.crossings,
             crossing_count: plan.crossing_count,
             couplings: plan.couplings,
@@ -259,6 +266,7 @@ impl Fold3dOrderEnumerator {
                 crossings: Vec::new(),
                 crossing_count: 0,
                 variables: Vec::new(),
+                component_of: Vec::new(),
                 couplings: 0,
                 current_case: 1,
                 discovered_cases: 1,
@@ -366,6 +374,7 @@ impl Fold3dOrderEnumerator {
             crossings: self.crossings.clone(),
             crossing_count: self.crossing_count,
             variables: self.variables.clone(),
+            component_of: self.component_of.clone(),
             couplings: self.couplings,
             current_case: self.discovered,
             discovered_cases: self.discovered,
@@ -503,6 +512,7 @@ struct ComponentInput {
 struct Plan {
     components: Vec<ComponentInput>,
     variables: Vec<OrderVariable>,
+    component_of: Vec<usize>,
     crossings: Vec<Fold3dCrossing>,
     crossing_count: usize,
     couplings: usize,
@@ -694,13 +704,17 @@ fn plan(
         )
     });
 
+    let mut position_of = vec![0usize; builders.len()];
     let mut components = Vec::with_capacity(order.len());
-    for (position, group) in order.into_iter().enumerate() {
+    for (position, group) in order.iter().copied().enumerate() {
+        position_of[group] = position;
         components.push(builders[group].localise(position)?);
     }
+    let component_of: Vec<usize> = label.iter().map(|&group| position_of[group]).collect();
     Ok(Plan {
         components,
         variables,
+        component_of,
         crossings: constraints.crossings.clone(),
         crossing_count: constraints.crossing_count,
         couplings: couplings.len(),

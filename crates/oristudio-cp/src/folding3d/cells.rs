@@ -18,8 +18,11 @@
 //! - Sound, because a maximal set is realised at a real point, so those faces
 //!   really do all coincide there.
 //! - Complete, because if `S ⊆ T` then a total order on `T` restricts to one on
-//!   `S` — a non-maximal covering set adds no constraint. (This is also what the
-//!   flat path's own `reduce_subface_set` is for.)
+//!   `S`.
+//!
+//! Dropping the non-maximal sets is therefore a **reduction and not a correctness
+//! requirement** — keeping them would be sound and merely wasteful, which is what
+//! the flat path's own `reduce_subface_set` is for too.
 //!
 //! Two disconnected regions with the same covering set are the same constraint,
 //! so connectivity of the regions is irrelevant. That is what lets this skip a
@@ -103,7 +106,13 @@ pub struct CellIndex {
     pub subfaces: Vec<SubFace>,
     /// Which plane each subface belongs to, aligned with `subfaces`.
     pub subface_plane: Vec<PlaneId>,
-    /// How many connected components the plane arrangements were traced in.
+    /// How many overlap groups the planes were cut into.
+    pub groups: usize,
+    /// How many connected components those groups were traced in.
+    ///
+    /// More components than groups means at least one group was **nested** — a
+    /// face lying strictly inside another with no boundary contact — which is the
+    /// case the second split exists for and the one the Euler gate closes on.
     pub components: usize,
     /// Cells dropped for sitting at or below the census's area bar.
     pub cells_below_bar: usize,
@@ -194,11 +203,13 @@ pub fn cell_index(
         cells: Vec::new(),
         subfaces: Vec::new(),
         subface_plane: Vec::new(),
+        groups: 0,
         components: 0,
         cells_below_bar: 0,
     };
 
     for (plane_id, group) in overlap_groups(census) {
+        out.groups += 1;
         let polygons: BTreeMap<usize, Polygon> = group
             .iter()
             .map(|&face| (face, Polygon::new(index.projected[face].clone())))
@@ -432,21 +443,47 @@ mod tests {
         assert_eq!(maximal(sets), vec![vec![4, 5]]);
     }
 
+    fn square(x: f64, y: f64, size: f64) -> Vec<LineSegment> {
+        let corners = [
+            Point::new(x, y),
+            Point::new(x + size, y),
+            Point::new(x + size, y + size),
+            Point::new(x, y + size),
+        ];
+        (0..4)
+            .map(|k| LineSegment::with_color(corners[k], corners[(k + 1) % 4], LineColor::Black0))
+            .collect()
+    }
+
+    /// A nested pair traced whole closes the Euler gate; traced per component it
+    /// does not.
+    ///
+    /// This is the failure the second split exists for, demonstrated rather than
+    /// described: `V - E + F = 1` counts a *connected* subdivision, and two
+    /// squares with no boundary contact are two. Measured, no corpus model needs
+    /// it — nesting without boundary contact does not occur in 55 of 55 — so this
+    /// is the only place the split is exercised, and saying so is better than
+    /// letting a reader assume the corpus covers it.
+    #[test]
+    fn a_nested_pair_only_traces_once_it_is_split() {
+        let mut both = square(0.0, 0.0, 100.0);
+        both.extend(square(20.0, 20.0, 10.0));
+        let both = prepare_subface_segments(&both);
+        assert!(
+            !FoldGraph::from_segments(&both, true).include_faces,
+            "the nested pair was expected to close the Euler gate"
+        );
+        let parts = connected_components(&both);
+        assert_eq!(parts.len(), 2);
+        for part in parts {
+            let graph = FoldGraph::from_segments(&part, true);
+            assert!(graph.include_faces);
+            assert_eq!(graph.faces.len(), 1);
+        }
+    }
+
     #[test]
     fn two_touching_squares_are_one_component_and_two_nested_are_two() {
-        let square = |x: f64, y: f64, size: f64| {
-            let corners = [
-                Point::new(x, y),
-                Point::new(x + size, y),
-                Point::new(x + size, y + size),
-                Point::new(x, y + size),
-            ];
-            (0..4)
-                .map(|k| {
-                    LineSegment::with_color(corners[k], corners[(k + 1) % 4], LineColor::Black0)
-                })
-                .collect::<Vec<_>>()
-        };
         let mut crossing = square(0.0, 0.0, 10.0);
         crossing.extend(square(5.0, 5.0, 10.0));
         let crossing = prepare_subface_segments(&crossing);

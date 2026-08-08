@@ -97,6 +97,7 @@ fn strip(angles: &[f64]) -> Vec<LineSegment> {
 #[derive(Debug)]
 struct Solved {
     relations: BTreeMap<(usize, usize), bool>,
+    reported: usize,
     variables: usize,
     components: Vec<usize>,
     undetermined: usize,
@@ -133,12 +134,27 @@ fn solve(segments: &[LineSegment]) -> Result<Solved, Fold3dOrderError> {
         &|a, b| relations.get(&(a, b)).copied(),
         Fold3dTolerances::DEFAULT,
     );
+    let crossing: Vec<_> = found.iter().filter(|entry| entry.is_crossing()).collect();
+    assert!(
+        crossing.is_empty(),
+        "the ordering was re-checked from the geometry and interleaves: {crossing:?}"
+    );
+    // Every committed fixture and every shape here is fully ordered at every
+    // folded line, so a chord pair the check could not rank would mean it was
+    // looking at less than it claims.
     assert!(
         found.is_empty(),
-        "the ordering was re-checked from the geometry and interleaves: {found:?}"
+        "the re-derivation could not rank {} chord pairs: {found:?}",
+        found.len()
+    );
+    assert_eq!(
+        ordering.component_of.len(),
+        ordering.variables.len(),
+        "every variable must name its component"
     );
     Ok(Solved {
         relations,
+        reported: ordering.relations.len(),
         variables: ordering.variables.len(),
         components: ordering.component_sizes.clone(),
         undetermined: ordering.undetermined.len(),
@@ -146,6 +162,26 @@ fn solve(segments: &[LineSegment]) -> Result<Solved, Fold3dOrderError> {
         crossings: ordering.crossing_count,
         has_next: ordering.has_next,
     })
+}
+
+/// Every reported relation is an ordering variable, and every variable is
+/// reported.
+///
+/// The cross-slot cut relations the coupled conditions are read in carry no layer
+/// meaning at all — they order faces in different planes, which never share paper
+/// — so a caller that drew them would be drawing an invented stacking. This is
+/// the assertion that they do not escape.
+fn only_variables_are_reported(solved: &Solved, label: &str) {
+    assert_eq!(
+        solved.undetermined, 0,
+        "{label}: {} ordering variables came back undecided",
+        solved.undetermined
+    );
+    assert_eq!(
+        solved.reported, solved.variables,
+        "{label}: {} relations reported for {} ordering variables",
+        solved.reported, solved.variables
+    );
 }
 
 fn above(solved: &Solved, upper: usize, lower: usize) -> Option<bool> {
@@ -218,6 +254,22 @@ fn the_cells_of_a_flat_document_are_the_flat_paths_subfaces() {
             !cells.subfaces.is_empty(),
             "{path} produced no stack at all, so the comparison above checked nothing"
         );
+        // The reduction to maximal sets is not a correctness requirement — a
+        // contained set adds no constraint — but a decomposition that stopped
+        // reducing would quietly grow the search's subface count with nothing
+        // saying so.
+        for (index, subface) in cells.subfaces.iter().enumerate() {
+            for (other, superset) in cells.subfaces.iter().enumerate() {
+                assert!(
+                    other == index
+                        || !subface
+                            .face_ids
+                            .iter()
+                            .all(|face| superset.face_ids.contains(face)),
+                    "{path}: subface {index} is contained in subface {other}"
+                );
+            }
+        }
     }
 }
 
@@ -269,7 +321,7 @@ fn a_flat_document_through_the_3d_path_gives_the_flat_answer() {
         let model = read_model(path);
         let solved = solve(&model.line_segments).expect("ordered");
         assert_eq!(solved.variables, variables, "{path}");
-        assert_eq!(solved.undetermined, 0, "{path}");
+        only_variables_are_reported(&solved, path);
         assert_eq!(solved.couplings, 0, "{path} has one plane to couple");
         assert_eq!(solved.crossings, 0, "{path}");
 
@@ -311,7 +363,7 @@ fn the_coupled_strip_is_solved_across_its_two_planes() {
         assert_eq!(solved.variables, 2, "{angles:?}");
         assert_eq!(solved.couplings, 1, "{angles:?}");
         assert_eq!(solved.components, vec![2], "{angles:?} did not couple");
-        assert_eq!(solved.undetermined, 0, "{angles:?}");
+        only_variables_are_reported(&solved, &format!("{angles:?}"));
 
         // The coupling leaves no second state: the shipped enumerator's own
         // "another solution" flag is optimistic — it says the permutation state
@@ -407,7 +459,7 @@ fn a_double_wrapped_tube_couples_four_ways_and_still_solves() {
     let solved = solve(&strip(&[90.0; 8])).expect("ordered");
     assert_eq!(solved.variables, 6);
     assert_eq!(solved.couplings, 4);
-    assert_eq!(solved.undetermined, 0);
+    only_variables_are_reported(&solved, "tube9");
     assert!(solved.has_next);
 }
 
@@ -420,7 +472,7 @@ fn an_accordion_is_decided_by_its_creases_alone() {
     let solved = solve(&strip(&[180.0, -180.0, 180.0])).expect("ordered");
     assert_eq!(solved.variables, 6);
     assert_eq!(solved.components, vec![6]);
-    assert_eq!(solved.undetermined, 0);
+    only_variables_are_reported(&solved, "accordion");
     assert!(!solved.has_next, "an accordion has one stacking");
     // Panel 0 is the outside of the roll, so everything is above it.
     for face in 1..4 {
@@ -494,11 +546,7 @@ fn the_committed_fixtures_order_completely() {
         assert_eq!(solved.components.len(), components, "{name} components");
         assert_eq!(solved.couplings, couplings, "{name} couplings");
         assert_eq!(solved.crossings, crossings, "{name} crossings");
-        assert_eq!(
-            solved.undetermined, 0,
-            "{name} left {} pairs undecided",
-            solved.undetermined
-        );
+        only_variables_are_reported(&solved, name);
         assert!(
             solved.components.windows(2).all(|pair| pair[0] >= pair[1]),
             "{name}: components are not ordered by size descending"
@@ -521,29 +569,36 @@ fn the_first_press_changes_the_largest_component() {
             .expect("ordered");
     let sizes = enumerator.current().component_sizes.clone();
     assert!(
-        sizes.len() > 1,
-        "the fixture has one component, so this test would pass on anything"
+        sizes.len() > 1 && sizes[0] > sizes[1],
+        "the fixture has no strictly largest component, so this would pass on anything"
     );
-    let largest: BTreeSet<usize> = enumerator
+    // The variables of component 0 only. Taking every variable in the model
+    // instead is the version of this test that passes when the odometer advances
+    // the *smallest* component, which is precisely the bug it exists for.
+    let largest: BTreeSet<(usize, usize)> = enumerator
         .current()
         .variables
         .iter()
-        .flat_map(|variable| [variable.faces.0, variable.faces.1])
+        .zip(&enumerator.current().component_of)
+        .filter(|&(_, &component)| component == 0)
+        .map(|(variable, _)| variable.faces)
         .collect();
+    assert_eq!(largest.len(), sizes[0]);
     let before = relation_map(&enumerator.current().relations);
     assert_eq!(enumerator.advance().expect("advance"), Advance::Next);
     let after = relation_map(&enumerator.current().relations);
-    let moved: Vec<(usize, usize)> = before
+    let moved: BTreeSet<(usize, usize)> = before
         .iter()
         .filter(|(pair, value)| after.get(pair) != Some(value))
-        .map(|(pair, _)| *pair)
+        .map(|((a, b), _)| (*a.min(b), *a.max(b)))
         .collect();
     assert!(!moved.is_empty(), "pressing again changed nothing");
     assert!(
-        moved
-            .iter()
-            .any(|(a, b)| largest.contains(a) && largest.contains(b)),
-        "the press moved no face of the largest component"
+        moved.iter().any(|pair| largest.contains(pair)),
+        "the press moved nothing in the largest component ({} variables); it changed \
+         {} pairs elsewhere",
+        sizes[0],
+        moved.len()
     );
 }
 
@@ -719,8 +774,8 @@ fn a_cycle_across_stacks_survives_the_search() {
             },
         ],
     };
-    let refused = possible_overlap_search_for_subfaces(&single, &[0usize], &inside, None)
-        .expect("search");
+    let refused =
+        possible_overlap_search_for_subfaces(&single, &[0usize], &inside, None).expect("search");
     assert!(
         !refused.found,
         "a cycle inside one stack must not be accepted"

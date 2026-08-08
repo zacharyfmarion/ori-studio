@@ -20,7 +20,8 @@ before this one. Nothing here restates it.
 
 ### Status — what has been measured since this plan was first written
 
-Phase 0 spikes **A, B and C have been run**; D and E have not. **Phase 1 is
+Phase 0 spikes **A, B, C and D have been run**; E has not, and A's plane-patch
+half was answered by Phase 9 rather than by a spike. **Phase 1 is
 built** — four live bugs in shipped code, the fold-event vocabulary, and the
 intercept dialog's strings; see its checklist for what each one turned out to be,
 including the one that changes what a `known-good/` model reports. **Phase 2 is
@@ -30,6 +31,14 @@ holds eight fixtures and one `.osf`, the external corpus is reachable through
 spectrum are reproducible by one command (see "Reproducing the measurements").
 Building it corrected two of this plan's own claims — the fixture write-out
 precision, and §2 step 6's reading of the separation spectrum — and closed R21.
+**Phase 4 is built**: plane clustering, the coplanar-overlap census, and the
+cross-plane coupling detector — which refuted the plan's own "detect coupling and
+refuse" v1 by measuring coupling on every admitted model above six faces.
+**Phase 9 is built**: cell decomposition, the constraint generator, and the
+per-component solver; it closed **R3**, **R6** and **R7**, answered Spike A's
+plane-patch half with grouping rather than cut injection, and corrected the
+plan's reading of Kabuto's `[81, 18, 18]`, which is not a component
+decomposition.
 **Phase 3 is built**: `crates/oristudio-cp/src/folding3d/`, kernel only, nothing
 user-facing. It closed **R20** and **R22** — the latter by finding that the
 comparison was wrong rather than the walk — and it corrected **R3b**, which had
@@ -195,7 +204,7 @@ load-bearing claim is a number or an enum `cargo test -p oristudio-cp` can
 assert.
 
 **Phases 2–9 all land on one branch before it merges.** **[rewritten — was
-2–8; Spike C moved Phase 9 in.]** No flag, no experimental label. The phases are
+2–8; Spike C moved Phase 9 in. Phase 9 is now built.]** No flag, no experimental label. The phases are
 work order, not release order. Removing any one produces an inconsistent state:
 without Phase 4's census the render invents a stacking three different ways;
 without **Phase 9** the render has no opaque part to show on any real model
@@ -692,21 +701,37 @@ definite answer and is wrong half the time, silently. Union-find on the resultin
 equalities does not restore decomposition; it renames the coupling.
 
 **The solving unit is the connected component of the constraint graph, and it can
-span every plane in the model.** Measured on Kabuto (18 faces, flat): 117
+span every plane in the model.** ~~Measured on Kabuto (18 faces, flat): 117
 ordering variables in components `[81, 18, 18]` — the largest is 69% — with
-transitivity at 420 of 529 constraints (79%).
+transitivity at 420 of 529 constraints (79%).~~ **[corrected — `[81, 18, 18]` is
+not a component decomposition, and reading it as one made the graph look friendlier
+than it is.]** `treemaker-flatfold`'s `variable_groups`
+(`constraints.rs:613-685`) pushes the **assigned** variables as group 0 and then
+the free groups; `solve_constraint_state` (`:167-174`) hard-codes group 0's
+solution set to the single assigned vector and skips it, which is why the
+solution counts read `[1, 3, 3]`. So Kabuto is 81 M/V-propagated variables plus
+two free groups of 18, not three components. Its raw constraint graph is **one
+component of 117**, and Phase 9 measured the same thing over the corpus: the raw
+graph is a single dominant component on most admitted models, and on the 1×4
+strip that motivates this whole section it is a single component of 2.
+Transitivity at 420 of 529 (79%) is unaffected and is why.
+
+Per-component solving stays, but the justification changes with it: the
+decomposition comes from the **determinations** — full folds, walls, the
+shared-slot rule — not from any structural property of the graph. Say it that
+way, or the next reader plans capacity against a decomposition that is not there.
 
 Two consequences the plan is built around:
 
 - The **census** (Phase 4) counts variables, which is sound, and is therefore a
   *lower bound on where ordering matters* — never a claim that the planes are
   independent.
-- The **solver** (Phase 9) must key on constraint-graph components. Coupling is
+- The **solver** (Phase 9) must key on constraint-graph components. ~~Coupling is
   also not expressible as an `EquivalenceCondition`: `apply_quadruple_condition`
   (`folding.rs:4660-4704`) reads above/below cells in one frame, but "above" for a
   face in plane P is relative to `up_P` and in Q to `up_Q`, and P and Q share only
   a line. The real condition is non-interleaving of four half-planes in cyclic
-  order around that line — a different constraint kind. ~~**v1 detects coupling
+  order around that line — a different constraint kind.~~ ~~**v1 detects coupling
   and refuses**, loudly, rather than answering definitely and being wrong.~~
   **[refuted in Phase 4 — refusing is not a scoped v1, it is declining the
   feature.]** Phase 4 built the detector (`folded_line_index`) and measured it:
@@ -718,6 +743,24 @@ Two consequences the plan is built around:
   has to carry the constraint rather than decline it. The classifier is not
   over-firing: it reads **0** on every flat fixture, which has one plane and so
   nothing to couple.
+  **[corrected in Phase 9 — "a different constraint kind" is half right, and the
+  wrong half is the one that costs.]** The *condition* is different and the
+  *vocabulary* is not. `check_quad` is not about planes at all: given four faces
+  with `a, c` known to be above `b, d`, its eight rules collapse to exactly
+  `[a above c] != [b above d]`, which is a signed relation between two order
+  variables and so is precisely the coupling. Two things make that usable, and
+  both are the plan's own hazards in a new costume. The "known to be above" has to
+  be supplied, because a cross-plane pair carries no layer meaning — so the slots
+  around the line are given a fixed order, a *cut* of their cyclic order, keyed to
+  the **planes** rather than to the angles, since a face can meet two collinear
+  folded lines from opposite sides and an angle-keyed cut then contradicts itself
+  (measured on `spikes_large`). And the sign has to be encoded in which of `b`,
+  `d` takes which role, because two planes meeting at a line can disagree about
+  which way their stacks wind. The four faces also get a merged `SubFace`, without
+  which the condition is invisible to the per-subface pruning and reaches the
+  search only at the final estimation — where the blame path resets the guilty
+  generator instead of advancing it and reports "no valid order" on a satisfiable
+  instance.
 
 **No acyclicity assertion, anywhere, and no topological sort (§5.4).** A cyclic
 panel order is legal: He & Guest name the classical square twist with
@@ -751,8 +794,22 @@ avoids it.]** What survives is the division of labour: the census answers
 *"where does ordering matter"* without any cell decomposition, and Phase 9 does
 the decomposition. What does not survive is the idea that stopping after the
 census ships something honest — measured, it ships a fully translucent picture.
-The consequence is that **R3 is escalated to merge-blocking**: Spike A's
-plane-patch half must settle before merge.
+~~The consequence is that **R3 is escalated to merge-blocking**: Spike A's
+plane-patch half must settle before merge.~~
+
+**[corrected in Phase 9 — the diagnosis is right and the prescription was not.]**
+Both failure modes are real and both reproduce, but neither needs a cut injected.
+The Euler gate is `V - E + F = 1`, which holds for a **connected** planar
+subdivision, and a per-*plane* split makes the arrangement disconnected far more
+often than it makes it big — so the gate closes on the split rather than on the
+geometry. Grouping instead by **connected overlap component** (and then by segment
+connectivity) restores `euler == 1` by construction, and an annular cell cannot
+arise inside a connected component at all, which is exactly the case
+`face_request` cannot trace. The remaining trap is a *pinch*: two regions of one
+component meeting at a single vertex, where the smallest-angle trace walks across
+into the neighbour and returns the outer boundary. Overlap grouping separates
+those too, because faces that merely touch do not overlap. Measured, every
+admitted corpus model decomposes.
 
 **The census is a direct polygon clip-and-area count on projected face polygons.**
 It needs overlap detection, not cell decomposition, so it never calls
@@ -954,6 +1011,17 @@ invariant — "pressing Another Solution changes at least one face in the larges
 component" — not as an ordering convention, because "order descending and advance
 the last digit" advances the *smallest*, which is precisely the bug. This ordering
 has no upstream analogue and belongs in `PORTING.md` under Ori Studio native.
+
+**[built in Phase 9, with two things the sketch did not say.]** The shipped
+enumerator's "another solution" flag is **optimistic** — it reports that the
+permutation state moved, not that a solution is there — so a digit that says yes
+and then finds nothing is exhausted rather than broken, and carries like any
+other. And the invariant needs a fixture with more than one component or it is
+vacuous: `penguin_freeform` has four and is what
+`the_first_press_changes_the_largest_component` runs on. Note also that
+`treemaker-flatfold` sorts its own groups **ascending** with the assigned set
+prepended, so this ordering is an inversion of the shipped one — that is the
+divergence PORTING.md should record.
 
 The contract the UI depends on is unchanged: a deterministic forward-only stream,
 restartable from the beginning, with a monotone discovered count. Nothing in it
@@ -1514,10 +1582,13 @@ accepted patches yielded exactly 1 subface.
 answerable first, on real files rather than 8–12 hand-built states: does the
 admission gate admit anything, and does "reports nothing" mean "would be
 admitted"? That is what `spike_fold3d.rs` measures, and the answer changed the
-plan — see "Spike A answer" above. **The plane-patch half is still open**, and it
-is now *more* load-bearing, not less: Spike C put Phase 9 in the merge set, so
-plane-patch arrangement admissibility must settle **before merge**, not before a
-follow-up.
+plan — see "Spike A answer" above. ~~**The plane-patch half is still open**~~
+**[answered in Phase 9, and the answer is (a).]** Connected-component grouping
+fixes it; artificial bridging cuts were not needed and neither was a new
+arrangement builder. The gate is Euler's and `V - E + F = 1` needs a *connected*
+subdivision, so grouping the plane's faces by the census's own overlap relation
+— and then by segment connectivity — opens it. Every admitted corpus model
+decomposes; the three that do not are refused by the admission gate first.
 
 **Forcing result on the plane-patch half:** if (c) is non-empty, Phase 9 is a new
 arrangement builder admitting non-simple cells, not a repair pass, and its
@@ -1567,7 +1638,7 @@ one of them is a *strip*, and a strip that does not wrap onto itself is exactly
 the family where "no full fold" and "census 0" happen to coincide. The 5-panel
 tube counterexample is the same family bent one panel further.
 
-### Spike D — cross-plane coupling frequency (**not run**)
+### Spike D — cross-plane coupling frequency (**run, in Phase 4**)
 
 On the same corpus, count folded-crease lines whose four incident faces are not
 all coplanar (§5.1's 1×4 strip is the canonical instance). Run it on the F0
@@ -1578,6 +1649,15 @@ refusal on the models users bring, not a scoped v1, and cross-component
 resolution moves from Phase 11 into the merge set. **This now bears on the merge
 set directly**, not on a follow-up, because Spike C moved Phase 9 in — so it must
 be known before Phase 9 is designed, and Phase 9 is merge-blocking.
+
+**Run. It fired.** `folded_line_index` is the detector and it reads non-zero on
+**every** admitted corpus model above six faces (15 of 15) and on four of the
+five committed 3D fixtures, `box_90` included. So there is no refusal and Phase 9
+carries the constraint — see §3 for how, which is the part the spike's framing
+got wrong: the *condition* has no flat analogue, but the *vocabulary* does, and
+`check_quad` says exactly `[a above c] != [b above d]` once the four faces have a
+cut to be read in. The classifier is not over-firing: it reads 0 on every flat
+fixture, which has one plane and nothing to couple.
 
 ### Spike E — projection ownership and item count (**not run**)
 
@@ -1607,11 +1687,21 @@ Phase 0 and none of A, B or C touched it. It is unchanged; see Open decisions.
   `place_faces` / `place_segments`, `Placement3d`, `FaceJoin`, `LoopGap`
 - `crates/oristudio-cp/src/folding3d/admit.rs` — **built.** Flat snap, CAMV,
   `Admission`, `Fold3dOutcome`, `Fold3dDiagnostics`, the separation spectrum
-- `crates/oristudio-cp/src/folding3d/planes.rs` — clustering, footprint patches
-- `crates/oristudio-cp/src/folding3d/census.rs` — coplanar-overlap census
+- `crates/oristudio-cp/src/folding3d/planes.rs` — **built.** Clustering,
+  footprint patches, the plane frame and the one place a stack's `up` is chosen
+- `crates/oristudio-cp/src/folding3d/overlap.rs` — **built.** The exact polygon
+  clip, graduated from the census harness so the two implementations of the count
+  cannot disagree about the primitive
+- `crates/oristudio-cp/src/folding3d/census.rs` — **built.** Coplanar-overlap
+  census and `folded_line_index`
+- `crates/oristudio-cp/src/folding3d/cells.rs` — **built.** Per-plane arrangement
+  into the maximal covering sets the ordering search consumes
+- `crates/oristudio-cp/src/folding3d/constraints.rs` — **built.** The slot-circle
+  model: seeds, conditions, couplings, crossings, and the backward re-derivation
+- `crates/oristudio-cp/src/folding3d/order.rs` — **built.** Constraint components,
+  local renumbering, the per-component search and the odometer
 - `crates/oristudio-cp/src/folding3d/model.rs` — `Folded3dRenderModel`
-- `crates/oristudio-cp/src/folding3d/instance.rs`, `constraints.rs`,
-  `session.rs` — **Phase 9/10 only**
+- `crates/oristudio-cp/src/folding3d/session.rs` — **Phase 5/10 only**
 
 **Rust kernel — modified**
 - `crates/oristudio-cp/src/lib.rs` — `pub mod folding3d;` (**done**);
@@ -1630,9 +1720,12 @@ Phase 0 and none of A, B or C touched it. It is unchanged; see Open decisions.
 - `crates/oristudio-cp/src/model/mod.rs` — slice-taking
   `has_non_classic_segments` beside `has_non_classic_creases` (`:551`) — Phase 5,
   not Phase 3: it is the routing predicate and belongs with the dispatch
-- `crates/oristudio-cp/src/folding.rs` — `pub(crate)` on `configure_subfaces`
-  (`:4204`) and `folded_face_polygons` (`:4235`); checked
-  `hierarchy_table_from_initial_checked` beside `:4316` (Phase 9)
+- `crates/oristudio-cp/src/folding.rs` — **done (Phase 9)**, and smaller than
+  proposed: `validate_initial_hierarchy` beside `HierarchyTable::from_initial`,
+  additive and `pub`. The `pub(crate)` visibility changes to `configure_subfaces`
+  and `folded_face_polygons` were **not** needed — `folding3d` builds its own
+  arrangement from projected rings rather than borrowing the flat path's, which
+  is what let it group by overlap component and open the Euler gate
 - `crates/oristudio-cp-wasm/src/lib.rs` — one new entry point, **plus the
   committed `.wasm` rebuild**
 
@@ -2702,51 +2795,160 @@ nothing in the corpus is within an order of magnitude of that.
 
 ### Phase 9 — Per-component layer ordering (**merge set** — Spike C said so)
 
-> Because this phase is now merge-blocking, **Spike A's plane-patch half and
-> Spike D both have to settle before it is designed**, not before a follow-up.
-> Spike A decides whether cell-decomposition repair is a repair pass or a new
-> arrangement builder; Spike D decides whether "detect cross-plane coupling and
-> refuse" is a scoped v1 or a permanent refusal on ordinary models. Neither has
-> been run.
+**Done.** `folding3d/cells.rs`, `folding3d/constraints.rs`, `folding3d/order.rs`,
+`folding::validate_initial_hierarchy`, `tests/folding3d_order.rs`, and
+`corpus_ordering_reports_every_model` in `tests/non_flat_corpus.rs`. Both open
+spikes are answered below, and five items changed shape on contact and say so.
 
-- [ ] `initial_hierarchy_3d`: seed per in-plane 180° crease exactly as
-      `folding.rs:4130-4146` does, substituting **one boolean** —
-      `dot(face_normal, up_patch) > 0` for `first_position % 2 == 1` — and
-      deleting the `SameParityAdjacentFaces` abort (§3b, §5.7)
-- [ ] Free regression test: `initial_hierarchy_3d` is **bit-identical** to
-      `initial_hierarchy_from_graph` on every tracked flat fixture (on one plane
-      with `up = +z` the two agree by construction), **with a non-vacuity
-      assertion**. Leave the flat function reachable —
-      `equivalence_condition_candidates_from_parts` also builds an
-      `InitialHierarchy`
-- [ ] Cell-decomposition repair scoped by Spike A: detect components, detect
-      nesting, inject cuts (two per nesting), and keep faces from **different**
-      components in the **same** ordering instance
-- [ ] `LocalFaceMap` plus a hard `FaceIdOutOfRange` check before **every**
-      `possible_overlap_search_for_subfaces` call, **with a test that the check
-      fires** — an out-of-range id returns `found = true` with an empty ordering
-      and no error. Local renumbering is also required for performance:
-      `set_guide_map` (`permutation.rs:810`) allocates `faces_total²` bytes per
-      subface (`folding.rs:4443`)
-- [ ] Shipped taco-tortilla / same-plane taco-taco generators reused verbatim on
-      projected coordinates, roles preserved through `normalized_pair`
-      (`folding.rs:4390`)
-- [ ] Wall rule on the crease **segment**'s interior, not its supporting line
-      (the line reading is unsound *and* incomplete, and on a non-convex face
-      yields `upper == lower`, which `infer_above` rejects and `from_initial`
-      silently discards). Direction: rise toward `+up_P` orders the crossed face
-      **below** — confirmed 36/36 across deflections 1–175° and six decades of
-      epsilon, both sides. The antecedent is read off the **placed geometry**,
-      never off M/V: one upstream 180° flip reverses the rise with the bit
-      unchanged
-- [ ] `hierarchy_table_from_initial_checked` propagating `infer_above`'s error
-      (`folding.rs:4446` discards it, so two opposed wall seeds make the first win)
-- [ ] `StackTooDeep` as its own verdict — `SubFacePermutationSearch` hard-errors
-      above 2000 permutations (`permutation.rs:779`) rather than degrading
-- [ ] No acyclicity assertion; `pinwheel_cyclic.fold` accepted with its cyclic
-      order intact
-- [ ] Kabuto through the 3D path as an all-180 document reports 117 variables,
-      components `[81, 18, 18]`, and 9 states
+> **Spike A's plane-patch half — answered, and the repair is one line of
+> grouping.** The gate the brief was scoped around is Euler's, and
+> `V - E + F = 1` holds for a **connected** planar subdivision. A plane's
+> projected faces are frequently disconnected (two stacks in one plane, or a
+> tongue nested strictly inside a face with no boundary contact), and they are
+> frequently merely *touching* (a zigzag strip of triangles meeting at single
+> vertices, where `r_point`'s smallest-angle rule walks across the pinch into the
+> neighbouring region and returns the outer boundary instead of two cells). So
+> the arrangement is built per **connected overlap group** — faces grouped by the
+> census's own overlap relation, then split again by segment connectivity — and
+> the gate opens. Measured: every admitted corpus model decomposes; the three
+> that do not (`polygami`, `polygamiCross`, `langWedgeDoubleFaced`) are refused
+> by the admission gate first. Neither cut injection nor a new arrangement
+> builder was needed, so the estimate did not double.
+>
+> **Spike D — answered by Phase 4, and it fired.** Coupling is on every admitted
+> model above six faces, so it is carried rather than refused. See §3.
+
+- [x] `initial_hierarchy_3d`: seeds one relation per in-plane full fold exactly as
+      `initial_hierarchy_from_graph` does, substituting **one boolean** —
+      `dot(face_normal, up_P) > 0` for `first_position % 2 == 1` — and deleting the
+      `SameParityAdjacentFaces` abort with the parity seed it belongs to
+- [x] Free regression test, and it holds **bit-identically** on all four flat
+      fixtures rather than up to a global inversion:
+      `the_3d_seeder_reproduces_the_flat_seeder_on_a_flat_document`, with a
+      non-vacuity assertion on the seed count. The flat function stays reachable
+- [x] **[rewritten — the unit is the covering set, and the repair Spike A
+      expected was not the one it needed.]** The line above asked for nesting
+      detection and two injected cuts per nesting. What the solver actually needs
+      is not a partition of the plane at all: a `SubFace` is a face-id set, so the
+      output is the **maximal sets of faces covering a common point**, and two
+      disconnected regions with the same covering set are the same constraint.
+      That is what lets the decomposition skip a true arrangement overlay, and it
+      is what makes the per-component grouping above sufficient — a face outside a
+      component cannot cross its cells, so it either misses them, contains them, or
+      nests inside them, and the nested case is its own component's business.
+      Pairwise overlap is **not** enough and the difference is the pinwheel: three
+      thin bars overlap pairwise with no common point, and a cyclic order over them
+      is legal
+- [x] Two postconditions against the census, in both directions, because the
+      argument above is an argument: every ordering variable must have a subface,
+      and every subface pair must be an ordering variable. A group whose Euler
+      gate closes refuses outright rather than under-constraining — a lost *cell*
+      is a lost subface, and a lost **triple** leaves all three of its pairs housed
+      elsewhere while dropping the transitivity that forbids a cycle over them, so
+      the pairwise check cannot see it
+- [x] `LocalFaceMap` plus a hard `FaceIdOutOfRange` check before every search call,
+      with `the_face_id_range_check_fires` breaking the guard and
+      `an_out_of_range_face_id_makes_the_shipped_search_lie` demonstrating the
+      hazard it guards
+- [x] Shipped taco-tortilla and taco-taco generators reused on the projected
+      coordinates, roles normalised against the seeds rather than by
+      `normalized_pair`'s linear scan of the relation vector — which removes that
+      function's own first-in-vector dependence
+- [x] Wall rule on the crease **segment**'s interior. The direction is read off the
+      placed geometry: the wall blocks the side it rises toward, so
+      `dot(w, up_P) > 0` puts the crossed face **below** the crease's in-plane
+      face. **[extended — the wall rule is one row of a table, not a special
+      case.]** In the cross-section perpendicular to a folded line, every face is a
+      ray, coplanar faces on one side share a slot, a face the line crosses is a
+      diameter, and every crease is a chord; paper self-intersects exactly when two
+      chords interleave. Taco-taco, taco-tortilla, the wall rule, the shared-slot
+      determination and the cross-plane coupling are that one statement at five
+      levels of freedom, and stating it that way is what produced the two cases the
+      original list had no row for: two creases leaving one slot for two different
+      slots (unary), and four slots all distinct (settled by geometry, so an
+      interleaving there is a crossing no order repairs)
+- [x] `validate_initial_hierarchy` propagating `infer_above`'s error, called before
+      any table is built and so before role assignment can inherit the tie-break.
+      **[extended]** The refusal names both rules and both creases, because a bare
+      face pair is not actionable — and it is not an internal error but the
+      **determinate form of "no valid layer order"**: two geometric rules that
+      disagree mean no stacking exists, which is the third arm of the three-way
+      verdict
+- [x] `StackTooDeep` as its own arm, mapped from
+      `SubFaceSearchError::CombinationGeneratorRequired`. Reached by nothing in the
+      corpus
+- [x] No acyclicity assertion and no sort. **[corrected — the fixture this line
+      names does not exist, and building a crease pattern whose folded state is
+      cyclic is a research problem rather than a fixture.]** The claim the design
+      depends on is about the *reuse*, and it is tested directly:
+      `a_cycle_across_stacks_survives_the_search` seeds `a > b > c > d > a` over
+      four two-face subfaces and gets it back intact, while the same cycle inside
+      **one** subface is refused. That is the real invariant — per arrangement
+      cell, not globally
+- [x] Kabuto through the 3D path reports 117 variables. **[corrected — `[81, 18,
+      18]` is not a component decomposition; see §3.]** Its raw constraint graph is
+      one component of 117, and the check that earns its keep is stronger than a
+      count: the 3D path reproduces the flat path's own subfaces, its own seed
+      relations and its own answer, relation for relation
+- [x] A backward re-derivation, because the forward generator turns on two signs
+      that are easy to get backwards. `constraints::interleavings` takes a finished
+      ordering and asks the crossing question again from the placed normals and the
+      relations alone, sharing neither the winding sign nor the condition roles. It
+      runs on every shape in the suite and on every corpus model that produces an
+      ordering, and it is empty on all of them
+- [x] `cargo test -p oristudio-cp`, plus the corpus run behind
+      `ORISTUDIO_NON_FLAT_CORPUS_DIR`
+
+#### What Phase 9 measured
+
+Every number here comes from a committed command:
+`corpus_ordering_reports_every_model` in `tests/non_flat_corpus.rs`, and the
+fixture table in `tests/folding3d_order.rs`.
+
+| | |
+| --- | --- |
+| admitted corpus models | 18 |
+| of which reach a layer order | **17** |
+| of those, with an undetermined pair | **0** |
+| with an ordering to actually do | 14 |
+| of those, a single constraint component | 8 |
+| chord pairs the backward re-derivation called crossing | **0**, on every model |
+
+The one admitted model with no layer order is `airplane.fold`, and it is a
+**determinate** one: its own creases and its own walls disagree about a pair, so
+no stacking exists. Suppressing the shared-slot rule entirely does not rescue it —
+the search still finds nothing — so this is the three-way verdict's third arm
+rather than a rule misfiring, on the same file whose 6-decimal coordinate rounding
+already eats both of the census's tolerance bands.
+
+`birdBase.fold` is admitted, orders completely, and reports **64 crossings**:
+one folded line runs through the interior of eight faces in each of two planes,
+which is two sheets meeting along a line at an angle. That is a fact about the
+file rather than about the ordering, and it is why the verdict and the ordering
+are separate outputs.
+
+Two shapes are worth keeping in view because they are the ones a reader can check
+on paper. A five-panel paper tube has **one** ordering variable and **two** real
+answers — the glue flap inside or outside — and is where the cycling verb is
+pressed past its wrap into a second lap, which no existing test does. And a strip
+folded in half and then bent has **no** valid layer order for half of the four
+M/V combinations: the lower panel's neighbour rising through the slab between the
+layers is not something a stacking repairs, and the sign of the middle fold picks
+which half is legal.
+
+Two things the suite does **not** cover, said plainly. The second split inside an
+overlap group — segment connectivity, which exists for a face nested strictly
+inside another with no boundary contact — fires on **0 of 55** corpus models, so
+it is pinned only by `a_nested_pair_only_traces_once_it_is_split`, a unit test on
+the mechanism rather than on a model. And the backward re-derivation cannot rank a
+chord pair whose faces share a slot but overlap by less than the census bar; that
+happens on exactly one corpus model (`base.osf`, which the gate refuses) and is
+reported as `Interleaving::Unordered` rather than silently skipped or miscalled a
+crossing.
+
+Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables,
+64 couplings) orders in ~8 ms and the largest admitted corpus model
+(`origamisimulator`, 2,637 faces, 12,736 variables) in ~0.7 s, both release.
 
 ### Merge-set validation (Phases 2–9)
 - [ ] `cargo fmt --check`; `cargo clippy --workspace --all-targets -- -D warnings`
@@ -2831,16 +3033,16 @@ nothing in the corpus is within an order of magnitude of that.
 | R1a | ~~**Admissible test material does not exist.**~~ | **RETIRED** | Measured (F0). 11 owner-authored multi-face 3D-angled models exist, 8 admitted; `known-good/` is 10 of 10 clean and 8 of 10 admitted; 7 of 36 published third-party are admitted. All external to git, all regenerable or ownable. Phase 2 is rewritten around them |
 | R1b | **The *users* do not exist.** No telemetry says whether anyone presses `G` on a non-classic selection. The 11 models above were all authored by one person — that validates the transcription workflow and bounds nothing about its population | High / high, **instrumented** | Phase 1 is built and shipped the events. `fold attempted { mode }` is the one that answers it, and it is decided from the selection before any dialog, so a user who cancels the intercept still counts. Nothing else about the risk has changed: the number does not exist until the data accumulates |
 | R2 | **The census is non-zero on essentially every realistic model**, so the merge set ships a figure that is honest and almost always undetermined | **Confirmed / high** | Spike C measured it: median 81.5 over 18 admitted models, and the *undetermined fraction* is 1.00 on 12 of 14 non-zero models, so nothing stays opaque. The four census-0 models have 2, 5, 6 and 6 faces. Retired as a risk and taken as a premise — Phase 9 is in the merge set. Plan on `census ≥ (creases at ±180)` and **never** on its converse |
-| R3 | **The plane-patch arrangement pipeline does not run unchanged** — measured, 4 of 6 multi-face patches rejected by the Euler gate, and `face_request` cannot trace an annular cell | **Confirmed / high, and now merge-blocking** | The census still avoids `calculate_faces` entirely, but Phase 9 does not and Phase 9 is in the merge set, so Spike A's plane-patch half must settle **before merge**. Escalated from Medium — it used to bound only a follow-up |
+| R3 | ~~**The plane-patch arrangement pipeline does not run unchanged**~~ | **CLOSED (Phase 9) — and the repair was grouping, not cutting** | Both halves of the diagnosis reproduce and neither needed the fix the plan expected. `V - E + F = 1` holds for a **connected** subdivision, so the Euler gate closes on a plane whose faces are disconnected or merely touching at a vertex — and arranging per **connected overlap group** rather than per plane opens it. `face_request` never meets an annular cell after that split, because an annulus needs a disconnected component. Nesting detection and two injected cuts per nesting were not needed. Measured: every admitted corpus model decomposes, and the three that do not are refused by the admission gate first |
 | R3b | **The Euler gate refuses the whole crease pattern, before any per-patch question** — 18 of 36 published models, 0 of 11 owner-authored | **Confirmed / high, but it is not the verdict anyone meets** | The 18 reproduce. **`Refused(FacesUnresolved)` is reached by nothing**, measured through the shipped gate over all 65 corpus files (Phase 3): §2's order runs `dispatched_camv` first, and every one of those models refuses at a vertex check instead. The most common refusal is `FlatFoldability` (21 of 65), then `VertexClosure` (8) and `InteriorCut` (7). **Rank the Phase 7 copy budget by those**, all three of which name a point on the canvas. The owner-authored zero is still a real signal the third-party stress set hides |
 | R4 | ~~Placement handedness disagrees with the admission gate~~ | **RETIRED** | Spike B: agreement with `vertex_link_polygon` at 2.8e-17..5.0e-16 across four fans of degree 3–6, against 1.5e-2..1.9 for each of three fault modes, plus end-to-end agreement on a 484-face ground-truth folded form. Superseded by R20, which is the same concern one layer down |
 | R5 | Plane clustering silently merges two genuinely distinct planes (coplanarity under a tolerance is not transitive), poisoning every downstream claim | Medium / high | Topological classification first; verification pass over every intra-cluster pair; refuse rather than merge; **topology-vs-distance disagreement is a first-class alarm** |
-| R6 | Cross-plane coupling is common, making "detect and refuse" a permanent refusal on ordinary models | Medium / high, **now merge-relevant** | Spike D measures frequency, on the F0 corpus rather than synthetics, and must run before Phase 9 is designed. Refusing beats answering definitely and being wrong half the time silently (§4.2) |
-| R7 | An out-of-range face id makes the ordering search report success with an empty ordering, no error | High / high | Hard `FaceIdOutOfRange` check before every call **plus a test that the check fires**. Local renumbering is required for performance anyway |
+| R6 | ~~Cross-plane coupling is common, making "detect and refuse" a permanent refusal on ordinary models~~ | **CLOSED (Phases 4 and 9) — it is common, and it is carried** | Phase 4 measured it: every admitted corpus model above six faces has a cross-plane coupled folded line, 15 of 15, and so do four of the five committed 3D fixtures. So there is no refusal. Phase 9 carries the constraint in the shipped vocabulary — `check_quad` with a plane-keyed cut, the sign encoded in the roles, and a merged subface so the search enumerates it rather than reaching it only at the final estimation. 64 couplings on `spikes_large`, 1,568 on `origamisimulator`, all solved |
+| R7 | ~~An out-of-range face id makes the ordering search report success with an empty ordering, no error~~ | **CLOSED (Phase 9)** | Reproduced first — `an_out_of_range_face_id_makes_the_shipped_search_lie` shows the search returning `found = true` with the face absent from every stack — then guarded, with `the_face_id_range_check_fires` breaking the guard. Every component is renumbered into a dense local range, which the `set_guide_map` allocation needed anyway |
 | R8 | The kernel change does not reach the app because the committed `.wasm` was not rebuilt — and **no workflow verifies it** | High / high | Explicit checklist item with the correct command, `git add -f`, and a `strings` verification. It has bitten before (R4 in non-180) |
 | R9 | New oracle "green" is vacuous — 41 Oriedita parity tests skip silently without `ORIEDITA_GEOMETRY_ORACLE`, which no workflow sets | High / high | **Answered for the 3D corpus in Phase 2, in four parts, because printing a skip notice is what the Oriedita harness already does.** The load-bearing assertions are on committed fixtures and need no environment; every skip prints a greppable `SKIPPED:` block naming the test, the variable and what was not checked; `corpus_coverage_is_stated` always runs and prints the whole roster of what did not; and `ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1` turns every skip into a failure, whose output libtest never captures. A variable pointing at a missing or empty directory fails rather than skipping. For the Oriedita oracles themselves the mitigation is unchanged: both env vars named in the validation checklist, with reported counts |
 | R10 | The verdict surface reads as "3D isn't implemented" rather than "this pattern cannot be folded that way" | Medium / high | Verdict copy is a merge blocker with a **new** exhaustiveness gate — the flat one covers only `FOLDABILITY_RULES` and cannot be inherited. `LocalCrossing`/`TransversalCrossing`/`Refused` keep the figure and are not error toasts; see Open decisions on the simulator hatch |
-| R11 | An undetermined stack is rendered as if it were determined | High / high | The census is the gate, it is a merge blocker, and Phase 9 now resolves rather than reports. Faces Phase 9 cannot decide render distinctly. `bsp.ts:253`/`:277` are pinned by regression test |
+| R11 | An undetermined stack is rendered as if it were determined | High / high, **and the undetermined case is measured to be rare** | The census is the gate, it is a merge blocker, and Phase 9 now resolves rather than reports. Measured: every admitted model that reaches an ordering reaches it with **zero** undetermined pairs, so the translucent annotation is a genuine edge case rather than the default. Faces Phase 9 cannot decide still render distinctly. `bsp.ts:253`/`:277` are pinned by regression test |
 | R12 | Row (b) regresses: an all-classic selection inside a mixed document takes the 3D path | Medium / high | Per-segment `is_classic_crease` on scoped ids only; `has_non_classic_creases` is explicitly forbidden as the router; six-row truth table pinned in `store.test.ts` |
 | R13 | A figure folded flat, then given angles, then refolded reaches the flat kernel | High / high | All three doors dispatch identically, in one change |
 | R14 | Orbit misses its frame budget | Deferred | Not in the merge set. `buildBsp` is 93.5% of the frame and eye-independent at `edgeInk = 0`, so it hoists; piece-count guard regardless |

@@ -887,7 +887,8 @@ it, and layer ordering is not optional.
 
 ### 8.7 §4.2's Kabuto number is now confirmed by a second implementation
 
-117 ordering variables, components `[81, 18, 18]`. An independent coplanar-overlap
+117 ordering variables. (`[81, 18, 18]` is *not* a component decomposition —
+see §8.10.) An independent coplanar-overlap
 census over 3D-placed faces counts **117 overlapping pairs** on the same file, and
 the same comparison gives 15/15 on `treemaker-triad-base` and 3/3 on
 `accordion-book-fold` (both under `tests/fixtures/folding-sequence/fold/`). Two
@@ -898,9 +899,10 @@ diagnosed.
 
 ### 8.8 §7 items that are now closed, and one that is not
 
-- **"Constraint-component sizes on a genuinely 3D model"** — the corpus supplies
-  the material and the census supplies per-model pair counts, but the
-  *component* decomposition on a 3D model has still not been run. Partly open.
+- **"Constraint-component sizes on a genuinely 3D model"** — **closed.** The
+  decomposition has been run over the corpus, and it is the opposite of
+  reassuring: the raw constraint graph is a single dominant component on most
+  admitted models. See §8.10.
 - **"Whether an annulus is reachable in the UI"** — closed; see §8.3.
 - **"The tolerance window on real models"** — closed for the lower bound; see
   §8.4.
@@ -925,3 +927,50 @@ tolerance from it.
 The SVG-derived `origami-simulator-corpus/fold/MoosersTrainRigid-Gardner.fold` is
 **not** the corresponding crease pattern: it is a different discretisation with 68
 extra subdivision vertices and no faces.
+
+### 8.10 §4.2's `[81, 18, 18]` is not a component decomposition
+
+The number reproduces and the reading of it was wrong, in the reassuring
+direction. `treemaker-flatfold`'s `variable_groups`
+([`constraints.rs:613-685`](crates/treemaker-flatfold/src/constraints.rs#L613))
+pushes the **assigned** variables as group 0 and then the free groups ascending;
+`solve_constraint_state` (`:167-174`) hard-codes group 0's solution set to the
+single assigned vector and skips it, which is why the solution counts come out
+`[1, 3, 3]`. So Kabuto is 81 M/V-propagated variables plus two free groups of 18,
+not three constraint components, and "the largest is 69%" describes the
+propagated set rather than a component.
+
+Kabuto's raw constraint graph is **one component of 117**. The 3D implementation
+measures the same thing across the corpus: the raw graph is a single dominant
+component on most admitted models, and on §5.1's own 1×4 strip it is a single
+component of 2 — the shape that motivates per-component solving is itself fully
+merged.
+
+Per-component solving is still worth having, but the justification moves: the
+decomposition comes from the **determinations** (full folds, walls, the
+shared-slot rule), not from any structural property of the graph. §4.2's lesson —
+that the solving unit is the connected component and it can span every plane —
+survives unchanged; only the size claim does not.
+
+### 8.11 §4.3's wall rule was right; §5.1's "different constraint kind" was half right
+
+The wall rule is a `HierarchyRelation` written straight into the matrix, exactly
+as §4.3 says, and the direction is read off the placed geometry rather than off
+M/V — the same +90 bit puts its wall on opposite sides of a plane with and
+without an upstream 180.
+
+§5.1's conclusion that cross-plane coupling needs "a different constraint kind"
+is true of the *condition* and false of the *vocabulary*, and the difference is
+what the implementation turns on. `check_quad` is not about planes: given four
+faces with `a, c` known to be above `b, d`, its eight rules collapse to exactly
+`[a above c] != [b above d]` — a signed relation between two order variables,
+which is the coupling. What has to be supplied is the "known to be above", since
+a cross-plane pair carries no layer meaning of its own; the slots around the
+folded line are cut in a fixed order, keyed to the **planes** rather than to the
+angles, because a face can meet two collinear folded lines from opposite sides
+and an angle-keyed cut then contradicts itself. The sign lives in which of `b`,
+`d` takes which role.
+
+So §5.1's warning stands where it matters — union-find on the equalities renames
+the coupling, and the relation is an equality only up to a computed orientation
+sign — and the remedy is smaller than it looked.

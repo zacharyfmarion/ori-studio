@@ -643,7 +643,7 @@ fn corpus_census_reports_every_model() {
 fn corpus_ordering_reports_every_model() {
     use oristudio_cp::folding3d::{
         Fold3dOrderEnumerator, Fold3dOrderError, Fold3dOutcome, Fold3dTolerances, admit,
-        census_placement, folded_line_index, interleavings, place_segments,
+        cell_index, census_placement, folded_line_index, interleavings, place_segments,
     };
     use std::collections::{BTreeMap, BTreeSet};
 
@@ -657,6 +657,9 @@ fn corpus_ordering_reports_every_model() {
         couplings: usize,
         crossings: usize,
         recheck: usize,
+        unranked: usize,
+        groups: usize,
+        arrangements: usize,
         verdict: String,
     }
 
@@ -696,8 +699,15 @@ fn corpus_ordering_reports_every_model() {
             couplings: 0,
             crossings: 0,
             recheck: 0,
+            unranked: 0,
+            groups: 0,
+            arrangements: 0,
             verdict: String::new(),
         };
+        if let Ok(cells) = cell_index(&index, &census, placement.span, tolerances) {
+            row.groups = cells.groups;
+            row.arrangements = cells.components;
+        }
         match Fold3dOrderEnumerator::new(&placement, &index, &census, tolerances) {
             Ok(enumerator) => {
                 let ordering = enumerator.current();
@@ -707,14 +717,15 @@ fn corpus_ordering_reports_every_model() {
                     relations.insert((relation.lower_face, relation.upper_face), false);
                 }
                 let lines = folded_line_index(&placement, &index, tolerances);
-                row.recheck = interleavings(
+                let found = interleavings(
                     &placement,
                     &index,
                     &lines,
                     &|a, b| relations.get(&(a, b)).copied(),
                     tolerances,
-                )
-                .len();
+                );
+                row.recheck = found.iter().filter(|entry| entry.is_crossing()).count();
+                row.unranked = found.len() - row.recheck;
                 row.components = ordering.component_sizes.len();
                 row.largest = ordering.component_sizes.first().copied().unwrap_or(0);
                 row.undetermined = ordering.undetermined.len();
@@ -737,7 +748,7 @@ fn corpus_ordering_reports_every_model() {
     }
 
     println!(
-        "\n{:<44} {:>6} {:>6} {:>6} {:>8} {:>6} {:>7} {:>7} {:>7} {:>14}",
+        "\n{:<44} {:>6} {:>6} {:>6} {:>8} {:>6} {:>7} {:>7} {:>7} {:>8} {:>14}",
         "model (~ = not admitted)",
         "faces",
         "vars",
@@ -747,16 +758,18 @@ fn corpus_ordering_reports_every_model() {
         "couple",
         "cross",
         "recheck",
+        "unranked",
         "verdict"
     );
     let mut admitted_models = 0usize;
     let mut ordered = 0usize;
     let mut rechecked = 0usize;
     let mut single_component = 0usize;
+    let mut nested_groups = 0usize;
     let mut unordered: Vec<&str> = Vec::new();
     for (name, row) in &rows {
         println!(
-            "{:<44} {:>6} {:>6} {:>6} {:>8} {:>6} {:>7} {:>7} {:>7} {:>14}",
+            "{:<44} {:>6} {:>6} {:>6} {:>8} {:>6} {:>7} {:>7} {:>7} {:>8} {:>14}",
             format!("{}{name}", if row.admitted { "" } else { "~" }),
             row.faces,
             row.variables,
@@ -766,6 +779,7 @@ fn corpus_ordering_reports_every_model() {
             row.couplings,
             row.crossings,
             row.recheck,
+            row.unranked,
             row.verdict,
         );
         // The re-derivation is gated on every model that produced an ordering,
@@ -775,6 +789,9 @@ fn corpus_ordering_reports_every_model() {
             row.recheck, 0,
             "{name}: the ordering was re-checked from the geometry and interleaves"
         );
+        if row.arrangements > row.groups {
+            nested_groups += 1;
+        }
         if !row.admitted {
             continue;
         }
@@ -803,6 +820,7 @@ fn corpus_ordering_reports_every_model() {
         "admitted models with an ordering to do: {rechecked}, of which {single_component} \
          are a single constraint component"
     );
+    println!("models with a nested overlap group: {nested_groups}");
 
     assert!(
         admitted_models >= 18,

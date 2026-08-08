@@ -130,6 +130,32 @@ pub struct Fold3dSeed {
     pub line: usize,
 }
 
+/// What the backward check found at one pair of chords.
+///
+/// Kept separate from [`Fold3dCrossing`] because "these two chords cross" and
+/// "the relations do not say where these faces sit" are different answers, and
+/// collapsing them makes the checker report a crossing when it means it could not
+/// look. The second happens when two faces meeting a line on the same side
+/// overlap by less than the census bar, so no ordering variable exists between
+/// them and the facewise model has nothing to say about their angular order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Interleaving {
+    Crossing {
+        lines: (usize, usize),
+        faces: [usize; 4],
+    },
+    Unordered {
+        lines: (usize, usize),
+        faces: [usize; 4],
+    },
+}
+
+impl Interleaving {
+    pub fn is_crossing(&self) -> bool {
+        matches!(self, Self::Crossing { .. })
+    }
+}
+
 /// A coupling between two ordering variables in two different planes.
 ///
 /// Carried alongside the [`EquivalenceCondition`] that encodes it so a caller
@@ -945,12 +971,14 @@ fn normalized(faces: (usize, usize), seeded: &BTreeMap<(usize, usize), bool>) ->
 /// two chords interleave. An empty result is a second implementation agreeing
 /// with the first.
 ///
-/// Faces sharing a slot at a line coincide beside it, so they sit in one subface
-/// and the search's own per-subface closure has ordered them. That is what makes
-/// the ranking answerable: it is taken over the four endpoints of one chord pair,
-/// never over a whole slot, where two faces can be ordered only through a third
-/// the relation set never mentions. A pair the relations still fail to order is
-/// reported rather than passed silently.
+/// Faces sharing a slot at a line normally coincide beside it, so they sit in one
+/// subface and the search's own per-subface closure has ordered them. That is what
+/// makes the ranking answerable: it is taken over the four endpoints of one chord
+/// pair, never over a whole slot, where two faces can be ordered only through a
+/// third the relation set never mentions. "Normally" is not "always" — two faces
+/// can share a slot and still overlap by less than the census bar — and a pair the
+/// relations fail to order comes back as [`Interleaving::Unordered`] rather than
+/// being passed silently or miscalled a crossing.
 ///
 /// It is a checker, not a gate — running it on a placement whose ordering nobody
 /// solved says nothing.
@@ -960,7 +988,7 @@ pub fn interleavings(
     lines: &FoldedLineIndex,
     above: &dyn Fn(usize, usize) -> Option<bool>,
     tolerances: Fold3dTolerances,
-) -> Vec<Fold3dCrossing> {
+) -> Vec<Interleaving> {
     let creases = crease_slots(placement, index);
     let slack = tolerances.distance_relative * placement.span;
     let mut out = Vec::new();
@@ -1026,7 +1054,7 @@ pub fn interleavings(
                     }
                 }
                 if !ordered {
-                    out.push(Fold3dCrossing::Chords {
+                    out.push(Interleaving::Unordered {
                         lines: (first.line, second.line),
                         faces: [first.faces.0, first.faces.1, second.faces.0, second.faces.1],
                     });
@@ -1055,7 +1083,7 @@ pub fn interleavings(
                     offset > 0.0 && offset < arc
                 };
                 if inside(b[0]) != inside(b[1]) {
-                    out.push(Fold3dCrossing::Chords {
+                    out.push(Interleaving::Crossing {
                         lines: (first.line, second.line),
                         faces: [first.faces.0, first.faces.1, second.faces.0, second.faces.1],
                     });

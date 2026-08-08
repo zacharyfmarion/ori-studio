@@ -171,6 +171,27 @@ differently:
   so an unassigned crease or an interior cut folds the paper 180° — and that
   behaviour stays, because it is Oriedita's. In 3D there is no angle to apply,
   and manufacturing one would be inventing a nearby result.
+- **The layer order is solved per constraint component, and the solution stream
+  is an odometer over them.** Upstream has one global search because a flat
+  folding puts every face in one plane; in 3D the ordering variables are the
+  coplanar overlaps and the constraints over them connect into several pieces.
+  The odometer's components are ordered by variable count **descending** and its
+  first digit moves first, so the first press of "another solution" changes the
+  largest stack rather than the smallest — `treemaker-flatfold` sorts its own
+  groups ascending, so this is an inversion of the nearest thing in the
+  workspace and worth naming as one.
+- **The cross-plane coupling's cut is keyed to plane index.** Two creases folding
+  onto one line with faces in two planes constrain each other, and reading that
+  constraint off the layer table needs the two planes' slots put in a fixed
+  order. The order is arbitrary — the condition is symmetric under swapping the
+  two — but it has to be *consistently* arbitrary, because the table holds one
+  cell per face pair for the whole model. Plane index is what makes it
+  consistent; the obvious alternative, slot angle around the line, is not, since
+  a face can meet two collinear folded lines from opposite sides.
+- **`folding::validate_initial_hierarchy`** is additive beside
+  `HierarchyTable::from_initial`, which discards `infer_above`'s error. The flat
+  path keeps calling the unchecked builder and is byte-identical; only the 3D
+  path, whose seeds come from several independent geometric rules, asks.
 
 Release caveats:
 
