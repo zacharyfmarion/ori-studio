@@ -61,7 +61,18 @@ existing surfaces as one descriptor. It also mirrored the kernel's routing
 predicate exactly — dropping a colour test the kernel does not make — and added
 one optional `CommandDiagnostic` field so the closure sentence could leave raw
 English behind in eight locales.
-What remains is persistence (8), plus the two follow-ups (10, 11).
+**Phase 8 is built**, and **Phase 10's cycling with it** — the two are one piece
+of work, since what persists is a figure whose stream has to keep behaving like a
+flat figure's. It found the parity bug the requirement exists to catch: at its
+last solution a 3D stream reported another solution and then wrapped without
+warning, because it OR-ed a per-component signal that is optimistic by
+construction. It also closed a gap in the engine contract — a placed figure
+reported two of the gate's three residuals and said nothing about the loop gap it
+had just passed — deleted `src/spike_fold3d.rs` per the repo's spike-code
+discipline, and repaired `scripts/folded-grid-screenshot.mjs`, which had been
+dead since the WebGL migration and is the only lane that can look at a folded
+figure at all. It now draws a 3D one.
+What remains is orbit (10) and FOLD interchange (11), both follow-ups.
 
 **Phases 4, 5 and 9 were then reviewed, and the review found one wrong answer and
 one stale artifact.** The wrong answer: a constraint component was being
@@ -256,6 +267,13 @@ corrupts: without enumeration the cycling verb is correctly disabled; without
 the FOLD `foldedForm` frame the figure still exports SVG/PNG. The old reason for
 putting Phase 9 here — "a figure with coplanar overlap *says so*" — was measured
 false: saying so leaves nothing drawn opaquely.
+
+**[amended: Phase 10's *cycling* half moved into the merge set, at the repo
+owner's instruction — "UI for cycling between states should be same as 2d folded
+forms" — which makes it a correctness bar rather than an addition. It is built.
+Orbit is what still follows separately, and its absence genuinely subtracts: the
+figure is drawn from a fixed viewpoint, which is a fixed viewpoint rather than a
+wrong one.]**
 
 ### What the merge set delivers, honestly
 
@@ -1106,6 +1124,27 @@ Stated so review can hold us to it. Everything in the left column that reads
 | `folding3d/` | **new, additive, Ori Studio native** |
 | `FoldedFigureSnapshot` | untouched; `Fold3dSnapshot` is a sibling type |
 | Odometer unit ordering | new, no upstream analogue — record under PORTING.md's native section |
+| `CommandDiagnostic` | one optional `residual_degrees`, `skip_serializing_if = "Option::is_none"`, so all-classic CAMV output stays byte-identical for the Oriedita oracle (Phase 7) |
+| `src/spike_fold3d.rs` | **deleted** (Phase 8). Measurement scaffolding carrying a second placement implementation; its one synthetic case is asserted by production tests, its scans are `examples/fold3d_census.rs`'s job |
+
+**The tolerances stay applied in the kernel, and every verdict now carries the
+residuals they were applied to.** `Fold3dTolerances::DEFAULT` is decided in
+`admit_with` rather than by the caller, because the right value depends on
+computed plane separation nobody outside the kernel has — but the price of
+deciding there is that the numbers decided on must come back out, or the decision
+is unreviewable. Two of the gate's three bars already did. The loop gap did not:
+it appeared on the refusal that failed it and nowhere on a placement that passed
+it. **A deviation from that contract, closed in Phase 8**:
+`Fold3dDiagnosticsSummary` now carries `loop_gap_offset_relative` — the exact
+quantity `admit_with` compares against `distance_relative`, divided once in the
+kernel so a caller re-applying a different bar compares like with like — plus the
+rotation form, the elementary per-vertex localisation, and
+`loop_gap_non_tree_edges`. That last is what makes the others readable: zero
+means the dual graph is a tree, the placement has no self-check on that model, and
+the `0.0` is vacuous rather than tight.
+`an_admitted_verdict_carries_the_residual_of_every_bar_the_gate_applied` holds it,
+and its non-vacuity turns on that count — without it every fixture would pass a
+loop-gap bar it never tested.
 
 ## The engine contract
 
@@ -1236,10 +1275,16 @@ Each is asserted somewhere, and the test is named.
   simulator, a verdict draws.
 - **Every string is a stable code, never a sentence.** The eight-locale i18n gate
   cannot see a Rust literal, so all copy lives on the frontend and keys off these.
-  Measured refusal distribution over the 55-model corpus: 21 `flat_foldability`,
-  8 `vertex_closure`, 7 `interior_cut`, 1 `disconnected`. The other six arms are
-  reachable in principle and reached by nothing — budget copy accordingly rather
-  than in proportion to novelty.
+  Measured refusal distribution over the **65 measurable corpus files**
+  (`corpus_admission_reports_every_verdict`, undeduplicated): 21
+  `flat_foldability`, 8 `vertex_closure`, 7 `interior_cut`, 1 `disconnected`, 26
+  admitted, 2 unreadable. These are **file** counts, not model counts — ten
+  basenames appear twice, which is where the 55 in an earlier draft of this line
+  came from; that number is `corpus_census_reports_every_model`'s deduplicated
+  total and pairing it with these numerators made a rate out of two different
+  denominators. Quote counts and name the denominator; do not quote a
+  percentage. The other six arms are reachable in principle and reached by
+  nothing — budget copy accordingly rather than in proportion to novelty.
 - **The payload is byte-identical across refolds** of the same segments. Planes,
   cells and components are all ordered by lowest member face index and nothing in
   the search reaches a hash iteration. `a_refold_of_the_same_document_is_bit_identical`.
@@ -1256,7 +1301,17 @@ Each is asserted somewhere, and the test is named.
   `bsp.ts`'s hardcoded `EPS = 1e-7` (`:67`) must become the kernel's
   `angle_radians`, or the renderer and the kernel disagree about which faces share
   a plane. Nothing else about the tolerances is policy the frontend may read, and
-  none of it is user-facing.
+  none of it is user-facing. *(Phase 6 amended the derivation: `EPS` is compared
+  against a point-to-plane **distance**, so the correct translation is
+  `distance_relative·span + angle_radians·radius`, not `angle_radians`.)*
+- **Every bar the gate applied comes back as its residual, beside the tolerance
+  it was compared against**, so a caller holding a figure to a different bar
+  re-applies it to those numbers rather than re-running the fold. The three the
+  gate decides on are the closure residual, the loop gap and the plane
+  partition's intra/inter separations. Read `loop_gap_non_tree_edges` before
+  reading the loop gap: at zero the dual graph is a tree and the gap certifies
+  nothing. None of it is user-facing and **none of it may reach analytics** —
+  every one of these is a measurement of the user's own geometry.
 - **Persist the snapshot, not the render model.** `.osf` is written with
   `JSON.stringify(written, null, 2)` (`nativeProjectFile.ts:397`), which puts
   every array element on its own line — 29,376 numbers becomes roughly 590 KB per
@@ -2048,13 +2103,18 @@ Phase 0 and none of A, B or C touched it. It is unchanged; see Open decisions.
 - `apps/web/src/store/workspaceStore/store.test.ts:2858` — `describe('folding a
   pattern that is not flat-folded')`, 3 tests, all currently green; all three
   break and all three breakage is signal (Phase 7)
-- `apps/web/src/cp-workspace/share/foldedFigureGate.test.tsx:96` — asserts the
+- `apps/web/src/cp-workspace/share/foldedFigureGate.test.tsx:96` — asserted the
   share toggle is disabled with copy saying the pattern "has no flat-folded
-  form", which becomes false once 3D CPs have a folded form
+  form", which became false the moment 3D CPs had one. **Phase 8 reworded it to a
+  statement about the export**; the gate itself stays, since it is what keeps the
+  flat kernel from being handed non-classic creases
 - `apps/web/src/lib/creaseExportFoldFlatness.test.ts:85` — `isFlatFoldableFold`
-- `scripts/folded-grid-screenshot.mjs:44-60` — **a Playwright harness that
-  hand-writes an `OristudioCpFoldedFigureEntry` literal** and is not in CI, so a
-  required new field breaks it silently
+- `scripts/folded-grid-screenshot.mjs` — **rewritten** in Phase 8. A Playwright
+  harness that hand-writes `OristudioCpFoldedFigureEntry` literals and is not in
+  CI, so it rots silently — and had: it waited on selectors nothing has emitted
+  since the WebGL migration. It now waits on the store and on real frames, checks
+  that the canvas *changed* rather than that a PNG is large, and draws a 3D
+  figure alongside the flat one
 - `crates/oristudio-cp/tests/verify_fold_fixtures.rs` — **extended** in Phase 2
   rather than a second file being added. It kept its two original claims about
   the `fold-angle` fixtures and gained three tests over `fold-angle-3d`: the
@@ -3154,14 +3214,18 @@ rediscover them:
   `svgRenderer` fixes this with `CREASE_DEPTH_BIAS_NDC`, but every available fix
   is eye-dependent and would void the build hoist. Pinned by the golden; revisit
   with orbit in Phase 10.
-- **A screenshot of a 3D figure.** `scripts/folded-grid-screenshot.mjs` was the
-  one lane with a real animation frame, and it is **already broken**: it waits on
-  `[data-folded-render-pass]` and counts
-  `.cp-generated-folded-figure-primitive`, and no element in `apps/web/src` emits
-  either any more — only a stale CSS rule survives the WebGL migration. It is not
-  in CI, so nothing said so. Repairing it is worth doing and is not Phase 6's;
-  until then the picture is unverified by anything but arithmetic, and the
-  checklist below says what a human has to look at.
+- ~~**A screenshot of a 3D figure.**~~ **Repaired in Phase 8, and the figure
+  draws.** `scripts/folded-grid-screenshot.mjs` was the one lane with a real
+  animation frame, and it was **dead**: it waited on `[data-folded-render-pass]`
+  and counted `.cp-generated-folded-figure-primitive`, and no element in
+  `apps/web/src` had emitted either since the WebGL migration — only a stale CSS
+  rule survived. It is not in CI, so nothing said so. It now photographs the pane
+  before injecting anything and asserts the canvas *changed* (size proves
+  nothing), and it draws `box_90` projected through the app's own projector via
+  Vite's SSR loader: two planes shaded apart, creases drawn, front and back
+  distinguishable. Repairing it was worth doing and was not Phase 6's. It
+  photographs a static frame, though, so everything in the checklist below that
+  needs a *gesture* — dragging, scaling, cycling — still needs an eye.
 
 #### What a human still has to look at
 
@@ -3187,6 +3251,28 @@ checkable once Phase 7 makes a 3D figure creatable.
   non-scaling screen-space multiplier on dpr while `foldedFigureSvg.ts` reads the
   identical field as model units and scales it. The 3D figure emits exactly what
   the flat kernel emits, so it inherits that divergence rather than adding one.
+
+**Added by Phases 8 and 10**, and the same rule applies — none of it is
+agent-verifiable:
+
+- **Cycling reads as one verb.** Press "another solution" repeatedly on a
+  multi-solution 3D figure: the picture changes each time, the button reads
+  "Back to first solution" on the *last* one, and the press after that returns to
+  solution 1. The Rust and TypeScript tests assert every part of that; what an
+  eye adds is that the *picture* actually changes, which no assertion over case
+  numbers can see. `penguin_freeform` is the fixture with more than one solution.
+- **Save and reopen.** A `.osf` with a 3D figure reopens drawing the same
+  picture, still labelled with its verdict, and its Flip / Display style /
+  Another solution verbs are correctly inert (`handle: null`). Editing a fold
+  angle inside its source region marks it stale and offers Refold; taking the
+  fold angles away and refolding turns it back into a flat figure.
+- **Open that same file in the build before this one.** It should still open and
+  still draw. Saving it there **deletes** the 3D data — an accepted degradation,
+  written down under Phase 8 rather than guarded, because the guard available
+  (`minimumReaderSchemaVersion`) refuses the whole file instead.
+- **Export a 3D figure to SVG and PNG** from its own toolbar menu: it writes the
+  figure, not a blank page. And exporting the *crease pattern* to `.cp`/`.fold`
+  raises the loss warning naming the 3D figure alongside the fold-angle one.
 
 ### Phase 7 — `G` dispatch, verdict UX, i18n
 
@@ -3349,47 +3435,97 @@ asserted; what follows is what only an eye settles.
   and `error`, and shows the verdict label in place of "Case 1" when there is one.
 - A 3D figure's toolbar has no Flip, and its Display menu has no X-ray.
 
-### Phase 8 — Persistence, staleness, export gating
-- [ ] `'generated-3d'` on `OristudioCpFoldedFigureSourceKind`
-- [ ] Added to the sourceKind predicate at `foldedFigureStaleness.ts:286` — it
+### Phase 8 — Persistence, staleness, export gating (**built**)
+- [x] `'generated-3d'` on `OristudioCpFoldedFigureSourceKind`, written by the
+      spatial fold and by a refold that swaps a figure's kind. **Five sites read
+      the kind and four of them meant "was this folded from the document's
+      creases?"**, so they now ask `isFoldedFromCurrentCpSourceKind` rather than
+      comparing against one arm — `foldedFigureStaleness.ts`,
+      `activeGeneratedFoldedFigure`, and both filters in `useFoldedFigures.ts`
+- [x] Added to the sourceKind predicate at `foldedFigureStaleness.ts:286` — it
       short-circuits `return false` for any other kind, silently disabling
-      staleness forever
-- [ ] `foldedFigureSourceKind` (`nativeProjectFile.ts:764-773`) accepts the new
-      kind and is **loud** on an unknown one, instead of falling back to
-      `'generated-from-current-cp'` and making a 3D figure look refoldable-as-flat
-- [ ] The 3D fields named in `validateFoldedFigure`'s returned literal
-      (`:673-702`); fix the pre-existing `contradiction` drop while there
-- [ ] **No `NATIVE_PROJECT_SCHEMA_VERSION` bump.** Measured: a v8 reader rejects
-      `schemaVersion: 9` regardless of `minimumReaderSchemaVersion`, because
-      `createNativeProjectFile` writes it unconditionally and the accept list is a
-      hardcoded enumeration — so a "conditional raise" buys zero conditionality
-      and breaks every file the 3D build writes. `snapshot`/`renderSnapshot` are
-      opaque `isRecord` casts (`:677-695`), so the fields ride through. Gate on
-      the **figure** (loud sourceKind), not the file. Precedent:
-      `current_fold_case` changed which *solution* displays and shipped with no
-      bump
-- [ ] Persist `folded3d` **and** the derived `renderSnapshot`, so a reopened
+      staleness forever. **The whole predicate fails open**: no error, no log, no
+      type break, just a figure that reports fresh forever with Refold dropped
+      from the menu rather than disabled. Its own test names which kinds have
+      creases to drift, and a mutation removing `'generated-3d'` turns exactly
+      that one red
+- [x] `foldedFigureSourceKind` accepts the new kind and is **loud** on an unknown
+      one — a new `'unknown'` arm — instead of falling back to
+      `'generated-from-current-cp'` and making a figure from a newer build look
+      refoldable-as-flat. An **absent** kind still reads as
+      `'generated-from-current-cp'`: every file written before provenance was
+      tracked has none, and those figures really were folded from the document
+- [x] The 3D fields named in `validateFoldedFigure`'s returned literal —
+      `folded3d`, `camera`, and the pre-existing `contradiction` drop fixed while
+      there. **The reader settles the one-witness invariant** rather than
+      asserting it: a `folded3d` payload outranks the `sourceKind` label beside
+      it (that is what a file written before the kind existed looks like), and a
+      file carrying both witnesses loses the flat one
+- [x] **No `NATIVE_PROJECT_SCHEMA_VERSION` bump**, now pinned by a test.
+      Measured: a v8 reader rejects `schemaVersion: 9` regardless of
+      `minimumReaderSchemaVersion`, because `createNativeProjectFile` writes it
+      unconditionally and the accept list is a hardcoded enumeration — so a
+      "conditional raise" buys zero conditionality and breaks every file the 3D
+      build writes. Gate on the **figure** (loud sourceKind), not the file
+- [x] Persist `folded3d` **and** the derived `renderSnapshot`, so a reopened
       `.osf` draws with `handle: null` exactly as flat figures do
-- [ ] Do **not** persist `faceOrders` in the merge set. `.osf` is uncompressed
+- [x] Do **not** persist `faceOrders` in the merge set. `.osf` is uncompressed
       (`JSON.stringify(written, null, 2)`, `:397`) and real density on
       `iguana_24.osf` is 58 pairs/face over 3,224 faces — +163% file size as the
       shipped writer emits
-- [ ] State explicitly that a reloaded 3D figure **draws but cannot cycle**
-      (`handle: null` makes `isFoldedFigureReady` false). Intentional for 2D;
-      worth naming given the cycling-parity requirement
-- [ ] `foldedForm3d` superset entry, `blocking: false`, `fold` **excluded** from
-      `droppedByFormats`. Note `supersetFeatures.ts:136`'s existing `foldAngles`
-      entry uses the identical predicate, so both will fire on the same documents
-- [ ] `scripts/folded-grid-screenshot.mjs:44-60` updated — it hand-writes an
-      entry literal and is not in CI
-- [ ] `foldedFigureGate.test.tsx` asserts the share/export toggle's behaviour
-      **explicitly**; its copy "has no flat-folded form" becomes false
-- [ ] Retained wasm-handle size **re-measured** against `MAX_CP_HISTORY = 100`;
-      `foldedFigureHandles.ts:11-19`'s "~0.6 KiB per segment" was measured for the
-      flat handle, and `inline-simulations-in-undo.md:138-166` measured
-      243 KB–2.9 MB per retained fold and reversed on refcounting for it
-- [ ] Round-trip test in `nativeProjectFile.test.ts`; an older-shaped file without
-      the new fields still loads
+- [x] State explicitly that a reloaded 3D figure **draws but cannot cycle**
+      (`handle: null` makes `isFoldedFigureReady` false) **and cannot
+      re-project**, since the render model lives beside the handle and is
+      released with it — so colour, style and viewpoint are fixed at whatever the
+      stored picture was taken with. `camera` is persisted anyway: it says which
+      view that was, and it is what a refold restores. Refold is the escape
+      hatch, and for a 3D figure it is an *exact* one — the payload is
+      bit-identical across refolds of the same segments
+- [x] `foldedForm3d` superset entry, `blocking: false`. **`fold` is currently
+      *included* in `droppedByFormats`, which is a deviation from this line as
+      written** — excluding it presumes Phase 11's `foldedForm` frame, and until
+      that lands a FOLD export really does leave the figure behind. Removing
+      `'fold'` from that list is the one-line change Phase 11 owes.
+      `supersetFeatures.ts`'s existing `foldAngles` entry fires on the same
+      documents and is blocking, so it decides; this entry still earns its line,
+      because a document can hold a 3D figure whose creases have since been made
+      classic, where `foldAngles` counts zero
+- [x] `scripts/folded-grid-screenshot.mjs` updated — and it was **already dead**,
+      not merely stale: it waited on `[data-folded-render-pass]` and counted
+      `.cp-generated-folded-figure-primitive`, neither of which any element has
+      emitted since the WebGL migration. It is not in CI, so nothing said so. It
+      now waits on the store and on real frames, asserts the canvas *changed*
+      (size proves nothing — a blank canvas screenshots large), and draws a **3D**
+      figure, projected in Node through the app's own projector via Vite's SSR
+      loader. Run against `box_90` it produces the figure with its planes shaded
+      apart and its creases drawn: the first look anything has had at Phase 6's
+      output
+- [x] `foldedFigureGate.test.tsx` asserts the share/export toggle's behaviour
+      **explicitly**; its copy "so it has no flat-folded form" was false the
+      moment `G` folded one, and is now a statement about the export
+- [x] Retained wasm-handle size **re-measured** against `MAX_CP_HISTORY = 100`,
+      with a counting allocator. A `Fold3dSession` is 23.7 KiB at 23 segments,
+      596 KiB at 420, 1.79 MiB at 941 and **10.7 MiB at 5,010**
+      (`origamisimulator`). Per-segment cost *climbs* — 885 B/segment at 5,
+      2,237 B/segment at 5,010 — so no rule read off a small fixture
+      extrapolates. Flat control reproduces the documented 0.6 KiB/segment
+      (656 B/segment on `solution_sample_1.cp`). **The render model is not the
+      bulk**: 7.8% of the session at every size measured, so dropping it from
+      history entries recovers a twelfth. The bulk is the arrangement, the census
+      and the per-component search state, and shedding those means dropping the
+      session and re-folding on restore — exact for 3D, since the payload is
+      bit-identical, but a behaviour change rather than a bound. **Open, and now
+      decidable**; the exposure is narrow, since only *deleted* figures are
+      retained beyond their live entry and the largest corpus models are refused
+      before a session is allocated
+- [x] Round-trip test in `nativeProjectFile.test.ts`; an older-shaped file without
+      the new fields still loads. Non-vacuity proved by mutation: a reader that
+      drops the three fields turns four of them red
+- [x] `apps/web/docs/superset-features.md` corrected. It instructed a
+      `NATIVE_PROJECT_SCHEMA_VERSION` bump for every additive field and claimed
+      older builds could still open the result — the first would strand every
+      file this build writes, and the second understates what an older reader
+      does, which is **delete** the field on re-save rather than ignore it
 
 ### Phase 9 — Per-component layer ordering (**merge set** — Spike C said so)
 
@@ -3667,35 +3803,77 @@ identified: the search's `HashMap`/`HashSet` uses are `contains`/`insert` only a
 nothing downstream reads an iteration order. Not claimed as fixed, and not claimed
 as understood.
 
-### Phase 10 — Enumeration, real cycling, orbit (follow-up)
-- [ ] Odometer over per-component enumerators, with the **tested invariant that
+### Phase 10 — Enumeration, real cycling, orbit (**cycling built; orbit deferred**)
+
+**Cycling is a correctness bar, stated by the repo owner: "UI for cycling between
+states should be same as 2d folded forms."** So the tests below are written as
+*parity* tests wherever one exists — a bare assertion about 3D pins whatever 3D
+happens to do.
+
+- [x] Odometer over per-component enumerators, with the **tested invariant that
       the first press changes the largest component** (not an ordering
       convention — "advance the last digit" advances the smallest)
-- [ ] **Pair that invariant with a non-vacuity assertion, or it tests nothing.**
+- [x] **Pair that invariant with a non-vacuity assertion, or it tests nothing.**
       Measured in Phase 5: four of the five committed 3D fixtures — `hinge_90`,
       `box_90`, `spikes_small`, `spikes_large` — have exactly **one** layer
       order, so a cycling test written against any of them passes whatever the
       enumerator does. Phase 5's first draft cycled `box_90` and survived a
       mutation that made Duplicate restart its stream. `penguin_freeform` (8
       solutions) is the only committed multi-solution fixture; assert up front
-      that the fixture under test has more than one, and assert `k > 1`
-      components on at least one fixture before claiming the odometer is
-      exercised
-- [ ] `discovered_fold_cases` stays a discovered-so-far high-water mark, and
-      `current_fold_case` is a **separate** counter. Phase 5 found and fixed the
-      bug where it was derived from the first: after a wrap the stream is
-      showing solution 1, so the next press is solution 2, not solution N+1. It
-      takes two laps past the wrap to see, and nothing in the repo — flat or 3D
-      — pressed a fold stream that far before
-- [ ] Layer order fed into the projection so `bsp.ts`'s coplanar tie-break is
+      that the fixture under test has more than one
+- [x] `discovered_fold_cases` stays a discovered-so-far high-water mark, and
+      `current_fold_case` is a **separate** counter
+- [x] **A measured parity bug, found by walking both streams to their end and
+      now fixed.** At solution 8 of 8 the 3D stream reported
+      `find_another_overlap_valid`, where the flat stream on
+      `solution_sample_1.cp` reports `false` at its own last solution. The
+      cycling UI labels a press "Back to first solution" off exactly that flag,
+      so a 3D figure read "Another solution" and then wrapped without warning.
+      Cause: the stream OR-ed its components' `has_next`, and that signal is
+      optimistic by construction — it reports that the permutation state moved,
+      not that another solution is there. It now answers by dry run on a clone,
+      probing only digits whose optimistic flag is set and short-circuiting on
+      the first success. `a_3d_stream_ends_the_way_a_flat_stream_ends` walks both
+      streams side by side and compares their *shape*
+- [x] **Cost of that fix, measured** on the largest admitted corpus model
+      (`origamisimulator`, 5,010 segments): a press goes 114 ms → 220 ms and a
+      fold 851 ms → 974 ms; typical models are unaffected (`cross`, 941
+      segments: 18 ms → 19 ms). A prefetch would recover it by reusing the probe
+      instead of discarding it, but it would hold a second copy of the largest
+      component's solver for the life of the handle — and handle memory is the
+      tighter constraint (see Phase 8's measurement)
+- [x] The frontend verb held to the flat one **state for state**:
+      `buildFoldedFigureActions` walked over the five states a real stream passes
+      through, for a flat entry and a 3D entry, asserting label, icon and
+      disabled are equal — paired with a row pinning the actual values, so a
+      builder returning a constant for both kinds would not pass. At the store,
+      the last press is recorded as a wrap on either kind, by the same
+      expression, read *before* the call through the one accessor that knows a
+      figure has two kinds
+- [x] Layer order fed into the projection so `bsp.ts`'s coplanar tie-break is
       never consulted; optional `order?: number` on `BspItem` with `sortCoplanar`
-      keyed on it — this also fixes the SVG exporter's documented limitation
-- [ ] `FoldedFigureCamera { yaw, pitch, zoom }` beside `placement`;
-      `useFoldedFigureOrbit` reusing `lib/simulatorOrbit.ts`, one undo checkpoint
-      per gesture. `inlineSimulation.ts:46-56` is a written post-mortem of the
-      camera never being written back
+      keyed on it — **pulled forward into Phase 6**, which needed it
+- [x] `FoldedFigureCamera { yaw, pitch, zoom }` beside `placement` — landed in
+      Phase 6, written once at fold time, riding undo like `placement` and
+      persisted in Phase 8
+- [ ] **Orbit: deferred, deliberately.** The camera field exists and is never
+      mutated. Three reasons, in order of weight. A drag over a folded figure
+      already means *move* (`transformableObject.ts`), so orbit needs a modifier
+      or a mode — a real interaction decision, not a wiring job. It cannot be
+      verified here at all: the agent browser pane issues zero animation frames,
+      and the repaired screenshot harness photographs a static frame rather than
+      driving a gesture. And a reopened `.osf` figure could not orbit anyway,
+      since re-projection needs the render model the file does not carry, so the
+      verb would be present on some figures and absent on others with no visible
+      reason. `useFoldedFigureOrbit` reusing `lib/simulatorOrbit.ts`, one undo
+      checkpoint per gesture; `inlineSimulation.ts:46-56` is a written
+      post-mortem of the camera never being written back
 - [ ] `useFoldedFigurePreview.ts:73`'s cache key extended with the camera, or an
-      orbited figure serves its pre-orbit picture in the export and share dialogs
+      orbited figure serves its pre-orbit picture in the export and share
+      dialogs. **Not needed until orbit lands** — the key already carries
+      `settings.side` and the camera is a pure function of side and model — and
+      the seam when it does is `cacheKeyPrefix` (`:27-28`), which is already in
+      the key and in the deps and is already used this way by `ShareLinkModal`
 
 ### Phase 11 — FOLD interchange and remaining export (follow-up)
 - [ ] `foldedForm` frame: a second `FoldDocument` in `file_frames` with
