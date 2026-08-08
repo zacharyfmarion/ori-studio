@@ -26,7 +26,11 @@ export function export_cp(handle: number): string;
 
 export function export_fold(handle: number): string;
 
-export function export_fold_file(handle: number): string;
+/**
+ * `folded_handles` names the 3D folded figures to write as `foldedForm`
+ * frames. Empty is the ordinary case and means "the pattern only".
+ */
+export function export_fold_file(handle: number, folded_handles: Uint32Array): string;
 
 export function export_orh(handle: number): string;
 
@@ -140,7 +144,7 @@ export interface InitOutput {
     readonly execute_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly export_cp: (a: number) => [number, number, number, number];
     readonly export_fold: (a: number) => [number, number, number, number];
-    readonly export_fold_file: (a: number) => [number, number, number, number];
+    readonly export_fold_file: (a: number, b: number, c: number) => [number, number, number, number];
     readonly export_orh: (a: number) => [number, number, number, number];
     readonly export_ori: (a: number) => [number, number, number, number];
     readonly export_share_link: (a: number) => [number, number, number, number];

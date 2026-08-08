@@ -366,8 +366,15 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     async exportFold(handle: number, texts: FlatText[] = []): Promise<string> {
       return exportWithTexts(handle, texts, () => call('cp_export_fold', { handle }));
     },
-    async exportFoldFile(handle: number, texts: FlatText[] = []): Promise<string> {
-      return exportWithTexts(handle, texts, () => call('cp_export_fold_file', { handle }));
+    /** `foldedHandles` names the 3D figures to write as `foldedForm` frames. */
+    async exportFoldFile(
+      handle: number,
+      texts: FlatText[] = [],
+      foldedHandles: number[] = []
+    ): Promise<string> {
+      return exportWithTexts(handle, texts, () =>
+        call('cp_export_fold_file', { handle, foldedHandles })
+      );
     },
     async exportOri(handle: number, texts: FlatText[] = []): Promise<string> {
       return exportWithTexts(handle, texts, () => call('cp_export_ori', { handle }));

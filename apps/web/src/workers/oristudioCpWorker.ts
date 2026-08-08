@@ -316,8 +316,17 @@ const api = {
   async exportFold(handle: number, texts: FlatText[] = []): Promise<string> {
     return call(() => exportWithTexts(handle, texts, () => export_fold(handle)));
   },
-  async exportFoldFile(handle: number, texts: FlatText[] = []): Promise<string> {
-    return call(() => exportWithTexts(handle, texts, () => export_fold_file(handle)));
+  /** `foldedHandles` names the 3D figures to write as `foldedForm` frames. */
+  async exportFoldFile(
+    handle: number,
+    texts: FlatText[] = [],
+    foldedHandles: number[] = []
+  ): Promise<string> {
+    return call(() =>
+      exportWithTexts(handle, texts, () =>
+        export_fold_file(handle, new Uint32Array(foldedHandles))
+      )
+    );
   },
   async exportOri(handle: number, texts: FlatText[] = []): Promise<string> {
     return call(() => exportWithTexts(handle, texts, () => export_ori(handle)));

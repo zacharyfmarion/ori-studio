@@ -498,12 +498,20 @@ export async function exportOristudioCpDocumentAsCp(): Promise<string> {
   return api.exportCp(handle);
 }
 
-export async function exportOristudioCpDocumentAsFold(texts: FlatText[] = []): Promise<string> {
+/**
+ * `foldedHandles` names the 3D folded figures to write as `foldedForm` frames.
+ * Empty is the ordinary case and means "the pattern only" — see
+ * `cp-workspace/folded/foldedFigureInterchange.ts` for which figures qualify.
+ */
+export async function exportOristudioCpDocumentAsFold(
+  texts: FlatText[] = [],
+  foldedHandles: readonly number[] = []
+): Promise<string> {
   if (handle === null) {
     throw new Error('No editable crease-pattern document is loaded');
   }
   const api = await getOristudioCpClient();
-  return api.exportFoldFile(handle, texts);
+  return api.exportFoldFile(handle, texts, [...foldedHandles]);
 }
 
 export async function exportOristudioCpDocumentAsOri(texts: FlatText[] = []): Promise<string> {

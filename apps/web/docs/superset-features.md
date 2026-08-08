@@ -138,6 +138,16 @@ confirm dialog: *"This project uses features the CP format can't store; they'll
 be omitted: Images (3). Continue?"* This registry **is** the pattern — a new
 feature is a one-line addition, and the user is never silently surprised.
 
+`droppedByFormats` is a static list, so a feature a format carries **only
+sometimes** needs *two* entries rather than a caveat on one. 3D folded figures
+are the worked case: `.fold` writes a `foldedForm` frame built from the live
+`Fold3dSession`, and none of that session is persisted — so a figure reopened
+from an `.osf` draws from its stored primitives but cannot describe itself.
+`foldedForm3d` counts the figures with a live handle and excludes `fold`;
+`foldedForm3dDetached` counts the rest and includes it. Merging them would have
+to lie about `.fold` in one direction or the other, and the two counts partition
+the figures, so nothing is reported twice.
+
 ### 4. Render and edit it as its own layer
 Follow the codebase's split: **geometry on the GPU, interaction affordances in
 the DOM**.

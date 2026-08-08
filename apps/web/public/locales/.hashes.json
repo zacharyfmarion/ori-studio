@@ -2275,7 +2275,8 @@
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
     "errors:fold.isFlat": "cbc28225a0a2",
-    "errors:fold.needs3d": "827ff1b4357d"
+    "errors:fold.needs3d": "827ff1b4357d",
+    "errors:fold.foldedFormTooLarge": "ecb77be73306"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4553,7 +4554,8 @@
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
     "errors:fold.isFlat": "cbc28225a0a2",
-    "errors:fold.needs3d": "827ff1b4357d"
+    "errors:fold.needs3d": "827ff1b4357d",
+    "errors:fold.foldedFormTooLarge": "ecb77be73306"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6831,7 +6833,8 @@
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
     "errors:fold.isFlat": "cbc28225a0a2",
-    "errors:fold.needs3d": "827ff1b4357d"
+    "errors:fold.needs3d": "827ff1b4357d",
+    "errors:fold.foldedFormTooLarge": "ecb77be73306"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9079,7 +9082,8 @@
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
     "errors:fold.isFlat": "cbc28225a0a2",
-    "errors:fold.needs3d": "827ff1b4357d"
+    "errors:fold.needs3d": "827ff1b4357d",
+    "errors:fold.foldedFormTooLarge": "ecb77be73306"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11327,7 +11331,8 @@
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
     "errors:fold.isFlat": "cbc28225a0a2",
-    "errors:fold.needs3d": "827ff1b4357d"
+    "errors:fold.needs3d": "827ff1b4357d",
+    "errors:fold.foldedFormTooLarge": "ecb77be73306"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13605,7 +13610,8 @@
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
     "errors:fold.isFlat": "cbc28225a0a2",
-    "errors:fold.needs3d": "827ff1b4357d"
+    "errors:fold.needs3d": "827ff1b4357d",
+    "errors:fold.foldedFormTooLarge": "ecb77be73306"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15883,7 +15889,8 @@
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
     "errors:fold.isFlat": "cbc28225a0a2",
-    "errors:fold.needs3d": "827ff1b4357d"
+    "errors:fold.needs3d": "827ff1b4357d",
+    "errors:fold.foldedFormTooLarge": "ecb77be73306"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -18131,6 +18138,7 @@
     "dialogs:fold3dRefused.vertexUnsplitJunction": "7c31b02c0ee1",
     "dialogs:foldWarning.spatialMessage": "7ca069675617",
     "errors:fold.isFlat": "cbc28225a0a2",
-    "errors:fold.needs3d": "827ff1b4357d"
+    "errors:fold.needs3d": "827ff1b4357d",
+    "errors:fold.foldedFormTooLarge": "ecb77be73306"
   }
 }

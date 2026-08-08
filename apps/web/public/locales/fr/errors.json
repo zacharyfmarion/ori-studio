@@ -36,6 +36,7 @@
     "contradiction": "Ce patron de plis n'est pas pliable à plat : certaines facettes n'ont pas d'ordre d'empilement cohérent.",
     "disconnected": "Cette sélection se divise en morceaux séparés qui ne se touchent pas : elle ne peut donc pas être pliée comme un seul modèle. Sélectionnez un seul morceau, puis pliez à nouveau.",
     "foldedForm": "Ce fichier FOLD contient un modèle plié et non un patron de plis : il n'y a donc aucun pli à ouvrir. Ouvrez plutôt le patron de plis dont il est issu.",
+    "foldedFormTooLarge": "Cette figure pliée est trop volumineuse pour être écrite dans un fichier FOLD. Exportez uniquement le patron de pliage, ou enregistrez le projet en .osf, qui conserve la figure.",
     "isFlat": "Ces plis sont tous des montagnes et des vallées complètes : ils se plient à plat plutôt qu’en une forme 3D.",
     "layerSearch": "Ce patron de plis n'a pas pu être plié : ses couches ne peuvent pas être disposées sans chevauchement.",
     "needs3d": "Certains de ces plis se plient à un angle autre qu’une montagne ou une vallée complète : ils n’ont pas de forme pliée à plat. Réessayez ; si cela persiste, l’application et le patron sont désynchronisés.",

@@ -158,6 +158,16 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:fold.isFlat',
         'These creases are all full mountain and valley folds, so they fold flat rather than into a 3D shape.'
       );
+    // A `foldedForm` frame the export declines to write, having measured how
+    // big it would be first. The cap sits about forty times above the widest
+    // frame any admitted corpus model produces, so nothing short of a pattern
+    // far outside anything measured reaches this — but a 20 MB frame is a file
+    // nothing can open, and refusing it beats writing it.
+    case 'folded_form_too_large':
+      return t(
+        'errors:fold.foldedFormTooLarge',
+        'This folded figure is too large to write into a FOLD file. Export the crease pattern on its own, or save the project as .osf, which keeps the figure.'
+      );
     // A FOLD file we decline to open, rather than one we failed to read. The
     // importer keeps x and y and drops the rest, so a folded model would arrive
     // as its own flat shadow with every crease in the wrong place.

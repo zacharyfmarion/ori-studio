@@ -157,11 +157,12 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
     id: 'foldedForm3d',
     label: '3D folded figures',
     count: (presence) =>
-      presence.foldedFigures.filter((figure) => (figure.folded3d ?? null) !== null).length,
+      presence.foldedFigures.filter(
+        (figure) => (figure.folded3d ?? null) !== null && figure.handle != null
+      ).length,
     /**
-     * `.fold` is in this list, and it is the entry to change when the
-     * `foldedForm` frame lands: until then, exporting FOLD writes the crease
-     * pattern and silently leaves the 3D figure behind.
+     * `.fold` is **not** in this list: the export writes one `foldedForm` frame
+     * per 3D figure, with three-component `vertices_coords` and `faceOrders`.
      *
      * `.svg`/`.png` are excluded because a folded figure is a picture and those
      * formats *are* the picture — the per-figure export writes it directly from
@@ -169,10 +170,31 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
      * never exported as one.
      *
      * Not blocking. The `foldAngles` entry above already refuses every format
-     * here except `.fold`, on the same documents, because losing the *angles*
-     * changes what the pattern is; losing the figure derived from them does not,
-     * and the `.osf` still has it.
+     * here, on the same documents, because losing the *angles* changes what the
+     * pattern is; losing the figure derived from them does not, and the `.osf`
+     * still has it.
      */
+    droppedByFormats: ['cp', 'ori', 'orh', 'dxf', 'obj'],
+  },
+  {
+    id: 'foldedForm3dDetached',
+    label: '3D folded figures needing a refold',
+    /**
+     * The `foldedForm` frame is built in the kernel from the live
+     * `Fold3dSession` — placement rings, plane frames, the layer relation —
+     * none of which is persisted. A figure reopened from an `.osf` has no
+     * handle, so it draws from its stored primitives but cannot describe
+     * itself, and `.fold` genuinely does drop it.
+     *
+     * A separate entry rather than a caveat on the one above, because the two
+     * differ in exactly one format and merging them would have to lie about
+     * `.fold` in one direction or the other. Refold is the escape hatch, and
+     * for a 3D figure it reproduces the same solution exactly.
+     */
+    count: (presence) =>
+      presence.foldedFigures.filter(
+        (figure) => (figure.folded3d ?? null) !== null && figure.handle == null
+      ).length,
     droppedByFormats: ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj'],
   },
 ];

@@ -3456,6 +3456,44 @@ describe('workspace store slices', () => {
       expect(activatePanel).toHaveBeenCalledWith('simulator');
     });
 
+    it('sends every live 3D figure to the FOLD export, and never a detached one', async () => {
+      const figure = await fold3dFigure();
+      const fileService = createFileService();
+      // `resetStores` leaves the engine mid-load; the export capability is
+      // gated on that, and this test is about which handles cross, not about
+      // the gate.
+      useWorkspaceStore.setState({ status: 'ready' });
+      await expect(useWorkspaceStore.getState().exportFold(fileService)).resolves.toBe(true);
+      expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenLastCalledWith(
+        expect.anything(),
+        [figure.handle]
+      );
+
+      // A figure reopened from an `.osf` has no kernel session to describe it,
+      // so it is left out rather than sent as a null handle — and the user is
+      // told, rather than the figure going quietly.
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: [{ ...figure, handle: null }],
+      });
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const pending = useWorkspaceStore.getState().exportFold(fileService);
+        const dialog = useCommandDialogStore.getState().dialog;
+        if (!dialog || dialog.type !== 'confirm') {
+          throw new Error('expected an export-loss confirmation');
+        }
+        expect(dialog.message).toContain('3D folded figures needing a refold');
+        resolveCommandDialog(dialog.id, true);
+        await expect(pending).resolves.toBe(true);
+      } finally {
+        unregisterDialogHost();
+      }
+      expect(oristudioCpMocks.exportOristudioCpDocumentAsFold).toHaveBeenLastCalledWith(
+        expect.anything(),
+        []
+      );
+    });
+
     it('keeps the old figure and raises no dialog when a refold is refused', async () => {
       const figure = await fold3dFigure();
       oristudioCpMocks.fold3dOristudioCpDocument.mockResolvedValueOnce({
