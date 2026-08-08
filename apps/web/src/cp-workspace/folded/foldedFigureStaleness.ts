@@ -1,8 +1,9 @@
-import type {
-  FoldedSourceBounds,
-  OristudioCpDocumentSnapshot,
-  OristudioCpFoldedFigureEntry,
-  OristudioCpLineSegment,
+import {
+  isFoldedFromCurrentCpSourceKind,
+  type FoldedSourceBounds,
+  type OristudioCpDocumentSnapshot,
+  type OristudioCpFoldedFigureEntry,
+  type OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import { isOrieditaFoldableLineColor } from '../../lib/creasePatternClipboard';
 
@@ -282,8 +283,11 @@ export function isFoldedFigureStale(
 ): boolean {
   if (!document) return false;
   if (figure.sourceBounds == null || figure.sourceFingerprint == null) return false;
-  // Only figures folded from this document's creases have creases to drift.
-  if (figure.sourceKind !== 'generated-from-current-cp') return false;
+  // Only figures folded from this document's creases have creases to drift —
+  // both kinds of them. This predicate fails *open*: exclude a kind here and
+  // nothing errors, its figures simply report fresh forever and the Refold verb
+  // is dropped from the menu rather than shown disabled.
+  if (!isFoldedFromCurrentCpSourceKind(figure.sourceKind)) return false;
   const ids = reselectFoldableLineIds(document, figure.sourceBounds);
   return foldedSourceFingerprint(cpLinesByIds(document, ids)) !== figure.sourceFingerprint;
 }

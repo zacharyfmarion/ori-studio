@@ -750,10 +750,44 @@ export interface OristudioCpFold3dStepResult {
  */
 export type OristudioCpFoldedFigureStatus = 'ready' | 'stale' | 'loading' | 'error';
 
+/**
+ * Where a folded figure came from.
+ *
+ * Two of these were folded from the creases the user is editing, and the
+ * difference between them is which folder answered — so anything asking "can I
+ * refold this from the document?" must ask
+ * {@link isFoldedFromCurrentCpSourceKind}, never compare against one arm. Both
+ * of the `imported-*` kinds came from a file and have no live creases behind
+ * them.
+ *
+ * `'unknown'` is what a reader writes for a value it does not recognise. It is
+ * deliberately **not** coerced to `'generated-from-current-cp'`: that value is
+ * the one thing that makes a figure look refoldable, and coercing an unknown
+ * kind into it is how a figure written by a newer build gets refolded by the
+ * wrong folder in an older one.
+ */
 export type OristudioCpFoldedFigureSourceKind =
   | 'generated-from-current-cp'
+  | 'generated-3d'
   | 'imported-folded-form'
-  | 'imported-preserved-frame';
+  | 'imported-preserved-frame'
+  | 'unknown';
+
+/**
+ * Whether a figure of this kind was folded from the document's own creases, and
+ * so has creases to drift, to reselect, and to refold from.
+ *
+ * The one predicate for that question. It exists because there are now two such
+ * kinds and every site that compared against `'generated-from-current-cp'`
+ * directly would silently exclude every 3D figure — which fails *open*: nothing
+ * errors, the figure simply never goes stale, never offers a refold and never
+ * becomes the toolbar's fallback.
+ */
+export function isFoldedFromCurrentCpSourceKind(
+  kind: OristudioCpFoldedFigureSourceKind
+): boolean {
+  return kind === 'generated-from-current-cp' || kind === 'generated-3d';
+}
 
 /**
  * Where a folded figure sits on the crease-pattern canvas, in SVG **user**

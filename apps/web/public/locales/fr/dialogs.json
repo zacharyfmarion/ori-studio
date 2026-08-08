@@ -102,7 +102,7 @@
     "foldedCasesFound_many": "{{count}} trouvé(s) jusqu’ici",
     "foldedCasesFound_other": "{{count}} trouvé(s) jusqu’ici",
     "foldedFigureNeedsCp": "Ouvrez un patron de plis modifiable pour le plier",
-    "foldedFigureNeedsFlat": "Ce patron comporte des plis qui ne sont pas complets ; il n'a donc pas de forme pliée à plat",
+    "foldedFigureNeedsFlat": "Cette exportation ne plie qu’à plat, et ce patron comporte des plis qui ne sont pas complets",
     "foldedFigureNeedsOnePattern": "Sélectionnez un seul patron à plier",
     "foldedFigureSection": "Figure pliée",
     "foldedFrontColor": "Recto",
@@ -153,8 +153,8 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
-    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {
@@ -283,7 +283,7 @@
     "create": "Créer le lien",
     "creating": "Création du lien…",
     "foldedFigure": "Afficher la figure pliée",
-    "foldedFigureNeedsFlat": "Ce patron comporte des plis qui ne sont pas complets ; il n'a donc pas de forme pliée à plat",
+    "foldedFigureNeedsFlat": "Cet aperçu ne plie qu’à plat, et ce patron comporte des plis qui ne sont pas complets",
     "folding": "Pliage en cours…",
     "frontColor": "Couleur du recto",
     "linkPreview": "Aperçu du lien",

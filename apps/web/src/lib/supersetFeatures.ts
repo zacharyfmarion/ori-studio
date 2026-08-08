@@ -1,7 +1,10 @@
 import type { CpImage } from '../cp-workspace/images/cpImage';
 import type { TextAnnotation } from '../cp-workspace/annotations/textAnnotation';
 import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
-import type { OristudioCpLineSegment } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedFigureEntry,
+  OristudioCpLineSegment,
+} from '../engine/oristudioCpTypes';
 import { isClassicCrease, isFoldingCrease } from './foldAngle';
 import { defaultBpDocumentSymmetry, type BpDocumentSymmetry } from './bpTreeSymmetry';
 
@@ -49,6 +52,14 @@ export interface SupersetPresence {
    * entries this is sourced from kernel geometry rather than frontend state.
    */
   lineSegments: readonly OristudioCpLineSegment[];
+  /**
+   * Folded figures on the crease-pattern canvas, for counting the **3D** ones.
+   * A flat folded figure is not a superset feature — every format drops it and
+   * nobody expects otherwise, because it is derived from the creases and any
+   * reader can recompute it. A 3D one is different: no format carries a
+   * non-180 fold angle except `.fold`, so there is nothing to recompute it from.
+   */
+  foldedFigures: readonly OristudioCpFoldedFigureEntry[];
   /**
    * Box-pleat mirror-draw state. Unlike the entries above this belongs to the
    * Design surface, not the crease pattern.
@@ -141,6 +152,28 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
       ).length,
     droppedByFormats: FOLD_ANGLE_LOSSY_FORMATS,
     blocking: true,
+  },
+  {
+    id: 'foldedForm3d',
+    label: '3D folded figures',
+    count: (presence) =>
+      presence.foldedFigures.filter((figure) => (figure.folded3d ?? null) !== null).length,
+    /**
+     * `.fold` is in this list, and it is the entry to change when the
+     * `foldedForm` frame lands: until then, exporting FOLD writes the crease
+     * pattern and silently leaves the 3D figure behind.
+     *
+     * `.svg`/`.png` are excluded because a folded figure is a picture and those
+     * formats *are* the picture — the per-figure export writes it directly from
+     * the stored primitives. `.bps` is excluded because a crease pattern is
+     * never exported as one.
+     *
+     * Not blocking. The `foldAngles` entry above already refuses every format
+     * here except `.fold`, on the same documents, because losing the *angles*
+     * changes what the pattern is; losing the figure derived from them does not,
+     * and the `.osf` still has it.
+     */
+    droppedByFormats: ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj'],
   },
 ];
 

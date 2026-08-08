@@ -497,6 +497,7 @@
     "viewTreeAndCp": "树与折痕图"
   },
   "fold3dVerdict": {
+    "localCrossing_one": "纸张在 1 个顶点处穿过了自身。",
     "localCrossing_other": "纸张在 {{count}} 个顶点处穿过了自身。",
     "localCrossingLabel": "纸张自相穿透",
     "noLayerOrderContradictorySeeds": "两个面各自都必须位于对方之上，任何层序都无法同时满足。",
@@ -506,10 +507,9 @@
     "selectCreases": "选中这些折线",
     "showIssues": "显示问题",
     "simulateInstead": "改用模拟",
+    "transversalCrossing_one": "有 1 条折线穿过了此立体的面。",
     "transversalCrossing_other": "有 {{count}} 条折线穿过了此立体的面。",
-    "transversalCrossingLabel": "折线穿过面",
-    "localCrossing_one": "纸张在 1 个顶点处穿过了自身。",
-    "transversalCrossing_one": "有 1 条折线穿过了此立体的面。"
+    "transversalCrossingLabel": "折线穿过面"
   },
   "foldedFigureActions": {
     "anotherSolution": "另一个解",

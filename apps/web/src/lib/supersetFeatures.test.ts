@@ -39,6 +39,7 @@ const noneElse = {
   richText: [] as [],
   inlineSimulations: [] as [],
   lineSegments: [] as [],
+  foldedFigures: [] as [],
   bpSymmetry: defaultBpDocumentSymmetry(),
 };
 
@@ -49,6 +50,7 @@ describe('collectExportLossWarnings', () => {
       richText: [],
       inlineSimulations: [],
       lineSegments: [],
+      foldedFigures: [],
       bpSymmetry: defaultBpDocumentSymmetry(),
     };
     for (const format of ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj', 'svg', 'png'] as const) {
@@ -63,6 +65,7 @@ describe('collectExportLossWarnings', () => {
       richText: [createTextAnnotation({ center: { x: 0, y: 0 } })],
       inlineSimulations: [],
       lineSegments: [],
+      foldedFigures: [],
       bpSymmetry: defaultBpDocumentSymmetry(),
     };
     expect(collectExportLossWarnings('ori', presence)).toEqual([
@@ -81,6 +84,7 @@ describe('collectExportLossWarnings', () => {
       images: [],
       richText: [] as [],
       lineSegments: [] as [],
+      foldedFigures: [] as [],
       inlineSimulations: [{ id: 'a' } as never, { id: 'b' } as never],
       bpSymmetry: defaultBpDocumentSymmetry(),
     };
@@ -150,6 +154,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
     richText: [] as [],
     inlineSimulations: [] as [],
     lineSegments: segments,
+    foldedFigures: [] as [],
     bpSymmetry: defaultBpDocumentSymmetry(),
   });
   const ninety = 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE;

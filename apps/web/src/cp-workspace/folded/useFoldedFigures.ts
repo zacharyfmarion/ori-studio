@@ -1,7 +1,10 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
+import {
+  IDENTITY_FOLDED_PLACEMENT,
+  isFoldedFromCurrentCpSourceKind,
+} from '../../engine/oristudioCpTypes';
 import type {
   OristudioCpDocumentState,
   OristudioCpFoldedFigureDisplayStyle,
@@ -102,7 +105,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         .reverse()
         .find(
           (figure) =>
-            figure.sourceKind === 'generated-from-current-cp' && isFoldedFigureReady(figure)
+            isFoldedFromCurrentCpSourceKind(figure.sourceKind) && isFoldedFigureReady(figure)
         ) ??
       null,
     [oristudioCpActiveFoldedFigureId, oristudioCpFoldedFigures]
@@ -110,8 +113,8 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
 
   const generatedFoldedFigures = useMemo(
     () =>
-      oristudioCpFoldedFigures.filter(
-        (figure) => figure.sourceKind === 'generated-from-current-cp'
+      oristudioCpFoldedFigures.filter((figure) =>
+        isFoldedFromCurrentCpSourceKind(figure.sourceKind)
       ),
     [oristudioCpFoldedFigures]
   );

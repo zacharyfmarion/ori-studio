@@ -1601,6 +1601,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       richText: get().oristudioCpAnnotations.filter(isTextAnnotation),
       inlineSimulations: get().oristudioCpInlineSimulations,
       lineSegments: get().oristudioCpDocument?.document.crease_pattern.line_segments ?? [],
+      foldedFigures: get().oristudioCpFoldedFigures,
       bpSymmetry: selectOristudioBpSymmetry(get()),
     });
     if (warnings.length === 0) return true;

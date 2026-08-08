@@ -122,7 +122,10 @@ import {
   retainFoldedFigureHandles,
   setFoldedFigureHandleFree,
 } from '../../../cp-workspace/folded/foldedFigureHandles';
-import { IDENTITY_FOLDED_PLACEMENT } from '../../../engine/oristudioCpTypes';
+import {
+  IDENTITY_FOLDED_PLACEMENT,
+  isFoldedFromCurrentCpSourceKind,
+} from '../../../engine/oristudioCpTypes';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFold3dRefusal,
@@ -350,7 +353,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       figures.find((figure) => figure.id === activeId) ??
       // Nothing selected: act on the most recent generated figure, which is the
       // one a just-completed fold produced.
-      [...figures].reverse().find((figure) => figure.sourceKind === 'generated-from-current-cp') ??
+      [...figures]
+        .reverse()
+        .find((figure) => isFoldedFromCurrentCpSourceKind(figure.sourceKind)) ??
       null
     );
   }
@@ -1933,7 +1938,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             id: figureId,
             title: `Folded model ${figureIndex}`,
             handle: result.handle,
-            sourceKind: 'generated-from-current-cp',
+            // Its own kind, not the flat one. Two witnesses now say a figure is
+            // 3D — this and `folded3d` — and `validateFoldedFigure` asserts they
+            // agree rather than letting them drift.
+            sourceKind: 'generated-3d',
             sourceCpRevision: get().oristudioCpRevision,
             startingFaceId: options.startingFaceId ?? 1,
             displayStyle,
@@ -2576,6 +2584,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     folded3d: result.snapshot,
                     renderSnapshot,
                     camera,
+                    // The kind swaps with the witness. A figure whose creases
+                    // gained fold angles since it was folded is a 3D figure now,
+                    // and leaving `sourceKind` behind would leave the two
+                    // witnesses disagreeing.
+                    sourceKind: 'generated-3d',
                     sourceCpRevision: get().oristudioCpRevision,
                     contradiction: null,
                     error: null,
@@ -2636,6 +2649,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   // to be 3D.
                   folded3d: null,
                   camera: null,
+                  sourceKind: 'generated-from-current-cp',
                   renderSnapshot,
                   sourceCpRevision: get().oristudioCpRevision,
                   contradiction: result.snapshot.contradiction ?? null,

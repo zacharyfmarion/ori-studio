@@ -497,6 +497,7 @@
     "viewTreeAndCp": "ツリーと展開図"
   },
   "fold3dVerdict": {
+    "localCrossing_one": "1つの頂点で紙が自分自身を突き抜けています。",
     "localCrossing_other": "{{count}}個の頂点で紙が自分自身を突き抜けています。",
     "localCrossingLabel": "紙が自己交差",
     "noLayerOrderContradictorySeeds": "2つの面がそれぞれ相手の上に来る必要があり、どちらの重なり順でも両立できません。",
@@ -506,10 +507,9 @@
     "selectCreases": "該当の折り線を選択",
     "showIssues": "問題を表示",
     "simulateInstead": "代わりにシミュレート",
+    "transversalCrossing_one": "折り線が1本、この立体の面を貫通しています。",
     "transversalCrossing_other": "折り線が{{count}}本、この立体の面を貫通しています。",
-    "transversalCrossingLabel": "折り線が面を貫通",
-    "localCrossing_one": "1つの頂点で紙が自分自身を突き抜けています。",
-    "transversalCrossing_one": "折り線が1本、この立体の面を貫通しています。"
+    "transversalCrossingLabel": "折り線が面を貫通"
   },
   "foldedFigureActions": {
     "anotherSolution": "別の解",

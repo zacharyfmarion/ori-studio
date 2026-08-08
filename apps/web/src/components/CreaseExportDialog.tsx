@@ -469,7 +469,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                         : !isFlat
                           ? t(
                               'dialogs:export.foldedFigureNeedsFlat',
-                              'This pattern has creases that are not full folds, so it has no flat-folded form'
+                              'This export folds flat only, and this pattern has creases that are not full folds'
                             )
                           : t(
                               'dialogs:export.foldedFigureNeedsOnePattern',

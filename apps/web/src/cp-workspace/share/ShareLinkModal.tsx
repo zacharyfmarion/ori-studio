@@ -253,7 +253,7 @@ export function ShareLinkModal() {
                   <small className="export-modal__hint">
                     {t(
                       'dialogs:share.foldedFigureNeedsFlat',
-                      'This pattern has creases that are not full folds, so it has no flat-folded form'
+                      'This preview folds flat only, and this pattern has creases that are not full folds'
                     )}
                   </small>
                 )}

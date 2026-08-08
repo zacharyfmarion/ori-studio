@@ -389,3 +389,32 @@ describe('fold angle is part of a crease\'s identity', () => {
     expect(isFoldedFigureStale(after, figure)).toBe(true);
   });
 });
+
+/**
+ * The source-kind guard fails **open**, which is why it needs its own test.
+ *
+ * Leave a kind out and nothing errors, nothing logs, and no type breaks: every
+ * figure of that kind simply reports fresh forever, and `buildFoldedFigureActions`
+ * drops Refold from the menu entirely rather than showing it disabled. The only
+ * thing that notices is an assertion that says which kinds have creases to
+ * drift.
+ */
+describe('which figures have creases that can go stale', () => {
+  const ANGLED = doc([...SQUARE.slice(0, 4), line(0, 0, 1, 1, 'Red1', { fold_magnitude: 90 * 1e7 })]);
+
+  it('sees a 3D figure drift, exactly as it sees a flat one', () => {
+    const spatial = figureFrom(doc(SQUARE), SQUARE_IDS, { sourceKind: 'generated-3d' });
+    expect(isFoldedFigureStale(doc(SQUARE), spatial)).toBe(false);
+    expect(isFoldedFigureStale(ANGLED, spatial)).toBe(true);
+  });
+
+  it('leaves an imported or unrecognised figure alone', () => {
+    // Neither has live creases behind it, so a drift it cannot act on is not
+    // worth reporting — and `'unknown'` is what the reader writes for a kind a
+    // newer build invented, where offering a refold would guess.
+    for (const sourceKind of ['imported-folded-form', 'imported-preserved-frame', 'unknown'] as const) {
+      const figure = figureFrom(doc(SQUARE), SQUARE_IDS, { sourceKind });
+      expect(isFoldedFigureStale(ANGLED, figure), sourceKind).toBe(false);
+    }
+  });
+});
