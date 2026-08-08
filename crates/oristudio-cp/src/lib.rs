@@ -11,6 +11,7 @@ pub mod checks_spatial;
 mod fold_graph;
 pub mod fold_profiling;
 pub mod folding;
+pub mod folding3d;
 pub mod geometry;
 pub mod geometry_transport;
 pub mod io;
@@ -2874,7 +2875,14 @@ fn flat_foldability_diagnostics(
 ///
 /// The checker itself returns a raw residual and never a verdict; the threshold
 /// lives here, applied once, so revising it stays a one-constant change.
-const CLOSURE_RESIDUAL_BAR_DEGREES: f64 = 1e-6;
+///
+/// **Public because it was being copied.** Private, it had been redeclared in
+/// five places — `examples/fold_corpus_scan.rs`, `examples/fold3d_census.rs`,
+/// `src/spike_fold3d.rs`, `tests/verify_fold_fixtures.rs` and
+/// `tests/non_flat_corpus.rs` — each with a comment saying so. Five copies of
+/// one policy number is exactly what the "revising it is one constant" rule
+/// above exists to prevent.
+pub const CLOSURE_RESIDUAL_BAR_DEGREES: f64 = 1e-6;
 
 /// Candidate rays for the vertex-completion tool, from whichever regime owns the
 /// vertex under the cursor.

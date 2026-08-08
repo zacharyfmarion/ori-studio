@@ -108,7 +108,11 @@ pub fn vertex_regime(lines: &[LineSegment]) -> VertexRegime {
 }
 
 /// Quaternion `[w, x, y, z]`.
-pub(crate) type Quat = (f64, f64, f64, f64);
+///
+/// Public because [`crate::folding3d`] composes rigid motions out of the same
+/// primitives and must not re-type them: a second alias is a second convention
+/// waiting to disagree with this one.
+pub type Quat = (f64, f64, f64, f64);
 
 pub(crate) fn crease_quat(theta: f64, rho: f64) -> Quat {
     let (sin_half, cos_half) = (rho / 2.0).sin_cos();
@@ -177,8 +181,8 @@ pub fn vertex_closure_residual(fan: &VertexFan) -> f64 {
     quat_residual(closure_product(&fan.creases))
 }
 
-/// A point on the unit sphere.
-pub(crate) type Vec3 = [f64; 3];
+/// A point on the unit sphere, and the vector type the 3D placement shares.
+pub type Vec3 = [f64; 3];
 
 pub(crate) fn quat_rotate(q: Quat, v: Vec3) -> Vec3 {
     let (w, x, y, z) = q;

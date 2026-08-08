@@ -427,7 +427,22 @@ impl FoldGraph {
             .filter_map(move |(index, face)| face.contains(&point).then_some(index))
     }
 
-    fn fold_movement(&self, point: usize, face: usize, positions: &FacePositions) -> Point {
+    /// One face's own image of a point, before [`Self::folded_points`] averages
+    /// it away.
+    ///
+    /// `pub(crate)` so [`crate::folding3d`] can be diffed against it face by
+    /// face. That comparison is the only cross-check the 3D placement has
+    /// against code someone else wrote — a half-turn about an in-sheet axis
+    /// restricted to the sheet plane *is* this reflection — and it has to be
+    /// made here rather than against `folded_points`, whose averaging is a
+    /// different answer on any document the placement is not path-independent
+    /// on.
+    pub(crate) fn fold_movement(
+        &self,
+        point: usize,
+        face: usize,
+        positions: &FacePositions,
+    ) -> Point {
         let mut p = self.points[point];
         let mut destination_face = face;
         while destination_face != positions.starting_face {
