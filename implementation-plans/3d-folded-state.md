@@ -72,7 +72,26 @@ had just passed — deleted `src/spike_fold3d.rs` per the repo's spike-code
 discipline, and repaired `scripts/folded-grid-screenshot.mjs`, which had been
 dead since the WebGL migration and is the only lane that can look at a folded
 figure at all. It now draws a 3D one.
-What remains is orbit (10) and FOLD interchange (11), both follow-ups.
+**Phase 11 is built**: the `foldedForm` frame, its `faceOrders` signs, and the
+export gating around it.
+
+**The whole branch was then reviewed by three fresh readers**, who between them
+returned four blocking findings — every one of them a *plausible picture* rather
+than a crash. The projector's opaque layer pick never consulted the camera, so on
+14 of 21 admitted corpus models it drew the layer furthest from the viewer with
+the wrong paper side and the wrong shading; the two tests that exist to pin that
+order asserted the bug, because both ran at the one camera where the committed
+fixtures happen to agree with it. The verdict chip's "Simulate instead" resolved
+its region from the colour-filtered id list, so a region holding one auxiliary
+crease fell out of the inline simulator the repo owner's decision exists to
+guarantee. And solution cycling was a visible no-op, because the only display
+style that can show a reordering had been withheld from 3D figures. All four are
+fixed, with the layer-order tests now running at two cameras; see
+[Review round](#review-round--what-fresh-eyes-found-and-what-changed).
+
+**What remains is continuous orbit** — a 3D figure has two fixed views, front and
+"Other side", and no free rotation. That is the feature's headline limitation and
+it is a deliberate deferral, stated under Phase 10.
 
 **Phases 4, 5 and 9 were then reviewed, and the review found one wrong answer and
 one stale artifact.** The wrong answer: a constraint component was being
@@ -3167,7 +3186,13 @@ whole projector is tested under bare node.
       span-400 model: the offset the kernel allows plus the deviation a tilt of
       its angle tolerance induces across the patch. `bsp.ts` gets
       `coplanarEps?: number`, defaulting to `EPS`; `planeOf`'s `length < EPS`
-      guard stays, because that one is a normal-length test.)*
+      guard stays, because that one is a normal-length test.)* **The wiring is
+      pinned as well as the value**: `Folded3dProjection.stats.coplanarEps`
+      reports what the tree was actually built with, because a review mutation
+      that replaced the call with `bsp.ts`'s own `1e-7` passed all 174 tests in
+      the folded suite — every fixture's planes are far enough apart that nothing
+      reclassifies, so the exact regression the epsilon exists to prevent would
+      have shipped green.
 - [x] `bsp.ts`'s near-side rule no longer spelled `eps > EPS`. That expression
       was standing in for "this is an edge with ink", which it stops being the
       moment a caller raises the coplanar tolerance — under it every face of a
@@ -3182,11 +3207,27 @@ whole projector is tested under bare node.
       promotes it to the head of its own coplanar list. Without this the kernel's
       `draw_rank` containment tie-break is defeated across cells of one plane —
       and it also closes the SVG exporter's documented limitation
-- [x] Opaque paper draws **one** fill per cell, the top of its stack: every face
-      of a cell covers the whole cell, so that is exact rather than an
-      approximation, and it is what the corpus cost model already assumed
-      (opaque primitives = cells + edges). Translucent paper emits the whole
-      stack bottom-first
+- [x] Opaque paper draws **one** fill per cell, the layer of its stack nearest
+      the eye: every face of a cell covers the whole cell, so that is exact
+      rather than an approximation, and it is what the corpus cost model already
+      assumed (opaque primitives = cells + edges). Translucent paper emits the
+      whole stack far-to-near. *(Corrected under review: the first
+      implementation drew `cell_stack[0]` unconditionally and never consulted the
+      eye. `cell_stack` is top-first with respect to the plane's `up`, and `up`
+      is the placed normal of the plane's lowest-indexed member face — a fact
+      about the paper, fixed before anyone picked a viewpoint. Wherever
+      `up · eye < 0` the near layer is the **last** element, so the projector
+      painted the layer furthest from the viewer, and since faces of one stack
+      routinely have opposite normals it also picked the wrong paper side and the
+      wrong shading: a clean picture of the wrong thing, with no error. Measured
+      at the shipped default camera over the external corpus, 14 of 21 admitted
+      models have at least one multi-face cell affected, worst
+      `spikes_better.fold` at 96 of 120; at the antipodal camera every
+      multi-face cell of `box_90`, `pinwheel_cyclic`, `spikes_small` and
+      `strip_coupled` is affected. Fixed with one dot product per **plane**, and
+      both layer-order tests now run at two cameras — the default and the
+      antipodal — because the committed fixtures all sit `up`-toward-the-eye at
+      the default, which is a property of the fixtures and not a theorem.)*
 - [x] An undecided cell (`determinacy = 1`) drops its fills to
       `UNDETERMINED_FACE_ALPHA` and gets one translucent-red `fill_polygon` over
       each of its pieces, reusing `CONTRADICTION_FILL` (Oriedita's `(255,0,0,75)`,
@@ -3261,6 +3302,9 @@ rediscover them:
   needs a *gesture* — dragging, scaling, cycling — still needs an eye.
 
 #### What a human still has to look at
+
+*(Phase record. The list an author should actually work through is
+`## Browser checklist` at the end of this plan, which supersedes this one.)*
 
 Nothing here is agent-verifiable: the automated browser pane runs with
 `visibilityState=hidden` and zero animation frames, so a canvas cannot be
@@ -3404,23 +3448,43 @@ checklist said, each recorded at the item it belongs to.
       which was already kind-agnostic. No `fold_to_case` in 3D, refused in the
       store with its own message rather than letting the raw
       `folded_figure_kind_mismatch` surface. No "k of N"
-- [x] **Verb gating, and it is load-bearing rather than defence in depth.** Flip
-      and the folded-model controls never reach a kernel guard at all:
+- [x] **Verb gating, and it is load-bearing rather than defence in depth.** The
+      folded-model controls never reach a kernel guard at all:
       `updateOristudioCpFoldedFigureModel` rejects any figure with a null flat
-      snapshot first, so an ungated flip produces "No folded model is ready" —
-      neither true nor about kinds. `foldedFigureCapabilities.ts` is what stands
-      between the user and that toast. `Transparent3` is withheld for a different
-      reason: it needs the whole-document *flat* arrangement, which a spatial
-      fold never computes
+      snapshot first, so an ungated colour change produces "No folded model is
+      ready" — neither true nor about kinds. `foldedFigureCapabilities.ts` is
+      what stands between the user and that toast.
+      *(Two gates were **withdrawn** under review, both of them over-broad.
+      **`Transparent3` is offered on a 3D figure**: the `needs_subfaces`
+      constraint is true of the flat path and irrelevant here, because a 3D
+      figure's picture is never asked of the kernel —
+      `project3dRenderSnapshot` makes it in TypeScript, where the style means
+      "every cell translucent". Withholding it also cost the only thing that
+      makes solution cycling visible: measured on `penguin_freeform`, all eight
+      solutions hash identically under `Paper5` **and** under `Wire2`, because
+      swapping two buried layers of a stack changes nothing an opaque render
+      shows. So the style list is now one constant shared by both kinds.
+      **Flip is offered on a 3D figure**, as "Other side": the flat verb turns
+      the paper over and the 3D verb moves the eye to `antipodalCamera`, which
+      was written and tested in Phase 6 and then left unreachable from the UI —
+      so the reverse of the paper could never be looked at at all. It goes
+      through a new `setOristudioCpFolded3dCamera` store action, the seam orbit
+      will use, and reaches no kernel.)*
 - [x] i18n: 32 new keys across `dialogs`, `errors` and `panels`, translated in
       all eight locales, `i18n:stamp`, `i18n:check` green. The old
       `dialogs:nonFlatFold.*` block is gone with the intercept it belonged to
 - [x] `mode: 'spatial'` and the three verdict arms wired into Phase 1's events,
-      plus `refusal` and `order_reason` as bounded code enums. `FoldMode`'s
-      `'non-classic'` and `FoldSimulationSource`'s `'non-flat-intercept'` are
-      **renamed, not extended** — both used to mean "we did not try", and both
-      now mean something else. `docs/analytics.md` records the discontinuity so a
-      dashboard unions them deliberately
+      plus `refusal` and `order_reason` as bounded code enums. *(Corrected under
+      review: this originally recorded `mode: 'non-classic'` and
+      `source: 'non-flat-intercept'` as historical values a dashboard has to
+      union deliberately, and `docs/analytics.md` carried a table saying so. It
+      was **false**. On `origin/main` `fold attempted`, `fold completed` and
+      `fold simulation run` have zero call sites — they exist only as names in
+      `ANALYTICS_EVENTS` — and `docs/analytics.md` has no `fold *` rows at all,
+      so no build ever sent either value; both were introduced **and** renamed
+      inside this branch. Acting on that table would have unioned values that do
+      not exist in PostHog. The table and the two doc comments quoting it are
+      deleted.)*
 - [x] `cargo fmt --check`, `clippy -D warnings`, `cargo test --workspace`
       (1429 passed / 0 failed); from `apps/web`, `npx tsc --noEmit`,
       `npx eslint .`, `npx vitest run` (3062 passed / 291 files);
@@ -3446,10 +3510,18 @@ Deliberately **not** in Phase 7:
   Needs a kernel field shaped like `OristudioCpContradictionFaceGeometry` for the
   three reasons that name exactly two faces. Deferred because 17 of 18 admitted
   corpus models order with zero undetermined pairs
-- **Orbit and camera.** The entry's `camera` is written once at fold time from
-  `defaultFolded3dCamera` and never mutated. Phase 10
+- **Orbit.** The entry's `camera` is now mutable — "Other side" writes it through
+  `setOristudioCpFolded3dCamera` — but there is still no *continuous* camera: no
+  drag-to-orbit, and `defaultFolded3dCamera` ignores the model and always returns
+  the same isometric. A 3D figure is therefore two fixed views rather than a
+  freely inspectable object. Still Phase 10, and still deliberate: a drag over a
+  folded figure already means *move*, so orbit needs a modifier or a mode, which
+  is an interaction decision rather than a wiring job
 
 #### What a human still has to look at
+
+*(Phase record. The list an author should actually work through is
+`## Browser checklist` at the end of this plan, which supersedes this one.)*
 
 The automated browser pane runs with `visibilityState=hidden` and zero animation
 frames, so none of this is agent-verifiable. Everything the dispatch *decides* is
@@ -3796,18 +3868,15 @@ Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables
       `from_js` / delegate / `to_js_value` wrappers whose bodies are covered by
       `folding3d_boundary.rs`, and the marshalling is exercised by `vitest`
       against the committed artifact
-- [x] Web: `npx eslint .`, `npx tsc --noEmit`, `npx vitest run` (287 files /
-      **2,986 tests**, against the *committed* wasm), `npm run i18n:check`,
-      `npm run test:scripts` (48/48, newly wired into CI by this branch). Run
-      **directly**, not through the npm wrappers, because `pretest` /
-      `pretypecheck` / `prebuild` regenerate tracked `generated/**` and so would
-      test a wasm nobody committed. `npm run build:web` and
-      `npm run check:desktop` are **not** run — neither is reachable from these
-      changes beyond what `native_commands_match_the_shared_manifest` and `tsc`
-      already cover. `npm run test:simulator` is **not** run and is unaffected;
-      it IS in CI (`.github/workflows/ci.yml:83`), so Phase 6's BSP regressions
-      will be CI-covered when they land. `typecheck:functions` is not in CI and
-      nothing here touches `functions/`
+- [x] Web: `npx eslint .`, `npx tsc --noEmit`, `npx vitest run`, `npm run
+      i18n:check`, `npm run test:scripts` (48/48, newly wired into CI by this
+      branch). Run **directly**, not through the npm wrappers, because `pretest`
+      / `pretypecheck` / `prebuild` regenerate tracked `generated/**` and so
+      would test a wasm nobody committed. `npm run test:simulator` covers Phase
+      6's `bsp.ts` changes and is in CI (`.github/workflows/ci.yml:83`).
+      `typecheck:functions` is not in CI and nothing here touches `functions/`.
+      Final counts are in the review-round entry below rather than here, so this
+      line does not go stale every phase
 - [x] `git diff --check origin/main..HEAD`; committed `.wasm` rebuilt as the
       **last** commit touching `crates/oristudio-cp*` and verified with
       `strings … | grep fold_3d`
@@ -3818,8 +3887,10 @@ Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables
       `pub(crate)` visibility changes.]** The plan predicted `configure_subfaces`
       and `folded_face_polygons` would need narrowing and they did not; the diff
       against `origin/main` adds only public items to `folding.rs`
-- [ ] **Author browser checklist** (the automated pane runs
-      `visibilityState=hidden` with zero rAF, so none of this is agent-verifiable):
+- [x] **Author browser checklist written** — see the `## Browser checklist`
+      section below, which is the one an author should work through. What that
+      checklist has to cover (the automated pane runs `visibilityState=hidden`
+      with zero rAF, so none of it is agent-verifiable):
       `G` on an all-classic selection; `G` on `hinge_90` / `box_90` (census 0
       and 17, both opaque once Phase 9 lands); `G` on `spikes_large` (214 faces,
       the scale case); `G` on `disconnected` and on `annulus_90` (both must
@@ -3897,20 +3968,34 @@ happens to do.
       never consulted; optional `order?: number` on `BspItem` with `sortCoplanar`
       keyed on it — **pulled forward into Phase 6**, which needed it
 - [x] `FoldedFigureCamera { yaw, pitch, zoom }` beside `placement` — landed in
-      Phase 6, written once at fold time, riding undo like `placement` and
-      persisted in Phase 8
-- [ ] **Orbit: deferred, deliberately.** The camera field exists and is never
-      mutated. Three reasons, in order of weight. A drag over a folded figure
-      already means *move* (`transformableObject.ts`), so orbit needs a modifier
-      or a mode — a real interaction decision, not a wiring job. It cannot be
-      verified here at all: the agent browser pane issues zero animation frames,
-      and the repaired screenshot harness photographs a static frame rather than
-      driving a gesture. And a reopened `.osf` figure could not orbit anyway,
-      since re-projection needs the render model the file does not carry, so the
-      verb would be present on some figures and absent on others with no visible
-      reason. `useFoldedFigureOrbit` reusing `lib/simulatorOrbit.ts`, one undo
-      checkpoint per gesture; `inlineSimulation.ts:46-56` is a written
-      post-mortem of the camera never being written back
+      Phase 6, riding undo like `placement` and persisted in Phase 8. Written at
+      fold time and, since the review round, by the "Other side" verb
+- [x] **Two views, not one.** The "Other side" verb — the 3D reading of the flat
+      figure's Flip — moves the eye to `antipodalCamera` through a new
+      `setOristudioCpFolded3dCamera` store action, re-projecting locally and
+      reaching no kernel. Added under review: `antipodalCamera` was written and
+      tested in Phase 6 and then unreachable, because `foldedFigureCapabilities`
+      set `flip: false` for 3D and `handleFoldModel` never passes
+      `options.model`, so `snapshot.model.state` is always `Front0` — the reverse
+      of the paper could not be looked at by any route. It is an involution, and
+      a figure with no recorded camera turns over from the default
+- [ ] **Continuous orbit: still deferred, deliberately.** There is no
+      drag-to-orbit and `defaultFolded3dCamera` still ignores the model, so a 3D
+      figure is two fixed isometric views rather than a freely inspectable
+      object — the headline limitation of the feature, and it should be a
+      conscious merge decision rather than a discovery after the fact. Three
+      reasons, in order of weight. A drag over a folded figure already means
+      *move* (`transformableObject.ts`), so orbit needs a modifier or a mode — a
+      real interaction decision, not a wiring job. It cannot be verified here at
+      all: the agent browser pane issues zero animation frames, and the repaired
+      screenshot harness photographs a static frame rather than driving a
+      gesture. And a reopened `.osf` figure could not orbit anyway, since
+      re-projection needs the render model the file does not carry, so the verb
+      would move the camera on some figures and not others with no visible reason
+      (the "Other side" verb has that same asymmetry, bounded to one press).
+      `useFoldedFigureOrbit` reusing `lib/simulatorOrbit.ts`, one undo checkpoint
+      per gesture; `inlineSimulation.ts:46-56` is a written post-mortem of the
+      camera never being written back
 - [ ] `useFoldedFigurePreview.ts:73`'s cache key extended with the camera, or an
       orbited figure serves its pre-orbit picture in the export and share
       dialogs. **Not needed until orbit lands** — the key already carries
@@ -4018,6 +4103,146 @@ contact and one was struck; each says so below.**
       the handle-less figures and does list `fold`; the two counts partition the
       3D figures. Recorded in `apps/web/docs/superset-features.md` §3 as the
       pattern for a conditionally-carried feature
+
+### Review round — what fresh eyes found, and what changed
+
+Three independent reviews over the finished branch. One returned green; two
+returned blocking findings, and every one of them is fixed above at the item it
+belongs to. Summarised here because the pattern is worth keeping: **all four
+blocking findings were plausible pictures rather than crashes.**
+
+| Finding | Verdict | What it was |
+| --- | --- | --- |
+| The projector's opaque layer pick never consulted the camera | fixed | `expand()` drew `cell_stack[0]`, which is nearest the eye only while `up · eye > 0`. Wrong layer, wrong paper side, wrong shading, no error. 14 of 21 admitted corpus models affected at the default camera |
+| The two tests that pin the layer order asserted the buggy behaviour | fixed | Both ran at one camera, at which every committed fixture happens to sit `up`-toward-the-eye. They now run at the default **and** the antipodal camera, with a third test asserting the two cameras genuinely differ so the pair cannot go vacuous |
+| The verdict chip's "Simulate instead" resolved the wrong id list | fixed | It passed `sourceLineIds` — foldable-colour filtered — where `resolveInlineSimulationRegion` needs the unfiltered scoped list, so a region holding one auxiliary crease fell through to the Simulate panel. That is the exact outcome DECISIONS item 1 exists to prevent, and the refusal dialog already did it right. The entry now records `sourceScopedLineIds` beside `sourceLineIds`, through the `.osf` round trip, with a fallback to the folded ids for files written before it |
+| Cycling solutions was a visible no-op in both styles the UI offered | fixed | Mechanically correct and invisible: an opaque render of two stackings of the same paper is byte-identical, and `Transparent3` — the only style that shows a reordering — was withheld from 3D figures. It is now offered, on the grounds that a 3D figure's picture is never made by the kernel |
+| A 3D figure was one fixed, non-interactive projection | partly fixed | "Other side" now reaches `antipodalCamera`, which existed and was unreachable. Continuous orbit remains deferred and is the feature's headline limitation — see Phase 10 |
+
+Non-blocking findings acted on in the same round: the `warn`-tone verdict chip
+resolved `--text-warning`, **a variable defined nowhere in this app**, so it
+rendered byte-identical to ordinary muted text — both tones now use the theme
+preset's own `--status-warning` / `--status-danger`; `docs/analytics.md`'s
+"Renamed values" table asserted a discontinuity that never happened and is
+deleted; `FoldedFigureNoticeAction.lineIds` was dead on the `simulate-instead`
+arm and now carries the list the handler actually reads; `FOLDED_FIGURE_STYLE_CHOICES`
+and `FLAT_FIGURE_STYLE_CHOICES` were two lists that had to agree and are now one;
+`PORTING.md`'s "Three things" introduced ten bullets. Left alone deliberately:
+`interchange.rs`'s `weld_vertices` sentinel (unreachable, and touching
+`crates/oristudio-cp/src` would force a wasm rebuild for no behaviour change),
+and the three exported-but-unreferenced analytics union types, which document the
+taxonomy.
+
+### Final validation, run on the finished branch
+
+Every command below was run from the worktree root after the review fixes, and
+these are the numbers it printed.
+
+| Command | Result |
+| --- | --- |
+| `cargo fmt --check` | exit 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | exit 0 |
+| `cargo test --workspace` | exit 0 — 138 binaries, **1,449 passed / 0 failed / 4 ignored** |
+| `npx tsc --noEmit` (from `apps/web`) | exit 0 |
+| `npx vitest run` (from `apps/web`) | **292 files / 3,106 tests passed** |
+| `npx eslint .` (from `apps/web`) | exit 0 |
+| `npm run i18n:check` | passed |
+| `npm run check:desktop` | exit 0 |
+| `npm run build:web` | exit 0; `apps/web/dist/.gitkeep` verified still present afterwards |
+| `npm run test:simulator` | **251 passed / 1 skipped** |
+| `git diff --check` | exit 0 |
+
+No file under `crates/*/src` changed in this round — the only Rust edit is a new
+test in `crates/oristudio-cp/tests/folding3d_boundary.rs` — so the committed wasm
+under `apps/web/src/generated/` is untouched and still current.
+
+Three `oriedita_operations_oracle` cases (`symmetric_draw`,
+`double_symmetric_draw`, `fishbone_draw`) remain known-failing under the
+reflect-over-line axis divergence, reproducible on pristine `origin/main`. They
+are not run by default: the harness skips silently when
+`ORIEDITA_OPERATIONS_ORACLE` is unset, which is the pre-existing repo and CI
+condition.
+
+## Browser checklist
+
+**Everything below needs a human.** The automated browser pane runs with
+`visibilityState=hidden` and issues **zero** animation frames, so no canvas can
+be drawn, screenshotted, or driven by a gesture there. Store actions and debug
+hooks do work and are covered by tests; what follows is only what an eye settles.
+Each item is an action and the result to expect.
+
+**Folding**
+
+1. Select a whole region of a non-flat CP (one with fold angles other than 180°)
+   and press `G`. → A 3D figure appears **beside** the crease pattern, not on top
+   of it, at an isometric view, with its two planes shaded differently.
+2. Press `G` on an all-classic selection in the same document. → The flat folder
+   runs, exactly as before this branch. A mixed selection goes to 3D.
+3. Press `G` on a pattern whose vertices do not close (e.g. `annulus_90`). → A
+   refusal dialog naming the reason, offering **Simulate**. Accept it. → An
+   **inline** simulation window opens beside the CP — not a switch to the
+   Simulator workspace. If the selection is not one border-enclosed region, the
+   Simulator panel opening instead is the correct fallback.
+
+**The layer-order fix — look at this one first**
+
+4. On a figure with stacked layers, press **Other side** in the figure's floating
+   toolbar. → The figure is seen from behind: the silhouette is mirrored and the
+   paper's *reverse* colour is now the one facing you. Press it again. → Exactly
+   the first view returns. This is the verb that exercises the corrected layer
+   pick; if a stack looks like it is showing the wrong sheet from one side, that
+   is the bug the review found and it is back.
+
+**Cycling**
+
+5. On a multi-solution figure (`penguin_freeform` is the fixture), set the
+   display style to **X-ray** and press **Another solution** repeatedly. → The
+   layering visibly changes. Under **Paper** it legitimately may not: an opaque
+   render of two stackings of the same paper is identical, which is why X-ray is
+   offered.
+6. Keep pressing to the end. → The button reads **Back to first solution** on the
+   last one, and the next press returns to solution 1 and keeps wrapping.
+
+**The verdict chip**
+
+7. Fold a pattern that reports a crossing (warn tone, e.g. "Passes through
+   itself"). → The chip is legible — an amber-ish `--status-warning`, clearly not
+   ordinary grey text. This is a new fix; judge the contrast in both themes.
+8. Fold `airplane.fold` (the one corpus model whose creases contradict its walls)
+   and press **Simulate instead** on the "Layers not ordered" chip. → An inline
+   simulation opens beside the CP. Repeat with an auxiliary (Cyan3) construction
+   line inside the region — it must **still** open inline, not switch to the
+   Simulator panel. That is the finding this round fixed.
+
+**Placement, persistence, export**
+
+9. Drag, scale and rotate a 3D figure. → It moves without distorting or
+   shimmering, and no face drops out.
+10. Save as `.osf`, reopen. → The figure draws the same picture with the same
+    verdict label; **Other side**, **Display style** and **Another solution** are
+    correctly inert (`handle: null`). Open the same file on a `main` build → it
+    still opens and draws; saving there deletes the 3D data, which is the
+    accepted degradation.
+11. Edit a fold *angle* inside the figure's source region. → The figure is marked
+    stale and offers **Refold**; refolding restores a live figure keeping camera
+    and placement. Take the angles away entirely and refold → it becomes a flat
+    figure.
+12. Export the figure to SVG and to PNG from its own menu. → Both write the
+    figure, not a blank page. Export the *crease pattern* to `.cp` → the loss
+    dialog names the 3D figure.
+13. Export to `.fold` with a 3D figure on the canvas, then open the file in a
+    viewer that reads `foldedForm` frames (Rabbit Ear's, or Origami Simulator's
+    FOLD viewer). → The folded shape is the one on the canvas and **not its
+    mirror**. Sign and winding are the two things a test can only pin against
+    itself.
+
+**Known and accepted, so not a bug report**
+
+- A 3D figure has two views (front and Other side) and no free orbit.
+- Creases where two planes meet may read as hairlines — the crease depth bias
+  noted under Phase 6, not a new defect.
+- SVG/PNG export does not pixel-match the canvas. It does not for a flat figure
+  either; the stroke-width convention differs between the two renderers.
 
 ## Risks and mitigations
 
@@ -4130,7 +4355,10 @@ The `segments`-dropped premise is unchanged but the citation moved:
   oracle, and any future orbit needs pointer rate an async wasm round-trip cannot
   deliver.
 - **Undetermined stacks render as per-face translucency in the projector**, not
-  as `Transparent3` — that style needs the arrangement the merge set avoids.
+  as the `Transparent3` *style*: an undecided cell is an annotation on one cell,
+  and a style is a mode over the whole figure. (`Transparent3` itself **is**
+  offered on a 3D figure — it means "every cell translucent" and is made by the
+  projector, never by the kernel's flat arrangement pass.)
 - **No `fold_to_case` on the canvas and no "k of N."** Neither exists for the 2D
   figure, and the ask is parity.
 - **No `.osf` schema bump.** The conditional raise buys nothing; gate on the
