@@ -294,6 +294,114 @@ describe('buildFoldedFigureActions', () => {
   });
 });
 
+/**
+ * The solution verb reads the same on a 3D figure as on a flat one, at every
+ * point of a stream.
+ *
+ * A requirement, not a nicety: one verb serves both kinds, so any divergence in
+ * label, icon or disabled state is a divergence the user meets. The individual
+ * cases above already pin what each state *should* say; what this adds is that
+ * the two kinds say it identically — which the cases above cannot show, because
+ * each is written against one kind.
+ *
+ * The states are the ones a real stream passes through, in order, and they are
+ * the kernel's own vocabulary: `a_3d_stream_ends_the_way_a_flat_stream_ends` in
+ * `crates/oristudio-cp/tests/folding3d_boundary.rs` is what says a real 3D
+ * stream actually produces them. Before that landed, the last-solution row here
+ * was unreachable in 3D — the stream reported another solution and then wrapped
+ * without warning.
+ */
+describe('the solution verb is the same verb on either kind of figure', () => {
+  const STREAM = [
+    {
+      what: 'the first of several solutions',
+      cycling: {
+        find_another_overlap_valid: true,
+        discovered_fold_cases: 1,
+        current_fold_case: 1,
+      },
+    },
+    {
+      what: 'the middle of a stream',
+      cycling: {
+        find_another_overlap_valid: true,
+        discovered_fold_cases: 5,
+        current_fold_case: 5,
+      },
+    },
+    {
+      what: 'the last solution, where the next press wraps',
+      cycling: {
+        find_another_overlap_valid: false,
+        discovered_fold_cases: 8,
+        current_fold_case: 8,
+      },
+    },
+    {
+      what: 'just after the wrap, back on solution 1',
+      cycling: {
+        find_another_overlap_valid: true,
+        discovered_fold_cases: 8,
+        current_fold_case: 1,
+      },
+    },
+    {
+      what: 'a fold with exactly one solution',
+      cycling: {
+        find_another_overlap_valid: false,
+        discovered_fold_cases: 1,
+        current_fold_case: 1,
+      },
+    },
+  ];
+
+  function verb(figure: OristudioCpFoldedFigureEntry) {
+    const action = command(figure, makeDeps(), 'another');
+    return { label: action.label, icon: action.icon, disabled: action.disabled };
+  }
+
+  for (const { what, cycling } of STREAM) {
+    it(`reads the same at ${what}`, () => {
+      const flat = makeFigure({
+        snapshot: { model: { state: 'Front0' }, ...cycling },
+      } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+      const spatial = makeFigure({
+        sourceKind: 'generated-3d',
+        snapshot: null,
+        folded3d: { model: { state: 'Front0' }, verdict: { verdict: 'folded' }, ...cycling },
+      } as unknown as Partial<OristudioCpFoldedFigureEntry>);
+
+      expect(verb(spatial)).toEqual(verb(flat));
+    });
+  }
+
+  it('says which of the two a press will do, rather than only that it can', () => {
+    // The row above compares the two kinds; this one is why the comparison is
+    // worth making. Without it a test that returned a constant for both kinds
+    // would pass every case above.
+    const at = (index: number) =>
+      verb(
+        makeFigure({
+          sourceKind: 'generated-3d',
+          snapshot: null,
+          folded3d: {
+            model: { state: 'Front0' },
+            verdict: { verdict: 'folded' },
+            ...STREAM[index]!.cycling,
+          },
+        } as unknown as Partial<OristudioCpFoldedFigureEntry>)
+      );
+    expect(at(1)).toEqual({ label: 'Another solution', icon: 'another', disabled: false });
+    expect(at(2)).toEqual({
+      label: 'Back to first solution',
+      icon: 'first-solution',
+      disabled: false,
+    });
+    // Nowhere to go: wrapping a one-solution fold lands where it started.
+    expect(at(4).disabled).toBe(true);
+  });
+});
+
 describe('isFoldedFigureReady', () => {
   it('requires a ready status, a handle and a snapshot', () => {
     expect(isFoldedFigureReady(makeFigure())).toBe(true);

@@ -3361,6 +3361,70 @@ describe('workspace store slices', () => {
       expect(spatial?.snapshot).toBeNull();
     });
 
+    /**
+     * A wrap is reported as a wrap on either kind of figure.
+     *
+     * The store reads the direction from the figure's cycling state *before* the
+     * press, through `foldedFigureCycling` — the one place that knows a figure
+     * has two kinds — so the label the user saw, the branch the kernel takes and
+     * the event we record all agree about which of the two a press was. Reading
+     * it after would report the direction of the press *following* this one.
+     */
+    it('calls the last press a wrap, on a 3D figure exactly as on a flat one', async () => {
+      const exhausted = {
+        find_another_overlap_valid: false,
+        discovered_fold_cases: 4,
+        current_fold_case: 4,
+      };
+
+      const figure = await fold3dFigure();
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: useWorkspaceStore
+          .getState()
+          .oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? { ...candidate, folded3d: { ...candidate.folded3d!, ...exhausted } }
+              : candidate
+          ),
+      });
+      oristudioCpMocks.fold3dOristudioCpFigureAnother.mockResolvedValueOnce({
+        snapshot: folded3dSnapshot({ discovered_fold_cases: 4, current_fold_case: 1 }),
+        render: folded3dRenderModelFixture(),
+        advanced: false,
+      });
+
+      await expect(
+        useWorkspaceStore.getState().foldAnotherOristudioCpFigure(figure.id)
+      ).resolves.toBe(true);
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.folded3d?.current_fold_case)
+        .toBe(1);
+      const cycled = () =>
+        analyticsMocks.track.mock.calls
+          .filter(([name]) => name === 'fold solution cycled')
+          .map(([, properties]) => properties);
+      const spatialEvents = cycled();
+
+      // The same state on a flat figure, through the same action.
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+      });
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+      const flat = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+      useWorkspaceStore.setState({
+        oristudioCpFoldedFigures: [
+          { ...flat, snapshot: { ...flat.snapshot!, ...exhausted } },
+        ],
+      });
+      await expect(
+        useWorkspaceStore.getState().foldAnotherOristudioCpFigure(flat.id)
+      ).resolves.toBe(true);
+
+      expect(spatialEvents).toEqual([{ direction: 'wrap', solution_count_bucket: '<=5' }]);
+      expect(cycled()).toEqual(spatialEvents);
+    });
+
     it('simulates the region a verdict names, with the same region rule', async () => {
       // The 'Simulate instead' a `no_layer_order` verdict offers goes through
       // the same helper the refusal does, so it inherits the border-enclosed
