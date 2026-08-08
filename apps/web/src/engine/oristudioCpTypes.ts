@@ -370,7 +370,24 @@ export interface OristudioCpFoldedFigureSnapshot {
   wireframe: OristudioCpFoldedWireframe | null;
   contradiction?: OristudioCpFoldContradiction | null;
   contradiction_faces?: OristudioCpContradictionFaceGeometry | null;
+  /**
+   * Why the estimate stopped where it did.
+   *
+   * `estimation_step` cannot say: `Step3` / `Transparent3` with no solutions is
+   * where three different things land — a request that stopped below the layer
+   * search, a search that found no valid ordering, and a contradiction, which
+   * the kernel rewinds to that exact stage on purpose (mirroring Oriedita).
+   * Absent on figures saved before this existed.
+   */
+  outcome?: OristudioCpFoldOutcome;
 }
+
+/** Mirror of the kernel's `folding::FoldOutcome`. */
+export type OristudioCpFoldOutcome =
+  | 'NotAttempted'
+  | 'Solved'
+  | 'NoSolutions'
+  | 'Contradiction';
 
 export interface OristudioCpFoldedFigureResult {
   handle: number;
