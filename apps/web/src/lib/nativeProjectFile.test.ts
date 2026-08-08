@@ -82,6 +82,7 @@ function foldedFigure(): OristudioCpFoldedFigureEntry {
     sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
     sourceFingerprint: 'fingerprint-1',
     sourceLineIds: [1, 2, 3],
+    sourceScopedLineIds: [1, 2, 3, 4],
     snapshot: {
       model: {
         front_color: { red: 255, green: 255, blue: 50 },
@@ -379,6 +380,10 @@ describe('native project file', () => {
       sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
       sourceFingerprint: 'fingerprint-1',
       sourceLineIds: [1, 2, 3],
+      // The two lists are separately recorded because neither derives from the
+      // other: the kernel indexes into the filtered one, and only the
+      // unfiltered one matches a region for "simulate instead".
+      sourceScopedLineIds: [1, 2, 3, 4],
     });
   });
 
@@ -407,6 +412,7 @@ describe('native project file', () => {
     delete entry.sourceBounds;
     delete entry.sourceFingerprint;
     delete entry.sourceLineIds;
+    delete entry.sourceScopedLineIds;
 
     const parsed = parseNativeProjectFile(JSON.stringify(serialized));
     const document = parsed.workspace.creasePattern;
@@ -415,7 +421,38 @@ describe('native project file', () => {
       sourceBounds: null,
       sourceFingerprint: null,
       sourceLineIds: [],
+      sourceScopedLineIds: [],
     });
+  });
+
+  // A file written before the scoped list existed still has one honest answer
+  // for which creases the fold covered, and reading it as empty would silently
+  // disable "simulate instead" on every reopened 3D figure.
+  it('falls back to the folded ids when a file records no scoped ids', () => {
+    const file = createNativeCreasePatternProjectFile({
+      title: 'Pre-scoping CP',
+      filename: 'pre-scoping.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf',
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [foldedFigure()],
+      activeFoldedFigureId: 'generated-1',
+      lineage: importedCpLineage(),
+      appVersion: '0.1.1',
+      now,
+    });
+    const serialized = JSON.parse(serializeNativeProjectFile(file));
+    delete serialized.workspace.creasePattern.viewState.foldedFigures[0].sourceScopedLineIds;
+
+    const parsed = parseNativeProjectFile(JSON.stringify(serialized));
+    const document = parsed.workspace.creasePattern;
+    if (!document) throw new Error('expected CP document');
+    expect(document.viewState.foldedFigures[0].sourceScopedLineIds).toEqual([1, 2, 3]);
   });
 
   it('drops a malformed source region rather than trusting a partial box', () => {

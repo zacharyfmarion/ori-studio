@@ -902,8 +902,24 @@ export interface OristudioCpFoldedFigureEntry {
    * The line ids that were folded. Not authoritative — `sourceBounds` is, so a
    * refold picks up creases added inside the region since — but kept for
    * diagnostics and as the seed for the first fingerprint.
+   *
+   * Foldable-coloured only, because that is what the kernel was handed: the
+   * indices a 3D verdict reports are positions in *this* list, which is why
+   * `crossingLineIds` reads it and nothing else.
    */
   sourceLineIds?: number[];
+  /**
+   * The ids the fold was **scoped** to, before the foldable-colour filter.
+   *
+   * A different question from {@link sourceLineIds} and it has to be stored
+   * separately, because neither derives from the other: a region is matched by
+   * *every* crease inside it, auxiliary construction lines included, so
+   * `resolveInlineSimulationRegion` refuses the filtered list. This is the list
+   * "simulate instead" resolves a region from, on the verdict chip exactly as in
+   * the refusal dialog. Absent on a figure written before it was tracked, where
+   * `sourceLineIds` is the best available stand-in.
+   */
+  sourceScopedLineIds?: number[];
   error: string | null;
   /**
    * Set when the fold concluded with a global flat-foldability contradiction.

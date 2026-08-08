@@ -34,9 +34,14 @@ export interface FoldedFigureNoticeAction {
   id: FoldedFigureNoticeActionId;
   label: string;
   /**
-   * Document line ids the action should select. Empty for actions that select
-   * nothing — `show-issues` turns on the CAMV overlay, which names its own
-   * vertices.
+   * The document line ids this action operates on — the creases
+   * `select-creases` selects, and the region `simulate-instead` resolves a
+   * simulation from. Empty only for `show-issues`, which turns on the CAMV
+   * overlay and lets it name its own vertices.
+   *
+   * One field rather than one per action id because there is exactly one
+   * consumer and it reads this; a second, unread list beside it is how the two
+   * doors onto the simulator drifted apart in the first place.
    */
   lineIds: number[];
 }
@@ -80,19 +85,26 @@ export function crossingLineIds(
 }
 
 /**
- * The creases a contradictory-seed reason names.
+ * The ids a simulation of this figure would be resolved from.
  *
- * The only order reason that names creases at all, and it is the one the kernel
- * bothered to name them for: "two faces each have to be above the other" is not
- * actionable without knowing which creases said so.
+ * The **scoped** selection, not the folded one. `resolveInlineSimulationRegion`
+ * matches a border-enclosed region by *every* crease inside it, auxiliary
+ * construction lines included, while `sourceLineIds` is filtered to the foldable
+ * colours the kernel was handed — so a region holding one Cyan3 line resolves to
+ * null from the filtered list and the simulation opens in the Simulate panel
+ * instead of inline. The refusal dialog has always passed the scoped ids
+ * (`creasePatternSlice.ts`, `simulateNonFlatRegion`); this is the same list, so
+ * the two doors onto the simulator cannot answer differently.
+ *
+ * Falls back to the folded ids for a figure written before the scoped list was
+ * recorded: still the best available answer, and no worse than the old
+ * behaviour.
  */
-export function orderReasonLineIds(
-  figure: Pick<OristudioCpFoldedFigureEntry, 'sourceLineIds'>,
-  reason: OristudioCpFold3dOrderReason
+export function foldedFigureSimulationLineIds(
+  figure: Pick<OristudioCpFoldedFigureEntry, 'sourceLineIds' | 'sourceScopedLineIds'>
 ): number[] {
-  if (reason.code !== 'contradictory_seeds') return [];
-  const order = kernelLineOrder(figure.sourceLineIds ?? []);
-  return documentLineIdsForKernelLines(order, [reason.first_line, reason.second_line]);
+  const scoped = figure.sourceScopedLineIds ?? [];
+  return scoped.length > 0 ? [...scoped] : [...(figure.sourceLineIds ?? [])];
 }
 
 /** Why a placed figure has no stacking, in one sentence. */
@@ -187,7 +199,7 @@ export function foldedFigureNotice(
         action: {
           id: 'simulate-instead',
           label: t('panels:fold3dVerdict.simulateInstead', 'Simulate instead'),
-          lineIds: orderReasonLineIds(figure, verdict.reason),
+          lineIds: foldedFigureSimulationLineIds(figure),
         },
       };
   }

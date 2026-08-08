@@ -3266,6 +3266,37 @@ describe('workspace store slices', () => {
       expect(advanced?.snapshot).toBeNull();
     });
 
+    it('records the scoped ids beside the folded ones, unfiltered', async () => {
+      // Two lists, because neither derives from the other. The kernel is handed
+      // foldable colours only and reports crossings as indices into *that*
+      // list; a region is matched by every crease inside it, aux lines
+      // included, so only the unfiltered list can resolve one. Feeding the
+      // filtered list to `resolveInlineSimulationRegion` is what sent the
+      // verdict chip's "Simulate instead" to the Simulate panel.
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        oristudioCpDocument: editableCpState([
+          cpLine({ x: 0, y: 0 }, { x: 1, y: 0 }, { color: 'Black0' }),
+          cpLine(
+            { x: 0, y: 0 },
+            { x: 1, y: 1 },
+            { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+          ),
+          // A construction line inside the same region. Not foldable, so the
+          // kernel never sees it — but the region does not exist without it.
+          cpLine({ x: 0, y: 1 }, { x: 1, y: 1 }, { color: 'Cyan3' }),
+        ]),
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1, 2, 3] },
+      });
+
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+
+      const figure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
+      expect(figure?.folded3d).not.toBeNull();
+      expect(figure?.sourceLineIds).toEqual([1, 2]);
+      expect(figure?.sourceScopedLineIds).toEqual([1, 2, 3]);
+    });
+
     it('duplicates through the 3D command', async () => {
       const figure = await fold3dFigure();
 

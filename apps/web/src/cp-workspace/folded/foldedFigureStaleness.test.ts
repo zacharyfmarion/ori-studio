@@ -10,6 +10,7 @@ import {
   foldedSourceFingerprint,
   isFoldedFigureStale,
   reselectFoldableLineIds,
+  reselectSourceLineIds,
   segmentOverlapsBounds,
 } from './foldedFigureStaleness';
 
@@ -153,6 +154,27 @@ describe('reselectFoldableLineIds', () => {
   it('returns nothing without a document or a region', () => {
     expect(reselectFoldableLineIds(null, { minX: 0, minY: 0, maxX: 1, maxY: 1 })).toEqual([]);
     expect(reselectFoldableLineIds(doc(SQUARE), null)).toEqual([]);
+  });
+});
+
+describe('reselectSourceLineIds', () => {
+  it('keeps the auxiliary lines its folding-line sibling drops', () => {
+    // The whole reason it exists. A *region* is matched by every crease inside
+    // it, construction lines included, so `resolveInlineSimulationRegion`
+    // refuses the folding-line set — which is what sent the verdict chip's
+    // "Simulate instead" to the Simulate panel instead of opening inline.
+    const document = doc([...SQUARE, line(0.2, 0.2, 0.8, 0.8, 'Cyan3')]);
+    const bounds = foldedSourceBounds(SQUARE);
+    expect(reselectFoldableLineIds(document, bounds)).toEqual(SQUARE_IDS);
+    expect(reselectSourceLineIds(document, bounds)).toEqual([...SQUARE_IDS, 6]);
+  });
+
+  it('is still bounded by the region, and still needs both inputs', () => {
+    expect(reselectSourceLineIds(doc([...SQUARE, line(5, 5, 6, 6, 'Cyan3')]), foldedSourceBounds(SQUARE))).toEqual(
+      SQUARE_IDS
+    );
+    expect(reselectSourceLineIds(null, { minX: 0, minY: 0, maxX: 1, maxY: 1 })).toEqual([]);
+    expect(reselectSourceLineIds(doc(SQUARE), null)).toEqual([]);
   });
 });
 

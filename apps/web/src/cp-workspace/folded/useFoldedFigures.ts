@@ -401,7 +401,14 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
             });
             return;
           case 'simulate-instead': {
-            const lineIds = figure.sourceLineIds ?? [];
+            // The **scoped** ids, exactly as the refusal dialog uses them: a
+            // region is matched by every crease inside it, aux lines included,
+            // so handing `sourceLineIds` — which is colour-filtered — to
+            // `resolveInlineSimulationRegion` makes any region containing one
+            // construction line resolve to null and fall through to the panel.
+            // That is the one outcome the "simulate inline" decision exists to
+            // prevent, and both doors have to honour it.
+            const lineIds = notice.action.lineIds;
             if (lineIds.length === 0) return;
             track(ANALYTICS_EVENTS.foldSimulationRun, {
               source: 'fold-3d-no-layer-order',

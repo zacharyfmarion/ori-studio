@@ -723,6 +723,14 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
     sourceLineIds: Array.isArray(entry.sourceLineIds)
       ? entry.sourceLineIds.filter((id): id is number => typeof id === 'number')
       : [],
+    // Falls back to the folded set rather than to empty: a file written before
+    // this field existed still has one honest answer for "which creases was this
+    // scoped to", and an empty list would silently disable "simulate instead".
+    sourceScopedLineIds: Array.isArray(entry.sourceScopedLineIds)
+      ? entry.sourceScopedLineIds.filter((id): id is number => typeof id === 'number')
+      : Array.isArray(entry.sourceLineIds)
+        ? entry.sourceLineIds.filter((id): id is number => typeof id === 'number')
+        : [],
     error: typeof entry.error === 'string' ? entry.error : null,
     contradiction: isRecord(entry.contradiction)
       ? (entry.contradiction as unknown as OristudioCpFoldedFigureEntry['contradiction'])

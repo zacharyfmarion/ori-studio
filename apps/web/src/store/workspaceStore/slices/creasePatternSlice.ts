@@ -158,6 +158,7 @@ import {
   foldedSourceBounds,
   foldedSourceFingerprint,
   reselectFoldableLineIds,
+  reselectSourceLineIds,
 } from '../../../cp-workspace/folded/foldedFigureStaleness';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
@@ -737,10 +738,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    */
   function foldedSourceProvenance(
     document: OristudioCpDocumentSnapshot,
-    lineIds: readonly number[]
+    lineIds: readonly number[],
+    scopedLineIds: readonly number[] = lineIds
   ): Pick<
     OristudioCpFoldedFigureEntry,
-    'sourceBounds' | 'sourceFingerprint' | 'sourceLineIds'
+    'sourceBounds' | 'sourceFingerprint' | 'sourceLineIds' | 'sourceScopedLineIds'
   > {
     const lines = cpLinesByIds(document, lineIds);
     const bounds = foldedSourceBounds(lines);
@@ -752,6 +754,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       sourceBounds: bounds,
       sourceFingerprint: bounds ? foldedSourceFingerprint(reselected) : null,
       sourceLineIds: [...lineIds],
+      // Both lists, because neither is derivable from the other and the two
+      // answer different questions: the kernel indexes into the filtered one,
+      // and a region is matched only by the unfiltered one.
+      sourceScopedLineIds: [...scopedLineIds],
     };
   }
 
@@ -1955,7 +1961,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             placement: IDENTITY_FOLDED_PLACEMENT,
             error: null,
             contradiction: null,
-            ...foldedSourceProvenance(oristudioCpDocument.document, selectedLineIds),
+            ...foldedSourceProvenance(
+              oristudioCpDocument.document,
+              selectedLineIds,
+              scopedLineIds
+            ),
           };
           set({
             oristudioCpFoldedFigures: [
@@ -2091,7 +2101,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           // Provenance, so the figure can later be told apart from the creases
           // it came from and refolded from them. Oriedita keeps exactly this
           // (a bounding box) — see lib/foldedFigureStaleness.ts.
-          ...foldedSourceProvenance(oristudioCpDocument.document, selectedLineIds),
+          ...foldedSourceProvenance(
+            oristudioCpDocument.document,
+            selectedLineIds,
+            scopedLineIds
+          ),
         };
         set({
           oristudioCpFoldedFigures: existing.map((figure) =>
@@ -2512,6 +2526,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
 
       const lineIds = reselectFoldableLineIds(oristudioCpDocument.document, figure.sourceBounds);
+      // The unfiltered half of the same reselect. A refold has no live selection
+      // to record, so the region "simulate instead" would resolve is re-derived
+      // from the box the same way the folded set is — see `reselectSourceLineIds`.
+      const scopedRefoldLineIds = reselectSourceLineIds(
+        oristudioCpDocument.document,
+        figure.sourceBounds
+      );
       // Matches what folding itself requires (`foldOristudioCpDocument` rejects
       // an empty selection); anything the kernel will accept, a refold should.
       if (lineIds.length === 0) {
@@ -2592,7 +2613,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     sourceCpRevision: get().oristudioCpRevision,
                     contradiction: null,
                     error: null,
-                    ...foldedSourceProvenance(oristudioCpDocument.document, refoldRoute.lineIds),
+                    ...foldedSourceProvenance(
+                      oristudioCpDocument.document,
+                      refoldRoute.lineIds,
+                      scopedRefoldLineIds
+                    ),
                   }
                 : candidate
             ),
@@ -2656,7 +2681,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                   error: null,
                   // Re-baseline against what was actually folded, so the figure
                   // reads as up to date until the creases move again.
-                  ...foldedSourceProvenance(oristudioCpDocument.document, refoldRoute.lineIds),
+                  ...foldedSourceProvenance(
+                      oristudioCpDocument.document,
+                      refoldRoute.lineIds,
+                      scopedRefoldLineIds
+                    ),
                 }
               : candidate
           ),
@@ -2712,6 +2741,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         sourceBounds: source.sourceBounds ?? null,
         sourceFingerprint: source.sourceFingerprint ?? null,
         sourceLineIds: [...(source.sourceLineIds ?? [])],
+        sourceScopedLineIds: [...(source.sourceScopedLineIds ?? source.sourceLineIds ?? [])],
         error: null,
       };
 

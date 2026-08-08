@@ -12,7 +12,7 @@ import {
   foldedFigureNotice,
   foldedFigureSubtitle,
   crossingLineIds,
-  orderReasonLineIds,
+  foldedFigureSimulationLineIds,
 } from './foldedFigureNotice';
 
 /**
@@ -59,10 +59,12 @@ function spatial(
   extras: {
     crossings?: OristudioCpFold3dCrossing[];
     sourceLineIds?: number[];
+    sourceScopedLineIds?: number[];
   } = {}
 ): OristudioCpFoldedFigureEntry {
   return figure({
     sourceLineIds: extras.sourceLineIds ?? [],
+    sourceScopedLineIds: extras.sourceScopedLineIds ?? [],
     folded3d: {
       verdict,
       crossings: extras.crossings ?? [],
@@ -132,15 +134,22 @@ describe('foldedFigureNotice', () => {
       second_rule: 'full_fold',
       second_line: 0,
     };
+    // The action carries the **scoped** ids — what a region is matched by —
+    // and not the colour-filtered folded set. Handing the filtered list to
+    // `resolveInlineSimulationRegion` is what made the chip fall through to the
+    // Simulate panel on any region holding an auxiliary crease.
     const notice = foldedFigureNotice(
       t,
-      spatial({ verdict: 'no_layer_order', reason }, { sourceLineIds: [4, 7] })
+      spatial(
+        { verdict: 'no_layer_order', reason },
+        { sourceLineIds: [4, 7], sourceScopedLineIds: [4, 7, 11] }
+      )
     );
     expect(notice).toMatchObject({
       id: 'no-layer-order',
       tone: 'error',
       detail: 'Two faces each have to be above the other, so no stacking can satisfy both.',
-      action: { id: 'simulate-instead', lineIds: [7, 4] },
+      action: { id: 'simulate-instead', lineIds: [4, 7, 11] },
     });
   });
 
@@ -166,7 +175,7 @@ describe('foldedFigureNotice', () => {
   });
 });
 
-describe('crossingLineIds / orderReasonLineIds', () => {
+describe('crossingLineIds / foldedFigureSimulationLineIds', () => {
   it('maps both lines of a chord pair', () => {
     expect(
       crossingLineIds({ sourceLineIds: [9, 2, 5] }, [
@@ -175,14 +184,20 @@ describe('crossingLineIds / orderReasonLineIds', () => {
     ).toEqual([2, 9]);
   });
 
-  it('names nothing for an order reason that names no crease', () => {
+  it('simulates from the scoped ids, never the colour-filtered ones', () => {
     expect(
-      orderReasonLineIds({ sourceLineIds: [1, 2] }, {
-        code: 'stack_too_deep',
-        component: 0,
-        permutations: 99,
-      })
-    ).toEqual([]);
+      foldedFigureSimulationLineIds({ sourceLineIds: [1, 2], sourceScopedLineIds: [1, 2, 3] })
+    ).toEqual([1, 2, 3]);
+  });
+
+  it('falls back to the folded ids for a figure recorded before scoping', () => {
+    // An `.osf` written before the field existed. Still the best answer there
+    // is, and no worse than what that build did.
+    expect(foldedFigureSimulationLineIds({ sourceLineIds: [1, 2] })).toEqual([1, 2]);
+    expect(
+      foldedFigureSimulationLineIds({ sourceLineIds: [1, 2], sourceScopedLineIds: [] })
+    ).toEqual([1, 2]);
+    expect(foldedFigureSimulationLineIds({})).toEqual([]);
   });
 });
 

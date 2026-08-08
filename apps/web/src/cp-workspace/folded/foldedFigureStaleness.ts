@@ -150,6 +150,35 @@ export function reselectFoldableLineIds(
   return ids;
 }
 
+/**
+ * The same reselect **without** the folding-line filter: every crease overlapping
+ * the recorded region, whatever its colour.
+ *
+ * Not a variant of {@link reselectFoldableLineIds} for the sake of it — the two
+ * feed different machines. The kernel is handed folding lines only, so that is
+ * what provenance and staleness compare. A *region* is matched by every crease
+ * inside it, auxiliary construction lines included, so "simulate this instead"
+ * has to ask the unfiltered question or `resolveInlineSimulationRegion` refuses
+ * a region that has one Cyan3 line in it.
+ *
+ * This is the refold-time stand-in for the scoped selection a fresh fold records
+ * verbatim (`sourceScopedLineIds`): a refold has no selection to record, only a
+ * box.
+ */
+export function reselectSourceLineIds(
+  document: OristudioCpDocumentSnapshot | null | undefined,
+  bounds: FoldedSourceBounds | null
+): number[] {
+  if (!document || !bounds) return [];
+  const ids: number[] = [];
+  const lines = document.crease_pattern.line_segments;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line && segmentOverlapsBounds(line, bounds)) ids.push(index + 1);
+  }
+  return ids;
+}
+
 /** The lines behind 1-based ids, skipping any that no longer resolve. */
 export function cpLinesByIds(
   document: OristudioCpDocumentSnapshot | null | undefined,
