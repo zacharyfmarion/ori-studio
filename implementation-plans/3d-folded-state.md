@@ -20,7 +20,10 @@ before this one. Nothing here restates it.
 
 ### Status — what has been measured since this plan was first written
 
-Phase 0 spikes **A, B and C have been run**; D and E have not. **Phase 2 is
+Phase 0 spikes **A, B and C have been run**; D and E have not. **Phase 1 is
+built** — four live bugs in shipped code, the fold-event vocabulary, and the
+intercept dialog's strings; see its checklist for what each one turned out to be,
+including the one that changes what a `known-good/` model reports. **Phase 2 is
 built** apart from its authored adversarial cases: `tests/fixtures/fold-angle-3d/`
 holds eight fixtures and one `.osf`, the external corpus is reachable through
 `ORISTUDIO_NON_FLAT_CORPUS_DIR`, and the census, loop gap and plane-separation
@@ -158,11 +161,11 @@ signature — a plausible-looking picture with no error:
 | --- | --- |
 | The flat pipeline returns Step5 / 1 solution / no contradiction on a (−90, +180, +90) strip, because nothing in `folding.rs` or `fold_graph.rs` reads `fold_magnitude` | §5.1's counterexample |
 | A face id past `faces_total` makes `possible_overlap_search_for_subfaces` report `found = true` with an **empty** ordering — `cell_index` returns `None` and `set_above`/`infer_above` treat that as a no-op | `folding.rs:4330-4334` |
-| A disconnected face graph leaves unreached faces at position 0 with `associated_line: None`, so `fold_movement` returns them **unfolded**; above ~200 faces the Euler gate stops catching it | `fold_graph.rs:164`, `:200-202` |
+| ~~A disconnected face graph leaves unreached faces at position 0 with `associated_line: None`, so `fold_movement` returns them **unfolded**; above ~200 faces the Euler gate stops catching it~~ — **fixed, Phase 1**: `FoldGraphError::DisconnectedFaces` | `fold_graph.rs`, `:200-202` |
 | `HierarchyTable::from_initial` does `let _ = table.infer_above(...)`, so two contradictory seeds make the first win and the second vanish | `folding.rs:4325` |
-| **An interior `Black0` loop makes `is_interior_vertex` decline every hub vertex, so `CheckCamv` reports CLEAN on geometry it never checked.** Measured on `known-good/byu solar driven.fold`: 0 flat, 0 closure, worst interior residual 2.6e-12°, placement loop gap **1.445 rad** on a 400 span. Shipped today, flat path included (Spike A, R19) | `checks_spatial.rs:642-648` |
+| **An interior `Black0` loop makes `is_interior_vertex` decline every hub vertex, so `CheckCamv` reports CLEAN on geometry it never checked.** Measured on `known-good/byu solar driven.fold`: 0 flat, 0 closure, worst interior residual 2.6e-12°, placement loop gap **1.445 rad** on a 400 span. Shipped today, flat path included (Spike A, R19). **Named, Phase 1**: `interior_border_segments` + a `SpatialInteriorBorder` warning. The refusal is still Phase 5's | `checks_spatial.rs:642-648` |
 | `subface_top_stack` drops a tied face into a hole and the caller falls back to an arbitrary `face_ids.first()` | `folding.rs:3875` |
-| Geometry the Euler gate rejects returns `Ok` at Step1 with `status: 'ready'` and no message, because `isDrawableFoldResult` is only called on the refold path | `creasePatternSlice.ts:688` vs `:2093` |
+| ~~Geometry the Euler gate rejects returns `Ok` at Step1 with `status: 'ready'` and no message, because `isDrawableFoldResult` is only called on the refold path~~ — **fixed, Phase 1**, and the draft figure is dropped rather than left errored | `creasePatternSlice.ts` |
 | `bsp.ts` promotes the splitter to the front of its own coplanar list, and `sortCoplanar` sorts on `kind` alone, so coplanar faces emit in caller input order | `bsp.ts:253`, `:277` |
 
 None of these is caught by looking, and the automated browser pane runs with
@@ -180,11 +183,15 @@ without **Phase 9** the render has no opaque part to show on any real model
 i18n `npm run i18n:check` fails CI outright; without Phase 8 a saved 3D figure
 either never goes stale or reads back as a refoldable flat one.
 
-**Phase 1 ships alone and first**, on its own PR, ahead of everything. It is pure
-flat-path correctness plus instrumentation — three measured live bugs in shipped
-code (the third is R19, found by Spike A: `CheckCamv` reports CLEAN on a
-document with an interior border loop, on a model in the corpus's own
-`known-good/`) and the analytics event that buys the one number nobody has.
+**Phase 1 is built, and it went first.** **[rewritten — it said "ships alone, on
+its own PR". The repo owner said everything on this branch lands in one pull
+request, so it is the first work rather than a separate release. Nothing else
+about it changed: it touches no 3D code and blocks nothing.]** It is pure
+flat-path correctness plus instrumentation — four measured live bugs in shipped
+code (R19 among them, found by Spike A: `CheckCamv` reports CLEAN on a document
+with an interior border loop, on a model in the corpus's own `known-good/`) and
+the analytics events that buy the one number nobody has. See the Phase 1
+checklist for what each of them turned out to be.
 
 **Phases 10–11 follow separately**, because their absence subtracts rather than
 corrupts: without enumeration the cycling verb is correctly disabled; without
@@ -406,10 +413,16 @@ In order:
    `SpatialSelfIntersection`. Spherical simplicity is shipped; the 3D path
    consumes it rather than re-deriving it.
 
-3. **No border segment with paper on both sides.** **[new — Spike A / R19.]** An
-   interior `Black0` segment is a **cut**, not a hinge, and `is_interior_vertex`
-   (`checks_spatial.rs:642-648`) returns false for every vertex touching one — so
-   `dispatched_camv` returns CLEAN on geometry it never examined. This is not
+3. **No border segment with paper on both sides.** **[new — Spike A / R19;
+   updated — the *detector* shipped in Phase 1, the refusal is still this
+   phase's.]** An interior `Black0` segment is a **cut**, not a hinge, and
+   `is_interior_vertex` (`checks_spatial.rs:642-648`) returns false for every
+   vertex touching one — so `dispatched_camv` returns CLEAN on geometry it never
+   examined. Phase 1 added `checks_spatial::interior_border_segments`, which
+   answers this from the traced arrangement (a boundary segment belongs to one
+   traced face, an interior one to two) and is already carried on
+   `DispatchedCamv::interior_borders`, so this step **consumes** it rather than
+   deriving it again. This is not
    hypothetical: `known-good/byu solar driven.fold` contains a closed hexagon of
    six `B` edges well inside the sheet, reports 0 flat / 0 closure / worst
    interior residual 2.6e-12°, and places with a loop gap of **1.445 rad**.
@@ -1055,6 +1068,9 @@ models pass". 8 of 10 curated, 5 of 9 owner-authored `.osf`, 7 of 36 published
 third-party — the addressable set is fine and verdict messaging is not the main
 design problem. The plan changes anyway, for a sharper reason: **the loop gap
 must gate**, and `CheckCamv` has a live blind spot (R19) that ships today.
+**Phase 1 has since named that blind spot** — `interior_border_segments`, and it
+fires on exactly one `known-good/` model, with exactly the six segments Spike A
+described.
 
 ### Spike B answer — the placement convention, settled against the shipped check
 
@@ -1470,9 +1486,8 @@ Phase 0 and none of A, B or C touched it. It is unchanged; see Open decisions.
   angle badges stay visible over a 3D figure
 - `apps/web/src/components/panels/CreasePatternPanel.tsx` — **`:602` renders the
   raw `figure.status` identifier as the list subtitle**, untranslated, in all
-  eight locales; and `:1518`'s comment says "the `foldAction` (F) chord"
-  when the chord is `G` (`keyboard/shortcuts.ts:164`; F is `colCyanAction`,
-  `:113`). No new id-kind branches
+  eight locales. (The shortcut comment that named the wrong chord was fixed in
+  Phase 1.) No new id-kind branches
 
 **Web — persistence, export, analytics**
 - `apps/web/src/lib/nativeProjectFile.ts` — `validateFoldedFigure` (`:673-702`)
@@ -1649,51 +1664,90 @@ Named so they do not creep in.
 - [x] Every spike's answer written into "Phase 0 findings" above, including the
       ones that change the design, with the plan text amended in the same commit
 
-### Phase 1 — Flat-path corrections and instrumentation (ships alone, first, does not block)
-- [ ] `FoldGraphError::DisconnectedFaces { reached, unreached }` replacing the
-      silent `break` at `fold_graph.rs:164`, with a test that unreached faces no
-      longer come back unfolded
-- [ ] `isDrawableFoldResult` (`creasePatternSlice.ts:688`) applied to the
-      **initial** fold, not only refold (`:2093`) — a rejected-Euler selection
-      must not produce a `status: 'ready'` figure that draws nothing
-- [ ] Distinguish the zero-solutions fallback (`folding.rs:1652-1657`) from the
-      contradiction fallback (`:1681-1690`) on the wire
-- [ ] **NEW (Spike A / R19). An interior `Black0` loop makes `CheckCamv` report
-      CLEAN on geometry it never checked**, today, on the flat path.
-      `is_interior_vertex` (`checks_spatial.rs:642-648`) declines every vertex
-      touching a border, and `calculate_faces` filling the hole makes those
-      vertices genuinely interior, so the blind cycles are invisible. Measured on
-      `known-good/byu solar driven.fold` and on a programmatically drawn annulus.
-      **Additive** — a new loop pass, never an edit to `is_interior_vertex`: not
-      for Oriedita parity (`checks.rs` never calls it) but because
-      `solve_fold_angles.rs:762`/`:838` and `solve_spatial.rs:505` share it, so
-      widening the predicate changes solver behaviour
-- [ ] **NEW. `import_fold_document` silently drops z** (`io/fold.rs:297-312`
-      returns `Point::new(coords[0], coords[1])`) and nothing guards
-      `frame_classes: ["foldedForm"]`. Importing a 3D FOLD today yields a
-      plausible-looking crease pattern; on `MoosersTrainRigid-Gardner.fold` it is
-      246 of 246 spatial vertices failing closure. Per AGENTS.md, return an
-      explicit unsupported-operation error rather than a nearby result. This is
-      also the precondition for any `foldedForm` file being readable at all
-- [ ] Extend `ANALYTICS_EVENTS` (`analytics/events.ts:84`) rather than minting a
-      parallel vocabulary — **`foldWarningShown`, `foldWarningAccepted`,
-      `foldSimulationRun` and `foldabilityChecked` are already reserved there
-      with zero call sites.** Use them where they fit
-- [ ] `fold attempted { mode, crease_count_bucket, non_classic_count_bucket }` at
-      the top of `foldOristudioCpDocument` after scoping, using `COUNT_BUCKETS`
-      (`:150`). `G` reaches **neither** chokepoint — `handleCpShortcutAction`
-      short-circuits at `CreasePatternPanel.tsx:1522` before `handleCpToolAction`
-- [ ] `fold completed { mode, verdict, solution_count_bucket }` on every terminal
-      branch, including today's simulate punt
-- [ ] `fold solution cycled { direction: 'next' | 'wrap' }` from
-      `foldAnotherOristudioCpFigure`
-- [ ] Rows added to `docs/analytics.md`. Enums and bucketed numbers only — never
-      residuals, gaps, separations, face indices or angles
-- [ ] i18n the intercept dialog while it is still the only thing there:
-      `creasePatternSlice.ts:1620-1625` is hard-coded English while the CAMV
-      dialog three lines below uses `i18n.t` and the slice imports i18n at `:60`
-- [ ] Fix `CreasePatternPanel.tsx:1518`'s comment (says F, the chord is G)
-- [ ] `cargo test --workspace`, `npx tsc --noEmit`, `npx vitest run`,
+### Phase 1 — Flat-path corrections and instrumentation (**built**)
+
+**[The one thing that did not go as written: this phase no longer "ships alone,
+first, on its own PR". The repo owner said everything lands in one pull request,
+so it is the first work on the branch rather than a separate one. Nothing else
+about it changed — it still touches no 3D code and blocks nothing.]**
+
+- [x] `FoldGraphError::DisconnectedFaces { reached, unreached }` replacing the
+      silent `break` at `fold_graph.rs:164`. Carried up by a new `FoldSetupError`
+      that **replaces** the `InitialHierarchy` arm on `FoldingEstimateError`,
+      `WorkerOverlapSearchError` and `AdditionalEstimationError`, so a parity
+      abort and a disconnected graph stay distinguishable to the engine envelope:
+      `fold_same_parity` vs `fold_disconnected`. The fixture is a 15x15 grid plus
+      one square parked ten units away — 226 faces, `euler == 2`, admitted by the
+      `0.005 * faces.len()` tolerance, which is why ~200 faces is the floor for
+      reproducing this at all. **Upstream has no behaviour here to be faithful
+      to**: `getFacePositions()` re-scans an empty frontier until the thread is
+      interrupted, so the pre-existing `break` was already a divergence, and a
+      worse one than the hang. Recorded in `PORTING.md`
+- [x] `isDrawableFoldResult` applied to the **initial** fold, not only refold.
+      The draft figure is *dropped* rather than left as a permanently errored
+      entry, and the kernel handle is freed
+- [x] Distinguish the zero-solutions fallback from the contradiction fallback on
+      the wire. `FoldOutcome` on `FoldingEstimate` and `FoldedFigureSnapshot`,
+      `#[serde(default)]`, mirrored as `OristudioCpFoldOutcome`. Three things
+      landed on `Step3` / `Transparent3` with no solutions and nothing told them
+      apart. **`NoSolutions` is the one arm with no fixture**: a scan of every
+      tracked fixture and of the whole non-flat corpus at Order5 produced
+      `Solved`, `NotAttempted` and `Contradiction`, and never it — consistent with
+      AEA raising the contradiction first in every case we have
+- [x] **(Spike A / R19) The interior-`Black0` blind spot is named.**
+      `checks_spatial::interior_border_segments` answers from the traced
+      arrangement rather than from geometry: `calculate_faces` never traces the
+      unbounded outer face, so a boundary segment belongs to one traced face and
+      an interior one belongs to two. Additive, and `is_interior_vertex` is
+      untouched. `dispatched_camv` pays for it only where the document carries a
+      non-classic crease — the same gate `ThroughLineIndex` already uses — so an
+      all-classic document's `CheckCamv` output stays byte-identical to what the
+      Oriedita oracle pins.
+
+      **It discriminates, and it changes what one corpus file reports.** Of the
+      ten curated models in `known-good/`, exactly one has interior borders:
+      `byu solar driven.fold`, with **6** — the closed hexagon of `B` edges Spike
+      A described. The other nine have 0. Across the 36-model published corpus the
+      only others are `cuts` (395) and `honeycombKiri` (187), both kirigami. No
+      tracked fixture has any. So `known-good/README.md`'s bar — "every model here
+      reports nothing" — is now false for one file, and it was calibrated on a
+      check that was blind there. The entry is a `warning` phrased as "not
+      checked", not an error: a cut is a legitimate thing to draw
+- [x] **`import_fold_document` refuses a folded form** rather than importing its
+      shadow. Two independent signals, because a file can carry either without the
+      other: a frame declaring `foldedForm` (which can still be flat in z, since a
+      flat-folded state is a folded state), and any vertex off the plane (which a
+      file can carry with no class at all). An explicit `z` of exactly zero is how
+      plenty of writers spell a flat pattern and still imports; the tolerance is
+      1e-9 and is not a modelling knob. `IoError::Unsupported` is new and separate
+      from `InvalidField`, and maps to `unsupported_operation` rather than
+      `invalid_input`
+- [x] `ANALYTICS_EVENTS` extended rather than duplicated;
+      `foldWarningShown`, `foldWarningAccepted`, `foldSimulationRun` and
+      `foldabilityChecked` wired where they fit
+- [x] `fold attempted { mode, crease_count_bucket, non_classic_count_bucket }`.
+      **Verified**: `G` reaches neither chokepoint. `handleCpShortcutAction`
+      recognises the fold chord and calls `folded.foldModel()` before
+      `handleCpToolAction` runs, so no `cp tool used`; and the toolbar button
+      calls the same `handleFoldModel`, so no `command invoked` either
+- [x] `fold completed { mode, verdict, solution_count_bucket }` on every terminal
+      branch, including both cancels and today's simulate punt, so it pairs
+      one-to-one with `fold attempted`. `verdict` reads the kernel's `outcome`
+      rather than re-deriving it from a stage with three meanings
+- [x] `fold solution cycled { direction }` from `foldAnotherOristudioCpFigure`,
+      using the same predicate `buildFoldedFigureActions` labels the verb from
+      and `fold_another` branches on, so the event, the button and the search
+      agree about which of the two a press was
+- [x] Rows added to `docs/analytics.md`, plus a note on *why* folding is the
+      documented exception to the chokepoint rule. The privacy test enumerates
+      the permitted enum values rather than pattern-matching, because a raw crease
+      count is the easy mistake: it is right there, it looks harmless, and on a
+      distinctive design it identifies
+- [x] Intercept dialog i18n'd, with proper singular and plural rather than one
+      string with a count in it, across all eight locales
+- [x] `CreasePatternPanel.tsx`'s comment now names `G`
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+      `cargo test --workspace`, `npx tsc --noEmit`, `npx vitest run`,
       `npm run i18n:check`
 - [ ] **Let the data accumulate for a real window before committing to Phase 3**
 
@@ -1901,7 +1955,9 @@ fixture's source, source sha256 and licence, and the reason it exists.
       detector for the R19 class
 - [ ] `folding3d/admit.rs`: flat snap into the session's own segment copy;
       `dispatched_camv` (**not** `spatial_vertex_reports`); **refusal on any
-      border segment with paper on both sides** (Spike A / R19); `place_faces`;
+      border segment with paper on both sides** — read
+      `DispatchedCamv::interior_borders`, which Phase 1 built; do not re-derive
+      it (Spike A / R19); `place_faces`;
       loop gap **gate**; spectrum gap. The local crossing verdict comes for free
       from `dispatched_camv` — do not re-derive spherical simplicity
 - [ ] Three tolerances in `Fold3dTolerances`, all in one const block beside
@@ -2280,7 +2336,7 @@ fixture's source, source sha256 and licence, and the reason it exists.
 | # | Risk | Likelihood / impact | Mitigation |
 | --- | --- | --- | --- |
 | R1a | ~~**Admissible test material does not exist.**~~ | **RETIRED** | Measured (F0). 11 owner-authored multi-face 3D-angled models exist, 8 admitted; `known-good/` is 10 of 10 clean and 8 of 10 admitted; 7 of 36 published third-party are admitted. All external to git, all regenerable or ownable. Phase 2 is rewritten around them |
-| R1b | **The *users* do not exist.** No telemetry says whether anyone presses `G` on a non-classic selection. The 11 models above were all authored by one person — that validates the transcription workflow and bounds nothing about its population | High / high | Unchanged. Phase 1 ships alone and first and buys the number. It is an afternoon and it gates nothing, so the cost of being wrong is one PR |
+| R1b | **The *users* do not exist.** No telemetry says whether anyone presses `G` on a non-classic selection. The 11 models above were all authored by one person — that validates the transcription workflow and bounds nothing about its population | High / high, **instrumented** | Phase 1 is built and shipped the events. `fold attempted { mode }` is the one that answers it, and it is decided from the selection before any dialog, so a user who cancels the intercept still counts. Nothing else about the risk has changed: the number does not exist until the data accumulates |
 | R2 | **The census is non-zero on essentially every realistic model**, so the merge set ships a figure that is honest and almost always undetermined | **Confirmed / high** | Spike C measured it: median 81.5 over 18 admitted models, and the *undetermined fraction* is 1.00 on 12 of 14 non-zero models, so nothing stays opaque. The four census-0 models have 2, 5, 6 and 6 faces. Retired as a risk and taken as a premise — Phase 9 is in the merge set. Plan on `census ≥ (creases at ±180)` and **never** on its converse |
 | R3 | **The plane-patch arrangement pipeline does not run unchanged** — measured, 4 of 6 multi-face patches rejected by the Euler gate, and `face_request` cannot trace an annular cell | **Confirmed / high, and now merge-blocking** | The census still avoids `calculate_faces` entirely, but Phase 9 does not and Phase 9 is in the merge set, so Spike A's plane-patch half must settle **before merge**. Escalated from Medium — it used to bound only a follow-up |
 | R3b | **The Euler gate refuses the whole crease pattern, before any per-patch question** — 18 of 36 published models, 0 of 11 owner-authored | **Confirmed / high** | This is `Refused(FacesUnresolved)` and it is the verdict users will meet most often. Rank the Phase 7 copy budget by it. The owner-authored zero is a real signal the third-party stress set hides |
