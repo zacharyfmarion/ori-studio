@@ -21,6 +21,27 @@ describe('toast message helpers', () => {
     ).toContain("couldn't be folded");
   });
 
+  // Every code the kernel mints for a fold has to land in a case here, or the
+  // Rust `Debug` string reaches the user untranslated in all eight locales.
+  it('covers every fold and FOLD-import code the kernel mints', () => {
+    const rawRustDebug = 'Setup(FoldGraph(DisconnectedFaces { reached: 225, unreached: 1 }))';
+    expect(humanizeError({ code: 'fold_disconnected', message: rawRustDebug }, t)).not.toContain(
+      'DisconnectedFaces'
+    );
+    expect(humanizeError({ code: 'fold_disconnected', message: rawRustDebug }, t)).toContain(
+      'separate pieces'
+    );
+
+    const rawIoDisplay =
+      'folded form, not a crease pattern: FOLD folded-form frames (this frame declares frame_classes)';
+    expect(humanizeError({ code: 'fold_folded_form', message: rawIoDisplay }, t)).not.toContain(
+      'frame_classes'
+    );
+    expect(humanizeError({ code: 'fold_folded_form', message: rawIoDisplay }, t)).toContain(
+      'folded model'
+    );
+  });
+
   // The reader's own messages name internal fields; none of that reaches the user.
   it('replaces project-file rejections with what the user can act on', () => {
     expect(

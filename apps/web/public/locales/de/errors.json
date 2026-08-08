@@ -34,6 +34,8 @@
   },
   "fold": {
     "contradiction": "Dieses Faltmuster ist nicht flachfaltbar: Einige Flächen haben keine konsistente Stapelreihenfolge.",
+    "disconnected": "Diese Auswahl zerfällt in getrennte Teile, die einander nicht berühren, und lässt sich daher nicht als ein Modell falten. Wähle ein einzelnes Teil aus und falte erneut.",
+    "foldedForm": "Diese FOLD-Datei enthält ein gefaltetes Modell und kein Faltmuster, es gibt also keine Faltkanten zu öffnen. Öffne stattdessen das Faltmuster, aus dem es gefaltet wurde.",
     "layerSearch": "Dieses Faltmuster konnte nicht gefaltet werden: Seine Schichten lassen sich nicht überlappungsfrei anordnen.",
     "sameParity": "Dieses Faltmuster lässt sich nicht flach falten: Zwei Flächen treffen mit gleicher Ausrichtung an einer Faltkante aufeinander."
   },

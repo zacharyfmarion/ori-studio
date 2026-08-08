@@ -43,6 +43,7 @@ import {
 } from '../../../cp-workspace/canvasObjects/placeBesideCp';
 import { uprightRotationForView } from '../../../cp-workspace/annotations/annotationTransform';
 import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
+import { countCpDiagnosticErrors } from '../../../cp-workspace/diagnostics/severity';
 import { foldedFigureUserAabb } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import { cpSelectionSize, cpSvgToModel } from '../../../lib/creasePatternViewport';
 import type { Aabb } from '../../../cp-workspace/picking/lineHitIndex';
@@ -1711,21 +1712,25 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // the fold itself. Skipped when the user has disabled the warning.
       const settings = useSettingsStore.getState();
       if (settings.foldWarningEnabled) {
-        let hasFlatFoldabilityViolations = false;
+        let violationCount = 0;
         try {
           const camv = await runOristudioCpCheckCommand('CheckCamv');
-          hasFlatFoldabilityViolations = (camv.diagnostic_entries?.length ?? 0) > 0;
+          // Errors only. `CheckCamv` also emits `SpatialInteriorBorder` at
+          // `warning` severity — "border with paper on both sides: the vertices
+          // on it are not checked" — which is an observation about the check's
+          // own coverage and not a violation of anything. Counting it here would
+          // raise Oriedita's "continue to fold?" modal over a document with
+          // nothing wrong with it, and report `had_violations` for it.
+          violationCount = countCpDiagnosticErrors(camv.diagnostic_entries);
           track(ANALYTICS_EVENTS.foldabilityChecked, {
             source: 'pre-fold',
-            had_violations: hasFlatFoldabilityViolations,
-            violation_count_bucket: bucketCount(
-              camv.diagnostic_entries?.length ?? 0,
-              COUNT_BUCKETS
-            ),
+            had_violations: violationCount > 0,
+            violation_count_bucket: bucketCount(violationCount, COUNT_BUCKETS),
           });
         } catch {
-          // A failed check must not block folding — leave the flag false and fold.
+          // A failed check must not block folding — leave the count at zero and fold.
         }
+        const hasFlatFoldabilityViolations = violationCount > 0;
         if (hasFlatFoldabilityViolations) {
           track(ANALYTICS_EVENTS.foldWarningShown, { source: 'pre-fold' });
           const { confirmed, optionChecked } = await requestConfirmationWithOption({

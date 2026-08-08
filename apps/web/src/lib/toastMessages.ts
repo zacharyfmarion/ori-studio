@@ -135,6 +135,22 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:fold.contradiction',
         "This crease pattern isn't flat-foldable: some faces have no consistent stacking order."
       );
+    // The walk places faces by stepping across creases, so it can only ever
+    // reach one connected piece. Two designs on one canvas is the ordinary way
+    // to get here, and it is fixable by selecting one of them.
+    case 'fold_disconnected':
+      return t(
+        'errors:fold.disconnected',
+        "This selection falls into separate pieces that don't touch, so it can't be folded as one model. Select one piece and fold again."
+      );
+    // A FOLD file we decline to open, rather than one we failed to read. The
+    // importer keeps x and y and drops the rest, so a folded model would arrive
+    // as its own flat shadow with every crease in the wrong place.
+    case 'fold_folded_form':
+      return t(
+        'errors:fold.foldedForm',
+        'This FOLD file holds a folded model rather than a crease pattern, so there are no creases to open. Open the crease pattern it was folded from instead.'
+      );
     default:
       return formatUnknownError(error);
   }

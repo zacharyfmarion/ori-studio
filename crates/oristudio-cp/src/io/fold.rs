@@ -191,7 +191,7 @@ const FLAT_Z_TOLERANCE: f64 = 1e-9;
 /// unsupported-operation error rather than a nearby result.
 fn reject_unrepresentable_geometry(fold: &FoldDocument) -> Result<()> {
     if fold.frame_classes.iter().any(|class| class == "foldedForm") {
-        return Err(IoError::Unsupported {
+        return Err(IoError::FoldedForm {
             what: "FOLD folded-form frames",
             detail: "this frame declares frame_classes: [\"foldedForm\"], which describes \
                      a folded state rather than a crease pattern"
@@ -210,7 +210,7 @@ fn reject_unrepresentable_geometry(fold: &FoldDocument) -> Result<()> {
                 .map(|z| (index, z))
         })
     {
-        return Err(IoError::Unsupported {
+        return Err(IoError::FoldedForm {
             what: "FOLD geometry outside the paper plane",
             detail: format!(
                 "vertex {index} has z = {z}, and a crease pattern has no third coordinate \

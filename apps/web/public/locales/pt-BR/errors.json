@@ -34,6 +34,8 @@
   },
   "fold": {
     "contradiction": "Este padrão de vincos não é dobrável plano: algumas faces não têm uma ordem de empilhamento consistente.",
+    "disconnected": "Esta seleção se divide em partes separadas que não se tocam, então não pode ser dobrada como um único modelo. Selecione uma parte e dobre novamente.",
+    "foldedForm": "Este arquivo FOLD contém um modelo dobrado em vez de um padrão de vincos, então não há vincos para abrir. Abra o padrão de vincos a partir do qual ele foi dobrado.",
     "layerSearch": "Não foi possível dobrar este padrão de vincos: suas camadas não podem ser organizadas sem sobreposição.",
     "sameParity": "Este padrão de vincos não pode ser dobrado plano: duas faces se encontram com a mesma orientação através de um vinco."
   },

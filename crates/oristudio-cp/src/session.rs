@@ -138,10 +138,14 @@ impl From<io::IoError> for EngineError {
         // A file we decline to represent is not malformed input, and the two
         // want different copy: one is "this file is broken", the other is "this
         // file is fine and we cannot open it".
+        //
+        // Its own code, not the shared `unsupported_operation`. That code is
+        // minted by three engines for three unrelated reasons and its message is
+        // whatever `Debug` printed, so the frontend cannot write copy for it
+        // without writing the wrong copy for the other two. See
+        // `Fold3dRefusal`'s doc for the rule: a stable code, never a sentence.
         match error {
-            io::IoError::Unsupported { .. } => {
-                Self::new("unsupported_operation", error.to_string())
-            }
+            io::IoError::FoldedForm { .. } => Self::new("fold_folded_form", error.to_string()),
             _ => Self::invalid_input(error.to_string()),
         }
     }
@@ -830,5 +834,34 @@ mod tests {
             ),
         ));
         assert_eq!(contradiction.code, "fold_contradiction");
+    }
+
+    /// A folded form is refused with a code of its own, not the shared
+    /// `unsupported_operation`.
+    ///
+    /// Three engines mint `unsupported_operation` for three unrelated reasons
+    /// and its message is whatever `Debug` printed, so a frontend case for it
+    /// would be wrong for two of the three. Both signals in
+    /// `reject_unrepresentable_geometry` are one fact about the file and share
+    /// one code, which is what `humanizeError`'s single case is keyed on.
+    #[test]
+    fn a_folded_form_import_carries_its_own_engine_code() {
+        for what in [
+            "FOLD folded-form frames",
+            "FOLD geometry outside the paper plane",
+        ] {
+            let error = EngineError::from(io::IoError::FoldedForm {
+                what,
+                detail: String::new(),
+            });
+            assert_eq!(error.code, "fold_folded_form");
+        }
+
+        // Everything else the importer can say is still ordinary bad input.
+        let malformed = EngineError::from(io::IoError::InvalidField {
+            field: "vertices_coords",
+            message: "not an array".to_string(),
+        });
+        assert_ne!(malformed.code, "fold_folded_form");
     }
 }

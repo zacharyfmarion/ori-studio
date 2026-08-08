@@ -2243,7 +2243,9 @@
     "dialogs:nonFlatFold.message_other": "19faf5dcba39",
     "dialogs:nonFlatFold.simulate": "66154a084145",
     "dialogs:nonFlatFold.title": "fac5a1c23df3",
-    "errors:cp.foldProducedNothing": "450f2578eea3"
+    "errors:cp.foldProducedNothing": "450f2578eea3",
+    "errors:fold.disconnected": "239886af9217",
+    "errors:fold.foldedForm": "6e995e10b2de"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4489,7 +4491,9 @@
     "dialogs:nonFlatFold.message_other": "19faf5dcba39",
     "dialogs:nonFlatFold.simulate": "66154a084145",
     "dialogs:nonFlatFold.title": "fac5a1c23df3",
-    "errors:cp.foldProducedNothing": "450f2578eea3"
+    "errors:cp.foldProducedNothing": "450f2578eea3",
+    "errors:fold.disconnected": "239886af9217",
+    "errors:fold.foldedForm": "6e995e10b2de"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6735,7 +6739,9 @@
     "dialogs:nonFlatFold.message_other": "19faf5dcba39",
     "dialogs:nonFlatFold.simulate": "66154a084145",
     "dialogs:nonFlatFold.title": "fac5a1c23df3",
-    "errors:cp.foldProducedNothing": "450f2578eea3"
+    "errors:cp.foldProducedNothing": "450f2578eea3",
+    "errors:fold.disconnected": "239886af9217",
+    "errors:fold.foldedForm": "6e995e10b2de"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8950,7 +8956,9 @@
     "dialogs:nonFlatFold.message_other": "19faf5dcba39",
     "dialogs:nonFlatFold.simulate": "66154a084145",
     "dialogs:nonFlatFold.title": "fac5a1c23df3",
-    "errors:cp.foldProducedNothing": "450f2578eea3"
+    "errors:cp.foldProducedNothing": "450f2578eea3",
+    "errors:fold.disconnected": "239886af9217",
+    "errors:fold.foldedForm": "6e995e10b2de"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11165,7 +11173,9 @@
     "dialogs:nonFlatFold.message_other": "19faf5dcba39",
     "dialogs:nonFlatFold.simulate": "66154a084145",
     "dialogs:nonFlatFold.title": "fac5a1c23df3",
-    "errors:cp.foldProducedNothing": "450f2578eea3"
+    "errors:cp.foldProducedNothing": "450f2578eea3",
+    "errors:fold.disconnected": "239886af9217",
+    "errors:fold.foldedForm": "6e995e10b2de"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13411,7 +13421,9 @@
     "dialogs:nonFlatFold.message_other": "19faf5dcba39",
     "dialogs:nonFlatFold.simulate": "66154a084145",
     "dialogs:nonFlatFold.title": "fac5a1c23df3",
-    "errors:cp.foldProducedNothing": "450f2578eea3"
+    "errors:cp.foldProducedNothing": "450f2578eea3",
+    "errors:fold.disconnected": "239886af9217",
+    "errors:fold.foldedForm": "6e995e10b2de"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15657,7 +15669,9 @@
     "dialogs:nonFlatFold.message_other": "19faf5dcba39",
     "dialogs:nonFlatFold.simulate": "66154a084145",
     "dialogs:nonFlatFold.title": "fac5a1c23df3",
-    "errors:cp.foldProducedNothing": "450f2578eea3"
+    "errors:cp.foldProducedNothing": "450f2578eea3",
+    "errors:fold.disconnected": "239886af9217",
+    "errors:fold.foldedForm": "6e995e10b2de"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -17872,6 +17886,8 @@
     "dialogs:nonFlatFold.message_other": "19faf5dcba39",
     "dialogs:nonFlatFold.simulate": "66154a084145",
     "dialogs:nonFlatFold.title": "fac5a1c23df3",
-    "errors:cp.foldProducedNothing": "450f2578eea3"
+    "errors:cp.foldProducedNothing": "450f2578eea3",
+    "errors:fold.disconnected": "239886af9217",
+    "errors:fold.foldedForm": "6e995e10b2de"
   }
 }

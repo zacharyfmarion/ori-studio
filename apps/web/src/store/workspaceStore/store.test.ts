@@ -3193,6 +3193,44 @@ describe('workspace store slices', () => {
       ]);
     });
 
+    it('does not raise the flat-foldability warning over a warning-severity entry', async () => {
+      // `SpatialInteriorBorder` is the only warning `CheckCamv` emits, and it
+      // says the closure check declined to examine the vertices on a border with
+      // paper on both sides. Its own copy calls it "not a violation". A document
+      // whose only entry is this one has nothing wrong with it, so the fold must
+      // proceed without a modal — and `foldability checked` must not claim
+      // otherwise.
+      resetStores(seedSnapshot());
+      seedFlatSquare();
+      oristudioCpMocks.runOristudioCpCheckCommand.mockResolvedValueOnce({
+        operation: 'CheckCamv',
+        status: 'OracleTested',
+        diagnostics: [],
+        diagnostic_entries: [
+          {
+            id: 'SpatialInteriorBorder-1',
+            kind: 'SpatialInteriorBorder',
+            severity: 'warning',
+            rule: 'InteriorBorder',
+            message: 'Border with paper on both sides: the vertices on it are not checked',
+          },
+        ],
+      });
+
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+        expect(useCommandDialogStore.getState().dialog).toBeNull();
+      } finally {
+        unregisterDialogHost();
+      }
+
+      expect(foldEvents('foldability checked')).toEqual([
+        { source: 'pre-fold', had_violations: false, violation_count_bucket: '<=1' },
+      ]);
+      expect(foldEvents('fold warning shown')).toEqual([]);
+    });
+
     it('separates a simulated non-flat selection from a cancelled one', async () => {
       resetStores(seedSnapshot());
       useWorkspaceStore.setState({

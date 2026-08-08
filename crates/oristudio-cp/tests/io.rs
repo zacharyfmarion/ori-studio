@@ -1042,7 +1042,7 @@ fn a_declared_folded_form_frame_is_refused_rather_than_flattened() {
     assert!(
         matches!(
             error,
-            oristudio_cp::io::IoError::Unsupported {
+            oristudio_cp::io::IoError::FoldedForm {
                 what: "FOLD folded-form frames",
                 ..
             }
@@ -1065,7 +1065,7 @@ fn out_of_plane_vertices_are_refused_rather_than_projected() {
 
     let error = fold::import_fold_file_document_json(input).expect_err("3D geometry is refused");
 
-    let oristudio_cp::io::IoError::Unsupported { what, detail } = error else {
+    let oristudio_cp::io::IoError::FoldedForm { what, detail } = error else {
         panic!("unexpected error");
     };
     assert_eq!(what, "FOLD geometry outside the paper plane");

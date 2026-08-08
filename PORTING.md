@@ -76,6 +76,32 @@ are unchanged:
   frontend as engine code `fold_disconnected`. Nothing about the walk itself, the
   order it visits faces in, or any successful result changes; the folding oracle
   in `crates/oristudio-cp/tests/oriedita_folding_oracle.rs` is the gate.
+
+- **A FOLD folded form is refused, not flattened.** `io::fold::import_fold_document`
+  returns `IoError::FoldedForm` — engine code `fold_folded_form` — for a frame
+  that declares `frame_classes: ["foldedForm"]`, and for any vertex further than
+  1e-9 off the paper plane. Oriedita's `FoldFileFormat` has no such refusal; it
+  reads the first two components of each `vertices_coords` entry and drops the
+  rest, so a folded state imports as its own shadow — a plausible-looking crease
+  pattern whose creases are wherever the projection put them. Measured on the
+  corpus's `MoosersTrainRigid-Gardner.fold`, all 246 spatial vertices fail
+  closure after that round trip. Per AGENTS.md the operation has not been
+  ported, so it errors rather than producing a nearby result. Two independent
+  signals because either can be present without the other: a declared class
+  (which a *flat*-folded state can carry while sitting entirely in z = 0) and
+  real out-of-plane geometry (which a file can carry with no class at all). An
+  explicit `z` of exactly zero still imports, because `[x, y, 0]` is how plenty
+  of writers spell a flat pattern.
+  **Consequence for our own files.** `apps/web/src/lib/foldedExport.ts` writes
+  `frame_classes: ['foldedForm']`, so Ori Studio's folded-form FOLD export is
+  refused by Ori Studio's FOLD importer, deliberately: that export is for other
+  tools, not a round trip. `creasePatternImport.ts`'s frame scoring now ranks a
+  `foldedForm` frame *below* an unclassified one, so a file carrying both frames
+  opens its crease pattern; a file carrying only the folded form reaches the
+  refusal by name. Pinned by `a_declared_folded_form_frame_is_refused_rather_than_flattened`,
+  `out_of_plane_vertices_are_refused_rather_than_projected`,
+  `an_explicit_zero_z_still_imports` and the two `foldedExport.test.ts` cases.
+
 - **Bounded lengthen extensions.** `operations::transform::lengthen_crease`
   refuses an extension longer than the diagonal of the box already containing
   every crease (`MAX_LENGTHEN_EXTENSION_DIAGONALS`). Upstream has no such limit:

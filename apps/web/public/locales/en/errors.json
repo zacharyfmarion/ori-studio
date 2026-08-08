@@ -34,6 +34,8 @@
   },
   "fold": {
     "contradiction": "This crease pattern isn't flat-foldable: some faces have no consistent stacking order.",
+    "disconnected": "This selection falls into separate pieces that don't touch, so it can't be folded as one model. Select one piece and fold again.",
+    "foldedForm": "This FOLD file holds a folded model rather than a crease pattern, so there are no creases to open. Open the crease pattern it was folded from instead.",
     "layerSearch": "This crease pattern couldn't be folded: its layers can't be arranged without overlap.",
     "sameParity": "This crease pattern can't be folded flat: two faces meet with the same orientation across a crease."
   },

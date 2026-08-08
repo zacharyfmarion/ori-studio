@@ -34,6 +34,8 @@
   },
   "fold": {
     "contradiction": "Ce patron de plis n'est pas pliable à plat : certaines facettes n'ont pas d'ordre d'empilement cohérent.",
+    "disconnected": "Cette sélection se divise en morceaux séparés qui ne se touchent pas : elle ne peut donc pas être pliée comme un seul modèle. Sélectionnez un seul morceau, puis pliez à nouveau.",
+    "foldedForm": "Ce fichier FOLD contient un modèle plié et non un patron de plis : il n'y a donc aucun pli à ouvrir. Ouvrez plutôt le patron de plis dont il est issu.",
     "layerSearch": "Ce patron de plis n'a pas pu être plié : ses couches ne peuvent pas être disposées sans chevauchement.",
     "sameParity": "Ce patron de plis ne peut pas être plié à plat : deux facettes se rencontrent avec la même orientation de part et d'autre d'un pli."
   },
