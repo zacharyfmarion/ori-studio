@@ -8,7 +8,8 @@
  * `crates/oristudio-cp/tests/non_flat_corpus.rs`, but that only runs when the
  * external corpus is present, which is not the normal case.
  *
- * Run with: node --test scripts/osf-fold-projection.test.mjs
+ * Run with `npm run test:scripts`, which CI's web-client job also runs. Before
+ * that script existed nothing ran this file at all.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

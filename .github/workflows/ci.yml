@@ -82,6 +82,14 @@ jobs:
       - name: Unit test simulator package
         run: npm run test:simulator
 
+      # `scripts/*.test.mjs` sits outside every vitest project, so until now
+      # nothing ran any of it — five files and 48 assertions, including the only
+      # always-available cover for `osf-fold-projection`'s vertex/edge/face
+      # renumbering, whose end-to-end guard needs the external corpus. Green
+      # there meant nothing was checked and nothing said so.
+      - name: Unit test repo scripts
+        run: npm run test:scripts
+
   native-oracle:
     name: Native Rust + C++ oracle
     runs-on: ubuntu-latest
