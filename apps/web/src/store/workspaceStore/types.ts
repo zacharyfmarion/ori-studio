@@ -12,7 +12,6 @@ import type { Point } from '../../lib/geometry';
 import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
-import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import type { SendToEditPayload } from '../../designKinds/types';
 import type {
   AppStatus,

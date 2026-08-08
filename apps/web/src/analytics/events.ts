@@ -121,6 +121,7 @@ export const ANALYTICS_EVENTS = {
   exploriSearchFailed: 'explori search failed',
   exploriResultOpened: 'explori result opened',
   exploriSentToEdit: 'explori sent to edit',
+  designSentToEdit: 'design sent to edit',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
 } as const;
@@ -166,6 +167,19 @@ export const DESIGN_TAB_COUNT_BUCKETS = [1, 2, 3, 5, 10] as const;
  * broadly unsupported", and the element ladder puts both in `<=5`.
  */
 export const BP_PATTERNLESS_STRETCH_BUCKETS = [1, 2, 4, 8] as const;
+
+/**
+ * Threshold ladder for how many packing circles a Send to Edit carried.
+ *
+ * Tighter than {@link COUNT_BUCKETS} because the question is about flap counts,
+ * not element counts: a design with more than ~20 flaps is already unusual, and
+ * the element ladder would put nearly every real design in `<=20`.
+ *
+ * Zero is its own bucket and is the one worth watching — a box-pleat design
+ * whose flaps all have width or height sends no circles at all, and if that is
+ * common the action needs to say so rather than appearing to do nothing.
+ */
+export const PACKING_CIRCLE_COUNT_BUCKETS = [0, 2, 4, 8, 16, 32] as const;
 
 /** Default threshold ladder for durations, in milliseconds. */
 /**

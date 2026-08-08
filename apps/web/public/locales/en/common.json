@@ -246,7 +246,10 @@
     "optimizeScale": "Optimize Scale",
     "save": "Save",
     "sendToEdit": "Send to Edit",
+    "sendToEditMore": "More Send to Edit options",
     "sendToEditTooltip": "Send this design's crease pattern to the Edit canvas",
+    "sendToEditWithCircles": "Send to Edit (include circles)",
+    "sendToEditWithCirclesTooltip": "Send this design's crease pattern along with its packed circles",
     "settings": "Settings"
   },
   "workspaceRail": {

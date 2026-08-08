@@ -30,6 +30,7 @@ import {
   switchOristudioBpStretchPattern as switchRuntimeOristudioBpStretchPattern,
 } from '../oristudioBpRuntime';
 import { designKind } from '../../../designKinds/registry';
+import { trackDesignSentToEdit } from '../../../analytics';
 import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
@@ -955,7 +956,16 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
         });
         const ok = await get().importAddOristudioCpText(payload);
         set({ oristudioBpBusy: false });
-        if (ok) useLayoutStore.getState().activatePanel('crease-pattern');
+        if (ok) {
+          // A zero count with includeCircles is the interesting case: every flap
+          // had a width or a height, so the action looks like it did nothing.
+          trackDesignSentToEdit({
+            designKind: 'box-pleat',
+            includeCircles,
+            circleCount: payload.circles?.length ?? 0,
+          });
+          useLayoutStore.getState().activatePanel('crease-pattern');
+        }
         return ok;
       } catch (error) {
         const normalized = oristudioBpError(error);

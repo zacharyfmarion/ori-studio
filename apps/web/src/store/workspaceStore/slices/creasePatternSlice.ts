@@ -1,5 +1,5 @@
 import { patchTreemakerDesign, selectDesignViewportFitRequestId, selectProject } from '../designTabs';
-import { bucketCount, COUNT_BUCKETS, track } from '../../../analytics';
+import { bucketCount, COUNT_BUCKETS, track, trackDesignSentToEdit } from '../../../analytics';
 import { projectFromSnapshot } from '../../../engine/snapshotMapper';
 import type { FoldArtifacts, FoldDocument, OptimizationReport } from '../../../engine/types';
 import {
@@ -1202,6 +1202,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const ok = await get().importAddOristudioCpText(payload);
         set({ status: ok ? 'crease_pattern_ready' : previousStatus });
         if (ok) {
+          trackDesignSentToEdit({
+            designKind: 'treemaker',
+            includeCircles,
+            circleCount: payload.circles?.length ?? 0,
+          });
           const layout = useLayoutStore.getState();
           layout.activateWorkspace('edit');
           layout.activatePanel('crease-pattern');

@@ -7,6 +7,7 @@ export {
   COUNT_BUCKETS,
   DESIGN_TAB_COUNT_BUCKETS,
   DURATION_MS_BUCKETS,
+  PACKING_CIRCLE_COUNT_BUCKETS,
 } from './events';
 export type {
   AnalyticsEventName,
@@ -32,6 +33,8 @@ export {
   useAnalytics,
 } from './runtime';
 export type { AnalyticsApi, AnalyticsErrorContext } from './runtime';
+
+export { trackDesignSentToEdit } from './trackSendToEdit';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';
 export { useBpPatternNotFoundEvent } from './useBpPatternNotFoundEvent';

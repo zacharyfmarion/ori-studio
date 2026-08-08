@@ -138,7 +138,7 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
     "title": "Avertissement"
   },
   "help": {

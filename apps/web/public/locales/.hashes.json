@@ -2237,7 +2237,10 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4477,7 +4480,10 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6717,7 +6723,10 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8927,7 +8936,10 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11137,7 +11149,10 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13377,7 +13392,10 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15617,7 +15635,10 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -17827,6 +17848,9 @@
     "dialogs:settings.workspace.creasePatternCanvas": "af72818e6089",
     "dialogs:settings.workspace.wheelGestureHint": "dc10a9b0c2f4",
     "dialogs:settings.workspace.wheelPans": "52cdebf01152",
-    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d"
+    "dialogs:settings.workspace.wheelZooms": "9ddf7e5a461d",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   }
 }

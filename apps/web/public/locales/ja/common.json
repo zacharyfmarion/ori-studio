@@ -246,7 +246,10 @@
     "optimizeScale": "スケールを最適化",
     "save": "保存",
     "sendToEdit": "編集に送る",
+    "sendToEditMore": "「編集に送る」のその他のオプション",
     "sendToEditTooltip": "このデザインの展開図を編集キャンバスに送る",
+    "sendToEditWithCircles": "編集に送る（円を含む）",
+    "sendToEditWithCirclesTooltip": "このデザインの展開図をパッキング円とともに送る",
     "settings": "設定"
   },
   "workspaceRail": {
