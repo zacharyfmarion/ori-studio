@@ -4,6 +4,12 @@ import {
   type SymmetryAxis,
 } from '../lib/symmetryGeometry';
 import type { Point } from '../lib/geometry';
+import {
+  subtreeIds,
+  type EditableTree,
+  type TreeTopology,
+  type TreeVertexUpdate,
+} from './model';
 
 /**
  * Geometry for a length-faithful tree editor.
@@ -12,6 +18,41 @@ import type { Point } from '../lib/geometry';
  * and the length of its edge to the parent**, with its subtree carried rigidly,
  * and the length quantized by whatever the surface says an admissible length is.
  */
+
+/**
+ * The moves that keep the drawing faithful when an edge is *typed* to a length
+ * rather than dragged to one: re-place the child at `length` units from its
+ * parent along the direction it already points, and carry its whole subtree by
+ * the same translation so nothing detaches.
+ *
+ * The same computation whether the edge ends at a leaf or deep inside the tree —
+ * a leaf's subtree is just the leaf — so every surface that sets a length by
+ * number goes through here, and none of them has to know which case it has.
+ *
+ * Empty when the edge or either endpoint is missing, which the caller should
+ * treat as "set the length and move nothing".
+ */
+export function edgeLengthRepositions(
+  tree: EditableTree,
+  topology: TreeTopology,
+  edgeId: number,
+  length: number
+): TreeVertexUpdate[] {
+  const edge = tree.edges.find((candidate) => candidate.id === edgeId);
+  if (!edge) return [];
+  const [a, b] = edge.vertices;
+  const childId = topology.parent.get(a) === b ? a : b;
+  const parentId = childId === a ? b : a;
+  const child = tree.vertices.find((vertex) => vertex.id === childId);
+  const parent = tree.vertices.find((vertex) => vertex.id === parentId);
+  if (!child || !parent) return [];
+  const target = leafLocationAt(parent.loc, child.loc, length);
+  const subtree = subtreeIds(topology, childId).flatMap((id) => {
+    const vertex = tree.vertices.find((candidate) => candidate.id === id);
+    return vertex ? [[id, vertex.loc] as const] : [];
+  });
+  return [...translatePoints(child.loc, target, subtree)].map(([id, loc]) => ({ id, loc }));
+}
 
 /** Location for a new leaf on `parent`, `length` units toward `toward`. */
 export function leafLocationAt(parent: Point, toward: Point, length = 1): Point {

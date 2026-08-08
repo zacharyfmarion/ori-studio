@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { IconButton } from '../components/ui/IconButton';
-import type { TreeEditorCopy } from './host';
 import { clampLength, nudgeLength, type TreeLengthRule } from './lengths';
 import type { EditableTreeEdge } from './model';
 
@@ -15,17 +14,30 @@ import type { EditableTreeEdge } from './model';
  * depth the branch already spends) and reads as a meaningless five-digit number.
  * Upstream passes it to the number field's `max` and never renders it either;
  * see `third_party/box-pleating-studio/src/app/vue/panel/edge.vue`.
+ *
+ * Its wording is passed in rather than taken from the tree editor's copy, so a
+ * surface that calls the same edit something else can say so: a river's width
+ * *is* its dual edge's length, and Box Pleating Studio's river panel labels it
+ * "Width" (`src/app/vue/panel/river.vue`).
  */
 export function TreeEdgeLengthEditor({
   edge,
   rule,
-  copy,
+  title,
+  label,
+  groupLabel,
+  increaseLabel,
+  decreaseLabel,
   onSetLength,
   onEscape,
 }: {
   edge: EditableTreeEdge;
   rule: TreeLengthRule;
-  copy: TreeEditorCopy;
+  title: string;
+  label: string;
+  groupLabel: string;
+  increaseLabel: string;
+  decreaseLabel: string;
   onSetLength: (length: number) => void;
   onEscape?: () => void;
 }) {
@@ -46,19 +58,13 @@ export function TreeEdgeLengthEditor({
   };
 
   return (
-    <div
-      className="bp-tree-edge-editor"
-      role="group"
-      aria-label={copy.edgeLengthGroup(edge.vertices[0], edge.vertices[1])}
-    >
-      <span className="bp-tree-edge-editor__title">
-        {copy.edgeTitle(edge.vertices[0], edge.vertices[1])}
-      </span>
-      <span className="bp-tree-edge-editor__label">{copy.length}</span>
+    <div className="bp-tree-edge-editor" role="group" aria-label={groupLabel}>
+      <span className="bp-tree-edge-editor__title">{title}</span>
+      <span className="bp-tree-edge-editor__label">{label}</span>
       <IconButton
         size="sm"
         variant="toolbar"
-        title={copy.decreaseLength}
+        title={decreaseLabel}
         disabled={edge.length <= rule.min}
         onClick={() => commit(nudgeLength(rule, edge.length, -1))}
       >
@@ -87,7 +93,7 @@ export function TreeEdgeLengthEditor({
       <IconButton
         size="sm"
         variant="toolbar"
-        title={copy.increaseLength}
+        title={increaseLabel}
         disabled={max !== null && edge.length >= max}
         onClick={() => commit(nudgeLength(rule, edge.length, 1))}
       >

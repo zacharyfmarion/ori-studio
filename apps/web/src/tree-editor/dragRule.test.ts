@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  edgeLengthRepositions,
   treeDragUpdates,
   rotatePointsAround,
   translatePoints,
   leafLocationAt,
 } from './dragRule';
+import { treeTopology, type EditableTree } from './model';
 import type { Point } from '../lib/geometry';
 import type { TreeDragLengthRule } from './dragRule';
 
@@ -659,5 +661,63 @@ describe('treeDragUpdates — a pinned slide stops at the edge rather than rever
   it('still slides freely when nothing is in the way', () => {
     const { updates } = slide({ x: 0, y: 6.5 }, continuous);
     expect(updates.get(1)!.y).toBeCloseTo(6.5, 12);
+  });
+});
+
+describe('edgeLengthRepositions', () => {
+  /**
+   *   0 (root) ── 1 ── 2
+   *               │
+   *               └─── 3
+   *
+   * Every edge one unit long, laid out along +x with 3 hanging below 1.
+   */
+  const tree: EditableTree = {
+    rootVertexId: 0,
+    vertices: [
+      { id: 0, loc: { x: 0, y: 0 }, isLeaf: false, isRoot: true, name: '' },
+      { id: 1, loc: { x: 1, y: 0 }, isLeaf: false, isRoot: false, name: '' },
+      { id: 2, loc: { x: 2, y: 0 }, isLeaf: true, isRoot: false, name: '' },
+      { id: 3, loc: { x: 1, y: 1 }, isLeaf: true, isRoot: false, name: '' },
+    ],
+    edges: [
+      { id: 10, vertices: [0, 1], length: 1, isLeafEdge: false, maxLength: null },
+      { id: 11, vertices: [1, 2], length: 1, isLeafEdge: true, maxLength: null },
+      { id: 12, vertices: [1, 3], length: 1, isLeafEdge: true, maxLength: null },
+    ],
+  };
+  const topology = treeTopology(tree);
+
+  it('carries the whole subtree when an internal edge grows', () => {
+    const updates = edgeLengthRepositions(tree, topology, 10, 3);
+    // The child moves out to length 3 along the direction it already points,
+    // and everything below it translates by the same delta — so the edges
+    // *inside* the subtree keep their own lengths.
+    expect(updates).toEqual(
+      expect.arrayContaining([
+        { id: 1, loc: { x: 3, y: 0 } },
+        { id: 2, loc: { x: 4, y: 0 } },
+        { id: 3, loc: { x: 3, y: 1 } },
+      ])
+    );
+    expect(updates).toHaveLength(3);
+  });
+
+  it('moves only the leaf when a leaf edge changes', () => {
+    expect(edgeLengthRepositions(tree, topology, 11, 2)).toEqual([{ id: 2, loc: { x: 3, y: 0 } }]);
+  });
+
+  it('is direction-preserving, not axis-aligned', () => {
+    const diagonal: EditableTree = {
+      ...tree,
+      vertices: [tree.vertices[0], { ...tree.vertices[1], loc: { x: 0.6, y: 0.8 } }],
+      edges: [tree.edges[0]],
+    };
+    const [update] = edgeLengthRepositions(diagonal, treeTopology(diagonal), 10, 5);
+    expect(near(update.loc, { x: 3, y: 4 })).toBe(true);
+  });
+
+  it('moves nothing for an edge that is not there', () => {
+    expect(edgeLengthRepositions(tree, topology, 99, 2)).toEqual([]);
   });
 });
