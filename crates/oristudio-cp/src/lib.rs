@@ -20,6 +20,8 @@ pub mod session;
 pub mod share;
 pub mod solve_fold_angles;
 pub mod solve_spatial;
+#[cfg(test)]
+mod spike_fold3d;
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
