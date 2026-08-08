@@ -1515,10 +1515,12 @@ export function CreasePatternPanel() {
     (actionId: OristudioCpActionId) => {
       const action = cpActionById(actionId);
       if (!action) return;
-      // The `foldAction` (F) chord resolves to the Fold / FoldingEstimate CP
-      // commands, which are still unimplemented stubs — selecting them as a tool
-      // does nothing. Route F to the real fold path (the toolbar Fold button),
-      // matching Oriedita where F folds the model in place.
+      // The `foldAction` chord — `G` here (`keyboard/shortcuts.ts`); `F` is
+      // `colCyanAction`, the auxiliary line type — resolves to the Fold /
+      // FoldingEstimate CP commands, which are still unimplemented stubs, so
+      // selecting them as a tool does nothing. Route it to the real fold path
+      // (the toolbar Fold button), matching Oriedita where the fold chord folds
+      // the model in place.
       if (action.kind !== 'line-type') {
         const operationId = action.command.operationId;
         if (operationId === 'Fold' || operationId === 'FoldingEstimate') {
