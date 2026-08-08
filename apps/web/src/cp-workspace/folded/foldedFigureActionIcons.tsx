@@ -5,9 +5,11 @@ import {
   Copy,
   FileDown,
   Layers,
+  OctagonAlert,
   RefreshCw,
   RotateCcwSquare,
   Trash2,
+  TriangleAlert,
 } from 'lucide-react';
 import type { FoldedFigureActionIcon } from './foldedFigureActions';
 
@@ -42,5 +44,12 @@ export function foldedFigureActionIconNode(
       return <Copy size={size} />;
     case 'delete':
       return <Trash2 size={size} />;
+    // A 3D verdict. Two glyphs rather than one tinted glyph, so the difference
+    // between "it draws but passes through itself" and "its layers could not be
+    // ordered" survives a colourblind reader and a monochrome screenshot.
+    case 'notice-warn':
+      return <TriangleAlert size={size} />;
+    case 'notice-error':
+      return <OctagonAlert size={size} />;
   }
 }

@@ -2967,6 +2967,44 @@
   background: var(--border-default);
 }
 
+/* A 3D folded figure's verdict, as a chip at the head of its toolbar.
+
+   Rendered as a button when the verdict offers something to do about it and as
+   a plain span otherwise — a disabled button would read as an action that is
+   temporarily unavailable rather than as a statement of fact, so the two share
+   every rule here except the cursor. */
+.cp-folded-figure-toolbar__notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--text-warning, var(--text-secondary));
+}
+
+.cp-folded-figure-toolbar__notice[data-tone='error'] {
+  color: var(--text-danger, #f87171);
+}
+
+button.cp-folded-figure-toolbar__notice {
+  cursor: pointer;
+}
+
+button.cp-folded-figure-toolbar__notice:hover {
+  border-color: currentcolor;
+}
+
+.cp-folded-figure-toolbar__notice-label {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .floating-toolbar__opacity {
   display: flex;
   align-items: center;

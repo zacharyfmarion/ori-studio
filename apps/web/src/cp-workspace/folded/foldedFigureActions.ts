@@ -5,6 +5,8 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { FoldedFigureExportFormat } from './foldedFigureExport';
 import { flipFoldedState, foldedFigureCycling } from './foldedFigureState';
+import { foldedFigureCapabilities } from './foldedFigureCapabilities';
+import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotice';
 
 /**
  * The verbs a folded figure offers, in the order both surfaces present them.
@@ -19,7 +21,13 @@ import { flipFoldedState, foldedFigureCycling } from './foldedFigureState';
  * callbacks and returns plain data, which is what makes it directly testable.
  */
 
-/** Display styles offered as quick choices, matching the viewport dropdown. */
+/**
+ * Display styles offered as quick choices, matching the viewport dropdown.
+ *
+ * The flat figure's list. A 3D figure's is narrower — see
+ * {@link foldedFigureCapabilities}, which is what `buildFoldedFigureActions`
+ * actually reads.
+ */
 export const FOLDED_FIGURE_STYLE_CHOICES: readonly OristudioCpFoldedFigureDisplayStyle[] = [
   'Paper5',
   'Wire2',
@@ -35,7 +43,9 @@ export type FoldedFigureActionIcon =
   | 'refold'
   | 'export'
   | 'duplicate'
-  | 'delete';
+  | 'delete'
+  | 'notice-warn'
+  | 'notice-error';
 
 export interface FoldedFigureCommand {
   kind: 'command';
@@ -88,10 +98,29 @@ export interface FoldedFigureSeparator {
   id: string;
 }
 
+/**
+ * What a 3D fold concluded about the figure, when it concluded anything.
+ *
+ * Not a command: the notice itself is a *statement*, and `action` is the one
+ * thing the user can do about it. Leading the list because a figure that passes
+ * through itself is the first thing to know about it, and rendered as a chip on
+ * the toolbar and a disabled header in the menu — the two surfaces switch
+ * exhaustively on `kind`, so adding this forced both to answer for it.
+ */
+export interface FoldedFigureNoteAction {
+  kind: 'note';
+  id: 'notice';
+  notice: FoldedFigureNotice;
+  icon: FoldedFigureActionIcon;
+  /** The notice's own action, bound. Absent when there is nothing to offer. */
+  run: (() => void) | null;
+}
+
 export type FoldedFigureAction =
   | FoldedFigureCommand
   | FoldedFigureChoice
-  | FoldedFigureSeparator;
+  | FoldedFigureSeparator
+  | FoldedFigureNoteAction;
 
 /**
  * Store bindings the actions call. Every mutating call is expected to be wrapped
@@ -120,6 +149,16 @@ export interface FoldedFigureActionDeps {
   exportAs?: (
     figure: OristudioCpFoldedFigureEntry,
     format: FoldedFigureExportFormat
+  ) => void;
+  /**
+   * Act on a 3D figure's verdict: reveal the CAMV issues, select the creases a
+   * crossing names, or simulate a figure whose layers could not be ordered.
+   * Omitted leaves the notice as a statement with no button — which is the right
+   * shape for a surface that only reads.
+   */
+  runNoticeAction?: (
+    figure: OristudioCpFoldedFigureEntry,
+    notice: FoldedFigureNotice
   ) => void;
 }
 
@@ -193,9 +232,33 @@ export function buildFoldedFigureActions(
   const currentStyle = figure.displayStyle;
   const canRefold = deps.refold !== undefined && deps.isStale?.(figure) === true;
   const { hasNext: hasNextSolution, wrapsToFirst } = foldedFigureCycling(figure);
+  const capabilities = foldedFigureCapabilities(figure);
+  const notice = foldedFigureNotice(t, figure);
 
-  const actions: FoldedFigureAction[] = [
-    {
+  const actions: FoldedFigureAction[] = [];
+
+  // The verdict leads: what is wrong with a figure outranks what can be done to
+  // it. Silent on a flat figure and on a 3D one that folded cleanly.
+  if (notice) {
+    const runNoticeAction = deps.runNoticeAction;
+    actions.push(
+      {
+        kind: 'note',
+        id: 'notice',
+        notice,
+        icon: notice.tone === 'error' ? 'notice-error' : 'notice-warn',
+        run:
+          notice.action && runNoticeAction ? () => runNoticeAction(figure, notice) : null,
+      },
+      { kind: 'separator', id: 'after-notice' }
+    );
+  }
+
+  // Flip writes the kernel's folded model, which a 3D figure has no command
+  // for. Dropped rather than disabled: a verb that can never apply to this kind
+  // of figure is not a temporarily unavailable one.
+  if (capabilities.flip) {
+    actions.push({
       kind: 'command',
       id: 'flip',
       label: t('panels:foldedFigureActions.flip', 'Flip'),
@@ -204,7 +267,10 @@ export function buildFoldedFigureActions(
       // Turn the paper over: Front <-> Back — the same two views the viewport
       // toolbar's "Side" control offers (see flipFoldedState).
       run: () => deps.flip(figure),
-    },
+    });
+  }
+
+  actions.push(
     {
       kind: 'choice',
       id: 'display-style',
@@ -212,7 +278,7 @@ export function buildFoldedFigureActions(
       icon: 'style',
       disabled: !ready,
       exclusive: true,
-      options: FOLDED_FIGURE_STYLE_CHOICES.map((value) => ({
+      options: capabilities.styleChoices.map((value) => ({
         id: `display-style-${value}`,
         label: foldedDisplayStyleChoiceLabel(t, value),
         checked: value === currentStyle,
@@ -233,8 +299,8 @@ export function buildFoldedFigureActions(
       // would land exactly where it started.
       disabled: !ready || (!hasNextSolution && !wrapsToFirst),
       run: () => deps.foldAnother(figure),
-    },
-  ];
+    }
+  );
 
   // Refold is present only when it applies: a figure that matches its source
   // creases has nothing to refold, and a disabled button would just be noise.

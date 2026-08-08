@@ -106,13 +106,13 @@ import { CreasePatternWebglCanvas } from '../../cp-workspace/CreasePatternWebglC
 import type { CpOverlayView, StepKind } from '../../cp-workspace/CreasePatternWebglCanvas';
 import { cpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import type { CpContextMenuRequest } from '../../cp-workspace/contextMenuTarget';
-import {
-} from '../../cp-workspace/folded/foldedFigureActions';
+import { isFoldedFigureReady } from '../../cp-workspace/folded/foldedFigureActions';
+import { foldedFigureCapabilities } from '../../cp-workspace/folded/foldedFigureCapabilities';
+import { foldedFigureSubtitle } from '../../cp-workspace/folded/foldedFigureNotice';
 // Registers `__foldedStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/folded/foldedFigureStalenessDebug';
 // Registers `__inlineSimStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
-import { foldedFigureCurrentCase } from '../../cp-workspace/folded/foldedFigureState';
 import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
 import { DECODABLE_IMAGE_ACCEPT } from '../../lib/imageFormats';
 import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../../lib/foldedFigureSides';
@@ -536,15 +536,24 @@ function FoldedFigureMenuButton({
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const model = activeFigure?.snapshot?.model ?? null;
-  const activeReady =
-    activeFigure?.status === 'ready' && activeFigure.handle !== null && activeFigure.snapshot !== null;
+  const capabilities = foldedFigureCapabilities(activeFigure);
+  // A 3D figure is "ready" without a flat snapshot — that is the kind witness,
+  // not a missing field — but its *model* controls stay off, because it keeps no
+  // appearance in the kernel to change.
+  const activeReady = activeFigure ? isFoldedFigureReady(activeFigure) : false;
+  const modelReady = activeReady && capabilities.editModel;
 
   // Keep any display style already saved on a document selectable even if it is no
   // longer offered as a fresh choice (e.g. legacy Dev/None figures).
   const currentDisplayStyle = activeFigure?.displayStyle ?? 'Paper5';
-  const foldedDisplayStyleOptions = FOLDED_DISPLAY_STYLE_OPTIONS.includes(currentDisplayStyle)
-    ? FOLDED_DISPLAY_STYLE_OPTIONS
-    : [...FOLDED_DISPLAY_STYLE_OPTIONS, currentDisplayStyle];
+  // Filtered rather than replaced, so this dropdown keeps its own order and a
+  // 3D figure simply loses the entry it has no honest reading of.
+  const offeredDisplayStyles = FOLDED_DISPLAY_STYLE_OPTIONS.filter((value) =>
+    capabilities.styleChoices.includes(value)
+  );
+  const foldedDisplayStyleOptions = offeredDisplayStyles.includes(currentDisplayStyle)
+    ? offeredDisplayStyles
+    : [...offeredDisplayStyles, currentDisplayStyle];
 
   useEffect(() => {
     if (!open) return undefined;
@@ -595,13 +604,7 @@ function FoldedFigureMenuButton({
                 >
                   <span>{figure.title}</span>
                   <small data-stale={staleFigureIds.has(figure.id) || undefined}>
-                    {staleFigureIds.has(figure.id)
-                      ? t('panels:creasePattern.stale', 'Stale')
-                      : figure.status === 'ready'
-                        ? t('panels:creasePattern.case', 'Case {{count}}', {
-                            count: foldedFigureCurrentCase(figure),
-                          })
-                        : figure.status}
+                    {foldedFigureSubtitle(t, figure, staleFigureIds.has(figure.id))}
                   </small>
                 </button>
               ))}
@@ -637,6 +640,7 @@ function FoldedFigureMenuButton({
                 label: foldedStateLabel(t, value),
               }))}
               value={model?.state ?? 'Front0'}
+              disabled={!modelReady}
               onChange={(state) => onModelUpdate({ state })}
             />
           </div>
@@ -648,7 +652,7 @@ function FoldedFigureMenuButton({
               layout="inline"
               label={foldedColorLabel(t, field.key)}
               value={rgbColorToHex(model?.[field.key] ?? field.fallback)}
-              disabled={!activeReady}
+              disabled={!modelReady}
               onChange={(value) =>
                 onModelUpdate({ [field.key]: hexToRgbColor(value) }, `color:${field.key}`)
               }
@@ -666,7 +670,7 @@ function FoldedFigureMenuButton({
             <span>{t('panels:creasePattern.shadow', 'Shadow')}</span>
             <Toggle
               checked={model?.display_shadows ?? false}
-              disabled={!activeReady}
+              disabled={!modelReady}
               onChange={(display_shadows) => onModelUpdate({ display_shadows })}
               aria-label={t('panels:creasePattern.showFoldedModelShadow', 'Show folded model shadow')}
             />

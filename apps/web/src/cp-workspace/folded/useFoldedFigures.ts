@@ -14,7 +14,14 @@ import { foldedFigureAsTransformable } from '../canvasObjects/transformableObjec
 import type { TransformableCanvasObject } from '../canvasObjects/transformableObject';
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
 import { isFoldedFigureStale } from './foldedFigureStaleness';
-import { foldedFigureFlipState, type FoldedFigureActionDeps } from './foldedFigureActions';
+import {
+  foldedFigureFlipState,
+  isFoldedFigureReady,
+  type FoldedFigureActionDeps,
+} from './foldedFigureActions';
+import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
+import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
+import { track } from '../../analytics';
 
 /**
  * The face folding holds fixed. Oriedita lets this be chosen and the kernel still
@@ -73,18 +80,29 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   const deleteOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.deleteOristudioCpFoldedFigure
   );
+  const setOristudioCpViewportOption = useWorkspaceStore(
+    (state) => state.setOristudioCpViewportOption
+  );
+  const requestOristudioCpAction = useWorkspaceStore((state) => state.requestOristudioCpAction);
+  const setOristudioCpSelection = useWorkspaceStore((state) => state.setOristudioCpSelection);
+  const simulateOristudioCpCreaseRegion = useWorkspaceStore(
+    (state) => state.simulateOristudioCpCreaseRegion
+  );
   const canFoldSelectedModel = selectedFoldLineIds.length > 0;
 
   const activeFoldedFigure = useMemo(
     () =>
       oristudioCpFoldedFigures.find((figure) => figure.id === oristudioCpActiveFoldedFigureId) ??
       // Nothing selected: the toolbar acts on the most recent generated figure,
-      // which is the one a just-completed fold produced.
+      // which is the one a just-completed fold produced. Tested through
+      // `isFoldedFigureReady` rather than `snapshot?.wireframe`, which is the
+      // flat witness and would skip every 3D figure — leaving the toolbar and
+      // the menu acting on some older flat one.
       [...oristudioCpFoldedFigures]
         .reverse()
         .find(
           (figure) =>
-            figure.sourceKind === 'generated-from-current-cp' && figure.snapshot?.wireframe
+            figure.sourceKind === 'generated-from-current-cp' && isFoldedFigureReady(figure)
         ) ??
       null,
     [oristudioCpActiveFoldedFigureId, oristudioCpFoldedFigures]
@@ -361,6 +379,38 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       exportAs: (figure, format) => {
         void exportOristudioCpFoldedFigure(format, figure.id);
       },
+      // What a 3D verdict offers to do about itself. None of the three is an
+      // undo step: two only change what is shown, and the third opens a
+      // simulation window, which records its own.
+      runNoticeAction: (figure, notice) => {
+        switch (notice.action?.id) {
+          case 'show-issues':
+            // The crossing's own vertices are exactly what CheckCamv reports as
+            // `SpatialSelfIntersection`, already worded in every locale — so
+            // this reveals an existing overlay rather than adding a second one.
+            setOristudioCpViewportOption('camvIssuesVisible', true);
+            requestOristudioCpAction('CheckCamv');
+            return;
+          case 'select-creases':
+            setOristudioCpSelection({
+              ...emptyOristudioCpSelection(),
+              lines: [...notice.action.lineIds],
+            });
+            return;
+          case 'simulate-instead': {
+            const lineIds = figure.sourceLineIds ?? [];
+            if (lineIds.length === 0) return;
+            track(ANALYTICS_EVENTS.foldSimulationRun, {
+              source: 'fold-3d-no-layer-order',
+              crease_count_bucket: bucketCount(lineIds.length, COUNT_BUCKETS),
+            });
+            void simulateOristudioCpCreaseRegion(lineIds);
+            return;
+          }
+          case undefined:
+            return;
+        }
+      },
     }),
     [
       updateOristudioCpFoldedFigureModel,
@@ -371,6 +421,10 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       refoldOristudioCpFoldedFigure,
       exportOristudioCpFoldedFigure,
       runFoldedFigureAction,
+      setOristudioCpViewportOption,
+      requestOristudioCpAction,
+      setOristudioCpSelection,
+      simulateOristudioCpCreaseRegion,
       staleFoldedFigureIds,
       t,
     ]
