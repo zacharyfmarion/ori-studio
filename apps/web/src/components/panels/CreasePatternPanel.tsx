@@ -546,8 +546,8 @@ function FoldedFigureMenuButton({
   // Keep any display style already saved on a document selectable even if it is no
   // longer offered as a fresh choice (e.g. legacy Dev/None figures).
   const currentDisplayStyle = activeFigure?.displayStyle ?? 'Paper5';
-  // Filtered rather than replaced, so this dropdown keeps its own order and a
-  // 3D figure simply loses the entry it has no honest reading of.
+  // Filtered rather than replaced, so this dropdown keeps its own order while
+  // the capability list decides membership.
   const offeredDisplayStyles = FOLDED_DISPLAY_STYLE_OPTIONS.filter((value) =>
     capabilities.styleChoices.includes(value)
   );

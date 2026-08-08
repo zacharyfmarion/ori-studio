@@ -341,6 +341,7 @@
     "showFoldedModelShadow": "Schatten des gefalteten Modells anzeigen",
     "side": "Seite",
     "stale": "Veraltet",
+    "viewFoldedModelOtherSide": "Von der anderen Seite ansehen",
     "viewportControls": "Ansichtssteuerung des Faltmusters"
   },
   "design": {
@@ -536,6 +537,7 @@
     "firstSolution": "Zurück zur ersten Lösung",
     "flip": "Umdrehen",
     "label": "Aktionen für gefaltetes Modell",
+    "otherSide": "Andere Seite",
     "refold": "Neu falten",
     "styleDev1": "Entwicklung 1",
     "styleDev4": "Entwicklung 4",

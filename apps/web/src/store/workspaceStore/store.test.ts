@@ -61,6 +61,7 @@ import {
   foldedFigureUserBounds,
 } from '../../cp-workspace/adapters/cpFoldedToScene';
 import { isFoldedFigureStale } from '../../cp-workspace/folded/foldedFigureStaleness';
+import { foldedFigureOtherSideCamera } from '../../cp-workspace/folded/foldedFigure3dProjection';
 import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
@@ -3327,6 +3328,49 @@ describe('workspace store slices', () => {
       const styled = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
       expect(styled?.displayStyle).toBe('Wire2');
       expect(styled?.status).toBe('ready');
+    });
+
+    it('moves the eye to the other side and re-projects, without the kernel', async () => {
+      // The 3D reading of Flip. `antipodalCamera` was written and tested in
+      // Phase 6 and then left unreachable, so the reverse of the paper could
+      // never be looked at; this is the verb that reaches it.
+      const figure = await fold3dFigure();
+      const before = figure.camera;
+      if (!before) throw new Error('expected a folded camera');
+      oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot.mockClear();
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .setOristudioCpFolded3dCamera(figure.id, foldedFigureOtherSideCamera(before))
+      ).resolves.toBe(true);
+
+      const turned = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
+      expect(turned?.camera?.yaw).toBeCloseTo(before.yaw + Math.PI, 12);
+      expect(turned?.camera?.pitch).toBeCloseTo(Math.PI - before.pitch, 12);
+      // A 3D figure's picture is made in the frontend, so nothing is asked of
+      // the kernel — the flat command would reject a spatial handle anyway.
+      expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).not.toHaveBeenCalled();
+      expect(turned?.renderSnapshot).not.toEqual(figure.renderSnapshot);
+      expect(turned?.status).toBe('ready');
+    });
+
+    it('refuses to move a flat figure’s eye', async () => {
+      resetStores(seedSnapshot());
+      useWorkspaceStore.setState({
+        oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+        oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+      });
+      await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+      const flat = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+      expect(flat.snapshot).not.toBeNull();
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .setOristudioCpFolded3dCamera(flat.id, { yaw: 1, pitch: 1, zoom: 1 })
+      ).resolves.toBe(false);
+      expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.camera ?? null).toBeNull();
     });
 
     it('refuses to batch a 3D figure to a numbered case', async () => {

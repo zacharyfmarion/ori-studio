@@ -353,6 +353,7 @@
     "showFoldedModelShadow": "Mostrar la sombra del modelo plegado",
     "side": "Cara",
     "stale": "Obsoleto",
+    "viewFoldedModelOtherSide": "Ver desde el otro lado",
     "viewportControls": "Controles de la vista del patrón de pliegues"
   },
   "design": {
@@ -554,6 +555,7 @@
     "firstSolution": "Volver a la primera solución",
     "flip": "Voltear",
     "label": "Acciones del modelo plegado",
+    "otherSide": "Otro lado",
     "refold": "Volver a plegar",
     "styleDev1": "Desarrollo 1",
     "styleDev4": "Desarrollo 4",

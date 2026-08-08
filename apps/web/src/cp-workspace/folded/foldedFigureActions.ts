@@ -5,7 +5,7 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import type { FoldedFigureExportFormat } from './foldedFigureExport';
 import { flipFoldedState, foldedFigureCycling } from './foldedFigureState';
-import { foldedFigureCapabilities } from './foldedFigureCapabilities';
+import { foldedFigureCapabilities, isFolded3dFigure } from './foldedFigureCapabilities';
 import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotice';
 
 /**
@@ -20,19 +20,6 @@ import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotic
  * Deliberately free of React and of the store: it takes an entry plus bound
  * callbacks and returns plain data, which is what makes it directly testable.
  */
-
-/**
- * Display styles offered as quick choices, matching the viewport dropdown.
- *
- * The flat figure's list. A 3D figure's is narrower — see
- * {@link foldedFigureCapabilities}, which is what `buildFoldedFigureActions`
- * actually reads.
- */
-export const FOLDED_FIGURE_STYLE_CHOICES: readonly OristudioCpFoldedFigureDisplayStyle[] = [
-  'Paper5',
-  'Wire2',
-  'Transparent3',
-];
 
 /** Icon names, resolved to components by each surface (this module stays JSX-free). */
 export type FoldedFigureActionIcon =
@@ -254,18 +241,19 @@ export function buildFoldedFigureActions(
     );
   }
 
-  // Flip writes the kernel's folded model, which a 3D figure has no command
-  // for. Dropped rather than disabled: a verb that can never apply to this kind
-  // of figure is not a temporarily unavailable one.
+  // One verb, two mechanisms, and the label says which. A flat figure turns the
+  // paper over (Front <-> Back, the viewport toolbar's "Side" control — see
+  // flipFoldedState); a 3D figure moves the eye to the antipodal camera, because
+  // in three dimensions the other side of the paper is somewhere to stand.
   if (capabilities.flip) {
     actions.push({
       kind: 'command',
       id: 'flip',
-      label: t('panels:foldedFigureActions.flip', 'Flip'),
+      label: isFolded3dFigure(figure)
+        ? t('panels:foldedFigureActions.otherSide', 'Other side')
+        : t('panels:foldedFigureActions.flip', 'Flip'),
       icon: 'flip',
       disabled: !ready,
-      // Turn the paper over: Front <-> Back — the same two views the viewport
-      // toolbar's "Side" control offers (see flipFoldedState).
       run: () => deps.flip(figure),
     });
   }

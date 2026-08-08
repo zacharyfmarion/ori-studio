@@ -415,11 +415,24 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     figure: OristudioCpFoldedFigureEntry,
     displayStyle: OristudioCpFoldedFigureDisplayStyle
   ): OristudioCpFoldedRenderSnapshot | null {
+    return reproject3dFigureAt(figure, displayStyle, figure.camera ?? null);
+  }
+
+  /** The same, at a caller-chosen viewpoint — the seam the "other side" verb uses. */
+  function reproject3dFigureAt(
+    figure: OristudioCpFoldedFigureEntry,
+    displayStyle: OristudioCpFoldedFigureDisplayStyle,
+    camera: FoldedFigureCamera | null
+  ): OristudioCpFoldedRenderSnapshot | null {
     const snapshot = figure.folded3d ?? null;
     const render = folded3dRenderModel(figure.handle);
     if (!snapshot || !render) return null;
-    const camera = figure.camera ?? defaultFolded3dCamera(render, snapshot.model.state);
-    return project3dRenderSnapshot(render, snapshot, displayStyle, camera);
+    return project3dRenderSnapshot(
+      render,
+      snapshot,
+      displayStyle,
+      camera ?? defaultFolded3dCamera(render, snapshot.model.state)
+    );
   }
 
   /**
@@ -2362,6 +2375,39 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         });
         return false;
       }
+    },
+
+    setOristudioCpFolded3dCamera: async (id, camera) => {
+      const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      if (!figure || (figure.folded3d ?? null) === null) {
+        const message = 'No 3D folded model is ready';
+        set({
+          oristudioCpError: message,
+          error: { code: 'invalid_operation', message },
+        });
+        return false;
+      }
+
+      // The camera is recorded whether or not the picture can be remade: a
+      // figure reopened from a file has no render model (it is deliberately not
+      // persisted), and blanking it would be worse than showing the saved view
+      // until the next refold, which does honour the stored camera.
+      const renderSnapshot = reproject3dFigureAt(figure, figure.displayStyle, camera);
+      takeCanvasSelection('folded-figure', {
+        oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+          candidate.id === figure.id
+            ? {
+                ...candidate,
+                camera,
+                renderSnapshot: renderSnapshot ?? candidate.renderSnapshot,
+              }
+            : candidate
+        ),
+        oristudioCpActiveFoldedFigureId: figure.id,
+        oristudioCpError: null,
+        dirty: true,
+      });
+      return true;
     },
 
     setOristudioCpFoldedFigureDisplayStyle: async (id, displayStyle) => {

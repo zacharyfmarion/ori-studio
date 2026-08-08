@@ -329,6 +329,7 @@
     "showFoldedModelShadow": "접힌 모델 그림자 표시",
     "side": "면",
     "stale": "오래됨",
+    "viewFoldedModelOtherSide": "반대편에서 보기",
     "viewportControls": "전개도 뷰포트 컨트롤"
   },
   "design": {
@@ -522,6 +523,7 @@
     "firstSolution": "첫 번째 해로 돌아가기",
     "flip": "뒤집기",
     "label": "접힌 모델 작업",
+    "otherSide": "반대편",
     "refold": "다시 접기",
     "styleDev1": "개발 1",
     "styleDev4": "개발 4",

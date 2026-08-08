@@ -329,6 +329,7 @@
     "showFoldedModelShadow": "显示折叠模型阴影",
     "side": "侧面",
     "stale": "已过期",
+    "viewFoldedModelOtherSide": "从另一侧查看",
     "viewportControls": "折痕图视口控件"
   },
   "design": {
@@ -522,6 +523,7 @@
     "firstSolution": "返回第一个解",
     "flip": "翻转",
     "label": "折叠模型操作",
+    "otherSide": "另一侧",
     "refold": "重新折叠",
     "styleDev1": "开发 1",
     "styleDev4": "开发 4",

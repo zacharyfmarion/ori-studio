@@ -353,6 +353,7 @@
     "showFoldedModelShadow": "Afficher l'ombre du modèle plié",
     "side": "Face",
     "stale": "Obsolète",
+    "viewFoldedModelOtherSide": "Voir de l’autre côté",
     "viewportControls": "Commandes d'affichage du patron de plis"
   },
   "design": {
@@ -554,6 +555,7 @@
     "firstSolution": "Revenir à la première solution",
     "flip": "Retourner",
     "label": "Actions du modèle plié",
+    "otherSide": "Autre côté",
     "refold": "Replier",
     "styleDev1": "Développement 1",
     "styleDev4": "Développement 4",

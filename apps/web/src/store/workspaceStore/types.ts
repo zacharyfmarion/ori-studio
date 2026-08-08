@@ -41,6 +41,7 @@ import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldedFigureExportFormat } from '../../cp-workspace/folded/foldedFigureExport';
+import type { FoldedFigureCamera } from '../../cp-workspace/folded/foldedFigure3dProjection';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
   OristudioCpCommandPayload,
@@ -807,6 +808,18 @@ export interface CreasePatternSliceActions {
     id: string,
     displayStyle: OristudioCpFoldedFigureDisplayStyle
   ) => Promise<boolean>;
+  /**
+   * Move a 3D figure's eye and re-project it.
+   *
+   * Synchronous work behind an async signature, like its display-style sibling:
+   * a 3D figure's picture is made in the frontend from the render model beside
+   * its handle, so nothing is asked of the kernel. A figure reopened from a file
+   * has no render model and keeps the picture it was saved with — the camera is
+   * still recorded, so a refold shows the chosen view.
+   *
+   * Rejects a flat figure: there is no viewpoint to move.
+   */
+  setOristudioCpFolded3dCamera: (id: string, camera: FoldedFigureCamera) => Promise<boolean>;
   updateOristudioCpFoldedFigureModel: (
     id: string,
     update: Partial<OristudioCpFoldedFigureModel>

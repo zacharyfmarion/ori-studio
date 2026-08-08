@@ -329,6 +329,7 @@
     "showFoldedModelShadow": "折りモデルの影を表示",
     "side": "面",
     "stale": "要再折り",
+    "viewFoldedModelOtherSide": "反対側から見る",
     "viewportControls": "展開図のビューポート操作"
   },
   "design": {
@@ -522,6 +523,7 @@
     "firstSolution": "最初の解に戻る",
     "flip": "裏返す",
     "label": "折り上がり図の操作",
+    "otherSide": "反対側",
     "refold": "折り直す",
     "styleDev1": "開発 1",
     "styleDev4": "開発 4",

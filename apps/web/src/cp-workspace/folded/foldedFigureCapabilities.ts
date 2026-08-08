@@ -5,18 +5,18 @@
  * verbs route through kernel commands that take `CpSession::flat(handle)` and
  * answer `folded_figure_kind_mismatch` on a spatial one. Gating them here is
  * **not** belt-and-braces, and it is worth stating exactly why, because the
- * three cases fail three different ways:
+ * cases fail different ways:
  *
- * - **Flip and every folded-model control** (side, colours, alpha) never reach
- *   the kernel at all. `updateOristudioCpFoldedFigureModel` rejects any figure
- *   with `snapshot == null`, and a 3D figure is exactly that, so the user gets
- *   "No folded model is ready" — a message that is neither true nor about kinds.
+ * - **The folded-model controls** (colours, alpha, side) never reach the kernel
+ *   at all. `updateOristudioCpFoldedFigureModel` rejects any figure with
+ *   `snapshot == null`, and a 3D figure is exactly that, so the user gets "No
+ *   folded model is ready" — a message that is neither true nor about kinds.
  *   This gate is the only thing between them and that toast.
  * - **Display style** does reach `folded_figure_render_snapshot`. Left ungated
  *   its rejection is caught and written onto the entry as `status: 'error'`, so
  *   a style click would destroy a perfectly good figure. It is not gated away
- *   here — a 3D figure has real styles — but the *set* is narrowed, and the
- *   store re-projects locally instead of asking the kernel.
+ *   here — a 3D figure has real styles — and the store re-projects locally
+ *   instead of asking the kernel.
  * - **Fold to case** has no 3D command by design: `discovered_fold_cases` is a
  *   high-water mark over an odometer with no knowable product, so there is no
  *   "case N of M" to batch to.
@@ -38,9 +38,17 @@ export function isFolded3dFigure(
 }
 
 export interface FoldedFigureCapabilities {
-  /** Turn the paper over. Kernel model write; 3D has no such command. */
+  /**
+   * Show the paper's other side.
+   *
+   * The same verb, two mechanisms, because "the other side" means two things.
+   * A flat figure turns the *paper* over — a kernel model write on
+   * `model.state`. A 3D figure moves the *eye* to the antipodal camera, since in
+   * three dimensions the other side is somewhere to stand and not a colour, and
+   * that is a pure re-projection needing no kernel at all.
+   */
   flip: boolean;
-  /** Colours, alpha, side — the folded-model menu. Same command, same answer. */
+  /** Colours and alpha — the folded-model menu. Kernel model write; 3D has none. */
   editModel: boolean;
   /** Batch to a numbered solution. Deliberately absent in 3D. */
   foldToCase: boolean;
@@ -49,25 +57,25 @@ export interface FoldedFigureCapabilities {
 }
 
 /**
- * Styles a flat figure offers — the shipped quick list, unchanged.
+ * The style quick list, shared by both kinds.
+ *
+ * `Transparent3` was withheld from a 3D figure on the grounds that the kernel's
+ * transparent development needs the whole-document *flat* arrangement
+ * (`needs_subfaces`). True of the flat path and irrelevant here: a 3D figure's
+ * picture is never asked of the kernel — `project3dRenderSnapshot` makes it in
+ * TypeScript, where `Transparent3` means every cell translucent.
+ *
+ * Withholding it also cost the one thing that makes solution cycling visible.
+ * Measured on `penguin_freeform` (8 solutions): the eight `renderSnapshot`s hash
+ * identically under `Paper5` **and** under `Wire2`, because swapping two buried
+ * layers of a stack changes nothing an opaque render shows, and only under
+ * `Transparent3` do distinct pictures appear. So the figure that made "Another
+ * solution" look like a dead button was the style list, not the enumerator.
  */
-export const FLAT_FIGURE_STYLE_CHOICES: readonly OristudioCpFoldedFigureDisplayStyle[] = [
+export const FOLDED_FIGURE_STYLE_CHOICES: readonly OristudioCpFoldedFigureDisplayStyle[] = [
   'Paper5',
   'Wire2',
   'Transparent3',
-];
-
-/**
- * Styles a 3D figure offers.
- *
- * `Transparent3` is deliberately absent, and it is not a projector gap: the
- * kernel's transparent development needs the whole-document *flat* arrangement
- * (`needs_subfaces`), which a spatial fold never computes. Offering it would
- * promise the flat figure's x-ray and deliver something else with the same name.
- */
-export const FOLDED_3D_STYLE_CHOICES: readonly OristudioCpFoldedFigureDisplayStyle[] = [
-  'Paper5',
-  'Wire2',
 ];
 
 export function foldedFigureCapabilities(
@@ -75,16 +83,16 @@ export function foldedFigureCapabilities(
 ): FoldedFigureCapabilities {
   if (isFolded3dFigure(figure)) {
     return {
-      flip: false,
+      flip: true,
       editModel: false,
       foldToCase: false,
-      styleChoices: FOLDED_3D_STYLE_CHOICES,
+      styleChoices: FOLDED_FIGURE_STYLE_CHOICES,
     };
   }
   return {
     flip: true,
     editModel: true,
     foldToCase: true,
-    styleChoices: FLAT_FIGURE_STYLE_CHOICES,
+    styleChoices: FOLDED_FIGURE_STYLE_CHOICES,
   };
 }

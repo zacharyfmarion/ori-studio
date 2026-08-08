@@ -22,6 +22,8 @@ import {
   isFoldedFigureReady,
   type FoldedFigureActionDeps,
 } from './foldedFigureActions';
+import { isFolded3dFigure } from './foldedFigureCapabilities';
+import { foldedFigureOtherSideCamera } from './foldedFigure3dProjection';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
 import { track } from '../../analytics';
@@ -67,6 +69,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   );
   const setOristudioCpFoldedFigureDisplayStyle = useWorkspaceStore(
     (state) => state.setOristudioCpFoldedFigureDisplayStyle
+  );
+  const setOristudioCpFolded3dCamera = useWorkspaceStore(
+    (state) => state.setOristudioCpFolded3dCamera
   );
   const updateOristudioCpFoldedFigureModel = useWorkspaceStore(
     (state) => state.updateOristudioCpFoldedFigureModel
@@ -339,14 +344,27 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
    */
   const foldedFigureActionDeps = useMemo<Omit<FoldedFigureActionDeps, 't'>>(
     () => ({
+      // One verb, two mechanisms. A flat figure turns the paper over, which is a
+      // kernel model write; a 3D figure moves the eye to the antipodal camera,
+      // which is a re-projection and reaches no kernel at all. Branching here
+      // rather than in the catalog keeps the catalog store-free.
       flip: (figure) =>
-        runFoldedFigureAction(
-          t('panels:creasePattern.flipFoldedModel', 'Flip folded model'),
-          () =>
-            updateOristudioCpFoldedFigureModel(figure.id, {
-              state: foldedFigureFlipState(figure),
-            })
-        ),
+        isFolded3dFigure(figure)
+          ? runFoldedFigureAction(
+              t('panels:creasePattern.viewFoldedModelOtherSide', 'View from the other side'),
+              () =>
+                setOristudioCpFolded3dCamera(
+                  figure.id,
+                  foldedFigureOtherSideCamera(figure.camera)
+                )
+            )
+          : runFoldedFigureAction(
+              t('panels:creasePattern.flipFoldedModel', 'Flip folded model'),
+              () =>
+                updateOristudioCpFoldedFigureModel(figure.id, {
+                  state: foldedFigureFlipState(figure),
+                })
+            ),
       setDisplayStyle: (figure, style) =>
         runFoldedFigureAction(
           t('panels:creasePattern.changeFoldedDisplayStyle', 'Change folded display style'),
@@ -425,6 +443,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     [
       updateOristudioCpFoldedFigureModel,
       setOristudioCpFoldedFigureDisplayStyle,
+      setOristudioCpFolded3dCamera,
       foldAnotherOristudioCpFigure,
       duplicateOristudioCpFoldedFigure,
       deleteOristudioCpFoldedFigure,

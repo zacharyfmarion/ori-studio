@@ -341,6 +341,7 @@
     "showFoldedModelShadow": "Show folded model shadow",
     "side": "Side",
     "stale": "Stale",
+    "viewFoldedModelOtherSide": "View from the other side",
     "viewportControls": "Crease pattern viewport controls"
   },
   "design": {
@@ -536,6 +537,7 @@
     "firstSolution": "Back to first solution",
     "flip": "Flip",
     "label": "Folded figure actions",
+    "otherSide": "Other side",
     "refold": "Refold",
     "styleDev1": "Dev 1",
     "styleDev4": "Dev 4",

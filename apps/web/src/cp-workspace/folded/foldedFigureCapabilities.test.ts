@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
 import {
-  FOLDED_3D_STYLE_CHOICES,
+  FOLDED_FIGURE_STYLE_CHOICES,
   foldedFigureCapabilities,
   isFolded3dFigure,
 } from './foldedFigureCapabilities';
@@ -69,42 +69,64 @@ describe('foldedFigureCapabilities', () => {
     expect(isFolded3dFigure(null)).toBe(false);
   });
 
-  it('withholds flip and model editing from a 3D figure', () => {
+  it('withholds model editing and case batching from a 3D figure', () => {
     // Not defence in depth: `updateOristudioCpFoldedFigureModel` rejects any
     // figure with a null flat snapshot before the bridge call, so an ungated
-    // flip reaches no kernel guard — it produces "No folded model is ready",
-    // which is neither true nor about kinds.
+    // colour change reaches no kernel guard — it produces "No folded model is
+    // ready", which is neither true nor about kinds.
     expect(foldedFigureCapabilities(spatialFigure)).toMatchObject({
-      flip: false,
       editModel: false,
       foldToCase: false,
     });
     expect(foldedFigureCapabilities(flatFigure)).toMatchObject({
-      flip: true,
       editModel: true,
       foldToCase: true,
     });
   });
 
-  it('does not offer a 3D figure the transparent development', () => {
-    // It needs the whole-document *flat* arrangement, which a spatial fold never
-    // computes. Offering it would promise the flat figure's x-ray.
-    expect(FOLDED_3D_STYLE_CHOICES).not.toContain('Transparent3');
-    expect(foldedFigureCapabilities(flatFigure).styleChoices).toContain('Transparent3');
+  it('offers "the other side" on both kinds, by two different mechanisms', () => {
+    // A flat figure turns the paper over; a 3D figure moves the eye. Withholding
+    // it from 3D left `antipodalCamera` — written and tested — unreachable from
+    // the UI, so the reverse of the paper could never be looked at.
+    expect(foldedFigureCapabilities(spatialFigure).flip).toBe(true);
+    expect(foldedFigureCapabilities(flatFigure).flip).toBe(true);
+  });
+
+  it('offers the same style list to both kinds, x-ray included', () => {
+    // A 3D figure's picture is never asked of the kernel, so the flat path's
+    // `needs_subfaces` constraint does not reach it — and withholding x-ray was
+    // what made "Another solution" invisible, since an opaque render of two
+    // stackings of the same paper is byte-identical.
+    expect(FOLDED_FIGURE_STYLE_CHOICES).toContain('Transparent3');
+    expect(foldedFigureCapabilities(spatialFigure).styleChoices).toEqual(
+      foldedFigureCapabilities(flatFigure).styleChoices
+    );
   });
 });
 
 describe('buildFoldedFigureActions, gated', () => {
-  it('drops flip from a 3D figure and keeps it on a flat one', () => {
-    const spatialIds = buildFoldedFigureActions(spatialFigure, deps()).map((action) => action.id);
-    const flatIds = buildFoldedFigureActions(flatFigure, deps()).map((action) => action.id);
-    expect(spatialIds).not.toContain('flip');
-    expect(flatIds).toContain('flip');
+  it('labels the side verb for what it does to each kind', () => {
+    const spatialActions = buildFoldedFigureActions(spatialFigure, deps());
+    const flatActions = buildFoldedFigureActions(flatFigure, deps());
+    expect(spatialActions.map((action) => action.id)).toContain('flip');
+    expect(flatActions.map((action) => action.id)).toContain('flip');
+    // Two labels, because a 3D figure's paper is not turned over — the eye
+    // moves. Asserting the labels *differ* as well as their values, so a
+    // builder returning one constant for both kinds cannot pass.
+    const label = (actions: ReturnType<typeof buildFoldedFigureActions>) => {
+      const flip = actions.find((action) => action.id === 'flip');
+      return flip?.kind === 'command' ? flip.label : null;
+    };
+    expect(label(flatActions)).toBe('Flip');
+    expect(label(spatialActions)).toBe('Other side');
+    expect(label(spatialActions)).not.toBe(label(flatActions));
     // Everything else a 3D figure genuinely has stays.
-    expect(spatialIds).toEqual(expect.arrayContaining(['display-style', 'another', 'duplicate', 'delete']));
+    expect(spatialActions.map((action) => action.id)).toEqual(
+      expect.arrayContaining(['display-style', 'another', 'duplicate', 'delete'])
+    );
   });
 
-  it('narrows the style options a 3D figure offers', () => {
+  it('offers a 3D figure the whole style list', () => {
     const choice = buildFoldedFigureActions(spatialFigure, deps()).find(
       (action) => action.id === 'display-style'
     );
@@ -113,6 +135,7 @@ describe('buildFoldedFigureActions, gated', () => {
     expect(choice.options.map((option) => option.id)).toEqual([
       'display-style-Paper5',
       'display-style-Wire2',
+      'display-style-Transparent3',
     ]);
   });
 

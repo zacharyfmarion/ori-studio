@@ -353,6 +353,7 @@
     "showFoldedModelShadow": "Mostrar sombra do modelo dobrado",
     "side": "Lado",
     "stale": "Desatualizado",
+    "viewFoldedModelOtherSide": "Ver pelo outro lado",
     "viewportControls": "Controles da viewport do padrão de vincos"
   },
   "design": {
@@ -554,6 +555,7 @@
     "firstSolution": "Voltar à primeira solução",
     "flip": "Virar",
     "label": "Ações do modelo dobrado",
+    "otherSide": "Outro lado",
     "refold": "Dobrar novamente",
     "styleDev1": "Desenvolvimento 1",
     "styleDev4": "Desenvolvimento 4",
