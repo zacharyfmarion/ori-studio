@@ -65,29 +65,27 @@ works.
 That rules out shipping circles inside the FOLD extras: a TreeMaker FOLD is in
 paper units, so its lines get scaled by ~400 and its circles would not.
 
-**Recommended transport.** Extend the payload with circles in **paper-fraction
-coordinates** (origin at the paper's top-left corner, 1.0 = paper width), and let
-the kernel place them:
+**Transport.** Circles ride beside the text, in the text's own coordinate space,
+and the kernel places them on the imported document:
 
 1. `SendToEditPayload` gains `circles?: readonly SendToEditCircle[]`
-   (`{ cx, cy, r }`, paper fractions) — a space every kind can produce trivially
-   and that no loader normalization can invalidate.
-2. New wasm entry point `set_circles(handle, coords, radii, colors)`, mirroring
-   the existing `set_texts(handle, coords, texts)`
+   (`{ cx, cy, r }`) and `circleSourceBounds` — both in the coordinates the
+   exported file itself uses, which is the one space each kind can state without
+   guessing.
+2. New wasm entry point `place_circles(handle, source_bounds, coords, radii)`,
+   taking the existing `set_texts(handle, coords, texts)`
    ([oristudio-cp-wasm/src/lib.rs:231](crates/oristudio-cp-wasm/src/lib.rs:231))
-   — same shape, same session plumbing, no new concepts.
+   as its shape. It maps `source_bounds` onto the document's own line bbox —
+   uniform, keyed on height, min corner to min corner — and writes the circles.
+   The kernel is the only thing that knows what a loader did to the coordinates,
+   which is why the mapping belongs there and not in TypeScript.
 3. `importAddOristudioCpDocumentFromText`
    ([oristudioCpRuntime.ts:341](apps/web/src/store/workspaceStore/oristudioCpRuntime.ts:341))
-   already holds the *imported* handle between load and `importAdd`. Between
-   those two calls: read the imported document's own bounds, map the
-   paper-fraction circles onto them, `set_circles`, then `importAdd` as today —
-   at which point the existing shift moves circles and lines together.
+   already holds the *imported* handle between load and `importAdd`. It calls
+   `place_circles` between those two, and the existing merge then shifts circles
+   and lines together.
 
-The one assumption is that the imported document's bounding box *is* the paper in
-both cases. It holds for TreeMaker (the generated CP includes the paper border,
-and the FOLD normalization maps exactly that box onto ±200) and for BP (the `.cp`
-carries the sheet). Phase 0 verifies it before anything else is built, including
-the BP case where `cpScale != 1` so the design does not fill the sheet.
+Every transform this rests on was measured in Phase 0 before any of it was built.
 
 ### Where the circles come from
 
@@ -215,15 +213,42 @@ Adding the variant is the moment to fix that: one `design sent to edit` event wi
 
 ## Checklist
 
-### Phase 0 — verify the transport assumption
+### Phase 0 — verify the transport assumption ✅
 
-- [ ] Confirm the imported handle's geometry bounds equal the paper for a
-      TreeMaker `.fold` send (post-normalization) and for a BP `.cp` send with
-      `cpScale != 1`. Record the numbers in this plan.
-- [ ] Confirm `import_add` preserves circle colour and radius through the shift
-      (extend the existing `import_add_tests` module in `arrangement.rs`).
-- [ ] If the bounds assumption fails for BP, fall back to the payload reporting
-      its own paper rect explicitly rather than inferring it.
+- [x] Pin the FOLD importer's transform. It maps the source line bbox's **min
+      corner onto `(-200, -200)`**, with a **uniform scale of `400 / sourceHeight`**,
+      no rotation and no Y flip. A 2:1 paper therefore comes out 800 wide, not
+      clamped to 400 — `fold_import_normalizes_uniformly_on_height_for_a_non_square_paper`
+      in `tests/io.rs` pins exactly that.
+- [x] Confirm circles are *not* normalized on FOLD import. Already pinned:
+      `fold_import_reads_edges_and_oriedita_extensions` imports lines at
+      `(0,0)–(10,10)` (normalized to ±200) alongside a circle at `(5, 5)` that
+      stays at `(5, 5)`. This is the Oriedita quirk, and it is why circles cannot
+      travel in the FOLD extras.
+- [x] Confirm `import_add` carries circles with the lines' shift, preserving
+      radius and colour — `import_add_shifts_circles_with_their_lines` and
+      `import_add_preserves_circle_offset_from_imported_lines`.
+- [x] Establish each kind's source space, so a circle can be expressed in the
+      same numbers its file uses:
+      - **TreeMaker `.fold`**: `vertices_coords = [x, paper_height - y]`
+        ([lib.rs:1182](crates/treemaker-core/src/lib.rs:1182)) — **Y is flipped**
+        against tree/paper coordinates. `FOLD_BORDER` creases are exported, so the
+        bbox is the paper rect `[0, paper_width] × [0, paper_height]`.
+      - **BP `.cp`**: `CP_FULL_WIDTH = 400.0` scaled by `cp_scale`
+        ([io/cp.rs:25](crates/oristudio-bp/src/io/cp.rs:25)), through
+        `RectangularGrid::transform_matrix`
+        ([grid.rs:401](crates/oristudio-bp/src/grid.rs:401)): grid `(x, y)` maps to
+        `(s·(x − w/2), s·(h/2 − y))` with `s = 400·cpScale / max(w, h)` — **Y is
+        flipped** here too. The sheet border is part of the export
+        ([io/cp.rs:145](crates/oristudio-bp/src/io/cp.rs:145)), so the bbox is the
+        transformed sheet, and `cpScale != 1` scales it without changing that.
+
+**Resulting design.** The payload carries circles **in the same coordinate space
+as its own text** — literally the numbers that would appear in the file — plus the
+`sourceBounds` the kind already knows. A new kernel entry point maps
+`sourceBounds` onto the loaded document's own line bbox and sets the circles
+there. Nothing in TypeScript re-derives the importer's transform, and no format
+needs a circle channel.
 
 ### Phase 1 — one implementation of Send to Edit
 
