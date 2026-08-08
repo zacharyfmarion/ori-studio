@@ -71,7 +71,10 @@
 //!
 //! The second is why cells below the census's area bar are dropped: a surviving
 //! cell has area above the bar, and two faces both covering it overlap by at
-//! least that much, so the check is a theorem rather than a hope.
+//! least that much, so the check is a theorem rather than a hope. That coupling
+//! between the two bars is not exercised by anything — no corpus model produces a
+//! cell at or below the bar — so it is defence in depth for a case the census's
+//! own empty band says should not arise.
 
 use std::collections::{BTreeMap, BTreeSet};
 

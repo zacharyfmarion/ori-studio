@@ -806,6 +806,41 @@ fn a_pair_with_no_cell_is_refused() {
     );
 }
 
+/// The other half of the same postcondition fires too.
+///
+/// A subface whose faces do not overlap would put a total order on paper that
+/// never touches, which is what a cell decomposition that has silently produced
+/// overlapping cells looks like from the outside. Removing a real pair from the
+/// census is the cheapest way to show the check is live.
+#[test]
+fn a_subface_over_a_non_variable_pair_is_refused() {
+    let model = fixture("box_90");
+    let placement = place_segments(&model.line_segments, 1).expect("placed");
+    let (index, census) = census_placement(&placement, Fold3dTolerances::DEFAULT);
+    let doctored: Vec<usize> = (0..census.pairs.len()).collect();
+    let mut fired = 0usize;
+    for drop in doctored {
+        let mut thinned = census.clone();
+        let removed = thinned.pairs.remove(drop);
+        match cell_index(&index, &thinned, placement.span, Fold3dTolerances::DEFAULT) {
+            Err(oristudio_cp::folding3d::CellError::CellWithoutOverlap { faces, .. }) => {
+                assert_eq!(faces, removed.faces);
+                fired += 1;
+            }
+            // Dropping the last pair of a plane drops the plane, and then the
+            // faces are never looked at. That is the postcondition agreeing with
+            // itself, not missing.
+            Ok(_) => {}
+            other => panic!("dropping {:?} gave {other:?}", removed.faces),
+        }
+    }
+    assert!(
+        fired >= census.pairs.len() / 2,
+        "only {fired} of {} removals reached the check",
+        census.pairs.len()
+    );
+}
+
 /// The reason the seed set is validated before any table is built.
 #[test]
 fn the_shipped_table_builder_keeps_whichever_seed_came_first() {

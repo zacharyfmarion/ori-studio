@@ -474,6 +474,12 @@ fn frame_for(origin: Vec3, direction: Vec3) -> Frame {
 }
 
 /// Whether two creases share more of the folded line than a point.
+///
+/// `folded_line_index` groups coincident creases into connected components, so a
+/// group can hold a chain whose ends do not meet — this is what keeps a
+/// constraint from being written between two of them. Measured, no corpus model
+/// contains such a chain, so like the area coupling in [`super::cells`] this is
+/// defence in depth rather than a tested path.
 fn extents_overlap(a: &Crease, b: &Crease, slack: f64) -> bool {
     let shift = dot(sub(b.frame.origin, a.frame.origin), a.frame.direction);
     let (lo, hi) = (b.span.0 + shift, b.span.1 + shift);
