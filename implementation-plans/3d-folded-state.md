@@ -3023,31 +3023,119 @@ section, with the types and entry points beside the guarantees, so the frontend
 half has one place to read rather than a subsection of a kernel phase.
 
 ### Phase 6 — Render
-- [ ] `Folded3dRenderModel` emitted once per fold (never per frame)
-- [ ] `projectFolded3dModel` in
-      `cp-workspace/folded/foldedFigure3dProjection.ts`, reusing
-      `projectVertices`, `buildBsp`/`traverseBsp`, `findVisiblePieces`,
-      `coplanarRuns`; emits `fill_path`/`stroke_path` in traversal order as
-      `sequence`
-- [ ] Faces, not planes, are `BspItem`s — `fan()` (`bsp.ts:140-148`) assumes
-      convex and `planeOf` takes the first three points
-- [ ] The kernel's coplanarity tolerance passed to `buildBsp` instead of its
-      hardcoded `EPS = 1e-7` (`bsp.ts:67`)
-- [ ] `edgeInk` stays 0 on the canvas path, so the BSP build remains
-      eye-independent and hoistable
-- [ ] Opaque per-face fills by default. **Per-face translucency only for pairs
-      Phase 9 could not decide** — an annotation, not a mode (the census being
-      non-zero is the common case and no longer implies undetermined). *Not*
-      `Transparent3`: `needs_subfaces` (`folding.rs:2232-2235`) includes it, so
-      that style needs the whole-document arrangement
-- [ ] Per-plane flat shading from the plane normal (`svgRenderer.ts:515-552`)
-- [ ] Piece-count guard with a tested refusal path
-- [ ] `pinwheel_cyclic.fold` renders every overlap cell with the correct winner,
-      asserted **per cell** — the regression test a future "just sort it"
-      refactor must fail
-- [ ] Regression test in `packages/origami-simulator/src/bsp.test.ts` that a
-      straddling face cannot reorder a coplanar stack (`bsp.ts:253`)
-- [ ] `npm run test:web`; `npm run test:simulator`
+
+**Built.** `apps/web/src/cp-workspace/folded/foldedFigure3dProjection.ts`, with
+`folded3dRenderModels.ts` beside it and two additive options on
+`packages/origami-simulator/src/bsp.ts`. Six kernel payloads are committed as
+fixtures under `cp-workspace/folded/__fixtures__/`, regenerable by one command
+(`cargo run -p oristudio-cp --release --example fold3d_render_model`), and the
+whole projector is tested under bare node.
+
+- [x] `Folded3dRenderModel` emitted once per fold (never per frame), and held on
+      the frontend in a handle-keyed map (`folded3dRenderModels.ts`) released
+      inside `releaseFoldedFigureHandle`, so it inherits the existing
+      reachability refcount. A figure reopened from a file has `handle: null` and
+      therefore **no** render model: it draws from its stored snapshot but cannot
+      be re-projected, which is a predicate to gate colour/style/camera on
+      (`folded3dRenderModel(handle) === undefined`) rather than a call that
+      quietly does nothing
+- [x] `projectFolded3dModel` in
+      `cp-workspace/folded/foldedFigure3dProjection.ts`, reusing `toViewSpace`,
+      `buildBsp`/`traverseBsp`, `findVisiblePieces`, `coplanarRuns`/`outlineOf`;
+      emits `fill_path`/`stroke_path` in traversal order as `sequence`
+- [x] **Cells**, not faces and not planes, are `BspItem`s — each ring earcut in
+      its own plane's emitted `(u, v)`. *(Deviation: the plan said faces. A face
+      is not what the kernel ordered — `cell_stack` is — and the winner is per
+      cell. `fan()`'s convexity assumption is satisfied because earcut runs
+      first, so every item is a triangle.)*
+- [x] The kernel's coplanarity tolerance passed to `buildBsp` instead of its
+      hardcoded `EPS = 1e-7`. *(Deviation: the engine contract said `EPS` "must
+      become the kernel's `angle_radians`". That is dimensionally wrong — `EPS`
+      is compared against a point-to-plane **distance**. `folded3dCoplanarEpsilon`
+      is `distance_relative * span + angle_radians * radius`, ≈4.3e-4 on a
+      span-400 model: the offset the kernel allows plus the deviation a tilt of
+      its angle tolerance induces across the patch. `bsp.ts` gets
+      `coplanarEps?: number`, defaulting to `EPS`; `planeOf`'s `length < EPS`
+      guard stays, because that one is a normal-length test.)*
+- [x] `bsp.ts`'s near-side rule no longer spelled `eps > EPS`. That expression
+      was standing in for "this is an edge with ink", which it stops being the
+      moment a caller raises the coplanar tolerance — under it every face of a
+      stack leaves the coplanar list and the caller's order is lost. Now an
+      explicit `straddlesAsInk`, byte-identical at the default
+- [x] `edgeInk` stays 0, so the BSP build never consults the eye and one tree
+      serves any viewpoint; only traversal is camera-dependent
+- [x] **`order?: number` on `BspItem`, `sortCoplanar` keyed kind-then-order.**
+      *(Deviation: pulled forward from Phase 10.)* Measured: three coplanar items
+      pushed `a, b, c` among twenty mutually-straddling neighbours come out
+      `b, a, c`, because `chooseSplitter` samples the middle one and `subdivide`
+      promotes it to the head of its own coplanar list. Without this the kernel's
+      `draw_rank` containment tie-break is defeated across cells of one plane —
+      and it also closes the SVG exporter's documented limitation
+- [x] Opaque paper draws **one** fill per cell, the top of its stack: every face
+      of a cell covers the whole cell, so that is exact rather than an
+      approximation, and it is what the corpus cost model already assumed
+      (opaque primitives = cells + edges). Translucent paper emits the whole
+      stack bottom-first
+- [x] An undecided cell (`determinacy = 1`) drops its fills to
+      `UNDETERMINED_FACE_ALPHA` and gets one translucent-red `fill_polygon` over
+      each of its pieces, reusing `CONTRADICTION_FILL` (Oriedita's `(255,0,0,75)`,
+      now exported from `cpFoldedToScene.ts`) so the 2D and 3D annotations cannot
+      drift. Per cell, an annotation, never a mode. *Not* `Transparent3`, which in
+      3D means "every cell translucent, no red"
+- [x] Per-plane flat shading from the face normal, reproducing `svgRenderer.ts`'s
+      clamped 0.68–1.08 band. Front/back from `sign(dot(R · face_normal, viewZ))`
+      — the kernel's normal, explicitly **not** `face_attr.facing`, which is
+      orientation against the *plane's* up and would paint a whole plane one
+      colour regardless of viewpoint
+- [x] Piece-count guard with a tested path: over `BSP_ITEM_BUDGET` the inter-plane
+      order degrades to a centroid depth sort and reports `order: 'depth-sorted'`.
+      It refuses the **BSP**, never the figure. *(Deviation: the budget is 50,000,
+      set as a coarse safety valve rather than the plan's ~1,265, which was a
+      **face** count measured on simulator-mesh geometry that splits ~2.4×. Real
+      items are edge-dominated and folded geometry does not split: the worst
+      admitted corpus model, `origamisimulator`, is 6,638 items — 1,628 cell
+      triangles + 5,010 edges — and builds in 9.0 ms with **zero** splits and a
+      41-node tree.)*
+- [x] `pinwheel_cyclic` renders every overlap cell with the correct winner,
+      asserted **per cell** — and the fixture is asserted to be cyclic in the same
+      test, because the point of it is lost the moment it stops being. Solution 5
+      of the pinwheel orders its four arms `0 > 4 > 3 > 2 > 0`
+- [x] Regression test that a straddling face cannot reorder a coplanar stack, in
+      `packages/origami-simulator/tests/bsp.test.ts`. *(The plan's checklist named
+      `src/bsp.test.ts`; that path does not exist — the package keeps its tests in
+      `tests/`.)*
+- [x] `npm run test:web`; `npm run test:simulator`. **`npm run build:simulator`
+      first**: `apps/web` reads the package's built `dist/`, so a `bsp.ts` change
+      is invisible to typecheck and vitest until it is rebuilt — the same shape of
+      trap as a stale `.wasm`
+
+Deliberately **not** in Phase 6, and named so the next phase does not have to
+rediscover them:
+
+- **`display_shadows`.** Only ever a within-plane stacking cue
+  (`plane_of(face_a) == plane_of(face_b)`), and half of it — gradient bands plus
+  offsets — is worse than a stated gap. Accepted and persisted, drawn as nothing.
+- **The store's re-render sites.** `renderSnapshotForFoldedFigure` (`:336`),
+  `reconcileFoldedFigureModel` (`:367`) and
+  `setOristudioCpFoldedFigureDisplayStyle` (`:2062`) all ask the kernel, and
+  `folded_figure_render_snapshot` takes `self.flat(handle)`. They need a 3D branch
+  that calls `projectFolded3dModel` locally. Left to Phase 7, which is where a 3D
+  figure first becomes creatable — a branch no fold can reach is a branch no test
+  can cover. `refreshFoldedFigureSelectionMarker` (`:410`) should stay a no-op for
+  3D: the selection chrome comes from the canvas-object overlay.
+- **A stroke-width reconciliation.** The canvas reads `style.stroke.width` as a
+  non-scaling screen-space multiplier on dpr (`reglRenderer.ts:295-299`) and the
+  SVG exporter reads the identical field as model units and scales it
+  (`foldedFigureSvg.ts:186`). The 3D figure emits exactly what the flat kernel
+  emits (`folded_line_stroke`: 1.200000048 with antialias, 1.0 without), so it
+  inherits the divergence rather than adding one — but "SVG/PNG export matches the
+  canvas" cannot be a browser-checklist item, because it does not hold for the
+  flat figure either.
+- **A crease depth bias.** With `edgeInk: 0` and no bias, a crease coplanar with
+  plane P is drawn before a nearer face in plane Q and loses half its ribbon.
+  `svgRenderer` fixes this with `CREASE_DEPTH_BIAS_NDC`, but every available fix
+  is eye-dependent and would void the build hoist. Pinned by the golden; revisit
+  with orbit in Phase 10.
 
 ### Phase 7 — `G` dispatch, verdict UX, i18n
 - [ ] Three-way dispatch replacing `creasePatternSlice.ts:1659-1672`:
