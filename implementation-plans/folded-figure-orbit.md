@@ -98,11 +98,12 @@ concern:
 
 ```ts
 // apps/web/src/cp-workspace/folded/foldedFigureOrbitGesture.ts
-export function foldedFigureOrbitTarget(
-  figures: readonly FoldedFigureEntry[],
+export function foldedFigureOrbitClaimsPress(
   focusedId: string | null,
-  pointInModelSpace: Vec2
-): string | null;
+  figureId: string,
+  box: AnnotationBox | null,
+  point: Vec2
+): boolean;
 
 export function beginFoldedFigureOrbit(
   camera: FoldedFigureCamera,
@@ -114,6 +115,11 @@ export function advanceFoldedFigureOrbit(
   drag: SimulatorOrbitDrag,
   point: SimulatorOrbitPoint
 ): FoldedFigureCamera;
+
+export function foldedFigureOrbitChanged(
+  before: FoldedFigureCamera,
+  after: FoldedFigureCamera
+): boolean;
 ```
 
 Pure functions over a camera and two points, unit-tested without a DOM. The
@@ -121,10 +127,21 @@ canvas adds one branch to the existing `if / else if` chain, above the tool
 branches and below the right/middle-button ones, reading the focused id from the
 `liveRef` snapshot it already keeps.
 
-Hit-testing reuses the figure's placed bounds — the same corners
-`objectCornersCss` derives for the overlay — so the region that orbits is exactly
-the region that was inert. A press inside a focused figure orbits; a press
-outside it blurs and behaves normally.
+**Built and measured.** `foldedFigureOrbitChanged` is the fourth function and was
+not in the first draft of this plan: a zero-distance drag does *not* return the
+camera it started on through the shared orbit. `normalizeAngle` round-trips
+`((v + PI) % 2PI + 2PI) % 2PI - PI` and loses a ULP on an angle already in range,
+so a plain click on a focused figure moved it ~1e-17, re-projected, and would
+have taken an undo entry. `advanceFoldedFigureOrbit` guards the zero-delta case
+exactly rather than with a tolerance — the drift accumulates across a drag that
+keeps returning to its anchor, which a tolerance would only hide.
+
+Hit-testing reuses `boxContainsModelPoint` against the figure's own transformable
+box — the same box `foldedFigureAsTransformable` hands the overlay, so the region
+that orbits is exactly the region that was made inert. The point is in **user**
+space, which is where a folded figure's box lives; the canvas already has
+`clientToUser`. A press inside a focused figure orbits; a press outside it blurs
+and behaves normally.
 
 ### 5. What persists, and when
 
@@ -214,19 +231,19 @@ handles already size it.
 ## Checklist
 
 ### Phase 1 — Focus
-- [ ] `oristudioCpFocusedFoldedFigureId` + `focusOristudioCpFoldedFigure`, refusing
+- [x] `oristudioCpFocusedFoldedFigureId` + `focusOristudioCpFoldedFigure`, refusing
       a flat figure, exclusive with inline-simulation focus
-- [ ] Blur when the figure is deleted, refolded, or its document replaced
+- [x] Blur when the figure is deleted, refolded, or its document replaced
 - [ ] Store tests for each rule, including the exclusivity both ways
-- [ ] `inertBodyIds` from `useFoldedFigures`, passed through the panel
-- [ ] Second-press-to-focus wired; first press still selects and moves
+- [x] `inertBodyIds` from `useFoldedFigures`, passed through the panel
+- [x] Second-press-to-focus wired; first press still selects and moves
 
 ### Phase 2 — The gesture
-- [ ] `foldedFigureOrbitGesture.ts` — three pure functions, no DOM, no store
-- [ ] Unit tests including the shared-sensitivity assertion (R7) and a drag that
+- [x] `foldedFigureOrbitGesture.ts` — three pure functions, no DOM, no store
+- [x] Unit tests including the shared-sensitivity assertion (R7) and a drag that
       starts inside and leaves the figure's bounds
-- [ ] One branch in `CreasePatternWebglCanvas`'s pointer chain
-- [ ] Camera written per move; one undo entry on release
+- [x] One branch in `CreasePatternWebglCanvas`'s pointer chain
+- [x] Camera written per move; one undo entry on release
 - [ ] `cursor: grab` / `grabbing` over a focused body
 
 ### Phase 3 — Cost
