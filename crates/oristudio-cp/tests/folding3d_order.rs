@@ -670,7 +670,7 @@ fn bending_a_folded_strip_the_wrong_way_admits_no_layer_order() {
 #[test]
 fn a_wall_orders_the_face_its_crease_runs_through() {
     let mut walls = 0usize;
-    let mut refused = 0usize;
+    let mut refused: Vec<(f64, f64)> = Vec::new();
     for (flat, rise) in [
         (180.0, 90.0),
         (180.0, -90.0),
@@ -687,13 +687,41 @@ fn a_wall_orders_the_face_its_crease_runs_through() {
             "({flat}, {rise}) reached no wall at all, so this test checks nothing"
         );
         walls += constraints.wall_seeds;
+
+        // The wall's **direction**, not its existence. Counting refusals alone
+        // does not test it: flipping the rise sign in `pierce_constraint` swaps
+        // which two of the four shapes are refused and leaves the count at two,
+        // so it passes on a reversed rule. The pierced face is identified as the
+        // one the wall's own crease does not join, which needs no face id.
+        let wall = constraints
+            .seeds
+            .iter()
+            .find(|seed| seed.kind == SeedKind::Wall)
+            .unwrap_or_else(|| panic!("({flat}, {rise}) has a wall count but no wall seed"));
+        let join = placement
+            .joins
+            .iter()
+            .find(|join| join.line == wall.line)
+            .unwrap_or_else(|| panic!("({flat}, {rise}): the wall's crease joins nothing"));
+        let pierced = [wall.relation.upper_face, wall.relation.lower_face]
+            .into_iter()
+            .find(|&face| face != join.faces.0 && face != join.faces.1)
+            .unwrap_or_else(|| panic!("({flat}, {rise}): the wall named only its own faces"));
+        // At `rise = -90` the neighbour rises toward this plane's `up`, so it
+        // blocks that side and the face it crosses is pushed under the anchor.
+        assert_eq!(
+            wall.relation.lower_face == pierced,
+            rise < 0.0,
+            "({flat}, {rise}): the wall pushed the pierced face the wrong way"
+        );
+
         match solve(&segments) {
             Ok(solved) => {
                 assert_eq!(solved.variables, 1, "({flat}, {rise})");
                 only_variables_are_reported(&solved, &format!("({flat}, {rise})"));
             }
             Err(Fold3dOrderError::ContradictorySeeds { first, second, .. }) => {
-                refused += 1;
+                refused.push((flat, rise));
                 let kinds = [first.0, second.0];
                 assert!(
                     kinds.contains(&SeedKind::Wall) && kinds.contains(&SeedKind::FullFold),
@@ -707,9 +735,13 @@ fn a_wall_orders_the_face_its_crease_runs_through() {
         walls >= 4,
         "only {walls} wall determinations across four shapes"
     );
+    // *Which* two, not how many: the crease and the wall agree exactly when
+    // their signs are opposite, and a reversed wall rule takes the complement of
+    // this list while leaving its length at two.
     assert_eq!(
-        refused, 2,
-        "exactly half the rise directions are supposed to leave no layer order"
+        refused,
+        vec![(180.0, 90.0), (-180.0, -90.0)],
+        "the wrong half of the rise directions was refused"
     );
 }
 
