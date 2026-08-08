@@ -1126,6 +1126,9 @@ Stated so review can hold us to it. Everything in the left column that reads
 | Odometer unit ordering | new, no upstream analogue — record under PORTING.md's native section |
 | `CommandDiagnostic` | one optional `residual_degrees`, `skip_serializing_if = "Option::is_none"`, so all-classic CAMV output stays byte-identical for the Oriedita oracle (Phase 7) |
 | `src/spike_fold3d.rs` | **deleted** (Phase 8). Measurement scaffolding carrying a second placement implementation; its one synthetic case is asserted by production tests, its scans are `examples/fold3d_census.rs`'s job |
+| `io::fold` export | additive only (Phase 11): `append_folded_form_frames` beside the existing `export_folded_frames`. `export_fold_document` is untouched, so a `.fold` written with no 3D figure named is byte-identical to before — which is what `fold_file_document_import_export_preserves_multiple_nested_frames_exactly` still asserts |
+| `CpSession::export_fold_file` | one added argument (Phase 11), empty at every existing call site. No new command name, so `CP_ENGINE_COMMANDS` and both bridges' manifests are unchanged |
+| `folding3d/interchange.rs` | **new, additive, Ori Studio native.** Oriedita writes no `foldedForm` frame of its own, so there is nothing here to be faithful to |
 
 **The tolerances stay applied in the kernel, and every verdict now carries the
 residuals they were applied to.** `Fold3dTolerances::DEFAULT` is decided in
@@ -2248,8 +2251,13 @@ Named so they do not creep in.
       `crates/oristudio-cp/src/spike_fold3d.rs` (committed, `#[ignore]`d,
       env-gated; deleted in Phase 8, findings retained above). Did not fire on its own condition; changed the plan anyway —
       the loop gap now **gates**, and R19 is a live shipped bug
-- [ ] **Spike A, plane-patch half: still open, and now merge-blocking.** Accepted
-      fraction and the (a)/(b)/(c) split, on the Phase 2 fixtures
+- [x] **Spike A, plane-patch half: answered by Phase 9 rather than by a spike,
+      and the repair was grouping.** `V - E + F = 1` holds for a *connected*
+      subdivision, so arranging per connected overlap group opens the gate that
+      the (a)/(b)/(c) split was going to characterise. Measured: every admitted
+      corpus model decomposes; the three that do not are refused by the admission
+      gate first. Neither cut injection nor a new arrangement builder was needed.
+      See the Phase 9 block and R3
 - [x] **Spike B: run.** Convention settled and agreeing with
       `vertex_link_polygon` to ≤5e-16 on four fans of degree 3–6. Did not fire.
       Found that `FoldGraph::faces` are wound the opposite way (R20) and that the
@@ -2258,11 +2266,25 @@ Named so they do not creep in.
       `crates/oristudio-cp/examples/fold3d_census.rs`. Its headline was
       **refuted on audit** — the true statement is the one-way bound
       `census ≥ (creases at ±180)`, not a biconditional
-- [ ] Spike D: cross-plane coupling frequency — **bears on the merge set now**
-- [ ] Spike E: projection ownership decided; `buildBsp` measured at real item
-      counts
-- [ ] Open decision 2 (selection scoping) — assigned to Phase 0, untouched by any
-      spike, still open
+- [x] **Spike D: answered by Phase 4, and it fired.** Cross-plane coupled folded
+      lines are on every admitted corpus model above six faces (15 of 15) and on
+      four of the five committed 3D fixtures, so "detect and refuse" was never
+      an option and Phase 9 carries the constraint instead. See R6
+- [x] **Spike E: answered, in two halves.** Projection ownership was decided
+      while planning (TypeScript — see "Resolved while planning"), and `buildBsp`
+      was measured at real item counts in Phase 6: 6,638 items on
+      `origamisimulator.fold` build in 9.0 ms with **zero** splits and traverse
+      in 0.03 ms. The plan's own "~1,265 items crosses 16 ms" curve came from a
+      simulator mesh that splits ~2.4× and does not describe plane-clustered
+      folded geometry; `BSP_ITEM_BUDGET` is set from the measurement instead
+- [x] **Open decision 2 (selection scoping): resolved by taking the third
+      option, knowingly.** The pre-fold CAMV gate keeps its document-wide scope,
+      its single call and its toggle — re-scoping it is an Oriedita divergence
+      the budget allocates none of, and would make the modal say "no errors"
+      while the always-on overlay draws violation glyphs beside it. What Phase 7
+      changed is the *copy*: `dialogs:foldWarning.spatialMessage`, because "flat
+      foldability" is a false statement about a spatial document. Named here
+      rather than left implicit, which is what "acceptable if named" asked for
 - [x] Every spike's answer written into "Phase 0 findings" above, including the
       ones that change the design, with the plan text amended in the same commit
 
@@ -2508,21 +2530,32 @@ fixture's source, source sha256 and licence, and the reason it exists.
       (needed for `penguin_freeform`, which is one of two designs on one canvas),
       `--precision N|full` and `--document N`. The exact command for every
       fixture is in `tests/fixtures/fold-angle-3d/README.md`
-- [ ] **(c) Author only what the corpus cannot supply. Still open — this is what
-      remains of Phase 2.** Six, not fifteen: `strip_coupled.fold` (the
-      (−90, +180, +90) cross-plane counterexample), `pinwheel_cyclic.fold`
-      (square twist), `prism_60.fold`, `tube.fold`, `nested_tongue.fold`,
-      `bridge_tuck.fold`. Plus `annulus_90.fold`, which the Spike A harness
-      already builds programmatically and which is the two-sided negative for the
-      loop gate. `chain3_60.fold` and `chain3_120.fold` are **free** — Spike B
-      built them and recorded their expected coordinates — as is the Miura 4×4
-      generator with its 9 independent dual loops. The corpus's own clean non-90
-      angles are `penguin_freeform`'s free-form set, so **60°/120° on a 3-face
-      asymmetric chain still has to be authored**; §1 explains why 90° cannot
-      substitute
-- [ ] Authoring method chosen and written down for the six. Hand-writing
-      `edges_foldAngle` for a bridge/tuck is not realistic; a small Rust builder
-      emitting `.fold` from a described fold sequence is
+- [ ] **(c) Author only what the corpus cannot supply. Two of the six landed on
+      the way through Phase 6; four remain.** Six, not fifteen:
+      `strip_coupled` (the (−90, +180, +90) cross-plane counterexample) —
+      **built**; `pinwheel_cyclic` (square twist) — **built**; `prism_60.fold`,
+      `tube.fold`, `nested_tongue.fold`, `bridge_tuck.fold` — still open. Plus
+      `annulus_90.fold`, which the Spike A harness built programmatically and
+      which is the two-sided negative for the loop gate; that harness went with
+      `spike_fold3d.rs` in Phase 8, and its three assertions are now made through
+      the shipped path (`the_closure_check_examines_nothing_on_an_annulus`,
+      `a_border_with_paper_on_both_sides_is_named`,
+      `a_cut_drawn_inside_the_sheet_is_refused_before_the_placement_is_attempted`).
+      `chain3_60.fold` and `chain3_120.fold` are **free** — Spike B built them
+      and recorded their expected coordinates — as is the Miura 4×4 generator
+      with its 9 independent dual loops. The corpus's own clean non-90 angles are
+      `penguin_freeform`'s free-form set, so **60°/120° on a 3-face asymmetric
+      chain still has to be authored**; §1 explains why 90° cannot substitute
+- [x] **Authoring method chosen, written down, and now demonstrated.** A small
+      Rust builder emitting the segments directly, not hand-written
+      `edges_foldAngle`: `crates/oristudio-cp/examples/fold3d_render_model.rs`'s
+      `cases()` is that builder, and it is the one command that produces the
+      committed payloads (its module doc quotes the invocation, and the README
+      beside the fixtures quotes it back). The two cases built there are
+      deliberately **not** in `tests/fixtures/fold-angle-3d/`, which is
+      owner-authored material only — a synthetic counterexample is not a design
+      anyone folded, and the fixture rule (a) is what keeps that directory
+      licensable
 - [x] A test asserting every fixture parses, carries the angles it claims, and
       reaches its recorded verdict, **extending
       `crates/oristudio-cp/tests/verify_fold_fixtures.rs`** rather than adding a
@@ -3481,15 +3514,19 @@ asserted; what follows is what only an eye settles.
       view that was, and it is what a refold restores. Refold is the escape
       hatch, and for a 3D figure it is an *exact* one — the payload is
       bit-identical across refolds of the same segments
-- [x] `foldedForm3d` superset entry, `blocking: false`. **`fold` is currently
-      *included* in `droppedByFormats`, which is a deviation from this line as
-      written** — excluding it presumes Phase 11's `foldedForm` frame, and until
-      that lands a FOLD export really does leave the figure behind. Removing
-      `'fold'` from that list is the one-line change Phase 11 owes.
+- [x] `foldedForm3d` superset entry, `blocking: false`. **`fold` was
+      *included* in `droppedByFormats`, a deviation from this line as written**,
+      because excluding it presumed Phase 11's `foldedForm` frame and until that
+      landed a FOLD export really did leave the figure behind. **Paid off in
+      Phase 11**, and it cost two entries rather than the one line predicted: the
+      frame is built from the live `Fold3dSession`, so `.fold` carries a 3D
+      figure only while it holds a handle, and `droppedByFormats` is a static
+      list. `foldedForm3d` now counts the figures with a handle and excludes
+      `fold`; `foldedForm3dDetached` counts the rest and includes it.
       `supersetFeatures.ts`'s existing `foldAngles` entry fires on the same
-      documents and is blocking, so it decides; this entry still earns its line,
-      because a document can hold a 3D figure whose creases have since been made
-      classic, where `foldAngles` counts zero
+      documents and is blocking, so it decides; these entries still earn their
+      lines, because a document can hold a 3D figure whose creases have since
+      been made classic, where `foldAngles` counts zero
 - [x] `scripts/folded-grid-screenshot.mjs` updated — and it was **already dead**,
       not merely stale: it waited on `[data-folded-render-pass]` and counted
       `.cp-generated-folded-figure-primitive`, neither of which any element has
@@ -3790,7 +3827,13 @@ Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables
       verdict arm; the cycling verb's disabled state; refold
       after an angle edit; SVG and PNG export; `.osf` save, reload, and reopen on
       a `main` build; undo/redo across a fold; the simulate fallback on a
-      non-closing pattern
+      non-closing pattern. Phase 11 adds: **Export FOLD with a 3D figure on the
+      canvas, then open the file in a viewer that reads `foldedForm` frames**
+      (Rabbit Ear's or Origami Simulator's FOLD viewer) and check the folded
+      shape is the one on the canvas rather than its mirror — the sign and the
+      winding are the two things a test can pin only against themselves; and
+      **Export FOLD after reopening an `.osf`**, where the loss dialog must name
+      "3D folded figures needing a refold"
 
 **One flake, not reproduced, recorded so a soak happens before merge.** A review
 pass saw four `folding3d_boundary` tests fail together twice early in a session —
@@ -3875,27 +3918,106 @@ happens to do.
       the seam when it does is `cacheKeyPrefix` (`:27-28`), which is already in
       the key and in the deps and is already used this way by `ShareLinkModal`
 
-### Phase 11 — FOLD interchange and remaining export (follow-up)
-- [ ] `foldedForm` frame: a second `FoldDocument` in `file_frames` with
-      `frame_classes: ["foldedForm"]`, `frame_parent`, `frame_inherit: true`,
-      three-component `vertices_coords`, `face_orders`
-- [ ] Appended through the existing `export_folded_frames` seam
-      (`io/fold.rs:35`), **not** from inside `export_fold_document` —
-      `merge_fold_file_document` (`:292`) assigns rather than merges
-      `file_frames`, which is harmless today only because `export_fold_document`
-      never writes it
-- [ ] Decide replace-vs-append against an imported file's stale `foldedForm`
-      frame, which is currently preserved verbatim across CP edits
-      (`tests/io.rs:191-232`)
-- [ ] `faceOrders` sign `s = sign(n_g · up_patch)` on the **lower** face's
-      transported normal in the CP frame's winding; `s = 0` (spec-legal) for
-      undetermined pairs
-- [ ] `frame_attributes: ["3D"]` via `FoldDocument.extra`. **Not**
-      `nonSelfIntersecting` — the crossing predicate is sound but not complete
-      (§5.2)
-- [ ] Fix `apps/web/src/lib/foldedExport.ts:75`, which does
-      `delete folded.face_orders` on the only existing folded-FOLD export path
-- [ ] File-size growth bounded by a stated, tested cap
+### Phase 11 — FOLD interchange and remaining export (**built**)
+
+**Done.** `folding3d/interchange.rs`, `io::fold::append_folded_form_frames`,
+`Fold3dSession::folded_form_frame`, `CpSession::export_fold_file`'s second
+argument, `tests/folding3d_interchange.rs`,
+`corpus_folded_form_frames_stay_under_the_cap`, and the frontend seam
+`cp-workspace/folded/foldedFigureInterchange.ts`. **Four items changed shape on
+contact and one was struck; each says so below.**
+
+- [x] `foldedForm` frame: a second `FoldDocument` in `file_frames` with
+      `frame_classes: ["foldedForm"]`, `frame_parent: 0`, three-component
+      `vertices_coords`, its own `edges_vertices` / `edges_assignment` /
+      `edges_foldAngle`, `faces_vertices` and `faceOrders`
+- [x] **`frame_inherit: false`, not `true` — a plan deviation, and the plan was
+      wrong.** Inheritance is *per property*: an inheriting frame takes every
+      array it does not restate from its parent, and the root carries
+      `edges_assignment`, `edges_foldAngle`, `faces_edges` and two namespaced
+      per-edge colour arrays, all numbered against the **whole document's**
+      `FoldGraph`. A 3D fold is walked over a **selection**, through a second
+      `FoldGraph` with its own vertex, edge and face numbering, so each of those
+      would be inherited under the wrong index — silently, and plausibly. The
+      frame restates its own geometry instead; `frame_parent` still names the
+      pattern it was folded from, which is the part that carries meaning.
+      `the_exported_folded_form_frame_says_what_it_is`
+- [x] Appended through the existing `export_folded_frames` seam
+      (`io/fold.rs`), **not** from inside `export_fold_document` —
+      `merge_fold_file_document` assigns rather than merges `file_frames`, which
+      is harmless today only because `export_fold_document` never writes it.
+      `CpSession::export_fold_file` calls `export_fold_file_document` first and
+      `append_folded_form_frames` after
+- [x] **Replace-vs-append decided, and keyed on a marker rather than on
+      `frame_classes` — a second deviation.** The design's rule was "replace any
+      `foldedForm` frame parented to our root"; that is exactly the shape another
+      tool's folded form has, so it would drop a user's data to make room for
+      ours, and it would also have broken
+      `fold_file_document_import_export_preserves_multiple_nested_frames_exactly`
+      (`tests/io.rs`), whose fixture *does* carry `frame_parent: 0`. Frames
+      carrying `oristudio:folded3d` are regenerated on every export — otherwise a
+      file grows a second, contradicting folded form each time it is saved —
+      and everything else is preserved verbatim.
+      `a_foreign_folded_form_frame_is_never_disturbed`,
+      `a_second_export_regenerates_rather_than_accumulates`
+- [x] `faceOrders` sign is `facing(lower)`: FOLD signs `[f, g, s]` against **g's**
+      normal while the solver signs against the plane's `up`, and the two agree
+      exactly when the lower face's placed normal runs along that `up`. The
+      winding emitted is `Placement3d::rings`, whose right-hand normal **is**
+      `face_normals`, so nothing re-derives a normal. `s = 0` (spec-legal) for
+      undetermined pairs, which are written rather than dropped; a cyclic
+      relation set goes out as it stands, because `faceOrders` is a bag of pairs
+      and not an order.
+      `the_face_order_sign_follows_the_lower_faces_normal`,
+      `an_undecided_pair_is_written_with_no_order`,
+      `a_cyclic_relation_set_is_written_as_it_stands`
+- [x] `frame_attributes: ["3D"]` via `FoldDocument.extra`. **Not**
+      `nonSelfIntersecting` and not `nonSelfTouching` — the crossing predicate is
+      sound but not complete (§5.2), and the test asserts their absence rather
+      than only the presence of `"3D"`
+- [x] **A third deviation, in the geometry: the export welds, by *choosing*.**
+      FOLD allows one position per vertex where `Placement3d::face_points` keeps
+      one per face — deliberately, because averaging the images is the operation
+      that destroys the evidence a loop gap is made of. So the frame takes the
+      image given by the **lowest-indexed** face carrying each vertex: every
+      emitted coordinate is then a genuine placed position rather than a mean of
+      two, and the choice is deterministic. Measured over the admitted corpus the
+      disagreement it papers over **is** the loop gap, matching it to within the
+      test's ×8 slack on all 19 models (worst 6.76e-10 of span on
+      `self-intersecting-vertex.fold`, against that model's own gap of 6.76e-10).
+      `the_weld_chooses_the_lowest_faces_image_rather_than_averaging` needs a
+      fixture with a dual cycle to say anything, and asserts that it has one
+- [x] ~~Fix `apps/web/src/lib/foldedExport.ts:75`, which does
+      `delete folded.face_orders`~~ — **struck; the item rests on a misreading.**
+      That function builds `faces_vertices` from `mesh.triangles`
+      unconditionally, so the frame is always the *simulator's* triangulation and
+      the source's `face_orders` always index faces that no longer exist.
+      Deleting them is correct there, and the comment beside it already says so.
+      It is also not the path Phase 11 needs: the 3D `foldedForm` frame comes
+      from the kernel, not from a simulator mesh. Acting on the item would have
+      shipped wrong face orders
+- [x] **File-size growth bounded by a stated, tested cap.**
+      `FOLDED_FORM_MAX_ELEMENTS = 1_000_000`, counted in emitted array elements
+      (vertices + face-ring entries + face orders) rather than in faces, because
+      the term that can grow quadratically is `faceOrders` — one entry per
+      coplanar overlapping face pair — and a face count does not bound it. On the
+      widest admitted corpus model, `origamisimulator.fold` (2,637 faces), the
+      frame is **24,902** elements of which 12,736 are face orders, so the cap
+      carries about 40× headroom and is measured never to fire.
+      `corpus_folded_form_frames_stay_under_the_cap` prints the whole table and
+      keeps that gap honest; `the_cap_refuses_and_names_the_size` exercises the
+      refusal through a caller-supplied cap, since the shipped one cannot be
+      reached. The frontend words the refusal as
+      `errors:fold.foldedFormTooLarge` in eight locales
+- [x] **`supersetFeatures` needed two entries, not one line.** `.fold` leaves
+      `foldedForm3d`'s dropped list, which is the line Phase 8 said Phase 11
+      owed. But the frame is built from the live `Fold3dSession` and none of that
+      session is persisted, so a figure reopened from an `.osf` draws and cannot
+      describe itself — and `droppedByFormats` is a static list, so one entry
+      could not tell the truth about both cases. `foldedForm3dDetached` counts
+      the handle-less figures and does list `fold`; the two counts partition the
+      3D figures. Recorded in `apps/web/docs/superset-features.md` §3 as the
+      pattern for a conditionally-carried feature
 
 ## Risks and mitigations
 
@@ -3928,14 +4050,26 @@ happens to do.
 
 ## Open decisions
 
-Two, and the first is a product call this plan should not make unilaterally.
+Both are now settled — the first by the repo owner, the second by taking the
+option this section already said was acceptable if named. The reasoning is kept
+rather than deleted, because a settled decision is only useful beside the
+alternatives it was chosen over.
 
 ### 1. Does a **refused** 3D fold still offer the simulator?
 
-The user's ask says "assuming no foldability errors" and is silent on the errors
-case. Once `G` folds in 3D, the simulator remains the only answer for a pattern
-that fails closure, that is refused for cross-plane coupling, or that carries no
-angles at all — and it works today.
+**Settled by the repo owner: yes, unconditionally, and inline.** "yeah it should
+simulate inline (like it already does today)" — so *not* the third option below,
+which this plan had assumed. Every refusal offers it, whatever the reason, and it
+opens an inline simulation window rather than switching workspace.
+`simulateNonFlatRegion` is reused rather than reimplemented, which is what keeps
+the border-enclosed-region rule and its `activatePanel('simulator')` fallback:
+a refusal must never leave the user with no path at all. Built in Phase 7.
+
+The alternatives it was chosen over, kept for the reasoning. The user's ask says
+"assuming no foldability errors" and is silent on the errors case. Once `G` folds
+in 3D, the simulator remains the only answer for a pattern that fails closure,
+that is refused for cross-plane coupling, or that carries no angles at all — and
+it works today.
 
 - **Offer it on a failed 3D fold.** Keeps a working path; risks reading as "the
   3D fold isn't implemented yet."
@@ -3946,9 +4080,8 @@ angles at all — and it works today.
   grounds that the first two are facts about the pattern and the second two are
   facts about us.
 
-This plan assumes the third and keeps `simulateNonFlatRegion` reachable, but the
-call is the repo owner's. Whatever is chosen, the simulate dialog itself survives
-for the angle-free case, where it is the only correct answer.
+This plan assumed the third; the owner chose the first. The simulate dialog also
+survives for the angle-free case, where it is the only correct answer.
 
 ### 2. Selection scoping for the 3D preconditions
 
@@ -3960,9 +4093,21 @@ an entry. Three options: a new selection-taking kernel check; frontend geometric
 re-derivation from the point; or inherit the document-wide scope knowingly and
 say so in the PR. Phase 0 decides; the third is acceptable if named.
 
-**Still open.** This was assigned to Phase 0 and none of Spikes A, B or C touched
-it. Note also that the `segments`-dropped premise is unchanged but the citation
-moved: `skip_serializing_if = "Vec::is_empty"` is at `lib.rs:253`.
+**Resolved: the third option, named.** No spike touched it, and Phase 7 shipped
+by inheriting the document-wide scope — the same call, the same toggle, the same
+`foldabilityChecked` event — and changing only the *copy*
+(`dialogs:foldWarning.spatialMessage`), because "flat foldability" is a false
+statement about a spatial document. This is the paragraph that names it.
+
+Worth being precise about what is accepted, since "acceptable if named" is only
+worth anything if the cost is stated. On a **spatial** document a counted CAMV
+error is usually the same fact the refusal is about to report, so the modal and
+the refusal say it twice. The reason to keep the modal anyway is the **mixed**
+document, where a document-wide error can sit entirely outside the folded
+selection and does not refuse — there, the modal is the only thing that says so.
+
+The `segments`-dropped premise is unchanged but the citation moved:
+`skip_serializing_if = "Vec::is_empty"` is at `lib.rs:253`.
 
 ### Resolved while planning
 

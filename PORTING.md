@@ -198,6 +198,23 @@ differently:
   "layer" exists at all — what always exists is a winner per cell. The engine
   boundary emits cells with a face stack each, and a face that overlaps nothing
   becomes a one-face cell so a renderer that draws only cells never loses paper.
+- **The FOLD `foldedForm` frame is ours, and it does not inherit.** Oriedita
+  writes no folded-form frame, so there is nothing to be faithful to and three
+  choices had to be made. The frame restates its own vertices, edges, faces and
+  assignments with `frame_inherit: false`, because a 3D fold is walked over a
+  *selection* through its own `FoldGraph` and every per-edge array on the root is
+  numbered against the whole document's — an inheriting frame would take each of
+  them under the wrong index. `faceOrders` is signed `facing(lower_face)`,
+  translating the solver's "above along the plane's `up`" into the spec's
+  "above along **g's** normal", with `s = 0` on pairs the solver left undecided
+  and no sorting, since a cyclic relation set is legal. And `frame_attributes` is
+  `["3D"]` and never `nonSelfIntersecting`: the crossing predicate is sound but
+  not complete, so the file may not claim what the verdict does not.
+- **A folded form welds one position per vertex by choosing, not averaging.**
+  FOLD allows one `vertices_coords` entry per vertex where `Placement3d` keeps
+  one image per face — deliberately, because averaging them is what destroys the
+  evidence a loop gap is made of. The export takes the lowest-indexed carrying
+  face's image, so every emitted coordinate is a real placed point.
 - **A 3D fold has its own snapshot, its own commands and its own handle kind.**
   `FoldedFigureSnapshot` and the six `folded_figure_*` commands stay exactly as
   they are — `wireframe` is 2D by construction and `estimation_step` /
