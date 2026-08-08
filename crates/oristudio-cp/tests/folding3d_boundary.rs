@@ -306,6 +306,82 @@ fn a_disconnected_document_refuses_with_both_counts() {
     assert_eq!(json["unreached"], 127);
 }
 
+// --- residuals ---------------------------------------------------------------
+
+/// A verdict carries every residual the gate decided on, so a caller can
+/// re-apply a different bar without re-running the fold.
+///
+/// `Fold3dTolerances::DEFAULT` is applied **in the kernel**, deliberately: the
+/// right value depends on computed plane separation the user does not have. The
+/// price of that is this — the numbers it was compared against have to come back
+/// out, or the decision is unreviewable. So the test is not "the fields exist"
+/// but "re-applying the shipped bar to the reported numbers reproduces the
+/// shipped answer", for each of the three the gate actually decides on.
+///
+/// The `non_tree_edges` assertion is what stops the loop-gap half being
+/// vacuous: a `0.0` gap over zero conditions certifies nothing, and every
+/// admitted fixture would pass a loop-gap bar it never tested.
+#[test]
+fn an_admitted_verdict_carries_the_residual_of_every_bar_the_gate_applied() {
+    let mut checked_a_real_loop = false;
+    for name in ADMITTED {
+        let mut session = CpSession::new();
+        let (_, snapshot) = placed(fold_3d(&mut session, name));
+        let diagnostics = &snapshot.diagnostics;
+        let tolerances = &diagnostics.tolerances;
+
+        for (label, value) in [
+            ("span", diagnostics.span),
+            ("closure", diagnostics.worst_closure_residual_degrees),
+            ("loop gap radians", diagnostics.loop_gap_radians),
+            ("loop gap offset", diagnostics.loop_gap_offset_relative),
+            ("vertex cycle", diagnostics.worst_vertex_cycle_radians),
+            ("intra normal", diagnostics.worst_intra_normal_radians),
+            ("intra offset", diagnostics.worst_intra_offset_relative),
+        ] {
+            assert!(
+                value.is_finite(),
+                "{name}: {label} residual is not a number ({value})"
+            );
+        }
+
+        assert!(
+            diagnostics.worst_closure_residual_degrees
+                <= oristudio_cp::CLOSURE_RESIDUAL_BAR_DEGREES,
+            "{name}: closure residual {} is above the bar the gate passed it on",
+            diagnostics.worst_closure_residual_degrees
+        );
+        assert!(
+            diagnostics.loop_gap_offset_relative <= tolerances.distance_relative,
+            "{name}: loop gap {} of span is above the bar the gate passed it on",
+            diagnostics.loop_gap_offset_relative
+        );
+        assert!(
+            diagnostics.worst_intra_normal_radians <= tolerances.angle_radians
+                && diagnostics.worst_intra_offset_relative <= tolerances.distance_relative,
+            "{name}: an intra-plane residual is above the bar the partition passed it on"
+        );
+        assert_eq!(
+            diagnostics.tolerance_alarms, 0,
+            "{name}: a placed figure raised a partition alarm"
+        );
+
+        if diagnostics.loop_gap_non_tree_edges > 0 {
+            checked_a_real_loop = true;
+            assert!(
+                diagnostics.vertex_cycles > 0,
+                "{name}: {} non-tree edges but no elementary vertex cycle to localise them",
+                diagnostics.loop_gap_non_tree_edges
+            );
+        }
+    }
+    assert!(
+        checked_a_real_loop,
+        "every fixture's dual graph is a tree, so the loop-gap residual is vacuous everywhere \
+         and the assertion above tested nothing"
+    );
+}
+
 // --- the render model --------------------------------------------------------
 
 /// Every admitted fixture produces a model that describes itself, and every one

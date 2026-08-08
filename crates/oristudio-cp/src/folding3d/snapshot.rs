@@ -29,7 +29,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::folding::FoldedFigureModel;
-use crate::folding3d::admit::{Admission, Fold3dDiagnostics};
+use crate::folding3d::admit::Admission;
 use crate::folding3d::cells::CellIndex;
 use crate::folding3d::census::Fold3dCensus;
 use crate::folding3d::model::Folded3dRenderModel;
@@ -92,6 +92,13 @@ pub struct Fold3dSnapshot {
 }
 
 /// What the admission gate measured.
+///
+/// **Every bar the gate applied is here as its residual, beside the tolerance it
+/// was compared against.** A caller that wants a different bar — a tighter one
+/// for an export, a looser one for a preview — re-applies it to these numbers
+/// rather than re-running the fold with [`Fold3dTolerances`] overridden. The
+/// three the gate actually decides on are the closure residual, the loop gap and
+/// the plane partition's intra/inter separations, and all three are below.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Fold3dDiagnosticsSummary {
     pub tolerances: Fold3dTolerancesWire,
@@ -102,6 +109,25 @@ pub struct Fold3dDiagnosticsSummary {
     pub snapped_creases: usize,
     pub spatial_vertices: usize,
     pub worst_closure_residual_degrees: f64,
+    /// Worst rotation disagreement over the non-tree dual adjacencies, radians.
+    /// Reported for reading; it is not what the gate compares.
+    pub loop_gap_radians: f64,
+    /// Worst placement disagreement about where a shared crease lands, relative
+    /// to the span — **the exact quantity the gate compares against
+    /// `tolerances.distance_relative`**, so re-applying a different bar needs
+    /// nothing else.
+    pub loop_gap_offset_relative: f64,
+    /// How many independent consistency conditions the two numbers above are
+    /// maxima over. **Zero means they certify nothing**: the dual graph is a
+    /// tree, the placement has no self-check on this model at all, and the `0.0`
+    /// is vacuous rather than tight. A caller re-applying a bar must read this
+    /// first, which is why it travels with them.
+    pub loop_gap_non_tree_edges: usize,
+    /// The same disagreement localised to elementary per-vertex dual cycles, and
+    /// how many there were. The whole-sheet maximum above propagates outward and
+    /// lands nowhere near its cause; this one does not.
+    pub worst_vertex_cycle_radians: f64,
+    pub vertex_cycles: usize,
     /// Up to [`MAX_REPORTED`] vertices whose folded link crosses itself.
     pub local_crossings: Vec<Point>,
     pub local_crossing_count: usize,
@@ -192,7 +218,7 @@ pub(crate) fn snapshot(
         find_another_overlap_valid: solutions.has_next,
         has_next_solution: solutions.has_next,
         verdict,
-        diagnostics: diagnostics_summary(&admission.diagnostics, index),
+        diagnostics: diagnostics_summary(admission, index),
         census: census_summary(census, cells, render.cell_count as usize),
         planes: plane_summaries(index, census, cells),
         components: solutions.components,
@@ -274,16 +300,26 @@ fn verdict_of(
     }
 }
 
-fn diagnostics_summary(
-    diagnostics: &Fold3dDiagnostics,
-    index: &PlaneIndex,
-) -> Fold3dDiagnosticsSummary {
+/// Takes the whole [`Admission`] rather than its `diagnostics` alone, because
+/// the loop gap is measured on the **placement** and copying it into
+/// `Fold3dDiagnostics` first would be a second place for it to live.
+fn diagnostics_summary(admission: &Admission, index: &PlaneIndex) -> Fold3dDiagnosticsSummary {
+    let diagnostics = &admission.diagnostics;
+    let loop_gap = &admission.placement.loop_gap;
     Fold3dDiagnosticsSummary {
         tolerances: diagnostics.tolerances.into(),
         span: diagnostics.span,
         snapped_creases: diagnostics.snapped_creases,
         spatial_vertices: diagnostics.spatial_vertices,
         worst_closure_residual_degrees: diagnostics.worst_closure_residual_degrees,
+        loop_gap_radians: loop_gap.rotation_radians,
+        // Divided here, once, by the same expression `admit_with` gates on, so a
+        // caller re-applying the bar compares like with like instead of dividing
+        // by a span it read from somewhere else.
+        loop_gap_offset_relative: loop_gap.offset / diagnostics.span,
+        loop_gap_non_tree_edges: loop_gap.non_tree_edges,
+        worst_vertex_cycle_radians: loop_gap.worst_vertex_cycle_radians,
+        vertex_cycles: loop_gap.vertex_cycles,
         local_crossings: diagnostics
             .local_crossings
             .iter()
