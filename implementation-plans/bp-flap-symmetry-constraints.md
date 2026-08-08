@@ -209,8 +209,26 @@ dispatched. Adding an event for "a flap moved" would be per-drag noise.
       bindings nondeterministically — avoid them for a web-only change). Full
       suite: 2969 passed, 287 files
 - [x] `npm run lint:web`
-- [ ] Browser check, on the dev server — the automated browser pane cannot verify
-      a pointer drag against a canvas:
+- [x] Verified in the running app against the real wasm engine, by driving
+      `moveOristudioBpLayoutFlapWithSymmetry` on the live store from a fresh Box
+      Pleat design. The starting state confirmed the diagnosis exactly — symmetry
+      off, all three tree vertices at `x = 10` on the mirror line, both flaps at
+      `x = 8`:
+
+      | Step | Asked | Landed | |
+      | --- | --- | --- | --- |
+      | Mirror draw **off** | `(3, 4)` | `(3, 4)` | free |
+      | Enable mirror draw | — | `(3, 4)` | nothing re-centres by itself |
+      | Mirror draw **on** | `(2, 6)` | `(8, 6)` | pinned to the axis, `y` passes through |
+      | Mirror draw **off** again | `(12, 2)` | `(12, 2)` | free again |
+
+- [ ] Browser check, on the dev server — the **pointer gesture itself** is all
+      that is left. It cannot be driven from the automated pane: that pane runs
+      `visibilityState: hidden` with zero rAF callbacks, and the drag commits
+      inside a `requestAnimationFrame`
+      ([useBpPackingDragRequests.ts:133](../apps/web/src/hooks/useBpPackingDragRequests.ts:133)),
+      so a synthetic drag there is swallowed and its failure means nothing. The
+      gesture's only effect is to call the action verified above.
   - [ ] New Box Pleat design, mirror draw off: drag either starter flap
         left/right — it follows the pointer anywhere on the sheet
   - [ ] Same design: left/right arrow nudge and the pane's nudge buttons move the
