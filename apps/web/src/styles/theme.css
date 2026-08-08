@@ -6906,6 +6906,31 @@
   pointer-events: none;
 }
 
+/*
+ * A river's band: transparent until pointed at, then shaded — Box Pleating
+ * Studio's `style.shade` (alpha 0.3 selected, 0.15 hovered) read against our
+ * accent, so a shaded river and a shaded flap are the same colour at the same
+ * strength.
+ *
+ * `pointer-events: fill` is the point of the layer: the hit region is the fill
+ * as even-odd defines it, so the children punched out of the band are not part
+ * of it and stay clickable in their own right.
+ */
+.bp-packing-river-band {
+  fill: transparent;
+  pointer-events: fill;
+  cursor: pointer;
+}
+
+.bp-packing-river-band-group:hover .bp-packing-river-band {
+  fill: color-mix(in srgb, var(--accent-primary) 9%, transparent);
+}
+
+.bp-packing-river-band-group--selected .bp-packing-river-band,
+.bp-packing-river-band-group--selected:hover .bp-packing-river-band {
+  fill: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+
 .bp-packing-flap-dot {
   fill: var(--text-primary);
   stroke: var(--bg-primary);

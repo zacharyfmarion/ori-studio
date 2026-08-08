@@ -101,6 +101,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
 import { BpPackingEmptySpaceLayer } from './BpPackingEmptySpaceLayer';
+import { BpPackingRiverBandLayer } from './BpPackingRiverBandLayer';
 import { BpFlapEditor } from './BpFlapEditor';
 import {
   isViewportInteractiveTarget,
@@ -1426,6 +1427,23 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 onPointerDown={onPaperPointerDown}
               />
             )}
+            {/* Above the paper so a press on a river starts a selection rather
+                than a marquee; below everything drawn on the paper, so the
+                creases, gadgets and flaps inside a river keep winning their own
+                presses. */}
+            {layers.rivers && (
+              <g clipPath={sheetClipPath}>
+                <BpPackingRiverBandLayer
+                  coverage={displayPacking.coverage}
+                  rivers={displayPacking.rivers}
+                  sheet={packing.sheet}
+                  paperRect={paperRect}
+                  selectedRiverIds={linkedSelection.rivers}
+                  shadeSelected={layers.selectionShade}
+                  onPointerDown={onRiverPointerDown}
+                />
+              </g>
+            )}
             <g clipPath={sheetClipPath}>
               {displayPacking.graphics.map((primitive) =>
                 primitive.layer !== 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
@@ -1888,7 +1906,13 @@ function Primitive({
         <Element className="bp-packing-primitive-polyline" points={pointsAttr(points)} />
         <Element
           className={
-            primitive.closed
+            // Only a device is grabbed by its whole interior. A closed hinge
+            // contour bounds a flap or a river, and filling it made every ring
+            // a solid target: the outer one swallowed presses meant for what it
+            // encloses, and an inner one — a hole — swallowed presses meant for
+            // the child sitting in it. Those are the river band layer's, which
+            // hit-tests the band with its holes punched out.
+            primitive.closed && primitive.layer === 'device'
               ? 'bp-packing-primitive-hit-area'
               : 'bp-packing-primitive-hit-polyline'
           }
