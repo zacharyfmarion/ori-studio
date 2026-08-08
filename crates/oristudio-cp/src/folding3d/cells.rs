@@ -367,24 +367,27 @@ fn overlap_groups(census: &Fold3dCensus) -> Vec<(PlaneId, Vec<usize>)> {
     out
 }
 
-/// Drop every set contained in another, leaving the maximal ones.
+/// Drop every set strictly contained in another, leaving the maximal ones.
 ///
 /// Deterministic: the input is a `BTreeSet` of ascending id vectors and the
 /// output keeps that order, so nothing downstream — the search's own subface
 /// priority included — depends on a hash iteration.
+///
+/// Strict containment is the whole test, and no tie-break between equals is
+/// needed: the input is a set, so no two members are equal, and two *distinct*
+/// sets of the same size cannot contain one another. The naive "is contained in
+/// some other set" filter is only wrong once equal sets are representable, which
+/// the parameter type forbids.
 fn maximal(sets: BTreeSet<Vec<usize>>) -> Vec<Vec<usize>> {
     let all: Vec<Vec<usize>> = sets.into_iter().collect();
     all.iter()
-        .enumerate()
-        .filter(|(index, candidate)| {
-            !all.iter().enumerate().any(|(other, superset)| {
-                other != *index
-                    && superset.len() >= candidate.len()
-                    && (superset.len() > candidate.len() || other < *index)
+        .filter(|candidate| {
+            !all.iter().any(|superset| {
+                superset.len() > candidate.len()
                     && candidate.iter().all(|face| superset.contains(face))
             })
         })
-        .map(|(_, set)| set.clone())
+        .cloned()
         .collect()
 }
 
@@ -437,13 +440,15 @@ mod tests {
         assert_eq!(maximal(sets), vec![vec![0, 1, 2], vec![1, 3]]);
     }
 
-    /// Equal sets must not delete each other, which a naive "is contained in
-    /// some other set" filter does — it returns nothing at all.
+    /// Two different sets of the same size both survive, however much they
+    /// overlap. This is the case a `>=` comparison collapses: it would let each
+    /// delete the other and return nothing at all.
     #[test]
-    fn maximal_keeps_one_of_two_equal_sets() {
+    fn maximal_keeps_both_of_two_equal_sized_sets() {
         let mut sets = BTreeSet::new();
         sets.insert(vec![4, 5]);
-        assert_eq!(maximal(sets), vec![vec![4, 5]]);
+        sets.insert(vec![4, 6]);
+        assert_eq!(maximal(sets), vec![vec![4, 5], vec![4, 6]]);
     }
 
     fn square(x: f64, y: f64, size: f64) -> Vec<LineSegment> {
