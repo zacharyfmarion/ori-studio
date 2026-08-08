@@ -350,6 +350,23 @@ impl Placement3d {
         Some(dot(cross(np, nc), axis).atan2(dot(np, nc)))
     }
 
+    /// The shared crease in world coordinates, directed the way `face`'s own
+    /// ring traverses it.
+    ///
+    /// The direction is what makes "which side of the crease is this face on"
+    /// answerable without a containment test: for a counter-clockwise ring with
+    /// normal `n`, the face's interior is to the left of the directed edge, so
+    /// `cross(n, direction)` points into the face. That is the half-plane the
+    /// ordering solver reads as the face's slot around the folded line.
+    pub(crate) fn directed_crease(&self, face: usize, line: usize) -> Option<(Vec3, Vec3)> {
+        let (a, b) = self.directed_ring_edge(face, line)?;
+        let transform = self.face_transforms.get(face)?;
+        Some((
+            transform.apply(point3(*self.points.get(a)?)),
+            transform.apply(point3(*self.points.get(b)?)),
+        ))
+    }
+
     /// The shared crease as the given face's own ring traverses it.
     fn directed_ring_edge(&self, face: usize, line: usize) -> Option<(usize, usize)> {
         let ring = self.rings.get(face)?;

@@ -59,6 +59,11 @@ const COVERAGE: &[(&str, &str)] = &[
          cross-plane coupling over every model in the corpus",
     ),
     (
+        "corpus_ordering_reports_every_model",
+        "the layer order over every model in the corpus, and the independent \
+         re-derivation of the crossing test from each answer",
+    ),
+    (
         "corpus_admission_reports_every_verdict",
         "which refusal the 3D admission gate reaches on every model in the \
          corpus, reported not gated",
@@ -621,6 +626,210 @@ fn corpus_census_reports_every_model() {
     assert_eq!(
         coupled, above_six,
         "cross-plane coupling was expected on every admitted model above 6 faces"
+    );
+}
+
+/// Solve the layer order on every model the corpus can place, and check each
+/// answer against a second implementation.
+///
+/// Two things are gated here and neither is a count. First, an ordering that
+/// exists must survive [`interleavings`], which asks the crossing question again
+/// from the placed normals and the relations alone — it shares neither the
+/// winding sign nor the condition roles the forward generator is built on, so an
+/// agreement is two implementations rather than one. Second, every admitted model
+/// must reach a verdict the product can state: an ordering, or a named reason
+/// there is none. Neither is allowed to be a panic or a silent empty answer.
+#[test]
+fn corpus_ordering_reports_every_model() {
+    use oristudio_cp::folding3d::{
+        Fold3dOrderEnumerator, Fold3dOrderError, Fold3dOutcome, Fold3dTolerances, admit,
+        census_placement, folded_line_index, interleavings, place_segments,
+    };
+    use std::collections::{BTreeMap, BTreeSet};
+
+    struct Ordered {
+        admitted: bool,
+        faces: usize,
+        variables: usize,
+        components: usize,
+        largest: usize,
+        undetermined: usize,
+        couplings: usize,
+        crossings: usize,
+        recheck: usize,
+        verdict: String,
+    }
+
+    let Some(root) = corpus("corpus_ordering_reports_every_model") else {
+        return;
+    };
+    let tolerances = Fold3dTolerances::DEFAULT;
+
+    let mut names: BTreeSet<String> = BTreeSet::new();
+    let mut rows: BTreeMap<String, Ordered> = BTreeMap::new();
+    for path in measurable_files(&root) {
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if !names.insert(name.clone()) {
+            continue;
+        }
+        let Ok(model) = read_fold(&path)
+            .and_then(|fold| import_fold_document(&fold).map_err(|error| format!("{error:?}")))
+        else {
+            continue;
+        };
+        let Ok(placement) = place_segments(&model.line_segments, 1) else {
+            continue;
+        };
+        let admitted = admit(&model.line_segments, 1)
+            .is_ok_and(|admission| admission.outcome() == Fold3dOutcome::Folded);
+        let (index, census) = census_placement(&placement, tolerances);
+        let mut row = Ordered {
+            admitted,
+            faces: census.face_count,
+            variables: census.overlapping_pair_count,
+            components: 0,
+            largest: 0,
+            undetermined: 0,
+            couplings: 0,
+            crossings: 0,
+            recheck: 0,
+            verdict: String::new(),
+        };
+        match Fold3dOrderEnumerator::new(&placement, &index, &census, tolerances) {
+            Ok(enumerator) => {
+                let ordering = enumerator.current();
+                let mut relations = BTreeMap::new();
+                for relation in &ordering.relations {
+                    relations.insert((relation.upper_face, relation.lower_face), true);
+                    relations.insert((relation.lower_face, relation.upper_face), false);
+                }
+                let lines = folded_line_index(&placement, &index, tolerances);
+                row.recheck = interleavings(
+                    &placement,
+                    &index,
+                    &lines,
+                    &|a, b| relations.get(&(a, b)).copied(),
+                    tolerances,
+                )
+                .len();
+                row.components = ordering.component_sizes.len();
+                row.largest = ordering.component_sizes.first().copied().unwrap_or(0);
+                row.undetermined = ordering.undetermined.len();
+                row.couplings = ordering.couplings;
+                row.crossings = ordering.crossing_count;
+                row.verdict = "ordered".to_string();
+            }
+            Err(error) => {
+                row.verdict = match error {
+                    Fold3dOrderError::Cells(_) => "cells".to_string(),
+                    Fold3dOrderError::ContradictorySeeds { .. } => "contradictory".to_string(),
+                    Fold3dOrderError::NoLayerOrder { .. } => "no-order".to_string(),
+                    Fold3dOrderError::StackTooDeep { .. } => "too-deep".to_string(),
+                    Fold3dOrderError::FaceIdOutOfRange { .. } => "out-of-range".to_string(),
+                    Fold3dOrderError::SearchFailed { .. } => "search-failed".to_string(),
+                };
+            }
+        }
+        rows.insert(name, row);
+    }
+
+    println!(
+        "\n{:<44} {:>6} {:>6} {:>6} {:>8} {:>6} {:>7} {:>7} {:>7} {:>14}",
+        "model (~ = not admitted)",
+        "faces",
+        "vars",
+        "comps",
+        "largest",
+        "undet",
+        "couple",
+        "cross",
+        "recheck",
+        "verdict"
+    );
+    let mut admitted_models = 0usize;
+    let mut ordered = 0usize;
+    let mut rechecked = 0usize;
+    let mut single_component = 0usize;
+    let mut unordered: Vec<&str> = Vec::new();
+    for (name, row) in &rows {
+        println!(
+            "{:<44} {:>6} {:>6} {:>6} {:>8} {:>6} {:>7} {:>7} {:>7} {:>14}",
+            format!("{}{name}", if row.admitted { "" } else { "~" }),
+            row.faces,
+            row.variables,
+            row.components,
+            row.largest,
+            row.undetermined,
+            row.couplings,
+            row.crossings,
+            row.recheck,
+            row.verdict,
+        );
+        // The re-derivation is gated on every model that produced an ordering,
+        // admitted or not: a wrong stacking on a refused model is still a wrong
+        // stacking, and refused models are where the hard geometry is.
+        assert_eq!(
+            row.recheck, 0,
+            "{name}: the ordering was re-checked from the geometry and interleaves"
+        );
+        if !row.admitted {
+            continue;
+        }
+        admitted_models += 1;
+        if row.verdict == "ordered" {
+            ordered += 1;
+            assert_eq!(
+                row.undetermined, 0,
+                "{name}: {} ordering variables came back undecided",
+                row.undetermined
+            );
+            if row.variables > 0 {
+                rechecked += 1;
+                if row.components == 1 {
+                    single_component += 1;
+                }
+            }
+        } else {
+            unordered.push(name);
+        }
+    }
+
+    println!("\nadmitted models: {admitted_models}; ordered: {ordered}");
+    println!("admitted models with no layer order: {unordered:?}");
+    println!(
+        "admitted models with an ordering to do: {rechecked}, of which {single_component} \
+         are a single constraint component"
+    );
+
+    assert!(
+        admitted_models >= 18,
+        "only {admitted_models} admitted models, so the ratios below mean nothing"
+    );
+    // Every admitted model reaches a stateable verdict, and all but one reach an
+    // ordering. `airplane.fold` is the exception and it is a determinate one:
+    // its own creases and its own walls disagree, so no stacking exists — the
+    // third arm of the three-way verdict, on the same file whose coordinate
+    // rounding already eats both of the census's tolerance bands.
+    assert_eq!(
+        unordered,
+        vec!["airplane.fold"],
+        "the set of admitted models with no layer order changed"
+    );
+    assert!(
+        rechecked >= 10,
+        "only {rechecked} admitted models had an ordering to do"
+    );
+    // The decomposition comes from the determinations, not from the graph: on
+    // most admitted models the raw constraint graph is a single component, which
+    // is why per-component solving is justified by residual size rather than by
+    // any structural claim.
+    assert!(
+        single_component * 2 >= rechecked,
+        "only {single_component} of {rechecked} models are a single component; the note in \
+         folding3d::order about the decomposition coming from propagation needs re-measuring"
     );
 }
 

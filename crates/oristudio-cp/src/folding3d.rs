@@ -39,15 +39,27 @@
 //! alarms testable on the models the gate refuses, which is where they fire.
 
 pub mod admit;
+pub mod cells;
 pub mod census;
+pub mod constraints;
+pub mod order;
 pub mod overlap;
 pub mod placement;
 pub mod planes;
 
 pub use admit::{Admission, Fold3dDiagnostics, Fold3dOutcome, admit, admit_with};
+pub use cells::{Cell, CellError, CellIndex, cell_index};
 pub use census::{
     CoplanarPair, Fold3dCensus, FoldedLineGroup, FoldedLineIndex, census, census_placement,
     folded_line_index,
+};
+pub use constraints::{
+    Coupling, Fold3dConstraints, Fold3dCrossing, Fold3dSeed, SeedKind, build_constraints,
+    initial_hierarchy_3d, interleavings,
+};
+pub use order::{
+    Advance, Fold3dOrderEnumerator, Fold3dOrderError, Fold3dOrdering, OrderVariable,
+    order_placement, order_segments,
 };
 pub use placement::{LoopGap, Placement3d, Rigid, place_segments};
 pub use planes::{Plane3d, PlaneId, PlaneIndex, ToleranceAlarm, plane_index};
