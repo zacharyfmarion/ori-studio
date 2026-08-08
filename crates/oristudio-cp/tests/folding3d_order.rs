@@ -93,6 +93,38 @@ fn strip(angles: &[f64]) -> Vec<LineSegment> {
     segments
 }
 
+/// A strip whose first panel folds flat over the second and past it, so the
+/// second crease ends up **inside** the first panel's folded image.
+///
+/// That is the wall rule's own shape and there is no other way to reach it: the
+/// crease at `x = 200` carries paper out of the plane along a line that runs
+/// through the interior of the face lying over it, and nothing may sit between
+/// them on the side the paper rises toward.
+fn wall_strip(flat: f64, rise: f64) -> Vec<LineSegment> {
+    let (height, first, second, far) = (100.0, 150.0, 200.0, 350.0);
+    let mut segments = vec![
+        border(Point::new(0.0, 0.0), Point::new(0.0, height)),
+        border(Point::new(far, 0.0), Point::new(far, height)),
+    ];
+    // The rim is split at each crease, or the arrangement has an edge crossing a
+    // vertex and declines to trace.
+    for (from, to) in [(0.0, first), (first, second), (second, far)] {
+        segments.push(border(Point::new(from, 0.0), Point::new(to, 0.0)));
+        segments.push(border(Point::new(from, height), Point::new(to, height)));
+    }
+    segments.push(crease(
+        Point::new(first, 0.0),
+        Point::new(first, height),
+        flat,
+    ));
+    segments.push(crease(
+        Point::new(second, 0.0),
+        Point::new(second, height),
+        rise,
+    ));
+    segments
+}
+
 /// One solved ordering, plus the numbers a test reads off it.
 #[derive(Debug)]
 struct Solved {
@@ -523,6 +555,60 @@ fn bending_a_folded_strip_the_wrong_way_admits_no_layer_order() {
     }
 }
 
+/// **The wall rule**, on the only shape that reaches it.
+///
+/// A crease carrying paper out of the plane stands on its own line like a wall,
+/// and a face whose interior that line crosses cannot be on the side the paper
+/// rises toward. Here the flat fold decides the same pair directly, so the two
+/// rules have to agree — and they agree for exactly one of the two rise
+/// directions, which is what makes this a test of the direction rather than of
+/// the existence of a rule.
+#[test]
+fn a_wall_orders_the_face_its_crease_runs_through() {
+    let mut walls = 0usize;
+    let mut refused = 0usize;
+    for (flat, rise) in [
+        (180.0, 90.0),
+        (180.0, -90.0),
+        (-180.0, 90.0),
+        (-180.0, -90.0),
+    ] {
+        let segments = wall_strip(flat, rise);
+        let placement = place_segments(&segments, 1).expect("placed");
+        let (index, _) = census_placement(&placement, Fold3dTolerances::DEFAULT);
+        let lines = folded_line_index(&placement, &index, Fold3dTolerances::DEFAULT);
+        let constraints = build_constraints(&placement, &index, &lines, Fold3dTolerances::DEFAULT);
+        assert!(
+            constraints.wall_seeds > 0,
+            "({flat}, {rise}) reached no wall at all, so this test checks nothing"
+        );
+        walls += constraints.wall_seeds;
+        match solve(&segments) {
+            Ok(solved) => {
+                assert_eq!(solved.variables, 1, "({flat}, {rise})");
+                only_variables_are_reported(&solved, &format!("({flat}, {rise})"));
+            }
+            Err(Fold3dOrderError::ContradictorySeeds { first, second, .. }) => {
+                refused += 1;
+                let kinds = [first.0, second.0];
+                assert!(
+                    kinds.contains(&SeedKind::Wall) && kinds.contains(&SeedKind::FullFold),
+                    "({flat}, {rise}): expected the wall to disagree with the crease, got {kinds:?}"
+                );
+            }
+            other => panic!("({flat}, {rise}): {other:?}"),
+        }
+    }
+    assert!(
+        walls >= 4,
+        "only {walls} wall determinations across four shapes"
+    );
+    assert_eq!(
+        refused, 2,
+        "exactly half the rise directions are supposed to leave no layer order"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // 3. The committed 3D fixtures
 // ---------------------------------------------------------------------------
@@ -650,6 +736,73 @@ fn an_out_of_range_face_id_makes_the_shipped_search_lie() {
             .iter()
             .any(|relation| relation.upper_face == 5 || relation.lower_face == 5),
         "with room for it, face 5 must be ordered"
+    );
+}
+
+/// The cell decomposition's postcondition fires.
+///
+/// It never fires on real geometry — that is the point of it — so the only way to
+/// show it is not dead code is to hand it a census it cannot satisfy: a pair of
+/// coplanar faces claimed to overlap that share no arrangement cell. Without the
+/// check the solver would leave that variable undecided with nothing saying so,
+/// and a lost *triple* would drop the transitivity that forbids a cycle.
+#[test]
+fn a_pair_with_no_cell_is_refused() {
+    let model = fixture("box_90");
+    let placement = place_segments(&model.line_segments, 1).expect("placed");
+    let (index, mut census) = census_placement(&placement, Fold3dTolerances::DEFAULT);
+    assert!(
+        cell_index(&index, &census, placement.span, Fold3dTolerances::DEFAULT).is_ok(),
+        "box_90 is supposed to decompose before the census is doctored"
+    );
+
+    // Two faces of one plane that the census does not pair. Any plane with three
+    // members has one, and `box_90` has several.
+    let plane = index
+        .planes
+        .iter()
+        .enumerate()
+        .find(|(id, plane)| {
+            plane.faces.len() > 2
+                && plane.faces.iter().any(|&a| {
+                    plane.faces.iter().any(|&b| {
+                        a < b
+                            && !census
+                                .pairs
+                                .iter()
+                                .any(|pair| pair.plane == *id && pair.faces == (a, b))
+                    })
+                })
+        })
+        .expect("a plane with an unpaired face pair");
+    let (plane_id, faces) = {
+        let (id, plane) = plane;
+        let pair = plane
+            .faces
+            .iter()
+            .flat_map(|&a| plane.faces.iter().map(move |&b| (a, b)))
+            .find(|&(a, b)| {
+                a < b
+                    && !census
+                        .pairs
+                        .iter()
+                        .any(|pair| pair.plane == id && pair.faces == (a, b))
+            })
+            .expect("pair");
+        (id, pair)
+    };
+    census.pairs.push(oristudio_cp::folding3d::CoplanarPair {
+        plane: plane_id,
+        faces,
+        area: 1.0,
+        edge_adjacent: false,
+    });
+    assert_eq!(
+        cell_index(&index, &census, placement.span, Fold3dTolerances::DEFAULT).err(),
+        Some(oristudio_cp::folding3d::CellError::OverlapWithoutCell {
+            plane: plane_id,
+            faces,
+        })
     );
 }
 
