@@ -9,6 +9,8 @@ import type {
   OristudioCpDocumentState,
   OristudioCpDocumentSummary,
   OristudioCpEstimationOrder,
+  OristudioCpFold3dFoldResult,
+  OristudioCpFold3dStepResult,
   OristudioCpFoldedFigureBatchResult,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureRenderOptions,
@@ -442,6 +444,45 @@ export async function foldOristudioCpFigureToCase(
 ): Promise<OristudioCpFoldedFigureBatchResult> {
   const api = await getOristudioCpClient();
   return api.foldFigureToCase(foldedFigureHandle, objective, initialOrder);
+}
+
+/**
+ * Fold the selected creases in 3D.
+ *
+ * Shaped exactly like {@link foldOristudioCpDocument} so the slice layer stays
+ * symmetric, with one deliberate difference: the selection is **required**. The
+ * flat command widens an empty selection to the whole document; the 3D one has
+ * a whole-document fold as its blast radius and may refuse for reasons the user
+ * cannot connect to what they selected, so an empty selection is a caller error
+ * there.
+ *
+ * Resolves — never rejects — when the crease pattern has no 3D folded state;
+ * see {@link OristudioCpFold3dFoldResult}.
+ */
+export async function fold3dOristudioCpDocument(
+  selectedLineIds: number[],
+  startingFaceId = 1,
+  model?: OristudioCpFoldedFigureModel
+): Promise<OristudioCpFold3dFoldResult> {
+  if (handle === null) {
+    throw new Error('No editable crease-pattern document is loaded');
+  }
+  const api = await getOristudioCpClient();
+  return api.fold3d(handle, selectedLineIds, startingFaceId, model);
+}
+
+export async function fold3dOristudioCpFigureAnother(
+  foldedFigureHandle: number
+): Promise<OristudioCpFold3dStepResult> {
+  const api = await getOristudioCpClient();
+  return api.fold3dAnother(foldedFigureHandle);
+}
+
+export async function duplicateOristudioCp3dFoldedFigure(
+  foldedFigureHandle: number
+): Promise<OristudioCpFold3dFoldResult> {
+  const api = await getOristudioCpClient();
+  return api.duplicateFolded3dFigure(foldedFigureHandle);
 }
 
 export async function freeOristudioCpFoldedFigure(foldedFigureHandle: number): Promise<void> {

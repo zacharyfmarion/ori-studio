@@ -399,6 +399,310 @@ export interface OristudioCpFoldedFigureBatchResult {
   discovered_case_numbers: number[];
 }
 
+/* ---------------------------------------------------------------------------
+ * The 3D folded state
+ *
+ * Mirrors `oristudio_cp::folding3d`. Two objects cross the boundary per fold:
+ * a {@link OristudioCpFolded3dSnapshot} (scalars and codes, ~2 KB, safe to
+ * persist) and a {@link OristudioCpFolded3dRenderModel} (struct-of-arrays
+ * geometry, up to ~235 KB on the largest corpus model, **not** persisted — the
+ * `.osf` writer pretty-prints, which would put every number on its own line).
+ *
+ * Every string here is a stable kernel **code**, never a sentence: the
+ * eight-locale i18n gate cannot see a Rust literal, so the copy lives on this
+ * side and these key it.
+ * ------------------------------------------------------------------------- */
+
+/** Oriedita's five flat-foldability rules, as kernel codes. */
+export type OristudioCpFlatFoldabilityRuleCode =
+  | 'number_of_folds'
+  | 'angles'
+  | 'maekawa'
+  | 'little_big_little'
+  | 'none';
+
+/** Why a vertex could not be evaluated at all. */
+export type OristudioCpIndeterminateCode = 'unassigned_crease' | 'unsplit_junction';
+
+/** Which geometric rule determined a layer pair outright. */
+export type OristudioCpSeedKindCode = 'full_fold' | 'wall' | 'shared_slot' | 'cut';
+
+/**
+ * Why a crease pattern has **no** 3D folded figure at all.
+ *
+ * Measured over a 65-file non-flat corpus, the whole distribution is 21
+ * `flat_foldability`, 8 `vertex_closure`, 7 `interior_cut`, 1 `disconnected`.
+ * The other six arms are reachable in principle and reached by nothing — budget
+ * copy accordingly rather than in proportion to novelty.
+ */
+export type OristudioCpFold3dRefusal =
+  | { code: 'no_faces' }
+  | { code: 'faces_unresolved' }
+  | { code: 'disconnected'; reached: number; unreached: number }
+  | { code: 'non_crease_join'; line: number }
+  | { code: 'interior_cut'; line: number; point: Point }
+  | { code: 'flat_foldability'; point: Point; rule: OristudioCpFlatFoldabilityRuleCode }
+  | { code: 'vertex_indeterminate'; point: Point; cause: OristudioCpIndeterminateCode }
+  | { code: 'vertex_closure'; point: Point; residual_degrees: number }
+  | {
+      code: 'loop_not_closed';
+      worst_edge: number | null;
+      gap_radians: number;
+      gap_offset: number;
+    }
+  | {
+      code: 'tolerance_window_closed';
+      faces: [number, number];
+      normal_radians: number;
+      offset_relative: number;
+      /** `null` means no two distinct planes are parallel — not an infinity. */
+      min_inter_separation: number | null;
+    };
+
+/**
+ * Why a **placed** figure has no layer order.
+ *
+ * None of these is a refusal: the figure draws, and only the stacking is
+ * unavailable. They ride inside {@link OristudioCpFold3dVerdict}.
+ */
+export type OristudioCpFold3dOrderReason =
+  | { code: 'overlap_without_cell'; plane: number; faces: [number, number] }
+  | { code: 'cell_without_overlap'; plane: number; faces: [number, number] }
+  | { code: 'arrangement_refused'; plane: number; first_face: number; faces: number }
+  | {
+      code: 'contradictory_seeds';
+      upper: number;
+      lower: number;
+      first_rule: OristudioCpSeedKindCode;
+      first_line: number;
+      second_rule: OristudioCpSeedKindCode;
+      second_line: number;
+    }
+  | { code: 'no_layer_order'; component: number; faces: number; variables: number }
+  | { code: 'stack_too_deep'; component: number; permutations: number }
+  | { code: 'face_id_out_of_range'; component: number; face: number; faces_total: number }
+  | { code: 'search_failed'; component: number };
+
+/** A self-intersection no layer order repairs. */
+export type OristudioCpFold3dCrossing =
+  | { code: 'chords'; lines: [number, number]; faces: [number, number, number, number] }
+  | { code: 'transversal'; line: number; face: number }
+  | { code: 'sheets'; line: number; faces: [number, number] };
+
+/**
+ * What the fold concluded about a figure it placed.
+ *
+ * The three non-`folded` conditions are independent and can co-occur; the
+ * kernel applies one documented precedence (`no_layer_order` >
+ * `transversal_crossing` > `local_crossing`) and every count it hides is still
+ * on the snapshot, so nothing is lost.
+ *
+ * `folded` means **no crossing was detected**, never *no crossing exists*: the
+ * crossing predicate is sound but not complete.
+ */
+export type OristudioCpFold3dVerdict =
+  | { verdict: 'folded' }
+  | { verdict: 'local_crossing'; vertices: number }
+  | { verdict: 'transversal_crossing'; crossings: number }
+  | { verdict: 'no_layer_order'; reason: OristudioCpFold3dOrderReason };
+
+/**
+ * The kernel's own tolerances.
+ *
+ * These cross the boundary for exactly one reason: the frontend's BSP builder
+ * has its own hardcoded coplanarity epsilon, and a renderer that disagrees with
+ * the kernel about which faces share a plane draws a stack the kernel never
+ * computed. Nothing here is user-facing and nothing here is settable.
+ */
+export interface OristudioCpFold3dTolerances {
+  angle_radians: number;
+  distance_relative: number;
+  flat_snap_degrees: number;
+  overlap_area_relative: number;
+}
+
+export interface OristudioCpFold3dDiagnostics {
+  tolerances: OristudioCpFold3dTolerances;
+  /** Longer side of the *unfolded* bounding box. */
+  span: number;
+  /** Creases pulled to an exact full fold in the gate's own copy of the
+   *  segments. The user's document is never written back. */
+  snapped_creases: number;
+  spatial_vertices: number;
+  worst_closure_residual_degrees: number;
+  /** Up to 16 listed; `local_crossing_count` is exact. */
+  local_crossings: Point[];
+  local_crossing_count: number;
+  /** Parallel-plane separations by decade of span. Reported, never gated. */
+  separation_bins: [number, number, number, number, number];
+  worst_intra_normal_radians: number;
+  worst_intra_offset_relative: number;
+  /** `null` means no two distinct planes are parallel at all — a real and
+   *  common answer, **not** an infinity. */
+  min_inter_separation_relative: number | null;
+  /** Always 0 on a placed figure; a non-zero count would have refused. */
+  tolerance_alarms: number;
+}
+
+export interface OristudioCpFold3dCensus {
+  plane_count: number;
+  patch_count: number;
+  face_count: number;
+  /** The ordering-variable count. */
+  overlapping_pair_count: number;
+  non_adjacent_pair_count: number;
+  faces_in_overlap: number;
+  full_fold_creases: number;
+  /** `overlapping_pair_count >= full_fold_pairs` is a theorem. The converse is
+   *  false — a five-panel strip at four 90-degree creases has no full fold and
+   *  a census of 1 — and no UI copy may assume it. */
+  full_fold_pairs: number;
+  min_accepted_area_relative: number | null;
+  max_rejected_area_relative: number;
+  cell_count: number;
+  subface_count: number;
+}
+
+export interface OristudioCpFold3dPlaneSummary {
+  /** The plane's chosen orientation. Data the payload carries, never something
+   *  a consumer re-derives: a different seed gives a different chirality and
+   *  reversed stacks that look entirely plausible. */
+  up: [number, number, number];
+  origin: [number, number, number];
+  face_count: number;
+  patch_count: number;
+  cell_count: number;
+  overlap_pairs: number;
+  normal_diameter_radians: number;
+  offset_diameter: number;
+}
+
+/**
+ * What one 3D fold produced, minus the geometry.
+ *
+ * A **sibling** of {@link OristudioCpFoldedFigureSnapshot}, not an extension:
+ * that type's `wireframe` is 2D by construction, and `estimation_step` /
+ * `display_style` are Oriedita enums the 3D path has no honest value for.
+ *
+ * Four fields are shared with it by name and meaning — `discovered_fold_cases`,
+ * `current_fold_case`, `find_another_overlap_valid` and `has_next_solution` —
+ * so the cycling UI derives its one solution verb with the same expression it
+ * already uses. `text_result` is deliberately absent.
+ */
+export interface OristudioCpFolded3dSnapshot {
+  schema_version: number;
+  model: OristudioCpFoldedFigureModel;
+  /** Forward-only high-water mark. Never an eager product over components, so
+   *  no "k of N" is expressible and none is offered. */
+  discovered_fold_cases: number;
+  /** 1-based index of the solution being shown. */
+  current_fold_case: number;
+  find_another_overlap_valid: boolean;
+  /** Alias of {@link find_another_overlap_valid}; one is assigned from the
+   *  other, so they cannot disagree. */
+  has_next_solution: boolean;
+  verdict: OristudioCpFold3dVerdict;
+  diagnostics: OristudioCpFold3dDiagnostics;
+  census: OristudioCpFold3dCensus;
+  planes: OristudioCpFold3dPlaneSummary[];
+  /** Ordering-variable count per constraint component, descending. Empty when
+   *  the ordering solver did not answer. */
+  components: number[];
+  undetermined_pairs: number;
+  undetermined_cells: number;
+  couplings: number;
+  /** Up to 16 listed; `crossing_count` is exact. */
+  crossings: OristudioCpFold3dCrossing[];
+  crossing_count: number;
+}
+
+/** `[plane, ring_start, ring_len, facing]` per face. */
+export const FOLDED_3D_FACE_ATTR_STRIDE = 4;
+/** `[plane, ring_start, ring_len, stack_start, stack_len, determinacy, draw_rank]`. */
+export const FOLDED_3D_CELL_ATTR_STRIDE = 7;
+/** `up(3), origin(3), u(3), v(3)` per plane. */
+export const FOLDED_3D_PLANE_FRAME_STRIDE = 12;
+/** `[face_a, face_b, line, kind]` per edge. */
+export const FOLDED_3D_EDGE_ATTR_STRIDE = 4;
+
+export const FOLDED_3D_CELL_DETERMINED = 0;
+export const FOLDED_3D_CELL_UNDETERMINED = 1;
+
+export const FOLDED_3D_EDGE_BORDER = 0;
+export const FOLDED_3D_EDGE_CREASE = 1;
+export const FOLDED_3D_EDGE_UNKNOWN = 2;
+
+/**
+ * View-independent 3D geometry: no camera, no projection, no colour.
+ *
+ * Emitted once per fold and once per "another solution" — there is no per-frame
+ * way to ask for it. Struct-of-arrays rather than nested per-face objects: on
+ * the largest admitted corpus model (2,637 faces) the nested shape serializes
+ * to 609 KB of JSON and materializes ~12,000 JS arrays, against 235 KB flat.
+ *
+ * **Cells, not faces, are the drawable unit.** A cyclic panel order is legal —
+ * the classical square twist orders four panels `a > b > c > d > a` — so no
+ * per-face scalar "layer" exists. What always exists is a winner per
+ * arrangement cell. Every face is drawn by some cell, checked in the kernel;
+ * a renderer that fills faces instead is drawing something nothing ordered.
+ *
+ * Every `*_start` is an index in elements of its own unit (a vertex, a face
+ * id), never a byte or float offset.
+ */
+export interface OristudioCpFolded3dRenderModel {
+  schema_version: number;
+  span: number;
+  face_count: number;
+  plane_count: number;
+  cell_count: number;
+  edge_count: number;
+  /** `[x, y, z, ...]` — every face ring, concatenated in face order. */
+  ring_points: number[];
+  face_attr: number[];
+  /** 3 per face — the side the paper's front faces. */
+  face_normals: number[];
+  plane_frames: number[];
+  /** `[x, y, z, ...]` — every cell ring, already lifted to world coordinates. */
+  cell_points: number[];
+  cell_attr: number[];
+  /** Face ids per cell, **top first** with respect to that cell's plane `up`. */
+  cell_stack: number[];
+  /** 6 per edge: `ax, ay, az, bx, by, bz`. */
+  edge_points: number[];
+  edge_attr: number[];
+  /** Signed fold angle per edge in degrees, `0` on a border. Signed rather than
+   *  a mountain/valley code so the payload bakes in no convention. */
+  edge_fold_degrees: number[];
+  undetermined_cells: number;
+}
+
+/**
+ * What a 3D fold returned.
+ *
+ * A refusal is a **result**, not a thrown error: it must not reach the store's
+ * catch path, must not raise an error toast and must not destroy the draft
+ * figure — mirroring how the flat path already treats a layer-ordering
+ * contradiction. A refusal never carries a handle and a placement always does,
+ * so the impossible state is unrepresentable rather than guarded.
+ */
+export type OristudioCpFold3dFoldResult =
+  | {
+      status: 'placed';
+      handle: number;
+      snapshot: OristudioCpFolded3dSnapshot;
+      render: OristudioCpFolded3dRenderModel;
+    }
+  | { status: 'refused'; refusal: OristudioCpFold3dRefusal };
+
+export interface OristudioCpFold3dStepResult {
+  snapshot: OristudioCpFolded3dSnapshot;
+  render: OristudioCpFolded3dRenderModel;
+  /** `false` when the stream wrapped back to the first solution. Carried
+   *  explicitly rather than inferred from `find_another_overlap_valid`
+   *  flipping, which is how the flat path has to do it. */
+  advanced: boolean;
+}
+
 export type OristudioCpFoldedFigureStatus = 'ready' | 'stale' | 'loading' | 'error' | 'unsupported';
 
 export type OristudioCpFoldedFigureSourceKind =
@@ -467,6 +771,21 @@ export interface OristudioCpFoldedFigureEntry {
   displayStyle: OristudioCpFoldedFigureDisplayStyle;
   status: OristudioCpFoldedFigureStatus;
   snapshot: OristudioCpFoldedFigureSnapshot | null;
+  /**
+   * Non-null iff this figure was folded in **3D**, and the one witness the UI
+   * branches on. `snapshot` stays null on a 3D figure and this stays null on a
+   * flat one; never both.
+   *
+   * A sibling field rather than a union on `snapshot`, so every existing reader
+   * of the flat snapshot keeps its exact type and its exact meaning. Reading it
+   * belongs in {@link foldedFigureCycling} and `isFoldedFigureReady`, not at
+   * each call site.
+   *
+   * The geometry is *not* here: the render model is up to ~235 KB of packed
+   * arrays and the `.osf` writer pretty-prints, so what persists is this
+   * snapshot plus the projected `renderSnapshot`.
+   */
+  folded3d?: OristudioCpFolded3dSnapshot | null;
   renderSnapshot: OristudioCpFoldedRenderSnapshot | null;
   /** Display placement on the canvas. See {@link FoldedFigurePlacement}. */
   placement: FoldedFigurePlacement;

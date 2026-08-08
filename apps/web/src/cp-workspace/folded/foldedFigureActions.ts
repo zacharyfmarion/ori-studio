@@ -4,7 +4,7 @@ import type {
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
 import type { FoldedFigureExportFormat } from './foldedFigureExport';
-import { flipFoldedState } from './foldedFigureState';
+import { flipFoldedState, foldedFigureCycling } from './foldedFigureState';
 
 /**
  * The verbs a folded figure offers, in the order both surfaces present them.
@@ -123,9 +123,19 @@ export interface FoldedFigureActionDeps {
   ) => void;
 }
 
-/** A figure whose kernel handle and snapshot are both live. */
+/**
+ * A figure whose kernel handle and snapshot are both live.
+ *
+ * A 3D figure carries `folded3d` where a flat one carries `snapshot`, and one
+ * of the two is always null — so this asks for either rather than for the flat
+ * one, which would report every 3D figure as not ready.
+ */
 export function isFoldedFigureReady(figure: OristudioCpFoldedFigureEntry): boolean {
-  return figure.status === 'ready' && figure.handle !== null && figure.snapshot !== null;
+  return (
+    figure.status === 'ready' &&
+    figure.handle !== null &&
+    (figure.snapshot !== null || (figure.folded3d ?? null) !== null)
+  );
 }
 
 /** A folded figure is geometry on a page, so it exports as an image only. */
@@ -182,10 +192,7 @@ export function buildFoldedFigureActions(
   const ready = isFoldedFigureReady(figure);
   const currentStyle = figure.displayStyle;
   const canRefold = deps.refold !== undefined && deps.isStale?.(figure) === true;
-  const hasNextSolution = figure.snapshot?.find_another_overlap_valid === true;
-  // The kernel wraps by restarting the enumeration, so wrapping only makes sense
-  // once more than one solution is known to exist.
-  const wrapsToFirst = !hasNextSolution && (figure.snapshot?.discovered_fold_cases ?? 0) > 1;
+  const { hasNext: hasNextSolution, wrapsToFirst } = foldedFigureCycling(figure);
 
   const actions: FoldedFigureAction[] = [
     {
