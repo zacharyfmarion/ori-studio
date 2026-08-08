@@ -529,6 +529,18 @@ export interface OristudioCpFold3dTolerances {
   overlap_area_relative: number;
 }
 
+/**
+ * What the admission gate measured.
+ *
+ * **Every bar the gate applied is here as its residual, beside the tolerance it
+ * was compared against.** The tolerances themselves are the kernel's — the right
+ * value depends on computed plane separation nobody outside the kernel has — so
+ * the way to hold a figure to a different bar is to re-apply it to these
+ * numbers, never to re-run the fold.
+ *
+ * None of it is user-facing, and none of it may be sent to analytics: these are
+ * measurements of the user's own geometry.
+ */
 export interface OristudioCpFold3dDiagnostics {
   tolerances: OristudioCpFold3dTolerances;
   /** Longer side of the *unfolded* bounding box. */
@@ -538,6 +550,21 @@ export interface OristudioCpFold3dDiagnostics {
   snapped_creases: number;
   spatial_vertices: number;
   worst_closure_residual_degrees: number;
+  /** Worst rotation disagreement over the non-tree dual adjacencies, radians.
+   *  Reported for reading; it is not what the gate compares. */
+  loop_gap_radians: number;
+  /** Worst placement disagreement about where a shared crease lands, relative to
+   *  the span — the exact quantity the gate compares against
+   *  `tolerances.distance_relative`. */
+  loop_gap_offset_relative: number;
+  /** How many independent consistency conditions the two above are maxima over.
+   *  **Zero means they certify nothing**: the dual graph is a tree and the `0`
+   *  is vacuous rather than tight. Read this before reading them. */
+  loop_gap_non_tree_edges: number;
+  /** The same disagreement localised to elementary per-vertex dual cycles, and
+   *  how many there were. */
+  worst_vertex_cycle_radians: number;
+  vertex_cycles: number;
   /** Up to 16 listed; `local_crossing_count` is exact. */
   local_crossings: Point[];
   local_crossing_count: number;
