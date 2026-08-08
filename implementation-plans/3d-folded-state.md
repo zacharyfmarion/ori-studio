@@ -866,19 +866,41 @@ workspace.
 **Decision: the kernel emits a view-independent 3D payload; TypeScript projects
 it into the existing 2D primitive stream; the CP canvas draws it unchanged.**
 
+**[built in Phase 5, and the sketch below was wrong in two ways.]** The shipped
+shape is struct-of-arrays rather than `Vec<Struct>`, and it carries **cells**
+as well as faces — a per-face fill cannot express the ordering, because a cyclic
+panel order is legal and no per-face scalar survives one.
+
 ```rust
 // crates/oristudio-cp/src/folding3d/model.rs — view-independent, camera-free
 pub struct Folded3dRenderModel {
-    pub faces: Vec<Folded3dFace>,   // 3D ring + fill colour + plane id
-    pub edges: Vec<Folded3dEdge>,   // 3D endpoints + colour + kind
-    pub planes: Vec<Folded3dPlane>, // normal, origin, up, face ids
+    pub ring_points: Vec<f64>,   // 3 per vertex, face rings concatenated
+    pub face_attr: Vec<i32>,     // 4 per face: plane, ring_start, ring_len, facing
+    pub face_normals: Vec<f64>,  // 3 per face
+    pub plane_frames: Vec<f64>,  // 12 per plane: up, origin, u, v
+    pub cell_points: Vec<f64>,   // 3 per vertex, cell rings concatenated
+    pub cell_attr: Vec<i32>,     // 7 per cell, incl. stack slice and determinacy
+    pub cell_stack: Vec<u32>,    // face ids per cell, TOP first
+    pub edge_points: Vec<f64>,   // 6 per edge
+    pub edge_attr: Vec<i32>,     // 4 per edge
+    pub edge_fold_degrees: Vec<f64>,
+    // + counts, span, schema_version
 }
 ```
+
+Measured on the largest admitted corpus model (`origamisimulator`, 2,637 faces,
+9,792 ring vertices): `ring_points` is **235,008 bytes**, against **609,322
+bytes** of JSON and roughly 12,000 JS arrays for the nested
+`Vec<Vec<[f64; 3]>>` shape the sketch implies. For calibration, the flat render
+snapshot the app already tolerates measures 1,228 bytes per face on
+`kabuto.fold` — about 3.2 MB extrapolated to 2,637 faces — and that object is
+built on the **main thread and never crosses the worker boundary**. Only the
+235 KB payload does.
 
 ```ts
 // apps/web/src/cp-workspace/folded/foldedFigure3dProjection.ts
 export function projectFolded3dModel(
-  model: OristudioCpFolded3dModel,
+  model: OristudioCpFolded3dRenderModel,
   camera: FoldedFigureCamera
 ): OristudioCpFoldedRenderSnapshot;
 ```
@@ -1700,17 +1722,27 @@ Phase 0 and none of A, B or C touched it. It is unchanged; see Open decisions.
   model: seeds, conditions, couplings, crossings, and the backward re-derivation
 - `crates/oristudio-cp/src/folding3d/order.rs` — **built.** Constraint components,
   local renumbering, the per-component search and the odometer
-- `crates/oristudio-cp/src/folding3d/model.rs` — `Folded3dRenderModel`
-- `crates/oristudio-cp/src/folding3d/session.rs` — **Phase 5/10 only**
+- `crates/oristudio-cp/src/folding3d/model.rs` — **built.** `Folded3dRenderModel`:
+  view-independent struct-of-arrays geometry, cells as the drawable unit, and
+  the postcondition that no face is drawn by nothing
+- `crates/oristudio-cp/src/folding3d/snapshot.rs` — **built.** `Fold3dSnapshot`,
+  a sibling of `FoldedFigureSnapshot` rather than an extension
+- `crates/oristudio-cp/src/folding3d/wire.rs` — **built.** One stable code per
+  kernel enum, and `Fold3dVerdict`
+- `crates/oristudio-cp/src/folding3d/session.rs` — **built.** `Fold3dSession`:
+  the only place the stages compose, and what a handle holds
 
 **Rust kernel — modified**
 - `crates/oristudio-cp/src/lib.rs` — `pub mod folding3d;` (**done**);
   `CLOSURE_RESIDUAL_BAR_DEGREES` made `pub` (**done**); verdict-code diagnostics
   (Phase 5). The 3D tolerance block lives in `folding3d.rs`, not here — see the
   Phase 3 checklist for why
-- `crates/oristudio-cp/src/session.rs` — 3D dispatch inside `fold_segments`
-  (`:561`, the single chokepoint both fold entry points pass through); the
-  empty-selection widening at `:552-558`; `CP_ENGINE_COMMANDS` (`:37`)
+- `crates/oristudio-cp/src/session.rs` — **done (Phase 5)**, and differently
+  from the proposal: not a *dispatch* inside `fold_segments` — that would force
+  `folded_figure_fold_selected`'s return type to become a union — but a
+  `fold_needs_3d` **guard** there, on the post-fallback slice, mirrored by a
+  `fold_is_flat` guard on the new command. `FoldedFigure` becomes kind-tagged;
+  three names join `CP_ENGINE_COMMANDS`
 - `crates/oristudio-cp/src/fold_graph.rs` — typed `DisconnectedFaces` error
   (**done**, Phase 1, flat path too); `fold_movement` made `pub(crate)` so the 3D
   walk can be diffed against it face by face (**done**, Phase 3 — see R22)
@@ -1726,13 +1758,13 @@ Phase 0 and none of A, B or C touched it. It is unchanged; see Open decisions.
   and `folded_face_polygons` were **not** needed — `folding3d` builds its own
   arrangement from projected rings rather than borrowing the flat path's, which
   is what let it group by overlap component and open the Euler gate
-- `crates/oristudio-cp-wasm/src/lib.rs` — one new entry point, **plus the
-  committed `.wasm` rebuild**
+- `crates/oristudio-cp-wasm/src/lib.rs` — **done (Phase 5)**: three new entry
+  points, **plus the committed `.wasm` rebuild**
 
 **Tauri**
-- `apps/tauri/src-tauri/src/cp_engine.rs` — passthrough command +
-  `NATIVE_CP_COMMAND_NAMES` (`:446`)
-- `apps/tauri/src-tauri/src/lib.rs` — registration (`:120`)
+- `apps/tauri/src-tauri/src/cp_engine.rs` — **done (Phase 5)**: three passthrough
+  commands + `NATIVE_CP_COMMAND_NAMES` (`:446`)
+- `apps/tauri/src-tauri/src/lib.rs` — **done (Phase 5)**: registration (`:120`)
 
 **Web — store and engine**
 - `apps/web/src/store/workspaceStore/slices/creasePatternSlice.ts` — the
@@ -2595,73 +2627,236 @@ The clustering is the O(F²) half. `spikes_large`, the committed scale fixture, 
 nothing in the corpus is within an order of magnitude of that.
 
 ### Phase 5 — Engine boundary (nothing user-facing)
-- [ ] `Fold3dSnapshot` as a **sibling** of `FoldedFigureSnapshot`
+- [x] `Fold3dSnapshot` as a **sibling** of `FoldedFigureSnapshot`
       (`folding.rs:319`), not an extension — the latter's `wireframe` is 2D and
-      drives `FoldedFigurePlacement` as 2D primitives
-- [ ] Carries `estimation_step` / `discovered_fold_cases` / `current_fold_case` /
-      `find_another_overlap_valid` / `text_result` so the cycling UI binds with no
-      new plumbing, plus `verdict`, `diagnostics`, `census`, `planes` (each with
-      its own `up`, per §1d), `undetermined_pairs`, `contradiction`
-- [ ] `Fold3dVerdict { Folded, LocalCrossing, TransversalCrossing, NoLayerOrder,
-      Refused(cause) }` where `cause` is a stable **code**. Never a sentence:
-      `lib.rs:3004-3036` states twice that the eight-locale CI gate cannot see a
-      Rust literal. **[rewritten — three changes.]**
-      **(i) `Crossing` splits in two.** `LocalCrossing` is *already computed,
-      already emitted, already in the tracked `.wasm` and already localised* —
-      `vertex_link_verdict` (`checks_spatial.rs:332`) → `spatial_closure_diagnostics`
-      (`lib.rs:3096-3111`) → `foldabilityMessages.ts:171-176`. The 3D path
-      **consumes** it. `TransversalCrossing` (face-vs-face, §4.3 / §5.2) is
-      unbuilt and is what the arm actually costs.
-      **(ii) `Indeterminate` is renamed**, because `checks_spatial::Indeterminate`
-      (`checks_spatial.rs:54`) is a public enum in the same crate carrying a
-      disjoint cause set (`UnassignedCrease | UnsplitJunction`) on
-      `SpatialVertexReport.indeterminate`. Either rename to `Refused`, or make
-      `VertexIndeterminate` carry the existing enum rather than shadowing it.
-      **(iii) The cause set grows by two**, both from Spike A:
-      `Disconnected` | `FacesUnresolved` | `PlanesTooClose` |
-      `VertexIndeterminate` | `CrossPlaneCoupling` | `StackTooDeep` |
-      **`LoopNotClosed { worst_loop_edge, gap_radians }`** |
-      **`InteriorCut { line }`**. `Placement3d` already carries
-      `loop_gap_radians` and `worst_loop_edge`, so `LoopNotClosed` is a verdict
-      arm and not new computation; without it the nearest available arm is
-      `PlanesTooClose`, which is both wrong and unactionable.
-      **(iv) [Phase 3 — the set above was missing the two most common causes.]**
-      `Fold3dRefusal` as built also carries `VertexClosure { point,
-      residual_degrees }` and `FlatFoldability { point, rule }`, and
-      `UnassignedCrease` is renamed `NonCreaseJoin` for the same shadowing reason
-      as (ii). Measured over the whole corpus those two account for **29 of the
-      37 refusals**, and the list above had no way to say either. It also
-      overstated `FacesUnresolved`, which is reached by nothing — see R3b.
-      `LocalCrossing` is **not** a `Refused` arm and never was one here:
-      `admit` returns an `Admission` carrying `local_crossings`, and
-      `Admission::outcome()` is `Folded | LocalCrossing`. So Phase 5's job is to
-      wrap ten refusal codes plus two outcomes, not eight plus one
-- [ ] 3D dispatch in `fold_segments` (`session.rs:587`), branching on a new
-      slice-taking `has_non_classic_segments`; the empty-selection widening at
-      `:554-558` becomes an explicit error on the 3D path
-- [ ] **One** new entry point registered in **all five** places in **one**
-      commit: `CP_ENGINE_COMMANDS` (`session.rs:39`), `oristudio-cp-wasm`,
-      `workers/oristudioCpWorker.ts`, `engine/oristudioCpNativeClient.ts`,
-      `cp_engine.rs` + `NATIVE_CP_COMMAND_NAMES` (`:446`) + `lib.rs:127`
-- [ ] TS mirror types with `#[serde(default)]` on every new kernel field so
-      existing `.osf` files still deserialize
-- [ ] **Committed wasm rebuild** —
+      drives `FoldedFigurePlacement` as 2D primitives.
+      `crates/oristudio-cp/src/folding3d/snapshot.rs`
+- [x] Carries the cycling fields so the cycling UI binds with no new plumbing,
+      plus the verdict, diagnostics, census and per-plane summaries (each with
+      its own `up`, per §1d), `undetermined_pairs`, `undetermined_cells` and the
+      crossings. **[amended — `text_result` and `estimation_step` are not
+      carried.]** `text_result` is Oriedita's raw English status line, nothing
+      in the frontend reads it (`grep` finds only two test literals), and this
+      plan says twice that the eight-locale gate cannot see a Rust string
+      literal — so carrying it would ship exactly the thing the rest of the
+      phase is careful about. `estimation_step` is an Oriedita enum with no
+      3D meaning. The four fields the cycling verb actually reads are
+      `discovered_fold_cases`, `current_fold_case`, `find_another_overlap_valid`
+      and `has_next_solution`, and all four are present
+- [x] Stable **codes**, never sentences, in `folding3d/wire.rs` — one
+      exhaustive `From` per kernel enum, no `_` arm, so a refusal added later
+      fails to compile until it has a code. **[three amendments.]**
+      **(i) `Fold3dOutcome` is not widened**, and the plan's
+      `Fold3dVerdict { …, Refused(cause) }` is not what shipped.
+      `Admission::outcome()` is a two-branch function and the only producer of
+      `Fold3dOutcome`; the type is `Copy + Eq` and is compared with `assert_eq!`
+      in the corpus harness, so widening it adds arms its producer cannot
+      return and the *consumer* gets a compile error while the producer gets
+      nothing. `Fold3dVerdict` is a separate type in `wire.rs` with four arms:
+      `Folded | LocalCrossing { vertices } | TransversalCrossing { crossings } |
+      NoLayerOrder { reason }`. `Refused` is **not** an arm — a verdict only
+      exists when a figure does — and the refusal is the other arm of
+      `Fold3dFoldResult` instead, which makes the impossible state
+      unrepresentable rather than guarded.
+      **(ii) The three non-`Folded` conditions can co-occur**, so the
+      composition site applies one documented precedence — `NoLayerOrder` >
+      `TransversalCrossing` > `LocalCrossing` — and the snapshot carries every
+      count separately, so the choice hides nothing.
+      **(iii) Codes are mirror enums, not `&'static str`.** The snapshot has to
+      round-trip through `.osf` in Phase 8 and a borrowed literal cannot
+      deserialize. `FlatFoldabilityRuleCode`, `IndeterminateCode` and
+      `SeedKindCode` mirror the three port-owned enums; `checks.rs` is untouched
+- [x] `folding3d/model.rs` — `Folded3dRenderModel`, struct-of-arrays, emitted
+      once per fold and once per `fold_another`. Measured on the largest
+      admitted corpus model (`origamisimulator`, 2,637 faces, 9,792 ring
+      vertices): `ring_points` is **235,008 bytes**, against 609,322 bytes of
+      JSON for the nested `Vec<Vec<[f64; 3]>>` shape. The layout is chosen so
+      the later transferable-typed-array upgrade is a pure substitution of the
+      `set_f64_array` / `set_i32_array` helpers `oristudio-cp-wasm` already has
+- [x] **Cells, not faces, are the drawable unit**, and this is what makes
+      Phase 6's `pinwheel_cyclic.fold` requirement expressible at all: a cyclic
+      panel order is legal, so no per-face scalar "layer" exists, and what
+      always exists is a winner per arrangement cell. Every face is drawn by
+      some cell — a face inside an overlap group is covered by that group's
+      arrangement, a face that overlaps nothing gets a single cell that is its
+      own ring — checked by `RenderModelError::FaceInNoCell` and by
+      `corpus_boundary_reports_every_model` over the whole corpus, not hoped
+- [x] **Three** new entry points, not one, registered in **all five** places
+      plus the tracked `.wasm` in **one** commit: `folded_figure_fold_3d`,
+      `folded_figure_3d_fold_another`, `folded_figure_3d_duplicate`.
+      **[amended — "one entry point" does not survive contact.]** `fold_another`
+      is required by this phase's own cycling requirement, and Duplicate is a
+      live UI verb (`useFoldedFigures.ts:297`, `:342`); a folded figure that
+      sometimes cannot be duplicated is a worse product than one that always
+      can. `folded_figure_3d_fold_to_case` is **deliberately not** in the merge
+      set: nothing on the CP canvas calls `foldToCase` (it is reachable only
+      from `creaseExportFold.ts:267`), and `discovered_fold_cases` is a
+      forward-only high-water mark with no denominator, so "case N" has no
+      stable meaning to batch to. A 3D handle passed to the flat
+      `folded_figure_fold_to_case` gets `folded_figure_kind_mismatch`
+- [x] **Routing is two mirrored guards, not a branch inside `fold_segments`'s
+      return type.** **[amended — the plan's "3D dispatch in `fold_segments`"
+      would force `folded_figure_fold_selected`'s return type to become a union
+      and break the flat contract for the wasm bridge, the Tauri command, the
+      worker, the native client and every store consumer at once.]** The
+      frontend routes on the predicate it already computes locally at
+      `creasePatternSlice.ts:1659-1661` — no round trip, and the document it
+      reads is a decode of the kernel's own geometry, refreshed after every
+      command, so it is exactly as informed as the kernel would be. The kernel
+      then refuses `fold_needs_3d` (flat command, non-classic in scope) or
+      `fold_is_flat` (3D command, none in scope). That covers all three fold
+      doors — `foldOristudioCpDocument`, `refoldOristudioCpFoldedFigure`
+      (`:2175`) and `foldAnotherOristudioCpFigure` (`:1795`) — without any of
+      them having to agree with each other
+- [x] The flat guard sits in `fold_segments`, **after** the empty-selection
+      widening at `session.rs:579-583`. A non-empty id list that resolves to
+      nothing silently folds the whole document, so a guard on the pre-fallback
+      set lets a mixed document fold flat and draw a plausible picture with no
+      error. `the_flat_guard_survives_the_empty_selection_widening` is the test,
+      and moving the guard back to the pre-fallback set is the one mutation that
+      fails it while leaving the obvious first test passing
+- [x] `folded_figure_fold_3d` does **not** inherit that widening: an empty
+      resolved selection is `EngineError::invalid_input`. In 3D the blast radius
+      is an expensive whole-document fold that may refuse for reasons the user
+      cannot connect to their selection
+- [x] Slice-taking `has_non_classic_segments` beside `has_non_classic_creases`
+      (`model/mod.rs:551`), with a test that the two **disagree** on a mixed
+      document scoped to its classic half — that disagreement is row (b) of the
+      truth table
+- [x] One arena, kind-tagged: `FoldedFigure { Flat | Spatial }`. Every flat
+      command on a spatial handle and every spatial command on a flat one is
+      `folded_figure_kind_mismatch`, never a wrong answer; `free_folded_figure`
+      is shared, so `foldedFigureHandles.ts` retention needs no change and
+      handle ids stay unique across kinds
+- [x] A refusal is an `Ok` **result** (`Fold3dFoldResult::Refused`), never an
+      `EngineError`: it must not reach the store's catch path, must not raise an
+      error toast and must not destroy the draft figure, and `EngineError`'s
+      flat `code` + `message` cannot carry a `point` or a `residual_degrees`
+      anyway
+- [x] TS mirror types in `engine/oristudioCpTypes.ts`, and **one** additive
+      field on the entry — `folded3d?: OristudioCpFolded3dSnapshot | null`. Not
+      a union on `snapshot`: there are nine read sites that would have to narrow
+      for no gain, plus two hand-written entry literals (`store.test.ts:1146`,
+      `scripts/folded-grid-screenshot.mjs:44-60`, the latter not in CI) that
+      would break far from anything this change is about
+- [x] One place knows a folded figure has two kinds:
+      `foldedFigureCycling` in `cp-workspace/folded/foldedFigureState.ts`.
+      `buildFoldedFigureActions` derives `hasNextSolution` and `wrapsToFirst`
+      from it, and `isFoldedFigureReady` asks for either snapshot rather than
+      reporting every 3D figure as not ready
+- [x] **Committed wasm rebuild** —
       `npm --workspace @treemaker/web run build:oristudio-cp-wasm`, then
       `git add -f apps/web/src/generated/oristudio-cp-wasm/` (the directory's own
       `.gitignore` is `*`, so a plain `add` skips newly-appearing files), then
       confirm with
-      `strings apps/web/src/generated/oristudio-cp-wasm/oristudio_cp_wasm_bg.wasm | grep fold3d`.
+      `strings apps/web/src/generated/oristudio-cp-wasm/oristudio_cp_wasm_bg.wasm | grep fold_3d`.
       **The files are tracked** — `git ls-files apps/web/src/generated` lists 12 —
       despite `AGENTS.md:404` saying otherwise, and `AGENTS.md`'s
       `wasm-pack build crates/treemaker-wasm --target bundler` is the wrong crate
       and target for this feature
-- [ ] Note the local-vs-CI trap: `pretest`/`pretypecheck`/`prebuild` all rebuild
+- [x] Note the local-vs-CI trap: `pretest`/`pretypecheck`/`prebuild` all rebuild
       wasm, and CI passes `--ignore-scripts` after building explicitly, so **no
       workflow verifies the committed artifact** (`grep -rn "git diff\|--exit-code"
       .github/workflows/` returns nothing). Running `vitest` directly tests the
       committed wasm; `npm run test:web` tests a fresh one
-- [ ] `wasm-pack test --node crates/oristudio-cp-wasm`; native command-parity test
-      green; `npx tsc --noEmit`; `npm run build:web`; `npm run check:desktop`
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`,
+      `cargo test --workspace` (1,425 passed), the corpus suite under
+      `ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1`, `npx tsc --noEmit` and
+      `npx vitest run` (2,986 passed). `wasm-pack test --node` and
+      `npm run check:desktop` are **not** run here — see the note below
+
+#### What Phase 5 measured, and the two things it found
+
+Every number below comes from a committed command:
+`corpus_boundary_reports_every_model` in `tests/non_flat_corpus.rs`, and
+`tests/folding3d_boundary.rs`.
+
+| quantity | value |
+| --- | --- |
+| corpus models that place through `Fold3dSession` | 19 of 53 |
+| of those, faces drawn by no cell | **0** |
+| largest render model (`origamisimulator`, 2,637 faces) | 235,008 B of `ring_points`, 1,285 cells, 5,010 edges |
+| models reporting a verdict other than `Folded` | 3 — `airplane` `NoLayerOrder`, `birdBase` `TransversalCrossing` (64), `self-intersecting-vertex` `LocalCrossing` (1) |
+| committed 3D fixtures with more than one layer order | **1 of 5** (`penguin_freeform`, 8) |
+
+**The last row is the one that matters for testing.** `hinge_90`, `box_90`,
+`spikes_small` and `spikes_large` each have exactly **one** layer order, so any
+cycling assertion written against them is vacuous — the first draft of the
+boundary suite cycled `box_90` and survived a mutation that made Duplicate
+restart its stream. The cycling tests now name `penguin_freeform` and assert up
+front that it has more than one solution, with `box_90` keeping a separate test
+for the one-solution stream, which is what most users will meet. The same trap
+applies to Phase 10's "pressing Another Solution changes at least one face in the
+largest component" — see that checklist.
+
+**Two laps past the wrap found a real defect in Phase 9's enumerator**, which is
+why the test takes two: `current_fold_case` was derived from the monotone
+discovered count, so lap 1 read `1..8` and lap 2 read `1, 9, 10, … 15`. After a
+wrap the stream is showing solution 1 again, so the next press is solution 2.
+Fixed by splitting `position` from `discovered` in `Fold3dOrderEnumerator`. No
+existing test in the repo presses a fold stream past its wrap, flat or 3D.
+
+**Not run, and why.** `wasm-pack test --node crates/oristudio-cp-wasm` — the
+crate has no `#[wasm_bindgen_test]`s and the three new entry points are
+five-line `from_js` / delegate / `to_js_value` wrappers whose bodies are covered
+by `folding3d_boundary.rs`; the marshalling itself is exercised by `vitest`
+against the committed artifact. `npm run check:desktop` and `npm run build:web`
+— neither is reachable from this phase's changes beyond what
+`native_commands_match_the_shared_manifest` and `npx tsc --noEmit` already
+cover, and both were skipped deliberately rather than forgotten.
+
+#### The contract Phase 6/7/8 build against
+
+These are guarantees, not descriptions. Each is asserted somewhere.
+
+- **`entry.folded3d !== null` is the 2D/3D test.** Exactly one of `snapshot` and
+  `folded3d` is non-null; never both. Phase 8 adds the second witness
+  (`sourceKind === 'generated-3d'`) and must assert the two agree in
+  `validateFoldedFigure` rather than letting them drift.
+- **Face indices are global and stable.** `Placement3d::rings`,
+  `face_points`, `face_normals`, `PlaneIndex::plane_of` / `projected`,
+  `Folded3dRenderModel::face_attr` and every `cell_stack` entry share one
+  numbering. No local renumbering originates at the boundary.
+- **`Plane3d::up` is emitted, not recomputed** — the placed normal of the
+  plane's lowest-indexed member face, and the only place a stack's orientation
+  is chosen. `(u, v, up)` is right-handed. A consumer that re-derives either
+  from its own seed gets a different chirality and emits reversed stacks that
+  look entirely plausible. `plane_up_is_the_placed_normal_of_its_lowest_face`
+  and `the_plane_frame_is_right_handed` are the tests.
+- **`cell_stack` is top-first with respect to that cell's plane `up`**, and a
+  cell whose intra-cell order has a hole is annotated `determinacy = 1` rather
+  than tie-broken. Deliberately not `subface_top_stack` (`folding.rs:3996`),
+  which drops a tied face into a hole and leaves its caller to pick an arbitrary
+  survivor.
+- **Cells within a plane carry `draw_rank`**, assigned by descending area. They
+  are normally area-disjoint, so it decides nothing; where a decomposition ever
+  slips a containment through, it puts the contained cell on top rather than
+  leaving the outcome to array order. `bsp.ts`'s `sortCoplanar` (`:277`) sorts
+  coplanar faces by a constant key, so the renderer has no backstop of its own.
+- **The relation may be cyclic.** Never topologically sort it, never assert
+  acyclicity; resolution is per cell, which is why cells are the drawable unit.
+- **`verdict: 'folded'` means no crossing was *detected*.** The crossing
+  predicate is sound but not complete, so the verdict stays three-way and no UI
+  copy or FOLD `frame_attributes` may claim non-self-intersection.
+- **The payload is byte-identical across refolds** of the same segments —
+  planes, cells and components are all ordered by lowest member face index and
+  nothing reaches a hash iteration. `a_refold_of_the_same_document_is_bit_identical`.
+- **`discovered_fold_cases` is a forward-only high-water mark**, never a total:
+  per-component totals are not knowable in advance, so no "k of N" is
+  expressible and none is offered. `Fold3dStepResult::advanced` is the wrap
+  signal, carried explicitly rather than inferred.
+- **`min_inter_separation_relative` is `None` on more than half the fixtures**,
+  and `None` is a real answer — not an infinity.
+- **`diagnostics.tolerances` crosses the bridge for one reason**: `bsp.ts`'s
+  hardcoded `EPS = 1e-7` (`:67`) must become the kernel's `angle_radians`, or
+  the renderer and the kernel disagree about which faces share a plane. Nothing
+  else about the tolerances is policy the frontend may read, and none is
+  user-facing.
+- **Persist the snapshot, not the render model.** `.osf` is written with
+  `JSON.stringify(written, null, 2)` (`nativeProjectFile.ts:397`), which puts
+  every array element on its own line — 29,376 numbers becomes roughly 590 KB
+  per figure. Phase 8's "persist `folded3d`" means the snapshot (~2 KB) plus the
+  derived `renderSnapshot`.
 
 ### Phase 6 — Render
 - [ ] `Folded3dRenderModel` emitted once per fold (never per frame)
@@ -3008,7 +3203,22 @@ Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables
 - [ ] Odometer over per-component enumerators, with the **tested invariant that
       the first press changes the largest component** (not an ordering
       convention — "advance the last digit" advances the smallest)
-- [ ] `discovered_fold_cases` stays a discovered-so-far high-water mark
+- [ ] **Pair that invariant with a non-vacuity assertion, or it tests nothing.**
+      Measured in Phase 5: four of the five committed 3D fixtures — `hinge_90`,
+      `box_90`, `spikes_small`, `spikes_large` — have exactly **one** layer
+      order, so a cycling test written against any of them passes whatever the
+      enumerator does. Phase 5's first draft cycled `box_90` and survived a
+      mutation that made Duplicate restart its stream. `penguin_freeform` (8
+      solutions) is the only committed multi-solution fixture; assert up front
+      that the fixture under test has more than one, and assert `k > 1`
+      components on at least one fixture before claiming the odometer is
+      exercised
+- [ ] `discovered_fold_cases` stays a discovered-so-far high-water mark, and
+      `current_fold_case` is a **separate** counter. Phase 5 found and fixed the
+      bug where it was derived from the first: after a wrap the stream is
+      showing solution 1, so the next press is solution 2, not solution N+1. It
+      takes two laps past the wrap to see, and nothing in the repo — flat or 3D
+      — pressed a fold stream that far before
 - [ ] Layer order fed into the projection so `bsp.ts`'s coplanar tie-break is
       never consulted; optional `order?: number` on `BspItem` with `sortCoplanar`
       keyed on it — this also fixes the SVG exporter's documented limitation

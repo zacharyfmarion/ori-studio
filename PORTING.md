@@ -192,6 +192,19 @@ differently:
   `HierarchyTable::from_initial`, which discards `infer_above`'s error. The flat
   path keeps calling the unchecked builder and is byte-identical; only the 3D
   path, whose seeds come from several independent geometric rules, asks.
+- **The drawable unit is the arrangement cell, not the face.** Upstream draws
+  subfaces and can, because a flat folding puts every face in one plane and the
+  ordering is global. In 3D a cyclic panel order is legal, so no per-face scalar
+  "layer" exists at all — what always exists is a winner per cell. The engine
+  boundary emits cells with a face stack each, and a face that overlaps nothing
+  becomes a one-face cell so a renderer that draws only cells never loses paper.
+- **A 3D fold has its own snapshot, its own commands and its own handle kind.**
+  `FoldedFigureSnapshot` and the six `folded_figure_*` commands stay exactly as
+  they are — `wireframe` is 2D by construction and `estimation_step` /
+  `display_style` are Oriedita enums with no 3D meaning, so filling them in
+  would be inventing a nearby result at the boundary. The two kinds share one
+  arena, and a command applied to the wrong kind is a typed
+  `folded_figure_kind_mismatch` rather than an answer.
 
 Release caveats:
 
