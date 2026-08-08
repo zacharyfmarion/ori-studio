@@ -706,14 +706,32 @@ fn relative_angle(base: f64, other: f64) -> f64 {
 }
 
 /// Whether two chords with four distinct slots interleave.
+///
+/// Reached by **nothing measured** — no corpus model has two creases on one
+/// folded line whose four faces occupy four different planes — so the predicate
+/// below is unit-tested directly rather than through a model.
 fn chords_interleave(first: &Crease, second: &Crease, tolerances: Fold3dTolerances) -> bool {
-    let base = first.frame.angle(first.into.0);
-    let arc = relative_angle(base, first.frame.angle(first.into.1));
-    let inside = |into: Vec3| {
-        let angle = relative_angle(base, first.frame.angle(into));
-        angle > tolerances.angle_radians && angle + tolerances.angle_radians < arc
+    let frame = first.frame;
+    arcs_interleave(
+        (frame.angle(first.into.0), frame.angle(first.into.1)),
+        (frame.angle(second.into.0), frame.angle(second.into.1)),
+        tolerances.angle_radians,
+    )
+}
+
+/// Whether two chords of a circle, given as endpoint angles, cross.
+///
+/// They cross when exactly one endpoint of the second lies strictly inside the
+/// arc the first spans. Which of the two arcs is taken does not matter — "exactly
+/// one" is the same either way — so this takes the one running forward from
+/// `a.0`.
+fn arcs_interleave(a: (f64, f64), b: (f64, f64), slack: f64) -> bool {
+    let arc = relative_angle(a.0, a.1);
+    let inside = |angle: f64| {
+        let offset = relative_angle(a.0, angle);
+        offset > slack && offset + slack < arc
     };
-    inside(second.into.0) != inside(second.into.1)
+    inside(b.0) != inside(b.1)
 }
 
 /// Constraints between a crease and a face whose interior its folded image
@@ -1139,4 +1157,42 @@ fn rank_stack(
         ranked.push((faces[i], count - 1 - below));
     }
     Some(ranked)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f64::consts::{FRAC_PI_2, PI, TAU};
+
+    /// Four rays around a circle, in every arrangement.
+    ///
+    /// The interleaving predicate is what turns "two creases meet one folded
+    /// line" into "the paper crosses itself there", and on four distinct slots it
+    /// is the whole answer — nothing is left to order. No model measured reaches
+    /// it, so it is checked here on angles rather than believed.
+    #[test]
+    fn two_chords_cross_exactly_when_their_endpoints_alternate() {
+        let (n, e, s, w) = (0.0, FRAC_PI_2, PI, 3.0 * FRAC_PI_2);
+        // N-S against E-W: the endpoints alternate, so they cross.
+        assert!(arcs_interleave((n, s), (e, w), 0.0));
+        assert!(arcs_interleave((s, n), (e, w), 0.0));
+        assert!(arcs_interleave((n, s), (w, e), 0.0));
+        // N-E against S-W: two disjoint arcs.
+        assert!(!arcs_interleave((n, e), (s, w), 0.0));
+        // N-W against E-S: nested rather than alternating.
+        assert!(!arcs_interleave((n, w), (e, s), 0.0));
+        // A chord against itself shares both endpoints, so neither is strictly
+        // inside.
+        assert!(!arcs_interleave((n, s), (n, s), 0.0));
+        // Wrapping past zero is the same question.
+        assert!(arcs_interleave((w, e), (n, s), 0.0));
+    }
+
+    /// The slack is what keeps a shared slot from reading as a crossing.
+    #[test]
+    fn an_endpoint_within_the_slack_is_not_inside() {
+        let arc = (0.0, PI);
+        assert!(arcs_interleave(arc, (1e-3, TAU - 1e-3), 0.0));
+        assert!(!arcs_interleave(arc, (1e-3, TAU - 1e-3), 1e-2));
+    }
 }
