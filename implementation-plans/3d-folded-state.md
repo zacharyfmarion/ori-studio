@@ -2936,22 +2936,36 @@ M/V combinations: the lower panel's neighbour rising through the slab between th
 layers is not something a stacking repairs, and the sign of the middle fold picks
 which half is legal.
 
-Two things the suite does **not** cover, said plainly. The second split inside an
-overlap group — segment connectivity, which exists for a face nested strictly
-inside another with no boundary contact — fires on **0 of 55** corpus models, so
-it is pinned only by `a_nested_pair_only_traces_once_it_is_split`, a unit test on
-the mechanism rather than on a model. And the backward re-derivation cannot rank a
-chord pair whose faces share a slot but overlap by less than the census bar; that
-happens on exactly one corpus model (`base.osf`, which the gate refuses) and is
-reported as `Interleaving::Unordered` rather than silently skipped or miscalled a
+**What no model exercises**, established by breaking each of these and watching
+nothing fail, and said here rather than left for a reader to discover:
+
+| guard | reached by | pinned by |
+| --- | --- | --- |
+| the segment-connectivity split inside an overlap group (a face nested strictly inside another, no boundary contact) | 0 of 55 corpus models | `a_nested_pair_only_traces_once_it_is_split`, on the mechanism |
+| two chords with four **distinct** slots — the case where nothing is left to order and an interleaving is simply a crossing | nothing | `two_chords_cross_exactly_when_their_endpoints_alternate`, on angles |
+| a cell at or below the census's area bar | nothing, which the census's own empty band predicts | nothing |
+| a coincident-line group whose chain does not overlap end to end | nothing | nothing |
+
+The backward re-derivation also has one thing it cannot answer: a chord pair whose
+faces share a slot but overlap by **less** than the census bar has no ordering
+variable between them and so no rank to read. That happens on exactly one corpus
+model (`base.osf`, which the gate refuses) and comes back as
+`Interleaving::Unordered` rather than being silently skipped or miscalled a
 crossing.
+
+Everything else in the phase was broken deliberately at least once. 24 mutations
+across the four files — every sign, every determination, every condition, both
+postconditions, the component split, the odometer's direction, and the plane's
+orientation reference — and each one that a model can reach is caught by a named
+test.
 
 Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables,
 64 couplings) orders in ~8 ms and the largest admitted corpus model
 (`origamisimulator`, 2,637 faces, 12,736 variables) in ~0.7 s, both release.
 
 ### Merge-set validation (Phases 2–9)
-- [ ] `cargo fmt --check`; `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] `cargo fmt --check`; `cargo clippy --workspace --all-targets -- -D warnings`
+      — run after Phase 9; re-run per phase
 - [ ] `cargo test --workspace` and `cargo test --workspace --doc` (CI's
       `--all-targets` excludes doctests, hence the separate step)
 - [ ] **Oracles actually run, not silently skipped.** `grep -rn ORIEDITA
@@ -2961,11 +2975,12 @@ Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables
       oriedita_folding_oracle` and
       `ORIEDITA_RENDER_ORACLE=<path> cargo test -p oristudio-cp --test
       oriedita_render_oracle`, and report the counts
-- [ ] **The non-flat corpus actually ran.**
+- [x] **The non-flat corpus actually ran.**
       `ORISTUDIO_NON_FLAT_CORPUS_DIR=<path> ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1
       cargo test -p oristudio-cp --test non_flat_corpus -- --nocapture`. The
       second variable is the point: it turns every skip into a failure, so this
-      line cannot pass by having checked nothing
+      line cannot pass by having checked nothing. Green after Phase 9, with the
+      ordering pass added to it; re-run per phase
 - [ ] `tools/oracle/build_oracle.sh` + `TREEMAKER_CPP_ORACLE=… cargo test -p
       oracle-tests --test cpp_oracle`
 - [ ] `wasm-pack test --node crates/oristudio-cp-wasm`
@@ -3032,7 +3047,7 @@ Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables
 | --- | --- | --- | --- |
 | R1a | ~~**Admissible test material does not exist.**~~ | **RETIRED** | Measured (F0). 11 owner-authored multi-face 3D-angled models exist, 8 admitted; `known-good/` is 10 of 10 clean and 8 of 10 admitted; 7 of 36 published third-party are admitted. All external to git, all regenerable or ownable. Phase 2 is rewritten around them |
 | R1b | **The *users* do not exist.** No telemetry says whether anyone presses `G` on a non-classic selection. The 11 models above were all authored by one person — that validates the transcription workflow and bounds nothing about its population | High / high, **instrumented** | Phase 1 is built and shipped the events. `fold attempted { mode }` is the one that answers it, and it is decided from the selection before any dialog, so a user who cancels the intercept still counts. Nothing else about the risk has changed: the number does not exist until the data accumulates |
-| R2 | **The census is non-zero on essentially every realistic model**, so the merge set ships a figure that is honest and almost always undetermined | **Confirmed / high** | Spike C measured it: median 81.5 over 18 admitted models, and the *undetermined fraction* is 1.00 on 12 of 14 non-zero models, so nothing stays opaque. The four census-0 models have 2, 5, 6 and 6 faces. Retired as a risk and taken as a premise — Phase 9 is in the merge set. Plan on `census ≥ (creases at ±180)` and **never** on its converse |
+| R2 | ~~**The census is non-zero on essentially every realistic model**, so the merge set ships a figure that is honest and almost always undetermined~~ | **RETIRED (Phase 9)** | The premise held and the consequence went away with it. Spike C measured the census: median 81.5 over 18 admitted models, undetermined fraction 1.00 on 12 of 14 non-zero ones, so nothing would have stayed opaque. That is why Phase 9 is in the merge set — and with it built, **every admitted model that reaches a layer order reaches it with zero undetermined pairs** (17 of 18; the one exception has no layer order at all and says so). The translucent annotation is now a genuine edge case rather than the default. Plan on `census ≥ (creases at ±180)` and **never** on its converse |
 | R3 | ~~**The plane-patch arrangement pipeline does not run unchanged**~~ | **CLOSED (Phase 9) — and the repair was grouping, not cutting** | Both halves of the diagnosis reproduce and neither needed the fix the plan expected. `V - E + F = 1` holds for a **connected** subdivision, so the Euler gate closes on a plane whose faces are disconnected or merely touching at a vertex — and arranging per **connected overlap group** rather than per plane opens it. `face_request` never meets an annular cell after that split, because an annulus needs a disconnected component. Nesting detection and two injected cuts per nesting were not needed. Measured: every admitted corpus model decomposes, and the three that do not are refused by the admission gate first |
 | R3b | **The Euler gate refuses the whole crease pattern, before any per-patch question** — 18 of 36 published models, 0 of 11 owner-authored | **Confirmed / high, but it is not the verdict anyone meets** | The 18 reproduce. **`Refused(FacesUnresolved)` is reached by nothing**, measured through the shipped gate over all 65 corpus files (Phase 3): §2's order runs `dispatched_camv` first, and every one of those models refuses at a vertex check instead. The most common refusal is `FlatFoldability` (21 of 65), then `VertexClosure` (8) and `InteriorCut` (7). **Rank the Phase 7 copy budget by those**, all three of which name a point on the canvas. The owner-authored zero is still a real signal the third-party stress set hides |
 | R4 | ~~Placement handedness disagrees with the admission gate~~ | **RETIRED** | Spike B: agreement with `vertex_link_polygon` at 2.8e-17..5.0e-16 across four fans of degree 3–6, against 1.5e-2..1.9 for each of three fault modes, plus end-to-end agreement on a 484-face ground-truth folded form. Superseded by R20, which is the same concern one layer down |
