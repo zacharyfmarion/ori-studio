@@ -17,6 +17,12 @@
 //!   [`crate::checks_spatial::LinkVerdict`] for local self-intersection, and
 //!   [`crate::checks_spatial::interior_border_segments`] for a cut drawn inside
 //!   the sheet.
+//! - [`planes`] groups the placed faces into planes and hands out the frame each
+//!   one is read in, including the single place a stack's "up" is chosen.
+//! - [`overlap`] is the exact polygon clip, shared with the census harness so
+//!   the two implementations of the count cannot disagree about the primitive.
+//! - [`census`] counts the coplanar-overlap pairs — the ordering variables — and
+//!   detects where creases fold onto one line across a plane boundary.
 //!
 //! # Residuals in, verdict once
 //!
@@ -28,10 +34,18 @@
 //! the person being asked does not have.
 
 pub mod admit;
+pub mod census;
+pub mod overlap;
 pub mod placement;
+pub mod planes;
 
 pub use admit::{Admission, Fold3dDiagnostics, Fold3dOutcome, admit, admit_with};
+pub use census::{
+    CoplanarPair, Fold3dCensus, FoldedLineGroup, FoldedLineIndex, census, census_placement,
+    folded_line_index,
+};
 pub use placement::{LoopGap, Placement3d, Rigid, place_segments};
+pub use planes::{Plane3d, PlaneId, PlaneIndex, ToleranceAlarm, plane_index};
 
 use crate::checks::FlatFoldabilityRule;
 use crate::checks_spatial::Indeterminate;
@@ -49,18 +63,28 @@ use crate::geometry::Point;
 /// `FoldGraph::from_segments` merges endpoints within `Epsilon::POINT` (2.5e-4),
 /// so anything that survives into the arrangement with two distinct endpoints is
 /// at least that long, and anything that does not is an exact zero the walk
-/// already refuses. A constant nothing consults is worse than no constant, so
-/// it is not declared until Phase 4 has a use for it.
+/// already refuses. A constant nothing consults is worse than no constant, so it
+/// was not declared until something needed one.
+///
+/// Phase 4 needed one, and it is an **area** rather than a length: the census's
+/// question is whether two coplanar faces share paper, and two faces meeting
+/// along a shared edge share an exact measure-zero sliver of it. So the fourth
+/// bar below is `overlap_area_relative`, and the length bar still has no
+/// referent.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Fold3dTolerances {
     /// Radians, on normals. Scale-free: two faces whose normals differ by less
     /// than this are parallel.
     pub angle_radians: f64,
-    /// Relative to the paper span. The bar the placement's loop gap is held to.
+    /// Relative to the paper span. The bar the placement's loop gap is held to,
+    /// and the bar two coplanar faces' offsets are held to.
     pub distance_relative: f64,
     /// Degrees. A crease within this of a full fold is treated as a full fold —
     /// **in the gate's own copy of the segments, never written back**.
     pub flat_snap_degrees: f64,
+    /// Relative to the paper span **squared**. Below this, two coplanar faces
+    /// are touching rather than overlapping and carry no ordering variable.
+    pub overlap_area_relative: f64,
 }
 
 impl Fold3dTolerances {
@@ -83,10 +107,16 @@ impl Fold3dTolerances {
     ///   taco-tortilla at — so an unsnapped near-flat crease would make the 3D
     ///   command disagree with the shipped flat `Fold` on a nominally flat
     ///   document.
+    /// - `overlap_area_relative` sits in an empty band too, and for the same
+    ///   reason it can: the two populations it separates are *touching* (an
+    ///   exactly measure-zero sliver, reported as rounding noise) and *stacked*
+    ///   (a real shared footprint, whose area is a fraction of a face). Asserted
+    ///   by `the_overlap_area_bar_sits_in_an_empty_band`.
     pub const DEFAULT: Self = Self {
         angle_radians: 1e-7,
         distance_relative: 1e-6,
         flat_snap_degrees: crate::CLOSURE_RESIDUAL_BAR_DEGREES,
+        overlap_area_relative: 1e-9,
     };
 }
 
@@ -172,6 +202,28 @@ pub enum Fold3dRefusal {
         gap_radians: f64,
         gap_offset: f64,
     },
+    /// Two faces the plane partition put together are not within tolerance of
+    /// each other, so coplanarity is not an equivalence relation on this model
+    /// and the partition depends on how it was computed.
+    ///
+    /// The one refusal Phase 4 adds, and it covers what the plan listed twice —
+    /// under `ToleranceWindowClosed` in Phase 4 and `PlanesTooClose` in Phase 5.
+    /// They are one condition: a window too narrow to separate two planes and a
+    /// window wide enough to chain three are the same statement about the same
+    /// two numbers.
+    ///
+    /// Reachable in principle and reached by **nothing** in the 65-file external
+    /// corpus or the committed fixtures — a plane ladder has to be constructed.
+    /// `a_plane_ladder_inside_the_tolerance_window_is_refused` builds one.
+    ToleranceWindowClosed {
+        faces: (usize, usize),
+        normal_radians: f64,
+        offset_relative: f64,
+        /// The side condition's upper bound, relative to the span. `None` means
+        /// no two distinct planes are parallel at all, which certifies nothing —
+        /// it is not an infinity.
+        min_inter_separation: Option<f64>,
+    },
 }
 
 impl std::fmt::Display for Fold3dRefusal {
@@ -203,6 +255,17 @@ impl std::fmt::Display for Fold3dRefusal {
                     "the placement is not path-independent: {gap_offset} units"
                 )
             }
+            Self::ToleranceWindowClosed {
+                faces,
+                normal_radians,
+                offset_relative,
+                ..
+            } => write!(
+                f,
+                "faces {} and {} are in one plane but {normal_radians} rad and \
+                 {offset_relative} of span apart",
+                faces.0, faces.1
+            ),
         }
     }
 }

@@ -178,97 +178,29 @@ fn rotation(axis: Vec3, angle: f64) -> [Vec3; 3] {
     ]
 }
 
-// --- polygon area, exact for simple (possibly non-convex) polygons ----------
+// --- polygon area -----------------------------------------------------------
 
+/// The overlap primitive is the library's, deliberately.
+///
+/// Everything else in this file is an independent second implementation, which
+/// is the whole point of keeping it — but not this. The clipper is the one place
+/// a wrong answer would move every number in the report without looking wrong,
+/// and two copies of it would let the cross-check against
+/// `folding3d::census` fail for a reason that has nothing to do with the
+/// placement or the clustering. It graduated into `folding3d::overlap` with the
+/// `--selftest` cases as unit tests beside it.
 type Pt = (f64, f64);
 
-fn signed_area(poly: &[Pt]) -> f64 {
-    let mut sum = 0.0;
-    for i in 0..poly.len() {
-        let a = poly[i];
-        let b = poly[(i + 1) % poly.len()];
-        sum += a.0 * b.1 - b.0 * a.1;
-    }
-    sum / 2.0
+fn as_points(polygon: &[Pt]) -> Vec<Point> {
+    polygon.iter().map(|&(x, y)| Point::new(x, y)).collect()
 }
 
-/// Sutherland-Hodgman clip of `subject` by the CCW convex `clip`.
-fn clip_convex(subject: &[Pt], clip: &[Pt]) -> Vec<Pt> {
-    let mut out = subject.to_vec();
-    for i in 0..clip.len() {
-        if out.is_empty() {
-            return out;
-        }
-        let a = clip[i];
-        let b = clip[(i + 1) % clip.len()];
-        let (ex, ey) = (b.0 - a.0, b.1 - a.1);
-        let side = |p: Pt| ex * (p.1 - a.1) - ey * (p.0 - a.0);
-        let input = std::mem::take(&mut out);
-        let mut previous = input[input.len() - 1];
-        let mut previous_side = side(previous);
-        for current in input {
-            let current_side = side(current);
-            if current_side >= 0.0 {
-                if previous_side < 0.0 {
-                    let t = previous_side / (previous_side - current_side);
-                    out.push((
-                        previous.0 + t * (current.0 - previous.0),
-                        previous.1 + t * (current.1 - previous.1),
-                    ));
-                }
-                out.push(current);
-            } else if previous_side >= 0.0 {
-                let t = previous_side / (previous_side - current_side);
-                out.push((
-                    previous.0 + t * (current.0 - previous.0),
-                    previous.1 + t * (current.1 - previous.1),
-                ));
-            }
-            previous = current;
-            previous_side = current_side;
-        }
-    }
-    out
+fn signed_area(polygon: &[Pt]) -> f64 {
+    oristudio_cp::folding3d::overlap::signed_area(&as_points(polygon))
 }
 
-/// Area of `a ∩ b` for two **simple** polygons, exactly.
-///
-/// Both are decomposed into signed fan triangles about the origin. That
-/// decomposition reproduces the polygon as a signed measure whether or not it is
-/// convex, so summing `σ_i σ_j · area(T_i ∩ T_j)` over triangle pairs is exact —
-/// no ear clipping and no convexity assumption. Every `T_i ∩ T_j` is a
-/// convex-convex clip.
 fn intersection_area(a: &[Pt], b: &[Pt]) -> f64 {
-    let fans = |poly: &[Pt]| -> Vec<(Vec<Pt>, f64)> {
-        let mut out = Vec::with_capacity(poly.len());
-        for i in 0..poly.len() {
-            let p = poly[i];
-            let q = poly[(i + 1) % poly.len()];
-            let tri = vec![(0.0, 0.0), p, q];
-            let area = signed_area(&tri);
-            if area.abs() > 0.0 {
-                let sign = area.signum();
-                let tri = if area < 0.0 {
-                    vec![(0.0, 0.0), q, p]
-                } else {
-                    tri
-                };
-                out.push((tri, sign));
-            }
-        }
-        out
-    };
-    let (fa, fb) = (fans(a), fans(b));
-    let mut total = 0.0;
-    for (ta, sa) in &fa {
-        for (tb, sb) in &fb {
-            let piece = clip_convex(ta, tb);
-            if piece.len() >= 3 {
-                total += sa * sb * signed_area(&piece).abs();
-            }
-        }
-    }
-    total.abs()
+    oristudio_cp::folding3d::overlap::intersection_area(&as_points(a), &as_points(b))
 }
 
 // --- the model, as the kernel sees it ---------------------------------------

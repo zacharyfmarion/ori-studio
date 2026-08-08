@@ -54,6 +54,11 @@ const COVERAGE: &[(&str, &str)] = &[
         "foldability over every .fold and .osf in the corpus, reported not gated",
     ),
     (
+        "corpus_census_reports_every_model",
+        "plane clustering, the coplanar-overlap census, the tolerance bands and \
+         cross-plane coupling over every model in the corpus",
+    ),
+    (
         "corpus_admission_reports_every_verdict",
         "which refusal the 3D admission gate reaches on every model in the \
          corpus, reported not gated",
@@ -373,6 +378,7 @@ fn corpus_admission_reports_every_verdict() {
                     Fold3dRefusal::VertexIndeterminate { .. } => "VertexIndeterminate",
                     Fold3dRefusal::VertexClosure { .. } => "VertexClosure",
                     Fold3dRefusal::LoopNotClosed { .. } => "LoopNotClosed",
+                    Fold3dRefusal::ToleranceWindowClosed { .. } => "ToleranceWindowClosed",
                 }
             }
         };
@@ -380,6 +386,242 @@ fn corpus_admission_reports_every_verdict() {
     }
     println!("\nverdicts: {tally:?}");
     println!("worst admitted loop gap: {worst_admitted_gap:.3e} of span");
+}
+
+/// Plane clustering, the census and cross-plane coupling over the whole corpus.
+///
+/// Reported, not gated — except for five things that are, because they are the
+/// evidence the Phase 4 tolerances rest on and the corpus is the only place they
+/// can be measured. **Every corpus number the plan quotes about plane identity,
+/// the overlap-area band or cross-plane coupling has to come from this test**,
+/// which is a committed command run by `cargo test`. Earlier drafts quoted an
+/// instrumented copy of `examples/fold3d_census.rs` that no longer exists, and
+/// two of those figures did not reproduce.
+///
+/// The **model count is deduplicated by file name and asserted**. Ten files
+/// appear twice — nine of them in both `known-good/` and
+/// `origami-simulator-corpus/fold/` — so a raw walk counts 65 measurable files
+/// for 55 distinct models, and any ratio taken over the raw count is wrong by
+/// that much.
+#[test]
+fn corpus_census_reports_every_model() {
+    use oristudio_cp::folding3d::{
+        Fold3dOutcome, Fold3dTolerances, admit, census_placement, folded_line_index, place_segments,
+    };
+    use std::collections::{BTreeMap, BTreeSet};
+
+    struct Measured {
+        admitted: bool,
+        faces: usize,
+        planes: usize,
+        census: usize,
+        full_fold_pairs: usize,
+        normal_diameter: f64,
+        offset_diameter: f64,
+        separation: Option<f64>,
+        smallest_accepted: Option<f64>,
+        largest_rejected: f64,
+        alarms: usize,
+        coupled_lines: usize,
+    }
+
+    let Some(root) = corpus("corpus_census_reports_every_model") else {
+        return;
+    };
+    let tolerances = Fold3dTolerances::DEFAULT;
+
+    let mut names: BTreeSet<String> = BTreeSet::new();
+    let mut rows: BTreeMap<String, Measured> = BTreeMap::new();
+    let mut duplicates = 0usize;
+    for path in measurable_files(&root) {
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if !names.insert(name.clone()) {
+            duplicates += 1;
+            continue;
+        }
+        let Ok(model) = read_fold(&path)
+            .and_then(|fold| import_fold_document(&fold).map_err(|error| format!("{error:?}")))
+        else {
+            continue;
+        };
+        let Ok(placement) = place_segments(&model.line_segments, 1) else {
+            continue;
+        };
+        let admitted = admit(&model.line_segments, 1)
+            .is_ok_and(|admission| admission.outcome() == Fold3dOutcome::Folded);
+        let (index, census) = census_placement(&placement, tolerances);
+        let lines = folded_line_index(&placement, &index, tolerances);
+        rows.insert(
+            name,
+            Measured {
+                admitted,
+                faces: census.face_count,
+                planes: census.plane_count,
+                census: census.overlapping_pair_count,
+                full_fold_pairs: census.full_fold_pairs,
+                normal_diameter: index.worst_intra_normal_radians,
+                offset_diameter: index.worst_intra_offset_relative,
+                separation: index.min_inter_separation_relative,
+                smallest_accepted: census.min_accepted_area_relative,
+                largest_rejected: census.max_rejected_area_relative,
+                alarms: index.alarm_count,
+                coupled_lines: lines.cross_plane_groups,
+            },
+        );
+    }
+
+    assert_eq!(
+        names.len(),
+        55,
+        "the corpus is supposed to hold 55 distinct model names ({duplicates} duplicates \
+         skipped); a changed count means every ratio below is against a different denominator"
+    );
+
+    println!(
+        "\n{:<44} {:>6} {:>6} {:>7} {:>6} {:>10} {:>10} {:>10} {:>10} {:>10} {:>6} {:>7}",
+        "model (~ = not admitted)",
+        "faces",
+        "planes",
+        "census",
+        "folds",
+        "intra-n",
+        "intra-o",
+        "inter-sep",
+        "min-area",
+        "max-rej",
+        "couple",
+        "alarms"
+    );
+    let mut worst_normal = (0.0_f64, String::new());
+    let mut worst_offset = 0.0_f64;
+    let mut min_separation = f64::INFINITY;
+    let mut smallest_accepted = f64::INFINITY;
+    let mut largest_rejected = 0.0_f64;
+    let (mut admitted_models, mut census_zero, mut coupled, mut above_six) = (0, 0, 0, 0);
+    let mut alarmed: Vec<&str> = Vec::new();
+    for (name, row) in &rows {
+        println!(
+            "{:<44} {:>6} {:>6} {:>7} {:>6} {:>10.3e} {:>10.3e} {:>10} {:>10} {:>10.3e} {:>6} {:>7}",
+            format!("{}{name}", if row.admitted { "" } else { "~" }),
+            row.faces,
+            row.planes,
+            row.census,
+            row.full_fold_pairs,
+            row.normal_diameter,
+            row.offset_diameter,
+            row.separation
+                .map_or("--".to_string(), |value| format!("{value:.3e}")),
+            row.smallest_accepted
+                .map_or("--".to_string(), |value| format!("{value:.3e}")),
+            row.largest_rejected,
+            row.coupled_lines,
+            row.alarms,
+        );
+        if row.alarms > 0 {
+            alarmed.push(name);
+        }
+        if !row.admitted {
+            continue;
+        }
+        admitted_models += 1;
+        assert_eq!(
+            row.alarms, 0,
+            "{name} is admitted and still raised {} tolerance alarms",
+            row.alarms
+        );
+        assert!(
+            row.census >= row.full_fold_pairs,
+            "{name}: census {} is below its {} full-folded face pairs",
+            row.census,
+            row.full_fold_pairs
+        );
+        if row.census == 0 {
+            census_zero += 1;
+        }
+        if row.normal_diameter > worst_normal.0 {
+            worst_normal = (row.normal_diameter, name.clone());
+        }
+        worst_offset = worst_offset.max(row.offset_diameter);
+        if let Some(separation) = row.separation {
+            min_separation = min_separation.min(separation);
+        }
+        if let Some(accepted) = row.smallest_accepted {
+            smallest_accepted = smallest_accepted.min(accepted);
+        }
+        largest_rejected = largest_rejected.max(row.largest_rejected);
+        if row.faces > 6 {
+            above_six += 1;
+            if row.coupled_lines > 0 {
+                coupled += 1;
+            }
+        }
+    }
+
+    println!(
+        "\nmodels: {} distinct, {duplicates} duplicate paths skipped",
+        names.len()
+    );
+    println!("admitted (Folded): {admitted_models}; census 0 on {census_zero}");
+    println!("models raising a tolerance alarm: {alarmed:?}");
+    println!(
+        "worst intra-plane normal diameter: {:.3e} rad on {}",
+        worst_normal.0, worst_normal.1
+    );
+    println!("worst intra-plane offset diameter: {worst_offset:.3e} of span");
+    println!("min inter-plane separation:        {min_separation:.3e} of span");
+    println!(
+        "overlap area band:                 {largest_rejected:.3e} .. {smallest_accepted:.3e} of span^2"
+    );
+    println!(
+        "admitted models above 6 faces with a cross-plane coupled folded line: {coupled} of {above_six}"
+    );
+
+    // The five gated claims.
+    //
+    // 1. The angle bar has a factor of 3.5, not decades, and the model that eats
+    //    it is `airplane.fold` — where the diameter is measuring the file's
+    //    6-decimal coordinate rounding rather than any design angle. This is the
+    //    number the verification pass exists for. Asserted as a band so it fails
+    //    in either direction.
+    assert_eq!(worst_normal.1, "airplane.fold");
+    assert!(
+        (1e-8..tolerances.angle_radians).contains(&worst_normal.0),
+        "the worst admitted normal diameter moved to {} rad",
+        worst_normal.0
+    );
+    // 2. The offset bar has a factor of 47, and it is `airplane.fold` that eats
+    //    it here too — the same 6-decimal rounding, showing up in both
+    //    coordinates at once. Decades of headroom is what the committed fixtures
+    //    have; the corpus does not, and asserting a factor is the honest form.
+    assert!(
+        worst_offset * 10.0 < tolerances.distance_relative,
+        "the worst admitted offset diameter is {worst_offset} of span"
+    );
+    // 3. The side condition's upper bound, where it exists at all. `None` on a
+    //    model with no two parallel planes is a real answer, so this is a
+    //    minimum over the models that have one and never a gate.
+    assert!(
+        min_separation > tolerances.distance_relative * 1e3,
+        "two distinct planes sit {min_separation} of span apart"
+    );
+    // 4. The overlap-area bar sits between two populations with decades either
+    //    side.
+    assert!(largest_rejected * 1e3 < tolerances.overlap_area_relative);
+    assert!(smallest_accepted > tolerances.overlap_area_relative * 1e3);
+    // 5. Cross-plane coupling is not exotic, which is why nothing refuses on it:
+    //    every admitted model with more than six faces has at least one folded
+    //    line whose creases carry faces in two planes.
+    assert!(
+        above_six >= 10,
+        "only {above_six} admitted models above 6 faces"
+    );
+    assert_eq!(
+        coupled, above_six,
+        "cross-plane coupling was expected on every admitted model above 6 faces"
+    );
 }
 
 /// Prove the harness is reading the corpus, not an empty directory.
