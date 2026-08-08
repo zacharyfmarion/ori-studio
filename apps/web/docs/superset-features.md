@@ -93,12 +93,27 @@ The native format and its migration live in
 - Add a **typed field** to the relevant `Native*DocumentV1` interface. Do **not**
   stuff it in the untyped `extensions` bag — that bag is reserved for
   unknown/forward-compat data (§5).
-- **Bump `NATIVE_PROJECT_SCHEMA_VERSION`** and add validation + a migration that
-  defaults the field for older files (e.g. absent → `[]`).
+- Add validation that defaults the field for older files (e.g. absent → `[]`).
+  **Name it in the reader's returned literal**: `validateFoldedFigure` and its
+  siblings rebuild an explicit object while the writer spreads the whole entry,
+  so a field the reader forgets is written out and lost on the way back in, with
+  no type error anywhere. `contradiction` was going that way for months.
+- **Do not bump `NATIVE_PROJECT_SCHEMA_VERSION`** for an additive field, and do
+  not read the next bullet as saying otherwise. `createNativeProjectFile` writes
+  `schemaVersion` *unconditionally* and `validateNativeProjectFile`'s accept list
+  is a hardcoded enumeration, so a bump is not conditional on the feature being
+  present: it strands **every** file this build writes in the build before it,
+  whether or not that file uses the feature. Bump only when the file's *shape*
+  changes, as v8 did when it split `documents` into `designs` + `creasePattern`.
 - **Keep `minimumReaderSchemaVersion` at 1** so older app builds can still *open*
-  new files (they ignore the field and drop it on re-save — the accepted
-  degradation). Only raise it if a file is genuinely unreadable without the new
-  feature, which is rarely true for an additive layer.
+  new files. What they do with them is the accepted degradation, and it is worth
+  being clear-eyed about: an older reader does not merely ignore an unknown
+  field, it **deletes** it on re-save, because its own literal never names it.
+  Raise the minimum only when that deletion is worse than refusing the file
+  outright — `unknownDesigns` is the one place we judged it so (`:588`), and note
+  it also needs `NATIVE_PROJECT_SCHEMA_VERSION` to have moved, since the check is
+  `minimumReaderSchemaVersion > NATIVE_PROJECT_SCHEMA_VERSION` and this build
+  would otherwise refuse its own output.
 
 ### 3. Register it as *lossy-on-export*
 Add the feature to the shared **superset-feature registry**

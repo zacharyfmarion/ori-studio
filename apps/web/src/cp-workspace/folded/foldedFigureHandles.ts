@@ -18,14 +18,30 @@
  * segment, and only *deleted* figures are retained beyond their live entry — an
  * ordinary edit mutates the existing handle rather than allocating a second one.
  *
- * A **3D** handle is a different cost class and the flat figure is not a guide
- * to it. Measured on the same fixtures, a `Fold3dSession` is 38.9 KiB at 28
- * segments against 8.5 KiB flat at 26, and per-segment cost climbs with size
- * rather than holding — about 500 B/segment at 19 segments and 2,240 B/segment
- * at 5,010, where the whole session is 10.7 MiB. The largest term is the render
- * model, which is also held on this side (`folded3dRenderModels.ts`) and is
- * released here with the handle. Bounding retention for 3D figures is open work;
- * see the plan's Phase 8.
+ * A **3D** handle is a different cost class, and the flat figure is not a guide
+ * to it. Measured with a counting allocator over the committed fixtures and the
+ * admitted corpus: a `Fold3dSession` is 23.7 KiB at 23 segments, 596 KiB at 420,
+ * 1.79 MiB at 941 and **10.7 MiB at 5,010** (`origamisimulator`, the largest
+ * model the gate admits). Per-segment cost climbs with size rather than holding —
+ * 885 B/segment at 5 segments, 2,237 B/segment at 5,010 — so no "N KiB per
+ * segment" rule read off a small fixture is safe to extrapolate. The flat
+ * control on the same harness reproduces the 0.6 KiB figure above (656 B/segment
+ * on `solution_sample_1.cp`).
+ *
+ * The **render model is not the bulk of it**, which is worth stating because it
+ * is the obvious thing to reach for: it is 7.8% of the session at every size
+ * measured (145 KiB of 1.79 MiB, 849 KiB of 10.7 MiB). Dropping it from history
+ * entries would recover a twelfth. The bulk is the arrangement, the census and
+ * the per-component search state, and shedding those means dropping the session
+ * and re-folding on restore — which 3D can do exactly, since its payload is
+ * bit-identical across refolds of the same segments, but which is a behaviour
+ * change rather than a bound. It is not done; the plan's Phase 8 records the
+ * measurement so the decision is takeable rather than guessed.
+ *
+ * The exposure that number bounds is narrow: only *deleted* figures are retained
+ * beyond their live entry, so it takes deleting many large 3D figures inside one
+ * undo window (`MAX_CP_HISTORY`) to accumulate, and the largest corpus files are
+ * refused by the admission gate before a session is ever allocated.
  */
 
 import { dropFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
