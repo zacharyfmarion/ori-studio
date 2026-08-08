@@ -603,10 +603,40 @@ impl CpSession {
         )?)
     }
 
-    pub fn export_fold_file(&self, handle: u32) -> Result<String, EngineError> {
-        Ok(io::fold::export_fold_file_document_json(
-            self.document(handle)?,
-        )?)
+    /// Export a document as a full FOLD file, with one `foldedForm` frame per
+    /// 3D folded figure named in `folded_handles`.
+    ///
+    /// The frames are appended **after** the document merge rather than written
+    /// inside it: `merge_fold_file_document` assigns `file_frames` from the
+    /// imported original, so anything written earlier would be dropped on every
+    /// file that came from a `.fold`.
+    ///
+    /// A flat handle here is a `folded_figure_kind_mismatch` rather than a
+    /// silent skip — a flat figure has a folded form too, but it is the shipped
+    /// wireframe rather than this one, and quietly omitting it would look like
+    /// an export that lost data.
+    pub fn export_fold_file(
+        &self,
+        handle: u32,
+        folded_handles: &[u32],
+    ) -> Result<String, EngineError> {
+        let mut fold = io::fold::export_fold_file_document(self.document(handle)?)?;
+        let mut frames = Vec::with_capacity(folded_handles.len());
+        for (index, &folded) in folded_handles.iter().enumerate() {
+            let session = self.spatial(folded)?;
+            let title = if folded_handles.len() == 1 {
+                "Folded form".to_string()
+            } else {
+                format!("Folded form {}", index + 1)
+            };
+            frames.push(
+                session.folded_form_frame(Some(title)).map_err(|error| {
+                    EngineError::new("folded_form_too_large", error.to_string())
+                })?,
+            );
+        }
+        io::fold::append_folded_form_frames(&mut fold, frames);
+        Ok(io::fold::export_fold_file_json(&fold)?)
     }
 
     pub fn export_ori(&self, handle: u32) -> Result<String, EngineError> {

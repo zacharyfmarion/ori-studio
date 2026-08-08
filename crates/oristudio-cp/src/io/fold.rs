@@ -1,6 +1,7 @@
 use super::{IoError, Result};
 use crate::CreasePatternDocument;
 use crate::fold_graph::FoldGraph;
+use crate::folding3d::interchange;
 use crate::geometry::{
     Circle, FoldMagnitude, LineColor, LineSegment, Point, angle, point_rotate_scaled,
 };
@@ -34,6 +35,27 @@ pub fn import_folded_frames(fold: &FoldDocument) -> &[FoldDocument] {
 /// Replace the root document's embedded FOLD frames before lossless export.
 pub fn export_folded_frames(fold: &mut FoldDocument, frames: Vec<FoldDocument>) {
     fold.file_frames = frames;
+}
+
+/// Write this build's folded-form frames beside whatever frames the file
+/// already carried.
+///
+/// Two rules, and the split between them is the whole point. A frame **we**
+/// wrote (marked by [`interchange::FOLDED_FORM_MARKER`]) is regenerated on every
+/// export: it describes a fold of the creases as they were, and keeping a stale
+/// copy beside the fresh one is how a file grows a second, contradicting folded
+/// form each time it is saved. A frame from anywhere else is preserved verbatim,
+/// including another tool's `foldedForm` — dropping a user's data to make room
+/// for ours is a worse trade than either of the alternatives.
+///
+/// Called **after** [`export_fold_file_document`], never from inside
+/// [`export_fold_document`]: [`merge_fold_file_document`] assigns `file_frames`
+/// rather than merging it, so a frame written earlier would be clobbered on
+/// every file that was imported.
+pub fn append_folded_form_frames(fold: &mut FoldDocument, frames: Vec<FoldDocument>) {
+    fold.file_frames
+        .retain(|frame| !interchange::is_ours(frame));
+    fold.file_frames.extend(frames);
 }
 
 /// Import a full FOLD file as an editable crease-pattern document while

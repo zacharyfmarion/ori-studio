@@ -210,9 +210,11 @@ pub fn export_fold(handle: u32) -> Result<String, JsValue> {
     with_session(|session| session.export_fold(handle))
 }
 
+/// `folded_handles` names the 3D folded figures to write as `foldedForm`
+/// frames. Empty is the ordinary case and means "the pattern only".
 #[wasm_bindgen]
-pub fn export_fold_file(handle: u32) -> Result<String, JsValue> {
-    with_session(|session| session.export_fold_file(handle))
+pub fn export_fold_file(handle: u32, folded_handles: Vec<u32>) -> Result<String, JsValue> {
+    with_session(|session| session.export_fold_file(handle, &folded_handles))
 }
 
 #[wasm_bindgen]

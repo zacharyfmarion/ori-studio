@@ -75,6 +75,11 @@ const COVERAGE: &[(&str, &str)] = &[
          with it",
     ),
     (
+        "corpus_folded_form_frames_stay_under_the_cap",
+        "the FOLD `foldedForm` frame builds on every admitted model, welds to \
+         within the loop gap the gate bounded, and stays far under the export cap",
+    ),
+    (
         "corpus_landmarks_are_where_the_harness_expects_them",
         "the harness is reading the corpus and not an empty directory",
     ),
@@ -978,6 +983,185 @@ fn corpus_boundary_reports_every_model() {
     assert!(
         widest < 4 * 1024 * 1024,
         "the widest face-ring payload grew to {widest} bytes"
+    );
+}
+
+/// The FOLD `foldedForm` frame over every admitted model in the corpus.
+///
+/// Three questions the committed fixtures cannot answer, because a cap is a
+/// claim about the tail and five small fixtures are not one.
+///
+/// 1. **Does it build at all** on real paper — every admitted model, no panic
+///    and no refusal from the cap.
+/// 2. **What does welding cost.** `Placement3d::face_points` deliberately keeps
+///    one image of a vertex per face, and FOLD allows exactly one, so the export
+///    chooses the lowest-indexed face's image. The disagreement it papers over
+///    must be the loop gap the admission gate already bounded and nothing more,
+///    which is checkable here against that model's own measured gap.
+/// 3. **How big does it get.** The term that can grow quadratically is
+///    `faceOrders` — one entry per coplanar overlapping face pair — so the cap
+///    is stated against emitted elements rather than against a face count, which
+///    does not bound it.
+#[test]
+fn corpus_folded_form_frames_stay_under_the_cap() {
+    use oristudio_cp::folding::FoldedFigureModel;
+    use oristudio_cp::folding3d::interchange::{FOLDED_FORM_MAX_ELEMENTS, weld_residual};
+    use oristudio_cp::folding3d::session::{Fold3dSession, Fold3dSessionError};
+    use std::collections::{BTreeMap, BTreeSet};
+
+    struct Row {
+        vertices: usize,
+        faces: usize,
+        edges: usize,
+        face_orders: usize,
+        elements: usize,
+        weld_of_span: f64,
+        gap_of_span: f64,
+    }
+
+    let Some(root) = corpus("corpus_folded_form_frames_stay_under_the_cap") else {
+        return;
+    };
+
+    let mut names: BTreeSet<String> = BTreeSet::new();
+    let mut rows: BTreeMap<String, Row> = BTreeMap::new();
+    let mut failures: Vec<String> = Vec::new();
+    let mut widest = 0usize;
+
+    for path in measurable_files(&root) {
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if !names.insert(name.clone()) {
+            continue;
+        }
+        let Ok(model) = read_fold(&path)
+            .and_then(|fold| import_fold_document(&fold).map_err(|error| format!("{error:?}")))
+        else {
+            continue;
+        };
+        let session =
+            match Fold3dSession::new(&model.line_segments, 1, FoldedFigureModel::default()) {
+                Ok(session) => session,
+                Err(Fold3dSessionError::Refused(_)) => continue,
+                Err(error) => {
+                    failures.push(format!("{name}: {error}"));
+                    continue;
+                }
+            };
+        let frame = match session.folded_form_frame(Some("Folded form".to_string())) {
+            Ok(frame) => frame,
+            Err(error) => {
+                failures.push(format!("{name}: {error}"));
+                continue;
+            }
+        };
+
+        // Every face is emitted, with the ring it was placed with.
+        let placement = &session.admission().placement;
+        if frame.faces_vertices.len() != placement.rings.len() {
+            failures.push(format!(
+                "{name}: {} faces placed, {} written",
+                placement.rings.len(),
+                frame.faces_vertices.len()
+            ));
+        }
+        // Nothing indexes past the welded vertex table.
+        let vertices = frame.vertices_coords.len();
+        // And nothing was dropped: a placement that traced covers every
+        // arrangement point, which is the claim `weld_vertices`' drop branch is
+        // written against. If this ever fires, that branch is doing real work
+        // and the comment there needs correcting rather than the code.
+        if vertices != placement.points.len() {
+            failures.push(format!(
+                "{name}: {} arrangement points, {vertices} written — a vertex is on no face ring",
+                placement.points.len()
+            ));
+        }
+        if frame
+            .faces_vertices
+            .iter()
+            .flatten()
+            .chain(frame.edges_vertices.iter().flatten())
+            .any(|&vertex| vertex >= vertices)
+        {
+            failures.push(format!("{name}: a ring or edge names a missing vertex"));
+        }
+        // Every face order names a face that exists, and never itself.
+        if frame.face_orders.iter().any(|order| {
+            order[0] == order[1]
+                || order[0] < 0
+                || order[1] < 0
+                || order[0] as usize >= frame.faces_vertices.len()
+                || order[1] as usize >= frame.faces_vertices.len()
+        }) {
+            failures.push(format!("{name}: a faceOrders entry names a missing face"));
+        }
+
+        let span = placement.span;
+        let weld_of_span = weld_residual(placement) / span;
+        let gap_of_span = placement.loop_gap.offset / span;
+        // The weld is a choice between images of one vertex, and the loop gap is
+        // what bounds how far apart those images can be. A weld far outside it
+        // would mean the export is hiding a disagreement the gate never measured.
+        if weld_of_span > gap_of_span.max(1e-12) * 8.0 {
+            failures.push(format!(
+                "{name}: weld residual {weld_of_span:.2e} of span is not explained by \
+                 the loop gap {gap_of_span:.2e}"
+            ));
+        }
+
+        let elements = vertices
+            + frame.faces_vertices.iter().map(Vec::len).sum::<usize>()
+            + frame.face_orders.len();
+        widest = widest.max(elements);
+        rows.insert(
+            name,
+            Row {
+                vertices,
+                faces: frame.faces_vertices.len(),
+                edges: frame.edges_vertices.len(),
+                face_orders: frame.face_orders.len(),
+                elements,
+                weld_of_span,
+                gap_of_span,
+            },
+        );
+    }
+
+    println!(
+        "{:<44} {:>7} {:>7} {:>7} {:>9} {:>10} {:>10} {:>10}",
+        "model", "verts", "faces", "edges", "faceOrd", "elements", "weld/span", "gap/span"
+    );
+    for (name, row) in &rows {
+        println!(
+            "{:<44} {:>7} {:>7} {:>7} {:>9} {:>10} {:>10.2e} {:>10.2e}",
+            name,
+            row.vertices,
+            row.faces,
+            row.edges,
+            row.face_orders,
+            row.elements,
+            row.weld_of_span,
+            row.gap_of_span
+        );
+    }
+    println!(
+        "{} models wrote a folded form; widest {widest} elements against the \
+         {FOLDED_FORM_MAX_ELEMENTS} cap",
+        rows.len()
+    );
+
+    assert!(
+        rows.len() >= 18,
+        "only {} models wrote a folded form, so the checks above mean little",
+        rows.len()
+    );
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    assert!(
+        widest < FOLDED_FORM_MAX_ELEMENTS,
+        "the widest folded-form frame grew to {widest} elements, at the cap"
     );
 }
 

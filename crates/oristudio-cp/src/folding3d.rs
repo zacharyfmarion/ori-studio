@@ -49,6 +49,7 @@ pub mod admit;
 pub mod cells;
 pub mod census;
 pub mod constraints;
+pub mod interchange;
 pub mod model;
 pub mod order;
 pub mod overlap;

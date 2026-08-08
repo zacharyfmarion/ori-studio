@@ -268,12 +268,18 @@ pub async fn cp_export_fold(
     run(state, move |session| session.export_fold(handle)).await
 }
 
+/// `folded_handles` names the 3D folded figures to write as `foldedForm`
+/// frames. Empty is the ordinary case and means "the pattern only".
 #[tauri::command]
 pub async fn cp_export_fold_file(
     handle: u32,
+    folded_handles: Vec<u32>,
     state: State<'_, CpEngine>,
 ) -> Result<String, EngineError> {
-    run(state, move |session| session.export_fold_file(handle)).await
+    run(state, move |session| {
+        session.export_fold_file(handle, &folded_handles)
+    })
+    .await
 }
 
 #[tauri::command]

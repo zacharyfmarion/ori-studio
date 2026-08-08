@@ -33,12 +33,14 @@ use crate::folding::FoldedFigureModel;
 use crate::folding3d::admit::{Admission, admit_with};
 use crate::folding3d::cells::CellIndex;
 use crate::folding3d::census::{Fold3dCensus, census_placement, tolerance_refusal};
+use crate::folding3d::interchange::{FoldedFormTooLarge, folded_form_frame};
 use crate::folding3d::model::{Folded3dRenderModel, RenderModelError, render_model};
 use crate::folding3d::order::{Advance, Fold3dOrderEnumerator, Fold3dOrderError};
 use crate::folding3d::planes::PlaneIndex;
 use crate::folding3d::snapshot::{Fold3dSnapshot, snapshot};
 use crate::folding3d::{Fold3dRefusal, Fold3dTolerances};
 use crate::geometry::LineSegment;
+use treemaker_fold::FoldDocument;
 
 /// Why a 3D fold could not be produced or stepped.
 ///
@@ -193,6 +195,24 @@ impl Fold3dSession {
     /// it.
     pub fn render_model(&self) -> &Folded3dRenderModel {
         &self.render
+    }
+
+    /// This solution as a FOLD `foldedForm` frame.
+    ///
+    /// Interchange, not a second render path — see
+    /// [`crate::folding3d::interchange`] for what it carries and what it
+    /// deliberately refuses to claim. Built on demand rather than held, because
+    /// it is written once per export and nothing reads it in between.
+    pub fn folded_form_frame(
+        &self,
+        title: Option<String>,
+    ) -> Result<FoldDocument, FoldedFormTooLarge> {
+        folded_form_frame(
+            &self.admission.placement,
+            &self.index,
+            self.enumerator.as_ref().map(Fold3dOrderEnumerator::current),
+            title,
+        )
     }
 
     /// Replace the display model. Geometry and ordering are untouched.
