@@ -1046,6 +1046,18 @@ fn direction_system(model: &Arrangement) -> &'static str {
     "free-form"
 }
 
+/// How a file is named in the output.
+///
+/// The **file name**, not the stem: `box_90.fold` and `box_90.osf` are two
+/// different measurements of two different files, and printing both as `box_90`
+/// makes one of them look like a duplicate row.
+fn label(path: &Path) -> String {
+    path.file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into()
+}
+
 fn measure(path: &Path, sign: f64) -> Result<Row, String> {
     let fold = read_fold(path)?;
     let model = arrangement(&fold)?;
@@ -1133,11 +1145,7 @@ fn measure(path: &Path, sign: f64) -> Result<Row, String> {
     let dihedral_error = dihedral_round_trip(&model, &graph, &placement, sign);
 
     Ok(Row {
-        name: path
-            .file_stem()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .into(),
+        name: label(path),
         vertices: model.points.len(),
         edges: model.edges.len(),
         faces: model.faces.len(),
@@ -1468,7 +1476,7 @@ fn main() {
             println!(
                 "{:<34} rings {:?} repeated-vertex-rings {} ring-steps-with-no-edge {} \
                  faces-per-edge {:?} edges-with-no-face {}",
-                path.file_stem().unwrap_or_default().to_string_lossy(),
+                label(path),
                 ring_sizes,
                 open_rings,
                 missing_edges,
@@ -1486,7 +1494,7 @@ fn main() {
         );
         let (mut checked, mut agreed) = (0usize, 0usize);
         for path in &files {
-            let name = path.file_stem().unwrap_or_default().to_string_lossy();
+            let name = label(path);
             match flat_check(path) {
                 Ok((worst, points, worst_z)) => {
                     checked += 1;
@@ -1513,7 +1521,7 @@ fn main() {
             };
             let graph = dual(&model);
             let placement = place(&model, &graph, -1.0);
-            println!("{}", path.file_stem().unwrap_or_default().to_string_lossy());
+            println!("{}", label(path));
             for (gap, v, degree) in local_star_gaps(&model, &graph, -1.0).iter().take(3) {
                 println!(
                     "   local star gap {:.3e} at ({:.4},{:.4}) degree {}",
@@ -1553,7 +1561,7 @@ fn main() {
             };
             println!(
                 "{:<34} {:>14} {:>14}",
-                path.file_stem().unwrap_or_default().to_string_lossy(),
+                label(path),
                 show(&minus),
                 show(&plus)
             );
@@ -1716,11 +1724,7 @@ fn main() {
                     census(&model, &placement, nt, ot).overlapping_pairs
                 ));
             }
-            println!(
-                "{:<34} {}",
-                path.file_stem().unwrap_or_default().to_string_lossy(),
-                cells.join(" ")
-            );
+            println!("{:<34} {}", label(path), cells.join(" "));
         }
     }
 
