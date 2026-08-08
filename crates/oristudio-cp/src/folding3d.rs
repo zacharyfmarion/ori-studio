@@ -4,7 +4,7 @@
 //! no upstream implementation of any of this to be faithful to and nothing here
 //! is a divergence. See PORTING.md's Ori Studio native section.
 //!
-//! Two pieces, in the order they run:
+//! Five pieces, in the order they run:
 //!
 //! - [`placement`] walks the shipped dual-graph spanning tree and composes one
 //!   rigid rotation per crease. Everything topological — the arrangement, the
@@ -32,6 +32,11 @@
 //! rather than the answer can have it. No tolerance is ever exposed to the user:
 //! the right value depends on computed plane separation, which is information
 //! the person being asked does not have.
+//!
+//! [`planes::plane_index`] is the same split one level down: it is **infallible**
+//! and reports every tolerance violation as a [`ToleranceAlarm`], and
+//! [`census::census`] is what turns one into a refusal. That is what makes the
+//! alarms testable on the models the gate refuses, which is where they fire.
 
 pub mod admit;
 pub mod census;
