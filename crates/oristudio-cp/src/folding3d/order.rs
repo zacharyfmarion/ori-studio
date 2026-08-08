@@ -240,6 +240,10 @@ pub struct Fold3dOrderEnumerator {
     /// Which solution the stream is showing, 1-based. Reset to 1 by a wrap,
     /// where `discovered` is not.
     position: usize,
+    /// Whether [`Self::advance`] will step rather than wrap, answered by a dry
+    /// run and cached so the answer costs one probe per press rather than one
+    /// per read. See [`Self::lookahead`].
+    has_next: bool,
     current: Fold3dOrdering,
 }
 
@@ -281,6 +285,7 @@ impl Fold3dOrderEnumerator {
             couplings: plan.couplings,
             discovered: 1,
             position: 1,
+            has_next: false,
             current: Fold3dOrdering {
                 relations: Vec::new(),
                 undetermined: Vec::new(),
@@ -295,6 +300,7 @@ impl Fold3dOrderEnumerator {
                 has_next: false,
             },
         };
+        out.has_next = Self::lookahead(&out.components);
         out.current = out.assemble();
         Ok(out)
     }
@@ -304,7 +310,38 @@ impl Fold3dOrderEnumerator {
     }
 
     pub fn can_advance(&self) -> bool {
-        self.components.iter().any(ComponentSolver::has_next)
+        self.has_next
+    }
+
+    /// Whether [`Self::advance`] will land on another solution rather than wrap.
+    ///
+    /// **Answered by dry run, not by asking the digits.** `ComponentSolver`'s own
+    /// `has_next` is the shipped enumerator's signal and it is *optimistic*: it
+    /// says the permutation state moved, not that another solution is there. A
+    /// digit can therefore say yes and then find nothing, at which point
+    /// [`Self::advance`] treats it as exhausted and carries. OR-ing the
+    /// optimistic flag across digits consequently claims a next solution at the
+    /// very end of the stream — measured on `penguin_freeform`, which reported
+    /// `find_another_overlap_valid` on solution 8 of 8.
+    ///
+    /// That is visible, not cosmetic. The flat path reports `false` on its last
+    /// solution (`folding.rs`'s `overlap.found && next_subface > 0`), and the
+    /// cycling UI labels a press "Back to first solution" off exactly this flag —
+    /// so a 3D figure said "Another solution" and then silently wrapped.
+    ///
+    /// The odometer wraps iff **no** digit can really step, and the digits are
+    /// independent solvers, so probing each in turn answers it. Only a digit
+    /// whose optimistic flag is already set is cloned: an unset flag cannot step,
+    /// and the usual case is that digit 0 can, so the usual cost is one component
+    /// clone and one search per press.
+    ///
+    /// A probe that errors reads as "no next". The real [`Self::advance`] would
+    /// surface the same error, and reporting a solution we cannot reach is the
+    /// worse of the two wrong answers.
+    fn lookahead(components: &[ComponentSolver]) -> bool {
+        components
+            .iter()
+            .any(|component| component.has_next() && component.clone().step().unwrap_or(false))
     }
 
     /// Move to the next solution, wrapping to the first when exhausted.
@@ -313,10 +350,12 @@ impl Fold3dOrderEnumerator {
     /// alternative leaves the largest stack untouched and looks like nothing
     /// happened.
     ///
-    /// `has_next` is the shipped enumerator's own signal and it is *optimistic* —
-    /// it says the permutation state moved, not that another solution is there —
-    /// so a digit that says yes and then finds nothing is exhausted rather than
-    /// broken, and carries like any other.
+    /// A digit's `has_next` is the shipped enumerator's own signal and it is
+    /// *optimistic* — it says the permutation state moved, not that another
+    /// solution is there — so a digit that says yes and then finds nothing is
+    /// exhausted rather than broken, and carries like any other. Which is
+    /// exactly why the stream's own `has_next` cannot be the OR of them; see
+    /// [`Self::lookahead`].
     ///
     /// Where you **are** and how many have been **seen** are two counters, and
     /// only the second is monotone. Deriving the first from the second gets the
@@ -339,6 +378,7 @@ impl Fold3dOrderEnumerator {
             self.position += 1;
             self.discovered = self.discovered.max(self.position);
         }
+        self.has_next = Self::lookahead(&self.components);
         self.current = self.assemble();
         Ok(if wrapped {
             Advance::WrappedToFirst

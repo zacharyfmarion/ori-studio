@@ -640,6 +640,127 @@ fn the_solution_stream_wraps_and_keeps_wrapping() {
     );
 }
 
+/// The shape of a whole 3D stream matches the shape of a whole flat one, walked
+/// side by side through the same session API.
+///
+/// The cycling UI is one verb over both kinds — `foldedFigureCycling` reads
+/// `folded3d ?? snapshot` and both spell these fields the same way — so a
+/// divergence here is a divergence the user sees. It labels the last press
+/// "Back to first solution" off `find_another_overlap_valid`, and this is the
+/// test that the two paths agree about when that is.
+///
+/// Three properties, in the order they can break:
+///
+/// 1. **Every press before the last advances.** No dead press: a press that
+///    changes nothing and only flips the flag would be indistinguishable from a
+///    figure that stopped responding.
+/// 2. **The last solution reports no next.** Measured before this was fixed:
+///    3D said `find_another_overlap_valid` on solution 8 of 8, because the
+///    stream OR-ed its digits' *optimistic* per-component flags. The button
+///    therefore read "Another solution" and then wrapped without warning.
+/// 3. **One more press wraps to solution 1** rather than dead-ending, which is
+///    the one place this path deliberately extends Oriedita.
+///
+/// The flat half is not decoration. Written as a bare assertion about 3D it
+/// would pin whatever 3D happens to do; walked beside the flat stream it pins
+/// that the two agree, which is the actual requirement.
+#[test]
+fn a_3d_stream_ends_the_way_a_flat_stream_ends() {
+    #[derive(Debug, PartialEq, Eq)]
+    struct Shape {
+        /// `current_fold_case` at each solution, in order.
+        cases: Vec<usize>,
+        /// `find_another_overlap_valid` at the last solution.
+        last_reports_next: bool,
+        /// `current_fold_case` after one press past the end.
+        after_wrap: usize,
+    }
+
+    // --- flat, on the Oriedita fixture with the most layer orders -------------
+    let mut session = CpSession::new();
+    let raw = std::fs::read_to_string(repo("tests/fixtures/oriedita/solution_sample_1.cp"))
+        .expect("read solution_sample_1.cp");
+    let document = session.load_cp(&raw, "flat").expect("load");
+    let lines = every_line(&session, document);
+    let flat_figure = session
+        .folded_figure_fold_selected(
+            document,
+            &lines,
+            1,
+            EstimationOrder::Order5,
+            FoldedFigureModel::default(),
+        )
+        .expect("fold flat");
+    let mut snapshot = flat_figure.snapshot;
+    let mut flat = Shape {
+        cases: vec![snapshot.current_fold_case],
+        last_reports_next: snapshot.find_another_overlap_valid,
+        after_wrap: 0,
+    };
+    assert!(
+        flat.last_reports_next,
+        "the flat fixture must have more than one solution, or nothing here is tested"
+    );
+    while snapshot.find_another_overlap_valid {
+        snapshot = session
+            .folded_figure_fold_another(flat_figure.handle)
+            .expect("step the flat stream");
+        flat.cases.push(snapshot.current_fold_case);
+        flat.last_reports_next = snapshot.find_another_overlap_valid;
+        assert!(flat.cases.len() < 64, "the flat stream did not end");
+    }
+    flat.after_wrap = session
+        .folded_figure_fold_another(flat_figure.handle)
+        .expect("wrap the flat stream")
+        .current_fold_case;
+
+    // --- 3D, on the one committed multi-solution fixture ----------------------
+    let mut session = CpSession::new();
+    let (handle, first) = placed(fold_3d(&mut session, MULTI_SOLUTION));
+    let mut spatial = Shape {
+        cases: vec![first.current_fold_case],
+        last_reports_next: first.find_another_overlap_valid,
+        after_wrap: 0,
+    };
+    assert!(
+        spatial.last_reports_next,
+        "{MULTI_SOLUTION} must have more than one solution, or nothing here is tested"
+    );
+    while spatial.last_reports_next {
+        let step = session
+            .folded_figure_3d_fold_another(handle)
+            .expect("step the 3D stream");
+        assert!(
+            step.advanced,
+            "a press that reported a next solution wrapped instead of advancing"
+        );
+        spatial.cases.push(step.snapshot.current_fold_case);
+        spatial.last_reports_next = step.snapshot.find_another_overlap_valid;
+        assert!(spatial.cases.len() < 64, "the 3D stream did not end");
+    }
+    let wrap = session
+        .folded_figure_3d_fold_another(handle)
+        .expect("wrap the 3D stream");
+    assert!(!wrap.advanced, "the press past the end is the wrap");
+    spatial.after_wrap = wrap.snapshot.current_fold_case;
+
+    // The two fixtures have different solution counts, so compare the shape
+    // rather than the numbers: consecutive from 1, no next at the end, wrap to 1.
+    for (label, shape) in [("flat", &flat), ("3D", &spatial)] {
+        assert!(shape.cases.len() > 1, "{label}: a one-solution stream");
+        assert_eq!(
+            shape.cases,
+            (1..=shape.cases.len()).collect::<Vec<usize>>(),
+            "{label}: case numbers are not 1-based and consecutive"
+        );
+        assert!(
+            !shape.last_reports_next,
+            "{label}: the last solution claims another one follows"
+        );
+        assert_eq!(shape.after_wrap, 1, "{label}: the press past the end wraps");
+    }
+}
+
 /// A one-solution figure wraps on every press rather than erroring.
 ///
 /// Its own behaviour, not a degenerate case of the above: four of the five
