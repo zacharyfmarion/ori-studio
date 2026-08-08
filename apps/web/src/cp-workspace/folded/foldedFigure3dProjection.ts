@@ -180,6 +180,15 @@ export interface Folded3dProjection {
     pieces: number;
     primitives: number;
     undeterminedCells: number;
+    /**
+     * The coplanarity distance the tree was built with.
+     *
+     * Reported because it is otherwise unobservable from the outside and the
+     * default it would silently fall back to is four orders of magnitude
+     * tighter — at which point the renderer and the kernel stop agreeing about
+     * which faces share a plane. See {@link folded3dCoplanarEpsilon}.
+     */
+    coplanarEps: number;
   };
 }
 
@@ -291,6 +300,24 @@ export function defaultFolded3dCamera(
  */
 export function antipodalCamera(camera: FoldedFigureCamera): FoldedFigureCamera {
   return { yaw: camera.yaw + Math.PI, pitch: Math.PI - camera.pitch, zoom: camera.zoom };
+}
+
+/**
+ * Where the "other side" verb moves a figure's eye to.
+ *
+ * The 3D reading of the flat figure's Flip. Turning the paper over is a *colour*
+ * operation on a flat figure and a *viewpoint* operation here, so this is the
+ * one place the two verbs differ, and it is an involution: pressing twice
+ * returns the original camera, because `antipodalCamera` applied twice is
+ * `(yaw + 2π, pitch)`, the same eye.
+ *
+ * Defaults rather than refusing when a figure carries no camera: every figure
+ * this reaches was folded at {@link DEFAULT_FOLDED_3D_CAMERA} anyway.
+ */
+export function foldedFigureOtherSideCamera(
+  camera: FoldedFigureCamera | null | undefined
+): FoldedFigureCamera {
+  return antipodalCamera(camera ?? DEFAULT_FOLDED_3D_CAMERA);
 }
 
 /* --------------------------------------------------------------------------
@@ -423,8 +450,13 @@ function cameraUniformsFor(camera: FoldedFigureCamera, centre: Vec3): CameraUnif
  * simulator's axes the eye is `(−sinP·sinY, cosP, sinP·cosY)`; undoing
  * `(x, z, −y)` gives the components below. Getting it wrong by a sign draws the
  * figure near-to-far, which is a picture, just the wrong one.
+ *
+ * Exported because "which side of a plane is the viewer on" is a question the
+ * projector answers for every stacked cell and a caller has to be able to ask
+ * independently — a test asserting the drawn layer is the near one has no other
+ * way to say which one that is.
  */
-function eyeDirection(camera: FoldedFigureCamera): Vec3 {
+export function folded3dEyeDirection(camera: FoldedFigureCamera): Vec3 {
   const sp = Math.sin(camera.pitch);
   const cp = Math.cos(camera.pitch);
   return [-sp * Math.sin(camera.yaw), -sp * Math.cos(camera.yaw), cp];
@@ -437,7 +469,7 @@ function eyeDirection(camera: FoldedFigureCamera): Vec3 {
 const ORTHOGRAPHIC_EYE_DISTANCE = 1e9;
 
 function orthographicEye(camera: FoldedFigureCamera): Vec3 {
-  const direction = eyeDirection(camera);
+  const direction = folded3dEyeDirection(camera);
   return [
     direction[0] * ORTHOGRAPHIC_EYE_DISTANCE,
     direction[1] * ORTHOGRAPHIC_EYE_DISTANCE,
@@ -610,7 +642,15 @@ export function projectFolded3dModel(
     pieces = traverseBsp(buildBsp(items, { edgeInk: 0, eye, coplanarEps }), eye);
   }
 
-  const drafts = expand(model, pieces, plan, options.style, uniforms, anchor);
+  const drafts = expand(
+    model,
+    pieces,
+    plan,
+    options.style,
+    uniforms,
+    folded3dEyeDirection(options.camera),
+    anchor
+  );
   const { primitives, cells, faces } = assemble(drafts, options);
 
   return {
@@ -628,6 +668,7 @@ export function projectFolded3dModel(
       pieces: pieces.length,
       primitives: primitives.length,
       undeterminedCells: model.undetermined_cells,
+      coplanarEps,
     },
   };
 }
@@ -716,10 +757,29 @@ function depthSorted(items: BspItem[], uniforms: CameraUniforms): BspItem[] {
 /**
  * Traversal pieces to drafts: each face piece becomes its cell's stack.
  *
- * Opaque paper shows only the top of a cell — every face of a cell covers the
- * whole cell, that being what a cell is — so exactly one fill is emitted there.
- * Translucent paper shows through, so the whole stack is emitted **bottom
- * first**, the reverse of `cell_stack`.
+ * Opaque paper shows only the layer of a cell **nearest the eye** — every face
+ * of a cell covers the whole cell, that being what a cell is — so exactly one
+ * fill is emitted there. Translucent paper shows through, so the whole stack is
+ * emitted far-to-near.
+ *
+ * # Which end of `cell_stack` is nearest is a camera question
+ *
+ * `cell_stack` is ordered **top first with respect to that cell's plane `up`**
+ * (`folding3d/model.rs`), and `up` is the placed normal of the plane's
+ * lowest-indexed member face — a fact about the paper, chosen before anyone
+ * picked a viewpoint, and the vector `initial_hierarchy_3d` seeds upper/lower
+ * against. So `stack[0]` is nearest the eye only while `up · eye > 0`. On the
+ * other side of the figure the near layer is `stack[stack.length - 1]`, and
+ * drawing `stack[0]` there paints the layer *furthest* from the viewer.
+ *
+ * That failure is silent and plausible: faces of one stack routinely have
+ * opposite normals, so the wrong pick also flips `front`/`back` and the shading
+ * with it, and the result is a clean picture of the wrong side of the paper.
+ * Measured at the shipped default camera over the external non-flat corpus, 14
+ * of 21 admitted models have at least one multi-face cell whose plane `up`
+ * faces away from the eye, and at the antipodal (`Back1`) camera every
+ * multi-face cell of `box_90`, `pinwheel_cyclic`, `spikes_small` and
+ * `strip_coupled` does.
  */
 function expand(
   model: OristudioCpFolded3dRenderModel,
@@ -727,10 +787,20 @@ function expand(
   plan: StylePlan,
   style: Folded3dPaperStyle,
   uniforms: CameraUniforms,
+  viewDirection: Vec3,
   anchor: Point
 ): Draft[] {
   const drafts: Draft[] = [];
   const lineColor = shade(style.line, 1, 1);
+  // One dot product per plane, not per piece: a corpus model reaches 1,245
+  // multi-face cells and the answer is a property of the plane.
+  const upTowardEye: boolean[] = [];
+  for (let plane = 0; plane < model.plane_count; plane += 1) {
+    const { up } = planeFrame(model, plane);
+    upTowardEye.push(
+      up[0] * viewDirection[0] + up[1] * viewDirection[1] + up[2] * viewDirection[2] >= 0
+    );
+  }
   for (const piece of pieces) {
     const ring = piece.points.map((point) => project(point, uniforms, anchor));
     if (piece.kind === 1) {
@@ -744,7 +814,13 @@ function expand(
       plan.faceAlpha * style.faceAlpha * (undetermined && plan.annotateUndetermined ? UNDETERMINED_FACE_ALPHA : 1);
     const stack = cellStack(model, cell);
     if (stack.length === 0) continue;
-    const slots = alpha >= 1 ? [stack[0]!] : [...stack].reverse();
+    // `cell_stack` runs top-of-plane first, so it is already far-to-near when the
+    // eye is on the `-up` side and has to be reversed when it is on the `+up`
+    // side. The opaque case takes the last of whichever order that is.
+    const farToNear = (upTowardEye[model.cell_attr[base] ?? 0] ?? false)
+      ? [...stack].reverse()
+      : [...stack];
+    const slots = alpha >= 1 ? [farToNear[farToNear.length - 1]!] : farToNear;
     for (let slot = 0; slot < slots.length; slot += 1) {
       const face = slots[slot]!;
       const viewNormal = directionToView(faceNormal(model, face), uniforms);

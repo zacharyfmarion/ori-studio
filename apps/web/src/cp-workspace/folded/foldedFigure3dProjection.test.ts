@@ -25,6 +25,8 @@ import {
   defaultFolded3dCamera,
   folded3dBspItems,
   folded3dCoplanarEpsilon,
+  folded3dEyeDirection,
+  foldedFigureOtherSideCamera,
   foldedLineStroke,
   projectFolded3dModel,
   undeterminedCellColor,
@@ -35,6 +37,7 @@ import {
 import {
   FOLDED_3D_CELL_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
+  FOLDED_3D_PLANE_FRAME_STRIDE,
   type OristudioCpFold3dTolerances,
   type OristudioCpFolded3dRenderModel,
   type OristudioCpFoldedRenderPrimitive,
@@ -125,6 +128,51 @@ function cellAttr(model: OristudioCpFolded3dRenderModel, cell: number, field: nu
 function cellStack(model: OristudioCpFolded3dRenderModel, cell: number): number[] {
   const start = cellAttr(model, cell, 3);
   return model.cell_stack.slice(start, start + cellAttr(model, cell, 4));
+}
+
+/**
+ * A cell's faces **far-to-near at this camera**, which is the order they have to
+ * be painted in and whose last element is the one an opaque render shows.
+ *
+ * `cell_stack` is top-first with respect to the cell's plane `up`, and `up` is a
+ * property of the *paper* — the placed normal of the plane's lowest-indexed
+ * member face — so it points toward the viewer for some cameras and away for
+ * others. Stated here rather than taken from the projector, because the whole
+ * point is to check the projector against it.
+ */
+function cellFarToNear(
+  model: OristudioCpFolded3dRenderModel,
+  cell: number,
+  camera: FoldedFigureCamera
+): number[] {
+  const stack = cellStack(model, cell);
+  const base = cellAttr(model, cell, 0) * FOLDED_3D_PLANE_FRAME_STRIDE;
+  const eye = folded3dEyeDirection(camera);
+  const towardEye =
+    (model.plane_frames[base] ?? 0) * eye[0] +
+      (model.plane_frames[base + 1] ?? 0) * eye[1] +
+      (model.plane_frames[base + 2] ?? 0) * eye[2] >=
+    0;
+  return towardEye ? [...stack].reverse() : [...stack];
+}
+
+/** Cells whose stack has more than one face — the only ones an order can be wrong for. */
+function stackedCells(model: OristudioCpFolded3dRenderModel): number[] {
+  const cells: number[] = [];
+  for (let cell = 0; cell < model.cell_count; cell += 1) {
+    if (cellStack(model, cell).length > 1) cells.push(cell);
+  }
+  return cells;
+}
+
+/** Cells the eye sees from the `-up` side, where `cell_stack` runs near-to-far. */
+function cellsSeenFromBelow(
+  model: OristudioCpFolded3dRenderModel,
+  camera: FoldedFigureCamera
+): number[] {
+  return stackedCells(model).filter(
+    (cell) => cellFarToNear(model, cell, camera)[0] === cellStack(model, cell)[0]
+  );
 }
 
 /**
@@ -253,18 +301,43 @@ describe('projecting the 3D folded state', () => {
 });
 
 describe('the layer order the kernel computed', () => {
-  it('draws each cell’s winner last, per cell', () => {
+  // Both cameras, on every layer-order assertion. `cell_stack` is top-first with
+  // respect to the *paper's* `up`, so at a camera on the other side of a plane
+  // the near layer is the last element rather than the first — and a projector
+  // that ignores the eye draws the layer furthest from the viewer, with the
+  // wrong paper side and the wrong shading, which is a clean picture of the
+  // wrong thing. Only the antipodal case can catch it: the committed fixtures
+  // happen to sit `up`-toward-the-eye at the default camera, which is a property
+  // of the fixtures and not a theorem.
+  const CAMERAS: Array<[string, FoldedFigureCamera]> = [
+    ['the default camera', DEFAULT_FOLDED_3D_CAMERA],
+    ['the antipodal camera', antipodalCamera(DEFAULT_FOLDED_3D_CAMERA)],
+  ];
+
+  it('sees at least one fixture stack from the far side, so the cameras differ', () => {
+    // Non-vacuity for the two tests below: without a cell whose plane `up` faces
+    // away, both cameras assert the same thing and neither catches the bug.
+    const back = antipodalCamera(DEFAULT_FOLDED_3D_CAMERA);
+    for (const name of ['box_90', 'pinwheel_cyclic', 'spikes_small', 'strip_coupled']) {
+      const model = fixture(name);
+      expect(stackedCells(model).length).toBeGreaterThan(0);
+      expect(cellsSeenFromBelow(model, DEFAULT_FOLDED_3D_CAMERA)).toHaveLength(0);
+      expect(cellsSeenFromBelow(model, back)).toEqual(stackedCells(model));
+    }
+  });
+
+  it.each(CAMERAS)('draws each cell’s near layer last, per cell, at %s', (_name, camera) => {
     // The regression a "just sort it" refactor has to fail. Stated per cell,
     // because there is no global order to state it against.
     const model = fixture('pinwheel_cyclic');
     const projection = projectFolded3dModel(
       model,
-      options({ displayStyle: 'Transparent3', cullHidden: false, mergeCoplanar: false })
+      options({ camera, displayStyle: 'Transparent3', cullHidden: false, mergeCoplanar: false })
     );
     expect(model.cell_count).toBeGreaterThan(0);
 
-    // Every slot of every cell is emitted, bottom first, so each run of a cell's
-    // fills ends on `cell_stack[stack_start]` — the face the kernel put on top.
+    // Every slot of every cell is emitted far-to-near, so each run of a cell's
+    // fills ends on the layer nearest the eye.
     const runs = new Map<number, number[][]>();
     projection.snapshot.primitives.forEach((primitive, index) => {
       if (primitive.kind !== 'fill_path') return;
@@ -278,27 +351,32 @@ describe('the layer order the kernel computed', () => {
     });
     expect(runs.size).toBe(model.cell_count);
     for (const [cell, pieces] of runs) {
-      const stack = cellStack(model, cell);
+      const farToNear = cellFarToNear(model, cell, camera);
       for (const piece of pieces) {
-        expect(piece).toEqual([...stack].reverse());
-        expect(piece[piece.length - 1]).toBe(stack[0]);
+        expect(piece).toEqual(farToNear);
+        expect(piece[piece.length - 1]).toBe(farToNear[farToNear.length - 1]);
       }
     }
   });
 
-  it('draws only the winner when the paper is opaque', () => {
+  it.each(CAMERAS)('draws only the near layer when the paper is opaque, at %s', (_name, camera) => {
     // Every face of a cell covers the whole cell — that is what a cell is — so
-    // an opaque render shows exactly one of them, and it is the top.
+    // an opaque render shows exactly one of them, and it is the one the viewer
+    // is on the side of.
     const model = fixture('pinwheel_cyclic');
     const projection = projectFolded3dModel(
       model,
-      options({ cullHidden: false, mergeCoplanar: false })
+      options({ camera, cullHidden: false, mergeCoplanar: false })
     );
+    let checked = 0;
     projection.snapshot.primitives.forEach((primitive, index) => {
       if (primitive.kind !== 'fill_path') return;
       const cell = projection.cells[index]!;
-      expect(projection.faces[index]).toBe(cellStack(model, cell)[0]);
+      const farToNear = cellFarToNear(model, cell, camera);
+      expect(projection.faces[index]).toBe(farToNear[farToNear.length - 1]);
+      checked += 1;
     });
+    expect(checked).toBeGreaterThan(0);
   });
 
   it('hands the kernel’s intra-plane draw order to the tree', () => {
@@ -353,6 +431,48 @@ describe('the layer order the kernel computed', () => {
       options({ cullHidden: false, mergeCoplanar: false })
     );
     expect(fills(projection.snapshot.primitives).length).toBeGreaterThanOrEqual(model.cell_count);
+  });
+
+  it('shows a reordering under the paper only where the paper is see-through', () => {
+    // Why a 3D figure has to be offered `Transparent3`, stated as arithmetic.
+    // Swapping two *buried* layers of a stack is invisible under opaque paper —
+    // every face of a cell covers the whole cell, so only the near one is drawn
+    // — which is exactly what made "Another solution" read as a dead button:
+    // measured on `penguin_freeform`, all eight solutions render byte-identical
+    // under `Paper5` and again under `Wire2`, and only `Transparent3` tells any
+    // of them apart.
+    const model = fixture('pinwheel');
+    const cell = stackedCells(model).find((candidate) => {
+      const stack = cellStack(model, candidate);
+      if (stack.length < 3) return false;
+      // Two buried faces on opposite sides of the paper, so swapping them
+      // changes a colour and not merely an index.
+      return (model.face_normals[stack[1]! * 3 + 2] ?? 0) * (model.face_normals[stack[2]! * 3 + 2] ?? 0) < 0;
+    });
+    if (cell === undefined) throw new Error('expected a three-deep stack with a two-sided pair');
+
+    const start = cellAttr(model, cell, 3);
+    const swapped = [...model.cell_stack];
+    swapped[start + 1] = model.cell_stack[start + 2]!;
+    swapped[start + 2] = model.cell_stack[start + 1]!;
+    const reordered: OristudioCpFolded3dRenderModel = { ...model, cell_stack: swapped };
+    // The near layer is untouched; only what is under it moved.
+    expect(cellStack(reordered, cell)[0]).toBe(cellStack(model, cell)[0]);
+    expect(cellStack(reordered, cell)).not.toEqual(cellStack(model, cell));
+
+    const picture = (
+      subject: OristudioCpFolded3dRenderModel,
+      displayStyle: 'Paper5' | 'Transparent3'
+    ) =>
+      JSON.stringify(
+        projectFolded3dModel(
+          subject,
+          options({ displayStyle, cullHidden: false, mergeCoplanar: false })
+        ).snapshot
+      );
+
+    expect(picture(reordered, 'Paper5')).toEqual(picture(model, 'Paper5'));
+    expect(picture(reordered, 'Transparent3')).not.toEqual(picture(model, 'Transparent3'));
   });
 
   it('draws a different picture for a different solution', () => {
@@ -442,6 +562,25 @@ describe('the camera', () => {
     expect(back).toEqual(antipodalCamera(DEFAULT_FOLDED_3D_CAMERA));
     // `Both2` is the flat figure's side-by-side pair and has no 3D reading.
     expect(defaultFolded3dCamera(model, 'Both2')).toEqual(defaultFolded3dCamera(model, 'Front0'));
+  });
+
+  it('turns to the other side and back again', () => {
+    // The verb a 3D figure offers where a flat one offers Flip. It has to be an
+    // involution — press twice, same view — or the button walks the figure round
+    // in circles instead of toggling it.
+    const there = foldedFigureOtherSideCamera(DEFAULT_FOLDED_3D_CAMERA);
+    expect(there).toEqual(antipodalCamera(DEFAULT_FOLDED_3D_CAMERA));
+    const back = foldedFigureOtherSideCamera(there);
+    expect(Math.cos(back.yaw)).toBeCloseTo(Math.cos(DEFAULT_FOLDED_3D_CAMERA.yaw), 12);
+    expect(Math.sin(back.yaw)).toBeCloseTo(Math.sin(DEFAULT_FOLDED_3D_CAMERA.yaw), 12);
+    expect(folded3dEyeDirection(back)).toEqual(
+      folded3dEyeDirection(DEFAULT_FOLDED_3D_CAMERA).map((component) =>
+        expect.closeTo(component, 12)
+      ) as unknown as ReturnType<typeof folded3dEyeDirection>
+    );
+    // A figure with no recorded camera is shown at the default, so turning it
+    // over is the antipode of that rather than a refusal.
+    expect(foldedFigureOtherSideCamera(null)).toEqual(there);
   });
 
   it('reverses the drawing order when the eye moves to the other side', () => {
@@ -537,6 +676,21 @@ describe('the guards', () => {
     expect(
       folded3dCoplanarEpsilon(model, { ...TOLERANCES, distance_relative: 1e-5 })
     ).toBeGreaterThan(epsilon * 5);
+  });
+
+  it('hands that tolerance to the tree rather than letting it default', () => {
+    // The wiring, not just the value. Replacing the call with `bsp.ts`'s own
+    // 1e-7 changes no other assertion in this file — every fixture's planes are
+    // far enough apart that nothing reclassifies — so without this the exact
+    // regression the epsilon exists to prevent would ship green.
+    const model = fixture('box_90');
+    expect(projectFolded3dModel(model, options()).stats.coplanarEps).toBe(
+      folded3dCoplanarEpsilon(model, TOLERANCES)
+    );
+    const loose: OristudioCpFold3dTolerances = { ...TOLERANCES, distance_relative: 1e-4 };
+    expect(projectFolded3dModel(model, options({ tolerances: loose })).stats.coplanarEps).toBe(
+      folded3dCoplanarEpsilon(model, loose)
+    );
   });
 });
 
