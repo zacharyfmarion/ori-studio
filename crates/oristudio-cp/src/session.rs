@@ -22,6 +22,11 @@ use crate::folding::{
     folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
     folding_estimate_to_case,
 };
+use crate::folding3d::model::Folded3dRenderModel;
+use crate::folding3d::order::Advance;
+use crate::folding3d::session::{Fold3dSession, Fold3dSessionError};
+use crate::folding3d::snapshot::Fold3dSnapshot;
+use crate::folding3d::wire::Fold3dRefusalWire;
 use crate::geometry::LineSegment;
 use crate::geometry_transport::{self, CompactGeometry};
 use crate::model::TextElement;
@@ -72,6 +77,9 @@ pub const CP_ENGINE_COMMANDS: &[&str] = &[
     "folded_figure_duplicate",
     "folded_figure_fold_another",
     "folded_figure_fold_to_case",
+    "folded_figure_fold_3d",
+    "folded_figure_3d_fold_another",
+    "folded_figure_3d_duplicate",
     "free_folded_figure",
 ];
 
@@ -180,12 +188,34 @@ impl From<FoldingEstimateError> for EngineError {
     }
 }
 
-/// A folded-figure estimation session plus its display model. The expensive,
-/// stateful object behind a folded-figure handle.
+/// A flat folded-figure estimation session plus its display model.
 #[derive(Clone)]
-pub struct FoldedFigure {
+pub struct FlatFoldedFigure {
     pub session: FoldingEstimateSession,
     pub model: FoldedFigureModel,
+}
+
+/// The expensive, stateful object behind a folded-figure handle.
+///
+/// One arena for both kinds, so [`CpSession::free_folded_figure`] and the
+/// frontend's handle retention need no change and handle ids stay unique across
+/// kinds — which is what makes a mix-up always *detectable* rather than
+/// silently wrong. Every flat command applied to a spatial figure, and every
+/// spatial command applied to a flat one, is a typed
+/// `folded_figure_kind_mismatch` error and never a wrong answer.
+#[derive(Clone)]
+pub enum FoldedFigure {
+    Flat(Box<FlatFoldedFigure>),
+    Spatial(Box<Fold3dSession>),
+}
+
+impl FoldedFigure {
+    fn kind(&self) -> &'static str {
+        match self {
+            Self::Flat(_) => "flat",
+            Self::Spatial(_) => "spatial",
+        }
+    }
 }
 
 /// Static description of a CP operation (mirror of the wasm bridge's
@@ -240,6 +270,46 @@ pub struct FoldedFigureResult {
 pub struct FoldedFigureBatchResult {
     pub snapshot: FoldedFigureSnapshot,
     pub discovered_case_numbers: Vec<usize>,
+}
+
+/// What a 3D fold produced — a figure, or the reason there is none.
+///
+/// A refusal is an `Ok` **result**, never an [`EngineError`]. It does not reach
+/// the store's catch path, does not raise an error toast and does not destroy
+/// the draft figure, mirroring how the flat path already treats a global
+/// flat-foldability contradiction. It also carries structured data
+/// (`point`, `residual_degrees`, `line`) that `EngineError`'s flat `code` +
+/// `message` pair cannot.
+///
+/// The two arms make the impossible state unrepresentable rather than guarded:
+/// a refusal never carries a handle, and a placement always does.
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum Fold3dFoldResult {
+    Placed {
+        handle: u32,
+        /// Boxed for size only — `Box` is transparent to `serde`, so the wire
+        /// shape is the same object either way.
+        snapshot: Box<Fold3dSnapshot>,
+        render: Box<Folded3dRenderModel>,
+    },
+    Refused {
+        refusal: Fold3dRefusalWire,
+    },
+}
+
+/// What one press of "another solution" did to a 3D figure.
+#[derive(Debug, Clone, Serialize)]
+pub struct Fold3dStepResult {
+    pub snapshot: Box<Fold3dSnapshot>,
+    pub render: Box<Folded3dRenderModel>,
+    /// `false` when the odometer wrapped back to the first solution.
+    ///
+    /// Carried explicitly rather than inferred. The flat path derives its wrap
+    /// from `find_another_overlap_valid` flipping while the discovered count is
+    /// above one; a stream over several components should not have to
+    /// re-derive that from the outside.
+    pub advanced: bool,
 }
 
 /// Slot-arena session holding editable documents and folded figures.
@@ -300,6 +370,34 @@ impl CpSession {
             .get_mut(handle as usize)
             .and_then(Option::as_mut)
             .ok_or_else(|| EngineError::invalid_handle("invalid folded figure handle"))
+    }
+
+    fn flat(&self, handle: u32) -> Result<&FlatFoldedFigure, EngineError> {
+        match self.folded(handle)? {
+            FoldedFigure::Flat(figure) => Ok(figure),
+            other => Err(kind_mismatch(other, "flat")),
+        }
+    }
+
+    fn flat_mut(&mut self, handle: u32) -> Result<&mut FlatFoldedFigure, EngineError> {
+        match self.folded_mut(handle)? {
+            FoldedFigure::Flat(figure) => Ok(figure),
+            other => Err(kind_mismatch(other, "flat")),
+        }
+    }
+
+    fn spatial(&self, handle: u32) -> Result<&Fold3dSession, EngineError> {
+        match self.folded(handle)? {
+            FoldedFigure::Spatial(figure) => Ok(figure),
+            other => Err(kind_mismatch(other, "spatial")),
+        }
+    }
+
+    fn spatial_mut(&mut self, handle: u32) -> Result<&mut Fold3dSession, EngineError> {
+        match self.folded_mut(handle)? {
+            FoldedFigure::Spatial(figure) => Ok(figure),
+            other => Err(kind_mismatch(other, "spatial")),
+        }
     }
 
     // --- operation catalog ------------------------------------------------------
@@ -591,15 +689,33 @@ impl CpSession {
         order: EstimationOrder,
         model: FoldedFigureModel,
     ) -> Result<FoldedFigureResult, EngineError> {
+        // The routing mirror, on the **post-fallback** slice.
+        //
+        // Both flat entry points funnel through here, and
+        // `folded_figure_fold_selected` silently widens an empty resolved
+        // selection to the whole document above. Guarding the pre-fallback set
+        // would let a non-empty id list that resolves to nothing — a snapshot
+        // that has drifted from the kernel document — fold an entire mixed
+        // document flat and draw a plausible picture with no error, which is
+        // exactly the case this guard exists for.
+        if crate::model::has_non_classic_segments(segments) {
+            return Err(EngineError::new(
+                "fold_needs_3d",
+                "the creases being folded include a non-180 fold angle; use folded_figure_fold_3d",
+            ));
+        }
         let mut session = FoldingEstimateSession::new(segments, starting_face_id);
         session.folding_estimated(order)?;
         let snapshot = folded_figure_snapshot_from_session(&session, model.clone());
-        let handle = self.store_folded(FoldedFigure { session, model });
+        let handle = self.store_folded(FoldedFigure::Flat(Box::new(FlatFoldedFigure {
+            session,
+            model,
+        })));
         Ok(FoldedFigureResult { handle, snapshot })
     }
 
     pub fn folded_figure_snapshot(&self, handle: u32) -> Result<FoldedFigureSnapshot, EngineError> {
-        let folded = self.folded(handle)?;
+        let folded = self.flat(handle)?;
         Ok(folded_figure_snapshot_from_session(
             &folded.session,
             folded.model.clone(),
@@ -612,7 +728,7 @@ impl CpSession {
         display_style: Option<DisplayStyle>,
         options: FoldedFigureRenderOptions,
     ) -> Result<Option<FoldedFigureRenderSnapshot>, EngineError> {
-        let folded = self.folded(handle)?;
+        let folded = self.flat(handle)?;
         let display_style = display_style.unwrap_or(folded.session.estimate().display_style);
         Ok(folded_figure_render_snapshot_from_session(
             &folded.session,
@@ -627,7 +743,7 @@ impl CpSession {
         handle: u32,
         model: FoldedFigureModel,
     ) -> Result<FoldedFigureSnapshot, EngineError> {
-        let folded = self.folded_mut(handle)?;
+        let folded = self.flat_mut(handle)?;
         folded.model = model;
         Ok(folded_figure_snapshot_from_session(
             &folded.session,
@@ -639,10 +755,10 @@ impl CpSession {
         &mut self,
         handle: u32,
     ) -> Result<FoldedFigureResult, EngineError> {
-        let duplicate = self.folded(handle)?.clone();
+        let duplicate = self.flat(handle)?.clone();
         let snapshot =
             folded_figure_snapshot_from_session(&duplicate.session, duplicate.model.clone());
-        let handle = self.store_folded(duplicate);
+        let handle = self.store_folded(FoldedFigure::Flat(Box::new(duplicate)));
         Ok(FoldedFigureResult { handle, snapshot })
     }
 
@@ -650,7 +766,7 @@ impl CpSession {
         &mut self,
         handle: u32,
     ) -> Result<FoldedFigureSnapshot, EngineError> {
-        let folded = self.folded_mut(handle)?;
+        let folded = self.flat_mut(handle)?;
         fold_another(&mut folded.session)?;
         Ok(folded_figure_snapshot_from_session(
             &folded.session,
@@ -664,13 +780,95 @@ impl CpSession {
         objective: usize,
         initial_order: EstimationOrder,
     ) -> Result<FoldedFigureBatchResult, EngineError> {
-        let folded = self.folded_mut(handle)?;
+        let folded = self.flat_mut(handle)?;
         let batch = folding_estimate_to_case(&mut folded.session, objective, initial_order)?;
         let snapshot = folded_figure_snapshot_from_session(&folded.session, folded.model.clone());
         Ok(FoldedFigureBatchResult {
             snapshot,
             discovered_case_numbers: batch.discovered_case_numbers,
         })
+    }
+
+    // --- folding in 3D ----------------------------------------------------------
+
+    /// Place, measure and order the selected creases in 3D.
+    ///
+    /// Deliberately unlike [`Self::folded_figure_fold_selected`] in one way: an
+    /// empty resolved selection is an error rather than a silent widening to the
+    /// whole document. The 3D path's blast radius is a whole-document fold that
+    /// may refuse for reasons the user cannot connect to what they selected, and
+    /// "the caller asked for nothing, so fold everything" turns a caller bug
+    /// into a silent scope change.
+    pub fn folded_figure_fold_3d(
+        &mut self,
+        document_handle: u32,
+        selected_line_ids: &[usize],
+        starting_face_id: i32,
+        model: FoldedFigureModel,
+    ) -> Result<Fold3dFoldResult, EngineError> {
+        let all_segments = &self.document(document_handle)?.crease_pattern.line_segments;
+        let segments = selected_folding_segments(all_segments, selected_line_ids);
+        if segments.is_empty() {
+            return Err(EngineError::invalid_input(
+                "at least one foldable line id is required",
+            ));
+        }
+        // The mirror of `fold_segments`' guard. Between the two, a routing
+        // mistake at any of the frontend's fold doors is a loud error rather
+        // than a picture computed by the wrong folder.
+        if !crate::model::has_non_classic_segments(&segments) {
+            return Err(EngineError::new(
+                "fold_is_flat",
+                "every crease being folded is a full fold; use folded_figure_fold_selected",
+            ));
+        }
+        match Fold3dSession::new(&segments, starting_face_id, model) {
+            Ok(session) => Ok(self.place_3d(session)),
+            Err(Fold3dSessionError::Refused(refusal)) => Ok(Fold3dFoldResult::Refused {
+                refusal: refusal.into(),
+            }),
+            Err(error) => Err(EngineError::new("fold_3d_failed", error.to_string())),
+        }
+    }
+
+    /// Step a 3D figure to its next layer order, wrapping when exhausted.
+    pub fn folded_figure_3d_fold_another(
+        &mut self,
+        handle: u32,
+    ) -> Result<Fold3dStepResult, EngineError> {
+        let session = self.spatial_mut(handle)?;
+        let advance = session
+            .advance()
+            .map_err(|error| EngineError::new("fold_3d_failed", error.to_string()))?;
+        Ok(Fold3dStepResult {
+            snapshot: Box::new(session.snapshot()),
+            render: Box::new(session.render_model().clone()),
+            advanced: advance == Advance::Next,
+        })
+    }
+
+    /// Copy a 3D figure, including where it sits in its solution stream.
+    ///
+    /// The duplicate shows the **same** solution the original was showing and
+    /// cycles independently from there — the property a shared handle would
+    /// break.
+    pub fn folded_figure_3d_duplicate(
+        &mut self,
+        handle: u32,
+    ) -> Result<Fold3dFoldResult, EngineError> {
+        let duplicate = self.spatial(handle)?.clone();
+        Ok(self.place_3d(duplicate))
+    }
+
+    fn place_3d(&mut self, session: Fold3dSession) -> Fold3dFoldResult {
+        let snapshot = Box::new(session.snapshot());
+        let render = Box::new(session.render_model().clone());
+        let handle = self.store_folded(FoldedFigure::Spatial(Box::new(session)));
+        Fold3dFoldResult::Placed {
+            handle,
+            snapshot,
+            render,
+        }
     }
 
     pub fn free_folded_figure(&mut self, handle: u32) -> Result<(), EngineError> {
@@ -681,6 +879,20 @@ impl CpSession {
         *slot = None;
         Ok(())
     }
+}
+
+/// A flat command on a spatial figure, or the reverse.
+///
+/// A stable code, so the frontend can distinguish "you asked the wrong engine"
+/// from "the engine could not answer" without parsing a sentence.
+fn kind_mismatch(figure: &FoldedFigure, wanted: &'static str) -> EngineError {
+    EngineError::new(
+        "folded_figure_kind_mismatch",
+        format!(
+            "folded figure is {}, but this command needs a {wanted} one",
+            figure.kind()
+        ),
+    )
 }
 
 fn document_with(model: CreasePatternModel, title: &str) -> CreasePatternDocument {

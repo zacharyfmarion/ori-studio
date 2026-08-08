@@ -226,6 +226,30 @@ export function export_share_link(handle) {
  * @param {number} handle
  * @returns {any}
  */
+export function folded_figure_3d_duplicate(handle) {
+    const ret = wasm.folded_figure_3d_duplicate(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
+export function folded_figure_3d_fold_another(handle) {
+    const ret = wasm.folded_figure_3d_fold_another(handle);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * @param {number} handle
+ * @returns {any}
+ */
 export function folded_figure_duplicate(handle) {
     const ret = wasm.folded_figure_duplicate(handle);
     if (ret[2]) {
@@ -243,6 +267,27 @@ export function folded_figure_duplicate(handle) {
  */
 export function folded_figure_fold(document_handle, starting_face_id, order, model) {
     const ret = wasm.folded_figure_fold(document_handle, starting_face_id, order, model);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Place, measure and order the selected creases in 3D.
+ *
+ * Returns `{ status: "placed", handle, snapshot, render }` or
+ * `{ status: "refused", refusal: { code, ... } }`. A refusal is a **result**,
+ * not a thrown error: it must not reach the store's catch path, and it carries
+ * structured data the `{ code, message }` error envelope cannot.
+ * @param {number} document_handle
+ * @param {any} selected_line_ids
+ * @param {number} starting_face_id
+ * @param {any} model
+ * @returns {any}
+ */
+export function folded_figure_fold_3d(document_handle, selected_line_ids, starting_face_id, model) {
+    const ret = wasm.folded_figure_fold_3d(document_handle, selected_line_ids, starting_face_id, model);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
