@@ -14,10 +14,21 @@
  * any live entry or any history entry still refers to it, and is freed when the
  * last reference goes (typically when the entry scrolls off the undo stack).
  *
- * Cost is small: a handle measures roughly 0.6 KiB per crease-pattern segment,
- * and only *deleted* figures are retained beyond their live entry — an ordinary
- * edit mutates the existing handle rather than allocating a second one.
+ * Cost is small for a **flat** handle: roughly 0.6 KiB per crease-pattern
+ * segment, and only *deleted* figures are retained beyond their live entry — an
+ * ordinary edit mutates the existing handle rather than allocating a second one.
+ *
+ * A **3D** handle is a different cost class and the flat figure is not a guide
+ * to it. Measured on the same fixtures, a `Fold3dSession` is 38.9 KiB at 28
+ * segments against 8.5 KiB flat at 26, and per-segment cost climbs with size
+ * rather than holding — about 500 B/segment at 19 segments and 2,240 B/segment
+ * at 5,010, where the whole session is 10.7 MiB. The largest term is the render
+ * model, which is also held on this side (`folded3dRenderModels.ts`) and is
+ * released here with the handle. Bounding retention for 3D figures is open work;
+ * see the plan's Phase 8.
  */
+
+import { dropFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
 
 /** Live reference count per handle. Entries reaching 0 are freed and dropped. */
 const counts = new Map<number, number>();
@@ -63,6 +74,10 @@ export function releaseFoldedFigureHandle(handle: number | null | undefined): vo
     return;
   }
   counts.delete(handle);
+  // A 3D figure's geometry is reachable only through its handle, so it goes at
+  // the same moment. Keeping it alive past the session it describes would leak
+  // a quarter of a megabyte per figure that scrolled off the undo stack.
+  dropFolded3dRenderModel(handle);
   void freeHandle(handle);
 }
 
@@ -84,4 +99,5 @@ export function foldedFigureHandleRefCount(handle: number): number {
  */
 export function resetFoldedFigureHandles(): void {
   counts.clear();
+  resetFolded3dRenderModels();
 }

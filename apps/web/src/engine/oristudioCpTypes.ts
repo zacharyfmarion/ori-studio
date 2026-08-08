@@ -790,6 +790,22 @@ export interface OristudioCpFoldedFigureEntry {
   /** Display placement on the canvas. See {@link FoldedFigurePlacement}. */
   placement: FoldedFigurePlacement;
   /**
+   * The viewpoint a **3D** figure's `renderSnapshot` was projected from. Absent
+   * on a flat figure, which has no viewpoint, and on files written before this
+   * existed.
+   *
+   * A sibling of {@link placement} rather than part of it: placement moves the
+   * finished picture around the canvas and costs nothing, while changing this
+   * re-projects the figure from its render model — which a reopened `.osf`
+   * does not have. It is persisted anyway, because it says which view the stored
+   * picture was taken at.
+   *
+   * The type lives in `cp-workspace/folded/foldedFigure3dProjection.ts`, which
+   * owns its meaning; it is restated structurally here so this module keeps no
+   * dependency on the projector.
+   */
+  camera?: { yaw: number; pitch: number; zoom: number } | null;
+  /**
    * Bounding box of the creases this figure was folded from, in flat CP
    * coordinates — the provenance record Oriedita keeps (`FoldedFigure_Drawer`'s
    * `boundingBox`). Reselecting from it is how a refold finds its source, and
