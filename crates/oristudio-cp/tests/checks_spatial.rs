@@ -6,8 +6,8 @@
 //! parity failure.
 
 use oristudio_cp::checks_spatial::{
-    Indeterminate, VertexFan, VertexRegime, spatial_vertex_reports, vertex_closure_residual,
-    vertex_dof, vertex_fan, vertex_regime,
+    Indeterminate, VertexFan, VertexRegime, dispatched_camv, interior_border_segments,
+    spatial_vertex_reports, vertex_closure_residual, vertex_dof, vertex_fan, vertex_regime,
 };
 use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
 use oristudio_cp::model::CreasePatternModel;
@@ -387,4 +387,138 @@ fn removing_the_border_restores_the_closure_check() {
         at_vertex.is_some(),
         "an interior vertex must still be checked"
     );
+}
+
+// --------------------------------------------------- borders inside the paper
+
+/// A 200x200 ring: an outer square of border, an inner square of border, and
+/// four radial creases joining them.
+///
+/// `calculate_faces` traces every positive-area bounded region, so the hole
+/// comes back **filled** — 5 faces, past the Euler gate — and the eight vertices
+/// where the creases meet the two borders are genuinely interior to the object
+/// that gets folded. `is_interior_vertex` declines all eight anyway, for
+/// touching a `Black0` segment, so the closure check examines nothing at all.
+fn annulus(inner_angle_degrees: f64) -> CreasePatternModel {
+    let mut model = CreasePatternModel::default();
+    let outer = [
+        (0.0, 0.0),
+        (200.0, 0.0),
+        (200.0, 200.0),
+        (0.0, 200.0),
+        (0.0, 0.0),
+    ];
+    let inner = [
+        (50.0, 50.0),
+        (150.0, 50.0),
+        (150.0, 150.0),
+        (50.0, 150.0),
+        (50.0, 50.0),
+    ];
+    for ring in [outer, inner] {
+        for pair in ring.windows(2) {
+            model.add_line_segment(crease(
+                pair[0].0,
+                pair[0].1,
+                pair[1].0,
+                pair[1].1,
+                LineColor::Black0,
+                None,
+            ));
+        }
+    }
+    for (from, to) in [
+        ((0.0, 0.0), (50.0, 50.0)),
+        ((200.0, 0.0), (150.0, 50.0)),
+        ((200.0, 200.0), (150.0, 150.0)),
+        ((0.0, 200.0), (50.0, 150.0)),
+    ] {
+        model.add_line_segment(crease(
+            from.0,
+            from.1,
+            to.0,
+            to.1,
+            LineColor::Red1,
+            Some(inner_angle_degrees),
+        ));
+    }
+    model
+}
+
+#[test]
+fn the_closure_check_examines_nothing_on_an_annulus() {
+    // Not the bug — the *reason* the bug is invisible, pinned so a later change
+    // to `is_interior_vertex` cannot quietly move it.
+    let dispatched = dispatched_camv(&annulus(90.0));
+
+    assert!(
+        dispatched.spatial.is_empty(),
+        "every vertex here touches a border, so the closure check declines all of them"
+    );
+    assert!(
+        dispatched.flat.is_empty(),
+        "and the flat branch is not reached either"
+    );
+}
+
+#[test]
+fn a_border_with_paper_on_both_sides_is_named() {
+    let borders = interior_border_segments(&annulus(90.0));
+
+    assert_eq!(
+        borders.len(),
+        4,
+        "the four inner-square segments have paper on both sides; the four outer \
+         ones are the real paper edge"
+    );
+    for border in &borders {
+        assert!(
+            (50.0..=150.0).contains(&border.point.x) && (50.0..=150.0).contains(&border.point.y),
+            "an inner-ring midpoint, not an outer one: {:?}",
+            border.point
+        );
+    }
+}
+
+#[test]
+fn a_plain_square_has_no_interior_border() {
+    let mut model = CreasePatternModel::default();
+    for pair in [
+        ((0.0, 0.0), (200.0, 0.0)),
+        ((200.0, 0.0), (200.0, 200.0)),
+        ((200.0, 200.0), (0.0, 200.0)),
+        ((0.0, 200.0), (0.0, 0.0)),
+    ] {
+        model.add_line_segment(crease(
+            pair.0.0,
+            pair.0.1,
+            pair.1.0,
+            pair.1.1,
+            LineColor::Black0,
+            None,
+        ));
+    }
+    model.add_line_segment(crease(0.0, 0.0, 200.0, 200.0, LineColor::Red1, Some(90.0)));
+
+    assert!(interior_border_segments(&model).is_empty());
+}
+
+/// The dispatch pays for the arrangement only where the spatial branch is the
+/// one making a claim. An all-classic document's `CheckCamv` output has to stay
+/// byte-identical to Oriedita's, and that is what this pins.
+#[test]
+fn an_all_classic_annulus_reports_no_interior_border_through_the_dispatch() {
+    let mut classic = annulus(90.0);
+    for segment in &mut classic.line_segments {
+        *segment = segment.clone().with_fold_magnitude(None);
+    }
+
+    let dispatched = dispatched_camv(&classic);
+
+    assert!(
+        dispatched.interior_borders.is_empty(),
+        "no non-classic crease, so nothing consults it and nothing pays for it"
+    );
+    // The borders are still there; only the dispatch declines to look.
+    assert_eq!(interior_border_segments(&classic).len(), 4);
 }

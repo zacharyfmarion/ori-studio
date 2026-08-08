@@ -2587,6 +2587,10 @@ pub fn execute_command(
             let dispatched = checks_spatial::dispatched_camv(&document.crease_pattern);
             diagnostic_entries = flat_foldability_diagnostics("CheckCamv", dispatched.flat);
             diagnostic_entries.extend(spatial_closure_diagnostics(&dispatched.spatial));
+            diagnostic_entries.extend(interior_border_diagnostics(
+                &document.crease_pattern,
+                &dispatched.interior_borders,
+            ));
             0
         }
         OperationId::FlatFoldableCheck => {
@@ -3019,6 +3023,45 @@ fn no_completion_code(reason: solve_spatial::NoCompletion) -> String {
         solve_spatial::NoCompletion::RunsOffThePaper => "RunsOffThePaper",
     }
     .to_string()
+}
+
+/// Borders with paper on both sides.
+///
+/// Not a violation — a cut is a legitimate thing to draw, and kirigami is a real
+/// technique. What it is, is the one place the closure check's silence does not
+/// mean "this is fine": every vertex on such a loop is declined by
+/// `is_interior_vertex` for touching a border, so the check returns CLEAN having
+/// examined none of it. Saying so is the whole point of the entry.
+///
+/// A `warning`, and only on documents that carry a non-classic crease — which is
+/// where the spatial check is the thing making the claim. An all-classic
+/// document's `CheckCamv` output is unchanged, which is what the Oriedita oracle
+/// gates.
+fn interior_border_diagnostics(
+    model: &CreasePatternModel,
+    borders: &[checks_spatial::InteriorBorder],
+) -> Vec<CommandDiagnostic> {
+    borders
+        .iter()
+        .enumerate()
+        .map(|(index, border)| CommandDiagnostic {
+            id: format!("SpatialInteriorBorder-{}", index + 1),
+            kind: "SpatialInteriorBorder".to_string(),
+            severity: "warning".to_string(),
+            message: "Border with paper on both sides: the vertices on it are not checked"
+                .to_string(),
+            point: Some(border.point),
+            segments: model
+                .line_segments
+                .get(border.segment)
+                .cloned()
+                .into_iter()
+                .collect(),
+            rule: Some("InteriorBorder".to_string()),
+            violation_color: None,
+            little_big_little: Vec::new(),
+        })
+        .collect()
 }
 
 fn spatial_closure_diagnostics(

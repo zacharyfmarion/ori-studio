@@ -35,6 +35,7 @@
 use std::collections::HashMap;
 
 use crate::checks::point_line_map;
+use crate::fold_graph::FoldGraph;
 use crate::geometry::{Epsilon, LineColor, LineSegment, Point};
 use crate::model::{
     CreasePatternModel, crease_fold_angle, has_non_classic_creases, is_classic_crease,
@@ -1043,6 +1044,94 @@ pub struct DispatchedCamv {
     pub flat: Vec<crate::checks::FlatFoldabilityViolation>,
     /// Closure reports, from the non-flat vertices only.
     pub spatial: Vec<SpatialVertexReport>,
+    /// Borders with paper on both sides — the geometry neither branch above
+    /// examines. See [`interior_border_segments`].
+    ///
+    /// Computed only when the document carries a non-classic crease, on the same
+    /// argument as `through` below: it is the spatial branch that claims to have
+    /// checked something, and on an all-classic document this list is empty by
+    /// construction because nothing consults it.
+    pub interior_borders: Vec<InteriorBorder>,
+}
+
+/// A border segment with paper on **both** sides.
+///
+/// [`is_interior_vertex`] declines every vertex touching a `Black0` segment,
+/// because on a real paper edge there is no loop to walk and therefore no
+/// closure condition — which is right, and is the same `black == 0` signal
+/// Oriedita gates its own interior test on. It is also unconditional, and a
+/// `Black0` segment drawn *inside* the sheet is not a paper edge. Every vertex
+/// on such a loop is declined, `dispatched_camv` returns no report for any of
+/// them, and the check comes back CLEAN having examined none of it.
+///
+/// Measured on the corpus's own `known-good/byu solar driven.fold`: a closed
+/// hexagon of six `B` edges well inside the sheet, 0 flat violations, 0 closure
+/// failures, worst *examined* interior residual 2.6e-12 degrees — and a
+/// placement loop gap of 1.445 rad. A programmatically drawn annulus reproduces
+/// it exactly: 5 faces, past the Euler gate, **0 spatial vertices examined at
+/// all**.
+///
+/// `import_fold_document` also maps FOLD `C` (cut) to `Black0`, indistinguishable
+/// from a paper boundary, so kirigami arrives through this same door.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct InteriorBorder {
+    /// Index into the model's `line_segments`.
+    pub segment: usize,
+    /// Midpoint of the segment, for a diagnostic marker.
+    pub point: Point,
+}
+
+/// Border segments with paper on both sides.
+///
+/// **Additive, and deliberately not a change to [`is_interior_vertex`].** That
+/// predicate is shared with `solve_fold_angles` and `solve_spatial`, so widening
+/// it would change what the solvers accept; and it is a faithful reading of
+/// "this vertex has no closure condition" for a real paper edge. What is missing
+/// is not a wider predicate but the observation that some of these borders are
+/// not edges of the paper at all.
+///
+/// Answered from the traced arrangement rather than from geometry: a segment on
+/// the paper boundary belongs to exactly one traced face, because
+/// `FoldGraph::calculate_faces` never traces the unbounded outer face. A segment
+/// belonging to two is interior. When the arrangement declines to trace at all
+/// (unsplit crossings, so the Euler gate rejects), this reports nothing rather
+/// than guessing — the same posture the rest of this module takes toward
+/// geometry it cannot read.
+pub fn interior_border_segments(model: &CreasePatternModel) -> Vec<InteriorBorder> {
+    let graph = FoldGraph::from_segments(&model.line_segments, true);
+    if graph.faces.is_empty() {
+        return Vec::new();
+    }
+
+    // One pass over the faces, keyed on the undirected vertex pair: the naive
+    // `line_face_border` per line is O(lines x faces).
+    let mut face_count: HashMap<(usize, usize), usize> = HashMap::new();
+    for face in &graph.faces {
+        for index in 0..face.len() {
+            let a = face[index];
+            let b = face[(index + 1) % face.len()];
+            *face_count.entry((a.min(b), a.max(b))).or_default() += 1;
+        }
+    }
+
+    graph
+        .lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.color == LineColor::Black0)
+        .filter(|(_, line)| {
+            let key = (line.begin.min(line.end), line.begin.max(line.end));
+            face_count.get(&key).copied().unwrap_or(0) >= 2
+        })
+        .filter_map(|(index, line)| {
+            let a = *graph.points.get(line.begin)?;
+            let b = *graph.points.get(line.end)?;
+            Some(InteriorBorder {
+                segment: index,
+                point: Point::new((a.x + b.x) / 2.0, (a.y + b.y) / 2.0),
+            })
+        })
+        .collect()
 }
 
 pub fn dispatched_camv(model: &CreasePatternModel) -> DispatchedCamv {
@@ -1052,7 +1141,13 @@ pub fn dispatched_camv(model: &CreasePatternModel) -> DispatchedCamv {
     // document there is nothing to consult it for — and this runs after every
     // edit. Building it unconditionally cost 234ms on a 7,320-segment flat
     // pattern where Oriedita's own check takes 4.5ms.
-    let through = has_non_classic_creases(model).then(|| ThroughLineIndex::build(model));
+    let non_classic = has_non_classic_creases(model);
+    let through = non_classic.then(|| ThroughLineIndex::build(model));
+    let interior_borders = if non_classic {
+        interior_border_segments(model)
+    } else {
+        Vec::new()
+    };
     let mut flat = Vec::new();
     let mut spatial = Vec::new();
 
@@ -1076,5 +1171,9 @@ pub fn dispatched_camv(model: &CreasePatternModel) -> DispatchedCamv {
         }
     }
 
-    DispatchedCamv { flat, spatial }
+    DispatchedCamv {
+        flat,
+        spatial,
+        interior_borders,
+    }
 }
