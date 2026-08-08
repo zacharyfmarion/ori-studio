@@ -885,6 +885,19 @@ export interface OristudioCpFoldedFigureEntry {
    */
   camera?: { yaw: number; pitch: number; zoom: number } | null;
   /**
+   * Half the side of the square frame a 3D figure draws inside, in the local
+   * units its primitives land in — `folded3dFrameRadius`, recorded once at fold
+   * time.
+   *
+   * Stored rather than derived because the render model it comes from is
+   * deliberately not persisted, and because deriving the frame from the current
+   * projection is the bug it exists to fix: those bounds change with every
+   * orbit, so the figure's chrome resized and shifted as you turned it. Null on
+   * every flat figure, and on a 3D one written before frames existed — both fall
+   * back to the projected bounds, which is the old behaviour.
+   */
+  frameRadius?: number | null;
+  /**
    * Bounding box of the creases this figure was folded from, in flat CP
    * coordinates — the provenance record Oriedita keeps (`FoldedFigure_Drawer`'s
    * `boundingBox`). Reselecting from it is how a refold finds its source, and

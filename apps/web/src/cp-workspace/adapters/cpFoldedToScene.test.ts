@@ -241,6 +241,72 @@ describe('foldedFigureBox', () => {
     expect(foldedFigureBox(figure([]))).toBeNull();
     expect(foldedFigureBox({ ...figure([]), renderSnapshot: null })).toBeNull();
   });
+
+  it('gives a 3D figure a square frame that does not follow its projection', () => {
+    // The bug: a 3D figure's box was the bounding box of whatever the projection
+    // produced, so turning the model resized and shifted its chrome under the
+    // cursor. A figure is a window onto the model, and a window does not change
+    // shape because you turned what is inside it.
+    const framed = (primitives: Parameters<typeof figure>[0]) => ({
+      ...figure(primitives),
+      frameRadius: 30,
+    });
+    // Two *different* projections of the same figure — as an orbit produces.
+    const wide = foldedFigureBox(framed(strokeTriangle().renderSnapshot!.primitives))!;
+    const tall = foldedFigureBox(
+      framed([
+        {
+          sequence: 0,
+          kind: 'stroke_polygon',
+          style: {
+            paint: solid(0, 0, 0, 255),
+            stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
+            antialias: 'default',
+          },
+          geometry: {
+            kind: 'polygon',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+              { x: 1, y: 400 },
+            ],
+          },
+        },
+      ])
+    )!;
+    expect(wide.width).toBe(60);
+    expect(wide.height).toBe(60);
+    expect(tall).toEqual(wide);
+  });
+
+  it('leaves a figure with no frame on its projected bounds', () => {
+    // `frameRadius` is null on every flat figure, and on a 3D one written before
+    // frames existed. Both keep the old behaviour — the box follows the drawing
+    // — rather than collapsing to a square of side zero.
+    const triangle = foldedFigureBox(strokeTriangle())!;
+    const line = foldedFigureBox(
+      figure([
+        {
+          sequence: 0,
+          kind: 'stroke_polygon',
+          style: {
+            paint: solid(0, 0, 0, 255),
+            stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
+            antialias: 'default',
+          },
+          geometry: {
+            kind: 'polygon',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+              { x: 1, y: 400 },
+            ],
+          },
+        },
+      ])
+    )!;
+    expect(line.height).toBeGreaterThan(triangle.height * 10);
+  });
 });
 
 describe('foldedFigureUserBounds', () => {

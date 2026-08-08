@@ -717,6 +717,11 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
     // persisted — but it is what a refold restores, so losing it would silently
     // move the figure the first time it is refolded.
     camera: foldedFigureCamera(entry.camera),
+    // The frame the figure draws inside. Persisted rather than recomputed for
+    // the same reason as the camera — it comes from the render model, which is
+    // not persisted — and a figure that lost it would fall back to the
+    // projection's own bounds and start resizing as it turns again.
+    frameRadius: positiveNumber(entry.frameRadius),
     sourceBounds: foldedSourceBoundsField(entry.sourceBounds),
     sourceFingerprint:
       typeof entry.sourceFingerprint === 'string' ? entry.sourceFingerprint : null,

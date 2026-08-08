@@ -444,6 +444,34 @@ function cameraUniformsFor(camera: FoldedFigureCamera, centre: Vec3): CameraUnif
 }
 
 /**
+ * Half the side of the square frame a 3D figure is drawn inside.
+ *
+ * A folded figure's box used to be the bounding box of whatever the projection
+ * happened to produce, which changes with every orbit — so turning the model
+ * resized and shifted its frame, and the chrome jumped around under the cursor.
+ * A figure should be a *window* onto the model, the way an inline simulation
+ * is, and a window does not change shape because you turned what is inside it.
+ *
+ * The bounding **sphere** is what makes that exact rather than approximate. The
+ * projection is orthographic with `scale = camera.zoom` and no perspective
+ * divide ({@link cameraUniformsFor}), so a sphere of 3D radius `R` images to a
+ * circle of radius `R * zoom` at *every* orientation. A frame sized to it
+ * therefore never changes under orbit and always contains the model — which is
+ * why nothing has to be clipped, and why the model can never escape its own
+ * chrome at an awkward angle.
+ *
+ * The cost is honest padding: a long thin model sits inside a frame as wide as
+ * it is long. That is what a viewport looks like, and it is the price of the
+ * frame being stable.
+ */
+export function folded3dFrameRadius(
+  model: OristudioCpFolded3dRenderModel,
+  camera: FoldedFigureCamera
+): number {
+  return modelRadius(model) * camera.zoom;
+}
+
+/**
  * World direction the eye lies in. Unit length.
  *
  * The third row of the view rotation, carried back through {@link toSimBasis}.

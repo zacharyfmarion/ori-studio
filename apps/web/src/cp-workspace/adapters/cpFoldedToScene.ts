@@ -543,6 +543,26 @@ export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
 } | null {
   const snapshot = figure.renderSnapshot;
   if (!snapshot?.primitives.length) return null;
+
+  // A 3D figure is a window onto the model, so its frame is fixed and square:
+  // sized once at fold time from the bounding sphere, which images to the same
+  // circle at every orientation. Deriving it from the projection instead is what
+  // made the chrome resize and jump on every orbit.
+  //
+  // The centre is the placement offset alone, because the projection anchors the
+  // model centroid at local (0, 0) — so the model stays put inside its frame
+  // while it turns, rather than sliding as its bounds change.
+  const frameRadius = figure.frameRadius ?? null;
+  if (frameRadius !== null && frameRadius > 0) {
+    const side = 2 * frameRadius * figure.placement.scale;
+    return {
+      center: { x: figure.placement.offset.x, y: figure.placement.offset.y },
+      width: side,
+      height: side,
+      rotation: figure.placement.rotation,
+    };
+  }
+
   const local = foldedFigureLocalGeometry(snapshot);
   if (!local.bounds) return null;
   const { minX, minY, maxX, maxY } = local.bounds;
