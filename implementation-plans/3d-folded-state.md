@@ -52,8 +52,16 @@ frontend half builds against, and it should not have to read the kernel to find
 any of it.**
 
 **The kernel half of this feature is therefore complete: Phases 3, 4, 5 and 9.**
-What remains is the frontend half — render (6), `G` dispatch and verdict UX (7),
-persistence (8) — plus the two follow-ups (10, 11).
+**Phase 6 is built** — the projector, `foldedFigure3dProjection.ts`, which turns
+the kernel's view-independent render model into the 2D primitive stream the CP
+canvas already draws, so nothing downstream has to know a figure is 3D.
+**Phase 7 is built**: `G` routes, all five doors dispatch, a refusal offers the
+inline simulator unconditionally, and a placed figure's verdict reaches three
+existing surfaces as one descriptor. It also mirrored the kernel's routing
+predicate exactly — dropping a colour test the kernel does not make — and added
+one optional `CommandDiagnostic` field so the closure sentence could leave raw
+English behind in eight locales.
+What remains is persistence (8), plus the two follow-ups (10, 11).
 
 **Phases 4, 5 and 9 were then reviewed, and the review found one wrong answer and
 one stale artifact.** The wrong answer: a constraint component was being
@@ -3171,65 +3179,165 @@ checkable once Phase 7 makes a 3D figure creatable.
   the flat kernel emits, so it inherits that divergence rather than adding one.
 
 ### Phase 7 — `G` dispatch, verdict UX, i18n
-- [ ] Three-way dispatch replacing `creasePatternSlice.ts:1659-1672`:
-      all-classic falls through with **no edit below `:1628`**; non-classic +
-      admitted takes the 3D branch; non-classic + refused keeps today's simulate
-      dialog
-- [ ] `refoldOristudioCpFoldedFigure` (`:2041`) and
-      `foldAnotherOristudioCpFigure` (`:1795`) routed through the same dispatch
-- [ ] Signature changes mirrored in
-      `store/workspaceStore/types.ts:798`/`:804`/`:821`
-- [ ] The six-row truth table pinned in `store.test.ts`, decided on **scoped**
-      ids only. The three existing tests at `store.test.ts:2858` are rewritten,
-      not deleted — especially `:2924`, which folds the diagonal alone of a
-      90° square, a selection that is non-classic **and** has no closed region:
-      a ready-made `Refused(FacesUnresolved)` fixture
-- [ ] CAMV gate copy split by regime (flat kinds vs
-      `SpatialClosure`/`SpatialSelfIntersection`), reusing the **same**
-      `runOristudioCpCheckCommand('CheckCamv')` call. Scope unchanged
-- [ ] Verdict copy in an i18n table keyed on the kernel code, beside
-      `foldabilityMessages.ts`. **[rewritten — "inheriting its exhaustiveness
-      test" is not available.]** That test (`foldabilityMessages.test.ts:70-90`)
-      iterates only `FOLDABILITY_RULES`, which is Oriedita's five flat rules
-      (`foldabilityMessages.ts:44-61`), and nothing gates a spatial `rule` at all:
-      `foldabilityEntryMessage` special-cases `entry.rule === 'SelfIntersection'`
-      before the `isRule`/`isColor` guard (`:171-176`), and
-      `cpDiagnosticEntryMessage` (`:190`) falls back to `entry.message` for
-      everything else. So a **new spatial-rule table plus its own exhaustiveness
-      gate** must be written, not inherited
-- [ ] `LocalCrossing`, `TransversalCrossing` and `Refused` are **not** error
-      toasts and do **not** destroy the figure — mirror
-      `conclude_with_contradiction` and carry the verdict on the entry.
-      `creasePatternSlice.ts:1828` already states the principle for the flat
-      contradiction
-- [ ] **Verdict copy budget ranked by measured frequency, not by novelty.**
-      `FacesUnresolved` (the Euler gate — 18 of 36 published models) and closure
-      failure dominate. `LocalCrossing` fires **once** across 63 corpus files, on
-      the fixture built for it, and its string already exists in every locale. Do
-      not spend the copy budget in inverse proportion to what users will see
-- [ ] `CreasePatternPanel.tsx:604` no longer renders a raw status identifier as
-      the list subtitle
-- [ ] Decide `OristudioCpFoldedFigureStatus`'s unused `'unsupported'` arm
-      (`oristudioCpTypes.ts:402`) — zero producers today; use it or delete it
-- [ ] Cycling: `fold_another` reused verbatim, **one** solution verb, no
-      `fold_to_case` on the canvas, no "k of N"
-- [ ] Test: two full laps past the wrap on a 2-solution fixture (no existing test
-      presses past the wrap)
-- [ ] **i18n, as its own gated block:** new strings across `errors`, `panels`,
-      `dialogs`; `npm run i18n:extract`; translate 8 locales; `npm run i18n:stamp`;
-      `npm run i18n:check`. **[re-scoped — the estimate of ~12 was high.]** The
-      self-intersection string already exists and is already translated
-      (`foldabilityMessages.ts:171-176`, `locales/*/panels.json`), so
-      `LocalCrossing` costs nothing. What is missing is the **gate**, not the
-      copy — see the exhaustiveness item above. Two kernel strings do ship raw
-      English in all eight locales and should be fixed while adjacent:
-      `lib.rs:3123` (`"Creases do not close: {residual_degrees:.4} degrees off"`)
-      and `:3063-3066` (`"Vertex cannot fold: degree {} is rigid …"`). `:3047` is
-      a third but the frontend already overrides it. The plan previously cited
-      `:3070`, which is an `id`, not a message
-- [ ] `mode: 'spatial'` and the verdict arms wired into Phase 1's events
-- [ ] `npm run lint:web`; `npx tsc --noEmit`; `npm run test:web`;
-      `npm run i18n:check`
+
+**Built.** `G` now routes, a 3D figure is creatable, and every verb that acts on
+one goes to the command that understands it. Five deviations from what this
+checklist said, each recorded at the item it belongs to.
+
+- [x] **Two-way** dispatch, not three-way, replacing the intercept in
+      `foldOristudioCpDocument`. The predicate moved out of the store into
+      `cp-workspace/folded/foldRoute.ts` — `resolveFoldRoute(document, scopedIds)`
+      returning `none` / `flat` / `spatial`, pure and unit-tested, per AGENTS.md's
+      rule that model logic does not live in a store action. **The plan's third
+      arm does not exist:** "non-classic + refused keeps today's simulate dialog"
+      was written before the kernel could answer, and the frontend cannot know a
+      refusal without asking. The route is decided from the creases; the refusal
+      is a *result* of taking the spatial route, answered after it
+- [x] **The predicate mirrors the kernel exactly, and that is a behaviour
+      change.** It was `isFoldingCrease(color) && !isClassicCrease(segment)`; the
+      kernel's `is_classic_crease` is colour-blind. The two disagree on one
+      input — a `Black0` segment carrying a `fold_magnitude`, which constructors
+      normalise away but `.osf` and the share codec both preserve. That input
+      used to route flat and get `fold_needs_3d` back. Both routing guards are
+      now unreachable from this dispatch, which is what "routing is the caller's
+      job" was supposed to mean
+- [x] **Five doors, not two.** `refoldOristudioCpFoldedFigure`,
+      `foldAnotherOristudioCpFigure`, `duplicateOristudioCpFoldedFigure` (which
+      the plan's "three doors" does not list) and `foldOristudioCpFigureToCase`
+      all dispatch. The export-preview fold is already safe — `CreaseExportDialog`
+      gates on `isFlatFoldableFold` over its own scoped fold — and is left alone
+- [x] A refold recomputes the route from the **reselected** ids and swaps the
+      figure's kind in place, in both directions. Both witnesses non-null is the
+      state the whole UI would then read two ways
+- [x] **No draft figure on the spatial path**, which the plan did not anticipate
+      and which two existing behaviours force. `discardFoldedFigureDraft` writes
+      `error:`, and the global toast host turns any `error:` write into an error
+      toast — but a refusal is a result. And inserting a draft calls
+      `takeCanvasSelection`, so declining the refusal dialog would silently
+      destroy the creases the user still has selected. Awaiting the fold first
+      makes both unrepresentable rather than guarded; `withFoldInFlight` still
+      drives the progress indicator
+- [x] Signatures in `store/workspaceStore/types.ts` — one addition rather than a
+      change: `simulateOristudioCpCreaseRegion(lineIds)`, the store-level door
+      onto `simulateNonFlatRegion` that the `no_layer_order` verdict's "Simulate
+      instead" needs. The fold actions' own signatures are unchanged
+- [x] The truth table pinned in `store.test.ts`, decided on **scoped** ids only,
+      with row (b) — an all-classic selection inside a non-classic document —
+      asserted to call the flat runtime and *not* the 3D one. The three existing
+      tests are rewritten, not deleted; `[5]` alone still reaches
+      `activatePanel('simulator')`, now via a refusal rather than an intercept
+- [x] CAMV gate copy split by regime, reusing the same call, the same scope and
+      the same toggle. Only the sentence differs: "errors in flat foldability" is
+      a false description of a document whose creases are not flat
+- [x] A new spatial-rule table with its own gate on **both** sides.
+      `SPATIAL_RULES = ['Closure', 'Rigid', 'SelfIntersection', 'InteriorBorder']`
+      in `foldabilityMessages.ts` with an exhaustive switch, and
+      `the_spatial_check_emits_only_the_four_rules_the_frontend_words` in
+      `crates/oristudio-cp/tests/checks_spatial.rs` asserting the kernel emits
+      exactly those four and no others. Neither language can see the other's
+      table, so one gate would not have caught a rename
+- [x] **`CommandDiagnostic.residual_degrees`**, a new optional field, so the
+      closure sentence can be translated. The kernel shipped
+      `"Creases do not close: {n:.4} degrees off"` as raw English in eight
+      locales, and a formatted string cannot be un-formatted. The rigid message
+      is reworded without its degree, so no second field is needed.
+      `skip_serializing_if` keeps an all-classic `CheckCamv` result
+      byte-identical for the Oriedita oracle. **The tracked `.wasm` is rebuilt in
+      the same tranche** — a serde-only change leaves the `.js` and `.d.ts`
+      byte-identical, which is exactly the trap that already bit this branch
+- [x] A verdict is **not** an error toast and does not destroy the figure. It is
+      a descriptor from `foldedFigureNotice.ts`, rendered by three surfaces that
+      already exist: a chip on the folded-figure toolbar, a header item in its
+      context menu, and the folded-models dropdown subtitle. `verdict: 'folded'`
+      returns `null` — silence is the right report for success
+- [x] Each verdict carries what the user can *do*: `local_crossing` reveals the
+      CAMV overlay, whose vertices are literally the ones the crossing names;
+      `transversal_crossing` selects the creases, mapped through the kernel's
+      slice order; `no_layer_order` offers the simulator. **A crossing's `line`
+      is a position in the kernel's ascending, deduped slice, not a document line
+      id** — `kernelLineOrder` / `documentLineIdForKernelLine` in `foldRoute.ts`,
+      because `foldOristudioCpDocument` takes caller-supplied ids,
+      `setOristudioCpSelection` writes its argument verbatim, and a
+      kernel-returned selection is copied straight out of the document
+- [x] Copy budgeted by measured frequency. The three most common refusals cost
+      **zero** new translations: `flat_foldability` (21 of the 65 measurable
+      corpus files) reuses the four already-translated `panels:creasePattern.
+      foldability.*` phrases, `interior_cut` reuses the interior-border phrase,
+      and `disconnected` reuses `errors:fold.disconnected`. The six arms nothing
+      reaches get one plain line each
+- [x] The folded-models list subtitle no longer renders `figure.status`. It reads
+      stale → verdict → case, all translated
+- [x] `OristudioCpFoldedFigureStatus`'s `'unsupported'` arm is **deleted**. Zero
+      producers, and none possible: a refusal produces no figure at all. The
+      reader already falls back to `'stale'` for anything it does not recognise,
+      so a file carrying the old value still loads
+- [x] Cycling: one solution verb, both kinds, through `foldedFigureCycling` —
+      which was already kind-agnostic. No `fold_to_case` in 3D, refused in the
+      store with its own message rather than letting the raw
+      `folded_figure_kind_mismatch` surface. No "k of N"
+- [x] **Verb gating, and it is load-bearing rather than defence in depth.** Flip
+      and the folded-model controls never reach a kernel guard at all:
+      `updateOristudioCpFoldedFigureModel` rejects any figure with a null flat
+      snapshot first, so an ungated flip produces "No folded model is ready" —
+      neither true nor about kinds. `foldedFigureCapabilities.ts` is what stands
+      between the user and that toast. `Transparent3` is withheld for a different
+      reason: it needs the whole-document *flat* arrangement, which a spatial
+      fold never computes
+- [x] i18n: 32 new keys across `dialogs`, `errors` and `panels`, translated in
+      all eight locales, `i18n:stamp`, `i18n:check` green. The old
+      `dialogs:nonFlatFold.*` block is gone with the intercept it belonged to
+- [x] `mode: 'spatial'` and the three verdict arms wired into Phase 1's events,
+      plus `refusal` and `order_reason` as bounded code enums. `FoldMode`'s
+      `'non-classic'` and `FoldSimulationSource`'s `'non-flat-intercept'` are
+      **renamed, not extended** — both used to mean "we did not try", and both
+      now mean something else. `docs/analytics.md` records the discontinuity so a
+      dashboard unions them deliberately
+- [x] `cargo fmt --check`, `clippy -D warnings`, `cargo test --workspace`
+      (1429 passed / 0 failed); from `apps/web`, `npx tsc --noEmit`,
+      `npx eslint .`, `npx vitest run` (3062 passed / 291 files);
+      `npm run i18n:check`; `npm run check:desktop`
+
+**No new keyboard chord.** `G` already resolves to `cp.action.folding-estimate`
+and is routed to the fold by `handleCpShortcutAction`, with
+`ROUTED_CHORD_EXCEPTIONS` covering it. Nothing goes through
+`findShortcutConflict`, because nothing new is bound.
+
+Deliberately **not** in Phase 7:
+
+- **`sourceKind: 'generated-3d'`.** A 3D figure still records
+  `'generated-from-current-cp'`, and `folded3d` is the only kind witness. Adding
+  the second witness now would silently disable staleness (the predicate at
+  `foldedFigureStaleness.ts:286` short-circuits `return false` for any other
+  kind) and drop every 3D figure out of `activeGeneratedFoldedFigure` and the
+  panel's list. It is Phase 8's, together with the reader that has to assert the
+  two witnesses agree
+- **A red face overlay on the flat CP for `no_layer_order`.** The flat path can
+  fill faces because `snapshot.contradiction_faces` carries flat CP polygons; the
+  3D payload carries only placed 3D rings, so there is no flat ring to fill.
+  Needs a kernel field shaped like `OristudioCpContradictionFaceGeometry` for the
+  three reasons that name exactly two faces. Deferred because 17 of 18 admitted
+  corpus models order with zero undetermined pairs
+- **Orbit and camera.** The entry's `camera` is written once at fold time from
+  `defaultFolded3dCamera` and never mutated. Phase 10
+
+#### What a human still has to look at
+
+The automated browser pane runs with `visibilityState=hidden` and zero animation
+frames, so none of this is agent-verifiable. Everything the dispatch *decides* is
+asserted; what follows is what only an eye settles.
+
+- `G` on a selection with a fold angle produces a figure rather than a dialog,
+  and the figure is placed beside the crease pattern rather than over it.
+- A refused pattern raises the new dialog, and **Simulate opens an inline
+  window** beside the crease pattern rather than switching workspace. Declining
+  leaves the creases still selected.
+- The verdict chip sits at the head of the folded-figure toolbar and is legible
+  against the figure; its context-menu twin reads as a sentence.
+- "Select the creases" highlights the creases the crossing actually names —
+  the one thing the slice-index mapping could get plausibly wrong.
+- The folded-models dropdown shows "Folding…" and "Failed" rather than `loading`
+  and `error`, and shows the verdict label in place of "Case 1" when there is one.
+- A 3D figure's toolbar has no Flip, and its Display menu has no X-ray.
 
 ### Phase 8 — Persistence, staleness, export gating
 - [ ] `'generated-3d'` on `OristudioCpFoldedFigureSourceKind`
