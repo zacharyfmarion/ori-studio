@@ -235,7 +235,11 @@ pub struct Fold3dOrderEnumerator {
     crossings: Vec<Fold3dCrossing>,
     crossing_count: usize,
     couplings: usize,
+    /// Forward-only high-water mark of solutions reached.
     discovered: usize,
+    /// Which solution the stream is showing, 1-based. Reset to 1 by a wrap,
+    /// where `discovered` is not.
+    position: usize,
     current: Fold3dOrdering,
 }
 
@@ -276,6 +280,7 @@ impl Fold3dOrderEnumerator {
             crossing_count: plan.crossing_count,
             couplings: plan.couplings,
             discovered: 1,
+            position: 1,
             current: Fold3dOrdering {
                 relations: Vec::new(),
                 undetermined: Vec::new(),
@@ -312,6 +317,13 @@ impl Fold3dOrderEnumerator {
     /// it says the permutation state moved, not that another solution is there —
     /// so a digit that says yes and then finds nothing is exhausted rather than
     /// broken, and carries like any other.
+    ///
+    /// Where you **are** and how many have been **seen** are two counters, and
+    /// only the second is monotone. Deriving the first from the second gets the
+    /// first lap right and every later one wrong: after a wrap the stream is
+    /// showing solution 1 again, so the next press is solution 2, not solution
+    /// 9. `the_solution_stream_wraps_and_keeps_wrapping` is the test, and it
+    /// takes two laps to see it.
     pub fn advance(&mut self) -> Result<Advance, Fold3dOrderError> {
         let mut wrapped = true;
         for digit in 0..self.components.len() {
@@ -321,15 +333,13 @@ impl Fold3dOrderEnumerator {
             }
             self.components[digit].restart()?;
         }
-        if !wrapped {
-            self.discovered += 1;
+        if wrapped {
+            self.position = 1;
         } else {
-            self.discovered = self.discovered.max(1);
+            self.position += 1;
+            self.discovered = self.discovered.max(self.position);
         }
         self.current = self.assemble();
-        if wrapped {
-            self.current.current_case = 1;
-        }
         Ok(if wrapped {
             Advance::WrappedToFirst
         } else {
@@ -393,7 +403,7 @@ impl Fold3dOrderEnumerator {
             variables: self.variables.clone(),
             component_of: self.component_of.clone(),
             couplings: self.couplings,
-            current_case: self.discovered,
+            current_case: self.position,
             discovered_cases: self.discovered,
             has_next: self.can_advance(),
         }

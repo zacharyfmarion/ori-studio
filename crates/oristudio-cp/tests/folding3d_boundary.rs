@@ -499,6 +499,16 @@ fn a_refold_of_the_same_document_is_bit_identical() {
 
 // --- the solution stream -----------------------------------------------------
 
+/// The one committed fixture with more than one layer order.
+///
+/// Named, because every cycling assertion below is **vacuous on a
+/// one-solution figure** and four of the five 3D fixtures are one — measured:
+/// `hinge_90`, `box_90`, `spikes_small` and `spikes_large` have exactly one,
+/// `penguin_freeform` has eight. A cycling test written against `box_90`
+/// passes whatever the enumerator does, which is how the first draft of this
+/// file survived a mutation that made the duplicate restart its stream.
+const MULTI_SOLUTION: &str = "penguin_freeform";
+
 /// Cycling reports the wrap explicitly, and the wrap repeats.
 ///
 /// Two full laps: no existing test in the repo presses a fold stream past its
@@ -507,31 +517,70 @@ fn a_refold_of_the_same_document_is_bit_identical() {
 #[test]
 fn the_solution_stream_wraps_and_keeps_wrapping() {
     let mut session = CpSession::new();
-    let (handle, first) = placed(fold_3d(&mut session, "box_90"));
+    let (handle, first) = placed(fold_3d(&mut session, MULTI_SOLUTION));
+    assert!(
+        first.find_another_overlap_valid,
+        "{MULTI_SOLUTION} must have more than one solution, or nothing below is tested"
+    );
 
-    let mut seen = vec![first.current_fold_case];
-    let mut wraps = 0usize;
-    for _ in 0..(2 * 8) {
+    let mut lap: Vec<usize> = vec![first.current_fold_case];
+    let mut laps: Vec<Vec<usize>> = Vec::new();
+    for _ in 0..64 {
         let step = session
             .folded_figure_3d_fold_another(handle)
             .expect("stepping a placed figure");
-        if !step.advanced {
-            wraps += 1;
-            assert_eq!(
-                step.snapshot.current_fold_case, 1,
-                "a wrap returns to solution 1"
-            );
-            if wraps == 2 {
-                break;
-            }
+        if step.advanced {
+            lap.push(step.snapshot.current_fold_case);
+            continue;
         }
-        seen.push(step.snapshot.current_fold_case);
+        assert_eq!(
+            step.snapshot.current_fold_case, 1,
+            "a wrap returns to solution 1"
+        );
+        laps.push(std::mem::replace(
+            &mut lap,
+            vec![step.snapshot.current_fold_case],
+        ));
+        if laps.len() == 2 {
+            break;
+        }
     }
-    assert!(wraps >= 2, "the stream wrapped {wraps} times in two laps");
+    assert_eq!(laps.len(), 2, "the stream did not wrap twice in 64 presses");
+    // A lap that visits one solution is a stream that is not moving, which the
+    // wrap count alone cannot see.
     assert!(
-        seen.iter().all(|&case| case >= 1),
-        "the case number is 1-based"
+        laps[0].len() > 1,
+        "the first lap visited {} solutions",
+        laps[0].len()
     );
+    assert_eq!(
+        laps[0], laps[1],
+        "solution N is not the same solution twice"
+    );
+    assert_eq!(
+        laps[0],
+        (1..=laps[0].len()).collect::<Vec<usize>>(),
+        "case numbers are 1-based and consecutive within a lap"
+    );
+}
+
+/// A one-solution figure wraps on every press rather than erroring.
+///
+/// Its own behaviour, not a degenerate case of the above: four of the five
+/// committed 3D fixtures are one-solution, so it is what most users meet.
+#[test]
+fn a_single_solution_stream_wraps_on_every_press() {
+    let mut session = CpSession::new();
+    let (handle, first) = placed(fold_3d(&mut session, "box_90"));
+    assert!(!first.find_another_overlap_valid);
+    assert_eq!(first.discovered_fold_cases, 1);
+    for _ in 0..3 {
+        let step = session
+            .folded_figure_3d_fold_another(handle)
+            .expect("stepping a one-solution figure is not an error");
+        assert!(!step.advanced);
+        assert_eq!(step.snapshot.current_fold_case, 1);
+    }
 }
 
 /// A duplicate starts on the solution the original was showing, then cycles
@@ -539,10 +588,14 @@ fn the_solution_stream_wraps_and_keeps_wrapping() {
 #[test]
 fn a_duplicate_starts_where_the_original_was_and_then_diverges() {
     let mut session = CpSession::new();
-    let (original, _) = placed(fold_3d(&mut session, "box_90"));
+    let (original, _) = placed(fold_3d(&mut session, MULTI_SOLUTION));
     let advanced = session
         .folded_figure_3d_fold_another(original)
         .expect("step the original");
+    assert!(
+        advanced.advanced && advanced.snapshot.current_fold_case > 1,
+        "the original must have moved, or the copy has nothing to match"
+    );
 
     let (copy, copied) = placed(
         session
@@ -555,18 +608,18 @@ fn a_duplicate_starts_where_the_original_was_and_then_diverges() {
     );
     assert_ne!(copy, original, "the duplicate is its own handle");
 
-    if advanced.snapshot.find_another_overlap_valid {
-        let stepped = session
-            .folded_figure_3d_fold_another(copy)
-            .expect("step the copy");
-        let original_now = session
-            .folded_figure_3d_fold_another(original)
-            .expect("step the original again");
-        assert_eq!(
-            stepped.snapshot.current_fold_case, original_now.snapshot.current_fold_case,
-            "two independent streams from one state stay in step"
-        );
-    }
+    // Stepping the copy must not step the original — what a shared enumerator
+    // would do — so the two land on the same case from the same state.
+    let stepped = session
+        .folded_figure_3d_fold_another(copy)
+        .expect("step the copy");
+    let original_now = session
+        .folded_figure_3d_fold_another(original)
+        .expect("step the original again");
+    assert_eq!(
+        stepped.snapshot.current_fold_case, original_now.snapshot.current_fold_case,
+        "two independent streams from one state stay in step"
+    );
 }
 
 // --- the verdict -------------------------------------------------------------
