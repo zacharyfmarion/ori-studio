@@ -27,6 +27,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub use canonical::CanonicalCreasePattern;
+/// The fold graph itself stays crate-private; its failure mode does not, because
+/// it is carried by [`folding::FoldSetupError`] and named by a `fold_disconnected`
+/// engine error the frontend branches on.
+pub use fold_graph::FoldGraphError;
 use geometry::{
     Circle, Epsilon, LineColor, LineSegment, Point, Polygon, RgbColor,
     determine_line_segment_distance, mid_point,

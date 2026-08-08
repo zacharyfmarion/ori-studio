@@ -14,11 +14,13 @@
 
 use serde::Serialize;
 
+use crate::fold_graph::FoldGraphError;
 use crate::folding::{
-    DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
-    FoldedFigureRenderSnapshot, FoldedFigureSnapshot, FoldingEstimateError, FoldingEstimateSession,
-    WorkerOverlapSearchError, fold_another, folded_figure_render_snapshot_from_session,
-    folded_figure_snapshot_from_session, folding_estimate_to_case,
+    AdditionalEstimationError, DisplayStyle, EstimationOrder, FoldSetupError, FoldedFigureModel,
+    FoldedFigureRenderOptions, FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
+    FoldingEstimateError, FoldingEstimateSession, WorkerOverlapSearchError, fold_another,
+    folded_figure_render_snapshot_from_session, folded_figure_snapshot_from_session,
+    folding_estimate_to_case,
 };
 use crate::geometry::LineSegment;
 use crate::geometry_transport::{self, CompactGeometry};
@@ -140,10 +142,21 @@ impl From<io::IoError> for EngineError {
 impl From<FoldingEstimateError> for EngineError {
     fn from(error: FoldingEstimateError) -> Self {
         // Stable per-cause code for the UI; Debug string carries the detail.
+        fn setup_code(setup: &FoldSetupError) -> &'static str {
+            match setup {
+                FoldSetupError::FoldGraph(FoldGraphError::DisconnectedFaces { .. }) => {
+                    "fold_disconnected"
+                }
+                FoldSetupError::InitialHierarchy(_) => "fold_same_parity",
+            }
+        }
         let code = match &error {
-            FoldingEstimateError::InitialHierarchy(_) => "fold_same_parity",
+            FoldingEstimateError::Setup(setup) => setup_code(setup),
             FoldingEstimateError::WorkerOverlap(worker) => match worker {
-                WorkerOverlapSearchError::InitialHierarchy(_) => "fold_same_parity",
+                WorkerOverlapSearchError::Setup(setup) => setup_code(setup),
+                WorkerOverlapSearchError::AdditionalEstimation(
+                    AdditionalEstimationError::Setup(setup),
+                ) => setup_code(setup),
                 WorkerOverlapSearchError::AdditionalEstimation(_) => "fold_contradiction",
                 WorkerOverlapSearchError::SubFace(_)
                 | WorkerOverlapSearchError::FinalAdditionalEstimationRequired { .. } => {
@@ -720,6 +733,7 @@ fn resolved_line_indices(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::folding::InitialHierarchyError;
 
     const SQUARE_CP: &str =
         "2 0.0 0.0 1.0 0.0\n2 1.0 0.0 1.0 1.0\n2 1.0 1.0 0.0 1.0\n2 0.0 1.0 0.0 0.0\n";
@@ -774,5 +788,39 @@ mod tests {
     fn operation_catalog_is_non_empty() {
         let session = CpSession::new();
         assert!(!session.operation_descriptors().is_empty());
+    }
+
+    /// The frontend branches on `code`, so a disconnected fold graph has to be
+    /// distinguishable from a parity abort and from a layer-ordering
+    /// contradiction — all three used to be reachable only as `fold_same_parity`
+    /// or nothing at all.
+    #[test]
+    fn a_disconnected_fold_graph_carries_its_own_engine_code() {
+        let disconnected = EngineError::from(FoldingEstimateError::Setup(
+            FoldSetupError::FoldGraph(FoldGraphError::DisconnectedFaces {
+                reached: 225,
+                unreached: 1,
+            }),
+        ));
+        assert_eq!(disconnected.code, "fold_disconnected");
+
+        let parity = EngineError::from(FoldingEstimateError::Setup(
+            FoldSetupError::InitialHierarchy(InitialHierarchyError::SameParityAdjacentFaces {
+                line: 0,
+                first_face: 0,
+                second_face: 1,
+            }),
+        ));
+        assert_eq!(parity.code, "fold_same_parity");
+
+        let contradiction = EngineError::from(FoldingEstimateError::WorkerOverlap(
+            WorkerOverlapSearchError::AdditionalEstimation(
+                AdditionalEstimationError::Contradiction {
+                    upper_face: 0,
+                    lower_face: 1,
+                },
+            ),
+        ));
+        assert_eq!(contradiction.code, "fold_contradiction");
     }
 }

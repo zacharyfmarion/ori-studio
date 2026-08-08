@@ -1,16 +1,18 @@
+use oristudio_cp::FoldGraphError;
 use oristudio_cp::folding::{
     AdditionalEstimationError, ChainPermutationGenerator, DisplayStyle, EstimationOrder,
-    EstimationStep, FoldContradiction, FoldedFigureModel, FoldedFigureRenderAntialias,
-    FoldedFigureRenderGeometry, FoldedFigureRenderOptions, FoldedFigureRenderPaint,
-    FoldedFigureRenderPrimitiveKind, FoldedFigureRenderStroke, FoldedFigureState,
-    FoldedShadowGeometry, FoldingEstimateError, FoldingEstimateSession, HierarchyRelation,
-    InitialHierarchy, RenderPathCommand, RgbaColor, SubFacePermutationSearch, SubFaceSwapper,
-    WorkerOverlapEnumerator, WorkerOverlapSearchError, additional_estimation_from_segments,
-    configure_subfaces_from_segments, duplicate_estimation_order_for_display,
-    equivalence_condition_candidates_from_segments, estimate_wireframe_from_segments, fold_another,
-    folded_figure_render_snapshot_from_segments, folded_figure_snapshot_from_segments,
-    folding_estimate_case_filename, folding_estimate_from_segments, folding_estimate_save_batch,
-    folding_estimate_to_case, initial_hierarchy_from_segments, overlap_search_from_segments,
+    EstimationStep, FoldContradiction, FoldSetupError, FoldedFigureModel,
+    FoldedFigureRenderAntialias, FoldedFigureRenderGeometry, FoldedFigureRenderOptions,
+    FoldedFigureRenderPaint, FoldedFigureRenderPrimitiveKind, FoldedFigureRenderStroke,
+    FoldedFigureState, FoldedShadowGeometry, FoldingEstimateError, FoldingEstimateSession,
+    HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor, SubFacePermutationSearch,
+    SubFaceSwapper, WorkerOverlapEnumerator, WorkerOverlapSearchError,
+    additional_estimation_from_segments, configure_subfaces_from_segments,
+    duplicate_estimation_order_for_display, equivalence_condition_candidates_from_segments,
+    estimate_wireframe_from_segments, fold_another, folded_figure_render_snapshot_from_segments,
+    folded_figure_snapshot_from_segments, folding_estimate_case_filename,
+    folding_estimate_from_segments, folding_estimate_save_batch, folding_estimate_to_case,
+    initial_hierarchy_from_segments, overlap_search_from_segments,
     overlap_search_from_segments_with_swap, parse_oriedita_render_primitives,
     possible_overlap_search_for_ordered_subfaces, possible_overlap_search_for_subfaces,
     possible_overlap_search_for_subfaces_with_swap, prepare_subface_segments, prioritize_subfaces,
@@ -135,7 +137,9 @@ primitive|1|stroke_path|color|0|0|0|255|basic|1.200000048|0|0|10.000000000|aa_on
 fn wireframe_fold_builds_faces_and_face_positions() {
     let segments = square_with_diagonal();
 
-    let folded = estimate_wireframe_from_segments(&segments, 1).expect("folded wireframe");
+    let folded = estimate_wireframe_from_segments(&segments, 1)
+        .expect("connected fold graph")
+        .expect("folded wireframe");
 
     assert_eq!(folded.points.len(), 4);
     assert_eq!(folded.lines.len(), 5);
@@ -153,7 +157,11 @@ fn wireframe_fold_returns_none_without_faces() {
         LineColor::Black0,
     )];
 
-    assert!(estimate_wireframe_from_segments(&segments, 1).is_none());
+    assert!(
+        estimate_wireframe_from_segments(&segments, 1)
+            .expect("connected fold graph")
+            .is_none()
+    );
 }
 
 #[test]
@@ -197,8 +205,9 @@ fn subface_preparation_removes_points_duplicates_and_splits_crossings() {
 fn subface_configuration_maps_subfaces_to_folded_faces() {
     let segments = square_with_diagonal();
 
-    let configuration =
-        configure_subfaces_from_segments(&segments, 1).expect("subface configuration");
+    let configuration = configure_subfaces_from_segments(&segments, 1)
+        .expect("connected fold graph")
+        .expect("subface configuration");
 
     assert!(!configuration.subfaces.is_empty());
     assert_eq!(configuration.face_id_count_max, 2);
@@ -781,6 +790,7 @@ fn duplicate_estimation_order_follows_oriedita_display_mapping() {
 #[test]
 fn two_colored_subface_segments_keep_development_coordinates() {
     let prepared = two_colored_subface_segments_from_segments(&two_square_strip(), 1)
+        .expect("connected fold graph")
         .expect("two-colored subface preparation");
 
     assert!(!prepared.is_empty());
@@ -1203,5 +1213,103 @@ fn shadows_need_the_model_flag() {
             FoldedFigureRenderPaint::Gradient { .. }
         )),
         "shadows are off by default"
+    );
+}
+
+/// An `n`x`n` grid of unit squares, optionally with one more square parked far
+/// away from it and touching nothing.
+///
+/// The grid alone is Euler-exact (`faces - lines + points == 1`). The detached
+/// square pushes it to 2, which the tolerance in `FoldGraph::calculate_faces`
+/// (`0.005 * faces.len()`) waves through from ~200 faces up — so this is the
+/// smallest shape of input that reaches the spanning walk while being
+/// disconnected.
+fn grid_lines(n: usize, detached_square: bool) -> Vec<LineSegment> {
+    let mut segments = Vec::new();
+    let side = n as f64;
+    for row in 0..=n {
+        let y = row as f64;
+        for column in 0..n {
+            let x = column as f64;
+            segments.push(segment(x, y, x + 1.0, y, LineColor::Red1));
+        }
+    }
+    for column in 0..=n {
+        let x = column as f64;
+        for row in 0..n {
+            let y = row as f64;
+            segments.push(segment(x, y, x, y + 1.0, LineColor::Blue2));
+        }
+    }
+    if detached_square {
+        let far = side + 10.0;
+        segments.push(segment(far, 0.0, far + 1.0, 0.0, LineColor::Black0));
+        segments.push(segment(far + 1.0, 0.0, far + 1.0, 1.0, LineColor::Black0));
+        segments.push(segment(far + 1.0, 1.0, far, 1.0, LineColor::Black0));
+        segments.push(segment(far, 1.0, far, 0.0, LineColor::Black0));
+    }
+    segments
+}
+
+/// The control: the same grid, connected, folds without complaint. Without this,
+/// the test below could pass because the input is merely big.
+#[test]
+fn connected_grid_of_that_size_still_folds() {
+    let folded = estimate_wireframe_from_segments(&grid_lines(15, false), 1)
+        .expect("connected fold graph")
+        .expect("folded wireframe");
+
+    assert_eq!(folded.faces.len(), 225);
+    assert!(
+        folded.face_positions.iter().all(|position| *position != 0),
+        "every face in a connected grid is reached by the walk"
+    );
+}
+
+/// Before this was typed, the walk broke out of its BFS on an empty frontier and
+/// the unreached faces came back with `associated_line: None` — which
+/// `fold_movement` reads as "do not move this point". The figure drew a folded
+/// grid beside an unfolded square, reported `Ok`, and said nothing.
+#[test]
+fn disconnected_face_graph_is_refused_rather_than_left_unfolded() {
+    let segments = grid_lines(15, true);
+
+    let error = estimate_wireframe_from_segments(&segments, 1)
+        .expect_err("a disconnected fold graph must not fold");
+
+    assert_eq!(
+        error,
+        FoldGraphError::DisconnectedFaces {
+            reached: 225,
+            unreached: 1,
+        }
+    );
+}
+
+/// The refusal has to reach the caller of the *fold*, not only the wireframe
+/// helper: `G` runs a whole estimate, and every stage of it walks this graph.
+#[test]
+fn disconnected_face_graph_fails_the_whole_fold_estimate() {
+    let error = folded_figure_snapshot_from_segments(
+        &grid_lines(15, true),
+        1,
+        EstimationOrder::Order5,
+        FoldedFigureModel::default(),
+    )
+    .expect_err("a disconnected fold graph must not produce a figure");
+
+    assert_eq!(
+        error,
+        FoldingEstimateError::Setup(FoldSetupError::FoldGraph(
+            FoldGraphError::DisconnectedFaces {
+                reached: 225,
+                unreached: 1,
+            }
+        ))
+    );
+    assert!(
+        error.contradiction().is_none(),
+        "a disconnected graph is not a layer-ordering contradiction, and must \
+         not fall back to the transparent development the way one does"
     );
 }

@@ -28,6 +28,42 @@ pub(crate) struct FacePositions {
     pub associated_line: Vec<Option<usize>>,
 }
 
+/// A fold graph the spanning walk cannot describe.
+///
+/// **Ori Studio native — no Oriedita counterpart.** Upstream's
+/// `WireFrame_Worker.getFacePositions()` has no exit for this at all: its
+/// `while (remaining_facesTotal > 0)` loop keeps re-scanning an empty frontier
+/// until the thread is interrupted. We already diverged by breaking out of the
+/// loop; that traded a hang for a *wrong answer*, because every face the walk
+/// never reached keeps `associated_line: None`, and [`FoldGraph::fold_movement`]
+/// then returns those faces' points unmoved — an unfolded slab inside an
+/// otherwise folded figure, with no error anywhere. See PORTING.md.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FoldGraphError {
+    /// The dual graph of faces is not connected: no walk from the starting face
+    /// reaches `unreached` of them.
+    ///
+    /// The Euler gate in [`FoldGraph::calculate_faces`] catches the small cases
+    /// (two disjoint squares score `euler == 2` and are rejected outright), but
+    /// its tolerance is `0.005 * faces.len()`, so from ~200 faces up a
+    /// disconnected line set passes the gate and reaches the walk.
+    DisconnectedFaces { reached: usize, unreached: usize },
+}
+
+impl std::fmt::Display for FoldGraphError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DisconnectedFaces { reached, unreached } => write!(
+                f,
+                "the fold graph is disconnected: the walk reached {reached} faces \
+                 and could not reach {unreached}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for FoldGraphError {}
+
 impl FoldGraph {
     pub(crate) fn from_model_for_export(model: &CreasePatternModel) -> Self {
         let segments = if model.line_segments.is_empty() {
@@ -123,19 +159,27 @@ impl FoldGraph {
         folded
     }
 
-    pub(crate) fn face_positions(&self, starting_face: i32) -> FacePositions {
+    /// Oriedita `WireFrame_Worker.getFacePositions()`: the spanning walk over the
+    /// dual graph of faces, recording each face's depth, its parent, and the
+    /// crease it folds across.
+    ///
+    /// Fallible where upstream is not — see [`FoldGraphError`].
+    pub(crate) fn face_positions(
+        &self,
+        starting_face: i32,
+    ) -> Result<FacePositions, FoldGraphError> {
         let starting_face = self.resolve_starting_face(starting_face);
         let mut face_position = vec![0; self.faces.len()];
         let mut next_face = vec![None; self.faces.len()];
         let mut associated_line = vec![None; self.faces.len()];
 
         if self.faces.is_empty() {
-            return FacePositions {
+            return Ok(FacePositions {
                 starting_face,
                 face_position,
                 next_face,
                 associated_line,
-            };
+            });
         }
 
         face_position[starting_face] = 1;
@@ -162,19 +206,24 @@ impl FoldGraph {
             }
 
             if next_round.is_empty() {
-                break;
+                // Nothing new is reachable and faces remain. Upstream would spin
+                // here forever; breaking out would hand back an unfolded slab.
+                return Err(FoldGraphError::DisconnectedFaces {
+                    reached: self.faces.len() - remaining_faces,
+                    unreached: remaining_faces,
+                });
             }
 
             current_round = next_round;
             depth += 1;
         }
 
-        FacePositions {
+        Ok(FacePositions {
             starting_face,
             face_position,
             next_face,
             associated_line,
-        }
+        })
     }
 
     fn calculate_faces(&mut self) -> bool {

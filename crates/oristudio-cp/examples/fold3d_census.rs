@@ -1,8 +1,12 @@
-//! Spike C — coplanar-overlap census on 3D-placed faces.
+//! The Phase 0 measurement harness for the 3D folded state: **one command**
+//! for the coplanar-overlap census, the placement loop gap, and the
+//! parallel-plane separation spectrum.
 //!
-//! The 3D-folded-state plan's merge set renders a folded figure **without**
-//! layer ordering, and that is only honest when the coplanar-overlap census is
-//! usually zero. This measures it on real files.
+//! Those three numbers are what the 3D-fold plan's design decisions rest on —
+//! whether layer ordering can be skipped, whether the loop gap can gate, and
+//! whether plane separation can. A measurement nobody can re-run is a
+//! measurement that rots, so all three come out of one invocation over one
+//! directory, and the plan quotes that invocation.
 //!
 //! Everything topological comes from the shipped kernel, not from the file:
 //! `import_fold_document` builds the `CreasePatternModel` and
@@ -13,13 +17,23 @@
 //! have used.
 //!
 //! ```bash
-//! cargo run -p oristudio-cp --release --example fold3d_census -- <dir-or-file>...
+//! # The committed fixtures.
+//! cargo run -p oristudio-cp --release --example fold3d_census -- \
+//!     tests/fixtures/fold-angle-3d
+//! # The external non-flat corpus, wherever ORISTUDIO_NON_FLAT_CORPUS_DIR points.
+//! cargo run -p oristudio-cp --release --example fold3d_census -- --corpus
 //! ```
 //!
-//! Flags: `--csv` machine-readable rows; `--sweep` census under a plane-tolerance
-//! sweep; `--sign` both placement sign conventions; `--gaps` where a placement
-//! stops being path-independent; `--arrangement` what the face walk produced;
-//! `--selftest` the polygon-overlap primitive against hand-computable areas.
+//! `.osf` projects are read directly, so the owner-authored designs need no
+//! extraction step; `scripts/osf-fold-projection.mjs` is only for producing a
+//! `.fold` file to commit.
+//!
+//! Flags: `--corpus` scan `ORISTUDIO_NON_FLAT_CORPUS_DIR` recursively; `--csv`
+//! machine-readable rows; `--sweep` census under a plane-tolerance sweep;
+//! `--sign` both placement sign conventions; `--gaps` where a placement stops
+//! being path-independent; `--arrangement` what the face walk produced;
+//! `--flatcheck` the placement against the shipped flat folder; `--selftest`
+//! the polygon-overlap primitive against hand-computable areas.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -32,6 +46,12 @@ use oristudio_cp::geometry::{LineColor, Point};
 use oristudio_cp::io::fold::{export_fold_document, import_fold_document};
 use oristudio_cp::model::is_classic_crease;
 use treemaker_fold::{Assignment, FoldDocument};
+
+/// The env var the external non-flat corpus lives behind.
+///
+/// Same convention as `ORIEDITA_FOLDED_CORPUS_DIR` / `TREEMAKER_CORPUS_DIR` /
+/// `FOLD_FRAME_CORPUS_DIR`; see `tests/corpus/README.md`.
+const CORPUS_ENV: &str = "ORISTUDIO_NON_FLAT_CORPUS_DIR";
 
 /// Mirrors the private bar in `lib.rs` (`CLOSURE_RESIDUAL_BAR_DEGREES`).
 const CLOSURE_BAR_DEGREES: f64 = 1e-6;
@@ -268,6 +288,25 @@ struct Arrangement {
     span: f64,
 }
 
+/// Read a `.fold` file, or the crease pattern out of an Ori Studio `.osf`.
+///
+/// The owner-authored half of the corpus is `.osf` projects, and the FOLD
+/// document inside one lives at
+/// `workspace.documents[0].creasePattern.foldProjection`. Reading it here means
+/// the corpus scan needs no extraction step; `scripts/osf-fold-projection.mjs`
+/// exists for the separate job of producing a `.fold` file to commit.
+fn read_fold(path: &Path) -> Result<FoldDocument, String> {
+    let raw = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    if path.extension().is_some_and(|e| e == "osf") {
+        let project: serde_json::Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+        let projection = project
+            .pointer("/workspace/documents/0/creasePattern/foldProjection")
+            .ok_or_else(|| "no creasePattern.foldProjection in this .osf".to_string())?;
+        return serde_json::from_value(projection.clone()).map_err(|e| e.to_string());
+    }
+    serde_json::from_str(&raw).map_err(|e| e.to_string())
+}
+
 fn arrangement(fold: &FoldDocument) -> Result<Arrangement, String> {
     let model = import_fold_document(fold).map_err(|e| format!("{e:?}"))?;
     let exported = export_fold_document(&model, None);
@@ -378,6 +417,12 @@ struct Placement {
     component_count: usize,
     /// Worst disagreement, in model units, over non-tree dual adjacencies.
     loop_gap: f64,
+    /// How many non-tree dual adjacencies the loop gap is a maximum *over*.
+    ///
+    /// Reported because a tree dual graph has none, and then `loop_gap` is an
+    /// exact `0.0` that certifies nothing — the placement has no self-check at
+    /// all on that model. A bare zero and a vacuous zero must not print alike.
+    non_tree_edges: usize,
     unreached: usize,
     tree_edges: BTreeSet<(usize, usize)>,
 }
@@ -431,8 +476,9 @@ fn place(model: &Arrangement, graph: &Dual, sign: f64) -> Placement {
     }
 
     let mut loop_gap: f64 = 0.0;
-    for (gap, _, _, _) in non_tree_gaps(model, graph, &transforms, &tree_edges) {
-        loop_gap = loop_gap.max(gap);
+    let gaps = non_tree_gaps(model, graph, &transforms, &tree_edges);
+    for (gap, _, _, _) in &gaps {
+        loop_gap = loop_gap.max(*gap);
     }
 
     let unreached = transforms.iter().filter(|t| t.is_none()).count();
@@ -441,6 +487,7 @@ fn place(model: &Arrangement, graph: &Dual, sign: f64) -> Placement {
         components,
         component_count,
         loop_gap,
+        non_tree_edges: gaps.len(),
         unreached,
         tree_edges,
     }
@@ -571,6 +618,198 @@ fn local_star_gaps(model: &Arrangement, graph: &Dual, sign: f64) -> Vec<(f64, us
     }
     out.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
     out
+}
+
+/// Where the parallel-plane separations of a placed model actually sit.
+///
+/// The plan's §2 step 6 rejects "gate on the minimum separation" and replaces
+/// it with a **spectrum-gap** test: sort the separations inside one normal
+/// class and look for an empty band wide enough to seat a distance tolerance.
+/// That only means something if the bands are reported, so this reports them —
+/// the minimum alone is the number that was measured uncomputable.
+#[derive(Default, Clone, Copy)]
+struct Spectrum {
+    /// Smallest strictly-positive offset difference between parallel planes,
+    /// in model units. `None` when no normal class holds two distinct offsets,
+    /// which certifies nothing and must not be read as "infinitely separated".
+    min_separation: Option<f64>,
+    /// Smallest non-zero angle between two face normals, radians.
+    min_normal_angle: Option<f64>,
+    /// Consecutive offset differences within one normal class, in decade bins
+    /// relative to the paper span: `<1e-12`, `1e-12..1e-9`, `1e-9..1e-6`,
+    /// `1e-6..1e-3`, `>=1e-3`. A bimodal spectrum has an empty middle.
+    bins: [usize; 5],
+    normal_classes: usize,
+}
+
+/// Well-conditioned angle between two unit vectors.
+///
+/// `acos(dot)` cannot be used: near 1 it has a square-root conditioning floor
+/// at `sqrt(2*eps) = 1.5e-8`, and every closing model in this corpus sits below
+/// it, so `acos` reports a uniform fake 1e-8 angle on normals that agree to
+/// 1e-15.
+fn vector_angle(a: Vec3, b: Vec3) -> f64 {
+    norm(cross(a, b)).atan2(dot(a, b))
+}
+
+fn spectrum(model: &Arrangement, placement: &Placement) -> Spectrum {
+    let mut planes: Vec<(Vec3, f64)> = Vec::new();
+    for (index, face) in model.faces.iter().enumerate() {
+        let Some(t) = placement.transforms[index] else {
+            continue;
+        };
+        let ring: Vec<Vec3> = face
+            .iter()
+            .map(|&v| {
+                let p = model.points[v];
+                t.apply([p.0, p.1, 0.0])
+            })
+            .collect();
+        if ring.len() < 3 {
+            continue;
+        }
+        let mut n = [0.0; 3];
+        for k in 0..ring.len() {
+            let (a, b) = (ring[k], ring[(k + 1) % ring.len()]);
+            n = [
+                n[0] + (a[1] - b[1]) * (a[2] + b[2]),
+                n[1] + (a[2] - b[2]) * (a[0] + b[0]),
+                n[2] + (a[0] - b[0]) * (a[1] + b[1]),
+            ];
+        }
+        if norm(n) == 0.0 {
+            continue;
+        }
+        let n = unit(n);
+        let centroid = scale(
+            ring.iter().fold([0.0; 3], |acc, v| add(acc, *v)),
+            1.0 / ring.len() as f64,
+        );
+        planes.push((n, dot(n, centroid)));
+    }
+
+    // Greedy normal classes, with the sign resolved **against the class** and
+    // never globally. A global rule ("flip if the first non-zero component is
+    // negative") splits two normals that differ by 1e-17 across an axis into
+    // opposite signs, and their offsets then differ by twice the offset — which
+    // reads as a large, entirely fictional plane separation. Measured on
+    // `spikes_small`: the global rule invents a 50-unit gap on a 400-unit sheet.
+    //
+    // The angle tolerance is deliberately far above the conditioning floor of
+    // the naive `acos` form and far below any real design angle;
+    // `min_normal_angle` reports how much room that actually leaves.
+    const ANGLE_TOL: f64 = 1e-7;
+    let mut classes: Vec<(Vec3, Vec<f64>)> = Vec::new();
+    let mut min_normal_angle: Option<f64> = None;
+    for (normal, offset) in &planes {
+        let mut placed = false;
+        for (class_normal, offsets) in classes.iter_mut() {
+            let raw = vector_angle(*class_normal, *normal);
+            let angle = raw.min(std::f64::consts::PI - raw);
+            if angle <= ANGLE_TOL {
+                // Anti-parallel to the class means the same plane seen from the
+                // back, so the offset flips with the normal.
+                let aligned = if dot(*class_normal, *normal) < 0.0 {
+                    -offset
+                } else {
+                    *offset
+                };
+                offsets.push(aligned);
+                placed = true;
+                break;
+            }
+            min_normal_angle = Some(min_normal_angle.map_or(angle, |m: f64| m.min(angle)));
+        }
+        if !placed {
+            classes.push((*normal, vec![*offset]));
+        }
+    }
+
+    let mut min_separation: Option<f64> = None;
+    let mut bins = [0usize; 5];
+    for (_, offsets) in classes.iter_mut() {
+        offsets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        for window in offsets.windows(2) {
+            let separation = (window[1] - window[0]).abs();
+            let relative = separation / model.span;
+            let bin = match relative {
+                r if r < 1e-12 => 0,
+                r if r < 1e-9 => 1,
+                r if r < 1e-6 => 2,
+                r if r < 1e-3 => 3,
+                _ => 4,
+            };
+            bins[bin] += 1;
+            if bin > 0 {
+                min_separation =
+                    Some(min_separation.map_or(separation, |m: f64| m.min(separation)));
+            }
+        }
+    }
+
+    Spectrum {
+        min_separation,
+        min_normal_angle,
+        bins,
+        normal_classes: classes.len(),
+    }
+}
+
+/// Worst disagreement between a crease's declared fold angle and the dihedral
+/// its two placed faces actually make, in degrees.
+///
+/// This is the only check here that exercises the **general-angle** rotation.
+/// `--flatcheck` compares against the shipped flat folder, but every crease in
+/// an all-classic document is a half-turn, which is sign-invariant and
+/// invariant mod the angle's sign — so it validates the walk's topology, pivot
+/// and axis while saying nothing at all about a 37-degree crease.
+///
+/// Both faces are wound CCW in the sheet, so their placed normals are the
+/// images of `+z`, and the crease appears in one ring directed one way and in
+/// the other reversed. The two readings agree — `R(-d, rho) == R(d, -rho)` — so
+/// either face may direct the axis.
+///
+/// The disagreement is wrapped into `(-180, 180]`, which a half-turn needs:
+/// `atan2` cannot tell `+180` from `-180`, so an unwrapped comparison scores
+/// every fully-folded crease as 360 degrees out and drowns the reading. That
+/// wrap is also precisely why a document of half-turns validates nothing about
+/// the sign of a general-angle rotation.
+fn dihedral_round_trip(model: &Arrangement, graph: &Dual, placement: &Placement, sign: f64) -> f64 {
+    let mut worst: f64 = 0.0;
+    for (&e, neighbours) in &graph.edge_faces {
+        let Some(angle) = model.fold_angles[e] else {
+            continue;
+        };
+        if neighbours.len() != 2 {
+            continue;
+        }
+        let (f, g) = (neighbours[0], neighbours[1]);
+        let (Some(tf), Some(tg)) = (placement.transforms[f], placement.transforms[g]) else {
+            continue;
+        };
+        // Direct the crease as it appears in `f`'s own CCW ring.
+        let ring = &graph.oriented[f];
+        let [ea, eb] = model.edges[e];
+        let mut directed = None;
+        for i in 0..ring.len() {
+            let (a, b) = (ring[i], ring[(i + 1) % ring.len()]);
+            if (a, b) == (ea, eb) || (a, b) == (eb, ea) {
+                directed = Some((a, b));
+                break;
+            }
+        }
+        let Some((a, b)) = directed else { continue };
+        let pa = model.points[a];
+        let pb = model.points[b];
+        let axis = unit(tf.apply_linear([pb.0 - pa.0, pb.1 - pa.1, 0.0]));
+        let nf = tf.apply_linear([0.0, 0.0, 1.0]);
+        let ng = tg.apply_linear([0.0, 0.0, 1.0]);
+        let measured = dot(cross(nf, ng), axis).atan2(dot(nf, ng));
+        let error = (measured - sign * angle).rem_euclid(std::f64::consts::TAU);
+        let error = error.min(std::f64::consts::TAU - error);
+        worst = worst.max(error.to_degrees());
+    }
+    worst
 }
 
 #[derive(Default, Clone, Copy)]
@@ -751,6 +990,13 @@ struct Row {
     non_classic: usize,
     flat_violations: usize,
     closure_failures: usize,
+    /// Vertices whose link self-intersects **and** whose closure passed, i.e.
+    /// the spherical-simplicity verdict as the product would report it.
+    self_intersections: usize,
+    /// Spatial vertices whose fan is indeterminate, so nothing is reported
+    /// about them at all. Truth-table row (f) has no fixture until one is
+    /// non-zero.
+    indeterminate: usize,
     spatial_vertices: usize,
     interior_cuts: usize,
     all_regime_failures: usize,
@@ -759,6 +1005,11 @@ struct Row {
     components: usize,
     unreached: usize,
     loop_gap: f64,
+    non_tree_edges: usize,
+    spectrum: Spectrum,
+    /// Worst declared-vs-measured dihedral disagreement, degrees.
+    dihedral_error: f64,
+    span: f64,
     census: Census,
     direction_system: &'static str,
 }
@@ -796,19 +1047,23 @@ fn direction_system(model: &Arrangement) -> &'static str {
 }
 
 fn measure(path: &Path, sign: f64) -> Result<Row, String> {
-    let raw = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let fold: FoldDocument = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    let fold = read_fold(path)?;
     let model = arrangement(&fold)?;
 
     let cp = import_fold_document(&fold).map_err(|e| format!("{e:?}"))?;
     let dispatched = dispatched_camv(&cp);
     let mut closure_failures = 0usize;
+    let mut self_intersections = 0usize;
+    let mut indeterminate = 0usize;
     for report in &dispatched.spatial {
-        if report
-            .residual
-            .is_some_and(|r| r.to_degrees() > CLOSURE_BAR_DEGREES)
-        {
-            closure_failures += 1;
+        let crossing = report.link.is_some_and(|link| link.self_intersects());
+        match report.residual {
+            Some(residual) if residual.to_degrees() > CLOSURE_BAR_DEGREES => closure_failures += 1,
+            // Spherical simplicity, which shipped after this harness was first
+            // written: a link that crosses at a vertex whose closure passed is
+            // a local self-intersection and the product reports it.
+            Some(_) => self_intersections += usize::from(crossing),
+            None => indeterminate += 1,
         }
     }
 
@@ -874,6 +1129,8 @@ fn measure(path: &Path, sign: f64) -> Result<Row, String> {
     let graph = dual(&model);
     let placement = place(&model, &graph, sign);
     let census = census(&model, &placement, 1e-9, 1e-6);
+    let spectrum = spectrum(&model, &placement);
+    let dihedral_error = dihedral_round_trip(&model, &graph, &placement, sign);
 
     Ok(Row {
         name: path
@@ -890,14 +1147,26 @@ fn measure(path: &Path, sign: f64) -> Result<Row, String> {
         non_classic: creases - full_180,
         flat_violations: dispatched.flat.len(),
         closure_failures,
+        self_intersections,
+        indeterminate,
         spatial_vertices: dispatched.spatial.len(),
         interior_cuts,
         all_regime_failures,
         worst_residual,
-        admissible: dispatched.flat.is_empty() && closure_failures == 0 && interior_cuts == 0,
+        // Spherical simplicity is part of the shipped gate, so it is part of
+        // this one. Leaving it out admitted `self-intersecting-vertex.fold`,
+        // the fixture built to fail exactly this check.
+        admissible: dispatched.flat.is_empty()
+            && closure_failures == 0
+            && self_intersections == 0
+            && interior_cuts == 0,
         components: placement.component_count,
         unreached: placement.unreached,
         loop_gap: placement.loop_gap,
+        non_tree_edges: placement.non_tree_edges,
+        spectrum,
+        dihedral_error,
+        span: model.span,
         census,
         direction_system: direction_system(&model),
     })
@@ -926,6 +1195,7 @@ fn flat_check(path: &Path) -> Result<(f64, usize, f64), String> {
         return Err("arrangement refused".into());
     }
     let wire = estimate_wireframe_from_segments(&cp.line_segments, 1)
+        .map_err(|error| error.to_string())?
         .ok_or_else(|| "flat folder declined".to_string())?;
     if wire.points.len() != model.points.len() {
         return Err(format!(
@@ -1059,24 +1329,36 @@ fn selftest() -> bool {
     ok
 }
 
+fn is_measurable(path: &Path) -> bool {
+    path.extension().is_some_and(|e| e == "fold" || e == "osf")
+}
+
+fn walk(dir: &Path, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            walk(&path, files);
+        } else if is_measurable(&path) {
+            files.push(path);
+        }
+    }
+}
+
 fn gather(inputs: &[String]) -> Vec<PathBuf> {
     let mut files = Vec::new();
     for input in inputs {
         let path = PathBuf::from(input);
         if path.is_dir() {
-            if let Ok(entries) = std::fs::read_dir(&path) {
-                for entry in entries.flatten() {
-                    let candidate = entry.path();
-                    if candidate.extension().is_some_and(|e| e == "fold") {
-                        files.push(candidate);
-                    }
-                }
-            }
-        } else if path.extension().is_some_and(|e| e == "fold") {
+            walk(&path, &mut files);
+        } else if is_measurable(&path) {
             files.push(path);
         }
     }
     files.sort();
+    files.dedup();
     files
 }
 
@@ -1085,7 +1367,7 @@ fn main() {
     let csv = args.iter().any(|a| a == "--csv");
     let sweep = args.iter().any(|a| a == "--sweep");
     let sign_probe = args.iter().any(|a| a == "--sign");
-    let inputs: Vec<String> = args
+    let mut inputs: Vec<String> = args
         .iter()
         .filter(|a| !a.starts_with("--"))
         .cloned()
@@ -1097,14 +1379,29 @@ fn main() {
         }
         return;
     }
+    if args.iter().any(|a| a == "--corpus") {
+        match std::env::var(CORPUS_ENV) {
+            Ok(dir) => inputs.push(dir),
+            // Loud, because a silent skip that still prints a table is how a
+            // measurement gets quoted from an empty run.
+            Err(_) => {
+                eprintln!(
+                    "--corpus: {CORPUS_ENV} is not set, so there is nothing to scan.\n\
+                     Point it at the non-flat corpus checkout (see tests/corpus/README.md)."
+                );
+                std::process::exit(2);
+            }
+        }
+    }
 
     let files = gather(&inputs);
     if files.is_empty() {
         eprintln!(
             "usage: fold3d_census <dir-or-file>... \
-             [--csv] [--sweep] [--sign] [--gaps] [--arrangement] [--selftest]"
+             [--corpus] [--csv] [--sweep] [--sign] [--gaps] [--arrangement] \
+             [--flatcheck] [--selftest]"
         );
-        return;
+        std::process::exit(2);
     }
 
     if args.iter().any(|a| a == "--arrangement") {
@@ -1267,12 +1564,13 @@ fn main() {
     if csv {
         println!(
             "model,vertices,edges,faces,arrangement_ok,creases,full180,non_classic,\
-             flat,closure,spatial_verts,interior_cuts,all_regime_fail,worst_residual_deg,admissible,components,unreached,loop_gap,\
+             flat,closure,self_int,indeterminate,spatial_verts,interior_cuts,all_regime_fail,worst_residual_deg,admissible,components,unreached,\
+             loop_gap,non_tree_edges,dihedral_err_deg,span,min_separation,min_normal_angle,sep_bins,normal_classes,\
              planes,patches,largest_plane,overlap_pairs,non_adjacent_pairs,faces_in_overlap,dir_system"
         );
     } else {
         println!(
-            "{:<34} {:>5} {:>5} {:>5} {:>4} {:>6} {:>6} {:>9} {:>8} {:>7} {:>7} {:>8}",
+            "{:<30} {:>5} {:>5} {:>5} {:>4} {:>6} {:>6} {:>9} {:>6} {:>9} {:>10} {:>16} {:>6} {:>6} {:>7}",
             "model",
             "V",
             "E",
@@ -1281,9 +1579,12 @@ fn main() {
             "n180",
             "nfree",
             "loop-gap",
+            "ntree",
+            "dihedral",
+            "min-sep",
+            "sep-bins",
             "planes",
             "pairs",
-            "nonadj",
             "verdict"
         );
     }
@@ -1296,10 +1597,28 @@ fn main() {
         }
     }
 
+    // A loop gap taken over no non-tree edges is not a small number, it is no
+    // number; and a "minimum separation" over no parallel-plane pair is not
+    // infinity, it is nothing measured. Both print as `--`.
+    let show_gap = |row: &Row| {
+        if row.non_tree_edges == 0 {
+            "--".to_string()
+        } else {
+            format!("{:.2e}", row.loop_gap)
+        }
+    };
+    let show_separation = |row: &Row| {
+        row.spectrum
+            .min_separation
+            .map_or_else(|| "--".to_string(), |s| format!("{s:.3e}"))
+    };
+
     for row in &rows {
         if csv {
             println!(
-                "{},{},{},{},{},{},{},{},{},{},{},{},{},{:.3e},{},{},{},{:.3e},{},{},{},{},{},{},{}",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{:.3e},{},{},{},\
+                 {:.3e},{},{:.3e},{:.6},{},{},{}|{}|{}|{}|{},{},\
+                 {},{},{},{},{},{},{}",
                 row.name,
                 row.vertices,
                 row.edges,
@@ -1310,6 +1629,8 @@ fn main() {
                 row.non_classic,
                 row.flat_violations,
                 row.closure_failures,
+                row.self_intersections,
+                row.indeterminate,
                 row.spatial_vertices,
                 row.interior_cuts,
                 row.all_regime_failures,
@@ -1318,6 +1639,21 @@ fn main() {
                 row.components,
                 row.unreached,
                 row.loop_gap,
+                row.non_tree_edges,
+                row.dihedral_error,
+                row.span,
+                row.spectrum
+                    .min_separation
+                    .map_or("none".to_string(), |s| format!("{s:.3e}")),
+                row.spectrum
+                    .min_normal_angle
+                    .map_or("none".to_string(), |a| format!("{a:.3e}")),
+                row.spectrum.bins[0],
+                row.spectrum.bins[1],
+                row.spectrum.bins[2],
+                row.spectrum.bins[3],
+                row.spectrum.bins[4],
+                row.spectrum.normal_classes,
                 row.census.plane_count,
                 row.census.patch_count,
                 row.census.largest_plane,
@@ -1328,7 +1664,7 @@ fn main() {
             );
         } else {
             println!(
-                "{:<34} {:>5} {:>5} {:>5} {:>4} {:>6} {:>6} {:>9.2e} {:>8} {:>7} {:>7} {:>8}",
+                "{:<30} {:>5} {:>5} {:>5} {:>4} {:>6} {:>6} {:>9} {:>6} {:>9.2e} {:>10} {:>16} {:>6} {:>6} {:>7}",
                 row.name,
                 row.vertices,
                 row.edges,
@@ -1336,10 +1672,18 @@ fn main() {
                 if row.arrangement_ok { "ok" } else { "NO" },
                 row.full_180,
                 row.non_classic,
-                row.loop_gap,
+                show_gap(row),
+                row.non_tree_edges,
+                row.dihedral_error,
+                show_separation(row),
+                row.spectrum
+                    .bins
+                    .iter()
+                    .map(usize::to_string)
+                    .collect::<Vec<_>>()
+                    .join("/"),
                 row.census.plane_count,
                 row.census.overlapping_pairs,
-                row.census.non_adjacent_pairs,
                 if row.admissible { "ADMIT" } else { "refuse" },
             );
         }

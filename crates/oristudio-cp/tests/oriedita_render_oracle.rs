@@ -110,8 +110,9 @@ fn kabuto_folded_subface_figure_matches_oriedita_oracle() {
         &oracle,
         &segment_oracle_args_with_starting_face("folded-subface-figure-summary", 1, &segments),
     );
-    let figure =
-        folded_subface_figure_from_segments(&segments, 1).expect("Rust folded subface figure");
+    let figure = folded_subface_figure_from_segments(&segments, 1)
+        .expect("connected fold graph")
+        .expect("Rust folded subface figure");
     assert_summary_eq(
         "kabuto folded subface figure",
         &folded_subface_figure_summary(&figure),

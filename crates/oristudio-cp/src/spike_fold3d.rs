@@ -253,8 +253,22 @@ struct Placement {
 }
 
 fn place(graph: &FoldGraph) -> Placement {
-    let positions = graph.face_positions(0);
     let count = graph.faces.len();
+    // The walk refuses a disconnected dual graph outright now rather than
+    // handing back a partial one it silently leaves unfolded (`FoldGraphError`).
+    // A file that trips it measures as nothing placed, which is exactly what the
+    // `reached` column reports — and is a truer reading than the partial walk
+    // this harness used to consume.
+    let Ok(positions) = graph.face_positions(0) else {
+        return Placement {
+            transforms: vec![None; count],
+            reached: 0,
+            unassigned_creases: 0,
+            loop_gap_rotation: 0.0,
+            loop_gap_length: 0.0,
+            non_tree_edges: 0,
+        };
+    };
     let mut transforms: Vec<Option<Rigid>> = vec![None; count];
     let mut unassigned = 0usize;
 
@@ -990,7 +1004,10 @@ fn spike_a_focus() {
     let model = import_fold_document(&fold).expect("import");
     let graph = FoldGraph::from_segments(&model.line_segments, true);
     let placement = place(&graph);
-    let positions = graph.face_positions(0);
+    let Ok(positions) = graph.face_positions(0) else {
+        println!("{file}: disconnected fold graph, nothing to walk");
+        return;
+    };
 
     let mut tree: std::collections::BTreeSet<(usize, usize)> = Default::default();
     for face in 0..graph.faces.len() {

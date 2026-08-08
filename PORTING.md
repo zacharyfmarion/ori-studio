@@ -60,6 +60,22 @@ are unchanged:
   render oracle in `crates/oristudio-cp/tests/oriedita_render_oracle.rs` remains
   a byte-for-byte gate.
 
+- **A disconnected fold graph is a typed refusal.** `FoldGraph::face_positions`
+  returns `FoldGraphError::DisconnectedFaces { reached, unreached }` instead of
+  walking off the end of a dual graph that has more than one component.
+  `WireFrame_Worker.getFacePositions()` has no exit for this at all: its
+  `while (remaining_facesTotal > 0)` loop keeps re-scanning an empty frontier
+  until the thread is interrupted, so upstream's behavior here is a hang, not a
+  result to be faithful to. Ori Studio already diverged by breaking out of that
+  loop, and the break was worse than the hang — every unreached face kept
+  `associated_line: None`, `fold_movement` reads that as "leave this point where
+  it is", and the figure came back with an *unfolded* slab in it, reporting `Ok`.
+  The Euler gate in `calculate_faces` hides the small cases (two disjoint squares
+  score `euler == 2` and are rejected), but its `0.005 * faces.len()` tolerance
+  admits a disconnected line set from ~200 faces up. The refusal reaches the
+  frontend as engine code `fold_disconnected`. Nothing about the walk itself, the
+  order it visits faces in, or any successful result changes; the folding oracle
+  in `crates/oristudio-cp/tests/oriedita_folding_oracle.rs` is the gate.
 - **Bounded lengthen extensions.** `operations::transform::lengthen_crease`
   refuses an extension longer than the diagonal of the box already containing
   every crease (`MAX_LENGTHEN_EXTENSION_DIAGONALS`). Upstream has no such limit:
