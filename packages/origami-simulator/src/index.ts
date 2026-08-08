@@ -47,6 +47,8 @@ export {
   boundingRadius,
   fitExtent,
   projectVertices,
+  projectViewPoint,
+  toViewSpace,
   type OrbitView,
   type CameraUniforms,
   type ProjectedVertices,
