@@ -337,6 +337,11 @@ pub struct FoldedFigureSnapshot {
     /// `contradiction` is), for the editor's red-fill overlay.
     #[serde(default)]
     pub contradiction_faces: Option<ContradictionFaceGeometry>,
+    /// Why the estimate stopped where it did. `#[serde(default)]` so a figure
+    /// saved before this field existed reads back as [`FoldOutcome::NotAttempted`]
+    /// rather than failing to load.
+    #[serde(default)]
+    pub outcome: FoldOutcome,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1112,6 +1117,33 @@ fn render_parse_error(line: usize, message: impl Into<String>) -> FoldedFigureRe
     }
 }
 
+/// What the layer-ordering search concluded — which the stage alone cannot say.
+///
+/// `Step3` / `Transparent3` with no solutions is the resting place of three
+/// different things: a caller who only asked for `Order3`, a search that ran to
+/// exhaustion and found no valid ordering (`folding_estimated`'s zero-solutions
+/// fallback), and a search that hit a contradiction
+/// ([`FoldingEstimateSession::conclude_with_contradiction`] rewinds it there on
+/// purpose, mirroring Oriedita). Upstream never needed to tell them apart
+/// because it drives its own UI from inside the estimate; a snapshot that
+/// crosses a wire does.
+///
+/// **Ori Studio native**, and purely additive: nothing reads it to decide
+/// anything the fold does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum FoldOutcome {
+    /// The layer search never ran — the request stopped below `Order4`, or an
+    /// earlier stage declined to produce what it needs.
+    #[default]
+    NotAttempted,
+    /// The search produced at least one valid layer ordering.
+    Solved,
+    /// The search ran and there is no valid layer ordering.
+    NoSolutions,
+    /// Inference found two faces that each have to lie above the other.
+    Contradiction,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FoldingEstimate {
     pub estimation_step: EstimationStep,
@@ -1135,6 +1167,8 @@ pub struct FoldingEstimate {
     /// development so the caller can render the crease pattern with the two
     /// offending faces highlighted, matching Oriedita's `drawSelfIntersectingSubFaces`.
     pub contradiction: Option<FoldContradiction>,
+    /// Why the estimate stopped where it did. See [`FoldOutcome`].
+    pub outcome: FoldOutcome,
 }
 
 /// The two faces the layer-ordering estimate could not consistently stack — the
@@ -1425,6 +1459,7 @@ pub fn two_colored_folding_estimate_from_segments(
         text_result: String::new(),
         overlap: None,
         contradiction: None,
+        outcome: FoldOutcome::NotAttempted,
     };
 
     if segments.is_empty() {
@@ -1649,6 +1684,7 @@ impl FoldingEstimateSession {
                 text_result: String::new(),
                 overlap: None,
                 contradiction: None,
+                outcome: FoldOutcome::NotAttempted,
             },
             worker: None,
         }
@@ -1721,10 +1757,17 @@ impl FoldingEstimateSession {
             }
             self.estimate.estimation_step = EstimationStep::Step5;
             self.estimate.display_style = DisplayStyle::Paper5;
+            self.estimate.outcome = FoldOutcome::Solved;
             if self.estimate.discovered_fold_cases == 0 && !self.estimate.find_another_overlap_valid
             {
+                // Upstream's own fallback: no valid layer ordering exists, so
+                // rewind to the transparent development rather than draw a paper
+                // view with nothing behind it. That lands on the same stage a
+                // contradiction lands on, and on the same stage an `Order3`
+                // request stops at, which is why `outcome` exists.
                 self.estimate.estimation_step = EstimationStep::Step3;
                 self.estimate.display_style = DisplayStyle::Transparent3;
+                self.estimate.outcome = FoldOutcome::NoSolutions;
             }
         }
         if self.estimate.estimation_step == EstimationStep::Step5
@@ -1756,6 +1799,7 @@ impl FoldingEstimateSession {
         self.estimate.current_fold_case = 0;
         self.estimate.find_another_overlap_valid = false;
         self.estimate.overlap = None;
+        self.estimate.outcome = FoldOutcome::Contradiction;
         self.estimate.clone()
     }
 
@@ -1792,6 +1836,7 @@ impl FoldingEstimateSession {
             text_result: String::new(),
             overlap: None,
             contradiction: None,
+            outcome: FoldOutcome::NotAttempted,
         };
         self.folding_estimated(EstimationOrder::Order5)
     }
@@ -2004,6 +2049,7 @@ pub fn folded_figure_snapshot_from_session(
         wireframe,
         contradiction: estimate.contradiction,
         contradiction_faces,
+        outcome: estimate.outcome,
     }
 }
 

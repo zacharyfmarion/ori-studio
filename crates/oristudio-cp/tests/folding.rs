@@ -1,7 +1,7 @@
 use oristudio_cp::FoldGraphError;
 use oristudio_cp::folding::{
     AdditionalEstimationError, ChainPermutationGenerator, DisplayStyle, EstimationOrder,
-    EstimationStep, FoldContradiction, FoldSetupError, FoldedFigureModel,
+    EstimationStep, FoldContradiction, FoldOutcome, FoldSetupError, FoldedFigureModel,
     FoldedFigureRenderAntialias, FoldedFigureRenderGeometry, FoldedFigureRenderOptions,
     FoldedFigureRenderPaint, FoldedFigureRenderPrimitiveKind, FoldedFigureRenderStroke,
     FoldedFigureState, FoldedShadowGeometry, FoldingEstimateError, FoldingEstimateSession,
@@ -1312,4 +1312,77 @@ fn disconnected_face_graph_fails_the_whole_fold_estimate() {
         "a disconnected graph is not a layer-ordering contradiction, and must \
          not fall back to the transparent development the way one does"
     );
+}
+
+/// Three different things used to arrive at `Step3` / `Transparent3` with zero
+/// solutions and nothing to tell them apart: a request that stopped below the
+/// layer search, a search that found no valid ordering, and a contradiction that
+/// was deliberately rewound to that stage. `outcome` is what tells them apart.
+#[test]
+fn the_transparent_development_says_why_it_is_the_answer() {
+    let solved = folded_figure_snapshot_from_segments(
+        &square_with_diagonal(),
+        1,
+        EstimationOrder::Order5,
+        FoldedFigureModel::default(),
+    )
+    .expect("snapshot");
+    assert_eq!(solved.outcome, FoldOutcome::Solved);
+    assert_eq!(solved.estimation_step, EstimationStep::Step5);
+
+    let not_attempted = folded_figure_snapshot_from_segments(
+        &square_with_diagonal(),
+        1,
+        EstimationOrder::Order3,
+        FoldedFigureModel::default(),
+    )
+    .expect("snapshot");
+    assert_eq!(not_attempted.outcome, FoldOutcome::NotAttempted);
+    assert_eq!(not_attempted.estimation_step, EstimationStep::Step3);
+    assert_eq!(not_attempted.display_style, DisplayStyle::Transparent3);
+
+    let doc = ori::import_ori_json(include_str!(
+        "../../../tests/fixtures/oriedita/failing_global_flat_fold.ori"
+    ))
+    .expect("import ori fixture");
+    let contradicted = folded_figure_snapshot_from_segments(
+        &doc.crease_pattern.line_segments,
+        1,
+        EstimationOrder::Order5,
+        FoldedFigureModel::default(),
+    )
+    .expect("snapshot");
+    assert_eq!(contradicted.outcome, FoldOutcome::Contradiction);
+    // Same stage and same style as the request that never asked. That is the
+    // whole point.
+    assert_eq!(contradicted.estimation_step, not_attempted.estimation_step);
+    assert_eq!(contradicted.display_style, not_attempted.display_style);
+
+    let value = serde_json::to_value(&contradicted).expect("serialized snapshot");
+    assert_eq!(value["outcome"], "Contradiction");
+}
+
+/// A snapshot written before `outcome` existed still loads — `.osf` files carry
+/// these, and a missing field must not fail the read.
+#[test]
+fn a_snapshot_without_an_outcome_reads_back_as_not_attempted() {
+    let mut value = serde_json::to_value(
+        folded_figure_snapshot_from_segments(
+            &square_with_diagonal(),
+            1,
+            EstimationOrder::Order5,
+            FoldedFigureModel::default(),
+        )
+        .expect("snapshot"),
+    )
+    .expect("serialize");
+    value
+        .as_object_mut()
+        .expect("object")
+        .remove("outcome")
+        .expect("outcome was serialized");
+
+    let restored: oristudio_cp::folding::FoldedFigureSnapshot =
+        serde_json::from_value(value).expect("deserialize without outcome");
+    assert_eq!(restored.outcome, FoldOutcome::NotAttempted);
 }
