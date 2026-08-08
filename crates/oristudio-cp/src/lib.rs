@@ -21,8 +21,6 @@ pub mod session;
 pub mod share;
 pub mod solve_fold_angles;
 pub mod solve_spatial;
-#[cfg(test)]
-mod spike_fold3d;
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -2890,7 +2888,7 @@ fn flat_foldability_diagnostics(
 ///
 /// **Public because it was being copied.** Private, it had been redeclared in
 /// five places — `examples/fold_corpus_scan.rs`, `examples/fold3d_census.rs`,
-/// `src/spike_fold3d.rs`, `tests/verify_fold_fixtures.rs` and
+/// the since-deleted Spike A harness, `tests/verify_fold_fixtures.rs` and
 /// `tests/non_flat_corpus.rs` — each with a comment saying so. Five copies of
 /// one policy number is exactly what the "revising it is one constant" rule
 /// above exists to prevent.

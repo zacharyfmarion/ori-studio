@@ -568,8 +568,8 @@ In order:
    `worst_loop_edge`. The `#[cfg(test)]`-only assertion this plan used to propose
    is not enough — it is vacuous on a fixture set that happens to exclude holes,
    and the substantive requirement is the **elementary per-vertex cycle** form
-   plus an explicit blind-cycle count, which the committed
-   `crates/oristudio-cp/src/spike_fold3d.rs` harness already computes. This
+   plus an explicit blind-cycle count, which the Spike A harness computed (since
+   deleted — see "Phase 0 harnesses" below). This
    converts [`non-180-fold-angles.md:854`](non-180-fold-angles.md#L854)'s open
    item into a shipped gate rather than a monitored invariant.
 
@@ -676,8 +676,8 @@ classification steps 2–3 describe already exists as `spatial_closure_diagnosti
 (`lib.rs:3051-3085`) — skip indeterminate, apply the bar, then ask
 `link.self_intersects()` — and because the constant is private it had been copied
 into **five** files, each redeclaring it with a comment saying so:
-`examples/fold_corpus_scan.rs`, `examples/fold3d_census.rs`,
-`src/spike_fold3d.rs`, `tests/verify_fold_fixtures.rs` and
+`examples/fold_corpus_scan.rs`, `examples/fold3d_census.rs`, the Spike A
+harness (since deleted), `tests/verify_fold_fixtures.rs` and
 `tests/non_flat_corpus.rs`. Six copies of one policy number is exactly what the
 "revising it is one constant" rule exists to prevent. **[done in Phase 3 — the
 constant is `pub` and all five read it.]**
@@ -1360,9 +1360,11 @@ Four things this settles that the plan had open, and one it opens:
 
 ### Spike A answer — "reports nothing" is not "would be admitted"
 
-Harness: `crates/oristudio-cp/src/spike_fold3d.rs` — committed (75db6c80), three
-`#[ignore]`d env-gated tests, **zero CI cost**. It lives in `src` rather than
-`tests/` only because it needs `pub(crate)` `FoldGraph`. It runs the shipped
+Harness: `crates/oristudio-cp/src/spike_fold3d.rs` — committed (75db6c80),
+**deleted in Phase 8** once its findings were here and its one synthetic case was
+asserted by production tests. Three `#[ignore]`d env-gated tests, **zero CI
+cost**. It lived in `src` rather than `tests/` only because it needed
+`pub(crate)` `FoldGraph`. It ran the shipped
 `dispatched_camv`, builds `FoldGraph::from_segments(&model.line_segments, true)`
 — the same call `folded_subface_figure_from_segments` makes — walks the shipped
 `face_positions` BFS tree composing one rigid rotation per crease, and measures
@@ -1807,7 +1809,7 @@ accepted patches yielded exactly 1 subface.
 **What was run instead, and why.** The corpus made the *upstream* question
 answerable first, on real files rather than 8–12 hand-built states: does the
 admission gate admit anything, and does "reports nothing" mean "would be
-admitted"? That is what `spike_fold3d.rs` measures, and the answer changed the
+admitted"? That is what `spike_fold3d.rs` measured, and the answer changed the
 plan — see "Spike A answer" above. ~~**The plane-patch half is still open**~~
 **[answered in Phase 9, and the answer is (a).]** Connected-component grouping
 fixes it; artificial bridging cuts were not needed and neither was a new
@@ -2071,10 +2073,18 @@ Phase 0 and none of A, B or C touched it. It is unchanged; see Open decisions.
 **Phase 0 harnesses, committed and kept** — these are measurement code, not
 production, and they exist so a later change cannot quietly move a number this
 plan rests on:
-- `crates/oristudio-cp/src/spike_fold3d.rs` — Spike A. Three `#[ignore]`d
-  env-gated tests (`ORISTUDIO_SPIKE_DIRS`, `ORISTUDIO_SPIKE_FILE`, plus
-  `spike_a_annulus` which needs nothing). Zero CI cost. It lives in `src` only
-  because it needs `pub(crate)` `FoldGraph`
+- ~~`crates/oristudio-cp/src/spike_fold3d.rs` — Spike A.~~ **Deleted in Phase 8.**
+  1,215 lines of `#[cfg(test)]` measurement harness whose own header said it was
+  not production code, carrying a second placement implementation beside the
+  shipped one. Repo discipline is that spike code is reference only, so it does
+  not live in `src/`. Nothing was moved to `tests/`: every claim it made is
+  either recorded above or already asserted by production tests —
+  `spike_a_annulus` by `tests/checks_spatial.rs`'s
+  `the_closure_check_examines_nothing_on_an_annulus` and
+  `a_border_with_paper_on_both_sides_is_named`, and by `tests/folding3d.rs`'s
+  `a_cut_drawn_inside_the_sheet_is_refused_before_the_placement_is_attempted`,
+  all of which assert rather than print and all of which run the shipped path.
+  The corpus scans it did are `examples/fold3d_census.rs`'s job
 - `crates/oristudio-cp/examples/fold3d_census.rs` — **the one command.** Started
   as Spike C's census; Phase 2 widened it to the whole Phase 0 measurement set
   and closed R21's three gaps with it. See "Reproducing the measurements" below
@@ -2176,7 +2186,7 @@ Named so they do not creep in.
       third-party are admitted. Phase 2 is rewritten around it
 - [x] **Spike A: run** — as an admission scan.
       `crates/oristudio-cp/src/spike_fold3d.rs` (committed, `#[ignore]`d,
-      env-gated). Did not fire on its own condition; changed the plan anyway —
+      env-gated; deleted in Phase 8, findings retained above). Did not fire on its own condition; changed the plan anyway —
       the loop gap now **gates**, and R19 is a live shipped bug
 - [ ] **Spike A, plane-patch half: still open, and now merge-blocking.** Accepted
       fraction and the (a)/(b)/(c) split, on the Phase 2 fixtures
@@ -2561,8 +2571,8 @@ three.
 - [x] Tolerances in `Fold3dTolerances::DEFAULT`, and
       `CLOSURE_RESIDUAL_BAR_DEGREES` made `pub`. It was being redeclared in
       **five** places, not two — `fold_corpus_scan.rs`, `fold3d_census.rs`,
-      `spike_fold3d.rs`, `verify_fold_fixtures.rs` and `non_flat_corpus.rs`. All
-      five now read the one constant.
+      `spike_fold3d.rs` (since deleted), `verify_fold_fixtures.rs` and
+      `non_flat_corpus.rs`. All read the one constant.
       **Two deviations, both stated rather than absorbed.** The const block lives
       in `folding3d.rs` rather than beside the bar in `lib.rs`: "beside" was
       about there being one block, and a 3D block buried at line 2,878 of a
