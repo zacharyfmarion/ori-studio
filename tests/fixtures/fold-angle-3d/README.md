@@ -104,6 +104,24 @@ strictly-positive separation between parallel planes (`--` means no normal class
 held two distinct offsets, which certifies nothing). `census` is the
 coplanar-overlap pair count. Paper span is 400 for every fixture.
 
+**These are the harness's numbers, and two columns differ from the shipped
+kernel's on purpose.** `crates/oristudio-cp/tests/folding3d.rs` pins the kernel's
+own `LoopGap`, which is the second implementation of the same quantity and the
+reason having both is worth it.
+
+- `ntree` — the kernel reports the dual graph's **first Betti number**,
+  `|E_dual| − F + 1`, which is larger wherever two faces meet across two separate
+  segments: **155 vs 137** on `spikes_large`, **46 vs 44** on `rabbit_unclosed`,
+  identical everywhere else. The harness keys tree membership on the *face pair*
+  and so drops the second meeting; the kernel keys on the edge. A crease drawn as
+  two collinear pieces is exactly how that arises, and the consistency condition
+  it carries is real (it reads zero).
+- `loop-gap` — same measure, but over a different spanning tree, so it differs in
+  the last digits on the models that close to machine precision (`box_90`
+  1.46e-13 vs 2.31e-13) and agrees to three figures on the ones that do not
+  (`penguin_freeform` 7.88e-8, `rabbit_unclosed` 4.23e1, `box_90_unangled`
+  4.00e2).
+
 | fixture | V / E / F | ±180 | non-classic | flat | closure | self-int | indet | spatial | loop-gap | ntree | dihedral | min-sep | sep-bins | planes | census | 3D verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `hinge_90` | 4 / 5 / 2 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | — | 0 | 0.00e0 | — | 0/0/0/0/0 | 2 | **0** | admit |

@@ -124,6 +124,28 @@ same preview path, same wasm bridge. The boundary is about provenance and what a
 future porting session owes the upstream, not about how the code runs. Nothing in
 `native/` needs an oracle, and no oracle sweep should expect to find one.
 
+Whole *modules* can be native too, and `crates/oristudio-cp/src/folding3d/` is
+one: the computed 3D folded state. Upstream folds by reflecting each face across
+its crease, which is only correct at ±180, so there is no `WireFrame_Worker`
+behaviour for a general angle to be faithful to. Three things about it are
+decisions rather than ports, and each is one somebody could reasonably have made
+differently:
+
+- **The placement convention** — `M_child = M_parent ∘ Rot_paper(line, rho)`,
+  right-composed, the axis directed the way the child face's own winding
+  traverses the crease, `rho` the signed FOLD angle applied directly. It is
+  fixed by agreement with the shipped `vertex_link_polygon`
+  (`checks_spatial.rs`), not by upstream, and the two must stay in one frame or
+  the admission gate certifies states the renderer draws mirrored.
+- **`FoldGraph`'s rings are reversed once** on the way in. Upstream never asks
+  which way a face is wound, so its clockwise convention is invisible there and
+  load-bearing here.
+- **Two faces meeting across a segment that is not a crease is refused.** The
+  flat path mirrors across one — `find_adjacent_line` applies no colour filter,
+  so an unassigned crease or an interior cut folds the paper 180° — and that
+  behaviour stays, because it is Oriedita's. In 3D there is no angle to apply,
+  and manufacturing one would be inventing a nearby result.
+
 Release caveats:
 
 - Public parity targets TreeMaker 5.0.1's distributable ALM optimizer. CFSQP
