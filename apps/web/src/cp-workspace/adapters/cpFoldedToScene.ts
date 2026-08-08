@@ -482,8 +482,12 @@ export function foldedGeometryFromShapes(
 /**
  * Translucent red (Oriedita `(255,0,0,75)`) used to fill the two faces a fold
  * could not consistently stack — the flat-CP half of `drawSelfIntersectingSubFaces`.
+ *
+ * Exported because the 3D projector annotates an undecided arrangement cell with
+ * the same red. The two say the same thing about the same kind of failure, so
+ * they share one definition rather than two copies that can drift.
  */
-const CONTRADICTION_FILL: Rgba = [1, 0, 0, 75 / 255];
+export const CONTRADICTION_FILL: Rgba = [1, 0, 0, 75 / 255];
 
 /**
  * Build a model-space filled-triangle overlay for the contradicting faces of any
