@@ -686,7 +686,19 @@ rigidly. Separately, on every admitted 3D model the placement's loop gap is ≤
 3.5e-8 — consistent with `FoldMagnitude`'s 1e-7° storage quantisation
 (`line_segment.rs:66`) and nothing else.
 
-**Forcing result: fired. Phase 9 moves into the merge set.**
+**The number that actually decides it is not the pair count.** The plan's
+degraded mode is "census > 0 → render translucent and name the pairs", and that
+is only a mode if some of the model stays opaque. Measured as the fraction of
+faces sitting in a plane with at least one overlap: **1.00 on 13 of the 14
+models with a non-zero census.** The single exception is `tooling__base_fixed`,
+an 11-face toy, at 0.64. So on every real model the degraded mode renders the
+*whole figure* translucent and lists hundreds to thousands of undetermined
+pairs. That is not a smaller feature, it is a picture with no information in it.
+
+**Forcing result: fired. Phase 9 moves into the merge set.** Since everything
+lands in one PR this costs no release sequencing — what it costs is that the
+plan can no longer treat layer ordering as optional, and Phase 5's verdict
+surface no longer needs a "drawn but undetermined" state as its common case.
 
 ### Spike A — plane-patch arrangement admissibility (highest value)
 
