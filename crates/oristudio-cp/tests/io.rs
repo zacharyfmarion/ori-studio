@@ -1022,3 +1022,69 @@ fn fold_import_takes_magnitude_only_when_the_sign_contradicts_the_assignment() {
         "magnitude is taken from |angle|"
     );
 }
+
+/// A folded form is not a crease pattern, and importing one as if it were is
+/// worse than refusing: `vertex_point` keeps `coords[0..2]` and drops the rest,
+/// so the file arrives as its own flat shadow with every crease in the wrong
+/// place and nothing saying so.
+#[test]
+fn a_declared_folded_form_frame_is_refused_rather_than_flattened() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "frame_classes": ["foldedForm"],
+      "vertices_coords": [[0, 0], [1, 0], [1, 1]],
+      "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+      "edges_assignment": ["B", "B", "B"]
+    }"#;
+
+    let error = fold::import_fold_file_document_json(input).expect_err("folded form is refused");
+
+    assert!(
+        matches!(
+            error,
+            oristudio_cp::io::IoError::Unsupported {
+                what: "FOLD folded-form frames",
+                ..
+            }
+        ),
+        "unexpected error: {error:?}"
+    );
+}
+
+/// The class is a declaration, not evidence — a file can carry 3D coordinates
+/// without one. The z coordinate is the independent signal.
+#[test]
+fn out_of_plane_vertices_are_refused_rather_than_projected() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "frame_classes": ["creasePattern"],
+      "vertices_coords": [[0, 0, 0], [1, 0, 0], [1, 1, 0.5]],
+      "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+      "edges_assignment": ["B", "B", "B"]
+    }"#;
+
+    let error = fold::import_fold_file_document_json(input).expect_err("3D geometry is refused");
+
+    let oristudio_cp::io::IoError::Unsupported { what, detail } = error else {
+        panic!("unexpected error");
+    };
+    assert_eq!(what, "FOLD geometry outside the paper plane");
+    assert!(detail.contains("vertex 2"), "{detail}");
+}
+
+/// An explicit `z` of zero is how plenty of writers spell a flat pattern, and it
+/// has to keep importing exactly as `[x, y]` does.
+#[test]
+fn an_explicit_zero_z_still_imports() {
+    let input = r#"{
+      "file_spec": 1.2,
+      "frame_classes": ["creasePattern"],
+      "vertices_coords": [[0, 0, 0], [1, 0, -0.0], [1, 1, 0]],
+      "edges_vertices": [[0, 1], [1, 2], [2, 0]],
+      "edges_assignment": ["B", "B", "B"]
+    }"#;
+
+    let document = fold::import_fold_file_document_json(input).expect("flat 3-coordinate import");
+
+    assert_eq!(document.crease_pattern.line_segments.len(), 3);
+}

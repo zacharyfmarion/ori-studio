@@ -135,7 +135,15 @@ impl From<crate::share::ShareError> for EngineError {
 
 impl From<io::IoError> for EngineError {
     fn from(error: io::IoError) -> Self {
-        Self::invalid_input(error.to_string())
+        // A file we decline to represent is not malformed input, and the two
+        // want different copy: one is "this file is broken", the other is "this
+        // file is fine and we cannot open it".
+        match error {
+            io::IoError::Unsupported { .. } => {
+                Self::new("unsupported_operation", error.to_string())
+            }
+            _ => Self::invalid_input(error.to_string()),
+        }
     }
 }
 

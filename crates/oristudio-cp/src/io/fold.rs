@@ -165,7 +165,64 @@ fn imported_fold_magnitude(fold: &FoldDocument, index: usize) -> Option<FoldMagn
     (!magnitude.is_full()).then_some(magnitude)
 }
 
+/// How far off the xy plane a vertex may sit and still be read as flat.
+///
+/// Deliberately tiny. This is not a modelling tolerance — it exists only so a
+/// FOLD file that writes `[x, y, 0]` (or `0.0`, or `-0.0`) instead of `[x, y]`
+/// imports the way `[x, y]` does. Anything above it is real out-of-plane
+/// geometry and the importer has nowhere to put it.
+const FLAT_Z_TOLERANCE: f64 = 1e-9;
+
+/// Refuse geometry this importer would silently flatten.
+///
+/// [`vertex_point`] reads `coords[0]` and `coords[1]` and drops everything
+/// after, so a folded form imports as its own shadow: a plausible-looking crease
+/// pattern whose creases are wherever the projection put them. Measured on
+/// `MoosersTrainRigid-Gardner.fold`, all 246 spatial vertices fail closure after
+/// the round trip — the file is a valid folded state and the import is not a
+/// crease pattern of it in any sense.
+///
+/// Two independent signals, because either can be present without the other: a
+/// frame that *declares* `foldedForm` (which can still be flat in z — a
+/// flat-folded state is a folded state), and any vertex actually off the plane
+/// (which a file can carry without declaring a class at all).
+///
+/// Per AGENTS.md, an operation that has not been ported returns an explicit
+/// unsupported-operation error rather than a nearby result.
+fn reject_unrepresentable_geometry(fold: &FoldDocument) -> Result<()> {
+    if fold.frame_classes.iter().any(|class| class == "foldedForm") {
+        return Err(IoError::Unsupported {
+            what: "FOLD folded-form frames",
+            detail: "this frame declares frame_classes: [\"foldedForm\"], which describes \
+                     a folded state rather than a crease pattern"
+                .to_string(),
+        });
+    }
+    if let Some((index, z)) = fold
+        .vertices_coords
+        .iter()
+        .enumerate()
+        .find_map(|(index, coords)| {
+            coords
+                .get(2)
+                .copied()
+                .filter(|z| z.abs() > FLAT_Z_TOLERANCE)
+                .map(|z| (index, z))
+        })
+    {
+        return Err(IoError::Unsupported {
+            what: "FOLD geometry outside the paper plane",
+            detail: format!(
+                "vertex {index} has z = {z}, and a crease pattern has no third coordinate \
+                 to keep it in"
+            ),
+        });
+    }
+    Ok(())
+}
+
 pub fn import_fold_document(fold: &FoldDocument) -> Result<CreasePatternModel> {
+    reject_unrepresentable_geometry(fold)?;
     let mut model = CreasePatternModel::default();
     let edge_line_colors = line_color_array_extra(fold, ORISTUDIO_EDGES_LINE_COLORS)?;
     let edge_colors = string_array_extra(fold, "oriedita:edges_colors")?;
