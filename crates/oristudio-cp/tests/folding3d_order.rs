@@ -17,12 +17,14 @@
 //!    check both have tests that break them.
 
 use oristudio_cp::folding::{
-    HierarchyRelation, InitialHierarchy, SubFace, configure_subfaces_from_segments,
-    initial_hierarchy_from_segments, overlap_search_from_segments_with_swap,
-    possible_overlap_search_for_subfaces, validate_initial_hierarchy,
+    FoldedFigureModel, HierarchyRelation, InitialHierarchy, SubFace,
+    configure_subfaces_from_segments, initial_hierarchy_from_segments,
+    overlap_search_from_segments_with_swap, possible_overlap_search_for_subfaces,
+    validate_initial_hierarchy,
 };
+use oristudio_cp::folding3d::wire::Fold3dVerdict;
 use oristudio_cp::folding3d::{
-    Advance, Fold3dOrderEnumerator, Fold3dOrderError, Fold3dTolerances, SeedKind,
+    Advance, Fold3dOrderEnumerator, Fold3dOrderError, Fold3dSession, Fold3dTolerances, SeedKind,
     build_constraints, cell_index, census_placement, folded_line_index, initial_hierarchy_3d,
     interleavings, place_segments,
 };
@@ -122,6 +124,40 @@ fn wall_strip(flat: f64, rise: f64) -> Vec<LineSegment> {
         Point::new(second, height),
         rise,
     ));
+    segments
+}
+
+/// Three panels whose two outer flaps fold onto opposite halves of the middle
+/// one, so the flaps share the middle face and nothing else.
+///
+/// The middle panel is twice as wide as either flap, which is what makes the two
+/// folded images meet at a line rather than overlap: two ordering variables,
+/// `(flap, middle)` twice, in two stacks that share exactly one face.
+fn two_flaps(first: f64, second: f64, tail: Option<f64>) -> Vec<LineSegment> {
+    let height = 100.0;
+    let mut cuts = vec![0.0, 100.0, 300.0, 400.0];
+    if tail.is_some() {
+        cuts.push(500.0);
+    }
+    let far = *cuts.last().unwrap_or(&400.0);
+    let mut segments = vec![
+        border(Point::new(0.0, 0.0), Point::new(0.0, height)),
+        border(Point::new(far, 0.0), Point::new(far, height)),
+    ];
+    for pair in cuts.windows(2) {
+        segments.push(border(Point::new(pair[0], 0.0), Point::new(pair[1], 0.0)));
+        segments.push(border(
+            Point::new(pair[0], height),
+            Point::new(pair[1], height),
+        ));
+    }
+    let mut angles = vec![(100.0, first), (300.0, second)];
+    if let Some(tail) = tail {
+        angles.push((400.0, tail));
+    }
+    for (x, degrees) in angles {
+        segments.push(crease(Point::new(x, 0.0), Point::new(x, height), degrees));
+    }
     segments
 }
 
@@ -519,6 +555,74 @@ fn an_open_box_has_no_ordering_to_do() {
     assert_eq!(solved.variables, 0);
     assert!(solved.components.is_empty());
     assert!(!solved.has_next);
+}
+
+/// **Shape 5 — two stacks that share one face and touch nowhere else.**
+///
+/// This is the shape that shows a component is a set of *variables* and not a
+/// set of faces. The middle panel carries both variables, but the two flaps land
+/// on opposite halves of it, so no subface and no condition holds both — and the
+/// constraint graph has two components sharing a face.
+///
+/// Assigning items to components by looking a face up in a per-component face set
+/// silently loses one of them: the shared face resolves to whichever component is
+/// found first, every subface of the other component fails the match, that
+/// component is handed nothing, its search trivially succeeds, and its variable
+/// comes back undetermined under a `Folded` verdict. The flat path decides both,
+/// which is what the first half of this test pins.
+#[test]
+fn two_stacks_sharing_one_face_are_both_decided() {
+    let segments = two_flaps(180.0, 180.0, None);
+
+    // The control: all creases are full folds, so the shipped flat folder is
+    // authoritative here and it decides both pairs.
+    let flat = overlap_search_from_segments_with_swap(&segments, 1)
+        .expect("flat search")
+        .expect("flat search");
+    assert!(flat.found, "the flat control does not fold");
+    let theirs = relation_map(&flat.hierarchy.relations);
+
+    let solved = solve(&segments).expect("ordered");
+    assert_eq!(solved.variables, 2, "two flaps, two ordering variables");
+    assert_eq!(
+        solved.components,
+        vec![1, 1],
+        "the two stacks are supposed to be independent components"
+    );
+    only_variables_are_reported(&solved, "two_flaps");
+    for (&(upper, lower), &value) in &solved.relations {
+        assert_eq!(
+            theirs.get(&(upper, lower)),
+            Some(&value),
+            "faces {upper} and {lower} disagree with the flat fold"
+        );
+    }
+}
+
+/// The same shape through the engine boundary, where the answer is a verdict.
+///
+/// A trailing panel at `+90` makes the document genuinely three-dimensional, so
+/// this goes down the same path the app does rather than the flat shortcut, and
+/// the assertion is the one a user would notice: `Folded` must not be reported
+/// over a stack nobody resolved.
+#[test]
+fn a_folded_verdict_leaves_no_stack_undetermined() {
+    let segments = two_flaps(180.0, 180.0, Some(-90.0));
+    let session =
+        Fold3dSession::new(&segments, 1, FoldedFigureModel::default()).expect("a 3D session");
+    let snapshot = session.snapshot();
+    assert_eq!(snapshot.verdict, Fold3dVerdict::Folded);
+    assert_eq!(
+        snapshot.components,
+        vec![1, 1],
+        "the two flaps are supposed to be independent components"
+    );
+    assert!(
+        snapshot.planes.len() > 1,
+        "the tail panel is supposed to make this a genuinely 3D document"
+    );
+    assert_eq!(snapshot.undetermined_pairs, 0);
+    assert_eq!(snapshot.undetermined_cells, 0);
 }
 
 /// **Fold in half, then bend the two halves apart** — and half the M/V choices

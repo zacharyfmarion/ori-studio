@@ -347,7 +347,23 @@ impl Fold3dOrderEnumerator {
         })
     }
 
+    /// Each variable's answer, taken from the component that owns it.
+    ///
+    /// Two filters, and they are different questions. A relation over a pair that
+    /// is **not** an ordering variable is cross-plane scaffolding — a cut carries
+    /// no layer meaning and drawing it would be an invented stacking. A relation
+    /// over a variable some **other** component happens to name is a relation
+    /// derived without that variable's own constraints, and the owning component
+    /// always decides it: the variable's pair sits in a subface (the census-cell
+    /// postcondition), every pair of that subface is joined, so the subface lands
+    /// in the owner and the search totally orders it.
     fn assemble(&self) -> Fold3dOrdering {
+        let owner_of: BTreeMap<(usize, usize), usize> = self
+            .variables
+            .iter()
+            .zip(&self.component_of)
+            .map(|(variable, &component)| (variable.faces, component))
+            .collect();
         let mut relations: BTreeMap<(usize, usize), bool> = BTreeMap::new();
         for component in &self.components {
             for relation in &component.current.relations {
@@ -358,21 +374,15 @@ impl Fold3dOrderEnumerator {
                     continue;
                 };
                 let key = (upper.min(lower), upper.max(lower));
+                if owner_of.get(&key) != Some(&component.position) {
+                    continue;
+                }
                 relations.insert(key, upper == key.0);
             }
         }
-        let known: BTreeSet<(usize, usize)> = self
-            .variables
-            .iter()
-            .map(|variable| variable.faces)
-            .collect();
+        let known: BTreeSet<(usize, usize)> = owner_of.keys().copied().collect();
         let mut out = Vec::new();
         for (&key, &upper_first) in &relations {
-            if !known.contains(&key) {
-                // Cross-plane scaffolding: a cut relation carries no layer
-                // meaning and must never be reported as one.
-                continue;
-            }
             out.push(if upper_first {
                 HierarchyRelation {
                     upper_face: key.0,
@@ -622,19 +632,15 @@ fn plan(
         members[group].push(variable);
     }
 
-    // Which component a face belongs to. A face can carry variables in only one
-    // component, because every pair of its variables that shares it lives in a
-    // common subface and is therefore already joined.
+    // Which faces each component carries. A face can be in **more than one** —
+    // one panel with two flaps folded onto different parts of it is the everyday
+    // case, and its two stacks share that face and touch nowhere else — so this
+    // is a per-component membership set and never a face-to-component map.
     let mut component_faces: Vec<BTreeSet<usize>> = vec![BTreeSet::new(); count];
     for (variable, &group) in label.iter().enumerate() {
         component_faces[group].insert(variables[variable].faces.0);
         component_faces[group].insert(variables[variable].faces.1);
     }
-    let component_of_face = |face: usize| -> Option<usize> {
-        component_faces
-            .iter()
-            .position(|faces| faces.contains(&face))
-    };
 
     let mut builders: Vec<Builder> = component_faces
         .iter()
@@ -652,17 +658,41 @@ fn plan(
         })
         .collect();
 
+    // An item belongs to the component of the **ordering variables it
+    // constrains**, which `join` above has already put in one component. Finding
+    // it by looking each face up instead is the defect
+    // `two_stacks_sharing_one_face_are_both_decided` exists for: a face shared by
+    // two components resolves to whichever is found first, every item of the
+    // other one then fails to match, and that component is handed no subfaces at
+    // all — its search succeeds vacuously and its variable comes back
+    // undetermined under a `Folded` verdict.
+    //
+    // The faces are still checked, but against the chosen component's membership
+    // rather than used to choose it: an item naming a face that carries no
+    // variable here constrains nothing this component can decide, and localising
+    // it would trip the range check.
     let owner = |faces: &[usize]| -> Option<usize> {
         let mut found: Option<usize> = None;
-        for &face in faces {
-            let group = component_of_face(face)?;
-            match found {
-                None => found = Some(group),
-                Some(first) if first == group => {}
-                Some(_) => return None,
+        for i in 0..faces.len() {
+            for j in (i + 1)..faces.len() {
+                let Some(&variable) = slot.get(&ordered((faces[i], faces[j]))) else {
+                    continue;
+                };
+                match found {
+                    None => found = Some(label[variable]),
+                    Some(first) if first == label[variable] => {}
+                    // Unreachable while every item kind below is also passed to
+                    // `join`. It refuses the item rather than picking a side,
+                    // because picking one is how the defect above stayed silent.
+                    Some(_) => return None,
+                }
             }
         }
-        found
+        let group = found?;
+        faces
+            .iter()
+            .all(|face| component_faces[group].contains(face))
+            .then_some(group)
     };
 
     for subface in &cells.subfaces {
