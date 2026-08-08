@@ -44,6 +44,27 @@ user-facing. It closed **R20** and **R22** — the latter by finding that the
 comparison was wrong rather than the walk — and it corrected **R3b**, which had
 Phase 7 ranking its verdict copy by a refusal the shipped gate reaches on nothing
 at all.
+**Phase 5 is built**: three entry points registered in all five places plus the
+tracked `.wasm`, `Fold3dSnapshot` and `Folded3dRenderModel` with their TypeScript
+mirrors, and the two mirrored routing guards. Its contract is written down once,
+at [The engine contract](#the-engine-contract) — **that section is what the
+frontend half builds against, and it should not have to read the kernel to find
+any of it.**
+
+**The kernel half of this feature is therefore complete: Phases 3, 4, 5 and 9.**
+What remains is the frontend half — render (6), `G` dispatch and verdict UX (7),
+persistence (8) — plus the two follow-ups (10, 11).
+
+**Phases 4, 5 and 9 were then reviewed, and the review found one wrong answer and
+one stale artifact.** The wrong answer: a constraint component was being
+identified with a set of *faces*, and a face can belong to two components at once,
+so one of them was handed no constraints, "solved" vacuously, and reported an
+undecided stack under a `Folded` verdict. The stale artifact: the tracked `.wasm`
+had been rebuilt one commit before a behaviour-changing kernel edit, and because
+a body-only change leaves the `.js` and `.d.ts` byte-identical, every web check
+passed over it. Both are fixed. The review also found that two of the phase's own
+tests did not catch the mutation they were named for; those are tightened, and
+what that says about mutation testing as a method is recorded under Phase 9.
 
 **Phases 1-3 were then reviewed, and the review found six things worth having.**
 Four were consumer-side: the pre-fold gate counted `CheckCamv`'s new
@@ -1077,6 +1098,181 @@ Stated so review can hold us to it. Everything in the left column that reads
 | `folding3d/` | **new, additive, Ori Studio native** |
 | `FoldedFigureSnapshot` | untouched; `Fold3dSnapshot` is a sibling type |
 | Odometer unit ordering | new, no upstream analogue — record under PORTING.md's native section |
+
+## The engine contract
+
+**The kernel half (Phases 3, 4, 5 and 9) is built. This section is the whole of
+what the frontend half needs, so it does not have to re-derive it from the
+code.** Types, entry points, then guarantees. Everything below exists at
+`origin/main..HEAD` and every guarantee names the test that holds it.
+
+### The three entry points
+
+One shape, registered in five places — the Rust session, the wasm bridge, the
+browser worker, the Tauri command, the native client — plus the tracked `.wasm`.
+
+| verb | Rust (`CpSession`) | wasm export | worker / native client | returns |
+| --- | --- | --- | --- | --- |
+| fold | `folded_figure_fold_3d(document, &line_ids, starting_face_id, model)` | `folded_figure_fold_3d` | `fold3d(handle, selectedLineIds, startingFaceId?, model?)` | `Fold3dFoldResult` |
+| another solution | `folded_figure_3d_fold_another(handle)` | `folded_figure_3d_fold_another` | `fold3dAnother(handle)` | `Fold3dStepResult` |
+| duplicate | `folded_figure_3d_duplicate(handle)` | `folded_figure_3d_duplicate` | `duplicateFolded3dFigure(handle)` | `Fold3dFoldResult` |
+
+`free_folded_figure` is shared with the flat path, so handle retention needs no
+change. There is deliberately **no** `fold_to_case`: `discovered_fold_cases` has
+no denominator, so "case N" has no stable meaning to batch to, and a 3D handle
+passed to the flat `folded_figure_fold_to_case` gets `folded_figure_kind_mismatch`.
+
+**Routing is the caller's job, and both doors are guarded.** The frontend already
+computes the predicate locally (`creasePatternSlice.ts:1659-1661`). Send a
+non-classic selection to the flat `fold_segments` and it errors `fold_needs_3d`;
+send an all-classic selection to `folded_figure_fold_3d` and it errors
+`fold_is_flat`. Neither is a refusal — both are `EngineError`, because both mean
+the caller routed wrong. An empty resolved selection is `invalid_input` on the 3D
+door and is **not** widened to the whole document the way the flat door widens it.
+
+### The two payloads
+
+Per fold, two objects cross the boundary and they have different lifetimes.
+
+| | `Fold3dSnapshot` / `OristudioCpFolded3dSnapshot` | `Folded3dRenderModel` / `OristudioCpFolded3dRenderModel` |
+| --- | --- | --- |
+| what | scalars, counts and stable codes | struct-of-arrays geometry: no camera, no projection, no colour |
+| size | ~2 KB on the largest admitted corpus model | up to 235 KB (`origamisimulator`, 2,637 faces) |
+| persist? | **yes** — this is what Phase 8 writes to `.osf` | **no** — `.osf` pretty-prints, so 29,376 numbers becomes ~590 KB per figure |
+| emitted | once per fold, once per `fold_another` | same; there is no per-frame way to ask for it |
+
+Rust source of truth: `crates/oristudio-cp/src/folding3d/snapshot.rs` and
+`.../model.rs`. TypeScript mirrors, already written and typechecked:
+`apps/web/src/engine/oristudioCpTypes.ts`.
+
+`FoldedFigureEntry` carries **one** additive field, `folded3d?: … | null`, rather
+than a union on `snapshot` — nine read sites would otherwise have to narrow for
+no gain.
+
+### The strides, which are the whole render-model decoder
+
+Named constants in both languages; never inline the numbers.
+
+| array | stride | fields |
+| --- | --- | --- |
+| `face_attr` | `FOLDED_3D_FACE_ATTR_STRIDE` = 4 | `plane, ring_start, ring_len, facing` |
+| `cell_attr` | `FOLDED_3D_CELL_ATTR_STRIDE` = 7 | `plane, ring_start, ring_len, stack_start, stack_len, determinacy, draw_rank` |
+| `plane_frames` | `FOLDED_3D_PLANE_FRAME_STRIDE` = 12 | `up(3), origin(3), u(3), v(3)` |
+| `edge_attr` | `FOLDED_3D_EDGE_ATTR_STRIDE` = 4 | `face_a, face_b, line, kind` |
+| `ring_points`, `cell_points`, `face_normals` | 3 | `x, y, z` |
+| `edge_points` | 6 | `ax, ay, az, bx, by, bz` |
+
+Every `*_start` counts **elements of its own unit** — a vertex, a face id — never
+a byte or float offset. `determinacy` is `FOLDED_3D_CELL_DETERMINED` (0) or
+`…_UNDETERMINED` (1); `kind` is `…_EDGE_BORDER` / `…_EDGE_CREASE` /
+`…_EDGE_UNKNOWN`; `face_b` is `-1` on a border and `line` is `-1` when no input
+segment matched the edge.
+
+### The guarantees
+
+Each is asserted somewhere, and the test is named.
+
+- **`entry.folded3d !== null` is the 2D/3D test.** Exactly one of `snapshot` and
+  `folded3d` is non-null; never both. Phase 8 adds the second witness
+  (`sourceKind === 'generated-3d'`) and must assert the two agree in
+  `validateFoldedFigure` rather than letting them drift.
+- **Face indices are global and stable.** `Placement3d::rings`, `face_points`,
+  `face_normals`, `PlaneIndex::plane_of` / `projected`,
+  `Folded3dRenderModel::face_attr` and every `cell_stack` entry share one
+  numbering. No local renumbering originates at the boundary. (Inside the solver
+  each constraint component *is* renumbered — that is a correctness requirement,
+  not an optimisation — and it never escapes.)
+- **`Plane3d::up` is emitted, not recomputed** — the placed normal of the plane's
+  lowest-indexed member face, and the only place a stack's orientation is chosen.
+  `(u, v, up)` is right-handed. A consumer that re-derives either from its own
+  seed gets a different chirality and emits reversed stacks that look entirely
+  plausible. `plane_up_is_the_placed_normal_of_its_lowest_face`,
+  `the_plane_frame_is_right_handed`.
+- **Cells, not faces, are the drawable unit**, and `cell_stack` is **top-first**
+  with respect to that cell's plane `up`. Every face is drawn by some cell —
+  checked by `RenderModelError::FaceInNoCell` and by
+  `corpus_boundary_reports_every_model` across the whole corpus, not hoped. A
+  renderer that fills faces instead is drawing something nothing ordered.
+- **The relation may be cyclic.** He and Guest's square twist orders four panels
+  `a > b > c > d > a`, so no per-face scalar "layer" exists. Never topologically
+  sort `relations`, never assert acyclicity. Resolution is per cell, which is why
+  cells are the drawable unit. `a_cycle_across_stacks_survives_the_search`.
+- **An undecided cell is annotated, never tie-broken.** `determinacy = 1` and
+  `undetermined_cells` count it; the stack still draws, in a stable order.
+  Deliberately not `subface_top_stack` (`folding.rs:3996`), which drops a tied
+  face into a hole and leaves its caller to pick an arbitrary survivor.
+- **Every ordering variable comes back decided when a verdict of `Folded` is
+  reported.** `undetermined_pairs` is 0 on all 17 corpus models that order and on
+  all five committed fixtures. This is a theorem, not luck: a variable's pair sits
+  in some subface (the cell postcondition), every pair of a subface is joined into
+  one constraint component, so that subface lands in the component that owns the
+  variable and the search totally orders it. `two_stacks_sharing_one_face_are_both_decided`
+  and `a_folded_verdict_leaves_no_stack_undetermined` are what hold it — see
+  "The component is a set of variables" below for the bug that broke it.
+- **Cells within a plane carry `draw_rank`**, assigned by descending area. They
+  are normally area-disjoint, so it decides nothing; where a decomposition ever
+  slips a containment through, it puts the contained cell on top rather than
+  leaving the outcome to array order. `bsp.ts`'s `sortCoplanar` (`:277`) sorts
+  coplanar faces by a constant key, so the renderer has no backstop of its own.
+- **`verdict: 'folded'` means no crossing was *detected*.** The crossing predicate
+  is sound but **not complete**, so the verdict stays three-way — crossing / no
+  valid order / folded — and no UI copy and no FOLD `frame_attributes` may claim
+  non-self-intersection.
+- **A refusal is a result, not a thrown error.** `Fold3dFoldResult::Refused` must
+  not reach the store's catch path, must not raise an error toast and must not
+  destroy the draft figure. A refusal never carries a handle and a placement
+  always does, so the impossible state is unrepresentable rather than guarded.
+- **Refusal and verdict are different types on purpose.** `Fold3dRefusal` means
+  *no figure*; `Fold3dVerdict` means *a figure, and here is what is true about
+  it*. They have different UI consequences: a refusal offers the inline
+  simulator, a verdict draws.
+- **Every string is a stable code, never a sentence.** The eight-locale i18n gate
+  cannot see a Rust literal, so all copy lives on the frontend and keys off these.
+  Measured refusal distribution over the 55-model corpus: 21 `flat_foldability`,
+  8 `vertex_closure`, 7 `interior_cut`, 1 `disconnected`. The other six arms are
+  reachable in principle and reached by nothing — budget copy accordingly rather
+  than in proportion to novelty.
+- **The payload is byte-identical across refolds** of the same segments. Planes,
+  cells and components are all ordered by lowest member face index and nothing in
+  the search reaches a hash iteration. `a_refold_of_the_same_document_is_bit_identical`.
+- **`discovered_fold_cases` is a forward-only high-water mark, never a total.**
+  Per-component totals are not knowable in advance, so no "k of N" is expressible
+  and none is offered. `current_fold_case` is where the stream *is* (1-based, and
+  reset by a wrap); `Fold3dStepResult::advanced` is the wrap signal, carried
+  explicitly rather than inferred. Deriving position from the discovered count
+  gets lap 1 right and every later lap wrong — that was a real defect, found by a
+  two-lap test.
+- **`min_inter_separation_relative` is `None` on more than half the fixtures**,
+  and `None` is a real answer — not an infinity.
+- **`diagnostics.tolerances` crosses the bridge for exactly one reason**:
+  `bsp.ts`'s hardcoded `EPS = 1e-7` (`:67`) must become the kernel's
+  `angle_radians`, or the renderer and the kernel disagree about which faces share
+  a plane. Nothing else about the tolerances is policy the frontend may read, and
+  none of it is user-facing.
+- **Persist the snapshot, not the render model.** `.osf` is written with
+  `JSON.stringify(written, null, 2)` (`nativeProjectFile.ts:397`), which puts
+  every array element on its own line — 29,376 numbers becomes roughly 590 KB per
+  figure. Phase 8's "persist `folded3d`" means the snapshot (~2 KB) plus the
+  derived `renderSnapshot`.
+
+### The component is a set of variables, not a set of faces
+
+The one thing a reader of the ordering code is most likely to get backwards, and
+it shipped wrong once. Ordering **variables** are coplanar overlapping face pairs.
+The constraint graph is built over those variables, and a *face* can appear in
+more than one component: one panel with two flaps folded onto different parts of
+it has two stacks that share that panel and touch nowhere else.
+
+Assigning a subface or a condition to a component by looking one of its faces up
+in a per-component face set therefore loses one of them — the shared face resolves
+to whichever component is found first, every item of the other component fails to
+match, that component is handed no subfaces at all, its search succeeds vacuously,
+and its variable comes back undetermined under a `Folded` verdict. Ownership must
+come from the variables an item constrains, which `join` has already put in one
+component. Measured: the shipped flat folder decides both pairs on the smallest
+instance; the 3D path reported one of them undetermined. No corpus model has the
+shape — the ordering table is identical before and after the fix — so
+`two_stacks_sharing_one_face_are_both_decided` is the only thing that catches it.
 
 ## Phase 0 findings (spikes)
 
@@ -2627,6 +2823,16 @@ The clustering is the O(F²) half. `spikes_large`, the committed scale fixture, 
 nothing in the corpus is within an order of magnitude of that.
 
 ### Phase 5 — Engine boundary (nothing user-facing)
+
+**Done.** `folding3d/snapshot.rs`, `folding3d/model.rs`, `folding3d/wire.rs`,
+`folding3d/session.rs`, `session.rs`, `crates/oristudio-cp-wasm`,
+`apps/tauri/src-tauri/src/cp_engine.rs`, `apps/web/src/engine/oristudioCpTypes.ts`,
+`apps/web/src/workers/oristudioCpWorker.ts`,
+`apps/web/src/engine/oristudioCpNativeClient.ts`, and the tracked `.wasm`.
+**What a frontend needs from it is [The engine contract](#the-engine-contract)**,
+not this checklist — the checklist records how it got there and which four items
+changed shape on contact.
+
 - [x] `Fold3dSnapshot` as a **sibling** of `FoldedFigureSnapshot`
       (`folding.rs:319`), not an extension — the latter's `wireframe` is 2D and
       drives `FoldedFigurePlacement` as 2D primitives.
@@ -2750,18 +2956,23 @@ nothing in the corpus is within an order of magnitude of that.
       `.gitignore` is `*`, so a plain `add` skips newly-appearing files), then
       confirm with
       `strings apps/web/src/generated/oristudio-cp-wasm/oristudio_cp_wasm_bg.wasm | grep fold_3d`.
-      **The files are tracked** — `git ls-files apps/web/src/generated` lists 12 —
-      despite `AGENTS.md:404` saying otherwise, and `AGENTS.md`'s
-      `wasm-pack build crates/treemaker-wasm --target bundler` is the wrong crate
-      and target for this feature
+      **The files are tracked** — `git ls-files apps/web/src/generated` lists 12.
+      `AGENTS.md` said otherwise and named the wrong crate and target; it has
+      been corrected on this branch rather than left contradicting the tree.
+      **This item went stale once and was caught in review**: the artifact was
+      rebuilt one commit before a behaviour-changing kernel edit, and because a
+      body-only change leaves the `.js` and `.d.ts` byte-identical, lint,
+      typecheck and vitest all passed over the stale binary. The rebuild has to
+      be the **last** commit that touches `crates/oristudio-cp*`, or it is not a
+      rebuild
 - [x] Note the local-vs-CI trap: `pretest`/`pretypecheck`/`prebuild` all rebuild
       wasm, and CI passes `--ignore-scripts` after building explicitly, so **no
       workflow verifies the committed artifact** (`grep -rn "git diff\|--exit-code"
       .github/workflows/` returns nothing). Running `vitest` directly tests the
       committed wasm; `npm run test:web` tests a fresh one
 - [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`,
-      `cargo test --workspace` (1,425 passed), the corpus suite under
-      `ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1`, `npx tsc --noEmit` and
+      `cargo test --workspace` (1,428 passed after the review fixes), the corpus
+      suite under `ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1`, `npx tsc --noEmit` and
       `npx vitest run` (2,986 passed). `wasm-pack test --node` and
       `npm run check:desktop` are **not** run here — see the note below
 
@@ -2807,56 +3018,9 @@ cover, and both were skipped deliberately rather than forgotten.
 
 #### The contract Phase 6/7/8 build against
 
-These are guarantees, not descriptions. Each is asserted somewhere.
-
-- **`entry.folded3d !== null` is the 2D/3D test.** Exactly one of `snapshot` and
-  `folded3d` is non-null; never both. Phase 8 adds the second witness
-  (`sourceKind === 'generated-3d'`) and must assert the two agree in
-  `validateFoldedFigure` rather than letting them drift.
-- **Face indices are global and stable.** `Placement3d::rings`,
-  `face_points`, `face_normals`, `PlaneIndex::plane_of` / `projected`,
-  `Folded3dRenderModel::face_attr` and every `cell_stack` entry share one
-  numbering. No local renumbering originates at the boundary.
-- **`Plane3d::up` is emitted, not recomputed** — the placed normal of the
-  plane's lowest-indexed member face, and the only place a stack's orientation
-  is chosen. `(u, v, up)` is right-handed. A consumer that re-derives either
-  from its own seed gets a different chirality and emits reversed stacks that
-  look entirely plausible. `plane_up_is_the_placed_normal_of_its_lowest_face`
-  and `the_plane_frame_is_right_handed` are the tests.
-- **`cell_stack` is top-first with respect to that cell's plane `up`**, and a
-  cell whose intra-cell order has a hole is annotated `determinacy = 1` rather
-  than tie-broken. Deliberately not `subface_top_stack` (`folding.rs:3996`),
-  which drops a tied face into a hole and leaves its caller to pick an arbitrary
-  survivor.
-- **Cells within a plane carry `draw_rank`**, assigned by descending area. They
-  are normally area-disjoint, so it decides nothing; where a decomposition ever
-  slips a containment through, it puts the contained cell on top rather than
-  leaving the outcome to array order. `bsp.ts`'s `sortCoplanar` (`:277`) sorts
-  coplanar faces by a constant key, so the renderer has no backstop of its own.
-- **The relation may be cyclic.** Never topologically sort it, never assert
-  acyclicity; resolution is per cell, which is why cells are the drawable unit.
-- **`verdict: 'folded'` means no crossing was *detected*.** The crossing
-  predicate is sound but not complete, so the verdict stays three-way and no UI
-  copy or FOLD `frame_attributes` may claim non-self-intersection.
-- **The payload is byte-identical across refolds** of the same segments —
-  planes, cells and components are all ordered by lowest member face index and
-  nothing reaches a hash iteration. `a_refold_of_the_same_document_is_bit_identical`.
-- **`discovered_fold_cases` is a forward-only high-water mark**, never a total:
-  per-component totals are not knowable in advance, so no "k of N" is
-  expressible and none is offered. `Fold3dStepResult::advanced` is the wrap
-  signal, carried explicitly rather than inferred.
-- **`min_inter_separation_relative` is `None` on more than half the fixtures**,
-  and `None` is a real answer — not an infinity.
-- **`diagnostics.tolerances` crosses the bridge for one reason**: `bsp.ts`'s
-  hardcoded `EPS = 1e-7` (`:67`) must become the kernel's `angle_radians`, or
-  the renderer and the kernel disagree about which faces share a plane. Nothing
-  else about the tolerances is policy the frontend may read, and none is
-  user-facing.
-- **Persist the snapshot, not the render model.** `.osf` is written with
-  `JSON.stringify(written, null, 2)` (`nativeProjectFile.ts:397`), which puts
-  every array element on its own line — 29,376 numbers becomes roughly 590 KB
-  per figure. Phase 8's "persist `folded3d`" means the snapshot (~2 KB) plus the
-  derived `renderSnapshot`.
+**Moved.** It is now the top-level [The engine contract](#the-engine-contract)
+section, with the types and entry points beside the guarantees, so the frontend
+half has one place to read rather than a subsection of a kernel phase.
 
 ### Phase 6 — Render
 - [ ] `Folded3dRenderModel` emitted once per fold (never per frame)
@@ -3091,6 +3255,15 @@ spikes are answered below, and five items changed shape on contact and say so.
       relations alone, sharing neither the winding sign nor the condition roles. It
       runs on every shape in the suite and on every corpus model that produces an
       ordering, and it is empty on all of them
+- [x] **The solving unit is the connected component of the constraint graph, and
+      a component is a set of *variables*.** Both halves are load-bearing and the
+      second was wrong in the first cut — see
+      [The engine contract](#the-component-is-a-set-of-variables-not-a-set-of-faces).
+      A face can carry variables in two components, and ownership derived from a
+      face lookup silently drops one of them. Fixed, with the smallest instance —
+      one panel, two flaps landing on opposite halves of it — as the regression
+      test at both the solver and the engine boundary. No corpus model has the
+      shape, so the table below is identical before and after
 - [x] `cargo test -p oristudio-cp`, plus the corpus run behind
       `ORISTUDIO_NON_FLAT_CORPUS_DIR`
 
@@ -3154,6 +3327,18 @@ postconditions, the component split, the odometer's direction, and the plane's
 orientation reference — and each one that a model can reach is caught by a named
 test.
 
+**Two of those 24 were not honestly caught, and review found both.** The wall
+rule's rise sign was caught only by the boundary suite, not by
+`a_wall_orders_the_face_its_crease_runs_through`, which counted refusals — and a
+reversed rule swaps *which* two of the four shapes are refused while leaving the
+count at two. That test now reads the seed's own orientation and names which two.
+The other is the component-ownership defect above, which no mutation of the
+existing code could have surfaced because it was in the code rather than in a
+sign: the corpus has no model where two components share a face, so nothing in
+the suite exercised the assumption at all. Worth stating as a limit of the
+method — a mutation campaign tests the signs you thought to flip, not the
+invariants you did not think to doubt.
+
 Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables,
 64 couplings) orders in ~8 ms and the largest admitted corpus model
 (`origamisimulator`, 2,637 faces, 12,736 variables) in ~0.7 s, both release.
@@ -3161,15 +3346,29 @@ Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables
 ### Merge-set validation (Phases 2–9)
 - [x] `cargo fmt --check`; `cargo clippy --workspace --all-targets -- -D warnings`
       — run after Phase 9; re-run per phase
-- [ ] `cargo test --workspace` and `cargo test --workspace --doc` (CI's
-      `--all-targets` excludes doctests, hence the separate step)
-- [ ] **Oracles actually run, not silently skipped.** `grep -rn ORIEDITA
+- [x] `cargo test --workspace` and `cargo test --workspace --doc` (CI's
+      `--all-targets` excludes doctests, hence the separate step). 137 suites,
+      **1,428 passed / 0 failed / 7 ignored**, doctests included
+- [x] **Oracles actually run, not silently skipped.** `grep -rn ORIEDITA
       .github/workflows/` returns nothing, and 41 parity tests print
-      `skipping … is not set` and pass when the env var is absent. Run
-      `ORIEDITA_GEOMETRY_ORACLE=<path> cargo test -p oristudio-cp --test
-      oriedita_folding_oracle` and
-      `ORIEDITA_RENDER_ORACLE=<path> cargo test -p oristudio-cp --test
-      oriedita_render_oracle`, and report the counts
+      `skipping … is not set` and pass when the env var is absent. Run with
+      `tools/oriedita-oracle/build/oriedita-geometry-oracle`, the counts are:
+
+      | suite | result |
+      | --- | --- |
+      | `oriedita_folding_oracle` | 28 / 28 — the gate on this branch's `fold_graph.rs` and `folding.rs` changes |
+      | `oriedita_render_oracle` | 13 / 13 |
+      | `oriedita_operations_oracle` | 59 pass, **3 fail** — `symmetric_draw`, `double_symmetric_draw`, `fishbone_draw`, the pre-existing reflect-over-line axis divergence, reproducible on pristine `origin/main` |
+      | `oriedita_geometry_oracle` | 1 / 1 |
+      | `oriedita_model_oracle` | 1 / 1 |
+      | `oriedita_io_oracle` | 6 / 6 |
+
+      **The render oracle needs `build_geometry_oracle.sh` re-run first.** The
+      tracked `tools/oriedita-oracle/build/classes` predate the `paper-render-*`
+      commands, so pointing `ORIEDITA_RENDER_ORACLE` at the committed shim gives
+      13 "unknown command" failures that look like real parity failures. The
+      rebuild is **not** committed: it rewrites an absolute path into the shim,
+      and this worktree's path is not the primary checkout's
 - [x] **The non-flat corpus actually ran.**
       `ORISTUDIO_NON_FLAT_CORPUS_DIR=<path> ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1
       cargo test -p oristudio-cp --test non_flat_corpus -- --nocapture`. The
@@ -3177,17 +3376,36 @@ Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables
       line cannot pass by having checked nothing. Green after Phase 9, with the
       ordering pass added to it; re-run per phase
 - [ ] `tools/oracle/build_oracle.sh` + `TREEMAKER_CPP_ORACLE=… cargo test -p
-      oracle-tests --test cpp_oracle`
-- [ ] `wasm-pack test --node crates/oristudio-cp-wasm`
-- [ ] `npm run lint:web`; `npx tsc --noEmit`; `npx vitest run`;
-      `npm run test:simulator`; `npm run build:web`; `npm run check:desktop`;
-      `npm run i18n:check`; `npm run typecheck:functions`. Of these,
-      **`test:simulator` IS in CI** (`.github/workflows/ci.yml:83`), so Phase 6's
-      BSP regression tests are CI-covered; `typecheck:functions` is not, and
-      neither is any verification of the committed `.wasm`
-- [ ] `git diff --check`; committed `.wasm` staged and verified
-- [ ] `PORTING.md` updated: `folding3d` as Ori Studio native (not a divergence);
-      the odometer unit ordering; the `pub(crate)` visibility changes
+      oracle-tests --test cpp_oracle` — **not run.** Nothing on this branch
+      touches `treemaker-*` optimizer, parser or CP-generation code, which is
+      what that oracle gates
+- [ ] `wasm-pack test --node crates/oristudio-cp-wasm` — **not run.** The crate
+      has no `#[wasm_bindgen_test]`s; the three 3D entry points are five-line
+      `from_js` / delegate / `to_js_value` wrappers whose bodies are covered by
+      `folding3d_boundary.rs`, and the marshalling is exercised by `vitest`
+      against the committed artifact
+- [x] Web: `npx eslint .`, `npx tsc --noEmit`, `npx vitest run` (287 files /
+      **2,986 tests**, against the *committed* wasm), `npm run i18n:check`,
+      `npm run test:scripts` (48/48, newly wired into CI by this branch). Run
+      **directly**, not through the npm wrappers, because `pretest` /
+      `pretypecheck` / `prebuild` regenerate tracked `generated/**` and so would
+      test a wasm nobody committed. `npm run build:web` and
+      `npm run check:desktop` are **not** run — neither is reachable from these
+      changes beyond what `native_commands_match_the_shared_manifest` and `tsc`
+      already cover. `npm run test:simulator` is **not** run and is unaffected;
+      it IS in CI (`.github/workflows/ci.yml:83`), so Phase 6's BSP regressions
+      will be CI-covered when they land. `typecheck:functions` is not in CI and
+      nothing here touches `functions/`
+- [x] `git diff --check origin/main..HEAD`; committed `.wasm` rebuilt as the
+      **last** commit touching `crates/oristudio-cp*` and verified with
+      `strings … | grep fold_3d`
+- [x] `PORTING.md` updated: `folding3d` as Ori Studio native (not a divergence);
+      the odometer unit ordering; the cross-plane cut's plane keying; the
+      additive `validate_initial_hierarchy`; cells as the drawable unit; the
+      separate 3D snapshot / commands / handle kind. **[corrected — there are no
+      `pub(crate)` visibility changes.]** The plan predicted `configure_subfaces`
+      and `folded_face_polygons` would need narrowing and they did not; the diff
+      against `origin/main` adds only public items to `folding.rs`
 - [ ] **Author browser checklist** (the automated pane runs
       `visibilityState=hidden` with zero rAF, so none of this is agent-verifiable):
       `G` on an all-classic selection; `G` on `hinge_90` / `box_90` (census 0
@@ -3198,6 +3416,17 @@ Cost, for the record and not as a gate: `spikes_large` (214 faces, 543 variables
       after an angle edit; SVG and PNG export; `.osf` save, reload, and reopen on
       a `main` build; undo/redo across a fold; the simulate fallback on a
       non-closing pattern
+
+**One flake, not reproduced, recorded so a soak happens before merge.** A review
+pass saw four `folding3d_boundary` tests fail together twice early in a session —
+`an_admitted_fixture_reports_a_verdict_code`, `the_snapshot_census_keeps_its_theorem`,
+`a_duplicate_starts_where_the_original_was_and_then_diverges`,
+`the_solution_stream_wraps_and_keeps_wrapping` — all consistent with the ordering
+solver not answering on that run. It then ran ~400 more times without failing, and
+a further 200-run soak here (4 test threads) also found nothing. No mechanism was
+identified: the search's `HashMap`/`HashSet` uses are `contains`/`insert` only and
+nothing downstream reads an iteration order. Not claimed as fixed, and not claimed
+as understood.
 
 ### Phase 10 — Enumeration, real cycling, orbit (follow-up)
 - [ ] Odometer over per-component enumerators, with the **tested invariant that
