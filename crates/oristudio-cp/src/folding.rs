@@ -4434,6 +4434,32 @@ const CELL_NONE: u8 = 0;
 const CELL_ABOVE: u8 = 1;
 const CELL_BELOW: u8 = 2;
 
+/// Check that an initial hierarchy is internally consistent.
+///
+/// [`HierarchyTable::from_initial`] discards `infer_above`'s error with
+/// `let _ =`, so a pair seeded both ways silently keeps whichever relation came
+/// **first in the vector** and drops the other. On the flat path the seeds come
+/// from one pass over the creases and can never disagree, so upstream's
+/// behaviour is untouched and unobservable. The 3D path seeds from several
+/// independent geometric rules at once, where a disagreement is a real finding
+/// and a first-in-vector tie-break is a definite, silent, order-dependent wrong
+/// answer — so it asks first.
+///
+/// **Ori Studio native**, and additive: the flat path keeps calling the
+/// unchecked builder.
+pub fn validate_initial_hierarchy(
+    initial: &InitialHierarchy,
+) -> Result<(), AdditionalEstimationError> {
+    let mut table = HierarchyTable {
+        faces_total: initial.faces_total,
+        cells: vec![CELL_NONE; initial.faces_total.saturating_mul(initial.faces_total)],
+    };
+    for relation in &initial.relations {
+        table.infer_above(relation.upper_face, relation.lower_face)?;
+    }
+    Ok(())
+}
+
 impl HierarchyTable {
     fn from_initial(initial: &InitialHierarchy) -> Self {
         crate::fold_profiling::bump_table_from_initial();
