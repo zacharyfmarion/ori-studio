@@ -20,10 +20,17 @@ before this one. Nothing here restates it.
 
 ### Status — what has been measured since this plan was first written
 
-Phase 0 spikes **A, B and C have been run**; D and E have not. Their answers are
-in [Phase 0 findings](#phase-0-findings-spikes). Sections rewritten because a
-spike or a code re-read contradicted them are marked **[rewritten]** with the
-reason. Three spikes changed the design:
+Phase 0 spikes **A, B and C have been run**; D and E have not. **Phase 2 is
+built** apart from its authored adversarial cases: `tests/fixtures/fold-angle-3d/`
+holds eight fixtures and one `.osf`, the external corpus is reachable through
+`ORISTUDIO_NON_FLAT_CORPUS_DIR`, and the census, loop gap and plane-separation
+spectrum are reproducible by one command (see "Reproducing the measurements").
+Building it corrected two of this plan's own claims — the fixture write-out
+precision, and §2 step 6's reading of the separation spectrum — and closed R21.
+
+Spike answers are in [Phase 0 findings](#phase-0-findings-spikes). Sections
+rewritten because a spike or a code re-read contradicted them are marked
+**[rewritten]** with the reason. Three spikes changed the design:
 
 - **Spike C** moved Phase 9 (layer ordering) out of the follow-up and **into the
   merge set**. Its own headline conclusion was then refuted on audit — the
@@ -468,10 +475,24 @@ In order:
    width. Spike A supports this directly: the separation spectrum is cleanly
    bimodal on **15 of 16** folding models, with an empty band six decades wide —
    `spikes_better [203,0,0,0,8]`, `cross [454,0,0,0,1]`,
-   `origamisimulator [2608,0,0,0,26]`. The band only fills in on models that
-   already fail closure (`polygami [1610,2,173,65,105]`). `airplane` is the lone
-   exception, with one separation in the 1e-9..1e-6 band, and it is still
-   admitted.
+   `origamisimulator [2608,0,0,0,26]`. `airplane` is the lone exception in that
+   pool, with one separation in the 1e-9..1e-6 band, and it is still admitted.
+
+   **[corrected in Phase 2 — the sentence that used to follow, "the band only
+   fills in on models that already fail closure (`polygami
+   [1610,2,173,65,105]`)", is false, and it is the half a gate would have been
+   built on.]** The committed `penguin_freeform` fixture is **clean and
+   admitted** — 0 flat, 0 closure over 36 spatial vertices — and its spectrum is
+   `[94, 12, 0, 0, 0]`: twelve separations in the 1e-12..1e-9 band and **none at
+   all above 1e-3**. Its minimum is 6.6e-10 on a 400 span, 1.7e-12 relative,
+   which is *below* the relative loop gap on the same model. So the bimodality
+   is a property of 45°/90° lattice designs, not of admissibility: every model in
+   Spike A's pool with an empty band is on a 45° or 22.5° system, and the one
+   genuinely free-form clean model fills it. Reproduce with
+   `cargo run -p oristudio-cp --release --example fold3d_census --
+   tests/fixtures/fold-angle-3d`. The spectrum-gap test still stands as the
+   replacement for a minimum-separation gate; what does not stand is any
+   expectation that the gap is there to be found.
 
 **Three dimensionally distinct tolerances**, carried in `Fold3dDiagnostics` and
 inspectable: `ang_tol` in radians on normals (scale-free), `dist_tol` relative to
@@ -1466,8 +1487,15 @@ Phase 0 and none of A, B or C touched it. It is unchanged; see Open decisions.
 - `apps/web/public/locales/*/{errors,panels,dialogs}.json` — eight locales
 
 **Tests and fixtures**
-- `tests/fixtures/fold-angle-3d/` — **new**; the *material* exists outside git
-  (see "F0" and the rewritten Phase 2), the directory does not
+- `tests/fixtures/fold-angle-3d/` — **built** (Phase 2). Eight `.fold` fixtures
+  plus `box_90.osf` and a README carrying every recorded verdict. The authored
+  adversarial cases are still missing; see Phase 2's item (c)
+- `crates/oristudio-cp/tests/non_flat_corpus.rs` — **new**; the external corpus
+  behind `ORISTUDIO_NON_FLAT_CORPUS_DIR`, the Mooser's Train ground-truth asset,
+  and the loud-skip discipline R9 asks for
+- `scripts/osf-fold-projection.mjs` — **new**; the `.osf` → `.fold` extraction
+  every committed fixture is derived by, tested for byte equality against the
+  committed files by `non_flat_corpus.rs`
 - `apps/web/src/store/workspaceStore/store.test.ts:2847` — `describe('folding a
   pattern that is not flat-folded')`, 3 tests, all currently green; all three
   break and all three breakage is signal (Phase 7)
@@ -1478,13 +1506,17 @@ Phase 0 and none of A, B or C touched it. It is unchanged; see Open decisions.
 - `scripts/folded-grid-screenshot.mjs:44-60` — **a Playwright harness that
   hand-writes an `OristudioCpFoldedFigureEntry` literal** and is not in CI, so a
   required new field breaks it silently
-- `crates/oristudio-cp/tests/verify_fold_fixtures.rs` — **extend** for the Phase 2
-  fixtures rather than adding a second file; today it asserts one interior
-  vertex, a closure residual under 1e-7°, and a recorded `self_intersects` bool
-  (`:42-65`)
+- `crates/oristudio-cp/tests/verify_fold_fixtures.rs` — **extended** in Phase 2
+  rather than a second file being added. It kept its two original claims about
+  the `fold-angle` fixtures and gained three tests over `fold-angle-3d`: the
+  angles each fixture claims, the CAMV verdict each reaches, and that the pinned
+  list and the directory listing are the same set
 - `crates/oristudio-cp/examples/fold_corpus_scan.rs` — the committed scanner that
   grades a corpus directory; `:28` redeclares the private closure bar and
-  `:81-96` re-implements `spatial_closure_diagnostics`' classification
+  `:81-96` re-implements `spatial_closure_diagnostics`' classification. That
+  duplication is now **three-way**, since `non_flat_corpus.rs` needs the same
+  bar — Phase 3's "make `CLOSURE_RESIDUAL_BAR_DEGREES` reachable" item is what
+  collapses it
 - `crates/oristudio-cp/tests/oriedita_folding_oracle.rs`,
   `oriedita_render_oracle.rs` — must stay green, and must be **actually run**
 - `PORTING.md` — the Ori Studio native section
@@ -1496,8 +1528,56 @@ plan rests on:
   env-gated tests (`ORISTUDIO_SPIKE_DIRS`, `ORISTUDIO_SPIKE_FILE`, plus
   `spike_a_annulus` which needs nothing). Zero CI cost. It lives in `src` only
   because it needs `pub(crate)` `FoldGraph`
-- `crates/oristudio-cp/examples/fold3d_census.rs` — Spike C, and Phase 4's
-  regression oracle once R21's three gaps are closed
+- `crates/oristudio-cp/examples/fold3d_census.rs` — **the one command.** Started
+  as Spike C's census; Phase 2 widened it to the whole Phase 0 measurement set
+  and closed R21's three gaps with it. See "Reproducing the measurements" below
+
+### Reproducing the measurements — one command
+
+**[new in Phase 2. A measurement nobody can re-run is a measurement that rots,
+and three of this plan's load-bearing numbers lived in two different harnesses
+with no way to get them together.]**
+
+The census, the placement loop gap and the parallel-plane separation spectrum now
+come out of one invocation:
+
+```bash
+# the committed fixtures
+cargo run -p oristudio-cp --release --example fold3d_census -- \
+    tests/fixtures/fold-angle-3d
+# the external corpus, wherever ORISTUDIO_NON_FLAT_CORPUS_DIR points
+cargo run -p oristudio-cp --release --example fold3d_census -- --corpus
+```
+
+`--csv` for machine-readable rows, `--flatcheck` against the shipped flat folder,
+`--sweep` for the census under a plane-tolerance sweep, `--selftest` for the
+polygon-overlap primitive. `.osf` projects are read directly, so the nine
+owner-authored designs need no extraction step. `--corpus` **exits 2** when the
+variable is unset rather than printing an empty table.
+
+**R21's three gaps are closed, and one of them found a bug.**
+
+- *"`--flatcheck` exercises only half-turns."* There is now a **general-angle
+  dihedral round-trip**: for every placed adjacent face pair, the dihedral
+  measured from the two placed normals against the crease's declared angle,
+  wrapped into (−180°, 180°] because `atan2` cannot tell +180 from −180 — which
+  is itself the precise statement of why a document of half-turns validates
+  nothing. It reads 1.3e-13° on `spikes_large` and 2.5e-14° on `spikes_small`,
+  and on `rabbit_unclosed` it reads **70.5°, the same number as that model's
+  worst vertex closure residual**, reached two independent ways.
+- *"The loop gap prints an exact `0.00e0` on a tree dual graph."* It now prints
+  `--`, with the non-tree edge count in the column beside it. `hinge_90` is the
+  committed instance.
+- *"`admissible` omits the shipped spherical-simplicity verdict."* Included.
+  `self-intersecting-vertex.fold` is now **refused**, as it always should have
+  been.
+- **And the plane-spectrum port surfaced a real defect in it.** The first
+  implementation canonicalised each face normal by a global rule ("flip if the
+  first non-zero component is negative"), which splits two normals differing by
+  1e-17 across an axis into *opposite* signs and turns their equal offsets into a
+  separation of twice the offset. On `spikes_small` that invented a 50-unit gap
+  on a 400-unit sheet. The sign is now resolved **against the class** it is being
+  compared to, never globally.
 
 ## Non-goals
 
@@ -1617,128 +1697,171 @@ Named so they do not creep in.
       `npm run i18n:check`
 - [ ] **Let the data accumulate for a real window before committing to Phase 3**
 
-### Phase 2 — The 3D fixture corpus (nothing downstream is checkable without it)
+### Phase 2 — The 3D fixture corpus (**built**; the authored adversarial cases remain)
 
-**[rewritten around the F0 survey. The old version said "every one must be
-authored" — that was true of tracked files and false of available material.
-Roughly two thirds of the authoring burden is gone.]**
+**[rewritten twice: once around the F0 survey, and again on building it. The F0
+rewrite was right that two thirds of the authoring burden was gone. It was wrong
+about the precision the fixtures may be written at, and about how many of the
+naturalistic candidates earn a place — see the two corrections below.]**
 
 **The committed-fixture rule, stated as a rule so it does not become a
 negotiation.** Commit a file **iff** (a) the repo owner authored it in Ori Studio,
 so it is his to license under the repo's terms; **and** (b) it carries at least
-one non-classic fold angle; **and** (c) it carries `faces_vertices`; **and**
-(d) its `fold_corpus_scan` verdict is recorded beside it. Anything failing (a)
-stays external, no exceptions, however convenient. AGENTS.md's "real-world user
-corpus files are not committed" governs third-party corpora; the precedent for
-the owner's own test designs is `tests/fixtures/simulation/iguana_24.osf` — 3.53
-MB, committed, "contributed for this purpose, with its embedded reference images
-removed" (`apps/web/src/lib/simulationCorpus.test.ts:14-17`).
+one non-classic fold angle, or is the matched all-classic control for one that
+does; **and** (c) it carries `faces_vertices`; **and** (d) its verdict is
+recorded beside it. Anything failing (a) stays external, no exceptions, however
+convenient. AGENTS.md's "real-world user corpus files are not committed" governs
+third-party corpora; the precedent for the owner's own test designs is
+`tests/fixtures/simulation/iguana_24.osf` — 3.53 MB, committed, "contributed for
+this purpose, with its embedded reference images removed"
+(`apps/web/src/lib/simulationCorpus.test.ts:14-17`).
 
-Size budget under that rule: the full candidate set is **96.7 KB minified at 6
-decimal places**, against 144.8 KB of all tracked `.fold` in the repo today. The
-largest single fixture would be 20.5 KB — a third of the largest already-tracked
-`.fold` (`lamprey-segment.fold`, 64 KB).
+**What was built.** `tests/fixtures/fold-angle-3d/` — **eight `.fold` fixtures
+plus one `.osf`, 68.8 KB + 30.5 KB**, against 144.8 KB of `.fold` already
+tracked. Every one is verified by
+`crates/oristudio-cp/tests/verify_fold_fixtures.rs`, which pins V/E/F, the ±180
+and non-classic crease counts, the number of distinct fold magnitudes, and the
+full CAMV breakdown (flat / spatial examined / closure / self-intersection /
+indeterminate) for each. The directory's README carries the same table plus each
+fixture's source, source sha256 and licence, and the reason it exists.
 
-- [ ] **(a) Adopt, do not author, the naturalistic set.**
-      `tests/fixtures/fold-angle-3d/` created and populated from the owner's
-      `.osf` `foldProjection` exports plus `spikes_better.fold` and
-      `test_export.fold`. Intent-named, with a sibling
-      README table recording, per fixture: source `.osf` and its `schemaVersion`,
-      face count, spatial-vertex count, `fold_corpus_scan` verdict
-      (flat/closure/self-int/link-crossing), and census. Candidates and what each
-      is *for*:
-      `hinge_90` (from `test_export`, 2 faces, census 0 — the degenerate control,
-      and per §1 it discriminates nothing about composition order);
-      `box_90` (`tooling/base_fixed`, 11 faces, 2 spatial verts, census 17);
-      `box_90_unangled` (`tooling/base`, the matched all-classic **before** file,
-      2 flat violations);
-      `spikes_small` (`non-flat-test`, 25 faces);
-      `spikes_mid` (`non-flat-harder_fixed`, 104);
-      `spikes` (`non-flat-harder_final`, 141);
-      `spikes_large` (`spikes_better`, 214 faces, 114 spatial verts — the scale
-      case, and the only clean model of that size in existence);
-      `spikes_unclosed` (`non-flat-harder`, 6 closure failures — the negative);
-      `penguin_90` (`plant_penguin`, 103 faces);
-      `penguin_freeform` (`penguin_other_angles` component 0 — the only clean
-      model with genuinely free-form angles);
-      `disconnected` (`penguin_other_angles` **entire**: face components
-      [127, 103], **CLEAN yet unplaceable**);
-      `rabbit_unclosed` (`plant/rabbit`, 1 closure failure, 17 distinct
-      magnitudes)
-- [ ] **Commit exactly one `.osf`** for Phase 8's persistence/staleness/round-trip
-      work: `box_90.osf` from `tooling/base_fixed.osf` (30,465 bytes,
-      schemaVersion 5, 23 segments, 6 magnitudes, **no inline simulation**). It is
-      the smallest `.osf` in the corpus and exercises the v5→v8 migration Phase 8
-      must not break. Do **not** commit `rabbit.osf` or
-      `penguin_other_angles.osf` in `.osf` form — they carry inline simulations
-      (277 KB / 884 KB); take only their `foldProjection`
-- [ ] **Do not commit `spikes.fold` and `fold_export.fold` separately** — they are
-      byte-identical to each other and geometrically identical to
-      `non-flat-harder_final.osf`'s projection. One file, named for its role
-- [ ] **(b) External set, behind an env var.** Everything third-party stays out:
-      all 36 `origami-simulator-corpus/fold/*.fold`, all 36 `svg/`, both combined
-      grids, all 10 `known-good/*.fold` (8 byte-identical to the 36; `frogBase` is
-      a derived edit of a Lang design), and both Mooser's Train files. Reach them
-      through `ORISTUDIO_NON_FLAT_CORPUS_DIR`, matching the existing
-      `ORIEDITA_FOLDED_CORPUS_DIR` / `TREEMAKER_CORPUS_DIR` / `FOLD_FRAME_CORPUS_DIR`
-      convention in `tests/corpus/README.md`. It must print
-      `skipping: ORISTUDIO_NON_FLAT_CORPUS_DIR is not set` and pass — **but** see
-      R9: add a CI-visible assertion count so a silently-skipped suite is never
-      mistaken for coverage
-- [ ] **(c) Author only what the corpus cannot supply.** Six, not fifteen:
-      `strip_coupled.fold` (the (−90, +180, +90) cross-plane counterexample),
-      `pinwheel_cyclic.fold` (square twist), `prism_60.fold`, `tube.fold`,
-      `nested_tongue.fold`, `bridge_tuck.fold`. Plus `annulus_90.fold`, which the
-      Spike A harness already builds programmatically and which is the two-sided
-      negative for the loop gate. `chain3_60.fold` and `chain3_120.fold` are
-      **free** — Spike B built them and recorded their expected coordinates — as
-      is the Miura 4×4 generator with its 9 independent dual loops.
-      `box_90`, `flat_base_1shape`/`3shape`, the chain hinges and
-      `disconnected.fold` are all supplied by the corpus and should not be
-      re-authored
+| fixture | F | non-classic (distinct magnitudes) | verdict | census | what it is for |
+| --- | --- | --- | --- | --- | --- |
+| `hinge_90` | 2 | 1 (1) | admit | **0** | the degenerate control; the only census-0 fixture; CAMV clean **vacuously** (0 spatial vertices); tree dual graph, so the loop gap is `--` and not `0.0` |
+| `box_90` | 11 | 6 (1) | admit | 17 | smallest real 3D fold: 4 planes, real overlap, 2 spatial vertices; source of the committed `.osf` |
+| `box_90_unangled` | 11 | 0 | flat path | 27 | the matched **before** file — same box, all-classic, 2 flat violations. Truth-table rows (a) and (b) as a *pair* |
+| `spikes_small` | 25 | 16 (1) | admit | 36 | small clean positive, 12 independent dual cycles |
+| `spikes_large` | 214 | 144 (1) | admit | 543 | the scale case, 114 spatial vertices; **no `.osf` sibling exists** |
+| `penguin_freeform` | 127 | 64 (**10**) | admit | 457 | the only clean free-form model in existence — every other positive is 90° only |
+| `penguin_disconnected` | 230 | 90 (10) | **refuse** | 1001 | CLEAN yet unplaceable: 2 face components, 53 spatial vertices all closing |
+| `rabbit_unclosed` | 87 | 62 (**16**) | **refuse** | 306 | the near-miss negative: exactly 1 closure failure of 32 |
+| `box_90.osf` | — | 6 magnitudes | — | — | schemaVersion 5, 23 segments, no inline simulation: Phase 8's v5→v8 migration |
+
+- [x] **(a) Adopt, do not author, the naturalistic set.** Done, and **pruned
+      from twelve candidates to eight**. `spikes_mid` (104 F) and `spikes` (141 F)
+      were dropped as a third and fourth size of one 90°-only family already
+      covered by `spikes_small` and `spikes_large`; `penguin_90`
+      (`plant_penguin`, 103 F) was dropped because its 103 face tuples are
+      literally component 1 of `penguin_disconnected`, which is committed;
+      `spikes_unclosed` (`non-flat-harder`, 6 closure failures) was dropped in
+      favour of `rabbit_unclosed`, which is a *harder* negative — one failure out
+      of 32 rather than six — and brings a 7.5° direction system and 16 distinct
+      magnitudes with it. The set that remains has no two fixtures playing the
+      same role
+- [x] **Commit exactly one `.osf`**: `box_90.osf`, a byte-for-byte copy of
+      `tooling/base_fixed.osf` (30,465 bytes, schemaVersion 5, 23 segments, 6
+      `fold_magnitude` values of 900000000). It carries `images: []`,
+      `textAnnotations: []` and `inlineSimulations: []`, so unlike `iguana_24.osf`
+      nothing had to be stripped. `rabbit.osf` and `penguin_other_angles.osf`
+      stay external in `.osf` form — they carry inline simulations (277 KB / 884
+      KB); only their `foldProjection` is taken
+- [x] `spikes.fold` and `fold_export.fold` are byte-identical (sha256
+      `15ac8a5d…`) and geometrically identical to `non-flat-harder_final.osf`'s
+      projection. None of the three is committed: the family is represented by
+      `spikes_small` and `spikes_large`
+- [x] **CORRECTION — do not round the coordinates, at any precision.** This plan
+      said "minified at 6 decimal places", which on a 400-unit sheet is 2.5e-9
+      relative and reads as obviously safe. It is not. Measured with
+      `fold_corpus_scan`: at 6 dp `penguin_freeform` goes from **0
+      flat-foldability violations to 12** and `rabbit_unclosed` from 0 to 5; at
+      7 dp `rabbit_unclosed` still reports 1. Every verdict survives from **8 dp**
+      up — but 8 dp still moves one of `penguin_disconnected`'s parallel-plane
+      separations from 7.86 units into the 1e-12..1e-9 band that §2 step 6's
+      spectrum test reads, which would make a fixture's most interesting property
+      an artefact of how it was written out. So the fixtures carry what the
+      author saved, float noise included (`box_90` has an x of 2.84e-14 where 0
+      was meant). Minifying the JSON alone recovers most of the size —
+      `spikes_large` 58.7 KB → 18.2 KB — and rounding on top buys under 7 KB
+      across the whole set
+- [x] **(b) External set, behind an env var.** `ORISTUDIO_NON_FLAT_CORPUS_DIR`,
+      matching the `ORIEDITA_FOLDED_CORPUS_DIR` / `TREEMAKER_CORPUS_DIR` /
+      `FOLD_FRAME_CORPUS_DIR` convention. `crates/oristudio-cp/tests/non_flat_corpus.rs`
+      scans it recursively and reads `.osf` projects directly, so no extraction
+      step is needed to measure them. **R9 is answered in four parts**, because
+      "print a skip notice" alone is what the Oriedita harness already does:
+      the load-bearing assertions are on committed fixtures and need no
+      environment at all; each skip prints a greppable `SKIPPED:` block naming
+      the test, the variable and *what was not checked*;
+      `corpus_coverage_is_stated` **always runs** and prints the whole roster of
+      what did not; and `ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1` turns every skip
+      into a failure, which is the form a CI job or a release check can demand —
+      and a failing test's output is never captured, so that message is visible
+      without `--nocapture`. A variable pointing at a missing directory, or at
+      one holding no `.fold` or `.osf`, **fails** rather than skipping: "the
+      variable is set" and "the variable points at the corpus" are different
+      claims and only the second buys coverage
+- [x] **The harness is asserted to work when the variable *is* set.**
+      `corpus_landmarks_are_where_the_harness_expects_them` pins three landmark
+      files with measurements that could not arise by accident —
+      `spikes_better.fold` (420 segments, 0 flat, 114 spatial, 0 closure),
+      `known-good/byu solar driven.fold` (246, 0, **90**, 0 — the R19 instance,
+      and the clean line is the point) and
+      `origami-simulator-corpus/fold/polygami.fold` (4134, 0, 1166, **365**) —
+      plus a floor of 60 measurable files. A scan over zero files reports zero
+      problems, and that is the failure that looks like success
+- [x] **The derived fixtures are re-derivable, and it is tested.**
+      `committed_fixtures_are_reproducible_from_their_sources` runs the
+      documented command — `node scripts/osf-fold-projection.mjs` — against each
+      source in the external corpus and asserts **byte equality** with the
+      committed file, plus a byte-for-byte check of `box_90.osf` against its
+      source. That is what makes it safe for the committed files to be derived
+      artefacts, and it tests the documented command rather than a paraphrase of
+      it
+- [x] **`.osf` → `.fold` extraction recorded as a reproducible command.**
+      `scripts/osf-fold-projection.mjs` reads
+      `workspace.documents[N].creasePattern.foldProjection`, with `--component N`
+      (needed for `penguin_freeform`, which is one of two designs on one canvas),
+      `--precision N|full` and `--document N`. The exact command for every
+      fixture is in `tests/fixtures/fold-angle-3d/README.md`
+- [ ] **(c) Author only what the corpus cannot supply. Still open — this is what
+      remains of Phase 2.** Six, not fifteen: `strip_coupled.fold` (the
+      (−90, +180, +90) cross-plane counterexample), `pinwheel_cyclic.fold`
+      (square twist), `prism_60.fold`, `tube.fold`, `nested_tongue.fold`,
+      `bridge_tuck.fold`. Plus `annulus_90.fold`, which the Spike A harness
+      already builds programmatically and which is the two-sided negative for the
+      loop gate. `chain3_60.fold` and `chain3_120.fold` are **free** — Spike B
+      built them and recorded their expected coordinates — as is the Miura 4×4
+      generator with its 9 independent dual loops. The corpus's own clean non-90
+      angles are `penguin_freeform`'s free-form set, so **60°/120° on a 3-face
+      asymmetric chain still has to be authored**; §1 explains why 90° cannot
+      substitute
 - [ ] Authoring method chosen and written down for the six. Hand-writing
       `edges_foldAngle` for a bridge/tuck is not realistic; a small Rust builder
-      emitting `.fold` from a described fold sequence is. Note the corpus's own
-      non-90 clean angles are `penguin_other_angles`' free-form set and
-      third-party `byu solar driven`'s ±59.994, so **60°/120° on a 3-face
-      asymmetric chain has to be authored** — Spike B needs exactly that and §1
-      explains why 90° cannot substitute
-- [ ] **`.osf` → `.fold` extraction recorded as a reproducible command** in the
-      fixture README, since the committed `.fold` files are derived artefacts:
-      read `workspace.documents[0].creasePattern.foldProjection` and write it
-      minified at 6 dp. State that the source `.osf` files live in the external
-      corpus, not the repo
-- [ ] A test asserting every fixture parses, carries the angles it claims, and
-      reaches its recorded verdict — extending
-      `crates/oristudio-cp/tests/verify_fold_fixtures.rs` rather than adding a
-      second file. It currently asserts only "exactly one interior vertex",
-      "closure residual under 1e-7°" and a recorded `self_intersects` bool
-      (`:42-65`), which is far less than Phase 2 needs
-- [ ] The fixture test asserts the **spatial-vertex breakdown**, not just totals:
-      closed / indeterminate / failing-closure / link-crossing. **Zero fixtures in
-      this corpus produce an indeterminate vertex** (0 of 481 spatial vertices
-      across all candidates), so truth-table row (f)
-      `Refused(VertexIndeterminate)` has **no fixture** and one must be
-      authored, or that arm ships untested
-- [ ] Correct `origami-simulator-corpus/README.md:182-190` before Phase 2 quotes
-      it — its "clean ones" table lists `huffmanExtrudedBoxes` (37 flat / 480
-      closure per the repo's own scanner) and `honeycombKiri` (11 flat)
-- [ ] **The ground-truth placement oracle, downgraded but kept.**
-      `MoosersTrainRigid-Gardner.fold` (484 faces) is both source mesh and
-      topology — it already carries the `_ 100PercentFolded` state's vertex
-      correspondence, so no matching step is needed, and the SVG-derived CP in
-      `origami-simulator-corpus/` is **not** the same discretisation (68
-      subdivision vertices, `F = 0`) and must not be substituted. Three
-      conditions on using it: read it through `treemaker_fold` directly, because
-      `import_fold_document` drops z; stay external and stay behind the env var,
-      because it is third-party; and **derive no tolerance from it** — its floor
-      is ~1.5e-3 × span, set by the reference data, five to six decades above
-      what the walk achieves on admissible input. It is a ≥0.5° smoke check that
-      discriminates the fault modes (correct 1.76e-3 × span, negated-ρ 7.3e-2,
-      left-compose 1.43) and nothing more. Do not let it be committed as a
-      crease-pattern fixture: both files declare
-      `frame_classes: ["foldedForm"]`, and the "0%" file is a **near-flat folded
-      form**, not a `creasePattern` frame
+      emitting `.fold` from a described fold sequence is
+- [x] A test asserting every fixture parses, carries the angles it claims, and
+      reaches its recorded verdict, **extending
+      `crates/oristudio-cp/tests/verify_fold_fixtures.rs`** rather than adding a
+      second file. It also asserts that the directory listing and the pinned list
+      are the same set — an unpinned fixture is a file nobody checks — and that
+      at least two fixtures stay genuinely free-form, so the corpus can never
+      quietly become 90°-only
+- [x] The fixture test asserts the **spatial-vertex breakdown**, not just totals:
+      examined / closure-failing / link-crossing / indeterminate. Confirmed on
+      the committed set: **0 of its 245 spatial vertices is indeterminate**, so
+      truth-table row (f) `Refused(VertexIndeterminate)` still has **no fixture**
+      and one must be authored, or that arm ships untested. The total is pinned
+      too, because "none are indeterminate" is worth nothing without a
+      denominator
+- [ ] Correct `origami-simulator-corpus/README.md:182-190` — its "clean ones"
+      table lists `huffmanExtrudedBoxes` (37 flat / 480 closure per the repo's own
+      scanner) and `honeycombKiri` (11 flat). Still open, and it is a file in the
+      **external** corpus, not in this repository
+- [x] **The ground-truth placement oracle, kept and now pinned.**
+      `moosers_train_pair_is_a_usable_placement_oracle` asserts the asset is
+      usable *and* bounds what may be concluded from it, which is the part that
+      is easy to lose. Confirmed this session: 463 V / 946 E / 484 F in both
+      states, identical topology so the vertex correspondence is free, both
+      declaring `frame_classes: ["foldedForm"]`, 127 null `edges_foldAngle` all
+      on `B` edges. And three noise-floor facts, each asserted as a **lower**
+      bound so that swapping in a cleaner file fails the test rather than
+      silently turning a smoke check into a tolerance: the two states are not
+      isometric (worst relative edge stretch **0.0115**); the 100% state's own
+      coordinates disagree with its own declared angles by up to **0.419°** over
+      819 interior creases, which is why the bar is ≥0.5° and nothing finer; and
+      the "0%" state's own faces bend by up to **1.288°**, so it is a folded form
+      and not a `creasePattern` frame. Read through `treemaker_fold` directly,
+      because `import_fold_document` drops z; stays external, because it is
+      third-party
 
 ### Phase 3 — Placement and admission (kernel only, no UI)
 - [ ] `pub mod folding3d;` in `lib.rs`; `folding3d/placement.rs`
@@ -2087,6 +2210,11 @@ largest single fixture would be 20.5 KB — a third of the largest already-track
       oriedita_folding_oracle` and
       `ORIEDITA_RENDER_ORACLE=<path> cargo test -p oristudio-cp --test
       oriedita_render_oracle`, and report the counts
+- [ ] **The non-flat corpus actually ran.**
+      `ORISTUDIO_NON_FLAT_CORPUS_DIR=<path> ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1
+      cargo test -p oristudio-cp --test non_flat_corpus -- --nocapture`. The
+      second variable is the point: it turns every skip into a failure, so this
+      line cannot pass by having checked nothing
 - [ ] `tools/oracle/build_oracle.sh` + `TREEMAKER_CPP_ORACLE=… cargo test -p
       oracle-tests --test cpp_oracle`
 - [ ] `wasm-pack test --node crates/oristudio-cp-wasm`
@@ -2161,7 +2289,7 @@ largest single fixture would be 20.5 KB — a third of the largest already-track
 | R6 | Cross-plane coupling is common, making "detect and refuse" a permanent refusal on ordinary models | Medium / high, **now merge-relevant** | Spike D measures frequency, on the F0 corpus rather than synthetics, and must run before Phase 9 is designed. Refusing beats answering definitely and being wrong half the time silently (§4.2) |
 | R7 | An out-of-range face id makes the ordering search report success with an empty ordering, no error | High / high | Hard `FaceIdOutOfRange` check before every call **plus a test that the check fires**. Local renumbering is required for performance anyway |
 | R8 | The kernel change does not reach the app because the committed `.wasm` was not rebuilt — and **no workflow verifies it** | High / high | Explicit checklist item with the correct command, `git add -f`, and a `strings` verification. It has bitten before (R4 in non-180) |
-| R9 | New oracle "green" is vacuous — 41 Oriedita parity tests skip silently without `ORIEDITA_GEOMETRY_ORACLE`, which no workflow sets | High / high | Both env vars named in the validation checklist, with reported counts |
+| R9 | New oracle "green" is vacuous — 41 Oriedita parity tests skip silently without `ORIEDITA_GEOMETRY_ORACLE`, which no workflow sets | High / high | **Answered for the 3D corpus in Phase 2, in four parts, because printing a skip notice is what the Oriedita harness already does.** The load-bearing assertions are on committed fixtures and need no environment; every skip prints a greppable `SKIPPED:` block naming the test, the variable and what was not checked; `corpus_coverage_is_stated` always runs and prints the whole roster of what did not; and `ORISTUDIO_NON_FLAT_CORPUS_REQUIRED=1` turns every skip into a failure, whose output libtest never captures. A variable pointing at a missing or empty directory fails rather than skipping. For the Oriedita oracles themselves the mitigation is unchanged: both env vars named in the validation checklist, with reported counts |
 | R10 | The verdict surface reads as "3D isn't implemented" rather than "this pattern cannot be folded that way" | Medium / high | Verdict copy is a merge blocker with a **new** exhaustiveness gate — the flat one covers only `FOLDABILITY_RULES` and cannot be inherited. `LocalCrossing`/`TransversalCrossing`/`Refused` keep the figure and are not error toasts; see Open decisions on the simulator hatch |
 | R11 | An undetermined stack is rendered as if it were determined | High / high | The census is the gate, it is a merge blocker, and Phase 9 now resolves rather than reports. Faces Phase 9 cannot decide render distinctly. `bsp.ts:253`/`:277` are pinned by regression test |
 | R12 | Row (b) regresses: an all-classic selection inside a mixed document takes the 3D path | Medium / high | Per-segment `is_classic_crease` on scoped ids only; `has_non_classic_creases` is explicitly forbidden as the router; six-row truth table pinned in `store.test.ts` |
@@ -2173,7 +2301,7 @@ largest single fixture would be 20.5 KB — a third of the largest already-track
 | R18 | The i18n gate fails late, after the feature is otherwise done | Medium / low | i18n is its own checklist block in Phase 7, not a bullet inside the UX work |
 | R19 | **A `Black0` border segment interior to the arrangement is a cut, and the kernel excuses every vertex touching it** — `is_interior_vertex` (`checks_spatial.rs:642-648`) returns false, so `CheckCamv` reports CLEAN on geometry it never checked. Measured on `known-good/byu solar driven.fold` (0 flat, 0 closure, worst interior residual 2.6e-12°, loop gap 1.445 rad on a 400 span, 6 of 96 dual cycles blind) and on a drawn annulus (0 spatial vertices examined at all). `interior_borders > 0` iff `blind_cycles > 0` on 63 of 63 files | **Confirmed / high** | Escalated from medium: it ships **today**, on the flat path, so it belongs in Phase 1. Admission gains "no border segment with paper on both sides"; the loop gap becomes a gate; `Fold3dRefusal` gains `InteriorCut` and `LoopNotClosed`. Additive — never an edit to `is_interior_vertex`, which `solve_fold_angles.rs` and `solve_spatial.rs` share |
 | R20 | **`FoldGraph::faces` are wound clockwise — the exact mirror of the FOLD convention the placement was validated against.** `should_add_face` (`fold_graph.rs:285-299`) admits a face only when `Polygon::calculate_area`'s **negated** shoelace (`geometry/polygon.rs:207-221`) is positive. A missed reversal renders every model mirrored and nothing else in the pipeline notices | **Confirmed / high** | Reverse every face once, globally, and assert both halves in a test. And run the walk on `FoldGraph`-derived faces for at least one real model — all 48 third-party corpus `.fold` files carry no `faces_vertices`, so the one path that inverts the winding is the one Spike B never exercised |
-| R21 | **`fold3d_census` becomes Phase 4's oracle with two silent gaps.** `--flatcheck` exercises only half-turns, so it never validates the general-angle rotation; the loop gap prints an exact `0.00e0` on a tree dual graph, so two of the four census-0 data points have no placement self-check at all. Its `admissible` predicate (`:897`) also omits the shipped spherical-simplicity verdict | **Confirmed / medium** | Close all three before Phase 4 cites it. Two independent implementations of one quantity is still the strongest check available — but only if the second one is checking something |
+| R21 | ~~**`fold3d_census` becomes Phase 4's oracle with two silent gaps.**~~ | **CLOSED (Phase 2)** | All three closed, and the work found a fourth. `--flatcheck` is joined by a general-angle **dihedral round-trip** (1.3e-13° on `spikes_large`; 70.5° on `rabbit_unclosed`, matching that model's worst closure residual reached independently). A tree dual graph now prints `--` with its non-tree edge count beside it rather than an exact `0.00e0`. `admissible` includes the shipped spherical-simplicity verdict, so `self-intersecting-vertex.fold` is refused. And the plane-spectrum port surfaced a real defect: a **global** normal-sign rule split normals differing by 1e-17 across an axis into opposite signs and invented a 50-unit separation on a 400-unit sheet, so the sign is now resolved against the class being compared to |
 | R22 | **The placement disagrees with the shipped flat folder on 2 of 21 tracked fixtures and the reason is unknown.** `cp-detect-oracle/clean-smoke.fold` (113.8) and `origami-simulator/tests/fixtures/iguana-split-crease.fold` (0.102); the obvious explanation is refuted, since 6 of the 8 compared fixtures that carry flat-foldability violations agreed to ≤2.9e-13 | **Confirmed / medium** | Diagnose before Phase 3 ships. An unexplained disagreement on a flat document is the cheapest possible signal that the walk is wrong, and discarding it forfeits the check |
 
 ## Open decisions
