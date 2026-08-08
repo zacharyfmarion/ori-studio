@@ -1,6 +1,6 @@
 import { installBoxPleatDesign, patchBoxPleatDesign, selectOristudioBpDocument, selectOristudioBpHistoryFuture, selectOristudioBpHistoryPast, selectOristudioBpSelection, selectOristudioBpSymmetry, selectOristudioBpViewportFitRequestId } from '../designTabs';
 import { getBoxPleatExampleProject } from '../../../examples/catalog';
-import { bpCpToEditorConvention } from '../../../lib/bpCreaseConvention';
+
 import { markGeneratedCpLineageStale } from '../../../lib/oristudioCpLineage';
 import { requestConfirmation } from '../../commandDialogStore';
 import { useLayoutStore } from '../../layoutStore';
@@ -9,7 +9,6 @@ import {
   completeOristudioBpStretch as completeRuntimeOristudioBpStretch,
   deleteOristudioBpTreeLeaves as deleteRuntimeOristudioBpTreeLeaves,
   exportOristudioBpProjectAsBps,
-  exportOristudioBpProjectAsCp,
   flipOristudioBpLayoutSheet as flipRuntimeOristudioBpLayoutSheet,
   isOptimizerCancellation,
   loadOristudioBpProjectFromText,
@@ -26,9 +25,11 @@ import {
   unsubdivideOristudioBpLayoutSheet as unsubdivideRuntimeOristudioBpLayoutSheet,
   updateOristudioBpLayoutSheet as updateRuntimeOristudioBpLayoutSheet,
   updateOristudioBpTreeEdgeLength as updateRuntimeOristudioBpTreeEdgeLength,
+  requireActiveBpHandle,
   switchOristudioBpStretchConfig as switchRuntimeOristudioBpStretchConfig,
   switchOristudioBpStretchPattern as switchRuntimeOristudioBpStretchPattern,
 } from '../oristudioBpRuntime';
+import { designKind } from '../../../designKinds/registry';
 import { recordSnapshot, snapshotEntry } from '../snapshotHistory';
 import {
   addBpTreeSymmetryPair,
@@ -62,7 +63,7 @@ import {
   snapPointToSymmetryAxis,
   type SymmetryAxis,
 } from '../../../lib/symmetryGeometry';
-import { normalizeOrieditaGridSize } from '../../../lib/creasePatternViewport';
+
 import { staleFoldArtifactResourceState } from '../foldArtifactResource';
 import type { SnapshotEntry } from '../snapshotHistory';
 import type { Point } from '../../../lib/geometry';
@@ -934,35 +935,28 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
     sendOristudioBpToEdit: async () => {
       const bpDocument = selectOristudioBpDocument(get());
       if (!bpDocument) return false;
+      const kind = designKind('box-pleat');
+      if (!kind) return false;
       set({ oristudioBpBusy: true });
       try {
-        // Ensure the Edit CP exists first so we can read its grid divisions.
+        // Ensure the Edit CP exists first so the descriptor can scale its export
+        // against the Edit grid's divisions.
         await get().ensureEditCreasePattern();
-        // Scale the export so one BP grid cell maps onto one Edit grid cell —
-        // without changing the Edit grid. Both use the same paper convention, so
-        // the scale is just bpSheetMaxCells / editGridDivisions (the paper width
-        // cancels). When the two match the design fills the paper as before.
-        const sheet = bpDocument.snapshot.packing.sheet;
-        const bpCells = Math.max(sheet.width, sheet.height);
-        const editDivisions = normalizeOrieditaGridSize(
-          get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? bpCells
-        );
-        const cpScale = editDivisions > 0 ? bpCells / editDivisions : 1;
-        // Match BP Studio's Export CP defaults: keep the sheet orientation and
-        // include auxiliary hinge creases (dropping them yields a sparse CP that
-        // doesn't match BP Studio's export).
-        const cpText = bpCpToEditorConvention(
-          await exportOristudioBpProjectAsCp({
-            reorient: false,
-            includeAuxiliaryHinges: true,
-            cpScale,
-          })
-        );
+        // The conversion — the cpScale that maps one BP cell onto one Edit cell,
+        // BP Studio's Export CP defaults, the ORIPA convention swap — belongs to
+        // the *descriptor*, which is what its `sendToEdit` is for. Doing it here
+        // as well is what let this and the TreeMaker path drift into two
+        // spellings of one operation.
+        const payload = await kind.sendToEdit(await requireActiveBpHandle(), {
+          editGridDivisions:
+            get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
+          title: 'box-pleat',
+        });
         const ok = await get().importAddOristudioCpText(
-          cpText,
-          'cp',
-          'Sent BP to Edit',
-          'box-pleat.cp'
+          payload.text,
+          payload.format,
+          payload.label,
+          payload.filename
         );
         set({ oristudioBpBusy: false });
         if (ok) useLayoutStore.getState().activatePanel('crease-pattern');

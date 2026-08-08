@@ -63,6 +63,7 @@ import { useLayoutStore } from '../../layoutStore';
 import { isClassicCrease, isFoldingCrease } from '../../../lib/foldAngle';
 import { useSettingsStore } from '../../settingsStore';
 import { selectWorkspaceCapabilities } from '../capabilities';
+import { designKind } from '../../../designKinds/registry';
 import { frameActiveCpDiagnostic } from '../cpDiagnosticFocus';
 import { freshEditableCpState } from '../freshCreasePattern';
 import {
@@ -1176,23 +1177,32 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         set({ error: { code: 'invalid_operation', message: capability.reason } });
         return false;
       }
+      const kind = designKind('treemaker');
+      if (!kind) return false;
       const previousStatus = get().status;
       set({ status: 'building_crease_pattern', error: null });
       try {
-        const { api, treeHandle } = await requireActiveTree();
+        const { treeHandle } = await requireActiveTree();
         // Turn the tree into creases, then hand the generated CP to the always-live
         // Edit canvas via Import(Add) so it merges into whatever is already there,
         // instead of replacing the Edit surface. Mirrors BP's "Send to Edit"
-        // (see sendOristudioBpToEdit). The engine FOLD already uses the CP editor's
-        // crease convention, so no ORIPA-style 2<->3 swap is needed here.
-        await api.buildCreasePattern(treeHandle);
-        const foldJson = await api.exportFold(treeHandle);
+        // (see sendOristudioBpToEdit).
+        //
+        // The conversion itself is the *descriptor's*, not ours: the kind knows
+        // how its document becomes a crease pattern, and the store only routes
+        // the result into Edit. Reimplementing it here is what let this and the
+        // BP path drift into two spellings of one operation.
         await get().ensureEditCreasePattern();
+        const payload = await kind.sendToEdit(treeHandle, {
+          editGridDivisions:
+            get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
+          title: selectProject(get()).title,
+        });
         const ok = await get().importAddOristudioCpText(
-          foldJson,
-          'fold',
-          'Sent design to Edit',
-          `${selectProject(get()).title || 'design'}.fold`
+          payload.text,
+          payload.format,
+          payload.label,
+          payload.filename
         );
         set({ status: ok ? 'crease_pattern_ready' : previousStatus });
         if (ok) {
