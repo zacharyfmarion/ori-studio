@@ -153,8 +153,8 @@ future porting session owes the upstream, not about how the code runs. Nothing i
 Whole *modules* can be native too, and `crates/oristudio-cp/src/folding3d/` is
 one: the computed 3D folded state. Upstream folds by reflecting each face across
 its crease, which is only correct at ±180, so there is no `WireFrame_Worker`
-behaviour for a general angle to be faithful to. Three things about it are
-decisions rather than ports, and each is one somebody could reasonably have made
+behaviour for a general angle to be faithful to. Everything below is a decision
+rather than a port, and each is one somebody could reasonably have made
 differently:
 
 - **The placement convention** — `M_child = M_parent ∘ Rot_paper(line, rho)`,

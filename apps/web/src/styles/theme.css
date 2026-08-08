@@ -2984,11 +2984,16 @@
   font-size: 11px;
   line-height: 1.4;
   white-space: nowrap;
-  color: var(--text-warning, var(--text-secondary));
+  /* The theme's own warning hue, not `--text-warning` — which is defined
+     nowhere in this app, so the fallback resolved to `--text-secondary` and a
+     "Passes through itself" chip was byte-identical to ordinary muted text.
+     `--status-warning` and `--status-danger` are written by the active theme
+     preset (`themes/applyTheme.ts`), so both tones follow light and dark. */
+  color: var(--status-warning);
 }
 
 .cp-folded-figure-toolbar__notice[data-tone='error'] {
-  color: var(--text-danger, #f87171);
+  color: var(--status-danger);
 }
 
 button.cp-folded-figure-toolbar__notice {

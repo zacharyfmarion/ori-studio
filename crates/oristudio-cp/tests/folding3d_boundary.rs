@@ -879,6 +879,51 @@ fn the_snapshot_census_keeps_its_theorem() {
     }
 }
 
+/// `Folded` means *fully* ordered, and the boundary says so rather than
+/// assuming it.
+///
+/// `verdict_of` chooses `Folded` from the absence of an ordering error and of
+/// crossings; it never consults `ordering.undetermined`. That is right today
+/// because a complete order is what the solver returns or it returns an error —
+/// but nothing in the type system says so, and a regression would ship a figure
+/// the projector annotates red in every undecided cell under a verdict chip that
+/// says nothing at all. Honest in the picture, silent in the copy.
+#[test]
+fn a_folded_verdict_leaves_nothing_undetermined() {
+    let mut checked = 0;
+    for name in ADMITTED {
+        let mut session = CpSession::new();
+        let Fold3dFoldResult::Placed {
+            snapshot, render, ..
+        } = fold_3d(&mut session, name)
+        else {
+            panic!("{name} is an admitted fixture and must place");
+        };
+        if snapshot.verdict != Fold3dVerdict::Folded {
+            continue;
+        }
+        checked += 1;
+        assert_eq!(
+            snapshot.undetermined_pairs, 0,
+            "{name}: `Folded` with {} undetermined pairs",
+            snapshot.undetermined_pairs
+        );
+        assert_eq!(
+            snapshot.undetermined_cells, 0,
+            "{name}: `Folded` with {} undetermined cells",
+            snapshot.undetermined_cells
+        );
+        assert_eq!(
+            render.undetermined_cells, 0,
+            "{name}: the render model disagrees with the snapshot"
+        );
+    }
+    assert!(
+        checked > 0,
+        "no admitted fixture reached `Folded`, so this asserts nothing"
+    );
+}
+
 /// The whole command surface is registered, in one place, in manifest order.
 #[test]
 fn the_three_new_commands_are_in_the_shared_manifest() {

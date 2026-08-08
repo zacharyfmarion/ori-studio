@@ -61,11 +61,10 @@ export type OptimizerKind = 'scale' | 'edges' | 'strain';
  * selected crease carries a fold angle other than a full mountain or valley, so
  * the fold goes to the computed 3D folder.
  *
- * It is the same population the pre-3D builds recorded as `non-classic`, under a
- * name that was true then and is not now — that value meant "we did not try",
- * and this one means "we tried the 3D folder". PostHog keeps historical values
- * regardless of this union, so a dashboard spanning the change has to union the
- * two deliberately; see `docs/analytics.md`.
+ * No dashboard union is needed across the 3D change: `fold attempted` had no
+ * call site before this feature — it existed only as a name in
+ * {@link ANALYTICS_EVENTS} — so no build ever sent an earlier spelling of this
+ * value.
  */
 export type FoldMode = 'flat' | 'spatial';
 
@@ -111,12 +110,13 @@ export type FoldabilityCheckSource = 'pre-fold';
 /**
  * Where a simulator run was started from.
  *
- * A rename rather than an addition: `non-flat-intercept` meant "we never tried
- * to fold this", and `fold-3d-refused` means "the 3D gate refused it". Unioning
- * the two across the change would merge two different facts.
+ * `fold-3d-refused` is the *fold* offer — the 3D gate would not accept the
+ * pattern at all. `fold-3d-no-layer-order` is the *verdict* offer — a figure
+ * that placed and drew, whose layers could not be ordered — which is a
+ * different thing, and the two must not be merged.
  *
- * `fold-3d-no-layer-order` is the *verdict* offer — a figure that placed and
- * drew, whose layers could not be ordered — which is a third thing again.
+ * Both are new: `fold simulation run` had no call site before this feature, so
+ * nothing older is in the data to reconcile with.
  */
 export type FoldSimulationSource =
   | 'fold-3d-refused'

@@ -122,17 +122,6 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `theme changed` | `theme` | The theme is changed |
 | `locale changed` | `locale` | The language is changed |
 
-### Renamed values, and why a dashboard has to union them deliberately
-
-PostHog keeps whatever a build sent, so a series spanning the 3D-fold change
-carries both the old and the new value. Two renames matter, and in both cases
-merging them silently would merge two different facts:
-
-| Event | Was | Is | What changed |
-| --- | --- | --- | --- |
-| `fold attempted` / `fold completed` | `mode: non-classic` | `mode: spatial` | The same population — a selection carrying a fold angle other than a full mountain or valley. Before, that population was never folded at all: `G` offered the simulator and stopped. Now it is folded in 3D. Union the two to count the population; keep them apart to count what happened to it |
-| `fold simulation run` | `source: non-flat-intercept` | `source: fold-3d-refused` | `non-flat-intercept` meant "we did not try". `fold-3d-refused` means "the 3D gate refused it". A third value, `fold-3d-no-layer-order`, is a *placed* figure whose stacking could not be computed — the user is choosing the simulator over a figure that drew |
-
 **Nothing about a 3D fold's geometry is sent.** Not the closure residual, the
 loop gap, the plane separation, the crossing points, or any face, line, plane or
 component index — all of them are measurements of the user's own design, and
