@@ -65,6 +65,7 @@ import {
 import {
   FOLDED_3D_CELL_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
+  FOLDED_3D_EDGE_ATTR_STRIDE,
   FOLDED_3D_PLANE_FRAME_STRIDE,
   type OristudioCpFold3dTolerances,
   type OristudioCpFolded3dRenderModel,
@@ -649,7 +650,8 @@ export function projectFolded3dModel(
     options.style,
     uniforms,
     folded3dEyeDirection(options.camera),
-    anchor
+    anchor,
+    options.cullHidden !== false
   );
   const { primitives, cells, faces } = assemble(drafts, options);
 
@@ -781,6 +783,78 @@ function depthSorted(items: BspItem[], uniforms: CameraUniforms): BspItem[] {
  * multi-face cell of `box_90`, `pinwheel_cyclic`, `spikes_small` and
  * `strip_coupled` does.
  */
+/**
+ * The faces opaque paper leaves on show — the selected slot of every cell.
+ *
+ * Mirrors the slot choice in [`expand`] exactly, including the camera-dependent
+ * end of `cell_stack`, because the two answering differently is precisely the
+ * bug this exists to fix.
+ *
+ * `null` when the stack is drawn in full (translucent paper, or an undetermined
+ * cell), which means "every face of that cell is on show" and therefore no
+ * crease of it can be buried.
+ */
+function visibleFaces(
+  model: OristudioCpFolded3dRenderModel,
+  plan: StylePlan,
+  style: Folded3dPaperStyle,
+  upTowardEye: readonly boolean[]
+): Set<number> | null {
+  const shown = new Set<number>();
+  for (let cell = 0; cell < model.cell_count; cell += 1) {
+    const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
+    const undetermined = (model.cell_attr[base + 5] ?? 0) === FOLDED_3D_CELL_UNDETERMINED;
+    const alpha =
+      plan.faceAlpha *
+      style.faceAlpha *
+      (undetermined && plan.annotateUndetermined ? UNDETERMINED_FACE_ALPHA : 1);
+    const stack = cellStack(model, cell);
+    if (stack.length === 0) continue;
+    // Any cell drawn in full puts its whole stack on show, and one such cell is
+    // enough to make the whole question moot: a crease it owns is visible, and
+    // the conservative answer for every other crease is to keep it.
+    if (alpha < 1) return null;
+    const farToNear = (upTowardEye[model.cell_attr[base] ?? 0] ?? false)
+      ? [...stack].reverse()
+      : [...stack];
+    shown.add(farToNear[farToNear.length - 1]!);
+  }
+  return shown;
+}
+
+/**
+ * Whether a crease lies under paper and should not be drawn.
+ *
+ * The bug this fixes: within a coplanar stack no piece is *in front of* another,
+ * so `findVisiblePieces` cannot cull any of them and correctly does not. Fills
+ * escape that because [`expand`] separately takes one slot per cell — but that
+ * selection was never applied to strokes, so every buried layer's creases drew
+ * over the one visible fill. Measured on `plant_penguin.osf` (136 of 206 creases
+ * at +/-180, so most of it is a flat stack): 79 strokes against 56 visible
+ * fills.
+ *
+ * Deliberately **conservative**. A face buried in one cell can be the shown
+ * layer in another, and an edge is not owned by a cell, so the test is "is
+ * either incident face shown *anywhere*". That keeps a crease it cannot prove
+ * hidden, which is the right bias: a missing crease is a wrong picture, an extra
+ * one is a cluttered one.
+ */
+function strokeIsBuried(
+  model: OristudioCpFolded3dRenderModel,
+  edge: number,
+  shownFaces: Set<number> | null
+): boolean {
+  if (shownFaces === null) return false;
+  const base = edge * FOLDED_3D_EDGE_ATTR_STRIDE;
+  const faceA = model.edge_attr[base] ?? -1;
+  const faceB = model.edge_attr[base + 1] ?? -1;
+  if (faceA >= 0 && shownFaces.has(faceA)) return false;
+  if (faceB >= 0 && shownFaces.has(faceB)) return false;
+  // An edge whose incident faces the model does not name cannot be judged, so it
+  // is drawn. Reachable on a border edge of a figure with no fills at all.
+  return faceA >= 0 || faceB >= 0;
+}
+
 function expand(
   model: OristudioCpFolded3dRenderModel,
   pieces: readonly BspItem[],
@@ -788,7 +862,8 @@ function expand(
   style: Folded3dPaperStyle,
   uniforms: CameraUniforms,
   viewDirection: Vec3,
-  anchor: Point
+  anchor: Point,
+  cullHidden: boolean
 ): Draft[] {
   const drafts: Draft[] = [];
   const lineColor = shade(style.line, 1, 1);
@@ -801,9 +876,17 @@ function expand(
       up[0] * viewDirection[0] + up[1] * viewDirection[1] + up[2] * viewDirection[2] >= 0
     );
   }
+  // Which faces opaque paper actually shows. `null` disables the test entirely —
+  // see `strokeIsBuried`. Burying a crease *is* hidden-piece culling, so it
+  // answers to the same switch: `cullHidden: false` means draw everything, and a
+  // caller that asked for that gets every crease.
+  const shownFaces =
+    cullHidden && plan.fills ? visibleFaces(model, plan, style, upTowardEye) : null;
+
   for (const piece of pieces) {
     const ring = piece.points.map((point) => project(point, uniforms, anchor));
     if (piece.kind === 1) {
+      if (strokeIsBuried(model, piece.ref, shownFaces)) continue;
       drafts.push({ kind: 'stroke', group: -1, cell: -1, face: -1, ring, color: lineColor });
       continue;
     }

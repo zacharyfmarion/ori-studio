@@ -36,6 +36,7 @@ import {
 } from './foldedFigure3dProjection';
 import {
   FOLDED_3D_CELL_ATTR_STRIDE,
+  FOLDED_3D_EDGE_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
   FOLDED_3D_PLANE_FRAME_STRIDE,
   type OristudioCpFold3dTolerances,
@@ -270,6 +271,47 @@ describe('projecting the 3D folded state', () => {
     }));
     expect(stream).toMatchSnapshot();
     expect(projection.order).toBe('bsp');
+  });
+
+  it('does not draw the creases of layers buried under opaque paper', () => {
+    // The bug this pins: inside a coplanar stack no piece is *in front of*
+    // another, so `findVisiblePieces` cannot cull any of them and correctly does
+    // not. Fills escape it because one slot per cell is taken separately — but
+    // that selection was never applied to strokes, so every buried layer's
+    // creases drew over the one visible fill and the figure read as see-through.
+    // Measured on the model that reported it, `plant_penguin.osf` (136 of its 206
+    // creases are +/-180, so most of it is one flat stack): 79 strokes against 56
+    // visible fills, dropping to 30 once buried creases go.
+    const model = fixture('spikes_small');
+    // Derived from the payload rather than from the projector, so this is a
+    // second opinion and not a restatement: a crease is buried when *neither*
+    // incident face is the layer its cell shows.
+    const shown = new Set<number>();
+    for (let cell = 0; cell < model.cell_count; cell += 1) {
+      const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
+      const start = model.cell_attr[base + 3]!;
+      const stack = model.cell_stack.slice(start, start + model.cell_attr[base + 4]!);
+      // Both ends: which one the camera shows is the projector's business, and
+      // taking both keeps this test camera-agnostic and conservative — it can
+      // only under-count what is buriable, never over-count.
+      if (stack.length > 0) shown.add(stack[stack.length - 1]!).add(stack[0]!);
+    }
+    const buriable = [...Array(model.edge_count).keys()].filter((edge) => {
+      const a = model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE]!;
+      const b = model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE + 1]!;
+      return (a < 0 || !shown.has(a)) && (b < 0 || !shown.has(b));
+    });
+    // Non-vacuous: the fixture must actually have creases that can be buried,
+    // or this passes against a projector that buries nothing.
+    expect(buriable.length).toBeGreaterThan(0);
+
+    // The count, because it is the thing that changed: 26 strokes before the
+    // burial test existed, 20 after. A bound rather than a count passes either
+    // way — `findVisiblePieces` already removes enough on its own to satisfy any
+    // inequality worth writing — so this is pinned exactly, and a projector that
+    // stops burying creases fails here rather than quietly going back to 26.
+    const drawn = strokes(projectFolded3dModel(model, options()).snapshot.primitives).length;
+    expect(drawn).toBe(20);
   });
 
   it('draws every crease and every cell', () => {
