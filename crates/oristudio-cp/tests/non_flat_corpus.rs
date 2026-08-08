@@ -54,6 +54,11 @@ const COVERAGE: &[(&str, &str)] = &[
         "foldability over every .fold and .osf in the corpus, reported not gated",
     ),
     (
+        "corpus_admission_reports_every_verdict",
+        "which refusal the 3D admission gate reaches on every model in the \
+         corpus, reported not gated",
+    ),
+    (
         "corpus_landmarks_are_where_the_harness_expects_them",
         "the harness is reading the corpus and not an empty directory",
     ),
@@ -305,6 +310,76 @@ fn corpus_scan_reports_every_model() {
          angle, {clean} report nothing; totals: {flat} flat, {closure} closure, {self_int} self-int",
         files.len()
     );
+}
+
+/// Which verdict the 3D admission gate reaches on every model in the corpus.
+///
+/// Reported, not gated, for the same reason the foldability scan above is: the
+/// `origami-simulator-corpus` fold angles are relaxation targets rather than
+/// solved states, so a refusal there is a fact about the input.
+///
+/// What it is *for* is the distribution. The plan's phase order rests on which
+/// refusals users will actually meet, and on which arms are reachable at all —
+/// `LoopNotClosed` in particular is defence in depth, and this is the only place
+/// that can say whether anything reaches it.
+#[test]
+fn corpus_admission_reports_every_verdict() {
+    use oristudio_cp::folding3d::{Fold3dOutcome, Fold3dRefusal, admit};
+    use std::collections::BTreeMap;
+
+    let Some(root) = corpus("corpus_admission_reports_every_verdict") else {
+        return;
+    };
+    let mut tally: BTreeMap<&'static str, usize> = BTreeMap::new();
+    let mut worst_admitted_gap = 0.0_f64;
+    for path in measurable_files(&root) {
+        let name = path
+            .strip_prefix(&root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .to_string();
+        let Ok(model) = read_fold(&path)
+            .and_then(|fold| import_fold_document(&fold).map_err(|error| format!("{error:?}")))
+        else {
+            *tally.entry("unreadable").or_default() += 1;
+            continue;
+        };
+        let verdict = match admit(&model.line_segments, 1) {
+            Ok(admission) => {
+                let relative = admission.placement.loop_gap.offset / admission.placement.span;
+                worst_admitted_gap = worst_admitted_gap.max(relative);
+                println!(
+                    "{name:<52}  ADMIT {:?}  faces {:>5}  gap {relative:.2e} of span  \
+                     cycles {:>5}  sepbins {:?}",
+                    admission.outcome(),
+                    admission.placement.rings.len(),
+                    admission.placement.loop_gap.non_tree_edges,
+                    admission.diagnostics.separation_bins,
+                );
+                match admission.outcome() {
+                    Fold3dOutcome::Folded => "admitted",
+                    Fold3dOutcome::LocalCrossing => "admitted with a local crossing",
+                }
+            }
+            Err(refusal) => {
+                println!("{name:<52}  {refusal}");
+                match refusal {
+                    Fold3dRefusal::NoFaces => "NoFaces",
+                    Fold3dRefusal::FacesUnresolved => "FacesUnresolved",
+                    Fold3dRefusal::Disconnected { .. } => "Disconnected",
+                    Fold3dRefusal::NonCreaseJoin { .. } => "NonCreaseJoin",
+                    Fold3dRefusal::InteriorCut { .. } => "InteriorCut",
+                    Fold3dRefusal::FlatFoldability { .. } => "FlatFoldability",
+                    Fold3dRefusal::VertexIndeterminate { .. } => "VertexIndeterminate",
+                    Fold3dRefusal::VertexClosure { .. } => "VertexClosure",
+                    Fold3dRefusal::LoopNotClosed { .. } => "LoopNotClosed",
+                }
+            }
+        };
+        *tally.entry(verdict).or_default() += 1;
+    }
+    println!("\nverdicts: {tally:?}");
+    println!("worst admitted loop gap: {worst_admitted_gap:.3e} of span");
 }
 
 /// Prove the harness is reading the corpus, not an empty directory.
