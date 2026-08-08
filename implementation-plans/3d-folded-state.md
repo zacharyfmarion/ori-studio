@@ -565,10 +565,18 @@ In order:
    rounding, not separation.
 
    Instead: **classify coplanarity by topology first** (faces joined through
-   exactly-180° creases are coplanar by construction, which on a flat base
-   classifies most of the model for free), then sort the remaining parallel-plane
+   exactly-180° creases are coplanar by construction, ~~which on a flat base
+   classifies most of the model for free~~), then sort the remaining parallel-plane
    separations and require a gap wide enough to seat `dist_tol`. Report the gap
-   width. Spike A supports this directly: the separation spectrum is cleanly
+   width. **[corrected in Phase 4 — the parenthesis is true only in the flat
+   regime, and topology is not what builds the partition.]** On an all-180
+   document ±180-connectivity is the whole answer (`box_90_unangled`, 1 class = 1
+   plane). On a document with real 3D angles it **over-splits**: `box_90` 5
+   classes over 4 planes, `spikes_large` 34 over 8, `origamisimulator` 68 over 29.
+   Geometry does the merging; topology is a seed and an alarm. Phase 4 also builds
+   the partition as the connected components of the coplanarity relation rather
+   than by any sorted-and-merged pass, because a greedy one is order-dependent on
+   a chain — see its checklist. Spike A supports this directly: the separation spectrum is cleanly
    bimodal on **15 of 16** folding models, with an empty band six decades wide —
    `spikes_better [203,0,0,0,8]`, `cross [454,0,0,0,1]`,
    `origamisimulator [2608,0,0,0,26]`. `airplane` is the lone exception in that
@@ -609,8 +617,11 @@ below which a crease has no direction worth rotating about, and there is no such
 crease — `FoldGraph::from_segments` merges endpoints within `Epsilon::POINT`
 (2.5e-4), so anything reaching the arrangement with two distinct endpoints is at
 least that long, and anything that does not is an exact zero the walk already
-refuses. A constant nothing consults is worse than no constant. Phase 4 declares
-it if the plane clustering finds a use.
+refuses. A constant nothing consults is worse than no constant. **[Phase 4 declared a
+fourth bar, and it is an *area* rather than a length.]** The census's question is
+whether two coplanar faces share paper, and two faces meeting along a shared edge
+share an exactly measure-zero sliver of it, so `overlap_area_relative = 1e-9` of
+span² is what it needed. `len_tol` still has no referent.
 
 **No user-facing tolerance control, ever.** None exists anywhere in the app today
 (`settingsStore.ts` has no epsilon of any kind), and the right value depends on
@@ -695,8 +706,18 @@ Two consequences the plan is built around:
   (`folding.rs:4660-4704`) reads above/below cells in one frame, but "above" for a
   face in plane P is relative to `up_P` and in Q to `up_Q`, and P and Q share only
   a line. The real condition is non-interleaving of four half-planes in cyclic
-  order around that line — a different constraint kind. **v1 detects coupling and
-  refuses**, loudly, rather than answering definitely and being wrong.
+  order around that line — a different constraint kind. ~~**v1 detects coupling
+  and refuses**, loudly, rather than answering definitely and being wrong.~~
+  **[refuted in Phase 4 — refusing is not a scoped v1, it is declining the
+  feature.]** Phase 4 built the detector (`folded_line_index`) and measured it:
+  **every** admitted corpus model above six faces has at least one folded line
+  whose creases carry faces in two or more planes — 15 of 15 — and so do four of
+  the five committed 3D fixtures, `box_90` (the smallest real 3D fold) included.
+  Coupling is the normal case, not the adversarial one. So Phase 4 emits it as
+  data, no `Fold3dRefusal::CrossPlaneCoupling` arm exists, and the ordering solver
+  has to carry the constraint rather than decline it. The classifier is not
+  over-firing: it reads **0** on every flat fixture, which has one plane and so
+  nothing to couple.
 
 **No acyclicity assertion, anywhere, and no topological sort (§5.4).** A cyclic
 panel order is legal: He & Guest name the classical square twist with
@@ -738,11 +759,21 @@ It needs overlap detection, not cell decomposition, so it never calls
 `calculate_faces`. Its output is:
 
 ```rust
+// As built. `undetermined_patches` did not survive: nothing in Phase 4 can
+// decide a patch, so the field would have been an empty vector claiming a
+// verdict the census does not compute.
 pub struct Fold3dCensus {
+    pub pairs: Vec<CoplanarPair>,   // the ordering variables themselves
     pub plane_count: usize,
     pub patch_count: usize,
+    pub face_count: usize,
     pub overlapping_pair_count: usize,
-    pub undetermined_patches: Vec<PatchId>,
+    pub non_adjacent_pair_count: usize,
+    pub faces_in_overlap: usize,
+    pub full_fold_creases: usize,   // the fixture README's +/-180 column
+    pub full_fold_pairs: usize,     // the theorem's left-hand side
+    pub min_accepted_area_relative: Option<f64>,
+    pub max_rejected_area_relative: f64,
 }
 ```
 
@@ -2211,7 +2242,9 @@ three.
       has no consumer, because `FoldGraph::from_segments` merges endpoints within
       `Epsilon::POINT` (2.5e-4) and so a crease with two distinct endpoints is
       already at least that long. A constant nothing reads is worse than no
-      constant; Phase 4 declares it when it has a use
+      constant; Phase 4 declares it when it has a use. **[Phase 4 declared a
+      fourth, and it is an area rather than a length: `overlap_area_relative`.
+      `len_tol` still has no consumer.]**
 - [x] `penguin_disconnected` returns `Disconnected { reached: 103, unreached: 127 }`
 - [ ] ~~Two-sided loop-gap fixtures: `annulus_90.fold` … hole-deleted gap 2.094
       rad~~ — **superseded, and the reason matters.** The annulus is built
@@ -2331,48 +2364,142 @@ stays as defence in depth, and its own test drives the gate directly rather than
 through a fixture, because no fixture reaches it.
 
 ### Phase 4 — Plane clustering and the coplanar-overlap census (merge blocker)
-- [ ] `folding3d/planes.rs`: **topological classification first** (faces joined
-      through exactly-180° creases are coplanar by construction), geometric
-      union-find second, then a verification pass re-checking every intra-cluster
-      pair; refuse with `ToleranceWindowClosed` rather than silently merging —
-      coplanarity under a tolerance is not transitive
-- [ ] **A topology-vs-distance disagreement on any face pair is a first-class
-      alarm**, not a tie-break. It is the runtime signal that the tolerance window
-      is closed for this model, and it is computable without knowing the right
-      tolerance
-- [ ] Connected footprint patches within each plane
-- [ ] `folding3d/census.rs`: direct polygon clip-and-area overlap count.
-      **Must not call `FoldGraph::calculate_faces`** — that gate rejected 4 of 6
-      multi-face plane patches on elementary forms, and avoiding it is what makes
-      the merge set possible
-- [ ] Census equals `treemaker-flatfold`'s ordering-variable count on an all-180
-      document, on Kabuto and two other flat fixtures — scoped to the component
-      `build_variables` (`constraints.rs:202`) actually reaches from
-      `cells_faces.first()`, or the gap measured first. **Spike C already got
-      117 on Kabuto through the spike's own counter, matching the solver's 117
-      exactly, so expect no gap and treat one as a defect** — see "Spike C
-      answer"
-- [ ] Census reproduces `fold3d_census`'s recorded per-model counts on the Phase
-      2 fixtures. Two independent implementations of one quantity is the check
-      worth having, and the second one already exists — its two known gaps were
-      closed in Phase 2 (R21). Aligning its `admissible` predicate
-      (`fold3d_census.rs:1167`) with the shipped gate now means
-      **`Admission::outcome() == Folded`**, not `admit(..).is_ok()`: Phase 3 made
-      a local crossing an outcome rather than a refusal.
-      **Expect its `ntree` column to differ from the kernel's**, and do not
-      "fix" the kernel to match — see the fixture README's column note. The
-      harness keys tree membership on the face pair and so drops a second shared
-      edge; the kernel reports `|E_dual| − F + 1`
-- [ ] Census is 0 on the deployed-Miura and open-accordion fixtures, non-zero on
-      `flat_base_1shape.fold`
-- [ ] **`census ≥ (creases at exactly ±180)` asserted as an invariant on every
-      fixture.** It is a theorem, it needs no placement to compute, and it held on
-      18 of 18 admitted corpus models with equality on `waterbombBase`. Do **not**
-      assert the converse — a 5-panel strip at four +90° creases has zero full
-      folds and census 1
-- [ ] Cross-plane coupling detection via a quantised folded-edge index;
-      `strip_coupled.fold` returns `CrossPlaneCoupling`, not a definite answer
-- [ ] `cargo test -p oristudio-cp`
+
+**Done.** `folding3d/planes.rs`, `folding3d/overlap.rs`, `folding3d/census.rs`,
+`tests/folding3d_census.rs`, and `corpus_census_reports_every_model` in
+`tests/non_flat_corpus.rs`. Four items below changed shape on contact and say so.
+
+- [x] `folding3d/planes.rs`. **[rewritten — the partition is not built from the
+      topology, and it is not built greedily.]** Two changes to what this line
+      used to ask for, both forced by measurement:
+      **(i) Topology is a seed and an alarm, not the classification.** The plan
+      said ±180-connectivity "on a flat base classifies most of the model for
+      free". True on an all-180 document, where it is the whole answer
+      (`box_90_unangled` 1 class = 1 plane). On a document with real 3D angles it
+      **over-splits**: `box_90` 5 classes over 4 planes, `spikes_large` 34 over 8,
+      `origamisimulator` 68 over 29. Geometry does the merging. Feeding the seed
+      into the partition would also merge two genuinely distinct planes exactly
+      when the placement is inconsistent, which is the case the alarm exists for.
+      **(ii) The partition is the connected components of the coplanarity
+      relation**, by union-find over every face pair — not a greedy first-match.
+      Greedy is order-dependent on a chain (`[[0, 0.6·tol], [1.2·tol]]` ascending,
+      `[[1.2, 0.6], [0]]` descending, one cluster of three from the middle), and
+      the "check the clusters are separated" half of the uniqueness argument only
+      rules that out if it compares every cross-cluster **pair** rather than the
+      representatives. Components make that half a theorem instead: two clusters
+      with a within-tolerance member pair would be one cluster. What is left to
+      verify is that the relation is an equivalence at all, which is the
+      intra-pair pass, and `ClusterNotTransitive` is what it says when it is not
+- [x] A topology-vs-geometry disagreement is a first-class alarm. `ToleranceAlarm`
+      has both arms and `plane_index` is **infallible** — every violation comes
+      back as data, so the alarms are testable on models the gate refuses, which
+      is where they fire. `census(&Admission)` is what turns one into
+      `ToleranceWindowClosed`. Over the corpus the alarms fire on 4 of 55 models
+      and 0 of the 18 admitted
+- [x] Connected footprint patches within each plane, from `Placement3d::joins` in
+      O(E) rather than from the harness's O(F²) shared-vertex test
+- [x] `folding3d/census.rs`: direct polygon clip-and-area overlap count, and it
+      calls no `calculate_faces`
+- [x] Census equals `treemaker-flatfold`'s ordering-variable count on an all-180
+      document. **No gap, as predicted**: 117 on Kabuto, 15 on
+      `treemaker-triad-base`, 3 on `accordion-book-fold`, 28 on `squash-local`,
+      each equal to `solve_flat_fold(..).constraints.variables` read in the same
+      test. `treemaker-flatfold` is now a dev-dependency of `oristudio-cp`; it
+      depends only on `treemaker-fold`, so there is no cycle
+- [x] Census reproduces `fold3d_census`'s recorded per-model counts on the Phase 2
+      fixtures — on every one **except `rabbit_unclosed`** (harness 26 planes /
+      306 pairs, kernel 25 / 371). That is the fixture whose placement does not
+      close, so which faces are coplanar is genuinely tolerance-dependent, and the
+      harness's `dot > 1 − 1e-9` normal test is a *squared* quantity and so an
+      effective 4.5e-5 rad bar, 450× looser than `angle_radians`. Recorded in the
+      fixture README as a third column note beside `ntree` and `loop-gap`; do not
+      "fix" either side. The harness's `signed_area` / `clip_convex` /
+      `intersection_area` **graduated into `folding3d/overlap.rs`** and it now
+      imports them — that one primitive must not exist twice, or the cross-check
+      can fail for a reason unrelated to the geometry
+- [x] Census is 0 on a wrap-free net and non-zero on a wrap. **[corrected — the
+      fixtures this line named do not exist.]** There is no `flat_base_1shape.fold`
+      and no committed deployed-Miura or open-accordion, so the anchors are built
+      in the test instead: a four-panel open box measures 0, a five-panel tube
+      measures 1, nine panels measure 6. Census 0 also holds on `hinge_90` and, in
+      the corpus, on `cubeunwrapping`, `test_export` and `valid-waterbomb-vertex`
+      — 3 of 18 admitted, all 6 faces or fewer
+- [x] **`census ≥ (full-folded face pairs)` asserted on every fixture**, and the
+      converse never. **[refined — the left-hand side is face pairs, not
+      creases.]** Counting creases breaks the theorem on `bird_base.fold` (12 full
+      folds, 4 traced faces, census 6): a ±180 crease bordering no traced face, or
+      the same face twice, lays nothing on anything, and a crease drawn as two
+      collinear pieces contributes two creases and one pair. `Fold3dCensus` carries
+      both — `full_fold_creases` for the README's `±180` column and
+      `full_fold_pairs` for the theorem. The hypothesis is that the placement is
+      consistent, and the alarm is what says it is not: `reschBarbell.fold` has 90
+      full-folded pairs, census 60, and 30 `TopologySpansPlanes` alarms
+- [x] Cross-plane coupling detection: `folded_line_index` groups creases whose
+      folded images land on one 3D line, again as connected components under the
+      same tolerances, and reports which groups span two or more planes.
+      **[refuted — it must not be a refusal.]** The line above asked for
+      `strip_coupled.fold` to come back `CrossPlaneCoupling`. Measured, coupling
+      is not exotic: **every** admitted corpus model above six faces has at least
+      one coupled folded line (15 of 15), including four of the five committed 3D
+      fixtures — `box_90` 1, `spikes_small` 4, `penguin_freeform` 23,
+      `spikes_large` 40. A refusal keyed on it would decline the smallest real 3D
+      fold in the fixture set. So Phase 4 ships the detector as **data** and no
+      `Fold3dRefusal::CrossPlaneCoupling` arm exists; §3's "v1 detects coupling
+      and refuses, loudly" is dead and the ordering solver has to carry the
+      constraint. The classifier is not firing spuriously: it reads **0** on every
+      flat fixture (Kabuto, `treemaker-triad-base`, `accordion-book-fold`,
+      `squash-local`, `box_90_unangled`), which have only one plane to couple
+- [x] The 1×4 strip at (−90, +180, +90) is built and measured rather than
+      described: 4 faces, 2 planes, 2 ordering variables in **disjoint** face
+      pairs one per plane, and 1 coupled folded line. Its mirror at
+      (+90, +180, −90) reads identically
+- [x] `Fold3dTolerances` gains `overlap_area_relative = 1e-9` of span², the fourth
+      and last bar, in the one const block. **[corrected — the plan expected a
+      *length* bar and there is no such crease.]** The census's question is whether
+      two coplanar faces share paper, and two faces meeting along an edge share an
+      exactly measure-zero sliver of it, so the bar is an area. Measured band over
+      the admitted corpus: largest rejected 3.99e-14, smallest accepted 1.44e-5,
+      both relative to span² — 4.4 decades below the bar and 4.2 above
+- [x] `Fold3dDiagnostics::min_plane_separation` renamed `min_face_offset_gap`,
+      because it is not plane separation. It is a consecutive difference between
+      per-*face* offsets inside a normal class, so on a plane holding many faces
+      it reports that plane's jitter: `penguin_disconnected` reads 4.048e-9 where
+      the nearest genuinely distinct plane is 1.96e-2 of span away. The side
+      condition's real upper bound is
+      `PlaneIndex::min_inter_separation_relative`, and it is `None` on more than
+      half the fixtures — `None` is a real answer, not an infinity
+- [x] `cargo test -p oristudio-cp`, plus the corpus run behind
+      `ORISTUDIO_NON_FLAT_CORPUS_DIR`
+
+#### What Phase 4 measured about the tolerance window
+
+Every number here comes from a **committed command** —
+`corpus_census_reports_every_model` in `tests/non_flat_corpus.rs`, and the band
+assertions in `tests/folding3d_census.rs`. The plan's earlier corpus figures came
+from an instrumented harness that no longer exists and should not be carried
+forward without being re-derived.
+
+| quantity | worst over admitted corpus | bar | headroom |
+| --- | --- | --- | --- |
+| intra-plane normal diameter | 2.819e-8 rad (`airplane`) | 1e-7 | **3.5×** |
+| intra-plane offset diameter | 2.139e-8 of span (`airplane`) | 1e-6 | 47× |
+| inter-plane separation | 1.515e-2 of span (`origamisimulator`) | 1e-6 | 4.2 decades |
+| largest rejected overlap | 3.99e-14 of span² | 1e-9 | 4.4 decades |
+| smallest accepted overlap | 1.44e-5 of span² | 1e-9 | 4.2 decades |
+
+**The angle bar has a factor of 3.5, not decades**, and `airplane.fold` eats both
+its coordinates at once — where, as §2 already noted, the numbers are measuring
+that file's 6-decimal coordinate rounding rather than any design angle. That
+single row is why the verification pass has to exist rather than be assumed, and
+why the corpus assertion on it is a band rather than a floor. On the committed
+fixtures the same figures are 1.11e-9 and 8.67e-11, both decades clear.
+
+Cost, for the record and not as a gate: on the largest admitted corpus model
+(`origamisimulator`, 2,637 faces, 29 planes, largest plane 1,480, 12,736 pairs)
+`plane_index` is ~30 ms and the census on top of it ~12 ms, in a release build.
+The clustering is the O(F²) half. `spikes_large`, the committed scale fixture, is
+0.2 ms and 1.0 ms. A spatial index is worth revisiting at ~10⁴ faces in one plane;
+nothing in the corpus is within an order of magnitude of that.
 
 ### Phase 5 — Engine boundary (nothing user-facing)
 - [ ] `Fold3dSnapshot` as a **sibling** of `FoldedFigureSnapshot`

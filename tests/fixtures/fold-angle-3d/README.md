@@ -99,15 +99,25 @@ cargo run -p oristudio-cp --release --example fold3d_census -- \
 adjacencies (paper units; `--` means the dual graph is a tree, so there is no
 self-check at all). `dihedral` is the worst declared-vs-measured fold angle over
 placed face pairs, in degrees — the only check here that exercises a
-general-angle rotation rather than a half-turn. `min-sep` is the smallest
-strictly-positive separation between parallel planes (`--` means no normal class
-held two distinct offsets, which certifies nothing). `census` is the
-coplanar-overlap pair count. Paper span is 400 for every fixture.
+general-angle rotation rather than a half-turn. `census` is the coplanar-overlap
+pair count. Paper span is 400 for every fixture.
 
-**These are the harness's numbers, and two columns differ from the shipped
+`min-sep` is the smallest strictly-positive gap between two **consecutive
+per-face offsets inside one normal class** (`--` means no class held two distinct
+offsets, which certifies nothing). It is **not plane separation** and must not be
+quoted as the side condition's upper bound: on a plane holding many faces it
+reports that plane's own numerical jitter, so on `penguin_disconnected` it reads
+4.048e-9 where the nearest genuinely distinct plane is 1.96e-2 of span away. The
+kernel field behind it was renamed `Fold3dDiagnostics::min_face_offset_gap` for
+that reason; the real quantity is
+`PlaneIndex::min_inter_separation_relative`, which is computed over the plane
+partition and is reported by `corpus_census_reports_every_model`.
+
+**These are the harness's numbers, and three columns differ from the shipped
 kernel's on purpose.** `crates/oristudio-cp/tests/folding3d.rs` pins the kernel's
-own `LoopGap`, which is the second implementation of the same quantity and the
-reason having both is worth it.
+own `LoopGap` and `crates/oristudio-cp/tests/folding3d_census.rs` pins its own
+plane count and census; each is the second implementation of the same quantity
+and the reason having both is worth it.
 
 - `ntree` — the kernel reports the dual graph's **first Betti number**,
   `|E_dual| − F + 1`, which is larger wherever two faces meet across two separate
@@ -121,6 +131,18 @@ reason having both is worth it.
   1.46e-13 vs 2.31e-13) and agrees to three figures on the ones that do not
   (`penguin_freeform` 7.88e-8, `rabbit_unclosed` 4.23e1, `box_90_unangled`
   4.00e2).
+- `planes` / `census` — identical on every row except **`rabbit_unclosed`**,
+  where the harness reads 26 planes and 306 pairs against the kernel's 25 and
+  371. That is the one fixture whose placement does not close (70.5°), so which
+  faces are coplanar is genuinely a function of the tolerance, and the two use
+  different ones: the harness clusters normals with a `dot > 1 − 1e-9` deficit,
+  which is a *squared* quantity and so an effective 4.5e-5 rad bar — 450× looser
+  than `Fold3dTolerances::angle_radians`. Neither is wrong about a model whose
+  geometry does not close, which is why the gate refuses it before either is
+  consulted. Do **not** "fix" one to match the other.
+- `census` on **`penguin_disconnected`** is a harness-only number. The kernel
+  never places that model at all (two components), so its 1001 is a per-component
+  figure with no kernel counterpart and is not a target.
 
 | fixture | V / E / F | ±180 | non-classic | flat | closure | self-int | indet | spatial | loop-gap | ntree | dihedral | min-sep | sep-bins | planes | census | 3D verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
