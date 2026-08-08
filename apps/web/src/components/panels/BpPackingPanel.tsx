@@ -70,7 +70,12 @@ import {
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
 import { useBpPatternNotFoundEvent } from '../../analytics';
-import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
+import {
+  BP_MAX_SHEET_SIZE,
+  BP_MIN_DIAG_SIZE,
+  BP_MIN_RECT_SIZE,
+  bpSteppedSheetSize,
+} from '../../lib/bpSheetSize';
 import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
 import { bpDefaultFlapLabel, bpFlapLabel, bpFlapLabelList } from '../../lib/bpFlapLabel';
 import { leafLocationAt } from '../../tree-editor/dragRule';
@@ -287,28 +292,51 @@ function selectedNudgeDevice(
   return null;
 }
 
+/**
+ * One sheet dimension.
+ *
+ * The engine declines a dimension below its minimum, and declines a shrink the
+ * flaps no longer fit — both come back as success with the sheet unchanged. So
+ * the draft is resynced from the authoritative value once the commit settles
+ * rather than only when `value` changes: a refused edit has to revert in front
+ * of the user, the way Box Pleating Studio's number field snaps back on blur.
+ *
+ * Committing on Enter/blur rather than upstream's per-keystroke write is
+ * deliberate — our model write is an async engine round-trip that records an
+ * undo entry, and per-keystroke would spam both.
+ */
 function BpSheetSizeInput({
   label,
   value,
+  min,
   onCommit,
 }: {
   label: string;
   value: number;
-  onCommit: (value: number) => void;
+  min: number;
+  onCommit: (value: number) => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState(() => String(value));
+  // Read inside async callbacks, where the rendered `value` is already stale.
+  const valueRef = useRef(value);
+  // What the last commit asked for, so the blur that Enter triggers does not
+  // ask a second time. Cleared whenever the draft is edited again.
+  const requestedRef = useRef<number | null>(null);
   useEffect(() => {
+    valueRef.current = value;
     setDraft(String(value));
   }, [value]);
   const commit = () => {
     const parsed = Number.parseInt(draft, 10);
-    if (!Number.isFinite(parsed)) {
-      setDraft(String(value));
+    const clamped = Number.isFinite(parsed)
+      ? Math.min(BP_MAX_SHEET_SIZE, Math.max(min, parsed))
+      : valueRef.current;
+    if (clamped === valueRef.current || clamped === requestedRef.current) {
+      setDraft(String(valueRef.current));
       return;
     }
-    const clamped = Math.min(BP_MAX_SHEET_SIZE, Math.max(1, parsed));
-    if (clamped !== value) onCommit(clamped);
-    else setDraft(String(value));
+    requestedRef.current = clamped;
+    void onCommit(clamped).then(() => setDraft(String(valueRef.current)));
   };
   return (
     <label className="bp-sheet-menu__row">
@@ -316,11 +344,14 @@ function BpSheetSizeInput({
       <input
         className="bp-sheet-menu__input"
         type="number"
-        min={1}
+        min={min}
         max={BP_MAX_SHEET_SIZE}
         step={1}
         value={draft}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => {
+          requestedRef.current = null;
+          setDraft(event.target.value);
+        }}
         onBlur={commit}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
@@ -356,7 +387,11 @@ function BpPackingViewportToolbar({
   canGrowSheet: boolean;
   canShrinkSheet: boolean;
   sheet: OristudioBpSheet;
-  setSheet: (gridType: OristudioBpSheetKind, width: number, height: number) => void;
+  setSheet: (
+    gridType: OristudioBpSheetKind,
+    width: number | null,
+    height: number | null
+  ) => Promise<boolean>;
   symmetry: BpPackingSymmetryView;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -392,7 +427,7 @@ function BpPackingViewportToolbar({
         size="sm"
         variant="toolbar"
         title={t('panels:bpPacking.growSheet', 'Increase Grid Size')}
-        onClick={() => setSheet(sheet.kind, sheet.width + 1, sheet.height + 1)}
+        onClick={() => void setSheet(sheet.kind, sheet.width + 1, sheet.height + 1)}
         disabled={!canGrowSheet}
       >
         <Plus size={14} />
@@ -401,7 +436,7 @@ function BpPackingViewportToolbar({
         size="sm"
         variant="toolbar"
         title={t('panels:bpPacking.shrinkSheet', 'Decrease Grid Size')}
-        onClick={() => setSheet(sheet.kind, sheet.width - 1, sheet.height - 1)}
+        onClick={() => void setSheet(sheet.kind, sheet.width - 1, sheet.height - 1)}
         disabled={!canShrinkSheet}
       >
         <Minus size={14} />
@@ -424,7 +459,9 @@ function BpPackingViewportToolbar({
                 <button
                   type="button"
                   className={sheet.kind === 'rectangular' ? 'is-active' : undefined}
-                  onClick={() => setSheet('rectangular', sheet.width, sheet.height)}
+                  // A grid-type change carries the current sheet's render size
+                  // across in the engine, so it names no dimension of its own.
+                  onClick={() => void setSheet('rectangular', null, null)}
                 >
                   {t('panels:bpPacking.rect', 'Rect')}
                 </button>
@@ -432,32 +469,42 @@ function BpPackingViewportToolbar({
                   type="button"
                   className={sheet.kind === 'diagonal' ? 'is-active' : undefined}
                   onClick={() =>
-                    // A diagonal grid is a square placed as a diamond; collapse to one
-                    // size (BP Studio averages the current dimensions when converting).
-                    setSheet('diagonal', sheet.width, sheet.height)
+                    // A diagonal grid is a square placed as a diamond; the engine
+                    // collapses the current dimensions to one size when converting.
+                    void setSheet('diagonal', null, null)
                   }
                 >
                   {t('panels:bpPacking.diagonal', 'Diagonal')}
                 </button>
               </div>
             </div>
+            {/*
+              Each field names only the dimension it owns and leaves the other
+              `null`, so the engine fills it from its own sheet. Restating the
+              partner from `sheet` would restate the value this render was built
+              with, and a height edit issued before the width edit's result
+              landed would put the old width back.
+            */}
             {sheet.kind === 'diagonal' ? (
               <BpSheetSizeInput
                 label={t('panels:bpPacking.size', 'Size')}
                 value={sheet.width}
-                onCommit={(s) => setSheet('diagonal', s, s)}
+                min={BP_MIN_DIAG_SIZE}
+                onCommit={(s) => setSheet('diagonal', s, null)}
               />
             ) : (
               <>
                 <BpSheetSizeInput
                   label={t('panels:bpPacking.width', 'Width')}
                   value={sheet.width}
-                  onCommit={(w) => setSheet(sheet.kind, w, sheet.height)}
+                  min={BP_MIN_RECT_SIZE}
+                  onCommit={(w) => setSheet(sheet.kind, w, null)}
                 />
                 <BpSheetSizeInput
                   label={t('panels:bpPacking.height', 'Height')}
                   value={sheet.height}
-                  onCommit={(h) => setSheet(sheet.kind, sheet.width, h)}
+                  min={BP_MIN_RECT_SIZE}
+                  onCommit={(h) => setSheet(sheet.kind, null, h)}
                 />
               </>
             )}
@@ -1709,9 +1756,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         canGrowSheet={canGrowSheet}
         canShrinkSheet={canShrinkSheet}
         sheet={packing.sheet}
-        setSheet={(gridType, width, height) =>
-          void setOristudioBpLayoutSheet(gridType, width, height)
-        }
+        setSheet={setOristudioBpLayoutSheet}
         symmetry={symmetry}
         zoomIn={zoomIn}
         zoomOut={zoomOut}

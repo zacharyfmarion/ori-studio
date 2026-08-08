@@ -98,7 +98,12 @@ export function bp_undo_project(handle: number): any;
 
 export function bp_unsubdivide_layout_sheet(handle: number): any;
 
-export function bp_update_layout_sheet(handle: number, grid_type: string, width: number, height: number): any;
+/**
+ * Resize the layout sheet. A `null`/`undefined` dimension keeps whatever the
+ * session's sheet has now, so a caller editing one dimension never has to
+ * restate the other from a snapshot that may already be stale.
+ */
+export function bp_update_layout_sheet(handle: number, grid_type: string, width?: number | null, height?: number | null): any;
 
 export function bp_update_tree_edge_length(handle: number, n1: number, n2: number, length: number, dragging: boolean): any;
 
@@ -153,7 +158,7 @@ export interface InitOutput {
     readonly bp_switch_stretch_pattern: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly bp_undo_project: (a: number) => [number, number, number];
     readonly bp_unsubdivide_layout_sheet: (a: number) => [number, number, number];
-    readonly bp_update_layout_sheet: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly bp_update_layout_sheet: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
     readonly bp_update_tree_edge_length: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly bp_validate_optimizer_packing: (a: any, b: any) => [number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;

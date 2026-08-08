@@ -1097,11 +1097,18 @@ export interface OristudioBpSliceActions {
   rotateOristudioBpLayoutSheet: (clockwise: boolean) => Promise<boolean>;
   /** Flip the BP sheet horizontally/vertically. */
   flipOristudioBpLayoutSheet: (horizontal: boolean) => Promise<boolean>;
-  /** Set the BP sheet grid type and dimensions (flaps re-map to stay in range). */
+  /**
+   * Set the BP sheet grid type and dimensions (flaps re-map to stay in range).
+   *
+   * A `null` dimension keeps whatever the engine's sheet has when the call
+   * lands. Pass `null` for every dimension the caller is not editing: a caller
+   * that restates the other dimension restates the one it rendered with, and
+   * two edits issued back to back then undo each other.
+   */
   setOristudioBpLayoutSheet: (
     gridType: OristudioBpSheetKind,
-    width: number,
-    height: number
+    width: number | null,
+    height: number | null
   ) => Promise<boolean>;
   /**
    * Forget that this vertex mirrors another. The two stay where they are; they

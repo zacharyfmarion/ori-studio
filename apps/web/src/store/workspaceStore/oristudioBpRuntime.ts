@@ -523,10 +523,11 @@ export async function flipOristudioBpLayoutSheet(
   );
 }
 
+/** A `null` dimension keeps whatever the engine session's sheet has now. */
 export async function updateOristudioBpLayoutSheet(
   gridType: OristudioBpSheetKind,
-  width: number,
-  height: number,
+  width: number | null,
+  height: number | null,
   options: OristudioBpMutationOptions = {}
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>
