@@ -8,7 +8,7 @@
 //! questions no shipped check asks: is the arrangement's dual graph connected,
 //! and is the placement path-independent.
 
-use crate::checks_spatial::{Indeterminate, Vec3, cross, dispatched_camv, dot, norm};
+use crate::checks_spatial::{Indeterminate, Vec3, cross, dispatched_camv_in, dot, norm};
 use crate::fold_graph::FoldGraph;
 use crate::folding3d::placement::{Placement3d, place_faces};
 use crate::folding3d::{Fold3dRefusal, Fold3dTolerances};
@@ -110,12 +110,17 @@ pub fn admit_with(
         ..CreasePatternModel::default()
     };
 
-    // 2. The shipped check, dispatched per vertex: Oriedita's flat rules where
-    //    every incident crease is a full fold, the closure condition where one
-    //    is not. `dispatched_camv` rather than `spatial_vertex_reports` because
-    //    only the former routes a mixed pattern's flat vertices to the flat
-    //    check at all.
-    let camv = dispatched_camv(&model);
+    // 2. Trace the arrangement, once. Step 3's interior-border question and
+    //    step 4's placement both need it, and it is the most expensive thing
+    //    this function does.
+    let graph = FoldGraph::from_segments(&segments, true);
+
+    //    Then the shipped check, dispatched per vertex: Oriedita's flat rules
+    //    where every incident crease is a full fold, the closure condition where
+    //    one is not. `dispatched_camv` rather than `spatial_vertex_reports`
+    //    because only the former routes a mixed pattern's flat vertices to the
+    //    flat check at all.
+    let camv = dispatched_camv_in(&model, Some(&graph));
 
     // 3. A border with paper on both sides is a cut, not a hinge, and every
     //    vertex on it was declined — so the clean verdict above covers geometry
@@ -167,7 +172,6 @@ pub fn admit_with(
     }
 
     // 4. Place, propagating the walk's own typed refusals.
-    let graph = FoldGraph::from_segments(&segments, true);
     let placement = place_faces(&graph, starting_face_id)?;
 
     // 5. The loop gap gates. On simply connected paper it follows from

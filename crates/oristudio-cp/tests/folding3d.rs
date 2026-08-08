@@ -8,7 +8,9 @@
 
 use oristudio_cp::CLOSURE_RESIDUAL_BAR_DEGREES;
 use oristudio_cp::checks_spatial::Vec3;
-use oristudio_cp::folding3d::{Fold3dOutcome, Fold3dRefusal, Placement3d, admit, place_segments};
+use oristudio_cp::folding3d::{
+    Fold3dOutcome, Fold3dRefusal, Fold3dTolerances, Placement3d, admit, admit_with, place_segments,
+};
 use oristudio_cp::geometry::{FoldMagnitude, LineColor, LineSegment, Point};
 use oristudio_cp::io::fold::import_fold_document;
 use oristudio_cp::model::CreasePatternModel;
@@ -393,4 +395,124 @@ fn a_crease_one_storage_unit_short_of_flat_is_snapped_in_the_gates_own_copy() {
 
 fn distance(a: Vec3, b: Vec3) -> f64 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
+}
+
+/// A drawn ring: four radial creases at 90 degrees around a square hole whose
+/// edges are borders.
+fn annulus_90() -> Vec<LineSegment> {
+    let square = |r: f64| {
+        [
+            Point::new(-r, -r),
+            Point::new(r, -r),
+            Point::new(r, r),
+            Point::new(-r, r),
+        ]
+    };
+    let (outer, inner) = (square(100.0), square(40.0));
+    let mut segments = Vec::new();
+    for k in 0..4 {
+        for ring in [outer, inner] {
+            segments.push(LineSegment::with_color(
+                ring[k],
+                ring[(k + 1) % 4],
+                LineColor::Black0,
+            ));
+        }
+    }
+    for k in 0..4 {
+        segments.push(
+            LineSegment::with_color(inner[k], outer[k], LineColor::Red1)
+                .with_fold_magnitude(FoldMagnitude::from_degrees(90.0)),
+        );
+    }
+    segments
+}
+
+/// The interior-cut refusal, through the gate, in the order the gate applies it.
+///
+/// Two claims, and the second is the one worth a test. The first is that a cut
+/// drawn inside the sheet refuses at all. The second is that it refuses *here*,
+/// before the placement — because the placement also declines this document, for
+/// an unrelated reason (`NonCreaseJoin`, two faces meeting across a border), and
+/// that refusal names a segment without saying the check above it examined
+/// nothing. Reorder the gate and this test is what notices.
+///
+/// `InteriorCut` is the corpus's third most common verdict — 7 of 65 files —
+/// which is why it is not left to an external corpus run to cover.
+#[test]
+fn a_cut_drawn_inside_the_sheet_is_refused_before_the_placement_is_attempted() {
+    let segments = annulus_90();
+
+    match admit(&segments, 1) {
+        Err(Fold3dRefusal::InteriorCut { line, point }) => {
+            assert_eq!(
+                segments[line].color,
+                LineColor::Black0,
+                "the refusal has to name a border segment"
+            );
+            assert!(
+                point.x.abs() <= 40.0 + 1e-9 && point.y.abs() <= 40.0 + 1e-9,
+                "the named border is the inner square's, not the paper's edge: {point:?}"
+            );
+        }
+        other => panic!("expected an interior cut, got {other:?}"),
+    }
+
+    // The placement's own verdict on the same document, so the ordering claim
+    // above is about two refusals that both really fire.
+    assert!(
+        matches!(
+            place_segments(&segments, 1),
+            Err(Fold3dRefusal::NonCreaseJoin { .. })
+        ),
+        "the placement is supposed to decline this too, for its own reason"
+    );
+}
+
+/// The loop-gap bar is a gate, not a report.
+///
+/// **No fixture reaches this and none is expected to**: on simply connected
+/// paper a closed loop follows from per-vertex closure, and the coverage hole
+/// that made the implication false — a border the closure check declines to look
+/// at — is refused one step earlier by `InteriorCut`. So the gate is driven
+/// directly, by moving the bar under a placement's own measured gap rather than
+/// by authoring geometry that cannot exist. What this pins is that the
+/// comparison happens, that it is relative to the span, and that it reports the
+/// numbers the placement measured.
+#[test]
+fn the_loop_gap_refusal_fires_when_the_measured_gap_exceeds_the_bar() {
+    let model = fixture("penguin_freeform");
+    let admitted = admit(&model.line_segments, 1).expect("penguin_freeform is admitted by default");
+    let relative = admitted.placement.loop_gap.offset / admitted.placement.span;
+    assert!(
+        relative > 0.0,
+        "this fixture needs a non-zero gap for the bar to be moved under"
+    );
+
+    let tightened = Fold3dTolerances {
+        distance_relative: relative / 2.0,
+        ..Fold3dTolerances::DEFAULT
+    };
+    match admit_with(&model.line_segments, 1, tightened) {
+        Err(Fold3dRefusal::LoopNotClosed {
+            worst_edge,
+            gap_offset,
+            gap_radians,
+        }) => {
+            assert_eq!(
+                gap_offset, admitted.placement.loop_gap.offset,
+                "the refusal must carry the gap the placement measured"
+            );
+            assert_eq!(gap_radians, admitted.placement.loop_gap.rotation_radians);
+            assert_eq!(worst_edge, admitted.placement.loop_gap.worst_edge);
+        }
+        other => panic!("expected the loop gap to gate, got {other:?}"),
+    }
+
+    // Relative to the span, not absolute: a bar just above the same ratio admits.
+    let loosened = Fold3dTolerances {
+        distance_relative: relative * 2.0,
+        ..Fold3dTolerances::DEFAULT
+    };
+    assert!(admit_with(&model.line_segments, 1, loosened).is_ok());
 }

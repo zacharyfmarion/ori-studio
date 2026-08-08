@@ -1101,8 +1101,30 @@ pub struct InteriorBorder {
 /// (unsplit crossings, so the Euler gate rejects), this reports nothing rather
 /// than guessing — the same posture the rest of this module takes toward
 /// geometry it cannot read.
+/// # Cost
+///
+/// Tracing the arrangement is the expensive half of this, and `dispatched_camv`
+/// reaches it on the 120 ms debounced post-edit path for any document carrying a
+/// non-classic crease. Two things keep that affordable and both are exact rather
+/// than heuristic: a document with no border segment at all cannot have one with
+/// paper on both sides, so it never builds anything; and a caller that has
+/// already traced the arrangement passes it in through
+/// [`interior_border_segments_in`] instead of paying for a second copy.
 pub fn interior_border_segments(model: &CreasePatternModel) -> Vec<InteriorBorder> {
-    let graph = FoldGraph::from_segments(&model.line_segments, true);
+    // Nothing to classify, so nothing to trace. The whole result is a filter on
+    // `Black0` lines, which makes this an early-out and not an approximation.
+    if !model
+        .line_segments
+        .iter()
+        .any(|segment| segment.color == LineColor::Black0)
+    {
+        return Vec::new();
+    }
+    interior_border_segments_in(&FoldGraph::from_segments(&model.line_segments, true))
+}
+
+/// [`interior_border_segments`] against an arrangement the caller already has.
+pub(crate) fn interior_border_segments_in(graph: &FoldGraph) -> Vec<InteriorBorder> {
     if graph.faces.is_empty() {
         return Vec::new();
     }
@@ -1139,6 +1161,19 @@ pub fn interior_border_segments(model: &CreasePatternModel) -> Vec<InteriorBorde
 }
 
 pub fn dispatched_camv(model: &CreasePatternModel) -> DispatchedCamv {
+    dispatched_camv_in(model, None)
+}
+
+/// [`dispatched_camv`] against an arrangement the caller already has.
+///
+/// `arrangement` must be the traced arrangement of `model.line_segments`; it is
+/// used for nothing but [`interior_border_segments_in`]. The 3D admission gate
+/// needs the same arrangement to place faces, and building it twice made `admit`
+/// pay for the most expensive thing it does two times over.
+pub(crate) fn dispatched_camv_in(
+    model: &CreasePatternModel,
+    arrangement: Option<&FoldGraph>,
+) -> DispatchedCamv {
     let vertices = point_line_map(model);
     // Only the spatial branch consults this, and it walks every segment to
     // build. `Spatial` requires a non-classic crease somewhere, so on a flat
@@ -1147,10 +1182,10 @@ pub fn dispatched_camv(model: &CreasePatternModel) -> DispatchedCamv {
     // pattern where Oriedita's own check takes 4.5ms.
     let non_classic = has_non_classic_creases(model);
     let through = non_classic.then(|| ThroughLineIndex::build(model));
-    let interior_borders = if non_classic {
-        interior_border_segments(model)
-    } else {
-        Vec::new()
+    let interior_borders = match (non_classic, arrangement) {
+        (false, _) => Vec::new(),
+        (true, Some(graph)) => interior_border_segments_in(graph),
+        (true, None) => interior_border_segments(model),
     };
     let mut flat = Vec::new();
     let mut spatial = Vec::new();
