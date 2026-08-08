@@ -23,7 +23,19 @@ import {
   type FoldedFigureActionDeps,
 } from './foldedFigureActions';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
-import { foldedFigureOtherSideCamera } from './foldedFigure3dProjection';
+import {
+  DEFAULT_FOLDED_3D_CAMERA,
+  foldedFigureOtherSideCamera,
+  type FoldedFigureCamera,
+} from './foldedFigure3dProjection';
+import {
+  advanceFoldedFigureOrbit,
+  beginFoldedFigureOrbit,
+  foldedFigureOrbitChanged,
+  foldedFigureOrbitClaimsPress,
+} from './foldedFigureOrbitGesture';
+import type { Vec2 } from '../annotations/annotationTransform';
+import type { SimulatorOrbitDrag } from '../../lib/simulatorOrbit';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
 import { track } from '../../analytics';
@@ -34,6 +46,17 @@ import { track } from '../../analytics';
  * only thing that ever set it, so every fold was already from face 1.
  */
 const FOLD_STARTING_FACE_ID = 1;
+
+/**
+ * The camera a figure is currently drawn at.
+ *
+ * `camera` is absent on a figure folded before orbit existed and on one restored
+ * from a file that never stored one, and the fold camera is the same default in
+ * both cases — so this is the accessor rather than a `??` at each call site.
+ */
+function figureCamera(figure: OristudioCpFoldedFigureEntry): FoldedFigureCamera {
+  return figure.camera ?? DEFAULT_FOLDED_3D_CAMERA;
+}
 
 export interface UseFoldedFiguresOptions {
   /** The live CP document, for the staleness check. */
@@ -58,6 +81,12 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   const oristudioCpFoldedFigures = useWorkspaceStore((state) => state.oristudioCpFoldedFigures);
   const oristudioCpActiveFoldedFigureId = useWorkspaceStore(
     (state) => state.oristudioCpActiveFoldedFigureId
+  );
+  const oristudioCpFocusedFoldedFigureId = useWorkspaceStore(
+    (state) => state.oristudioCpFocusedFoldedFigureId
+  );
+  const focusOristudioCpFoldedFigure = useWorkspaceStore(
+    (state) => state.focusOristudioCpFoldedFigure
   );
   const recordFoldedFigureHistory = useWorkspaceStore((state) => state.recordFoldedFigureHistory);
   const foldOristudioCpDocument = useWorkspaceStore((state) => state.foldOristudioCpDocument);
@@ -213,6 +242,107 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         .filter((object): object is TransformableCanvasObject => object !== null),
     [generatedFoldedFigures]
   );
+
+  /**
+   * The focused figure's body takes no overlay gestures: its interior orbits the
+   * camera, and the overlay polygon sits above it, so leaving it live means every
+   * drag aimed at turning the model moves it instead. Handles are untouched, so a
+   * focused figure can still be resized and rotated.
+   *
+   * The same shape inline simulations use, for the same reason — see
+   * `useInlineSimulations`.
+   */
+  const foldedInertBodyIds = useMemo(
+    () => new Set(oristudioCpFocusedFoldedFigureId ? [oristudioCpFocusedFoldedFigureId] : []),
+    [oristudioCpFocusedFoldedFigureId]
+  );
+
+  /** The focused figure's transformable box, for the canvas' hit test. */
+  const focusedFoldedBox = useMemo(() => {
+    if (!oristudioCpFocusedFoldedFigureId) return null;
+    return (
+      foldedFigureObjects.find((object) => object.id === oristudioCpFocusedFoldedFigureId)?.box ??
+      null
+    );
+  }, [foldedFigureObjects, oristudioCpFocusedFoldedFigureId]);
+
+  const orbitDragRef = useRef<{
+    id: string;
+    drag: SimulatorOrbitDrag;
+    /** Whether an undo snapshot has been taken for this drag yet. */
+    recording: boolean;
+  } | null>(null);
+
+  /** The live figure, read from the store rather than from a render-time list. */
+  const figureById = useCallback(
+    (id: string) =>
+      useWorkspaceStore
+        .getState()
+        .oristudioCpFoldedFigures.find((candidate) => candidate.id === id),
+    []
+  );
+
+  /**
+   * Whether a canvas press at `point` (SVG user space, the space a folded
+   * figure's box lives in) should turn the focused figure rather than reach the
+   * tool under it.
+   */
+  const orbitClaimsPress = useCallback(
+    (point: Vec2) =>
+      oristudioCpFocusedFoldedFigureId !== null &&
+      foldedFigureOrbitClaimsPress(
+        oristudioCpFocusedFoldedFigureId,
+        oristudioCpFocusedFoldedFigureId,
+        focusedFoldedBox,
+        point
+      ),
+    [focusedFoldedBox, oristudioCpFocusedFoldedFigureId]
+  );
+
+  const beginOrbit = useCallback(
+    (point: Vec2) => {
+      const id = oristudioCpFocusedFoldedFigureId;
+      if (!id) return false;
+      const figure = figureById(id);
+      if (!figure) return false;
+      orbitDragRef.current = {
+        id,
+        drag: beginFoldedFigureOrbit(figureCamera(figure), point),
+        // The undo snapshot is deliberately NOT taken here. A press and release
+        // that never moves is a click, and snapshotting on press would put a
+        // no-op entry on the stack that the user has to undo past. Taken on the
+        // first move that actually turns the figure instead.
+        recording: false,
+      };
+      return true;
+    },
+    [figureById, oristudioCpFocusedFoldedFigureId]
+  );
+
+  const advanceOrbit = useCallback(
+    (point: Vec2) => {
+      const session = orbitDragRef.current;
+      if (!session) return;
+      const figure = figureById(session.id);
+      if (!figure) return;
+      const before = figureCamera(figure);
+      const next = advanceFoldedFigureOrbit(before, session.drag, point);
+      if (!foldedFigureOrbitChanged(before, next)) return;
+      if (!session.recording) {
+        session.recording = true;
+        beginFoldedFigureGesture();
+      }
+      void setOristudioCpFolded3dCamera(session.id, next);
+    },
+    [beginFoldedFigureGesture, figureById, setOristudioCpFolded3dCamera]
+  );
+
+  const commitOrbit = useCallback(() => {
+    const session = orbitDragRef.current;
+    orbitDragRef.current = null;
+    if (!session?.recording) return;
+    commitFoldedFigureGesture(t('panels:creasePattern.orbitFoldedForm', 'Turn folded form'));
+  }, [commitFoldedFigureGesture, t]);
 
   const handleFoldedFigureBoxUpdate = useCallback(
     (id: string, patch: CanvasObjectBoxUpdate) => {
@@ -466,6 +596,21 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     selected: selectedFoldedFigure,
     staleIds: staleFoldedFigureIds,
     transformableObjects: foldedFigureObjects,
+    /** Bodies the overlay must not take gestures for — see `foldedInertBodyIds`. */
+    inertBodyIds: foldedInertBodyIds,
+    /**
+     * The orbit gesture, for the canvas to consult on a press that fell through
+     * an inert body. `claimsPress` first; the other three only mean anything
+     * once it has said yes.
+     */
+    orbit: {
+      focusedId: oristudioCpFocusedFoldedFigureId,
+      focus: focusOristudioCpFoldedFigure,
+      claimsPress: orbitClaimsPress,
+      begin: beginOrbit,
+      advance: advanceOrbit,
+      commit: commitOrbit,
+    },
     actionDeps: foldedFigureActionDeps,
     canFoldSelectedModel,
     beginGesture: beginFoldedFigureGesture,

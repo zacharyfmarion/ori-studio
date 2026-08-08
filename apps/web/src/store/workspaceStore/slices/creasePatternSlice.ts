@@ -673,10 +673,23 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       owner !== 'creases' && cpSelectionSize(get().oristudioCpSelection) > 0;
     const releasingFoldedFigure = owner !== 'folded-figure' && previousFoldedId !== null;
 
+    // Orbit focus is narrower than folded-figure selection: it belongs to one
+    // figure, so it has to go when the selection moves to a different one, not
+    // only when it leaves folded figures altogether. The patch is what names the
+    // new figure, so the comparison has to read from it rather than from state.
+    const focusedFoldedId = get().oristudioCpFocusedFoldedFigureId;
+    const nextFoldedId =
+      'oristudioCpActiveFoldedFigureId' in patch
+        ? (patch.oristudioCpActiveFoldedFigureId ?? null)
+        : previousFoldedId;
+    const keepsFoldedFocus =
+      owner === 'folded-figure' && focusedFoldedId !== null && nextFoldedId === focusedFoldedId;
+
     set({
       ...(owner === 'creases' ? {} : { oristudioCpSelection: emptyOristudioCpSelection() }),
       ...(owner === 'annotation' ? {} : { oristudioCpSelectedAnnotationId: null }),
       ...(owner === 'folded-figure' ? {} : { oristudioCpActiveFoldedFigureId: null }),
+      ...(keepsFoldedFocus ? {} : { oristudioCpFocusedFoldedFigureId: null }),
       ...(owner === 'inline-simulation'
         ? {}
         : { oristudioCpFocusedInlineSimulationId: null }),
@@ -1097,6 +1110,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     oristudioCpSelectedAnnotationId: null,
     oristudioCpInlineSimulations: [],
     oristudioCpFocusedInlineSimulationId: null,
+    oristudioCpFocusedFoldedFigureId: null,
     ...emptyFoldArtifactResourceState(),
     sequenceTarget: null,
     sequencePlan: null,
@@ -1575,6 +1589,29 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
       takeCanvasSelection('inline-simulation', {
         oristudioCpFocusedInlineSimulationId: id,
+      });
+    },
+
+    focusOristudioCpFoldedFigure: (id) => {
+      if (get().oristudioCpFocusedFoldedFigureId === id) return;
+      if (id === null) {
+        set({ oristudioCpFocusedFoldedFigureId: null });
+        return;
+      }
+      // Refused rather than admitted for a flat figure, so focus can never be a
+      // state the user reaches and finds inert. `folded3d` is the same predicate
+      // `setOristudioCpFolded3dCamera` gates on, and for the same reason: there
+      // is no camera to turn without it.
+      const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      if (!figure || (figure.folded3d ?? null) === null) return;
+
+      // Focusing selects, because the two are never usefully apart: the figure
+      // whose camera is taking drags is the figure whose toolbar should be up.
+      // Routing it through `takeCanvasSelection` is also what drops a focused
+      // simulation window, which would otherwise keep claiming the same presses.
+      takeCanvasSelection('folded-figure', {
+        oristudioCpActiveFoldedFigureId: id,
+        oristudioCpFocusedFoldedFigureId: id,
       });
     },
 

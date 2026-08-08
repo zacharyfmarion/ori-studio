@@ -678,6 +678,21 @@ export interface CreasePatternSliceState {
    * worker to a single live session.
    */
   oristudioCpFocusedInlineSimulationId: string | null;
+  /**
+   * The 3D folded figure whose body is taking canvas drags as **orbit** rather
+   * than as a move.
+   *
+   * Selection and focus are two different presses, exactly as they are for an
+   * inline simulation: the first selects (so the figure can still be nudged,
+   * which is what someone who only wanted to reposition it expects), and the
+   * second focuses. Only a focused figure goes inert to the canvas-object
+   * overlay.
+   *
+   * Never holds a **flat** figure. A flat folded form has no third dimension to
+   * turn, so focusing one would be a state the user can reach and find inert —
+   * `focusOristudioCpFoldedFigure` refuses it rather than admitting it.
+   */
+  oristudioCpFocusedFoldedFigureId: string | null;
   foldArtifacts: FoldArtifacts | null;
   foldArtifactError: string | null;
   foldArtifactStatus: FoldArtifactStatus;
@@ -742,6 +757,13 @@ export interface CreasePatternSliceActions {
   removeOristudioCpInlineSimulation: (id: string) => void;
   /** Hand the solver to a window, or to none. */
   focusOristudioCpInlineSimulation: (id: string | null) => void;
+  /**
+   * Give canvas drags over a 3D folded figure to its camera, or take them back.
+   *
+   * A no-op on a figure that is not 3D, so a caller does not have to ask first
+   * — see {@link WorkspaceState.oristudioCpFocusedFoldedFigureId}.
+   */
+  focusOristudioCpFoldedFigure: (id: string | null) => void;
   /** Rebuild a stale window's fold from the current creases, keeping its placement. */
   refreshOristudioCpInlineSimulation: (id: string) => Promise<boolean>;
   /**

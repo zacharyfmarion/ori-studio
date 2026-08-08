@@ -1061,6 +1061,17 @@ export function CreasePatternPanel() {
       inlineSimulations.transformableObjects,
     ]
   );
+  /**
+   * Every body the overlay must leave alone, from both kinds that have an
+   * interior of their own: a focused simulation window orbits its solver, a
+   * focused 3D folded figure orbits its camera. At most one of the two is ever
+   * non-empty — `takeCanvasSelection` makes the two focuses exclusive — but the
+   * overlay takes one set, so they are merged here rather than at the call site.
+   */
+  const inertBodyIds = useMemo(
+    () => new Set([...inlineSimulations.inertBodyIds, ...folded.inertBodyIds]),
+    [inlineSimulations.inertBodyIds, folded.inertBodyIds]
+  );
   const isFoldedFigureId = useCallback(
     (id: string) => folded.transformableObjects.some((object) => object.id === id),
     [folded.transformableObjects]
@@ -2929,7 +2940,7 @@ export function CreasePatternPanel() {
                     objects={canvasObjects}
                     selectedId={selectedCanvasObjectId}
                     suppressedId={editingTextId}
-                    inertBodyIds={inlineSimulations.inertBodyIds}
+                    inertBodyIds={inertBodyIds}
                     interactive={annotationsInteractive}
                     onSelect={selectCanvasObject}
                     onUpdate={handleCanvasObjectUpdate}
