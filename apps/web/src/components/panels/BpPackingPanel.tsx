@@ -69,6 +69,7 @@ import {
   constrainBpPackingFlapGroupTarget,
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
+import { bpRiverIdFromGraphicsId } from '../../lib/bpPackingRivers';
 import { useBpPatternNotFoundEvent } from '../../analytics';
 import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
 import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
@@ -2143,14 +2144,7 @@ function flapIdFromPrimitiveId(id: string): number | null {
 }
 
 function riverIdFromPrimitiveId(id: string, document: OristudioBpDocumentState): number | null {
-  const match = /^re(\d+),(\d+)(?::|$)/.exec(id);
-  if (!match) return null;
-  const vertices = [Number.parseInt(match[1], 10), Number.parseInt(match[2], 10)] as const;
-  const river = document.snapshot.packing.rivers.find((candidate) => {
-    const [a, b] = candidate.vertices;
-    return (a === vertices[0] && b === vertices[1]) || (a === vertices[1] && b === vertices[0]);
-  });
-  return river?.id ?? null;
+  return bpRiverIdFromGraphicsId(id, document.snapshot.packing.rivers);
 }
 
 function deviceIdFromPrimitiveId(id: string, document: OristudioBpDocumentState): string | null {

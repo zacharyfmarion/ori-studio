@@ -164,7 +164,7 @@ function packingDocument(): OristudioBpDocumentState {
           { id: 5, vertexId: 5, name: '', anchor: { x: 9, y: 8 }, width: 0, height: 0, radius: 1, constrained: true },
           { id: 7, vertexId: 7, name: '', anchor: { x: 11, y: 6 }, width: 0, height: 0, radius: 1, constrained: true },
         ],
-        rivers: [{ id: 1, edgeId: 2, vertices: [0, 2], width: 1, length: 1 }],
+        rivers: [{ id: 1, edgeId: 2, vertices: [0, 2], width: 1 }],
         // Each flap's square of paper: its anchor grown by its radius.
         coverage: [
           {
