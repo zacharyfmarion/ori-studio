@@ -342,6 +342,11 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     orbitDragRef.current = null;
     if (!session?.recording) return;
     commitFoldedFigureGesture(t('panels:creasePattern.orbitFoldedForm', 'Turn folded form'));
+    // Once per drag, and only for a drag that turned something — `recording` is
+    // set by the first move that changed the camera. No properties: the only
+    // numbers here are yaw and pitch, and an angle is a measured value about
+    // someone's design, which the privacy contract keeps out of analytics.
+    track(ANALYTICS_EVENTS.foldedFigureOrbited);
   }, [commitFoldedFigureGesture, t]);
 
   const foldedOrbit = useMemo(
@@ -497,6 +502,14 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       // kernel model write; a 3D figure moves the eye to the antipodal camera,
       // which is a re-projection and reaches no kernel at all. Branching here
       // rather than in the catalog keeps the catalog store-free.
+      // The fold camera, not the identity: a figure opens at the isometric the
+      // simulator opens at, and "reset" means the view you were given, not a
+      // view nobody chose.
+      resetView: (figure) =>
+        runFoldedFigureAction(
+          t('panels:creasePattern.resetFoldedModelView', 'Reset folded model view'),
+          () => setOristudioCpFolded3dCamera(figure.id, DEFAULT_FOLDED_3D_CAMERA)
+        ),
       flip: (figure) =>
         isFolded3dFigure(figure)
           ? runFoldedFigureAction(

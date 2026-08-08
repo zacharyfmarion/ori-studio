@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Copy,
   FileDown,
+  Focus,
   Layers,
   OctagonAlert,
   RefreshCw,
@@ -29,6 +30,10 @@ export function foldedFigureActionIconNode(
     // to show its other side, which is not the same as mirroring the shape.
     case 'flip':
       return <RotateCcwSquare size={size} />;
+    // A viewfinder, not a rewind: this recentres the eye on the model rather
+    // than undoing anything the user did to the paper.
+    case 'reset-view':
+      return <Focus size={size} />;
     case 'style':
       return <Layers size={size} />;
     case 'another':

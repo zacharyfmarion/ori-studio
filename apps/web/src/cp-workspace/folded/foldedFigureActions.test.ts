@@ -47,6 +47,7 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
   return {
     t,
     flip: vi.fn(),
+    resetView: vi.fn(),
     setDisplayStyle: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),

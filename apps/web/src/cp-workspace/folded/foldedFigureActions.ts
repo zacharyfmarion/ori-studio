@@ -24,6 +24,7 @@ import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotic
 /** Icon names, resolved to components by each surface (this module stays JSX-free). */
 export type FoldedFigureActionIcon =
   | 'flip'
+  | 'reset-view'
   | 'style'
   | 'another'
   | 'first-solution'
@@ -36,7 +37,7 @@ export type FoldedFigureActionIcon =
 
 export interface FoldedFigureCommand {
   kind: 'command';
-  id: 'flip' | 'another' | 'refold' | 'duplicate' | 'delete';
+  id: 'flip' | 'reset-view' | 'another' | 'refold' | 'duplicate' | 'delete';
   label: string;
   icon: FoldedFigureActionIcon;
   disabled: boolean;
@@ -117,6 +118,8 @@ export type FoldedFigureAction =
 export interface FoldedFigureActionDeps {
   t: TFunction;
   flip: (figure: OristudioCpFoldedFigureEntry) => void;
+  /** Put a 3D figure's camera back where the fold left it. */
+  resetView: (figure: OristudioCpFoldedFigureEntry) => void;
   setDisplayStyle: (
     figure: OristudioCpFoldedFigureEntry,
     style: OristudioCpFoldedFigureDisplayStyle
@@ -255,6 +258,21 @@ export function buildFoldedFigureActions(
       icon: 'flip',
       disabled: !ready,
       run: () => deps.flip(figure),
+    });
+  }
+
+  // Only a 3D figure has a viewpoint to lose. Orbit can leave the model edge-on
+  // or facing away with nothing on screen to say how you got there, and
+  // "Other side" is a half-turn from wherever you are rather than a way back —
+  // so this is the one action that always recovers a legible view.
+  if (isFolded3dFigure(figure)) {
+    actions.push({
+      kind: 'command',
+      id: 'reset-view',
+      label: t('panels:foldedFigureActions.resetView', 'Reset view'),
+      icon: 'reset-view',
+      disabled: !ready,
+      run: () => deps.resetView(figure),
     });
   }
 

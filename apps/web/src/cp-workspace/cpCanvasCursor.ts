@@ -44,6 +44,14 @@ export interface CpCanvasCursorState {
   panModifierHeld: boolean;
   /** A pan drag is in progress, whatever started it. */
   panDragging: boolean;
+  /**
+   * A focused 3D folded figure has the canvas, so a drag turns it.
+   *
+   * Same two glyphs as pan, because it is the same gesture to the hand: press
+   * and drag to move a view. Without it a focused figure looks exactly like a
+   * selected one and "press again to focus" has no feedback on the canvas.
+   */
+  foldedOrbitFocused?: boolean;
 }
 
 /**
@@ -52,5 +60,6 @@ export interface CpCanvasCursorState {
 export function cpCanvasCursor(state: CpCanvasCursorState): 'grab' | 'grabbing' | undefined {
   if (state.panDragging) return 'grabbing';
   if (state.panToolActive || state.panModifierHeld) return 'grab';
+  if (state.foldedOrbitFocused) return 'grab';
   return undefined;
 }

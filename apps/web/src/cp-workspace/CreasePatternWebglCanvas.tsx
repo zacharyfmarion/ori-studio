@@ -415,6 +415,8 @@ export interface CreasePatternWebglCanvasProps {
    * here does more than route.
    */
   foldedOrbit?: {
+    /** The figure currently taking drags, or null when none is focused. */
+    focusedId: string | null;
     claimsPress: (point: ModelPoint) => boolean;
     begin: (point: ModelPoint) => boolean;
     advance: (point: ModelPoint) => void;
@@ -3299,7 +3301,12 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [activeToolVoronoi, toolCommandPreviewPoints]);
 
-  const cursor = cpCanvasCursor({ panToolActive, panModifierHeld, panDragging });
+  const cursor = cpCanvasCursor({
+    panToolActive,
+    panModifierHeld,
+    panDragging,
+    foldedOrbitFocused: foldedOrbit?.focusedId != null,
+  });
 
   return (
     <canvas

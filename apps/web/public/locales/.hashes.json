@@ -2278,7 +2278,10 @@
     "errors:fold.needs3d": "827ff1b4357d",
     "errors:fold.foldedFormTooLarge": "ecb77be73306",
     "panels:creasePattern.viewFoldedModelOtherSide": "9a742a67d88c",
-    "panels:foldedFigureActions.otherSide": "8deeda4d7e66"
+    "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
+    "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
+    "panels:foldedFigureActions.resetView": "ce89ae822e8b",
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4559,7 +4562,10 @@
     "errors:fold.needs3d": "827ff1b4357d",
     "errors:fold.foldedFormTooLarge": "ecb77be73306",
     "panels:creasePattern.viewFoldedModelOtherSide": "9a742a67d88c",
-    "panels:foldedFigureActions.otherSide": "8deeda4d7e66"
+    "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
+    "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
+    "panels:foldedFigureActions.resetView": "ce89ae822e8b",
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6840,7 +6846,10 @@
     "errors:fold.needs3d": "827ff1b4357d",
     "errors:fold.foldedFormTooLarge": "ecb77be73306",
     "panels:creasePattern.viewFoldedModelOtherSide": "9a742a67d88c",
-    "panels:foldedFigureActions.otherSide": "8deeda4d7e66"
+    "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
+    "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
+    "panels:foldedFigureActions.resetView": "ce89ae822e8b",
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9091,7 +9100,10 @@
     "errors:fold.needs3d": "827ff1b4357d",
     "errors:fold.foldedFormTooLarge": "ecb77be73306",
     "panels:creasePattern.viewFoldedModelOtherSide": "9a742a67d88c",
-    "panels:foldedFigureActions.otherSide": "8deeda4d7e66"
+    "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
+    "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
+    "panels:foldedFigureActions.resetView": "ce89ae822e8b",
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11342,7 +11354,10 @@
     "errors:fold.needs3d": "827ff1b4357d",
     "errors:fold.foldedFormTooLarge": "ecb77be73306",
     "panels:creasePattern.viewFoldedModelOtherSide": "9a742a67d88c",
-    "panels:foldedFigureActions.otherSide": "8deeda4d7e66"
+    "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
+    "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
+    "panels:foldedFigureActions.resetView": "ce89ae822e8b",
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13623,7 +13638,10 @@
     "errors:fold.needs3d": "827ff1b4357d",
     "errors:fold.foldedFormTooLarge": "ecb77be73306",
     "panels:creasePattern.viewFoldedModelOtherSide": "9a742a67d88c",
-    "panels:foldedFigureActions.otherSide": "8deeda4d7e66"
+    "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
+    "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
+    "panels:foldedFigureActions.resetView": "ce89ae822e8b",
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15904,7 +15922,10 @@
     "errors:fold.needs3d": "827ff1b4357d",
     "errors:fold.foldedFormTooLarge": "ecb77be73306",
     "panels:creasePattern.viewFoldedModelOtherSide": "9a742a67d88c",
-    "panels:foldedFigureActions.otherSide": "8deeda4d7e66"
+    "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
+    "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
+    "panels:foldedFigureActions.resetView": "ce89ae822e8b",
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -18155,6 +18176,9 @@
     "errors:fold.needs3d": "827ff1b4357d",
     "errors:fold.foldedFormTooLarge": "ecb77be73306",
     "panels:creasePattern.viewFoldedModelOtherSide": "9a742a67d88c",
-    "panels:foldedFigureActions.otherSide": "8deeda4d7e66"
+    "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
+    "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
+    "panels:foldedFigureActions.resetView": "ce89ae822e8b",
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
   }
 }

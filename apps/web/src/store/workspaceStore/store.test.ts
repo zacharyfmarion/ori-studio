@@ -7725,3 +7725,92 @@ describe('workspace store slices', () => {
     });
   });
 });
+
+describe('orbit focus on a 3D folded figure', () => {
+  /**
+   * Focus is the *second* press, and only a focused figure goes inert to the
+   * canvas-object overlay — so these rules decide whether a drag moves the
+   * figure or turns it, which is the whole gesture.
+   */
+  const figures = () => useWorkspaceStore.getState().oristudioCpFoldedFigures;
+  const focusedId = () => useWorkspaceStore.getState().oristudioCpFocusedFoldedFigureId;
+
+  function seedFigures(): void {
+    resetStores(seedSnapshot());
+    const base = {
+      title: 'f',
+      handle: 1,
+      sourceCpRevision: null,
+      startingFaceId: 1,
+      displayStyle: 'Paper5' as const,
+      status: 'ready' as const,
+      renderSnapshot: null,
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      error: null,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [
+        // A 3D figure is the one with `folded3d`; the flat one carries `snapshot`.
+        {
+          ...base,
+          id: 'spatial',
+          sourceKind: 'generated-3d',
+          snapshot: null,
+          folded3d: {} as never,
+        },
+        { ...base, id: 'flat', sourceKind: 'generated-from-current-cp', snapshot: {} as never },
+      ] as never,
+    });
+  }
+
+  it('refuses a flat figure, so focus is never a state you can reach and find inert', () => {
+    seedFigures();
+    useWorkspaceStore.getState().focusOristudioCpFoldedFigure('flat');
+    expect(focusedId()).toBeNull();
+  });
+
+  it('refuses a figure that does not exist', () => {
+    seedFigures();
+    useWorkspaceStore.getState().focusOristudioCpFoldedFigure('nope');
+    expect(focusedId()).toBeNull();
+  });
+
+  it('focusing a 3D figure also selects it, so its toolbar is the one on screen', () => {
+    seedFigures();
+    useWorkspaceStore.getState().focusOristudioCpFoldedFigure('spatial');
+    expect(focusedId()).toBe('spatial');
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe('spatial');
+  });
+
+  it('gives up focus when the selection moves to a different figure', () => {
+    // Selection alone does not express this: focus belongs to one figure, not to
+    // folded figures as a class, so leaving it behind would let a drag over the
+    // newly selected figure turn the old one.
+    seedFigures();
+    useWorkspaceStore.getState().focusOristudioCpFoldedFigure('spatial');
+    useWorkspaceStore.getState().setOristudioCpActiveFoldedFigure('flat');
+    expect(focusedId()).toBeNull();
+  });
+
+  it('is exclusive with a focused simulation window, both ways', () => {
+    // Both claim canvas drags, so two focused things would fight over one press.
+    seedFigures();
+    useWorkspaceStore.setState({ oristudioCpFocusedInlineSimulationId: 'sim-1' });
+    useWorkspaceStore.getState().focusOristudioCpFoldedFigure('spatial');
+    expect(useWorkspaceStore.getState().oristudioCpFocusedInlineSimulationId).toBeNull();
+    expect(focusedId()).toBe('spatial');
+
+    useWorkspaceStore.getState().focusOristudioCpInlineSimulation('sim-1');
+    expect(focusedId()).toBeNull();
+  });
+
+  it('gives up focus when the creases take the canvas', () => {
+    seedFigures();
+    useWorkspaceStore.getState().focusOristudioCpFoldedFigure('spatial');
+    useWorkspaceStore
+      .getState()
+      .setOristudioCpSelection({ ...emptyOristudioCpSelection(), lines: [1] });
+    expect(focusedId()).toBeNull();
+    expect(figures()).toHaveLength(2);
+  });
+});

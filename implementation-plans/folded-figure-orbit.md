@@ -234,7 +234,7 @@ handles already size it.
 - [x] `oristudioCpFocusedFoldedFigureId` + `focusOristudioCpFoldedFigure`, refusing
       a flat figure, exclusive with inline-simulation focus
 - [x] Blur when the figure is deleted, refolded, or its document replaced
-- [ ] Store tests for each rule, including the exclusivity both ways
+- [x] Store tests for each rule, including the exclusivity both ways
 - [x] `inertBodyIds` from `useFoldedFigures`, passed through the panel
 - [x] Second-press-to-focus wired; first press still selects and moves
 
@@ -244,25 +244,30 @@ handles already size it.
       starts inside and leaves the figure's bounds
 - [x] One branch in `CreasePatternWebglCanvas`'s pointer chain
 - [x] Camera written per move; one undo entry on release
-- [ ] `cursor: grab` / `grabbing` over a focused body
+- [x] `cursor: grab` / `grabbing` over a focused body
 
 ### Phase 3 — Cost
-- [ ] Measure re-projection per pointermove on the largest figure the corpus
-      produces, in a **production** build with DevTools closed (a dev build has
-      misled twice in this repo). Record the number here
-- [ ] Decimate-during-drag **only if** the measurement demands it
+- [x] Measured. `plant_penguin.osf`, 103 faces and the largest real figure to
+      hand: **5.47 ms per re-projection**, a 183 fps ceiling. `spikes_small`
+      (25 faces) is 3.63 ms. Both are inside a 16.7 ms frame with room to spare
+- [x] **Not decimated**, because the measurement did not demand it. The forcing
+      result fired the other way
+- [ ] Re-measure in a **production** build with DevTools closed before trusting
+      the margin on a much larger figure — this number is from bare node, where
+      the canvas is not also painting, and a dev build has misled twice in this
+      repo
 
 ### Phase 4 — Surfacing
-- [ ] Focused outline distinct from selected, in both themes
-- [ ] **Reset view** in the folded-figure action catalog, context menu and menu bar
-- [ ] `folded figure orbited { }` analytics, no angles or coordinates —
+- [x] Focused outline distinct from selected, in both themes
+- [x] **Reset view** in the folded-figure action catalog, context menu and menu bar
+- [x] `folded figure orbited { }` analytics, no angles or coordinates —
       `docs/analytics.md` updated
-- [ ] i18n for **Reset view** across all eight locales; `npm run i18n:check`
+- [x] i18n for **Reset view** across all eight locales; `npm run i18n:check`
 
 ### Validation
-- [ ] `npx tsc --noEmit`, `npx vitest run`, `npx eslint .` from `apps/web`
-- [ ] `npm run i18n:check`
-- [ ] No Rust change expected — if one appears, rebuild the tracked wasm
+- [x] `npx tsc --noEmit`, `npx vitest run`, `npx eslint .` from `apps/web`
+- [x] `npm run i18n:check`
+- [x] No Rust change expected — if one appears, rebuild the tracked wasm
 - [ ] Browser checklist appended to `3d-folded-state.md`: press once (moves),
       press again (focuses), drag (orbits), press outside (blurs and moves
       again), handles still resize while focused, Reset view returns the fold
