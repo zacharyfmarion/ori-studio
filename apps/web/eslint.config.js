@@ -171,7 +171,19 @@ const OVERSIZED_PANELS = {
   // layer mounted beside `conflicts` and its entry in the layer list. Same shape
   // as the patternless layer above it, and the same reasoning: a canvas layer in
   // the canvas panel is the case AGENTS.md calls a feature that belongs here.
-  'BpPackingPanel.tsx': 2014,
+  // 2014 -> 2023: two changes that each fit under the cap alone, meeting in a
+  // merge. The sheet-size fix (#227) took it 1970 -> 1992; river selection and
+  // width took it 1970 -> 2001, and the merged file is 2023.
+  //
+  // River width's own share is composition and a subtraction. What landed: the
+  // band layer mounted under the graphics group (`BpPackingRiverBandLayer`,
+  // with its geometry already in `lib/bpPackingViewport` and its river lookup
+  // in `lib/bpPackingRivers`), and the width pill mounted beside the flap one
+  // (`BpRiverEditor`, wrapping the tree pane's own control). Against that, the
+  // flap-radius geometry *left* — both radius and width now go through
+  // `edgeLengthRepositions` in `tree-editor/dragRule`, so the panel holds one
+  // commit path where it used to hold a leaf-only copy of the geometry.
+  'BpPackingPanel.tsx': 2023,
   'SimulatorPanel.tsx': 1770,
   'DesignPanel.tsx': 1260,
   'BpTreePanel.tsx': 890,

@@ -846,3 +846,74 @@ describe('BP packing pane — a selected river gets a width pill', () => {
     expect(setEdgeLength).toHaveBeenCalledWith([0, 2], 2, [{ id: 2, loc: { x: 8, y: 10 } }]);
   });
 });
+
+/**
+ * The sheet-size popover's Width and Height fields.
+ *
+ * Box Pleating Studio has no combined setter: `rectangularGrid.ts` exposes
+ * independent `width` / `height` accessors, and `rectangular.vue` binds one
+ * field to each. Ours used to reassemble the whole sheet from the `sheet` prop
+ * the field rendered with, so a height edit issued before the width edit's
+ * result came back sent the *old* width alongside and reverted it.
+ */
+describe('BP packing pane — sheet size fields', () => {
+  function openSheetMenu() {
+    const host = renderPacking();
+    const setSheet = vi.fn(async () => true);
+    act(() => {
+      useWorkspaceStore.setState({ setOristudioBpLayoutSheet: setSheet });
+    });
+    const toggle = [...host.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.getAttribute('aria-label') === 'Sheet size & grid'
+    );
+    expect(toggle).toBeDefined();
+    act(() => toggle?.click());
+    const inputs = [...host.querySelectorAll<HTMLInputElement>('.bp-sheet-menu__input')];
+    expect(inputs).toHaveLength(2);
+    return { host, setSheet, width: inputs[0], height: inputs[1] };
+  }
+
+  /** Type into a controlled number field and commit with Enter. */
+  function commit(input: HTMLInputElement | undefined, value: string) {
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value'
+      )?.set;
+      setter?.call(input, value);
+      input?.dispatchEvent(new Event('input', { bubbles: true }));
+      input?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+      );
+    });
+  }
+
+  it('names only the dimension it owns, so back-to-back edits compose', () => {
+    const { setSheet, width, height } = openSheetMenu();
+    commit(width, '20');
+    commit(height, '30');
+    // Neither call restates the other dimension, so the height edit — issued
+    // before React re-rendered with width 20 — cannot put width 16 back.
+    expect(setSheet.mock.calls).toEqual([
+      ['rectangular', 20, null],
+      ['rectangular', null, 30],
+    ]);
+  });
+
+  it('commits once per edit, not again on the blur Enter causes', () => {
+    const { setSheet, width } = openSheetMenu();
+    commit(width, '20');
+    act(() => width?.dispatchEvent(new FocusEvent('blur', { bubbles: true })));
+    expect(setSheet).toHaveBeenCalledTimes(1);
+  });
+
+  it('reverts a value the engine refuses instead of leaving it in the field', async () => {
+    const { setSheet, width } = openSheetMenu();
+    // Below MIN_RECT_SIZE the engine declines and reports success with the
+    // sheet unchanged, so nothing re-renders the field back on its own.
+    commit(width, '2');
+    await act(async () => {});
+    expect(setSheet).toHaveBeenCalledWith('rectangular', 4, null);
+    expect(width?.value).toBe('16');
+  });
+});

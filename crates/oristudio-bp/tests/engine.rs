@@ -704,13 +704,13 @@ fn project_session_updates_layout_sheet_with_checked_anchor_shifts() {
     let mut session = BpProjectSession::new(project).unwrap();
 
     session
-        .update_layout_sheet(GridType::Rectangular, 6.0, 8.0)
+        .update_layout_sheet(GridType::Rectangular, Some(6.0), Some(8.0))
         .unwrap();
     assert_eq!(session.project().design.layout.sheet.width, 6.0);
     assert_eq!(session.project().design.layout.flaps[0].x, 4.0);
 
     session
-        .update_layout_sheet(GridType::Diagonal, 6.0, 6.0)
+        .update_layout_sheet(GridType::Diagonal, Some(6.0), Some(6.0))
         .unwrap();
     assert_eq!(
         session.project().design.layout.sheet.grid_type,
@@ -729,6 +729,51 @@ fn project_session_updates_layout_sheet_with_checked_anchor_shifts() {
         assert!(grid.contains(point));
     }
     assert_eq!(session.history().steps().len(), 2);
+}
+
+#[test]
+fn project_session_updates_one_layout_sheet_dimension_at_a_time() {
+    let mut project = sample_project();
+    project.design.layout.flaps = vec![
+        Flap {
+            id: 1,
+            x: 1.0,
+            y: 1.0,
+            width: 0.0,
+            height: 0.0,
+        },
+        Flap {
+            id: 2,
+            x: 2.0,
+            y: 2.0,
+            width: 0.0,
+            height: 0.0,
+        },
+    ];
+    let mut session = BpProjectSession::new(project).unwrap();
+
+    // Width only: the height stays where the session had it, without the caller
+    // restating it. Two edits issued back to back are what this protects — a
+    // caller that had to resend the height would resend a stale one.
+    session
+        .update_layout_sheet(GridType::Rectangular, Some(20.0), None)
+        .unwrap();
+    assert_eq!(session.project().design.layout.sheet.width, 20.0);
+    assert_eq!(session.project().design.layout.sheet.height, 8.0);
+
+    // Height only: the width just set survives.
+    session
+        .update_layout_sheet(GridType::Rectangular, None, Some(30.0))
+        .unwrap();
+    assert_eq!(session.project().design.layout.sheet.width, 20.0);
+    assert_eq!(session.project().design.layout.sheet.height, 30.0);
+
+    // Below MIN_RECT_SIZE the grid declines, and the sheet is left alone —
+    // matching Box Pleating Studio's `set width`, which returns early.
+    session
+        .update_layout_sheet(GridType::Rectangular, Some(3.0), None)
+        .unwrap();
+    assert_eq!(session.project().design.layout.sheet.width, 20.0);
 }
 
 #[test]
