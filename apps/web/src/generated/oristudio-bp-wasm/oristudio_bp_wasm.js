@@ -653,16 +653,19 @@ export function bp_unsubdivide_layout_sheet(handle) {
 }
 
 /**
+ * Resize the layout sheet. A `null`/`undefined` dimension keeps whatever the
+ * session's sheet has now, so a caller editing one dimension never has to
+ * restate the other from a snapshot that may already be stale.
  * @param {number} handle
  * @param {string} grid_type
- * @param {number} width
- * @param {number} height
+ * @param {number | null} [width]
+ * @param {number | null} [height]
  * @returns {any}
  */
 export function bp_update_layout_sheet(handle, grid_type, width, height) {
     const ptr0 = passStringToWasm0(grid_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.bp_update_layout_sheet(handle, ptr0, len0, width, height);
+    const ret = wasm.bp_update_layout_sheet(handle, ptr0, len0, !isLikeNone(width), isLikeNone(width) ? 0 : width, !isLikeNone(height), isLikeNone(height) ? 0 : height);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

@@ -37,6 +37,7 @@
 import { STORAGE_KEYS, readJson, storageKey, writeJson } from './storage';
 import {
   DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS,
+  ORISTUDIO_CP_CUSTOM_LINE_TYPES,
   ORISTUDIO_CP_DIVIDE_MODES,
   ORISTUDIO_CP_LENGTHEN_COLOR_MODES,
   ORISTUDIO_CP_SQUARE_ANCHORS,
@@ -99,7 +100,8 @@ function ratioExpression(value: unknown): OristudioCpRatioExpression | null {
  * when someone asks for it.
  *
  * Reasonable candidates left ephemeral for now: `polygonCorners`,
- * `parallelWidth`, the custom line types, and `customCircleColor`.
+ * `parallelWidth`, the Replace tool's from/to line types, and
+ * `customCircleColor`.
  */
 export const PERSISTED_CP_TOOL_OPTIONS: Registry = {
   // The most "how I work" setting in the editor, and the complaint that
@@ -134,6 +136,15 @@ export const PERSISTED_CP_TOOL_OPTIONS: Registry = {
   // the angle-system pair above avoids.
   divisionCount: (value) => integerIn(value, 1, 256),
   divisionRatio: ratioExpression,
+  // The line-type filter the Erase and Delete-by-type tools share. A working
+  // preference like the ones above: someone cleaning up an import erases only
+  // auxiliary lines for as long as that job lasts, and re-picking the filter
+  // every session is exactly the friction persistence exists to remove.
+  //
+  // It stays visible in the tool panel whenever either tool is active, so a
+  // restored non-default filter is never a silent one — which is what makes an
+  // option this destructive safe to remember.
+  customLineType: oneOf(ORISTUDIO_CP_CUSTOM_LINE_TYPES),
   // Every Square param, as a set. The tool is a one-click stamp whose whole
   // behaviour *is* its params — a square tool that forgot its size would ask you
   // to re-specify the thing you picked it for. Restoring a subset would be worse

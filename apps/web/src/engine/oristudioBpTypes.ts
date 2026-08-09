@@ -131,12 +131,19 @@ export interface OristudioBpFlap {
   constrained: boolean;
 }
 
+/**
+ * A river: the band of paper an internal tree edge takes up.
+ *
+ * Its `width` is the dual edge's length — one number, not two. Box Pleating
+ * Studio's river panel labels it "Width" and binds it straight to
+ * `Edge.length` (`src/app/vue/panel/river.vue`), so editing a river's width and
+ * editing its edge's length are the same edit.
+ */
 export interface OristudioBpRiver {
   id: number;
   edgeId: number;
   vertices: [number, number];
   width: number;
-  length: number;
 }
 
 /**

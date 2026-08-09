@@ -248,13 +248,13 @@ describe('moveOristudioBpLayoutFlapsWithSymmetry', () => {
   });
 
   /** A document holding one flap, keyed to whichever tree vertex the test wants. */
-  function withOneFlap(id: number, anchorX: number) {
+  function withOneFlap(id: number, anchorX: number, enabled = true) {
     useWorkspaceStore.setState(
       {
         ...useWorkspaceStore.getInitialState(),
         ...singleBoxPleatDesignTab({
           document: bpDocument([flap(id, anchorX, 4)]),
-          symmetry: { ...TREE_AXIS, enabled: true, fold: 'book', pairs: [] },
+          symmetry: { ...TREE_AXIS, enabled, fold: 'book', pairs: [] },
         }),
       },
       true
@@ -278,5 +278,32 @@ describe('moveOristudioBpLayoutFlapsWithSymmetry', () => {
     withOneFlap(7, 7);
     await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(7, { x: 2, y: 11 });
     expect(groupMoves()).toEqual([[[7], { x: 2, y: 11 }]]);
+  });
+
+  it('does not pin a flap to the axis when mirror draw is off', async () => {
+    // A new design's tree is a three-node path, so *every* node sits on the
+    // mirror line whether or not anyone meant it to — which pinned both starter
+    // flaps to the sheet's centre column and made a fresh design undraggable.
+    // Unlike a pair, a self-mirror can only ever be inferred from position (no
+    // pair may name the same vertex twice), so the toggle is what licenses it.
+    withOneFlap(0, 7, false);
+    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(0, { x: 2, y: 11 });
+    expect(groupMoves()).toEqual([[[0], { x: 2, y: 11 }]]);
+  });
+
+  it('pins the flap again once mirror draw is switched back on', async () => {
+    withOneFlap(0, 7, false);
+    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(0, { x: 3, y: 11 });
+    // Mirror draw goes back on, with the flap where the last move left it.
+    // Re-installed rather than carried over because the mocked runtime lands
+    // every move on the shared `FLAPS` document, which has no vertex 0 in it.
+    withOneFlap(0, 3, true);
+    // Enabling did not reach back and re-centre anything — the next move is
+    // where symmetry is restored, and it takes the flap back to the line.
+    await useWorkspaceStore.getState().moveOristudioBpLayoutFlapWithSymmetry(0, { x: 3, y: 12 });
+    expect(groupMoves()).toEqual([
+      [[0], { x: 3, y: 11 }],
+      [[0], { x: 7, y: 12 }],
+    ]);
   });
 });

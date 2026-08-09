@@ -276,11 +276,27 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
    * Asked instead of looking at where the flap happens to be on the paper. A
    * flap that merely drifted onto the paper's mirror is not self-mirrored, and
    * treating it as such pinned it there with no way back off.
+   *
+   * **Unlike {@link bpMirrorPartnerId}, this one does read the toggle**, and the
+   * asymmetry is the point. A pair is a fact the user recorded, so it outlives
+   * mirror draw; a *self*-mirror never is. Every path that builds a pair rejects
+   * `v1 === v2` — `addBpTreeSymmetryPair`, `validateBpDocumentSymmetry`,
+   * `filterBpTreeSymmetryPairs` — so `mirrorBpTreeVertexId` can only answer "your
+   * own id" through its geometric on-axis branch. That makes self-mirroring a
+   * guess about where a node happens to sit, and mirror draw is what licenses the
+   * guess.
+   *
+   * Without the gate a new design was unusable: its starter tree is a three-node
+   * path, which has nowhere to be *but* the mirror line, so both flaps read as
+   * self-mirrored and neither could be dragged off the sheet's centre. The tree
+   * pane already gates the same rule — see `isOnAxis` in `useBpTreeSymmetry`,
+   * which drives its on-axis drag pin.
    */
   const bpIsSelfMirrored = (vertexId: number, designId: string): boolean => {
     const document = selectOristudioBpDocument(get(), designId);
     if (!document) return false;
     const symmetry = selectOristudioBpSymmetry(get(), designId);
+    if (!symmetry.enabled) return false;
     return (
       mirrorBpTreeVertexId(
         document.snapshot.tree,
@@ -1327,6 +1343,10 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       }), dirty: true });
     },
 
+    // `null` dimensions travel through to the engine, which fills them from its
+    // own sheet. Resolving them here would resolve them against a document read
+    // before this mutation's `.bps` export await, which a resize issued moments
+    // earlier may already have superseded.
     setOristudioBpLayoutSheet: async (gridType, width, height) =>
       runBpTreeMutation('Resized BP sheet', () =>
         updateRuntimeOristudioBpLayoutSheet(gridType, width, height, {

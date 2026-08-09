@@ -131,11 +131,30 @@ describe('cpToolOptionPersistence', () => {
     }
   });
 
+  it('takes a line-type filter only when it is one the picker offers', () => {
+    store({ customLineType: 'Aux' });
+    expect(readCpToolOptions().customLineType).toBe('Aux');
+
+    store({ customLineType: 'Rainbow' });
+    expect(readCpToolOptions().customLineType).toBe(
+      DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.customLineType
+    );
+  });
+
+  it('persists the erase filter, and leaves the replace pair per-session', () => {
+    // Erase and Delete-by-type share `customLineType`; Replace has its own two,
+    // which stay per-session.
+    expect(isPersistedCpToolOption('customLineType')).toBe(true);
+    expect(isPersistedCpToolOption('customFromLineType')).toBe(false);
+    expect(isPersistedCpToolOption('customToLineType')).toBe(false);
+  });
+
   it('names every opted-in key', () => {
     expect(persistedCpToolOptionKeys().sort()).toEqual(
       [
         'angleSystemAngles',
         'angleSystemDivider',
+        'customLineType',
         'divideMode',
         'divisionCount',
         'divisionRatio',
