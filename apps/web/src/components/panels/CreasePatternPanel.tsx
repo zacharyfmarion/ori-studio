@@ -1099,18 +1099,22 @@ export function CreasePatternPanel() {
       }
       if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.focus(id);
       else if (isFoldedFigureId(id)) {
-        // Press a selected figure to focus it, handing its interior to the
-        // camera; press an unselected one to select it. Selection is the state
-        // the user can see — outline and floating toolbar — so "press the thing
-        // that is already highlighted" is a rule with an affordance behind it.
+        // A press focuses, exactly as it does for an inline simulation — there
+        // is no second-press rule, and adding one made turning the model take
+        // two clicks.
         //
-        // A no-op on a flat figure — the store refuses it — so no check here.
-        if (id === folded.selected?.id) folded.orbit.focus(id);
-        else setOristudioCpActiveFoldedFigure(id);
+        // The press that focuses is still the press that moves: the overlay took
+        // this pointerdown while the body was live and keeps the drag, and the
+        // body only goes inert for the *next* press. So an unfocused figure
+        // drags, and the drag after it turns.
+        //
+        // `focus` is a no-op on a flat figure — the store refuses it — so the
+        // selection has to be set either way rather than left to it.
+        setOristudioCpActiveFoldedFigure(id);
+        folded.orbit.focus(id);
       } else setSelectedAnnotation(id);
     },
     [
-      folded.selected,
       folded.orbit,
       isFoldedFigureId,
       inlineSimulations,

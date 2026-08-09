@@ -3,8 +3,12 @@
 ## Goal
 
 A 3D folded figure can be turned by dragging it, with the interaction the inline
-simulator already has: **press to focus, then drag inside it to orbit**; press
-outside to blur, and move / scale / rotate come back.
+simulator already has: **a press focuses it, and a drag on a focused figure
+orbits**; press outside to blur, and move / scale / rotate come back.
+
+An unfocused figure drags normally, and the press that starts that drag is also
+the press that focuses — the body only goes inert for the *next* press. So the
+first drag moves and the one after it turns, with no separate focusing click.
 
 Today a 3D figure has exactly two views — the camera it was folded at, and
 **Other side** — because a drag over a folded figure already means *move*. That
@@ -59,10 +63,12 @@ Two rules that keep the concept honest:
   drags; two focused things would fight over the same press. Focusing either
   blurs the other, in the store, not in two components.
 
-Focus is *not* selection. A figure is selected by pressing it (chrome, handles,
-toolbar); focus is the second press, and only focus makes the body inert. This
-is the simulator's rule and it is why a first press does not steal the move
-gesture from someone who only wanted to nudge the figure.
+Focus follows a press, unconditionally, exactly as it does for an inline
+simulation. **There is no second-press rule** — an earlier draft of this plan had
+one, on the theory that the first press had to be protected for moving, and it
+was wrong twice over: it made turning the model take two clicks, and the
+protection was unnecessary because the overlay keeps the in-flight drag anyway.
+The body goes inert for the next press, not this one.
 
 ### 3. The inert body already exists
 
@@ -220,7 +226,7 @@ handles already size it.
 
 | # | Risk | Mitigation |
 | --- | --- | --- |
-| R1 | A drag meant to *move* the figure orbits it instead, or vice versa | Focus is the second press, exactly as for simulations. One press selects and can still move; only a focused figure is inert |
+| R1 | A drag meant to *move* the figure orbits it instead, or vice versa | The body goes inert only for the press *after* the one that focused, so the focusing press still moves. Matching the inline simulator exactly is what keeps this predictable |
 | R2 | Re-projecting per pointermove drops frames on a large figure | Measured in Phase 3 against the largest corpus figure before any optimisation is written. Decimate-during-drag only if measurement demands it |
 | R3 | Two focused things fight over one press | Focus is exclusive in the store, not negotiated between components |
 | R4 | Orbit undiscoverable, so the feature ships unused | §6 — focused outline, grab cursor, Reset view in the toolbar |
@@ -236,7 +242,8 @@ handles already size it.
 - [x] Blur when the figure is deleted, refolded, or its document replaced
 - [x] Store tests for each rule, including the exclusivity both ways
 - [x] `inertBodyIds` from `useFoldedFigures`, passed through the panel
-- [x] Second-press-to-focus wired; first press still selects and moves
+- [x] Press-to-focus wired, matching the inline simulator. The in-flight drag is
+      unaffected, so an unfocused figure still moves on the press that focuses it
 
 ### Phase 2 — The gesture
 - [x] `foldedFigureOrbitGesture.ts` — three pure functions, no DOM, no store
