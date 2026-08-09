@@ -796,3 +796,54 @@ describe('BP tree pane — pairings survive mirror draw being off', () => {
     expect(actions.moveOristudioBpTreeVertices).not.toHaveBeenCalled();
   });
 });
+
+describe('BP tree pane — every edge shows its length', () => {
+  /**
+   * Adds an internal vertex hanging off the root with a leaf of its own, so
+   * edge 0–3 has an internal vertex at both ends: a river.
+   */
+  function addRiver() {
+    const tree = document_.snapshot.tree;
+    const node = (id: number, x: number, y: number, isLeaf: boolean) => ({
+      id,
+      name: '',
+      loc: { x, y },
+      isRoot: false,
+      isLeaf,
+      degree: isLeaf ? 1 : 2,
+      dist: 1,
+      height: isLeaf ? 0 : 1,
+      maxHeight: null,
+      maxNewLeafLength: null,
+      dualFlapId: isLeaf ? id : null,
+    });
+    tree.vertices = [...tree.vertices, node(3, 12, 10, false), node(4, 14, 10, true)];
+    tree.edges = [
+      ...tree.edges,
+      { id: 3, vertices: [0, 3] as [number, number], length: 7, maxLength: null, isLeafEdge: false, dualRiverId: 1 },
+      { id: 4, vertices: [3, 4] as [number, number], length: 9, maxLength: null, isLeafEdge: true, dualRiverId: null },
+    ];
+  }
+
+  /**
+   * A river's width is this edge's length, and it is edited here — so leaving
+   * the label off internal edges hid the number in the pane that sets it. Leaf
+   * edges were never the only ones carrying a length worth reading.
+   */
+  it('labels a river edge, not only the leaf edges', () => {
+    addRiver();
+    const body = render(null);
+    const labels = [...body.querySelectorAll('.bp-tree-edge-label')].map((el) => el.textContent);
+    // One per edge — the two unit leaf edges of the base fixture, the river,
+    // and the river's own leaf.
+    expect(labels.sort()).toEqual(['1', '1', '7', '9']);
+  });
+
+  it('still leaves internal vertices unnamed — a river has no name to draw', () => {
+    addRiver();
+    const body = render(null);
+    // Three leaves and two internal vertices; only the leaves are nameable, so
+    // showing an edge's length must not have started naming its endpoints.
+    expect(body.querySelectorAll('.bp-tree-node-label')).toHaveLength(3);
+  });
+});

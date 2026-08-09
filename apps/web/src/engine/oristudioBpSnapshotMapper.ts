@@ -365,7 +365,6 @@ function packingRivers(tree: OristudioBpTreeView): OristudioBpRiver[] {
       edgeId: edge.id,
       vertices: edge.vertices,
       width: edge.length,
-      length: edge.length,
     }));
 }
 

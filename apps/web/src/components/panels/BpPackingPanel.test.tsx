@@ -164,7 +164,7 @@ function packingDocument(): OristudioBpDocumentState {
           { id: 5, vertexId: 5, name: '', anchor: { x: 9, y: 8 }, width: 0, height: 0, radius: 1, constrained: true },
           { id: 7, vertexId: 7, name: '', anchor: { x: 11, y: 6 }, width: 0, height: 0, radius: 1, constrained: true },
         ],
-        rivers: [{ id: 1, edgeId: 2, vertices: [0, 2], width: 1, length: 1 }],
+        rivers: [{ id: 1, edgeId: 2, vertices: [0, 2], width: 1 }],
         // Each flap's square of paper: its anchor grown by its radius.
         coverage: [
           {
@@ -186,6 +186,25 @@ function packingDocument(): OristudioBpDocumentState {
               { x: 10, y: 7 },
             ],
             holes: [],
+          },
+          // The river's band: its own square of paper with the subtree it
+          // encloses punched out as a hole.
+          {
+            id: 're0,2:contour:0',
+            outer: [
+              { x: 3, y: 3 },
+              { x: 7, y: 3 },
+              { x: 7, y: 7 },
+              { x: 3, y: 7 },
+            ],
+            holes: [
+              [
+                { x: 4, y: 4 },
+                { x: 6, y: 4 },
+                { x: 6, y: 6 },
+                { x: 4, y: 6 },
+              ],
+            ],
           },
         ],
         // The engine's own output for that file, so the rendered geometry is
@@ -233,6 +252,22 @@ function packingDocument(): OristudioBpDocumentState {
               { x: 7, y: 3 },
               { x: 7, y: 7 },
               { x: 3, y: 7 },
+            ],
+            stroke: '#888888',
+            width: 1,
+            closed: true,
+          },
+          // The hole in that contour, drawn as its own closed ring — the thing
+          // that used to be a solid target sitting on top of the child.
+          {
+            kind: 'polyline' as const,
+            id: 're0,2:contour:0:inner:0',
+            layer: 'hinge' as const,
+            points: [
+              { x: 4, y: 4 },
+              { x: 6, y: 4 },
+              { x: 6, y: 6 },
+              { x: 4, y: 6 },
             ],
             stroke: '#888888',
             width: 1,
@@ -520,7 +555,7 @@ describe('BP packing pane — the whole flap is draggable', () => {
   });
 });
 
-describe('BP packing pane — a river is grabbed by its contour', () => {
+describe('BP packing pane — a river is grabbed by its band', () => {
   it('draws no bounding-box overlay around the river', () => {
     const host = renderPacking();
     // The padded rect over the river's bounds was the focusable target's hit
@@ -531,14 +566,82 @@ describe('BP packing pane — a river is grabbed by its contour', () => {
     expect(host.querySelector('.bp-packing-river-shade')).toBeNull();
   });
 
+  it('selects the river when its band is pressed', () => {
+    const host = renderPacking();
+    const band = host.querySelector('.bp-packing-river-band-group');
+    expect(band?.getAttribute('data-bp-select')).toBe('river:1');
+    act(() => {
+      band?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    });
+    expect(selectOristudioBpSelection(useWorkspaceStore.getState())).toEqual({ kind: 'bp-river', id: 1 });
+  });
+
   it('selects the river when its contour is pressed', () => {
     const host = renderPacking();
-    const contour = host.querySelector('[data-bp-select="river:1"]');
+    const contour = host.querySelector('.bp-packing-primitive[data-bp-select="river:1"]');
     expect(contour).not.toBeNull();
     act(() => {
       contour?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
     });
     expect(selectOristudioBpSelection(useWorkspaceStore.getState())).toEqual({ kind: 'bp-river', id: 1 });
+  });
+
+  /**
+   * The hole is the whole point of the band.
+   *
+   * jsdom does no hit-testing, so what is asserted is the mechanism that
+   * decides it in a browser: the path carries the hole as its own subpath and
+   * fills even-odd, so the enclosed paper is outside the fill and outside the
+   * hit region with it.
+   */
+  it('punches the enclosed subtree out of the bands hit region', () => {
+    const host = renderPacking();
+    const path = host.querySelector('.bp-packing-river-band');
+    expect(path?.getAttribute('fill-rule')).toBe('evenodd');
+    // Outer ring plus one hole: two closed subpaths.
+    expect((path?.getAttribute('d') ?? '').match(/M/g)).toHaveLength(2);
+  });
+
+  it('shades the band while the river is selected', () => {
+    const host = renderPacking();
+    const band = host.querySelector('.bp-packing-river-band-group');
+    expect(band?.getAttribute('class')).not.toContain('--selected');
+    act(() => {
+      band?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    });
+    expect(
+      host.querySelector('.bp-packing-river-band-group')?.getAttribute('class')
+    ).toContain('bp-packing-river-band-group--selected');
+  });
+
+  /**
+   * Only a device is grabbed by its whole interior. A filled hinge contour made
+   * every ring a solid target — the outer one over everything the river
+   * encloses, and an inner one directly over the child sitting in the hole.
+   */
+  it('leaves closed hinge contours stroke-only', () => {
+    const host = renderPacking();
+    const inner = host.querySelector('[aria-label*="river"] .bp-packing-primitive-hit-area');
+    expect(inner).toBeNull();
+    expect(host.querySelectorAll('.bp-packing-primitive-hit-area')).toHaveLength(0);
+    expect(
+      host.querySelectorAll('.bp-packing-primitive-hit-polyline').length
+    ).toBeGreaterThan(0);
+  });
+
+  it('draws the band under every crease, gadget and flap', () => {
+    const host = renderPacking();
+    const canvas = host.querySelector('.bp-packing-canvas');
+    const bands = host.querySelector('.bp-packing-river-bands');
+    expect(canvas).not.toBeNull();
+    expect(bands).not.toBeNull();
+    for (const selector of ['.bp-packing-primitive', '.bp-packing-flaps', '.bp-packing-flap-hits']) {
+      const later = canvas?.querySelector(selector);
+      expect(later, selector).not.toBeNull();
+      // SVG paints in document order, so "under" means "earlier".
+      const order = bands!.compareDocumentPosition(later as Node);
+      expect(Boolean(order & Node.DOCUMENT_POSITION_FOLLOWING), selector).toBe(true);
+    }
   });
 });
 
@@ -705,6 +808,42 @@ describe('BP packing pane — moves ask for the mirror', () => {
       );
     });
     expect(moveFlaps).toHaveBeenCalledWith([5, 7], { x: 10, y: 8 }, false);
+  });
+});
+
+describe('BP packing pane — a selected river gets a width pill', () => {
+  function selectRiver() {
+    act(() => {
+      useWorkspaceStore.setState(
+        patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-river', id: 1 } })
+      );
+    });
+  }
+
+  it('shows no pill until a river is selected', () => {
+    const host = renderPacking();
+    expect(host.querySelector('.bp-tree-edge-editor')).toBeNull();
+    selectRiver();
+    expect(host.querySelector('.bp-tree-edge-editor')).not.toBeNull();
+  });
+
+  /**
+   * A river's width is its dual edge's length, so the commit goes through the
+   * tree pane's edge-length action — which is also what makes it one undo entry
+   * and what carries the symmetry partner.
+   */
+  it('commits a step through the edge-length action, carrying the subtree', () => {
+    const host = renderPacking();
+    const setEdgeLength = vi.fn(async () => true);
+    act(() => {
+      useWorkspaceStore.setState({ setOristudioBpTreeEdgeLength: setEdgeLength });
+    });
+    selectRiver();
+    const increase = host.querySelectorAll('.bp-tree-edge-editor button')[1] as HTMLButtonElement;
+    act(() => increase.click());
+    // Edge 2 runs from the root (8,8) to vertex 2 at (8,9), length 1. Stepping
+    // to 2 pushes the child out along the direction it already points.
+    expect(setEdgeLength).toHaveBeenCalledWith([0, 2], 2, [{ id: 2, loc: { x: 8, y: 10 } }]);
   });
 });
 
