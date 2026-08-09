@@ -2,7 +2,7 @@ import { Grid3x3 } from 'lucide-react';
 import { bpCpToEditorConvention } from '../lib/bpCreaseConvention';
 import { normalizeOrieditaGridSize } from '../lib/creasePatternViewport';
 import { boxPleatCpBounds, boxPleatPackingCircles } from '../lib/packingCircles';
-import { radiusForFlap, sheet as toViewSheet } from '../engine/oristudioBpSnapshotMapper';
+import { bpFlapRadius, sheet as toViewSheet } from '../engine/oristudioBpSnapshotMapper';
 import type { OristudioBpClient } from '../store/workspaceStore/oristudioBpRuntime';
 import type { WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import type {
@@ -102,14 +102,13 @@ export function createBoxPleatSendToEdit(getClient: () => Promise<OristudioBpCli
     // see `boxPleatPackingCircles` for why four corner discs, though exact, are
     // the wrong answer.
     //
-    // A flap's radius is the length of the tree edge that reaches it, which is
-    // the snapshot mapper's definition rather than a second one.
+    // A flap's radius is the snapshot mapper's definition, not a second one.
     const treeEdges = project.design.tree.edges;
     const flaps = project.design.layout.flaps.map((flap) => ({
       anchor: { x: flap.x, y: flap.y },
       width: flap.width,
       height: flap.height,
-      radius: radiusForFlap(flap.id, treeEdges) ?? Math.max(flap.width, flap.height) / 2,
+      radius: bpFlapRadius(flap, treeEdges),
     }));
     const viewSheet = toViewSheet(sheet);
     const circles = boxPleatPackingCircles(flaps, viewSheet);

@@ -515,7 +515,7 @@ function packingFlap(
     anchor: { x: flap.x, y: flap.y },
     width: flap.width,
     height: flap.height,
-    radius: radiusForFlap(flap.id, edges) ?? Math.max(flap.width, flap.height) / 2,
+    radius: bpFlapRadius(flap, edges),
     constrained: true,
   };
 }
@@ -652,14 +652,20 @@ function vertexDegrees(edges: OristudioBpRawEdge[]): Map<number, number> {
 }
 
 /**
- * A flap's radius: the length of the tree edge that reaches its vertex.
+ * A flap's radius: the length of the tree edge that reaches its vertex, falling
+ * back to half its longest side for a flap no edge reaches.
  *
- * Exported because "Send to Edit (include circles)" needs the same number from
- * the raw project, and two spellings of a flap's radius would be one too many.
+ * Exported whole, fallback included, because "Send to Edit (include circles)"
+ * needs the same number from the raw project — and exporting only the lookup
+ * left the `??` branch written out twice, which is two spellings of a flap's
+ * radius by another route.
  */
-export function radiusForFlap(id: number, edges: OristudioBpRawEdge[]): number | null {
-  const edge = edges.find((candidate) => candidate.n1 === id || candidate.n2 === id);
-  return edge?.length ?? null;
+export function bpFlapRadius(
+  flap: Pick<OristudioBpRawFlap, 'id' | 'width' | 'height'>,
+  edges: OristudioBpRawEdge[]
+): number {
+  const edge = edges.find((candidate) => candidate.n1 === flap.id || candidate.n2 === flap.id);
+  return edge?.length ?? Math.max(flap.width, flap.height) / 2;
 }
 
 function formatSigned(value: number): string {
