@@ -47,8 +47,12 @@ works.
   to the line segments, and extends `model.circles`. Nothing to change.
 - **The CP kernel models circles as first-class document objects**
   (`CreasePatternModel.circles`, [lib.rs:267](crates/oristudio-cp/src/lib.rs:267)),
-  with a full Oriedita command family behind them — including
-  `cp.organizeCircles`, which is the user's existing way to clear them again.
+  with a full Oriedita command family behind them.
+  **Correction, found by testing:** `cp.organizeCircles` is *not* how a user
+  clears them — it prunes only invalid zero-radius circles, and leaves real ones
+  alone (verified in the browser: 2 circles in, 2 circles out). Removing them is
+  the erase tool's job; a box erase with `CustomLineType::Any` takes circles
+  along with lines ([lib.rs:1606](crates/oristudio-cp/src/lib.rs:1606)).
 - **`.cp` and `.orh` import raw coordinates** — no normalization
   ([io/cp.rs](crates/oristudio-cp/src/io/cp.rs)). So a BP `.cp` is already in the
   editor's ±200 space.
@@ -196,20 +200,32 @@ Adding the variant is the moment to fix that: one `design sent to edit` event wi
 
 ## Affected Areas
 
-- `crates/oristudio-cp/src/session.rs`, `crates/oristudio-cp-wasm/src/lib.rs` —
-  new `set_circles` entry point (mirrors `set_texts`).
-- `apps/web/src/generated/**` — rebuilt + committed wasm bridge.
+- `crates/oristudio-cp/src/session.rs` — `place_circles` and the
+  `SourceToDocument` transform it recovers; `crates/oristudio-cp-wasm/src/lib.rs`
+  and `apps/tauri/src-tauri/src/{cp_engine,lib}.rs` for the two bridges.
+- `crates/oristudio-cp/src/operations/arrangement.rs`, `tests/io.rs` — Phase 0's
+  pinning tests.
+- `apps/web/src/generated/oristudio-cp-wasm/**` — rebuilt + committed bridge.
+- `apps/web/src/lib/packingCircles.ts` (new) — both kinds' circle geometry, with
+  its own tests.
 - `apps/web/src/designKinds/` — `types.ts` (payload + request), `treemaker.ts`,
   `boxPleat.ts`, new `sendToEditActions.ts` / `useSendToEditActions.ts`.
 - `apps/web/src/store/workspaceStore/` — `oristudioCpRuntime.ts` (circle
-  application between load and `importAdd`), `types.ts`, `slices/creasePatternSlice.ts`,
-  `slices/oristudioBpSlice.ts`.
-- `apps/web/src/lib/designViewport.ts` — paper-space leaf radius, strain-aware.
-- `apps/web/src/lib/bpPackingViewport.ts` — flap corner circles in paper fractions.
-- `apps/web/src/components/ui/SplitButton.tsx`, `controlStyles.ts`,
+  placement between load and `importAdd`), `types.ts`, `slices/projectSlice.ts`,
+  `slices/creasePatternSlice.ts`, `slices/oristudioBpSlice.ts`,
+  `oristudioBpRuntime.ts` (exports `requireActiveBpHandle`).
+- `apps/web/src/workers/oristudioCpWorker.ts`,
+  `apps/web/src/engine/oristudioCpNativeClient.ts` — `placeCircles` on both clients.
+- `apps/web/src/engine/oristudioBpSnapshotMapper.ts` — exports `radiusForFlap`
+  and `sheet` so the descriptor reuses them rather than restating them.
+- `apps/web/src/lib/designViewport.ts` — leaf radius now derives from the shared,
+  strain-aware one.
+- `apps/web/src/components/ui/SplitButton.tsx` (new), `styles/theme.css`,
   `components/WorkspaceShell.tsx`.
-- `apps/web/src/analytics/events.ts`.
-- `apps/web/public/locales/**` — new strings across 8 locales.
+- `apps/web/src/analytics/` — `events.ts`, new `trackSendToEdit.ts`, `index.ts`.
+- `apps/web/public/locales/**` — three new strings across 8 locales.
+- `.claude/launch.json` — dev server pinned to 5251 (5223 was taken by another
+  worktree).
 
 ## Checklist
 
@@ -250,67 +266,79 @@ as its own text** — literally the numbers that would appear in the file — pl
 there. Nothing in TypeScript re-derives the importer's transform, and no format
 needs a circle channel.
 
-### Phase 1 — one implementation of Send to Edit
+### Phase 1 — one implementation of Send to Edit ✅
 
-- [ ] Route `sendTreeCreasePatternToEdit` and `sendOristudioBpToEdit` through
+- [x] Route `sendTreeCreasePatternToEdit` and `sendOristudioBpToEdit` through
       their descriptors' `sendToEdit` for payload production; keep capability
       checks, status transitions, and workspace switching in the slices.
-- [ ] Existing store tests still pass unchanged (`store.test.ts` around the
-      `importAddOristudioCpDocumentFromText` assertions).
+- [x] Existing store tests still pass unchanged. The BP descriptor reads the
+      sheet from `project.design.layout.sheet` where the slice read
+      `snapshot.packing.sheet` — the snapshot mapper builds one from the other,
+      so `cpScale` is identical and nothing moved.
 
-### Phase 2 — kernel circle placement
+### Phase 2 — kernel circle placement ✅
 
-- [ ] Add `Session::set_circles` + the `set_circles` wasm export, mirroring
-      `set_texts`.
-- [ ] Rust unit tests: circles land at the requested coordinates; an empty list
-      is a no-op; the call is rejected on a freed handle.
-- [ ] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+- [x] `CpSession::place_circles` + the `place_circles` wasm export, plus the
+      matching native `cp_place_circles` so the two bridges stay in parity
+      (`CP_ENGINE_COMMANDS` has a test that enforces this).
+- [x] Named `place_circles`, not `set_circles`: it **appends**, where `set_texts`
+      replaces. A document loaded from a file that carried its own circles must
+      not lose them to a design's packing.
+- [x] Rust tests: the FOLD case (a 1×1 paper scaled by 400 and recentred), the
+      `.cp` case (identity), appending, the empty list, malformed input, a
+      document with no lines, and a freed handle.
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+      `cargo test --workspace` (132 test targets green).
+- [x] Rebuilt and committed the wasm bridge.
+
+### Phase 3 — circle sources ✅
+
+- [x] `SendToEditRequest.includeCircles`; `SendToEditPayload.circles` and
+      `.circleSourceBounds`, both in the exported file's own space.
+- [x] TreeMaker: strain-aware paper-space leaf radius, tested for zero strain,
+      non-zero strain, negative strain, and a non-square paper. `leafCircleRadius`
+      now derives from it, keeping only the view's own pixel floor — it had been
+      ignoring strain, so a strained design drew one circle and would have sent
+      a different one.
+- [x] Box-Pleat: one circle per radius-only flap, tested for point / width-only /
+      height-only / rectangular flaps, and on rectangular *and diagonal* sheets
+      (odd and even). Working in `bpPackingSheetFrame`'s space is what keeps this
+      free of `CP_FULL_WIDTH`, `cpScale` and either grid's offsets.
+- [x] ExplOri: `includeCircles` asserted inert in `codec.test.ts`.
+- [x] `importAddOristudioCpDocumentFromText` places circles between load and
+      `importAdd`, so the merge's shift carries them with their creases.
+
+### Phase 4 — UI ✅
+
+- [x] `SplitButton` primitive + the split radii; tested that the label runs the
+      default action without opening the menu, the caret opens it and runs its
+      item, both halves disable together, and no caret renders with no actions.
+- [x] `sendToEditActions` catalog + `useSendToEditActions` hook.
+- [x] Both toolbar buttons wired.
+- [x] ExplOri's button untouched — its catalog entry returns no variants, which
+      is what makes `SplitButton` fall back to a plain button.
+
+### Phase 5 — instrumentation and strings ✅
+
+- [x] `design sent to edit` with `design_kind`, `include_circles` and a bucketed
+      `circle_count_bucket`. Neither toolbar action was instrumented before.
+- [x] English extracted, all 8 locales translated, `i18n:check` passes.
+
+### Phase 6 — validation ✅
+
+- [x] `npx tsc --noEmit` and vitest directly — 3001 tests across 290 files.
+- [x] `eslint apps/web/src` clean.
+- [x] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
       `cargo test --workspace`.
-- [ ] Rebuild and **commit** the wasm bridge (generated bridges are tracked, not
-      ignored — AGENTS.md is wrong about this).
-
-### Phase 3 — circle sources
-
-- [ ] `SendToEditRequest` gains `includeCircles`; `SendToEditPayload` gains
-      optional `circles` in paper fractions.
-- [ ] TreeMaker: strain-aware paper-space leaf radius, with unit tests covering
-      zero strain, non-zero strain, and a non-square paper. Re-point
-      `leafCircleRadius` at it so the drawn and sent circles agree.
-- [ ] Box-Pleat: one circle per radius-only flap, in paper fractions through the
-      export's `cpScale`. Unit tests for a point flap (one circle at the anchor,
-      radius `flap.radius`) and for width-only / height-only / rectangular flaps
-      (no circle each).
-- [ ] ExplOri: `includeCircles` is inert — assert that in `codec.test.ts` so a
-      later caller cannot silently ask for circles it will not get.
-- [ ] `importAddOristudioCpDocumentFromText` applies circles between load and
-      `importAdd`.
-
-### Phase 4 — UI
-
-- [ ] `SplitButton` primitive + `controlStyles` side radii; unit test that the
-      caret opens the menu and the main half still fires its own `onClick`.
-- [ ] `sendToEditActions` catalog + `useSendToEditActions` hook.
-- [ ] Wire both toolbar buttons; disabled state must grey *both* halves.
-- [ ] ExplOri's button is untouched (plain `Button`, no caret).
-
-### Phase 5 — instrumentation and strings
-
-- [ ] `design sent to edit` event with `design_kind`, `include_circles`,
-      `circle_count_bucket`.
-- [ ] Inline English for the menu item and its tooltip; `npm run i18n:extract`,
-      translate all 8 locales, `npm run i18n:stamp`, `npm run i18n:check`.
-
-### Phase 6 — validation
-
-- [ ] `npx tsc --noEmit` + vitest directly (the npm typecheck script regenerates
-      tracked wasm nondeterministically).
-- [ ] `npm run lint:web`.
-- [ ] Browser checklist for the author: TreeMaker send-with-circles puts circles
-      on the leaf nodes of the merged CP; BP send-with-circles puts circles on the
-      radius-only flaps at both `cpScale == 1` and `cpScale != 1`, and puts
-      nothing where a flap has width or height; plain Send to Edit is
-      byte-unchanged from before; `cp.organizeCircles` clears them; the caret menu
-      is keyboard-reachable and greys out with the button.
+- [x] Verified in the browser against the real wasm, not just in tests:
+      - TreeMaker (`asymmetric-antler`, optimized): 6 circles merged, and **every
+        one centred exactly on a CP vertex** — a leaf node's image.
+      - Box-Pleat (`valid-packing`): 2 flaps 4 grid units apart → circles 200
+        apart with radius 50, both on CP vertices, so the grid-to-`.cp` scale is
+        right.
+      - Plain Send to Edit adds creases and **no** circles.
+      - The circles render on the CP canvas at the flap positions.
+      - The caret menu opens and reads "Send to Edit (include circles)".
 
 ## Open questions
 
