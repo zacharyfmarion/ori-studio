@@ -1765,7 +1765,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     setOristudioCpActiveFoldedFigure: (oristudioCpActiveFoldedFigureId) => {
       const previousActiveId = get().oristudioCpActiveFoldedFigureId;
       if (oristudioCpActiveFoldedFigureId === null) {
-        set({ oristudioCpActiveFoldedFigureId: null });
+        // Orbit focus goes with the selection. This branch deliberately skips
+        // `takeCanvasSelection` — releasing a claim is the releaser's business —
+        // but focus is *narrower* than selection, so it cannot be left behind:
+        // a figure that keeps focus after being deselected goes on turning under
+        // every drag that lands on it.
+        set({ oristudioCpActiveFoldedFigureId: null, oristudioCpFocusedFoldedFigureId: null });
       } else {
         takeCanvasSelection('folded-figure', { oristudioCpActiveFoldedFigureId });
       }
@@ -2035,9 +2040,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 ),
               },
             ],
-            // A fresh fold is not selected, and the creases it was folded from
-            // are released — the same two rules the flat path follows.
-            oristudioCpActiveFoldedFigureId: null,
+            // A fresh fold *is* selected, so its outline and floating toolbar
+            // are on screen the moment it appears — the same as an inline
+            // simulation, and what makes "press the selected figure to focus it"
+            // a rule with something visible behind it. Leaving it unselected
+            // meant a new 3D figure showed no chrome at all and the second-press
+            // rule had nothing to count from.
+            oristudioCpActiveFoldedFigureId: figureId,
             oristudioCpSelection: emptyOristudioCpSelection(),
             oristudioCpError: null,
             dirty: true,

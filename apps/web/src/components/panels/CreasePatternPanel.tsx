@@ -1099,15 +1099,10 @@ export function CreasePatternPanel() {
       }
       if (inlineSimulations.isInlineSimulationId(id)) inlineSimulations.focus(id);
       else if (isFoldedFigureId(id)) {
-        // Second press on an already-selected figure focuses it, handing its
-        // interior to the camera. The simulator's rule, and the reason the first
-        // press must not do it: someone who only wanted to nudge the figure would
-        // otherwise never get a move gesture at all.
-        //
-        // `folded.selected`, never `folded.active` — the latter falls back to the
-        // most recent generated figure when *nothing* is selected, so comparing
-        // against it made the very first press a focusing one and a plain
-        // click-and-drag started turning the model instead of moving it.
+        // Press a selected figure to focus it, handing its interior to the
+        // camera; press an unselected one to select it. Selection is the state
+        // the user can see — outline and floating toolbar — so "press the thing
+        // that is already highlighted" is a rule with an affordance behind it.
         //
         // A no-op on a flat figure — the store refuses it — so no check here.
         if (id === folded.selected?.id) folded.orbit.focus(id);

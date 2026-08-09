@@ -7814,3 +7814,39 @@ describe('orbit focus on a 3D folded figure', () => {
     expect(figures()).toHaveLength(2);
   });
 });
+
+describe('orbit focus follows the selection out', () => {
+  /**
+   * Focus is narrower than selection, so it must not survive one. A figure that
+   * keeps focus after being deselected goes on turning under every drag that
+   * lands on it — and `setOristudioCpActiveFoldedFigure(null)` deliberately does
+   * not go through `takeCanvasSelection`, so it has to say this itself.
+   */
+  it('clears focus when the folded selection is released', () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [
+        {
+          id: 'spatial',
+          title: 'f',
+          handle: 1,
+          sourceKind: 'generated-3d',
+          sourceCpRevision: null,
+          startingFaceId: 1,
+          displayStyle: 'Paper5',
+          status: 'ready',
+          snapshot: null,
+          folded3d: {},
+          renderSnapshot: null,
+          placement: IDENTITY_FOLDED_PLACEMENT,
+          error: null,
+        },
+      ] as never,
+    });
+    useWorkspaceStore.getState().focusOristudioCpFoldedFigure('spatial');
+    expect(useWorkspaceStore.getState().oristudioCpFocusedFoldedFigureId).toBe('spatial');
+
+    useWorkspaceStore.getState().setOristudioCpActiveFoldedFigure(null);
+    expect(useWorkspaceStore.getState().oristudioCpFocusedFoldedFigureId).toBeNull();
+  });
+});
