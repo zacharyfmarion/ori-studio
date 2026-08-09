@@ -28,19 +28,23 @@ import {
   folded3dEyeDirection,
   foldedFigureOtherSideCamera,
   foldedLineStroke,
+  folded3dFrameRadius,
   projectFolded3dModel,
   undeterminedCellColor,
   type FoldedFigureCamera,
   type Folded3dPaperStyle,
   type Folded3dProjectionOptions,
 } from './foldedFigure3dProjection';
+import { foldedFigureBox, foldedFigureLocalGeometry } from '../adapters/cpFoldedToScene';
 import {
+  IDENTITY_FOLDED_PLACEMENT,
   FOLDED_3D_CELL_ATTR_STRIDE,
   FOLDED_3D_EDGE_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
   FOLDED_3D_PLANE_FRAME_STRIDE,
   type OristudioCpFold3dTolerances,
   type OristudioCpFolded3dRenderModel,
+  type OristudioCpFoldedFigureEntry,
   type OristudioCpFoldedRenderPrimitive,
 } from '../../engine/oristudioCpTypes';
 
@@ -547,6 +551,65 @@ describe('the layer order the kernel computed', () => {
     const back = planeOrder(model, antipodalCamera(camera));
     expect(front).not.toEqual(back);
     expect([...front].reverse()).toEqual(back);
+  });
+});
+
+describe('the frame a 3D figure draws inside', () => {
+  // Two properties, and the feature is broken without either: the frame must not
+  // change as the model turns (or the chrome jumps under the cursor), and it must
+  // sit on the figure (or the overlay's invisible click polygon lands somewhere
+  // else and the figure stops responding to clicks — which is what shipped).
+  const CAMERAS: Array<[string, FoldedFigureCamera]> = [
+    ['fold', DEFAULT_FOLDED_3D_CAMERA],
+    ['turned', { ...DEFAULT_FOLDED_3D_CAMERA, yaw: 1.1, pitch: -0.2 }],
+    ['antipodal', antipodalCamera(DEFAULT_FOLDED_3D_CAMERA)],
+  ];
+
+  function framedEntry(name: string, camera: FoldedFigureCamera) {
+    const model = fixture(name);
+    const snapshot = projectFolded3dModel(model, options({ camera })).snapshot;
+    return {
+      id: 'f',
+      title: 'f',
+      handle: 1,
+      sourceKind: 'generated-3d',
+      sourceCpRevision: null,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      snapshot: null,
+      folded3d: {},
+      renderSnapshot: snapshot,
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      error: null,
+      frameRadius: folded3dFrameRadius(model, camera),
+    } as unknown as OristudioCpFoldedFigureEntry;
+  }
+
+  it('is the same box at every camera', () => {
+    const boxes = CAMERAS.map(([, camera]) => foldedFigureBox(framedEntry('spikes_small', camera))!);
+    for (const box of boxes) expect(box).toEqual(boxes[0]);
+    // Non-vacuous: the projection genuinely differs between these cameras, so a
+    // box that followed it would differ too.
+    const drawn = CAMERAS.map(
+      ([, camera]) =>
+        foldedFigureLocalGeometry(
+          projectFolded3dModel(fixture('spikes_small'), options({ camera })).snapshot
+        ).bounds!
+    );
+    expect(drawn[1]).not.toEqual(drawn[0]);
+  });
+
+  it('contains the drawing at every camera, so nothing escapes its chrome', () => {
+    for (const [name, camera] of CAMERAS) {
+      const entry = framedEntry('spikes_small', camera);
+      const box = foldedFigureBox(entry)!;
+      const drawn = foldedFigureLocalGeometry(entry.renderSnapshot!).bounds!;
+      expect(drawn.minX, name).toBeGreaterThanOrEqual(box.center.x - box.width / 2 - 0.01);
+      expect(drawn.maxX, name).toBeLessThanOrEqual(box.center.x + box.width / 2 + 0.01);
+      expect(drawn.minY, name).toBeGreaterThanOrEqual(box.center.y - box.height / 2 - 0.01);
+      expect(drawn.maxY, name).toBeLessThanOrEqual(box.center.y + box.height / 2 + 0.01);
+    }
   });
 });
 

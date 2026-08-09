@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyFoldedPlacementToPoint,
   cpContradictionFaceFills,
   cpUserAnchorForLineIds,
   placeFoldedFigureBesideCp,
@@ -274,9 +275,41 @@ describe('foldedFigureBox', () => {
         },
       ])
     )!;
-    expect(wide.width).toBe(60);
-    expect(wide.height).toBe(60);
+    // Square, and the same box for two different projections — the point of the
+    // frame. The side is `2 * frameRadius` carried into user coordinates by
+    // `cpModelToSvg`, so it is asserted as square-and-stable rather than as a
+    // number that restates the conversion.
+    expect(wide.width).toBe(wide.height);
+    expect(wide.width).toBeGreaterThan(0);
     expect(tall).toEqual(wide);
+  });
+
+  it('reports the box centre the drawing actually pivots about', () => {
+    // The regression: a framed figure's box reported the placement offset alone
+    // while `cpFoldedToScene` still pivoted on the local bbox centre, so the
+    // overlay drew its invisible click polygon displaced from the visible figure
+    // by exactly that centre — and the figure stopped responding to clicks.
+    //
+    // The contract is one point: whatever the box calls its centre, a local point
+    // at the pivot must land there under the same placement the drawing uses.
+    // `applyFoldedPlacementToPoint` is that placement, so this compares the two
+    // halves against each other rather than against a remembered number.
+    for (const placement of [
+      IDENTITY_FOLDED_PLACEMENT,
+      { offset: { x: 37, y: -11 }, scale: 1, rotation: 0 },
+      { offset: { x: 37, y: -11 }, scale: 2.5, rotation: 0.9 },
+    ]) {
+      const entry = { ...strokeTriangle(placement), frameRadius: 30 };
+      const box = foldedFigureBox(entry)!;
+      // A framed figure pivots where the projection puts the model centroid,
+      // which reaches this module through `cpModelToSvg` — so it is that point
+      // in user coordinates, not user (0, 0). Getting this wrong is what put the
+      // click polygon 380 units from the figure.
+      const pivot = cpModelToSvg({ x: 0, y: 0 });
+      const drawn = applyFoldedPlacementToPoint(pivot, placement, pivot);
+      expect(box.center.x).toBeCloseTo(drawn.x);
+      expect(box.center.y).toBeCloseTo(drawn.y);
+    }
   });
 
   it('leaves a figure with no frame on its projected bounds', () => {

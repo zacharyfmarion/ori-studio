@@ -359,9 +359,54 @@ export function foldedFigureLocalGeometry(
 }
 
 /**
+ * The point a figure's placement pivots about, and the centre its box reports.
+ *
+ * **These two have to be the same point.** The drawing pivots here and the
+ * canvas-object overlay draws its (invisible, click-taking) polygon around the
+ * box centre — so if they disagree, the figure is visible in one place and
+ * clickable in another. That is exactly what happened when the framed box
+ * started reporting the offset alone while the drawing still pivoted on the
+ * bbox centre: the figure stopped responding to clicks entirely.
+ *
+ * A **framed** 3D figure pivots on local `(0, 0)`, which is where the projection
+ * puts the model centroid — the same point its bounding-sphere frame is centred
+ * on, and a point that does not move as the model turns. A figure with no frame
+ * keeps the local bbox centre, which is the only centre it has.
+ *
+ * At rotation 0 and scale 1 the pivot terms cancel in {@link placementAffine},
+ * so switching a figure from one to the other does not move it — only what its
+ * rotation and scale turn about.
+ */
+function foldedFigurePivot(
+  figure: OristudioCpFoldedFigureEntry,
+  local: { center: Point }
+): Point {
+  const frameRadius = figure.frameRadius ?? null;
+  return frameRadius !== null && frameRadius > 0 ? FRAMED_PIVOT : local.center;
+}
+
+/**
+ * Where a framed figure's model centroid lands, and how big a model unit is,
+ * both in the **user** coordinates a render snapshot's points already live in.
+ *
+ * The projection puts the centroid at its own local `(0, 0)`, but a snapshot
+ * reaches this module through `cpModelToSvg` — so local `(0, 0)` is *not* user
+ * `(0, 0)`, and `frameRadius` is in model units while the box is in user ones.
+ * Getting that wrong put the frame at the origin while the penguin drew around
+ * user (383, 343): the click polygon and the figure were 380 units apart, and
+ * the figure stopped responding to clicks entirely.
+ *
+ * `cpModelToSvg` is a fixed affine — paper bounds onto a fixed rect, no camera —
+ * so both constants are derived from it once rather than restated.
+ */
+const FRAMED_PIVOT: Point = cpModelToSvg({ x: 0, y: 0 });
+const USER_UNITS_PER_MODEL_UNIT: number =
+  cpModelToSvg({ x: 1, y: 0 }).x - cpModelToSvg({ x: 0, y: 0 }).x;
+
+/**
  * The affine a placement applies to local user coordinates:
- * `p ↦ c0 + offset + R(rotation) · scale · (p − c0)`, with `c0` the local bbox
- * centre. Returned in the flat form the per-vertex loops want.
+ * `p ↦ c0 + offset + R(rotation) · scale · (p − c0)`, with `c0` the pivot from
+ * {@link foldedFigurePivot}. Returned in the flat form the per-vertex loops want.
  */
 function placementAffine(
   placement: FoldedFigurePlacement,
@@ -420,7 +465,7 @@ export function cpFoldedToScene(
     if (!snapshot?.primitives.length) continue;
     const local = foldedFigureLocalGeometry(snapshot);
     const opacity = figureOpacity?.(figure) ?? 1;
-    const { a, b, tx, ty } = placementAffine(figure.placement, local.center);
+    const { a, b, tx, ty } = placementAffine(figure.placement, foldedFigurePivot(figure, local));
 
     for (let i = 0; i < local.fillPos.length; i += 2) {
       const x = local.fillPos[i];
@@ -552,19 +597,23 @@ export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
   // The centre is the placement offset alone, because the projection anchors the
   // model centroid at local (0, 0) — so the model stays put inside its frame
   // while it turns, rather than sliding as its bounds change.
+  const local = foldedFigureLocalGeometry(snapshot);
+  if (!local.bounds) return null;
+
   const frameRadius = figure.frameRadius ?? null;
   if (frameRadius !== null && frameRadius > 0) {
-    const side = 2 * frameRadius * figure.placement.scale;
+    const pivot = foldedFigurePivot(figure, local);
+    const side = 2 * frameRadius * USER_UNITS_PER_MODEL_UNIT * figure.placement.scale;
     return {
-      center: { x: figure.placement.offset.x, y: figure.placement.offset.y },
+      // The pivot, not the drawing's bounds — the same point `cpFoldedToScene`
+      // pivots about, so the click polygon lands exactly on the figure.
+      center: { x: pivot.x + figure.placement.offset.x, y: pivot.y + figure.placement.offset.y },
       width: side,
       height: side,
       rotation: figure.placement.rotation,
     };
   }
 
-  const local = foldedFigureLocalGeometry(snapshot);
-  if (!local.bounds) return null;
   const { minX, minY, maxX, maxY } = local.bounds;
   return {
     // The local centre is the placement's pivot, so it only ever translates.
