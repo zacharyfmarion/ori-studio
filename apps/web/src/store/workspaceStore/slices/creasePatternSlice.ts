@@ -2533,16 +2533,42 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
 
     updateOristudioCpFoldedFigureModel: async (id, update) => {
       const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+
+      // A 3D figure keeps its model on `folded3d`, not in the kernel, and the
+      // projector is a pure function of (render model, model, camera) — so this
+      // is a re-projection rather than a round trip. No request sequencing
+      // either: there is nothing in flight to land out of order.
+      const spatial = figure?.folded3d ?? null;
+      if (figure && spatial) {
+        const model: OristudioCpFoldedFigureModel = { ...spatial.model, ...update };
+        const next = { ...spatial, model };
+        const renderSnapshot = reproject3dFigureAt(
+          { ...figure, folded3d: next },
+          figure.displayStyle,
+          figure.camera ?? null
+        );
+        takeCanvasSelection('folded-figure', {
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === figure.id
+              ? {
+                  ...candidate,
+                  folded3d: next,
+                  // A figure reopened from a file has no render model, so it
+                  // cannot be re-projected; keep the stored picture rather than
+                  // blanking it, exactly as the camera setter does.
+                  renderSnapshot: renderSnapshot ?? candidate.renderSnapshot,
+                }
+              : candidate
+          ),
+          oristudioCpActiveFoldedFigureId: figure.id,
+          oristudioCpError: null,
+          dirty: true,
+        });
+        return true;
+      }
+
       if (figure?.handle == null || !figure.snapshot) {
-        // `!figure.snapshot` is a "not ready" test, and a 3D figure trips it for
-        // a different reason — it keeps no kernel model at all. Say which,
-        // rather than telling a user looking at a finished figure that no folded
-        // model is ready. The verb is gated off for a 3D figure
-        // (`foldedFigureCapabilities`), so this is a backstop, not a path.
-        const message =
-          figure && (figure.folded3d ?? null) !== null
-            ? 'A 3D folded model has no colours or sides to change'
-            : 'No folded model is ready';
+        const message = 'No folded model is ready';
         set({
           oristudioCpError: message,
           error: { code: 'invalid_operation', message },

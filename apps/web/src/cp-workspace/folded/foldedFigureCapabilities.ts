@@ -48,7 +48,14 @@ export interface FoldedFigureCapabilities {
    * that is a pure re-projection needing no kernel at all.
    */
   flip: boolean;
-  /** Colours and alpha — the folded-model menu. Kernel model write; 3D has none. */
+  /**
+   * Colours, side and alpha — the folded-model menu.
+   *
+   * True for both kinds now. A flat figure writes its model through the kernel;
+   * a 3D one keeps the model on `folded3d` and re-projects, which is a pure
+   * function and needs no round trip. It was false for 3D while that write path
+   * did not exist, which left the whole menu greyed out on a 3D figure.
+   */
   editModel: boolean;
   /** Batch to a numbered solution. Deliberately absent in 3D. */
   foldToCase: boolean;
@@ -84,7 +91,7 @@ export function foldedFigureCapabilities(
   if (isFolded3dFigure(figure)) {
     return {
       flip: true,
-      editModel: false,
+      editModel: true,
       foldToCase: false,
       styleChoices: FOLDED_FIGURE_STYLE_CHOICES,
     };

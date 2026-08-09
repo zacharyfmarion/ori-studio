@@ -536,7 +536,10 @@ function FoldedFigureMenuButton({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const model = activeFigure?.snapshot?.model ?? null;
+  // A flat figure keeps its model in the kernel snapshot, a 3D one on
+  // `folded3d`. Reading only the first left every control on this menu
+  // showing its fallback for a 3D figure.
+  const model = activeFigure?.snapshot?.model ?? activeFigure?.folded3d?.model ?? null;
   const capabilities = foldedFigureCapabilities(activeFigure);
   // A 3D figure is "ready" without a flat snapshot — that is the kind witness,
   // not a missing field — but its *model* controls stay off, because it keeps no

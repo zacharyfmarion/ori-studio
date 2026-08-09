@@ -65,19 +65,27 @@ would mean a stored figure disagreeing with the build that opens it.
 Measured against `FoldedFigureModel` (`folding.rs:286`) and what
 `folded3dPaperStyle` (`foldedFigure3dProjection.ts:239`) reads today.
 
+**Corrected on contact with the code.** The first draft of this table said the
+colours "work" on a 3D figure. The *projector* reads them — `folded3dPaperStyle`
+does — but `foldedFigureCapabilities` returned `editModel: false` for a 3D
+figure, so the whole menu was greyed out and there was no way to change any of
+them. Reading a field is not the same as having a control that writes it, and
+checking only the first is how this got recorded wrong.
+
 | Option | 3D today | Work |
 | --- | --- | --- |
-| **Front colour** | works | none |
-| **Back colour** | works | none |
-| **Line colour** | works | none |
-| **Anti-alias** | works (drives `lineWidth`) | none |
+| **Front colour** | now editable — was read-only | done |
+| **Back colour** | now editable — was read-only | done |
+| **Line colour** | now editable — was read-only | done |
+| **Anti-alias** | now editable — was read-only | done |
 | **Shadow** | **ignored** | §1 |
 | **Transparency** (`transparent_transparency`, `transparency_color`) | **ignored** | §2 |
 | **Scale / rotation** | already work, via the canvas handles | none — §3 |
 | **State** (front/back) | works, as a camera | none |
 
-So the honest scope is **two options to implement**, not eight. Everything else
-either already works or is deliberately not a control.
+So the honest scope is **one option left to implement** — shadow. Transparency
+and the whole write path for colours, side and anti-alias are done; scale and
+rotation are deliberately not controls.
 
 ### 1. Shadow
 

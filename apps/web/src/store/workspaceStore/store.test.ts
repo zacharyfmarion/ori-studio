@@ -7850,3 +7850,87 @@ describe('orbit focus follows the selection out', () => {
     expect(useWorkspaceStore.getState().oristudioCpFocusedFoldedFigureId).toBeNull();
   });
 });
+
+describe('changing a 3D folded model appearance', () => {
+  /**
+   * The folded-model menu was greyed out on a 3D figure. `editModel` was false
+   * because the write path did not exist: a flat figure's model lives in the
+   * kernel, a 3D one's on `folded3d`, and only the first had a setter. The
+   * projector is a pure function of (render model, model, camera), so the 3D
+   * write is a re-projection rather than a round trip.
+   */
+  async function seedSpatialFigure() {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([
+        cpLine(
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+        ),
+      ]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const figure = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(figure.folded3d ?? null).not.toBeNull();
+    return figure;
+  }
+
+  it('accepts a colour change and keeps it on the 3D snapshot', async () => {
+    const figure = await seedSpatialFigure();
+    await expect(
+      useWorkspaceStore
+        .getState()
+        .updateOristudioCpFoldedFigureModel(figure.id, {
+          front_color: { red: 10, green: 20, blue: 30 },
+        })
+    ).resolves.toBe(true);
+
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(after.folded3d?.model.front_color).toEqual({ red: 10, green: 20, blue: 30 });
+    // The flat snapshot stays null: changing colours must not make a figure look
+    // like both kinds at once.
+    expect(after.snapshot).toBeNull();
+  });
+
+  it('re-projects, so the change reaches what is drawn', async () => {
+    const figure = await seedSpatialFigure();
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!.renderSnapshot;
+    await expect(
+      useWorkspaceStore
+        .getState()
+        .updateOristudioCpFoldedFigureModel(figure.id, {
+          front_color: { red: 1, green: 2, blue: 3 },
+        })
+    ).resolves.toBe(true);
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!.renderSnapshot;
+    expect(after).not.toEqual(before);
+  });
+
+  it('still refuses a figure that has neither model', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [
+        {
+          id: 'empty',
+          title: 'f',
+          handle: null,
+          sourceKind: 'generated-3d',
+          sourceCpRevision: null,
+          startingFaceId: 1,
+          displayStyle: 'Paper5',
+          status: 'error',
+          snapshot: null,
+          folded3d: null,
+          renderSnapshot: null,
+          placement: IDENTITY_FOLDED_PLACEMENT,
+          error: null,
+        },
+      ] as never,
+    });
+    await expect(
+      useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel('empty', {})
+    ).resolves.toBe(false);
+  });
+});

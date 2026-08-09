@@ -70,13 +70,16 @@ describe('foldedFigureCapabilities', () => {
     expect(isFolded3dFigure(null)).toBe(false);
   });
 
-  it('withholds model editing and case batching from a 3D figure', () => {
-    // Not defence in depth: `updateOristudioCpFoldedFigureModel` rejects any
-    // figure with a null flat snapshot before the bridge call, so an ungated
-    // colour change reaches no kernel guard — it produces "No folded model is
-    // ready", which is neither true nor about kinds.
+  it('offers model editing to both kinds, and case batching only to the flat one', () => {
+    // `editModel` was false for a 3D figure while there was no write path — the
+    // model lives on `folded3d`, not in the kernel — which greyed out the whole
+    // folded-model menu. `updateOristudioCpFoldedFigureModel` now re-projects
+    // instead, so the colours, side and alpha are all reachable.
+    //
+    // `foldToCase` stays withheld: batching to a numbered solution is a kernel
+    // walk, and the 3D stream is stepped rather than indexed.
     expect(foldedFigureCapabilities(spatialFigure)).toMatchObject({
-      editModel: false,
+      editModel: true,
       foldToCase: false,
     });
     expect(foldedFigureCapabilities(flatFigure)).toMatchObject({
