@@ -187,10 +187,10 @@ The reason to be careful, stated as a check rather than an intention:
 ## Checklist
 
 ### Phase 1 — The seam
-- [ ] `foldedFigureAppearance.ts` with `foldedAppearanceSupport`, React-free
-- [ ] Exhaustiveness test: every option answered for a flat and a 3D figure
-- [ ] Inspector renders availability from it; no control is enabled-and-inert
-- [ ] `PORTING.md` records where `folding.rs` ends and `folding3d`/the projector
+- [x] `foldedFigureAppearance.ts` with `foldedAppearanceSupport`, React-free
+- [x] Exhaustiveness test: every option answered for a flat and a 3D figure
+- [x] Inspector renders availability from it; no control is enabled-and-inert
+- [x] `PORTING.md` records where `folding.rs` ends and `folding3d`/the projector
       begin for appearance
 
 ### Phase 2 — Shadow
@@ -200,13 +200,16 @@ The reason to be careful, stated as a check rather than an intention:
 - [ ] `PORTING.md` divergence note
 
 ### Phase 3 — Transparency
-- [ ] `transparent_transparency` drives the projector's alpha
-- [ ] Decide `transparency_color` from the Java drawer; `unsupported` if it has
-      no 3D reading, and say so in the support function's doc
+- [x] `transparent_transparency` drives the projector's alpha
+- [x] `transparency_color` left alone. It selects which *render pass* the flat
+      drawer uses (`transparent_render_pass_name`), which is a Java2D pass name
+      and has no reading in a projector that composites its own alpha. Not
+      surfaced as a control on either kind of figure, and the field stays on the
+      ported type so Oriedita files round-trip
 
 ### Validation
-- [ ] `npx tsc --noEmit`, `npx vitest run`, `npx eslint .`
-- [ ] `npm run i18n:check` for any new label
+- [x] `npx tsc --noEmit`, `npx vitest run`, `npx eslint .`
+- [x] `npm run i18n:check` for any new label
 - [ ] `cargo test --workspace` — expected to be a no-op; if `folding.rs` changed,
       the change is out of scope
 - [ ] Oriedita render oracle green

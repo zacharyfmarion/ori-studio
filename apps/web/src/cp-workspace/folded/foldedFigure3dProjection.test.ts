@@ -67,6 +67,7 @@ const STYLE: Folded3dPaperStyle = {
   back: [1, 1, 1],
   line: [0, 0, 0],
   faceAlpha: 1,
+  transparentAlpha: 16 / 255,
   lineWidth: 1.200000048,
   antiAlias: true,
   lighting: true,
@@ -551,6 +552,42 @@ describe('the layer order the kernel computed', () => {
     const back = planeOrder(model, antipodalCamera(camera));
     expect(front).not.toEqual(back);
     expect([...front].reverse()).toEqual(back);
+  });
+});
+
+describe('X-ray transparency', () => {
+  it('takes its alpha from the model, not from a constant of ours', () => {
+    // Oriedita uses `transparent_transparency` directly as the fill alpha and
+    // defaults it to 16/255 — faint on purpose, because the picture is built
+    // from where layers stack rather than from one layer reading well.
+    const faint = projectFolded3dModel(
+      fixture('spikes_small'),
+      options({ displayStyle: 'Transparent3', style: { ...STYLE, transparentAlpha: 16 / 255 } })
+    );
+    const strong = projectFolded3dModel(
+      fixture('spikes_small'),
+      options({ displayStyle: 'Transparent3', style: { ...STYLE, transparentAlpha: 200 / 255 } })
+    );
+    const alphaOf = (projection: { snapshot: { primitives: OristudioCpFoldedRenderPrimitive[] } }) =>
+      fills(projection.snapshot.primitives)
+        .map((primitive) =>
+          primitive.style.paint.kind === 'color' ? primitive.style.paint.color.alpha : -1
+        )
+        .find((alpha) => alpha >= 0);
+    expect(alphaOf(faint)).toBeLessThan(alphaOf(strong)!);
+    expect(alphaOf(faint)).toBe(16);
+  });
+
+  it('leaves the paper style opaque, so only X-ray is affected', () => {
+    const paper = projectFolded3dModel(
+      fixture('spikes_small'),
+      options({ style: { ...STYLE, transparentAlpha: 16 / 255 } })
+    );
+    for (const primitive of fills(paper.snapshot.primitives)) {
+      if (primitive.style.paint.kind === 'color') {
+        expect(primitive.style.paint.color.alpha).toBe(255);
+      }
+    }
   });
 });
 

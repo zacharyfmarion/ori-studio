@@ -328,6 +328,7 @@
     },
     "sendImageToBack": "이미지를 맨 뒤로 보내기",
     "shadow": "그림자",
+    "shadowUnsupported3d": "3D 접힌 모델에는 아직 그림자가 그려지지 않습니다",
     "showFoldedModelShadow": "접힌 모델 그림자 표시",
     "side": "면",
     "stale": "오래됨",

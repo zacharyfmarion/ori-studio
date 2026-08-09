@@ -340,6 +340,7 @@
     },
     "sendImageToBack": "Bild in den Hintergrund senden",
     "shadow": "Schatten",
+    "shadowUnsupported3d": "Für ein gefaltetes 3D-Modell werden noch keine Schatten gezeichnet",
     "showFoldedModelShadow": "Schatten des gefalteten Modells anzeigen",
     "side": "Seite",
     "stale": "Veraltet",

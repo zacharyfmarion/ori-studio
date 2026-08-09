@@ -2281,7 +2281,8 @@
     "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
-    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4565,7 +4566,8 @@
     "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
-    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6849,7 +6851,8 @@
     "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
-    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9103,7 +9106,8 @@
     "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
-    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11357,7 +11361,8 @@
     "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
-    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13641,7 +13646,8 @@
     "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
-    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15925,7 +15931,8 @@
     "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
-    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -18179,6 +18186,7 @@
     "panels:foldedFigureActions.otherSide": "8deeda4d7e66",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
-    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21"
+    "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
   }
 }

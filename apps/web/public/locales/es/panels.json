@@ -352,6 +352,7 @@
     },
     "sendImageToBack": "Enviar imagen al fondo",
     "shadow": "Sombra",
+    "shadowUnsupported3d": "Todavía no se dibujan sombras para un modelo plegado en 3D",
     "showFoldedModelShadow": "Mostrar la sombra del modelo plegado",
     "side": "Cara",
     "stale": "Obsoleto",

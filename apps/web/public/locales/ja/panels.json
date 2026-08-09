@@ -328,6 +328,7 @@
     },
     "sendImageToBack": "画像を最背面へ",
     "shadow": "影",
+    "shadowUnsupported3d": "3D の折り上がりモデルにはまだ影を描画できません",
     "showFoldedModelShadow": "折りモデルの影を表示",
     "side": "面",
     "stale": "要再折り",

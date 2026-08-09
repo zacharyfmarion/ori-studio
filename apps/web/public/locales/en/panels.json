@@ -340,6 +340,7 @@
     },
     "sendImageToBack": "Send image to back",
     "shadow": "Shadow",
+    "shadowUnsupported3d": "Shadows are not drawn for a 3D folded model yet",
     "showFoldedModelShadow": "Show folded model shadow",
     "side": "Side",
     "stale": "Stale",

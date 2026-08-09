@@ -166,6 +166,28 @@ differently:
 - **`FoldGraph`'s rings are reversed once** on the way in. Upstream never asks
   which way a face is wound, so its clockwise convention is invisible there and
   load-bearing here.
+- **The appearance controls are shared, but only some of them reach 3D.**
+  `FoldedFigureModel` is *Oriedita's* type — its field set, defaults and wire
+  codes are parity surface, and a new upstream appearance field belongs there and
+  nowhere else. What our 3D renderer can do with those fields is a separate
+  question, answered in one place:
+  `apps/web/src/cp-workspace/folded/foldedFigureAppearance.ts`. The inspector
+  renders availability from it, so a control is never present, enabled and inert.
+  Three consequences worth knowing before porting an upstream appearance change:
+  - `transparent_transparency` is honoured in 3D, using upstream's own reading of
+    it — the value *is* the fill alpha, default `16/255`.
+  - `transparency_color` is not. It selects a Java2D *render pass*
+    (`transparent_render_pass_name`), which a projector compositing its own alpha
+    has no reading for. The field stays on the type so files round-trip.
+  - `scale` / `rotation` are not wired to any control on either kind of figure.
+    Ori Studio transforms a figure through `FoldedFigurePlacement`, driven by the
+    canvas handles and stored in the `.osf`; wiring the model fields as well would
+    give one figure two transforms that disagree. Scaling and rotating a folded
+    figure works — through the handles.
+  - Shadows are **not** drawn in 3D. Upstream's shadow is an offset band along a
+    subface boundary, derived from the subface arrangement and the layer
+    hierarchy; the 3D path keeps that machinery in the kernel and the projector
+    never sees it. The control is shown disabled rather than hidden.
 - **Two faces meeting across a segment that is not a crease is refused.** The
   flat path mirrors across one — `find_adjacent_line` applies no colour filter,
   so an unassigned crease or an interior cut folds the paper 180° — and that

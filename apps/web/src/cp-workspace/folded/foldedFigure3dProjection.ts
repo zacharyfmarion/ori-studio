@@ -129,6 +129,17 @@ export interface Folded3dPaperStyle {
   line: readonly [number, number, number];
   /** Fill opacity, `0..1`. Below 1 disables hidden-piece culling. */
   faceAlpha: number;
+  /**
+   * Face opacity for the X-ray style, `0..1` — the model's own
+   * `transparent_transparency` rather than a constant of ours.
+   *
+   * Oriedita uses that field directly as the fill alpha and defaults it to
+   * `16/255`, which is faint on purpose: a single layer is barely there and the
+   * picture is built from where layers *stack*. Substituting a value that reads
+   * well for one layer would throw that away, so the number comes from the
+   * model.
+   */
+  transparentAlpha: number;
   /** Java2D stroke width, in the same convention the flat kernel emits. */
   lineWidth: number;
   antiAlias: boolean;
@@ -243,6 +254,7 @@ export function folded3dPaperStyle(model: OristudioCpFoldedFigureModel): Folded3
     back: [model.back_color.red / 255, model.back_color.green / 255, model.back_color.blue / 255],
     line: [model.line_color.red / 255, model.line_color.green / 255, model.line_color.blue / 255],
     faceAlpha: 1,
+    transparentAlpha: model.transparent_transparency / 255,
     lineWidth: model.anti_alias ? 1.200000048 : 1.0,
     antiAlias: model.anti_alias,
     lighting: true,
@@ -612,7 +624,16 @@ interface StylePlan {
  * `push_folded_display_style_pass_primitives` has arms only for `Transparent3`
  * and `Paper5`. They draw the wireframe and no paper.
  */
-function stylePlan(style: OristudioCpFoldedFigureDisplayStyle): StylePlan {
+function stylePlan(
+  style: OristudioCpFoldedFigureDisplayStyle,
+  /**
+   * The X-ray alpha, when the caller has a model to take it from.
+   *
+   * Defaulted so `folded3dBspItems` — which only wants to know *whether* fills
+   * and strokes are drawn — does not have to carry a style it never reads.
+   */
+  transparentAlpha: number = TRANSPARENT_FACE_ALPHA
+): StylePlan {
   switch (style) {
     case 'None0':
       return { fills: false, strokes: false, faceAlpha: 1, annotateUndetermined: false };
@@ -624,7 +645,7 @@ function stylePlan(style: OristudioCpFoldedFigureDisplayStyle): StylePlan {
       return {
         fills: true,
         strokes: true,
-        faceAlpha: TRANSPARENT_FACE_ALPHA,
+        faceAlpha: transparentAlpha,
         annotateUndetermined: false,
       };
     case 'Paper5':
@@ -655,7 +676,7 @@ export function projectFolded3dModel(
   options: Folded3dProjectionOptions
 ): Folded3dProjection {
   const anchor = options.anchor ?? { x: 0, y: 0 };
-  const plan = stylePlan(options.displayStyle);
+  const plan = stylePlan(options.displayStyle, options.style.transparentAlpha);
   const uniforms = cameraUniformsFor(options.camera, modelCentroid(model));
   const eye = orthographicEye(options.camera);
   const coplanarEps = folded3dCoplanarEpsilon(model, options.tolerances);

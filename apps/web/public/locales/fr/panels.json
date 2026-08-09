@@ -352,6 +352,7 @@
     },
     "sendImageToBack": "Mettre l'image à l'arrière-plan",
     "shadow": "Ombre",
+    "shadowUnsupported3d": "Les ombres ne sont pas encore dessinées pour un modèle plié en 3D",
     "showFoldedModelShadow": "Afficher l'ombre du modèle plié",
     "side": "Face",
     "stale": "Obsolète",

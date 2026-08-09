@@ -328,6 +328,7 @@
     },
     "sendImageToBack": "将图像置于底层",
     "shadow": "阴影",
+    "shadowUnsupported3d": "尚不支持为 3D 折叠模型绘制阴影",
     "showFoldedModelShadow": "显示折叠模型阴影",
     "side": "侧面",
     "stale": "已过期",

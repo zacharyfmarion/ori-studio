@@ -352,6 +352,7 @@
     },
     "sendImageToBack": "Enviar imagem para trás",
     "shadow": "Sombra",
+    "shadowUnsupported3d": "As sombras ainda não são desenhadas para um modelo dobrado em 3D",
     "showFoldedModelShadow": "Mostrar sombra do modelo dobrado",
     "side": "Lado",
     "stale": "Desatualizado",

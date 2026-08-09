@@ -148,6 +148,7 @@ describe('exporting a 3D folded figure', () => {
       back: [1, 1, 1],
       line: [0, 0, 0],
       faceAlpha: 1,
+  transparentAlpha: 16 / 255,
       lineWidth: 1.200000048,
       antiAlias: true,
       lighting: true,

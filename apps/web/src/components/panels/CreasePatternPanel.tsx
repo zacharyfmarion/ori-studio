@@ -134,6 +134,7 @@ import { CpFoldedFigureToolbar } from '../../cp-workspace/folded/CpFoldedFigureT
 import { useFoldedFigures } from '../../cp-workspace/folded/useFoldedFigures';
 import { foldedFigureMenuItemsWith } from '../../cp-workspace/folded/foldedFigureMenuItems';
 import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-workspace/canvasObjects/transformableObject';
+import { foldedAppearanceEnabled } from '../../cp-workspace/folded/foldedFigureAppearance';
 import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
 import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
 import { useInlineSimulations } from '../../cp-workspace/inlineSimulation/useInlineSimulations';
@@ -666,11 +667,27 @@ function FoldedFigureMenuButton({
           ))}
           {/* No Case field: stepping through the layer-ordering solutions is
               "Another solution" on the figure's own toolbar and context menu. */}
-          <div className="folded-figure-menu__toggle-row">
+          <div
+            className="folded-figure-menu__toggle-row"
+            // Shown but disabled on a 3D figure rather than hidden: a control
+            // that disappears between figure kinds reads as a bug, and one that
+            // is enabled and does nothing is worse than either. The title says
+            // which case this is. See `foldedFigureAppearance`.
+            title={
+              activeFigure && !foldedAppearanceEnabled(activeFigure, 'shadow')
+                ? t(
+                    'panels:creasePattern.shadowUnsupported3d',
+                    'Shadows are not drawn for a 3D folded model yet'
+                  )
+                : undefined
+            }
+          >
             <span>{t('panels:creasePattern.shadow', 'Shadow')}</span>
             <Toggle
               checked={model?.display_shadows ?? false}
-              disabled={!modelReady}
+              disabled={
+                !modelReady || (activeFigure ? !foldedAppearanceEnabled(activeFigure, 'shadow') : false)
+              }
               onChange={(display_shadows) => onModelUpdate({ display_shadows })}
               aria-label={t('panels:creasePattern.showFoldedModelShadow', 'Show folded model shadow')}
             />
