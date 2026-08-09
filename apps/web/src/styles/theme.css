@@ -147,34 +147,6 @@
   border-radius: var(--radius-lg);
 }
 
-/*
- * A primary button and its caret sharing one outline. The halves stay separate
- * buttons (see SplitButton), so the seam is made by flattening the edges that
- * meet and pulling them together over the doubled border.
- */
-.ui-split-button {
-  display: inline-flex;
-  align-items: stretch;
-}
-
-.ui-split-button__primary {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.ui-split-button__caret {
-  margin-left: -1px;
-  padding-left: 6px;
-  padding-right: 6px;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-/* The open caret must not sit under its own menu's shadow as if unpressed. */
-.ui-split-button__caret[data-state='open'] {
-  z-index: 1;
-}
-
 .ui-control--sm {
   height: 28px;
   padding: 0 10px;
@@ -203,6 +175,57 @@
   width: 32px;
   height: 32px;
   padding: 0;
+}
+
+/*
+ * A primary button and its caret sharing one outline. The halves stay separate
+ * buttons (see SplitButton), so the seam is made by flattening the edges that
+ * meet and pulling them together over the doubled border.
+ *
+ * After the size classes on purpose. The caret is a single-class selector like
+ * `.ui-control--sm`, so source order is the whole tie-break — placed before
+ * them, the size padding won and the caret came out as wide as a text button.
+ */
+.ui-split-button {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.ui-split-button__primary {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/*
+ * Sized, not padded. The caret holds one glyph and never holds anything else,
+ * so a fixed width is the honest description of it — and unlike padding, width
+ * is a property nothing else on this element sets, so it cannot be outbid.
+ */
+.ui-split-button__caret {
+  width: 24px;
+  padding: 0;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/*
+ * The glyph keeps its size whatever padding reaches the caret.
+ *
+ * `padding: 0` above cannot be relied on: App.css loads after this file and
+ * narrows toolbar controls below 460px with `.toolbar__actions .ui-control--sm`,
+ * which outranks any single class here. That left 6px of content box for a 14px
+ * icon, and the flex item duly shrank to 6px. Fixing the shrink rather than
+ * re-fighting the cascade means the next rule to reach this button cannot
+ * squash it either.
+ */
+.ui-split-button__caret > svg {
+  flex: none;
+}
+
+/* The open caret must not sit under its own menu's shadow as if unpressed. */
+.ui-split-button__caret[data-state='open'] {
+  z-index: 1;
 }
 
 .ui-icon-control--lg {
