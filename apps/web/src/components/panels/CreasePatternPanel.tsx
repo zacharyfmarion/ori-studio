@@ -1104,13 +1104,18 @@ export function CreasePatternPanel() {
         // press must not do it: someone who only wanted to nudge the figure would
         // otherwise never get a move gesture at all.
         //
+        // `folded.selected`, never `folded.active` — the latter falls back to the
+        // most recent generated figure when *nothing* is selected, so comparing
+        // against it made the very first press a focusing one and a plain
+        // click-and-drag started turning the model instead of moving it.
+        //
         // A no-op on a flat figure — the store refuses it — so no check here.
-        if (id === activeFoldedFigure?.id) folded.orbit.focus(id);
+        if (id === folded.selected?.id) folded.orbit.focus(id);
         else setOristudioCpActiveFoldedFigure(id);
       } else setSelectedAnnotation(id);
     },
     [
-      activeFoldedFigure,
+      folded.selected,
       folded.orbit,
       isFoldedFigureId,
       inlineSimulations,
