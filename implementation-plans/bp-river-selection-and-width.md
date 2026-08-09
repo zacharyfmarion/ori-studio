@@ -1,5 +1,7 @@
 # BP River Selection and Width
 
+Shipped in [#230](https://github.com/zacharyfmarion/ori-studio/pull/230).
+
 ## Goal
 
 In the BP packing pane, make a river a **first-class selectable object** and let
@@ -312,7 +314,12 @@ gestures cannot be verified there):
       `bp.layout.updateRiverLength` into `updateRiverWidth`
 - [x] Analytics — **not taken**, see the section above for why
 - [x] i18n: extract, translate 8 locales, stamp, check
-- [x] The `BpPackingPanel.tsx` line cap did not fire — the two mounts landed
-      within it, because the flap-radius geometry left the file at the same time
+- [x] The `BpPackingPanel.tsx` line cap: this change alone stayed under it
+      (1970 → 2001, cap 2014), because the flap-radius geometry left the file at
+      the same time. It was raised to 2023 in the merge with #227, which took
+      the same file 1970 → 1992 independently
+- [x] Tree pane: draw the length on internal edges too, so a river's width is
+      visible in the pane that sets it (not in the original plan — the number
+      turned out to be missing there)
 - [x] Lint / typecheck / unit tests green (2991 tests)
 - [ ] Hand the browser checklist to Zach
