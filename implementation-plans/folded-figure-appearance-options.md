@@ -73,10 +73,11 @@ Measured against `FoldedFigureModel` (`folding.rs:286`) and what
 | **Anti-alias** | works (drives `lineWidth`) | none |
 | **Shadow** | **ignored** | §1 |
 | **Transparency** (`transparent_transparency`, `transparency_color`) | **ignored** | §2 |
-| **Scale / rotation** | ignored, and should stay so | §3 |
+| **Scale / rotation** | already work, via the canvas handles | none — §3 |
 | **State** (front/back) | works, as a camera | none |
 
-So the honest scope is **two options to implement and one to retire**, not eight.
+So the honest scope is **two options to implement**, not eight. Everything else
+either already works or is deliberately not a control.
 
 ### 1. Shadow
 
@@ -113,17 +114,28 @@ real meaning in 3D. `transparency_color` needs a look at the Java drawer before
 anything is decided; it is not obvious it has a 3D reading at all, and
 `unsupported` is an acceptable answer if it does not.
 
-### 3. Scale and rotation — retire, do not implement
+### 3. Scale and rotation — already work, and nothing changes
 
-`FoldedFigureModel.scale` / `.rotation` are Oriedita's *display* transform. Ori
-Studio already has `FoldedFigurePlacement`, which the canvas gestures drive and
-which the `.osf` stores; the model fields are only ever seeded from imported
-Oriedita metadata. Making them live would give a figure two transforms that
-disagree.
+**No work here.** An earlier draft of this plan had a phase to "retire the
+scale/rotation controls", which was wrong on both counts: the controls the user
+scales and rotates a figure with are the **canvas handles**, they already work,
+and the Folded models inspector section has no scale or rotation control to
+retire. It contains display style, side, the three colours and shadow — nothing
+else.
 
-They report `not-applicable` and the inspector does not show them. The fields
-themselves stay on the ported type untouched, so `.ori` round-trips are
-unaffected — this is a UI decision, not a format one.
+The handles drive `FoldedFigurePlacement`, which the `.osf` stores, and they stay
+live on a focused figure: `inertBodyIds` makes only the *body* polygon inert, so
+orbiting a figure never costs you the ability to size or turn it on the page.
+A folded figure is aspect-locked, so it gets corner handles plus rotate.
+
+The fact worth recording — and the only reason this section exists — is why
+`FoldedFigureModel.scale` / `.rotation` are *not* wired to any of that. They are
+Oriedita's own display transform, seeded only from imported Oriedita metadata.
+Wiring them would give one figure two transforms that disagree. They stay on the
+ported type, untouched, so `.ori` round-trips are unaffected.
+
+`foldedAppearanceSupport` reports them `not-applicable` so that a future control
+cannot be added against the wrong field by accident.
 
 ## Preserving the Oriedita export
 
@@ -157,7 +169,8 @@ The reason to be careful, stated as a check rather than an intention:
 - Any change to `FoldedFigureModel`'s fields, defaults or wire codes.
 - Any change to the flat renderer.
 - A lighting model, ground plane or cast shadows (§1).
-- Making `scale`/`rotation` live (§3).
+- Wiring `FoldedFigureModel.scale`/`.rotation` to anything (§3). The canvas
+  handles already scale and rotate a figure, through `FoldedFigurePlacement`.
 - Per-face or per-crease colour. Oriedita has no such concept and adding one
   here would put a field on the ported type.
 
@@ -190,10 +203,6 @@ The reason to be careful, stated as a check rather than an intention:
 - [ ] `transparent_transparency` drives the projector's alpha
 - [ ] Decide `transparency_color` from the Java drawer; `unsupported` if it has
       no 3D reading, and say so in the support function's doc
-
-### Phase 4 — Retire scale/rotation from the UI
-- [ ] `not-applicable`; inspector hides them
-- [ ] Test that `.ori` round-trip is unchanged, since the fields stay on the type
 
 ### Validation
 - [ ] `npx tsc --noEmit`, `npx vitest run`, `npx eslint .`
