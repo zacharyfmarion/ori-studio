@@ -149,10 +149,18 @@ function Toolbar() {
           <Save size={15} />
         </IconButton>
         <span className="toolbar__separator" />
+        {/*
+          Optimize is the primary action and Send to Edit the secondary one, in
+          both design kinds. Optimize is the step that makes the design; Send is
+          the hand-off you reach for once it is made. The two kinds used to
+          disagree about this — TreeMaker promoted Send as soon as it was
+          available, box-pleat demoted it as soon as Optimize was — so the same
+          button changed rank depending on which pane you were in.
+        */}
         {optimizeScale.visible && (
           <Button
             size="sm"
-            variant={buildCp.enabled ? 'secondary' : 'primary'}
+            variant="primary"
             disabled={!optimizeScale.enabled}
             title={optimizeScale.reason}
             onClick={() => void handleMenuAction('optimize.scale')}
@@ -164,7 +172,7 @@ function Toolbar() {
         {buildCp.visible && treemakerSend && (
           <SplitButton
             size="sm"
-            variant={buildCp.enabled ? 'primary' : 'secondary'}
+            variant="secondary"
             icon={<Send size={14} />}
             label={treemakerSend.label}
             title={treemakerSend.title}
@@ -189,9 +197,7 @@ function Toolbar() {
         {isBpContext && boxPleatSend && (
           <SplitButton
             size="sm"
-            // Optimize is the authoring step and Send to Edit the hand-off, so
-            // Send steps back to secondary while Optimize is offered.
-            variant={bpOptimizeLayout.enabled ? 'secondary' : 'primary'}
+            variant="secondary"
             icon={<Send size={14} />}
             label={boxPleatSend.label}
             title={boxPleatSend.title}
