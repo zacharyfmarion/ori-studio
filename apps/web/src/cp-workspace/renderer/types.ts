@@ -57,6 +57,14 @@ export interface StrokeGeometry {
   color: Float32Array;
   /** Per-segment width multiplier applied to the draw's base width: [m] * count. */
   widthMul: Float32Array;
+  /**
+   * Draw order as a depth in `[0, 1]`, 0 farthest — `[d] * count`.
+   *
+   * Only meaningful to a depth-ordered program (see `createStrokeProgram`), and
+   * only produced for generated folded figures. Absent everywhere else, where it
+   * defaults to 0 and leaves plain painter order exactly as it was.
+   */
+  depth?: Float32Array;
   /** Number of segments. */
   count: number;
   /**
@@ -165,6 +173,13 @@ export interface FillGeometry {
   color: Float32Array;
   /** Vertex count (a multiple of 3). */
   count: number;
+  /**
+   * Draw order as a depth in `[0, 1]`, 0 farthest — `[d] * vertexCount`.
+   *
+   * See {@link StrokeGeometry.depth}. This is what lets a folded figure's fills
+   * and strokes interleave correctly despite being drawn in two batched passes.
+   */
+  depth?: Float32Array;
 }
 
 /** Folded-figure geometry: triangulated fills plus edge strokes (user coords). */

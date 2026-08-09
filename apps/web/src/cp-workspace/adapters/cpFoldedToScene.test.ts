@@ -128,6 +128,83 @@ const strokeTriangle = (placement: FoldedFigurePlacement = IDENTITY_FOLDED_PLACE
     placement
   );
 
+describe('draw order as depth', () => {
+  // The canvas batches every folded fill into one draw and every folded stroke
+  // into another, which throws away the painter order the projector computed —
+  // so a crease behind a face drew over it. The depth attribute is that order
+  // made numeric, and these are the properties the depth test relies on.
+  const twoPrimitives = (): OristudioCpFoldedRenderPrimitive[] => [
+    {
+      sequence: 0,
+      kind: 'fill_polygon',
+      style: { paint: solid(255, 0, 0, 255), stroke: { kind: 'none' }, antialias: 'default' },
+      geometry: {
+        kind: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+        ],
+      },
+    },
+    {
+      sequence: 1,
+      kind: 'stroke_polygon',
+      style: {
+        paint: solid(0, 0, 0, 255),
+        stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
+        antialias: 'default',
+      },
+      geometry: {
+        kind: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 10 },
+        ],
+      },
+    },
+  ];
+
+  it('gives every primitive its own depth, increasing with sequence', () => {
+    const geo = cpFoldedToScene([figure(twoPrimitives())]);
+    const fill = geo.fills.depth!;
+    const stroke = geo.strokes.depth!;
+    expect(fill.length).toBe(geo.fills.count);
+    expect(stroke.length).toBe(geo.strokes.count);
+    // The fill is sequence 0 and the stroke sequence 1, so the stroke must be
+    // nearer — that is the whole fix, in one assertion.
+    expect(stroke[0]).toBeGreaterThan(fill[0]);
+    // Inside (0, 1]: never 0, which is where a missing depth lands, and never
+    // past the cleared value.
+    for (const d of [...fill, ...stroke]) {
+      expect(d).toBeGreaterThan(0);
+      expect(d).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('keeps two figures in their own depth bands, so they cannot interleave', () => {
+    const first = { ...figure(twoPrimitives()), id: 'first' };
+    const second = { ...figure(twoPrimitives()), id: 'second' };
+    const geo = cpFoldedToScene([first, second]);
+    const fill = geo.fills.depth!;
+    // Every vertex of the second figure is nearer than every vertex of the
+    // first, whatever their internal order — a later figure covers an earlier
+    // one, which is what painter order did before.
+    const half = fill.length / 2;
+    const firstMax = Math.max(...Array.from(fill.slice(0, half)));
+    const secondMin = Math.min(...Array.from(fill.slice(half)));
+    expect(secondMin).toBeGreaterThan(firstMax);
+  });
+
+  it('is stable under placement, which only moves the figure', () => {
+    const base = cpFoldedToScene([figure(twoPrimitives())]);
+    const moved = cpFoldedToScene([
+      figure(twoPrimitives(), { offset: { x: 40, y: 7 }, scale: 3, rotation: 1.2 }),
+    ]);
+    expect(Array.from(moved.fills.depth!)).toEqual(Array.from(base.fills.depth!));
+  });
+});
+
 describe('folded figure placement', () => {
   /** The centre of the rendered geometry, which placement pivots on. */
   const drawnCenter = (entry: OristudioCpFoldedFigureEntry) => {

@@ -198,6 +198,18 @@ class FoldedBuilder {
   strokeB: number[] = [];
   strokeColor: number[] = [];
   strokeWidthMul: number[] = [];
+  /**
+   * Draw order per emitted vertex / segment, in `[0, 1]` with 0 farthest.
+   *
+   * Set by the caller before each primitive via {@link depth}; the two `add*`
+   * methods just stamp whatever is current onto everything they emit. That keeps
+   * the depth alongside the geometry it belongs to without threading a parameter
+   * through every call.
+   */
+  fillDepth: number[] = [];
+  strokeDepth: number[] = [];
+  /** The order stamped onto the next primitive. */
+  depth = 0;
 
   /**
    * `colors` is either one colour for the whole ring or one per vertex, in which
@@ -214,6 +226,7 @@ class FoldedBuilder {
       const color = (perVertex ? (colors as Rgba[])[i] : colors) as Rgba;
       this.fillPos.push(flat[i * 2], flat[i * 2 + 1]);
       this.fillColor.push(color[0], color[1], color[2], color[3]);
+      this.fillDepth.push(this.depth);
     }
   }
 
@@ -230,6 +243,7 @@ class FoldedBuilder {
       this.strokeB.push(b.x, b.y);
       this.strokeColor.push(color[0], color[1], color[2], color[3]);
       this.strokeWidthMul.push(width);
+      this.strokeDepth.push(this.depth);
     }
   }
 
@@ -239,6 +253,7 @@ class FoldedBuilder {
         position: new Float32Array(this.fillPos),
         color: new Float32Array(this.fillColor),
         count: this.fillPos.length / 2,
+        depth: new Float32Array(this.fillDepth),
       },
       strokes: {
         a: new Float32Array(this.strokeA),
@@ -246,6 +261,7 @@ class FoldedBuilder {
         color: new Float32Array(this.strokeColor),
         widthMul: new Float32Array(this.strokeWidthMul),
         count: this.strokeA.length / 2,
+        depth: new Float32Array(this.strokeDepth),
       },
     };
   }
@@ -275,6 +291,8 @@ class FoldedBuilder {
       strokeB: new Float32Array(this.strokeB),
       strokeColor: new Float32Array(this.strokeColor),
       strokeWidthMul: new Float32Array(this.strokeWidthMul),
+      fillDepth: new Float32Array(this.fillDepth),
+      strokeDepth: new Float32Array(this.strokeDepth),
       bounds,
       center: bounds
         ? { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }
@@ -299,6 +317,16 @@ export interface FoldedFigureLocalGeometry {
   strokeB: Float32Array;
   strokeColor: Float32Array;
   strokeWidthMul: Float32Array;
+  /**
+   * Draw order within this figure, `[0, 1]` with 0 farthest — one per fill
+   * vertex and one per stroke segment.
+   *
+   * The figure's primitives are emitted in `sequence` order, so this is just
+   * that order made numeric. `cpFoldedToScene` rescales it into a per-figure
+   * band so figures cannot interleave with each other.
+   */
+  fillDepth: Float32Array;
+  strokeDepth: Float32Array;
   /** Bounding box of every emitted vertex, local user coords. Null when empty. */
   bounds: Aabb | null;
   /** Centre of {@link bounds} — the pivot placement scales and rotates about. */
@@ -336,7 +364,15 @@ export function foldedFigureLocalGeometry(
     (l, r) => l.sequence - r.sequence
   );
 
-  for (const primitive of primitives) {
+  for (const [index, primitive] of primitives.entries()) {
+    // The whole point of the depth attribute: the primitives are already in
+    // painter order here, and the canvas is about to lose that by batching every
+    // fill into one draw and every stroke into another. Stamping the order on
+    // now lets the depth test put it back.
+    //
+    // Strictly increasing and strictly inside (0, 1] so no two primitives share a
+    // depth and none lands on the cleared value.
+    builder.depth = (index + 1) / (primitives.length + 1);
     const paint = primitive.style.paint;
     if (!paintDraws(paint)) continue;
     const isFill = primitive.kind.startsWith('fill_');
@@ -459,10 +495,22 @@ export function cpFoldedToScene(
   const strokeB: number[] = [];
   const strokeColor: number[] = [];
   const strokeWidthMul: number[] = [];
+  const fillDepth: number[] = [];
+  const strokeDepth: number[] = [];
+
+  // Each figure gets its own band of the depth range, in draw order, so a later
+  // figure always covers an earlier one however their own primitives are
+  // ordered internally. Without this two overlapping figures would interleave.
+  const bands = Math.max(1, figures.length);
+  let bandIndex = -1;
 
   for (const figure of figures) {
     const snapshot = figure.renderSnapshot;
     if (!snapshot?.primitives.length) continue;
+    bandIndex += 1;
+    // Later figures are nearer, so their band sits closer to 1.
+    const bandBase = bandIndex / bands;
+    const bandSpan = 1 / bands;
     const local = foldedFigureLocalGeometry(snapshot);
     const opacity = figureOpacity?.(figure) ?? 1;
     const { a, b, tx, ty } = placementAffine(figure.placement, foldedFigurePivot(figure, local));
@@ -474,6 +522,9 @@ export function cpFoldedToScene(
     }
     for (let i = 0; i < local.fillColor.length; i++) {
       fillColor.push(i % 4 === 3 ? local.fillColor[i] * opacity : local.fillColor[i]);
+    }
+    for (let i = 0; i < local.fillDepth.length; i++) {
+      fillDepth.push(bandBase + local.fillDepth[i] * bandSpan);
     }
 
     for (let i = 0; i < local.strokeA.length; i += 2) {
@@ -490,6 +541,9 @@ export function cpFoldedToScene(
     for (let i = 0; i < local.strokeWidthMul.length; i++) {
       strokeWidthMul.push(local.strokeWidthMul[i]);
     }
+    for (let i = 0; i < local.strokeDepth.length; i++) {
+      strokeDepth.push(bandBase + local.strokeDepth[i] * bandSpan);
+    }
   }
 
   return {
@@ -497,6 +551,7 @@ export function cpFoldedToScene(
       position: new Float32Array(fillPos),
       color: new Float32Array(fillColor),
       count: fillPos.length / 2,
+      depth: new Float32Array(fillDepth),
     },
     strokes: {
       a: new Float32Array(strokeA),
@@ -504,6 +559,7 @@ export function cpFoldedToScene(
       color: new Float32Array(strokeColor),
       widthMul: new Float32Array(strokeWidthMul),
       count: strokeA.length / 2,
+      depth: new Float32Array(strokeDepth),
     },
   };
 }
