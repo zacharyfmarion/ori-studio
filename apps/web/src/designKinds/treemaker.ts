@@ -1,4 +1,5 @@
 import { DraftingCompass } from 'lucide-react';
+import { treemakerFoldBounds, treemakerPackingCircles } from '../lib/packingCircles';
 import type { EngineClient } from '../store/workspaceStore/engineRuntime';
 import type { WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import type {
@@ -87,13 +88,25 @@ export function createTreemakerSendToEdit(getClient: () => Promise<EngineClient>
     // Build creases first: `exportFold` reads what the last build produced, so
     // exporting without this hands over a stale (or empty) crease pattern.
     await api.buildCreasePattern(handle);
-    return {
+    const payload: SendToEditPayload = {
       text: await api.exportFold(handle),
       // The engine's FOLD already uses the CP editor's crease convention, so no
       // ORIPA-style 2<->3 swap is needed here (unlike box-pleat).
       format: 'fold',
       label: 'Sent design to Edit',
       filename: `${request.title || 'design'}.fold`,
+    };
+    if (!request.includeCircles) return payload;
+
+    // The circle-packing circles: one per leaf, sized by its strained edge and
+    // the scale. Read from the tree rather than the export because the FOLD has
+    // no circle channel our importer would honour — see `place_circles`.
+    const snapshot = await api.snapshot(handle);
+    return {
+      ...payload,
+      label: 'Sent design to Edit with circles',
+      circles: treemakerPackingCircles(snapshot.nodes, snapshot.edges, snapshot.paper),
+      circleSourceBounds: treemakerFoldBounds(snapshot.paper),
     };
   };
 }

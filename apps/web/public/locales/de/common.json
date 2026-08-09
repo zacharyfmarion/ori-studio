@@ -246,7 +246,10 @@
     "optimizeScale": "Skalierung optimieren",
     "save": "Speichern",
     "sendToEdit": "An Bearbeiten senden",
+    "sendToEditMore": "Weitere Optionen für „An Bearbeiten senden“",
     "sendToEditTooltip": "Das Faltmuster dieses Designs an die Bearbeiten-Leinwand senden",
+    "sendToEditWithCircles": "An Bearbeiten senden (mit Kreisen)",
+    "sendToEditWithCirclesTooltip": "Das Faltmuster dieses Designs zusammen mit seinen Packungskreisen senden",
     "settings": "Einstellungen"
   },
   "workspaceRail": {

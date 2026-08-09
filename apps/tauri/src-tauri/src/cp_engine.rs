@@ -319,6 +319,20 @@ pub async fn cp_set_texts(
     .await
 }
 
+#[tauri::command]
+pub async fn cp_place_circles(
+    handle: u32,
+    source_bounds: Vec<f64>,
+    coords: Vec<f64>,
+    radii: Vec<f64>,
+    state: State<'_, CpEngine>,
+) -> Result<(), EngineError> {
+    run(state, move |session| {
+        session.place_circles(handle, &source_bounds, &coords, &radii)
+    })
+    .await
+}
+
 // --- folding ----------------------------------------------------------------
 
 #[tauri::command]
@@ -471,6 +485,7 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_export_share",
     "cp_load_share",
     "cp_set_texts",
+    "cp_place_circles",
     "cp_folded_figure_fold",
     "cp_folded_figure_fold_selected",
     "cp_folded_figure_snapshot",

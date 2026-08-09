@@ -20,7 +20,7 @@ use crate::folding::{
     WorkerOverlapSearchError, fold_another, folded_figure_render_snapshot_from_session,
     folded_figure_snapshot_from_session, folding_estimate_to_case,
 };
-use crate::geometry::LineSegment;
+use crate::geometry::{Circle, LineColor, LineSegment, Point};
 use crate::geometry_transport::{self, CompactGeometry};
 use crate::model::TextElement;
 use crate::share;
@@ -62,6 +62,7 @@ pub const CP_ENGINE_COMMANDS: &[&str] = &[
     "export_share",
     "load_share",
     "set_texts",
+    "place_circles",
     "folded_figure_fold",
     "folded_figure_fold_selected",
     "folded_figure_snapshot",
@@ -135,6 +136,93 @@ impl From<io::IoError> for EngineError {
     fn from(error: io::IoError) -> Self {
         Self::invalid_input(error.to_string())
     }
+}
+
+/// Colour Oriedita itself writes for the circles it keeps — see the packing
+/// circles in its bundled `default-molecules/*.fold`, which are all `"3"`.
+const CIRCLE_COLOR: LineColor = LineColor::Cyan3;
+
+/// The transform a loader applied to a file's coordinates, recovered by
+/// comparing where the geometry started against where it ended up.
+///
+/// Recovered rather than reproduced: the importers' normalizations live in
+/// `io::fold` and friends, and a second copy of that arithmetic here would be
+/// free to drift from the one that actually ran. Measuring the result cannot.
+///
+/// Uniform and keyed on height, because that is what `import_fold_document`
+/// does — it maps the source bbox's min corner onto `(-200, -200)` and scales
+/// by `400 / source_height`, leaving a non-square paper wider than 400. The
+/// `.cp` and `.orh` readers move nothing, which falls out as the identity.
+struct SourceToDocument {
+    scale: f64,
+    source_min: Point,
+    document_min: Point,
+}
+
+impl SourceToDocument {
+    fn resolve(model: &CreasePatternModel, source_bounds: &[f64]) -> Result<Self, EngineError> {
+        let source_min = Point::new(source_bounds[0], source_bounds[1]);
+        let source_height = source_bounds[3] - source_bounds[1];
+        if source_height <= 0.0 || !source_height.is_finite() {
+            return Err(EngineError::new(
+                "invalid_circles",
+                "source_bounds must have a positive, finite height",
+            ));
+        }
+
+        let Some(bounds) = line_segment_bounds(model) else {
+            // No lines means no evidence of what the loader did. Refusing beats
+            // guessing the identity: a caller in this position has handed us a
+            // document that is not the one its circles belong to.
+            return Err(EngineError::new(
+                "invalid_circles",
+                "cannot place circles on a document with no line segments",
+            ));
+        };
+
+        let document_height = bounds.1.y - bounds.0.y;
+        if document_height <= 0.0 {
+            // Every line on one horizontal: the scale would be zero and every
+            // circle would collapse onto a point. Same reasoning as above — say
+            // so rather than emit degenerate geometry.
+            return Err(EngineError::new(
+                "invalid_circles",
+                "cannot place circles on a document whose lines have no height",
+            ));
+        }
+
+        Ok(Self {
+            scale: document_height / source_height,
+            source_min,
+            document_min: bounds.0,
+        })
+    }
+
+    fn point(&self, x: f64, y: f64) -> Point {
+        Point::new(
+            self.document_min.x + (x - self.source_min.x) * self.scale,
+            self.document_min.y + (y - self.source_min.y) * self.scale,
+        )
+    }
+
+    fn length(&self, value: f64) -> f64 {
+        value * self.scale
+    }
+}
+
+/// `(min, max)` over every line-segment endpoint, or `None` when there are none.
+fn line_segment_bounds(model: &CreasePatternModel) -> Option<(Point, Point)> {
+    let mut points = model
+        .line_segments
+        .iter()
+        .flat_map(|segment| [segment.a, segment.b]);
+    let first = points.next()?;
+    Some(points.fold((first, first), |(min, max), point| {
+        (
+            Point::new(min.x.min(point.x), min.y.min(point.y)),
+            Point::new(max.x.max(point.x), max.y.max(point.y)),
+        )
+    }))
 }
 
 impl From<FoldingEstimateError> for EngineError {
@@ -524,6 +612,63 @@ impl CpSession {
         Ok(())
     }
 
+    /// Add circles to a document, given in the coordinate space of the file it
+    /// was loaded from.
+    ///
+    /// This exists because a loader may move the geometry: `import_fold_document`
+    /// normalizes a FOLD's line segments onto the ±200 box, while the `.cp` and
+    /// `.orh` readers use their file's coordinates verbatim. A caller holding
+    /// circles that belong *with* those lines — "Send to Edit (include circles)"
+    /// handing over a design's packing — cannot know which happened, and should
+    /// not have to. It states the bounds its own coordinates were in, and the
+    /// same transform the lines underwent is recovered here by comparing those
+    /// bounds against where the lines actually landed.
+    ///
+    /// Circles cannot ride in the file instead. Oriedita's FOLD importer reads
+    /// circles and *then* moves only the line segments (`FoldImporter.toSave`
+    /// calls `FoldLineSet.move`, which touches `lineSegments` alone), so a FOLD's
+    /// circles are left wherever the file put them; our importer ports that quirk
+    /// faithfully. `.cp` has no circle channel at all.
+    ///
+    /// Appends rather than replaces, so a document that already carries circles
+    /// keeps them — unlike [`Self::set_texts`], whose whole job is to be the
+    /// document's text layer.
+    pub fn place_circles(
+        &mut self,
+        handle: u32,
+        source_bounds: &[f64],
+        coords: &[f64],
+        radii: &[f64],
+    ) -> Result<(), EngineError> {
+        if source_bounds.len() != 4 {
+            return Err(EngineError::new(
+                "invalid_circles",
+                "source_bounds must be [min_x, min_y, max_x, max_y]",
+            ));
+        }
+        if coords.len() != radii.len() * 2 {
+            return Err(EngineError::new(
+                "invalid_circles",
+                "coords length must be twice the number of radii",
+            ));
+        }
+        if radii.is_empty() {
+            return Ok(());
+        }
+
+        let document = self.document_mut(handle)?;
+        let transform = SourceToDocument::resolve(&document.crease_pattern, source_bounds)?;
+        for (index, radius) in radii.iter().enumerate() {
+            let center = transform.point(coords[index * 2], coords[index * 2 + 1]);
+            document.crease_pattern.add_circle(Circle::from_center(
+                center,
+                transform.length(*radius),
+                CIRCLE_COLOR,
+            ));
+        }
+        Ok(())
+    }
+
     // --- folding ----------------------------------------------------------------
 
     pub fn folded_figure_fold(
@@ -774,5 +919,133 @@ mod tests {
     fn operation_catalog_is_non_empty() {
         let session = CpSession::new();
         assert!(!session.operation_descriptors().is_empty());
+    }
+
+    /// A FOLD on a 1x1 paper: the importer scales it by 400 and recentres it on
+    /// the origin, and a circle stated in the *paper's* coordinates has to make
+    /// the same trip. This is the TreeMaker send in miniature.
+    #[test]
+    fn place_circles_follows_the_fold_importers_normalization() {
+        let mut session = CpSession::new();
+        let handle = session
+            .load_fold(
+                r#"{"vertices_coords":[[0,0],[1,0],[1,1],[0,1]],
+                    "edges_vertices":[[0,1],[1,2],[2,3],[3,0]],
+                    "edges_assignment":["B","B","B","B"]}"#,
+                "",
+            )
+            .expect("load fold");
+
+        // Centre of the paper, a quarter of its width across.
+        session
+            .place_circles(handle, &[0.0, 0.0, 1.0, 1.0], &[0.5, 0.5], &[0.25])
+            .expect("place circles");
+
+        let circles = &session.document(handle).unwrap().crease_pattern.circles;
+        assert_eq!(circles.len(), 1);
+        assert!((circles[0].x - 0.0).abs() < 1e-9);
+        assert!((circles[0].y - 0.0).abs() < 1e-9);
+        assert!((circles[0].r - 100.0).abs() < 1e-9);
+        assert_eq!(circles[0].color, LineColor::Cyan3);
+    }
+
+    /// The `.cp` reader moves nothing, so a circle stated in the file's own
+    /// coordinates must land exactly where it was stated. This is the BP send.
+    #[test]
+    fn place_circles_is_the_identity_when_the_loader_moved_nothing() {
+        let mut session = CpSession::new();
+        let handle = session.load_cp(SQUARE_CP, "").expect("load cp");
+
+        session
+            .place_circles(handle, &[0.0, 0.0, 1.0, 1.0], &[0.25, 0.75], &[0.1])
+            .expect("place circles");
+
+        let circles = &session.document(handle).unwrap().crease_pattern.circles;
+        assert!((circles[0].x - 0.25).abs() < 1e-9);
+        assert!((circles[0].y - 0.75).abs() < 1e-9);
+        assert!((circles[0].r - 0.1).abs() < 1e-9);
+    }
+
+    /// Existing circles survive. A document loaded from a file that carried its
+    /// own circles must not lose them to a design's packing.
+    #[test]
+    fn place_circles_appends_rather_than_replacing() {
+        let mut session = CpSession::new();
+        let handle = session.load_cp(SQUARE_CP, "").expect("load cp");
+        session
+            .document_mut(handle)
+            .unwrap()
+            .crease_pattern
+            .add_circle(Circle::new(9.0, 9.0, 1.0, LineColor::Magenta5));
+
+        session
+            .place_circles(handle, &[0.0, 0.0, 1.0, 1.0], &[0.5, 0.5], &[0.2])
+            .expect("place circles");
+
+        let circles = &session.document(handle).unwrap().crease_pattern.circles;
+        assert_eq!(circles.len(), 2);
+        assert_eq!(circles[0].color, LineColor::Magenta5);
+    }
+
+    #[test]
+    fn place_circles_accepts_an_empty_list() {
+        let mut session = CpSession::new();
+        let handle = session.load_cp(SQUARE_CP, "").expect("load cp");
+        session
+            .place_circles(handle, &[0.0, 0.0, 1.0, 1.0], &[], &[])
+            .expect("empty is a no-op");
+        assert!(
+            session
+                .document(handle)
+                .unwrap()
+                .crease_pattern
+                .circles
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn place_circles_rejects_malformed_input() {
+        let mut session = CpSession::new();
+        let handle = session.load_cp(SQUARE_CP, "").expect("load cp");
+
+        // One radius needs two coordinates.
+        let error = session
+            .place_circles(handle, &[0.0, 0.0, 1.0, 1.0], &[0.5], &[0.2])
+            .expect_err("mismatched lengths");
+        assert_eq!(error.code, "invalid_circles");
+
+        let error = session
+            .place_circles(handle, &[0.0, 0.0, 1.0], &[0.5, 0.5], &[0.2])
+            .expect_err("bounds must be four numbers");
+        assert_eq!(error.code, "invalid_circles");
+
+        // A zero-height source gives no scale to recover.
+        let error = session
+            .place_circles(handle, &[0.0, 0.0, 1.0, 0.0], &[0.5, 0.5], &[0.2])
+            .expect_err("degenerate bounds");
+        assert_eq!(error.code, "invalid_circles");
+    }
+
+    /// With no lines there is no evidence of what the loader did, so refusing
+    /// beats silently assuming the identity and putting circles somewhere wrong.
+    #[test]
+    fn place_circles_refuses_a_document_with_no_lines() {
+        let mut session = CpSession::new();
+        let handle = session.load_document(CreasePatternDocument::default());
+
+        let error = session
+            .place_circles(handle, &[0.0, 0.0, 1.0, 1.0], &[0.5, 0.5], &[0.2])
+            .expect_err("no lines to measure against");
+        assert_eq!(error.code, "invalid_circles");
+    }
+
+    #[test]
+    fn place_circles_rejects_an_invalid_handle() {
+        let mut session = CpSession::new();
+        let error = session
+            .place_circles(99, &[0.0, 0.0, 1.0, 1.0], &[0.5, 0.5], &[0.2])
+            .expect_err("invalid handle");
+        assert_eq!(error.code, "invalid_handle");
     }
 }

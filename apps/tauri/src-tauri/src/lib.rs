@@ -116,6 +116,7 @@ pub fn run() {
             cp_engine::cp_export_share,
             cp_engine::cp_load_share,
             cp_engine::cp_set_texts,
+            cp_engine::cp_place_circles,
             cp_engine::cp_folded_figure_fold,
             cp_engine::cp_folded_figure_fold_selected,
             cp_engine::cp_folded_figure_snapshot,

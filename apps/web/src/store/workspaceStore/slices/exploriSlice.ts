@@ -481,12 +481,7 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
           get().oristudioCpDocument?.document.crease_pattern.grid.grid_size ?? 0,
         title: exploriTilingLabel(held.document.selected),
       });
-      const ok = await get().importAddOristudioCpText(
-        payload.text,
-        payload.format,
-        payload.label,
-        payload.filename
-      );
+      const ok = await get().importAddOristudioCpText(payload);
       if (ok) {
         useLayoutStore.getState().activatePanel('crease-pattern');
         track(ANALYTICS_EVENTS.exploriSentToEdit, {

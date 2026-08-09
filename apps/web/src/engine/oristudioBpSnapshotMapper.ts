@@ -515,7 +515,7 @@ function packingFlap(
     anchor: { x: flap.x, y: flap.y },
     width: flap.width,
     height: flap.height,
-    radius: radiusForFlap(flap.id, edges) ?? Math.max(flap.width, flap.height) / 2,
+    radius: bpFlapRadius(flap, edges),
     constrained: true,
   };
 }
@@ -624,7 +624,7 @@ function deviceIdFromGraphicsId(id: string): string {
 }
 
 
-function sheet(raw: OristudioBpRawSheet): OristudioBpSheet {
+export function sheet(raw: OristudioBpRawSheet): OristudioBpSheet {
   const kind = raw.type === 'diag' ? 'diagonal' : 'rectangular';
   return {
     kind,
@@ -651,9 +651,21 @@ function vertexDegrees(edges: OristudioBpRawEdge[]): Map<number, number> {
   return degrees;
 }
 
-function radiusForFlap(id: number, edges: OristudioBpRawEdge[]): number | null {
-  const edge = edges.find((candidate) => candidate.n1 === id || candidate.n2 === id);
-  return edge?.length ?? null;
+/**
+ * A flap's radius: the length of the tree edge that reaches its vertex, falling
+ * back to half its longest side for a flap no edge reaches.
+ *
+ * Exported whole, fallback included, because "Send to Edit (include circles)"
+ * needs the same number from the raw project — and exporting only the lookup
+ * left the `??` branch written out twice, which is two spellings of a flap's
+ * radius by another route.
+ */
+export function bpFlapRadius(
+  flap: Pick<OristudioBpRawFlap, 'id' | 'width' | 'height'>,
+  edges: OristudioBpRawEdge[]
+): number {
+  const edge = edges.find((candidate) => candidate.n1 === flap.id || candidate.n2 === flap.id);
+  return edge?.length ?? Math.max(flap.width, flap.height) / 2;
 }
 
 function formatSigned(value: number): string {

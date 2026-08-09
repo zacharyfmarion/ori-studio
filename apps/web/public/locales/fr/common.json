@@ -246,7 +246,10 @@
     "optimizeScale": "Optimiser l'échelle",
     "save": "Enregistrer",
     "sendToEdit": "Envoyer vers Édition",
+    "sendToEditMore": "Autres options d’envoi vers Édition",
     "sendToEditTooltip": "Envoyer le patron de plis de cette conception vers le canevas Édition",
+    "sendToEditWithCircles": "Envoyer vers Édition (avec les cercles)",
+    "sendToEditWithCirclesTooltip": "Envoyer le patron de plis de cette conception avec ses cercles d’empilement",
     "settings": "Paramètres"
   },
   "workspaceRail": {

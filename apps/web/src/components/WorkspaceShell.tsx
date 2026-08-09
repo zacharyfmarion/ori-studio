@@ -1,4 +1,4 @@
-import { selectDesignMethod, selectOristudioBpDocument } from '../store/workspaceStore/designTabs';
+import { selectDesignMethod } from '../store/workspaceStore/designTabs';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -26,6 +26,8 @@ import { FileDropOverlay } from './FileDropOverlay';
 import { panelComponents } from './panels/PanelComponents';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { SplitButton } from './ui/SplitButton';
+import { useSendToEditActions } from '../designKinds/useSendToEditActions';
 import { handleMenuAction } from '../commands/menuActions';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
 import type { DropTargetPolicy } from '../lib/fileDrop';
@@ -104,10 +106,10 @@ function Toolbar() {
   const bpOptimizeLayout = capabilities['bp.optimize.layout'];
   const buildCp = capabilities['cp.build'];
   const activeContext = useWorkspaceStore((state) => state.activeEditingContext);
-  const sendBpToEdit = useWorkspaceStore((state) => state.sendOristudioBpToEdit);
-  const sendTreeToEdit = useWorkspaceStore((state) => state.sendTreeCreasePatternToEdit);
-  const hasBpDocument = useWorkspaceStore((state) => selectOristudioBpDocument(state) !== null);
-  const bpBusy = useWorkspaceStore((state) => state.oristudioBpBusy);
+  // Labels, gating and the calls behind Send to Edit — including whether the
+  // kind has a with-circles variant to put behind the caret.
+  const treemakerSend = useSendToEditActions('treemaker');
+  const boxPleatSend = useSendToEditActions('box-pleat');
   // In a BP design the top action sends the design's crease pattern to the Edit
   // canvas (Import(Add) merge), in place of TreeMaker's Optimize/Build.
   const isBpContext = activeContext === 'bp-tree' || activeContext === 'bp-packing';
@@ -147,10 +149,18 @@ function Toolbar() {
           <Save size={15} />
         </IconButton>
         <span className="toolbar__separator" />
+        {/*
+          Optimize is the primary action and Send to Edit the secondary one, in
+          both design kinds. Optimize is the step that makes the design; Send is
+          the hand-off you reach for once it is made. The two kinds used to
+          disagree about this — TreeMaker promoted Send as soon as it was
+          available, box-pleat demoted it as soon as Optimize was — so the same
+          button changed rank depending on which pane you were in.
+        */}
         {optimizeScale.visible && (
           <Button
             size="sm"
-            variant={buildCp.enabled ? 'secondary' : 'primary'}
+            variant="primary"
             disabled={!optimizeScale.enabled}
             title={optimizeScale.reason}
             onClick={() => void handleMenuAction('optimize.scale')}
@@ -159,21 +169,18 @@ function Toolbar() {
             {t('common:toolbar.optimizeScale', 'Optimize Scale')}
           </Button>
         )}
-        {buildCp.visible && (
-          <Button
+        {buildCp.visible && treemakerSend && (
+          <SplitButton
             size="sm"
-            variant={buildCp.enabled ? 'primary' : 'secondary'}
-            disabled={!buildCp.enabled}
-            title={
-              buildCp.enabled
-                ? t('common:toolbar.sendToEditTooltip', "Send this design's crease pattern to the Edit canvas")
-                : buildCp.reason
-            }
-            onClick={() => void sendTreeToEdit()}
-          >
-            <Send size={14} />
-            {t('common:toolbar.sendToEdit', 'Send to Edit')}
-          </Button>
+            variant="secondary"
+            icon={<Send size={14} />}
+            label={treemakerSend.label}
+            title={treemakerSend.title}
+            disabled={treemakerSend.disabled}
+            menuLabel={treemakerSend.menuLabel}
+            actions={treemakerSend.actions}
+            onClick={treemakerSend.run}
+          />
         )}
         {bpOptimizeLayout.visible && (
           <Button
@@ -187,19 +194,18 @@ function Toolbar() {
             {t('common:toolbar.optimizeLayout', 'Optimize')}
           </Button>
         )}
-        {isBpContext && (
-          <Button
+        {isBpContext && boxPleatSend && (
+          <SplitButton
             size="sm"
-            // Optimize is the authoring step and Send to Edit the hand-off, so
-            // Send steps back to secondary while Optimize is offered.
-            variant={bpOptimizeLayout.enabled ? 'secondary' : 'primary'}
-            disabled={!hasBpDocument || bpBusy}
-            title={t('common:toolbar.sendToEditTooltip', "Send this design's crease pattern to the Edit canvas")}
-            onClick={() => void sendBpToEdit()}
-          >
-            <Send size={14} />
-            {t('common:toolbar.sendToEdit', 'Send to Edit')}
-          </Button>
+            variant="secondary"
+            icon={<Send size={14} />}
+            label={boxPleatSend.label}
+            title={boxPleatSend.title}
+            disabled={boxPleatSend.disabled}
+            menuLabel={boxPleatSend.menuLabel}
+            actions={boxPleatSend.actions}
+            onClick={boxPleatSend.run}
+          />
         )}
         {(optimizeScale.visible || buildCp.visible || isBpContext) && (
           <span className="toolbar__separator" />

@@ -246,7 +246,10 @@
     "optimizeScale": "Otimizar escala",
     "save": "Salvar",
     "sendToEdit": "Enviar para Edição",
+    "sendToEditMore": "Mais opções de Enviar para Edição",
     "sendToEditTooltip": "Enviar o padrão de vincos deste design para o canvas de Edição",
+    "sendToEditWithCircles": "Enviar para Edição (incluir círculos)",
+    "sendToEditWithCirclesTooltip": "Enviar o padrão de vincos deste design junto com seus círculos de empacotamento",
     "settings": "Configurações"
   },
   "workspaceRail": {

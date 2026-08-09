@@ -12,7 +12,7 @@ import type { Point } from '../../lib/geometry';
 import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
-import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
+import type { SendToEditPayload } from '../../designKinds/types';
 import type {
   AppStatus,
   CreaseColorMode,
@@ -342,13 +342,14 @@ export interface ProjectSliceActions {
     options?: { confirmDiscard?: boolean }
   ) => Promise<boolean>;
   importAddCreasePattern: (fileService?: FileService) => Promise<boolean>;
-  /** Merge crease-pattern text into the Edit canvas (in-memory Import(Add)). */
-  importAddOristudioCpText: (
-    text: string,
-    format: ImportedCreasePatternFormat,
-    label: string,
-    filename?: string
-  ) => Promise<boolean>;
+  /**
+   * Merge a design's crease pattern into the Edit canvas (in-memory Import(Add)).
+   *
+   * Takes the descriptor's payload whole rather than spreading it: every caller
+   * has one, and the fields travel together — circles are meaningless without
+   * the bounds that place them.
+   */
+  importAddOristudioCpText: (payload: SendToEditPayload) => Promise<boolean>;
   saveProject: (fileService?: FileService) => Promise<boolean>;
   saveProjectAs: (fileService?: FileService) => Promise<boolean>;
   exportV5: (fileService?: FileService) => Promise<boolean>;
@@ -706,8 +707,11 @@ export interface CreasePatternSliceActions {
    * canvas via Import(Add), rather than replacing the Edit surface. This is the
    * TreeMaker analogue of {@link sendOristudioBpToEdit}, backing the toolbar's
    * "Send to Edit" action.
+   *
+   * With `includeCircles`, the leaf circles come too, as Oriedita circle
+   * annotations on the merged pattern.
    */
-  sendTreeCreasePatternToEdit: () => Promise<boolean>;
+  sendTreeCreasePatternToEdit: (includeCircles?: boolean) => Promise<boolean>;
   markFoldSourceChanged: () => void;
   ensureFoldArtifacts: () => Promise<FoldArtifacts | null>;
   refreshFoldArtifacts: () => Promise<FoldArtifacts | null>;
@@ -1027,8 +1031,14 @@ export interface OristudioBpSliceActions {
   ) => Promise<boolean>;
   /** Delete a tree node (leaf-cascade; the engine refuses below the minimum size). */
   deleteOristudioBpTreeNode: (id: number) => Promise<boolean>;
-  /** Send the BP design's crease pattern to the Edit canvas (Import(Add) merge). */
-  sendOristudioBpToEdit: () => Promise<boolean>;
+  /**
+   * Send the BP design's crease pattern to the Edit canvas (Import(Add) merge).
+   *
+   * With `includeCircles`, the flap circles come too — but only for flaps that
+   * *are* circles; one with a width or a height has no honest representation
+   * there. See `boxPleatPackingCircles`.
+   */
+  sendOristudioBpToEdit: (includeCircles?: boolean) => Promise<boolean>;
   /**
    * Set the length of the tree edge between two vertices (min 1). `subtreeUpdates`
    * repositions the child subtree so the rendered edge stays length-faithful;

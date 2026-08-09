@@ -2242,7 +2242,10 @@
     "panels:bpPacking.riverWidth": "3019947b6daf",
     "panels:bpPacking.riverWidthDecrease": "01277830bd24",
     "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
-    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4487,7 +4490,10 @@
     "panels:bpPacking.riverWidth": "3019947b6daf",
     "panels:bpPacking.riverWidthDecrease": "01277830bd24",
     "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
-    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6732,7 +6738,10 @@
     "panels:bpPacking.riverWidth": "3019947b6daf",
     "panels:bpPacking.riverWidthDecrease": "01277830bd24",
     "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
-    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8947,7 +8956,10 @@
     "panels:bpPacking.riverWidth": "3019947b6daf",
     "panels:bpPacking.riverWidthDecrease": "01277830bd24",
     "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
-    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11162,7 +11174,10 @@
     "panels:bpPacking.riverWidth": "3019947b6daf",
     "panels:bpPacking.riverWidthDecrease": "01277830bd24",
     "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
-    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13407,7 +13422,10 @@
     "panels:bpPacking.riverWidth": "3019947b6daf",
     "panels:bpPacking.riverWidthDecrease": "01277830bd24",
     "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
-    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15652,7 +15670,10 @@
     "panels:bpPacking.riverWidth": "3019947b6daf",
     "panels:bpPacking.riverWidthDecrease": "01277830bd24",
     "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
-    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -17867,6 +17888,9 @@
     "panels:bpPacking.riverWidth": "3019947b6daf",
     "panels:bpPacking.riverWidthDecrease": "01277830bd24",
     "panels:bpPacking.riverWidthGroup": "2c4ce824b8f5",
-    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c"
+    "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
+    "common:toolbar.sendToEditMore": "e46a2d85481f",
+    "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
   }
 }
