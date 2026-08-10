@@ -2779,7 +2779,17 @@ export function CreasePatternWebglCanvas({
         // Asked with the gesture's own predicate, so the open hand appears
         // exactly where a press would turn the figure and nowhere else. Skipped
         // mid-gesture: a drag owns the cursor until it is released.
-        setOrbitPointer(orbitPressPoint(e.clientX, e.clientY) ? 'over' : 'none');
+        //
+        // Gated on something being focused first. `orbitPressPoint` measures the
+        // canvas to place the pointer, and this runs on every move over the
+        // app's hottest surface — with no focused figure there is nothing to be
+        // over, so the answer is 'none' without touching layout.
+        setOrbitPointer(
+          liveRef.current.foldedOrbit?.focusedId != null &&
+            orbitPressPoint(e.clientX, e.clientY) != null
+            ? 'over'
+            : 'none'
+        );
       }
       if (orbiting) {
         // The pointer is captured, so a drag that leaves the figure keeps

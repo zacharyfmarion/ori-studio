@@ -25,4 +25,28 @@ describe('cpCanvasCursor', () => {
     expect(cpCanvasCursor(state({ panDragging: true, panToolActive: true }))).toBe('grabbing');
     expect(cpCanvasCursor(state({ panDragging: true, panModifierHeld: true }))).toBe('grabbing');
   });
+
+  it('offers a grab over a focused folded figure', () => {
+    expect(cpCanvasCursor(state({ foldedOrbitHovered: true }))).toBe('grab');
+  });
+
+  it('leaves the cursor alone away from the figure, however it is focused', () => {
+    // The regression this replaced: keyed on focus rather than the pointer, a
+    // fresh fold dressed the entire canvas in a grab cursor, promising a turn
+    // everywhere except over the figure.
+    expect(cpCanvasCursor(state({ foldedOrbitHovered: false }))).toBeUndefined();
+  });
+
+  it('keeps the closed hand while turning, even once the drag leaves the figure', () => {
+    // The pointer is captured, so a turn continues past the figure's edge. The
+    // cursor has to follow it rather than reverting the moment hover is lost.
+    expect(cpCanvasCursor(state({ foldedOrbitDragging: true, foldedOrbitHovered: false }))).toBe(
+      'grabbing'
+    );
+  });
+
+  it('lets an active tool keep its cursor while a figure is focused elsewhere', () => {
+    // Focus alone is not a cursor. Only standing over the figure is.
+    expect(cpCanvasCursor(state())).toBeUndefined();
+  });
 });
