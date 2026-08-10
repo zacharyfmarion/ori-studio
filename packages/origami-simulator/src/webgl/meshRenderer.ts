@@ -511,6 +511,40 @@ void main(){
   fragColor = vec4(color, u_alpha);
 }`;
 
+/**
+ * How one {@link MeshRenderer.render} call composes with the ones around it.
+ *
+ * Both fields default to today's behaviour — clear the whole buffer, draw every
+ * face — so a caller that passes nothing is byte-identical to one written before
+ * this existed. That is deliberate: the solver path must not change.
+ *
+ * They exist because `faceAlpha`, `frontColor` and `backColor` are *uniforms*,
+ * so one draw can only express one opacity. A folded figure needs two: the cells
+ * whose layer order the kernel resolved are opaque, and the cells it could not
+ * order are translucent, which is the honest way to say "these could be either
+ * way round". Without `clear` the second draw would erase the first, and without
+ * `faceRange` the first would already have painted the faces the second wants.
+ */
+export interface MeshDrawOptions {
+  /**
+   * Clear colour and depth before drawing. Pass `false` for every pass after the
+   * first of a multi-pass frame.
+   */
+  clear?: boolean;
+  /**
+   * A contiguous run of `topology.faceIndices` to draw, in *indices* (three per
+   * triangle). Clamped to the buffer, so an out-of-range request draws less
+   * rather than reading past the end.
+   */
+  faceRange?: { start: number; count: number };
+}
+
+/** Clamp a face-index count or offset into `[0, limit]`. */
+function clampRange(value: number, limit: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(Math.floor(value), Math.max(0, limit));
+}
+
 export class MeshRenderer {
   private readonly gl: WebGL2RenderingContext;
   private readonly faceProgram: WebGLProgram;
@@ -564,7 +598,12 @@ export class MeshRenderer {
     gl.bindVertexArray(null);
   }
 
-  render(camera: CameraUniforms, settings: RenderSettings, target: WebGLFramebuffer | null): void {
+  render(
+    camera: CameraUniforms,
+    settings: RenderSettings,
+    target: WebGLFramebuffer | null,
+    options: MeshDrawOptions = {}
+  ): void {
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, target);
     // The buffer may be larger than this render: it is shared by every inline
@@ -575,16 +614,18 @@ export class MeshRenderer {
     gl.viewport(0, 0, camera.width, camera.height);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
-    // Straight (non-premultiplied) alpha, matching the context GlCore requests,
-    // so the colour is left alone and only the alpha decides what shows through.
-    gl.clearColor(
-      settings.background[0],
-      settings.background[1],
-      settings.background[2],
-      settings.backgroundAlpha ?? 1
-    );
-    gl.clearDepth(1);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    if (options.clear ?? true) {
+      // Straight (non-premultiplied) alpha, matching the context GlCore requests,
+      // so the colour is left alone and only the alpha decides what shows through.
+      gl.clearColor(
+        settings.background[0],
+        settings.background[1],
+        settings.background[2],
+        settings.backgroundAlpha ?? 1
+      );
+      gl.clearDepth(1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    }
 
     const translucent = settings.faceAlpha < 1;
     if (settings.showFaces) {
@@ -616,7 +657,13 @@ export class MeshRenderer {
         'u_strainClip',
         settings.strainClip ?? 5
       );
-      gl.drawElements(gl.TRIANGLES, this.faceCount, gl.UNSIGNED_INT, 0);
+      const first = clampRange(options.faceRange?.start ?? 0, this.faceCount);
+      const count = clampRange(
+        options.faceRange?.count ?? this.faceCount - first,
+        this.faceCount - first
+      );
+      // UNSIGNED_INT indices, so the byte offset is four per index.
+      if (count > 0) gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_INT, first * 4);
     }
 
     if (settings.showEdges && this.edgeVertexCount > 0) {

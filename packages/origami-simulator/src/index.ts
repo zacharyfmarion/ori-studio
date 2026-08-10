@@ -14,6 +14,7 @@ export {
   creaseFrameScale,
   rasterCreaseInk,
   type CreaseDash,
+  type MeshDrawOptions,
   type MeshTopology,
   type RenderSettings,
 } from './webgl/meshRenderer.js';
