@@ -66,7 +66,6 @@ import {
   FOLDED_3D_CELL_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
   FOLDED_3D_EDGE_ATTR_STRIDE,
-  FOLDED_3D_PLANE_FRAME_STRIDE,
   type OristudioCpFold3dTolerances,
   type OristudioCpFolded3dRenderModel,
   type OristudioCpFoldedFigureDisplayStyle,
@@ -79,6 +78,15 @@ import {
   type OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
 import { CONTRADICTION_FILL } from '../adapters/cpFoldedToScene';
+import {
+  cellRing,
+  cellStack,
+  edgeEnds,
+  faceNormal,
+  modelCentroid,
+  modelRadius,
+  planeFrame,
+} from './folded3dModelReader';
 import type { Point } from '../../lib/geometry';
 
 /**
@@ -331,91 +339,6 @@ export function foldedFigureOtherSideCamera(
   camera: FoldedFigureCamera | null | undefined
 ): FoldedFigureCamera {
   return antipodalCamera(camera ?? DEFAULT_FOLDED_3D_CAMERA);
-}
-
-/* --------------------------------------------------------------------------
- * Decoding — the four strides, and nothing else
- * ----------------------------------------------------------------------- */
-
-interface PlaneFrame {
-  up: Vec3;
-  origin: Vec3;
-  u: Vec3;
-  v: Vec3;
-}
-
-function planeFrame(model: OristudioCpFolded3dRenderModel, plane: number): PlaneFrame {
-  const base = plane * FOLDED_3D_PLANE_FRAME_STRIDE;
-  const at = (offset: number): Vec3 => [
-    model.plane_frames[base + offset] ?? 0,
-    model.plane_frames[base + offset + 1] ?? 0,
-    model.plane_frames[base + offset + 2] ?? 0,
-  ];
-  return { up: at(0), origin: at(3), u: at(6), v: at(9) };
-}
-
-function cellRing(model: OristudioCpFolded3dRenderModel, cell: number): Vec3[] {
-  const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
-  const start = model.cell_attr[base + 1] ?? 0;
-  const length = model.cell_attr[base + 2] ?? 0;
-  const ring: Vec3[] = [];
-  for (let i = 0; i < length; i += 1) {
-    const at = (start + i) * 3;
-    ring.push([model.cell_points[at] ?? 0, model.cell_points[at + 1] ?? 0, model.cell_points[at + 2] ?? 0]);
-  }
-  return ring;
-}
-
-function cellStack(model: OristudioCpFolded3dRenderModel, cell: number): number[] {
-  const base = cell * FOLDED_3D_CELL_ATTR_STRIDE;
-  const start = model.cell_attr[base + 3] ?? 0;
-  const length = model.cell_attr[base + 4] ?? 0;
-  return model.cell_stack.slice(start, start + length);
-}
-
-function faceNormal(model: OristudioCpFolded3dRenderModel, face: number): Vec3 {
-  const at = face * 3;
-  return [model.face_normals[at] ?? 0, model.face_normals[at + 1] ?? 0, model.face_normals[at + 2] ?? 0];
-}
-
-function edgeEnds(model: OristudioCpFolded3dRenderModel, edge: number): [Vec3, Vec3] {
-  const at = edge * 6;
-  return [
-    [model.edge_points[at] ?? 0, model.edge_points[at + 1] ?? 0, model.edge_points[at + 2] ?? 0],
-    [model.edge_points[at + 3] ?? 0, model.edge_points[at + 4] ?? 0, model.edge_points[at + 5] ?? 0],
-  ];
-}
-
-/** Mean of every cell vertex — the point the projection is centred on. */
-function modelCentroid(model: OristudioCpFolded3dRenderModel): Vec3 {
-  const count = Math.floor(model.cell_points.length / 3);
-  if (count === 0) return [0, 0, 0];
-  let x = 0;
-  let y = 0;
-  let z = 0;
-  for (let i = 0; i < count; i += 1) {
-    x += model.cell_points[i * 3] ?? 0;
-    y += model.cell_points[i * 3 + 1] ?? 0;
-    z += model.cell_points[i * 3 + 2] ?? 0;
-  }
-  return [x / count, y / count, z / count];
-}
-
-function modelRadius(model: OristudioCpFolded3dRenderModel): number {
-  const centre = modelCentroid(model);
-  let radius = 0;
-  const count = Math.floor(model.cell_points.length / 3);
-  for (let i = 0; i < count; i += 1) {
-    radius = Math.max(
-      radius,
-      Math.hypot(
-        (model.cell_points[i * 3] ?? 0) - centre[0],
-        (model.cell_points[i * 3 + 1] ?? 0) - centre[1],
-        (model.cell_points[i * 3 + 2] ?? 0) - centre[2]
-      )
-    );
-  }
-  return radius;
 }
 
 /* --------------------------------------------------------------------------
