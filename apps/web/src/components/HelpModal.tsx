@@ -25,6 +25,14 @@ function acknowledgements(t: TFunction): Array<{ title: string; href: string; de
       ),
     },
     {
+      title: t('dialogs:help.acknowledgements.explori.title', 'Brandon Wong and ExplOri 22.5'),
+      href: 'https://225.designorigami.net/',
+      detail: t(
+        'dialogs:help.acknowledgements.explori.detail',
+        'The Search 22.5° design method sends your tree to ExplOri, a searchable archive of 22.5° crease patterns, and shows the closest matches it returns.'
+      ),
+    },
+    {
       title: t('dialogs:help.acknowledgements.oriedita.title', 'Oriedita'),
       href: 'https://github.com/oriedita/oriedita',
       detail: t(

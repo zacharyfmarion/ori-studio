@@ -148,6 +148,10 @@
         "detail": "The box-pleated authoring method is a Rust and WebAssembly port of Mu-Tsun Tsai's Box Pleating Studio.",
         "title": "Mu-Tsun Tsai and Box Pleating Studio"
       },
+      "explori": {
+        "detail": "The Search 22.5° design method sends your tree to ExplOri, a searchable archive of 22.5° crease patterns, and shows the closest matches it returns.",
+        "title": "Brandon Wong and ExplOri 22.5"
+      },
       "oriedita": {
         "detail": "The crease-pattern editor is a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime), including its foldability diagnostics, repairs, and file formats.",
         "title": "Oriedita"

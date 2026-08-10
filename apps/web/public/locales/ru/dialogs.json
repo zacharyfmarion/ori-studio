@@ -158,6 +158,10 @@
         "detail": "Метод создания box-pleating — это порт Box Pleating Studio авторства Mu-Tsun Tsai на Rust и WebAssembly.",
         "title": "Mu-Tsun Tsai и Box Pleating Studio"
       },
+      "explori": {
+        "detail": "Метод создания «Поиск 22,5°» отправляет ваше дерево в ExplOri — доступный для поиска архив паттернов складок 22,5° — и показывает наиболее близкие найденные совпадения.",
+        "title": "Brandon Wong и ExplOri 22.5"
+      },
       "oriedita": {
         "detail": "Редактор паттернов складок — это порт редактора Oriedita на Rust и WebAssembly (сам являющийся форком Orihime), включая его диагностику складываемости, исправления и форматы файлов.",
         "title": "Oriedita"

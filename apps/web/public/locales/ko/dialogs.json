@@ -143,6 +143,10 @@
         "detail": "박스 플리츠 저작 방식은 Mu-Tsun Tsai의 Box Pleating Studio를 Rust와 WebAssembly로 포팅한 것입니다.",
         "title": "Mu-Tsun Tsai와 Box Pleating Studio"
       },
+      "explori": {
+        "detail": "22.5° 검색 저작 방식은 트리를 22.5° 전개도를 검색할 수 있는 아카이브인 ExplOri로 보내고, 반환된 결과 중 가장 가까운 것들을 보여줍니다.",
+        "title": "Brandon Wong과 ExplOri 22.5"
+      },
       "oriedita": {
         "detail": "전개도 편집기는 Oriedita 편집기(Orihime의 포크)를 Rust와 WebAssembly로 포팅한 것으로, 접힘 가능성 진단, 복구, 파일 형식을 포함합니다.",
         "title": "Oriedita"
