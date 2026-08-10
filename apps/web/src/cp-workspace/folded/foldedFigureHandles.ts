@@ -51,6 +51,20 @@ import { clearAllFolded3dOrbits } from './folded3dRuntime';
 const counts = new Map<number, number>();
 
 /**
+ * How many times the handle space has been torn down wholesale.
+ *
+ * Bumped by {@link resetFoldedFigureHandles}, which is what closing or replacing
+ * a document calls. An async caller holding a handle it obtained earlier — a
+ * background rehydrate, say — compares this before adopting: the number changing
+ * means every handle from before, including the one it is holding, belongs to a
+ * kernel document that no longer exists.
+ *
+ * A counter rather than a flag because the question is "is this still the same
+ * space", which two loads in a row would answer wrongly with a boolean.
+ */
+let handleEpoch = 0;
+
+/**
  * The actual free. Injected so the store can supply its runtime binding without
  * this module importing the wasm layer (and so tests can observe frees).
  */
@@ -110,11 +124,17 @@ export function foldedFigureHandleRefCount(handle: number): number {
   return counts.get(handle) ?? 0;
 }
 
+/** Which teardown generation the live handles belong to. See {@link handleEpoch}. */
+export function foldedFigureHandleEpoch(): number {
+  return handleEpoch;
+}
+
 /**
  * Drop all bookkeeping without freeing — for closing a document, where the
  * session's handles go away wholesale, and for test isolation.
  */
 export function resetFoldedFigureHandles(): void {
+  handleEpoch += 1;
   counts.clear();
   resetFolded3dRenderModels();
   // The other 3D side table, torn down at the same point and for the same

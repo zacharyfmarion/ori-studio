@@ -111,6 +111,7 @@ Every event also carries the super properties `app_version`, `app_commit`,
 | `fold solution cycled` | `direction` (`next`/`wrap`), `solution_count_bucket` | The one solution verb on a folded figure |
 | `folded figure orbited` | none | A 3D folded figure was turned by dragging it. Fired once per drag, on release, and only when the camera actually moved — never per pointer move, and never with an angle: a yaw/pitch pair is a measured value about someone's design |
 | `folded figure zoomed` | none | A 3D folded figure's window was zoomed with the wheel. Fired once per burst, when the wheel goes quiet, on the same terms as the orbit — no zoom factor, for the same reason |
+| `folded figure rehydrated` | `trigger` (`background`/`press`), `outcome` (`adopted`/`refused`) | A 3D figure reopened from a file was refolded so it can be turned again. Fired only when a fold was actually attempted — never for a figure the rules skip — and it is the only signal there is that this worked, because the whole process is deliberately invisible. `refused` means the refold did not reproduce the picture on screen, so it was discarded |
 | `foldability checked` | `source` (`pre-fold`), `had_violations`, `violation_count_bucket` | The CAMV check a fold runs before folding |
 | `fold warning shown` | `source` (`pre-fold`) | That check found violations and the warning was raised |
 | `fold warning accepted` | `source`, `accepted`, `suppressed_future_warnings` | The user answered that warning |

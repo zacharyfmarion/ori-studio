@@ -115,6 +115,7 @@ import {
 import type { CreasePatternSlice, WorkspaceSliceCreator, WorkspaceState } from '../types';
 import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotation';
 import {
+  foldedFigureHandleEpoch,
   releaseFoldedFigureHandle,
   releaseFoldedFigureHandles,
   resetFoldedFigureHandles,
@@ -155,9 +156,16 @@ import {
   cpLinesByIds,
   foldedSourceBounds,
   foldedSourceFingerprint,
+  isFoldedFigureStale,
   reselectFoldableLineIds,
   reselectSourceLineIds,
 } from '../../../cp-workspace/folded/foldedFigureStaleness';
+import {
+  canRehydrateFolded3dFigure,
+  folded3dSolutionReplaySteps,
+  folded3dTargetSolution,
+  sameFolded3dFrame,
+} from '../../../cp-workspace/folded/folded3dRehydrate';
 import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 
 /** Cap on the CP undo stack (matches historySlice's MAX_HISTORY). */
@@ -276,6 +284,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
   const modelWriteChain = new Map<string, Promise<unknown>>();
   /** Figures with a live model edit in flight; see `reconcileFoldedFigureModel`. */
   const pendingLiveModelWrites = new Set<string>();
+  /**
+   * Figures with a rehydrate in flight; see
+   * `rehydrateOristudioCpFolded3dFigure`. The background queue and a press can
+   * both name the same figure, and two folds of one figure would leak whichever
+   * handle lost the race.
+   */
+  const pendingFolded3dRehydrations = new Set<string>();
   /**
    * What we last wrote into each kernel handle, so a reconcile that would change
    * nothing costs a comparison instead of a round-trip. Cleared when the handle
@@ -2782,6 +2797,161 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         // valid — it is the *crease pattern* that cannot be folded — and the old
         // kernel handle is untouched, since it is released only after a success.
         return restorePreviousFigure(figure, engineError(error).message);
+      }
+    },
+
+    /**
+     * Give a reopened 3D figure its geometry back, without changing what it
+     * draws.
+     *
+     * A refold in every mechanical respect, and the opposite of one in intent.
+     * **Refold** replaces the picture with one made from the creases as they are
+     * now, which is why it is an explicit verb with an undo entry; this
+     * reproduces the picture that is already on screen, and so records nothing,
+     * dirties nothing, selects nothing and reports nothing. The user is not told
+     * because there is nothing to tell them: the figure looks the same before
+     * and after, and can now be turned.
+     *
+     * Which figures qualify, and why each condition is there, is
+     * {@link canRehydrateFolded3dFigure}. Two more guards live here because they
+     * need the document and the kernel:
+     *
+     * - **Stale figures are refused.** A figure whose creases have moved would
+     *   come back as a *different* fold, which is the one thing this must not
+     *   do. Refold is the door for that, and it asks first.
+     * - **The result has to be the same fold.** A fresh session opens at
+     *   solution 1, so a figure saved at a later one is stepped back to it and
+     *   the index is checked; and the frame the geometry produces is checked
+     *   against the frame the figure is drawn in. Either disagreeing means the
+     *   picture would change, so the handle is freed and the figure keeps
+     *   exactly what it has.
+     *
+     * `pending` is the on-demand case — someone pressed the figure and is
+     * waiting — and shows as the ordinary `loading` status the folded-models
+     * list already words. The background pass leaves the status alone, because
+     * a row that says "Folding…" on its own is a change to what the user sees.
+     */
+    rehydrateOristudioCpFolded3dFigure: async (id, options) => {
+      const oristudioCpDocument = get().oristudioCpDocument;
+      const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      if (!oristudioCpDocument || !figure) return false;
+      if (!canRehydrateFolded3dFigure(figure) || figure.sourceBounds == null) return false;
+      // Left alone on purpose — see the note above.
+      if (isFoldedFigureStale(oristudioCpDocument.document, figure)) return false;
+      // Re-entrancy: the background queue and a press can both name the same
+      // figure, and two folds of it would leak one of the two handles.
+      if (pendingFolded3dRehydrations.has(id)) return false;
+
+      const lineIds = reselectFoldableLineIds(oristudioCpDocument.document, figure.sourceBounds);
+      if (lineIds.length === 0) return false;
+      // Unreachable while the figure is not stale — the fingerprint it matched
+      // is over the same reselect — but the route is the authority on what the
+      // kernel will accept, and folding 3D creases through the flat door is how
+      // a figure silently swaps kind.
+      const route = resolveFoldRoute(oristudioCpDocument.document, lineIds);
+      if (route.kind !== 'spatial') return false;
+      const replaySteps = folded3dSolutionReplaySteps(figure);
+      if (replaySteps === null) return false;
+      const targetSolution = folded3dTargetSolution(figure);
+
+      // Which teardown generation this fold belongs to. A document replaced
+      // while it is in flight frees every handle in the kernel, so adopting the
+      // one that comes back would attach a figure to a dead session.
+      const epoch = foldedFigureHandleEpoch();
+      pendingFolded3dRehydrations.add(id);
+      const setStatus = (status: OristudioCpFoldedFigureEntry['status']) => {
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === id ? { ...candidate, status } : candidate
+          ),
+        });
+      };
+      if (options?.pending) setStatus('loading');
+
+      // Fired only from here on, i.e. only once a fold has actually been asked
+      // for — a figure the rules skip is not an attempt and has nothing to
+      // report. Two enums, no counts: the whole process is invisible by design,
+      // so this is the only evidence that it works in the field.
+      const trigger = options?.pending ? 'press' : 'background';
+
+      /** Give the handle back and leave the figure exactly as it was. */
+      const abandon = async (handle: number | null): Promise<false> => {
+        if (handle !== null) await freeOristudioCpFoldedFigure(handle).catch(() => {});
+        if (options?.pending && foldedFigureHandleEpoch() === epoch) setStatus('ready');
+        track(ANALYTICS_EVENTS.foldedFigureRehydrated, { trigger, outcome: 'refused' });
+        return false;
+      };
+
+      // Held outside the try so a throw part-way through the replay still gives
+      // the handle back; a leaked 3D session is megabytes, not bytes.
+      let handle: number | null = null;
+      try {
+        // Deliberately not wrapped in `withFoldInFlight`: that drives the global
+        // "Folding…" indicator, and a background pass on load must not raise one.
+        const result = await fold3dRuntimeOristudioCpDocument(
+          route.lineIds,
+          figure.startingFaceId ?? 1,
+          figure.folded3d?.model
+        );
+        if (result.status === 'refused') return await abandon(null);
+        handle = result.handle;
+
+        let snapshot = result.snapshot;
+        let render = result.render;
+        for (let step = 0; step < replaySteps; step += 1) {
+          const advanced = await fold3dRuntimeOristudioCpFigureAnother(result.handle);
+          snapshot = advanced.snapshot;
+          render = advanced.render;
+        }
+        // The odometer is deterministic, so this holds within a build. It can
+        // fail across one whose solver enumerates differently, and then the
+        // figure would come back showing a layer order nobody chose — so it is
+        // checked rather than assumed.
+        if (snapshot.current_fold_case !== targetSolution) return await abandon(handle);
+        // Same creases, same fold, same size. Cheap, and it is the one number
+        // that says the geometry the window will draw is the geometry the stored
+        // picture was drawn from.
+        if (!sameFolded3dFrame(folded3dFrameRadius(render), figure.frameRadius)) {
+          return await abandon(handle);
+        }
+
+        if (foldedFigureHandleEpoch() !== epoch) return await abandon(handle);
+        const latest = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+        // Deleted, refolded or rehydrated by another path while this was in
+        // flight. Adopting now would overwrite a newer handle and leak it.
+        if (!latest || latest.handle != null) return await abandon(handle);
+
+        retainFoldedFigureHandle(handle);
+        setFolded3dRenderModel(handle, render);
+        set({
+          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
+            candidate.id === id
+              ? {
+                  ...candidate,
+                  handle,
+                  status: 'ready',
+                  // The live session's own snapshot, not the stored one. They
+                  // describe the same fold, but `discovered_fold_cases` is a
+                  // high-water mark over *this* session's stepping, and keeping
+                  // the file's would make "Show another solution" report a
+                  // history the session it now drives does not have.
+                  folded3d: snapshot,
+                  error: null,
+                }
+              : candidate
+          ),
+          // No `dirty`, no `projectMessage`, no selection, no history entry.
+          // Nothing about the document changed; a figure that could not be
+          // turned now can be.
+        });
+        track(ANALYTICS_EVENTS.foldedFigureRehydrated, { trigger, outcome: 'adopted' });
+        return true;
+      } catch {
+        // Silent by design. A background rehydrate that fails leaves a figure
+        // exactly as good as it was, and `oristudioCpError` is a toast.
+        return await abandon(handle);
+      } finally {
+        pendingFolded3dRehydrations.delete(id);
       }
     },
 

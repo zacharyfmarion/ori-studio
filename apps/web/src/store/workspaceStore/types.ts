@@ -854,6 +854,31 @@ export interface CreasePatternSliceActions {
    * figure is judged out of date.
    */
   refoldOristudioCpFoldedFigure: (id: string) => Promise<boolean>;
+  /**
+   * Give a 3D figure reopened from a file its geometry back, so it can be turned
+   * again — without changing what it draws.
+   *
+   * The render model a 3D figure is re-projected from is deliberately not
+   * persisted, so a reopened figure draws its stored picture and nothing more.
+   * This refolds from the same source region and adopts the result **only if it
+   * reproduces that picture**: same solution index, same frame. It records no
+   * undo entry, sets no `dirty`, takes no selection and raises no error, because
+   * from the user's side nothing happened except that the figure became live.
+   *
+   * A **stale** figure is refused outright: refolding one would replace what is
+   * on screen with a different fold, which is what the explicit **Refold** verb
+   * is for. See `folded/folded3dRehydrate.ts` for the full set of conditions.
+   *
+   * `pending` shows the ordinary `loading` status while it runs — for the
+   * on-demand case, where someone pressed the figure and is waiting. The
+   * background pass leaves the status alone.
+   *
+   * Resolves `true` only when the figure was adopted.
+   */
+  rehydrateOristudioCpFolded3dFigure: (
+    id: string,
+    options?: { pending?: boolean }
+  ) => Promise<boolean>;
   deleteOristudioCpFoldedFigure: (id: string) => Promise<void>;
   setOristudioCpActiveFoldedFigure: (id: string | null) => void;
   /**

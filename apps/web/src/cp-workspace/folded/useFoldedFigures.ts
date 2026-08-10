@@ -42,6 +42,7 @@ import {
   publishFolded3dOrbit,
 } from './folded3dRuntime';
 import { reproject3dFigureAt } from './folded3dReproject';
+import { useFolded3dRehydration } from './useFolded3dRehydration';
 import type { Vec2 } from '../annotations/annotationTransform';
 import {
   clampSimulatorZoom,
@@ -218,6 +219,23 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     }
     return stale;
   }, [generatedFoldedFigures, cpDocument?.document]);
+
+  /**
+   * Give reopened 3D figures their geometry back, in the background.
+   *
+   * Here rather than in the panel because it is the same two derived values the
+   * rest of this hook already owns — which figures came from these creases, and
+   * which of them have drifted — and because a panel that mounted it would be
+   * accumulating behaviour rather than composing it.
+   *
+   * The figure the user is working with goes first: focused if anything is,
+   * otherwise selected.
+   */
+  useFolded3dRehydration({
+    figures: generatedFoldedFigures,
+    staleIds: staleFoldedFigureIds,
+    priorityId: oristudioCpFocusedFoldedFigureId ?? oristudioCpActiveFoldedFigureId,
+  });
 
   // Folded-figure state captured at the start of a gesture, so a whole drag
   // records one undo entry — the same shape the annotation layer uses.

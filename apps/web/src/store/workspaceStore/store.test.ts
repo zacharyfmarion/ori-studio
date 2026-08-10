@@ -66,6 +66,10 @@ import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
 } from '../../cp-workspace/folded/foldedFigureHandles';
+import {
+  dropFolded3dRenderModel,
+  folded3dRenderModel,
+} from '../../cp-workspace/folded/folded3dRenderModels';
 import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from '../../lib/foldAngle';
 import { useLayoutStore } from '../layoutStore';
 import { workspaceForPanelId } from '../../workspaces/workspaces';
@@ -3589,6 +3593,215 @@ describe('workspace store slices', () => {
       const kept = useWorkspaceStore.getState().oristudioCpFoldedFigures[0];
       expect(kept?.folded3d).not.toBeNull();
       expect(kept?.status).toBe('ready');
+    });
+
+    describe('rehydrating a reopened 3D figure', () => {
+      /**
+       * A figure as a file gives it back: the picture, the camera and the frame,
+       * with no kernel session and no geometry behind them. Produced by folding
+       * one and then taking those away, so the entry is exactly what the app
+       * would have written and read back.
+       */
+      async function reopened3dFigure(
+        overrides: Partial<OristudioCpFoldedFigureEntry> = {}
+      ) {
+        const folded = await fold3dFigure();
+        dropFolded3dRenderModel(folded.handle);
+        const entry: OristudioCpFoldedFigureEntry = {
+          ...folded,
+          handle: null,
+          ...overrides,
+        };
+        useWorkspaceStore.setState({
+          oristudioCpFoldedFigures: [entry],
+          oristudioCpHistoryPast: [],
+          dirty: false,
+        });
+        oristudioCpMocks.fold3dOristudioCpDocument.mockClear();
+        oristudioCpMocks.fold3dOristudioCpFigureAnother.mockClear();
+        oristudioCpMocks.freeOristudioCpFoldedFigure.mockClear();
+        return entry;
+      }
+
+      const figureNow = () => useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+
+      it('makes a reopened figure live without touching what it draws', async () => {
+        const before = await reopened3dFigure();
+        expect(folded3dRenderModel(before.handle)).toBeUndefined();
+
+        await expect(
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(before.id)
+        ).resolves.toBe(true);
+
+        const after = figureNow();
+        // The point of the whole phase: geometry to re-project from.
+        expect(after.handle).not.toBeNull();
+        expect(folded3dRenderModel(after.handle)).toBeDefined();
+        // And the point of doing it quietly: everything the user can see is the
+        // same object it was.
+        expect(after.renderSnapshot).toBe(before.renderSnapshot);
+        expect(after.camera).toBe(before.camera);
+        expect(after.placement).toBe(before.placement);
+        expect(after.frameRadius).toBe(before.frameRadius);
+        expect(after.displayStyle).toBe(before.displayStyle);
+        expect(after.status).toBe('ready');
+        // Nothing happened, as far as the document is concerned. A rehydrate
+        // that dirtied the file would make opening one a reason to save it, and
+        // an undo entry would make it a thing to undo past.
+        expect(useWorkspaceStore.getState().dirty).toBe(false);
+        expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(0);
+        expect(useWorkspaceStore.getState().oristudioCpError).toBeNull();
+      });
+
+      it('leaves a stale figure alone', async () => {
+        const figure = await reopened3dFigure({
+          // The fingerprint no longer matches the creases the reselect finds,
+          // which is exactly what staleness means.
+          sourceFingerprint: 'folded-from-creases-that-have-since-moved',
+        });
+        expect(
+          isFoldedFigureStale(
+            useWorkspaceStore.getState().oristudioCpDocument!.document,
+            figure
+          )
+        ).toBe(true);
+
+        await expect(
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id)
+        ).resolves.toBe(false);
+        // Not "folded and then discarded" — never folded at all. Refolding a
+        // stale figure is what the explicit Refold verb is for, and it replaces
+        // the picture on purpose.
+        expect(oristudioCpMocks.fold3dOristudioCpDocument).not.toHaveBeenCalled();
+        expect(figureNow().handle).toBeNull();
+      });
+
+      it('steps a fresh session back to the solution the figure was saved showing', async () => {
+        const figure = await reopened3dFigure({
+          folded3d: folded3dSnapshot({ discovered_fold_cases: 3, current_fold_case: 3 }),
+        });
+        oristudioCpMocks.fold3dOristudioCpFigureAnother
+          .mockResolvedValueOnce({
+            snapshot: folded3dSnapshot({ discovered_fold_cases: 2, current_fold_case: 2 }),
+            render: folded3dRenderModelFixture(),
+            advanced: true,
+          })
+          .mockResolvedValueOnce({
+            snapshot: folded3dSnapshot({ discovered_fold_cases: 3, current_fold_case: 3 }),
+            render: folded3dRenderModelFixture(),
+            advanced: true,
+          });
+
+        await expect(
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id)
+        ).resolves.toBe(true);
+
+        // A fresh session always opens at solution 1, so a figure saved at 3
+        // takes two steps to get back to the layer order it is drawn with.
+        expect(oristudioCpMocks.fold3dOristudioCpFigureAnother).toHaveBeenCalledTimes(2);
+        expect(figureNow().folded3d?.current_fold_case).toBe(3);
+      });
+
+      it('refuses geometry that would land on a different solution', async () => {
+        const figure = await reopened3dFigure({
+          folded3d: folded3dSnapshot({ discovered_fold_cases: 2, current_fold_case: 2 }),
+        });
+        // The stream wrapped instead of advancing — which is what a build whose
+        // solver enumerates differently looks like from here.
+        oristudioCpMocks.fold3dOristudioCpFigureAnother.mockResolvedValueOnce({
+          snapshot: folded3dSnapshot({ discovered_fold_cases: 2, current_fold_case: 1 }),
+          render: folded3dRenderModelFixture(),
+          advanced: true,
+        });
+
+        await expect(
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id)
+        ).resolves.toBe(false);
+        expect(figureNow().handle).toBeNull();
+        // Not left behind in the kernel: a 3D session is megabytes.
+        expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(11);
+      });
+
+      it('refuses geometry whose frame is not the one the figure is drawn in', async () => {
+        const figure = await reopened3dFigure();
+        const doubled = folded3dRenderModelFixture();
+        oristudioCpMocks.fold3dOristudioCpDocument.mockResolvedValueOnce({
+          status: 'placed',
+          handle: 11,
+          snapshot: folded3dSnapshot(),
+          render: {
+            ...doubled,
+            ring_points: doubled.ring_points.map((value) => value * 2),
+            cell_points: doubled.cell_points.map((value) => value * 2),
+          },
+        });
+
+        await expect(
+          useWorkspaceStore.getState().rehydrateOristudioCpFolded3dFigure(figure.id)
+        ).resolves.toBe(false);
+        expect(figureNow().handle).toBeNull();
+        expect(oristudioCpMocks.freeOristudioCpFoldedFigure).toHaveBeenCalledWith(11);
+      });
+
+      it('shows a pending status only when asked to', async () => {
+        const figure = await reopened3dFigure();
+        let release = () => {};
+        oristudioCpMocks.fold3dOristudioCpDocument.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              release = () => resolve(folded3dPlaced());
+            })
+        );
+
+        const quiet = useWorkspaceStore
+          .getState()
+          .rehydrateOristudioCpFolded3dFigure(figure.id);
+        // The background pass must not put "Folding…" under a figure nobody
+        // touched: that is a change to what the user sees, on load.
+        expect(figureNow().status).toBe('ready');
+        release();
+        await expect(quiet).resolves.toBe(true);
+
+        const second = await reopened3dFigure();
+        oristudioCpMocks.fold3dOristudioCpDocument.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              release = () => resolve(folded3dPlaced());
+            })
+        );
+        const pressed = useWorkspaceStore
+          .getState()
+          .rehydrateOristudioCpFolded3dFigure(second.id, { pending: true });
+        expect(figureNow().status).toBe('loading');
+        release();
+        await expect(pressed).resolves.toBe(true);
+        expect(figureNow().status).toBe('ready');
+      });
+
+      it('folds once when the background pass and a press name the same figure', async () => {
+        const figure = await reopened3dFigure();
+        let release = () => {};
+        oristudioCpMocks.fold3dOristudioCpDocument.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              release = () => resolve(folded3dPlaced());
+            })
+        );
+
+        const first = useWorkspaceStore
+          .getState()
+          .rehydrateOristudioCpFolded3dFigure(figure.id);
+        // The second caller is refused rather than queued: two folds of one
+        // figure allocate two sessions, and only one of them can be adopted.
+        await expect(
+          useWorkspaceStore
+            .getState()
+            .rehydrateOristudioCpFolded3dFigure(figure.id, { pending: true })
+        ).resolves.toBe(false);
+        release();
+        await expect(first).resolves.toBe(true);
+        expect(oristudioCpMocks.fold3dOristudioCpDocument).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

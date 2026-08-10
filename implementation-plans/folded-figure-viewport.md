@@ -257,9 +257,12 @@ job is not "load something", it is "make an existing picture live".
 and that splits the behaviour cleanly:
 
 - **Not stale** — rehydrate in the background, after first paint, on idle, one
-  figure at a time. Nothing changes visually, because the refold reproduces the
-  same picture. Start-up is untouched because it is off the critical path. A
-  press before it is ready rehydrates that figure on demand with a pending state.
+  figure at a time. The refold has to reproduce the same picture, and Phase 5
+  found that this is a thing to **check rather than assume**: the layer-ordering
+  solution the figure was saved showing has to be replayed, and both it and the
+  frame are compared before the result is adopted. Start-up is untouched because
+  it is off the critical path. A press before it is ready rehydrates that figure
+  on demand with a pending state.
 - **Stale** — leave it alone. Refolding would silently change what you are
   looking at. Today's behaviour stands: the stored picture, plus the **Refold**
   verb that already exists.
@@ -281,6 +284,10 @@ Nothing ever changes under the user without a press, and app start pays nothing.
   folded figures memoized and uploaded apart
 - `apps/web/src/cp-workspace/renderer/` — `setScene` removed; the per-channel
   setters are the only upload path
+- `apps/web/src/cp-workspace/folded/folded3dRehydrate.ts` (new) — which reopened
+  figures can be made live, and in what order; React-free
+- `apps/web/src/cp-workspace/folded/useFolded3dRehydration.ts` (new) — the
+  post-paint, on-idle, one-at-a-time queue
 - `apps/web/src/store/workspaceStore/slices/creasePatternSlice.ts` — camera out
   of the descriptor; rehydrate action
 - The inline-simulation window layer and worker session — generalised from "a
@@ -490,10 +497,83 @@ Any millisecond taken there would have been the timing of a degenerate app, so
 none was taken. The recipe for the real one is on the browser checklist.
 
 ### Phase 5 — Rehydrate
-- [ ] Background rehydrate for non-stale figures, post-paint, idle, one at a time
-- [ ] On-demand rehydrate when a figure is pressed first, with a pending state
-- [ ] Stale figures untouched; **Refold** stays the explicit path
-- [ ] App-start timing before and after
+- [x] Background rehydrate for non-stale figures, post-paint, idle, one at a time
+      (`folded/useFolded3dRehydration.ts`; the fold is
+      `rehydrateOristudioCpFolded3dFigure`)
+- [x] On-demand rehydrate when a figure is pressed first, with a pending state —
+      the ordinary `loading` status, which the folded-models list already words
+      as "Folding…" in all eight locales
+- [x] Stale figures untouched; **Refold** stays the explicit path
+- [x] App-start timing before and after
+
+#### The bar is higher than "load something"
+
+A reopened figure already draws a correct picture, so a rehydrate is not allowed
+to produce a *different* one. That turns the phase from a load into a
+reproduction, and every rule in `folded/folded3dRehydrate.ts` is a consequence:
+
+- **Stale figures are refused**, which the plan already said, and it is the whole
+  reason the split exists.
+- **A figure with no `frameRadius` is refused.** Its box is the bounds of its
+  last projection; giving it a frame now would resize it on screen. This is also
+  `canWindowFolded3dFigure`'s condition, so anything rehydrated is immediately
+  windowable.
+- **The solution index is replayed and then checked.** A fresh 3D session always
+  opens at solution 1, so a figure saved at *k* is stepped *k − 1* times
+  (`Fold3dOrderStream::advance` is a deterministic odometer) and the result's
+  `current_fold_case` is compared. Checked rather than assumed because a build
+  whose solver enumerates differently would otherwise bring the figure back
+  showing a layer order nobody chose. Capped at 32 steps: each is a real ordering
+  search and this runs on load.
+- **The frame is checked.** `folded3dFrameRadius(render)` against the stored
+  `frameRadius`, to a part in a billion — the cheapest single witness that the
+  geometry the window will draw is the geometry the stored picture came from.
+
+Either check failing frees the handle and leaves the figure exactly as it was.
+
+It also **records nothing**: no `dirty`, no undo entry, no selection, no
+`projectMessage`, no error toast, and no `withFoldInFlight` (which would raise
+the global "Folding…" banner on every load). From the user's side nothing
+happened except that the figure stopped being inert.
+
+**One thing does change on screen, and it is the point of the PR rather than of
+this phase.** A rehydrated figure leaves the crease-pattern scene for a GPU
+window, so it picks up the shader's lighting and its own clipped border — i.e. it
+starts looking like a figure folded in this session, instead of like a flat CPU
+projection of one. Before this phase a reopened figure could never look like
+that, because it could never be windowed.
+
+#### App start, measured
+
+The wall-clock number that would settle R5 — "how much longer does a document
+with thirty reopened 3D figures take to become usable" — cannot be taken here:
+the automated pane never paints (Phase 4's note), and the fold runs in a wasm
+kernel jsdom has not got. So the measurement is the part that is real and is the
+part R5 is about, **what the load pays before the browser goes idle**, and it is
+two numbers:
+
+| Figures | Surface mount, no rehydration | With rehydration | Folds started during start-up |
+| --- | --- | --- | --- |
+| 1 | 0.148 ms | 0.150 ms | **0** |
+| 10 | 0.116 ms | 0.141 ms | **0** |
+| 30 | 0.132 ms | 0.139 ms | **0** |
+
+Interleaved mounts, 20 warm-up pairs then 60 timed pairs, jsdom. The added cost
+is 0.006–0.031 ms and does not grow from 10 figures to 30, because the effect
+walks the list once and then waits. The right-hand column is the claim that
+matters and it is the assertion: `useFolded3dRehydration.test.tsx` mounts 1, 10
+and 30 reopened figures and asserts that **no fold is started** until an idle
+callback is flushed.
+
+#### Two limits worth knowing
+
+- **A figure saved past solution 32 is not rehydrated**, and neither is one from
+  a file old enough not to have recorded which solution it was showing. Both keep
+  today's behaviour exactly.
+- **A figure that could not be adopted is not retried**, keyed on the entry
+  object rather than its id — so a refold, an undo, or a different document
+  reusing the id gets a fresh attempt, while a figure that genuinely cannot be
+  reproduced is asked once per session rather than on every render.
 
 ### Phase 6 — Export and cleanup
 - [ ] Raster export from the window; vector through the simulator's SVG path
