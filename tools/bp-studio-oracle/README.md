@@ -44,6 +44,18 @@ canonical (sorted-key) JSON so it diffs cleanly against the Rust snapshot. It
 must be run with Bun so the vendored TypeScript Core resolves via the sibling
 `tsconfig.json`.
 
+The Rust side of the same comparison is the `layout_graphics_dump` example,
+which prints `project_graphics_snapshot` for a `.bps` or JDesign file:
+
+```sh
+cargo run -p oristudio-bp --example layout_graphics_dump -- <design.bps>
+```
+
+Run both over one file to localize a packing-pane divergence to a tag — a flap
+(`f<id>`), a river (`re<a>,<b>`), or a stretch device (`s<flaps>.<index>`). Note
+the two disagree harmlessly in two places: contour rings may start at a
+different vertex of the same cycle, and the oracle emits an empty `root` entry.
+
 Keep Node/pnpm available for upstream Mocha and build-tool compatibility.
 Oracle-gated Rust tests should remain optional and skip cleanly when
 `BP_STUDIO_ORACLE` is not configured.

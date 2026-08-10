@@ -475,6 +475,41 @@ fn configuration_and_partition_shell_preserve_raw_cleanup_and_corner_maps() {
     assert!(config.complete().is_err());
 }
 
+/// Upstream `$isCovered` resolves each coverer on its own and memoizes the
+/// answer, so descending into a coverer once must not stop it from covering
+/// anything else. Junction 0 here is covered both by 1 (itself covered by 2)
+/// and directly by 2; walking the 0 -> 1 -> 2 branch first must leave 2 still
+/// covering 0. Getting this wrong drops a covered junction back into its
+/// stretch team, and the team then has no solvable pattern.
+#[test]
+fn covering_resolution_reuses_a_coverer_across_branches() {
+    let tree = sample_tree();
+    let mut junctions = sample_junctions(&tree);
+    junctions.push(valid_junction(
+        &tree,
+        2,
+        3,
+        junction_data(
+            QuadrantDirection::Ul,
+            Point { x: 1.0, y: 3.0 },
+            Point { x: 6.0, y: 4.0 },
+            Point { x: -1.0, y: 1.0 },
+            Point { x: 20.0, y: 2.0 },
+        ),
+    ));
+    junctions[0].set_geometrically_covered_by(1);
+    junctions[0].set_geometrically_covered_by(2);
+    junctions[1].set_geometrically_covered_by(2);
+
+    assert!(
+        !junctions[2].is_covered(&junctions),
+        "2 covers nothing back"
+    );
+    assert!(junctions[1].is_covered(&junctions), "1 is covered by 2");
+    assert!(junctions[0].is_covered(&junctions), "0 is covered by 2");
+    assert_eq!(junctions[0].get_covering(&junctions), vec![2]);
+}
+
 #[test]
 fn grouping_repository_and_stretch_shell_preserve_lifecycle_boundaries() {
     let tree = sample_tree();

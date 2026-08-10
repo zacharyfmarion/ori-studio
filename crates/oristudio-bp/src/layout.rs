@@ -1183,18 +1183,21 @@ impl ValidJunction {
     }
 
     pub fn is_covered(&self, junctions: &[ValidJunction]) -> bool {
-        self.is_covered_inner(junctions, &mut BTreeSet::new())
+        !self.covering_with(&covered_flags(junctions)).is_empty()
     }
 
     pub fn get_covering(&self, junctions: &[ValidJunction]) -> Vec<usize> {
+        self.covering_with(&covered_flags(junctions))
+    }
+
+    /// Upstream `$getCovering`: the coverers that are not themselves covered.
+    /// `covered` is `covered_flags` over the same slice the covering indices
+    /// point into.
+    fn covering_with(&self, covered: &[bool]) -> Vec<usize> {
         self.geometrically_covered_by
             .iter()
             .copied()
-            .filter(|index| {
-                junctions
-                    .get(*index)
-                    .is_some_and(|junction| !junction.is_covered(junctions))
-            })
+            .filter(|index| covered.get(*index).is_some_and(|covered| !covered))
             .collect()
     }
 
@@ -1228,15 +1231,52 @@ impl ValidJunction {
         }
         result
     }
+}
 
-    fn is_covered_inner(&self, junctions: &[ValidJunction], seen: &mut BTreeSet<usize>) -> bool {
-        self.geometrically_covered_by.iter().copied().any(|index| {
-            seen.insert(index)
-                && junctions
-                    .get(index)
-                    .is_some_and(|junction| !junction.is_covered_inner(junctions, seen))
-        })
+/// Upstream `ValidJunction.$isCovered` for every junction in `junctions`.
+///
+/// "Practical" covering is recursive: a junction is covered only by a coverer
+/// that is not itself covered. Upstream memoizes the answer per junction
+/// (`_isCovered`), so a coverer is resolved once and every later query reuses
+/// that result. `in_progress` only breaks a covering cycle, which upstream
+/// would recurse on forever; it must never suppress a repeat visit to an
+/// already-resolved junction, or a coverer reached down one branch silently
+/// stops covering on another.
+pub fn covered_flags(junctions: &[ValidJunction]) -> Vec<bool> {
+    let mut covered = vec![None; junctions.len()];
+    let mut in_progress = vec![false; junctions.len()];
+    for index in 0..junctions.len() {
+        resolve_covered(junctions, index, &mut covered, &mut in_progress);
     }
+    covered
+        .into_iter()
+        .map(|value| value.unwrap_or(false))
+        .collect()
+}
+
+fn resolve_covered(
+    junctions: &[ValidJunction],
+    index: usize,
+    covered: &mut [Option<bool>],
+    in_progress: &mut [bool],
+) -> bool {
+    if let Some(value) = covered[index] {
+        return value;
+    }
+    if in_progress[index] {
+        return false;
+    }
+    in_progress[index] = true;
+    let value = junctions[index]
+        .geometrically_covered_by
+        .iter()
+        .copied()
+        .any(|coverer| {
+            coverer < junctions.len() && !resolve_covered(junctions, coverer, covered, in_progress)
+        });
+    in_progress[index] = false;
+    covered[index] = Some(value);
+    value
 }
 
 pub fn get_structure_signature(junctions: &[ValidJunction]) -> BpResult<String> {
@@ -1662,10 +1702,11 @@ pub fn uncovered_junction_indices(
             check_geometrical_covering(tree, junctions, i, j)?;
         }
     }
-    Ok(junctions
-        .iter()
+    let covered = covered_flags(junctions);
+    Ok(covered
+        .into_iter()
         .enumerate()
-        .filter_map(|(index, junction)| (!junction.is_covered(junctions)).then_some(index))
+        .filter_map(|(index, covered)| (!covered).then_some(index))
         .collect())
 }
 
