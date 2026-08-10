@@ -74,14 +74,13 @@
                       <text value="concentricCircle"/>
                     </properties>
                   </component>
-                  <component id="35daa" class="javax.swing.JButton" binding="a3pointCircleButton" default-binding="true">
+                  <component id="5b179" class="oriedita.editor.swing.component.DropdownToolButton" binding="apolloniusCircleDropdown">
                     <constraints>
                       <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
                       <gridbag weightx="1.0" weighty="0.0"/>
                     </constraints>
                     <properties>
-                      <actionCommand value="circleDrawThreePointAction"/>
-                      <text value="3pointCircle"/>
+                      <text value="tangentCircle"/>
                     </properties>
                   </component>
                   <component id="b05f9" class="javax.swing.JButton" binding="tangentButton" default-binding="true">

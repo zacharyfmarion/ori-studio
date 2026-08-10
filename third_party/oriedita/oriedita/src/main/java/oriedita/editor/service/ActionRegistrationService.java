@@ -85,6 +85,8 @@ public class ActionRegistrationService {
                 put(ActionType.backgroundSetPositionAction, MouseMode.BACKGROUND_CHANGE_POSITION_26);
                 put(ActionType.circleDrawAction, MouseMode.CIRCLE_DRAW_42);
                 put(ActionType.circleDrawThreePointAction, MouseMode.CIRCLE_DRAW_THREE_POINT_43);
+                put(ActionType.circleDrawApolloniusAction, MouseMode.CIRCLE_DRAW_APOLLONIUS_108);
+                put(ActionType.circleDrawApolloniusRadiusAction, MouseMode.CIRCLE_DRAW_APOLLONIUS_RADIUS_109);
                 put(ActionType.circleDrawSeparateAction, MouseMode.CIRCLE_DRAW_SEPARATE_44);
                 put(ActionType.circleDrawTangentLineAction, MouseMode.CIRCLE_DRAW_TANGENT_LINE_45);
                 put(ActionType.circleDrawInvertedAction, MouseMode.CIRCLE_DRAW_INVERTED_46);

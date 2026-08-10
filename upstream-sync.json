@@ -22,9 +22,12 @@
       "repo": "https://github.com/oriedita/oriedita",
       "branch": "master",
       "vendored_path": "third_party/oriedita",
-      "vendored_commit": "9d39135ae232cc03be4ffaf74baa7ae2df970507",
-      "last_checked_commit": "9d39135ae232cc03be4ffaf74baa7ae2df970507",
+      "vendored_commit": "c02a54420c50d375fa0463f444290c391722d715",
+      "last_checked_commit": "c02a54420c50d375fa0463f444290c391722d715",
       "last_checked_date": "2026-08-10",
+      "unported_upstream_features": [
+        "Apollonius circle drawing tools (MouseHandlerCircleDrawApollonius, MouseHandlerCircleDrawApolloniusRadius), added upstream in PR #505. Vendored but not ported: a product decision about whether Ori Studio wants the tool, not a parity gap."
+      ],
       "oracle": "tools/oriedita-oracle/build_geometry_oracle.sh",
       "watch_paths": [
         "origami/src/main/",
