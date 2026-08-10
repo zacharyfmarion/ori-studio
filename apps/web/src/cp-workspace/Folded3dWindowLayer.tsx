@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type CSSProperties,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +24,7 @@ import {
   folded3dWindowView,
 } from './folded/folded3dWindow';
 import { folded3dPaperStyle } from './folded/folded3dStyle';
-import { folded3dOrbitFrames, subscribeFolded3dOrbit } from './folded/folded3dRuntime';
+import { subscribeFolded3dOrbitCamera } from './folded/folded3dRuntime';
 import { useFolded3dMeshRuntime } from './folded/useFolded3dMeshRuntime';
 import {
   SimulatorViewport,
@@ -87,14 +86,13 @@ export function Folded3dWindowLayer({
   // annotations and inline simulations are in crease-pattern model space. Both
   // are `CpOverlayView`, so reading the wrong one type-checks cleanly and puts
   // every figure hundreds of units from where it belongs.
+  //
+  // Deliberately the *only* subscription here. The live orbit camera is not one
+  // of them: a window takes it imperatively, because subscribing to it in the
+  // layer re-renders every window in the document to turn one of them, and the
+  // placement does not depend on it — a 3D figure's frame is fixed at fold time
+  // and does not change shape when you turn what is inside it.
   const view = useCpOverlayViews()?.user ?? null;
-  // The live orbit frame while a drag is in flight. Cheap to subscribe to here:
-  // this layer already re-renders on every camera frame.
-  const orbitFrames = useSyncExternalStore(
-    subscribeFolded3dOrbit,
-    folded3dOrbitFrames,
-    folded3dOrbitFrames
-  );
   const pxPerModel = view ? overlayCssPerModel(view) : 1;
   const renderedPxPerModel = useSettledScale(pxPerModel);
   if (!view) return null;
@@ -148,7 +146,7 @@ export function Folded3dWindowLayer({
           <Folded3dWindow
             key={figure.id}
             figure={figure}
-            camera={orbitFrames.get(figure.id)?.camera ?? figure.camera ?? null}
+            camera={figure.camera ?? null}
             focused={figure.id === focusedId}
             stale={staleIds.has(figure.id)}
             style={style}
@@ -170,7 +168,10 @@ function Folded3dWindow({
   badgeStyle,
 }: {
   figure: OristudioCpFoldedFigureEntry;
-  /** Where the figure is being looked at *now* — the live drag, or the stored view. */
+  /**
+   * The figure's **stored** viewpoint. A live gesture arrives separately, and
+   * imperatively — see the subscription below.
+   */
   camera: { yaw: number; pitch: number; zoom: number } | null;
   focused: boolean;
   stale: boolean;
@@ -239,6 +240,29 @@ function Folded3dWindow({
   useEffect(() => {
     viewportRef.current?.setView(figureView);
   }, [figureView]);
+
+  /**
+   * The live gesture: every move of a turn or a zoom, straight into the
+   * viewport.
+   *
+   * Not a prop, and not `useSyncExternalStore`, because either would make a
+   * camera frame a React render — of this component, of the layer above it and
+   * of every other window in the layer. The mesh needs a uniform and a draw;
+   * nothing about the DOM changes when a figure turns, so nothing about the DOM
+   * should be recomputed. Exactly the rule `SimulatorViewport` states for solver
+   * frames.
+   *
+   * Nothing arrives when the gesture ends: the store is written first, so the
+   * camera to settle at comes back through {@link figureView}.
+   */
+  const figureId = figure.id;
+  useEffect(
+    () =>
+      subscribeFolded3dOrbitCamera(figureId, (live) => {
+        viewportRef.current?.setView(folded3dWindowView(live));
+      }),
+    [figureId]
+  );
 
   return (
     <div

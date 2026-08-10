@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { act } from 'react';
+import { Profiler, act } from 'react';
+import type { ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { OrbitView } from '@treemaker/origami-simulator';
 import type {
   OristudioCpFolded3dRenderModel,
   OristudioCpFolded3dSnapshot,
@@ -18,7 +20,7 @@ import { Folded3dWindowLayer } from './Folded3dWindowLayer';
 import { defaultFolded3dCamera, folded3dFrameRadius } from './folded/foldedFigure3dProjection';
 import { project3dRenderSnapshot } from './folded/folded3dReproject';
 import { resetFolded3dRenderModels, setFolded3dRenderModel } from './folded/folded3dRenderModels';
-import { clearAllFolded3dOrbits } from './folded/folded3dRuntime';
+import { clearAllFolded3dOrbits, publishFolded3dOrbit } from './folded/folded3dRuntime';
 
 /**
  * The window layer, as a DOM surface.
@@ -40,11 +42,15 @@ import { clearAllFolded3dOrbits } from './folded/folded3dRuntime';
  * polyfill between the assertion and the thing it asserts.
  */
 
+const meshCameras = vi.hoisted(() => [] as OrbitView[]);
+
 vi.mock('./folded/useFolded3dMeshRuntime', () => ({
   useFolded3dMeshRuntime: () => ({
     status: 'ready' as const,
     shallowDepthBuffer: false,
-    setCamera: () => {},
+    setCamera: (view: OrbitView) => {
+      meshCameras.push(view);
+    },
     setRenderSettings: () => {},
   }),
 }));
@@ -115,6 +121,8 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  meshCameras.length = 0;
+  commits = 0;
   resetFolded3dRenderModels();
   clearAllFolded3dOrbits();
   setFolded3dRenderModel(HANDLE, RENDER_MODEL);
@@ -131,10 +139,32 @@ afterEach(() => {
   clearAllFolded3dOrbits();
 });
 
+/**
+ * React commits of the layer's subtree. Zero means React did not run: nothing
+ * re-rendered, nothing was reconciled, no DOM was touched.
+ */
+let commits = 0;
+
+/** Counts commits of whatever it wraps. */
+function Profiled({ children }: { children: ReactNode }) {
+  return (
+    <Profiler
+      id="folded-window-layer"
+      onRender={() => {
+        commits += 1;
+      }}
+    >
+      {children}
+    </Profiler>
+  );
+}
+
 function render(): void {
   act(() => {
     root.render(
-      <Folded3dWindowLayer figures={[figure()]} focusedId={null} staleIds={new Set()} />
+      <Profiled>
+        <Folded3dWindowLayer figures={[figure()]} focusedId={null} staleIds={new Set()} />
+      </Profiled>
     );
   });
 }
@@ -247,5 +277,87 @@ describe('placing a folded figure window', () => {
     });
     expect(windowEl().dataset.stale).toBe('true');
     expect(windowEl().dataset.focused).toBe('true');
+  });
+});
+
+/**
+ * Turning a figure is a uniform and a draw. Nothing about the page changes, so
+ * nothing about the page should be recomputed — not this layer, not the windows
+ * beside the one being turned, and not the DOM.
+ *
+ * The counter is React's own `Profiler`, which is called once per commit of the
+ * subtree: zero calls means React never ran.
+ */
+describe('turning a folded figure', () => {
+  it('reaches the mesh camera without a single React commit', () => {
+    render();
+    const pushed = meshCameras.length;
+    commits = 0;
+
+    act(() => {
+      publishFolded3dOrbit('folded-1', {
+        camera: { yaw: 1.25, pitch: -0.5, zoom: 1 },
+        snapshot: null,
+      });
+    });
+
+    expect(commits).toBe(0);
+    expect(meshCameras.length).toBe(pushed + 1);
+    const latest = meshCameras.at(-1);
+    expect(latest?.yaw).toBe(1.25);
+    expect(latest?.pitch).toBe(-0.5);
+  });
+
+  it('leaves the window’s DOM byte-identical while it turns', () => {
+    render();
+    const layout = layoutProperties(windowEl());
+    const transform = windowEl().style.transform;
+    const radius = windowEl().style.borderRadius;
+
+    act(() => {
+      publishFolded3dOrbit('folded-1', {
+        camera: { yaw: 2.5, pitch: 0.25, zoom: 1 },
+        snapshot: null,
+      });
+    });
+
+    expect(layoutProperties(windowEl())).toEqual(layout);
+    expect(windowEl().style.transform).toBe(transform);
+    expect(windowEl().style.borderRadius).toBe(radius);
+  });
+
+  it('counts a camera move of the crease pattern, so the counter is not asleep', () => {
+    // Non-vacuity for the two above: the Profiler does fire for a change that
+    // genuinely has to re-render, and a turn is not one of those.
+    render();
+    commits = 0;
+    act(() => cpOverlayViewStore.set({ model: view(1, [9, 4]), user: view(1, [9, 4]) }));
+    expect(commits).toBeGreaterThan(0);
+  });
+
+  it('sends a turn only to the figure being turned', () => {
+    const second: OristudioCpFoldedFigureEntry = { ...figure(), id: 'folded-2' };
+    act(() => {
+      root.render(
+        <Profiled>
+          <Folded3dWindowLayer
+            figures={[figure(), second]}
+            focusedId={null}
+            staleIds={new Set()}
+          />
+        </Profiled>
+      );
+    });
+    meshCameras.length = 0;
+
+    act(() => {
+      publishFolded3dOrbit('folded-2', {
+        camera: { yaw: 0.75, pitch: 0.1, zoom: 1 },
+        snapshot: null,
+      });
+    });
+
+    expect(meshCameras).toHaveLength(1);
+    expect(meshCameras[0]?.yaw).toBe(0.75);
   });
 });

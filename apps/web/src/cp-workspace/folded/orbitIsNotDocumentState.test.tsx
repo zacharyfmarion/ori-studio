@@ -18,6 +18,7 @@ import {
   clearAllFolded3dOrbits,
   folded3dOrbitCount,
   getFolded3dOrbit,
+  publishFolded3dOrbit,
 } from './folded3dRuntime';
 import { useFoldedFigures } from './useFoldedFigures';
 import { useFolded3dOrbitFigures } from './useFolded3dOrbitFigures';
@@ -283,6 +284,39 @@ describe('the drawing path sees the live frame', () => {
     expect(latest?.[0]?.renderSnapshot).toBe(getFolded3dOrbit(FIGURE_ID)?.snapshot);
     // The figure nobody is turning is passed through by identity.
     expect(latest?.[1]).toBe(other);
+  });
+
+  it('is not woken at all by a figure drawn as a window', () => {
+    // A windowed figure publishes a camera and no picture, because its mesh is
+    // drawn from the camera alone. The crease-pattern canvas subscribes here,
+    // and it draws pictures — so none of those frames may reach it. Sixty
+    // re-renders a second of the largest component in the app, to deliver
+    // something it had already decided not to draw.
+    const figures = [figure()];
+    const drawn: Array<readonly OristudioCpFoldedFigureEntry[]> = [];
+    act(() => {
+      root?.render(<OrbitProbe figures={figures} onRender={(next) => drawn.push(next)} />);
+    });
+    const renders = drawn.length;
+
+    act(() => {
+      for (let step = 1; step <= 10; step += 1) {
+        publishFolded3dOrbit(FIGURE_ID, {
+          camera: { ...CAMERA, yaw: CAMERA.yaw + step * 0.01 },
+          snapshot: null,
+        });
+      }
+    });
+
+    expect(drawn.length).toBe(renders);
+    expect(drawn.at(-1)).toBe(figures);
+
+    // Non-vacuous: one frame that *does* carry a picture goes through.
+    act(() => {
+      publishFolded3dOrbit(FIGURE_ID, { camera: CAMERA, snapshot: figure().renderSnapshot });
+    });
+    expect(drawn.length).toBeGreaterThan(renders);
+    expect(drawn.at(-1)).not.toBe(figures);
   });
 
   /**

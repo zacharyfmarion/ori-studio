@@ -314,6 +314,14 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   const orbitDragRef = useRef<{
     id: string;
     drag: SimulatorOrbitDrag;
+    /**
+     * Whether this figure is drawn by the window layer, decided once at the
+     * press. A windowed figure needs no re-projection, and asking again on every
+     * move would walk the render model's cell table sixty times a second to
+     * arrive at the same answer — the press is what fixes it, since a figure
+     * cannot gain or lose its render model mid-drag.
+     */
+    windowed: boolean;
     /** Whether an undo snapshot has been taken for this drag yet. */
     recording: boolean;
   } | null>(null);
@@ -353,6 +361,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       orbitDragRef.current = {
         id,
         drag: beginFoldedFigureOrbit(liveFigureCamera(figure), point),
+        windowed: canWindowFolded3dFigure(figure, { gpuAvailable: webglRenderSupported() }),
         // The undo snapshot is deliberately NOT taken here. A press and release
         // that never moves is a click, and snapshotting on press would put a
         // no-op entry on the stack that the user has to undo past. Taken on the
@@ -393,12 +402,11 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       // commit is the wrong place for that work. Null when the figure has no
       // render model (reopened from a file), which the side table carries through
       // as "keep the picture you have".
-      const windowed = canWindowFolded3dFigure(figure, {
-        gpuAvailable: webglRenderSupported(),
-      });
       publishFolded3dOrbit(session.id, {
         camera: next,
-        snapshot: windowed ? null : reproject3dFigureAt(figure, figure.displayStyle, next),
+        snapshot: session.windowed
+          ? null
+          : reproject3dFigureAt(figure, figure.displayStyle, next),
       });
     },
     [beginFoldedFigureGesture, figureById]

@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
-import { folded3dOrbitFrames, subscribeFolded3dOrbit } from './folded3dRuntime';
+import { folded3dSceneOrbitFrames, subscribeFolded3dOrbit } from './folded3dRuntime';
 
 /**
  * The figures as they should be **drawn**: the store's entries, with any figure
@@ -17,29 +17,28 @@ import { folded3dOrbitFrames, subscribeFolded3dOrbit } from './folded3dRuntime';
  * Returns the input array unchanged when nothing is being turned, so the
  * downstream geometry memo is not invalidated by a subscription that fired for
  * some other figure.
+ *
+ * Reads the **picture-carrying** frames, not all of them. A figure drawn as a
+ * window publishes a camera and no snapshot, and its mesh takes that camera
+ * directly; handing it here as well would re-render this surface on every move
+ * of a turn to deliver a picture it does not draw. See `folded3dRuntime.ts`.
  */
 export function useFolded3dOrbitFigures(
   figures: readonly OristudioCpFoldedFigureEntry[]
 ): readonly OristudioCpFoldedFigureEntry[] {
   const frames = useSyncExternalStore(
     subscribeFolded3dOrbit,
-    folded3dOrbitFrames,
-    folded3dOrbitFrames
+    folded3dSceneOrbitFrames,
+    folded3dSceneOrbitFrames
   );
   return useMemo(() => {
     if (frames.size === 0) return figures;
     let turned = false;
     const next = figures.map((figure) => {
       const frame = frames.get(figure.id);
-      if (!frame) return figure;
+      if (!frame?.snapshot) return figure;
       turned = true;
-      return {
-        ...figure,
-        camera: frame.camera,
-        // A figure with no render model cannot be re-projected; it keeps the
-        // picture it was saved with, exactly as the store path leaves it.
-        renderSnapshot: frame.snapshot ?? figure.renderSnapshot,
-      };
+      return { ...figure, camera: frame.camera, renderSnapshot: frame.snapshot };
     });
     return turned ? next : figures;
   }, [figures, frames]);
