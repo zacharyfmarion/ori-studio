@@ -53,6 +53,26 @@ which can shimmer at extreme zoom — and the number is expected to be tuned onc
 seen. **Cells whose order is undetermined get no displacement**; they keep the
 translucent treatment they have now, which is still the honest answer.
 
+Two bounds hold ε in place, and both were worked out against the shipped
+uniforms rather than guessed:
+
+- *Below*, the depth buffer must resolve one gap. `depthRange = 2r` and the
+  shader writes `ndcZ = −depth/depthRange`, so the model occupies **half** the
+  buffer: a world gap `d` is `d/(4r)` of it. At `2e-4·r` that is 839 units of a
+  24-bit buffer.
+- *Above*, the edge pass biases creases toward the viewer by a fixed `−0.0008`
+  NDC, which is `1.6e-3·r` of world depth. A stack spanning more than that
+  swallows its own top layer's creases, so the total span is capped at half of
+  it and ε shrinks past 5 layers.
+
+The committed fixtures reach 5 layers, but the external non-flat corpus reaches
+**14** (`plant_penguin.osf`), with `cross`, `helloworld` and `origamisimulator`
+at 10 — so the cap is the normal case, not the exotic one. At 14 the gap is 258
+units of a 24-bit buffer and **1.01 of a 16-bit one**. A 16-bit default
+framebuffer is legal WebGL2, so §3 must query `gl.getParameter(gl.DEPTH_BITS)`
+with the default framebuffer bound (it reports the *bound* one, and 0 for the
+solver's depthless FBOs) and fail loudly rather than as unexplained shimmer.
+
 ## Approach
 
 ### 1. Camera out of the store descriptor — first, and independently valuable
@@ -102,11 +122,21 @@ A new module turns the kernel's `OristudioCpFolded3dRenderModel` into what
 
 ```ts
 // apps/web/src/cp-workspace/folded/folded3dMesh.ts
-export function folded3dMesh(model: OristudioCpFolded3dRenderModel): {
-  positions: Float32Array;   // packed for the position texture
-  topology: MeshTopology;    // faceIndices, edgeIndices, edgeAssignments, textureDim
-};
+export function folded3dMesh(model: OristudioCpFolded3dRenderModel):
+  | { kind: 'mesh'; mesh: Folded3dMesh }
+  | { kind: 'too-large'; vertexCount: number; limit: number };
 ```
+
+Two refinements the sketch above did not have, decided while building it:
+
+- `positions` comes back **tight** (3 floats per vertex, renderer basis,
+  centroid-relative), with a separate `packFolded3dPositionTexture(positions,
+  dim)` for the RGBA texture layout. Tight-first because that same array is what
+  `projectVertices` takes — the shader's maintained CPU mirror, so the tests are
+  the shader's own arithmetic — and what `renderMeshToSvg` takes, which is §6's
+  vector export and R7's "both derive from the same render model" for free.
+- Too large is a **result**, not a throw. A figure that cannot be meshed must
+  still draw, and the caller already has that path: the stored `renderSnapshot`.
 
 Three things it must get right:
 
@@ -240,7 +270,7 @@ Nothing ever changes under the user without a press, and app start pays nothing.
 | # | Risk | Mitigation |
 | --- | --- | --- |
 | R1 | ε displacement shimmers, or is visible as separation at high zoom | Scales with `modelRadius`; a single constant, expected to be tuned on sight. Golden test that layer *order* on screen matches the kernel's at several zooms |
-| R2 | Undetermined cells have no order to displace by | They keep the translucent treatment they have now, and are excluded from displacement — the honest answer either way |
+| R2 | Undetermined cells have no order to displace by | Excluded from displacement, and emitted last so they can be drawn separately. **Keeping the translucent treatment is not free** — `faceAlpha` is one uniform and `render` unconditionally clears, so a second pass needs an additive change to `meshRenderer.ts`. Open at the §2/§3 boundary; see below |
 | R3 | Tens of windows re-introduce the layout/ResizeObserver storm | `transform` only, and a test that a camera frame writes no layout-affecting property. This is the failure that survived every other fix in the inline-sim work |
 | R4 | The shared drawing buffer blanks under a driver clamp | Cap **and** quantise, both; the inline-sim plan records what each alone fails to prevent |
 | R5 | Rehydrating on load costs start-up time | Off the critical path, post-paint, idle, one at a time, and only for non-stale figures. Measure app start before and after |
@@ -264,14 +294,36 @@ Nothing ever changes under the user without a press, and app start pays nothing.
       Frame timing itself still needs the production-build browser pass in §4
 
 ### Phase 2 — The mesh
-- [ ] `folded3dMesh.ts`: positions, topology, edge assignments
-- [ ] Displacement by `stack index × ε`, ε from `modelRadius`; undetermined cells
-      excluded
-- [ ] Triangulate in the plane's own `(u, v)` frame, matching `folded3dBspItems`
-- [ ] Tests against the committed render-model fixtures, including `strip_coupled`
+- [x] `folded3dMesh.ts`: positions, topology, edge assignments. The decode
+      helpers both it and the projector need moved to `folded3dModelReader.ts`
+      first, so `modelRadius` is *the same number* the figure's frame is sized
+      from rather than a second copy of the formula
+- [x] Displacement by `stack index × ε`, ε from `modelRadius`; undetermined cells
+      excluded and emitted last, with the split point reported
+- [x] Triangulate in the plane's own `(u, v)` frame, matching `folded3dBspItems`
+- [x] Tests against the committed render-model fixtures, including `strip_coupled`
       (coupled planes) and `pinwheel_cyclic` (a cyclic order, which must not be
       sorted)
-- [ ] Golden: on-screen layer order matches the kernel's `cell_stack`
+- [x] Golden: on-screen layer order matches the kernel's `cell_stack`, at five
+      cameras, plus the stronger statement that it matches the layer the CPU
+      projector already draws (R6 stated as an assertion)
+- [x] Winding: every triangle is coloured the side the projector colours it.
+      Verified numerically, not reasoned — the view transform has determinant
+      −1, so a normal pointing *at* the eye is drawn **back**-facing
+
+The drawable unit is a **(cell, stack slot) pair**, not a face. A per-face scalar
+height would be exactly a topological sort of the face partial order, which
+`pinwheel_cyclic` makes impossible; per-cell displacement needs no global order,
+so a cyclic model works by construction. Substituting a per-face height fails 24
+of the 87 tests, including the cyclic one.
+
+One consequence worth writing down before §3 draws anything: the folded figure's
+front/back convention is the **opposite** of an inline simulation's on the same
+physical surface. The simulator lifts FOLD faces with `[x, 0, y]`, itself a
+determinant −1 map, which puts its right-hand normals on the paper's FOLD-front;
+the folded figure must match `foldedFigure3dProjection.ts`, which is the flat/3D
+parity non-negotiable. Both viewports on screen at once will disagree about which
+tone is "front", and that is by choice.
 
 ### Phase 3 — The window
 - [ ] Generalise the simulation window to a rendered viewport; one shared context,

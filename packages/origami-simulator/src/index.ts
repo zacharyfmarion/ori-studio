@@ -5,7 +5,7 @@ export { SimulationClock } from './simulationClock.js';
 export type { SimulationClockOptions, SimulationTick } from './simulationClock.js';
 export type { SolverBackend, SolverBackendInfo } from './solverBackend.js';
 export { WebglSolver } from './webgl/webglSolver.js';
-export { GlCore, WebGlContextLostError } from './webgl/glCore.js';
+export { GlCore, WebGlContextLostError, textureSizeFor } from './webgl/glCore.js';
 export {
   MeshRenderer,
   meshTopologyFor,
