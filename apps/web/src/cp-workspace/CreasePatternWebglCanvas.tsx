@@ -887,6 +887,18 @@ export function CreasePatternWebglCanvas({
   // button, Cmd+drag. State rather than a direct style write, so a re-render
   // mid-drag cannot clobber it.
   const [panDragging, setPanDragging] = useState(false);
+  /**
+   * Where the pointer stands with respect to a focused 3D folded figure.
+   *
+   * Only the cursor reads this. It is deliberately about the **pointer** and not
+   * about focus: keyed on focus alone, the whole canvas wore a grab cursor from
+   * the moment a fold completed, advertising a turn everywhere except the one
+   * place it worked.
+   */
+  const [foldedOrbitPointer, setFoldedOrbitPointer] = useState<'none' | 'over' | 'turning'>(
+    'none'
+  );
+  const foldedOrbitPointerRef = useRef<'none' | 'over' | 'turning'>('none');
   // Cmd held offers a grab before the press, so the pan affordance is visible
   // rather than something you have to already know about.
   const panModifierHeld = usePanModifierHeld();
@@ -1694,6 +1706,14 @@ export function CreasePatternWebglCanvas({
      * the overlay made inert — deriving a second notion of "inside the figure"
      * here is how the two would drift into a band that neither moves nor turns.
      */
+    // Set from a pointer handler, so it must not re-render per move: the state
+    // changes only when the pointer crosses the figure's edge, which is rare.
+    const setOrbitPointer = (next: 'none' | 'over' | 'turning') => {
+      if (foldedOrbitPointerRef.current === next) return;
+      foldedOrbitPointerRef.current = next;
+      setFoldedOrbitPointer(next);
+    };
+
     const orbitPressPoint = (clientX: number, clientY: number): ModelPoint | null => {
       const orbit = liveRef.current.foldedOrbit;
       if (!orbit) return null;
@@ -2657,6 +2677,7 @@ export function CreasePatternWebglCanvas({
         // overlay gives a focused simulation window.
         e.preventDefault();
         orbiting = liveRef.current.foldedOrbit?.begin(orbitPoint) ?? false;
+        if (orbiting) setOrbitPointer('turning');
       } else if (e.metaKey || liveRef.current.panToolActive) {
         // Meta+drag pans, as does a plain drag while the hand tool is on. Folded
         // figures are grabbed through the canvas-object overlay now, which sits
@@ -2753,6 +2774,12 @@ export function CreasePatternWebglCanvas({
         Math.abs(e.clientY - pressY) > CLICK_MOVE_THRESHOLD
       ) {
         moved = true;
+      }
+      if (!orbiting && !panning && !erasing && !drawing) {
+        // Asked with the gesture's own predicate, so the open hand appears
+        // exactly where a press would turn the figure and nowhere else. Skipped
+        // mid-gesture: a drag owns the cursor until it is released.
+        setOrbitPointer(orbitPressPoint(e.clientX, e.clientY) ? 'over' : 'none');
       }
       if (orbiting) {
         // The pointer is captured, so a drag that leaves the figure keeps
@@ -2858,6 +2885,7 @@ export function CreasePatternWebglCanvas({
         // is also the only thing that writes the camera to the store, so
         // skipping it would leave the figure drawn at a camera nothing records.
         orbiting = false;
+        setOrbitPointer(orbitPressPoint(e.clientX, e.clientY) ? 'over' : 'none');
         liveRef.current.foldedOrbit?.commit();
         if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         return;
@@ -3034,6 +3062,7 @@ export function CreasePatternWebglCanvas({
     // start stays put — the cursor is coming back — but its rubber band goes, since
     // there is no cursor left to stretch it to.
     const onPointerLeave = () => {
+      if (!orbiting) setOrbitPointer('none');
       const mode = liveRef.current.activeToolInputMode;
       // Guarded on the mode as well as the ref, so a parked point cannot outlive the
       // tool that placed it if a reset is ever missed.
@@ -3360,11 +3389,21 @@ export function CreasePatternWebglCanvas({
     renderNowRef.current();
   }, [activeToolVoronoi, toolCommandPreviewPoints]);
 
+  // Losing focus can happen with the pointer parked over the figure — Escape, or
+  // a selection elsewhere — and no pointer event follows to correct the cursor.
+  const focusedFigureId = foldedOrbit?.focusedId ?? null;
+  useEffect(() => {
+    if (focusedFigureId != null) return;
+    foldedOrbitPointerRef.current = 'none';
+    setFoldedOrbitPointer('none');
+  }, [focusedFigureId]);
+
   const cursor = cpCanvasCursor({
     panToolActive,
     panModifierHeld,
     panDragging,
-    foldedOrbitFocused: foldedOrbit?.focusedId != null,
+    foldedOrbitHovered: foldedOrbitPointer === 'over',
+    foldedOrbitDragging: foldedOrbitPointer === 'turning',
   });
 
   return (
