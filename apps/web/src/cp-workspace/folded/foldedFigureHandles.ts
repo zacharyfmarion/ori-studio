@@ -130,15 +130,35 @@ export function foldedFigureHandleEpoch(): number {
 }
 
 /**
- * Drop all bookkeeping without freeing — for closing a document, where the
- * session's handles go away wholesale, and for test isolation.
+ * Free every handle still held, then drop all bookkeeping — for closing or
+ * replacing a document, and for test isolation.
+ *
+ * This used to drop the bookkeeping *without* freeing, on the stated grounds
+ * that closing a document took the session's handles with it. It does not:
+ * `CpSession::free_document` nulls the document slot only, and folded figures
+ * live in their own arena that nothing else empties. So every handle reachable
+ * only from bookkeeping — which after a close is all of them, including the ones
+ * held by undo entries rather than by a live figure — stayed allocated in the
+ * wasm heap for the tab's lifetime, at up to 10.7 MiB a session.
+ *
+ * Freeing here cannot double-free: `counts` is the only record of what is
+ * outstanding, and it is cleared in the same breath, so nothing can release one
+ * of these afterwards.
  */
-export function resetFoldedFigureHandles(): void {
+export function resetFoldedFigureHandles(): Promise<void> {
   handleEpoch += 1;
+  const freed: (Promise<void> | void)[] = [];
+  for (const handle of counts.keys()) {
+    dropFolded3dRenderModel(handle);
+    freed.push(freeHandle(handle));
+  }
   counts.clear();
   resetFolded3dRenderModels();
   // The other 3D side table, torn down at the same point and for the same
   // reason: a live orbit frame outliving its document would draw a figure at a
   // camera no entry in the store has.
   clearAllFolded3dOrbits();
+  // Awaitable so a caller replacing a document can let the kernel settle before
+  // folding into it again; safe to ignore, which every other caller does.
+  return Promise.allSettled(freed).then(() => undefined);
 }

@@ -406,6 +406,39 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
    * time, is what makes a burst of undos correct: every queued reconcile sees
    * the state the burst settled on, so all but the first are skipped below.
    */
+  /**
+   * Take ownership of a freshly folded 3D handle for `id`, or give it back.
+   *
+   * Every 3D completion lands after an await, and in that window the figure it
+   * targets can be deleted — the toolbar's delete verb stays enabled while a
+   * figure is `loading` — or taken down with its document. Adopting anyway
+   * writes the handle onto nothing: no entry and no history entry holds it, so
+   * `releaseFoldedFigureHandle` is never called for it and a `Fold3dSession`
+   * (up to 10.7 MiB, plus its render model) stays in the wasm heap for the life
+   * of the tab, once per attempt.
+   *
+   * The rehydrate path has always made these two checks inline. This is the
+   * same pair in one place, so the next completion path cannot quietly skip
+   * them. Returns whether the caller may write the handle onto the entry.
+   */
+  async function adoptFolded3dHandle(
+    figureId: string,
+    epoch: number,
+    handle: number,
+    render: Parameters<typeof setFolded3dRenderModel>[1]
+  ): Promise<boolean> {
+    const stillThere =
+      foldedFigureHandleEpoch() === epoch &&
+      get().oristudioCpFoldedFigures.some((candidate) => candidate.id === figureId);
+    if (!stillThere) {
+      await freeOristudioCpFoldedFigure(handle).catch(() => {});
+      return false;
+    }
+    retainFoldedFigureHandle(handle);
+    setFolded3dRenderModel(handle, render);
+    return true;
+  }
+
   async function reconcileFoldedFigureModel(id: string): Promise<void> {
     const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
     // A figure the step removed, one reopened from a file without a handle, or a
@@ -2641,6 +2674,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
 
       const previousHandle = figure.handle;
+      // Which teardown generation this refold belongs to, captured before the
+      // await. See `adoptFolded3dHandle`.
+      const refoldEpoch = foldedFigureHandleEpoch();
       set({
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
           candidate.id === figure.id ? { ...candidate, status: 'loading' } : candidate
@@ -2688,8 +2724,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             figure.displayStyle,
             camera
           );
-          retainFoldedFigureHandle(result.handle);
-          setFolded3dRenderModel(result.handle, result.render);
+          if (!(await adoptFolded3dHandle(figure.id, refoldEpoch, result.handle, result.render))) {
+            return false;
+          }
           takeCanvasSelection('folded-figure', {
             oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
               candidate.id === figure.id
@@ -3000,6 +3037,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         error: null,
       };
 
+      // Captured before the await: the placeholder below is deletable while it
+      // loads, exactly as a refolding figure is. See `adoptFolded3dHandle`.
+      const duplicateEpoch = foldedFigureHandleEpoch();
       takeCanvasSelection('folded-figure', {
         oristudioCpFoldedFigures: [...get().oristudioCpFoldedFigures, loadingEntry],
         oristudioCpActiveFoldedFigureId: figureId,
@@ -3027,8 +3067,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             source.displayStyle,
             camera
           );
-          retainFoldedFigureHandle(result.handle);
-          setFolded3dRenderModel(result.handle, result.render);
+          if (
+            !(await adoptFolded3dHandle(figureId, duplicateEpoch, result.handle, result.render))
+          ) {
+            return false;
+          }
           takeCanvasSelection('folded-figure', {
             oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((figure) =>
               figure.id === figureId
@@ -3121,11 +3164,11 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
     clearOristudioCpFoldedFigures: async () => {
       // Closing/replacing the document takes every figure with it, history
       // included, so free outright rather than unwinding reference counts.
-      const handles = get().oristudioCpFoldedFigures
-        .map((figure) => figure.handle)
-        .filter((handle): handle is number => handle !== null);
-      resetFoldedFigureHandles();
-      await Promise.allSettled(handles.map((handle) => freeOristudioCpFoldedFigure(handle)));
+      // `resetFoldedFigureHandles` frees everything it was tracking, which is a
+      // superset of the live list: a figure deleted earlier in the session is
+      // held only by an undo entry, and collecting handles from the live list
+      // alone is exactly how those used to be left behind.
+      await resetFoldedFigureHandles();
       set({
         oristudioCpFoldedFigures: [],
         oristudioCpActiveFoldedFigureId: null,

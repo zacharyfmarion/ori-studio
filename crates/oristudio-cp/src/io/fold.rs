@@ -78,13 +78,25 @@ fn has_usable_geometry(frame: &FoldDocument) -> bool {
 /// Mirrors the web importer's `frameScore` so a file opens to the same frame in
 /// the kernel and in the read-only view: an explicit `creasePattern` class wins,
 /// then having faces, then the earliest frame.
+///
+/// **`foldedForm` scores below an unclassified frame**, which is the one rule
+/// that is not a tie-break. A file carrying a design and its folded state is the
+/// shape the FOLD spec suggests, and without this a folded frame placed first
+/// ties with the real pattern on faces alone and wins on being earlier. The web
+/// importer would then open one frame and the kernel another — same file, two
+/// answers — and the kernel's answer is a `fold_folded_form` refusal of a file
+/// that is perfectly importable. Demoting it here is what keeps the two agreeing;
+/// the refusal at [`import_fold_document`] stays for the file whose *only*
+/// usable frame is a folded form.
 fn frame_score(frame: &FoldDocument) -> i32 {
-    let is_crease_frame = frame
-        .frame_classes
-        .iter()
-        .any(|class| class == "creasePattern");
-    let has_faces = !frame.faces_vertices.is_empty();
-    i32::from(is_crease_frame) * 100 + i32::from(has_faces) * 10
+    let has_class = |name: &str| frame.frame_classes.iter().any(|class| class == name);
+    if has_class("creasePattern") {
+        return 100 + i32::from(!frame.faces_vertices.is_empty()) * 10;
+    }
+    if has_class("foldedForm") {
+        return -100;
+    }
+    i32::from(!frame.faces_vertices.is_empty()) * 10
 }
 
 /// The frame to import from: the root when it carries geometry, otherwise the
