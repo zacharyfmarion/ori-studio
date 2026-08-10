@@ -207,6 +207,35 @@ re-render at the new scale. Note there are two scales and they stay distinct: th
 own size (the canvas handles, `FoldedFigurePlacement`). Scroll is the camera, the
 handles are the window — the same split the inline simulation has.
 
+Phase 4 found that those two scales were the *same number*: `camera.zoom` fed
+`folded3dFrameRadius`, so the only thing it could do was resize the window, and
+the mesh camera was handed a hard-coded 1 to stop the model being scaled twice.
+Separating them is three changes, all of them no-ops on every existing document
+because nothing has ever set a zoom other than 1:
+
+- `folded3dFrameRadius(model)` takes **no camera**. A frame that moves with the
+  eye is exactly the resizing chrome it exists to prevent, and the signature is
+  now what says so.
+- `folded3dWindowView` carries the zoom, clamped to the simulator viewport's own
+  range. This is the only place a folded figure's zoom is honoured.
+- The **CPU projection ignores zoom**, because it is drawn *unclipped* — in the
+  crease-pattern scene and in an SVG export — so a zoomed-in model would spill
+  outside the chrome anchored to its frame instead of being cropped by it. It
+  draws the model fitted to its frame at any zoom. A zoom therefore needs no
+  re-projection at all, and `setOristudioCpFolded3dCamera` skips one when the
+  orientation is unchanged.
+
+The wheel is routed by the crease-pattern canvas, which is where it lands — a
+folded figure's window takes no pointer events, so the canvas asks
+`claimsWheel` exactly as it already asks `claimsPress`. The curve and the clamps
+moved into `lib/simulatorOrbit.ts` so both surfaces read one pair of numbers
+rather than two held equal by intent; `deltaY` stays un-normalised for
+`deltaMode`, because normalising it would change how an inline simulation zooms
+on the browsers that report lines, and that is its own change.
+
+A wheel has no release, so a burst is closed by an idle timer: one store write,
+one undo entry, one analytics event, on exactly the terms the drag has.
+
 ### 5. Export — match the simulator
 
 The 3D figure gets the simulator's export story: raster from the window, and
@@ -388,11 +417,77 @@ box is the last projection's bounds, which change every orbit frame — harmless
 as scene chrome, a per-frame layout write as a window.
 
 ### Phase 4 — Camera and interaction
-- [ ] Orbit drives the mesh camera; the CPU projection leaves the live path
-- [ ] Zoom exactly as the inline simulation's, settle-based re-render
-- [ ] Focus, blur and the press rules unchanged from today
-- [ ] Frame time measured with 1, 10 and 30 figures, in a **production** build
-      with DevTools closed — a dev build has misled twice in this repo
+- [x] Orbit drives the mesh camera; the CPU projection leaves the live path
+- [x] Zoom exactly as the inline simulation's, settle-based re-render
+- [x] Focus, blur and the press rules unchanged from today
+- [x] Main-thread cost measured with 1, 10 and 30 figures, and asserted as a
+      test. The **wall-clock production measurement could not be taken here** —
+      see below; it is on the browser checklist with a recipe
+
+Orbit was already a camera when Phase 3 ended, but it was arriving as **React
+state**: the layer subscribed to the side table, so turning one figure
+re-rendered the layer and with it every window in the document. Phase 4 gives
+the side table two ways out instead of one, and the difference between them is
+the whole of its cost model:
+
+- `subscribeFolded3dOrbitCamera(id, …)` hands one figure's live camera straight
+  to its window's viewport handle — no `useSyncExternalStore`, no prop, no
+  commit. A turn changes nothing about the page, so nothing about the page is
+  recomputed. The same rule `SimulatorViewport` already states for solver
+  frames.
+- `folded3dSceneOrbitFrames()` is the picture-carrying subset, and keeps its
+  identity when a frame carries none. A windowed figure publishes
+  `snapshot: null` sixty times a second, and the crease-pattern canvas — the
+  largest component in the app — was re-rendering for each one to receive a
+  picture it had already decided not to draw.
+
+`canWindowFolded3dFigure` is also decided once at the press rather than on every
+move: it walks the render model's cell table, and a figure cannot gain or lose
+its render model mid-drag.
+
+#### The numbers
+
+Measured in the repo's own jsdom harness, `hinge_90`, 400 frames after a
+100-frame warm-up, mesh delivery stubbed at the worker boundary (one small
+`postMessage` per frame, independent of figure count, is therefore excluded):
+
+| Figures | Main thread per orbit frame | What a React-delivered frame costs instead |
+| --- | --- | --- |
+| 1 | 0.0012 ms | 0.295 ms |
+| 10 | 0.0012 ms | 1.302 ms |
+| 30 | 0.0011 ms | 2.850 ms |
+
+The right-hand column is one full re-render of the layer and every window in it,
+which is what the camera-as-React-state shape paid *per frame*: linear in the
+figure count, and at 30 figures 2.85 ms of a 16.7 ms budget spent before
+anything is drawn. The left-hand column is flat, which is the property that
+matters — the per-frame budget no longer depends on how many figures the
+document holds.
+
+These are **jsdom numbers, not browser frame times**, and they measure the main
+thread only. They are recorded because the shape (flat versus linear in *N*) is
+the load-bearing claim and it is exact;
+`Folded3dWindowLayer.test.tsx` asserts it directly — 0 React commits and exactly
+one camera push per frame at 1, 10 and 30 figures, with the layout box
+byte-identical throughout — so it stays true rather than being a snapshot.
+
+#### The measurement I could not take, and why
+
+A **wall-clock production frame time** needs a browser that lays out and paints,
+and the automated browser pane is neither. Measured, on the production bundle
+(`npm run build:web`, served with `vite preview`):
+
+- `document.visibilityState` is `hidden` and `requestAnimationFrame` never
+  fires — a callback registered and waited on for 700 ms was not called.
+- The pane has no viewport. `innerWidth`/`innerHeight` read 0; after
+  `resize_window` to 1280×800 they read 1280×800 but nothing relaid out, and the
+  crease-pattern canvas still reported a 0×0 box with a 1×1 drawing buffer. The
+  dock layout resolves through `ResizeObserver`, which never fires on a page
+  that has never been painted, so the app never reaches a state in which a
+  window could be drawn at all.
+
+Any millisecond taken there would have been the timing of a degenerate app, so
+none was taken. The recipe for the real one is on the browser checklist.
 
 ### Phase 5 — Rehydrate
 - [ ] Background rehydrate for non-stale figures, post-paint, idle, one at a time
@@ -414,3 +509,29 @@ as scene chrome, a per-frame layout write as a window.
       planned
 - [ ] Browser checklist: orbit at 60 fps with tens of figures, zoom, border and
       clipping, lighting, reopen-and-turn, flat figures visually unchanged
+
+#### Recipe for the production frame-time measurement
+
+Needs a real window; see the Phase 4 note for why the automated pane cannot do
+it. `npm run build:web`, then `npx vite preview --port <free>` from `apps/web`,
+open it in Chrome, **close DevTools**, and use the browser's own frame counter
+rather than a profiler:
+
+1. Fold one figure, then duplicate it to 10 and to 30 (each duplicate is a real
+   refold, so each has its own render model and its own window).
+2. Turn a figure with a slow, continuous drag for several seconds.
+3. Read dropped frames from Chrome's FPS meter (Rendering → Frame Rendering
+   Stats), which does not require the profiler to be open.
+4. Repeat at each count. The main-thread half is flat by construction (above);
+   what this is looking for is the GPU half — thirty meshes on one shared
+   context, each a `createImageBitmap` and a composite.
+
+With `oristudio:sim-perf = 1` in localStorage the worker's `[sim]` line reports
+`liveMeshes` and its render timings once a second, which separates "the worker
+is slow" from "the compositor is". Two things about it are worth knowing before
+relying on it: the render counters are **shared across both window kinds** by
+design — they are draws on one context and splitting them would misreport what
+that context is doing — and the printer lives in `useSimulatorRuntime`, so the
+line only appears while an inline simulation is also open. Do not add a second
+poller to get it on a figures-only document: `getPerfStats()` reads *and resets*
+the counters, so two pollers would halve each other's numbers.

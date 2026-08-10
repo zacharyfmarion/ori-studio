@@ -592,6 +592,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
           const perSec = (n: number) => (s.windowMs ? (n / s.windowMs) * 1000 : 0).toFixed(0);
           console.log(
             `[sim] ${s.backend}${s.gpuRender ? '+gpuRender' : '+cpuRender'} | ` +
+              `${s.liveSessions} sessions, ${s.liveMeshes} meshes | ` +
               `solve ${s.solveAvgMs.toFixed(1)}ms avg / ${s.solveMaxMs.toFixed(1)} max, ` +
               `${perSec(s.ticks)} ticks/s, ${perSec(s.stepsTotal)} steps/s | ` +
               `render ${s.renderAvgMs.toFixed(2)}ms avg / ${s.renderMaxMs.toFixed(2)} max, ` +

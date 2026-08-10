@@ -360,4 +360,51 @@ describe('turning a folded figure', () => {
     expect(meshCameras).toHaveLength(1);
     expect(meshCameras[0]?.yaw).toBe(0.75);
   });
+
+  /**
+   * The whole of Phase 4's cost model, as one assertion.
+   *
+   * A turn costs one worker message and nothing else, at any number of open
+   * figures — so the main thread's per-frame budget does not depend on how many
+   * figures the document holds. Delivering the camera as React state instead
+   * cost one commit of the layer plus one of every window, which is the shape
+   * that puts a document of thirty figures over budget while a document of one
+   * looks fine.
+   */
+  it('costs the same to turn a figure at 1, 10 and 30 of them', () => {
+    for (const count of [1, 10, 30]) {
+      const many = Array.from({ length: count }, (_, index) => ({
+        ...figure(),
+        id: `folded-${index + 1}`,
+      }));
+      act(() => {
+        root.render(
+          <Profiled>
+            <Folded3dWindowLayer figures={many} focusedId={null} staleIds={new Set()} />
+          </Profiled>
+        );
+      });
+      expect(container.querySelectorAll('.cp-folded-figure-window')).toHaveLength(count);
+
+      meshCameras.length = 0;
+      commits = 0;
+      const layout = layoutProperties(windowEl());
+
+      act(() => {
+        for (let step = 1; step <= 20; step += 1) {
+          publishFolded3dOrbit('folded-1', {
+            camera: { yaw: step * 0.02, pitch: -0.4, zoom: 1 },
+            snapshot: null,
+          });
+        }
+      });
+
+      expect({ count, commits, pushes: meshCameras.length }).toEqual({
+        count,
+        commits: 0,
+        pushes: 20,
+      });
+      expect(layoutProperties(windowEl())).toEqual(layout);
+    }
+  });
 });
