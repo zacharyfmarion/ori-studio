@@ -238,13 +238,54 @@ one undo entry, one analytics event, on exactly the terms the drag has.
 
 ### 5. Export — match the simulator
 
-The 3D figure gets the simulator's export story: raster from the window, and
-vector through the simulator's own `svgRenderer` + BSP path, which exists.
+The 3D figure gets the simulator's export story: one drawing made from the render
+state, with the raster derived from it rather than made a second way. So
+`foldedFigure3dProjection.ts` **stays**, off the per-frame path — which is what
+it was never suited to — and remains the thing that can produce a correct
+back-to-front vector drawing without a depth buffer, which is precisely what SVG
+needs.
 
-So `foldedFigure3dProjection.ts` **stays, as an export-only path**. It is no
-longer on the per-frame path, which is what it was never suited to; it remains
-the thing that can produce a correct back-to-front vector drawing without a depth
-buffer, which is precisely what SVG needs.
+Phase 6 found that this is already where the code is, and that the sketch above
+contained a fork it should not have: "vector through the simulator's own
+`svgRenderer`" and "the projector remains the vector path" are not the same
+plan. The second is right, and it is the one that ships:
+
+- The projector **already runs the simulator's BSP path** — `buildBsp`,
+  `traverseBsp`, `findVisiblePieces`, `coplanarRuns`, `outlineOf` are all
+  imported from `@treemaker/origami-simulator` — and reproduces
+  `svgRenderer.ts`'s lighting term. What it adds is the kernel's exact
+  `cell_stack`, carried through the tree on `BspItem.order`. So the file already
+  carries the shading the window shows.
+- Routing vector export through `renderMeshToSvg` over the Phase-2 mesh instead
+  was tried and measured. It works, and it is fast — but it draws the six
+  fixtures with **1.0–1.7× the polygons** (`strip_coupled` 4 against 2,
+  `pinwheel` 18 against 9, `spikes_small` 24 against 14), because the epsilon
+  that separates the layers *for a depth buffer* is exactly what stops
+  `coplanarRuns` merging them again. And it would re-derive the layer order from
+  geometry we perturbed on purpose, when the exact order is right there. A vector
+  drawing wants the order, not the epsilon.
+- It would also have made a figure exported on its own disagree with the same
+  figure exported inside its crease pattern, which draws the stored snapshot.
+  Two vector drawings of one figure that differ is R7 happening rather than R7
+  being mitigated.
+
+So the raster stays derived from that drawing, exactly as `saveSimulatorView`
+derives the simulator's PNG from its SVG page.
+
+Two things the export deliberately does not follow the window on, both recorded
+in `foldedFigureExport.ts`: **zoom**, because a window crops with `overflow` and
+a page does not — a zoomed-in model would spill past the artwork instead of
+being cut off by a border, so the projection stays fitted to the figure's frame
+at any zoom (§4); and the **red annotation** on cells the solver could not
+order, which the file keeps and the window has no third colour for.
+
+"Reachable only from export" is the one claim in this section the code does not
+support, and Phase 6 corrects it rather than engineering toward it. The store
+calls the projector on purpose — on a fold, a refold, a style or colour change,
+and the once-per-gesture commit of a turn — because that is when the exportable
+picture goes out of date, and a figure that stopped refreshing it would export
+the view before last. The statement worth pinning is the one about *rate*, and
+it is asserted in both directions.
 
 ### 6. Rehydrating a reopened figure
 
@@ -320,8 +361,8 @@ Nothing ever changes under the user without a press, and app start pays nothing.
 | R3 | Tens of windows re-introduce the layout/ResizeObserver storm | `transform` only, and a test that a camera frame writes no layout-affecting property. This is the failure that survived every other fix in the inline-sim work |
 | R4 | The shared drawing buffer blanks under a driver clamp | Cap **and** quantise, both; the inline-sim plan records what each alone fails to prevent |
 | R5 | Rehydrating on load costs start-up time | Off the critical path, post-paint, idle, one at a time, and only for non-stale figures. Measure app start before and after |
-| R6 | Two render paths for one figure kind drift | The projector's only remaining caller is export; a test asserts no live path reaches it |
-| R7 | Vector export quality regresses because the mesh and the projector disagree | Both derive from the same render model; a test folds one fixture and asserts the exported SVG's face count matches the mesh's |
+| R6 | Two render paths for one figure kind drift | The projector keeps the vector path and leaves the per-frame one. Asserted in both directions: no projection per move, per notch or per frame, and exactly one per completed turn, so the exportable picture cannot silently go stale either |
+| R7 | Vector export quality regresses because the mesh and the projector disagree | Both derive from the same render model, and a test compares the **layer drawn per cell** over six fixtures at five cameras — not a face count, which legitimately differs: the epsilon that separates layers for the depth buffer is what stops the vector pass merging coplanar runs |
 | R8 | The flat figure is disturbed | It does not share the new path. Its existing golden tests are the gate |
 
 ## Checklist
@@ -576,10 +617,22 @@ callback is flushed.
   reproduced is asked once per session rather than on every render.
 
 ### Phase 6 — Export and cleanup
-- [ ] Raster export from the window; vector through the simulator's SVG path
-- [ ] `foldedFigure3dProjection.ts` reachable only from export; test that asserts it
-- [ ] `PORTING.md` updated: the 3D render path moved, the flat one did not
-- [ ] Analytics for orbit and zoom, enums and bucketed numbers only
+- [x] Export matches the simulator's story — one drawing from the render state,
+      raster derived from it. Already true, and §5 above records the measurement
+      that says routing it through the mesh instead would be a regression
+- [x] The projector is off the **per-frame** path, asserted in both directions
+      (`folded/projectorIsExportOnly.test.tsx`): zero projections across twenty
+      orbit moves and across a zoom burst and its settle, exactly one for a
+      completed turn, and a control figure that cannot be windowed still
+      projecting every move
+- [x] R7: the exported drawing shows the layer the window shows, over six
+      fixtures at five cameras, at the projector settings the store actually
+      writes and through the serializer (`folded/folded3dMesh.test.ts`)
+- [x] `PORTING.md` updated: the 3D render path moved, the flat one did not
+- [x] Analytics for orbit and zoom, enums and bucketed numbers only — both events
+      shipped in Phases 1 and 4 with **no** properties, and `docs/analytics.md`
+      now says why the viewpoint is never collected rather than leaving it to a
+      table cell
 
 ### Validation
 - [ ] `npx tsc --noEmit`, `npx vitest run`, `npx eslint .`

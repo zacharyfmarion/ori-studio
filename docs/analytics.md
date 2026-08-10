@@ -131,6 +131,13 @@ component index — all of them are measurements of the user's own design, and
 several would identify a distinctive one outright. What leaves the app is the
 bounded refusal and order-reason codes, and counts already bucketed.
 
+**Nor is the viewpoint.** Yaw, pitch and zoom describe how somebody is looking at
+their own model, which is the same class of thing as its geometry: a continuous
+measurement, unbucketable without inventing a scale, and identifying in
+aggregate. That is why `folded figure orbited` and `folded figure zoomed` carry
+no properties at all. The useful question — *does anyone turn these figures?* —
+is answered by the event existing; where they turned it to is not ours.
+
 ## Maintenance rules
 
 - **New user-facing features ship with an event** (see AGENTS.md → Common

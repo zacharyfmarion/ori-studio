@@ -220,6 +220,31 @@ differently:
   "layer" exists at all — what always exists is a winner per cell. The engine
   boundary emits cells with a face stack each, and a face that overlaps nothing
   becomes a one-face cell so a renderer that draws only cells never loses paper.
+- **On screen, a 3D figure is drawn by the origami simulator's mesh renderer.
+  A flat figure is not, and did not change.** A flat figure is still Oriedita's
+  primitive stream, drawn in the crease-pattern scene exactly as before; a 3D
+  figure is a GPU mesh in a window of its own, sharing the simulator worker's one
+  WebGL context. Three consequences a future porting session should know:
+  - **The layers are separated by an epsilon along the plane's normal.** A depth
+    buffer cannot draw a flat stack — the layers are exactly coplanar and
+    z-fight, which is why ORIPA keeps an overlap matrix. We do not need one,
+    because the kernel already computed the order: displacing each slot by
+    `stack index × ε` makes the z-buffer reproduce it. No global order is
+    constructed anywhere, so a cyclic panel order works by construction rather
+    than by exception.
+  - **`foldedFigure3dProjection.ts` is the vector path, not a second renderer.**
+    It makes the drawing that goes into an `.osf`, a crease-pattern export, a
+    standalone SVG/PNG, and the fallback picture for a figure with no GPU or no
+    render model. It is off the per-frame path and stays off it
+    (`projectorIsExportOnly.test.tsx`). Both paths derive from one render model
+    and a test asserts they show the same layer
+    (`folded3dMesh.test.ts`).
+  - **A 3D figure and an inline simulation disagree about which tone is
+    "front".** The simulator lifts FOLD faces with `[x, 0, y]`, a determinant −1
+    map that puts its right-hand normals on the paper's FOLD-front; a folded
+    figure winds the other way, because flat/3D parity — the same tone on the
+    same side of the paper as the flat figure beside it — is the constraint that
+    matters here. Both viewports on screen at once will disagree, by choice.
 - **The FOLD `foldedForm` frame is ours, and it does not inherit.** Oriedita
   writes no folded-form frame, so there is nothing to be faithful to and three
   choices had to be made. The frame restates its own vertices, edges, faces and
