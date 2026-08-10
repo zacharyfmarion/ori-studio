@@ -635,13 +635,19 @@ callback is flushed.
       table cell
 
 ### Validation
-- [ ] `npx tsc --noEmit`, `npx vitest run`, `npx eslint .`
-- [ ] `npm run i18n:check`, `npm run check:desktop`, `npm run build:web`
-      (restore `apps/web/dist/.gitkeep`)
-- [ ] `cargo test --workspace` — expected to be a no-op; no kernel change is
-      planned
+- [x] `npx tsc --noEmit`, `npx vitest run` (304 files, 3343 tests), `npx eslint .`
+- [x] `npm run i18n:check`, `npm run check:desktop`, `npm run build:web`
+      (`apps/web/dist/.gitkeep` intact), `npm run test:simulator` (257)
+- [x] `cargo test --workspace` — green, and a no-op as expected: no phase of this
+      plan touched `crates/`, `tools/` or `third_party/`, so no wasm rebuild
 - [ ] Browser checklist: orbit at 60 fps with tens of figures, zoom, border and
       clipping, lighting, reopen-and-turn, flat figures visually unchanged
+
+One flake worth knowing about, found by this phase's full-suite run and fixed:
+Phase 5's start-up assertion differenced two *means* over sixty interleaved
+mounts, and a single GC pause moves a mean by more than the 0.006–0.031 ms
+effect. It now takes the median of the per-pair differences, which is both
+stabler and more sensitive — real work at mount lifts every pair.
 
 #### Recipe for the production frame-time measurement
 
