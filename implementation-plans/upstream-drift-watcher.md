@@ -238,11 +238,18 @@ not wire the oracle to upstream HEAD.
 - [ ] Record the CI wall-clock cost added once the job has run
 
 ### Phase 2 — manifest
-- [ ] Add `upstream-sync.json` with all four live upstreams
-- [ ] Fill `watch_paths` and `port_map` per upstream, matching the skill's reference files
-- [ ] Give Box Pleating Studio a real commit SHA pin for the first time
-- [ ] Point the four existing pin locations at the manifest
-- [ ] Add a test asserting `vendored_commit` matches what is actually vendored
+- [x] Add `upstream-sync.json` with all four live upstreams
+- [x] Fill `watch_paths` and `port_map` per upstream, matching the skill's reference files
+- [x] Give Box Pleating Studio a real commit SHA pin for the first time
+- [x] Point the Oriedita and Flat-Folder vendor READMEs at the manifest
+- [x] Add tests asserting the manifest's paths still resolve, and that the
+      origami-simulator pin agrees with its `NOTICE`
+- [ ] `tools/oriedita-oracle/README.md` still repeats the Oriedita SHA as a
+      "native document interchange" baseline. Different meaning, same
+      stale-copy risk — fold it into the manifest or say why it differs.
+- [ ] A test that `vendored_commit` matches what is *actually* vendored needs
+      the network, so it belongs to the drift check rather than `cargo test`.
+      `packages/origami-simulator/NOTICE` stays authoritative for attribution.
 
 ### Phase 3 — baseline re-vendor
 - [ ] Decide whether to implement Oriedita's Apollonius circle tools, or record the decision not to

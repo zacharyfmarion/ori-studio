@@ -4,7 +4,9 @@ This directory vendors the source files needed to run Jason Ku's Flat-Folder
 implementation as a local JavaScript oracle.
 
 - Upstream: <https://github.com/origamimagiro/flat-folder>
-- Pinned commit: `e00732c4cf9137f76caea22fd8f284ec23af0aff`
+- Pinned commit: recorded in `upstream-sync.json` under `flat-folder`, which is
+  the source of truth for every upstream pin. Deliberately not repeated here —
+  two copies of a SHA are two copies to forget to update.
 - License: MIT, preserved in `LICENSE`
 
 Only source files and minimal project metadata are vendored. Large images and

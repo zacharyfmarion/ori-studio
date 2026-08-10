@@ -1,0 +1,94 @@
+{
+  "$comment": [
+    "Sync state for every upstream Ori Studio ports. Consolidates four pins that",
+    "previously lived in four different places and formats.",
+    "",
+    "Two commits are tracked per upstream and they mean different things:",
+    "  vendored_commit     what third_party/<name>/ actually contains, and what",
+    "                      the parity oracle compiles against. Moves only on a",
+    "                      real re-vendor, never by a drift check.",
+    "  last_checked_commit how far a drift check has triaged. Moves every run,",
+    "                      whether or not it found work.",
+    "",
+    "Drift checks are run with the upstream-drift skill; see",
+    ".agents/skills/upstream-drift/ and",
+    "implementation-plans/upstream-drift-watcher.md.",
+    "",
+    "TreeMaker 5.0.1 is absent on purpose: the upstream is a 2015 release and",
+    "cannot drift."
+  ],
+  "upstreams": {
+    "oriedita": {
+      "repo": "https://github.com/oriedita/oriedita",
+      "branch": "master",
+      "vendored_path": "third_party/oriedita",
+      "vendored_commit": "9d39135ae232cc03be4ffaf74baa7ae2df970507",
+      "last_checked_commit": "9d39135ae232cc03be4ffaf74baa7ae2df970507",
+      "last_checked_date": "2026-08-10",
+      "oracle": "tools/oriedita-oracle/build_geometry_oracle.sh",
+      "watch_paths": [
+        "origami/src/main/",
+        "oriedita-data/src/main/java/oriedita/editor/save/",
+        "oriedita-data/src/main/java/oriedita/editor/export/"
+      ],
+      "port_map": {
+        "origami/src/main/java/origami/Epsilon.java": "crates/oristudio-cp/src/geometry/epsilon.rs",
+        "origami/src/main/java/origami/crease_pattern/": "crates/oristudio-cp/src/geometry/",
+        "origami/src/main/java/origami/crease_pattern/worker/foldlineset/": "crates/oristudio-cp/src/folding/",
+        "oriedita-data/src/main/java/oriedita/editor/save/": "crates/oristudio-cp/src/io/",
+        "oriedita-data/src/main/java/oriedita/editor/export/": "crates/oristudio-cp/src/io/"
+      }
+    },
+    "box-pleating-studio": {
+      "repo": "https://github.com/bp-studio/box-pleating-studio",
+      "branch": "main",
+      "vendored_path": "third_party/box-pleating-studio",
+      "vendored_commit": "d86f8051812458b2c7b1ed7fac49fe7dc1d4dad4",
+      "vendored_commit_note": "First commit-level pin for this upstream. Derived from the vendored package.json version 0.7.14 resolved to its release tag, not from a recorded SHA. Re-derive if the vendored tree turns out not to match the tag exactly.",
+      "last_checked_commit": "d86f8051812458b2c7b1ed7fac49fe7dc1d4dad4",
+      "last_checked_date": "2026-08-10",
+      "oracle": "tools/bp-studio-oracle/oracle.mjs",
+      "watch_paths": [
+        "src/core/",
+        "src/shared/json/",
+        "src/client/patches/migrations/"
+      ],
+      "port_map": {
+        "src/core/": "crates/oristudio-bp/src/",
+        "src/shared/json/": "crates/oristudio-bp/src/io/",
+        "src/client/patches/migrations/": "crates/oristudio-bp/src/io/migrations.rs"
+      }
+    },
+    "flat-folder": {
+      "repo": "https://github.com/origamimagiro/flat-folder",
+      "branch": "main",
+      "vendored_path": "third_party/flat-folder",
+      "vendored_commit": "e00732c4cf9137f76caea22fd8f284ec23af0aff",
+      "last_checked_commit": "e00732c4cf9137f76caea22fd8f284ec23af0aff",
+      "last_checked_date": "2026-08-10",
+      "oracle": "tools/flat-folder-oracle/oracle.mjs",
+      "watch_paths": [
+        "src/"
+      ],
+      "port_map": {
+        "src/": "crates/treemaker-flatfold/src/"
+      }
+    },
+    "origami-simulator": {
+      "repo": "https://github.com/amandaghassaei/OrigamiSimulator",
+      "branch": "main",
+      "vendored_path": null,
+      "vendored_path_note": "Not vendored. packages/origami-simulator is a TypeScript port and a WebGL2 modernization, not a copy; the source commit is recorded in its NOTICE file.",
+      "vendored_commit": "7855983a613c879c171b2b1557f8cd102d2640cf",
+      "last_checked_commit": "7855983a613c879c171b2b1557f8cd102d2640cf",
+      "last_checked_date": "2026-08-10",
+      "oracle": null,
+      "watch_paths": [
+        "js/"
+      ],
+      "port_map": {
+        "js/": "packages/origami-simulator/src/"
+      }
+    }
+  }
+}
