@@ -223,14 +223,19 @@ not wire the oracle to upstream HEAD.
 ## Checklist
 
 ### Phase 1 — oracles in CI
-- [ ] Add `actions/setup-java` to the `native-oracle` job
-- [ ] Build Oriedita geometry + operations oracles in CI
-- [ ] Export `ORIEDITA_GEOMETRY_ORACLE`, `ORIEDITA_OPERATIONS_ORACLE`, `ORIEDITA_RENDER_ORACLE`, `ORIEDITA_IO_ORACLE`, `ORIEDITA_NATIVE_IO_ORACLE`, `ORIEDITA_MODEL_ORACLE`
-- [ ] Build the Flat-Folder oracle and export `FLATFOLDER_ORACLE`
+- [x] Add `actions/setup-java` to the `native-oracle` job
+- [x] Build the Oriedita oracle in CI, cached on the vendored source
+- [x] Export `ORIEDITA_GEOMETRY_ORACLE`, `ORIEDITA_OPERATIONS_ORACLE`, `ORIEDITA_RENDER_ORACLE`, `ORIEDITA_IO_ORACLE`, `ORIEDITA_MODEL_ORACLE`
+- [x] Export `FLATFOLDER_ORACLE` (a Node script; no build step needed)
+- [x] Convert silent skips to hard failures via `ORACLE_REQUIRED` + `oracle_env_guard`
+- [x] Confirm the suites actually execute — 109 tests now run where 0 did
+- [ ] `ORIEDITA_NATIVE_IO_ORACLE` — deferred; `build_native_io_oracle.sh` needs
+      maven to resolve Oriedita's Java `fold` dependency, unlike the geometry
+      oracle's dependency-free `javac`. Worth 4 tests; wire it separately.
 - [ ] Audit how the BP Studio (Bun) oracle is invoked and wire it equivalently
-- [ ] Convert silent skips to hard failures when `CI` is set; keep local skip
-- [ ] Confirm on a scratch PR that the suites actually execute — count assertions, do not trust a green check
-- [ ] Record the CI wall-clock cost added
+- [ ] `flat_folder_corpus` — deliberately excluded; it runs over ten minutes
+      locally where `flat_folder_oracle` takes under a second
+- [ ] Record the CI wall-clock cost added once the job has run
 
 ### Phase 2 — manifest
 - [ ] Add `upstream-sync.json` with all four live upstreams
