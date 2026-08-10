@@ -2284,7 +2284,8 @@
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
     "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
     "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
-    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b",
+    "panels:creasePattern.zoomFoldedForm": "225cd5f7024f"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4571,7 +4572,8 @@
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
     "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
     "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
-    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b",
+    "panels:creasePattern.zoomFoldedForm": "225cd5f7024f"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6858,7 +6860,8 @@
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
     "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
     "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
-    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b",
+    "panels:creasePattern.zoomFoldedForm": "225cd5f7024f"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9115,7 +9118,8 @@
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
     "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
     "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
-    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b",
+    "panels:creasePattern.zoomFoldedForm": "225cd5f7024f"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11372,7 +11376,8 @@
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
     "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
     "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
-    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b",
+    "panels:creasePattern.zoomFoldedForm": "225cd5f7024f"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13659,7 +13664,8 @@
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
     "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
     "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
-    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b",
+    "panels:creasePattern.zoomFoldedForm": "225cd5f7024f"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15946,7 +15952,8 @@
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
     "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
     "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
-    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b",
+    "panels:creasePattern.zoomFoldedForm": "225cd5f7024f"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -18203,6 +18210,7 @@
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
     "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
     "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
-    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b",
+    "panels:creasePattern.zoomFoldedForm": "225cd5f7024f"
   }
 }

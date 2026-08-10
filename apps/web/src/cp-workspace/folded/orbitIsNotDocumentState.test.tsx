@@ -81,7 +81,7 @@ function figure(): OristudioCpFoldedFigureEntry {
     renderSnapshot: project3dRenderSnapshot(RENDER_MODEL, FOLDED_3D, 'Paper5', CAMERA),
     placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: 0 },
     camera: CAMERA,
-    frameRadius: folded3dFrameRadius(RENDER_MODEL, CAMERA),
+    frameRadius: folded3dFrameRadius(RENDER_MODEL),
     error: null,
   };
 }

@@ -337,7 +337,8 @@
     "side": "侧面",
     "stale": "已过期",
     "viewFoldedModelOtherSide": "从另一侧查看",
-    "viewportControls": "折痕图视口控件"
+    "viewportControls": "折痕图视口控件",
+    "zoomFoldedForm": "缩放折叠图"
   },
   "design": {
     "attributionBoxPleating": "改编自 <2>Mu-Tsun Tsai's Box Pleating Studio</2>",

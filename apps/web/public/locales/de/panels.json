@@ -349,7 +349,8 @@
     "side": "Seite",
     "stale": "Veraltet",
     "viewFoldedModelOtherSide": "Von der anderen Seite ansehen",
-    "viewportControls": "Ansichtssteuerung des Faltmusters"
+    "viewportControls": "Ansichtssteuerung des Faltmusters",
+    "zoomFoldedForm": "Gefaltete Form zoomen"
   },
   "design": {
     "attributionBoxPleating": "Adaptiert von <2>Mu-Tsun Tsai's Box Pleating Studio</2>",

@@ -116,7 +116,21 @@ export interface FoldedFigureCamera {
    * parts drooping.
    */
   pitch: number;
-  /** Model units per world unit. 1 draws the figure at crease-pattern scale. */
+  /**
+   * How far the eye is zoomed **in**, inside a frame that does not change size.
+   *
+   * A viewport setting, not a scale of the figure. The frame a 3D figure is
+   * drawn in is the model's bounding sphere ({@link folded3dFrameRadius}) and
+   * the canvas handles are what resize it; zooming makes the model bigger inside
+   * that frame, and the window clips whatever leaves it — the same split an
+   * inline simulation has between its wheel and its resize handles.
+   *
+   * Honoured by the live GPU window and by nothing else. The CPU projection
+   * below draws the model fitted to its frame at any value of it, because the
+   * picture it makes is drawn *without* a clip — in the crease-pattern scene and
+   * in an SVG export — where a zoomed-in model would spill outside its own
+   * chrome rather than being cropped by it.
+   */
   zoom: number;
 }
 
@@ -326,7 +340,10 @@ function cameraUniformsFor(camera: FoldedFigureCamera, centre: Vec3): CameraUnif
     // so the two agree and no offset is applied.
     cosPitch: Math.cos(camera.pitch),
     sinPitch: Math.sin(camera.pitch),
-    scale: camera.zoom,
+    // Not `camera.zoom`: this projection is drawn unclipped, so a zoomed-in
+    // model would spill outside the frame its chrome is anchored to instead of
+    // being cropped by it. Zoom is a window setting — see `FoldedFigureCamera`.
+    scale: 1,
     // Zero, so `projectViewPoint`'s frame-centring term vanishes and the result
     // is in model units about the centroid rather than pixels about a viewport.
     width: 0,
@@ -346,22 +363,25 @@ function cameraUniformsFor(camera: FoldedFigureCamera, centre: Vec3): CameraUnif
  * is, and a window does not change shape because you turned what is inside it.
  *
  * The bounding **sphere** is what makes that exact rather than approximate. The
- * projection is orthographic with `scale = camera.zoom` and no perspective
- * divide ({@link cameraUniformsFor}), so a sphere of 3D radius `R` images to a
- * circle of radius `R * zoom` at *every* orientation. A frame sized to it
- * therefore never changes under orbit and always contains the model — which is
- * why nothing has to be clipped, and why the model can never escape its own
- * chrome at an awkward angle.
+ * projection is orthographic with no perspective divide
+ * ({@link cameraUniformsFor}), so a sphere of 3D radius `R` images to a circle
+ * of radius `R` at *every* orientation. A frame sized to it therefore never
+ * changes under orbit and always contains the model — which is why nothing has
+ * to be clipped, and why the model can never escape its own chrome at an awkward
+ * angle.
+ *
+ * It takes no camera, and that is the point rather than an omission: a frame
+ * that moved with the eye is exactly the resizing chrome this exists to stop.
+ * Zooming makes the model bigger *inside* the frame and the canvas handles make
+ * the frame bigger, and neither is allowed to become the other — see
+ * {@link FoldedFigureCamera.zoom}.
  *
  * The cost is honest padding: a long thin model sits inside a frame as wide as
  * it is long. That is what a viewport looks like, and it is the price of the
  * frame being stable.
  */
-export function folded3dFrameRadius(
-  model: OristudioCpFolded3dRenderModel,
-  camera: FoldedFigureCamera
-): number {
-  return modelRadius(model) * camera.zoom;
+export function folded3dFrameRadius(model: OristudioCpFolded3dRenderModel): number {
+  return modelRadius(model);
 }
 
 /**

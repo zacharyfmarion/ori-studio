@@ -422,6 +422,14 @@ export interface CreasePatternWebglCanvasProps {
     begin: (point: ModelPoint) => boolean;
     advance: (point: ModelPoint) => void;
     commit: () => void;
+    /**
+     * Whether a wheel at this point belongs to the focused figure's camera
+     * rather than to the crease-pattern camera. Narrower than `claimsPress`:
+     * only a figure drawn as a live window can be zoomed at all.
+     */
+    claimsWheel: (point: ModelPoint) => boolean;
+    /** Zoom the focused figure by one wheel event's worth. */
+    zoom: (deltaY: number) => void;
   } | null;
   /**
    * Reference images (superset layer), drawn above the grid and below the
@@ -2992,6 +3000,17 @@ export function CreasePatternWebglCanvas({
     // reads a modifier or a raw delta.
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // A focused 3D folded figure zooms its own camera instead, exactly as a
+      // focused inline simulation window does — there the window is a DOM
+      // element and takes the wheel itself; a folded figure is drawn into this
+      // surface, so the wheel arrives here and has to be routed. Above the
+      // camera branches for the same reason the orbit press is: what the
+      // pointer is over decides who the gesture belongs to.
+      const user = clientToUser(e.clientX, e.clientY);
+      if (user && liveRef.current.foldedOrbit?.claimsWheel(user)) {
+        liveRef.current.foldedOrbit.zoom(e.deltaY);
+        return;
+      }
       const cam = cameraRef.current;
       if (!cam) return;
       const ratio = dpr();

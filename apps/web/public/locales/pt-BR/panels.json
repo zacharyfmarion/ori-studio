@@ -361,7 +361,8 @@
     "side": "Lado",
     "stale": "Desatualizado",
     "viewFoldedModelOtherSide": "Ver pelo outro lado",
-    "viewportControls": "Controles da viewport do padrão de vincos"
+    "viewportControls": "Controles da viewport do padrão de vincos",
+    "zoomFoldedForm": "Ampliar forma dobrada"
   },
   "design": {
     "attributionBoxPleating": "Adaptado de <2>Mu-Tsun Tsai's Box Pleating Studio</2>",

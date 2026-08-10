@@ -361,7 +361,8 @@
     "side": "Cara",
     "stale": "Obsoleto",
     "viewFoldedModelOtherSide": "Ver desde el otro lado",
-    "viewportControls": "Controles de la vista del patrón de pliegues"
+    "viewportControls": "Controles de la vista del patrón de pliegues",
+    "zoomFoldedForm": "Ampliar forma plegada"
   },
   "design": {
     "attributionBoxPleating": "Adaptado de <2>Mu-Tsun Tsai's Box Pleating Studio</2>",

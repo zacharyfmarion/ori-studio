@@ -349,7 +349,8 @@
     "side": "Side",
     "stale": "Stale",
     "viewFoldedModelOtherSide": "View from the other side",
-    "viewportControls": "Crease pattern viewport controls"
+    "viewportControls": "Crease pattern viewport controls",
+    "zoomFoldedForm": "Zoom folded form"
   },
   "design": {
     "attributionBoxPleating": "Adapted from <2>Mu-Tsun Tsai's Box Pleating Studio</2>",

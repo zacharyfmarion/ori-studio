@@ -43,7 +43,11 @@ import {
 } from './folded3dRuntime';
 import { reproject3dFigureAt } from './folded3dReproject';
 import type { Vec2 } from '../annotations/annotationTransform';
-import type { SimulatorOrbitDrag } from '../../lib/simulatorOrbit';
+import {
+  clampSimulatorZoom,
+  simulatorWheelZoomFactor,
+  type SimulatorOrbitDrag,
+} from '../../lib/simulatorOrbit';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import { ANALYTICS_EVENTS, COUNT_BUCKETS, bucketCount } from '../../analytics/events';
 import { track } from '../../analytics';
@@ -54,6 +58,16 @@ import { track } from '../../analytics';
  * only thing that ever set it, so every fold was already from face 1.
  */
 const FOLD_STARTING_FACE_ID = 1;
+
+/**
+ * How long a wheel must go quiet before a figure's zoom is written to the
+ * document.
+ *
+ * A wheel gesture has no release, so this is what ends it. Long enough that a
+ * trackpad's coast does not split into several undo entries, short enough that
+ * letting go and pressing undo does what you expect.
+ */
+const FOLDED_3D_ZOOM_SETTLE_MS = 220;
 
 /**
  * The camera a figure is currently drawn at.
@@ -455,6 +469,101 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     []
   );
 
+  /**
+   * A wheel burst over a focused window, in flight.
+   *
+   * A wheel has no release, so the burst is bounded by an idle timer instead —
+   * the same shape as the drag, for the same two reasons: writing the store per
+   * event would produce a new figures array sixty times a second, and it would
+   * leave the user an undo entry per notch to press back through.
+   */
+  const zoomBurstRef = useRef<{ id: string; timer: number } | null>(null);
+
+  /**
+   * The store write that ends a zoom burst: one entry, one event, live frame
+   * dropped. Mirrors {@link commitOrbit}, and deliberately not merged with it —
+   * a drag ends when the pointer says so and a burst ends when it goes quiet.
+   */
+  const commitZoomRef = useRef(() => {});
+  useEffect(() => {
+    commitZoomRef.current = () => {
+      const burst = zoomBurstRef.current;
+      zoomBurstRef.current = null;
+      if (!burst) return;
+      window.clearTimeout(burst.timer);
+      const live = getFolded3dOrbit(burst.id);
+      if (live) {
+        void setOristudioCpFolded3dCamera(burst.id, live.camera);
+        commitFoldedFigureGesture(t('panels:creasePattern.zoomFoldedForm', 'Zoom folded form'));
+        // Once per burst. No properties: a zoom factor is a measured value about
+        // someone's design, which the privacy contract keeps out of analytics.
+        track(ANALYTICS_EVENTS.foldedFigureZoomed);
+      }
+      clearFolded3dOrbit(burst.id);
+    };
+  });
+
+  /**
+   * Whether a wheel at `point` should zoom the focused figure rather than the
+   * crease pattern.
+   *
+   * The same hit test the orbit uses, and additionally only for a figure drawn
+   * as a **window**: zoom is honoured by the mesh and by nothing else, so on a
+   * figure still drawn from its stored picture the wheel would appear to do
+   * nothing at all while also not panning the canvas.
+   */
+  const zoomClaimsWheel = useCallback(
+    (point: Vec2) =>
+      oristudioCpFocusedFoldedFigureId !== null &&
+      folded3dWindowFigureIds.has(oristudioCpFocusedFoldedFigureId) &&
+      foldedFigureOrbitClaimsPress(
+        oristudioCpFocusedFoldedFigureId,
+        oristudioCpFocusedFoldedFigureId,
+        focusedFoldedBox,
+        point
+      ),
+    [focusedFoldedBox, folded3dWindowFigureIds, oristudioCpFocusedFoldedFigureId]
+  );
+
+  /**
+   * One wheel event, as the simulator's own zoom: same curve, same clamps, from
+   * the module both surfaces read them from.
+   *
+   * Publishes to the side table, never to the store — this is transport, and it
+   * is the identical argument the orbit records at length.
+   */
+  const zoomFocusedFigure = useCallback(
+    (deltaY: number) => {
+      const id = oristudioCpFocusedFoldedFigureId;
+      if (!id) return;
+      const figure = figureById(id);
+      if (!figure) return;
+      const before = liveFigureCamera(figure);
+      const zoom = clampSimulatorZoom(before.zoom * simulatorWheelZoomFactor(deltaY));
+      if (zoom === before.zoom) return;
+      const burst = zoomBurstRef.current;
+      if (burst?.id !== id) {
+        // A wheel that lands on a different figure ends the previous burst
+        // properly rather than abandoning its live frame.
+        if (burst) commitZoomRef.current();
+        beginFoldedFigureGesture();
+      } else {
+        window.clearTimeout(burst.timer);
+      }
+      zoomBurstRef.current = {
+        id,
+        timer: window.setTimeout(() => commitZoomRef.current(), FOLDED_3D_ZOOM_SETTLE_MS),
+      };
+      // No snapshot: only a windowed figure can be zoomed, and a window draws
+      // from the camera alone.
+      publishFolded3dOrbit(id, { camera: { ...before, zoom }, snapshot: null });
+    },
+    [beginFoldedFigureGesture, figureById, oristudioCpFocusedFoldedFigureId]
+  );
+
+  /** A burst that never went quiet, because the surface went away. */
+  useEffect(() => () => commitZoomRef.current(), []);
+
   const foldedOrbit = useMemo(
     () => ({
       focusedId: oristudioCpFocusedFoldedFigureId,
@@ -463,6 +572,8 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       begin: beginOrbit,
       advance: advanceOrbit,
       commit: commitOrbit,
+      claimsWheel: zoomClaimsWheel,
+      zoom: zoomFocusedFigure,
     }),
     [
       advanceOrbit,
@@ -471,6 +582,8 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       focusOristudioCpFoldedFigure,
       orbitClaimsPress,
       oristudioCpFocusedFoldedFigureId,
+      zoomClaimsWheel,
+      zoomFocusedFigure,
     ]
   );
 

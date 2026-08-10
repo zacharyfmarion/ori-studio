@@ -261,7 +261,7 @@ describe('folded3dMesh', () => {
       // The same number, not merely a close one: the frame is sized from it and
       // the mesh is scaled by it, so a drift puts the model outside its window.
       expect(mesh.radius).toBe(modelRadius(model));
-      expect(mesh.radius).toBe(folded3dFrameRadius(model, { yaw: 0, pitch: 0, zoom: 1 }));
+      expect(mesh.radius).toBe(folded3dFrameRadius(model));
       expect(mesh.center).toEqual([0, 0, 0]);
     });
 

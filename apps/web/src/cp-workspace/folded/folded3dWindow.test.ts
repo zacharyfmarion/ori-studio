@@ -7,6 +7,7 @@ import type {
   OristudioCpFolded3dRenderModel,
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
+import { SIMULATOR_MAX_ZOOM, SIMULATOR_MIN_ZOOM } from '../../lib/simulatorOrbit';
 import {
   resetFolded3dRenderModels,
   setFolded3dRenderModel,
@@ -137,15 +138,22 @@ describe('framing a figure inside its window', () => {
     expect(folded3dFrameFillZoom(512, 512)).toBeCloseTo(512 / fitExtent(512, 512), 12);
   });
 
-  it('takes the figure’s angles and drops its zoom', () => {
-    // `camera.zoom` sizes the *frame* — the window grows with it — so the model
-    // fills the window at every value of it. Feeding it to the mesh camera as
-    // well would scale the model twice.
+  it('takes the figure’s angles and its zoom', () => {
+    // The mesh camera is where a figure's zoom is honoured, and the only place:
+    // the frame it is drawn in is the model's bounding sphere and does not move
+    // with the eye, so this grows the model inside a window of fixed size.
     expect(folded3dWindowView({ yaw: 0.4, pitch: -0.9, zoom: 3 })).toEqual({
       yaw: 0.4,
       pitch: -0.9,
-      zoom: 1,
+      zoom: 3,
     });
+  });
+
+  it('clamps a stored zoom to the range the wheel can reach', () => {
+    // A camera off a file cannot put a figure somewhere its own gestures could
+    // not take it back from.
+    expect(folded3dWindowView({ yaw: 0, pitch: 0, zoom: 99 }).zoom).toBe(SIMULATOR_MAX_ZOOM);
+    expect(folded3dWindowView({ yaw: 0, pitch: 0, zoom: 0.001 }).zoom).toBe(SIMULATOR_MIN_ZOOM);
   });
 
   it('falls back to the fold camera for a figure that carries none', () => {

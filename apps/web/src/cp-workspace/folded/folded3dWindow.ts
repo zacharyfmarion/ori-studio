@@ -27,6 +27,7 @@ import type {
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
 import type { Folded3dMeshPayload } from '../../simulator/foldedMeshSource';
+import { clampSimulatorZoom } from '../../lib/simulatorOrbit';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { folded3dRenderModel } from './folded3dRenderModels';
 import {
@@ -95,10 +96,13 @@ export function folded3dWindowIds(
  *
  * `cameraUniforms` fits a model to `fitExtent`, which is the short edge less 8%
  * on each side — right for a resizable viewport, wrong for a window whose size
- * *is* the model's frame. A figure's frame is `2 · modelRadius · zoom` and the
- * window is sized from it, so the bounding circle already touches the edge;
- * leaving the padding in would draw every existing 3D figure about 16% smaller
- * inside the same box, which is a visible change nobody asked for.
+ * *is* the model's frame. A figure's frame is `2 · modelRadius` and the window is
+ * sized from it, so the bounding circle already touches the edge; leaving the
+ * padding in would draw every existing 3D figure about 16% smaller inside the
+ * same box, which is a visible change nobody asked for.
+ *
+ * The figure's own zoom multiplies this rather than replacing it, so zoom 1
+ * means "fills the window" at any window size.
  *
  * Derived from `fitExtent` rather than from its constant, so it stays exact if
  * the padding is ever retuned.
@@ -112,15 +116,25 @@ export function folded3dFrameFillZoom(width: number, height: number): number {
 /**
  * The figure's viewpoint as the mesh renderer's orbit view.
  *
- * `zoom` is 1 rather than the figure's own: a figure's `camera.zoom` sizes its
- * *frame* — the window grows with it — so the model fills the window at every
- * value of it. Keeping the two scales apart is the split §4 of the plan names:
- * the camera zoom makes the model bigger inside a fixed window, the window's own
- * size is the canvas handles.
+ * All three fields, including `zoom` — this is the one place a folded figure's
+ * zoom is honoured. The frame it is drawn in is the model's bounding sphere and
+ * does not move with the eye (`folded3dFrameRadius`), so zooming makes the
+ * model bigger *inside* a window of fixed size, and the window's `overflow`
+ * crops whatever leaves it. The window's own size is the canvas handles. Those
+ * two scales are the split an inline simulation already has between its wheel
+ * and its resize handles, and keeping them apart is what stops a zoom from
+ * turning into a resize.
+ *
+ * Clamped to the range the simulator viewport's own wheel clamps to, so a stored
+ * camera cannot put a figure somewhere its gestures could not.
  */
 export function folded3dWindowView(camera: FoldedFigureCamera | null | undefined): OrbitView {
   const source = camera ?? DEFAULT_FOLDED_3D_CAMERA;
-  return { yaw: source.yaw, pitch: source.pitch, zoom: 1 };
+  return {
+    yaw: source.yaw,
+    pitch: source.pitch,
+    zoom: clampSimulatorZoom(source.zoom),
+  };
 }
 
 /**

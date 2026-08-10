@@ -217,10 +217,11 @@ function Folded3dWindow({
   );
 
   /**
-   * The window's frame *is* the model's, so the model fills it exactly at every
-   * value of the figure's own zoom — which sizes the frame rather than the
-   * picture. The fill factor cancels `cameraUniforms`'s viewport padding, which
-   * would otherwise draw every existing figure about 16% smaller in the same box.
+   * The window's frame *is* the model's bounding sphere, so at zoom 1 the model
+   * fills it exactly. The fill factor cancels `cameraUniforms`'s viewport
+   * padding, which would otherwise draw every existing figure about 16% smaller
+   * in the same box; the figure's own zoom then multiplies it, growing the model
+   * inside a window whose size never changes.
    */
   const pushCamera = useCallback(
     (view: OrbitView, width: number, height: number) => {

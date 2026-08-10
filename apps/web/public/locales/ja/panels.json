@@ -337,7 +337,8 @@
     "side": "面",
     "stale": "要再折り",
     "viewFoldedModelOtherSide": "反対側から見る",
-    "viewportControls": "展開図のビューポート操作"
+    "viewportControls": "展開図のビューポート操作",
+    "zoomFoldedForm": "折り上がり図をズーム"
   },
   "design": {
     "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> を基に",

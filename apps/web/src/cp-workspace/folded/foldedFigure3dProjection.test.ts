@@ -621,7 +621,7 @@ describe('the frame a 3D figure draws inside', () => {
       renderSnapshot: snapshot,
       placement: IDENTITY_FOLDED_PLACEMENT,
       error: null,
-      frameRadius: folded3dFrameRadius(model, camera),
+      frameRadius: folded3dFrameRadius(model),
     } as unknown as OristudioCpFoldedFigureEntry;
   }
 
@@ -737,7 +737,13 @@ describe('the camera', () => {
     expect([...front].reverse()).toEqual(back);
   });
 
-  it('scales with zoom and translates with the anchor', () => {
+  it('translates with the anchor and is unmoved by zoom', () => {
+    // Zoom is a *window* setting, honoured by the live GPU window and by nothing
+    // else. This picture is drawn without a clip — in the crease-pattern scene,
+    // and in an SVG export — so a zoomed-in model would spill outside the frame
+    // its chrome is anchored to instead of being cropped by it. The projector
+    // therefore draws the model fitted to its frame at every zoom, and the frame
+    // (`folded3dFrameRadius`) takes no camera at all.
     const model = fixture('hinge_90');
     const one = projectFolded3dModel(model, options({ mergeCoplanar: false }));
     const two = projectFolded3dModel(
@@ -749,9 +755,18 @@ describe('the camera', () => {
       })
     );
     expect(paintedArea(two.snapshot.primitives)).toBeCloseTo(
-      paintedArea(one.snapshot.primitives) * 4,
+      paintedArea(one.snapshot.primitives),
       6
     );
+
+    // Non-vacuous: the anchor *does* move the picture, so the areas above are
+    // being compared across two genuinely different projections.
+    const firstPoint = (projection: typeof one) => {
+      const fill = fills(projection.snapshot.primitives)[0];
+      if (!fill) throw new Error('expected a filled primitive');
+      return primitivePoints(fill)[0];
+    };
+    expect(firstPoint(two)).not.toEqual(firstPoint(one));
   });
 });
 

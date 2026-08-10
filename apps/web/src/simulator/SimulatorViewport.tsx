@@ -22,7 +22,9 @@ import {
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
 import {
+  clampSimulatorZoom,
   nextSimulatorOrbitView,
+  simulatorWheelZoomFactor,
   type SimulatorOrbitView as SimulatorView,
 } from "../lib/simulatorOrbit";
 import type { SimulatorSettings as SimulatorViewSettings } from "../lib/simulatorSettings";
@@ -61,9 +63,6 @@ export const DEFAULT_SIMULATOR_VIEW: SimulatorView = {
   pitch: -0.955,
   zoom: 1.4,
 };
-
-const MIN_ZOOM = 0.45;
-const MAX_ZOOM = 4;
 
 /**
  * Apply the surface's own framing to caller-supplied paper settings.
@@ -424,7 +423,7 @@ export function SimulatorViewport({
     (factor: number) => {
       viewRef.current = {
         ...viewRef.current,
-        zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, viewRef.current.zoom * factor)),
+        zoom: clampSimulatorZoom(viewRef.current.zoom * factor),
       };
       pushView();
     },
@@ -490,10 +489,7 @@ export function SimulatorViewport({
     event.preventDefault();
     viewRef.current = {
       ...viewRef.current,
-      zoom: Math.min(
-        MAX_ZOOM,
-        Math.max(MIN_ZOOM, viewRef.current.zoom * Math.exp(-event.deltaY * 0.001))
-      ),
+      zoom: clampSimulatorZoom(viewRef.current.zoom * simulatorWheelZoomFactor(event.deltaY)),
     };
     pushView();
   };

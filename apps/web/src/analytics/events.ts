@@ -187,6 +187,7 @@ export const ANALYTICS_EVENTS = {
   foldCompleted: 'fold completed',
   foldSolutionCycled: 'fold solution cycled',
   foldedFigureOrbited: 'folded figure orbited',
+  foldedFigureZoomed: 'folded figure zoomed',
   creasePatternShared: 'crease pattern shared',
   shareLinkCopied: 'share link copied',
   shareLinkOpened: 'share link opened',

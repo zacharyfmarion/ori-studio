@@ -337,7 +337,8 @@
     "side": "면",
     "stale": "오래됨",
     "viewFoldedModelOtherSide": "반대편에서 보기",
-    "viewportControls": "전개도 뷰포트 컨트롤"
+    "viewportControls": "전개도 뷰포트 컨트롤",
+    "zoomFoldedForm": "접힌 형태 확대/축소"
   },
   "design": {
     "attributionBoxPleating": "<2>Mu-Tsun Tsai's Box Pleating Studio</2> 기반",

@@ -1957,7 +1957,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             // Recorded once, here, because it must not follow the projection:
             // the frame is a window onto the model and a window does not change
             // shape when you turn what is inside it. See `folded3dFrameRadius`.
-            frameRadius: folded3dFrameRadius(result.render, camera),
+            frameRadius: folded3dFrameRadius(result.render),
             placement: IDENTITY_FOLDED_PLACEMENT,
             error: null,
             contradiction: null,
@@ -2383,7 +2383,18 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // figure reopened from a file has no render model (it is deliberately not
       // persisted), and blanking it would be worse than showing the saved view
       // until the next refold, which does honour the stored camera.
-      const renderSnapshot = reproject3dFigureAt(figure, figure.displayStyle, camera);
+      //
+      // Only the *orientation* is re-projected, because only the orientation
+      // reaches the picture: zoom is a window setting the projection deliberately
+      // ignores (see `FoldedFigureCamera.zoom`), so re-projecting for one would
+      // be `earcut` plus a BSP build to arrive at the picture already on the
+      // entry.
+      const before = figure.camera ?? null;
+      const sameView =
+        before !== null && before.yaw === camera.yaw && before.pitch === camera.pitch;
+      const renderSnapshot = sameView
+        ? null
+        : reproject3dFigureAt(figure, figure.displayStyle, camera);
       takeCanvasSelection('folded-figure', {
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
           candidate.id === figure.id
@@ -2671,7 +2682,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     // Refolded geometry is different geometry, so the frame is
                     // resized to it. Carrying the old one over would leave a
                     // window sized for paper that is no longer there.
-                    frameRadius: folded3dFrameRadius(result.render, camera),
+                    frameRadius: folded3dFrameRadius(result.render),
                     // The kind swaps with the witness. A figure whose creases
                     // gained fold angles since it was folded is a 3D figure now,
                     // and leaving `sourceKind` behind would leave the two
@@ -2852,7 +2863,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     folded3d: result.snapshot,
                     renderSnapshot,
                     camera,
-                    frameRadius: folded3dFrameRadius(result.render, camera),
+                    frameRadius: folded3dFrameRadius(result.render),
                     error: null,
                   }
                 : figure

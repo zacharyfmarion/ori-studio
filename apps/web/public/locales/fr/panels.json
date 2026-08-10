@@ -361,7 +361,8 @@
     "side": "Face",
     "stale": "Obsolète",
     "viewFoldedModelOtherSide": "Voir de l’autre côté",
-    "viewportControls": "Commandes d'affichage du patron de plis"
+    "viewportControls": "Commandes d'affichage du patron de plis",
+    "zoomFoldedForm": "Zoomer sur la forme pliée"
   },
   "design": {
     "attributionBoxPleating": "Adapté de <2>Mu-Tsun Tsai's Box Pleating Studio</2>",

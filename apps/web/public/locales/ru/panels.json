@@ -373,7 +373,8 @@
     "side": "Сторона",
     "stale": "Устарело",
     "viewFoldedModelOtherSide": "Посмотреть с другой стороны",
-    "viewportControls": "Элементы управления областью просмотра паттерна складок"
+    "viewportControls": "Элементы управления областью просмотра паттерна складок",
+    "zoomFoldedForm": "Масштабировать сложенную форму"
   },
   "design": {
     "attributionBoxPleating": "Адаптировано из <2>Mu-Tsun Tsai's Box Pleating Studio</2>",
