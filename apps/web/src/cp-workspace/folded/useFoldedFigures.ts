@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
@@ -34,6 +34,12 @@ import {
   foldedFigureOrbitChanged,
   foldedFigureOrbitClaimsPress,
 } from './foldedFigureOrbitGesture';
+import {
+  clearFolded3dOrbit,
+  getFolded3dOrbit,
+  publishFolded3dOrbit,
+} from './folded3dRuntime';
+import { reproject3dFigureAt } from './folded3dReproject';
 import type { Vec2 } from '../annotations/annotationTransform';
 import type { SimulatorOrbitDrag } from '../../lib/simulatorOrbit';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
@@ -56,6 +62,21 @@ const FOLD_STARTING_FACE_ID = 1;
  */
 function figureCamera(figure: OristudioCpFoldedFigureEntry): FoldedFigureCamera {
   return figure.camera ?? DEFAULT_FOLDED_3D_CAMERA;
+}
+
+/**
+ * Where the figure is being drawn *right now*: the live orbit frame while a drag
+ * is in flight, and the stored camera otherwise.
+ *
+ * The distinction is the whole of Phase 1. The store is written once per drag,
+ * on release, so during a drag `figure.camera` is still the camera the press
+ * started from — reading it as "the current camera" would make every move after
+ * the first measure its change against the anchor rather than against the last
+ * frame, and `foldedFigureOrbitChanged` would stop meaning "this move turned
+ * something".
+ */
+function liveFigureCamera(figure: OristudioCpFoldedFigureEntry): FoldedFigureCamera {
+  return getFolded3dOrbit(figure.id)?.camera ?? figureCamera(figure);
 }
 
 export interface UseFoldedFiguresOptions {
@@ -307,7 +328,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       if (!figure) return false;
       orbitDragRef.current = {
         id,
-        drag: beginFoldedFigureOrbit(figureCamera(figure), point),
+        drag: beginFoldedFigureOrbit(liveFigureCamera(figure), point),
         // The undo snapshot is deliberately NOT taken here. A press and release
         // that never moves is a click, and snapshotting on press would put a
         // no-op entry on the stack that the user has to undo past. Taken on the
@@ -319,35 +340,81 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     [figureById, oristudioCpFocusedFoldedFigureId]
   );
 
+  /**
+   * A move of the drag. Publishes to the side table, and deliberately **not** to
+   * the store: a store write here produces a new `oristudioCpFoldedFigures`
+   * array on every pointermove, which invalidates `staleFoldedFigureIds` (a walk
+   * over every crease in the document), `foldedFigureObjects` and
+   * `canvasObjects`, and re-renders the crease-pattern panel. See
+   * `folded3dRuntime.ts`.
+   */
   const advanceOrbit = useCallback(
     (point: Vec2) => {
       const session = orbitDragRef.current;
       if (!session) return;
       const figure = figureById(session.id);
       if (!figure) return;
-      const before = figureCamera(figure);
+      const before = liveFigureCamera(figure);
       const next = advanceFoldedFigureOrbit(before, session.drag, point);
       if (!foldedFigureOrbitChanged(before, next)) return;
       if (!session.recording) {
         session.recording = true;
         beginFoldedFigureGesture();
       }
-      void setOristudioCpFolded3dCamera(session.id, next);
+      // Projected here rather than in a render pass: this is `earcut` over every
+      // cell ring plus a BSP build, and React's commit is the wrong place for it.
+      // Null when the figure has no render model (reopened from a file), which
+      // the side table carries through as "keep the picture you have".
+      publishFolded3dOrbit(session.id, {
+        camera: next,
+        snapshot: reproject3dFigureAt(figure, figure.displayStyle, next),
+      });
     },
-    [beginFoldedFigureGesture, figureById, setOristudioCpFolded3dCamera]
+    [beginFoldedFigureGesture, figureById]
   );
 
+  /**
+   * The release. One store write, one undo entry, one analytics event — and the
+   * live frame goes, so the store is the only camera again.
+   */
   const commitOrbit = useCallback(() => {
     const session = orbitDragRef.current;
     orbitDragRef.current = null;
-    if (!session?.recording) return;
-    commitFoldedFigureGesture(t('panels:creasePattern.orbitFoldedForm', 'Turn folded form'));
-    // Once per drag, and only for a drag that turned something — `recording` is
-    // set by the first move that changed the camera. No properties: the only
-    // numbers here are yaw and pitch, and an angle is a measured value about
-    // someone's design, which the privacy contract keeps out of analytics.
-    track(ANALYTICS_EVENTS.foldedFigureOrbited);
-  }, [commitFoldedFigureGesture, t]);
+    if (!session) return;
+    const live = getFolded3dOrbit(session.id);
+    // `recording` is set by the first move that changed the camera, and that
+    // same move publishes the frame — so neither is ever set without the other,
+    // and a press and release that never turned anything writes nothing at all.
+    if (session.recording && live) {
+      // Synchronous up to its `set`, so the store carries the drag's final
+      // camera before the history entry is recorded against the pre-drag one.
+      void setOristudioCpFolded3dCamera(session.id, live.camera);
+      commitFoldedFigureGesture(t('panels:creasePattern.orbitFoldedForm', 'Turn folded form'));
+      // Once per drag, and only for a drag that turned something. No properties:
+      // the only numbers here are yaw and pitch, and an angle is a measured
+      // value about someone's design, which the privacy contract keeps out of
+      // analytics.
+      track(ANALYTICS_EVENTS.foldedFigureOrbited);
+    }
+    // Dropped last, so the store already holds the camera the live frame was
+    // drawing at: the canvas sees one change rather than a frame at the pre-drag
+    // camera followed by a frame at the new one.
+    clearFolded3dOrbit(session.id);
+  }, [commitFoldedFigureGesture, setOristudioCpFolded3dCamera, t]);
+
+  /**
+   * A drag that never got its release — the surface unmounted mid-gesture. The
+   * live frame would otherwise outlive the pointer that owns it and keep
+   * shadowing the stored camera.
+   */
+  useEffect(
+    () => () => {
+      const session = orbitDragRef.current;
+      orbitDragRef.current = null;
+      if (session) clearFolded3dOrbit(session.id);
+    },
+    []
+  );
 
   const foldedOrbit = useMemo(
     () => ({

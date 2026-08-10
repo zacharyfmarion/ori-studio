@@ -45,6 +45,7 @@
  */
 
 import { dropFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
+import { clearAllFolded3dOrbits } from './folded3dRuntime';
 
 /** Live reference count per handle. Entries reaching 0 are freed and dropped. */
 const counts = new Map<number, number>();
@@ -116,4 +117,8 @@ export function foldedFigureHandleRefCount(handle: number): number {
 export function resetFoldedFigureHandles(): void {
   counts.clear();
   resetFolded3dRenderModels();
+  // The other 3D side table, torn down at the same point and for the same
+  // reason: a live orbit frame outliving its document would draw a figure at a
+  // camera no entry in the store has.
+  clearAllFolded3dOrbits();
 }

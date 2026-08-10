@@ -187,10 +187,3 @@ export interface FoldedGeometry {
   fills: FillGeometry;
   strokes: StrokeGeometry;
 }
-
-/** Everything the renderer draws for one document, in GPU-ready form. */
-export interface CpSceneData {
-  strokes: StrokeGeometry;
-  points: PointGeometry;
-  folded: FoldedGeometry;
-}

@@ -1,6 +1,6 @@
 import createREGL from 'regl';
 import type { CpRenderFrame, CpRenderer } from './CpRenderer';
-import type { CpSceneData, Viewport } from './types';
+import type { Viewport } from './types';
 import type { CpImage } from '../images/cpImage';
 import { createStrokeProgram } from './programs/strokeProgram';
 import { createPointProgram } from './programs/pointProgram';
@@ -154,14 +154,6 @@ export function createReglRenderer(
   return {
     resize(next) {
       viewport = next;
-    },
-
-    setScene(scene: CpSceneData) {
-      if (disposed) return;
-      strokes.setData(scene.strokes);
-      points.setData(scene.points);
-      foldedFills.setData(scene.folded.fills);
-      foldedStrokes.setData(scene.folded.strokes);
     },
 
     setStrokes(next) {

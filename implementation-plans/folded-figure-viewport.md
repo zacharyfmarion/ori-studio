@@ -74,6 +74,27 @@ release**, which is also where the single undo entry already lands.
 
 Worth doing even if the rest of this plan were abandoned.
 
+Two details the sketch above did not settle, decided while building it:
+
+- The side table carries the **projected picture beside the camera**, not the
+  camera alone. Phase 1 still draws through the CPU projector, and the
+  projection has to happen somewhere; the pointer-move handler is where it
+  happens today, and moving it into a render pass would put `earcut` plus a BSP
+  build inside React's commit. The `snapshot` field goes away when the mesh
+  takes over the live path (§3-4); the camera is the part that is transport.
+- The re-projection itself moved out of `creasePatternSlice` into
+  `folded/folded3dReproject.ts`, because the store path (release) and the orbit
+  path (per move) must produce the *same* picture or the figure jumps when the
+  drag ends. One module rather than two copies.
+
+The frame reaches the canvas through `useFolded3dOrbitFigures`, subscribed in
+`CreasePatternWebglCanvas` rather than in the panel — waking the panel to deliver
+it would hand back exactly the memo invalidation this removes. The canvas's
+single `scene` memo was split into three (`strokeGeometry`, `pointGeometry`,
+`foldedGeometry`) and uploaded through the renderer's existing per-channel
+setters, because merged it rebuilt every crease in the document on every orbit
+frame; `CpRenderer.setScene` had no other caller and is gone.
+
 ### 2. The mesh
 
 A new module turns the kernel's `OristudioCpFolded3dRenderModel` into what
@@ -181,8 +202,16 @@ Nothing ever changes under the user without a press, and app start pays nothing.
 - `apps/web/src/cp-workspace/folded/folded3dMesh.ts` (new) + tests
 - `apps/web/src/cp-workspace/folded/folded3dRuntime.ts` (new) — the camera side
   table, mirroring `inlineSimulationRuntime.ts`
+- `apps/web/src/cp-workspace/folded/folded3dReproject.ts` (new) — the 3D
+  projection, lifted out of the store slice so the orbit path shares it
+- `apps/web/src/cp-workspace/folded/useFolded3dOrbitFigures.ts` (new) — the
+  drawing path's subscription to the side table
 - `apps/web/src/cp-workspace/folded/useFoldedFigures.ts` — orbit writes the side
   table; the store write moves to release
+- `apps/web/src/cp-workspace/CreasePatternWebglCanvas.tsx` — creases, points and
+  folded figures memoized and uploaded apart
+- `apps/web/src/cp-workspace/renderer/` — `setScene` removed; the per-channel
+  setters are the only upload path
 - `apps/web/src/store/workspaceStore/slices/creasePatternSlice.ts` — camera out
   of the descriptor; rehydrate action
 - The inline-simulation window layer and worker session — generalised from "a
@@ -222,10 +251,17 @@ Nothing ever changes under the user without a press, and app start pays nothing.
 ## Checklist
 
 ### Phase 1 — Camera out of the store (independent, ships alone)
-- [ ] `folded3dRuntime.ts` side table; live camera leaves the descriptor
-- [ ] Orbit writes the side table per move, the store once on release
-- [ ] Invariant test: an orbit frame does not invalidate a document-derived memo
-- [ ] Re-measure the panel render count during a drag, before and after
+- [x] `folded3dRuntime.ts` side table; live camera leaves the descriptor
+- [x] Orbit writes the side table per move, the store once on release
+- [x] Invariant test: an orbit frame does not invalidate a document-derived memo
+      (`folded/orbitIsNotDocumentState.test.tsx`, which asserts the figures array
+      identity, the derived memos' identity, and the surface's render count —
+      and a companion case proving the frame still reaches the drawing path, so
+      the first cannot pass for an orbit that does nothing)
+- [x] Re-measure the panel render count during a drag: the count is now asserted
+      rather than measured by hand — twenty orbit moves produce **zero**
+      re-renders of the binding layer, where each one previously produced one.
+      Frame timing itself still needs the production-build browser pass in §4
 
 ### Phase 2 — The mesh
 - [ ] `folded3dMesh.ts`: positions, topology, edge assignments

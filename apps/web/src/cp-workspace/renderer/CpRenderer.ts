@@ -1,6 +1,5 @@
 import type { CpImage } from '../images/cpImage';
 import type {
-  CpSceneData,
   FillGeometry,
   FoldedGeometry,
   MarkerGeometry,
@@ -17,16 +16,14 @@ import type {
  * implementation (currently {@link ./reglRenderer}) owns a GPU context and
  * knows nothing about React; the mounting component drives its lifecycle.
  *
- * Scene geometry is uploaded once via {@link CpRenderer.setScene} and redrawn
+ * Scene geometry is uploaded through the per-channel setters below and redrawn
  * cheaply each frame with a fresh camera via {@link CpRenderer.render}.
  */
 export interface CpRenderer {
   /** Notify the renderer of a new drawing-buffer size (device pixels). */
   resize(viewport: Viewport): void;
-  /** Upload (or replace) the geometry to draw. */
-  setScene(scene: CpSceneData): void;
   /**
-   * Replace only the crease-stroke buffer, leaving points and folded figures
+   * Replace the crease-stroke buffer, leaving points and folded figures
    * untouched. Used to redraw the selected lines shifted during a move-drag
    * without re-uploading the rest of the scene each frame.
    */
@@ -94,7 +91,7 @@ export interface CpRenderer {
   dispose(): void;
 }
 
-/** Everything needed to draw one frame (geometry comes from {@link CpRenderer.setScene}). */
+/** Everything needed to draw one frame (geometry comes from the setters above). */
 export interface CpRenderFrame {
   /** Background colour the surface is cleared to before drawing. */
   clearColor: Rgba;

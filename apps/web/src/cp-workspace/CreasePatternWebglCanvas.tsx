@@ -78,6 +78,7 @@ import {
   type FoldedFigureBounds,
 } from './adapters/cpFoldedToScene';
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
+import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
 import type { CpContextMenuRequest } from './contextMenuTarget';
 import {
   cpGridLinesToStrokes,
@@ -1402,15 +1403,24 @@ export function CreasePatternWebglCanvas({
   // is an intentional trigger: colours are resolved from theme CSS variables, so
   // the scene must be rebuilt when the theme switches even though its value is
   // not read directly here.
-  const scene = useMemo(
-    () => ({
-      strokes: buildStrokes(),
-      points: buildPoints(),
-      folded: cpFoldedToScene(foldedFigures, (figure) =>
+  //
+  // Creases, points and folded figures are memoized apart, and uploaded through
+  // the renderer's three channels rather than as one scene. Merged, a 3D figure
+  // being turned rebuilt every crease in the document on every pointer move,
+  // because the merged memo could not tell which of its three inputs had
+  // changed.
+  const strokeGeometry = useMemo(() => buildStrokes(), [buildStrokes]);
+  const pointGeometry = useMemo(() => buildPoints(), [buildPoints]);
+  // The figures as drawn: the store's entries, with any figure the user is
+  // currently turning swapped for its live orbit frame. See
+  // `folded/folded3dRuntime.ts` for why the live camera is not in the store.
+  const drawnFoldedFigures = useFolded3dOrbitFigures(foldedFigures);
+  const foldedGeometry = useMemo(
+    () =>
+      cpFoldedToScene(drawnFoldedFigures, (figure) =>
         staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1
       ),
-    }),
-    [buildStrokes, buildPoints, foldedFigures, staleFoldedFigureIds]
+    [drawnFoldedFigures, staleFoldedFigureIds]
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global
@@ -2817,8 +2827,10 @@ export function CreasePatternWebglCanvas({
         // orbit is claimed in the first branch of pointerdown, so no tool, erase
         // or pan can be in flight alongside it, and the route function exists to
         // arbitrate exactly the modes that can overlap. A cancel still commits —
-        // the camera has already been written on every move, so the choice is
-        // between one undo entry and a turn the user cannot undo at all.
+        // the figure has been drawn turned on every move, so the choice is
+        // between one undo entry and a turn the user cannot undo at all. Commit
+        // is also the only thing that writes the camera to the store, so
+        // skipping it would leave the figure drawn at a camera nothing records.
         orbiting = false;
         liveRef.current.foldedOrbit?.commit();
         if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
@@ -3049,11 +3061,12 @@ export function CreasePatternWebglCanvas({
     // callbacks, listed to satisfy the exhaustive-deps rule.)
   }, [rendererGeneration, clearPreview, tryLoneCandidateAutoPick]);
 
-  // Upload geometry whenever it is rebuilt, then redraw immediately.
+  // Upload creases and points whenever they are rebuilt, then redraw immediately.
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
-    renderer.setScene(scene);
+    renderer.setStrokes(strokeGeometry);
+    renderer.setPoints(pointGeometry);
     // A copy gesture's ghost was deliberately left up through the commit; now that
     // the document's own strokes carry the new creases, take it down. Doing it here
     // rather than at commit means the geometry never blinks out in between.
@@ -3063,7 +3076,16 @@ export function CreasePatternWebglCanvas({
       clearPreview();
     }
     renderNowRef.current();
-  }, [scene, rendererGeneration, clearPreview]);
+  }, [strokeGeometry, pointGeometry, rendererGeneration, clearPreview]);
+
+  // Folded figures on their own channel, so turning one uploads its fills and
+  // edges and leaves the crease buffers alone.
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    renderer.setFolded(foldedGeometry);
+    renderNowRef.current();
+  }, [foldedGeometry, rendererGeneration]);
 
   // Point-sequence kernel preview: render the controller-supplied candidate
   // segments on the preview channel. Drag tools drive the same channel

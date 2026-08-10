@@ -129,13 +129,11 @@ import {
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFold3dRefusal,
-  OristudioCpFolded3dRenderModel,
   OristudioCpFolded3dSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureSnapshot,
-  OristudioCpFoldedRenderSnapshot,
 } from '../../../engine/oristudioCpTypes';
 import {
   foldedFigureCycling,
@@ -146,14 +144,13 @@ import { fold3dRefusalMessage } from '../../../cp-workspace/folded/foldedFigureN
 import {
   defaultFolded3dCamera,
   folded3dFrameRadius,
-  folded3dPaperStyle,
-  projectFolded3dModel,
-  type FoldedFigureCamera,
 } from '../../../cp-workspace/folded/foldedFigure3dProjection';
+import { setFolded3dRenderModel } from '../../../cp-workspace/folded/folded3dRenderModels';
 import {
-  folded3dRenderModel,
-  setFolded3dRenderModel,
-} from '../../../cp-workspace/folded/folded3dRenderModels';
+  project3dRenderSnapshot,
+  reproject3dFigure,
+  reproject3dFigureAt,
+} from '../../../cp-workspace/folded/folded3dReproject';
 import {
   cpLinesByIds,
   foldedSourceBounds,
@@ -377,63 +374,6 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       selected,
       index,
     });
-  }
-
-  /**
-   * The picture for a 3D figure, produced **here** rather than by the kernel.
-   *
-   * `folded_figure_render_snapshot` takes `CpSession::flat(handle)` and answers
-   * `folded_figure_kind_mismatch` on a spatial one, by design: the kernel emits a
-   * view-independent render model and the choice of viewpoint, colour and
-   * occlusion is the frontend's. So every place the flat path asks the worker for
-   * a snapshot, the 3D path calls this instead — synchronously, since it is a
-   * pure function of data already in memory.
-   */
-  function project3dRenderSnapshot(
-    render: OristudioCpFolded3dRenderModel,
-    snapshot: OristudioCpFolded3dSnapshot,
-    displayStyle: OristudioCpFoldedFigureDisplayStyle,
-    camera: FoldedFigureCamera
-  ): OristudioCpFoldedRenderSnapshot {
-    return projectFolded3dModel(render, {
-      camera,
-      displayStyle,
-      style: folded3dPaperStyle(snapshot.model),
-      tolerances: snapshot.diagnostics.tolerances,
-    }).snapshot;
-  }
-
-  /**
-   * Re-project a 3D figure that is already on the canvas, or `null` when it
-   * cannot be re-projected.
-   *
-   * `null` is a real answer and not a failure: a figure reopened from a file has
-   * `handle: null` and therefore no render model, so it draws from its stored
-   * snapshot and cannot change viewpoint or style. Callers keep what they have
-   * rather than blanking the figure.
-   */
-  function reproject3dFigure(
-    figure: OristudioCpFoldedFigureEntry,
-    displayStyle: OristudioCpFoldedFigureDisplayStyle
-  ): OristudioCpFoldedRenderSnapshot | null {
-    return reproject3dFigureAt(figure, displayStyle, figure.camera ?? null);
-  }
-
-  /** The same, at a caller-chosen viewpoint — the seam the "other side" verb uses. */
-  function reproject3dFigureAt(
-    figure: OristudioCpFoldedFigureEntry,
-    displayStyle: OristudioCpFoldedFigureDisplayStyle,
-    camera: FoldedFigureCamera | null
-  ): OristudioCpFoldedRenderSnapshot | null {
-    const snapshot = figure.folded3d ?? null;
-    const render = folded3dRenderModel(figure.handle);
-    if (!snapshot || !render) return null;
-    return project3dRenderSnapshot(
-      render,
-      snapshot,
-      displayStyle,
-      camera ?? defaultFolded3dCamera(render, snapshot.model.state)
-    );
   }
 
   /**
