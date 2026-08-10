@@ -79,7 +79,7 @@ checking only the first is how this got recorded wrong.
 | **Line colour** | now editable — was read-only | done |
 | **Anti-alias** | now editable — was read-only | done |
 | **Shadow** | **ignored** | §1 |
-| **Transparency** (`transparent_transparency`, `transparency_color`) | **ignored** | §2 |
+| **Transparency** (`transparent_transparency`, `transparency_color`) | 3D uses its own alpha; neither field transfers | none — §2 |
 | **Scale / rotation** | already work, via the canvas handles | none — §3 |
 | **State** (front/back) | works, as a camera | none |
 
@@ -117,10 +117,27 @@ model's `transparent_transparency` (a 0–255 amount) and `transparency_color`
 (a flag) are the *flat* renderer's knobs and the projector ignores both, using a
 fixed `TRANSPARENT_FACE_ALPHA`.
 
-Wiring the amount through is small and worth it — it is a real control with a
-real meaning in 3D. `transparency_color` needs a look at the Java drawer before
-anything is decided; it is not obvious it has a 3D reading at all, and
-`unsupported` is an acceptable answer if it does not.
+**Both fields turned out not to transfer, and wiring the amount through was a
+mistake this plan made and then had to undo.**
+
+`transparent_transparency` was wired to the projector's alpha on the reasoning
+that it was "upstream's own reading of the field". It is — of the *flat*
+renderer, where a flat stack lands ten to fourteen layers on one pixel and its
+`16/255` default accumulates to about 59%. A 3D pixel has one to three faces
+behind it, so the same number reads as almost nothing: **X-ray became
+indistinguishable from Wireframe**, which is how it was found, by looking at it.
+
+It also bought nothing. There is no transparency control in the UI — the only
+value the field could ever take was its default — so the whole change was a
+7× dimming with no capability behind it. 3D now uses `TRANSPARENT_FACE_ALPHA`,
+and `foldedAppearanceSupport` reports the option `unsupported` for a 3D figure.
+
+`transparency_color` is the same answer for a different reason: it selects a
+Java2D *render pass*, which a renderer compositing its own alpha has no reading
+for. Both fields stay on the ported type so Oriedita files round-trip.
+
+The lesson worth keeping: a constant calibrated against one renderer's ply is
+not a constant, it is a measurement of that renderer.
 
 ### 3. Scale and rotation — already work, and nothing changes
 

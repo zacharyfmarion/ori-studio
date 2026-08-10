@@ -21,7 +21,12 @@ import {
   folded3dWindowView,
 } from './folded3dWindow';
 import { folded3dMesh, type Folded3dMesh } from './folded3dMesh';
-import { UNDETERMINED_FACE_ALPHA, type Folded3dPaperStyle } from './folded3dStyle';
+import {
+  TRANSPARENT_FACE_ALPHA,
+  UNDETERMINED_FACE_ALPHA,
+  folded3dPaperStyle,
+  type Folded3dPaperStyle,
+} from './folded3dStyle';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 
@@ -162,16 +167,29 @@ describe('framing a figure inside its window', () => {
   });
 });
 
+/** A default kernel figure model — the alphas a real figure actually gets. */
+const PAPER_MODEL = {
+  front_color: { red: 255, green: 255, blue: 50 },
+  back_color: { red: 233, green: 233, blue: 233 },
+  line_color: { red: 0, green: 0, blue: 0 },
+  anti_alias: true,
+  transparent_transparency: 16,
+} as unknown as Parameters<typeof folded3dPaperStyle>[0];
+
+/**
+ * Distinctive colours so a settings field that reads the wrong source is
+ * obvious, over the alphas a real figure actually gets.
+ *
+ * `transparentAlpha` comes from `folded3dPaperStyle` rather than being written
+ * out: it was hardcoded at the flat renderer's `16/255`, which is exactly the
+ * value that made X-ray look like Wireframe, and a fixture that pins the wrong
+ * number is a test agreeing with the bug.
+ */
 const STYLE: Folded3dPaperStyle = {
+  ...folded3dPaperStyle(PAPER_MODEL),
   front: [1, 0.5, 0.25],
   back: [0.1, 0.2, 0.3],
   line: [0.4, 0.4, 0.4],
-  faceAlpha: 1,
-  transparentAlpha: 0.0627,
-  lineWidth: 1.2,
-  antiAlias: true,
-  lighting: true,
-  lightDir: [0, 0, 1],
 };
 
 describe('drawing a figure in its own colours', () => {
@@ -183,6 +201,33 @@ describe('drawing a figure in its own colours', () => {
     });
     expect(settings.frontColor).toEqual([1, 0.5, 0.25]);
     expect(settings.backColor).toEqual([0.1, 0.2, 0.3]);
+  });
+
+  it('draws X-ray as paper you can see through, not as Wireframe', () => {
+    // The regression this pins: X-ray took its alpha from
+    // `transparent_transparency`, whose 16/255 default is calibrated for the
+    // *flat* renderer's ply — ten to fourteen layers on one pixel, accumulating
+    // to about 59%. A 3D pixel has one to three faces behind it, so 6% read as
+    // nothing and X-ray became indistinguishable from Wireframe.
+    const xray = folded3dWindowRenderSettings({
+      style: STYLE,
+      displayStyle: 'Transparent3',
+      devicePixelRatio: 1,
+    });
+    const wire = folded3dWindowRenderSettings({
+      style: STYLE,
+      displayStyle: 'Wire2',
+      devicePixelRatio: 1,
+    });
+
+    // Wireframe draws no paper at all; X-ray draws paper.
+    expect(wire.showFaces).toBe(false);
+    expect(xray.showFaces).toBe(true);
+    // And the paper it draws has to be *visible*. A bound rather than the
+    // constant, because the point is legibility rather than a particular
+    // number — but low enough that the flat renderer's 0.06 fails it.
+    expect(xray.faceAlpha).toBeGreaterThan(0.2);
+    expect(xray.faceAlpha).toBeLessThan(1);
   });
 
   it('inks every crease kind with the figure’s one line colour', () => {
@@ -205,9 +250,13 @@ describe('drawing a figure in its own colours', () => {
     expect(at('None0')).toMatchObject({ showFaces: false, showEdges: false });
     expect(at('Wire2')).toMatchObject({ showFaces: false, showEdges: true });
     expect(at('Paper5')).toMatchObject({ showFaces: true, showEdges: true, faceAlpha: 1 });
-    // The X-ray alpha is the model's own `transparent_transparency`, not a
-    // constant of ours.
-    expect(at('Transparent3')).toMatchObject({ showFaces: true, faceAlpha: 0.0627 });
+    // The X-ray alpha is a 3D constant, *not* the model's
+    // `transparent_transparency`. That field is calibrated for the flat
+    // renderer's ply and reads as nothing here — see `TRANSPARENT_FACE_ALPHA`.
+    expect(at('Transparent3')).toMatchObject({
+      showFaces: true,
+      faceAlpha: TRANSPARENT_FACE_ALPHA,
+    });
   });
 
   it('never paints the frame, so the crease pattern shows through', () => {

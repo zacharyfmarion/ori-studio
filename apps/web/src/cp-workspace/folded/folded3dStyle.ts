@@ -46,7 +46,22 @@ export interface Folded3dPaperStyle {
 /** Alpha a cell's fills drop to when the solver could not order it. */
 export const UNDETERMINED_FACE_ALPHA = 0.45;
 
-/** Alpha every cell drops to under `Transparent3`. */
+/**
+ * Alpha every cell drops to under `Transparent3`, in **3D**.
+ *
+ * Deliberately not `FoldedFigureModel.transparent_transparency`, which the flat
+ * renderer uses directly as its fill alpha and which defaults to `16/255`.
+ * That number is calibrated for the flat renderer's *ply*: a flat stack lands
+ * ten to fourteen layers on one pixel, and 6% each accumulates to about 59%. In
+ * 3D a pixel typically has one to three faces behind it, so the same number
+ * reads as almost nothing — X-ray became indistinguishable from Wireframe, which
+ * is how this was found.
+ *
+ * Wiring the model field through bought nothing either way: there is no
+ * transparency control in the UI, so the only value it could ever take was the
+ * default. Same conclusion as `transparency_color`, for the same reason — see
+ * `foldedFigureAppearance`.
+ */
 export const TRANSPARENT_FACE_ALPHA = 0.45;
 
 /** Paper style from a kernel figure model, so a 3D figure honours its colours. */
@@ -56,7 +71,7 @@ export function folded3dPaperStyle(model: OristudioCpFoldedFigureModel): Folded3
     back: [model.back_color.red / 255, model.back_color.green / 255, model.back_color.blue / 255],
     line: [model.line_color.red / 255, model.line_color.green / 255, model.line_color.blue / 255],
     faceAlpha: 1,
-    transparentAlpha: model.transparent_transparency / 255,
+    transparentAlpha: TRANSPARENT_FACE_ALPHA,
     lineWidth: model.anti_alias ? 1.200000048 : 1.0,
     antiAlias: model.anti_alias,
     lighting: true,

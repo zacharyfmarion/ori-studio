@@ -98,10 +98,13 @@ export function foldedAppearanceSupport(
       // `folded3dPaperStyle`, side as a camera, display style as its style plan.
       return 'supported';
     case 'transparency':
-      // `transparent_transparency` drives the projector's face alpha. Only
-      // reachable through the X-ray display style on either kind of figure, but
-      // that is a question about the *style*, not about support.
-      return 'supported';
+      // The amount is the flat renderer's, and it does not transfer. Oriedita
+      // uses `transparent_transparency` directly as a fill alpha, defaulted to
+      // 16/255 — a number calibrated for a flat stack's ply, where ten to
+      // fourteen layers land on one pixel. A 3D pixel has one to three faces
+      // behind it, so the same value reads as almost nothing and X-ray becomes
+      // Wireframe. 3D uses its own constant; see `TRANSPARENT_FACE_ALPHA`.
+      return isFolded3dFigure(figure) ? 'unsupported' : 'supported';
     case 'shadow':
       // Oriedita's shadow is an offset band along a subface boundary, derived
       // from the subface arrangement and the layer hierarchy. The 3D path keeps
