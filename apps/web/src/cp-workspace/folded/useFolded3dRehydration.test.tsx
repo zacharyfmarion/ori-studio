@@ -272,24 +272,36 @@ describe('what rehydration costs app start', () => {
    * second block inherits whatever state the first left. Alternating puts that
    * drift into both sides equally.
    */
-  function msPerMount(
-    figures: readonly OristudioCpFoldedFigureEntry[]
-  ): { before: number; after: number } {
+  function msPerMount(figures: readonly OristudioCpFoldedFigureEntry[]): {
+    before: number;
+    after: number;
+    /** Median of the per-pair differences — see the assertion below. */
+    added: number;
+  } {
     for (let run = 0; run < WARM_UP_MOUNTS; run += 1) {
       mountOnce(figures, false);
       mountOnce(figures, true);
     }
     let before = 0;
     let after = 0;
+    const deltas: number[] = [];
     for (let run = 0; run < TIMED_MOUNTS; run += 1) {
       const withoutStarted = performance.now();
       mountOnce(figures, false);
-      before += performance.now() - withoutStarted;
+      const without = performance.now() - withoutStarted;
       const withStarted = performance.now();
       mountOnce(figures, true);
-      after += performance.now() - withStarted;
+      const withIt = performance.now() - withStarted;
+      before += without;
+      after += withIt;
+      deltas.push(withIt - without);
     }
-    return { before: before / TIMED_MOUNTS, after: after / TIMED_MOUNTS };
+    deltas.sort((l, r) => l - r);
+    return {
+      before: before / TIMED_MOUNTS,
+      after: after / TIMED_MOUNTS,
+      added: deltas[Math.floor(deltas.length / 2)] ?? 0,
+    };
   }
 
   it('starts no folds before the browser is idle, at any figure count', () => {
@@ -309,8 +321,8 @@ describe('what rehydration costs app start', () => {
     let worstAdded = 0;
     for (const count of [1, 10, 30]) {
       const figures = Array.from({ length: count }, (_, index) => figure(`figure-${index}`));
-      const { before, after } = msPerMount(figures);
-      worstAdded = Math.max(worstAdded, after - before);
+      const { before, after, added } = msPerMount(figures);
+      worstAdded = Math.max(worstAdded, added);
       rows.push(`${count}: ${before.toFixed(4)} -> ${after.toFixed(4)} ms`);
     }
     // Reported so the numbers are in the run rather than only in a commit
@@ -322,6 +334,12 @@ describe('what rehydration costs app start', () => {
     // box is several times slower and this is a smoke test, not the measurement:
     // the measurement is the line above, and the claim that matters is the
     // zero-folds one in the test before this.
+    //
+    // The **median** of the per-pair differences, not the difference of the two
+    // means: one GC pause inside sixty mounts moves a mean by more than the whole
+    // effect being measured, which is how this went red once in two full-suite
+    // runs against code that had not changed. Real work at mount would lift
+    // every pair, so a median catches it and an outlier no longer fakes it.
     expect(worstAdded).toBeLessThan(1);
   });
 });
