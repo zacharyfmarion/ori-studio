@@ -440,3 +440,64 @@ describe('which figures have creases that can go stale', () => {
     }
   });
 });
+
+describe('isFoldedFigureStale caching', () => {
+  /** A document that counts how many times its line table is walked. */
+  function countingDoc(lines: OristudioCpLineSegment[]) {
+    const document = doc(lines);
+    let reads = 0;
+    Object.defineProperty(document.crease_pattern, 'line_segments', {
+      get() {
+        reads += 1;
+        return lines;
+      },
+    });
+    return { document, reads: () => reads };
+  }
+
+  it('walks the document once for a region, however many times it is asked', () => {
+    // The regression this exists for: reopening a file with inline 3D figures
+    // adopts them one at a time, and each adoption rewrites the figures array,
+    // which invalidated the `useMemo` that asks this. Nothing this function
+    // reads had changed, so 64 figures were re-tested 64 times — 67 ms a go on
+    // a 15,950-segment document, 43% of frames dropped for the whole load.
+    const figure = figureFrom(doc(SQUARE), SQUARE_IDS);
+    const { document, reads } = countingDoc(SQUARE);
+
+    expect(isFoldedFigureStale(document, figure)).toBe(false);
+    const afterFirst = reads();
+    expect(afterFirst).toBeGreaterThan(0);
+
+    for (let i = 0; i < 63; i += 1) {
+      expect(isFoldedFigureStale(document, figure)).toBe(false);
+    }
+    expect(reads()).toBe(afterFirst);
+  });
+
+  it('recomputes for the next document, so an edit is never missed', () => {
+    // The cache's whole risk. Keyed on the snapshot object, which is decoded
+    // fresh per edit — the same key the calling memo already used.
+    const document = doc(SQUARE);
+    const figure = figureFrom(document, SQUARE_IDS);
+    expect(isFoldedFigureStale(document, figure)).toBe(false);
+
+    const edited = doc([...SQUARE, line(0.2, 0.2, 0.8, 0.2, 'Blue2')]);
+    expect(isFoldedFigureStale(edited, figure)).toBe(true);
+    // ...and the original is still answered correctly afterwards.
+    expect(isFoldedFigureStale(document, figure)).toBe(false);
+  });
+
+  it('keys on the region, so two figures over one document cannot swap answers', () => {
+    const document = doc([...SQUARE, line(5, 5, 6, 6, 'Red1')]);
+    const whole = figureFrom(document, [1, 2, 3, 4, 5, 6]);
+    const far = figureFrom(document, [6]);
+    expect(isFoldedFigureStale(document, whole)).toBe(false);
+    expect(isFoldedFigureStale(document, far)).toBe(false);
+
+    // `far`'s region does not hash to `whole`'s, and a cache that ignored the
+    // region would report this fresh.
+    expect(isFoldedFigureStale(document, { ...far, sourceFingerprint: whole.sourceFingerprint })).toBe(
+      true
+    );
+  });
+});
