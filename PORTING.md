@@ -280,3 +280,14 @@ Two things to know before touching this area:
 - **Do not size an upstream delta with GitHub's compare API.** It truncates its
   file list at 300 entries with no error, which has already produced two wrong
   per-module readings. Clone the upstream and diff locally.
+- **A failing oracle test does not mean the port is wrong.** The oracle harness
+  is a transcription too, and it can transcribe the wrong upstream function.
+  The first three failures this CI wiring exposed were all the harness: it
+  compared symmetric draw, double symmetric draw, and fishbone against
+  `OritaCalc.extendToIntersectionPoint_2` when all three handlers call
+  `CreasePattern_Worker_Impl.extendToIntersectionPoint`, which differs by a
+  final `withA(s0.getB())`. The Rust was right. Read the upstream *caller*
+  before changing kernel code — and note the inverse risk, which is worse
+  because nothing fails: if the port and the harness both call the wrong
+  function, the test passes while both diverge. Agreement between two of our own
+  artifacts is not parity; only `third_party/` is authoritative.

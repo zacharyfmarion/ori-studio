@@ -3498,7 +3498,7 @@ public class OrieditaGeometryOracle {
                 cross,
                 mirror.determineFurthestEndpoint(cross),
                 source.determineFurthestEndpoint(cross));
-        LineSegment addSegment = OritaCalc.extendToIntersectionPoint_2(
+        LineSegment addSegment = extendToIntersectionPointLikeWorker(
                 set,
                 new LineSegment(cross, reflected)).withColor(color);
         boolean added = Epsilon.high.gt0(addSegment.determineLength());
@@ -3542,7 +3542,7 @@ public class OrieditaGeometryOracle {
                         dragSegment.getA(),
                         dragSegment.getB(),
                         sourcePoint);
-                LineSegment addSegment = OritaCalc.extendToIntersectionPoint_2(
+                LineSegment addSegment = extendToIntersectionPointLikeWorker(
                         set,
                         new LineSegment(OritaCalc.findIntersection(segment, dragSegment), reflected))
                         .withColor(segment.getColor());
@@ -3756,7 +3756,7 @@ public class OrieditaGeometryOracle {
                 int stationAdded = 0;
                 LineSegment first = new LineSegment(px, py, px - dy, py + dx);
                 if (fishboneHasForwardIntersection(set, first)) {
-                    LineSegment result = OritaCalc.extendToIntersectionPoint_2(set, first).withColor(currentColor);
+                    LineSegment result = extendToIntersectionPointLikeWorker(set, first).withColor(currentColor);
                     addLineSegmentLikeWorker(set, result);
                     stationAdded++;
                     added++;
@@ -3764,7 +3764,7 @@ public class OrieditaGeometryOracle {
 
                 LineSegment second = new LineSegment(px, py, px + dy, py - dx);
                 if (fishboneHasForwardIntersection(set, second)) {
-                    LineSegment result = OritaCalc.extendToIntersectionPoint_2(set, second).withColor(currentColor);
+                    LineSegment result = extendToIntersectionPointLikeWorker(set, second).withColor(currentColor);
                     addLineSegmentLikeWorker(set, result);
                     stationAdded++;
                     added++;
@@ -6460,6 +6460,51 @@ public class OrieditaGeometryOracle {
         set.addLine(segment);
         int totalOld = set.getTotal();
         set.divideLineSegmentWithNewLines(totalOld - 1, totalOld);
+    }
+
+    /**
+     * Transcription of {@code CreasePattern_Worker_Impl.extendToIntersectionPoint},
+     * which the construction handlers call as {@code d.extendToIntersectionPoint(...)}.
+     *
+     * <p>It is NOT the same function as {@link OritaCalc#extendToIntersectionPoint_2}.
+     * Both walk the fold line set the same way and move {@code B} to the nearest
+     * forward intersection, but {@code _2} ends with {@code add_sen.withA(s0.getB())},
+     * discarding the original {@code A}→{@code B} span and returning
+     * {@code B}→intersection. The worker keeps {@code A}.
+     *
+     * <p>That distinction is the whole point of this helper. Symmetric draw, double
+     * symmetric draw, and fishbone draw all anchor their new line at a computed point
+     * and need it preserved, so they call the worker method. Using {@code _2} for them
+     * produces a segment that starts one construction step too far along and made
+     * these commands disagree with the Rust port, which had the split right.
+     *
+     * <p>The worker cannot be instantiated here — it carries Swing and CDI
+     * dependencies — so this composes the same real Oriedita primitives in the same
+     * order, the way {@link #addLineSegmentLikeWorker} does.
+     */
+    private static LineSegment extendToIntersectionPointLikeWorker(FoldLineSet set, LineSegment s0) {
+        LineSegment add_sen = new LineSegment(s0);
+        Point kousa_point = new Point(1000000.0, 1000000.0);
+        double kousa_ten_kyori = kousa_point.distance(add_sen.getA());
+        StraightLine tyoku1 = new StraightLine(add_sen.getA(), add_sen.getB());
+
+        for (var s : set.getLineSegmentsIterable()) {
+            StraightLine.Intersection i_kousa_flg = tyoku1.lineSegment_intersect_reverse_detail(s);
+            if (!i_kousa_flg.isIntersecting()) {
+                continue;
+            }
+            kousa_point = OritaCalc.findIntersection(tyoku1, s);
+            if (kousa_point.distance(add_sen.getA()) > Epsilon.UNKNOWN_1EN5
+                    && kousa_point.distance(add_sen.getA()) < kousa_ten_kyori) {
+                double d_kakudo = OritaCalc.angle(add_sen.getA(), add_sen.getB(), add_sen.getA(), kousa_point);
+                if (d_kakudo < 1.0 || d_kakudo > 359.0) {
+                    kousa_ten_kyori = kousa_point.distance(add_sen.getA());
+                    add_sen = new LineSegment(add_sen.getA(), kousa_point);
+                }
+            }
+        }
+
+        return add_sen;
     }
 
     private static void printSegmentResult(LineSegment result) {

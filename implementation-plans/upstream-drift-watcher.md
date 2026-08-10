@@ -228,7 +228,10 @@ not wire the oracle to upstream HEAD.
 - [x] Export `ORIEDITA_GEOMETRY_ORACLE`, `ORIEDITA_OPERATIONS_ORACLE`, `ORIEDITA_RENDER_ORACLE`, `ORIEDITA_IO_ORACLE`, `ORIEDITA_MODEL_ORACLE`
 - [x] Export `FLATFOLDER_ORACLE` (a Node script; no build step needed)
 - [x] Convert silent skips to hard failures via `ORACLE_REQUIRED` + `oracle_env_guard`
-- [x] Confirm the suites actually execute — 109 tests now run where 0 did
+- [x] Confirm the suites actually execute — 112 tests now run where 0 did
+- [x] Resolve the three failures the first run exposed. They were harness bugs,
+      not port bugs — see `implementation-plans/oriedita-symmetric-draw-parity.md`.
+      Nothing is skipped: 112 passed, 0 failed, 0 ignored.
 - [ ] `ORIEDITA_NATIVE_IO_ORACLE` — deferred; `build_native_io_oracle.sh` needs
       maven to resolve Oriedita's Java `fold` dependency, unlike the geometry
       oracle's dependency-free `javac`. Worth 4 tests; wire it separately.
@@ -279,8 +282,8 @@ not wire the oracle to upstream HEAD.
 - [x] Reference the skill from `AGENTS.md` alongside `create-feature`
 - [x] Document the oracle/drift-check split in `PORTING.md`
 - [ ] Create the `upstream-sync` issue label (repo-settings change, left to the maintainer)
-- [ ] File the symmetric-draw parity issue from
-      `implementation-plans/oriedita-symmetric-draw-parity.md`
+- [x] ~~File the symmetric-draw parity issue~~ — fixed in this branch instead;
+      it was an oracle-harness bug, not a port bug
 
 ## Open questions
 

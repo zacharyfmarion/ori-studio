@@ -1,10 +1,15 @@
-# Oriedita symmetric-draw parity gap
+# Oriedita symmetric-draw parity gap — resolved
 
-## Goal
+## Outcome
 
-Restore parity with Oriedita for symmetric draw, double symmetric draw, and
-fishbone draw. Three oracle tests currently fail and are marked `#[ignore]`;
-this plan is what un-ignores them.
+**The Rust port was correct. The oracle harness was wrong.**
+
+`symmetric_draw`, `double_symmetric_draw`, and fishbone draw were never
+diverging from Oriedita. The oracle was comparing them against a different
+Oriedita function than the one the real tools call.
+
+Fixed in `tools/oriedita-oracle/src/OrieditaGeometryOracle.java`. No kernel code
+changed. `oriedita_operations_oracle` is 62 passed, 0 failed, 0 ignored.
 
 ## How this surfaced
 
@@ -12,97 +17,90 @@ Not by a bug report — by wiring the parity oracles into CI. See
 `implementation-plans/upstream-drift-watcher.md`.
 
 Seven of the workspace's eight oracle suites skipped silently on an unset
-environment variable, and no CI job set them. The first run of
-`oriedita_operations_oracle` with the oracle actually attached produced **59
-passed, 3 failed**. The failures are pre-existing; nothing in that change
-touched kernel code.
+environment variable, and no CI job set them. The first run with the oracle
+actually attached produced 59 passed, 3 failed.
 
-That is worth recording on its own: these are not new regressions, they are
-divergences that existed with no mechanism to notice them.
+## The two functions
 
-## Observed divergence
+Oriedita has two similarly-named extend routines that are **not**
+interchangeable:
 
-`assert_eq!(rust_summary, run_oracle(...))`, so **left is ours, right is
-Oriedita**.
+| | `CreasePattern_Worker_Impl.extendToIntersectionPoint` | `OritaCalc.extendToIntersectionPoint_2` |
+| --- | --- | --- |
+| Walks the fold line set | yes | yes |
+| Moves `B` to nearest forward intersection | yes | yes |
+| Final step | none — `A` is preserved | `add_sen.withA(s0.getB())` |
+| Result | `A`→intersection | `B`→intersection |
 
-`symmetric_draw_matches_oriedita_oracle`:
+That last line is the whole difference. `_2` discards the original `A`→`B` span,
+so the returned segment starts one construction step further along.
 
-```
-ours     line|-0.0|-0.0|0.0|2.0|1
-oriedita line| 0.0| 1.0|0.0|2.0|1
-```
+All three handlers — `MouseHandlerSymmetricDraw`, `MouseHandlerDoubleSymmetricDraw`,
+`MouseHandlerFishBoneDraw` — call `d.extendToIntersectionPoint(...)`, the worker
+method. The oracle called `_2`.
 
-`double_symmetric_draw_matches_oriedita_oracle`:
+## Worked example
 
-```
-ours     line|-0.0|1.0|-3.0|1.0|1
-oriedita line|-2.0|1.0|-3.0|1.0|1
-```
+From `symmetric_draw_matches_oriedita_oracle`: source `(0,0)→(1,0)`, mirror
+`(0,0)→(1,1)`, one existing segment `(0,2)→(2,2)`.
 
-`fishbone_draw_matches_oriedita_oracle`: ours emits 13 summary lines, Oriedita
-emits 16.
+`cross = (0,0)`, `reflected = (0,1)`, so the pre-extend segment is
+`(0,0)→(0,1)`. Extending along `+y` meets the existing segment at `(0,2)`.
 
-In both segment cases the far endpoint agrees and the **near endpoint differs**:
-ours lands on the intersection of source and mirror, Oriedita's lands somewhere
-short of it. The `-0.0` in our output is a tell that the coordinate is being
-produced by a subtraction that cancels to zero rather than being carried
-through.
+- Worker: `(0,0)→(0,2)` — what the tool draws, and what our Rust produced
+- `_2`: `withA((0,1))` → `(0,1)→(0,2)` — what the oracle expected
 
-## Hypothesis — verify before acting
+Our Rust already had this right, and said so.
+`crates/oristudio-cp/src/operations/transform.rs:424` carries both functions with
+a doc comment naming the distinction and noting that "fishbone ribs,
+symmetric/double-symmetric construction lines" need `A` preserved.
 
-`crates/oristudio-cp/src/operations/construction.rs:839` builds the new segment
-as `cross → reflected`:
+## The fix
 
-```rust
-let cross = find_intersection_segments(source, mirror);
-let reflected = find_line_symmetry_point(
-    cross,
-    mirror.determine_furthest_endpoint(cross),
-    source.determine_furthest_endpoint(cross),
-);
-let add_segment = extend_to_intersection_point(model, &LineSegment::new(cross, reflected))
-```
+Added `extendToIntersectionPointLikeWorker(FoldLineSet, LineSegment)` to the
+oracle, transcribing the worker method from the same real Oriedita primitives,
+in the spirit of the existing `addLineSegmentLikeWorker`. The worker itself
+cannot be instantiated in the harness — it carries Swing and CDI dependencies.
 
-So our segment is anchored at the intersection point by construction, and only
-the far endpoint is reflected. The oracle output is consistent with Oriedita
-reflecting **both** endpoints of the source segment and anchoring at neither.
+Switched the three affected commands to it: `foldline-symmetric-draw`,
+`foldline-double-symmetric-draw`, and the two fishbone rib calls.
 
-This is a hypothesis from our own code plus the failing values. It has **not**
-been checked against upstream. Read
-`third_party/oriedita/oriedita/src/main/java/oriedita/editor/handler/MouseHandlerSymmetricDraw.java`
-first — per `PORTING.md`, upstream is the reference, not our prior behavior.
+## Audit of the remaining `_2` uses
 
-Fishbone is likely downstream of the same defect rather than independent:
-`MouseHandlerFishBoneDraw` builds repeated symmetric draws, and a wrong near
-endpoint each iteration would change how many segments survive
-`extend_to_intersection_point`, which matches a 13-vs-16 count difference. Also
-a hypothesis.
+Both are correct and were left alone:
 
-## Product impact
+- `foldLineExtendToIntersection` — models `_2` itself, by definition
+- `foldLineLengthen` — `MouseHandlerLengthenCrease:186` genuinely calls
+  `OritaCalc.extendToIntersectionPoint_2`
 
-Unassessed, and worth assessing early rather than late. Symmetric draw is a
-shipped, reachable CP tool, so if the kernel divergence is user-visible it
-affects real crease patterns today. Determine that before deciding urgency —
-the three tests are quarantined, not the behavior.
+## The lesson worth keeping
 
-## Affected Areas
+**A failing oracle test does not mean the port is wrong.** The oracle is a
+transcription too, and it can transcribe the wrong function. Both artifacts are
+ours; only the vendored upstream is authoritative.
 
-- `crates/oristudio-cp/src/operations/construction.rs` — `symmetric_draw`, `double_symmetric_draw`
-- fishbone construction, wherever it composes symmetric draw
-- `crates/oristudio-cp/tests/oriedita_operations_oracle.rs` — remove the three `#[ignore]`s
-- `third_party/oriedita/.../handler/MouseHandlerSymmetricDraw.java`, `MouseHandlerDoubleSymmetricDraw.java`, `MouseHandlerFishBoneDraw.java` — read-only reference
+The tell here was that our Rust already had a deliberate doc comment explaining
+which function these tools need and why. When a port is more specific about
+upstream than the oracle is, suspect the oracle.
+
+Note also the inverse risk, which is worse because nothing fails: if the port
+and the oracle had *both* used `_2`, the test would pass while both diverged
+from Oriedita. Agreement between two of our own artifacts is not parity. That is
+what `third_party/` is for.
 
 ## Checklist
 
-- [ ] Read `MouseHandlerSymmetricDraw.java` and record what Oriedita actually
-      constructs, before touching Rust
-- [ ] Confirm or replace the both-endpoints-reflected hypothesis
-- [ ] Determine whether the divergence is user-visible in the CP editor, and
-      say so explicitly
-- [ ] Fix `symmetric_draw`; confirm `symmetric_draw_matches_oriedita_oracle` passes
-- [ ] Re-check `double_symmetric_draw` — same root cause or its own
-- [ ] Re-check fishbone; confirm the 13-vs-16 count resolves rather than shifts
-- [ ] Remove all three `#[ignore]` attributes
-- [ ] Run the full operations suite: expect 62 passed, 0 failed, 0 ignored
-- [ ] Check whether `MouseHandlerContinuousSymmetricDraw` and
-      `MouseHandlerDrawCreaseSymmetric` share the defect but lack oracle coverage
+- [x] Read `MouseHandlerSymmetricDraw.java` before touching Rust
+- [x] Replace the original both-endpoints-reflected hypothesis — it was wrong;
+      upstream's `reflectLine` is structurally identical to ours
+- [x] Identify the real cause: oracle calling `_2` instead of the worker method
+- [x] Confirm `MouseHandlerDoubleSymmetricDraw` and `MouseHandlerFishBoneDraw`
+      call the worker method too
+- [x] Add `extendToIntersectionPointLikeWorker` and switch the three commands
+- [x] Audit every remaining `_2` call site in the oracle
+- [x] Remove all three `#[ignore]` attributes
+- [x] `oriedita_operations_oracle`: 62 passed, 0 failed, 0 ignored
+- [x] Full Oriedita oracle set: 112 passed, 0 failed, 0 ignored
+- [ ] `MouseHandlerContinuousSymmetricDraw` and `MouseHandlerDrawCreaseSymmetric`
+      also call the worker method but have no oracle coverage. Not a known bug —
+      an untested surface worth commands of its own.

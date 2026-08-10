@@ -1948,10 +1948,6 @@ fn axiom7_modes_match_oriedita_oracle() {
 }
 
 #[test]
-#[ignore = "known parity gap: our reflected segment runs to the axis origin \
-            instead of the mirrored endpoint. Pre-existing, surfaced when this \
-            suite was first wired into CI. See \
-            implementation-plans/oriedita-symmetric-draw-parity.md"]
 fn symmetric_draw_matches_oriedita_oracle() {
     let Some(oracle) = operations_oracle() else {
         eprintln!(
@@ -1977,9 +1973,6 @@ fn symmetric_draw_matches_oriedita_oracle() {
 }
 
 #[test]
-#[ignore = "known parity gap: same reflected-endpoint divergence as \
-            symmetric_draw_matches_oriedita_oracle. See \
-            implementation-plans/oriedita-symmetric-draw-parity.md"]
 fn double_symmetric_draw_matches_oriedita_oracle() {
     let Some(oracle) = operations_oracle() else {
         eprintln!(
@@ -2196,9 +2189,6 @@ fn square_bisector_modes_match_oriedita_oracle() {
 }
 
 #[test]
-#[ignore = "known parity gap: fishbone emits 13 summary lines where Oriedita \
-            emits 16, downstream of the same symmetric-draw divergence. See \
-            implementation-plans/oriedita-symmetric-draw-parity.md"]
 fn fishbone_draw_matches_oriedita_oracle() {
     let Some(oracle) = operations_oracle() else {
         eprintln!(

@@ -58,6 +58,22 @@ Both behavioral changes are ported —
 asserting the whole constant table matches Oriedita. **That test is the tripwire;
 if a future epsilon change lands, it should be what fails.**
 
+## When the oracle disagrees with the port
+
+Do not assume the port is the wrong one. `tools/oriedita-oracle` is a
+transcription of Oriedita too, and it can transcribe the wrong function.
+
+The first three failures this suite ever produced were all the harness: it
+compared symmetric draw, double symmetric draw, and fishbone against
+`OritaCalc.extendToIntersectionPoint_2`, while all three handlers call
+`CreasePattern_Worker_Impl.extendToIntersectionPoint`. The two differ only in a
+closing `withA(s0.getB())`, which shifts the result by one construction step.
+See `implementation-plans/oriedita-symmetric-draw-parity.md`.
+
+Read the upstream **caller** — the `MouseHandler*` for the tool — before
+concluding anything about kernel code. Watch for near-identical names with a
+`_2` suffix, which Oriedita uses for genuinely different variants.
+
 ## Calibration
 
 - `92a30434`, subject *"fix(angularly-flat-foldable): fix invalid vertex
