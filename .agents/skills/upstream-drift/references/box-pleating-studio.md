@@ -55,12 +55,20 @@ because it is the one change class here with a direct, user-visible breakage.
 
 ## Calibration
 
-A release with **zero** `src/core/` changes is the normal case, not a sign you
-searched wrong. Concretely, v0.7.14 → v0.7.15 was 16 commits and 278 changed
-files, of which the source changes were entirely Vue components, icons,
-`index.htm`, and dependency bumps, plus one fatal-error fix. Nothing to port.
+Most of a release is outside the watch paths, and that is the normal case
+rather than a sign you searched wrong. v0.7.14 → v0.7.15 was 16 commits and 260
+changed files in the vendored tree, of which `src/public` accounted for 111,
+`src/app` for 78, and `src/client` for 15 — none of it ours.
 
-Do not go hunting for work to justify the run.
+`src/core/` had five changed files, of which **exactly one** was a code change
+(a stale-contour clear in `roughContour.ts`); three were comment-only and one
+was `tsconfig.json`. So expect roughly one portable change per release, not
+zero and not five. Do not go hunting for work to justify the run, and do not
+count a file as portable before checking whether its diff is only comments.
+
+**Never size a delta with GitHub's compare API.** It truncates its file list at
+300 entries, and it silently omitted `src/core/` from this very release,
+producing a "zero core changes" reading that was wrong. Clone and diff locally.
 
 ## Expected volume
 

@@ -46,10 +46,13 @@
       "repo": "https://github.com/bp-studio/box-pleating-studio",
       "branch": "main",
       "vendored_path": "third_party/box-pleating-studio",
-      "vendored_commit": "d86f8051812458b2c7b1ed7fac49fe7dc1d4dad4",
-      "vendored_commit_note": "First commit-level pin for this upstream. Derived from the vendored package.json version 0.7.14 resolved to its release tag, not from a recorded SHA. Re-derive if the vendored tree turns out not to match the tag exactly.",
-      "last_checked_commit": "d86f8051812458b2c7b1ed7fac49fe7dc1d4dad4",
+      "vendored_commit": "507981157194b13634761c3a2e39565754b6cbbb",
+      "vendored_commit_note": "First commit-level pin for this upstream. The previous pin was derived from the vendored package.json version 0.7.14 resolved to its release tag, and confirmed exact: the vendored tree matched that tag file-for-file before the bump to v0.7.15.",
+      "last_checked_commit": "507981157194b13634761c3a2e39565754b6cbbb",
       "last_checked_date": "2026-08-10",
+      "open_port_candidates": [
+        "roughContour.ts stale-contour clear (v0.7.15). May not apply: our layout/contours.rs computes into a fresh result map rather than mutating persistent node state. See implementation-plans/bp-studio-sync-2026-08-10.md."
+      ],
       "oracle": "tools/bp-studio-oracle/oracle.mjs",
       "watch_paths": [
         "src/core/",

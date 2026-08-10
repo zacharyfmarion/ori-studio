@@ -135,7 +135,7 @@ honest delta. Measured 2026-08-10:
 | Upstream | Behind by | Contents | Porting needed |
 | --- | --- | --- | --- |
 | Oriedita | 11 commits | Apollonius circle tools (~950 lines, **new feature**) + i18n/resources. `origami/` and `oriedita-data/` untouched. | None for parity — see note |
-| Box Pleating Studio | 16 commits (v0.7.14 → v0.7.15) | Zero `src/core/` changes. Vue components, icons, deps, one fatal-error fix. | None |
+| Box Pleating Studio | 16 commits (v0.7.14 → v0.7.15) | 260 files, overwhelmingly `src/public`, `src/app`, `src/client`. Format layer untouched. `src/core/` had one real code change. | One candidate — see `bp-studio-sync-2026-08-10.md` |
 | Flat-Folder | 4 commits | copyright, unused dependency, notes `start_check` interface, kawasaki logging | None expected; read the kawasaki diff before concluding |
 | Origami Simulator | 0 commits | already current | None |
 
