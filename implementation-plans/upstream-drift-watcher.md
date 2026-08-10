@@ -252,14 +252,18 @@ not wire the oracle to upstream HEAD.
       `packages/origami-simulator/NOTICE` stays authoritative for attribution.
 
 ### Phase 3 — baseline re-vendor
-- [ ] Decide whether to implement Oriedita's Apollonius circle tools, or record the decision not to
-- [ ] Re-vendor Oriedita to current master; run the Phase 1 oracles
-- [ ] Re-vendor Box Pleating Studio to v0.7.15; run its oracle
-- [ ] Read the Flat-Folder `kawasaki logging` diff before assuming it is benign
-- [ ] Re-vendor Flat-Folder to current main; run its oracle
-- [ ] Confirm Origami Simulator needs no change (0 commits behind as of 2026-08-10)
-- [ ] Set every `vendored_commit`, `last_checked_commit` and `last_checked_date` to today
-- [ ] One commit per upstream so an oracle failure is attributable
+- [x] Re-vendor Oriedita to current master; oracle rebuilt, results byte-identical
+- [x] Re-vendor Box Pleating Studio to v0.7.15; BP kernel suites pass
+- [x] Read the Flat-Folder `kawasaki logging` diff — benign, an inverted guard plus a log line
+- [x] Re-vendor Flat-Folder to current main; oracle passes
+- [x] Confirm Origami Simulator needs no change (its pin equals upstream HEAD)
+- [x] Set every `vendored_commit`, `last_checked_commit` and `last_checked_date` to today
+- [x] One commit per upstream so an oracle failure is attributable
+- [ ] **Decide on Oriedita's Apollonius circle tools.** Recorded in the manifest
+      as an open product decision, not decided — it is a question about what the
+      app should offer, not a parity gap.
+- [ ] **Resolve the BP Studio `roughContour` port candidate** —
+      `implementation-plans/bp-studio-sync-2026-08-10.md`
 
 ### Phase 4 — the skill
 - [x] Create `.agents/skills/upstream-drift/SKILL.md`
@@ -272,9 +276,11 @@ not wire the oracle to upstream HEAD.
 - [ ] Confirm no run touches `third_party/`
 
 ### Phase 5 — wire it up
-- [ ] Reference the skill from `AGENTS.md` alongside `create-feature`
-- [ ] Create the `upstream-sync` issue label
-- [ ] Document the oracle/drift-check split in `PORTING.md`
+- [x] Reference the skill from `AGENTS.md` alongside `create-feature`
+- [x] Document the oracle/drift-check split in `PORTING.md`
+- [ ] Create the `upstream-sync` issue label (repo-settings change, left to the maintainer)
+- [ ] File the symmetric-draw parity issue from
+      `implementation-plans/oriedita-symmetric-draw-parity.md`
 
 ## Open questions
 
