@@ -542,6 +542,34 @@ describe('placeFoldedFigureBesideCp', () => {
     expect(foldedFigureUserBounds([placed])[0].bounds.minY).toBeCloseTo(paper.top);
   });
 
+  it("parks a framed 3D figure by its box, not by what it draws", () => {
+    // The bug: the slot was sized from the drawing's extent and the offset
+    // measured from the drawing's centre, while `foldedFigureBox` reports the
+    // framed square about the projected centroid. Two different rectangles, so a
+    // fresh 3D fold's chrome overlapped the crease pattern it was parked beside
+    // even though the model itself sat clear of it.
+    //
+    // An inline simulation cannot have this bug: the rectangle it reserves *is*
+    // the box it is given. This asserts the same property here — the box the
+    // figure ends up with clears the paper, not merely its drawing.
+    const framed = { ...polygonFigureNamed('a'), frameRadius: 40 };
+    const placed = { ...framed, placement: placeFoldedFigureBesideCp(framed, [], paper) };
+    const box = foldedFigureBox(placed)!;
+    expect(box.center.x - box.width / 2).toBeGreaterThanOrEqual(paper.right);
+    expect(box.center.y - box.height / 2).toBeCloseTo(paper.top);
+  });
+
+  it('leaves a flat figure placed exactly where it was', () => {
+    // The framed branch must not move a figure that has no frame: for those the
+    // identity box *is* the drawing's bounds and centre, so this is a byte
+    // check that flat placement is untouched.
+    const figure = polygonFigureNamed('a');
+    const placement = placeFoldedFigureBesideCp(figure, [], paper);
+    const placed = { ...figure, placement };
+    expect(foldedFigureUserBounds([placed])[0].bounds.minX).toBeGreaterThanOrEqual(paper.right);
+    expect(foldedFigureUserBounds([placed])[0].bounds.minY).toBeCloseTo(paper.top);
+  });
+
   it('places without scaling or rotating', () => {
     const placement = placeFoldedFigureBesideCp(polygonFigureNamed('a'), [], paper);
     expect(placement.scale).toBe(1);

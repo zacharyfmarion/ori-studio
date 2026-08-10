@@ -748,16 +748,27 @@ export function placeFoldedFigureBesideCp(
   paper: FoldedFigureAnchor,
   frameAngle = 0
 ): FoldedFigurePlacement {
-  const snapshot = figure.renderSnapshot;
-  if (!snapshot?.primitives.length) return IDENTITY_FOLDED_PLACEMENT;
-  const local = foldedFigureLocalGeometry(snapshot);
-  if (!local.bounds) return IDENTITY_FOLDED_PLACEMENT;
+  // The box this figure will *have*, at identity placement — not the extent of
+  // what it draws.
+  //
+  // Those are the same rectangle for a flat figure and a different one for a
+  // framed 3D figure, whose box is the square its bounding sphere images to and
+  // whose centre is the projected centroid rather than the drawing's bbox
+  // centre. Reserving the drawing's extent and then giving the figure a larger
+  // box centred elsewhere is what let a fresh 3D fold's chrome overlap the
+  // crease pattern it was parked beside.
+  //
+  // An inline simulation cannot have this bug because the rectangle it reserves
+  // *is* the box it is given (`inlineSimulation.ts`). This is the same property,
+  // reached the only way it can be here: ask for the box.
+  const identity = foldedFigureBox({ ...figure, placement: IDENTITY_FOLDED_PLACEMENT });
+  if (!identity) return IDENTITY_FOLDED_PLACEMENT;
 
   // Packed in the view's frame, where a figure created upright is axis-aligned —
-  // so its footprint is exactly its local extent, and the row runs across the
-  // screen. `paper` is already expressed in that frame by `cpUserAnchorForLineIds`.
-  const width = local.bounds.maxX - local.bounds.minX;
-  const height = local.bounds.maxY - local.bounds.minY;
+  // so its footprint is exactly its box, and the row runs across the screen.
+  // `paper` is already expressed in that frame by `cpUserAnchorForLineIds`.
+  const width = identity.width;
+  const height = identity.height;
   const { left, top } = firstFreeSlotBeside({
     anchor: paper,
     width,
@@ -772,11 +783,13 @@ export function placeFoldedFigureBesideCp(
       .filter((aabb): aabb is Aabb => aabb !== null),
   });
 
-  // Placement rotates about the figure's local centre, so the centre only ever
-  // translates — the offset is centre-to-centre and the rotation rides along.
+  // Placement rotates about the figure's pivot, so the centre only ever
+  // translates — the offset is box-centre to slot-centre and the rotation rides
+  // along. Measured from the identity box for the same reason it was sized from
+  // it: the two must describe one rectangle.
   const centre = pointFromFrame({ x: left + width / 2, y: top + height / 2 }, frameAngle);
   return {
-    offset: { x: centre.x - local.center.x, y: centre.y - local.center.y },
+    offset: { x: centre.x - identity.center.x, y: centre.y - identity.center.y },
     scale: 1,
     rotation: frameAngle,
   };
