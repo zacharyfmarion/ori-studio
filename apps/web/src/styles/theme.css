@@ -3737,7 +3737,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 /* No `border-radius` here on purpose: a window is sized by the crease-pattern
    camera, and a fixed radius that reads as a rounded rectangle at full size
    reads as a lozenge on a zoomed-out thumbnail. The layer sets it per frame —
-   see `inlineSimulationPlacement`. */
+   see `canvasWindowPlacement`. */
 .cp-inline-simulation {
   border: 1px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
   overflow: hidden;
@@ -3767,7 +3767,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* The layer counter-scales this so it holds one size while the camera resizes
-   the window around it — see `inlineSimulationPlacement`. That transform is
+   the window around it — see `canvasWindowPlacement`. That transform is
    about the corner the badge is anchored to, so the anchor stays put. Keep
    `left`/`bottom` in step with `BADGE_INSET_CSS` there. */
 .cp-inline-simulation__badge {
