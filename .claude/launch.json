@@ -15,6 +15,20 @@
       "autoPort": false
     },
     {
+      "name": "web-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "apps/web",
+        "--port",
+        "5230",
+        "--strictPort"
+      ],
+      "port": 5230,
+      "autoPort": false
+    },
+    {
       "name": "upstream-oracle",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
