@@ -2282,7 +2282,9 @@
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
-    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
+    "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4567,7 +4569,9 @@
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
-    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
+    "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6852,7 +6856,9 @@
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
-    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
+    "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9107,7 +9113,9 @@
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
-    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
+    "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11362,7 +11370,9 @@
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
-    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
+    "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13647,7 +13657,9 @@
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
-    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
+    "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15932,7 +15944,9 @@
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
-    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
+    "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -18187,6 +18201,8 @@
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:foldedFigureActions.resetView": "ce89ae822e8b",
     "panels:creasePattern.orbitFoldedForm": "cb43013e6e21",
-    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d"
+    "panels:creasePattern.shadowUnsupported3d": "b8615f19d87d",
+    "panels:creasePattern.foldedFigure.windowAriaLabel": "4d40d0a5a5dc",
+    "panels:creasePattern.foldedFigure.windowFailed": "21eee339d13b"
   }
 }

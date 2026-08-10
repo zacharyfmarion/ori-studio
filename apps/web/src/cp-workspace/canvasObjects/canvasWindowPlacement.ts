@@ -1,4 +1,9 @@
-import type { AnnotationBox } from '../annotations/annotationTransform';
+import type { CpOverlayView } from '../CreasePatternWebglCanvas';
+import {
+  overlayModelToCss,
+  type AnnotationBox,
+  type Vec2,
+} from '../annotations/annotationTransform';
 
 /**
  * Where a window sits on screen, split into the part that survives a camera move
@@ -167,4 +172,23 @@ export function paintedSize(placement: CanvasWindowPlacement): {
 } {
   const scale = Number(/scale\(([-\d.e]+)\)/.exec(placement.transform)?.[1] ?? 1);
   return { width: placement.width * scale, height: placement.height * scale };
+}
+
+/**
+ * Screen-space rotation (radians) of a box's local +x axis under the camera.
+ *
+ * Derived by mapping a unit step through the affine rather than by reading a
+ * camera angle, so it stays right under a flipped or non-conformal view.
+ */
+export function windowScreenAngle(
+  view: CpOverlayView,
+  center: Vec2,
+  rotation: number
+): number {
+  const origin = overlayModelToCss(view, center);
+  const tip = overlayModelToCss(view, {
+    x: center.x + Math.cos(rotation),
+    y: center.y + Math.sin(rotation),
+  });
+  return Math.atan2(tip.y - origin.y, tip.x - origin.x);
 }

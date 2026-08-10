@@ -186,6 +186,16 @@ for. A folded figure needs only a *mesh* — uploaded once, drawn per frame. Ten
 of figures is a memory question, not a session one, and the session cap does not
 apply.
 
+It is not *free*, though, and Phase 3 found the cost: a `MeshRenderer` links two
+programs in its constructor and each figure holds three RGBA32F textures at its
+own texture dimension. So the meshes get their own registry with its own cap
+(`MAX_LIVE_FOLDED_MESHES`), and that second constant is safe precisely where a
+second *window* constant would not be: evicting a session destroys the fold
+position the user scrubbed to, so the UI has to refuse past the cap, whereas a
+mesh is derived entirely from a render model the main thread still holds. There
+is nothing for a second number to be held equal to — the failure the
+inline-simulation plan records is not reachable here.
+
 Border and clipping come from the window being a DOM element with a
 `borderRadius` and `overflow`, exactly as the inline simulation's does.
 
@@ -326,14 +336,56 @@ parity non-negotiable. Both viewports on screen at once will disagree about whic
 tone is "front", and that is by choice.
 
 ### Phase 3 — The window
-- [ ] Generalise the simulation window to a rendered viewport; one shared context,
+- [x] Generalise the simulation window to a rendered viewport; one shared context,
       one cap constant, grow-only + capped + quantised buffer, `createImageBitmap`
-      crop with the Y-flip
-- [ ] Folded figure as a fourth canvas-object kind
-- [ ] Position and scale by `transform`; test that no layout property is written
-      per frame
-- [ ] Border and clipping from the window
-- [ ] Verify the context budget with tens of figures open
+      crop with the Y-flip. The seam is one line: `renderGpu`'s parameter widens
+      from `WebglSolver` to `{ drawingBufferSize; render }`, which `WebglSolver`
+      already satisfies. Everything below it is reused unchanged
+- [x] Folded figure as a fourth canvas-object kind — `Folded3dWindowLayer`, from
+      the same `TransformableCanvasObject` box the overlay already consumes
+- [x] Position and scale by `transform`; `Folded3dWindowLayer.test.tsx` asserts
+      that a camera frame leaves every layout-affecting property byte-identical
+      while the transform changes, for a pan and for a zoom
+- [x] Border and clipping from the window (`.cp-folded-figure-window`)
+- [ ] Verify the context budget with tens of figures open — needs a browser
+
+Five things Phase 3 settled that the plan did not, each because the code forced
+the question:
+
+- **R2 is resolved by option (b)**, the one Phase 2 recommended: two strictly
+  additive options on `MeshRenderer.render` — `clear` and `faceRange` — so the
+  cells the solver could not order draw in a second, translucent pass. Every
+  existing caller passes nothing and issues a byte-identical command stream, and
+  a test asserts exactly that. Without it the one corpus model that has
+  undetermined cells (`airplane.fold`, 33 of 37) is 89% z-fighting.
+- **The mesh camera is orthographic**, applied inside `FoldedMeshSource` so the
+  simulation keeps its perspective. `folded3dFrameRadius`'s guarantee — a
+  bounding sphere images to the same circle at every orientation, so the frame
+  never changes under orbit — is *only* true orthographically; under the
+  simulator's one-point perspective a near point grows 45% and the model escapes
+  its own frame.
+- **The window cancels `fitExtent`'s padding** (`folded3dFrameFillZoom`). A
+  figure's frame is already exactly the model's size, so leaving the viewport's
+  8%-a-side padding in would draw every existing 3D figure ~16% smaller in the
+  same box — a visible change nobody asked for. Derived from `fitExtent` rather
+  than from its constant.
+- **The window takes no pointer events.** The press rules are therefore
+  unchanged rather than re-implemented: the shared overlay still owns selection
+  and transform, and the crease-pattern canvas still owns the orbit. Moving the
+  gesture into the window is §4's decision, not a side effect of §3.
+- **3D figures now stack above text and images, and above flat figures.** They
+  left the WebGL scene (z 5) for a DOM layer (z 7) while flat figures stay in
+  the scene — forced by the move and by "the flat figure does not change", and
+  user-visible where two figures overlap.
+
+One condition decides all three places a windowed figure is treated specially —
+`canWindowFolded3dFigure`: it is 3D, WebGL2 is available, its render model is
+still in memory, it has a `frameRadius`, and it is inside the vertex budget. The
+layer mounts exactly these, the canvas stops drawing exactly these, and the
+orbit gesture stops re-projecting exactly these. Anything else keeps today's
+path in full. The `frameRadius` condition is not incidental: without a frame the
+box is the last projection's bounds, which change every orbit frame — harmless
+as scene chrome, a per-frame layout write as a window.
 
 ### Phase 4 — Camera and interaction
 - [ ] Orbit drives the mesh camera; the CPU projection leaves the live path

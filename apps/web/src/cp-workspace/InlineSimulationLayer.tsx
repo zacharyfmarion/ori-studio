@@ -9,11 +9,13 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
-import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { useCpOverlayView } from './cpOverlayViewStore';
 import { overlayCssPerModel, overlayModelToCss } from './annotations/annotationTransform';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
-import { canvasWindowPlacement } from './canvasObjects/canvasWindowPlacement';
+import {
+  canvasWindowPlacement,
+  windowScreenAngle,
+} from './canvasObjects/canvasWindowPlacement';
 import { useSettledScale } from './canvasObjects/useSettledScale';
 import {
   getInlineSimulationFoldPercent,
@@ -94,20 +96,6 @@ const CREASE_REFERENCE_EDGE = 512;
  */
 const CREASE_SHRINK_EXPONENT = 1;
 
-/** Screen-space rotation (radians) of the box's local +x axis under the camera. */
-function screenAngle(
-  view: CpOverlayView,
-  center: { x: number; y: number },
-  rotation: number
-): number {
-  const origin = overlayModelToCss(view, center);
-  const tip = overlayModelToCss(view, {
-    x: center.x + Math.cos(rotation),
-    y: center.y + Math.sin(rotation),
-  });
-  return Math.atan2(tip.y - origin.y, tip.x - origin.x);
-}
-
 export function InlineSimulationLayer({
   simulations,
   focusedId,
@@ -162,7 +150,7 @@ export function InlineSimulationLayer({
     >
       {simulations.map((simulation) => {
         const center = overlayModelToCss(view, simulation.box.center);
-        const angle = screenAngle(view, simulation.box.center, simulation.box.rotation);
+        const angle = windowScreenAngle(view, simulation.box.center, simulation.box.rotation);
         const placement = canvasWindowPlacement({
           box: simulation.box,
           center,

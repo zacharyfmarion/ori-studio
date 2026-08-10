@@ -129,6 +129,7 @@ export class FoldedMeshSource {
     settings: RenderSettings,
     target: WebGLFramebuffer | null = null
   ): void {
+    const orthographic = withoutPerspective(camera);
     const passes = folded3dDrawPasses(
       {
         faceIndexCount: this.faceIndexCount,
@@ -139,7 +140,7 @@ export class FoldedMeshSource {
     );
     for (const pass of passes) {
       this.mesh.render(
-        camera,
+        orthographic,
         { ...settings, showEdges: pass.showEdges, faceAlpha: pass.faceAlpha },
         target,
         { clear: pass.clear, faceRange: pass.faceRange ?? undefined }
@@ -151,6 +152,35 @@ export class FoldedMeshSource {
     this.mesh.dispose();
     this.core.dispose();
   }
+}
+
+/**
+ * Eye distance as a multiple of `depthRange`, far enough that the shader's
+ * `camDist / (camDist − depth)` collapses to 1.
+ *
+ * `depthRange` is twice the model radius and the model spans ±one radius of
+ * view depth, so at this distance the widest point grows by 1 part in 10,000 —
+ * invisible, and orthographic for every purpose that matters.
+ */
+const ORTHOGRAPHIC_EYE_DISTANCE = 5_000;
+
+/**
+ * Drop the mesh renderer's one-point perspective for a folded figure.
+ *
+ * A simulation is a viewport, where converging parallels read as depth. A folded
+ * figure is a **window** onto a model, and its window is sized from the model's
+ * bounding *sphere* — which images to a circle of the same radius at every
+ * orientation *only under an orthographic projection*. Under perspective a point
+ * near the eye grows by up to 45%, so the model would escape its own frame at
+ * some angles and the frame would have to grow, which is the resizing chrome
+ * `frameRadius` exists to stop. It also keeps the 3D figure projecting the way
+ * the flat figure beside it does.
+ *
+ * Applied here rather than in `cameraUniforms`, so the simulation path — which
+ * wants the perspective — is untouched.
+ */
+function withoutPerspective(camera: CameraUniforms): CameraUniforms {
+  return { ...camera, camDist: camera.depthRange * ORTHOGRAPHIC_EYE_DISTANCE };
 }
 
 /** One `MeshRenderer.render` call of a folded figure's frame. */

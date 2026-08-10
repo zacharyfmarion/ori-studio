@@ -23,6 +23,8 @@ import {
   type FoldedFigureActionDeps,
 } from './foldedFigureActions';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
+import { canWindowFolded3dFigure, folded3dWindowIds } from './folded3dWindow';
+import { webglRenderSupported } from '../../simulator/useSimulatorRuntime';
 import {
   DEFAULT_FOLDED_3D_CAMERA,
   foldedFigureOtherSideCamera,
@@ -265,6 +267,28 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   );
 
   /**
+   * Which 3D figures are drawn as live GPU windows rather than as primitives in
+   * the crease-pattern scene.
+   *
+   * One set, three consumers, and they must agree exactly: the window layer
+   * mounts these, the canvas stops drawing these, and the orbit gesture stops
+   * re-projecting these. A figure in two of the three is drawn twice or not at
+   * all.
+   *
+   * Memoized on the figure list, which is also when a render model can first
+   * appear — a fold adds the entry and the geometry together.
+   */
+  const folded3dWindowFigureIds = useMemo(
+    () => folded3dWindowIds(generatedFoldedFigures, { gpuAvailable: webglRenderSupported() }),
+    [generatedFoldedFigures]
+  );
+
+  const folded3dWindowFigures = useMemo(
+    () => generatedFoldedFigures.filter((figure) => folded3dWindowFigureIds.has(figure.id)),
+    [generatedFoldedFigures, folded3dWindowFigureIds]
+  );
+
+  /**
    * The focused figure's body takes no overlay gestures: its interior orbits the
    * camera, and the overlay polygon sits above it, so leaving it live means every
    * drag aimed at turning the model moves it instead. Handles are untouched, so a
@@ -361,13 +385,20 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         session.recording = true;
         beginFoldedFigureGesture();
       }
-      // Projected here rather than in a render pass: this is `earcut` over every
-      // cell ring plus a BSP build, and React's commit is the wrong place for it.
-      // Null when the figure has no render model (reopened from a file), which
-      // the side table carries through as "keep the picture you have".
+      // A windowed figure is drawn by its mesh at the camera alone, so the CPU
+      // projection would be built and then thrown away — `earcut` over every cell
+      // ring plus a BSP build, per pointer move, for a picture nobody draws.
+      //
+      // Otherwise projected here rather than in a render pass, because React's
+      // commit is the wrong place for that work. Null when the figure has no
+      // render model (reopened from a file), which the side table carries through
+      // as "keep the picture you have".
+      const windowed = canWindowFolded3dFigure(figure, {
+        gpuAvailable: webglRenderSupported(),
+      });
       publishFolded3dOrbit(session.id, {
         camera: next,
-        snapshot: reproject3dFigureAt(figure, figure.displayStyle, next),
+        snapshot: windowed ? null : reproject3dFigureAt(figure, figure.displayStyle, next),
       });
     },
     [beginFoldedFigureGesture, figureById]
@@ -695,6 +726,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     selected: selectedFoldedFigure,
     staleIds: staleFoldedFigureIds,
     transformableObjects: foldedFigureObjects,
+    /** 3D figures drawn as GPU windows — see `folded3dWindowFigureIds`. */
+    windowIds: folded3dWindowFigureIds,
+    windowFigures: folded3dWindowFigures,
     /** Bodies the overlay must not take gestures for — see `foldedInertBodyIds`. */
     inertBodyIds: foldedInertBodyIds,
     /**

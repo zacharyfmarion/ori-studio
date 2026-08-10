@@ -286,13 +286,20 @@ function signedArea2(
   return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
 }
 
-export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMeshResult {
-  const centre = toSimBasis(modelCentroid(model));
-  const radius = modelRadius(model);
-
-  // Pass one: how deep does this model stack, how far apart do its planes rank,
-  // and how many vertices will it take. All three are needed before a single
-  // vertex can be placed -- eps depends on the deepest stack anywhere.
+/**
+ * What a model's stacking costs, without building anything.
+ *
+ * One integer pass over `cell_attr` — no triangulation, no allocation — so a
+ * caller deciding *whether* a figure can be meshed does not have to mesh it to
+ * find out. {@link folded3dMesh} runs the same pass, because all three numbers
+ * are needed before a single vertex can be placed: `eps` depends on the deepest
+ * stack anywhere in the model.
+ */
+export function folded3dMeshExtent(model: OristudioCpFolded3dRenderModel): {
+  vertexCount: number;
+  maxStackDepth: number;
+  maxDrawRank: number;
+} {
   let maxStackDepth = 0;
   let maxDrawRank = 0;
   let vertexCount = model.edge_count * 2;
@@ -304,6 +311,14 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     maxDrawRank = Math.max(maxDrawRank, model.cell_attr[base + 6] ?? 0);
     if (ringLength >= 3) vertexCount += ringLength * stackLength;
   }
+  return { vertexCount, maxStackDepth, maxDrawRank };
+}
+
+export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMeshResult {
+  const centre = toSimBasis(modelCentroid(model));
+  const radius = modelRadius(model);
+
+  const { vertexCount, maxStackDepth, maxDrawRank } = folded3dMeshExtent(model);
   if (vertexCount > FOLDED_3D_MESH_VERTEX_BUDGET) {
     return { kind: 'too-large', vertexCount, limit: FOLDED_3D_MESH_VERTEX_BUDGET };
   }

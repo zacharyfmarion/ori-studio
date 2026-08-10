@@ -255,6 +255,10 @@
       "line": "Line color"
     },
     "foldedDisplayStyle": "Folded display style",
+    "foldedFigure": {
+      "windowAriaLabel": "Folded model, in three dimensions",
+      "windowFailed": "Could not draw this model"
+    },
     "foldedModelControls": "Folded model controls",
     "foldedModels": "Folded models",
     "foldedModelSide": "Folded model side",

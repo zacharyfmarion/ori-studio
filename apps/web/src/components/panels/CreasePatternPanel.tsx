@@ -136,6 +136,7 @@ import { foldedFigureMenuItemsWith } from '../../cp-workspace/folded/foldedFigur
 import { selectedCanvasObjectId as selectedCanvasObjectIdOf } from '../../cp-workspace/canvasObjects/transformableObject';
 import { foldedAppearanceEnabled } from '../../cp-workspace/folded/foldedFigureAppearance';
 import { InlineSimulationLayer } from '../../cp-workspace/InlineSimulationLayer';
+import { Folded3dWindowLayer } from '../../cp-workspace/Folded3dWindowLayer';
 import { InlineSimulationInspector } from '../../cp-workspace/InlineSimulationInspector';
 import { useInlineSimulations } from '../../cp-workspace/inlineSimulation/useInlineSimulations';
 import { useSimulateSelection } from '../../cp-workspace/inlineSimulation/useSimulateSelection';
@@ -2922,6 +2923,7 @@ export function CreasePatternPanel() {
                   circleRadiusToSvg={editableCircleRadiusToSvg}
                   foldedFigures={generatedFoldedFigures}
                   staleFoldedFigureIds={staleFoldedFigureIds}
+                  windowedFoldedFigureIds={folded.windowIds}
                   importedForms={cpImportedFoldedFormsGeometry}
                   grid={editableCpVisibleGrid}
                   gridVisible={oristudioCpViewport.gridVisible}
@@ -2990,6 +2992,13 @@ export function CreasePatternPanel() {
                     canCrop={annotations.canCrop}
                     onGestureStart={beginCanvasObjectGesture}
                     onGestureCommit={commitCanvasObjectGesture}
+                  />
+                )}
+                {webglOverlayView && folded.windowFigures.length > 0 && (
+                  <Folded3dWindowLayer
+                    figures={folded.windowFigures}
+                    focusedId={folded.orbit.focusedId}
+                    staleIds={staleFoldedFigureIds}
                   />
                 )}
                 {webglOverlayView && inlineSimulations.simulations.length > 0 && (

@@ -761,6 +761,16 @@ export interface CreasePatternWebglCanvasProps {
    * the folded-models list.
    */
   staleFoldedFigureIds?: ReadonlySet<string>;
+  /**
+   * Figures drawn by the folded-figure window layer instead of by this canvas.
+   *
+   * A 3D figure that can be meshed becomes a DOM window over this surface — the
+   * shared-canvas viewport an inline simulation already is — so drawing it here
+   * as well would put two copies of the same model on top of each other. Only
+   * the *drawing* is withheld: its content bounds and its pick box stay, because
+   * a window takes no pointer events and the gestures still land here.
+   */
+  windowedFoldedFigureIds?: ReadonlySet<string>;
   /** Imported `.fold` folded-form frames as fills + strokes (user coords), or null. */
   importedForms: FoldedGeometry | null;
   /** Grid parameters, or null when there is no grid. */
@@ -859,6 +869,7 @@ export function CreasePatternWebglCanvas({
   circleRadiusToSvg,
   foldedFigures,
   staleFoldedFigureIds,
+  windowedFoldedFigureIds,
   importedForms,
   grid,
   gridVisible,
@@ -1414,7 +1425,14 @@ export function CreasePatternWebglCanvas({
   // The figures as drawn: the store's entries, with any figure the user is
   // currently turning swapped for its live orbit frame. See
   // `folded/folded3dRuntime.ts` for why the live camera is not in the store.
-  const drawnFoldedFigures = useFolded3dOrbitFigures(foldedFigures);
+  const sceneFoldedFigures = useMemo(
+    () =>
+      windowedFoldedFigureIds && windowedFoldedFigureIds.size > 0
+        ? foldedFigures.filter((figure) => !windowedFoldedFigureIds.has(figure.id))
+        : foldedFigures,
+    [foldedFigures, windowedFoldedFigureIds]
+  );
+  const drawnFoldedFigures = useFolded3dOrbitFigures(sceneFoldedFigures);
   const foldedGeometry = useMemo(
     () =>
       cpFoldedToScene(drawnFoldedFigures, (figure) =>
