@@ -13,6 +13,28 @@
  * is what lets it be tested against real kernel payloads under bare node, where
  * a canvas cannot be.
  *
+ * # What this is for now that a figure is a window
+ *
+ * A 3D figure on screen is drawn by the GPU from `folded3dMesh.ts`, not from
+ * here. This is what makes the **vector** drawing, and it is the only thing that
+ * can: a `.osf`, a crease-pattern export, a standalone SVG or PNG, and the
+ * picture a figure falls back to with no GPU or no render model. So it is called
+ * exactly when that picture goes out of date — a fold, a refold, a style or
+ * colour change, and the once-per-gesture commit of a turn — and never at
+ * pointer rate. `projectorIsExportOnly.test.tsx` is that statement, and it
+ * asserts both halves: no projection per move, per notch or per frame, and
+ * exactly one per completed turn, so the exportable picture cannot go stale
+ * either.
+ *
+ * The mesh is deliberately **not** used for the vector path, though the
+ * simulator's own `renderMeshToSvg` would take it unchanged. It draws the same
+ * fixtures with up to 1.7× the polygons, because the epsilon that separates the
+ * layers for a depth buffer also stops `coplanarRuns` merging them — and it
+ * would re-derive the layer order from geometry we perturbed on purpose, when
+ * the kernel's exact `cell_stack` is right here and rides through the tree on
+ * `BspItem.order`. A vector drawing has no depth buffer; it wants the order, not
+ * the epsilon.
+ *
  * # Cells, not faces
  *
  * Every `BspItem` is a triangle of an **arrangement cell**, never of a face.

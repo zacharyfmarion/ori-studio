@@ -49,6 +49,7 @@ import {
   projectFolded3dModel,
   type FoldedFigureCamera,
 } from './foldedFigure3dProjection';
+import { foldedFigureExportDocument } from './foldedFigureExport';
 import type { Folded3dPaperStyle } from './folded3dStyle';
 import {
   cellRing,
@@ -878,6 +879,83 @@ describe('folded3dMesh', () => {
         expect(result.vertexCount).toBeGreaterThan(FOLDED_3D_MESH_VERTEX_BUDGET);
       }
     });
+  });
+});
+
+/**
+ * R7 — the file a user exports and the window they are looking at draw the same
+ * figure.
+ *
+ * The two are made by different machinery on purpose. The window's picture comes
+ * from this mesh through a **depth buffer**, which is why the layers are pushed
+ * apart by an epsilon. The file's comes from `foldedFigure3dProjection.ts`
+ * through a BSP with the kernel's exact `cell_stack` fed in, which is what a
+ * vector drawing needs and what an `.osf`, a crease-pattern export and a figure
+ * with no GPU all read. Both are derived from one render model, and R7 is that
+ * they drift.
+ *
+ * The statement below is the export end of the one already made above against
+ * the raw projection: this runs the projector at the settings the store actually
+ * writes onto a figure — culled and merged, which is a different code path — and
+ * carries it all the way through the serializer, so a layer lost to hidden-piece
+ * culling, to a coplanar merge, or to the SVG writer is caught here rather than
+ * by somebody opening a file.
+ */
+describe('the exported drawing and the mesh agree', () => {
+  it.each(NAMES)('%s exports the layer its window shows', (name) => {
+    const model = fixture(name);
+    const mesh = meshOf(model);
+    let compared = 0;
+
+    for (const [label, camera] of CAMERAS) {
+      // No `cullHidden` and no `mergeCoplanar`: the defaults, which is what
+      // `project3dRenderSnapshot` passes and therefore what every exported
+      // figure is drawn with.
+      const projection = projectFolded3dModel(model, {
+        camera,
+        displayStyle: 'Paper5',
+        style: STYLE,
+        tolerances: TOLERANCES,
+      });
+      const page = foldedFigureExportDocument(projection.snapshot);
+      expect(page, `${name} @ ${label}`).not.toBeNull();
+      // Nothing is lost between the projection and the file. The stacking order
+      // travels *inside* the primitive stream — the serializer has no depth test
+      // and no sort — so one dropped primitive is one wrong face on top.
+      expect(page!.svg.split('<path').length - 1).toBe(projection.snapshot.primitives.length);
+
+      const filledByCell = new Map<number, Set<number>>();
+      projection.snapshot.primitives.forEach((primitive, index) => {
+        if (!primitive.kind.startsWith('fill_')) return;
+        const cell = projection.cells[index]!;
+        const face = projection.faces[index]!;
+        // `-1` is a crease or a cell annotation, which draws no layer.
+        if (cell < 0 || face < 0) return;
+        const set = filledByCell.get(cell) ?? new Set<number>();
+        set.add(face);
+        filledByCell.set(cell, set);
+      });
+
+      const depths = slotDepths(mesh, projectVertices(mesh.positions, uniformsFor(mesh, camera)));
+      const slotsOf = slotsByCell(mesh);
+      for (const [cell, faces] of filledByCell) {
+        // A cell the tree cut into pieces at two depths has no single answer to
+        // compare against; the raw-projection test above covers those.
+        if (faces.size !== 1) continue;
+        const plane = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0;
+        if (Math.abs(upTowardEye(model, plane, camera)) < EDGE_ON) continue;
+        const cellSlots = slotsOf.get(cell);
+        if (!cellSlots) throw new Error(`${name}: cell ${cell} is exported but has no slot`);
+        const nearest = cellSlots.reduce((best, slot) =>
+          depths[slot]! > depths[best]! ? slot : best
+        );
+        expect([...faces], `${name} @ ${label}, cell ${cell}`).toEqual([
+          mesh.slots.face[nearest],
+        ]);
+        compared += 1;
+      }
+    }
+    expect(compared).toBeGreaterThan(0);
   });
 });
 
