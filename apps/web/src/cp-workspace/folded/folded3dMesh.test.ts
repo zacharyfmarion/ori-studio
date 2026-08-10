@@ -48,8 +48,8 @@ import {
   folded3dFrameRadius,
   projectFolded3dModel,
   type FoldedFigureCamera,
-  type Folded3dPaperStyle,
 } from './foldedFigure3dProjection';
+import type { Folded3dPaperStyle } from './folded3dStyle';
 import {
   cellRing,
   cellStack,

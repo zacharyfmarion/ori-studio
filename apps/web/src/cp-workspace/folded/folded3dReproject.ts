@@ -25,10 +25,10 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import {
   defaultFolded3dCamera,
-  folded3dPaperStyle,
   projectFolded3dModel,
   type FoldedFigureCamera,
 } from './foldedFigure3dProjection';
+import { folded3dPaperStyle } from './folded3dStyle';
 import { folded3dRenderModel } from './folded3dRenderModels';
 
 /** Project a render model at a chosen viewpoint and style. */

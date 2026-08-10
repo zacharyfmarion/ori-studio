@@ -20,7 +20,6 @@ import { describe, expect, it } from 'vitest';
 import {
   BSP_ITEM_BUDGET,
   DEFAULT_FOLDED_3D_CAMERA,
-  UNDETERMINED_FACE_ALPHA,
   antipodalCamera,
   defaultFolded3dCamera,
   folded3dBspItems,
@@ -32,9 +31,12 @@ import {
   projectFolded3dModel,
   undeterminedCellColor,
   type FoldedFigureCamera,
-  type Folded3dPaperStyle,
   type Folded3dProjectionOptions,
 } from './foldedFigure3dProjection';
+import {
+  UNDETERMINED_FACE_ALPHA,
+  type Folded3dPaperStyle,
+} from './folded3dStyle';
 import { foldedFigureBox, foldedFigureLocalGeometry } from '../adapters/cpFoldedToScene';
 import {
   IDENTITY_FOLDED_PLACEMENT,
