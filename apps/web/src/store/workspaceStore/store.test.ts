@@ -8147,3 +8147,52 @@ describe('changing a 3D folded model appearance', () => {
     ).resolves.toBe(false);
   });
 });
+
+describe('a fresh 3D fold arrives focused', () => {
+  /**
+   * Selected-but-not-focused was a state the user could see and not act on: the
+   * outline and floating toolbar said "ready", and the first drag moved the
+   * figure instead of turning it, because only focus makes the body inert and
+   * hands the drag to the camera.
+   *
+   * The assertion is deliberately about the *pair*. Focus rides in on the fold's
+   * `takeCanvasSelection` patch, which wins only because the patch spreads last
+   * over that function's own focus-clearing branch — a property worth pinning
+   * rather than trusting to argument order.
+   */
+  async function foldSpatial() {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([
+        cpLine(
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { color: 'Red1', fold_magnitude: 90 * FOLD_MAGNITUDE_UNITS_PER_DEGREE }
+        ),
+      ]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    return useWorkspaceStore.getState();
+  }
+
+  it('selects and focuses the same figure', async () => {
+    const state = await foldSpatial();
+    const figure = state.oristudioCpFoldedFigures[0]!;
+    expect(figure.folded3d ?? null).not.toBeNull();
+    expect(state.oristudioCpActiveFoldedFigureId).toBe(figure.id);
+    expect(state.oristudioCpFocusedFoldedFigureId).toBe(figure.id);
+  });
+
+  it('never focuses a flat figure, which has nothing to turn', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpSelection: { ...emptyOristudioCpSelection(), lines: [1] },
+    });
+    await expect(useWorkspaceStore.getState().foldOristudioCpDocument()).resolves.toBe(true);
+    const state = useWorkspaceStore.getState();
+    expect(state.oristudioCpFoldedFigures[0]?.snapshot ?? null).not.toBeNull();
+    expect(state.oristudioCpFocusedFoldedFigureId).toBeNull();
+  });
+});

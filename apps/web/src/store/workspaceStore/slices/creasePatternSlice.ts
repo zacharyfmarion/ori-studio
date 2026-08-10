@@ -1995,13 +1995,20 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                 ),
               },
             ],
-            // A fresh fold *is* selected, so its outline and floating toolbar
-            // are on screen the moment it appears — the same as an inline
-            // simulation, and what makes "press the selected figure to focus it"
-            // a rule with something visible behind it. Leaving it unselected
-            // meant a new 3D figure showed no chrome at all and the second-press
-            // rule had nothing to count from.
+            // A fresh fold is selected **and focused**, which for a 3D figure has
+            // to be one step rather than two.
+            //
+            // Selected alone was the state the user could see — outline and
+            // floating toolbar — while the gesture still read as unfocused, so a
+            // figure that looked ready to turn moved instead. Focus is what makes
+            // the body inert and hands the drag to the camera, so the chrome and
+            // the gesture have to arrive together or the chrome is lying.
+            //
+            // This is also what an inline simulation does: for a window, focus
+            // *is* selection (see `selectedCanvasObjectId` in the panel), and a
+            // new one opens focused.
             oristudioCpActiveFoldedFigureId: figureId,
+            oristudioCpFocusedFoldedFigureId: figureId,
             oristudioCpSelection: emptyOristudioCpSelection(),
             oristudioCpError: null,
             dirty: true,
