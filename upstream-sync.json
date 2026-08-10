@@ -66,9 +66,10 @@
       "repo": "https://github.com/origamimagiro/flat-folder",
       "branch": "main",
       "vendored_path": "third_party/flat-folder",
-      "vendored_commit": "e00732c4cf9137f76caea22fd8f284ec23af0aff",
-      "last_checked_commit": "e00732c4cf9137f76caea22fd8f284ec23af0aff",
+      "vendored_commit": "d50004815fb738d009e5b87b2307fbaefa717ef0",
+      "last_checked_commit": "d50004815fb738d009e5b87b2307fbaefa717ef0",
       "last_checked_date": "2026-08-10",
+      "vendored_subset_note": "Unlike the other upstreams this is a curated subset, not a full copy: 20 files, with large images and the upstream example corpus deliberately omitted. A re-vendor must update the vendored files rather than copying the tree.",
       "oracle": "tools/flat-folder-oracle/oracle.mjs",
       "watch_paths": [
         "src/"
