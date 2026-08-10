@@ -4,7 +4,9 @@ This directory vendors the pinned Oriedita source snapshot used as the semantic
 oracle for the Ori Studio crease-pattern port.
 
 - Upstream: <https://github.com/oriedita/oriedita>
-- Pinned commit: `9d39135ae232cc03be4ffaf74baa7ae2df970507`
+- Pinned commit: recorded in `upstream-sync.json` under `oriedita`, which is the
+  source of truth for every upstream pin. Deliberately not repeated here — two
+  copies of a SHA are two copies to forget to update.
 - License: MIT, preserved in `LICENSE.md`
 
 The oracle build under `tools/oriedita-oracle` defaults to this path, so local

@@ -39,7 +39,7 @@ public class ReferencesTab {
     private JButton circleButton;
     private DropdownToolButton restrictedCircleDropdown;
     private DropdownToolButton concentricCircleDropdown;
-    private JButton a3pointCircleButton;
+    private DropdownToolButton apolloniusCircleDropdown;
     private JButton tangentButton;
     private JButton invertButton;
     private JButton circleColorButton;
@@ -79,6 +79,9 @@ public class ReferencesTab {
         );
         concentricCircleDropdown.setActions(
                 ActionType.circleDrawConcentricAction, ActionType.circleDrawTwoConcentricAction, ActionType.circleDrawConcentricSelectAction
+        );
+        apolloniusCircleDropdown.setActions(
+                ActionType.circleDrawApolloniusAction, ActionType.circleDrawApolloniusRadiusAction
         );
         buttonService.addDefaultListener($$$getRootComponent$$$());
 
@@ -179,15 +182,14 @@ public class ReferencesTab {
         gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         panel3.add(concentricCircleDropdown, gbc);
-        a3pointCircleButton = new JButton();
-        a3pointCircleButton.setActionCommand("circleDrawThreePointAction");
-        a3pointCircleButton.setText("3pointCircle");
+        apolloniusCircleDropdown = new DropdownToolButton();
+        apolloniusCircleDropdown.setText("tangentCircle");
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        panel3.add(a3pointCircleButton, gbc);
+        panel3.add(apolloniusCircleDropdown, gbc);
         tangentButton = new JButton();
         tangentButton.setActionCommand("circleDrawTangentLineAction");
         tangentButton.setText("tangent");

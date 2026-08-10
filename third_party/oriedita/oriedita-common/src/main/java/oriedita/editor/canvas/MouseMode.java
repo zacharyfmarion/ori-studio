@@ -90,6 +90,8 @@ public enum MouseMode {
     AXIOM_5(105),
     AXIOM_7(106),
     FIX_INACCURATE_107(107),
+    CIRCLE_DRAW_APOLLONIUS_108(108),
+    CIRCLE_DRAW_APOLLONIUS_RADIUS_109(109),
     ;
 
     int mode;

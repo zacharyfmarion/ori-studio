@@ -1,0 +1,101 @@
+{
+  "$comment": [
+    "Sync state for every upstream Ori Studio ports. Consolidates four pins that",
+    "previously lived in four different places and formats.",
+    "",
+    "Two commits are tracked per upstream and they mean different things:",
+    "  vendored_commit     what third_party/<name>/ actually contains, and what",
+    "                      the parity oracle compiles against. Moves only on a",
+    "                      real re-vendor, never by a drift check.",
+    "  last_checked_commit how far a drift check has triaged. Moves every run,",
+    "                      whether or not it found work.",
+    "",
+    "Drift checks are run with the upstream-drift skill; see",
+    ".agents/skills/upstream-drift/ and",
+    "implementation-plans/upstream-drift-watcher.md.",
+    "",
+    "TreeMaker 5.0.1 is absent on purpose: the upstream is a 2015 release and",
+    "cannot drift."
+  ],
+  "upstreams": {
+    "oriedita": {
+      "repo": "https://github.com/oriedita/oriedita",
+      "branch": "master",
+      "vendored_path": "third_party/oriedita",
+      "vendored_commit": "c02a54420c50d375fa0463f444290c391722d715",
+      "last_checked_commit": "c02a54420c50d375fa0463f444290c391722d715",
+      "last_checked_date": "2026-08-10",
+      "unported_upstream_features": [
+        "Apollonius circle drawing tools (MouseHandlerCircleDrawApollonius, MouseHandlerCircleDrawApolloniusRadius), added upstream in PR #505. Vendored but not ported: a product decision about whether Ori Studio wants the tool, not a parity gap."
+      ],
+      "oracle": "tools/oriedita-oracle/build_geometry_oracle.sh",
+      "watch_paths": [
+        "origami/src/main/",
+        "oriedita-data/src/main/java/oriedita/editor/save/",
+        "oriedita-data/src/main/java/oriedita/editor/export/"
+      ],
+      "port_map": {
+        "origami/src/main/java/origami/Epsilon.java": "crates/oristudio-cp/src/geometry/epsilon.rs",
+        "origami/src/main/java/origami/crease_pattern/": "crates/oristudio-cp/src/geometry/",
+        "origami/src/main/java/origami/crease_pattern/worker/foldlineset/": "crates/oristudio-cp/src/folding/",
+        "oriedita-data/src/main/java/oriedita/editor/save/": "crates/oristudio-cp/src/io/",
+        "oriedita-data/src/main/java/oriedita/editor/export/": "crates/oristudio-cp/src/io/"
+      }
+    },
+    "box-pleating-studio": {
+      "repo": "https://github.com/bp-studio/box-pleating-studio",
+      "branch": "main",
+      "vendored_path": "third_party/box-pleating-studio",
+      "vendored_commit": "507981157194b13634761c3a2e39565754b6cbbb",
+      "vendored_commit_note": "First commit-level pin for this upstream. The previous pin was derived from the vendored package.json version 0.7.14 resolved to its release tag, and confirmed exact: the vendored tree matched that tag file-for-file before the bump to v0.7.15.",
+      "last_checked_commit": "507981157194b13634761c3a2e39565754b6cbbb",
+      "last_checked_date": "2026-08-10",
+      "open_port_candidates": [
+        "roughContour.ts stale-contour clear (v0.7.15). May not apply: our layout/contours.rs computes into a fresh result map rather than mutating persistent node state. See implementation-plans/bp-studio-sync-2026-08-10.md."
+      ],
+      "oracle": "tools/bp-studio-oracle/oracle.mjs",
+      "watch_paths": [
+        "src/core/",
+        "src/shared/json/",
+        "src/client/patches/migrations/"
+      ],
+      "port_map": {
+        "src/core/": "crates/oristudio-bp/src/",
+        "src/shared/json/": "crates/oristudio-bp/src/io/",
+        "src/client/patches/migrations/": "crates/oristudio-bp/src/io/migrations.rs"
+      }
+    },
+    "flat-folder": {
+      "repo": "https://github.com/origamimagiro/flat-folder",
+      "branch": "main",
+      "vendored_path": "third_party/flat-folder",
+      "vendored_commit": "d50004815fb738d009e5b87b2307fbaefa717ef0",
+      "last_checked_commit": "d50004815fb738d009e5b87b2307fbaefa717ef0",
+      "last_checked_date": "2026-08-10",
+      "vendored_subset_note": "Unlike the other upstreams this is a curated subset, not a full copy: 20 files, with large images and the upstream example corpus deliberately omitted. A re-vendor must update the vendored files rather than copying the tree.",
+      "oracle": "tools/flat-folder-oracle/oracle.mjs",
+      "watch_paths": [
+        "src/"
+      ],
+      "port_map": {
+        "src/": "crates/treemaker-flatfold/src/"
+      }
+    },
+    "origami-simulator": {
+      "repo": "https://github.com/amandaghassaei/OrigamiSimulator",
+      "branch": "main",
+      "vendored_path": null,
+      "vendored_path_note": "Not vendored. packages/origami-simulator is a TypeScript port and a WebGL2 modernization, not a copy; the source commit is recorded in its NOTICE file.",
+      "vendored_commit": "7855983a613c879c171b2b1557f8cd102d2640cf",
+      "last_checked_commit": "7855983a613c879c171b2b1557f8cd102d2640cf",
+      "last_checked_date": "2026-08-10",
+      "oracle": null,
+      "watch_paths": [
+        "js/"
+      ],
+      "port_map": {
+        "js/": "packages/origami-simulator/src/"
+      }
+    }
+  }
+}

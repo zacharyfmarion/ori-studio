@@ -240,3 +240,54 @@ pass), the curved-folding path, the SVG import path, `removeBorderFaces`, and
 `foldUseAngles` (upstream infers target angles from an imported folded form when
 the FOLD carries no `edges_foldAngle`; our option of that name is dead and reads
 the assignment either way).
+
+## Staying current: two mechanisms, never one
+
+Every pin above is a snapshot of a project that keeps moving. Two separate
+things keep us honest about that, and they have **opposite** requirements. Do
+not merge them.
+
+| | Parity oracle | Drift check |
+| --- | --- | --- |
+| Question | Does the port still match the source we ported from? | Has upstream moved into code we depend on? |
+| Reference | **Pinned** `vendored_commit` | **Current** upstream HEAD |
+| Runs | Every CI build | By hand, roughly monthly |
+| On problem | Fails the build | Writes a sync plan, opens an issue |
+
+**The oracle must never be pointed at upstream HEAD.** It is a regression test
+on our code. Floating it would break CI for reasons that are not ours, make it
+impossible to tell "I broke the port" from "upstream changed", and make the same
+commit pass on Tuesday and fail on Thursday.
+`tools/oriedita-oracle/build_geometry_oracle.sh` defaults to the vendored
+snapshot (`ORIEDITA_SOURCE=${...:-third_party/oriedita}`), which is correct.
+
+**The drift check must never gate a build.** It is a notification. Run it with
+the `upstream-drift` skill (`.agents/skills/upstream-drift/`), one upstream at
+a time.
+
+`upstream-sync.json` is the source of truth for both, and it tracks two commits
+per upstream for this reason: `vendored_commit` is what `third_party/` contains
+and what the oracle compiles against, moving only on a real re-vendor;
+`last_checked_commit` is how far a drift check has triaged, moving every run.
+
+Two things to know before touching this area:
+
+- **The oracle suites skip silently when their environment variable is unset**,
+  so an unconfigured suite and a passing suite look identical. Seven of the
+  eight ran dormant in CI for months because of it. `ORACLE_REQUIRED` plus the
+  `oracle_env_guard` test in each crate now turns a missing variable into a
+  failure. If you add an oracle suite, add its variable to that list.
+- **Do not size an upstream delta with GitHub's compare API.** It truncates its
+  file list at 300 entries with no error, which has already produced two wrong
+  per-module readings. Clone the upstream and diff locally.
+- **A failing oracle test does not mean the port is wrong.** The oracle harness
+  is a transcription too, and it can transcribe the wrong upstream function.
+  The first three failures this CI wiring exposed were all the harness: it
+  compared symmetric draw, double symmetric draw, and fishbone against
+  `OritaCalc.extendToIntersectionPoint_2` when all three handlers call
+  `CreasePattern_Worker_Impl.extendToIntersectionPoint`, which differs by a
+  final `withA(s0.getB())`. The Rust was right. Read the upstream *caller*
+  before changing kernel code — and note the inverse risk, which is worse
+  because nothing fails: if the port and the harness both call the wrong
+  function, the test passes while both diverge. Agreement between two of our own
+  artifacts is not parity; only `third_party/` is authoritative.
