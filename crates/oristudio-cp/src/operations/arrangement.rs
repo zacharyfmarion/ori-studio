@@ -1362,6 +1362,7 @@ pub fn remove_overlapping_lines_with_precision(model: &mut CreasePatternModel, r
 #[cfg(test)]
 mod import_add_tests {
     use super::*;
+    use crate::geometry::Circle;
 
     fn model_with(segments: Vec<LineSegment>) -> CreasePatternModel {
         CreasePatternModel {
@@ -1432,5 +1433,50 @@ mod import_add_tests {
         assert!((segment.a.x - 100.0).abs() < 1e-9);
         assert!((segment.b.x - 104.0).abs() < 1e-9);
         assert!(segment.a.y.abs() < 1e-9);
+    }
+
+    /// Circles ride the import's shift with the lines, unchanged otherwise.
+    ///
+    /// This is what lets "Send to Edit (include circles)" place circles on the
+    /// *imported* document and let the merge carry them: the shift is derived
+    /// from the line segments alone, so a circle keeps its position relative to
+    /// the creases it annotates. Radius and colour must survive untouched — a
+    /// scaled radius would put a packing circle on the wrong flap.
+    #[test]
+    fn import_add_shifts_circles_with_their_lines() {
+        let mut model = model_with(vec![LineSegment::from_coordinates(0.0, 0.0, 10.0, 10.0)]);
+        let mut imported = model_with(vec![LineSegment::from_coordinates(0.0, 0.0, 5.0, 5.0)]);
+        imported.add_circle(Circle::new(1.0, 2.0, 3.0, LineColor::Cyan3));
+
+        import_add(&mut model, &imported);
+
+        // Same addx/addy the lines get: 10 + 100 - 0 = 110, and 10 - 5 = 5.
+        assert_eq!(model.circles.len(), 1);
+        let circle = &model.circles[0];
+        assert!((circle.x - 111.0).abs() < 1e-9);
+        assert!((circle.y - 7.0).abs() < 1e-9);
+        assert!((circle.r - 3.0).abs() < 1e-9);
+        assert_eq!(circle.color, LineColor::Cyan3);
+    }
+
+    /// A circle keeps its offset from the creases it was placed against.
+    ///
+    /// Stronger than asserting the shift arithmetic: it says the *relationship*
+    /// is preserved, which is the property the feature actually depends on.
+    #[test]
+    fn import_add_preserves_circle_offset_from_imported_lines() {
+        let mut model = model_with(vec![LineSegment::from_coordinates(0.0, 0.0, 40.0, 40.0)]);
+        let mut imported = model_with(vec![LineSegment::from_coordinates(2.0, 3.0, 6.0, 9.0)]);
+        // Centred on the imported segment's first endpoint.
+        imported.add_circle(Circle::new(2.0, 3.0, 1.5, LineColor::Cyan3));
+
+        import_add(&mut model, &imported);
+
+        let moved = model
+            .line_segments
+            .iter()
+            .find(|segment| (segment.a.x - model.circles[0].x).abs() < 1e-9)
+            .expect("the imported segment should still start at the circle's centre");
+        assert!((moved.a.y - model.circles[0].y).abs() < 1e-9);
     }
 }

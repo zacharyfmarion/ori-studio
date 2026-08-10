@@ -378,11 +378,14 @@ pub fn bp_flip_layout_sheet(handle: u32, horizontal: bool) -> Result<JsValue, Js
 }
 
 #[wasm_bindgen]
+/// Resize the layout sheet. A `null`/`undefined` dimension keeps whatever the
+/// session's sheet has now, so a caller editing one dimension never has to
+/// restate the other from a snapshot that may already be stale.
 pub fn bp_update_layout_sheet(
     handle: u32,
     grid_type: &str,
-    width: f64,
-    height: f64,
+    width: Option<f64>,
+    height: Option<f64>,
 ) -> Result<JsValue, JsValue> {
     let grid_type = parse_grid_type(grid_type)?;
     with_session_mut(handle, |session| {

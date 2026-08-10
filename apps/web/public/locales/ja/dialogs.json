@@ -159,6 +159,10 @@
         "detail": "ボックスプリーツによる作図手法は、Mu-Tsun Tsai の Box Pleating Studio の Rust および WebAssembly への移植です。",
         "title": "Mu-Tsun Tsai と Box Pleating Studio"
       },
+      "explori": {
+        "detail": "「22.5° を検索」の作図手法は、ツリーを ExplOri（22.5° の展開図を検索できるアーカイブ）に送信し、返された中で最も近い一致を表示します。",
+        "title": "Brandon Wong と ExplOri 22.5"
+      },
       "oriedita": {
         "detail": "展開図エディターは、Oriedita エディター（Orihime のフォーク）の Rust および WebAssembly への移植であり、その折り可能性の診断、修復、およびファイル形式を含みます。",
         "title": "Oriedita"

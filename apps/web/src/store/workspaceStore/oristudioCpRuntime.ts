@@ -30,6 +30,7 @@ import { orieditaDocumentTitle } from '../../lib/orieditaDocumentTitle';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
 import type { OristudioCpWorkerApi } from '../../workers/oristudioCpWorker';
+import type { SendToEditCircle } from '../../designKinds/types';
 
 export type OristudioCpClient = Remote<OristudioCpWorkerApi>;
 
@@ -346,6 +347,14 @@ export async function importAddOristudioCpDocumentFromText(
     format: ImportedCreasePatternFormat;
     filename: string;
     acceptUnknownVersion?: boolean;
+    /**
+     * Packing circles to bring along, in `text`'s own coordinate space with
+     * `circleSourceBounds` describing that space. Placed on the *imported*
+     * document, so the merge's shift carries them with the creases they
+     * annotate rather than leaving them behind at the origin.
+     */
+    circles?: readonly SendToEditCircle[];
+    circleSourceBounds?: readonly [number, number, number, number];
   }
 ): Promise<OristudioCpDocumentState> {
   if (handle === null) {
@@ -362,6 +371,9 @@ export async function importAddOristudioCpDocumentFromText(
           : await api.loadFoldFile(text);
 
   try {
+    if (source.circles?.length && source.circleSourceBounds) {
+      await api.placeCircles(importedHandle, source.circleSourceBounds, source.circles);
+    }
     await api.importAdd(handle, importedHandle);
   } finally {
     await api.freeDocument(importedHandle).catch(() => undefined);

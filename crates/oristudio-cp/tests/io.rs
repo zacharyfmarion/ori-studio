@@ -139,6 +139,34 @@ fn fold_import_reads_edges_and_oriedita_extensions() {
     assert_eq!(model.grid.base_state, GridState::Full);
 }
 
+/// The FOLD importer's normalization, pinned in the form callers depend on: the
+/// source bounding box's min corner lands on `(-200, -200)`, the scale is
+/// **uniform and keyed on height** (`400 / sourceHeight`), and there is no
+/// rotation or Y flip.
+///
+/// A non-square source is the case that distinguishes those claims — with a 2:1
+/// paper the X extent comes out at 800, not clamped to 400. "Send to Edit
+/// (include circles)" maps circle centres and radii through this exact transform
+/// to reach the imported document's space, so a change here silently moves every
+/// packing circle off its flap.
+#[test]
+fn fold_import_normalizes_uniformly_on_height_for_a_non_square_paper() {
+    let input = r##"{
+      "file_spec": 1.1,
+      "vertices_coords": [[0, 0], [20, 0], [20, 10], [0, 10]],
+      "edges_vertices": [[0, 1], [1, 2], [2, 3], [3, 0]],
+      "edges_assignment": ["B", "B", "B", "B"]
+    }"##;
+
+    let model = fold::import_fold_json(input).expect("valid fold");
+
+    // scale = 400 / 10 = 40, applied to both axes; min corner -> (-200, -200).
+    assert_eq!(model.line_segments[0].a, Point::new(-200.0, -200.0));
+    assert_eq!(model.line_segments[0].b, Point::new(600.0, -200.0));
+    assert_eq!(model.line_segments[2].a, Point::new(600.0, 200.0));
+    assert_eq!(model.line_segments[2].b, Point::new(-200.0, 200.0));
+}
+
 #[test]
 fn fold_file_import_export_preserves_embedded_folded_form_frames() {
     let input = r#"{

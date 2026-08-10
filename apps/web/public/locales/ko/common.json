@@ -246,7 +246,10 @@
     "optimizeScale": "배율 최적화",
     "save": "저장",
     "sendToEdit": "편집으로 보내기",
+    "sendToEditMore": "편집으로 보내기 추가 옵션",
     "sendToEditTooltip": "이 디자인의 전개도를 편집 캔버스로 보냅니다",
+    "sendToEditWithCircles": "편집으로 보내기 (원 포함)",
+    "sendToEditWithCirclesTooltip": "이 디자인의 전개도를 패킹 원과 함께 보냅니다",
     "settings": "설정"
   },
   "workspaceRail": {

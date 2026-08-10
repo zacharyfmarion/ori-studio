@@ -270,7 +270,12 @@ export const TreeScene = memo(function TreeScene({
                 [TREE_CHROME_ATTR.stroke]: active ? EDGE_SELECTED_STROKE_PX : EDGE_STROKE_PX,
               }}
             />
-            {showEdgeLengths && layers.labels && edge.isLeafEdge && (
+            {/* Every edge, river edges included. An internal *vertex* stays
+                unlabelled — it is a river, and a river has no name worth
+                drawing — but its edges' lengths are the flap lengths and river
+                widths the design is made of, so leaving them off left the
+                number you were editing invisible in the pane you edit it in. */}
+            {showEdgeLengths && layers.labels && (
               <text
                 className={`edge-label ${classPrefix}-edge-label`}
                 x={(p1.x + p2.x) / 2 + chromePx(EDGE_LABEL_DX_PX)}

@@ -538,6 +538,28 @@ export function load_share_link(payload) {
 }
 
 /**
+ * Add circles given in the coordinate space of the file the document was loaded
+ * from. See [`CpSession::place_circles`] for why the caller states its own
+ * bounds instead of pre-transforming.
+ * @param {number} handle
+ * @param {Float64Array} source_bounds
+ * @param {Float64Array} coords
+ * @param {Float64Array} radii
+ */
+export function place_circles(handle, source_bounds, coords, radii) {
+    const ptr0 = passArrayF64ToWasm0(source_bounds, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF64ToWasm0(coords, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passArrayF64ToWasm0(radii, wasm.__wbindgen_malloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ret = wasm.place_circles(handle, ptr0, len0, ptr1, len1, ptr2, len2);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
+}
+
+/**
  * @param {number} handle
  * @param {any} operation
  * @param {any} payload

@@ -225,6 +225,13 @@ export const ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS = [
   label: string;
 }[];
 
+/**
+ * The line-type filter values, derived from the picker rather than restated, so
+ * a validator built on it cannot drift from what the control actually offers.
+ */
+export const ORISTUDIO_CP_CUSTOM_LINE_TYPES: readonly OristudioCpCustomLineType[] =
+  ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS.map((option) => option.value);
+
 export const ORISTUDIO_CP_REPLACE_TARGET_LINE_TYPE_OPTIONS =
   ORISTUDIO_CP_CUSTOM_LINE_TYPE_OPTIONS.filter(
     (option) => option.value !== 'Any' && option.value !== 'MountainAndValley'

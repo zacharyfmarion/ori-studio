@@ -464,3 +464,10 @@ feature end-to-end", or "take this from plan to PR", use the repo-local
 `create-feature` skill under `.agents/skills/create-feature/`. That workflow
 owns planning, implementation, validation selection, draft PR creation, and PR
 handoff notes.
+
+For checking whether an upstream has moved into code we depend on, use the
+repo-local `upstream-drift` skill under `.agents/skills/upstream-drift/`. It
+triages new upstream commits into port-or-skip buckets, writes a sync plan and
+opens an issue when porting is needed, and advances the pointer in
+`upstream-sync.json` either way. It never ports code and never edits vendored
+source. Run it for one upstream at a time, roughly monthly.

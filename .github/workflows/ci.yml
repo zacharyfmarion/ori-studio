@@ -159,4 +159,59 @@ jobs:
       # Same wrapper as above so the already-compiled test binary is reused and
       # this step only re-runs it with the oracle binary wired in.
       - name: C++ oracle parity
-        run: RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" TREEMAKER_CPP_ORACLE=tools/oracle/build/treemaker-oracle cargo test -p oracle-tests --test cpp_oracle
+        env:
+          ORACLE_REQUIRED: TREEMAKER_CPP_ORACLE
+        run: RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" TREEMAKER_CPP_ORACLE=tools/oracle/build/treemaker-oracle cargo test -p oracle-tests --test cpp_oracle --test oracle_env_guard
+
+      # Oriedita is the largest port in the workspace and its parity suites were
+      # dormant: they skip on an unset env var, so an unconfigured suite and a
+      # passing one looked identical. The oracle compiles a hand-picked source
+      # list from the pinned vendored snapshot with plain javac - no maven, no
+      # dependency resolution - so this is a JDK and a few seconds.
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Oriedita oracle build
+        id: oriedita-oracle-cache
+        uses: actions/cache@v4
+        with:
+          path: tools/oriedita-oracle/build
+          key: ${{ runner.os }}-oriedita-oracle-${{ hashFiles('tools/oriedita-oracle/build_geometry_oracle.sh', 'tools/oriedita-oracle/src/**', 'tools/oriedita-oracle/stubs/**', 'third_party/oriedita/**') }}
+
+      - name: Build Oriedita oracle
+        if: steps.oriedita-oracle-cache.outputs.cache-hit != 'true'
+        run: tools/oriedita-oracle/build_geometry_oracle.sh
+
+      # One built wrapper serves every scoped variable; see
+      # tools/oriedita-oracle/README.md. ORACLE_REQUIRED turns a missing
+      # variable into a failure instead of a silent skip.
+      - name: Oriedita oracle parity
+        env:
+          ORACLE_REQUIRED: ORIEDITA_GEOMETRY_ORACLE,ORIEDITA_OPERATIONS_ORACLE,ORIEDITA_MODEL_ORACLE,ORIEDITA_IO_ORACLE,ORIEDITA_RENDER_ORACLE
+          ORIEDITA_GEOMETRY_ORACLE: tools/oriedita-oracle/build/oriedita-geometry-oracle
+          ORIEDITA_OPERATIONS_ORACLE: tools/oriedita-oracle/build/oriedita-geometry-oracle
+          ORIEDITA_MODEL_ORACLE: tools/oriedita-oracle/build/oriedita-geometry-oracle
+          ORIEDITA_IO_ORACLE: tools/oriedita-oracle/build/oriedita-geometry-oracle
+          ORIEDITA_RENDER_ORACLE: tools/oriedita-oracle/build/oriedita-geometry-oracle
+        run: |
+          RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" \
+            cargo test -p oristudio-cp \
+              --test oriedita_geometry_oracle \
+              --test oriedita_model_oracle \
+              --test oriedita_io_oracle \
+              --test oriedita_operations_oracle \
+              --test oriedita_render_oracle \
+              --test oriedita_folding_oracle \
+              --test oracle_env_guard
+
+      # The Flat-Folder oracle is a Node script wrapping the vendored JS, so it
+      # needs no build. The corpus suite is deliberately not run here: it takes
+      # over ten minutes locally, where flat_folder_oracle takes under a second.
+      - name: Flat-Folder oracle parity
+        env:
+          ORACLE_REQUIRED: FLATFOLDER_ORACLE
+          FLATFOLDER_ORACLE: tools/flat-folder-oracle/oracle.mjs
+        run: RUSTC_WORKSPACE_WRAPPER="${GITHUB_WORKSPACE}/.github/clippy-driver-wrapper.sh" cargo test -p oracle-tests --test flat_folder_oracle --test oracle_env_guard

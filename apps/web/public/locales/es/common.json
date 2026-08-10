@@ -246,7 +246,10 @@
     "optimizeScale": "Optimizar escala",
     "save": "Guardar",
     "sendToEdit": "Enviar a Editar",
+    "sendToEditMore": "Más opciones de Enviar a Editar",
     "sendToEditTooltip": "Enviar el patrón de pliegues de este diseño al lienzo de edición",
+    "sendToEditWithCircles": "Enviar a Editar (incluir círculos)",
+    "sendToEditWithCirclesTooltip": "Enviar el patrón de pliegues de este diseño junto con sus círculos empaquetados",
     "settings": "Configuración"
   },
   "workspaceRail": {

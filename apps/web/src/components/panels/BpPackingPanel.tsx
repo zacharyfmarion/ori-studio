@@ -42,6 +42,7 @@ import type {
   OristudioBpSelection,
   OristudioBpSheet,
   OristudioBpSheetKind,
+  OristudioBpTreeEdge,
 } from '../../engine/oristudioBpTypes';
 import {
   bpFlapSelection,
@@ -69,11 +70,18 @@ import {
   constrainBpPackingFlapGroupTarget,
   getBpPackingWorldRect,
 } from '../../lib/bpPackingViewport';
+import { bpRiverIdFromGraphicsId } from '../../lib/bpPackingRivers';
 import { useBpPatternNotFoundEvent } from '../../analytics';
-import { BP_MAX_SHEET_SIZE, bpSteppedSheetSize } from '../../lib/bpSheetSize';
+import {
+  BP_MAX_SHEET_SIZE,
+  BP_MIN_DIAG_SIZE,
+  BP_MIN_RECT_SIZE,
+  bpSteppedSheetSize,
+} from '../../lib/bpSheetSize';
 import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
 import { bpDefaultFlapLabel, bpFlapLabel, bpFlapLabelList } from '../../lib/bpFlapLabel';
-import { leafLocationAt } from '../../tree-editor/dragRule';
+import { edgeLengthRepositions } from '../../tree-editor/dragRule';
+import { treeTopology } from '../../tree-editor/model';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
 import { useBpPackingDragRequests } from '../../hooks/useBpPackingDragRequests';
 import {
@@ -100,7 +108,9 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { IconButton } from '../ui/IconButton';
 import { BpPackingEmptySpaceLayer } from './BpPackingEmptySpaceLayer';
+import { BpPackingRiverBandLayer } from './BpPackingRiverBandLayer';
 import { BpFlapEditor } from './BpFlapEditor';
+import { BpRiverEditor } from './BpRiverEditor';
 import {
   isViewportInteractiveTarget,
   ViewportLayerMenu,
@@ -287,28 +297,51 @@ function selectedNudgeDevice(
   return null;
 }
 
+/**
+ * One sheet dimension.
+ *
+ * The engine declines a dimension below its minimum, and declines a shrink the
+ * flaps no longer fit — both come back as success with the sheet unchanged. So
+ * the draft is resynced from the authoritative value once the commit settles
+ * rather than only when `value` changes: a refused edit has to revert in front
+ * of the user, the way Box Pleating Studio's number field snaps back on blur.
+ *
+ * Committing on Enter/blur rather than upstream's per-keystroke write is
+ * deliberate — our model write is an async engine round-trip that records an
+ * undo entry, and per-keystroke would spam both.
+ */
 function BpSheetSizeInput({
   label,
   value,
+  min,
   onCommit,
 }: {
   label: string;
   value: number;
-  onCommit: (value: number) => void;
+  min: number;
+  onCommit: (value: number) => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState(() => String(value));
+  // Read inside async callbacks, where the rendered `value` is already stale.
+  const valueRef = useRef(value);
+  // What the last commit asked for, so the blur that Enter triggers does not
+  // ask a second time. Cleared whenever the draft is edited again.
+  const requestedRef = useRef<number | null>(null);
   useEffect(() => {
+    valueRef.current = value;
     setDraft(String(value));
   }, [value]);
   const commit = () => {
     const parsed = Number.parseInt(draft, 10);
-    if (!Number.isFinite(parsed)) {
-      setDraft(String(value));
+    const clamped = Number.isFinite(parsed)
+      ? Math.min(BP_MAX_SHEET_SIZE, Math.max(min, parsed))
+      : valueRef.current;
+    if (clamped === valueRef.current || clamped === requestedRef.current) {
+      setDraft(String(valueRef.current));
       return;
     }
-    const clamped = Math.min(BP_MAX_SHEET_SIZE, Math.max(1, parsed));
-    if (clamped !== value) onCommit(clamped);
-    else setDraft(String(value));
+    requestedRef.current = clamped;
+    void onCommit(clamped).then(() => setDraft(String(valueRef.current)));
   };
   return (
     <label className="bp-sheet-menu__row">
@@ -316,11 +349,14 @@ function BpSheetSizeInput({
       <input
         className="bp-sheet-menu__input"
         type="number"
-        min={1}
+        min={min}
         max={BP_MAX_SHEET_SIZE}
         step={1}
         value={draft}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => {
+          requestedRef.current = null;
+          setDraft(event.target.value);
+        }}
         onBlur={commit}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
@@ -356,7 +392,11 @@ function BpPackingViewportToolbar({
   canGrowSheet: boolean;
   canShrinkSheet: boolean;
   sheet: OristudioBpSheet;
-  setSheet: (gridType: OristudioBpSheetKind, width: number, height: number) => void;
+  setSheet: (
+    gridType: OristudioBpSheetKind,
+    width: number | null,
+    height: number | null
+  ) => Promise<boolean>;
   symmetry: BpPackingSymmetryView;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -392,7 +432,7 @@ function BpPackingViewportToolbar({
         size="sm"
         variant="toolbar"
         title={t('panels:bpPacking.growSheet', 'Increase Grid Size')}
-        onClick={() => setSheet(sheet.kind, sheet.width + 1, sheet.height + 1)}
+        onClick={() => void setSheet(sheet.kind, sheet.width + 1, sheet.height + 1)}
         disabled={!canGrowSheet}
       >
         <Plus size={14} />
@@ -401,7 +441,7 @@ function BpPackingViewportToolbar({
         size="sm"
         variant="toolbar"
         title={t('panels:bpPacking.shrinkSheet', 'Decrease Grid Size')}
-        onClick={() => setSheet(sheet.kind, sheet.width - 1, sheet.height - 1)}
+        onClick={() => void setSheet(sheet.kind, sheet.width - 1, sheet.height - 1)}
         disabled={!canShrinkSheet}
       >
         <Minus size={14} />
@@ -424,7 +464,9 @@ function BpPackingViewportToolbar({
                 <button
                   type="button"
                   className={sheet.kind === 'rectangular' ? 'is-active' : undefined}
-                  onClick={() => setSheet('rectangular', sheet.width, sheet.height)}
+                  // A grid-type change carries the current sheet's render size
+                  // across in the engine, so it names no dimension of its own.
+                  onClick={() => void setSheet('rectangular', null, null)}
                 >
                   {t('panels:bpPacking.rect', 'Rect')}
                 </button>
@@ -432,32 +474,42 @@ function BpPackingViewportToolbar({
                   type="button"
                   className={sheet.kind === 'diagonal' ? 'is-active' : undefined}
                   onClick={() =>
-                    // A diagonal grid is a square placed as a diamond; collapse to one
-                    // size (BP Studio averages the current dimensions when converting).
-                    setSheet('diagonal', sheet.width, sheet.height)
+                    // A diagonal grid is a square placed as a diamond; the engine
+                    // collapses the current dimensions to one size when converting.
+                    void setSheet('diagonal', null, null)
                   }
                 >
                   {t('panels:bpPacking.diagonal', 'Diagonal')}
                 </button>
               </div>
             </div>
+            {/*
+              Each field names only the dimension it owns and leaves the other
+              `null`, so the engine fills it from its own sheet. Restating the
+              partner from `sheet` would restate the value this render was built
+              with, and a height edit issued before the width edit's result
+              landed would put the old width back.
+            */}
             {sheet.kind === 'diagonal' ? (
               <BpSheetSizeInput
                 label={t('panels:bpPacking.size', 'Size')}
                 value={sheet.width}
-                onCommit={(s) => setSheet('diagonal', s, s)}
+                min={BP_MIN_DIAG_SIZE}
+                onCommit={(s) => setSheet('diagonal', s, null)}
               />
             ) : (
               <>
                 <BpSheetSizeInput
                   label={t('panels:bpPacking.width', 'Width')}
                   value={sheet.width}
-                  onCommit={(w) => setSheet(sheet.kind, w, sheet.height)}
+                  min={BP_MIN_RECT_SIZE}
+                  onCommit={(w) => setSheet(sheet.kind, w, null)}
                 />
                 <BpSheetSizeInput
                   label={t('panels:bpPacking.height', 'Height')}
                   value={sheet.height}
-                  onCommit={(h) => setSheet(sheet.kind, sheet.width, h)}
+                  min={BP_MIN_RECT_SIZE}
+                  onCommit={(h) => setSheet(sheet.kind, null, h)}
                 />
               </>
             )}
@@ -692,27 +744,40 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
       ) ?? null
     );
   }, [singleSelectedFlap, tree.edges]);
+  // The single selected river, and its dual tree edge — a river's width *is*
+  // that edge's length, so both the pill and its commit go through the edge.
+  const singleSelectedRiver = useMemo(() => {
+    const id = selection.kind === 'bp-river' ? selection.id : null;
+    if (id === null) return null;
+    return packing.rivers.find((river) => river.id === id) ?? null;
+  }, [selection, packing.rivers]);
+  const singleSelectedRiverEdge = useMemo(() => {
+    if (!singleSelectedRiver) return null;
+    return tree.edges.find((edge) => edge.id === singleSelectedRiver.edgeId) ?? null;
+  }, [singleSelectedRiver, tree.edges]);
   // Sheet "diameter" caps every dimension (matches BP Studio's flap panel max).
   const flapMaxDimension = Math.max(packing.sheet.width, packing.sheet.height);
-  // Set the flap's radius by changing its leaf edge length, repositioning the
-  // leaf so the tree stays length-faithful (the subtree of a leaf is just the
-  // leaf). Reuses the same single-undo edge-length path as the tree inspector.
+  const topology = useMemo(() => treeTopology(tree), [tree]);
+  // Set a dual edge's length and keep the tree length-faithful — the child moves
+  // out along the direction it already points and carries its subtree. The same
+  // edit for a flap's radius (a leaf edge, whose subtree is the leaf alone) and
+  // a river's width (an internal edge). Reuses the tree pane's single-undo
+  // edge-length path, so the symmetry partner follows for free.
+  const setDualEdgeLength = useCallback(
+    (edge: OristudioBpTreeEdge, length: number): Promise<boolean> =>
+      setOristudioBpTreeEdgeLength(
+        edge.vertices,
+        length,
+        edgeLengthRepositions(tree, topology, edge.id, length)
+      ),
+    [tree, topology, setOristudioBpTreeEdgeLength]
+  );
   const setSelectedFlapRadius = useCallback(
-    (length: number): Promise<boolean> => {
-      if (!singleSelectedFlap || !singleSelectedFlapEdge) return Promise.resolve(false);
-      const edge = singleSelectedFlapEdge;
-      const leafId = singleSelectedFlap.vertexId;
-      const [a, b] = edge.vertices;
-      const parentId = a === leafId ? b : a;
-      const leaf = tree.vertices.find((vertex) => vertex.id === leafId);
-      const parent = tree.vertices.find((vertex) => vertex.id === parentId);
-      if (!leaf || !parent) {
-        return setOristudioBpTreeEdgeLength(edge.vertices, length);
-      }
-      const target = leafLocationAt(parent.loc, leaf.loc, length);
-      return setOristudioBpTreeEdgeLength(edge.vertices, length, [{ id: leafId, loc: target }]);
-    },
-    [singleSelectedFlap, singleSelectedFlapEdge, tree.vertices, setOristudioBpTreeEdgeLength]
+    (length: number): Promise<boolean> =>
+      singleSelectedFlapEdge
+        ? setDualEdgeLength(singleSelectedFlapEdge, length)
+        : Promise.resolve(false),
+    [singleSelectedFlapEdge, setDualEdgeLength]
   );
   const paperRect = useMemo(() => bpPackingPaperRect(packing.sheet), [packing.sheet]);
   const shadowRect = useMemo(() => bpPackingShadowRect(packing.sheet), [packing.sheet]);
@@ -1425,6 +1490,23 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 onPointerDown={onPaperPointerDown}
               />
             )}
+            {/* Above the paper so a press on a river starts a selection rather
+                than a marquee; below everything drawn on the paper, so the
+                creases, gadgets and flaps inside a river keep winning their own
+                presses. */}
+            {layers.rivers && (
+              <g clipPath={sheetClipPath}>
+                <BpPackingRiverBandLayer
+                  coverage={displayPacking.coverage}
+                  rivers={displayPacking.rivers}
+                  sheet={packing.sheet}
+                  paperRect={paperRect}
+                  selectedRiverIds={linkedSelection.rivers}
+                  shadeSelected={layers.selectionShade}
+                  onPointerDown={onRiverPointerDown}
+                />
+              </g>
+            )}
             <g clipPath={sheetClipPath}>
               {displayPacking.graphics.map((primitive) =>
                 primitive.layer !== 'device' && isBpPackingLayerVisible(layers, primitive.layer) ? (
@@ -1709,9 +1791,7 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
         canGrowSheet={canGrowSheet}
         canShrinkSheet={canShrinkSheet}
         sheet={packing.sheet}
-        setSheet={(gridType, width, height) =>
-          void setOristudioBpLayoutSheet(gridType, width, height)
-        }
+        setSheet={setOristudioBpLayoutSheet}
         symmetry={symmetry}
         zoomIn={zoomIn}
         zoomOut={zoomOut}
@@ -1740,6 +1820,15 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             resizeOristudioBpLayoutFlap(singleSelectedFlap.id, width, height)
           }
           onRadius={setSelectedFlapRadius}
+        />
+      )}
+      {singleSelectedRiver && singleSelectedRiverEdge && (
+        <BpRiverEditor
+          key={singleSelectedRiver.id}
+          river={singleSelectedRiver}
+          edge={singleSelectedRiverEdge}
+          onSetWidth={(width) => void setDualEdgeLength(singleSelectedRiverEdge, width)}
+          onEscape={() => selectOristudioBp({ kind: 'bp-none' })}
         />
       )}
       {activeStretch && (
@@ -1887,7 +1976,13 @@ function Primitive({
         <Element className="bp-packing-primitive-polyline" points={pointsAttr(points)} />
         <Element
           className={
-            primitive.closed
+            // Only a device is grabbed by its whole interior. A closed hinge
+            // contour bounds a flap or a river, and filling it made every ring
+            // a solid target: the outer one swallowed presses meant for what it
+            // encloses, and an inner one — a hole — swallowed presses meant for
+            // the child sitting in it. Those are the river band layer's, which
+            // hit-tests the band with its holes punched out.
+            primitive.closed && primitive.layer === 'device'
               ? 'bp-packing-primitive-hit-area'
               : 'bp-packing-primitive-hit-polyline'
           }
@@ -2143,14 +2238,7 @@ function flapIdFromPrimitiveId(id: string): number | null {
 }
 
 function riverIdFromPrimitiveId(id: string, document: OristudioBpDocumentState): number | null {
-  const match = /^re(\d+),(\d+)(?::|$)/.exec(id);
-  if (!match) return null;
-  const vertices = [Number.parseInt(match[1], 10), Number.parseInt(match[2], 10)] as const;
-  const river = document.snapshot.packing.rivers.find((candidate) => {
-    const [a, b] = candidate.vertices;
-    return (a === vertices[0] && b === vertices[1]) || (a === vertices[1] && b === vertices[0]);
-  });
-  return river?.id ?? null;
+  return bpRiverIdFromGraphicsId(id, document.snapshot.packing.rivers);
 }
 
 function deviceIdFromPrimitiveId(id: string, document: OristudioBpDocumentState): string | null {

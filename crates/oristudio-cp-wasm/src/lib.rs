@@ -234,6 +234,19 @@ pub fn set_texts(handle: u32, coords: Vec<f64>, texts: Vec<String>) -> Result<()
     with_session_mut(|session| session.set_texts(handle, &coords, texts))
 }
 
+/// Add circles given in the coordinate space of the file the document was loaded
+/// from. See [`CpSession::place_circles`] for why the caller states its own
+/// bounds instead of pre-transforming.
+#[wasm_bindgen]
+pub fn place_circles(
+    handle: u32,
+    source_bounds: Vec<f64>,
+    coords: Vec<f64>,
+    radii: Vec<f64>,
+) -> Result<(), JsValue> {
+    with_session_mut(|session| session.place_circles(handle, &source_bounds, &coords, &radii))
+}
+
 // --- folding ----------------------------------------------------------------
 
 #[wasm_bindgen]

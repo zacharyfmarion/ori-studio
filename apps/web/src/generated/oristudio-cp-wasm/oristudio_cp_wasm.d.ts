@@ -110,6 +110,13 @@ export function load_ori(text: string, accept_unknown_version: boolean): number;
  */
 export function load_share_link(payload: string): number;
 
+/**
+ * Add circles given in the coordinate space of the file the document was loaded
+ * from. See [`CpSession::place_circles`] for why the caller states its own
+ * bounds instead of pre-transforming.
+ */
+export function place_circles(handle: number, source_bounds: Float64Array, coords: Float64Array, radii: Float64Array): void;
+
 export function preview_cp_command(handle: number, operation: any, payload: any): any;
 
 export function replace_line_segments(handle: number, line_ids: any, segments: any): number;
@@ -170,6 +177,7 @@ export interface InitOutput {
     readonly load_orh: (a: number, b: number) => [number, number, number];
     readonly load_ori: (a: number, b: number, c: number) => [number, number, number];
     readonly load_share_link: (a: number, b: number) => [number, number, number];
+    readonly place_circles: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly preview_cp_command: (a: number, b: any, c: any) => [number, number, number];
     readonly replace_line_segments: (a: number, b: any, c: any) => [number, number, number];
     readonly restore_document: (a: number, b: any) => [number, number];

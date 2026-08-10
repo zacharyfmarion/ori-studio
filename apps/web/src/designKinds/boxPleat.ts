@@ -1,6 +1,8 @@
 import { Grid3x3 } from 'lucide-react';
 import { bpCpToEditorConvention } from '../lib/bpCreaseConvention';
 import { normalizeOrieditaGridSize } from '../lib/creasePatternViewport';
+import { boxPleatCpBounds, boxPleatPackingCircles } from '../lib/packingCircles';
+import { bpFlapRadius, sheet as toViewSheet } from '../engine/oristudioBpSnapshotMapper';
 import type { OristudioBpClient } from '../store/workspaceStore/oristudioBpRuntime';
 import type { WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import type {
@@ -87,11 +89,35 @@ export function createBoxPleatSendToEdit(getClient: () => Promise<OristudioBpCli
     // include auxiliary hinge creases (dropping them yields a sparse CP that
     // doesn't match BP Studio's export).
     const cpText = await api.exportCp(handle, false, true, cpScale);
-    return {
+    const payload: SendToEditPayload = {
       text: bpCpToEditorConvention(cpText),
       format: 'cp',
       label: 'Sent BP to Edit',
       filename: 'box-pleat.cp',
+    };
+    if (!request.includeCircles) return payload;
+
+    // Only the flaps that are circles. A flap with a width or a height has a
+    // rounded-rectangle clearance region the Edit document cannot represent —
+    // see `boxPleatPackingCircles` for why four corner discs, though exact, are
+    // the wrong answer.
+    //
+    // A flap's radius is the snapshot mapper's definition, not a second one.
+    const treeEdges = project.design.tree.edges;
+    const flaps = project.design.layout.flaps.map((flap) => ({
+      anchor: { x: flap.x, y: flap.y },
+      width: flap.width,
+      height: flap.height,
+      radius: bpFlapRadius(flap, treeEdges),
+    }));
+    const viewSheet = toViewSheet(sheet);
+    const circles = boxPleatPackingCircles(flaps, viewSheet);
+    if (circles.length === 0) return payload;
+    return {
+      ...payload,
+      label: 'Sent BP to Edit with circles',
+      circles,
+      circleSourceBounds: boxPleatCpBounds(viewSheet),
     };
   };
 }

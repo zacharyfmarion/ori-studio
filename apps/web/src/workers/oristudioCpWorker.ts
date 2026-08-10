@@ -39,6 +39,7 @@ import init, {
   restore_document,
   restore_from_compact,
   set_texts,
+  place_circles,
 } from '../generated/oristudio-cp-wasm/oristudio_cp_wasm';
 import type { CpGeometryTransport } from '../engine/oristudioCpGeometry';
 import type {
@@ -62,6 +63,7 @@ import type {
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
 import type { WasmErrorEnvelope } from '../engine/types';
 import type { FlatText } from '../cp-workspace/annotations/annotation';
+import type { SendToEditCircle } from '../designKinds/types';
 
 let ready: Promise<void> | null = null;
 
@@ -352,6 +354,22 @@ const api = {
         coords,
         texts.map((entry) => entry.text)
       )
+    );
+  },
+  async placeCircles(
+    handle: number,
+    sourceBounds: readonly [number, number, number, number],
+    circles: readonly SendToEditCircle[]
+  ): Promise<void> {
+    const coords = new Float64Array(circles.length * 2);
+    const radii = new Float64Array(circles.length);
+    for (let i = 0; i < circles.length; i += 1) {
+      coords[i * 2] = circles[i].cx;
+      coords[i * 2 + 1] = circles[i].cy;
+      radii[i] = circles[i].r;
+    }
+    return call(() =>
+      place_circles(handle, Float64Array.from(sourceBounds), coords, radii)
     );
   },
   async freeDocument(handle: number): Promise<void> {

@@ -204,7 +204,7 @@ async function activeBpHandle(): Promise<number | null> {
 }
 
 /** Same, but for the callers that cannot proceed without one. */
-async function requireActiveBpHandle(): Promise<number> {
+export async function requireActiveBpHandle(): Promise<number> {
   const handle = await activeBpHandle();
   if (handle === null) throw new Error('No Box Pleat project is loaded');
   return handle;
@@ -523,10 +523,11 @@ export async function flipOristudioBpLayoutSheet(
   );
 }
 
+/** A `null` dimension keeps whatever the engine session's sheet has now. */
 export async function updateOristudioBpLayoutSheet(
   gridType: OristudioBpSheetKind,
-  width: number,
-  height: number,
+  width: number | null,
+  height: number | null,
   options: OristudioBpMutationOptions = {}
 ): Promise<OristudioBpDocumentState> {
   return mutateActiveOristudioBpProject(options, (api, handle) =>

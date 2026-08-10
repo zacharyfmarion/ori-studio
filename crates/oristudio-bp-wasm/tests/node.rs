@@ -426,8 +426,9 @@ fn layout_sheet_commands_mutate_project_through_wasm_handle() {
 
     let handle =
         oristudio_bp_wasm::bp_load_project(sample_tree_authoring_project_text()).expect("handle");
-    let snapshot_value = oristudio_bp_wasm::bp_update_layout_sheet(handle, "diagonal", 8.0, 8.0)
-        .expect("switch sheet grid");
+    let snapshot_value =
+        oristudio_bp_wasm::bp_update_layout_sheet(handle, "diagonal", Some(8.0), Some(8.0))
+            .expect("switch sheet grid");
     let snapshot: oristudio_bp::Project =
         serde_wasm_bindgen::from_value(snapshot_value).expect("grid snapshot decodes");
     assert_eq!(
@@ -436,11 +437,28 @@ fn layout_sheet_commands_mutate_project_through_wasm_handle() {
     );
     assert_eq!(snapshot.design.layout.sheet.width, 8.0);
 
-    let snapshot_value = oristudio_bp_wasm::bp_update_layout_sheet(handle, "diag", 6.0, 6.0)
-        .expect("resize diagonal sheet");
+    let snapshot_value =
+        oristudio_bp_wasm::bp_update_layout_sheet(handle, "diag", Some(6.0), Some(6.0))
+            .expect("resize diagonal sheet");
     let snapshot: oristudio_bp::Project =
         serde_wasm_bindgen::from_value(snapshot_value).expect("resize grid snapshot decodes");
     assert_eq!(snapshot.design.layout.sheet.width, 6.0);
+
+    oristudio_bp_wasm::bp_free_project(handle).expect("free handle");
+
+    // One dimension at a time: the omitted dimension comes from the session, so
+    // the width set first survives the height set second.
+    let handle =
+        oristudio_bp_wasm::bp_load_project(sample_tree_authoring_project_text()).expect("handle");
+    oristudio_bp_wasm::bp_update_layout_sheet(handle, "rectangular", Some(20.0), None)
+        .expect("set width only");
+    let snapshot_value =
+        oristudio_bp_wasm::bp_update_layout_sheet(handle, "rectangular", None, Some(30.0))
+            .expect("set height only");
+    let snapshot: oristudio_bp::Project =
+        serde_wasm_bindgen::from_value(snapshot_value).expect("partial resize snapshot decodes");
+    assert_eq!(snapshot.design.layout.sheet.width, 20.0);
+    assert_eq!(snapshot.design.layout.sheet.height, 30.0);
 
     oristudio_bp_wasm::bp_free_project(handle).expect("free handle");
 }

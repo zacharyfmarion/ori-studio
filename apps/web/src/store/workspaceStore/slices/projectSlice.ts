@@ -2278,11 +2278,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       );
     },
 
-    importAddOristudioCpText: async (text, format, label, filename = 'design.cp') =>
-      // In-memory Import(Add): merge crease-pattern text (e.g. a design's built CP)
-      // into the always-live Edit canvas. Used by "Send to Edit".
-      applyOristudioCpLineMutation(label, () =>
-        importAddOristudioCpDocumentFromText(text, { format, filename })
+    importAddOristudioCpText: async (payload) =>
+      // In-memory Import(Add): merge a design's crease pattern into the
+      // always-live Edit canvas. Used by "Send to Edit".
+      applyOristudioCpLineMutation(payload.label, () =>
+        importAddOristudioCpDocumentFromText(payload.text, {
+          format: payload.format,
+          filename: payload.filename,
+          circles: payload.circles,
+          circleSourceBounds: payload.circleSourceBounds,
+        })
       ),
 
     replaceOristudioCpLineSegments: async (

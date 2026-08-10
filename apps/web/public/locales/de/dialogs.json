@@ -164,6 +164,10 @@
         "detail": "Die Box-Pleating-Autorenmethode ist eine Portierung von Mu-Tsun Tsais Box Pleating Studio nach Rust und WebAssembly.",
         "title": "Mu-Tsun Tsai und Box Pleating Studio"
       },
+      "explori": {
+        "detail": "Die Autorenmethode „22,5° durchsuchen“ sendet deinen Baum an ExplOri, ein durchsuchbares Archiv von 22,5°-Faltmustern, und zeigt die nächstliegenden Treffer an, die es zurückgibt.",
+        "title": "Brandon Wong und ExplOri 22.5"
+      },
       "oriedita": {
         "detail": "Der Faltmuster-Editor ist eine Portierung des Oriedita-Editors (selbst ein Fork von Orihime) nach Rust und WebAssembly, einschließlich seiner Faltbarkeitsdiagnosen, Reparaturen und Dateiformate.",
         "title": "Oriedita"

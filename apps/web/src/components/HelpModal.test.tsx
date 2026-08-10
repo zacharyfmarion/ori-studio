@@ -46,6 +46,7 @@ describe('HelpModal', () => {
     expect(rendered.textContent).toContain('About Ori Studio');
     expect(rendered.textContent).toContain('Robert J. Lang and TreeMaker 5.0.1');
     expect(rendered.textContent).toContain('Mu-Tsun Tsai and Box Pleating Studio');
+    expect(rendered.textContent).toContain('Brandon Wong and ExplOri 22.5');
     expect(rendered.textContent).toContain('Oriedita');
     expect(rendered.textContent).toContain('Amanda Ghassaei and Origami Simulator');
     expect(rendered.textContent).not.toContain('treemaker-rs');
@@ -59,6 +60,7 @@ describe('HelpModal', () => {
     expect(links).toEqual([
       { href: 'https://langorigami.com/article/treemaker/', target: '_blank' },
       { href: 'https://github.com/bp-studio/box-pleating-studio', target: '_blank' },
+      { href: 'https://225.designorigami.net/', target: '_blank' },
       { href: 'https://github.com/oriedita/oriedita', target: '_blank' },
       { href: 'https://github.com/amandaghassaei/OrigamiSimulator', target: '_blank' },
     ]);

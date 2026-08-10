@@ -151,6 +151,9 @@ Ori Studio builds directly on origami tools created by the community:
 - [Mu-Tsun Tsai and Box Pleating Studio](https://github.com/bp-studio/box-pleating-studio)
   — the box-pleated authoring method is a Rust and WebAssembly port of Box
   Pleating Studio.
+- [Brandon Wong and ExplOri 22.5](https://225.designorigami.net/) — the Search
+  22.5° design method sends your tree to ExplOri, a searchable archive of 22.5°
+  crease patterns, and shows the closest matches it returns.
 - [Oriedita](https://github.com/oriedita/oriedita) — the crease-pattern editor is
   a Rust and WebAssembly port of the Oriedita editor (itself a fork of Orihime),
   including its foldability diagnostics, repairs, and file formats.

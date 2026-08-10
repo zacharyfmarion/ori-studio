@@ -35,7 +35,7 @@ import {
   type TreeSceneTarget,
 } from './sceneDom';
 import { startTreeDrag, type TreeDragSession } from './dragController';
-import { leafLocationAt, translatePoints } from './dragRule';
+import { edgeLengthRepositions, leafLocationAt } from './dragRule';
 import { subtreeIds, treeTopology } from './model';
 import { clampLength } from './lengths';
 import { SYMMETRY_LANE_PX, TreeScene } from './TreeScene';
@@ -444,30 +444,12 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
     []
   );
 
-  // Set an edge's length and keep the tree length-faithful: re-place the child
-  // vertex at `length` units from its parent along the current direction, and
-  // translate the child's whole subtree by the same delta so nothing detaches.
+  // One call → the host runs length + reposition as a single undo entry.
   const setEdgeLength = useEventCallback(async (edgeId: number, length: number) => {
-    const edge = tree.edges.find((candidate) => candidate.id === edgeId);
-    if (!edge) return;
-    const [a, b] = edge.vertices;
-    const childId = topology.parent.get(a) === b ? a : b;
-    const parentId = childId === a ? b : a;
-    const child = findVertex(childId);
-    const parent = findVertex(parentId);
-    if (!child || !parent) {
-      await host.setEdgeLength([{ edgeId, length }], []);
-      return;
-    }
-    const target = leafLocationAt(parent.loc, child.loc, length);
-    const subtreePairs = subtreeOf(childId).flatMap((id) => {
-      const vertex = findVertex(id);
-      return vertex ? [[id, vertex.loc] as const] : [];
-    });
-    const moved = translatePoints(child.loc, target, subtreePairs);
-    const updates = [...moved].map(([id, loc]) => ({ id, loc }));
-    // One call → the host runs length + reposition as a single undo entry.
-    await host.setEdgeLength([{ edgeId, length }], updates);
+    await host.setEdgeLength(
+      [{ edgeId, length }],
+      edgeLengthRepositions(tree, topology, edgeId, length)
+    );
   });
 
   // Escape drops the selection and returns the keyboard to the canvas. Nothing in
@@ -770,7 +752,11 @@ export function TreeEditor({ host }: { host: TreeEditorHost }) {
         <TreeEdgeLengthEditor
           edge={selectedEdge}
           rule={lengths}
-          copy={copy}
+          title={copy.edgeTitle(selectedEdge.vertices[0], selectedEdge.vertices[1])}
+          label={copy.length}
+          groupLabel={copy.edgeLengthGroup(selectedEdge.vertices[0], selectedEdge.vertices[1])}
+          increaseLabel={copy.increaseLength}
+          decreaseLabel={copy.decreaseLength}
           onSetLength={(length) =>
             void setEdgeLength(selectedEdge.id, clampLength(lengths, selectedEdge, length))
           }

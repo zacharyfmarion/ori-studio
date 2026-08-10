@@ -159,6 +159,10 @@
         "detail": "箱形褶皱创作方法是 Mu-Tsun Tsai 的 Box Pleating Studio 的 Rust 和 WebAssembly 移植版本。",
         "title": "Mu-Tsun Tsai 和 Box Pleating Studio"
       },
+      "explori": {
+        "detail": "「搜索 22.5°」创作方法会将你的树发送到 ExplOri（一个可搜索的 22.5° 折痕图存档），并显示它返回的最接近的匹配结果。",
+        "title": "Brandon Wong 和 ExplOri 22.5"
+      },
       "oriedita": {
         "detail": "折痕图编辑器是 Oriedita 编辑器（其本身是 Orihime 的一个分支）的 Rust 和 WebAssembly 移植版本，包括其可折性诊断、修复和文件格式。",
         "title": "Oriedita"
