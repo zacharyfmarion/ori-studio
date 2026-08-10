@@ -2245,7 +2245,9 @@
     "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
     "common:toolbar.sendToEditMore": "e46a2d85481f",
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
-    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
+    "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4493,7 +4495,9 @@
     "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
     "common:toolbar.sendToEditMore": "e46a2d85481f",
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
-    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
+    "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6741,7 +6745,9 @@
     "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
     "common:toolbar.sendToEditMore": "e46a2d85481f",
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
-    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
+    "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -8959,7 +8965,9 @@
     "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
     "common:toolbar.sendToEditMore": "e46a2d85481f",
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
-    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
+    "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11177,7 +11185,9 @@
     "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
     "common:toolbar.sendToEditMore": "e46a2d85481f",
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
-    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
+    "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13425,7 +13435,9 @@
     "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
     "common:toolbar.sendToEditMore": "e46a2d85481f",
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
-    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
+    "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -15673,7 +15685,9 @@
     "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
     "common:toolbar.sendToEditMore": "e46a2d85481f",
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
-    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
+    "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -17891,6 +17905,8 @@
     "panels:bpPacking.riverWidthIncrease": "4e89b00aa09c",
     "common:toolbar.sendToEditMore": "e46a2d85481f",
     "common:toolbar.sendToEditWithCircles": "ebd0d771572a",
-    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664"
+    "common:toolbar.sendToEditWithCirclesTooltip": "d0af6d41e664",
+    "dialogs:help.acknowledgements.explori.detail": "a43b4a1cf856",
+    "dialogs:help.acknowledgements.explori.title": "98687a3f6dc5"
   }
 }

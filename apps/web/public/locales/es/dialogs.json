@@ -153,6 +153,10 @@
         "detail": "El método de creación de plegado en caja es una migración a Rust y WebAssembly de Box Pleating Studio de Mu-Tsun Tsai.",
         "title": "Mu-Tsun Tsai y Box Pleating Studio"
       },
+      "explori": {
+        "detail": "El método de creación Buscar 22,5° envía tu árbol a ExplOri, un archivo consultable de patrones de pliegue de 22,5°, y muestra las coincidencias más cercanas que devuelve.",
+        "title": "Brandon Wong y ExplOri 22.5"
+      },
       "oriedita": {
         "detail": "El editor de patrones de pliegues es una migración a Rust y WebAssembly del editor Oriedita (a su vez una bifurcación de Orihime), incluidos sus diagnósticos de plegabilidad, reparaciones y formatos de archivo.",
         "title": "Oriedita"

@@ -153,6 +153,10 @@
         "detail": "O método de autoria por dobra em caixa é um porte para Rust e WebAssembly do Box Pleating Studio de Mu-Tsun Tsai.",
         "title": "Mu-Tsun Tsai e Box Pleating Studio"
       },
+      "explori": {
+        "detail": "O método de autoria Pesquisar 22,5° envia sua árvore para o ExplOri, um acervo pesquisável de padrões de vinco de 22,5°, e mostra as correspondências mais próximas que ele retorna.",
+        "title": "Brandon Wong e ExplOri 22.5"
+      },
       "oriedita": {
         "detail": "O editor de padrão de vincos é um porte para Rust e WebAssembly do editor Oriedita (ele próprio um fork do Orihime), incluindo seus diagnósticos de dobrabilidade, reparos e formatos de arquivo.",
         "title": "Oriedita"
