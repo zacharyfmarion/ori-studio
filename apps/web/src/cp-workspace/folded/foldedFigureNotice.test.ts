@@ -160,7 +160,6 @@ describe('foldedFigureNotice', () => {
       'arrangement_refused',
       'contradictory_seeds',
       'no_layer_order',
-      'stack_too_deep',
       'face_id_out_of_range',
       'search_failed',
     ];

@@ -487,7 +487,6 @@ export type OristudioCpFold3dOrderReason =
       second_line: number;
     }
   | { code: 'no_layer_order'; component: number; faces: number; variables: number }
-  | { code: 'stack_too_deep'; component: number; permutations: number }
   | { code: 'face_id_out_of_range'; component: number; face: number; faces_total: number }
   | { code: 'search_failed'; component: number };
 

@@ -129,6 +129,8 @@
     "confirm": "Trotzdem exportieren",
     "feature": {
       "foldAngles": "Nicht flache Faltwinkel",
+      "foldedForm3d": "3D-Faltfiguren",
+      "foldedForm3dDetached": "3D-Faltfiguren, die neu gefaltet werden müssen",
       "images": "Bilder",
       "inlineSimulations": "Simulationsfenster",
       "richText": "Rich-Text-Formatierung",

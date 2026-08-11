@@ -230,7 +230,7 @@ describe('3D folded figures survive .fold, and only while they hold a session', 
     for (const format of ['cp', 'ori', 'orh', 'dxf', 'obj'] as const) {
       const warnings = collectExportLossWarnings(format, presence([figure('spatial')]));
       expect(warnings).toEqual([
-        { id: 'foldedForm3d', label: '3D folded figures', count: 1, blocking: false },
+        { id: 'foldedForm3d', count: 1, blocking: false },
       ]);
       // The `.osf` still has the figure, so losing it is not a reason to stop.
       expect(blockingExportLoss(warnings)).toEqual([]);
@@ -243,7 +243,7 @@ describe('3D folded figures survive .fold, and only while they hold a session', 
       presence([figure('flat'), figure('spatial'), figure('flat', 2)])
     );
     expect(warnings).toEqual([
-      { id: 'foldedForm3d', label: '3D folded figures', count: 1, blocking: false },
+      { id: 'foldedForm3d', count: 1, blocking: false },
     ]);
   });
 
@@ -255,7 +255,6 @@ describe('3D folded figures survive .fold, and only while they hold a session', 
     expect(warnings).toEqual([
       {
         id: 'foldedForm3dDetached',
-        label: '3D folded figures needing a refold',
         count: 1,
         blocking: false,
       },
@@ -269,10 +268,9 @@ describe('3D folded figures survive .fold, and only while they hold a session', 
       presence([figure('spatial'), figure('spatial', null), figure('spatial', 3)])
     );
     expect(warnings).toEqual([
-      { id: 'foldedForm3d', label: '3D folded figures', count: 2, blocking: false },
+      { id: 'foldedForm3d', count: 2, blocking: false },
       {
         id: 'foldedForm3dDetached',
-        label: '3D folded figures needing a refold',
         count: 1,
         blocking: false,
       },

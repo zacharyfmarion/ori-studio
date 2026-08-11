@@ -517,7 +517,6 @@
     "noLayerOrderContradictorySeeds": "2つの面がそれぞれ相手の上に来る必要があり、どちらの重なり順でも両立できません。",
     "noLayerOrderGeneric": "この立体の重なり順を決められませんでした。",
     "noLayerOrderLabel": "重なり順が未決定",
-    "noLayerOrderStackTooDeep": "ここで重なる層が多すぎて、すべての重なり順を調べられません。",
     "selectCreases": "該当の折り線を選択",
     "showIssues": "問題を表示",
     "simulateInstead": "代わりにシミュレート",

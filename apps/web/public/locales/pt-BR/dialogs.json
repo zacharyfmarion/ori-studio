@@ -134,6 +134,8 @@
     "confirm": "Exportar mesmo assim",
     "feature": {
       "foldAngles": "Ângulos de dobra não planos",
+      "foldedForm3d": "Figuras dobradas em 3D",
+      "foldedForm3dDetached": "Figuras dobradas em 3D que precisam ser redobradas",
       "images": "Imagens",
       "inlineSimulations": "Janelas de simulação",
       "richText": "Formatação de texto rico",

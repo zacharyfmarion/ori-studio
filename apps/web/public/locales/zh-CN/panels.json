@@ -517,7 +517,6 @@
     "noLayerOrderContradictorySeeds": "两个面各自都必须位于对方之上，任何层序都无法同时满足。",
     "noLayerOrderGeneric": "无法确定此立体各层的先后顺序。",
     "noLayerOrderLabel": "层序未确定",
-    "noLayerOrderStackTooDeep": "此处重叠的层太多，无法穷举所有层序。",
     "selectCreases": "选中这些折线",
     "showIssues": "显示问题",
     "simulateInstead": "改用模拟",

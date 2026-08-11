@@ -531,7 +531,6 @@
     "noLayerOrderContradictorySeeds": "Two faces each have to be above the other, so no stacking can satisfy both.",
     "noLayerOrderGeneric": "The layers of this figure could not be put in order.",
     "noLayerOrderLabel": "Layers not ordered",
-    "noLayerOrderStackTooDeep": "Too many layers meet here to search every stacking.",
     "selectCreases": "Select the creases",
     "showIssues": "Show issues",
     "simulateInstead": "Simulate instead",

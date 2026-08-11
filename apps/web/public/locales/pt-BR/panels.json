@@ -548,7 +548,6 @@
     "noLayerOrderContradictorySeeds": "Duas faces precisam ficar cada uma acima da outra, então nenhum empilhamento satisfaz as duas.",
     "noLayerOrderGeneric": "Não foi possível ordenar as camadas desta figura.",
     "noLayerOrderLabel": "Camadas não ordenadas",
-    "noLayerOrderStackTooDeep": "Camadas demais se encontram aqui para testar todos os empilhamentos.",
     "selectCreases": "Selecionar os vincos",
     "showIssues": "Mostrar problemas",
     "simulateInstead": "Simular em vez disso",

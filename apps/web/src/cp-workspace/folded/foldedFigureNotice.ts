@@ -116,11 +116,6 @@ export function orderReasonDetail(t: TFunction, reason: OristudioCpFold3dOrderRe
         'panels:fold3dVerdict.noLayerOrderContradictorySeeds',
         'Two faces each have to be above the other, so no stacking can satisfy both.'
       );
-    case 'stack_too_deep':
-      return t(
-        'panels:fold3dVerdict.noLayerOrderStackTooDeep',
-        'Too many layers meet here to search every stacking.'
-      );
     case 'overlap_without_cell':
     case 'cell_without_overlap':
     case 'arrangement_refused':

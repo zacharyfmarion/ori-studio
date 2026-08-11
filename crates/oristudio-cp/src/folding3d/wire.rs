@@ -177,10 +177,6 @@ pub enum Fold3dOrderWire {
         faces: usize,
         variables: usize,
     },
-    StackTooDeep {
-        component: usize,
-        permutations: usize,
-    },
     /// An internal invariant: a local id escaped its component's range. It
     /// exists because the measured alternative is `found = true` with the face
     /// missing from every stack.
@@ -239,13 +235,6 @@ impl From<Fold3dOrderError> for Fold3dOrderWire {
                 component,
                 faces,
                 variables,
-            },
-            Fold3dOrderError::StackTooDeep {
-                component,
-                permutations,
-            } => Self::StackTooDeep {
-                component,
-                permutations,
             },
             Fold3dOrderError::FaceIdOutOfRange {
                 component,

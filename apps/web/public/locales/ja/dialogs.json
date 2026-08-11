@@ -124,6 +124,8 @@
     "confirm": "このままエクスポート",
     "feature": {
       "foldAngles": "平坦でない折り角度",
+      "foldedForm3d": "3D折り上がり図",
+      "foldedForm3dDetached": "折り直しが必要な3D折り上がり図",
       "images": "画像",
       "inlineSimulations": "シミュレーションウィンドウ",
       "richText": "リッチテキストの書式",

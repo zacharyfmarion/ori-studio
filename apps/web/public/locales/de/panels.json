@@ -531,7 +531,6 @@
     "noLayerOrderContradictorySeeds": "Zwei Flächen müssen jeweils über der anderen liegen, sodass keine Stapelung beide erfüllt.",
     "noLayerOrderGeneric": "Die Lagen dieser Figur konnten nicht geordnet werden.",
     "noLayerOrderLabel": "Lagen nicht geordnet",
-    "noLayerOrderStackTooDeep": "Hier treffen zu viele Lagen zusammen, um jede Stapelung zu durchsuchen.",
     "selectCreases": "Falten auswählen",
     "showIssues": "Probleme anzeigen",
     "simulateInstead": "Stattdessen simulieren",

@@ -749,7 +749,6 @@ fn corpus_ordering_reports_every_model() {
                     Fold3dOrderError::Cells(_) => "cells".to_string(),
                     Fold3dOrderError::ContradictorySeeds { .. } => "contradictory".to_string(),
                     Fold3dOrderError::NoLayerOrder { .. } => "no-order".to_string(),
-                    Fold3dOrderError::StackTooDeep { .. } => "too-deep".to_string(),
                     Fold3dOrderError::FaceIdOutOfRange { .. } => "out-of-range".to_string(),
                     Fold3dOrderError::SearchFailed { .. } => "search-failed".to_string(),
                 };

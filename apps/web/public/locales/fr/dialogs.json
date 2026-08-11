@@ -134,6 +134,8 @@
     "confirm": "Exporter quand même",
     "feature": {
       "foldAngles": "Angles de pliage non plats",
+      "foldedForm3d": "Figures pliées en 3D",
+      "foldedForm3dDetached": "Figures pliées en 3D à replier",
       "images": "Images",
       "inlineSimulations": "Fenêtres de simulation",
       "richText": "Mise en forme du texte enrichi",

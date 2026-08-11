@@ -83,7 +83,9 @@ export type SupersetFeatureId =
   | 'richText'
   | 'inlineSimulations'
   | 'symmetry'
-  | 'foldAngles';
+  | 'foldAngles'
+  | 'foldedForm3d'
+  | 'foldedForm3dDetached';
 
 interface SupersetFeature {
   id: SupersetFeatureId;
@@ -167,7 +169,6 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
   },
   {
     id: 'foldedForm3d',
-    label: '3D folded figures',
     count: (presence) =>
       presence.foldedFigures.filter(
         (figure) => (figure.folded3d ?? null) !== null && figure.handle != null
@@ -190,7 +191,6 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
   },
   {
     id: 'foldedForm3dDetached',
-    label: '3D folded figures needing a refold',
     /**
      * The `foldedForm` frame is built in the kernel from the live
      * `Fold3dSession` — placement rings, plane frames, the layer relation —

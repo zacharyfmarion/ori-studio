@@ -517,7 +517,6 @@
     "noLayerOrderContradictorySeeds": "두 면이 서로 상대보다 위에 있어야 해서, 어떤 층 순서로도 둘 다 만족할 수 없습니다.",
     "noLayerOrderGeneric": "이 도형의 층 순서를 정할 수 없었습니다.",
     "noLayerOrderLabel": "층 순서 미정",
-    "noLayerOrderStackTooDeep": "여기에 층이 너무 많이 겹쳐 모든 순서를 탐색할 수 없습니다.",
     "selectCreases": "해당 접힘선 선택",
     "showIssues": "문제 표시",
     "simulateInstead": "대신 시뮬레이션",

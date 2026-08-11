@@ -129,6 +129,8 @@
     "confirm": "Export anyway",
     "feature": {
       "foldAngles": "Non-flat fold angles",
+      "foldedForm3d": "3D folded figures",
+      "foldedForm3dDetached": "3D folded figures needing a refold",
       "images": "Images",
       "inlineSimulations": "Simulation windows",
       "richText": "Rich text formatting",

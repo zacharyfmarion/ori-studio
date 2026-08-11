@@ -134,6 +134,8 @@
     "confirm": "Exportar de todos modos",
     "feature": {
       "foldAngles": "Ángulos de plegado no planos",
+      "foldedForm3d": "Figuras plegadas en 3D",
+      "foldedForm3dDetached": "Figuras plegadas en 3D que necesitan replegarse",
       "images": "Imágenes",
       "inlineSimulations": "Ventanas de simulación",
       "richText": "Formato de texto enriquecido",

@@ -53,7 +53,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::folding::{AdditionalEstimationError, SubFaceSearchError};
+use crate::folding::AdditionalEstimationError;
 use crate::folding::{
     EquivalenceCondition, EquivalenceConditionSet, HierarchyRelation, InitialHierarchy, SubFace,
     WorkerOverlapEnumerator, WorkerOverlapSearchError, validate_initial_hierarchy,
@@ -101,15 +101,6 @@ pub enum Fold3dOrderError {
         faces: usize,
         variables: usize,
     },
-    /// A subface needs the combination generator the port does not have.
-    ///
-    /// A backtracking guard rather than a depth guard: measured, an
-    /// unconstrained subface at ply 12 finds its answer in microseconds and
-    /// never reaches the 2000-permutation cap.
-    StackTooDeep {
-        component: usize,
-        permutations: usize,
-    },
     /// An internal invariant: a local id escaped its component's range.
     ///
     /// Impossible in shipped code, and present because the measured alternative
@@ -146,13 +137,6 @@ impl std::fmt::Display for Fold3dOrderError {
                 f,
                 "component {component} ({faces} faces, {variables} ordering variables) \
                  admits no layer order"
-            ),
-            Self::StackTooDeep {
-                component,
-                permutations,
-            } => write!(
-                f,
-                "a stack in component {component} needs {permutations} permutations"
             ),
             Self::FaceIdOutOfRange {
                 component,
@@ -556,12 +540,6 @@ fn build_enumerator(
 
 fn search_error(component: usize, error: WorkerOverlapSearchError) -> Fold3dOrderError {
     match error {
-        WorkerOverlapSearchError::SubFace(SubFaceSearchError::CombinationGeneratorRequired {
-            permutation_count,
-        }) => Fold3dOrderError::StackTooDeep {
-            component,
-            permutations: permutation_count,
-        },
         WorkerOverlapSearchError::AdditionalEstimation(
             AdditionalEstimationError::Contradiction {
                 upper_face,

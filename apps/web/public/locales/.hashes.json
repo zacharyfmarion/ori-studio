@@ -2253,7 +2253,6 @@
     "panels:fold3dVerdict.noLayerOrderContradictorySeeds": "d9c8d4171002",
     "panels:fold3dVerdict.noLayerOrderGeneric": "59a53f22f6cf",
     "panels:fold3dVerdict.noLayerOrderLabel": "ba773d695958",
-    "panels:fold3dVerdict.noLayerOrderStackTooDeep": "33ee235a4a89",
     "panels:fold3dVerdict.selectCreases": "106c2399418f",
     "panels:fold3dVerdict.showIssues": "5c52dd0f675d",
     "panels:fold3dVerdict.simulateInstead": "245ef790400e",
@@ -2307,7 +2306,9 @@
     "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
     "dialogs:exportLoss.featureCount": "a206177ffc48",
     "dialogs:exportLoss.message": "4aab4c37c6b8",
-    "dialogs:exportLoss.title": "b67abf17db99"
+    "dialogs:exportLoss.title": "b67abf17db99",
+    "dialogs:exportLoss.feature.foldedForm3d": "b5ec837e177b",
+    "dialogs:exportLoss.feature.foldedForm3dDetached": "6d79d5c0b47e"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -4563,7 +4564,6 @@
     "panels:fold3dVerdict.noLayerOrderContradictorySeeds": "d9c8d4171002",
     "panels:fold3dVerdict.noLayerOrderGeneric": "59a53f22f6cf",
     "panels:fold3dVerdict.noLayerOrderLabel": "ba773d695958",
-    "panels:fold3dVerdict.noLayerOrderStackTooDeep": "33ee235a4a89",
     "panels:fold3dVerdict.selectCreases": "106c2399418f",
     "panels:fold3dVerdict.showIssues": "5c52dd0f675d",
     "panels:fold3dVerdict.simulateInstead": "245ef790400e",
@@ -4617,7 +4617,9 @@
     "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
     "dialogs:exportLoss.featureCount": "a206177ffc48",
     "dialogs:exportLoss.message": "4aab4c37c6b8",
-    "dialogs:exportLoss.title": "b67abf17db99"
+    "dialogs:exportLoss.title": "b67abf17db99",
+    "dialogs:exportLoss.feature.foldedForm3d": "b5ec837e177b",
+    "dialogs:exportLoss.feature.foldedForm3dDetached": "6d79d5c0b47e"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -6873,7 +6875,6 @@
     "panels:fold3dVerdict.noLayerOrderContradictorySeeds": "d9c8d4171002",
     "panels:fold3dVerdict.noLayerOrderGeneric": "59a53f22f6cf",
     "panels:fold3dVerdict.noLayerOrderLabel": "ba773d695958",
-    "panels:fold3dVerdict.noLayerOrderStackTooDeep": "33ee235a4a89",
     "panels:fold3dVerdict.selectCreases": "106c2399418f",
     "panels:fold3dVerdict.showIssues": "5c52dd0f675d",
     "panels:fold3dVerdict.simulateInstead": "245ef790400e",
@@ -6927,7 +6928,9 @@
     "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
     "dialogs:exportLoss.featureCount": "a206177ffc48",
     "dialogs:exportLoss.message": "4aab4c37c6b8",
-    "dialogs:exportLoss.title": "b67abf17db99"
+    "dialogs:exportLoss.title": "b67abf17db99",
+    "dialogs:exportLoss.feature.foldedForm3d": "b5ec837e177b",
+    "dialogs:exportLoss.feature.foldedForm3dDetached": "6d79d5c0b47e"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -9152,7 +9155,6 @@
     "panels:fold3dVerdict.noLayerOrderContradictorySeeds": "d9c8d4171002",
     "panels:fold3dVerdict.noLayerOrderGeneric": "59a53f22f6cf",
     "panels:fold3dVerdict.noLayerOrderLabel": "ba773d695958",
-    "panels:fold3dVerdict.noLayerOrderStackTooDeep": "33ee235a4a89",
     "panels:fold3dVerdict.selectCreases": "106c2399418f",
     "panels:fold3dVerdict.showIssues": "5c52dd0f675d",
     "panels:fold3dVerdict.simulateInstead": "245ef790400e",
@@ -9207,7 +9209,9 @@
     "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
     "dialogs:exportLoss.featureCount": "a206177ffc48",
     "dialogs:exportLoss.message": "4aab4c37c6b8",
-    "dialogs:exportLoss.title": "b67abf17db99"
+    "dialogs:exportLoss.title": "b67abf17db99",
+    "dialogs:exportLoss.feature.foldedForm3d": "b5ec837e177b",
+    "dialogs:exportLoss.feature.foldedForm3dDetached": "6d79d5c0b47e"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -11432,7 +11436,6 @@
     "panels:fold3dVerdict.noLayerOrderContradictorySeeds": "d9c8d4171002",
     "panels:fold3dVerdict.noLayerOrderGeneric": "59a53f22f6cf",
     "panels:fold3dVerdict.noLayerOrderLabel": "ba773d695958",
-    "panels:fold3dVerdict.noLayerOrderStackTooDeep": "33ee235a4a89",
     "panels:fold3dVerdict.selectCreases": "106c2399418f",
     "panels:fold3dVerdict.showIssues": "5c52dd0f675d",
     "panels:fold3dVerdict.simulateInstead": "245ef790400e",
@@ -11487,7 +11490,9 @@
     "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
     "dialogs:exportLoss.featureCount": "a206177ffc48",
     "dialogs:exportLoss.message": "4aab4c37c6b8",
-    "dialogs:exportLoss.title": "b67abf17db99"
+    "dialogs:exportLoss.title": "b67abf17db99",
+    "dialogs:exportLoss.feature.foldedForm3d": "b5ec837e177b",
+    "dialogs:exportLoss.feature.foldedForm3dDetached": "6d79d5c0b47e"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -13743,7 +13748,6 @@
     "panels:fold3dVerdict.noLayerOrderContradictorySeeds": "d9c8d4171002",
     "panels:fold3dVerdict.noLayerOrderGeneric": "59a53f22f6cf",
     "panels:fold3dVerdict.noLayerOrderLabel": "ba773d695958",
-    "panels:fold3dVerdict.noLayerOrderStackTooDeep": "33ee235a4a89",
     "panels:fold3dVerdict.selectCreases": "106c2399418f",
     "panels:fold3dVerdict.showIssues": "5c52dd0f675d",
     "panels:fold3dVerdict.simulateInstead": "245ef790400e",
@@ -13797,7 +13801,9 @@
     "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
     "dialogs:exportLoss.featureCount": "a206177ffc48",
     "dialogs:exportLoss.message": "4aab4c37c6b8",
-    "dialogs:exportLoss.title": "b67abf17db99"
+    "dialogs:exportLoss.title": "b67abf17db99",
+    "dialogs:exportLoss.feature.foldedForm3d": "b5ec837e177b",
+    "dialogs:exportLoss.feature.foldedForm3dDetached": "6d79d5c0b47e"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -16053,7 +16059,6 @@
     "panels:fold3dVerdict.noLayerOrderContradictorySeeds": "d9c8d4171002",
     "panels:fold3dVerdict.noLayerOrderGeneric": "59a53f22f6cf",
     "panels:fold3dVerdict.noLayerOrderLabel": "ba773d695958",
-    "panels:fold3dVerdict.noLayerOrderStackTooDeep": "33ee235a4a89",
     "panels:fold3dVerdict.selectCreases": "106c2399418f",
     "panels:fold3dVerdict.showIssues": "5c52dd0f675d",
     "panels:fold3dVerdict.simulateInstead": "245ef790400e",
@@ -16107,7 +16112,9 @@
     "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
     "dialogs:exportLoss.featureCount": "a206177ffc48",
     "dialogs:exportLoss.message": "4aab4c37c6b8",
-    "dialogs:exportLoss.title": "b67abf17db99"
+    "dialogs:exportLoss.title": "b67abf17db99",
+    "dialogs:exportLoss.feature.foldedForm3d": "b5ec837e177b",
+    "dialogs:exportLoss.feature.foldedForm3dDetached": "6d79d5c0b47e"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -18332,7 +18339,6 @@
     "panels:fold3dVerdict.noLayerOrderContradictorySeeds": "d9c8d4171002",
     "panels:fold3dVerdict.noLayerOrderGeneric": "59a53f22f6cf",
     "panels:fold3dVerdict.noLayerOrderLabel": "ba773d695958",
-    "panels:fold3dVerdict.noLayerOrderStackTooDeep": "33ee235a4a89",
     "panels:fold3dVerdict.selectCreases": "106c2399418f",
     "panels:fold3dVerdict.showIssues": "5c52dd0f675d",
     "panels:fold3dVerdict.simulateInstead": "245ef790400e",
@@ -18387,6 +18393,8 @@
     "dialogs:exportLoss.feature.symmetry": "b907dcc0530d",
     "dialogs:exportLoss.featureCount": "a206177ffc48",
     "dialogs:exportLoss.message": "4aab4c37c6b8",
-    "dialogs:exportLoss.title": "b67abf17db99"
+    "dialogs:exportLoss.title": "b67abf17db99",
+    "dialogs:exportLoss.feature.foldedForm3d": "b5ec837e177b",
+    "dialogs:exportLoss.feature.foldedForm3dDetached": "6d79d5c0b47e"
   }
 }

@@ -548,7 +548,6 @@
     "noLayerOrderContradictorySeeds": "Deux faces doivent chacune se placer au-dessus de l’autre : aucun empilement ne peut satisfaire les deux.",
     "noLayerOrderGeneric": "Les couches de cette figure n’ont pas pu être ordonnées.",
     "noLayerOrderLabel": "Couches non ordonnées",
-    "noLayerOrderStackTooDeep": "Trop de couches se rejoignent ici pour explorer tous les empilements.",
     "selectCreases": "Sélectionner les plis",
     "showIssues": "Afficher les problèmes",
     "simulateInstead": "Simuler à la place",

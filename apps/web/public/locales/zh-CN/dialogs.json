@@ -124,6 +124,8 @@
     "confirm": "仍然导出",
     "feature": {
       "foldAngles": "非平折的折叠角度",
+      "foldedForm3d": "3D 折叠图形",
+      "foldedForm3dDetached": "需要重新折叠的 3D 折叠图形",
       "images": "图像",
       "inlineSimulations": "模拟窗口",
       "richText": "富文本格式",

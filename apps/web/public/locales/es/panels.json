@@ -548,7 +548,6 @@
     "noLayerOrderContradictorySeeds": "Dos caras tienen que quedar cada una por encima de la otra, así que ningún apilado satisface ambas.",
     "noLayerOrderGeneric": "No se han podido ordenar las capas de esta figura.",
     "noLayerOrderLabel": "Capas sin ordenar",
-    "noLayerOrderStackTooDeep": "Aquí se juntan demasiadas capas para probar todos los apilados.",
     "selectCreases": "Seleccionar los pliegues",
     "showIssues": "Mostrar problemas",
     "simulateInstead": "Simular en su lugar",

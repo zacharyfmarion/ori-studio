@@ -124,6 +124,8 @@
     "confirm": "그래도 내보내기",
     "feature": {
       "foldAngles": "평평하지 않은 접기 각도",
+      "foldedForm3d": "3D 접힌 도형",
+      "foldedForm3dDetached": "다시 접어야 하는 3D 접힌 도형",
       "images": "이미지",
       "inlineSimulations": "시뮬레이션 창",
       "richText": "리치 텍스트 서식",
