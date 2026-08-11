@@ -117,6 +117,22 @@
     "title": "标题",
     "titlePlaceholder": "可选"
   },
+  "exportLoss": {
+    "blockedConfirm": "改为导出 FOLD",
+    "blockedMessage": "{{format}} 格式无法保存 {{features}}，重新导入时每条折痕都会被当作完全折叠。FOLD 可以保存它们，.osf 则保留全部内容。",
+    "blockedTitle": "无法导出为 {{format}}",
+    "confirm": "仍然导出",
+    "feature": {
+      "foldAngles": "非平折的折叠角度",
+      "images": "图像",
+      "inlineSimulations": "模拟窗口",
+      "richText": "富文本格式",
+      "symmetry": "镜像对称"
+    },
+    "featureCount": "{{feature}}（{{total}}）",
+    "message": "此项目使用了 {{format}} 格式无法保存的功能，导出时将省略：{{features}}。",
+    "title": "部分功能无法导出"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} 是折痕图，可以合并到正在编辑的折痕图中，也可以单独打开。",
     "choiceTitle": "打开还是导入 {{name}}？",

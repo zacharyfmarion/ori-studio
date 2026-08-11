@@ -127,6 +127,22 @@
     "title": "Título",
     "titlePlaceholder": "Opcional"
   },
+  "exportLoss": {
+    "blockedConfirm": "Exportar FOLD en su lugar",
+    "blockedMessage": "El formato {{format}} no puede almacenar {{features}}, y al reimportar cada pliegue se leería como un pliegue completo, sin aviso. FOLD sí los almacena, y .osf lo conserva todo.",
+    "blockedTitle": "No se puede exportar a {{format}}",
+    "confirm": "Exportar de todos modos",
+    "feature": {
+      "foldAngles": "Ángulos de plegado no planos",
+      "images": "Imágenes",
+      "inlineSimulations": "Ventanas de simulación",
+      "richText": "Formato de texto enriquecido",
+      "symmetry": "Simetría especular"
+    },
+    "featureCount": "{{feature}} ({{total}})",
+    "message": "Este proyecto usa funciones que el formato {{format}} no puede almacenar. Se omitirán en la exportación: {{features}}.",
+    "title": "Algunas funciones no se pueden exportar"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} es un patrón de pliegues, así que puede fusionarse con el que estás editando o abrirse por separado.",
     "choiceTitle": "¿Abrir o importar {{name}}?",

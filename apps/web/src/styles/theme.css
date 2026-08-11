@@ -7022,13 +7022,35 @@ button.cp-folded-figure-toolbar__notice:hover {
   pointer-events: none;
 }
 
-/* Invisible, top-of-stack click target for a flap, so a flap (especially a
-   small one overlapping a larger one) is always selectable at its center even
-   when device creases or another flap's graphics are painted over it. */
-.bp-packing-flap-hit {
+/*
+ * A flap's shade: transparent until pointed at, then washed with the accent —
+ * and the flap's click target at the same time, which is what upstream makes it.
+ * Box Pleating Studio's `Flap` fills one `_shade` from the flap's contours, hits
+ * on it (`$setupHit(this._shade)`), and only moves its alpha: `style.shade.alpha`
+ * (0.3) selected, `style.shade.hover` (0.15) hovered, 0 otherwise. `River` and
+ * `Device` do the identical thing, so all three read the same at the same
+ * strength — 9% and 18% of our accent are those alphas against this canvas.
+ *
+ * Hover is CSS, not React state: a hover in the store would re-render the pane
+ * on every pointer move across the canvas.
+ *
+ * The shade being on top is also what keeps a flap selectable — especially a
+ * small one inside a larger one — when device creases or another flap's graphics
+ * are painted over it.
+ */
+.bp-packing-flap-shade {
   fill: transparent;
   pointer-events: all;
   cursor: pointer;
+}
+
+.bp-packing-flap-shade:hover {
+  fill: color-mix(in srgb, var(--accent-primary) 9%, transparent);
+}
+
+.bp-packing-flap-shade--selected,
+.bp-packing-flap-shade--selected:hover {
+  fill: color-mix(in srgb, var(--accent-primary) 18%, transparent);
 }
 
 .bp-packing-flap {
@@ -7038,10 +7060,17 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: pointer;
 }
 
+/*
+ * Selected: the outline recolours and glows, exactly as a selected river's
+ * contour does (`.bp-packing-primitive--selected`), and the shade above carries
+ * the wash. What it deliberately no longer does is swap the paper fill for an
+ * opaque accent one or thicken the stroke — upstream never touches
+ * `style.hinge.width` for state, and growing the outline read as the flap
+ * itself having changed size.
+ */
 .bp-packing-flap--selected .bp-packing-flap {
-  fill: color-mix(in srgb, var(--accent-primary) 24%, var(--bg-canvas));
   stroke: var(--accent-primary);
-  stroke-width: 3;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent-primary) 42%, transparent));
 }
 
 /*
@@ -7054,20 +7083,14 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-dasharray: 5 4;
 }
 
-.bp-packing-selection-shade {
-  fill: color-mix(in srgb, var(--accent-primary) 18%, transparent);
-  pointer-events: none;
-}
-
 /*
- * A river's band: transparent until pointed at, then shaded — Box Pleating
- * Studio's `style.shade` (alpha 0.3 selected, 0.15 hovered) read against our
- * accent, so a shaded river and a shaded flap are the same colour at the same
- * strength.
+ * A river's band is the river's shade, on the same alphas the flap shade above
+ * documents — one treatment, so a shaded river and a shaded flap are the same
+ * colour at the same strength.
  *
- * `pointer-events: fill` is the point of the layer: the hit region is the fill
- * as even-odd defines it, so the children punched out of the band are not part
- * of it and stay clickable in their own right.
+ * `pointer-events: fill` is what a band adds over a flap's rectangle: the hit
+ * region is the fill as even-odd defines it, so the children punched out of the
+ * band are not part of it and stay clickable in their own right.
  */
 .bp-packing-river-band {
   fill: transparent;

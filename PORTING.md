@@ -121,6 +121,42 @@ are unchanged:
   not touch the parallel test, the intersection solve, or any accepted output,
   and `lengthen_crease_matches_oriedita_oracle` remains the gate.
 
+### Folding search coverage
+
+The layer-ordering search is ported whole, and this section exists to say which
+parts of it, because the one piece that was missing stayed invisible for a long
+time: it was recorded only in a doc comment on the function that refused, so a
+crease pattern complex enough to need it simply reported "no layer order".
+
+Ported, and oracle-gated in `crates/oristudio-cp/tests/oriedita_folding_oracle.rs`:
+
+- `FoldedFigure_Worker.possible_overlapping_search` and
+  `inconsistent_subFace_request`, with and without swapping.
+- `SubFace.possible_overlapping_search`, `ChainPermutationGenerator`, and
+  `PairGuide`.
+- `AdditionalEstimationAlgorithm` over the Italiano transitive-closure family
+  (`fold-additional-estimation-italiano-parity.md`).
+- `SwappingAlgorithm` and `SubFaceSwappingAlgorithm`.
+- **`CombinationGenerator`**, with `Constraint` / `TernaryConstraint` /
+  `QuaternaryConstraint`, `ReductionItalianoAlgorithm`, and
+  `TraceableItalianoAlgorithm`. Upstream switches to it once a SubFace's
+  permutation generator passes 2000 permutations — that number is Oriedita's own
+  switch point between two algorithms, not a cap on how hard a model may be.
+  Until this landed the port had no accelerator and returned
+  `SubFaceSearchError::CombinationGeneratorRequired` at exactly that point, so
+  every crease pattern past it lost its layer ordering. See
+  `implementation-plans/fold-combination-generator-parity.md`.
+
+Not ported, and refused rather than approximated:
+
+- **Custom top/bottom face constraints inside the SubFace search.**
+  `ChainPermutationGenerator` carries `setTopIndices` / `setBottomIndices` and
+  honours them, but `SubFace.setGuideMap`'s `CustomConstraint` wiring and
+  `customConstraintsInconsistentDigitRequest` have no Rust counterpart, so the
+  search behaves as if no custom constraint were set. Nothing in the Rust stack
+  sets one yet; the constraints reach the port only as
+  `FoldedFigureRenderOptions::custom_constraints`, which is render-only.
+
 ### Ori Studio native operations
 
 Not every CP operation is a port. Some exist only here — fold-angle editing has

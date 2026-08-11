@@ -122,6 +122,22 @@
     "title": "Title",
     "titlePlaceholder": "Optional"
   },
+  "exportLoss": {
+    "blockedConfirm": "Export FOLD instead",
+    "blockedMessage": "The {{format}} format can’t store {{features}}, and re-importing would silently read every crease as a full fold. FOLD stores them, and .osf keeps everything.",
+    "blockedTitle": "Can’t export to {{format}}",
+    "confirm": "Export anyway",
+    "feature": {
+      "foldAngles": "Non-flat fold angles",
+      "images": "Images",
+      "inlineSimulations": "Simulation windows",
+      "richText": "Rich text formatting",
+      "symmetry": "Mirror symmetry"
+    },
+    "featureCount": "{{feature}} ({{total}})",
+    "message": "This project uses features the {{format}} format can’t store. They’ll be omitted from the export: {{features}}.",
+    "title": "Some features can’t be exported"
+  },
   "fileDrop": {
     "choiceMessage": "{{name}} is a crease pattern, so it can be merged into the one you are editing or opened on its own.",
     "choiceTitle": "Open or import {{name}}?",

@@ -10,7 +10,6 @@ import { FOLD_MAGNITUDE_UNITS_PER_DEGREE } from './foldAngle';
 import {
   blockingExportLoss,
   collectExportLossWarnings,
-  describeExportLoss,
   exportFormatLabel,
 } from './supersetFeatures';
 
@@ -58,7 +57,7 @@ describe('collectExportLossWarnings', () => {
     };
     for (const format of ['cp', 'fold', 'ori', 'orh', 'dxf', 'obj', 'svg', 'png'] as const) {
       const warnings = collectExportLossWarnings(format, presence);
-      expect(warnings).toEqual([{ id: 'images', label: 'Images', count: 2, blocking: false }]);
+      expect(warnings).toEqual([{ id: 'images', count: 2, blocking: false }]);
     }
   });
 
@@ -72,7 +71,7 @@ describe('collectExportLossWarnings', () => {
       bpSymmetry: defaultBpDocumentSymmetry(),
     };
     expect(collectExportLossWarnings('ori', presence)).toEqual([
-      { id: 'richText', label: 'Rich text formatting', count: 1, blocking: false },
+      { id: 'richText', count: 1, blocking: false },
     ]);
   });
 
@@ -92,7 +91,7 @@ describe('collectExportLossWarnings', () => {
       bpSymmetry: defaultBpDocumentSymmetry(),
     };
     expect(collectExportLossWarnings('cp', presence)).toEqual([
-      { id: 'inlineSimulations', label: 'Simulation windows', count: 2, blocking: false },
+      { id: 'inlineSimulations', count: 2, blocking: false },
     ]);
     expect(collectExportLossWarnings('fold', presence)).toHaveLength(1);
   });
@@ -104,7 +103,7 @@ describe('collectExportLossWarnings', () => {
       bpSymmetry: { enabled: true, fold: 'book' as const, pairs: [{ v1: 1, v2: 2 }] },
     };
     expect(collectExportLossWarnings('bps', presence)).toEqual([
-      { id: 'symmetry', label: 'Mirror symmetry', count: 1, blocking: false },
+      { id: 'symmetry', count: 1, blocking: false },
     ]);
     // The two surfaces do not overlap: a crease-pattern format never carries a
     // box-pleat design, so it has no symmetry to drop.
@@ -141,12 +140,15 @@ describe('collectExportLossWarnings', () => {
     expect(blockingExportLoss(warnings)).toEqual([]);
   });
 
-  it('describes and labels the loss', () => {
+  it('counts the loss and labels the format', () => {
+    // The features' own names are localized, so they live with the other
+    // translated data labels — see `i18n/supersetFeatureLabels.test.ts`. A
+    // format name is verbatim in every locale.
     const warnings = collectExportLossWarnings('cp', {
       images: [image(), image(), image()],
       ...noneElse,
     });
-    expect(describeExportLoss(warnings)).toBe('Images (3)');
+    expect(warnings).toEqual([{ id: 'images', count: 3, blocking: false }]);
     expect(exportFormatLabel('fold')).toBe('FOLD');
   });
 });
@@ -168,7 +170,7 @@ describe('non-flat fold angles block an export rather than warning', () => {
     for (const format of ['cp', 'ori', 'orh', 'dxf', 'obj'] as const) {
       const warnings = collectExportLossWarnings(format, presence([crease('Red1', ninety)]));
       expect(blockingExportLoss(warnings)).toEqual([
-        { id: 'foldAngles', label: 'Non-flat fold angles', count: 1, blocking: true },
+        { id: 'foldAngles', count: 1, blocking: true },
       ]);
     }
   });

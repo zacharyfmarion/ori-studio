@@ -20,8 +20,13 @@ import { defaultBpDocumentSymmetry, type BpDocumentSymmetry } from './bpTreeSymm
  * formats, each feature simply lists the formats that drop it and the two sets
  * do not overlap.
  *
- * See `apps/web/docs/superset-features.md`. Adding the next superset feature is a
- * one-line addition here.
+ * The module is deliberately free of React and of the translator: it decides
+ * *what* is lost, never how to name it. The user-facing names live beside the
+ * other localized data labels, in `i18n/supersetFeatureLabels.ts`.
+ *
+ * See `apps/web/docs/superset-features.md`. Adding the next superset feature is
+ * a one-line addition here plus its name in that helper, which the compiler
+ * requires.
  */
 
 /**
@@ -67,9 +72,21 @@ export interface SupersetPresence {
   bpSymmetry: BpDocumentSymmetry;
 }
 
+/**
+ * Stable identifier for a superset feature. A closed union rather than `string`
+ * so `i18n/supersetFeatureLabels.ts` can name every one of them exhaustively —
+ * adding a feature here without a translation is a type error, which is what
+ * keeps these names from reaching the export dialog in English.
+ */
+export type SupersetFeatureId =
+  | 'images'
+  | 'richText'
+  | 'inlineSimulations'
+  | 'symmetry'
+  | 'foldAngles';
+
 interface SupersetFeature {
-  id: string;
-  label: string;
+  id: SupersetFeatureId;
   /** How many are present (0 ⇒ absent). */
   count(presence: SupersetPresence): number;
   /** Formats that cannot store this feature. */
@@ -110,25 +127,21 @@ const FOLD_ANGLE_LOSSY_FORMATS: readonly ExportFormat[] = ['cp', 'ori', 'orh', '
 const SUPERSET_FEATURES: readonly SupersetFeature[] = [
   {
     id: 'images',
-    label: 'Images',
     count: (presence) => presence.images.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
   },
   {
     id: 'richText',
-    label: 'Rich text formatting',
     count: (presence) => presence.richText.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
   },
   {
     id: 'inlineSimulations',
-    label: 'Simulation windows',
     count: (presence) => presence.inlineSimulations.length,
     droppedByFormats: ALL_LOSSY_FORMATS,
   },
   {
     id: 'symmetry',
-    label: 'Mirror symmetry',
     /**
      * One feature, not a tally: `.bps` loses the pairing, the on/off state, and
      * the fold together, and they are not comparable units to add up. Zero when
@@ -145,7 +158,6 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
   },
   {
     id: 'foldAngles',
-    label: 'Non-flat fold angles',
     count: (presence) =>
       presence.lineSegments.filter(
         (segment) => isFoldingCrease(segment.color) && !isClassicCrease(segment)
@@ -200,8 +212,7 @@ const SUPERSET_FEATURES: readonly SupersetFeature[] = [
 ];
 
 export interface ExportLossWarning {
-  id: string;
-  label: string;
+  id: SupersetFeatureId;
   count: number;
   /** See {@link SupersetFeature.blocking}. */
   blocking: boolean;
@@ -222,18 +233,12 @@ export function collectExportLossWarnings(
     if (count > 0) {
       warnings.push({
         id: feature.id,
-        label: feature.label,
         count,
         blocking: feature.blocking === true,
       });
     }
   }
   return warnings;
-}
-
-/** Human-readable summary of the dropped features, e.g. "Images (3)". */
-export function describeExportLoss(warnings: readonly ExportLossWarning[]): string {
-  return warnings.map((warning) => `${warning.label} (${warning.count})`).join(', ');
 }
 
 /** Uppercase label for an export format, for the warning copy. */
