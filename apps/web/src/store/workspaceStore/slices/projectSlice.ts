@@ -166,10 +166,10 @@ import { requestConfirmation, requestCreasePatternExportOptions } from '../../co
 import {
   blockingExportLoss,
   collectExportLossWarnings,
-  describeExportLoss,
   exportFormatLabel,
   type ExportFormat,
 } from '../../../lib/supersetFeatures';
+import { describeExportLoss } from '../../../i18n/supersetFeatureLabels';
 import { useLayoutStore } from '../../layoutStore';
 import {
   emptyFoldArtifactResourceState,
@@ -1617,12 +1617,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // for `fold` is safe -- it is not in the blocking list, so this cannot
       // recurse.
       return requestConfirmation({
-        title: `Can’t export to ${exportFormatLabel(format)}`,
-        message: `The ${exportFormatLabel(
-          format
-        )} format can’t store ${describeExportLoss(blocking)}, and re-importing would silently read every crease as a full fold. FOLD stores them, and .osf keeps everything.`,
-        confirmLabel: 'Export FOLD instead',
-        cancelLabel: 'Cancel',
+        title: i18n.t('dialogs:exportLoss.blockedTitle', 'Can’t export to {{format}}', {
+          format: exportFormatLabel(format),
+        }),
+        message: i18n.t(
+          'dialogs:exportLoss.blockedMessage',
+          'The {{format}} format can’t store {{features}}, and re-importing would silently read every crease as a full fold. FOLD stores them, and .osf keeps everything.',
+          { format: exportFormatLabel(format), features: describeExportLoss(i18n.t, blocking) }
+        ),
+        confirmLabel: i18n.t('dialogs:exportLoss.blockedConfirm', 'Export FOLD instead'),
+        cancelLabel: i18n.t('dialogs:common.cancel', 'Cancel'),
       }).then(async (useFold) => {
         if (useFold) await get().exportFold();
         // Either way the requested format is not written.
@@ -1631,14 +1635,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     }
 
     return requestConfirmation({
-      title: 'Some features can’t be exported',
-      message: `This project uses features the ${exportFormatLabel(
-        format
-      )} format can’t store. They’ll be omitted from the export: ${describeExportLoss(
-        warnings
-      )}.`,
-      confirmLabel: 'Export anyway',
-      cancelLabel: 'Cancel',
+      title: i18n.t('dialogs:exportLoss.title', 'Some features can’t be exported'),
+      message: i18n.t(
+        'dialogs:exportLoss.message',
+        'This project uses features the {{format}} format can’t store. They’ll be omitted from the export: {{features}}.',
+        { format: exportFormatLabel(format), features: describeExportLoss(i18n.t, warnings) }
+      ),
+      confirmLabel: i18n.t('dialogs:exportLoss.confirm', 'Export anyway'),
+      cancelLabel: i18n.t('dialogs:common.cancel', 'Cancel'),
     });
   };
 
