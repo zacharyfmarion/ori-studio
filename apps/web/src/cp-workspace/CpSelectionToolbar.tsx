@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { FileDown, ImageDown, Link2, Origami, Play, PictureInPicture2 } from 'lucide-react';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
+import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { IconButton } from '../components/ui/IconButton';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
@@ -160,6 +161,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      wheelTarget={resolveCpViewportCanvas}
       className="cp-selection-toolbar"
       ariaLabel={t('panels:creasePattern.selectionToolbar.label', 'Crease pattern actions')}
     >

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   useFloating,
   autoUpdate,
@@ -9,6 +9,7 @@ import {
   FloatingPortal,
   type Placement,
 } from '@floating-ui/react';
+import { useWheelPassthrough } from '../../hooks/useWheelPassthrough';
 
 /**
  * A rectangle in viewport (CSS px) coordinates that a {@link FloatingToolbar}
@@ -34,6 +35,15 @@ export interface FloatingToolbarProps {
   placement?: Placement;
   /** Gap between the anchor and the toolbar, in px. Defaults to 8. */
   offset?: number;
+  /**
+   * The surface this toolbar is floating over, for wheel gestures. Supplied, a
+   * scroll or pinch that lands on the toolbar is forwarded there instead of
+   * reaching the browser — which would otherwise zoom the whole page, since a
+   * toolbar hovering over a canvas has nothing else to do with a wheel. Omitted,
+   * the wheel is left entirely alone, so a toolbar over ordinary scrollable
+   * content still scrolls it.
+   */
+  wheelTarget?: () => Element | null | undefined;
   ariaLabel?: string;
   className?: string;
   children: ReactNode;
@@ -59,11 +69,15 @@ export function FloatingToolbar({
   anchorRect,
   placement = 'top-start',
   offset: offsetPx = 8,
+  wheelTarget,
   ariaLabel,
   className,
   children,
 }: FloatingToolbarProps) {
   const rectRef = useRef(anchorRect);
+  // The mounted pill, as state rather than a ref: it comes and goes with
+  // `anchorRect`, and the wheel listener has to follow it.
+  const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
 
   const {
     refs: { setFloating, setPositionReference },
@@ -107,12 +121,22 @@ export function FloatingToolbar({
     update();
   }, [anchorRect, update]);
 
+  useWheelPassthrough(toolbar, wheelTarget);
+
+  const setToolbarRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      setFloating(node);
+      setToolbar(node);
+    },
+    [setFloating]
+  );
+
   if (!anchorRect) return null;
 
   return (
     <FloatingPortal>
       <div
-        ref={setFloating}
+        ref={setToolbarRef}
         className={['floating-toolbar', className].filter(Boolean).join(' ')}
         role="toolbar"
         aria-label={ariaLabel}

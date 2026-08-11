@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { FloatingToolbar } from '../components/ui/FloatingToolbar';
+import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import { AnnotationActions } from './AnnotationActions';
 import type { CpImage, CpImageUpdate } from './images/cpImage';
@@ -39,6 +40,7 @@ export function CpImageInspector({
   return (
     <FloatingToolbar
       anchorRect={anchorRect}
+      wheelTarget={resolveCpViewportCanvas}
       className="cp-image-inspector"
       ariaLabel={t('panels:imageInspector.imageControls', 'Image controls')}
     >
